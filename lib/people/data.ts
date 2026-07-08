@@ -231,6 +231,20 @@ export async function listCompanyUsers(companyId: string): Promise<ProfileLite[]
   return (data as ProfileLite[]) ?? [];
 }
 
+/** Active users who can be a line manager, team leader or assigned supervisor,
+ *  i.e. management/supervisory roles. Excludes Team Members. */
+export async function listSupervisoryUsers(companyId: string): Promise<ProfileLite[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("id, full_name, email, role")
+    .eq("company_id", companyId)
+    .eq("status", "active")
+    .in("role", ["company_admin", "manager", "supervisor"])
+    .order("full_name", { ascending: true });
+  return (data as ProfileLite[]) ?? [];
+}
+
 export async function listPersonAssignments(personId: string): Promise<ProfileLite[]> {
   const supabase = await createClient();
   const { data } = await supabase

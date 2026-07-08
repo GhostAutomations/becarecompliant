@@ -16,7 +16,7 @@ export default async function AppLayout({
   return (
     <div className="app-bg flex">
       {/* Gradient sidebar (desktop) */}
-      <aside className="sidebar-gradient sticky top-0 hidden h-dvh w-64 shrink-0 flex-col p-4 md:flex">
+      <aside className="sidebar-gradient sticky top-0 hidden h-dvh w-52 shrink-0 flex-col p-4 md:flex">
         <Link
           href="/dashboard"
           className="mb-8 flex items-center gap-2.5 px-2 pt-2"

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import CreatePersonForm from "@/components/people/create-person-form";
-import { listBranches, listCompanyUsers } from "@/lib/people/data";
+import { listBranches, listSupervisoryUsers } from "@/lib/people/data";
 
 export const metadata: Metadata = { title: "Add person" };
 
@@ -16,7 +16,7 @@ export default async function NewPersonPage() {
 
   const [branches, users] = await Promise.all([
     listBranches(profile.company_id),
-    listCompanyUsers(profile.company_id),
+    listSupervisoryUsers(profile.company_id),
   ]);
   const branchOptions = branches.filter((b) => b.kind === "branch" || b.kind === "team");
 
