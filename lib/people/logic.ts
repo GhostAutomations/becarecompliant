@@ -135,7 +135,7 @@ export function dateRag(
   return ragStatus(parseCivilDate(date), today, amberDays);
 }
 
-/** Display a stored ISO date as "15/Jan/26" (DD/MMM/YY). Returns "" for null. */
+/** Display a stored ISO date as "15 Jan 26" (DD MMM YY). Returns "" for null. */
 export function formatDisplayDate(iso: string | null | undefined): string {
   if (!iso || !/^\d{4}-\d{2}-\d{2}/.test(iso)) return "";
   const { year, month, day } = parseCivilDate(iso);
@@ -145,5 +145,5 @@ export function formatDisplayDate(iso: string | null | undefined): string {
   ];
   const dd = String(day).padStart(2, "0");
   const yy = String(year).slice(-2);
-  return `${dd}/${months[month - 1]}/${yy}`;
+  return `${dd} ${months[month - 1]} ${yy}`;
 }
