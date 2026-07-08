@@ -138,7 +138,7 @@ export default async function PeoplePage({
             ) : null}
           </div>
         ) : (
-          <RegisterMatrix rows={rows} config={matrixConfig} />
+          <RegisterMatrix rows={rows} config={matrixConfig} editable={canManage} />
         )}
       </div>
     </div>

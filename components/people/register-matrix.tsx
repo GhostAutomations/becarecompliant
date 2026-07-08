@@ -9,7 +9,8 @@
  * Styled only with canonical classes from globals.css.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   type RegisterRow,
@@ -18,6 +19,65 @@ import {
   WORKING_STATUS_LABELS,
 } from "@/lib/people/types";
 import { formatDisplayDate, supervisionSlots, dateRag } from "@/lib/people/logic";
+import { setEmploymentStatus, updateTracker } from "@/lib/people/actions";
+
+/** An option-column cell you can change inline (no need to open the record). */
+function InlineSelect({
+  personId,
+  field,
+  value,
+  options,
+  action,
+}: {
+  personId: string;
+  field: string;
+  value: string | null;
+  options: Array<{ value: string; label: string }>;
+  action: (formData: FormData) => Promise<void>;
+}) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  return (
+    <select
+      className="inline-cell"
+      value={value ?? ""}
+      disabled={pending}
+      onChange={(e) => {
+        const fd = new FormData();
+        fd.set("person_id", personId);
+        fd.set(field, e.target.value);
+        startTransition(async () => {
+          await action(fd);
+          router.refresh();
+        });
+      }}
+    >
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>
+          {o.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+const WORKING_STATUS_OPTIONS = (Object.keys(WORKING_STATUS_LABELS) as Array<keyof typeof WORKING_STATUS_LABELS>).map(
+  (k) => ({ value: k, label: WORKING_STATUS_LABELS[k] }),
+);
+const RTW_LIMIT_OPTIONS = [
+  { value: "", label: "—" },
+  ...(Object.keys(RTW_LIMIT_LABELS) as Array<keyof typeof RTW_LIMIT_LABELS>).map((k) => ({
+    value: k,
+    label: RTW_LIMIT_LABELS[k],
+  })),
+];
+const PROBATION_STATUS_OPTIONS = [
+  { value: "", label: "—" },
+  ...(Object.keys(PROBATION_STATUS_LABELS) as Array<keyof typeof PROBATION_STATUS_LABELS>).map((k) => ({
+    value: k,
+    label: PROBATION_STATUS_LABELS[k],
+  })),
+];
 
 type MatrixConfig = {
   supInterval: number;
@@ -151,9 +211,11 @@ function HorizontalScrollbar({ targetRef }: { targetRef: React.RefObject<HTMLDiv
 export default function RegisterMatrix({
   rows,
   config,
+  editable,
 }: {
   rows: RegisterRow[];
   config: MatrixConfig;
+  editable: boolean;
 }) {
   const [search, setSearch] = useState("");
   const [worstFirst, setWorstFirst] = useState(false);
@@ -254,7 +316,19 @@ export default function RegisterMatrix({
                       <div className="text-[11px] text-white/45">{row.person.job_title}</div>
                     ) : null}
                   </td>
-                  <td><WorkingStatusPill status={row.person.employment_status} /></td>
+                  <td>
+                    {editable ? (
+                      <InlineSelect
+                        personId={row.person.id}
+                        field="status"
+                        value={row.person.employment_status}
+                        options={WORKING_STATUS_OPTIONS}
+                        action={setEmploymentStatus}
+                      />
+                    ) : (
+                      <WorkingStatusPill status={row.person.employment_status} />
+                    )}
+                  </td>
                   <td><Plain date={row.person.start_date} /></td>
                   <td><RagDate date={mh?.due_date ?? null} rag={mh?.rag ?? "none"} /></td>
                   <td><RagDate date={mc?.due_date ?? null} rag={mc?.rag ?? "none"} /></td>
@@ -267,7 +341,19 @@ export default function RegisterMatrix({
                     />
                   </td>
                   <td className="text-white/70">
-                    {t?.rtw_limits ? RTW_LIMIT_LABELS[t.rtw_limits] : "—"}
+                    {editable ? (
+                      <InlineSelect
+                        personId={row.person.id}
+                        field="rtw_limits"
+                        value={t?.rtw_limits ?? ""}
+                        options={RTW_LIMIT_OPTIONS}
+                        action={updateTracker}
+                      />
+                    ) : t?.rtw_limits ? (
+                      RTW_LIMIT_LABELS[t.rtw_limits]
+                    ) : (
+                      "—"
+                    )}
                   </td>
                   <td>
                     <RagDate
@@ -277,7 +363,19 @@ export default function RegisterMatrix({
                   </td>
                   <td><Plain date={t?.probation_end_actual ?? null} /></td>
                   <td className="text-white/70">
-                    {t?.probation_status ? PROBATION_STATUS_LABELS[t.probation_status] : "—"}
+                    {editable ? (
+                      <InlineSelect
+                        personId={row.person.id}
+                        field="probation_status"
+                        value={t?.probation_status ?? ""}
+                        options={PROBATION_STATUS_OPTIONS}
+                        action={updateTracker}
+                      />
+                    ) : t?.probation_status ? (
+                      PROBATION_STATUS_LABELS[t.probation_status]
+                    ) : (
+                      "—"
+                    )}
                   </td>
                   <td><Plain date={t?.probation_extension_date ?? null} /></td>
                   <td><RagDate date={sc?.due_date ?? null} rag={sc?.rag ?? "none"} /></td>

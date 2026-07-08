@@ -364,4 +364,13 @@
   .rag-sub {
     @apply text-[10px] font-normal opacity-70;
   }
+
+  /* Compact inline-editable select used inside register matrix cells. */
+  .inline-cell {
+    @apply cursor-pointer rounded-lg border border-white/15 bg-white/5 px-2 py-1 text-xs font-medium text-white/90;
+    min-width: 6.5rem;
+  }
+  .inline-cell:disabled {
+    @apply cursor-wait opacity-60;
+  }
 }
