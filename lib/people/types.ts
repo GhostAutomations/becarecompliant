@@ -5,7 +5,14 @@
 
 import type { Rag } from "@/lib/recurrence";
 
-export type EmploymentStatus = "active" | "leaver";
+export type EmploymentStatus = "active" | "mat_leave" | "lts" | "leaver";
+
+export const WORKING_STATUS_LABELS: Record<EmploymentStatus, string> = {
+  active: "Active",
+  mat_leave: "Mat Leave",
+  lts: "LTS",
+  leaver: "Leaver",
+};
 
 export type PersonRecord = {
   id: string;

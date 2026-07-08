@@ -168,7 +168,7 @@ export async function setEmploymentStatus(formData: FormData): Promise<void> {
   const { user, profile } = await requireCompany();
   const personId = String(formData.get("person_id") ?? "");
   const status = String(formData.get("status") ?? "");
-  if (!personId || !["active", "leaver"].includes(status)) return;
+  if (!personId || !["active", "mat_leave", "lts", "leaver"].includes(status)) return;
 
   const supabase = await createClient();
   const leaver_date = status === "leaver" ? todayIso() : null;
@@ -183,10 +183,11 @@ export async function setEmploymentStatus(formData: FormData): Promise<void> {
     actorId: user.id,
     actorEmail: profile.email,
     actorRole: profile.role,
-    action: status === "leaver" ? "person.left" : "person.reactivated",
+    action: "person.status_changed",
     entityType: "person",
     entityId: personId,
-    summary: status === "leaver" ? "Marked as a leaver" : "Reactivated record",
+    summary: `Set working status to ${status}`,
+    metadata: { status },
   });
 
   revalidatePath(`/people/${personId}`);

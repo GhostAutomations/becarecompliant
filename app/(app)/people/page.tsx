@@ -39,7 +39,6 @@ export default async function PeoplePage({
   ]);
   const { definitions, rows } = register;
   const canManage = MANAGE_ROLES.includes(profile.role);
-  const isAdmin = profile.role === "company_admin" || profile.role === "platform_admin";
 
   const defByKey = Object.fromEntries(definitions.map((d) => [d.key, d]));
   const matrixConfig = {
@@ -75,16 +74,9 @@ export default async function PeoplePage({
           </p>
         </div>
         {canManage ? (
-          <div className="flex items-center gap-2">
-            {isAdmin ? (
-              <Link href="/settings/people" className="btn-outline">
-                Configure checks
-              </Link>
-            ) : null}
-            <Link href="/people/new" className="btn-primary">
-              Add person
-            </Link>
-          </div>
+          <Link href="/people/new" className="btn-primary">
+            Add person
+          </Link>
         ) : null}
       </div>
 

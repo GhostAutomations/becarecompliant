@@ -15,6 +15,7 @@ import {
   type RegisterRow,
   RTW_LIMIT_LABELS,
   PROBATION_STATUS_LABELS,
+  WORKING_STATUS_LABELS,
 } from "@/lib/people/types";
 import { formatDisplayDate, supervisionSlots, dateRag } from "@/lib/people/logic";
 
@@ -51,6 +52,13 @@ function RollupPill({ rag }: { rag: string }) {
   if (rag === "amber") return <span className="pill-amber"><span className="pill-dot" /> Due soon</span>;
   if (rag === "green") return <span className="pill-green"><span className="pill-dot" /> Compliant</span>;
   return <span className="pill-neutral">No checks</span>;
+}
+
+function WorkingStatusPill({ status }: { status: string }) {
+  const label = WORKING_STATUS_LABELS[status as keyof typeof WORKING_STATUS_LABELS] ?? status;
+  if (status === "active") return <span className="pill-green"><span className="pill-dot" /> {label}</span>;
+  if (status === "mat_leave" || status === "lts") return <span className="pill-amber"><span className="pill-dot" /> {label}</span>;
+  return <span className="pill-neutral">{label}</span>;
 }
 
 export default function RegisterMatrix({
@@ -111,7 +119,8 @@ export default function RegisterMatrix({
           <thead>
             <tr>
               <th className="col-carer">Carer</th>
-              <th>Status</th>
+              <th>Working Status</th>
+              <th>Compliance</th>
               <th>Team</th>
               <th>Start date</th>
               <th>Manual Handling</th>
@@ -159,6 +168,7 @@ export default function RegisterMatrix({
                       <div className="text-[11px] text-white/45">{row.person.job_title}</div>
                     ) : null}
                   </td>
+                  <td><WorkingStatusPill status={row.person.employment_status} /></td>
                   <td><RollupPill rag={row.rollup?.rag ?? "none"} /></td>
                   <td className="text-white/70">{row.person.team ?? "—"}</td>
                   <td><Plain date={row.person.start_date} /></td>

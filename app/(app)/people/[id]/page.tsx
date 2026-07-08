@@ -28,8 +28,10 @@ import {
   type CheckStatus,
   RTW_LIMIT_LABELS,
   PROBATION_STATUS_LABELS,
+  WORKING_STATUS_LABELS,
   type RtwLimit,
   type ProbationStatus,
+  type EmploymentStatus,
 } from "@/lib/people/types";
 
 export const metadata: Metadata = { title: "Record" };
@@ -104,7 +106,9 @@ export default async function PersonPage({
         <div className="mt-1 flex flex-wrap items-center gap-3">
           <h1 className="page-title">{person.full_name}</h1>
           {ragPill(worstRag)}
-          {isLeaver ? <span className="pill-neutral">Leaver</span> : null}
+          {person.employment_status !== "active" ? (
+            <span className="pill-neutral">{WORKING_STATUS_LABELS[person.employment_status]}</span>
+          ) : null}
           {person.archived_at ? <span className="pill-neutral">Archived</span> : null}
         </div>
         <p className="page-subtitle mt-1">
@@ -353,11 +357,18 @@ export default async function PersonPage({
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 border-t border-white/10 pt-4">
-              <form action={setEmploymentStatus}>
+            <div className="flex flex-wrap items-end gap-3 border-t border-white/10 pt-4">
+              <form action={setEmploymentStatus} className="flex items-end gap-2">
                 <input type="hidden" name="person_id" value={person.id} />
-                <input type="hidden" name="status" value={isLeaver ? "active" : "leaver"} />
-                <button type="submit" className="btn-outline text-xs">{isLeaver ? "Reactivate" : "Mark as leaver"}</button>
+                <div>
+                  <label htmlFor="working_status" className="form-label">Working status</label>
+                  <select id="working_status" name="status" defaultValue={person.employment_status}>
+                    {(Object.keys(WORKING_STATUS_LABELS) as EmploymentStatus[]).map((k) => (
+                      <option key={k} value={k}>{WORKING_STATUS_LABELS[k]}</option>
+                    ))}
+                  </select>
+                </div>
+                <button type="submit" className="btn-outline text-xs">Save status</button>
               </form>
               <form action={setArchived}>
                 <input type="hidden" name="person_id" value={person.id} />

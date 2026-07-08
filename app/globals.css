@@ -299,15 +299,13 @@
 
   /* Compliance matrix (the People register). Styled centrally, never inline. */
   .matrix-wrap {
-    @apply relative rounded-2xl border border-white/10 bg-navy-900/40;
-    overflow-x: auto;
-    overflow-y: auto;
-    max-height: min(72vh, 40rem);
-    scrollbar-gutter: stable;
-    -webkit-overflow-scrolling: touch;
+    @apply relative w-full max-w-full overflow-x-auto overflow-y-auto rounded-2xl border border-white/10 bg-navy-900/40;
+    max-height: 70vh;
   }
 
   .matrix {
+    /* max-content forces the table wider than the wrap so it scrolls horizontally. */
+    width: max-content;
     @apply min-w-full border-separate;
     border-spacing: 0;
   }

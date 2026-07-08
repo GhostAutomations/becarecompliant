@@ -86,7 +86,7 @@ export async function listRegister(
     .from("people")
     .select("*, branches(name)")
     .eq("company_id", companyId)
-    .eq("employment_status", "active")
+    .neq("employment_status", "leaver")
     .is("archived_at", null)
     .order("full_name", { ascending: true });
   if (branchId) query = query.eq("branch_id", branchId);
