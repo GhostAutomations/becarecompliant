@@ -370,7 +370,7 @@ export default function RegisterMatrix({
           <thead>
             <tr>
               <th className="col-carer">Carer</th>
-              <th>Working Status</th>
+              <th>Status</th>
               <th>Start date</th>
               <th>Manual Handling</th>
               <th>Medication Competency</th>
