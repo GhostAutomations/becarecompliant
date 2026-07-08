@@ -195,15 +195,14 @@ export default async function PersonPage({
             </div>
           </section>
 
-          {/* Trackers: DBS, Right to Work, Probation */}
-          <section className="space-y-3">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
-              DBS, right to work and probation
-            </h2>
-            {canManage ? (
-              <form action={updateTracker} className="glass-card space-y-5 p-5">
-                <input type="hidden" name="person_id" value={person.id} />
-                <div className="grid gap-5 sm:grid-cols-2">
+          {/* Trackers: three separate cards — DBS, Right to Work, Probation */}
+          <section className="grid gap-3 lg:grid-cols-3">
+            {/* DBS */}
+            <div className="glass-card p-5">
+              <h2 className="mb-4 text-sm font-semibold text-white">DBS</h2>
+              {canManage ? (
+                <form action={updateTracker} className="space-y-4">
+                  <input type="hidden" name="person_id" value={person.id} />
                   <div>
                     <label htmlFor="dbs_date" className="form-label">DBS date</label>
                     <input id="dbs_date" name="dbs_date" type="date" defaultValue={tracker?.dbs_date ?? ""} />
@@ -212,12 +211,28 @@ export default async function PersonPage({
                     <label htmlFor="enhanced_dbs_date" className="form-label">Enhanced DBS date</label>
                     <input id="enhanced_dbs_date" name="enhanced_dbs_date" type="date" defaultValue={tracker?.enhanced_dbs_date ?? ""} />
                   </div>
+                  <button type="submit" className="btn-outline text-xs">Save DBS</button>
+                </form>
+              ) : (
+                <dl className="space-y-1 text-sm">
+                  <div className="flex justify-between"><dt className="text-white/50">DBS</dt><dd className="text-white/85">{formatDisplayDate(tracker?.dbs_date ?? null) || "—"}</dd></div>
+                  <div className="flex justify-between"><dt className="text-white/50">Enhanced DBS</dt><dd className="text-white/85">{formatDisplayDate(tracker?.enhanced_dbs_date ?? null) || "—"}</dd></div>
+                </dl>
+              )}
+            </div>
+
+            {/* Right to Work */}
+            <div className="glass-card p-5">
+              <h2 className="mb-4 text-sm font-semibold text-white">Right to Work</h2>
+              {canManage ? (
+                <form action={updateTracker} className="space-y-4">
+                  <input type="hidden" name="person_id" value={person.id} />
                   <div>
-                    <label htmlFor="rtw_expiry_date" className="form-label">Right to work expiry</label>
+                    <label htmlFor="rtw_expiry_date" className="form-label">Expiry date</label>
                     <input id="rtw_expiry_date" name="rtw_expiry_date" type="date" defaultValue={tracker?.rtw_expiry_date ?? ""} />
                   </div>
                   <div>
-                    <label htmlFor="rtw_limits" className="form-label">RTW limits</label>
+                    <label htmlFor="rtw_limits" className="form-label">Limits</label>
                     <select id="rtw_limits" name="rtw_limits" defaultValue={tracker?.rtw_limits ?? ""}>
                       <option value="">Not set</option>
                       {(Object.keys(RTW_LIMIT_LABELS) as RtwLimit[]).map((k) => (
@@ -225,16 +240,32 @@ export default async function PersonPage({
                       ))}
                     </select>
                   </div>
+                  <button type="submit" className="btn-outline text-xs">Save right to work</button>
+                </form>
+              ) : (
+                <dl className="space-y-1 text-sm">
+                  <div className="flex justify-between"><dt className="text-white/50">Expiry</dt><dd className="text-white/85">{formatDisplayDate(tracker?.rtw_expiry_date ?? null) || "—"}</dd></div>
+                  <div className="flex justify-between"><dt className="text-white/50">Limits</dt><dd className="text-white/85">{tracker?.rtw_limits ? RTW_LIMIT_LABELS[tracker.rtw_limits] : "—"}</dd></div>
+                </dl>
+              )}
+            </div>
+
+            {/* Probation */}
+            <div className="glass-card p-5">
+              <h2 className="mb-4 text-sm font-semibold text-white">Probation</h2>
+              {canManage ? (
+                <form action={updateTracker} className="space-y-4">
+                  <input type="hidden" name="person_id" value={person.id} />
                   <div>
-                    <label htmlFor="probation_end_due" className="form-label">Probation end due</label>
+                    <label htmlFor="probation_end_due" className="form-label">End due</label>
                     <input id="probation_end_due" name="probation_end_due" type="date" defaultValue={tracker?.probation_end_due ?? ""} />
                   </div>
                   <div>
-                    <label htmlFor="probation_end_actual" className="form-label">Probation end actual</label>
+                    <label htmlFor="probation_end_actual" className="form-label">End actual</label>
                     <input id="probation_end_actual" name="probation_end_actual" type="date" defaultValue={tracker?.probation_end_actual ?? ""} />
                   </div>
                   <div>
-                    <label htmlFor="probation_status" className="form-label">Probation status</label>
+                    <label htmlFor="probation_status" className="form-label">Status</label>
                     <select id="probation_status" name="probation_status" defaultValue={tracker?.probation_status ?? ""}>
                       <option value="">Not set</option>
                       {(Object.keys(PROBATION_STATUS_LABELS) as ProbationStatus[]).map((k) => (
@@ -243,21 +274,18 @@ export default async function PersonPage({
                     </select>
                   </div>
                   <div>
-                    <label htmlFor="probation_extension_date" className="form-label">Probation extension</label>
+                    <label htmlFor="probation_extension_date" className="form-label">Extension</label>
                     <input id="probation_extension_date" name="probation_extension_date" type="date" defaultValue={tracker?.probation_extension_date ?? ""} />
                   </div>
-                </div>
-                <button type="submit" className="btn-outline text-xs">Save details</button>
-              </form>
-            ) : (
-              <div className="glass-card grid gap-3 p-5 text-sm sm:grid-cols-2">
-                <div className="flex justify-between"><span className="text-white/50">DBS</span><span className="text-white/85">{formatDisplayDate(tracker?.dbs_date ?? null) || "—"}</span></div>
-                <div className="flex justify-between"><span className="text-white/50">Enhanced DBS</span><span className="text-white/85">{formatDisplayDate(tracker?.enhanced_dbs_date ?? null) || "—"}</span></div>
-                <div className="flex justify-between"><span className="text-white/50">RTW expiry</span><span className="text-white/85">{formatDisplayDate(tracker?.rtw_expiry_date ?? null) || "—"}</span></div>
-                <div className="flex justify-between"><span className="text-white/50">RTW limits</span><span className="text-white/85">{tracker?.rtw_limits ? RTW_LIMIT_LABELS[tracker.rtw_limits] : "—"}</span></div>
-                <div className="flex justify-between"><span className="text-white/50">Probation status</span><span className="text-white/85">{tracker?.probation_status ? PROBATION_STATUS_LABELS[tracker.probation_status] : "—"}</span></div>
-              </div>
-            )}
+                  <button type="submit" className="btn-outline text-xs">Save probation</button>
+                </form>
+              ) : (
+                <dl className="space-y-1 text-sm">
+                  <div className="flex justify-between"><dt className="text-white/50">End due</dt><dd className="text-white/85">{formatDisplayDate(tracker?.probation_end_due ?? null) || "—"}</dd></div>
+                  <div className="flex justify-between"><dt className="text-white/50">Status</dt><dd className="text-white/85">{tracker?.probation_status ? PROBATION_STATUS_LABELS[tracker.probation_status] : "—"}</dd></div>
+                </dl>
+              )}
+            </div>
           </section>
         </>
       )}

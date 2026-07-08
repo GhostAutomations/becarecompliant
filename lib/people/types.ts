@@ -108,7 +108,8 @@ export type RegisterRow = {
   statuses: Record<string, CheckStatus>;
   statusByKey: Record<string, CheckStatus>;
   tracker: PersonTracker | null;
-  supComps: string[];
+  /** Supervision completion date keyed by chosen slot ("1"|"2"|"3"). */
+  supComps: Record<string, string>;
 };
 
 export const RTW_LIMIT_LABELS: Record<RtwLimit, string> = {

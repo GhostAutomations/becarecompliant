@@ -355,34 +355,42 @@ function enumOrNull(v: FormDataEntryValue | null, allowed: string[]): string | n
   return allowed.includes(s) ? s : null;
 }
 
-/** Save the directly-recorded tracker fields (DBS, Right to Work, Probation) for a
- *  carer. Managers/Admins only (RLS). Audit logged; no evidence form. */
+/** Save one tracker card (DBS, Right to Work or Probation) for a carer. Only the
+ *  fields present in the submitted card are patched, so the three cards save
+ *  independently. Managers/Admins only (RLS). Audit logged; no evidence form. */
 export async function updateTracker(formData: FormData): Promise<void> {
   const { user, profile } = await requireCompany();
   const personId = String(formData.get("person_id") ?? "");
   if (!personId) return;
 
-  const patch = {
-    dbs_date: isoDateOrNull(formData.get("dbs_date")),
-    enhanced_dbs_date: isoDateOrNull(formData.get("enhanced_dbs_date")),
-    rtw_expiry_date: isoDateOrNull(formData.get("rtw_expiry_date")),
-    rtw_limits: enumOrNull(formData.get("rtw_limits"), [
+  const patch: Record<string, unknown> = { updated_by: user.id };
+  const dateFields = [
+    "dbs_date",
+    "enhanced_dbs_date",
+    "rtw_expiry_date",
+    "probation_end_due",
+    "probation_end_actual",
+    "probation_extension_date",
+  ];
+  for (const f of dateFields) {
+    if (formData.has(f)) patch[f] = isoDateOrNull(formData.get(f));
+  }
+  if (formData.has("rtw_limits")) {
+    patch.rtw_limits = enumOrNull(formData.get("rtw_limits"), [
       "none",
       "20hrs_term",
       "20hrs_2nd_job",
       "visa_expires",
-    ]),
-    probation_end_due: isoDateOrNull(formData.get("probation_end_due")),
-    probation_end_actual: isoDateOrNull(formData.get("probation_end_actual")),
-    probation_status: enumOrNull(formData.get("probation_status"), [
+    ]);
+  }
+  if (formData.has("probation_status")) {
+    patch.probation_status = enumOrNull(formData.get("probation_status"), [
       "passed",
       "failed",
       "extended",
       "due",
-    ]),
-    probation_extension_date: isoDateOrNull(formData.get("probation_extension_date")),
-    updated_by: user.id,
-  };
+    ]);
+  }
 
   const supabase = await createClient();
   const { error } = await supabase.from("person_trackers").update(patch).eq("person_id", personId);

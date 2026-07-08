@@ -107,12 +107,14 @@ export async function listRegister(
       supFormId
         ? supabase
             .from("evidence")
-            .select("record_id, submitted_at")
+            .select("record_id, submitted_at, answers")
             .eq("record_type", "person")
             .eq("form_id", supFormId)
             .in("record_id", ids)
             .order("submitted_at", { ascending: true })
-        : Promise.resolve({ data: [] as Array<{ record_id: string; submitted_at: string }> }),
+        : Promise.resolve({
+            data: [] as Array<{ record_id: string; submitted_at: string; answers: Record<string, unknown> }>,
+          }),
     ]);
 
   const statuses = (statusData as CheckStatus[]) ?? [];
@@ -134,11 +136,17 @@ export async function listRegister(
     statusByKeyByPerson.set(s.person_id, byKey);
   }
 
-  const supByPerson = new Map<string, string[]>();
-  for (const e of (supEvidence as Array<{ record_id: string; submitted_at: string }>) ?? []) {
-    const list = supByPerson.get(e.record_id) ?? [];
-    list.push(e.submitted_at.slice(0, 10));
-    supByPerson.set(e.record_id, list);
+  const supByPerson = new Map<string, Record<string, string>>();
+  for (const e of (supEvidence as Array<{
+    record_id: string;
+    submitted_at: string;
+    answers: Record<string, unknown>;
+  }>) ?? []) {
+    const slot = String(e.answers?.supervision_type ?? "");
+    if (slot !== "1" && slot !== "2" && slot !== "3") continue;
+    const map = supByPerson.get(e.record_id) ?? {};
+    map[slot] = e.submitted_at.slice(0, 10);
+    supByPerson.set(e.record_id, map);
   }
 
   const rows: RegisterRow[] = people.map((person) => ({
@@ -147,7 +155,7 @@ export async function listRegister(
     statuses: statusByPerson.get(person.id) ?? {},
     statusByKey: statusByKeyByPerson.get(person.id) ?? {},
     tracker: trackerByPerson.get(person.id) ?? null,
-    supComps: supByPerson.get(person.id) ?? [],
+    supComps: supByPerson.get(person.id) ?? {},
   }));
 
   return { definitions, rows };
@@ -163,18 +171,27 @@ export async function getPersonTracker(personId: string): Promise<PersonTracker 
   return (data as PersonTracker | null) ?? null;
 }
 
-/** Ordered (oldest first) completion dates of the Supervision form for a Record. */
-export async function getSupervisionComps(personId: string, supFormId: string | null): Promise<string[]> {
-  if (!supFormId) return [];
+/** Supervision completion date keyed by the chosen slot ("1"|"2"|"3"), most recent
+ *  completion of each slot winning. */
+export async function getSupervisionComps(
+  personId: string,
+  supFormId: string | null,
+): Promise<Record<string, string>> {
+  if (!supFormId) return {};
   const supabase = await createClient();
   const { data } = await supabase
     .from("evidence")
-    .select("submitted_at")
+    .select("submitted_at, answers")
     .eq("record_type", "person")
     .eq("record_id", personId)
     .eq("form_id", supFormId)
     .order("submitted_at", { ascending: true });
-  return ((data as Array<{ submitted_at: string }>) ?? []).map((e) => e.submitted_at.slice(0, 10));
+  const out: Record<string, string> = {};
+  for (const e of (data as Array<{ submitted_at: string; answers: Record<string, unknown> }>) ?? []) {
+    const slot = String(e.answers?.supervision_type ?? "");
+    if (slot === "1" || slot === "2" || slot === "3") out[slot] = e.submitted_at.slice(0, 10);
+  }
+  return out;
 }
 
 export async function getPersonChecks(personId: string): Promise<CheckStatus[]> {

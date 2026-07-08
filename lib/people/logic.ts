@@ -105,7 +105,7 @@ export function recurrenceLabel(def: CheckDefinition): string {
 export function supervisionSlots(
   startDate: string | null,
   intervalDays: number | null,
-  comps: string[],
+  comps: Record<string, string>,
   amberDays: number,
   today: CivilDate = todayInLondon(),
   count = 3,
@@ -114,7 +114,7 @@ export function supervisionSlots(
   const start =
     startDate && /^\d{4}-\d{2}-\d{2}$/.test(startDate) ? parseCivilDate(startDate) : null;
   for (let n = 1; n <= count; n++) {
-    const comp = comps[n - 1] ?? null;
+    const comp = comps[String(n)] ?? null;
     let due: CivilDate | null = null;
     if (start && intervalDays && intervalDays >= 1) {
       due = addInterval(start, "day", intervalDays * n);
