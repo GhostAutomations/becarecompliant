@@ -63,6 +63,15 @@ export async function createCompany(
     return { error: `Company created, but seeding branches failed: ${branchErr.message}` };
   }
 
+  // Seed the founder-curated starter forms so the company has usable forms on
+  // day one. Idempotent (safe if re-run); runs as the platform admin, which the
+  // SECURITY DEFINER function authorises. A seeding failure must not fail company
+  // creation, so it is surfaced in the note rather than thrown.
+  const { data: seededCount, error: seedErr } = await supabase.rpc(
+    "seed_company_form_templates",
+    { cid: company.id },
+  );
+
   await writeAudit({
     companyId: company.id,
     actorId: user.id,
@@ -72,10 +81,15 @@ export async function createCompany(
     entityType: "company",
     entityId: company.id,
     summary: `Created company ${name} on the ${tier} tier`,
-    metadata: { tier, slug, branch_name: branchName },
+    metadata: { tier, slug, branch_name: branchName, forms_seeded: seededCount ?? 0 },
   });
 
   let note = `Company ${name} created with its Team and first Branch.`;
+  if (seedErr) {
+    note += ` The starter forms could not be seeded: ${seedErr.message}`;
+  } else {
+    note += ` ${seededCount ?? 0} starter forms were added.`;
+  }
 
   if (adminEmail) {
     const outcome = await createAndSendInvite({

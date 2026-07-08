@@ -1,0 +1,132 @@
+/**
+ * Be Care Compliant — Form schema types (Phase 2).
+ *
+ * The one canonical description of a Form's structure. A Form version stores a
+ * FormSchema as jsonb; the shared renderer (components/forms/form-renderer.tsx)
+ * and the shared validator (lib/form-validate.ts) both read this shape, and the
+ * PDF evidence renderer (lib/evidence/pdf.tsx) renders from it. Nothing else
+ * should describe a form. No authoring UI yet (that is Phase 5); this is the
+ * contract everything later builds on.
+ *
+ * Schema shape (agreed with Phil, 2026-07-08): sections, then ordered fields.
+ *   { schemaVersion, sections: [ { id, title, description?, fields: [ Field ] } ] }
+ *
+ * Isomorphic: safe to import from both server and client (no side effects).
+ */
+
+export type FieldType =
+  | "short_text"
+  | "long_text"
+  | "number"
+  | "date"
+  | "single_select"
+  | "multi_select"
+  | "radio"
+  | "checkbox"
+  | "heading"
+  | "signature"
+  | "file_upload";
+
+/** A choice for select / radio / multi_select fields. */
+export type FieldOption = { value: string; label: string };
+
+/** Optional per-field validation constraints. */
+export type FieldValidation = {
+  /** number: minimum value. */
+  min?: number;
+  /** number: maximum value. */
+  max?: number;
+  /** text: minimum length. */
+  minLength?: number;
+  /** text: maximum length. */
+  maxLength?: number;
+  /** text: regex the value must match (as a string, compiled at validate time). */
+  pattern?: string;
+};
+
+/**
+ * Conditional visibility: the field is shown only when the referenced field's
+ * answer is one of `in`. A hidden field is never required and its answer is
+ * dropped on submit, so conditional logic can never trap a user behind a
+ * required question they cannot see.
+ */
+export type VisibleWhen = { field: string; in: string[] };
+
+export type FormField = {
+  /** Stable, unique-within-schema key. Answers are keyed by this. */
+  key: string;
+  type: FieldType;
+  label: string;
+  required?: boolean;
+  /** Small helper text shown under the control. */
+  help?: string;
+  placeholder?: string;
+  /** For single_select, multi_select and radio. */
+  options?: FieldOption[];
+  validation?: FieldValidation;
+  visibleWhen?: VisibleWhen;
+};
+
+export type FormSection = {
+  id: string;
+  title: string;
+  description?: string;
+  fields: FormField[];
+};
+
+export type FormSchema = {
+  schemaVersion: number;
+  sections: FormSection[];
+};
+
+/** A single answer value. Multi_select is a string[]; checkbox is a boolean. */
+export type AnswerValue = string | number | boolean | string[] | null;
+
+/** All answers for a form, keyed by field key. */
+export type Answers = Record<string, AnswerValue>;
+
+/** Field types that do not collect an answer (purely presentational). */
+export function isPresentational(type: FieldType): boolean {
+  return type === "heading";
+}
+
+/** Field types whose answer is a set of option values. */
+export function isMultiValue(type: FieldType): boolean {
+  return type === "multi_select";
+}
+
+/** Field types that carry an `options` list. */
+export function fieldTakesOptions(type: FieldType): boolean {
+  return type === "single_select" || type === "multi_select" || type === "radio";
+}
+
+/** Field types whose answer is an uploaded binary (file or signature image). */
+export function isBinaryField(type: FieldType): boolean {
+  return type === "file_upload" || type === "signature";
+}
+
+/** Flatten every field across all sections, in document order. */
+export function flattenFields(schema: FormSchema): FormField[] {
+  return schema.sections.flatMap((s) => s.fields);
+}
+
+/** Look up a field by key, or undefined. */
+export function findField(schema: FormSchema, key: string): FormField | undefined {
+  return flattenFields(schema).find((f) => f.key === key);
+}
+
+/**
+ * Narrow an unknown value (e.g. jsonb from the database) to a FormSchema.
+ * Cheap structural guard: enough to fail fast on a malformed schema before the
+ * renderer or validator touch it.
+ */
+export function isFormSchema(value: unknown): value is FormSchema {
+  if (!value || typeof value !== "object") return false;
+  const v = value as Record<string, unknown>;
+  if (!Array.isArray(v.sections)) return false;
+  return v.sections.every((s) => {
+    if (!s || typeof s !== "object") return false;
+    const sec = s as Record<string, unknown>;
+    return typeof sec.title === "string" && Array.isArray(sec.fields);
+  });
+}
