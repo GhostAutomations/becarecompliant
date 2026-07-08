@@ -350,6 +350,59 @@ export async function updateCheckDefinition(formData: FormData): Promise<void> {
   revalidatePath("/people");
 }
 
+function enumOrNull(v: FormDataEntryValue | null, allowed: string[]): string | null {
+  const s = String(v ?? "").trim();
+  return allowed.includes(s) ? s : null;
+}
+
+/** Save the directly-recorded tracker fields (DBS, Right to Work, Probation) for a
+ *  carer. Managers/Admins only (RLS). Audit logged; no evidence form. */
+export async function updateTracker(formData: FormData): Promise<void> {
+  const { user, profile } = await requireCompany();
+  const personId = String(formData.get("person_id") ?? "");
+  if (!personId) return;
+
+  const patch = {
+    dbs_date: isoDateOrNull(formData.get("dbs_date")),
+    enhanced_dbs_date: isoDateOrNull(formData.get("enhanced_dbs_date")),
+    rtw_expiry_date: isoDateOrNull(formData.get("rtw_expiry_date")),
+    rtw_limits: enumOrNull(formData.get("rtw_limits"), [
+      "none",
+      "20hrs_term",
+      "20hrs_2nd_job",
+      "visa_expires",
+    ]),
+    probation_end_due: isoDateOrNull(formData.get("probation_end_due")),
+    probation_end_actual: isoDateOrNull(formData.get("probation_end_actual")),
+    probation_status: enumOrNull(formData.get("probation_status"), [
+      "passed",
+      "failed",
+      "extended",
+      "due",
+    ]),
+    probation_extension_date: isoDateOrNull(formData.get("probation_extension_date")),
+    updated_by: user.id,
+  };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("person_trackers").update(patch).eq("person_id", personId);
+  if (error) return;
+
+  await writeAudit({
+    companyId: profile.company_id ?? "",
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "person.tracker_updated",
+    entityType: "person",
+    entityId: personId,
+    summary: "Updated DBS, right to work and probation details",
+  });
+
+  revalidatePath(`/people/${personId}`);
+  revalidatePath("/people");
+}
+
 /**
  * THE COMPLIANCE LOOP. Complete a Check's Form: validate + store Evidence through
  * the shared pipeline, then advance the Check with the next due date from the

@@ -6,6 +6,8 @@ import EditPersonForm from "@/components/people/edit-person-form";
 import {
   getPerson,
   getPersonChecks,
+  getPersonTracker,
+  getSupervisionComps,
   listBranches,
   listCompanyUsers,
   listPeopleCheckDefinitions,
@@ -19,9 +21,16 @@ import {
   setEmploymentStatus,
   transferPerson,
   unassignSupervisor,
+  updateTracker,
 } from "@/lib/people/actions";
-import { formatDisplayDate, recurrenceLabel } from "@/lib/people/logic";
-import type { CheckStatus } from "@/lib/people/types";
+import { formatDisplayDate, recurrenceLabel, supervisionSlots } from "@/lib/people/logic";
+import {
+  type CheckStatus,
+  RTW_LIMIT_LABELS,
+  PROBATION_STATUS_LABELS,
+  type RtwLimit,
+  type ProbationStatus,
+} from "@/lib/people/types";
 
 export const metadata: Metadata = { title: "Record" };
 
@@ -34,6 +43,12 @@ function ragPill(rag: string) {
   if (rag === "amber") return <span className="pill-amber"><span className="pill-dot" /> Due soon</span>;
   if (rag === "green") return <span className="pill-green"><span className="pill-dot" /> Compliant</span>;
   return <span className="pill-neutral">Not scheduled</span>;
+}
+
+function slotPill(rag: string) {
+  const cls =
+    rag === "red" ? "rag-cell-red" : rag === "amber" ? "rag-cell-amber" : rag === "green" ? "rag-cell-green" : "rag-cell-none";
+  return cls;
 }
 
 export default async function PersonPage({
@@ -53,23 +68,31 @@ export default async function PersonPage({
   const canManage = MANAGE_ROLES.includes(profile.role);
   const canComplete = COMPLETE_ROLES.includes(profile.role);
 
-  const [statuses, definitions, evidence, users, assignments, branches] = await Promise.all([
+  const [statuses, definitions, evidence, users, assignments, branches, tracker] = await Promise.all([
     getPersonChecks(id),
     listPeopleCheckDefinitions(companyId),
     listPersonEvidence(id),
     canManage ? listCompanyUsers(companyId) : Promise.resolve([]),
     canManage ? listPersonAssignments(id) : Promise.resolve([]),
     canManage ? listBranches(companyId) : Promise.resolve([]),
+    getPersonTracker(id),
   ]);
 
+  const supDef = definitions.find((d) => d.key === "supervision");
+  const supFormId = supDef?.form_id ?? null;
+  const supComps = await getSupervisionComps(id, supFormId);
+  const supInterval = supDef?.interval ?? 90;
+  const supAmber = supDef?.amber_days ?? 30;
+  const slots = supervisionSlots(person.start_date, supInterval, supComps, supAmber);
+
   const statusByDef = new Map<string, CheckStatus>(statuses.map((s) => [s.definition_id, s]));
+  const supStatus = statuses.find((s) => s.check_key === "supervision") ?? null;
+  const otherDefs = definitions.filter((d) => d.key !== "supervision");
+
   const worstRag =
     statuses.length === 0
       ? "none"
-      : statuses.reduce(
-          (worst, s) => (RAG_RANK[s.rag] < RAG_RANK[worst] ? s.rag : worst),
-          "green" as string,
-        );
+      : statuses.reduce((worst, s) => (RAG_RANK[s.rag] < RAG_RANK[worst] ? s.rag : worst), "green" as string);
   const missingCount = definitions.filter((d) => !statusByDef.has(d.id)).length;
   const branchOptions = branches.filter((b) => b.kind === "branch" || b.kind === "team");
   const isLeaver = person.employment_status === "leaver";
@@ -77,9 +100,7 @@ export default async function PersonPage({
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <div>
-        <Link href="/people" className="text-xs text-white/50 hover:text-white/80">
-          People
-        </Link>
+        <Link href="/people" className="text-xs text-white/50 hover:text-white/80">People</Link>
         <div className="mt-1 flex flex-wrap items-center gap-3">
           <h1 className="page-title">{person.full_name}</h1>
           {ragPill(worstRag)}
@@ -97,84 +118,156 @@ export default async function PersonPage({
         </div>
       ) : null}
 
-      {/* Checks */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Checks</h2>
-          {canManage && missingCount > 0 ? (
-            <form action={applyMissingChecks}>
-              <input type="hidden" name="person_id" value={person.id} />
-              <button type="submit" className="btn-outline text-xs">
-                Apply {missingCount} missing {missingCount === 1 ? "check" : "checks"}
-              </button>
-            </form>
-          ) : null}
+      {isLeaver ? (
+        <div className="glass-card p-6 text-sm text-white/60">
+          This person is a leaver, so their checks are excluded from the active
+          register and reminders. Their evidence history is kept below.
         </div>
-
-        {definitions.length === 0 ? (
-          <div className="glass-card p-6 text-sm text-white/60">
-            No checks are configured for this company yet.
-          </div>
-        ) : isLeaver ? (
-          <div className="glass-card p-6 text-sm text-white/60">
-            This person is a leaver, so their checks are excluded from the active
-            register and reminders. Their evidence history is kept below.
-          </div>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {definitions.map((def) => {
-              const s = statusByDef.get(def.id);
-              return (
-                <div key={def.id} className="glass-card p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h3 className="text-sm font-semibold text-white">{def.name}</h3>
-                      <p className="text-[11px] text-white/45">{recurrenceLabel(def)}</p>
-                    </div>
-                    {s ? ragPill(s.rag) : <span className="pill-neutral">Not applied</span>}
+      ) : (
+        <>
+          {/* Supervision (Sup 1/2/3) */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Supervision</h2>
+              {supStatus && supFormId && canComplete ? (
+                <Link
+                  href={`/people/${person.id}/checks/${supStatus.instance_id}/complete`}
+                  className="btn-primary text-xs"
+                >
+                  Complete supervision
+                </Link>
+              ) : null}
+            </div>
+            <div className="glass-card grid gap-3 p-4 sm:grid-cols-3">
+              {slots.map((s) => (
+                <div key={s.n} className="rounded-xl border border-white/10 p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-white/70">Sup {s.n}</span>
+                    <span className={`rag-cell ${slotPill(s.rag)}`}>
+                      {s.comp ? "Done" : s.due ? formatDisplayDate(s.due) : "—"}
+                    </span>
                   </div>
-                  <dl className="mt-3 space-y-1 text-xs text-white/60">
-                    <div className="flex justify-between">
-                      <dt>Next due</dt>
-                      <dd className="text-white/85">
-                        {s?.due_date
-                          ? formatDisplayDate(s.due_date)
-                          : def.anchor === "expiry"
-                            ? "On record"
-                            : "—"}
-                      </dd>
-                    </div>
-                    <div className="flex justify-between">
-                      <dt>Last completed</dt>
-                      <dd className="text-white/85">
-                        {s?.last_completed_on ? formatDisplayDate(s.last_completed_on) : "Never"}
-                      </dd>
-                    </div>
+                  <dl className="mt-2 space-y-1 text-[11px] text-white/55">
+                    <div className="flex justify-between"><dt>Due</dt><dd className="text-white/80">{formatDisplayDate(s.due) || "—"}</dd></div>
+                    <div className="flex justify-between"><dt>Completed</dt><dd className="text-white/80">{formatDisplayDate(s.comp) || "Not yet"}</dd></div>
                   </dl>
-                  {s && def.form_id && canComplete ? (
-                    <Link
-                      href={`/people/${person.id}/checks/${s.instance_id}/complete`}
-                      className="btn-primary mt-3 w-full justify-center text-xs"
-                    >
-                      Complete
-                    </Link>
-                  ) : null}
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
+              ))}
+            </div>
+            <p className="text-[11px] text-white/40">
+              Slots are set from the Supervision interval in Settings ({supInterval} days), counted from the start date.
+            </p>
+          </section>
+
+          {/* Other recurring checks */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Checks</h2>
+              {canManage && missingCount > 0 ? (
+                <form action={applyMissingChecks}>
+                  <input type="hidden" name="person_id" value={person.id} />
+                  <button type="submit" className="btn-outline text-xs">Apply {missingCount} missing</button>
+                </form>
+              ) : null}
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {otherDefs.map((def) => {
+                const s = statusByDef.get(def.id);
+                return (
+                  <div key={def.id} className="glass-card p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h3 className="text-sm font-semibold text-white">{def.name}</h3>
+                        <p className="text-[11px] text-white/45">{recurrenceLabel(def)}</p>
+                      </div>
+                      {s ? ragPill(s.rag) : <span className="pill-neutral">Not applied</span>}
+                    </div>
+                    <dl className="mt-3 space-y-1 text-xs text-white/60">
+                      <div className="flex justify-between"><dt>Next due</dt><dd className="text-white/85">{s?.due_date ? formatDisplayDate(s.due_date) : "—"}</dd></div>
+                      <div className="flex justify-between"><dt>Last completed</dt><dd className="text-white/85">{s?.last_completed_on ? formatDisplayDate(s.last_completed_on) : "Never"}</dd></div>
+                    </dl>
+                    {s && def.form_id && canComplete ? (
+                      <Link href={`/people/${person.id}/checks/${s.instance_id}/complete`} className="btn-primary mt-3 w-full justify-center text-xs">Complete</Link>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* Trackers: DBS, Right to Work, Probation */}
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
+              DBS, right to work and probation
+            </h2>
+            {canManage ? (
+              <form action={updateTracker} className="glass-card space-y-5 p-5">
+                <input type="hidden" name="person_id" value={person.id} />
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="dbs_date" className="form-label">DBS date</label>
+                    <input id="dbs_date" name="dbs_date" type="date" defaultValue={tracker?.dbs_date ?? ""} />
+                  </div>
+                  <div>
+                    <label htmlFor="enhanced_dbs_date" className="form-label">Enhanced DBS date</label>
+                    <input id="enhanced_dbs_date" name="enhanced_dbs_date" type="date" defaultValue={tracker?.enhanced_dbs_date ?? ""} />
+                  </div>
+                  <div>
+                    <label htmlFor="rtw_expiry_date" className="form-label">Right to work expiry</label>
+                    <input id="rtw_expiry_date" name="rtw_expiry_date" type="date" defaultValue={tracker?.rtw_expiry_date ?? ""} />
+                  </div>
+                  <div>
+                    <label htmlFor="rtw_limits" className="form-label">RTW limits</label>
+                    <select id="rtw_limits" name="rtw_limits" defaultValue={tracker?.rtw_limits ?? ""}>
+                      <option value="">Not set</option>
+                      {(Object.keys(RTW_LIMIT_LABELS) as RtwLimit[]).map((k) => (
+                        <option key={k} value={k}>{RTW_LIMIT_LABELS[k]}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="probation_end_due" className="form-label">Probation end due</label>
+                    <input id="probation_end_due" name="probation_end_due" type="date" defaultValue={tracker?.probation_end_due ?? ""} />
+                  </div>
+                  <div>
+                    <label htmlFor="probation_end_actual" className="form-label">Probation end actual</label>
+                    <input id="probation_end_actual" name="probation_end_actual" type="date" defaultValue={tracker?.probation_end_actual ?? ""} />
+                  </div>
+                  <div>
+                    <label htmlFor="probation_status" className="form-label">Probation status</label>
+                    <select id="probation_status" name="probation_status" defaultValue={tracker?.probation_status ?? ""}>
+                      <option value="">Not set</option>
+                      {(Object.keys(PROBATION_STATUS_LABELS) as ProbationStatus[]).map((k) => (
+                        <option key={k} value={k}>{PROBATION_STATUS_LABELS[k]}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="probation_extension_date" className="form-label">Probation extension</label>
+                    <input id="probation_extension_date" name="probation_extension_date" type="date" defaultValue={tracker?.probation_extension_date ?? ""} />
+                  </div>
+                </div>
+                <button type="submit" className="btn-outline text-xs">Save details</button>
+              </form>
+            ) : (
+              <div className="glass-card grid gap-3 p-5 text-sm sm:grid-cols-2">
+                <div className="flex justify-between"><span className="text-white/50">DBS</span><span className="text-white/85">{formatDisplayDate(tracker?.dbs_date ?? null) || "—"}</span></div>
+                <div className="flex justify-between"><span className="text-white/50">Enhanced DBS</span><span className="text-white/85">{formatDisplayDate(tracker?.enhanced_dbs_date ?? null) || "—"}</span></div>
+                <div className="flex justify-between"><span className="text-white/50">RTW expiry</span><span className="text-white/85">{formatDisplayDate(tracker?.rtw_expiry_date ?? null) || "—"}</span></div>
+                <div className="flex justify-between"><span className="text-white/50">RTW limits</span><span className="text-white/85">{tracker?.rtw_limits ? RTW_LIMIT_LABELS[tracker.rtw_limits] : "—"}</span></div>
+                <div className="flex justify-between"><span className="text-white/50">Probation status</span><span className="text-white/85">{tracker?.probation_status ? PROBATION_STATUS_LABELS[tracker.probation_status] : "—"}</span></div>
+              </div>
+            )}
+          </section>
+        </>
+      )}
 
       {/* Evidence history */}
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
-          Evidence history
-        </h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Evidence history</h2>
         {evidence.length === 0 ? (
           <div className="glass-card p-6 text-sm text-white/60">
-            No evidence yet. Completing a check stores its form here as immutable
-            inspection evidence.
+            No evidence yet. Completing a check stores its form here as immutable inspection evidence.
           </div>
         ) : (
           <div className="glass-card divide-y divide-white/5">
@@ -196,19 +289,15 @@ export default async function PersonPage({
             <EditPersonForm person={person} users={users} />
 
             <div className="grid gap-5 sm:grid-cols-2">
-              {/* Transfer */}
               <form action={transferPerson} className="space-y-2">
                 <input type="hidden" name="person_id" value={person.id} />
                 <label htmlFor="transfer_branch" className="form-label">Transfer to branch</label>
                 <select id="transfer_branch" name="branch_id" defaultValue={person.branch_id}>
-                  {branchOptions.map((b) => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
-                  ))}
+                  {branchOptions.map((b) => (<option key={b.id} value={b.id}>{b.name}</option>))}
                 </select>
                 <button type="submit" className="btn-outline text-xs">Transfer</button>
               </form>
 
-              {/* Caseload */}
               <div className="space-y-2">
                 <span className="form-label">Supervisor caseload</span>
                 <div className="flex flex-col gap-1">
@@ -229,30 +318,23 @@ export default async function PersonPage({
                   <input type="hidden" name="person_id" value={person.id} />
                   <select name="user_id" defaultValue="" aria-label="Assign a supervisor">
                     <option value="" disabled>Assign a user</option>
-                    {users.map((u) => (
-                      <option key={u.id} value={u.id}>{u.full_name || u.email}</option>
-                    ))}
+                    {users.map((u) => (<option key={u.id} value={u.id}>{u.full_name || u.email}</option>))}
                   </select>
                   <button type="submit" className="btn-outline text-xs">Assign</button>
                 </form>
               </div>
             </div>
 
-            {/* Lifecycle */}
             <div className="flex flex-wrap items-center gap-3 border-t border-white/10 pt-4">
               <form action={setEmploymentStatus}>
                 <input type="hidden" name="person_id" value={person.id} />
                 <input type="hidden" name="status" value={isLeaver ? "active" : "leaver"} />
-                <button type="submit" className="btn-outline text-xs">
-                  {isLeaver ? "Reactivate" : "Mark as leaver"}
-                </button>
+                <button type="submit" className="btn-outline text-xs">{isLeaver ? "Reactivate" : "Mark as leaver"}</button>
               </form>
               <form action={setArchived}>
                 <input type="hidden" name="person_id" value={person.id} />
                 <input type="hidden" name="archive" value={person.archived_at ? "false" : "true"} />
-                <button type="submit" className="btn-ghost text-xs">
-                  {person.archived_at ? "Restore" : "Archive"}
-                </button>
+                <button type="submit" className="btn-ghost text-xs">{person.archived_at ? "Restore" : "Archive"}</button>
               </form>
             </div>
           </div>

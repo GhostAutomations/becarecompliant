@@ -77,9 +77,50 @@ export type PersonRollup = {
   rag: Rag | "none";
 };
 
-/** One row of the register matrix: a Record plus its checks keyed by definition id. */
+export type RtwLimit = "none" | "20hrs_term" | "20hrs_2nd_job" | "visa_expires";
+export type ProbationStatus = "passed" | "failed" | "extended" | "due";
+
+/** Directly-recorded compliance fields for a carer (edited on the record, not a form). */
+export type PersonTracker = {
+  person_id: string;
+  dbs_date: string | null;
+  enhanced_dbs_date: string | null;
+  rtw_expiry_date: string | null;
+  rtw_limits: RtwLimit | null;
+  probation_end_due: string | null;
+  probation_end_actual: string | null;
+  probation_status: ProbationStatus | null;
+  probation_extension_date: string | null;
+};
+
+/** A derived Supervision slot (Sup 1/2/3): scheduled due + its completion, if done. */
+export type SupervisionSlot = {
+  n: number;
+  due: string | null;
+  comp: string | null;
+  rag: import("@/lib/recurrence").Rag | "none";
+};
+
+/** One row of the register matrix: a Record plus its checks, trackers and supervision slots. */
 export type RegisterRow = {
   person: PersonRecord;
   rollup: PersonRollup | null;
   statuses: Record<string, CheckStatus>;
+  statusByKey: Record<string, CheckStatus>;
+  tracker: PersonTracker | null;
+  supComps: string[];
+};
+
+export const RTW_LIMIT_LABELS: Record<RtwLimit, string> = {
+  none: "None",
+  "20hrs_term": "20hrs Term",
+  "20hrs_2nd_job": "20hrs 2nd Job",
+  visa_expires: "Visa Expires",
+};
+
+export const PROBATION_STATUS_LABELS: Record<ProbationStatus, string> = {
+  passed: "Passed",
+  failed: "Failed",
+  extended: "Extended",
+  due: "Due",
 };

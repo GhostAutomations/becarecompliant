@@ -13,6 +13,7 @@ import type {
   CheckStatus,
   PersonRecord,
   PersonRollup,
+  PersonTracker,
   RegisterRow,
 } from "./types";
 
@@ -96,28 +97,84 @@ export async function listRegister(
 
   if (ids.length === 0) return { definitions, rows: [] };
 
-  const [{ data: statusData }, { data: rollupData }] = await Promise.all([
-    supabase.from("person_check_status").select("*").in("person_id", ids),
-    supabase.from("person_rollup").select("*").in("person_id", ids),
-  ]);
+  const supFormId = definitions.find((d) => d.key === "supervision")?.form_id ?? null;
+
+  const [{ data: statusData }, { data: rollupData }, { data: trackerData }, { data: supEvidence }] =
+    await Promise.all([
+      supabase.from("person_check_status").select("*").in("person_id", ids),
+      supabase.from("person_rollup").select("*").in("person_id", ids),
+      supabase.from("person_trackers").select("*").in("person_id", ids),
+      supFormId
+        ? supabase
+            .from("evidence")
+            .select("record_id, submitted_at")
+            .eq("record_type", "person")
+            .eq("form_id", supFormId)
+            .in("record_id", ids)
+            .order("submitted_at", { ascending: true })
+        : Promise.resolve({ data: [] as Array<{ record_id: string; submitted_at: string }> }),
+    ]);
 
   const statuses = (statusData as CheckStatus[]) ?? [];
   const rollups = (rollupData as PersonRollup[]) ?? [];
+  const trackers = (trackerData as PersonTracker[]) ?? [];
+  const defKeyById = new Map(definitions.map((d) => [d.id, d.key]));
   const rollupByPerson = new Map(rollups.map((r) => [r.person_id, r]));
+  const trackerByPerson = new Map(trackers.map((t) => [t.person_id, t]));
+
   const statusByPerson = new Map<string, Record<string, CheckStatus>>();
+  const statusByKeyByPerson = new Map<string, Record<string, CheckStatus>>();
   for (const s of statuses) {
-    const map = statusByPerson.get(s.person_id) ?? {};
-    map[s.definition_id] = s;
-    statusByPerson.set(s.person_id, map);
+    const byId = statusByPerson.get(s.person_id) ?? {};
+    byId[s.definition_id] = s;
+    statusByPerson.set(s.person_id, byId);
+    const byKey = statusByKeyByPerson.get(s.person_id) ?? {};
+    const key = defKeyById.get(s.definition_id) ?? s.check_key;
+    byKey[key] = s;
+    statusByKeyByPerson.set(s.person_id, byKey);
+  }
+
+  const supByPerson = new Map<string, string[]>();
+  for (const e of (supEvidence as Array<{ record_id: string; submitted_at: string }>) ?? []) {
+    const list = supByPerson.get(e.record_id) ?? [];
+    list.push(e.submitted_at.slice(0, 10));
+    supByPerson.set(e.record_id, list);
   }
 
   const rows: RegisterRow[] = people.map((person) => ({
     person,
     rollup: rollupByPerson.get(person.id) ?? null,
     statuses: statusByPerson.get(person.id) ?? {},
+    statusByKey: statusByKeyByPerson.get(person.id) ?? {},
+    tracker: trackerByPerson.get(person.id) ?? null,
+    supComps: supByPerson.get(person.id) ?? [],
   }));
 
   return { definitions, rows };
+}
+
+export async function getPersonTracker(personId: string): Promise<PersonTracker | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("person_trackers")
+    .select("*")
+    .eq("person_id", personId)
+    .maybeSingle();
+  return (data as PersonTracker | null) ?? null;
+}
+
+/** Ordered (oldest first) completion dates of the Supervision form for a Record. */
+export async function getSupervisionComps(personId: string, supFormId: string | null): Promise<string[]> {
+  if (!supFormId) return [];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("evidence")
+    .select("submitted_at")
+    .eq("record_type", "person")
+    .eq("record_id", personId)
+    .eq("form_id", supFormId)
+    .order("submitted_at", { ascending: true });
+  return ((data as Array<{ submitted_at: string }>) ?? []).map((e) => e.submitted_at.slice(0, 10));
 }
 
 export async function getPersonChecks(personId: string): Promise<CheckStatus[]> {

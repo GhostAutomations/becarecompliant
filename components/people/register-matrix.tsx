@@ -1,49 +1,49 @@
 "use client";
 
 /**
- * Be Care Compliant — the People register as a compliance matrix (Phase 3).
- * One row per Record; a sticky Carer column; one RAG cell per Check showing the
- * next due date with the last completed date beneath. Client side: search and a
- * worst-first sort. RAG colours mean the same everywhere: green compliant, amber
- * due soon, red overdue. Styled only with canonical classes from globals.css.
+ * Be Care Compliant — the People register as a compliance matrix (Phase 3),
+ * mirroring the manager's Monday board column for column. Sticky Carer column;
+ * recurring checks (Manual Handling, Medication Competency, Spot Check, Appraisal,
+ * Supervision 1/2/3) show their due dates with RAG; directly-recorded trackers
+ * (DBS, Enhanced DBS, Right to Work + limits, Probation) show as columns too.
+ * Styled only with canonical classes from globals.css.
  */
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import type { CheckDefinition, RegisterRow } from "@/lib/people/types";
-import { formatDisplayDate } from "@/lib/people/logic";
+import {
+  type RegisterRow,
+  RTW_LIMIT_LABELS,
+  PROBATION_STATUS_LABELS,
+} from "@/lib/people/types";
+import { formatDisplayDate, supervisionSlots, dateRag } from "@/lib/people/logic";
+
+type MatrixConfig = {
+  supInterval: number;
+  supAmber: number;
+  rtwAmber: number;
+  probationAmber: number;
+};
 
 const RAG_ORDER: Record<string, number> = { red: 0, amber: 1, green: 2, none: 3 };
 
-function RagCell({ row, def }: { row: RegisterRow; def: CheckDefinition }) {
-  const status = row.statuses[def.id];
-  if (!status) {
-    return <span className="rag-cell rag-cell-none">Not applied</span>;
-  }
-  const cls =
-    status.rag === "red"
-      ? "rag-cell-red"
-      : status.rag === "amber"
-        ? "rag-cell-amber"
-        : status.rag === "green"
-          ? "rag-cell-green"
-          : "rag-cell-none";
-  const main =
-    status.due_date
-      ? formatDisplayDate(status.due_date)
-      : def.anchor === "expiry"
-        ? "N/A"
-        : status.last_completed_on
-          ? "Complete"
-          : "Not set";
-  return (
-    <span className={`rag-cell ${cls}`}>
-      {main}
-      {status.last_completed_on ? (
-        <span className="rag-sub">Done {formatDisplayDate(status.last_completed_on)}</span>
-      ) : null}
-    </span>
-  );
+function ragClass(rag: string): string {
+  return rag === "red"
+    ? "rag-cell-red"
+    : rag === "amber"
+      ? "rag-cell-amber"
+      : rag === "green"
+        ? "rag-cell-green"
+        : "rag-cell-none";
+}
+
+function RagDate({ date, rag }: { date: string | null; rag: string }) {
+  if (!date) return <span className="rag-cell rag-cell-none">—</span>;
+  return <span className={`rag-cell ${ragClass(rag)}`}>{formatDisplayDate(date)}</span>;
+}
+
+function Plain({ date }: { date: string | null }) {
+  return <span className="text-white/70">{date ? formatDisplayDate(date) : "—"}</span>;
 }
 
 function RollupPill({ rag }: { rag: string }) {
@@ -55,10 +55,10 @@ function RollupPill({ rag }: { rag: string }) {
 
 export default function RegisterMatrix({
   rows,
-  definitions,
+  config,
 }: {
   rows: RegisterRow[];
-  definitions: CheckDefinition[];
+  config: MatrixConfig;
 }) {
   const [search, setSearch] = useState("");
   const [worstFirst, setWorstFirst] = useState(false);
@@ -114,34 +114,91 @@ export default function RegisterMatrix({
               <th>Status</th>
               <th>Team</th>
               <th>Start date</th>
-              {definitions.map((def) => (
-                <th key={def.id}>{def.name}</th>
-              ))}
+              <th>Manual Handling</th>
+              <th>Medication Competency</th>
+              <th>DBS</th>
+              <th>Enhanced DBS</th>
+              <th>RTW Expiry</th>
+              <th>RTW Limits</th>
+              <th>Probation End Due</th>
+              <th>Probation End Actual</th>
+              <th>Probation Status</th>
+              <th>Probation Extension</th>
+              <th>Spot Check Due</th>
+              <th>Recent Spot Check</th>
+              <th>Sup 1 Due</th>
+              <th>Sup 1 Comp</th>
+              <th>Sup 2 Due</th>
+              <th>Sup 2 Comp</th>
+              <th>Sup 3 Due</th>
+              <th>Sup 3 Comp</th>
+              <th>AA Next Due</th>
+              <th>AA Comp</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((row) => (
-              <tr key={row.person.id}>
-                <td className="col-carer">
-                  <Link href={`/people/${row.person.id}`} className="font-semibold text-white hover:text-gold-300">
-                    {row.person.full_name}
-                  </Link>
-                  {row.person.job_title ? (
-                    <div className="text-[11px] text-white/45">{row.person.job_title}</div>
-                  ) : null}
-                </td>
-                <td>
-                  <RollupPill rag={row.rollup?.rag ?? "none"} />
-                </td>
-                <td className="text-white/70">{row.person.team ?? "—"}</td>
-                <td className="text-white/70">{formatDisplayDate(row.person.start_date) || "—"}</td>
-                {definitions.map((def) => (
-                  <td key={def.id}>
-                    <RagCell row={row} def={def} />
+            {filtered.map((row) => {
+              const t = row.tracker;
+              const mh = row.statusByKey["manual_handling"];
+              const mc = row.statusByKey["competency"];
+              const sc = row.statusByKey["spot_check"];
+              const aa = row.statusByKey["appraisal"];
+              const sup = supervisionSlots(
+                row.person.start_date,
+                config.supInterval,
+                row.supComps,
+                config.supAmber,
+              );
+              return (
+                <tr key={row.person.id}>
+                  <td className="col-carer">
+                    <Link href={`/people/${row.person.id}`} className="font-semibold text-white hover:text-gold-300">
+                      {row.person.full_name}
+                    </Link>
+                    {row.person.job_title ? (
+                      <div className="text-[11px] text-white/45">{row.person.job_title}</div>
+                    ) : null}
                   </td>
-                ))}
-              </tr>
-            ))}
+                  <td><RollupPill rag={row.rollup?.rag ?? "none"} /></td>
+                  <td className="text-white/70">{row.person.team ?? "—"}</td>
+                  <td><Plain date={row.person.start_date} /></td>
+                  <td><RagDate date={mh?.due_date ?? null} rag={mh?.rag ?? "none"} /></td>
+                  <td><RagDate date={mc?.due_date ?? null} rag={mc?.rag ?? "none"} /></td>
+                  <td><Plain date={t?.dbs_date ?? null} /></td>
+                  <td><Plain date={t?.enhanced_dbs_date ?? null} /></td>
+                  <td>
+                    <RagDate
+                      date={t?.rtw_expiry_date ?? null}
+                      rag={dateRag(t?.rtw_expiry_date ?? null, config.rtwAmber)}
+                    />
+                  </td>
+                  <td className="text-white/70">
+                    {t?.rtw_limits ? RTW_LIMIT_LABELS[t.rtw_limits] : "—"}
+                  </td>
+                  <td>
+                    <RagDate
+                      date={t?.probation_end_due ?? null}
+                      rag={dateRag(t?.probation_end_due ?? null, config.probationAmber)}
+                    />
+                  </td>
+                  <td><Plain date={t?.probation_end_actual ?? null} /></td>
+                  <td className="text-white/70">
+                    {t?.probation_status ? PROBATION_STATUS_LABELS[t.probation_status] : "—"}
+                  </td>
+                  <td><Plain date={t?.probation_extension_date ?? null} /></td>
+                  <td><RagDate date={sc?.due_date ?? null} rag={sc?.rag ?? "none"} /></td>
+                  <td><Plain date={sc?.last_completed_on ?? null} /></td>
+                  <td><RagDate date={sup[0].due} rag={sup[0].rag} /></td>
+                  <td><Plain date={sup[0].comp} /></td>
+                  <td><RagDate date={sup[1].due} rag={sup[1].rag} /></td>
+                  <td><Plain date={sup[1].comp} /></td>
+                  <td><RagDate date={sup[2].due} rag={sup[2].rag} /></td>
+                  <td><Plain date={sup[2].comp} /></td>
+                  <td><RagDate date={aa?.due_date ?? null} rag={aa?.rag ?? "none"} /></td>
+                  <td><Plain date={aa?.last_completed_on ?? null} /></td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

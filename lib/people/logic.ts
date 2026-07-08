@@ -13,14 +13,16 @@ import {
 } from "@/lib/form-schema";
 import {
   type CivilDate,
+  type Rag,
   type RecurrenceRule,
   addInterval,
   formatCivilDate,
   nextDueDate,
   parseCivilDate,
+  ragStatus,
   todayInLondon,
 } from "@/lib/recurrence";
-import type { CheckDefinition } from "./types";
+import type { CheckDefinition, SupervisionSlot } from "./types";
 
 /** The recurrence rule carried by a check definition (null when not recurring/complete). */
 function ruleOf(def: CheckDefinition): RecurrenceRule | null {
@@ -92,6 +94,45 @@ export function recurrenceLabel(def: CheckDefinition): string {
   if (!def.frequency || !def.interval) return "Not scheduled";
   const unit = def.interval === 1 ? def.frequency : `${def.frequency}s`;
   return `Every ${def.interval} ${unit}`;
+}
+
+/**
+ * Derive the three Supervision slots (Sup 1/2/3) from the Supervision interval
+ * (Settings) counted from the start date, plus the ordered completion history:
+ * Sup N is due at start + N intervals, and its completion is the Nth supervision
+ * evidence, if any. A completed slot is green; an outstanding one is RAG by its due.
+ */
+export function supervisionSlots(
+  startDate: string | null,
+  intervalDays: number | null,
+  comps: string[],
+  amberDays: number,
+  today: CivilDate = todayInLondon(),
+  count = 3,
+): SupervisionSlot[] {
+  const slots: SupervisionSlot[] = [];
+  const start =
+    startDate && /^\d{4}-\d{2}-\d{2}$/.test(startDate) ? parseCivilDate(startDate) : null;
+  for (let n = 1; n <= count; n++) {
+    const comp = comps[n - 1] ?? null;
+    let due: CivilDate | null = null;
+    if (start && intervalDays && intervalDays >= 1) {
+      due = addInterval(start, "day", intervalDays * n);
+    }
+    const rag: Rag | "none" = comp ? "green" : due ? ragStatus(due, today, amberDays) : "none";
+    slots.push({ n, due: due ? formatCivilDate(due) : null, comp, rag });
+  }
+  return slots;
+}
+
+/** RAG for a directly-recorded date treated as a due/expiry (amber before, red after). */
+export function dateRag(
+  date: string | null,
+  amberDays: number,
+  today: CivilDate = todayInLondon(),
+): Rag | "none" {
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return "none";
+  return ragStatus(parseCivilDate(date), today, amberDays);
 }
 
 /** Display a stored ISO date as "7 Jun 2026" (UK). Returns "" for null. */

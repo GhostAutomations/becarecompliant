@@ -41,6 +41,14 @@ export default async function PeoplePage({
   const canManage = MANAGE_ROLES.includes(profile.role);
   const isAdmin = profile.role === "company_admin" || profile.role === "platform_admin";
 
+  const defByKey = Object.fromEntries(definitions.map((d) => [d.key, d]));
+  const matrixConfig = {
+    supInterval: defByKey["supervision"]?.interval ?? 90,
+    supAmber: defByKey["supervision"]?.amber_days ?? 30,
+    rtwAmber: defByKey["right_to_work"]?.amber_days ?? 30,
+    probationAmber: defByKey["probation_review"]?.amber_days ?? 14,
+  };
+
   // Record-level rollup counts (are we inspection ready, at a glance).
   const counts = rows.reduce(
     (acc, r) => {
@@ -137,7 +145,7 @@ export default async function PeoplePage({
           ) : null}
         </div>
       ) : (
-        <RegisterMatrix rows={rows} definitions={definitions} />
+        <RegisterMatrix rows={rows} config={matrixConfig} />
       )}
     </div>
   );
