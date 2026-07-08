@@ -302,29 +302,27 @@
      page regardless of how many carers there are (it does not ride up under the
      last row). Fills the space below the header/summary down to near the viewport
      bottom. */
+  /* A visible scrollbar-color forces Chromium/Edge to draw a permanent (non-overlay)
+     scrollbar at default thickness; overflow-x: scroll keeps the horizontal bar
+     always present. The ::-webkit block is a fallback for older engines. */
   .matrix-wrap {
-    @apply relative h-full w-full max-w-full overflow-x-auto overflow-y-auto rounded-2xl border border-white/10 bg-navy-900/40;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+    @apply relative h-full w-full max-w-full overflow-x-scroll overflow-y-auto rounded-2xl border border-white/10 bg-navy-900/40;
+    scrollbar-color: rgba(255, 255, 255, 0.5) rgba(255, 255, 255, 0.08);
   }
 
-  /* Always-visible, draggable scrollbars (overrides the macOS overlay/arrow-only bar). */
   .matrix-wrap::-webkit-scrollbar {
-    height: 12px;
-    width: 12px;
+    height: 14px;
+    width: 14px;
   }
   .matrix-wrap::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.08);
   }
   .matrix-wrap::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 9999px;
-    border: 3px solid transparent;
-    background-clip: content-box;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 8px;
   }
   .matrix-wrap::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.45);
-    background-clip: content-box;
+    background: rgba(255, 255, 255, 0.7);
   }
 
   .matrix {
