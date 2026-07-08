@@ -20,6 +20,25 @@ import type {
 export type BranchLite = { id: string; name: string; kind: string };
 export type ProfileLite = { id: string; full_name: string; email: string; role: string };
 
+/** Record-level RAG counts for the Compliance Summary (optionally per branch). */
+export async function getRollupCounts(
+  companyId: string,
+  branchId?: string | null,
+): Promise<{ compliant: number; dueSoon: number; overdue: number; total: number }> {
+  const supabase = await createClient();
+  let query = supabase.from("person_rollup").select("rag, branch_id").eq("company_id", companyId);
+  if (branchId) query = query.eq("branch_id", branchId);
+  const { data } = await query;
+  const counts = { compliant: 0, dueSoon: 0, overdue: 0, total: 0 };
+  for (const r of (data as Array<{ rag: string }> | null) ?? []) {
+    counts.total += 1;
+    if (r.rag === "red") counts.overdue += 1;
+    else if (r.rag === "amber") counts.dueSoon += 1;
+    else if (r.rag === "green") counts.compliant += 1;
+  }
+  return counts;
+}
+
 /** Per-company shorthand labels for the People register columns ({} if none). */
 export async function getColumnLabels(companyId: string): Promise<Record<string, string>> {
   const supabase = await createClient();

@@ -4,6 +4,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import { NavIcon } from "@/components/nav-icon";
 import RegisterMatrix from "@/components/people/register-matrix";
 import RealtimeRefresh from "@/components/realtime-refresh";
+import ViewNav from "@/components/people/view-nav";
 import { listBranches, listRegister, getColumnLabels } from "@/lib/people/data";
 
 export const metadata: Metadata = { title: "People" };
@@ -49,20 +50,6 @@ export default async function PeoplePage({
     probationAmber: defByKey["probation_review"]?.amber_days ?? 14,
   };
 
-  // Record-level rollup counts (are we inspection ready, at a glance).
-  const counts = rows.reduce(
-    (acc, r) => {
-      const rag = r.rollup?.rag ?? "none";
-      if (rag === "red") acc.overdue += 1;
-      else if (rag === "amber") acc.dueSoon += 1;
-      else if (rag === "green") acc.compliant += 1;
-      return acc;
-    },
-    { compliant: 0, dueSoon: 0, overdue: 0 },
-  );
-
-  const branchOptions = branches.filter((b) => b.kind === "branch" || b.kind === "team");
-
   return (
     <div className="flex h-full min-h-0 flex-col gap-6">
       <RealtimeRefresh />
@@ -81,45 +68,7 @@ export default async function PeoplePage({
         ) : null}
       </div>
 
-      {/* RAG summary strip */}
-      <section aria-label="Compliance status" className="grid gap-4 sm:grid-cols-3">
-        <div className="glass-card p-5">
-          <span className="pill-green"><span className="pill-dot" /> Compliant</span>
-          <p className="mt-3 text-3xl font-bold text-white">{counts.compliant}</p>
-          <p className="text-xs text-white/50">Records with everything in date</p>
-        </div>
-        <div className="glass-card p-5">
-          <span className="pill-amber"><span className="pill-dot" /> Due soon</span>
-          <p className="mt-3 text-3xl font-bold text-white">{counts.dueSoon}</p>
-          <p className="text-xs text-white/50">Records with a check due soon</p>
-        </div>
-        <div className="glass-card p-5">
-          <span className="pill-red"><span className="pill-dot" /> Overdue</span>
-          <p className="mt-3 text-3xl font-bold text-white">{counts.overdue}</p>
-          <p className="text-xs text-white/50">Records with an overdue check</p>
-        </div>
-      </section>
-
-      {/* Branch filter */}
-      {branchOptions.length > 1 ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href="/people"
-            className={!branchId ? "pill-neutral" : "dock-link px-3 py-1.5 text-xs"}
-          >
-            All branches
-          </Link>
-          {branchOptions.map((b) => (
-            <Link
-              key={b.id}
-              href={`/people?branch=${b.id}`}
-              className={branchId === b.id ? "pill-neutral" : "dock-link px-3 py-1.5 text-xs"}
-            >
-              {b.name}
-            </Link>
-          ))}
-        </div>
-      ) : null}
+      <ViewNav current="register" branchId={branchId} branches={branches} />
 
       <div className="min-h-0 flex-1">
         {rows.length === 0 ? (
