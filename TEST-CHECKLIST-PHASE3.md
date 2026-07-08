@@ -47,10 +47,13 @@ bgrtcvyjuwopunpnudeu). Test tenant: Thistle Care Wales (12 forms, 8 People check
 18. Manager sees the full register for their branch(es) only.
 19. Supervisor sees only assigned caseload (assign via Manage record > caseload);
     not the whole register.
-20. Team Member visiting /people is redirected to their own linked record and can
-    see no other records and no service user data.
-21. Evidence read tightening: a branch member who is not a manager cannot read
-    evidence outside their caseload/own record (was broad in Phase 2).
+20. Team Member sees the branch register READ ONLY: they can view records + RAG for
+    their assigned branch, but have no Add person / Configure / Complete buttons and
+    cannot open the complete route directly (redirected). No service user data.
+21. Team Member cannot see completed-form Evidence contents (evidence history shows
+    nothing for them); Managers/Supervisors/Admins/author still can.
+22. Evidence read tightening: a Supervisor sees evidence only for their caseload;
+    the author always sees their own.
 
 ## Cross-tenant (needs a second company)
-22. A user of company A cannot read company B's people, checks, or evidence.
+23. A user of company A cannot read company B's people, checks, or evidence.

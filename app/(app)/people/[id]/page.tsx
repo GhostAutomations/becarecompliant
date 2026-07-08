@@ -26,6 +26,7 @@ import type { CheckStatus } from "@/lib/people/types";
 export const metadata: Metadata = { title: "Record" };
 
 const MANAGE_ROLES = ["company_admin", "manager", "platform_admin"];
+const COMPLETE_ROLES = ["company_admin", "manager", "supervisor", "platform_admin"];
 const RAG_RANK: Record<string, number> = { red: 0, amber: 1, green: 2, none: 3 };
 
 function ragPill(rag: string) {
@@ -50,6 +51,7 @@ export default async function PersonPage({
   if (!person || !profile.company_id) redirect("/people");
   const companyId = profile.company_id;
   const canManage = MANAGE_ROLES.includes(profile.role);
+  const canComplete = COMPLETE_ROLES.includes(profile.role);
 
   const [statuses, definitions, evidence, users, assignments, branches] = await Promise.all([
     getPersonChecks(id),
@@ -149,7 +151,7 @@ export default async function PersonPage({
                       </dd>
                     </div>
                   </dl>
-                  {s && def.form_id ? (
+                  {s && def.form_id && canComplete ? (
                     <Link
                       href={`/people/${person.id}/checks/${s.instance_id}/complete`}
                       className="btn-primary mt-3 w-full justify-center text-xs"

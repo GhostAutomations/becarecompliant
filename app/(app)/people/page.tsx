@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
-import { createClient } from "@/lib/supabase/server";
 import { NavIcon } from "@/components/nav-icon";
 import RegisterMatrix from "@/components/people/register-matrix";
 import RealtimeRefresh from "@/components/realtime-refresh";
@@ -17,18 +15,7 @@ export default async function PeoplePage({
 }: {
   searchParams: Promise<{ branch?: string }>;
 }) {
-  const { user, profile } = await requireCompany();
-
-  // Team Members only ever see their own Record: send them straight to it.
-  if (profile.role === "team_member") {
-    const supabase = await createClient();
-    const { data: mine } = await supabase
-      .from("people")
-      .select("id")
-      .eq("profile_id", user.id)
-      .maybeSingle();
-    if (mine?.id) redirect(`/people/${mine.id}`);
-  }
+  const { profile } = await requireCompany();
 
   if (!profile.company_id) {
     return (

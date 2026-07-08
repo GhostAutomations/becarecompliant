@@ -60,17 +60,13 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
       team: trimOrNull(formData.get("team")),
       manager_id: trimOrNull(formData.get("manager_id")),
       team_leader_id: trimOrNull(formData.get("team_leader_id")),
-      profile_id: trimOrNull(formData.get("profile_id")),
       start_date,
       created_by: user.id,
     })
     .select("id")
     .single();
 
-  if (error) {
-    if (error.code === "23505") return { error: "That person is already linked to a user account." };
-    return { error: error.message };
-  }
+  if (error) return { error: error.message };
 
   // Auto-apply active definitions with their initial due dates (TS-computed).
   const definitions = await listPeopleCheckDefinitions(companyId);

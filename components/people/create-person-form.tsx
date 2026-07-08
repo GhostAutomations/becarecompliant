@@ -77,19 +77,6 @@ export default function CreatePersonForm({
             ))}
           </select>
         </div>
-
-        <div className="sm:col-span-2">
-          <label htmlFor="profile_id" className="form-label">Linked user account</label>
-          <select id="profile_id" name="profile_id" defaultValue="">
-            <option value="">Not linked</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>{u.full_name || u.email}</option>
-            ))}
-          </select>
-          <p className="form-hint">
-            Link a Team Member to their own login so they can see only their own record.
-          </p>
-        </div>
       </div>
 
       {state.error ? <p className="form-error">{state.error}</p> : null}

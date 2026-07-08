@@ -10,13 +10,16 @@ import type { CheckDefinition } from "@/lib/people/types";
 
 export const metadata: Metadata = { title: "Complete check" };
 
+const COMPLETE_ROLES = ["company_admin", "manager", "supervisor", "platform_admin"];
+
 export default async function CompleteCheckPage({
   params,
 }: {
   params: Promise<{ id: string; instanceId: string }>;
 }) {
-  await requireCompany();
+  const { profile } = await requireCompany();
   const { id, instanceId } = await params;
+  if (!COMPLETE_ROLES.includes(profile.role)) redirect(`/people/${id}`);
 
   const supabase = await createClient();
   const { data: instance } = await supabase
