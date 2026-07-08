@@ -20,7 +20,7 @@ export default async function LoginPage({
             <svg
               viewBox="0 0 24 24"
               fill="none"
-              stroke="#fbbf24"
+              stroke="#f59e0b"
               strokeWidth="1.8"
               className="h-8 w-8"
               aria-hidden="true"

@@ -17,11 +17,12 @@
   --color-navy-800: #14306b;
   --color-navy-700: #1d4189;
 
-  /* Brand gold (shared with Join Care Now) */
-  --color-gold-300: #fcd34d;
-  --color-gold-400: #fbbf24;
-  --color-gold-500: #f59e0b;
-  --color-gold-600: #d97706;
+  /* Brand gold (shared with Join Care Now), rich amber end of the scale,
+     never light yellow (Phil sign-off feedback, Phase 0) */
+  --color-gold-300: #fbbf24;
+  --color-gold-400: #f59e0b;
+  --color-gold-500: #d97706;
+  --color-gold-600: #b45309;
 
   /* RAG status (deeper than the gold accent so status never reads as branding) */
   --color-rag-green: #047857;      /* emerald-700 */
@@ -137,7 +138,7 @@
 @layer components {
   /* Surfaces */
   .app-bg {
-    @apply min-h-dvh bg-gradient-to-br from-slate-100 via-sky-50 to-amber-50;
+    @apply min-h-dvh bg-gradient-to-br from-slate-200 via-sky-100 to-amber-100;
   }
 
   .auth-bg {
@@ -148,12 +149,12 @@
   .app-tile,
   .toast,
   .section-card {
-    @apply rounded-2xl border border-white/50 bg-white/70 shadow-lg shadow-navy-950/5 backdrop-blur-xl;
+    @apply rounded-2xl border border-white/50 bg-white/60 shadow-lg shadow-navy-950/5 backdrop-blur-xl;
   }
 
   .glass-card-hover,
   .app-tile {
-    @apply transition duration-150 hover:-translate-y-0.5 hover:bg-white/80 hover:shadow-xl hover:shadow-navy-950/10;
+    @apply transition duration-150 hover:-translate-y-0.5 hover:bg-white/70 hover:shadow-xl hover:shadow-navy-950/10;
   }
 
   .topbar {
@@ -183,7 +184,8 @@
   }
 
   .btn-primary {
-    @apply bg-gold-500 text-navy-950 shadow-sm hover:bg-gold-400;
+    /* Same rendered colour Phil passed at sign-off (#f59e0b), scale shifted under it. */
+    @apply bg-gold-400 text-navy-950 shadow-sm hover:bg-gold-300;
   }
 
   .btn-danger {
