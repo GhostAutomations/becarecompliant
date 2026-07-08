@@ -51,11 +51,11 @@ export default async function AppLayout({
       <div className="min-w-0 flex-1">
         {/* Frosted topbar */}
         <header className="topbar flex items-center justify-between gap-3 px-4 py-3 md:px-8">
-          <span className="text-sm font-bold text-navy-950 md:hidden">
-            Be Care <span className="text-gold-600">Compliant</span>
+          <span className="text-sm font-bold text-white md:hidden">
+            Be Care <span className="text-gold-400">Compliant</span>
           </span>
           <div className="ml-auto flex items-center gap-3">
-            <span className="hidden text-sm font-medium text-navy-900 sm:block">
+            <span className="hidden text-sm font-medium text-white/80 sm:block">
               {displayName}
             </span>
             <span className="pill-neutral">

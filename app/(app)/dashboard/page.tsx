@@ -25,33 +25,33 @@ export default async function DashboardPage() {
           <span className="pill-green">
             <span className="pill-dot" /> Compliant
           </span>
-          <p className="mt-3 text-3xl font-bold text-navy-950">0</p>
-          <p className="text-xs text-slate-500">No checks configured yet</p>
+          <p className="mt-3 text-3xl font-bold text-white">0</p>
+          <p className="text-xs text-white/50">No checks configured yet</p>
         </div>
         <div className="glass-card p-5">
           <span className="pill-amber">
             <span className="pill-dot" /> Due soon
           </span>
-          <p className="mt-3 text-3xl font-bold text-navy-950">0</p>
-          <p className="text-xs text-slate-500">No checks configured yet</p>
+          <p className="mt-3 text-3xl font-bold text-white">0</p>
+          <p className="text-xs text-white/50">No checks configured yet</p>
         </div>
         <div className="glass-card p-5">
           <span className="pill-red">
             <span className="pill-dot" /> Overdue
           </span>
-          <p className="mt-3 text-3xl font-bold text-navy-950">0</p>
-          <p className="text-xs text-slate-500">No checks configured yet</p>
+          <p className="mt-3 text-3xl font-bold text-white">0</p>
+          <p className="text-xs text-white/50">No checks configured yet</p>
         </div>
       </section>
 
       {/* App grid */}
       <section aria-label="Sections" className="grid gap-4 sm:grid-cols-2">
         <Link href="/people" className="app-tile">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-navy-800/10 text-navy-800">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-400/10 text-gold-400">
             <NavIcon icon="people" className="h-5 w-5" />
           </span>
-          <h2 className="text-base font-semibold text-navy-950">People</h2>
-          <p className="text-sm text-slate-600">
+          <h2 className="text-base font-semibold text-white">People</h2>
+          <p className="text-sm text-white/60">
             Your staff team register: supervisions, appraisals, DBS renewals,
             training refreshers.
           </p>
@@ -59,13 +59,13 @@ export default async function DashboardPage() {
         </Link>
 
         <Link href="/service-users" className="app-tile">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-navy-800/10 text-navy-800">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-400/10 text-gold-400">
             <NavIcon icon="serviceUsers" className="h-5 w-5" />
           </span>
-          <h2 className="text-base font-semibold text-navy-950">
+          <h2 className="text-base font-semibold text-white">
             Service Users
           </h2>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-white/60">
             Your clients receiving care: care plan reviews, risk assessments,
             medication audits.
           </p>
@@ -76,7 +76,7 @@ export default async function DashboardPage() {
       {/* Design system preview, for Phase 0 sign-off. Removed once approved. */}
       <details className="section-card" open>
         <summary>Design system preview (Phase 0 sign-off, will be removed)</summary>
-        <div className="space-y-5 border-t border-white/50 p-5">
+        <div className="space-y-5 border-t border-white/10 p-5">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label htmlFor="demo-input" className="form-label">
@@ -108,13 +108,13 @@ export default async function DashboardPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-6">
-            <label className="flex items-center gap-2 text-sm text-navy-900">
+            <label className="flex items-center gap-2 text-sm text-white/80">
               <input type="checkbox" defaultChecked /> Checkbox
             </label>
-            <label className="flex items-center gap-2 text-sm text-navy-900">
+            <label className="flex items-center gap-2 text-sm text-white/80">
               <input type="radio" name="demo-radio" defaultChecked /> Radio A
             </label>
-            <label className="flex items-center gap-2 text-sm text-navy-900">
+            <label className="flex items-center gap-2 text-sm text-white/80">
               <input type="radio" name="demo-radio" /> Radio B
             </label>
             <input type="range" className="max-w-48" defaultValue={60} />

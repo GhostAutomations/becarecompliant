@@ -2,12 +2,13 @@
 
 /*
   Be Care Compliant design system.
-  Same family as Join Care Now: deep navy + gold, glassy frosted cards on a soft gradient.
+  Same family as Join Care Now: deep navy + gold. DARK app theme (Phil's Phase 0
+  sign-off decision): navy gradient surfaces, dark glass cards, light text.
   HARD RULES:
   - Never style a form control inline. Every select/input/textarea/checkbox/radio/slider is styled here.
   - Never use border-gray-300 or hover:bg-gray-*.
-  - App surfaces are glass (bg-white/70 + backdrop-blur + border-white/50), never plain bg-white boxes.
-  - RAG colours are semantic: use the .pill-* / .rag-* classes, not ad-hoc colours.
+  - App surfaces are dark glass (bg-white/10 + backdrop-blur + border-white/10), never flat white boxes.
+  - RAG colours are semantic: use the .pill-* classes, not ad-hoc colours.
 */
 
 @theme {
@@ -46,14 +47,19 @@
   }
 
   body {
-    @apply font-sans text-slate-900;
+    @apply bg-navy-950 font-sans text-white;
   }
 
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
   select,
   textarea {
-    @apply w-full appearance-none rounded-xl border border-white/60 bg-white/60 px-3.5 py-2.5 text-sm text-slate-900 shadow-sm backdrop-blur placeholder:text-slate-400;
+    @apply w-full appearance-none rounded-xl border border-white/20 bg-white/10 px-3.5 py-2.5 text-sm text-white shadow-sm backdrop-blur placeholder:text-white/40;
     transition: border-color 150ms ease, box-shadow 150ms ease;
+  }
+
+  /* Native dropdown lists render on light panels */
+  select option {
+    @apply bg-navy-900 text-white;
   }
 
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):focus,
@@ -72,7 +78,7 @@
 
   select {
     @apply pr-10 bg-no-repeat;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2314306b' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23cbd5e1' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
     background-position: right 0.75rem center;
     background-size: 1rem 1rem;
   }
@@ -83,7 +89,7 @@
 
   input[type="checkbox"],
   input[type="radio"] {
-    @apply h-5 w-5 shrink-0 appearance-none border border-white/70 bg-white/60 shadow-sm backdrop-blur;
+    @apply h-5 w-5 shrink-0 appearance-none border border-white/30 bg-white/10 shadow-sm backdrop-blur;
     transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
   }
 
@@ -118,7 +124,7 @@
   }
 
   input[type="range"] {
-    @apply h-2 w-full cursor-pointer appearance-none rounded-full bg-white/60 shadow-inner backdrop-blur;
+    @apply h-2 w-full cursor-pointer appearance-none rounded-full bg-white/15 shadow-inner backdrop-blur;
     accent-color: var(--color-gold-500);
   }
 
@@ -138,7 +144,7 @@
 @layer components {
   /* Surfaces */
   .app-bg {
-    @apply min-h-dvh bg-gradient-to-br from-slate-200 via-sky-100 to-amber-100;
+    @apply min-h-dvh bg-gradient-to-br from-navy-950 via-navy-900 to-navy-800;
   }
 
   .auth-bg {
@@ -149,16 +155,16 @@
   .app-tile,
   .toast,
   .section-card {
-    @apply rounded-2xl border border-white/50 bg-white/60 shadow-lg shadow-navy-950/5 backdrop-blur-xl;
+    @apply rounded-2xl border border-white/10 bg-white/10 shadow-lg shadow-black/25 backdrop-blur-xl;
   }
 
   .glass-card-hover,
   .app-tile {
-    @apply transition duration-150 hover:-translate-y-0.5 hover:bg-white/70 hover:shadow-xl hover:shadow-navy-950/10;
+    @apply transition duration-150 hover:-translate-y-0.5 hover:bg-white/15 hover:shadow-xl hover:shadow-black/30;
   }
 
   .topbar {
-    @apply sticky top-0 z-40 border-b border-white/50 bg-white/60 backdrop-blur-xl;
+    @apply sticky top-0 z-40 border-b border-white/10 bg-navy-950/50 backdrop-blur-xl;
   }
 
   .sidebar-gradient {
@@ -193,11 +199,11 @@
   }
 
   .btn-ghost {
-    @apply text-navy-800 hover:bg-white/70;
+    @apply text-white/80 hover:bg-white/10 hover:text-white;
   }
 
   .btn-outline {
-    @apply border border-white/60 bg-white/40 text-navy-900 backdrop-blur hover:bg-white/70;
+    @apply border border-white/20 bg-white/5 text-white/90 backdrop-blur hover:bg-white/15;
   }
 
   /* Status pills (RAG) */
@@ -230,7 +236,7 @@
   }
 
   .pill-neutral {
-    @apply border-navy-800/10 bg-white/60 text-navy-800;
+    @apply border-white/15 bg-white/10 text-white/80;
   }
 
   /* Navigation */
@@ -248,29 +254,29 @@
 
   /* Forms */
   .form-label {
-    @apply mb-1.5 block text-sm font-medium text-navy-900;
+    @apply mb-1.5 block text-sm font-medium text-white/90;
   }
 
   .form-hint {
-    @apply mt-1.5 text-xs text-slate-500;
+    @apply mt-1.5 text-xs text-white/50;
   }
 
   .form-error {
-    @apply mt-1.5 text-xs font-medium text-rag-red;
+    @apply mt-1.5 text-xs font-medium text-red-400;
   }
 
   /* Slide-over panel */
   .slide-over-backdrop {
-    @apply fixed inset-0 z-50 bg-navy-950/40 backdrop-blur-sm;
+    @apply fixed inset-0 z-50 bg-navy-950/60 backdrop-blur-sm;
   }
 
   .slide-over-panel {
-    @apply fixed inset-y-0 right-0 z-50 w-full max-w-md overflow-y-auto border-l border-white/50 bg-white/85 p-6 shadow-2xl backdrop-blur-2xl;
+    @apply fixed inset-y-0 right-0 z-50 w-full max-w-md overflow-y-auto border-l border-white/10 bg-navy-900/90 p-6 shadow-2xl backdrop-blur-2xl;
   }
 
   /* Toasts */
   .toast {
-    @apply fixed bottom-4 right-4 z-50 flex items-center gap-3 px-4 py-3 text-sm font-medium;
+    @apply fixed bottom-4 right-4 z-50 flex items-center gap-3 px-4 py-3 text-sm font-medium text-white/90;
   }
 
   /* Collapsible section */
@@ -279,15 +285,15 @@
   }
 
   .section-card summary {
-    @apply flex cursor-pointer items-center justify-between px-5 py-4 text-sm font-semibold text-navy-900 hover:bg-white/60;
+    @apply flex cursor-pointer items-center justify-between px-5 py-4 text-sm font-semibold text-white/90 hover:bg-white/5;
   }
 
   /* Typography helpers */
   .page-title {
-    @apply text-2xl font-bold tracking-tight text-navy-950;
+    @apply text-2xl font-bold tracking-tight text-white;
   }
 
   .page-subtitle {
-    @apply text-sm text-slate-600;
+    @apply text-sm text-white/60;
   }
 }
