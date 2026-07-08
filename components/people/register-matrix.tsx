@@ -413,9 +413,6 @@ export default function RegisterMatrix({
                     <Link href={`/people/${row.person.id}`} className="font-semibold text-white hover:text-gold-300">
                       {row.person.full_name}
                     </Link>
-                    {row.person.job_title ? (
-                      <div className="text-[11px] text-white/45">{row.person.job_title}</div>
-                    ) : null}
                   </td>
                   <td>
                     {editable ? (

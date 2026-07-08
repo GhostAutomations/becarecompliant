@@ -321,11 +321,11 @@
   }
 
   .matrix th {
-    @apply sticky top-0 z-20 whitespace-nowrap bg-navy-900 px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-white/55;
+    @apply sticky top-0 z-20 whitespace-nowrap bg-navy-900 px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-white/55;
   }
 
   .matrix td {
-    @apply whitespace-nowrap border-t border-white/5 px-3 py-2.5 text-sm text-white/85;
+    @apply whitespace-nowrap border-t border-white/5 px-3 py-1 text-sm text-white/85;
   }
 
   .matrix tbody tr:hover td {
