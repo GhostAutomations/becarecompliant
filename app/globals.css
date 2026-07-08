@@ -1,0 +1,291 @@
+@import "tailwindcss";
+
+/*
+  Be Care Compliant design system.
+  Same family as Join Care Now: deep navy + gold, glassy frosted cards on a soft gradient.
+  HARD RULES:
+  - Never style a form control inline. Every select/input/textarea/checkbox/radio/slider is styled here.
+  - Never use border-gray-300 or hover:bg-gray-*.
+  - App surfaces are glass (bg-white/70 + backdrop-blur + border-white/50), never plain bg-white boxes.
+  - RAG colours are semantic: use the .pill-* / .rag-* classes, not ad-hoc colours.
+*/
+
+@theme {
+  /* Brand navy (marketing + auth base, sidebar gradient) */
+  --color-navy-950: #081231;
+  --color-navy-900: #0d1d4b;
+  --color-navy-800: #14306b;
+  --color-navy-700: #1d4189;
+
+  /* Brand gold (shared with Join Care Now) */
+  --color-gold-300: #fcd34d;
+  --color-gold-400: #fbbf24;
+  --color-gold-500: #f59e0b;
+  --color-gold-600: #d97706;
+
+  /* RAG status (deeper than the gold accent so status never reads as branding) */
+  --color-rag-green: #047857;      /* emerald-700 */
+  --color-rag-green-soft: #d1fae5; /* emerald-100 */
+  --color-rag-green-deep: #065f46; /* emerald-800, pill text */
+  --color-rag-amber: #b45309;      /* amber-700 */
+  --color-rag-amber-soft: #fef3c7; /* amber-100 */
+  --color-rag-amber-deep: #92400e; /* amber-800, pill text */
+  --color-rag-red: #dc2626;        /* red-600 */
+  --color-rag-red-soft: #fee2e2;   /* red-100 */
+  --color-rag-red-deep: #991b1b;   /* red-800, pill text */
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* ---------- Canonical form controls (the only place controls are styled) ---------- */
+
+@layer base {
+  html {
+    @apply antialiased;
+  }
+
+  body {
+    @apply font-sans text-slate-900;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  select,
+  textarea {
+    @apply w-full appearance-none rounded-xl border border-white/60 bg-white/60 px-3.5 py-2.5 text-sm text-slate-900 shadow-sm backdrop-blur placeholder:text-slate-400;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):focus,
+  select:focus,
+  textarea:focus {
+    @apply outline-none;
+    border-color: var(--color-gold-400);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-gold-400) 35%, transparent);
+  }
+
+  input:disabled,
+  select:disabled,
+  textarea:disabled {
+    @apply cursor-not-allowed opacity-60;
+  }
+
+  select {
+    @apply pr-10 bg-no-repeat;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2314306b' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-size: 1rem 1rem;
+  }
+
+  textarea {
+    @apply min-h-24;
+  }
+
+  input[type="checkbox"],
+  input[type="radio"] {
+    @apply h-5 w-5 shrink-0 appearance-none border border-white/70 bg-white/60 shadow-sm backdrop-blur;
+    transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+  }
+
+  input[type="checkbox"] {
+    @apply rounded-md;
+  }
+
+  input[type="radio"] {
+    @apply rounded-full;
+  }
+
+  input[type="checkbox"]:focus-visible,
+  input[type="radio"]:focus-visible,
+  input[type="range"]:focus-visible {
+    @apply outline-none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-gold-400) 35%, transparent);
+  }
+
+  input[type="checkbox"]:checked {
+    border-color: var(--color-gold-500);
+    background-color: var(--color-gold-500);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23081231' stroke-width='3'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M5 13l4 4L19 7'/%3E%3C/svg%3E");
+    background-size: 0.8rem 0.8rem;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+
+  input[type="radio"]:checked {
+    border-color: var(--color-gold-500);
+    background-color: var(--color-gold-500);
+    box-shadow: inset 0 0 0 3.5px rgba(255, 255, 255, 0.95);
+  }
+
+  input[type="range"] {
+    @apply h-2 w-full cursor-pointer appearance-none rounded-full bg-white/60 shadow-inner backdrop-blur;
+    accent-color: var(--color-gold-500);
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    @apply h-5 w-5 appearance-none rounded-full border-2 border-white shadow;
+    background-color: var(--color-gold-500);
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    @apply h-5 w-5 rounded-full border-2 border-white shadow;
+    background-color: var(--color-gold-500);
+  }
+}
+
+/* ---------- Standard components ---------- */
+
+@layer components {
+  /* Surfaces */
+  .app-bg {
+    @apply min-h-dvh bg-gradient-to-br from-slate-100 via-sky-50 to-amber-50;
+  }
+
+  .auth-bg {
+    @apply min-h-dvh bg-gradient-to-br from-navy-950 via-navy-900 to-navy-800;
+  }
+
+  .glass-card,
+  .app-tile,
+  .toast,
+  .section-card {
+    @apply rounded-2xl border border-white/50 bg-white/70 shadow-lg shadow-navy-950/5 backdrop-blur-xl;
+  }
+
+  .glass-card-hover,
+  .app-tile {
+    @apply transition duration-150 hover:-translate-y-0.5 hover:bg-white/80 hover:shadow-xl hover:shadow-navy-950/10;
+  }
+
+  .topbar {
+    @apply sticky top-0 z-40 border-b border-white/50 bg-white/60 backdrop-blur-xl;
+  }
+
+  .sidebar-gradient {
+    @apply bg-gradient-to-b from-navy-950 via-navy-900 to-navy-800;
+  }
+
+  /* Buttons (shared base via grouped selectors: Tailwind v4 @apply cannot
+     reference custom component classes) */
+  .btn,
+  .btn-primary,
+  .btn-danger,
+  .btn-ghost,
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition duration-150 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .btn:focus-visible,
+  .btn-primary:focus-visible,
+  .btn-danger:focus-visible,
+  .btn-ghost:focus-visible,
+  .btn-outline:focus-visible {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-gold-400) 45%, transparent);
+  }
+
+  .btn-primary {
+    @apply bg-gold-500 text-navy-950 shadow-sm hover:bg-gold-400;
+  }
+
+  .btn-danger {
+    @apply bg-rag-red text-white shadow-sm hover:bg-red-700;
+  }
+
+  .btn-ghost {
+    @apply text-navy-800 hover:bg-white/70;
+  }
+
+  .btn-outline {
+    @apply border border-white/60 bg-white/40 text-navy-900 backdrop-blur hover:bg-white/70;
+  }
+
+  /* Status pills (RAG) */
+  .pill,
+  .pill-green,
+  .pill-amber,
+  .pill-red,
+  .pill-neutral {
+    @apply inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold;
+  }
+
+  .pill {
+    @apply border-transparent;
+  }
+
+  .pill-dot {
+    @apply h-1.5 w-1.5 rounded-full bg-current;
+  }
+
+  .pill-green {
+    @apply border-rag-green/20 bg-rag-green-soft text-rag-green-deep;
+  }
+
+  .pill-amber {
+    @apply border-rag-amber/20 bg-rag-amber-soft text-rag-amber-deep;
+  }
+
+  .pill-red {
+    @apply border-rag-red/20 bg-rag-red-soft text-rag-red-deep;
+  }
+
+  .pill-neutral {
+    @apply border-navy-800/10 bg-white/60 text-navy-800;
+  }
+
+  /* Navigation */
+  .dock-link {
+    @apply flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white;
+  }
+
+  .dock-link-active {
+    @apply bg-white/15 text-gold-300;
+  }
+
+  .app-tile {
+    @apply flex flex-col gap-2 p-5;
+  }
+
+  /* Forms */
+  .form-label {
+    @apply mb-1.5 block text-sm font-medium text-navy-900;
+  }
+
+  .form-hint {
+    @apply mt-1.5 text-xs text-slate-500;
+  }
+
+  .form-error {
+    @apply mt-1.5 text-xs font-medium text-rag-red;
+  }
+
+  /* Slide-over panel */
+  .slide-over-backdrop {
+    @apply fixed inset-0 z-50 bg-navy-950/40 backdrop-blur-sm;
+  }
+
+  .slide-over-panel {
+    @apply fixed inset-y-0 right-0 z-50 w-full max-w-md overflow-y-auto border-l border-white/50 bg-white/85 p-6 shadow-2xl backdrop-blur-2xl;
+  }
+
+  /* Toasts */
+  .toast {
+    @apply fixed bottom-4 right-4 z-50 flex items-center gap-3 px-4 py-3 text-sm font-medium;
+  }
+
+  /* Collapsible section */
+  .section-card {
+    @apply overflow-hidden;
+  }
+
+  .section-card summary {
+    @apply flex cursor-pointer items-center justify-between px-5 py-4 text-sm font-semibold text-navy-900 hover:bg-white/60;
+  }
+
+  /* Typography helpers */
+  .page-title {
+    @apply text-2xl font-bold tracking-tight text-navy-950;
+  }
+
+  .page-subtitle {
+    @apply text-sm text-slate-600;
+  }
+}
