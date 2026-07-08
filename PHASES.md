@@ -10,7 +10,7 @@ Standing decisions taken at planning:
 - Dark app theme (Phil, Phase 0 sign-off): all app screens are dark, navy gradient surfaces with dark glass cards (bg-white/10 + blur) and light text. Light glass app screens were rejected as too white; do not reintroduce.
 - Supabase org upgraded to Pro to allow the third active project (becarecompliant, eu-west-2, ref bgrtcvyjuwopunpnudeu).
 
-## Phase 0 — Foundations  ⟵ CURRENT
+## Phase 0 — Foundations  ✅ COMPLETE (confirmed by Phil 2026-07-08, checklist 14/14)
 
 - PHASES.md master plan
 - Next.js 15 + TypeScript + Tailwind v4 scaffold, repo `becarecompliant`
@@ -23,7 +23,7 @@ Standing decisions taken at planning:
 - Dashboard shell: frosted topbar, gradient sidebar with dock-style navigation, app-grid, People and Service Users placeholder entries
 - Vercel project + becarecompliant.com (www canonical)
 
-## Phase 1 — Multi-tenant core
+## Phase 1 — Multi-tenant core  ⟵ NEXT (starts with a popup to agree Manager/Supervisor/Team Member permission boundaries; remove the dashboard design preview section first)
 
 Companies CRUD (founder-led creation), branches (1 Team + 1 Branch included, extra branches as paid add-on later), profiles and the five roles, invite-only onboarding (branded Resend emails, resend button on pending invites), permission boundaries confirmed by popup per feature area then enforced in RLS, audit log groundwork, seat-count groundwork.
 
@@ -70,10 +70,9 @@ Ideas that arrive mid-phase get parked here (popup decides: current phase or Add
 Anything not tested at build time is logged here immediately with enough detail to test cold.
 
 - Recurrence engine date maths: month boundaries, leap year, Europe/London DST transitions (log created up front, must be tested when engine ships in Phase 3)
-- Phase 0 single-session enforcement, live: sign in as the same user on two browsers/devices; the first device must be signed out on its next request with the message "You've been signed out because your account was signed in elsewhere." (Needs a deployed app and a real user; guard logic in lib/auth/guards.ts requireUser, RPC claim_session.)
-- Phase 0 canonical form controls cross-browser: select chevron, checkbox tick, radio dot, range slider on Safari (macOS + iOS), Chrome, Firefox. Styled centrally in app/globals.css @layer base.
-- Phase 0 RAG pill contrast on glassy cards: verify green/amber/red pills against WCAG AA on the dashboard's frosted background (pill text colours are emerald-800 / amber-800 / red-800 on 100-strength soft backgrounds).
-- Phase 0 middleware redirect matrix: signed out → any app path lands on /login; signed in → /login bounces to /dashboard; public paths (/login, /auth/*, /api/webhooks/*) reachable without session.
+- Phase 0 canonical form controls cross-browser: select chevron, checkbox tick, radio dot, range slider on Safari (macOS + iOS), Chrome, Firefox. Styled centrally in app/globals.css @layer base. (Edge on macOS passed 2026-07-08.)
+- Phase 0 RAG pill contrast: measure green/amber/red pills against WCAG AA on the DARK glass cards (soft 100-strength chips with 800-strength text on bg-white/10 over navy).
+- Phase 0 public paths: /api/webhooks/* must be reachable without a session once the first webhook exists (PUBLIC_PATHS in lib/supabase/middleware.ts). Auth redirect matrix otherwise passed live 2026-07-08 (checks 11 to 13).
 
 ## Phase 12 — Marketing & Launch
 
