@@ -37,7 +37,7 @@ Agreed decisions (2026-07-08 popups):
 
 Build order: migration 0002 (user_branches, invites, audit_log, seat count fn, RLS helpers/policies) → companies CRUD (founder) → branch management (Admin) → users & invites (Admin) + Resend → audit + seat display → DNS walkthrough → Phase 1 test checklist.
 
-## Phase 2 — Forms engine & evidence  🔨 BUILT, pending deploy + testing
+## Phase 2 — Forms engine & evidence  ✅ COMPLETE (confirmed by Phil 2026-07-08; deployed, seeding tested live, remaining checks logged to Final Testing)
 
 Schema-driven form renderer (shared helper used everywhere), form versioning, immutable evidence storage (timestamps, author, form version), founder-curated template seeds for new companies. No authoring UI yet. GDPR: evidence retention design.
 
@@ -54,9 +54,26 @@ Agreed decisions (2026-07-08 popups):
 
 Build state: migration 0003 applied (forms, form_versions, evidence, evidence_files, form_templates, bucket, RLS, RPCs) to ref bgrtcvyjuwopunpnudeu only; 8 master templates seeded; Thistle Care Wales seeded (8 forms). Shared renderer (components/forms/form-renderer.tsx), validator (lib/form-validate.ts), schema types (lib/form-schema.ts), formatter (lib/form-format.ts), evidence pipeline (lib/evidence/pdf, storage, submit, retention) built; seeding wired into founder company creation. NOT yet deployed (needs npm install for @react-pdf/renderer). No submission UI (that is Phase 3).
 
-## Phase 3 — People section
+## Phase 3 — People section  🔨 IN PROGRESS (scope agreed by popup 2026-07-08)
 
 People records and register per branch, checks attached to records with recurrence rules, recurrence engine (Europe/London, month boundaries, leap years, tested not assumed), RAG statuses with configurable amber threshold, rollups check → record → register → branch → company dashboard, complete-form-satisfies-check loop end to end, archived records and leavers excluded everywhere.
+
+Agreed decisions (2026-07-08 popups; Phil shared his live Monday "Team Compliance NP / Compliance Matrix" board as the target look):
+
+- Person record = identity + employment only (full name, job title, branch, status active/leaver, start date, leaver date, work email, mobile) plus optional line Manager / Team Leader / Team assignment fields. DBS, right to work, training etc. are Checks, never record columns. Kept distinct from Service Users in UI + data model.
+- Check model: company `check_definitions` (name, linked Form or capture kind, default recurrence, amber override, applies-to people) → per-record `check_instances` (due_date, status, last_completed). One-off checks supported (probation / 3-month review).
+- Two check kinds: (1) Form-completion checks → complete a seeded Form → Evidence (supervision, appraisal, spot check, competency); (2) document/date checks → record a renewal/expiry date + optional upload, expiry-anchored (DBS, Enhanced DBS, Right to Work, Manual Handling refresher). Both produce Evidence.
+- Recurrence anchor: next due = actual completion date + interval (drift-free), PLUS expiry-anchored mode (due = document expiry minus a lead time). Rule shape { frequency, interval, anchor: completion|expiry, leadDays? }. This is the Monday-automation behaviour Phil asked for: completing/renewing auto-advances the check.
+- Recurrence engine: one shared, unit-tested module (Europe/London, month boundaries, leap years, DST). Clears the Final Testing date-maths item.
+- RAG amber: company default 30 days, overridable per check definition. Server-computed for correctness.
+- Rollup check → record → register → branch → dashboard: server-computed RAG + one shared Supabase Realtime helper (unfiltered subscribe, REPLICA IDENTITY FULL, poll fallback). Also delivers the parked Additions live-list item.
+- Default recurrences (cited sector norms, editable): Supervision 3mo, Appraisal 12mo, Spot Check 3mo, Competency 12mo, DBS ~36mo (expiry-anchored), Right to Work expiry-anchored, Manual Handling refresher 12mo. Definitions auto-apply to each new Person from start date, idempotent.
+- Register presentation: dense compliance matrix (sticky Carer column, core employment columns, one RAG cell per Check with next due + last completed). Sort/filter/group, horizontal scroll desktop, stacked cards mobile, dark navy/gold, canonical controls. One column per Check (not Sup 1/2/3); full cycle history in the record drill-down.
+- Leavers + archived excluded from active register, rollups, reminders, reports; separate Leavers/archived view for audit history. Completed check = green + completion date. Empty states everywhere.
+- Permissions (RLS): Manager = full register for their branch(es); Supervisor = assigned caseload only (`person_assignments`); Team Member = own linked record only (`person.profile_id`); Admin/Platform = all. Tighten Phase 2 evidence reads to match now records exist.
+- Research cited (July 2026): CQC SAF operational across providers by end 2026, no prescribed supervision cadence (sector norm quarterly + annual appraisal); DBS no statutory expiry (providers renew 1–3 yrs or Update Service); right to work follow-up before time-limited permission expires.
+
+Build order: recurrence engine (+ tests) → migration 0004 (people, check_definitions, check_instances, person_assignments, RAG view/fns, RLS, seed people catalogue; ref bgrtcvyjuwopunpnudeu only) → register matrix UI → record drill-down → check config/assignment → complete-Form-satisfies-Check via submitEvidence(record_type='person') → RAG rollups + realtime → leaver/archived exclusion → deploy + test checklist.
 
 ## Phase 4 — Service Users section
 
@@ -93,7 +110,7 @@ Ideas that arrive mid-phase get parked here (popup decides: current phase or Add
 
 Anything not tested at build time is logged here immediately with enough detail to test cold.
 
-- Recurrence engine date maths: month boundaries, leap year, Europe/London DST transitions (log created up front, must be tested when engine ships in Phase 3)
+- Recurrence engine date maths: month boundaries, leap year, Europe/London DST transitions. DONE 2026-07-08: shared engine lib/recurrence.ts unit-tested 19/19 in the sandbox (31 Jan +1mo, 29 Feb +1yr, day/week/month/year intervals, expiry-anchor, RAG thresholds, London late-evening BST rollover, spring/autumn DST instants, month interval across a DST change). Re-run with `npm test`.
 - Phase 0 canonical form controls cross-browser: select chevron, checkbox tick, radio dot, range slider on Safari (macOS + iOS), Chrome, Firefox. Styled centrally in app/globals.css @layer base. (Edge on macOS passed 2026-07-08.)
 - Phase 0 RAG pill contrast: measure green/amber/red pills against WCAG AA on the DARK glass cards (soft 100-strength chips with 800-strength text on bg-white/10 over navy).
 - Phase 0 public paths: /api/webhooks/* must be reachable without a session once the first webhook exists (PUBLIC_PATHS in lib/supabase/middleware.ts). Auth redirect matrix otherwise passed live 2026-07-08 (checks 11 to 13).
@@ -107,9 +124,9 @@ Still to test cold (logged from Phase 1):
 - Seat billing display at 5 and 6 active users (extra users at £5/mo).
 - Team Member data isolation (sees only own record/tasks, no service user data) — needs the People/Service User screens, so verify in Phase 3/4.
 
-Logged from Phase 2 (forms engine & evidence). Verified now by the agent: migration 0003 applied to the correct ref only; 8 master templates seeded; seeding idempotent (Thistle stayed at 8/8); validator unit tests 14/14; new tables all have RLS with policies; typecheck clean bar the pre-install @react-pdf module. To test after deploy (needs npm install for @react-pdf/renderer, then push):
-- Founder company create seeds 8 starter forms; note reads "8 starter forms were added"; company.created metadata has forms_seeded: 8; live idempotency (no duplicate forms on re-seed).
-- Cross-tenant RLS on forms/form_versions/evidence: a member of company A cannot read B's forms or evidence; form_templates readable only by the Founder.
+Logged from Phase 2 (forms engine & evidence). Verified by the agent: migration 0003 applied to the correct ref only; 8 master templates seeded; seeding idempotent (Thistle stayed at 8/8); validator unit tests 14/14; new tables all have RLS with policies; typecheck clean bar the pre-install @react-pdf module. Phase 2 deployed live 2026-07-08 (commit 7a2678e, build green). PASSED live: Founder company create seeds 8 starter forms (4 people, 4 service users), note reads "8 starter forms were added", company.created metadata has forms_seeded: "8" (verified in DB on company "Phase 2 Test"). Gotcha seen: a company created during the ~build window ran the old code and got 0 forms; timing, not a bug, retry after READY seeded correctly. Two throwaway test companies exist from this ("Test Company Phase 2" with 0 forms, "Phase 2 Test" with 8) plus pending invites; archive/delete when convenient.
+Still to test cold:
+- Cross-tenant RLS on forms/form_versions/evidence: a member of company A cannot read B's forms or evidence; form_templates readable only by the Founder (needs two tenants + real user sessions).
 Cold in Phase 3/4 (needs the submission UI, which does not exist in Phase 2):
 - submit_evidence writes exactly one immutable evidence row (answers snapshot + pinned form_version_id + embedded schema_snapshot); branded PDF generated at submission, stored in the private bucket, pdf_sha256 + pdf_bytes recorded.
 - Evidence excludes conditionally hidden fields at submit (server cleanAnswers); evidence has no UPDATE/DELETE via API; same-evidenceId retry is idempotent (duplicate: true, no second row).
@@ -119,6 +136,20 @@ Cold in Phase 3/4 (needs the submission UI, which does not exist in Phase 2):
 - anonymise_evidence (Admin/Platform only) blanks answers/author/PDF, flags files purged, removes storage objects, writes evidence.anonymised; backfillRetentionForRecord sets retention_until to end of care + 8 years.
 - Renderer live: every v1 field type renders via the canonical controls, conditional show/hide works live, required markers + inline validation errors show, and it works on mobile.
 - record-level evidence read tightening (Supervisor = own caseload, Team Member = own record only) to be added when records exist in Phase 3/4; current evidence_select scopes to platform/company_admin/branch member/author.
+
+Logged from Phase 3 (People). Built + typecheck clean (tsc --noEmit, sandbox) 2026-07-08; next build must run on Phil's machine (sandbox cannot download the SWC binary, npm registry blocked). Migration 0004 applied to ref bgrtcvyjuwopunpnudeu only; advisors show only the accepted SECURITY DEFINER / leaked-password WARN posture, no missing-RLS findings. Existing tenant Thistle Care Wales backfilled to 12 forms + 8 People checks. Run TEST-CHECKLIST-PHASE3.md as a popup checklist once deployed.
+
+Remaining Phase 3 work (not built this session, do next before sign-off):
+- Check definition editing UI: a company screen to adjust recurrence/amber and add/remove checks (RLS already allows Admin+Manager updates; only the UI is missing). Defaults are seeded + auto-applied, so the product works without it, but "how a company adjusts them" is not yet surfaced.
+- Live Realtime subscription for the register/dashboard (one shared helper, unfiltered subscribe, poll fallback). RAG is server-computed and correct on navigation/revalidate today, but not push-live. Also delivers the parked Additions live-list item.
+
+Still to test cold (Phase 3, needs deploy + extra roles/tenants):
+- The full TEST-CHECKLIST-PHASE3.md end to end on the deployed build (records, the complete-Form-satisfies-Check loop, next-due maths live, RAG rollups, leaver/archived exclusion).
+- Permission matrix live: Manager (branch register), Supervisor (caseload only via person_assignments), Team Member (own linked record only, redirected from /people, no service user data). Needs a Manager, a Supervisor and a Team Member in Thistle.
+- Evidence read tightening (0004): a non-manager branch member cannot read evidence outside their caseload/own record (Phase 2 read was broader). Needs the roles above.
+- Phase 2 items now testable through the new submission UI: submit_evidence writes exactly one immutable evidence row + branded PDF in the private bucket + pdf_sha256; conditionally hidden answers excluded at submit; 5-minute signed-URL download is audit-logged; signature currently stored in the answers snapshot, NOT yet as a separate signature attachment (deferred).
+- Cross-tenant RLS on people/check_definitions/check_instances/evidence with two companies.
+- DBS Renewal / Manual Handling / Right to Work document checks: completing captures the date + optional upload and reschedules correctly (right to work expiry-anchored, DBS 36mo, manual handling 12mo).
 
 ## Phase 12 — Marketing & Launch
 

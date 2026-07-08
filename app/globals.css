@@ -296,4 +296,60 @@
   .page-subtitle {
     @apply text-sm text-white/60;
   }
+
+  /* Compliance matrix (the People register). Styled centrally, never inline. */
+  .matrix-wrap {
+    @apply overflow-auto rounded-2xl border border-white/10 bg-navy-900/40;
+    max-height: 72vh;
+  }
+
+  .matrix {
+    @apply min-w-full border-separate;
+    border-spacing: 0;
+  }
+
+  .matrix th {
+    @apply sticky top-0 z-20 whitespace-nowrap bg-navy-900 px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-white/55;
+  }
+
+  .matrix td {
+    @apply whitespace-nowrap border-t border-white/5 px-3 py-2.5 text-sm text-white/85;
+  }
+
+  .matrix tbody tr:hover td {
+    @apply bg-white/5;
+  }
+
+  .matrix .col-carer {
+    @apply sticky left-0 z-10 bg-navy-950;
+  }
+
+  .matrix th.col-carer {
+    @apply z-30 bg-navy-900;
+  }
+
+  /* A RAG status cell: a compact due date chip coloured by status. */
+  .rag-cell {
+    @apply inline-flex flex-col gap-0.5 rounded-lg px-2 py-1 text-xs font-semibold leading-tight;
+  }
+
+  .rag-cell-green {
+    @apply bg-rag-green-soft text-rag-green-deep;
+  }
+
+  .rag-cell-amber {
+    @apply bg-rag-amber-soft text-rag-amber-deep;
+  }
+
+  .rag-cell-red {
+    @apply bg-rag-red-soft text-rag-red-deep;
+  }
+
+  .rag-cell-none {
+    @apply bg-white/5 text-white/45;
+  }
+
+  .rag-sub {
+    @apply text-[10px] font-normal opacity-70;
+  }
 }

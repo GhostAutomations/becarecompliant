@@ -72,6 +72,13 @@ export async function createCompany(
     { cid: company.id },
   );
 
+  // Seed the default People check catalogue (idempotent), linking each check to
+  // the Forms just seeded. A failure must not fail company creation.
+  const { data: checksSeeded, error: checksErr } = await supabase.rpc(
+    "seed_company_people_checks",
+    { cid: company.id },
+  );
+
   await writeAudit({
     companyId: company.id,
     actorId: user.id,
@@ -81,7 +88,13 @@ export async function createCompany(
     entityType: "company",
     entityId: company.id,
     summary: `Created company ${name} on the ${tier} tier`,
-    metadata: { tier, slug, branch_name: branchName, forms_seeded: seededCount ?? 0 },
+    metadata: {
+      tier,
+      slug,
+      branch_name: branchName,
+      forms_seeded: seededCount ?? 0,
+      checks_seeded: checksErr ? 0 : (checksSeeded ?? 0),
+    },
   });
 
   let note = `Company ${name} created with its Team and first Branch.`;
@@ -89,6 +102,11 @@ export async function createCompany(
     note += ` The starter forms could not be seeded: ${seedErr.message}`;
   } else {
     note += ` ${seededCount ?? 0} starter forms were added.`;
+  }
+  if (checksErr) {
+    note += ` The People checks could not be seeded: ${checksErr.message}`;
+  } else {
+    note += ` ${checksSeeded ?? 0} People checks were configured.`;
   }
 
   if (adminEmail) {

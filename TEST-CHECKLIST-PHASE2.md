@@ -25,11 +25,11 @@ when the submission UI exists.
 
 ## To test after deploy (founder path exists this phase)
 
-7. Create a new company as Founder: it seeds the Team, first Branch, AND 8 starter forms; the success note reads "8 starter forms were added".
-8. Re-running seeding for an existing company (or creating, then reusing) never duplicates forms (idempotency, live).
-9. company.created audit row includes forms_seeded: 8 in its metadata.
-10. A Company Admin can read their own company's forms and form_versions; a member of another company cannot (cross-tenant RLS on forms/form_versions/evidence).
-11. form_templates is readable only by the Founder (platform_admin), never by a company member.
+7. [PASS live 2026-07-08] Create a new company as Founder seeds the Team, first Branch, AND 8 starter forms; note reads "8 starter forms were added". Verified in DB: company "Phase 2 Test" = 8 forms (4 people, 4 service users), 8 versions. (Note: a company created during the build window ran old code and got 0 forms; timing, not a bug.)
+8. Re-running seeding for an existing company (or creating, then reusing) never duplicates forms (idempotency verified by agent in SQL; live re-seed has no UI trigger yet, so not retested live).
+9. [PASS live 2026-07-08] company.created audit row includes forms_seeded: "8" in its metadata (verified in DB).
+10. A Company Admin can read their own company's forms and form_versions; a member of another company cannot (cross-tenant RLS on forms/form_versions/evidence). Needs two tenants + real user sessions: NOT TESTED, logged to Final Testing.
+11. form_templates is readable only by the Founder (platform_admin), never by a company member. Needs a real company-member session: NOT TESTED, logged to Final Testing.
 
 ## To test cold in Phase 3/4 (needs the submission UI)
 
