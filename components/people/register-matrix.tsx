@@ -47,13 +47,6 @@ function Plain({ date }: { date: string | null }) {
   return <span className="text-white/70">{date ? formatDisplayDate(date) : "—"}</span>;
 }
 
-function RollupPill({ rag }: { rag: string }) {
-  if (rag === "red") return <span className="pill-red"><span className="pill-dot" /> Overdue</span>;
-  if (rag === "amber") return <span className="pill-amber"><span className="pill-dot" /> Due soon</span>;
-  if (rag === "green") return <span className="pill-green"><span className="pill-dot" /> Compliant</span>;
-  return <span className="pill-neutral">No checks</span>;
-}
-
 function WorkingStatusPill({ status }: { status: string }) {
   const label = WORKING_STATUS_LABELS[status as keyof typeof WORKING_STATUS_LABELS] ?? status;
   if (status === "active") return <span className="pill-green"><span className="pill-dot" /> {label}</span>;
@@ -92,7 +85,7 @@ export default function RegisterMatrix({
   }, [rows, search, worstFirst]);
 
   return (
-    <div className="space-y-3">
+    <div className="flex h-full min-h-0 flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
         <input
           type="text"
@@ -114,14 +107,12 @@ export default function RegisterMatrix({
         </span>
       </div>
 
-      <div className="matrix-wrap">
+      <div className="matrix-wrap min-h-0 flex-1">
         <table className="matrix">
           <thead>
             <tr>
               <th className="col-carer">Carer</th>
               <th>Working Status</th>
-              <th>Compliance</th>
-              <th>Team</th>
               <th>Start date</th>
               <th>Manual Handling</th>
               <th>Medication Competency</th>
@@ -169,8 +160,6 @@ export default function RegisterMatrix({
                     ) : null}
                   </td>
                   <td><WorkingStatusPill status={row.person.employment_status} /></td>
-                  <td><RollupPill rag={row.rollup?.rag ?? "none"} /></td>
-                  <td className="text-white/70">{row.person.team ?? "—"}</td>
                   <td><Plain date={row.person.start_date} /></td>
                   <td><RagDate date={mh?.due_date ?? null} rag={mh?.rag ?? "none"} /></td>
                   <td><RagDate date={mc?.due_date ?? null} rag={mc?.rag ?? "none"} /></td>

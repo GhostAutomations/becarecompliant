@@ -303,9 +303,7 @@
      last row). Fills the space below the header/summary down to near the viewport
      bottom. */
   .matrix-wrap {
-    @apply relative w-full max-w-full overflow-x-auto overflow-y-auto rounded-2xl border border-white/10 bg-navy-900/40;
-    height: calc(100dvh - 25rem);
-    min-height: 16rem;
+    @apply relative h-full w-full max-w-full overflow-x-auto overflow-y-auto rounded-2xl border border-white/10 bg-navy-900/40;
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
   }

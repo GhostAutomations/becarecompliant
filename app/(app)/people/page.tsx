@@ -63,7 +63,7 @@ export default async function PeoplePage({
   const branchOptions = branches.filter((b) => b.kind === "branch" || b.kind === "team");
 
   return (
-    <div className="space-y-6">
+    <div className="flex h-full min-h-0 flex-col gap-6">
       <RealtimeRefresh />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -120,25 +120,27 @@ export default async function PeoplePage({
         </div>
       ) : null}
 
-      {rows.length === 0 ? (
-        <div className="glass-card flex flex-col items-center gap-3 px-6 py-16 text-center">
-          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gold-400/10 text-gold-400">
-            <NavIcon icon="people" className="h-6 w-6" />
-          </span>
-          <h2 className="text-base font-semibold text-white">No People records yet</h2>
-          <p className="max-w-md text-sm text-white/60">
-            Add your first staff member and their supervision, appraisal, DBS,
-            right to work and training checks are scheduled automatically.
-          </p>
-          {canManage ? (
-            <Link href="/people/new" className="btn-primary mt-2">
-              Add your first person
-            </Link>
-          ) : null}
-        </div>
-      ) : (
-        <RegisterMatrix rows={rows} config={matrixConfig} />
-      )}
+      <div className="min-h-0 flex-1">
+        {rows.length === 0 ? (
+          <div className="glass-card flex flex-col items-center gap-3 px-6 py-16 text-center">
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gold-400/10 text-gold-400">
+              <NavIcon icon="people" className="h-6 w-6" />
+            </span>
+            <h2 className="text-base font-semibold text-white">No People records yet</h2>
+            <p className="max-w-md text-sm text-white/60">
+              Add your first staff member and their supervision, appraisal, DBS,
+              right to work and training checks are scheduled automatically.
+            </p>
+            {canManage ? (
+              <Link href="/people/new" className="btn-primary mt-2">
+                Add your first person
+              </Link>
+            ) : null}
+          </div>
+        ) : (
+          <RegisterMatrix rows={rows} config={matrixConfig} />
+        )}
+      </div>
     </div>
   );
 }
