@@ -23,7 +23,7 @@ Standing decisions taken at planning:
 - Dashboard shell: frosted topbar, gradient sidebar with dock-style navigation, app-grid, People and Service Users placeholder entries
 - Vercel project + becarecompliant.com (www canonical)
 
-## Phase 1 — Multi-tenant core  ⟵ IN PROGRESS (started 2026-07-08)
+## Phase 1 — Multi-tenant core  ✅ COMPLETE (confirmed by Phil 2026-07-08, core tested live; remaining checks logged to Final Testing)
 
 Companies CRUD (founder-led creation), branches (1 Team + 1 Branch included, extra branches as paid add-on later), profiles and the five roles, invite-only onboarding (branded Resend emails, resend button on pending invites), permission boundaries confirmed by popup per feature area then enforced in RLS, audit log groundwork, seat-count groundwork.
 
@@ -74,6 +74,7 @@ Cross-company: companies, users, billing and revenue, template library curation,
 Ideas that arrive mid-phase get parked here (popup decides: current phase or Additions).
 
 - Edit an existing user's branch assignment (reassign or add branches) from the Users screen. Phase 1 sets a user's branch at invite time only; changing it later is not yet built.
+- Live-updating Users/invites list: when an invite is accepted, the pending and team lists on Settings > Users should update instantly with no refresh. Build as part of one shared Supabase Realtime helper when the People register needs live RAG rollups (Phase 3). Groundwork (REPLICA IDENTITY FULL on invites/profiles) already in place. (Phil request, parked 2026-07-08.)
 
 ## Phase 11 — Final Testing
 
@@ -83,11 +84,15 @@ Anything not tested at build time is logged here immediately with enough detail 
 - Phase 0 canonical form controls cross-browser: select chevron, checkbox tick, radio dot, range slider on Safari (macOS + iOS), Chrome, Firefox. Styled centrally in app/globals.css @layer base. (Edge on macOS passed 2026-07-08.)
 - Phase 0 RAG pill contrast: measure green/amber/red pills against WCAG AA on the DARK glass cards (soft 100-strength chips with 800-strength text on bg-white/10 over navy).
 - Phase 0 public paths: /api/webhooks/* must be reachable without a session once the first webhook exists (PUBLIC_PATHS in lib/supabase/middleware.ts). Auth redirect matrix otherwise passed live 2026-07-08 (checks 11 to 13).
-- Phase 1 full checklist: TEST-CHECKLIST-PHASE1.md (27 checks). Cannot run until deployed AND env set (SUPABASE_SERVICE_ROLE_KEY, NEXT_PUBLIC_SITE_URL, RESEND_API_KEY, RESEND_FROM) AND Supabase redirect URLs allowlisted AND mail.becarecompliant.com verified in Resend. Run as a popup checklist after deploy.
-- Phase 1 invite accept round trip: branded email CTA -> /auth/confirm (verifyOtp on token_hash) -> /welcome -> set password -> /dashboard as active. Depends on Supabase redirect URL allowlist + Resend; the token_hash/verifyOtp path is coded but untested live. Test end to end once configured.
-- Phase 1 invite email deliverability: branded invite lands in inbox with DKIM/SPF/DMARC passing, once mail.becarecompliant.com is verified.
-- Phase 1 seat maths: seat display and company_active_user_count at 3, 4, 5, 6 active users (included 4, £5 each extra); and null return for a non member company.
-- Phase 1 RLS boundaries: cross-tenant isolation on companies/branches/profiles/invites/audit_log; Company Admin cannot mint another Company Admin; audit_log append-only (no update/delete via API).
+Phase 1 tested live 2026-07-08 (env configured, deployed). PASSED end to end: founder company create + Team/Branch seeding; founder -> first Admin invite -> branded Resend email received -> /auth/confirm (verifyOtp) -> /welcome set password -> active company_admin; Admin -> Team Member invite into Newport -> accept -> team_member active with user_branches assignment; audit rows for company.created/invite.created/invite.accepted; Resend and Revoke; seat count at 1 and 2 users; nav shows Settings (not Founder) for an Admin; company_active_user_count returns null for a non member context (anti-leak guard). Root cause found and fixed during testing: SUPABASE_SERVICE_ROLE_KEY must be the sb_secret_ key AND a redeploy is required after changing a Vercel env var.
+
+Still to test cold (logged from Phase 1):
+- Cross-tenant RLS isolation: with two companies, a user of A cannot read B's companies/branches/profiles/invites/audit_log.
+- Company Admin cannot mint another Company Admin (UI only offers non-admin roles; RLS invites_insert enforces it) — confirm by attempting a crafted request.
+- audit_log append-only: no update/delete via the API.
+- Single-session through the invite accept flow: accepting on a second device signs the first out with the clear message.
+- Seat billing display at 5 and 6 active users (extra users at £5/mo).
+- Team Member data isolation (sees only own record/tasks, no service user data) — needs the People/Service User screens, so verify in Phase 3/4.
 
 ## Phase 12 — Marketing & Launch
 
