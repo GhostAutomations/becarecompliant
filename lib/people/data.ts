@@ -43,6 +43,18 @@ export async function listPeopleCheckDefinitions(companyId: string): Promise<Che
   return (data as CheckDefinition[]) ?? [];
 }
 
+/** All People definitions (active and inactive) for the configuration screen. */
+export async function listAllPeopleCheckDefinitions(companyId: string): Promise<CheckDefinition[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("check_definitions")
+    .select("*")
+    .eq("company_id", companyId)
+    .eq("population", "people")
+    .order("sort_order", { ascending: true });
+  return (data as CheckDefinition[]) ?? [];
+}
+
 type PersonRow = PersonRecord & { branches: { name: string } | null };
 
 function toPerson(row: PersonRow): PersonRecord {

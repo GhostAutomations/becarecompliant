@@ -3,6 +3,7 @@ import Link from "next/link";
 import { requireProfile } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { NavIcon } from "@/components/nav-icon";
+import RealtimeRefresh from "@/components/realtime-refresh";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -27,6 +28,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-8">
+      <RealtimeRefresh />
       <div>
         <h1 className="page-title">Welcome, {firstName}</h1>
         <p className="page-subtitle">

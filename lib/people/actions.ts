@@ -303,6 +303,51 @@ export async function applyMissingChecks(formData: FormData): Promise<void> {
   revalidatePath(`/people/${personId}`);
 }
 
+/** Adjust a check definition's recurrence, amber window and active state.
+ *  Changes apply to future scheduling; the amber window affects RAG immediately. */
+export async function updateCheckDefinition(formData: FormData): Promise<void> {
+  const { user, profile } = await requireCompany();
+  const definitionId = String(formData.get("definition_id") ?? "");
+  if (!definitionId) return;
+
+  const frequency = String(formData.get("frequency") ?? "");
+  const intervalRaw = String(formData.get("interval") ?? "").trim();
+  const amberRaw = String(formData.get("amber_days") ?? "").trim();
+  const active = String(formData.get("active") ?? "") === "on";
+
+  const validFreq = ["day", "week", "month", "year"].includes(frequency);
+  const interval = Number.parseInt(intervalRaw, 10);
+  const amber_days = amberRaw === "" ? null : Number.parseInt(amberRaw, 10);
+
+  const patch: Record<string, unknown> = { active };
+  if (validFreq && Number.isInteger(interval) && interval >= 1) {
+    patch.frequency = frequency;
+    patch.interval = interval;
+  }
+  if (amber_days === null || (Number.isInteger(amber_days) && amber_days >= 0)) {
+    patch.amber_days = amber_days;
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("check_definitions").update(patch).eq("id", definitionId);
+  if (error) return;
+
+  await writeAudit({
+    companyId: profile.company_id ?? "",
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "check_definition.updated",
+    entityType: "check_definition",
+    entityId: definitionId,
+    summary: "Updated a check configuration",
+    metadata: { frequency: patch.frequency, interval: patch.interval, amber_days, active },
+  });
+
+  revalidatePath("/people/checks");
+  revalidatePath("/people");
+}
+
 /**
  * THE COMPLIANCE LOOP. Complete a Check's Form: validate + store Evidence through
  * the shared pipeline, then advance the Check with the next due date from the

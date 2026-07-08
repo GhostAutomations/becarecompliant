@@ -5,6 +5,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { NavIcon } from "@/components/nav-icon";
 import RegisterMatrix from "@/components/people/register-matrix";
+import RealtimeRefresh from "@/components/realtime-refresh";
 import { listBranches, listRegister } from "@/lib/people/data";
 
 export const metadata: Metadata = { title: "People" };
@@ -68,6 +69,7 @@ export default async function PeoplePage({
 
   return (
     <div className="space-y-6">
+      <RealtimeRefresh />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="page-title">People</h1>
@@ -77,9 +79,14 @@ export default async function PeoplePage({
           </p>
         </div>
         {canManage ? (
-          <Link href="/people/new" className="btn-primary">
-            Add person
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link href="/people/checks" className="btn-outline">
+              Configure checks
+            </Link>
+            <Link href="/people/new" className="btn-primary">
+              Add person
+            </Link>
+          </div>
         ) : null}
       </div>
 
