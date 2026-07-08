@@ -39,6 +39,7 @@ export default async function PeoplePage({
   ]);
   const { definitions, rows } = register;
   const canManage = MANAGE_ROLES.includes(profile.role);
+  const isAdmin = profile.role === "company_admin" || profile.role === "platform_admin";
 
   // Record-level rollup counts (are we inspection ready, at a glance).
   const counts = rows.reduce(
@@ -67,9 +68,11 @@ export default async function PeoplePage({
         </div>
         {canManage ? (
           <div className="flex items-center gap-2">
-            <Link href="/people/checks" className="btn-outline">
-              Configure checks
-            </Link>
+            {isAdmin ? (
+              <Link href="/settings/people" className="btn-outline">
+                Configure checks
+              </Link>
+            ) : null}
             <Link href="/people/new" className="btn-primary">
               Add person
             </Link>

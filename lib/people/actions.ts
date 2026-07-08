@@ -299,29 +299,35 @@ export async function applyMissingChecks(formData: FormData): Promise<void> {
   revalidatePath(`/people/${personId}`);
 }
 
-/** Adjust a check definition's recurrence, amber window and active state.
+/** Adjust a People check from Settings: recurring checks store "every X days"
+ *  (frequency=day, interval=days); expiry checks (right to work) store the number
+ *  of days before the recorded expiry to flag (amber_days). Active toggles it on/off.
  *  Changes apply to future scheduling; the amber window affects RAG immediately. */
 export async function updateCheckDefinition(formData: FormData): Promise<void> {
   const { user, profile } = await requireCompany();
   const definitionId = String(formData.get("definition_id") ?? "");
   if (!definitionId) return;
 
-  const frequency = String(formData.get("frequency") ?? "");
-  const intervalRaw = String(formData.get("interval") ?? "").trim();
-  const amberRaw = String(formData.get("amber_days") ?? "").trim();
+  const anchor = String(formData.get("anchor") ?? "completion");
   const active = String(formData.get("active") ?? "") === "on";
-
-  const validFreq = ["day", "week", "month", "year"].includes(frequency);
-  const interval = Number.parseInt(intervalRaw, 10);
-  const amber_days = amberRaw === "" ? null : Number.parseInt(amberRaw, 10);
-
   const patch: Record<string, unknown> = { active };
-  if (validFreq && Number.isInteger(interval) && interval >= 1) {
-    patch.frequency = frequency;
-    patch.interval = interval;
-  }
-  if (amber_days === null || (Number.isInteger(amber_days) && amber_days >= 0)) {
-    patch.amber_days = amber_days;
+
+  if (anchor === "expiry") {
+    // The box is "days before expiry to flag" -> amber window.
+    const flag = Number.parseInt(String(formData.get("flag_days") ?? "").trim(), 10);
+    if (Number.isInteger(flag) && flag >= 0) patch.amber_days = flag;
+  } else {
+    const days = Number.parseInt(String(formData.get("days") ?? "").trim(), 10);
+    if (Number.isInteger(days) && days >= 1) {
+      patch.frequency = "day";
+      patch.interval = days;
+    }
+    const amberRaw = String(formData.get("amber_days") ?? "").trim();
+    if (amberRaw === "") patch.amber_days = null;
+    else {
+      const amber = Number.parseInt(amberRaw, 10);
+      if (Number.isInteger(amber) && amber >= 0) patch.amber_days = amber;
+    }
   }
 
   const supabase = await createClient();
@@ -337,10 +343,10 @@ export async function updateCheckDefinition(formData: FormData): Promise<void> {
     entityType: "check_definition",
     entityId: definitionId,
     summary: "Updated a check configuration",
-    metadata: { frequency: patch.frequency, interval: patch.interval, amber_days, active },
+    metadata: { anchor, patch },
   });
 
-  revalidatePath("/people/checks");
+  revalidatePath("/settings/people");
   revalidatePath("/people");
 }
 

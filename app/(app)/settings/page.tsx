@@ -95,6 +95,20 @@ export default async function SettingsPage() {
             Invite your team, set roles and branches, and manage pending invites.
           </p>
         </Link>
+        <Link href="/settings/people" className="app-tile">
+          <h2 className="text-base font-semibold text-white">People checks</h2>
+          <p className="text-sm text-white/60">
+            Set how often each staff check recurs: supervisions, spot checks, DBS,
+            right to work and more.
+          </p>
+        </Link>
+        <Link href="/settings/service-users" className="app-tile">
+          <h2 className="text-base font-semibold text-white">Service User checks</h2>
+          <p className="text-sm text-white/60">
+            Care plan reviews, risk assessments and medication audits. Arrives with
+            Service Users.
+          </p>
+        </Link>
       </section>
     </div>
   );
