@@ -82,6 +82,40 @@ export function nextDueAfterCompletion(
   return { nextDue: due ? formatCivilDate(due) : null, expiry: null };
 }
 
+/**
+ * The document/tracker cards whose dates are fed by completing a form. Maps each
+ * form key to the tracker date columns its answers populate, plus (optionally) a
+ * status column set from an answer. Used by completeTrackerForm and the record UI.
+ */
+export const TRACKER_FORMS: Record<
+  string,
+  {
+    title: string;
+    /** form answer key -> person_trackers date column */
+    dateFields: Record<string, string>;
+    /** optionally set a status column from an answer (values already match the enum) */
+    statusFrom?: { answer: string; column: string };
+  }
+> = {
+  dbs_renewal: {
+    title: "DBS",
+    dateFields: { dbs_date: "dbs_date", enhanced_dbs_date: "enhanced_dbs_date" },
+  },
+  right_to_work: {
+    title: "Right to Work",
+    dateFields: { rtw_expiry: "rtw_expiry_date" },
+  },
+  probation_review: {
+    title: "Probation",
+    dateFields: {
+      probation_end_due: "probation_end_due",
+      probation_end_actual: "probation_end_actual",
+      probation_extension_date: "probation_extension_date",
+    },
+    statusFrom: { answer: "outcome", column: "probation_status" },
+  },
+};
+
 /** Today's Europe/London date as an ISO string (the stamped completion date). */
 export function todayIso(): string {
   return formatCivilDate(todayInLondon());

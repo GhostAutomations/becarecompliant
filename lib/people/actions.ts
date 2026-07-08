@@ -20,8 +20,8 @@ import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
 import type { Answers } from "@/lib/form-schema";
 import type { ActionState } from "@/lib/forms";
 import type { CheckDefinition } from "./types";
-import { listPeopleCheckDefinitions, getPublishedFormVersion } from "./data";
-import { initialDueDate, nextDueAfterCompletion, todayIso } from "./logic";
+import { listPeopleCheckDefinitions, getPublishedFormVersion, getCompanyFormByKey } from "./data";
+import { initialDueDate, nextDueAfterCompletion, todayIso, TRACKER_FORMS } from "./logic";
 
 function trimOrNull(v: FormDataEntryValue | null): string | null {
   const s = String(v ?? "").trim();
@@ -410,6 +410,89 @@ export async function updateTracker(formData: FormData): Promise<void> {
 
   revalidatePath(`/people/${personId}`);
   revalidatePath("/people");
+}
+
+/**
+ * Complete a document/tracker Form (DBS, Right to Work, Probation): store Evidence
+ * through the shared pipeline, then stamp the mapped dates (and any status) into
+ * person_trackers so the register shows them. Managers/Admins only (RLS).
+ */
+export async function completeTrackerForm(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { user, profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+  const personId = String(formData.get("person_id") ?? "");
+  const formKey = String(formData.get("form_key") ?? "");
+  const spec = TRACKER_FORMS[formKey];
+  if (!personId || !spec) return { error: "Unknown form." };
+
+  let answers: Answers;
+  try {
+    answers = JSON.parse(String(formData.get("answers") ?? "{}")) as Answers;
+  } catch {
+    return { error: "Could not read the form answers." };
+  }
+
+  const supabase = await createClient();
+  const { data: person } = await supabase
+    .from("people")
+    .select("branch_id, company_id")
+    .eq("id", personId)
+    .maybeSingle();
+  if (!person) return { error: "That record could not be found." };
+
+  const form = await getCompanyFormByKey(profile.company_id, formKey);
+  if (!form) return { error: "This form is not available for your company." };
+
+  const files: EvidenceFileInput[] = [];
+  for (const [key, value] of formData.entries()) {
+    if (key.startsWith("file:") && value instanceof File && value.size > 0) {
+      files.push({
+        fieldKey: key.slice(5),
+        kind: "upload",
+        fileName: value.name,
+        contentType: value.type || "application/octet-stream",
+        bytes: Buffer.from(await value.arrayBuffer()),
+      });
+    }
+  }
+
+  const result = await submitEvidence({
+    formVersionId: form.versionId,
+    branchId: (person.branch_id as string | null) ?? null,
+    answers,
+    files,
+    recordType: "person",
+    recordId: personId,
+  });
+  if (!result.ok) return { error: result.error };
+
+  // Stamp the mapped tracker dates (+ status) from the answers.
+  const patch: Record<string, unknown> = { updated_by: user.id };
+  for (const [answerKey, column] of Object.entries(spec.dateFields)) {
+    const v = answers[answerKey];
+    patch[column] = typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
+  }
+  if (spec.statusFrom) {
+    const sv = answers[spec.statusFrom.answer];
+    if (typeof sv === "string" && sv) patch[spec.statusFrom.column] = sv;
+  }
+  await supabase.from("person_trackers").update(patch).eq("person_id", personId);
+
+  await writeAudit({
+    companyId: person.company_id as string,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "person.tracker_form_completed",
+    entityType: "person",
+    entityId: personId,
+    summary: `Completed ${spec.title} form`,
+    metadata: { form_key: formKey, evidence_id: result.evidenceId },
+  });
+
+  revalidatePath(`/people/${personId}`);
+  revalidatePath("/people");
+  redirect(`/people/${personId}?completed=${encodeURIComponent(spec.title)}`);
 }
 
 /**

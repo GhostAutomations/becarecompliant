@@ -203,6 +203,24 @@ export async function getPersonChecks(personId: string): Promise<CheckStatus[]> 
   return (data as CheckStatus[]) ?? [];
 }
 
+/** A company Form by key, with its current published version (for tracker forms). */
+export async function getCompanyFormByKey(
+  companyId: string,
+  key: string,
+): Promise<{ formId: string; versionId: string; schema: unknown } | null> {
+  const supabase = await createClient();
+  const { data: form } = await supabase
+    .from("forms")
+    .select("id")
+    .eq("company_id", companyId)
+    .eq("key", key)
+    .maybeSingle();
+  if (!form) return null;
+  const version = await getPublishedFormVersion(form.id as string);
+  if (!version) return null;
+  return { formId: form.id as string, versionId: version.id, schema: version.schema };
+}
+
 /** The current published version (id + schema) of a company Form. */
 export async function getPublishedFormVersion(
   formId: string,
