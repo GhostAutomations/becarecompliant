@@ -2,16 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { NAV_ENTRIES } from "@/lib/nav";
+import type { NavEntry } from "@/lib/nav";
 import { NavIcon } from "@/components/nav-icon";
 
 /** Gradient sidebar navigation (desktop). */
-export function SidebarNav() {
+export function SidebarNav({ entries }: { entries: NavEntry[] }) {
   const pathname = usePathname();
 
   return (
     <nav className="flex flex-col gap-1" aria-label="Main">
-      {NAV_ENTRIES.map((entry) => {
+      {entries.map((entry) => {
         const active =
           pathname === entry.href || pathname.startsWith(`${entry.href}/`);
         return (
@@ -31,7 +31,7 @@ export function SidebarNav() {
 }
 
 /** Dock-style bottom navigation (mobile). */
-export function MobileDock() {
+export function MobileDock({ entries }: { entries: NavEntry[] }) {
   const pathname = usePathname();
 
   return (
@@ -39,7 +39,7 @@ export function MobileDock() {
       aria-label="Main"
       className="sidebar-gradient fixed inset-x-4 bottom-4 z-40 flex items-center justify-around rounded-2xl border border-white/15 px-2 py-2 shadow-2xl backdrop-blur-xl md:hidden"
     >
-      {NAV_ENTRIES.map((entry) => {
+      {entries.map((entry) => {
         const active =
           pathname === entry.href || pathname.startsWith(`${entry.href}/`);
         return (

@@ -1,13 +1,17 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth/guards";
 import { SidebarNav, MobileDock } from "@/components/app-nav";
-import { ROLE_LABELS } from "@/lib/nav";
+import { ROLE_LABELS, navEntriesForRole } from "@/lib/nav";
 
 export default async function AppLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const { profile } = await requireProfile();
+  // Invited users must finish setup (set a password) before using the app.
+  if (profile.status === "invited") redirect("/welcome");
   const displayName = profile.full_name || profile.email;
+  const navEntries = navEntriesForRole(profile.role);
 
   return (
     <div className="app-bg flex">
@@ -41,7 +45,7 @@ export default async function AppLayout({
           </span>
         </Link>
 
-        <SidebarNav />
+        <SidebarNav entries={navEntries} />
 
         <p className="mt-auto px-3 pb-2 text-[11px] text-white/40">
           Forms, reports and settings arrive in later phases.
@@ -72,7 +76,7 @@ export default async function AppLayout({
         <main className="px-4 pb-28 pt-6 md:px-8 md:pb-10">{children}</main>
       </div>
 
-      <MobileDock />
+      <MobileDock entries={navEntries} />
     </div>
   );
 }

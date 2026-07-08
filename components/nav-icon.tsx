@@ -44,5 +44,19 @@ export function NavIcon({
           <path d="M8.5 12h2l1-2 1.5 3.5 1-1.5h1.5" />
         </svg>
       );
+    case "settings":
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="3" />
+          <path d="M12 2.5v3M12 18.5v3M4.2 7l2.6 1.5M17.2 15.5l2.6 1.5M4.2 17l2.6-1.5M17.2 8.5l2.6-1.5" />
+        </svg>
+      );
+    case "founder":
+      return (
+        <svg {...common}>
+          <path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z" />
+          <path d="M9 12l2 2 4-4" />
+        </svg>
+      );
   }
 }

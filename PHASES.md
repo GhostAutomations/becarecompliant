@@ -23,9 +23,19 @@ Standing decisions taken at planning:
 - Dashboard shell: frosted topbar, gradient sidebar with dock-style navigation, app-grid, People and Service Users placeholder entries
 - Vercel project + becarecompliant.com (www canonical)
 
-## Phase 1 — Multi-tenant core  ⟵ NEXT (starts with a popup to agree Manager/Supervisor/Team Member permission boundaries; remove the dashboard design preview section first)
+## Phase 1 — Multi-tenant core  ⟵ IN PROGRESS (started 2026-07-08)
 
 Companies CRUD (founder-led creation), branches (1 Team + 1 Branch included, extra branches as paid add-on later), profiles and the five roles, invite-only onboarding (branded Resend emails, resend button on pending invites), permission boundaries confirmed by popup per feature area then enforced in RLS, audit log groundwork, seat-count groundwork.
+
+Agreed decisions (2026-07-08 popups):
+
+- Permission boundaries (RLS-enforced): Supervisor sees only their assigned caseload (no whole register); form sign-off = Managers approve any in their branch(es), Supervisors only within caseload, Team Members submit but never approve; user admin (invite, roles, seats) is Company Admin only; Team Member sees only their own record and own tasks, never other records or any service user data.
+- Branch mapping: `user_branches(user_id, branch_id)` join table for non-Admin roles (Managers get multiple rows). Company Admin + Platform Admin implicitly all branches.
+- Audit log: append-only `audit_log` table + shared `writeAudit()` helper, wired into company/branch/user/role/invite events this phase.
+- Seat counting: live active-user count function + read-only "seats used / included / extra billable at £5" display in Admin. No Stripe this phase (Phase 7).
+- Invite email: Resend, sending identity `no-reply@mail.becarecompliant.com` (dedicated mail subdomain), branded CTA button, resend button on pending invites. DKIM+SPF+DMARC DNS walkthrough for `mail.becarecompliant.com`.
+
+Build order: migration 0002 (user_branches, invites, audit_log, seat count fn, RLS helpers/policies) → companies CRUD (founder) → branch management (Admin) → users & invites (Admin) + Resend → audit + seat display → DNS walkthrough → Phase 1 test checklist.
 
 ## Phase 2 — Forms engine & evidence
 
@@ -63,7 +73,7 @@ Cross-company: companies, users, billing and revenue, template library curation,
 
 Ideas that arrive mid-phase get parked here (popup decides: current phase or Additions).
 
-- (empty)
+- Edit an existing user's branch assignment (reassign or add branches) from the Users screen. Phase 1 sets a user's branch at invite time only; changing it later is not yet built.
 
 ## Phase 11 — Final Testing
 
@@ -73,6 +83,11 @@ Anything not tested at build time is logged here immediately with enough detail 
 - Phase 0 canonical form controls cross-browser: select chevron, checkbox tick, radio dot, range slider on Safari (macOS + iOS), Chrome, Firefox. Styled centrally in app/globals.css @layer base. (Edge on macOS passed 2026-07-08.)
 - Phase 0 RAG pill contrast: measure green/amber/red pills against WCAG AA on the DARK glass cards (soft 100-strength chips with 800-strength text on bg-white/10 over navy).
 - Phase 0 public paths: /api/webhooks/* must be reachable without a session once the first webhook exists (PUBLIC_PATHS in lib/supabase/middleware.ts). Auth redirect matrix otherwise passed live 2026-07-08 (checks 11 to 13).
+- Phase 1 full checklist: TEST-CHECKLIST-PHASE1.md (27 checks). Cannot run until deployed AND env set (SUPABASE_SERVICE_ROLE_KEY, NEXT_PUBLIC_SITE_URL, RESEND_API_KEY, RESEND_FROM) AND Supabase redirect URLs allowlisted AND mail.becarecompliant.com verified in Resend. Run as a popup checklist after deploy.
+- Phase 1 invite accept round trip: branded email CTA -> /auth/confirm (verifyOtp on token_hash) -> /welcome -> set password -> /dashboard as active. Depends on Supabase redirect URL allowlist + Resend; the token_hash/verifyOtp path is coded but untested live. Test end to end once configured.
+- Phase 1 invite email deliverability: branded invite lands in inbox with DKIM/SPF/DMARC passing, once mail.becarecompliant.com is verified.
+- Phase 1 seat maths: seat display and company_active_user_count at 3, 4, 5, 6 active users (included 4, £5 each extra); and null return for a non member company.
+- Phase 1 RLS boundaries: cross-tenant isolation on companies/branches/profiles/invites/audit_log; Company Admin cannot mint another Company Admin; audit_log append-only (no update/delete via API).
 
 ## Phase 12 — Marketing & Launch
 
