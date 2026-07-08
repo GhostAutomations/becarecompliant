@@ -64,10 +64,13 @@ export default function EditPersonForm({
       </div>
 
       {state.error ? <p className="form-error">{state.error}</p> : null}
-      {state.ok ? <p className="text-xs font-medium text-rag-green-soft">{state.ok}</p> : null}
 
-      <button type="submit" className="btn-outline" disabled={pending}>
-        {pending ? "Saving…" : "Save details"}
+      <button
+        type="submit"
+        disabled={pending}
+        className={`btn ${state.ok ? "btn-saved" : "btn-outline"}`}
+      >
+        {pending ? "Saving…" : state.ok ? "Saved" : "Save details"}
       </button>
     </form>
   );

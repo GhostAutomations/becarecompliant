@@ -304,10 +304,10 @@ export async function applyMissingChecks(formData: FormData): Promise<void> {
  *  (frequency=day, interval=days); expiry checks (right to work) store the number
  *  of days before the recorded expiry to flag (amber_days). Active toggles it on/off.
  *  Changes apply to future scheduling; the amber window affects RAG immediately. */
-export async function updateCheckDefinition(formData: FormData): Promise<void> {
+export async function updateCheckDefinition(formData: FormData): Promise<ActionState> {
   const { user, profile } = await requireCompany();
   const definitionId = String(formData.get("definition_id") ?? "");
-  if (!definitionId) return;
+  if (!definitionId) return { error: "Missing check." };
 
   const anchor = String(formData.get("anchor") ?? "completion");
   const active = String(formData.get("active") ?? "") === "on";
@@ -333,7 +333,7 @@ export async function updateCheckDefinition(formData: FormData): Promise<void> {
 
   const supabase = await createClient();
   const { error } = await supabase.from("check_definitions").update(patch).eq("id", definitionId);
-  if (error) return;
+  if (error) return { error: error.message };
 
   await writeAudit({
     companyId: profile.company_id ?? "",
@@ -349,6 +349,7 @@ export async function updateCheckDefinition(formData: FormData): Promise<void> {
 
   revalidatePath("/settings/people");
   revalidatePath("/people");
+  return { ok: "Saved" };
 }
 
 function enumOrNull(v: FormDataEntryValue | null, allowed: string[]): string | null {
@@ -358,9 +359,9 @@ function enumOrNull(v: FormDataEntryValue | null, allowed: string[]): string | n
 
 /** Save the per-company shorthand labels for the People register columns. Only
  *  non-empty shorthands are stored; clearing a box reverts to the default name. */
-export async function updateColumnLabels(formData: FormData): Promise<void> {
+export async function updateColumnLabels(formData: FormData): Promise<ActionState> {
   const { user, profile } = await requireCompany();
-  if (!profile.company_id) return;
+  if (!profile.company_id) return { error: "No company context." };
 
   const labels: Record<string, string> = {};
   for (const col of REGISTER_COLUMNS) {
@@ -373,7 +374,7 @@ export async function updateColumnLabels(formData: FormData): Promise<void> {
     .from("companies")
     .update({ people_column_labels: labels })
     .eq("id", profile.company_id);
-  if (error) return;
+  if (error) return { error: error.message };
 
   await writeAudit({
     companyId: profile.company_id,
@@ -388,6 +389,7 @@ export async function updateColumnLabels(formData: FormData): Promise<void> {
 
   revalidatePath("/settings/people");
   revalidatePath("/people");
+  return { ok: "Saved" };
 }
 
 /** Save one tracker card (DBS, Right to Work or Probation) for a carer. Only the

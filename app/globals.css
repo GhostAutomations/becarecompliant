@@ -206,6 +206,10 @@
     @apply border border-white/20 bg-white/5 text-white/90 backdrop-blur hover:bg-white/15;
   }
 
+  .btn-saved {
+    @apply border border-rag-green/50 bg-rag-green-soft text-rag-green-deep;
+  }
+
   /* Status pills (RAG) */
   .pill,
   .pill-green,
@@ -321,11 +325,21 @@
   }
 
   .matrix th {
-    @apply sticky top-0 z-20 whitespace-nowrap bg-navy-900 px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-white/55;
+    @apply sticky top-0 z-20 whitespace-nowrap bg-navy-900 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-white/55;
+    text-align: center;
   }
 
   .matrix td {
     @apply whitespace-nowrap border-t border-white/5 px-3 py-1 text-sm text-white/85;
+    text-align: center;
+  }
+
+  /* Carer column: header centred, but the names stay left-aligned. */
+  .matrix th.col-carer {
+    text-align: center;
+  }
+  .matrix td.col-carer {
+    text-align: left;
   }
 
   .matrix tbody tr:hover td {
