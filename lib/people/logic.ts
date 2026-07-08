@@ -116,6 +116,36 @@ export const TRACKER_FORMS: Record<
   },
 };
 
+/**
+ * The People register columns that can be given a shorthand label in Settings.
+ * key is stable (used in the labels map + the register headers); name is the full
+ * default label. The sticky Carer column is intentionally excluded.
+ */
+export const REGISTER_COLUMNS: Array<{ key: string; name: string }> = [
+  { key: "status", name: "Status" },
+  { key: "start_date", name: "Start date" },
+  { key: "manual_handling", name: "Manual Handling" },
+  { key: "medication_competency", name: "Medication Competency" },
+  { key: "dbs", name: "DBS" },
+  { key: "enhanced_dbs", name: "Enhanced DBS" },
+  { key: "rtw_expiry", name: "RTW Expiry" },
+  { key: "rtw_limits", name: "RTW Limits" },
+  { key: "probation_end_due", name: "Probation End Due" },
+  { key: "probation_end_actual", name: "Probation End Actual" },
+  { key: "probation_status", name: "Probation Status" },
+  { key: "probation_extension", name: "Probation Extension" },
+  { key: "spot_check_due", name: "Spot Check Due" },
+  { key: "recent_spot_check", name: "Recent Spot Check" },
+  { key: "sup1_due", name: "Sup 1 Due" },
+  { key: "sup1_comp", name: "Sup 1 Comp" },
+  { key: "sup2_due", name: "Sup 2 Due" },
+  { key: "sup2_comp", name: "Sup 2 Comp" },
+  { key: "sup3_due", name: "Sup 3 Due" },
+  { key: "sup3_comp", name: "Sup 3 Comp" },
+  { key: "aa_due", name: "AA Next Due" },
+  { key: "aa_comp", name: "AA Comp" },
+];
+
 /** Today's Europe/London date as an ISO string (the stamped completion date). */
 export function todayIso(): string {
   return formatCivilDate(todayInLondon());

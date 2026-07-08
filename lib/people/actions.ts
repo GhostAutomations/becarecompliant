@@ -21,7 +21,7 @@ import type { Answers } from "@/lib/form-schema";
 import type { ActionState } from "@/lib/forms";
 import type { CheckDefinition } from "./types";
 import { listPeopleCheckDefinitions, getPublishedFormVersion, getCompanyFormByKey } from "./data";
-import { initialDueDate, nextDueAfterCompletion, todayIso, TRACKER_FORMS } from "./logic";
+import { initialDueDate, nextDueAfterCompletion, todayIso, TRACKER_FORMS, REGISTER_COLUMNS } from "./logic";
 
 function trimOrNull(v: FormDataEntryValue | null): string | null {
   const s = String(v ?? "").trim();
@@ -354,6 +354,40 @@ export async function updateCheckDefinition(formData: FormData): Promise<void> {
 function enumOrNull(v: FormDataEntryValue | null, allowed: string[]): string | null {
   const s = String(v ?? "").trim();
   return allowed.includes(s) ? s : null;
+}
+
+/** Save the per-company shorthand labels for the People register columns. Only
+ *  non-empty shorthands are stored; clearing a box reverts to the default name. */
+export async function updateColumnLabels(formData: FormData): Promise<void> {
+  const { user, profile } = await requireCompany();
+  if (!profile.company_id) return;
+
+  const labels: Record<string, string> = {};
+  for (const col of REGISTER_COLUMNS) {
+    const v = String(formData.get(`col_${col.key}`) ?? "").trim();
+    if (v) labels[col.key] = v;
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("companies")
+    .update({ people_column_labels: labels })
+    .eq("id", profile.company_id);
+  if (error) return;
+
+  await writeAudit({
+    companyId: profile.company_id,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "company.column_labels_updated",
+    entityType: "company",
+    entityId: profile.company_id,
+    summary: "Updated People register column shorthands",
+  });
+
+  revalidatePath("/settings/people");
+  revalidatePath("/people");
 }
 
 /** Save one tracker card (DBS, Right to Work or Probation) for a carer. Only the

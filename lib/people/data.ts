@@ -20,6 +20,17 @@ import type {
 export type BranchLite = { id: string; name: string; kind: string };
 export type ProfileLite = { id: string; full_name: string; email: string; role: string };
 
+/** Per-company shorthand labels for the People register columns ({} if none). */
+export async function getColumnLabels(companyId: string): Promise<Record<string, string>> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("companies")
+    .select("people_column_labels")
+    .eq("id", companyId)
+    .maybeSingle();
+  return ((data?.people_column_labels as Record<string, string> | null) ?? {}) as Record<string, string>;
+}
+
 export async function listBranches(companyId: string): Promise<BranchLite[]> {
   const supabase = await createClient();
   const { data } = await supabase

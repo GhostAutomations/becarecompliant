@@ -4,7 +4,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import { NavIcon } from "@/components/nav-icon";
 import RegisterMatrix from "@/components/people/register-matrix";
 import RealtimeRefresh from "@/components/realtime-refresh";
-import { listBranches, listRegister } from "@/lib/people/data";
+import { listBranches, listRegister, getColumnLabels } from "@/lib/people/data";
 
 export const metadata: Metadata = { title: "People" };
 
@@ -33,9 +33,10 @@ export default async function PeoplePage({
   const { branch } = await searchParams;
   const branchId = branch || null;
 
-  const [branches, register] = await Promise.all([
+  const [branches, register, columnLabels] = await Promise.all([
     listBranches(companyId),
     listRegister(companyId, branchId),
+    getColumnLabels(companyId),
   ]);
   const { definitions, rows } = register;
   const canManage = MANAGE_ROLES.includes(profile.role);
@@ -138,7 +139,7 @@ export default async function PeoplePage({
             ) : null}
           </div>
         ) : (
-          <RegisterMatrix rows={rows} config={matrixConfig} editable={canManage} />
+          <RegisterMatrix rows={rows} config={matrixConfig} editable={canManage} columnLabels={columnLabels} />
         )}
       </div>
     </div>

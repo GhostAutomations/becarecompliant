@@ -313,14 +313,17 @@ export default function RegisterMatrix({
   rows,
   config,
   editable,
+  columnLabels,
 }: {
   rows: RegisterRow[];
   config: MatrixConfig;
   editable: boolean;
+  columnLabels: Record<string, string>;
 }) {
   const [search, setSearch] = useState("");
   const [worstFirst, setWorstFirst] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const col = (key: string, def: string) => columnLabels[key] || def;
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -370,28 +373,28 @@ export default function RegisterMatrix({
           <thead>
             <tr>
               <th className="col-carer">Carer</th>
-              <th>Status</th>
-              <th>Start date</th>
-              <th>Manual Handling</th>
-              <th>Medication Competency</th>
-              <th>DBS</th>
-              <th>Enhanced DBS</th>
-              <th>RTW Expiry</th>
-              <th>RTW Limits</th>
-              <th>Probation End Due</th>
-              <th>Probation End Actual</th>
-              <th>Probation Status</th>
-              <th>Probation Extension</th>
-              <th>Spot Check Due</th>
-              <th>Recent Spot Check</th>
-              <th>Sup 1 Due</th>
-              <th>Sup 1 Comp</th>
-              <th>Sup 2 Due</th>
-              <th>Sup 2 Comp</th>
-              <th>Sup 3 Due</th>
-              <th>Sup 3 Comp</th>
-              <th>AA Next Due</th>
-              <th>AA Comp</th>
+              <th>{col("status", "Status")}</th>
+              <th>{col("start_date", "Start date")}</th>
+              <th>{col("manual_handling", "Manual Handling")}</th>
+              <th>{col("medication_competency", "Medication Competency")}</th>
+              <th>{col("dbs", "DBS")}</th>
+              <th>{col("enhanced_dbs", "Enhanced DBS")}</th>
+              <th>{col("rtw_expiry", "RTW Expiry")}</th>
+              <th>{col("rtw_limits", "RTW Limits")}</th>
+              <th>{col("probation_end_due", "Probation End Due")}</th>
+              <th>{col("probation_end_actual", "Probation End Actual")}</th>
+              <th>{col("probation_status", "Probation Status")}</th>
+              <th>{col("probation_extension", "Probation Extension")}</th>
+              <th>{col("spot_check_due", "Spot Check Due")}</th>
+              <th>{col("recent_spot_check", "Recent Spot Check")}</th>
+              <th>{col("sup1_due", "Sup 1 Due")}</th>
+              <th>{col("sup1_comp", "Sup 1 Comp")}</th>
+              <th>{col("sup2_due", "Sup 2 Due")}</th>
+              <th>{col("sup2_comp", "Sup 2 Comp")}</th>
+              <th>{col("sup3_due", "Sup 3 Due")}</th>
+              <th>{col("sup3_comp", "Sup 3 Comp")}</th>
+              <th>{col("aa_due", "AA Next Due")}</th>
+              <th>{col("aa_comp", "AA Comp")}</th>
             </tr>
           </thead>
           <tbody>

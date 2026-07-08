@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
-import { listAllPeopleCheckDefinitions } from "@/lib/people/data";
-import { updateCheckDefinition } from "@/lib/people/actions";
+import { listAllPeopleCheckDefinitions, getColumnLabels } from "@/lib/people/data";
+import { updateCheckDefinition, updateColumnLabels } from "@/lib/people/actions";
+import { REGISTER_COLUMNS } from "@/lib/people/logic";
 
 export const metadata: Metadata = { title: "People checks" };
 
@@ -11,7 +12,10 @@ export default async function SettingsPeoplePage() {
   const { profile } = await requireCompanyAdmin();
   if (!profile.company_id) redirect("/founder");
 
-  const definitions = await listAllPeopleCheckDefinitions(profile.company_id);
+  const [definitions, columnLabels] = await Promise.all([
+    listAllPeopleCheckDefinitions(profile.company_id),
+    getColumnLabels(profile.company_id),
+  ]);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -100,6 +104,30 @@ export default async function SettingsPeoplePage() {
         Creating brand new check types with their own forms arrives with the form
         builder in a later phase.
       </p>
+
+      <div className="pt-4">
+        <h2 className="page-title text-lg">Column names</h2>
+        <p className="page-subtitle mb-3">
+          Give any register column a shorthand to make it narrower, so more columns
+          fit on screen. Leave blank to use the full name.
+        </p>
+        <form action={updateColumnLabels} className="glass-card space-y-2 p-5">
+          {REGISTER_COLUMNS.map((c) => (
+            <div key={c.key} className="flex items-center gap-3">
+              <span className="min-w-[11rem] text-sm text-white/80">{c.name}</span>
+              <input
+                name={`col_${c.key}`}
+                defaultValue={columnLabels[c.key] ?? ""}
+                placeholder="Shorthand"
+                className="max-w-[10rem]"
+              />
+            </div>
+          ))}
+          <div className="pt-2">
+            <button type="submit" className="btn-outline text-xs">Save column names</button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
