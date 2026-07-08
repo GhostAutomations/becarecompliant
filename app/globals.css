@@ -298,9 +298,35 @@
   }
 
   /* Compliance matrix (the People register). Styled centrally, never inline. */
+  /* Fixed height so the horizontal scrollbar stays pinned near the bottom of the
+     page regardless of how many carers there are (it does not ride up under the
+     last row). Fills the space below the header/summary down to near the viewport
+     bottom. */
   .matrix-wrap {
     @apply relative w-full max-w-full overflow-x-auto overflow-y-auto rounded-2xl border border-white/10 bg-navy-900/40;
-    max-height: 70vh;
+    height: calc(100dvh - 25rem);
+    min-height: 16rem;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+  }
+
+  /* Always-visible, draggable scrollbars (overrides the macOS overlay/arrow-only bar). */
+  .matrix-wrap::-webkit-scrollbar {
+    height: 12px;
+    width: 12px;
+  }
+  .matrix-wrap::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+  }
+  .matrix-wrap::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 9999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  .matrix-wrap::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.45);
+    background-clip: content-box;
   }
 
   .matrix {
