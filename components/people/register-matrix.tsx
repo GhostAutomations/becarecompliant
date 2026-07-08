@@ -10,6 +10,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -21,43 +22,145 @@ import {
 import { formatDisplayDate, supervisionSlots, dateRag } from "@/lib/people/logic";
 import { setEmploymentStatus, updateTracker } from "@/lib/people/actions";
 
-/** An option-column cell you can change inline (no need to open the record). */
-function InlineSelect({
+type Tone = "green" | "amber" | "red" | "neutral";
+
+function toneClass(t: Tone): string {
+  return t === "green" ? "pill-green" : t === "amber" ? "pill-amber" : t === "red" ? "pill-red" : "pill-neutral";
+}
+
+function workingTone(v: string | null): Tone {
+  if (v === "active") return "green";
+  if (v === "mat_leave" || v === "lts") return "amber";
+  if (v === "leaver") return "red";
+  return "neutral";
+}
+function rtwTone(v: string | null): Tone {
+  if (v === "none") return "green";
+  if (v === "20hrs_term" || v === "20hrs_2nd_job") return "amber";
+  if (v === "visa_expires") return "red";
+  return "neutral";
+}
+function probationTone(v: string | null, dueDate: string | null, amberDays: number): Tone {
+  if (v === "passed") return "green";
+  if (v === "extended") return "amber";
+  if (v === "failed") return "red";
+  if (v === "due") {
+    // Colourless until the end-due date is within range, then amber, then red.
+    const r = dateRag(dueDate, amberDays);
+    return r === "red" ? "red" : r === "amber" ? "amber" : "neutral";
+  }
+  return "neutral";
+}
+
+/**
+ * A pill that opens into pill options. The cell shows the current value as a
+ * coloured pill; clicking opens a menu (rendered in a portal so the table's scroll
+ * area does not clip it) of coloured pill options; choosing one saves inline.
+ */
+function PillSelect({
   personId,
   field,
   value,
   options,
   action,
+  toneOf,
 }: {
   personId: string;
   field: string;
   value: string | null;
   options: Array<{ value: string; label: string }>;
   action: (formData: FormData) => Promise<void>;
+  toneOf: (value: string | null) => Tone;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const currentLabel = options.find((o) => o.value === (value ?? ""))?.label ?? "—";
+
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      const t = e.target as Node;
+      if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    function onScroll() {
+      setOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onScroll);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [open]);
+
+  function toggle() {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    const r = btnRef.current?.getBoundingClientRect();
+    if (r) setCoords({ top: r.bottom + 4, left: r.left, width: r.width });
+    setOpen(true);
+  }
+
+  function choose(v: string) {
+    setOpen(false);
+    if (v === (value ?? "")) return;
+    const fd = new FormData();
+    fd.set("person_id", personId);
+    fd.set(field, v);
+    startTransition(async () => {
+      await action(fd);
+      router.refresh();
+    });
+  }
+
   return (
-    <select
-      className="inline-cell"
-      value={value ?? ""}
-      disabled={pending}
-      onChange={(e) => {
-        const fd = new FormData();
-        fd.set("person_id", personId);
-        fd.set(field, e.target.value);
-        startTransition(async () => {
-          await action(fd);
-          router.refresh();
-        });
-      }}
-    >
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </select>
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        disabled={pending}
+        onClick={toggle}
+        className={`${toneClass(toneOf(value))} cursor-pointer`}
+      >
+        {currentLabel}
+        <span aria-hidden className="ml-1 opacity-60">▾</span>
+      </button>
+      {open &&
+        createPortal(
+          <div
+            ref={menuRef}
+            style={{ position: "fixed", top: coords.top, left: coords.left, minWidth: Math.max(coords.width, 140) }}
+            className="z-50 flex flex-col items-start gap-1 rounded-xl border border-white/15 bg-navy-900 p-2 shadow-2xl"
+          >
+            {options.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => choose(o.value)}
+                className={`${toneClass(toneOf(o.value))} cursor-pointer`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }
 
@@ -109,9 +212,7 @@ function Plain({ date }: { date: string | null }) {
 
 function WorkingStatusPill({ status }: { status: string }) {
   const label = WORKING_STATUS_LABELS[status as keyof typeof WORKING_STATUS_LABELS] ?? status;
-  if (status === "active") return <span className="pill-green"><span className="pill-dot" /> {label}</span>;
-  if (status === "mat_leave" || status === "lts") return <span className="pill-amber"><span className="pill-dot" /> {label}</span>;
-  return <span className="pill-neutral">{label}</span>;
+  return <span className={toneClass(workingTone(status))}>{label}</span>;
 }
 
 /**
@@ -318,12 +419,13 @@ export default function RegisterMatrix({
                   </td>
                   <td>
                     {editable ? (
-                      <InlineSelect
+                      <PillSelect
                         personId={row.person.id}
                         field="status"
                         value={row.person.employment_status}
                         options={WORKING_STATUS_OPTIONS}
                         action={setEmploymentStatus}
+                        toneOf={workingTone}
                       />
                     ) : (
                       <WorkingStatusPill status={row.person.employment_status} />
@@ -342,12 +444,13 @@ export default function RegisterMatrix({
                   </td>
                   <td className="text-white/70">
                     {editable ? (
-                      <InlineSelect
+                      <PillSelect
                         personId={row.person.id}
                         field="rtw_limits"
                         value={t?.rtw_limits ?? ""}
                         options={RTW_LIMIT_OPTIONS}
                         action={updateTracker}
+                        toneOf={rtwTone}
                       />
                     ) : t?.rtw_limits ? (
                       RTW_LIMIT_LABELS[t.rtw_limits]
@@ -364,12 +467,13 @@ export default function RegisterMatrix({
                   <td><Plain date={t?.probation_end_actual ?? null} /></td>
                   <td className="text-white/70">
                     {editable ? (
-                      <InlineSelect
+                      <PillSelect
                         personId={row.person.id}
                         field="probation_status"
                         value={t?.probation_status ?? ""}
                         options={PROBATION_STATUS_OPTIONS}
                         action={updateTracker}
+                        toneOf={(v) => probationTone(v, t?.probation_end_due ?? null, config.probationAmber)}
                       />
                     ) : t?.probation_status ? (
                       PROBATION_STATUS_LABELS[t.probation_status]
