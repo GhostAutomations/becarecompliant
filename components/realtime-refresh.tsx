@@ -6,16 +6,19 @@
  * People tables (RLS scopes which events reach this user; filtered subscriptions
  * drop RLS events, per the Phase 1 realtime gotcha) and refreshes the server
  * components on any change, with a poll fallback so it is never stale for long.
- * Both people and check_instances have REPLICA IDENTITY FULL (migration 0004) so
- * UPDATE/DELETE events carry through, and are in the supabase_realtime publication
- * (migration 0005).
+ * people, check_instances and person_trackers all have REPLICA IDENTITY FULL so
+ * UPDATE/DELETE events carry through, and are in the supabase_realtime publication.
+ * check_instances covers form/date checks (supervision, spot check, appraisal, and
+ * the appraisal->supervision re-anchor); person_trackers covers the document/date
+ * trackers (probation, DBS, right to work). A check_instances change also refreshes
+ * the supervision Evidence-derived slots, so Evidence itself need not be published.
  */
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-const TABLES = ["people", "check_instances"] as const;
+const TABLES = ["people", "check_instances", "person_trackers"] as const;
 const POLL_MS = 60_000;
 
 export default function RealtimeRefresh() {
