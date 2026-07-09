@@ -314,16 +314,20 @@ export default function RegisterMatrix({
   config,
   editable,
   columnLabels,
+  returnTo = "/people",
 }: {
   rows: RegisterRow[];
   config: MatrixConfig;
   editable: boolean;
   columnLabels: Record<string, string>;
+  /** Where "Back to People" should return (the current view's URL). */
+  returnTo?: string;
 }) {
   const [search, setSearch] = useState("");
   const [worstFirst, setWorstFirst] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const col = (key: string, def: string) => columnLabels[key] || def;
+  const fromQuery = `?from=${encodeURIComponent(returnTo)}`;
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -414,7 +418,7 @@ export default function RegisterMatrix({
               return (
                 <tr key={row.person.id}>
                   <td className="col-carer">
-                    <Link href={`/people/${row.person.id}`} className="font-semibold text-white hover:text-gold-300">
+                    <Link href={`/people/${row.person.id}${fromQuery}`} className="font-semibold text-white hover:text-gold-300">
                       {row.person.full_name}
                     </Link>
                   </td>

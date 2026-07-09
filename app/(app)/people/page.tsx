@@ -52,6 +52,13 @@ export default async function PeoplePage({
   const { definitions, rows } = register;
   const canManage = MANAGE_ROLES.includes(profile.role);
 
+  // The URL of this view, so a record opened from here can send "Back to People"
+  // to the view the user was on (Main, Leavers, Archive, ...).
+  const returnParams = new URLSearchParams();
+  if (view && VIEWS[view]) returnParams.set("view", view);
+  if (branchId) returnParams.set("branch", branchId);
+  const returnTo = `/people${returnParams.toString() ? `?${returnParams}` : ""}`;
+
   const defByKey = Object.fromEntries(definitions.map((d) => [d.key, d]));
   const matrixConfig = {
     supInterval: defByKey["supervision"]?.interval ?? 90,
@@ -100,7 +107,7 @@ export default async function PeoplePage({
             )}
           </div>
         ) : (
-          <RegisterMatrix rows={rows} config={matrixConfig} editable={canManage} columnLabels={columnLabels} />
+          <RegisterMatrix rows={rows} config={matrixConfig} editable={canManage} columnLabels={columnLabels} returnTo={returnTo} />
         )}
       </div>
     </div>

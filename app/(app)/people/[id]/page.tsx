@@ -59,11 +59,14 @@ export default async function PersonPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ completed?: string }>;
+  searchParams: Promise<{ completed?: string; from?: string }>;
 }) {
   const { profile } = await requireCompany();
   const { id } = await params;
-  const { completed } = await searchParams;
+  const { completed, from } = await searchParams;
+  // Back returns to the view the record was opened from (Main, Leavers, Archive, ...);
+  // only accept in-app /people paths to avoid an open redirect.
+  const backHref = from && from.startsWith("/people") ? from : "/people";
 
   const person = await getPerson(id);
   if (!person || !profile.company_id) redirect("/people");
@@ -112,7 +115,7 @@ export default async function PersonPage({
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <div>
-        <BackLink href="/people" label="Back to People" />
+        <BackLink href={backHref} label="Back to People" />
         <div className="mt-1 flex flex-wrap items-center gap-3">
           <h1 className="page-title">{person.full_name}</h1>
           {ragPill(worstRag)}
