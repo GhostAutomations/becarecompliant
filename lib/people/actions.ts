@@ -627,7 +627,9 @@ export async function completeTrackerForm(_prev: ActionState, formData: FormData
 
   revalidatePath(`/people/${personId}`);
   revalidatePath("/people");
-  redirect(`/people/${personId}?completed=${encodeURIComponent(spec.title)}`);
+  // Navigate client-side (see ActionState.redirectTo): a Server Action redirect()
+  // to a URL with a query string trips Next.js issue #78396 (React #310).
+  return { ok: "completed", redirectTo: `/people/${personId}?completed=${encodeURIComponent(spec.title)}` };
 }
 
 /**
@@ -728,5 +730,7 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
 
   revalidatePath(`/people/${instance.person_id}`);
   revalidatePath("/people");
-  redirect(`/people/${instance.person_id}?completed=${encodeURIComponent(def.name)}`);
+  // Navigate client-side (see ActionState.redirectTo): a Server Action redirect()
+  // to a URL with a query string trips Next.js issue #78396 (React #310).
+  return { ok: "completed", redirectTo: `/people/${instance.person_id}?completed=${encodeURIComponent(def.name)}` };
 }

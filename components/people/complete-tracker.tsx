@@ -6,8 +6,9 @@
  * stores Evidence and stamps the dates into the record.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useActionState } from "react";
+import { useRouter } from "next/navigation";
 import FormRenderer from "@/components/forms/form-renderer";
 import type { Answers, FormSchema } from "@/lib/form-schema";
 import { validateAnswers, type FieldError } from "@/lib/form-validate";
@@ -23,10 +24,16 @@ export default function CompleteTracker({
   personId: string;
   formKey: string;
 }) {
+  const router = useRouter();
   const [state, formAction, pending] = useActionState(completeTrackerForm, IDLE_STATE);
   const [answers, setAnswers] = useState<Answers>({});
   const [files, setFiles] = useState<Record<string, File | null>>({});
   const [errors, setErrors] = useState<FieldError[]>([]);
+
+  // Redirect client-side once the action reports success (see ActionState.redirectTo).
+  useEffect(() => {
+    if (state.redirectTo) router.replace(state.redirectTo);
+  }, [state.redirectTo, router]);
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
