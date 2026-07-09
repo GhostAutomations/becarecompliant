@@ -93,12 +93,11 @@ export function nextDueAfterCompletion(
 
   if (!def.recurring) return { nextDue: null, expiry: null };
 
-  // After Supervision 3: recur every 3 supervision periods (from the Supervision box).
-  if (def.schedule_mode === "after_sup3" && supIntervalDays && supIntervalDays >= 1) {
-    return {
-      nextDue: formatCivilDate(addInterval(completedOn, "day", supIntervalDays * 3)),
-      expiry: null,
-    };
+  // After Supervision 3: the appraisal does NOT self-schedule. It is scheduled by the
+  // NEXT Supervision 3 completion (Sup 3 + interval, see completeCheck), so on its own
+  // completion there is no next due yet (blank until the next cycle reaches Sup 3).
+  if (def.schedule_mode === "after_sup3") {
+    return { nextDue: null, expiry: null };
   }
 
   const rule = ruleOf(def);
