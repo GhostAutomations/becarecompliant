@@ -597,9 +597,13 @@ export async function completeTrackerForm(_prev: ActionState, formData: FormData
   });
   if (!result.ok) return { error: result.error };
 
-  // Stamp the mapped tracker dates (+ status) from the answers.
+  // Stamp the mapped tracker dates (+ status) from the answers. Only touch a
+  // column when the form actually captured that field: a form that omits a
+  // date (e.g. probation end due is set at record creation, or a field hidden
+  // by conditional logic) must never wipe the stored value.
   const patch: Record<string, unknown> = { updated_by: user.id };
   for (const [answerKey, column] of Object.entries(spec.dateFields)) {
+    if (!(answerKey in answers)) continue;
     const v = answers[answerKey];
     patch[column] = typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
   }

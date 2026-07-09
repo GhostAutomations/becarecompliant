@@ -132,7 +132,7 @@ export const TRACKER_FORMS: Record<
   probation_review: {
     title: "Probation",
     dateFields: {
-      probation_end_due: "probation_end_due",
+      // probation_end_due is set at record creation and is not captured here.
       probation_end_actual: "probation_end_actual",
       probation_extension_date: "probation_extension_date",
     },
