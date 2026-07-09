@@ -19,6 +19,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   type Answers,
   type AnswerValue,
@@ -353,36 +354,63 @@ function HintSelect({
   onValue: (v: string) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLUListElement>(null);
 
   useEffect(() => {
     if (!open) return;
     function onDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") setOpen(false);
     }
+    function onScroll() {
+      setOpen(false);
+    }
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onScroll);
     return () => {
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onScroll);
     };
   }, [open]);
+
+  function toggle() {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    const r = btnRef.current?.getBoundingClientRect();
+    if (r) setCoords({ top: r.bottom + 4, left: r.left, width: r.width });
+    setOpen(true);
+  }
+
+  function choose(v: string) {
+    onValue(v);
+    setOpen(false);
+  }
 
   const selected = options.find((o) => o.value === value) ?? null;
 
   return (
-    <div ref={ref} className="relative">
+    <>
       <button
+        ref={btnRef}
         type="button"
         id={id}
         disabled={disabled}
         className="hint-select-trigger"
         aria-haspopup="listbox"
         aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
       >
         <span className={selected ? "text-white" : "text-white/40"}>
           {selected ? selected.label : "Please choose"}
@@ -395,37 +423,38 @@ function HintSelect({
         </span>
       </button>
 
-      {open ? (
-        <ul className="hint-select-menu" role="listbox">
-          <li
-            role="option"
-            aria-selected={value === ""}
-            className="hint-select-option text-white/60"
-            onClick={() => {
-              onValue("");
-              setOpen(false);
-            }}
+      {open &&
+        createPortal(
+          <ul
+            ref={menuRef}
+            role="listbox"
+            className="hint-select-menu"
+            style={{ position: "fixed", top: coords.top, left: coords.left, width: coords.width }}
           >
-            Please choose
-          </li>
-          {options.map((o) => (
             <li
-              key={o.value}
               role="option"
-              aria-selected={o.value === value}
-              className="hint-select-option"
-              onClick={() => {
-                onValue(o.value);
-                setOpen(false);
-              }}
+              aria-selected={value === ""}
+              className="hint-select-option text-white/60"
+              onClick={() => choose("")}
             >
-              <span>{o.label}</span>
-              {o.hint ? <span className="hint-select-hint">{o.hint}</span> : null}
+              Please choose
             </li>
-          ))}
-        </ul>
-      ) : null}
-    </div>
+            {options.map((o) => (
+              <li
+                key={o.value}
+                role="option"
+                aria-selected={o.value === value}
+                className="hint-select-option"
+                onClick={() => choose(o.value)}
+              >
+                <span>{o.label}</span>
+                {o.hint ? <span className="hint-select-hint">{o.hint}</span> : null}
+              </li>
+            ))}
+          </ul>,
+          document.body,
+        )}
+    </>
   );
 }
 
