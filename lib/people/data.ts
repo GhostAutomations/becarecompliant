@@ -115,8 +115,9 @@ export async function getPerson(personId: string): Promise<PersonRecord | null> 
 }
 
 /** Which population the register is showing. active = Main; leaver = Leavers (not yet
- *  archived); lts_mat = Long Term Sick & Maternity Leave; archived = the Archive view. */
-export type RegisterScope = "active" | "leaver" | "lts_mat" | "archived";
+ *  archived); lts_mat = Long Term Sick & Maternity Leave; archived = the Archive view;
+ *  all = every status (loaded once so the client can switch views instantly). */
+export type RegisterScope = "active" | "leaver" | "lts_mat" | "archived" | "all";
 
 /** The register matrix: Records for a branch (or all visible) in the given scope,
  *  plus each Record's per-check status and rollup. Definitions are the columns.
@@ -135,7 +136,9 @@ export async function listRegister(
     .select("*, branches(name)")
     .eq("company_id", companyId)
     .order("full_name", { ascending: true });
-  if (scope === "archived") {
+  if (scope === "all") {
+    // no status/archived filter: load everyone so the client can switch views instantly
+  } else if (scope === "archived") {
     query = query.not("archived_at", "is", null);
   } else if (scope === "leaver") {
     query = query.eq("employment_status", "leaver").is("archived_at", null);

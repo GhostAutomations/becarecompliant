@@ -1,22 +1,12 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { requireCompany } from "@/lib/auth/guards";
-import { NavIcon } from "@/components/nav-icon";
-import RegisterMatrix from "@/components/people/register-matrix";
+import PeopleRegister from "@/components/people/people-register";
 import RealtimeRefresh from "@/components/realtime-refresh";
-import ViewNav from "@/components/people/view-nav";
-import { listBranches, listRegister, getColumnLabels, type RegisterScope } from "@/lib/people/data";
+import { listBranches, listRegister, getColumnLabels } from "@/lib/people/data";
 
 export const metadata: Metadata = { title: "People" };
 
 const MANAGE_ROLES = ["company_admin", "manager", "platform_admin"];
-
-// View key (URL ?view=) -> register scope + heading. Absent = Main (active).
-const VIEWS: Record<string, { scope: RegisterScope; title: string }> = {
-  leavers: { scope: "leaver", title: "Leavers" },
-  lts_mat: { scope: "lts_mat", title: "LTS & Mat Leave" },
-  archive: { scope: "archived", title: "Archive" },
-};
 
 export default async function PeoplePage({
   searchParams,
@@ -39,25 +29,16 @@ export default async function PeoplePage({
 
   const companyId = profile.company_id;
   const { branch, view } = await searchParams;
-  const branchId = branch || null;
-  const activeView = view && VIEWS[view] ? view : "main";
-  const scope: RegisterScope = view && VIEWS[view] ? VIEWS[view].scope : "active";
-  const heading = view && VIEWS[view] ? VIEWS[view].title : "People";
 
+  // Load EVERY person once (all statuses, all the viewer's branches). Branches and
+  // View are then switched instantly on the client with no server round trip.
   const [branches, register, columnLabels] = await Promise.all([
     listBranches(companyId),
-    listRegister(companyId, branchId, scope),
+    listRegister(companyId, null, "all"),
     getColumnLabels(companyId),
   ]);
   const { definitions, rows } = register;
   const canManage = MANAGE_ROLES.includes(profile.role);
-
-  // The URL of this view, so a record opened from here can send "Back to People"
-  // to the view the user was on (Main, Leavers, Archive, ...).
-  const returnParams = new URLSearchParams();
-  if (view && VIEWS[view]) returnParams.set("view", view);
-  if (branchId) returnParams.set("branch", branchId);
-  const returnTo = `/people${returnParams.toString() ? `?${returnParams}` : ""}`;
 
   const defByKey = Object.fromEntries(definitions.map((d) => [d.key, d]));
   const matrixConfig = {
@@ -68,48 +49,17 @@ export default async function PeoplePage({
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-6">
+    <div className="flex h-full min-h-0 flex-col">
       <RealtimeRefresh />
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="page-title">{heading}</h1>
-        </div>
-        {canManage && activeView === "main" ? (
-          <Link href="/people/new" className="btn-primary">
-            Add person
-          </Link>
-        ) : null}
-      </div>
-
-      <ViewNav current={activeView} branchId={branchId} branches={branches} />
-
-      <div className="min-h-0 flex-1">
-        {rows.length === 0 ? (
-          <div className="glass-card flex flex-col items-center gap-3 px-6 py-16 text-center">
-            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gold-400/10 text-gold-400">
-              <NavIcon icon="people" className="h-6 w-6" />
-            </span>
-            {activeView === "main" ? (
-              <>
-                <h2 className="text-base font-semibold text-white">No People records yet</h2>
-                <p className="max-w-md text-sm text-white/60">
-                  Add your first staff member and their supervision, appraisal, DBS,
-                  right to work and training checks are scheduled automatically.
-                </p>
-                {canManage ? (
-                  <Link href="/people/new" className="btn-primary mt-2">
-                    Add your first person
-                  </Link>
-                ) : null}
-              </>
-            ) : (
-              <h2 className="text-base font-semibold text-white">No {heading.toLowerCase()} to show</h2>
-            )}
-          </div>
-        ) : (
-          <RegisterMatrix rows={rows} config={matrixConfig} editable={canManage} columnLabels={columnLabels} returnTo={returnTo} scope={scope} />
-        )}
-      </div>
+      <PeopleRegister
+        rows={rows}
+        branches={branches}
+        config={matrixConfig}
+        columnLabels={columnLabels}
+        canManage={canManage}
+        initialView={view ?? "main"}
+        initialBranch={branch ?? ""}
+      />
     </div>
   );
 }

@@ -82,7 +82,7 @@ export default function ViewNav({
           }}
         >
           <option value="main">Main</option>
-          <option value="summary">Compliance Summary</option>
+          <option value="summary">Summary</option>
           <option value="leavers">Leavers</option>
           <option value="lts_mat">LTS & Mat Leave</option>
           <option value="archive">Archive</option>
