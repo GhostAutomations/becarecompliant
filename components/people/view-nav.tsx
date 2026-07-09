@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { BranchLite } from "@/lib/people/data";
 
@@ -27,10 +28,27 @@ export default function ViewNav({
   branches: BranchLite[];
 }) {
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const branchOptions = branches.filter((b) => b.kind === "branch" || b.kind === "team");
-  const base = VIEW_PATHS[current] ?? "/people";
-  const withBranch = (path: string) =>
-    branchId ? `${path}${path.includes("?") ? "&" : "?"}branch=${branchId}` : path;
+
+  // Optimistic selections so the dropdowns reflect the choice instantly while the new
+  // view's data loads in a transition (the current view stays interactive meanwhile).
+  const [pendingView, setPendingView] = useState<string | null>(null);
+  const [pendingBranch, setPendingBranch] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isPending) {
+      setPendingView(null);
+      setPendingBranch(null);
+    }
+  }, [isPending]);
+
+  const shownView = pendingView ?? current;
+  const shownBranch = pendingBranch ?? branchId ?? "";
+
+  function go(path: string, branch: string) {
+    const withBranch = branch ? `${path}${path.includes("?") ? "&" : "?"}branch=${branch}` : path;
+    startTransition(() => router.push(withBranch));
+  }
 
   return (
     <div className="flex flex-wrap items-center gap-4">
@@ -39,13 +57,10 @@ export default function ViewNav({
           Branches
           <select
             className="inline-cell"
-            value={branchId ?? ""}
+            value={shownBranch}
             onChange={(e) => {
-              const v = e.target.value;
-              const path = base.split("?")[0];
-              const query = base.includes("?") ? base.split("?")[1] : "";
-              const withQuery = query ? `${path}?${query}` : path;
-              router.push(v ? `${withQuery}${query ? "&" : "?"}branch=${v}` : withQuery);
+              setPendingBranch(e.target.value);
+              go(VIEW_PATHS[shownView] ?? "/people", e.target.value);
             }}
           >
             <option value="">All branches</option>
@@ -60,8 +75,11 @@ export default function ViewNav({
         View
         <select
           className="inline-cell"
-          value={current}
-          onChange={(e) => router.push(withBranch(VIEW_PATHS[e.target.value] ?? "/people"))}
+          value={shownView}
+          onChange={(e) => {
+            setPendingView(e.target.value);
+            go(VIEW_PATHS[e.target.value] ?? "/people", shownBranch);
+          }}
         >
           <option value="main">Main</option>
           <option value="summary">Compliance Summary</option>
@@ -69,6 +87,12 @@ export default function ViewNav({
           <option value="lts_mat">LTS & Mat Leave</option>
           <option value="archive">Archive</option>
         </select>
+        <span
+          aria-hidden
+          className={`h-3.5 w-3.5 rounded-full border-2 border-white/30 border-t-gold-400 transition-opacity ${
+            isPending ? "animate-spin opacity-100" : "opacity-0"
+          }`}
+        />
       </label>
     </div>
   );
