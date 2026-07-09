@@ -751,6 +751,28 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
     }
   }
 
+  // Completing Supervision 3 schedules an "After Supervision 3" appraisal: due one
+  // supervision interval after the Sup 3 completion, keeping the cycle on cadence.
+  if (def.key === "supervision" && String(answers.supervision_type ?? "") === "3") {
+    const { data: apprDef } = await supabase
+      .from("check_definitions")
+      .select("schedule_mode")
+      .eq("company_id", instance.company_id as string)
+      .eq("population", "people")
+      .eq("key", "appraisal")
+      .maybeSingle();
+    if ((apprDef?.schedule_mode as string | null) === "after_sup3") {
+      const apprDue = addDaysIso(completedOnIso, supInterval);
+      if (apprDue) {
+        await supabase.rpc("set_person_check_due", {
+          p_person_id: instance.person_id as string,
+          p_check_key: "appraisal",
+          p_due_date: apprDue,
+        });
+      }
+    }
+  }
+
   revalidatePath(`/people/${instance.person_id}`);
   revalidatePath("/people");
   // Navigate client-side (see ActionState.redirectTo): a Server Action redirect()
