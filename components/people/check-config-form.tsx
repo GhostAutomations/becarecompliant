@@ -55,6 +55,15 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
         </div>
       ) : (
         <div className="flex flex-wrap items-end gap-4">
+          {def.key === "appraisal" ? (
+            <div>
+              <label htmlFor={`sched-${def.id}`} className="form-label">Schedule</label>
+              <select id={`sched-${def.id}`} name="schedule_mode" defaultValue={def.schedule_mode}>
+                <option value="interval">Yearly</option>
+                <option value="after_sup3">After Supervision 3</option>
+              </select>
+            </div>
+          ) : null}
           <div>
             <label htmlFor={`days-${def.id}`} className="form-label">
               {def.recurring ? "Every (days)" : "Due after start (days)"}

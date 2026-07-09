@@ -49,11 +49,22 @@ function answerDate(answers: Answers, key: string | null): string | null {
  *  - expiry anchor: null (unscheduled until the first document expiry is recorded).
  * Returned as an ISO string for the RPC, or null.
  */
-export function initialDueDate(def: CheckDefinition, startDate: string | null): string | null {
+export function initialDueDate(
+  def: CheckDefinition,
+  startDate: string | null,
+  supIntervalDays?: number | null,
+): string | null {
   if (def.anchor === "expiry") return null;
-  const rule = ruleOf(def);
-  if (!rule || !startDate || !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return null;
+  if (!startDate || !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return null;
   const start: CivilDate = parseCivilDate(startDate);
+
+  // Aligned to after Supervision 3: first due = start + 3 supervision periods.
+  if (def.schedule_mode === "after_sup3" && supIntervalDays && supIntervalDays >= 1) {
+    return formatCivilDate(addInterval(start, "day", supIntervalDays * 3));
+  }
+
+  const rule = ruleOf(def);
+  if (!rule) return null;
   return formatCivilDate(addInterval(start, rule.frequency, rule.interval));
 }
 

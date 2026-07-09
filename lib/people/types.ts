@@ -51,6 +51,8 @@ export type CheckDefinition = {
   amber_days: number | null;
   active: boolean;
   sort_order: number;
+  /** 'interval' (own days) or 'after_sup3' (first due aligned to Supervision 3). */
+  schedule_mode: "interval" | "after_sup3";
 };
 
 /** One check applied to one Record, with its computed RAG (from person_check_status). */

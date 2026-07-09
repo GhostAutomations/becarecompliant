@@ -70,9 +70,10 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
 
   // Auto-apply active definitions with their initial due dates (TS-computed).
   const definitions = await listPeopleCheckDefinitions(companyId);
+  const supInterval = definitions.find((d) => d.key === "supervision")?.interval ?? 90;
   const rows = definitions.map((def: CheckDefinition) => ({
     definition_id: def.id,
-    due_date: initialDueDate(def, start_date),
+    due_date: initialDueDate(def, start_date, supInterval),
     expiry_date: null,
   }));
   const { data: applied, error: applyErr } = await supabase.rpc("apply_person_checks", {
@@ -290,9 +291,10 @@ export async function applyMissingChecks(formData: FormData): Promise<void> {
   const startDate = (person?.start_date as string | null) ?? null;
 
   const definitions = await listPeopleCheckDefinitions(profile.company_id);
+  const supInterval = definitions.find((d) => d.key === "supervision")?.interval ?? 90;
   const rows = definitions.map((def) => ({
     definition_id: def.id,
-    due_date: initialDueDate(def, startDate),
+    due_date: initialDueDate(def, startDate, supInterval),
     expiry_date: null,
   }));
   await supabase.rpc("apply_person_checks", { p_person_id: personId, p_rows: rows });
@@ -329,6 +331,8 @@ export async function updateCheckDefinition(formData: FormData): Promise<ActionS
       const amber = Number.parseInt(amberRaw, 10);
       if (Number.isInteger(amber) && amber >= 0) patch.amber_days = amber;
     }
+    const mode = String(formData.get("schedule_mode") ?? "");
+    if (mode === "interval" || mode === "after_sup3") patch.schedule_mode = mode;
   }
 
   const supabase = await createClient();
