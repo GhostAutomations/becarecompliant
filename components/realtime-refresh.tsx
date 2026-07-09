@@ -19,7 +19,9 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 const TABLES = ["people", "check_instances", "person_trackers"] as const;
-const POLL_MS = 60_000;
+// Realtime is the primary path (pushes within ~1s). This is only the safety-net
+// poll for a dropped socket; kept short so the screen is never stale for long.
+const POLL_MS = 10_000;
 
 export default function RealtimeRefresh() {
   const router = useRouter();
