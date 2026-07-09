@@ -32,11 +32,7 @@ export default function EditPersonForm({
           <input id="e_start_date" name="start_date" type="date" defaultValue={person.start_date ?? ""} />
         </div>
         <div>
-          <label htmlFor="e_team" className="form-label">Team</label>
-          <input id="e_team" name="team" defaultValue={person.team ?? ""} />
-        </div>
-        <div>
-          <label htmlFor="e_work_email" className="form-label">Work email</label>
+          <label htmlFor="e_work_email" className="form-label">Personal email</label>
           <input id="e_work_email" name="work_email" type="email" defaultValue={person.work_email ?? ""} />
         </div>
         <div>
@@ -46,15 +42,6 @@ export default function EditPersonForm({
         <div>
           <label htmlFor="e_manager_id" className="form-label">Line manager</label>
           <select id="e_manager_id" name="manager_id" defaultValue={person.manager_id ?? ""}>
-            <option value="">None</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>{u.full_name || u.email}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="e_team_leader_id" className="form-label">Team leader</label>
-          <select id="e_team_leader_id" name="team_leader_id" defaultValue={person.team_leader_id ?? ""}>
             <option value="">None</option>
             {users.map((u) => (
               <option key={u.id} value={u.id}>{u.full_name || u.email}</option>

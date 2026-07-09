@@ -304,6 +304,38 @@ export async function listSupervisoryUsers(companyId: string): Promise<ProfileLi
   return (data as ProfileLite[]) ?? [];
 }
 
+export type BranchStaff = Record<string, { managers: ProfileLite[]; supervisors: ProfileLite[] }>;
+
+/** For each branch, the managers and supervisors assigned to it (via user_branches),
+ *  so the Add Person form can auto-fill them when a branch is chosen. */
+export async function getBranchStaffMap(companyId: string): Promise<BranchStaff> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("user_branches")
+    .select("branch_id, profiles!inner(id, full_name, email, role, company_id, status)")
+    .eq("profiles.company_id", companyId)
+    .eq("profiles.status", "active")
+    .in("profiles.role", ["manager", "supervisor"]);
+
+  type Row = {
+    branch_id: string;
+    profiles:
+      | { id: string; full_name: string; email: string; role: string }
+      | Array<{ id: string; full_name: string; email: string; role: string }>
+      | null;
+  };
+  const map: BranchStaff = {};
+  for (const r of (data as Row[] | null) ?? []) {
+    const p = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles;
+    if (!p) continue;
+    const entry = (map[r.branch_id] ??= { managers: [], supervisors: [] });
+    const lite: ProfileLite = { id: p.id, full_name: p.full_name, email: p.email, role: p.role };
+    if (p.role === "manager") entry.managers.push(lite);
+    else if (p.role === "supervisor") entry.supervisors.push(lite);
+  }
+  return map;
+}
+
 export async function listPersonAssignments(personId: string): Promise<ProfileLite[]> {
   const supabase = await createClient();
   const { data } = await supabase

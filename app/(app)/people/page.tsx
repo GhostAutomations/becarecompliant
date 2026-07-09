@@ -56,10 +56,6 @@ export default async function PeoplePage({
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="page-title">People</h1>
-          <p className="page-subtitle">
-            The staff team register: one Record per person, with their checks and
-            RAG status.
-          </p>
         </div>
         {canManage ? (
           <Link href="/people/new" className="btn-primary">

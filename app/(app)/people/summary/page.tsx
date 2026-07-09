@@ -37,9 +37,6 @@ export default async function PeopleSummaryPage({
       <RealtimeRefresh />
       <div>
         <h1 className="page-title">Compliance Summary</h1>
-        <p className="page-subtitle">
-          Are we inspection ready? Records by their worst check status.
-        </p>
       </div>
 
       <ViewNav current="summary" branchId={branchId} branches={branches} />

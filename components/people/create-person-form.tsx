@@ -1,18 +1,37 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { createPerson } from "@/lib/people/actions";
 import { IDLE_STATE } from "@/lib/forms";
-import type { BranchLite, ProfileLite } from "@/lib/people/data";
+import type { BranchLite, ProfileLite, BranchStaff } from "@/lib/people/data";
 
 export default function CreatePersonForm({
   branches,
   users,
+  branchStaff,
 }: {
   branches: BranchLite[];
   users: ProfileLite[];
+  branchStaff: BranchStaff;
 }) {
   const [state, formAction, pending] = useActionState(createPerson, IDLE_STATE);
+  const managers = users.filter((u) => u.role === "manager" || u.role === "company_admin");
+  const supervisors = users.filter((u) => u.role === "supervisor");
+
+  const [branchId, setBranchId] = useState("");
+  const [managerId, setManagerId] = useState("");
+  const [supervisorIds, setSupervisorIds] = useState<string[]>([]);
+
+  function onBranch(id: string) {
+    setBranchId(id);
+    const staff = branchStaff[id];
+    setManagerId(staff?.managers[0]?.id ?? "");
+    setSupervisorIds(staff?.supervisors.map((s) => s.id) ?? []);
+  }
+
+  function toggleSupervisor(id: string) {
+    setSupervisorIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
 
   return (
     <form action={formAction} className="space-y-5">
@@ -24,7 +43,7 @@ export default function CreatePersonForm({
 
         <div>
           <label htmlFor="branch_id" className="form-label">Branch *</label>
-          <select id="branch_id" name="branch_id" required defaultValue="">
+          <select id="branch_id" name="branch_id" required value={branchId} onChange={(e) => onBranch(e.target.value)}>
             <option value="" disabled>Please choose</option>
             {branches.map((b) => (
               <option key={b.id} value={b.id}>{b.name}</option>
@@ -44,12 +63,7 @@ export default function CreatePersonForm({
         </div>
 
         <div>
-          <label htmlFor="team" className="form-label">Team</label>
-          <input id="team" name="team" />
-        </div>
-
-        <div>
-          <label htmlFor="work_email" className="form-label">Work email</label>
+          <label htmlFor="work_email" className="form-label">Personal email</label>
           <input id="work_email" name="work_email" type="email" />
         </div>
 
@@ -60,22 +74,36 @@ export default function CreatePersonForm({
 
         <div>
           <label htmlFor="manager_id" className="form-label">Line manager</label>
-          <select id="manager_id" name="manager_id" defaultValue="">
+          <select id="manager_id" name="manager_id" value={managerId} onChange={(e) => setManagerId(e.target.value)}>
             <option value="">None</option>
-            {users.map((u) => (
+            {managers.map((u) => (
               <option key={u.id} value={u.id}>{u.full_name || u.email}</option>
             ))}
           </select>
+          <p className="form-hint">Auto filled from the branch. Change if needed.</p>
         </div>
 
         <div>
-          <label htmlFor="team_leader_id" className="form-label">Team leader</label>
-          <select id="team_leader_id" name="team_leader_id" defaultValue="">
-            <option value="">None</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>{u.full_name || u.email}</option>
-            ))}
-          </select>
+          <span className="form-label">Supervisors</span>
+          {supervisors.length === 0 ? (
+            <p className="text-xs text-white/50">No supervisors in this company yet.</p>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              {supervisors.map((u) => (
+                <label key={u.id} className="flex items-center gap-2 text-sm text-white/85">
+                  <input
+                    type="checkbox"
+                    name="supervisor_ids"
+                    value={u.id}
+                    checked={supervisorIds.includes(u.id)}
+                    onChange={() => toggleSupervisor(u.id)}
+                  />
+                  {u.full_name || u.email}
+                </label>
+              ))}
+            </div>
+          )}
+          <p className="form-hint">Auto filled from the branch. Tick or untick as needed.</p>
         </div>
       </div>
 

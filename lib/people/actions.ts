@@ -100,6 +100,19 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
     .update({ probation_end_due: probEndDue, probation_status: "due", updated_by: user.id })
     .eq("person_id", person.id);
 
+  // Assign the chosen supervisors to the caseload (auto-filled from the branch).
+  const supervisorIds = formData.getAll("supervisor_ids").map(String).filter(Boolean);
+  if (supervisorIds.length > 0) {
+    await supabase.from("person_assignments").insert(
+      supervisorIds.map((uid) => ({
+        company_id: companyId,
+        person_id: person.id,
+        user_id: uid,
+        created_by: user.id,
+      })),
+    );
+  }
+
   await writeAudit({
     companyId,
     actorId: user.id,
