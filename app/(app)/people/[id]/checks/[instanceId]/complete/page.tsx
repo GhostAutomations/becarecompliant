@@ -11,11 +11,7 @@ import {
   getPersonTracker,
   getSupervisionComps,
 } from "@/lib/people/data";
-import {
-  supervisionSlots,
-  supervisionCycleAnchor,
-  annotateSupervisionOptions,
-} from "@/lib/people/logic";
+import { supervisionSlots, annotateSupervisionOptions } from "@/lib/people/logic";
 import { isFormSchema, type FormSchema } from "@/lib/form-schema";
 import type { CheckDefinition } from "@/lib/people/types";
 
@@ -66,8 +62,13 @@ export default async function CompleteCheckPage({
       getPersonChecks(id),
     ]);
     const appraisalCompletedOn = statuses.find((s) => s.check_key === "appraisal")?.last_completed_on ?? null;
-    const anchor = supervisionCycleAnchor(appraisalCompletedOn, tracker?.probation_end_actual ?? null);
-    const slots = supervisionSlots(def.interval, supComps, def.amber_days ?? 30, anchor);
+    const slots = supervisionSlots(
+      def.interval,
+      supComps,
+      def.amber_days ?? 30,
+      appraisalCompletedOn,
+      tracker?.probation_end_actual ?? null,
+    );
     schema = annotateSupervisionOptions(schema, slots);
   }
 

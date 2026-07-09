@@ -24,7 +24,7 @@ import {
   unassignSupervisor,
   updateTracker,
 } from "@/lib/people/actions";
-import { formatDisplayDate, recurrenceLabel, supervisionSlots, supervisionCycleAnchor } from "@/lib/people/logic";
+import { formatDisplayDate, recurrenceLabel, supervisionSlots } from "@/lib/people/logic";
 import {
   type CheckStatus,
   RTW_LIMIT_LABELS,
@@ -86,12 +86,16 @@ export default async function PersonPage({
   const supComps = await getSupervisionComps(id, supFormId);
   const supInterval = supDef?.interval ?? 90;
   const supAmber = supDef?.amber_days ?? 30;
-  // Sup 1 anchors on the current cycle: the latest Annual Appraisal completion, or
-  // the successful (actual) probation end in year one. Completing an appraisal
-  // restarts the supervision cycle.
+  // Sup 1 due anchors on the later of the last Annual Appraisal completion and the
+  // successful probation end; only an appraisal restarts the cycle (see supervisionSlots).
   const appraisalCompletedOn = statuses.find((s) => s.check_key === "appraisal")?.last_completed_on ?? null;
-  const supCycleAnchor = supervisionCycleAnchor(appraisalCompletedOn, tracker?.probation_end_actual ?? null);
-  const slots = supervisionSlots(supInterval, supComps, supAmber, supCycleAnchor);
+  const slots = supervisionSlots(
+    supInterval,
+    supComps,
+    supAmber,
+    appraisalCompletedOn,
+    tracker?.probation_end_actual ?? null,
+  );
 
   const statusByDef = new Map<string, CheckStatus>(statuses.map((s) => [s.definition_id, s]));
   const supStatus = statuses.find((s) => s.check_key === "supervision") ?? null;
