@@ -63,16 +63,6 @@ export default function CreatePersonForm({
         </div>
 
         <div>
-          <label htmlFor="work_email" className="form-label">Personal email</label>
-          <input id="work_email" name="work_email" type="email" />
-        </div>
-
-        <div>
-          <label htmlFor="mobile" className="form-label">Mobile</label>
-          <input id="mobile" name="mobile" />
-        </div>
-
-        <div>
           <label htmlFor="manager_id" className="form-label">Line manager</label>
           <select id="manager_id" name="manager_id" value={managerId} onChange={(e) => setManagerId(e.target.value)}>
             <option value="">None</option>
@@ -81,6 +71,16 @@ export default function CreatePersonForm({
             ))}
           </select>
           <p className="form-hint">Auto filled from the branch. Change if needed.</p>
+        </div>
+
+        <div>
+          <label htmlFor="work_email" className="form-label">Personal email</label>
+          <input id="work_email" name="work_email" type="email" />
+        </div>
+
+        <div>
+          <label htmlFor="mobile" className="form-label">Mobile</label>
+          <input id="mobile" name="mobile" />
         </div>
 
         <div>
