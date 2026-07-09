@@ -728,6 +728,20 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
     metadata: { evidence_id: result.evidenceId, next_due: nextDue, definition_id: def.id },
   });
 
+  // Completing an Annual Appraisal restarts the supervision cycle: re-anchor the
+  // supervision check so its RAG reflects the new cycle (Sup 1 due = appraisal
+  // completion + supervision interval, none completed yet). The display slots use
+  // the same anchor (supervisionCycleAnchor), so screen and RAG stay in step.
+  if (def.key === "appraisal") {
+    const supDue = addDaysIso(todayIso(), supInterval);
+    if (supDue) {
+      await supabase.rpc("reanchor_supervision_cycle", {
+        p_person_id: instance.person_id as string,
+        p_due_date: supDue,
+      });
+    }
+  }
+
   revalidatePath(`/people/${instance.person_id}`);
   revalidatePath("/people");
   // Navigate client-side (see ActionState.redirectTo): a Server Action redirect()
