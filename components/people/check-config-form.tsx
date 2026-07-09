@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { updateCheckDefinition } from "@/lib/people/actions";
 import { IDLE_STATE, type ActionState } from "@/lib/forms";
 import { recurrenceLabel } from "@/lib/people/logic";
@@ -18,6 +18,16 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
   const [amber, setAmber] = useState(def.amber_days != null ? String(def.amber_days) : "");
   const [flagDays, setFlagDays] = useState(String(def.amber_days ?? 30));
   const [scheduleMode, setScheduleMode] = useState<string>(def.schedule_mode);
+
+  // After a save, the server sends back the saved values; keep the fields in step
+  // so they never snap back to a stale value. Only runs when a saved value changes.
+  useEffect(() => {
+    setActive(def.active);
+    setDays(String(def.interval ?? 90));
+    setAmber(def.amber_days != null ? String(def.amber_days) : "");
+    setFlagDays(String(def.amber_days ?? 30));
+    setScheduleMode(def.schedule_mode);
+  }, [def.active, def.interval, def.amber_days, def.schedule_mode]);
 
   const isExpiry = def.anchor === "expiry";
   const saved = !!state.ok;
