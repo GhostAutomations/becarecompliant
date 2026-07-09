@@ -49,23 +49,26 @@ function answerDate(answers: Answers, key: string | null): string | null {
  *  - expiry anchor: null (unscheduled until the first document expiry is recorded).
  * Returned as an ISO string for the RPC, or null.
  */
-export function initialDueDate(
-  def: CheckDefinition,
-  startDate: string | null,
-  supIntervalDays?: number | null,
-): string | null {
+/**
+ * Which checks get a due date auto-filled when a carer is added. Everything else
+ * (supervision, appraisal, manual handling, medication competency) starts blank and
+ * is scheduled through completion or manually. Spot Check is dated from the start.
+ */
+const AUTO_SCHEDULE_ON_ADD = new Set(["spot_check"]);
+
+export function initialDueDate(def: CheckDefinition, startDate: string | null): string | null {
+  if (!AUTO_SCHEDULE_ON_ADD.has(def.key)) return null;
   if (def.anchor === "expiry") return null;
   if (!startDate || !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return null;
-  const start: CivilDate = parseCivilDate(startDate);
-
-  // Aligned to after Supervision 3: first due = start + 3 supervision periods.
-  if (def.schedule_mode === "after_sup3" && supIntervalDays && supIntervalDays >= 1) {
-    return formatCivilDate(addInterval(start, "day", supIntervalDays * 3));
-  }
-
   const rule = ruleOf(def);
   if (!rule) return null;
-  return formatCivilDate(addInterval(start, rule.frequency, rule.interval));
+  return formatCivilDate(addInterval(parseCivilDate(startDate), rule.frequency, rule.interval));
+}
+
+/** start date + N days as an ISO string (used for the probation end due date). */
+export function addDaysIso(startDate: string | null, days: number | null): string | null {
+  if (!startDate || !/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !days || days < 1) return null;
+  return formatCivilDate(addInterval(parseCivilDate(startDate), "day", days));
 }
 
 /**
@@ -188,7 +191,6 @@ export function recurrenceLabel(def: CheckDefinition): string {
  * evidence, if any. A completed slot is green; an outstanding one is RAG by its due.
  */
 export function supervisionSlots(
-  startDate: string | null,
   intervalDays: number | null,
   comps: Record<string, string>,
   amberDays: number,
@@ -196,13 +198,15 @@ export function supervisionSlots(
   count = 3,
 ): SupervisionSlot[] {
   const slots: SupervisionSlot[] = [];
-  const start =
-    startDate && /^\d{4}-\d{2}-\d{2}$/.test(startDate) ? parseCivilDate(startDate) : null;
   for (let n = 1; n <= count; n++) {
     const comp = comps[String(n)] ?? null;
+    // Sup 1 has no auto due (do it whenever); Sup N due = previous completion + interval.
     let due: CivilDate | null = null;
-    if (start && intervalDays && intervalDays >= 1) {
-      due = addInterval(start, "day", intervalDays * n);
+    if (n >= 2 && intervalDays && intervalDays >= 1) {
+      const prev = comps[String(n - 1)];
+      if (prev && /^\d{4}-\d{2}-\d{2}$/.test(prev)) {
+        due = addInterval(parseCivilDate(prev), "day", intervalDays);
+      }
     }
     const rag: Rag | "none" = comp ? "green" : due ? ragStatus(due, today, amberDays) : "none";
     slots.push({ n, due: due ? formatCivilDate(due) : null, comp, rag });

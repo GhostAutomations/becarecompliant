@@ -21,7 +21,14 @@ import type { Answers } from "@/lib/form-schema";
 import type { ActionState } from "@/lib/forms";
 import type { CheckDefinition } from "./types";
 import { listPeopleCheckDefinitions, getPublishedFormVersion, getCompanyFormByKey } from "./data";
-import { initialDueDate, nextDueAfterCompletion, todayIso, TRACKER_FORMS, REGISTER_COLUMNS } from "./logic";
+import {
+  initialDueDate,
+  nextDueAfterCompletion,
+  todayIso,
+  addDaysIso,
+  TRACKER_FORMS,
+  REGISTER_COLUMNS,
+} from "./logic";
 
 function trimOrNull(v: FormDataEntryValue | null): string | null {
   const s = String(v ?? "").trim();
@@ -68,18 +75,30 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
 
   if (error) return { error: error.message };
 
-  // Auto-apply active definitions with their initial due dates (TS-computed).
+  // Auto-apply active definitions. Only Spot Check gets a due date on add; the rest
+  // (supervision, appraisal, manual handling, medication competency) start blank.
   const definitions = await listPeopleCheckDefinitions(companyId);
-  const supInterval = definitions.find((d) => d.key === "supervision")?.interval ?? 90;
   const rows = definitions.map((def: CheckDefinition) => ({
     definition_id: def.id,
-    due_date: initialDueDate(def, start_date, supInterval),
+    due_date: initialDueDate(def, start_date),
     expiry_date: null,
   }));
   const { data: applied, error: applyErr } = await supabase.rpc("apply_person_checks", {
     p_person_id: person.id,
     p_rows: rows,
   });
+
+  // Probation: end due = start date + the company Probationary Period; status = Due.
+  const { data: company } = await supabase
+    .from("companies")
+    .select("probation_period_days")
+    .eq("id", companyId)
+    .maybeSingle();
+  const probEndDue = addDaysIso(start_date, (company?.probation_period_days as number | null) ?? 180);
+  await supabase
+    .from("person_trackers")
+    .update({ probation_end_due: probEndDue, probation_status: "due", updated_by: user.id })
+    .eq("person_id", person.id);
 
   await writeAudit({
     companyId,
@@ -291,10 +310,9 @@ export async function applyMissingChecks(formData: FormData): Promise<void> {
   const startDate = (person?.start_date as string | null) ?? null;
 
   const definitions = await listPeopleCheckDefinitions(profile.company_id);
-  const supInterval = definitions.find((d) => d.key === "supervision")?.interval ?? 90;
   const rows = definitions.map((def) => ({
     definition_id: def.id,
-    due_date: initialDueDate(def, startDate, supInterval),
+    due_date: initialDueDate(def, startDate),
     expiry_date: null,
   }));
   await supabase.rpc("apply_person_checks", { p_person_id: personId, p_rows: rows });
@@ -349,14 +367,6 @@ export async function updateCheckDefinition(formData: FormData): Promise<ActionS
       .maybeSingle();
     if (defRow) {
       const def = defRow as CheckDefinition;
-      const { data: supDef } = await supabase
-        .from("check_definitions")
-        .select("interval")
-        .eq("company_id", def.company_id)
-        .eq("population", "people")
-        .eq("key", "supervision")
-        .maybeSingle();
-      const supInterval = (supDef?.interval as number | null) ?? 90;
       const { data: insts } = await supabase
         .from("check_instances")
         .select("id, people(start_date)")
@@ -368,7 +378,7 @@ export async function updateCheckDefinition(formData: FormData): Promise<ActionS
       };
       const rows = ((insts as InstRow[] | null) ?? []).map((i) => {
         const p = Array.isArray(i.people) ? i.people[0] : i.people;
-        return { instance_id: i.id, due_date: initialDueDate(def, p?.start_date ?? null, supInterval) };
+        return { instance_id: i.id, due_date: initialDueDate(def, p?.start_date ?? null) };
       });
       if (rows.length > 0) {
         await supabase.rpc("reschedule_check_instances", { p_definition_id: definitionId, p_rows: rows });
@@ -396,6 +406,37 @@ export async function updateCheckDefinition(formData: FormData): Promise<ActionS
 function enumOrNull(v: FormDataEntryValue | null, allowed: string[]): string | null {
   const s = String(v ?? "").trim();
   return allowed.includes(s) ? s : null;
+}
+
+/** Save the company Probationary Period (days). Applies to carers added afterwards;
+ *  it deliberately does NOT recompute existing carers' probation dates. */
+export async function updateProbationPeriod(formData: FormData): Promise<ActionState> {
+  const { user, profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+  const days = Number.parseInt(String(formData.get("probation_period_days") ?? "").trim(), 10);
+  if (!Number.isInteger(days) || days < 1) return { error: "Enter a number of days." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("companies")
+    .update({ probation_period_days: days })
+    .eq("id", profile.company_id);
+  if (error) return { error: error.message };
+
+  await writeAudit({
+    companyId: profile.company_id,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "company.probation_period_updated",
+    entityType: "company",
+    entityId: profile.company_id,
+    summary: `Set probationary period to ${days} days`,
+    metadata: { days },
+  });
+
+  revalidatePath("/settings/people");
+  return { ok: "Saved" };
 }
 
 /** Save the per-company shorthand labels for the People register columns. Only

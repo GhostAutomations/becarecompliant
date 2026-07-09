@@ -39,6 +39,17 @@ export async function getRollupCounts(
   return counts;
 }
 
+/** The company Probationary Period in days (default 180). */
+export async function getProbationPeriod(companyId: string): Promise<number> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("companies")
+    .select("probation_period_days")
+    .eq("id", companyId)
+    .maybeSingle();
+  return (data?.probation_period_days as number | null) ?? 180;
+}
+
 /** Per-company shorthand labels for the People register columns ({} if none). */
 export async function getColumnLabels(companyId: string): Promise<Record<string, string>> {
   const supabase = await createClient();

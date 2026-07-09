@@ -86,7 +86,7 @@ export default async function PersonPage({
   const supComps = await getSupervisionComps(id, supFormId);
   const supInterval = supDef?.interval ?? 90;
   const supAmber = supDef?.amber_days ?? 30;
-  const slots = supervisionSlots(person.start_date, supInterval, supComps, supAmber);
+  const slots = supervisionSlots(supInterval, supComps, supAmber);
 
   const statusByDef = new Map<string, CheckStatus>(statuses.map((s) => [s.definition_id, s]));
   const supStatus = statuses.find((s) => s.check_key === "supervision") ?? null;
