@@ -19,7 +19,7 @@ import {
   PROBATION_STATUS_LABELS,
   WORKING_STATUS_LABELS,
 } from "@/lib/people/types";
-import { formatDisplayDate, supervisionSlots, dateRag } from "@/lib/people/logic";
+import { formatDisplayDate, supervisionSlots, dateRag, supervisionCycleAnchor } from "@/lib/people/logic";
 import { setEmploymentStatus, updateTracker } from "@/lib/people/actions";
 
 type Tone = "green" | "amber" | "red" | "neutral";
@@ -408,7 +408,10 @@ export default function RegisterMatrix({
                 config.supInterval,
                 row.supComps,
                 config.supAmber,
-                t?.probation_end_actual ?? null,
+                supervisionCycleAnchor(
+                  row.statusByKey["appraisal"]?.last_completed_on ?? null,
+                  t?.probation_end_actual ?? null,
+                ),
               );
               return (
                 <tr key={row.person.id}>

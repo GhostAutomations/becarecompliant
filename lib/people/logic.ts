@@ -186,29 +186,59 @@ export function recurrenceLabel(def: CheckDefinition): string {
 }
 
 /**
- * Derive the three Supervision slots (Sup 1/2/3) from the Supervision interval
- * (Settings) plus the ordered completion history:
- *  - Sup 1 is due the interval after the successful probation end (actual if set,
- *    else the planned end due date); it has no due until a probation end exists.
+ * The supervision cycle anchor: Sup 1 is due one interval after this date, and
+ * only supervisions completed on/after it count towards the current cycle. It is
+ * the LATER of the last Annual Appraisal completion and the successful probation
+ * end, so completing an appraisal restarts the annual supervision cycle. Returns
+ * an ISO date or null (no probation end and no appraisal yet). ISO strings sort
+ * lexicographically, so the max is the last element after sorting.
+ */
+export function supervisionCycleAnchor(
+  appraisalCompletedOn: string | null | undefined,
+  probationEndActual: string | null | undefined,
+): string | null {
+  const dates = [appraisalCompletedOn, probationEndActual].filter(
+    (d): d is string => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d),
+  );
+  if (dates.length === 0) return null;
+  return dates.sort()[dates.length - 1];
+}
+
+/**
+ * Derive the three Supervision slots (Sup 1/2/3) for the CURRENT cycle from the
+ * Supervision interval (Settings), the cycle anchor and the completion history:
+ *  - Sup 1 is due the interval after the cycle anchor (latest appraisal completion,
+ *    else successful probation end); it has no due until an anchor exists.
  *  - Sup N (N >= 2) is due the interval after the previous supervision was completed.
+ *  - Only completions on/after the cycle anchor belong to this cycle, so completing
+ *    an Annual Appraisal (which moves the anchor forward) resets Sup 1/2/3 to empty.
  * A completed slot is green; an outstanding one is RAG by its due.
  */
 export function supervisionSlots(
   intervalDays: number | null,
   comps: Record<string, string>,
   amberDays: number,
-  probationEnd: string | null = null,
+  cycleAnchor: string | null = null,
   today: CivilDate = todayInLondon(),
   count = 3,
 ): SupervisionSlot[] {
   const slots: SupervisionSlot[] = [];
   const hasInterval = !!intervalDays && intervalDays >= 1;
+  // A completion only counts for this cycle if it is strictly after the anchor:
+  // a supervision on the appraisal/probation-end day belongs to the closing cycle,
+  // so the new cycle's Sup 1 shows as due (anchor + interval), not already done.
+  const compOf = (n: number): string | null => {
+    const d = comps[String(n)] ?? null;
+    if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return null;
+    if (cycleAnchor && d <= cycleAnchor) return null;
+    return d;
+  };
   for (let n = 1; n <= count; n++) {
-    const comp = comps[String(n)] ?? null;
+    const comp = compOf(n);
     let due: CivilDate | null = null;
     if (hasInterval) {
-      // Sup 1 anchors on the probation end; Sup N on the previous completion.
-      const anchor = n === 1 ? probationEnd : comps[String(n - 1)];
+      // Sup 1 anchors on the cycle anchor; Sup N on the previous cycle completion.
+      const anchor = n === 1 ? cycleAnchor : compOf(n - 1);
       if (anchor && /^\d{4}-\d{2}-\d{2}$/.test(anchor)) {
         due = addInterval(parseCivilDate(anchor), "day", intervalDays!);
       }

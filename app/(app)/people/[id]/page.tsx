@@ -24,7 +24,7 @@ import {
   unassignSupervisor,
   updateTracker,
 } from "@/lib/people/actions";
-import { formatDisplayDate, recurrenceLabel, supervisionSlots } from "@/lib/people/logic";
+import { formatDisplayDate, recurrenceLabel, supervisionSlots, supervisionCycleAnchor } from "@/lib/people/logic";
 import {
   type CheckStatus,
   RTW_LIMIT_LABELS,
@@ -86,8 +86,12 @@ export default async function PersonPage({
   const supComps = await getSupervisionComps(id, supFormId);
   const supInterval = supDef?.interval ?? 90;
   const supAmber = supDef?.amber_days ?? 30;
-  // Sup 1 anchors on the SUCCESSFUL (actual) probation end only, not the planned due date.
-  const slots = supervisionSlots(supInterval, supComps, supAmber, tracker?.probation_end_actual ?? null);
+  // Sup 1 anchors on the current cycle: the latest Annual Appraisal completion, or
+  // the successful (actual) probation end in year one. Completing an appraisal
+  // restarts the supervision cycle.
+  const appraisalCompletedOn = statuses.find((s) => s.check_key === "appraisal")?.last_completed_on ?? null;
+  const supCycleAnchor = supervisionCycleAnchor(appraisalCompletedOn, tracker?.probation_end_actual ?? null);
+  const slots = supervisionSlots(supInterval, supComps, supAmber, supCycleAnchor);
 
   const statusByDef = new Map<string, CheckStatus>(statuses.map((s) => [s.definition_id, s]));
   const supStatus = statuses.find((s) => s.check_key === "supervision") ?? null;
@@ -161,7 +165,8 @@ export default async function PersonPage({
               ))}
             </div>
             <p className="text-[11px] text-white/40">
-              Supervision 1 is due {supInterval} days after successful probation end.
+              Supervision 1 is due {supInterval} days after successful probation end, then
+              {" "}{supInterval} days after each Annual Appraisal (which restarts the cycle).
               {" "}Each further supervision is due {supInterval} days after the previous one is completed.
             </p>
           </section>
