@@ -76,19 +76,29 @@ export function initialDueDate(
 export function nextDueAfterCompletion(
   def: CheckDefinition,
   answers: Answers,
+  supIntervalDays?: number | null,
   completedOn: CivilDate = todayInLondon(),
 ): { nextDue: string | null; expiry: string | null } {
-  const rule = ruleOf(def);
-  if (!rule) return { nextDue: null, expiry: null };
-
   if (def.anchor === "expiry") {
     const expiryStr = answerDate(answers, def.expiry_field_key);
     if (!expiryStr) return { nextDue: null, expiry: null };
-    const due = nextDueDate(rule, { expiryDate: parseCivilDate(expiryStr) });
+    const rule = ruleOf(def);
+    const due = rule ? nextDueDate(rule, { expiryDate: parseCivilDate(expiryStr) }) : null;
     return { nextDue: due ? formatCivilDate(due) : null, expiry: expiryStr };
   }
 
   if (!def.recurring) return { nextDue: null, expiry: null };
+
+  // After Supervision 3: recur every 3 supervision periods (from the Supervision box).
+  if (def.schedule_mode === "after_sup3" && supIntervalDays && supIntervalDays >= 1) {
+    return {
+      nextDue: formatCivilDate(addInterval(completedOn, "day", supIntervalDays * 3)),
+      expiry: null,
+    };
+  }
+
+  const rule = ruleOf(def);
+  if (!rule) return { nextDue: null, expiry: null };
   const due = nextDueDate(rule, { completedOn });
   return { nextDue: due ? formatCivilDate(due) : null, expiry: null };
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { updateCheckDefinition } from "@/lib/people/actions";
 import { IDLE_STATE, type ActionState } from "@/lib/forms";
 import { recurrenceLabel } from "@/lib/people/logic";
@@ -11,6 +11,14 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
     async (_prev: ActionState, fd: FormData) => updateCheckDefinition(fd),
     IDLE_STATE,
   );
+
+  // Controlled so values survive React 19's automatic form reset after an action.
+  const [active, setActive] = useState(def.active);
+  const [days, setDays] = useState(String(def.interval ?? 90));
+  const [amber, setAmber] = useState(def.amber_days != null ? String(def.amber_days) : "");
+  const [flagDays, setFlagDays] = useState(String(def.amber_days ?? 30));
+  const [scheduleMode, setScheduleMode] = useState<string>(def.schedule_mode);
+
   const isExpiry = def.anchor === "expiry";
   const saved = !!state.ok;
 
@@ -31,7 +39,7 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
           <p className="text-[11px] text-white/45">{recurrenceLabel(def)}</p>
         </div>
         <label className="flex items-center gap-2 text-xs text-white/80">
-          <input type="checkbox" name="active" defaultChecked={def.active} />
+          <input type="checkbox" name="active" checked={active} onChange={(e) => setActive(e.target.checked)} />
           Active
         </label>
       </div>
@@ -47,7 +55,8 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
               name="flag_days"
               type="number"
               min={0}
-              defaultValue={def.amber_days ?? 30}
+              value={flagDays}
+              onChange={(e) => setFlagDays(e.target.value)}
               className="max-w-[8rem]"
             />
           </div>
@@ -58,25 +67,37 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
           {def.key === "appraisal" ? (
             <div>
               <label htmlFor={`sched-${def.id}`} className="form-label">Schedule</label>
-              <select id={`sched-${def.id}`} name="schedule_mode" defaultValue={def.schedule_mode}>
+              <select
+                id={`sched-${def.id}`}
+                name="schedule_mode"
+                value={scheduleMode}
+                onChange={(e) => setScheduleMode(e.target.value)}
+              >
                 <option value="interval">Yearly</option>
                 <option value="after_sup3">After Supervision 3</option>
               </select>
             </div>
           ) : null}
-          <div>
-            <label htmlFor={`days-${def.id}`} className="form-label">
-              {def.recurring ? "Every (days)" : "Due after start (days)"}
-            </label>
-            <input
-              id={`days-${def.id}`}
-              name="days"
-              type="number"
-              min={1}
-              defaultValue={def.interval ?? 90}
-              className="max-w-[8rem]"
-            />
-          </div>
+          {def.key === "appraisal" && scheduleMode === "after_sup3" ? (
+            <p className="form-hint max-w-[14rem]">
+              Scheduled from the Supervision interval (3 × Supervision days).
+            </p>
+          ) : (
+            <div>
+              <label htmlFor={`days-${def.id}`} className="form-label">
+                {def.recurring ? "Every (days)" : "Due after start (days)"}
+              </label>
+              <input
+                id={`days-${def.id}`}
+                name="days"
+                type="number"
+                min={1}
+                value={days}
+                onChange={(e) => setDays(e.target.value)}
+                className="max-w-[8rem]"
+              />
+            </div>
+          )}
           <div>
             <label htmlFor={`amber-${def.id}`} className="form-label">Amber (days before due)</label>
             <input
@@ -84,8 +105,9 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
               name="amber_days"
               type="number"
               min={0}
-              defaultValue={def.amber_days ?? ""}
+              value={amber}
               placeholder="Default 30"
+              onChange={(e) => setAmber(e.target.value)}
               className="max-w-[8rem]"
             />
           </div>

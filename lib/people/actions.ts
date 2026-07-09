@@ -632,8 +632,17 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
     return { error: result.error };
   }
 
-  // 2. Advance the Check: next due computed by the shared recurrence engine.
-  const { nextDue, expiry } = nextDueAfterCompletion(def, answers);
+  // 2. Advance the Check: next due computed by the shared recurrence engine. For an
+  // "after Supervision 3" appraisal, the interval comes from the Supervision box.
+  const { data: supDef } = await supabase
+    .from("check_definitions")
+    .select("interval")
+    .eq("company_id", instance.company_id as string)
+    .eq("population", "people")
+    .eq("key", "supervision")
+    .maybeSingle();
+  const supInterval = (supDef?.interval as number | null) ?? 90;
+  const { nextDue, expiry } = nextDueAfterCompletion(def, answers, supInterval);
   const { error: advanceErr } = await supabase.rpc("complete_check", {
     p_instance_id: instanceId,
     p_completed_on: todayIso(),
