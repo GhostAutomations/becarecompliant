@@ -97,16 +97,28 @@ export default function PlannedReviewCell({
 
   return (
     <>
-      <button
-        ref={btnRef}
-        type="button"
-        disabled={pending}
-        onClick={toggle}
-        className={`flex flex-col items-center rounded-lg px-2 py-1 transition hover:bg-white/10 ${pending ? "opacity-60" : ""}`}
-      >
-        <span className="text-white/80">{label}</span>
-        {sub ? <span className="text-[10px] text-white/40">{sub}</span> : null}
-      </button>
+      {plannedDate ? (
+        <button
+          ref={btnRef}
+          type="button"
+          disabled={pending}
+          onClick={toggle}
+          className={`flex flex-col items-center rounded-lg px-2 py-1 transition hover:bg-white/10 ${pending ? "opacity-60" : ""}`}
+        >
+          <span className="text-white/80">{label}</span>
+          {sub ? <span className="text-[10px] text-white/40">{sub}</span> : null}
+        </button>
+      ) : (
+        <button
+          ref={btnRef}
+          type="button"
+          disabled={pending}
+          onClick={toggle}
+          className={`btn-outline text-xs ${pending ? "opacity-60" : ""}`}
+        >
+          Book now
+        </button>
+      )}
       {open &&
         createPortal(
           <div
