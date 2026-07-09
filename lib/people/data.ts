@@ -332,31 +332,31 @@ export async function listSupervisoryUsers(companyId: string): Promise<ProfileLi
 export type BranchStaff = Record<string, { managers: ProfileLite[]; supervisors: ProfileLite[] }>;
 
 /** For each branch, the managers and supervisors assigned to it (via user_branches),
- *  so the Add Person form can auto-fill them when a branch is chosen. */
+ *  so the Add Person form can auto-fill them when a branch is chosen. Two plain
+ *  queries joined in JS (no PostgREST embed), so it is not sensitive to embedded
+ *  resource / RLS quirks. */
 export async function getBranchStaffMap(companyId: string): Promise<BranchStaff> {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("user_branches")
-    .select("branch_id, profiles!inner(id, full_name, email, role, company_id, status)")
-    .eq("profiles.company_id", companyId)
-    .eq("profiles.status", "active")
-    .in("profiles.role", ["manager", "supervisor"]);
+  const [{ data: ubs }, { data: profs }] = await Promise.all([
+    supabase.from("user_branches").select("user_id, branch_id"),
+    supabase
+      .from("profiles")
+      .select("id, full_name, email, role")
+      .eq("company_id", companyId)
+      .eq("status", "active")
+      .in("role", ["manager", "supervisor"]),
+  ]);
 
-  type Row = {
-    branch_id: string;
-    profiles:
-      | { id: string; full_name: string; email: string; role: string }
-      | Array<{ id: string; full_name: string; email: string; role: string }>
-      | null;
-  };
+  const byId = new Map<string, ProfileLite>(
+    ((profs as ProfileLite[] | null) ?? []).map((p) => [p.id, p]),
+  );
   const map: BranchStaff = {};
-  for (const r of (data as Row[] | null) ?? []) {
-    const p = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles;
+  for (const ub of ((ubs as Array<{ user_id: string; branch_id: string }> | null) ?? [])) {
+    const p = byId.get(ub.user_id);
     if (!p) continue;
-    const entry = (map[r.branch_id] ??= { managers: [], supervisors: [] });
-    const lite: ProfileLite = { id: p.id, full_name: p.full_name, email: p.email, role: p.role };
-    if (p.role === "manager") entry.managers.push(lite);
-    else if (p.role === "supervisor") entry.supervisors.push(lite);
+    const entry = (map[ub.branch_id] ??= { managers: [], supervisors: [] });
+    if (p.role === "manager") entry.managers.push(p);
+    else if (p.role === "supervisor") entry.supervisors.push(p);
   }
   return map;
 }
