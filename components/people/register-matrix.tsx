@@ -408,7 +408,7 @@ export default function RegisterMatrix({
                 config.supInterval,
                 row.supComps,
                 config.supAmber,
-                t?.probation_end_actual ?? t?.probation_end_due ?? null,
+                t?.probation_end_actual ?? null,
               );
               return (
                 <tr key={row.person.id}>

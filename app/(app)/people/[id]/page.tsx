@@ -86,8 +86,8 @@ export default async function PersonPage({
   const supComps = await getSupervisionComps(id, supFormId);
   const supInterval = supDef?.interval ?? 90;
   const supAmber = supDef?.amber_days ?? 30;
-  const probationEnd = tracker?.probation_end_actual ?? tracker?.probation_end_due ?? null;
-  const slots = supervisionSlots(supInterval, supComps, supAmber, probationEnd);
+  // Sup 1 anchors on the SUCCESSFUL (actual) probation end only, not the planned due date.
+  const slots = supervisionSlots(supInterval, supComps, supAmber, tracker?.probation_end_actual ?? null);
 
   const statusByDef = new Map<string, CheckStatus>(statuses.map((s) => [s.definition_id, s]));
   const supStatus = statuses.find((s) => s.check_key === "supervision") ?? null;
