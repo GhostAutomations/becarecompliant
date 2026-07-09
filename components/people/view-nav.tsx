@@ -3,23 +3,34 @@
 import { useRouter } from "next/navigation";
 import type { BranchLite } from "@/lib/people/data";
 
+/** View keys and where each navigates (register variants use /people?view=). */
+const VIEW_PATHS: Record<string, string> = {
+  main: "/people",
+  summary: "/people/summary",
+  leavers: "/people?view=leavers",
+  lts_mat: "/people?view=lts_mat",
+  archive: "/people?view=archive",
+};
+
 /**
- * The People area nav: a Branches dropdown (All branches + each branch) and a View
- * dropdown (Main = the register table, Summary = the stat cards). Both navigate on
- * change and preserve the selected branch.
+ * The People area nav: a Branches dropdown and a View dropdown (Main, Compliance
+ * Summary, Leavers, LTS & Mat Leave, Archive). Both navigate on change and preserve
+ * the selected branch.
  */
 export default function ViewNav({
   current,
   branchId,
   branches,
 }: {
-  current: "register" | "summary";
+  current: string;
   branchId: string | null;
   branches: BranchLite[];
 }) {
   const router = useRouter();
   const branchOptions = branches.filter((b) => b.kind === "branch" || b.kind === "team");
-  const base = current === "summary" ? "/people/summary" : "/people";
+  const base = VIEW_PATHS[current] ?? "/people";
+  const withBranch = (path: string) =>
+    branchId ? `${path}${path.includes("?") ? "&" : "?"}branch=${branchId}` : path;
 
   return (
     <div className="flex flex-wrap items-center gap-4">
@@ -31,7 +42,10 @@ export default function ViewNav({
             value={branchId ?? ""}
             onChange={(e) => {
               const v = e.target.value;
-              router.push(v ? `${base}?branch=${v}` : base);
+              const path = base.split("?")[0];
+              const query = base.includes("?") ? base.split("?")[1] : "";
+              const withQuery = query ? `${path}?${query}` : path;
+              router.push(v ? `${withQuery}${query ? "&" : "?"}branch=${v}` : withQuery);
             }}
           >
             <option value="">All branches</option>
@@ -47,13 +61,13 @@ export default function ViewNav({
         <select
           className="inline-cell"
           value={current}
-          onChange={(e) => {
-            const path = e.target.value === "summary" ? "/people/summary" : "/people";
-            router.push(branchId ? `${path}?branch=${branchId}` : path);
-          }}
+          onChange={(e) => router.push(withBranch(VIEW_PATHS[e.target.value] ?? "/people"))}
         >
-          <option value="register">Main</option>
-          <option value="summary">Summary</option>
+          <option value="main">Main</option>
+          <option value="summary">Compliance Summary</option>
+          <option value="leavers">Leavers</option>
+          <option value="lts_mat">LTS & Mat Leave</option>
+          <option value="archive">Archive</option>
         </select>
       </label>
     </div>

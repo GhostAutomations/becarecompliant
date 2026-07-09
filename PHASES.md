@@ -155,6 +155,8 @@ Still to test cold (Phase 3, needs deploy + extra roles/tenants):
 - Cross-tenant RLS on people/check_definitions/check_instances/evidence with two companies.
 - DBS Renewal / Manual Handling / Right to Work document checks: completing captures the date + optional upload and reschedules correctly (right to work expiry-anchored, DBS 36mo, manual handling 12mo).
 
+Logged from the Phase 3 test run (2026-07-09, TEST-CHECKLIST-PHASE3.md, 31 pass / 2 fail / 10 not tested). Cold items to test later: #14 completed form produces a branded PDF in the private evidence bucket (pdf_sha256); #19 DBS/RTW/Probation tracker Record cards open the correct forms; #23 RTW expiry sets the RTW column and DBS sets DBS/Enhanced DBS; #30 RAG colour thresholds (red past due / amber within window / green else); #36-39 permission matrix (Manager branch-only, Supervisor caseload-only, Team Member read-only + blocked complete route + no SU data, Supervisor evidence scoped to caseload) — needs a Manager, Supervisor and Team Member; #40 cross-tenant isolation — needs a second company. Two fails were found and are being fixed in-phase, NOT deferred: Add-person branch auto-fill of manager/supervisors, and Archive (offer only for leavers + make archived viewable). Two feature requests raised during the run (Leavers view, LTS & Mat Leave view) are being built in-phase.
+
 ## Phase 12 — Marketing & Launch
 
 Marketing site on becarecompliant.com, onboarding collateral, subscription agreement (no data selling clause), launch.

@@ -5,16 +5,23 @@ import { NavIcon } from "@/components/nav-icon";
 import RegisterMatrix from "@/components/people/register-matrix";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import ViewNav from "@/components/people/view-nav";
-import { listBranches, listRegister, getColumnLabels } from "@/lib/people/data";
+import { listBranches, listRegister, getColumnLabels, type RegisterScope } from "@/lib/people/data";
 
 export const metadata: Metadata = { title: "People" };
 
 const MANAGE_ROLES = ["company_admin", "manager", "platform_admin"];
 
+// View key (URL ?view=) -> register scope + heading. Absent = Main (active).
+const VIEWS: Record<string, { scope: RegisterScope; title: string }> = {
+  leavers: { scope: "leaver", title: "Leavers" },
+  lts_mat: { scope: "lts_mat", title: "LTS & Mat Leave" },
+  archive: { scope: "archived", title: "Archive" },
+};
+
 export default async function PeoplePage({
   searchParams,
 }: {
-  searchParams: Promise<{ branch?: string }>;
+  searchParams: Promise<{ branch?: string; view?: string }>;
 }) {
   const { profile } = await requireCompany();
 
@@ -31,12 +38,15 @@ export default async function PeoplePage({
   }
 
   const companyId = profile.company_id;
-  const { branch } = await searchParams;
+  const { branch, view } = await searchParams;
   const branchId = branch || null;
+  const activeView = view && VIEWS[view] ? view : "main";
+  const scope: RegisterScope = view && VIEWS[view] ? VIEWS[view].scope : "active";
+  const heading = view && VIEWS[view] ? VIEWS[view].title : "People";
 
   const [branches, register, columnLabels] = await Promise.all([
     listBranches(companyId),
-    listRegister(companyId, branchId),
+    listRegister(companyId, branchId, scope),
     getColumnLabels(companyId),
   ]);
   const { definitions, rows } = register;
@@ -55,16 +65,16 @@ export default async function PeoplePage({
       <RealtimeRefresh />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="page-title">People</h1>
+          <h1 className="page-title">{heading}</h1>
         </div>
-        {canManage ? (
+        {canManage && activeView === "main" ? (
           <Link href="/people/new" className="btn-primary">
             Add person
           </Link>
         ) : null}
       </div>
 
-      <ViewNav current="register" branchId={branchId} branches={branches} />
+      <ViewNav current={activeView} branchId={branchId} branches={branches} />
 
       <div className="min-h-0 flex-1">
         {rows.length === 0 ? (
@@ -72,16 +82,22 @@ export default async function PeoplePage({
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gold-400/10 text-gold-400">
               <NavIcon icon="people" className="h-6 w-6" />
             </span>
-            <h2 className="text-base font-semibold text-white">No People records yet</h2>
-            <p className="max-w-md text-sm text-white/60">
-              Add your first staff member and their supervision, appraisal, DBS,
-              right to work and training checks are scheduled automatically.
-            </p>
-            {canManage ? (
-              <Link href="/people/new" className="btn-primary mt-2">
-                Add your first person
-              </Link>
-            ) : null}
+            {activeView === "main" ? (
+              <>
+                <h2 className="text-base font-semibold text-white">No People records yet</h2>
+                <p className="max-w-md text-sm text-white/60">
+                  Add your first staff member and their supervision, appraisal, DBS,
+                  right to work and training checks are scheduled automatically.
+                </p>
+                {canManage ? (
+                  <Link href="/people/new" className="btn-primary mt-2">
+                    Add your first person
+                  </Link>
+                ) : null}
+              </>
+            ) : (
+              <h2 className="text-base font-semibold text-white">No {heading.toLowerCase()} to show</h2>
+            )}
           </div>
         ) : (
           <RegisterMatrix rows={rows} config={matrixConfig} editable={canManage} columnLabels={columnLabels} />

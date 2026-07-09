@@ -373,11 +373,15 @@ export default async function PersonPage({
                 </div>
                 <button type="submit" className="btn-outline text-xs">Save status</button>
               </form>
-              <form action={setArchived}>
-                <input type="hidden" name="person_id" value={person.id} />
-                <input type="hidden" name="archive" value={person.archived_at ? "false" : "true"} />
-                <button type="submit" className="btn-ghost text-xs">{person.archived_at ? "Restore" : "Archive"}</button>
-              </form>
+              {/* Archive is only offered once a person is a Leaver; Restore shows for
+                  an archived record. Active/LTS/Mat Leave staff cannot be archived. */}
+              {person.archived_at || person.employment_status === "leaver" ? (
+                <form action={setArchived}>
+                  <input type="hidden" name="person_id" value={person.id} />
+                  <input type="hidden" name="archive" value={person.archived_at ? "false" : "true"} />
+                  <button type="submit" className="btn-ghost text-xs">{person.archived_at ? "Restore" : "Archive"}</button>
+                </form>
+              ) : null}
             </div>
           </div>
         </details>

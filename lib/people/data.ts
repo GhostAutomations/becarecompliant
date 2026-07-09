@@ -114,11 +114,18 @@ export async function getPerson(personId: string): Promise<PersonRecord | null> 
   return data ? toPerson(data as PersonRow) : null;
 }
 
-/** The register matrix: active Records for a branch (or all visible), plus each
- *  Record's per-check status and rollup. Definitions are the matrix columns. */
+/** Which population the register is showing. active = Main; leaver = Leavers (not yet
+ *  archived); lts_mat = Long Term Sick & Maternity Leave; archived = the Archive view. */
+export type RegisterScope = "active" | "leaver" | "lts_mat" | "archived";
+
+/** The register matrix: Records for a branch (or all visible) in the given scope,
+ *  plus each Record's per-check status and rollup. Definitions are the columns.
+ *  Uses the _all status/rollup views so non-active people still show check data;
+ *  the dashboard/summary keep the active-only views (leavers excluded there). */
 export async function listRegister(
   companyId: string,
   branchId?: string | null,
+  scope: RegisterScope = "active",
 ): Promise<{ definitions: CheckDefinition[]; rows: RegisterRow[] }> {
   const supabase = await createClient();
   const definitions = await listPeopleCheckDefinitions(companyId);
@@ -127,9 +134,16 @@ export async function listRegister(
     .from("people")
     .select("*, branches(name)")
     .eq("company_id", companyId)
-    .neq("employment_status", "leaver")
-    .is("archived_at", null)
     .order("full_name", { ascending: true });
+  if (scope === "archived") {
+    query = query.not("archived_at", "is", null);
+  } else if (scope === "leaver") {
+    query = query.eq("employment_status", "leaver").is("archived_at", null);
+  } else if (scope === "lts_mat") {
+    query = query.in("employment_status", ["lts", "mat_leave"]).is("archived_at", null);
+  } else {
+    query = query.eq("employment_status", "active").is("archived_at", null);
+  }
   if (branchId) query = query.eq("branch_id", branchId);
 
   const { data: peopleData } = await query;
@@ -142,8 +156,8 @@ export async function listRegister(
 
   const [{ data: statusData }, { data: rollupData }, { data: trackerData }, { data: supEvidence }] =
     await Promise.all([
-      supabase.from("person_check_status").select("*").in("person_id", ids),
-      supabase.from("person_rollup").select("*").in("person_id", ids),
+      supabase.from("person_check_status_all").select("*").in("person_id", ids),
+      supabase.from("person_rollup_all").select("*").in("person_id", ids),
       supabase.from("person_trackers").select("*").in("person_id", ids),
       supFormId
         ? supabase
