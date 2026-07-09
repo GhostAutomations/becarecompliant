@@ -481,7 +481,12 @@ export default function RegisterMatrix({
                       "—"
                     )}
                   </td>
-                  <td><Plain date={t?.probation_extension_date ?? null} /></td>
+                  <td>
+                    <RagDate
+                      date={t?.probation_extension_date ?? null}
+                      rag={dateRag(t?.probation_extension_date ?? null, config.probationAmber)}
+                    />
+                  </td>
                   <td><RagDate date={sc?.due_date ?? null} rag={sc?.rag ?? "none"} /></td>
                   <td><Plain date={sc?.last_completed_on ?? null} /></td>
                   <td><RagDate date={sup[0].due} rag={sup[0].rag} /></td>
