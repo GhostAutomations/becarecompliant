@@ -18,18 +18,30 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-const TABLES = ["people", "check_instances", "person_trackers"] as const;
+const PEOPLE_TABLES = ["people", "check_instances", "person_trackers"];
 // Realtime is the primary path (pushes within ~1s). This is only the safety-net
 // poll for a dropped socket; kept short so the screen is never stale for long.
 const POLL_MS = 10_000;
 
-export default function RealtimeRefresh() {
+/**
+ * Defaults to the People tables + channel (unchanged). The Service User register
+ * passes its own tables (service_users, check_instances, service_user_trackers) and
+ * channel, so its RAG rollups update live in exactly the same way. check_instances
+ * is shared by both populations, so a completion on either refreshes subscribers.
+ */
+export default function RealtimeRefresh({
+  tables = PEOPLE_TABLES,
+  channel: channelName = "people-live",
+}: {
+  tables?: string[];
+  channel?: string;
+} = {}) {
   const router = useRouter();
 
   useEffect(() => {
     const supabase = createClient();
-    const channel = supabase.channel("people-live");
-    for (const table of TABLES) {
+    const channel = supabase.channel(channelName);
+    for (const table of tables) {
       channel.on(
         "postgres_changes",
         { event: "*", schema: "public", table },
@@ -45,7 +57,8 @@ export default function RealtimeRefresh() {
       supabase.removeChannel(channel);
       clearInterval(interval);
     };
-  }, [router]);
+    // tables is a stable literal from the caller; join for a primitive dep.
+  }, [router, channelName, tables.join(",")]);
 
   return null;
 }

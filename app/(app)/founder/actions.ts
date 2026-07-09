@@ -79,6 +79,13 @@ export async function createCompany(
     { cid: company.id },
   );
 
+  // Seed the default Service User check catalogue (idempotent), linking each check to
+  // the Forms just seeded. A failure must not fail company creation.
+  const { data: suChecksSeeded, error: suChecksErr } = await supabase.rpc(
+    "seed_company_service_user_checks",
+    { cid: company.id },
+  );
+
   await writeAudit({
     companyId: company.id,
     actorId: user.id,
@@ -94,6 +101,7 @@ export async function createCompany(
       branch_name: branchName,
       forms_seeded: seededCount ?? 0,
       checks_seeded: checksErr ? 0 : (checksSeeded ?? 0),
+      su_checks_seeded: suChecksErr ? 0 : (suChecksSeeded ?? 0),
     },
   });
 
@@ -107,6 +115,11 @@ export async function createCompany(
     note += ` The People checks could not be seeded: ${checksErr.message}`;
   } else {
     note += ` ${checksSeeded ?? 0} People checks were configured.`;
+  }
+  if (suChecksErr) {
+    note += ` The Service User checks could not be seeded: ${suChecksErr.message}`;
+  } else {
+    note += ` ${suChecksSeeded ?? 0} Service User checks were configured.`;
   }
 
   if (adminEmail) {

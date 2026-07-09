@@ -409,19 +409,43 @@ export async function updateCheckDefinition(formData: FormData): Promise<ActionS
       .maybeSingle();
     if (defRow) {
       const def = defRow as CheckDefinition;
-      const { data: insts } = await supabase
-        .from("check_instances")
-        .select("id, people(start_date)")
-        .eq("definition_id", definitionId)
-        .is("last_completed_on", null);
-      type InstRow = {
-        id: string;
-        people: { start_date: string | null } | Array<{ start_date: string | null }> | null;
-      };
-      const rows = ((insts as InstRow[] | null) ?? []).map((i) => {
-        const p = Array.isArray(i.people) ? i.people[0] : i.people;
-        return { instance_id: i.id, due_date: initialDueDate(def, p?.start_date ?? null) };
-      });
+      let rows: Array<{ instance_id: string; due_date: string | null }> = [];
+      if (def.population === "service_users") {
+        // Service User checks anchor on the package start date, not a person start
+        // date. Reschedule uncompleted instances via the SU initial-due rule so
+        // editing a SU check config never nulls out its due dates.
+        const { suInitialDueDate } = await import("@/lib/service-users/logic");
+        const { data: insts } = await supabase
+          .from("check_instances")
+          .select("id, service_users(package_start_date)")
+          .eq("definition_id", definitionId)
+          .is("last_completed_on", null);
+        type SuInstRow = {
+          id: string;
+          service_users:
+            | { package_start_date: string | null }
+            | Array<{ package_start_date: string | null }>
+            | null;
+        };
+        rows = ((insts as SuInstRow[] | null) ?? []).map((i) => {
+          const s = Array.isArray(i.service_users) ? i.service_users[0] : i.service_users;
+          return { instance_id: i.id, due_date: suInitialDueDate(def, s?.package_start_date ?? null) };
+        });
+      } else {
+        const { data: insts } = await supabase
+          .from("check_instances")
+          .select("id, people(start_date)")
+          .eq("definition_id", definitionId)
+          .is("last_completed_on", null);
+        type InstRow = {
+          id: string;
+          people: { start_date: string | null } | Array<{ start_date: string | null }> | null;
+        };
+        rows = ((insts as InstRow[] | null) ?? []).map((i) => {
+          const p = Array.isArray(i.people) ? i.people[0] : i.people;
+          return { instance_id: i.id, due_date: initialDueDate(def, p?.start_date ?? null) };
+        });
+      }
       if (rows.length > 0) {
         await supabase.rpc("reschedule_check_instances", { p_definition_id: definitionId, p_rows: rows });
       }
@@ -442,6 +466,8 @@ export async function updateCheckDefinition(formData: FormData): Promise<ActionS
 
   revalidatePath("/settings/people");
   revalidatePath("/people");
+  revalidatePath("/settings/service-users");
+  revalidatePath("/service-users");
   return { ok: "Saved" };
 }
 

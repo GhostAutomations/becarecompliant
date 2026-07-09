@@ -1,35 +1,65 @@
 import type { Metadata } from "next";
 import { requireCompany } from "@/lib/auth/guards";
-import { NavIcon } from "@/components/nav-icon";
+import ServiceUserRegister from "@/components/service-users/service-user-register";
+import RealtimeRefresh from "@/components/realtime-refresh";
+import {
+  listBranches,
+  listRegister,
+  listSupervisoryUsers,
+  getServiceUserColumnLabels,
+} from "@/lib/service-users/data";
 
 export const metadata: Metadata = { title: "Service Users" };
 
-export default async function ServiceUsersPage() {
-  await requireCompany();
+const MANAGE_ROLES = ["company_admin", "manager", "platform_admin"];
+
+export default async function ServiceUsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ branch?: string; view?: string }>;
+}) {
+  const { profile } = await requireCompany();
+
+  if (!profile.company_id) {
+    return (
+      <div className="mx-auto max-w-3xl">
+        <h1 className="page-title">Service Users</h1>
+        <div className="glass-card mt-6 p-6 text-sm text-white/60">
+          Select a company to view its Service User register. Manage as company arrives
+          with the Founder console.
+        </div>
+      </div>
+    );
+  }
+
+  const companyId = profile.company_id;
+  const { branch, view } = await searchParams;
+
+  // Load EVERY Service User once (all statuses, all the viewer's branches). Branches
+  // and View are then switched instantly on the client with no server round trip.
+  const [branches, register, reviewers, columnLabels] = await Promise.all([
+    listBranches(companyId),
+    listRegister(companyId, null, "all"),
+    listSupervisoryUsers(companyId),
+    getServiceUserColumnLabels(companyId),
+  ]);
+  const canManage = MANAGE_ROLES.includes(profile.role);
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <div>
-        <h1 className="page-title">Service Users</h1>
-        <p className="page-subtitle">
-          The register for the people receiving care: one Record per service
-          user, with their checks and RAG status.
-        </p>
-      </div>
-
-      <div className="glass-card flex flex-col items-center gap-3 px-6 py-16 text-center">
-        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gold-400/10 text-gold-400">
-          <NavIcon icon="serviceUsers" className="h-6 w-6" />
-        </span>
-        <h2 className="text-base font-semibold text-white">
-          No Service User records yet
-        </h2>
-        <p className="max-w-md text-sm text-white/60">
-          The Service User register arrives in Phase 4: care plan reviews, risk
-          assessments, medication audits and consent reviews, with access fully
-          audit logged.
-        </p>
-      </div>
+    <div className="flex h-full min-h-0 flex-col">
+      <RealtimeRefresh
+        tables={["service_users", "check_instances", "service_user_trackers"]}
+        channel="service-users-live"
+      />
+      <ServiceUserRegister
+        rows={register.rows}
+        branches={branches}
+        reviewers={reviewers}
+        columnLabels={columnLabels}
+        canManage={canManage}
+        initialView={view ?? "main"}
+        initialBranch={branch ?? ""}
+      />
     </div>
   );
 }

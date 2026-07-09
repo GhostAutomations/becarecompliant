@@ -54,7 +54,7 @@ Agreed decisions (2026-07-08 popups):
 
 Build state: migration 0003 applied (forms, form_versions, evidence, evidence_files, form_templates, bucket, RLS, RPCs) to ref bgrtcvyjuwopunpnudeu only; 8 master templates seeded; Thistle Care Wales seeded (8 forms). Shared renderer (components/forms/form-renderer.tsx), validator (lib/form-validate.ts), schema types (lib/form-schema.ts), formatter (lib/form-format.ts), evidence pipeline (lib/evidence/pdf, storage, submit, retention) built; seeding wired into founder company creation. NOT yet deployed (needs npm install for @react-pdf/renderer). No submission UI (that is Phase 3).
 
-## Phase 3 — People section  🔨 IN PROGRESS (scope agreed by popup 2026-07-08)
+## Phase 3 — People section  ✅ COMPLETE (signed off by Phil 2026-07-09; remaining checks logged to Final Testing)
 
 People records and register per branch, checks attached to records with recurrence rules, recurrence engine (Europe/London, month boundaries, leap years, tested not assumed), RAG statuses with configurable amber threshold, rollups check → record → register → branch → company dashboard, complete-form-satisfies-check loop end to end, archived records and leavers excluded everywhere.
 
@@ -76,11 +76,28 @@ Agreed decisions (2026-07-08 popups; Phil shared his live Monday "Team Complianc
 
 Build order: recurrence engine (+ tests) → migration 0004 (people, check_definitions, check_instances, person_assignments, RAG view/fns, RLS, seed people catalogue; ref bgrtcvyjuwopunpnudeu only) → register matrix UI → record drill-down → check config/assignment → complete-Form-satisfies-Check via submitEvidence(record_type='person') → RAG rollups + realtime → leaver/archived exclusion → deploy + test checklist.
 
-## Phase 4 — Service Users section
+## Phase 4 — Service Users section  🔨 IN PROGRESS (scope agreed by popup 2026-07-09)
 
 Same loop for service users, SU-specific check types and templates (care plan reviews, risk assessments, MAR checks, consent reviews), special-category data handling: access audit logging (reads, not just writes), strict role isolation (Team Members never see service user data unless assigned), discharged service users excluded everywhere.
 
+Agreed decisions (Phil, 2026-07-09; full brief in PHASE-4-BRIEF.md):
+- Reuse Phase 3 heavily: register matrix, Views + Branches dropdowns (same instant client-side switching), record drill-down, compliance loop, forms engine, recurrence engine, realtime, toast, back links, branch auto-fill on Add, RLS + SECURITY DEFINER patterns, activity-date completion, client redirect, on-demand PDF.
+- Service User record: name (Service User), ssid (Social Services ID), package_start_date, service_status enum (active/hospital/respite/cancelled), branch. Special-category health data.
+- Main table columns (in order): Service User, Package Start Date, SSID, Status (pill: Active/Hospital/Respite/Cancelled), Most Recent Review, New Review Due, Planned Review Date, Review Status (pill: Awaiting Review/Booked In/Overdue). Review columns only; risk assessment / MAR / consent live in the record drill-down.
+- Views: Main (Active) + Hospital + Respite + Cancelled + Summary. Cancelled behaves like Leavers (excluded from active register/rollups/dashboard/reminders, kept for audit). Status pill moves between views instantly.
+- Review workflow: primary check = Care Plan Review (recurring). Most Recent Review = last completed; New Review Due = last + interval; Planned Review Date = booked date. Review Status AUTO-DERIVED: Overdue when New Review Due has passed; Booked In when a Planned Review Date is set (and not overdue); Awaiting Review otherwise.
+- GDPR: access audit logging on READ of a Service User record and its evidence (not just writes); strict role isolation; Team Members excluded unless assigned.
+
 Carry over from Phase 3 (Phil, 2026-07-09): the Service User register must update LIVE like the People register. Mount RealtimeRefresh and subscribe to every table a completion touches for service users (the service_users record table, its check_instances rows, and any SU tracker table equivalent to person_trackers), each with REPLICA IDENTITY FULL and in the supabase_realtime publication. Realtime is the primary path (sub-second); keep the short (10s) poll fallback. A check_instances change already refreshes Evidence-derived slots, so Evidence itself stays unpublished. Also carry: completion date = the activity date entered on the form (not submit time); never redirect() from a Server Action to a URL with a query string (client router.replace via ActionState.redirectTo); Saving button state held through the redirect.
+
+Extra decisions taken at kickoff (Phil, 2026-07-09/10):
+- Schema reuse = "same as People": Service User checks + evidence live in the SHARED check_instances + evidence tables (both already had record_type in ('person','service_user')); 0027 adds a service_user_id column + parallel SU views/RPCs, and complete_check was generalised to authorise either population. No parallel compliance engine.
+- Planned Review Date is a BOOKING, not just a date. Clicking the cell opens a calendar + reviewer selector; booking sets planned_review_date + planned_reviewer_id (on service_user_trackers) and derives Review Status to "Booked In". Completing a Care Plan Review clears the booking.
+- The reviewer calendar-invite EMAIL (branded Resend email with an .ics attachment so the reviewer can add it to their phone/Outlook calendar) is DEFERRED to Phase 6 Notifications (Phil chose "booking now, email in Phase 6, remember to come back and test"). Booking + Booked In status ship in Phase 4; the email + .ics does not.
+- SU review defaults (editable, cited UK sector norms): Care Plan Review 12mo, Risk Assessment 12mo, MAR Audit 1mo, Consent Review 12mo. Amber default 30 days. Only Care Plan Review drives the register review columns; the rest live in the drill-down.
+- Team Member isolation is stricter than People: NO branch-wide Team Member read for Service Users (special category). A Team Member only sees a Service User when explicitly assigned (service_user_assignments, via is_service_user_supervisor).
+
+Build state (2026-07-10): FULLY BUILT + typecheck clean (tsc --noEmit, sandbox). Migrations 0027 (SU schema, check_instances.service_user_id, SU views/RPCs, RLS, seed) + 0028 (realtime publication + idempotent SU-check backfill; fixed an amber_days::int cast) applied to ref bgrtcvyjuwopunpnudeu ONLY. Thistle Care Wales backfilled to 4 SU checks. New shared primitives: components/register/pill-select.tsx + horizontal-scrollbar.tsx (People matrix refactored to import them, so one implementation drives both registers) and RealtimeRefresh generalised to take tables + channel props (People default unchanged). New: lib/service-users/{types,data,logic,actions}, components/service-users/*, /service-users (register + new + [id] + [id]/checks/[instanceId]/complete + summary), Settings > Service Users (check config reuses CheckConfigForm + SU column names). Dashboard shows a People strip and a Service User strip, both live, cancelled excluded. DB smoke test (service role) confirmed the SU views compute RAG (overdue -> red), tracker auto-creates on insert, and cascade delete cleans up. NOT yet deployed at time of writing; needs the Vercel push. Run TEST-CHECKLIST-PHASE4.md as a popup checklist once deployed.
 
 ## Phase 5 — Form builder
 
@@ -89,6 +106,8 @@ Authoring UI: field types, required fields, validation, conditional logic, signa
 ## Phase 6 — Notifications & reminders
 
 Email (Resend, branded CTA buttons only, DKIM+SPF+DMARC walkthrough) and SMS (Twilio) reminders and chasers for due and overdue checks. Usage metering per company per month (SMS + AI) from the first send. Excluded: archived/discharged records never get reminders.
+
+- CARRIED FROM PHASE 4 (Phil, 2026-07-10): the Service User Planned Review Date booking must email the chosen reviewer a branded Resend email with an .ics calendar invite (add to phone/Outlook). The booking data + Booked In status shipped in Phase 4 (lib/service-users/actions.ts bookReview); this phase adds the email + .ics generation on booking, respecting the "emails no-op if RESEND_API_KEY/RESEND_FROM missing" dependency and the no-plain-text-links / branded-CTA rule. Remember to test the full booking -> invite flow when built.
 
 ## Phase 7 — Billing & tiers
 
@@ -156,6 +175,18 @@ Still to test cold (Phase 3, needs deploy + extra roles/tenants):
 - Phase 2 items now testable through the new submission UI: submit_evidence writes exactly one immutable evidence row + branded PDF in the private bucket + pdf_sha256; conditionally hidden answers excluded at submit; 5-minute signed-URL download is audit-logged; signature currently stored in the answers snapshot, NOT yet as a separate signature attachment (deferred).
 - Cross-tenant RLS on people/check_definitions/check_instances/evidence with two companies.
 - DBS Renewal / Manual Handling / Right to Work document checks: completing captures the date + optional upload and reschedules correctly (right to work expiry-anchored, DBS 36mo, manual handling 12mo).
+
+Logged from Phase 4 (Service Users). FULLY BUILT + typecheck clean (tsc --noEmit, sandbox) 2026-07-10; next build must run on Phil's machine. Migrations 0027 + 0028 applied to ref bgrtcvyjuwopunpnudeu only. DB smoke test (service role) verified: SU RAG views compute (overdue -> red rollup), tracker auto-creates on SU insert, cascade delete cleans up. Run TEST-CHECKLIST-PHASE4.md as a popup checklist once deployed.
+
+Still to test cold (Phase 4, needs deploy + extra roles/tenants):
+- The full TEST-CHECKLIST-PHASE4.md end to end on the deployed build (add a Service User, checks auto-applied from package start, complete a Care Plan Review -> immutable Evidence -> New Review Due advances + Most Recent Review stamped + booking cleared, next-due maths live, RAG rollups, Status pill moves between Main/Hospital/Respite/Cancelled with the "Moved to X" toast, cancelled excluded from active register/dashboard/summary).
+- Review workflow auto-derivation live: Review Status = Overdue when New Review Due has passed; Booked In when a Planned Review Date is set and not overdue; Awaiting Review otherwise. Includes the Planned Review Date booking cell (date + reviewer -> Booked In) and Clear.
+- The Planned Review Date reviewer calendar-invite EMAIL (.ics) is DEFERRED to Phase 6; test the booking -> email -> add-to-calendar flow when that ships (Phil: "remember to come back and test").
+- GDPR read audit: opening a Service User record writes a service_user.viewed audit row (special category); evidence view/download audit lands with the Phase 8 signed-URL export path.
+- Permission matrix live for Service Users: Manager (branch register), assigned Supervisor/user (caseload only via service_user_assignments), Team Member sees NO Service User data unless explicitly assigned. Needs a Manager, a Supervisor and a Team Member in Thistle.
+- Cross-tenant RLS on service_users/service_user_trackers/service_user_assignments/check_instances(service_user)/evidence(service_user) with two companies.
+- SU check config edit (Settings > Service Users) reschedules uncompleted SU instances from package start date via the shared updateCheckDefinition (must NOT null out SU dues — the People join path was branched on population; verify).
+- People register regression after the shared-primitive extraction (pill dropdowns: Status/RTW limits/Probation status; the permanent horizontal scrollbar) still behave exactly as before, since register-matrix.tsx now imports components/register/pill-select + horizontal-scrollbar.
 
 Logged from the Phase 3 test run (2026-07-09, TEST-CHECKLIST-PHASE3.md, 31 pass / 2 fail / 10 not tested). Cold items to test later: #14 completed form produces a branded PDF in the private evidence bucket (pdf_sha256); #19 DBS/RTW/Probation tracker Record cards open the correct forms; #23 RTW expiry sets the RTW column and DBS sets DBS/Enhanced DBS; #30 RAG colour thresholds (red past due / amber within window / green else); #36-39 permission matrix (Manager branch-only, Supervisor caseload-only, Team Member read-only + blocked complete route + no SU data, Supervisor evidence scoped to caseload) — needs a Manager, Supervisor and Team Member; #40 cross-tenant isolation — needs a second company. Two fails were found and are being fixed in-phase, NOT deferred: Add-person branch auto-fill of manager/supervisors, and Archive (offer only for leavers + make archived viewable). Two feature requests raised during the run (Leavers view, LTS & Mat Leave view) are being built in-phase.
 

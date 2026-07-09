@@ -9,9 +9,7 @@
  * Styled only with canonical classes from globals.css.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   type RegisterRow,
@@ -21,12 +19,8 @@ import {
 } from "@/lib/people/types";
 import { formatDisplayDate, supervisionSlots, dateRag } from "@/lib/people/logic";
 import { setEmploymentStatus, updateTracker } from "@/lib/people/actions";
-
-type Tone = "green" | "amber" | "red" | "neutral";
-
-function toneClass(t: Tone): string {
-  return t === "green" ? "pill-green" : t === "amber" ? "pill-amber" : t === "red" ? "pill-red" : "pill-neutral";
-}
+import { PillSelect, toneClass, type Tone } from "@/components/register/pill-select";
+import { HorizontalScrollbar } from "@/components/register/horizontal-scrollbar";
 
 function workingTone(v: string | null): Tone {
   if (v === "active") return "green";
@@ -59,129 +53,6 @@ function probationTone(v: string | null, dueDate: string | null, amberDays: numb
     return r === "red" ? "red" : r === "amber" ? "amber" : "neutral";
   }
   return "neutral";
-}
-
-/**
- * A pill that opens into pill options. The cell shows the current value as a
- * coloured pill; clicking opens a menu (rendered in a portal so the table's scroll
- * area does not clip it) of coloured pill options; choosing one saves inline.
- */
-function PillSelect({
-  personId,
-  field,
-  value,
-  options,
-  action,
-  toneOf,
-}: {
-  personId: string;
-  field: string;
-  value: string | null;
-  options: Array<{ value: string; label: string }>;
-  action: (formData: FormData) => Promise<void>;
-  toneOf: (value: string | null) => Tone;
-}) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
-  const [open, setOpen] = useState(false);
-  const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
-  // Optimistic value: show the chosen option instantly while the server catches up.
-  const [optimistic, setOptimistic] = useState<string | null>(null);
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!pending) setOptimistic(null);
-  }, [pending]);
-
-  const shown = optimistic ?? value ?? "";
-  const currentLabel = options.find((o) => o.value === shown)?.label ?? "—";
-
-  useEffect(() => {
-    if (!open) return;
-    function onDown(e: MouseEvent) {
-      const t = e.target as Node;
-      if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
-      setOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    function onScroll() {
-      setOpen(false);
-    }
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    window.addEventListener("scroll", onScroll, true);
-    window.addEventListener("resize", onScroll);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-      window.removeEventListener("scroll", onScroll, true);
-      window.removeEventListener("resize", onScroll);
-    };
-  }, [open]);
-
-  function toggle() {
-    if (open) {
-      setOpen(false);
-      return;
-    }
-    const r = btnRef.current?.getBoundingClientRect();
-    if (r) setCoords({ top: r.bottom + 4, left: r.left, width: r.width });
-    setOpen(true);
-  }
-
-  function choose(v: string) {
-    setOpen(false);
-    if (v === (value ?? "")) return;
-    setOptimistic(v); // instant visual change
-    if (field === "status" && STATUS_MOVE[v]) {
-      window.dispatchEvent(new CustomEvent("bcc:toast", { detail: { message: STATUS_MOVE[v] } }));
-    }
-    const fd = new FormData();
-    fd.set("person_id", personId);
-    fd.set(field, v);
-    startTransition(async () => {
-      await action(fd);
-      router.refresh();
-    });
-  }
-
-  return (
-    <>
-      <button
-        ref={btnRef}
-        type="button"
-        disabled={pending}
-        onClick={toggle}
-        className={`${toneClass(toneOf(shown))} cursor-pointer ${pending ? "opacity-60" : ""}`}
-      >
-        {currentLabel}
-        <span aria-hidden className="ml-1 opacity-60">▾</span>
-      </button>
-      {open &&
-        createPortal(
-          <div
-            ref={menuRef}
-            style={{ position: "fixed", top: coords.top, left: coords.left, minWidth: Math.max(coords.width, 140) }}
-            className="z-50 flex flex-col items-start gap-1 rounded-xl border border-white/15 bg-navy-900 p-2 shadow-2xl"
-          >
-            {options.map((o) => (
-              <button
-                key={o.value}
-                type="button"
-                onClick={() => choose(o.value)}
-                className={`${toneClass(toneOf(o.value))} cursor-pointer`}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>,
-          document.body,
-        )}
-    </>
-  );
 }
 
 const WORKING_STATUS_OPTIONS = (Object.keys(WORKING_STATUS_LABELS) as Array<keyof typeof WORKING_STATUS_LABELS>).map(
@@ -233,100 +104,6 @@ function Plain({ date }: { date: string | null }) {
 function WorkingStatusPill({ status }: { status: string }) {
   const label = WORKING_STATUS_LABELS[status as keyof typeof WORKING_STATUS_LABELS] ?? status;
   return <span className={toneClass(workingTone(status))}>{label}</span>;
-}
-
-/**
- * A permanent, always-visible horizontal scrollbar we render ourselves and sync to
- * the table's scroll container, because native scrollbars are hidden by macOS/Edge
- * overlay settings. Draggable thumb + click-to-jump track.
- */
-function HorizontalScrollbar({ targetRef }: { targetRef: React.RefObject<HTMLDivElement | null> }) {
-  const trackRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<{ startX: number; startLeft: number } | null>(null);
-  const [thumb, setThumb] = useState({ width: 0, left: 0, visible: false });
-
-  const update = useCallback(() => {
-    const el = targetRef.current;
-    const track = trackRef.current;
-    if (!el || !track) return;
-    const { scrollWidth, clientWidth, scrollLeft } = el;
-    if (scrollWidth <= clientWidth + 1) {
-      setThumb((t) => (t.visible ? { width: 0, left: 0, visible: false } : t));
-      return;
-    }
-    const trackW = track.clientWidth;
-    const width = Math.max(40, (clientWidth / scrollWidth) * trackW);
-    const maxScroll = scrollWidth - clientWidth;
-    const left = maxScroll > 0 ? (scrollLeft / maxScroll) * (trackW - width) : 0;
-    setThumb({ width, left, visible: true });
-  }, [targetRef]);
-
-  useEffect(() => {
-    const el = targetRef.current;
-    if (!el) return;
-    update();
-    el.addEventListener("scroll", update, { passive: true });
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    if (el.firstElementChild) ro.observe(el.firstElementChild);
-    window.addEventListener("resize", update);
-    return () => {
-      el.removeEventListener("scroll", update);
-      ro.disconnect();
-      window.removeEventListener("resize", update);
-    };
-  }, [update, targetRef]);
-
-  useEffect(() => {
-    function onMove(e: PointerEvent) {
-      const el = targetRef.current;
-      const track = trackRef.current;
-      if (!dragRef.current || !el || !track) return;
-      const trackW = track.clientWidth;
-      const thumbW = Math.max(40, (el.clientWidth / el.scrollWidth) * trackW);
-      const maxScroll = el.scrollWidth - el.clientWidth;
-      const span = trackW - thumbW;
-      const ratio = span > 0 ? (e.clientX - dragRef.current.startX) / span : 0;
-      el.scrollLeft = Math.min(maxScroll, Math.max(0, dragRef.current.startLeft + ratio * maxScroll));
-    }
-    function onUp() {
-      dragRef.current = null;
-      document.body.style.userSelect = "";
-    }
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-    return () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-    };
-  }, [targetRef]);
-
-  return (
-    <div
-      ref={trackRef}
-      className="relative h-3.5 w-full shrink-0 rounded-full bg-white/10"
-      style={{ visibility: thumb.visible ? "visible" : "hidden" }}
-      onPointerDown={(e) => {
-        const el = targetRef.current;
-        const track = trackRef.current;
-        if (!el || !track || e.target !== track) return;
-        const rect = track.getBoundingClientRect();
-        const maxScroll = el.scrollWidth - el.clientWidth;
-        el.scrollLeft = ((e.clientX - rect.left) / rect.width) * maxScroll;
-      }}
-    >
-      <div
-        className="absolute top-0 h-3.5 cursor-grab rounded-full bg-white/40 hover:bg-white/60 active:cursor-grabbing"
-        style={{ width: `${thumb.width}px`, transform: `translateX(${thumb.left}px)` }}
-        onPointerDown={(e) => {
-          const el = targetRef.current;
-          if (!el) return;
-          dragRef.current = { startX: e.clientX, startLeft: el.scrollLeft };
-          document.body.style.userSelect = "none";
-        }}
-      />
-    </div>
-  );
 }
 
 export default function RegisterMatrix({
@@ -453,12 +230,14 @@ export default function RegisterMatrix({
                   <td>
                     {editable ? (
                       <PillSelect
-                        personId={row.person.id}
+                        recordId={row.person.id}
+                        recordField="person_id"
                         field="status"
                         value={row.person.employment_status}
                         options={statusOptions}
                         action={setEmploymentStatus}
                         toneOf={workingTone}
+                        moveToast={STATUS_MOVE}
                       />
                     ) : (
                       <WorkingStatusPill status={row.person.employment_status} />
@@ -478,7 +257,8 @@ export default function RegisterMatrix({
                   <td className="text-white/70">
                     {editable ? (
                       <PillSelect
-                        personId={row.person.id}
+                        recordId={row.person.id}
+                        recordField="person_id"
                         field="rtw_limits"
                         value={t?.rtw_limits ?? ""}
                         options={RTW_LIMIT_OPTIONS}
@@ -501,7 +281,8 @@ export default function RegisterMatrix({
                   <td className="text-white/70">
                     {editable ? (
                       <PillSelect
-                        personId={row.person.id}
+                        recordId={row.person.id}
+                        recordField="person_id"
                         field="probation_status"
                         value={t?.probation_status ?? ""}
                         options={PROBATION_STATUS_OPTIONS}
