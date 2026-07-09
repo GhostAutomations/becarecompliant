@@ -106,7 +106,9 @@ export default function ServiceUserRegister({
   const [search, setSearch] = useState("");
   const [worstFirst, setWorstFirst] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
-  const branchOptions = branches.filter((b) => b.kind === "branch" || b.kind === "team");
+  // Service Users are only ever assigned to a branch, never the office (team), so
+  // the office is excluded from the Branches dropdown.
+  const branchOptions = branches.filter((b) => b.kind === "branch");
   const meta = VIEW_META[view];
   const col = (key: string, def: string) => columnLabels[key] || def;
   const statusOptions =

@@ -15,7 +15,8 @@ export default async function NewServiceUserPage() {
   if (!MANAGE_ROLES.includes(profile.role)) redirect("/service-users");
 
   const branches = await listBranches(profile.company_id);
-  const branchOptions = branches.filter((b) => b.kind === "branch" || b.kind === "team");
+  // Service Users are only assigned to a branch, never the office (team).
+  const branchOptions = branches.filter((b) => b.kind === "branch");
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
