@@ -421,7 +421,7 @@
 
   /* Compact select used in the People nav dropdowns. Muted (not white) text. */
   .inline-cell {
-    @apply cursor-pointer rounded-lg border border-white/15 bg-white/5 px-2 py-1 text-xs font-medium text-white/60;
+    @apply w-auto cursor-pointer rounded-lg border border-white/15 bg-white/5 py-1 pl-2.5 pr-7 text-xs font-medium text-white/60;
     min-width: 6.5rem;
   }
   .inline-cell:disabled {
