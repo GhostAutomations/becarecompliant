@@ -232,9 +232,11 @@ export async function setEmploymentStatus(formData: FormData): Promise<void> {
   if (!["active", "mat_leave", "lts", "leaver"].includes(status)) return;
 
   const leaver_date = status === "leaver" ? todayIso() : null;
+  // Setting a working status also un-archives: changing the Status pill (e.g. back to
+  // Active) brings an archived person back into the relevant view, not stuck in Archive.
   const { error } = await supabase
     .from("people")
-    .update({ employment_status: status, leaver_date })
+    .update({ employment_status: status, leaver_date, archived_at: null })
     .eq("id", personId);
   if (error) return;
 
