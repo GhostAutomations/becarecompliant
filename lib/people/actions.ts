@@ -339,6 +339,43 @@ export async function updateCheckDefinition(formData: FormData): Promise<ActionS
   const { error } = await supabase.from("check_definitions").update(patch).eq("id", definitionId);
   if (error) return { error: error.message };
 
+  // Recompute the due date on carers who have NOT yet completed this check, so the
+  // new schedule applies to existing records too (completion-anchor checks only).
+  if (anchor !== "expiry") {
+    const { data: defRow } = await supabase
+      .from("check_definitions")
+      .select("*")
+      .eq("id", definitionId)
+      .maybeSingle();
+    if (defRow) {
+      const def = defRow as CheckDefinition;
+      const { data: supDef } = await supabase
+        .from("check_definitions")
+        .select("interval")
+        .eq("company_id", def.company_id)
+        .eq("population", "people")
+        .eq("key", "supervision")
+        .maybeSingle();
+      const supInterval = (supDef?.interval as number | null) ?? 90;
+      const { data: insts } = await supabase
+        .from("check_instances")
+        .select("id, people(start_date)")
+        .eq("definition_id", definitionId)
+        .is("last_completed_on", null);
+      type InstRow = {
+        id: string;
+        people: { start_date: string | null } | Array<{ start_date: string | null }> | null;
+      };
+      const rows = ((insts as InstRow[] | null) ?? []).map((i) => {
+        const p = Array.isArray(i.people) ? i.people[0] : i.people;
+        return { instance_id: i.id, due_date: initialDueDate(def, p?.start_date ?? null, supInterval) };
+      });
+      if (rows.length > 0) {
+        await supabase.rpc("reschedule_check_instances", { p_definition_id: definitionId, p_rows: rows });
+      }
+    }
+  }
+
   await writeAudit({
     companyId: profile.company_id ?? "",
     actorId: user.id,
