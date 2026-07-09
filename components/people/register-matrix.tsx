@@ -34,6 +34,15 @@ function workingTone(v: string | null): Tone {
   if (v === "leaver") return "red";
   return "neutral";
 }
+
+/** Toast message shown when a Status change moves a person to another view. */
+const STATUS_MOVE: Record<string, string> = {
+  active: "Moved to Main",
+  leaver: "Moved to Leavers",
+  lts: "Moved to LTS & Mat Leave",
+  mat_leave: "Moved to LTS & Mat Leave",
+  archive: "Moved to Archive",
+};
 function rtwTone(v: string | null): Tone {
   if (v === "none") return "green";
   if (v === "20hrs_term" || v === "20hrs_2nd_job") return "amber";
@@ -76,10 +85,17 @@ function PillSelect({
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
+  // Optimistic value: show the chosen option instantly while the server catches up.
+  const [optimistic, setOptimistic] = useState<string | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const currentLabel = options.find((o) => o.value === (value ?? ""))?.label ?? "—";
+  useEffect(() => {
+    if (!pending) setOptimistic(null);
+  }, [pending]);
+
+  const shown = optimistic ?? value ?? "";
+  const currentLabel = options.find((o) => o.value === shown)?.label ?? "—";
 
   useEffect(() => {
     if (!open) return;
@@ -119,6 +135,10 @@ function PillSelect({
   function choose(v: string) {
     setOpen(false);
     if (v === (value ?? "")) return;
+    setOptimistic(v); // instant visual change
+    if (field === "status" && STATUS_MOVE[v]) {
+      window.dispatchEvent(new CustomEvent("bcc:toast", { detail: { message: STATUS_MOVE[v] } }));
+    }
     const fd = new FormData();
     fd.set("person_id", personId);
     fd.set(field, v);
@@ -135,7 +155,7 @@ function PillSelect({
         type="button"
         disabled={pending}
         onClick={toggle}
-        className={`${toneClass(toneOf(value))} cursor-pointer`}
+        className={`${toneClass(toneOf(shown))} cursor-pointer ${pending ? "opacity-60" : ""}`}
       >
         {currentLabel}
         <span aria-hidden className="ml-1 opacity-60">▾</span>

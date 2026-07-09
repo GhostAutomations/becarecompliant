@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth/guards";
 import { SidebarNav, MobileDock } from "@/components/app-nav";
+import ToastHost from "@/components/toast-host";
 import { ROLE_LABELS, navEntriesForRole } from "@/lib/nav";
 
 export default async function AppLayout({
@@ -79,6 +80,7 @@ export default async function AppLayout({
       </div>
 
       <MobileDock entries={navEntries} />
+      <ToastHost />
     </div>
   );
 }
