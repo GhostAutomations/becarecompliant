@@ -98,6 +98,8 @@ Ask Phil (popup) before building: tier contents for Business/Pro/Enterprise are 
 
 PDF + CSV export helpers (shared, routed through one module), inspection-ready evidence packs, register and branch compliance reports, audit trail views. Format a manager can hand to a CQC/CIW inspector.
 
+Evidence PDF is now generated ON DEMAND here, not at save time (changed 2026-07-09 for speed). submitEvidence stores the immutable answers + pinned form-version schema snapshot only (evidence.pdf_path/pdf_sha256/pdf_bytes left null); because the snapshot is frozen and renderEvidencePdf (lib/evidence/pdf.ts, kept) is deterministic, the branded PDF is regenerated identically when downloaded/exported. This phase builds that on-demand render + the 5-minute signed-URL download, audit-logged. (Older evidence rows created before this change still have a stored PDF; new ones don't, so the export path must always be able to render from the snapshot.)
+
 OPEN QUESTION to raise with Phil (popup) at the start of this phase (Phil request, 2026-07-09): how should reports handle probation extension? i.e. how an extended probation (original end due, actual end, extension date, status) is represented in the compliance reports and inspector-facing exports. Ask before building the report format.
 
 ## Phase 9 — Founder console

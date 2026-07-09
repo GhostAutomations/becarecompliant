@@ -7,13 +7,14 @@ import "server-only";
  * evidence. Phase 3 (People) and Phase 4 (Service Users) call this; there is no
  * submission UI yet. Order matters for append-only integrity:
  *
- *   1. Load and pin the exact form version (schema, name, company, branch).
+ *   1. Load and pin the exact form version (schema, name, company).
  *   2. Validate answers authoritatively (never trust the client).
  *   3. Strip answers for hidden/presentational fields.
  *   4. Upload any files / signatures to the private bucket.
- *   5. Render the branded PDF and upload it.
- *   6. Insert the evidence row in ONE shot via submit_evidence, with the PDF
- *      path + SHA-256 already set, so nothing is ever updated after creation.
+ *   5. Insert the evidence row (append-only) with the immutable answers + schema
+ *      snapshot. The branded inspector PDF is NOT rendered here: because the
+ *      snapshot is frozen and the render is deterministic, the PDF is generated on
+ *      demand at export time (Phase 8). This keeps saving fast.
  *
  * Idempotent: pass a stable `evidenceId` for retries; a duplicate primary key is
  * treated as "already submitted" rather than a second evidence row.
@@ -28,13 +29,7 @@ import {
   isFormSchema,
 } from "@/lib/form-schema";
 import { cleanAnswers, validateAnswers, type FieldError } from "@/lib/form-validate";
-import { renderEvidencePdf, type EvidencePdfMeta } from "./pdf";
-import {
-  evidenceFilePath,
-  evidencePdfPath,
-  sha256Hex,
-  uploadEvidenceObject,
-} from "./storage";
+import { evidenceFilePath, sha256Hex, uploadEvidenceObject } from "./storage";
 
 export type EvidenceFileInput = {
   fieldKey: string;
@@ -66,7 +61,6 @@ type FormVersionRow = {
   forms: {
     name: string;
     company_id: string;
-    companies: { name: string } | null;
   } | null;
 };
 
@@ -78,12 +72,15 @@ export async function submitEvidence(input: SubmitEvidenceInput): Promise<Submit
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Not authenticated." };
 
-  // 1. Load + pin the exact form version.
-  const { data: fv, error: fvErr } = await supabase
-    .from("form_versions")
-    .select("id, version, schema, forms(name, company_id, companies(name))")
-    .eq("id", input.formVersionId)
-    .single<FormVersionRow>();
+  // 1. Load + pin the form version and the author profile in parallel.
+  const [{ data: fv, error: fvErr }, { data: profile }] = await Promise.all([
+    supabase
+      .from("form_versions")
+      .select("id, version, schema, forms(name, company_id)")
+      .eq("id", input.formVersionId)
+      .single<FormVersionRow>(),
+    supabase.from("profiles").select("full_name, email").eq("id", user.id).maybeSingle(),
+  ]);
   if (fvErr || !fv || !fv.forms) {
     return { ok: false, error: "That form could not be found." };
   }
@@ -92,17 +89,6 @@ export async function submitEvidence(input: SubmitEvidenceInput): Promise<Submit
   }
   const schema = fv.schema as FormSchema;
   const companyId = fv.forms.company_id;
-  const companyName = fv.forms.companies?.name ?? "Company";
-
-  let branchName: string | null = null;
-  if (input.branchId) {
-    const { data: branch } = await supabase
-      .from("branches")
-      .select("name")
-      .eq("id", input.branchId)
-      .maybeSingle();
-    branchName = branch?.name ?? null;
-  }
 
   // 2. Authoritative validation.
   const result = validateAnswers(schema, input.answers);
@@ -114,13 +100,6 @@ export async function submitEvidence(input: SubmitEvidenceInput): Promise<Submit
   const cleaned = cleanAnswers(schema, input.answers);
 
   const evidenceId = input.evidenceId ?? randomUUID();
-
-  // Author details for the PDF header + denormalised storage.
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, email")
-    .eq("id", user.id)
-    .maybeSingle();
 
   // 4. Upload files / signatures.
   const fileRecords: Array<Record<string, unknown>> = [];
@@ -139,40 +118,16 @@ export async function submitEvidence(input: SubmitEvidenceInput): Promise<Submit
     });
   }
 
-  // 5. Render + upload the branded PDF.
-  const submittedAt = new Date();
-  const meta: EvidencePdfMeta = {
-    companyName,
-    branchName,
-    formName: fv.forms.name,
-    formVersion: fv.version,
-    authorName: profile?.full_name || null,
-    authorEmail: profile?.email || user.email || null,
-    submittedAt,
-    evidenceRef: evidenceId.slice(0, 8).toUpperCase(),
-  };
-
-  let pdfBuffer: Buffer;
-  try {
-    pdfBuffer = await renderEvidencePdf(schema, cleaned, meta);
-  } catch (e) {
-    return { ok: false, error: `Could not generate the evidence PDF: ${(e as Error).message}` };
-  }
-  const pdfPath = evidencePdfPath(companyId, evidenceId);
-  const pdfUpload = await uploadEvidenceObject(pdfPath, pdfBuffer, "application/pdf");
-  if (!pdfUpload.ok) {
-    return { ok: false, error: `Could not store the evidence PDF: ${pdfUpload.error}` };
-  }
-
-  // 6. Insert the append-only evidence row in one shot.
+  // 5. Insert the append-only evidence row. The branded PDF is generated on demand
+  // at export time (Phase 8) from the frozen snapshot, so it is not rendered here.
   const { error: rpcErr } = await supabase.rpc("submit_evidence", {
     p_evidence_id: evidenceId,
     p_form_version_id: input.formVersionId,
     p_branch_id: input.branchId,
     p_answers: cleaned,
-    p_pdf_path: pdfPath,
-    p_pdf_sha256: sha256Hex(pdfBuffer),
-    p_pdf_bytes: pdfBuffer.length,
+    p_pdf_path: null,
+    p_pdf_sha256: null,
+    p_pdf_bytes: null,
     p_record_type: input.recordType ?? null,
     p_record_id: input.recordId ?? null,
     p_files: fileRecords,
