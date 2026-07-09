@@ -54,6 +54,15 @@ export default function FormRenderer({
   onFileSelect,
 }: Props) {
   const [answers, setAnswers] = useState<Answers>(defaultValue ?? {});
+  // Mirror the latest answers in a ref so `update` can build the next value
+  // without a state-updater. The previous version called the parent's onChange
+  // *inside* the setAnswers updater, which violates React's rule that updaters
+  // be pure/side-effect-free. Under a concurrent transition (a Server Action
+  // redirect) on a form whose visible fields had just changed, that impurity
+  // corrupted hook bookkeeping and threw "Rendered more hooks than during the
+  // previous render". Both the state set and the parent notify now happen in
+  // the event handler with a concrete value.
+  const answersRef = useRef<Answers>(answers);
 
   const errorMap = useMemo(() => {
     const m = new Map<string, string>();
@@ -63,11 +72,10 @@ export default function FormRenderer({
 
   const update = useCallback(
     (key: string, value: AnswerValue) => {
-      setAnswers((prev) => {
-        const next = { ...prev, [key]: value };
-        onChange?.(next);
-        return next;
-      });
+      const next = { ...answersRef.current, [key]: value };
+      answersRef.current = next;
+      setAnswers(next);
+      onChange?.(next);
     },
     [onChange],
   );
