@@ -80,6 +80,8 @@ Build order: recurrence engine (+ tests) → migration 0004 (people, check_defin
 
 Same loop for service users, SU-specific check types and templates (care plan reviews, risk assessments, MAR checks, consent reviews), special-category data handling: access audit logging (reads, not just writes), strict role isolation (Team Members never see service user data unless assigned), discharged service users excluded everywhere.
 
+Carry over from Phase 3 (Phil, 2026-07-09): the Service User register must update LIVE like the People register. Mount RealtimeRefresh and subscribe to every table a completion touches for service users (the service_users record table, its check_instances rows, and any SU tracker table equivalent to person_trackers), each with REPLICA IDENTITY FULL and in the supabase_realtime publication. Realtime is the primary path (sub-second); keep the short (10s) poll fallback. A check_instances change already refreshes Evidence-derived slots, so Evidence itself stays unpublished. Also carry: completion date = the activity date entered on the form (not submit time); never redirect() from a Server Action to a URL with a query string (client router.replace via ActionState.redirectTo); Saving button state held through the redirect.
+
 ## Phase 5 — Form builder
 
 Authoring UI: field types, required fields, validation, conditional logic, signatures, file uploads, version history. Founder template library curation. AI-assisted form generation is NOT in this phase, ask Phil first.
@@ -106,6 +108,7 @@ Ideas that arrive mid-phase get parked here (popup decides: current phase or Add
 
 - Edit an existing user's branch assignment (reassign or add branches) from the Users screen. Phase 1 sets a user's branch at invite time only; changing it later is not yet built.
 - Live-updating Users/invites list: when an invite is accepted, the pending and team lists on Settings > Users should update instantly with no refresh. Build as part of one shared Supabase Realtime helper when the People register needs live RAG rollups (Phase 3). Groundwork (REPLICA IDENTITY FULL on invites/profiles) already in place. (Phil request, parked 2026-07-08.)
+- Setup / Transfer: onboarding flow for a company coming on board, to enter all existing compliance dates (last completed and/or next due for each check, People and Service Users) directly, WITHOUT completing every form. Bulk backfill of check_instances/tracker dates so a new tenant starts with an accurate RAG picture from day one. Must respect the recurrence engine (set next due from the entered last-completed date) and the immutable-Evidence model (dates set without generating fake Evidence, or with a clearly flagged "migrated, no form" marker). Likely CSV import plus a grid entry screen. (Phil request, parked 2026-07-09.)
 
 ## Phase 11 — Final Testing
 
