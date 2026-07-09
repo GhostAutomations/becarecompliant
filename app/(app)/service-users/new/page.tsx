@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import CreateServiceUserForm from "@/components/service-users/create-service-user-form";
-import { listBranches, listSupervisoryUsers, getBranchStaffMap } from "@/lib/service-users/data";
+import { listBranches } from "@/lib/service-users/data";
 
 export const metadata: Metadata = { title: "Add service user" };
 
@@ -14,11 +14,7 @@ export default async function NewServiceUserPage() {
   if (!profile.company_id) redirect("/service-users");
   if (!MANAGE_ROLES.includes(profile.role)) redirect("/service-users");
 
-  const [branches, users, branchStaff] = await Promise.all([
-    listBranches(profile.company_id),
-    listSupervisoryUsers(profile.company_id),
-    getBranchStaffMap(profile.company_id),
-  ]);
+  const branches = await listBranches(profile.company_id);
   const branchOptions = branches.filter((b) => b.kind === "branch" || b.kind === "team");
 
   return (
@@ -33,7 +29,7 @@ export default async function NewServiceUserPage() {
       </div>
 
       <div className="glass-card p-6">
-        <CreateServiceUserForm branches={branchOptions} users={users} branchStaff={branchStaff} />
+        <CreateServiceUserForm branches={branchOptions} />
       </div>
     </div>
   );
