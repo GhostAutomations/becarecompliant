@@ -315,6 +315,7 @@ export default function RegisterMatrix({
   editable,
   columnLabels,
   returnTo = "/people",
+  scope = "active",
 }: {
   rows: RegisterRow[];
   config: MatrixConfig;
@@ -322,12 +323,19 @@ export default function RegisterMatrix({
   columnLabels: Record<string, string>;
   /** Where "Back to People" should return (the current view's URL). */
   returnTo?: string;
+  /** Which view this is; the Status pill offers Archive only in the Leavers view. */
+  scope?: string;
 }) {
   const [search, setSearch] = useState("");
   const [worstFirst, setWorstFirst] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const col = (key: string, def: string) => columnLabels[key] || def;
   const fromQuery = `?from=${encodeURIComponent(returnTo)}`;
+  // Archive is offered on the Status pill only when viewing Leavers (to clear them out).
+  const statusOptions =
+    scope === "leaver"
+      ? [...WORKING_STATUS_OPTIONS, { value: "archive", label: "Archive" }]
+      : WORKING_STATUS_OPTIONS;
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -428,7 +436,7 @@ export default function RegisterMatrix({
                         personId={row.person.id}
                         field="status"
                         value={row.person.employment_status}
-                        options={WORKING_STATUS_OPTIONS}
+                        options={statusOptions}
                         action={setEmploymentStatus}
                         toneOf={workingTone}
                       />

@@ -202,9 +202,35 @@ export async function setEmploymentStatus(formData: FormData): Promise<void> {
   const { user, profile } = await requireCompany();
   const personId = String(formData.get("person_id") ?? "");
   const status = String(formData.get("status") ?? "");
-  if (!personId || !["active", "mat_leave", "lts", "leaver"].includes(status)) return;
+  if (!personId) return;
 
   const supabase = await createClient();
+
+  // "archive" is offered on the Status pill only in the Leavers view: it archives the
+  // leaver (sets archived_at) rather than changing employment_status.
+  if (status === "archive") {
+    const { error: archErr } = await supabase
+      .from("people")
+      .update({ archived_at: new Date().toISOString() })
+      .eq("id", personId);
+    if (archErr) return;
+    await writeAudit({
+      companyId: profile.company_id ?? "",
+      actorId: user.id,
+      actorEmail: profile.email,
+      actorRole: profile.role,
+      action: "person.archived",
+      entityType: "person",
+      entityId: personId,
+      summary: "Archived record",
+    });
+    revalidatePath(`/people/${personId}`);
+    revalidatePath("/people");
+    return;
+  }
+
+  if (!["active", "mat_leave", "lts", "leaver"].includes(status)) return;
+
   const leaver_date = status === "leaver" ? todayIso() : null;
   const { error } = await supabase
     .from("people")
