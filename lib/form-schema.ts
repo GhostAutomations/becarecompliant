@@ -28,7 +28,13 @@ export type FieldType =
   | "file_upload";
 
 /** A choice for select / radio / multi_select fields. */
-export type FieldOption = { value: string; label: string };
+export type FieldOption = {
+  value: string;
+  label: string;
+  /** Optional right-aligned secondary text (e.g. a per-record due date). Only the
+   *  custom single_select dropdown renders it; native selects ignore it. */
+  hint?: string;
+};
 
 /** Optional per-field validation constraints. */
 export type FieldValidation = {

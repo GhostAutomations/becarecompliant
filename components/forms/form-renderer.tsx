@@ -18,10 +18,11 @@
  * pass `errors` after a submit attempt and they render under the right fields.
  */
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   type Answers,
   type AnswerValue,
+  type FieldOption,
   type FormField,
   type FormSchema,
 } from "@/lib/form-schema";
@@ -210,7 +211,22 @@ function Field({
         />,
       );
 
-    case "single_select":
+    case "single_select": {
+      const opts = field.options ?? [];
+      // When any option carries a right-aligned hint (e.g. per-record due dates),
+      // use the custom dropdown so label sits left and hint sits right; otherwise
+      // the canonical native select.
+      if (opts.some((o) => o.hint)) {
+        return labelledControl(
+          <HintSelect
+            id={id}
+            value={typeof value === "string" ? value : ""}
+            options={opts}
+            disabled={disabled}
+            onValue={onValue}
+          />,
+        );
+      }
       return labelledControl(
         <select
           id={id}
@@ -219,13 +235,14 @@ function Field({
           onChange={(e) => onValue(e.target.value)}
         >
           <option value="">Please choose</option>
-          {(field.options ?? []).map((o) => (
+          {opts.map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
             </option>
           ))}
         </select>,
       );
+    }
 
     case "radio":
       return labelledControl(
@@ -314,6 +331,102 @@ function Field({
     default:
       return null;
   }
+}
+
+/**
+ * Custom single_select dropdown that shows each option's label on the left and an
+ * optional hint (e.g. a per-record due date) right-aligned. Canonical styling lives
+ * in globals.css (.hint-select-*). Used only when options carry hints; every other
+ * select stays the native control.
+ */
+function HintSelect({
+  id,
+  value,
+  options,
+  disabled,
+  onValue,
+}: {
+  id: string;
+  value: string;
+  options: FieldOption[];
+  disabled: boolean;
+  onValue: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const selected = options.find((o) => o.value === value) ?? null;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        id={id}
+        disabled={disabled}
+        className="hint-select-trigger"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className={selected ? "text-white" : "text-white/40"}>
+          {selected ? selected.label : "Please choose"}
+        </span>
+        {selected?.hint ? <span className="hint-select-hint ml-auto">{selected.hint}</span> : null}
+        <span className={selected?.hint ? "" : "ml-auto"} aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="2" className="h-4 w-4">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </span>
+      </button>
+
+      {open ? (
+        <ul className="hint-select-menu" role="listbox">
+          <li
+            role="option"
+            aria-selected={value === ""}
+            className="hint-select-option text-white/60"
+            onClick={() => {
+              onValue("");
+              setOpen(false);
+            }}
+          >
+            Please choose
+          </li>
+          {options.map((o) => (
+            <li
+              key={o.value}
+              role="option"
+              aria-selected={o.value === value}
+              className="hint-select-option"
+              onClick={() => {
+                onValue(o.value);
+                setOpen(false);
+              }}
+            >
+              <span>{o.label}</span>
+              {o.hint ? <span className="hint-select-hint">{o.hint}</span> : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
 }
 
 /** Styled file picker (file inputs are intentionally not styled in globals.css). */

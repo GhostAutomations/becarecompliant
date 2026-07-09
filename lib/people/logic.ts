@@ -274,13 +274,13 @@ export function annotateSupervisionOptions(
           options: field.options.map((o) => {
             const slot = bySlot.get(o.value);
             if (!slot) return o;
-            let label: string;
-            if (slot.comp) label = `${o.label}, completed ${formatDisplayDate(slot.comp)}`;
-            else if (slot.due) label = `${o.label}, due ${formatDisplayDate(slot.due)}`;
-            else if (slot.n > 1) label = `${o.label}, due after Supervision ${slot.n - 1}`;
-            else label = o.label;
-            if (slot.n === nextN) label = `${label} (next)`;
-            return { ...o, label };
+            let hint: string;
+            if (slot.comp) hint = `completed ${formatDisplayDate(slot.comp)}`;
+            else if (slot.due) hint = `due ${formatDisplayDate(slot.due)}`;
+            else if (slot.n > 1) hint = `due after Supervision ${slot.n - 1}`;
+            else hint = "";
+            if (slot.n === nextN) hint = hint ? `${hint} (next)` : "next";
+            return { ...o, hint: hint || undefined };
           }),
         };
       }),
