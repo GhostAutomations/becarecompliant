@@ -29,6 +29,7 @@ import {
   TRACKER_FORMS,
   REGISTER_COLUMNS,
 } from "./logic";
+import { parseCivilDate } from "@/lib/recurrence";
 
 function trimOrNull(v: FormDataEntryValue | null): string | null {
   const s = String(v ?? "").trim();
@@ -702,10 +703,20 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
     .eq("key", "supervision")
     .maybeSingle();
   const supInterval = (supDef?.interval as number | null) ?? 90;
-  const { nextDue, expiry } = nextDueAfterCompletion(def, answers, supInterval);
+  // Completion date = the activity date captured on the form when present (supervision's
+  // "Date of supervision"), else today. It stamps last_completed and anchors the next
+  // due date, so a back-dated supervision schedules the next one correctly.
+  const supervisionDate = answers.supervision_date;
+  const completedOnIso =
+    def.key === "supervision" &&
+    typeof supervisionDate === "string" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(supervisionDate)
+      ? supervisionDate
+      : todayIso();
+  const { nextDue, expiry } = nextDueAfterCompletion(def, answers, supInterval, parseCivilDate(completedOnIso));
   const { error: advanceErr } = await supabase.rpc("complete_check", {
     p_instance_id: instanceId,
-    p_completed_on: todayIso(),
+    p_completed_on: completedOnIso,
     p_evidence_id: result.evidenceId,
     p_next_due: nextDue,
     p_expiry_date: expiry,

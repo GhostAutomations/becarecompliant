@@ -186,7 +186,7 @@ export async function listRegister(
     const slot = String(e.answers?.supervision_type ?? "");
     if (slot !== "1" && slot !== "2" && slot !== "3") continue;
     const map = supByPerson.get(e.record_id) ?? {};
-    map[slot] = e.submitted_at.slice(0, 10);
+    map[slot] = supervisionCompDate(e.answers, e.submitted_at);
     supByPerson.set(e.record_id, map);
   }
 
@@ -212,6 +212,14 @@ export async function getPersonTracker(personId: string): Promise<PersonTracker 
   return (data as PersonTracker | null) ?? null;
 }
 
+/** The supervision completion date to display: the form's "Date of supervision"
+ *  (when it actually happened) if captured, else the submission timestamp. */
+function supervisionCompDate(answers: Record<string, unknown>, submittedAt: string): string {
+  const d = answers?.supervision_date;
+  if (typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+  return submittedAt.slice(0, 10);
+}
+
 /** Supervision completion date keyed by the chosen slot ("1"|"2"|"3"), most recent
  *  completion of each slot winning. */
 export async function getSupervisionComps(
@@ -230,7 +238,7 @@ export async function getSupervisionComps(
   const out: Record<string, string> = {};
   for (const e of (data as Array<{ submitted_at: string; answers: Record<string, unknown> }>) ?? []) {
     const slot = String(e.answers?.supervision_type ?? "");
-    if (slot === "1" || slot === "2" || slot === "3") out[slot] = e.submitted_at.slice(0, 10);
+    if (slot === "1" || slot === "2" || slot === "3") out[slot] = supervisionCompDate(e.answers, e.submitted_at);
   }
   return out;
 }

@@ -63,8 +63,8 @@ export default function CompleteCheck({
       {state.error ? <p className="form-error">{state.error}</p> : null}
 
       <div className="flex items-center gap-3">
-        <button type="submit" className="btn-primary" disabled={pending}>
-          {pending ? "Saving…" : "Complete and save evidence"}
+        <button type="submit" className="btn-primary" disabled={pending || !!state.redirectTo}>
+          {pending || state.redirectTo ? "Saving…" : "Complete and save evidence"}
         </button>
       </div>
     </form>
