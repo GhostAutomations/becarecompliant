@@ -160,7 +160,8 @@ export default async function PersonPage({
               ))}
             </div>
             <p className="text-[11px] text-white/40">
-              Slots are set from the Supervision interval in Settings ({supInterval} days), counted from the start date.
+              Complete Supervision 1 whenever it happens; each next supervision is due
+              {" "}{supInterval} days after the previous one is completed.
             </p>
           </section>
 
