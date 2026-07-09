@@ -19,13 +19,17 @@ import { IDLE_STATE } from "@/lib/forms";
 export default function CompleteCheck({
   schema,
   instanceId,
+  presetAnswers,
 }: {
   schema: FormSchema;
   instanceId: string;
+  /** Answers supplied outside the form (e.g. the supervision number from the button
+   *  clicked), seeded into the form so they are submitted and validated. */
+  presetAnswers?: Answers;
 }) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState(completeCheck, IDLE_STATE);
-  const [answers, setAnswers] = useState<Answers>({});
+  const [answers, setAnswers] = useState<Answers>(presetAnswers ?? {});
   const [files, setFiles] = useState<Record<string, File | null>>({});
   const [errors, setErrors] = useState<FieldError[]>([]);
   // Immediate feedback: flip the button to "Saving…" the moment it is clicked, before
@@ -65,6 +69,7 @@ export default function CompleteCheck({
     <form onSubmit={onSubmit} className="space-y-6">
       <FormRenderer
         schema={schema}
+        defaultValue={presetAnswers}
         errors={errors}
         onChange={setAnswers}
         onFileSelect={(key, file) => setFiles((prev) => ({ ...prev, [key]: file }))}

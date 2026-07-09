@@ -130,6 +130,19 @@ export function firstDateFieldKey(schema: FormSchema): string | null {
   return flattenFields(schema).find((f) => f.type === "date")?.key ?? null;
 }
 
+/** Return a copy of the schema with the field of the given key removed from every
+ *  section. Used to hide a field that is being supplied another way (e.g. the
+ *  supervision number, set by which Complete button was clicked). */
+export function removeField(schema: FormSchema, key: string): FormSchema {
+  return {
+    ...schema,
+    sections: schema.sections.map((s) => ({
+      ...s,
+      fields: s.fields.filter((f) => f.key !== key),
+    })),
+  };
+}
+
 /**
  * Narrow an unknown value (e.g. jsonb from the database) to a FormSchema.
  * Cheap structural guard: enough to fail fast on a malformed schema before the

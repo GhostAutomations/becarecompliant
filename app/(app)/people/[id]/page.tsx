@@ -141,20 +141,10 @@ export default async function PersonPage({
         <>
           {/* Supervision (Sup 1/2/3) */}
           <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Supervision</h2>
-              {supStatus && supFormId && canComplete ? (
-                <Link
-                  href={`/people/${person.id}/checks/${supStatus.instance_id}/complete`}
-                  className="btn-primary text-xs"
-                >
-                  Complete supervision
-                </Link>
-              ) : null}
-            </div>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Supervision</h2>
             <div className="glass-card grid gap-3 p-4 sm:grid-cols-3">
               {slots.map((s) => (
-                <div key={s.n} className="rounded-xl border border-white/10 p-3">
+                <div key={s.n} className="flex flex-col rounded-xl border border-white/10 p-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-white/70">Sup {s.n}</span>
                     <span className={`rag-cell ${slotPill(s.rag)}`}>
@@ -165,6 +155,14 @@ export default async function PersonPage({
                     <div className="flex justify-between"><dt>Due</dt><dd className="text-white/80">{formatDisplayDate(s.due) || "—"}</dd></div>
                     <div className="flex justify-between"><dt>Completed</dt><dd className="text-white/80">{formatDisplayDate(s.comp) || "Not yet"}</dd></div>
                   </dl>
+                  {supStatus && supFormId && canComplete ? (
+                    <Link
+                      href={`/people/${person.id}/checks/${supStatus.instance_id}/complete?sup=${s.n}`}
+                      className="btn-primary mt-3 w-full justify-center text-xs"
+                    >
+                      Complete
+                    </Link>
+                  ) : null}
                 </div>
               ))}
             </div>
