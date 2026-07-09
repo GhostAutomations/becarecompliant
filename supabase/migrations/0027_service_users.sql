@@ -226,7 +226,7 @@ begin
       select 1 from public.check_definitions cd
       where cd.id = (r->>'definition_id')::uuid and cd.company_id = v_company
     )
-    on conflict (definition_id, service_user_id) do nothing;
+    on conflict (definition_id, service_user_id) where service_user_id is not null do nothing;
     if found then n := n + 1; end if;
   end loop;
 
