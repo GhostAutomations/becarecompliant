@@ -1,55 +1,82 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { updateCheckDefinition } from "@/lib/people/actions";
-import { IDLE_STATE, type ActionState } from "@/lib/forms";
 import { recurrenceLabel } from "@/lib/people/logic";
 import type { CheckDefinition } from "@/lib/people/types";
 
+/**
+ * Not a <form action> on purpose: React 19 auto-resets action forms, which was
+ * snapping the Schedule dropdown back to a stale value. We hold the values in state
+ * and save on click, so a selection can never revert.
+ */
 export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
-  const [state, formAction, pending] = useActionState(
-    async (_prev: ActionState, fd: FormData) => updateCheckDefinition(fd),
-    IDLE_STATE,
-  );
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Controlled so values survive React 19's automatic form reset after an action.
   const [active, setActive] = useState(def.active);
   const [days, setDays] = useState(String(def.interval ?? 90));
   const [amber, setAmber] = useState(def.amber_days != null ? String(def.amber_days) : "");
   const [flagDays, setFlagDays] = useState(String(def.amber_days ?? 30));
   const [scheduleMode, setScheduleMode] = useState<string>(def.schedule_mode);
 
-  // After a save, the server sends back the saved values; keep the fields in step
-  // so they never snap back to a stale value. Only runs when a saved value changes.
-  useEffect(() => {
-    setActive(def.active);
-    setDays(String(def.interval ?? 90));
-    setAmber(def.amber_days != null ? String(def.amber_days) : "");
-    setFlagDays(String(def.amber_days ?? 30));
-    setScheduleMode(def.schedule_mode);
-  }, [def.active, def.interval, def.amber_days, def.schedule_mode]);
-
   const isExpiry = def.anchor === "expiry";
-  const saved = !!state.ok;
+
+  function save() {
+    const fd = new FormData();
+    fd.set("definition_id", def.id);
+    fd.set("anchor", def.anchor);
+    if (active) fd.set("active", "on");
+    if (isExpiry) {
+      fd.set("flag_days", flagDays);
+    } else {
+      fd.set("days", days);
+      fd.set("amber_days", amber);
+      fd.set("schedule_mode", scheduleMode);
+    }
+    startTransition(async () => {
+      const res = await updateCheckDefinition(fd);
+      if (res.error) {
+        setError(res.error);
+        setSaved(false);
+      } else {
+        setError(null);
+        setSaved(true);
+        router.refresh();
+      }
+    });
+  }
 
   const saveButton = (
-    <button type="submit" disabled={pending} className={`btn ${saved ? "btn-saved" : "btn-outline"} text-xs`}>
+    <button
+      type="button"
+      onClick={save}
+      disabled={pending}
+      className={`btn ${saved ? "btn-saved" : "btn-outline"} text-xs`}
+    >
       {pending ? "Saving…" : saved ? "Saved" : "Save"}
     </button>
   );
 
   return (
-    <form action={formAction} className="glass-card p-5">
-      <input type="hidden" name="definition_id" value={def.id} />
-      <input type="hidden" name="anchor" value={def.anchor} />
-
+    <div className="glass-card p-5">
       <div className="mb-4 flex items-center justify-between gap-2">
         <div>
           <h2 className="text-sm font-semibold text-white">{def.name}</h2>
           <p className="text-[11px] text-white/45">{recurrenceLabel(def)}</p>
         </div>
         <label className="flex items-center gap-2 text-xs text-white/80">
-          <input type="checkbox" name="active" checked={active} onChange={(e) => setActive(e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={active}
+            onChange={(e) => {
+              setActive(e.target.checked);
+              setSaved(false);
+            }}
+          />
           Active
         </label>
       </div>
@@ -62,11 +89,13 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
             </label>
             <input
               id={`flag-${def.id}`}
-              name="flag_days"
               type="number"
               min={0}
               value={flagDays}
-              onChange={(e) => setFlagDays(e.target.value)}
+              onChange={(e) => {
+                setFlagDays(e.target.value);
+                setSaved(false);
+              }}
               className="max-w-[8rem]"
             />
           </div>
@@ -79,15 +108,18 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
               <label htmlFor={`sched-${def.id}`} className="form-label">Schedule</label>
               <select
                 id={`sched-${def.id}`}
-                name="schedule_mode"
                 value={scheduleMode}
-                onChange={(e) => setScheduleMode(e.target.value)}
+                onChange={(e) => {
+                  setScheduleMode(e.target.value);
+                  setSaved(false);
+                }}
               >
                 <option value="interval">Yearly</option>
                 <option value="after_sup3">After Supervision 3</option>
               </select>
             </div>
           ) : null}
+
           {def.key === "appraisal" && scheduleMode === "after_sup3" ? (
             <p className="form-hint max-w-[14rem]">
               Scheduled from the Supervision interval (3 × Supervision days).
@@ -99,25 +131,30 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
               </label>
               <input
                 id={`days-${def.id}`}
-                name="days"
                 type="number"
                 min={1}
                 value={days}
-                onChange={(e) => setDays(e.target.value)}
+                onChange={(e) => {
+                  setDays(e.target.value);
+                  setSaved(false);
+                }}
                 className="max-w-[8rem]"
               />
             </div>
           )}
+
           <div>
             <label htmlFor={`amber-${def.id}`} className="form-label">Amber (days before due)</label>
             <input
               id={`amber-${def.id}`}
-              name="amber_days"
               type="number"
               min={0}
               value={amber}
               placeholder="Default 30"
-              onChange={(e) => setAmber(e.target.value)}
+              onChange={(e) => {
+                setAmber(e.target.value);
+                setSaved(false);
+              }}
               className="max-w-[8rem]"
             />
           </div>
@@ -125,7 +162,7 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
         </div>
       )}
 
-      {state.error ? <p className="form-error">{state.error}</p> : null}
-    </form>
+      {error ? <p className="form-error">{error}</p> : null}
+    </div>
   );
 }
