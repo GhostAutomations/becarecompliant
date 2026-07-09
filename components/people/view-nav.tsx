@@ -24,7 +24,7 @@ export default function ViewNav({
   return (
     <div className="flex flex-wrap items-center gap-4">
       {branchOptions.length > 1 ? (
-        <label className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-white/45">
+        <label className="flex items-center gap-2 text-sm font-bold text-white">
           Branches
           <select
             className="inline-cell"
@@ -42,7 +42,7 @@ export default function ViewNav({
         </label>
       ) : null}
 
-      <label className="ml-auto flex items-center gap-2 text-[11px] uppercase tracking-wide text-white/45">
+      <label className="flex items-center gap-2 text-sm font-bold text-white">
         View
         <select
           className="inline-cell"
