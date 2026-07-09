@@ -4,7 +4,18 @@ import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import BackLink from "@/components/back-link";
 import CompleteCheck from "@/components/people/complete-check";
-import { getPerson, getPublishedFormVersion } from "@/lib/people/data";
+import {
+  getPerson,
+  getPublishedFormVersion,
+  getPersonChecks,
+  getPersonTracker,
+  getSupervisionComps,
+} from "@/lib/people/data";
+import {
+  supervisionSlots,
+  supervisionCycleAnchor,
+  annotateSupervisionOptions,
+} from "@/lib/people/logic";
 import { isFormSchema, type FormSchema } from "@/lib/form-schema";
 import type { CheckDefinition } from "@/lib/people/types";
 
@@ -45,6 +56,21 @@ export default async function CompleteCheckPage({
     );
   }
 
+  // For supervision, annotate the "Which supervision" dropdown with this person's
+  // current-cycle due dates and flag the next one to complete.
+  let schema = version.schema as FormSchema;
+  if (def.key === "supervision") {
+    const [supComps, tracker, statuses] = await Promise.all([
+      getSupervisionComps(id, def.form_id),
+      getPersonTracker(id),
+      getPersonChecks(id),
+    ]);
+    const appraisalCompletedOn = statuses.find((s) => s.check_key === "appraisal")?.last_completed_on ?? null;
+    const anchor = supervisionCycleAnchor(appraisalCompletedOn, tracker?.probation_end_actual ?? null);
+    const slots = supervisionSlots(def.interval, supComps, def.amber_days ?? 30, anchor);
+    schema = annotateSupervisionOptions(schema, slots);
+  }
+
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
@@ -57,7 +83,7 @@ export default async function CompleteCheckPage({
       </div>
 
       <div className="glass-card p-6">
-        <CompleteCheck schema={version.schema as FormSchema} instanceId={instanceId} />
+        <CompleteCheck schema={schema} instanceId={instanceId} />
       </div>
     </div>
   );

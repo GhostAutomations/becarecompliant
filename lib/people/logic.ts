@@ -10,6 +10,7 @@
 import {
   type Answers,
   type AnswerValue,
+  type FormSchema,
 } from "@/lib/form-schema";
 import {
   type CivilDate,
@@ -247,6 +248,44 @@ export function supervisionSlots(
     slots.push({ n, due: due ? formatCivilDate(due) : null, comp, rag });
   }
   return slots;
+}
+
+/**
+ * Annotate the supervision form's "Which supervision" options with this person's
+ * current-cycle due/completion dates, and flag the next one to complete, so the
+ * person filling in the form knows which supervision is next. Pure: returns a new
+ * schema, leaving the stored form untouched. Only touches the supervision_type
+ * single_select; every other field is returned as-is.
+ */
+export function annotateSupervisionOptions(
+  schema: FormSchema,
+  slots: SupervisionSlot[],
+): FormSchema {
+  const nextN = slots.find((s) => !s.comp)?.n ?? null;
+  const bySlot = new Map(slots.map((s) => [String(s.n), s]));
+  return {
+    ...schema,
+    sections: schema.sections.map((section) => ({
+      ...section,
+      fields: section.fields.map((field) => {
+        if (field.key !== "supervision_type" || !field.options) return field;
+        return {
+          ...field,
+          options: field.options.map((o) => {
+            const slot = bySlot.get(o.value);
+            if (!slot) return o;
+            let label: string;
+            if (slot.comp) label = `${o.label}, completed ${formatDisplayDate(slot.comp)}`;
+            else if (slot.due) label = `${o.label}, due ${formatDisplayDate(slot.due)}`;
+            else if (slot.n > 1) label = `${o.label}, due after Supervision ${slot.n - 1}`;
+            else label = o.label;
+            if (slot.n === nextN) label = `${label} (next)`;
+            return { ...o, label };
+          }),
+        };
+      }),
+    })),
+  };
 }
 
 /** RAG for a directly-recorded date treated as a due/expiry (amber before, red after). */
