@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
+import BackLink from "@/components/back-link";
 import EditPersonForm from "@/components/people/edit-person-form";
 import {
   getPerson,
@@ -102,7 +103,7 @@ export default async function PersonPage({
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <div>
-        <Link href="/people" className="text-xs text-white/50 hover:text-white/80">People</Link>
+        <BackLink href="/people" label="Back to People" />
         <div className="mt-1 flex flex-wrap items-center gap-3">
           <h1 className="page-title">{person.full_name}</h1>
           {ragPill(worstRag)}

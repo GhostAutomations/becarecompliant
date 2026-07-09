@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
+import BackLink from "@/components/back-link";
 import CompleteTracker from "@/components/people/complete-tracker";
 import { getPerson, getCompanyFormByKey } from "@/lib/people/data";
 import { TRACKER_FORMS } from "@/lib/people/logic";
@@ -44,9 +44,7 @@ export default async function CompleteTrackerPage({
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <Link href={`/people/${id}`} className="text-xs text-white/50 hover:text-white/80">
-          {person.full_name}
-        </Link>
+        <BackLink href={`/people/${id}`} label={`Back to ${person.full_name}`} />
         <h1 className="page-title mt-1">{spec.title}</h1>
         <p className="page-subtitle">
           Completing this form records the date on the register and stores it as

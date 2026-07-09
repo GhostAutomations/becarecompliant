@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { ROLE_LABELS } from "@/lib/nav";
+import BackLink from "@/components/back-link";
 import { InviteForm } from "@/components/settings/invite-form";
 import {
   resendInviteAction,
@@ -73,9 +73,7 @@ export default async function UsersPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-8">
       <div>
-        <Link href="/settings" className="text-xs text-white/50 hover:text-white/80">
-          Settings
-        </Link>
+        <BackLink href="/settings" label="Back to Settings" />
         <h1 className="page-title mt-1">Users and invites</h1>
         <p className="page-subtitle">
           Invite your team and manage roles and branches. Only Admins can invite

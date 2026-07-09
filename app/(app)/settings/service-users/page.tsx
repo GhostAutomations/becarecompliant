@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
+import BackLink from "@/components/back-link";
 
 export const metadata: Metadata = { title: "Service User checks" };
 
@@ -12,9 +13,7 @@ export default async function SettingsServiceUsersPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <Link href="/settings" className="text-xs text-white/50 hover:text-white/80">
-          Settings
-        </Link>
+        <BackLink href="/settings" label="Back to Settings" />
         <h1 className="page-title mt-1">Service User checks</h1>
         <p className="page-subtitle">
           Set how often each service user compliance check recurs.

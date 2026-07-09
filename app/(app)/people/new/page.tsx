@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
+import BackLink from "@/components/back-link";
 import CreatePersonForm from "@/components/people/create-person-form";
 import { listBranches, listSupervisoryUsers } from "@/lib/people/data";
 
@@ -23,9 +23,7 @@ export default async function NewPersonPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <Link href="/people" className="text-xs text-white/50 hover:text-white/80">
-          People
-        </Link>
+        <BackLink href="/people" label="Back to People" />
         <h1 className="page-title mt-1">Add a person</h1>
         <p className="page-subtitle">
           Identity and employment only. Their compliance checks are applied and

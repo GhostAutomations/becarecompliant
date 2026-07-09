@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
+import BackLink from "@/components/back-link";
 import { renameBranch } from "../actions";
 
 export const metadata: Metadata = { title: "Branches" };
@@ -24,9 +24,7 @@ export default async function BranchesPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-8">
       <div>
-        <Link href="/settings" className="text-xs text-white/50 hover:text-white/80">
-          Settings
-        </Link>
+        <BackLink href="/settings" label="Back to Settings" />
         <h1 className="page-title mt-1">Branches</h1>
         <p className="page-subtitle">
           Each company includes one Team (office) and one Branch. Records belong

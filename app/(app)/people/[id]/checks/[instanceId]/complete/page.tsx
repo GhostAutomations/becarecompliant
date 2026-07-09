@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
+import BackLink from "@/components/back-link";
 import CompleteCheck from "@/components/people/complete-check";
 import { getPerson, getPublishedFormVersion } from "@/lib/people/data";
 import { isFormSchema, type FormSchema } from "@/lib/form-schema";
@@ -48,9 +48,7 @@ export default async function CompleteCheckPage({
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <Link href={`/people/${id}`} className="text-xs text-white/50 hover:text-white/80">
-          {person?.full_name ?? "Record"}
-        </Link>
+        <BackLink href={`/people/${id}`} label={`Back to ${person?.full_name ?? "record"}`} />
         <h1 className="page-title mt-1">{def.name}</h1>
         <p className="page-subtitle">
           Completing this form stores it as inspection evidence and schedules the

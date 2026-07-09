@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
+import BackLink from "@/components/back-link";
 import { listAllPeopleCheckDefinitions, getColumnLabels } from "@/lib/people/data";
 import { REGISTER_COLUMNS } from "@/lib/people/logic";
 import CheckConfigForm from "@/components/people/check-config-form";
@@ -21,9 +21,7 @@ export default async function SettingsPeoplePage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <Link href="/settings" className="text-xs text-white/50 hover:text-white/80">
-          Settings
-        </Link>
+        <BackLink href="/settings" label="Back to Settings" />
         <h1 className="page-title mt-1">People checks</h1>
         <p className="page-subtitle">
           Set how often each staff compliance check recurs. Changes apply to future
