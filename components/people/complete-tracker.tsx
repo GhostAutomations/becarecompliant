@@ -29,6 +29,11 @@ export default function CompleteTracker({
   const [answers, setAnswers] = useState<Answers>({});
   const [files, setFiles] = useState<Record<string, File | null>>({});
   const [errors, setErrors] = useState<FieldError[]>([]);
+  // Immediate feedback: flip the button to "Saving…" the moment it is clicked.
+  const [submitting, setSubmitting] = useState(false);
+  useEffect(() => {
+    setSubmitting(false);
+  }, [state]);
 
   // Redirect client-side once the action reports success (see ActionState.redirectTo).
   useEffect(() => {
@@ -43,6 +48,7 @@ export default function CompleteTracker({
       return;
     }
     setErrors([]);
+    setSubmitting(true);
     const fd = new FormData();
     fd.set("person_id", personId);
     fd.set("form_key", formKey);
@@ -50,8 +56,11 @@ export default function CompleteTracker({
     for (const [key, file] of Object.entries(files)) {
       if (file) fd.append(`file:${key}`, file);
     }
-    formAction(fd);
+    // Defer so the "Saving…" state paints before the dispatch begins.
+    setTimeout(() => formAction(fd), 0);
   }
+
+  const busy = submitting || pending || !!state.redirectTo;
 
   return (
     <form onSubmit={onSubmit} className="space-y-6">
@@ -63,8 +72,8 @@ export default function CompleteTracker({
       />
       {state.error ? <p className="form-error">{state.error}</p> : null}
       <div className="flex items-center gap-3">
-        <button type="submit" className="btn-primary" disabled={pending || !!state.redirectTo}>
-          {pending || state.redirectTo ? "Saving…" : "Complete and save evidence"}
+        <button type="submit" className="btn-primary" disabled={busy}>
+          {busy ? "Saving…" : "Complete and save evidence"}
         </button>
       </div>
     </form>

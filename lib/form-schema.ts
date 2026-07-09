@@ -122,6 +122,15 @@ export function findField(schema: FormSchema, key: string): FormField | undefine
 }
 
 /**
+ * The key of the first date field in the schema, or null. Treated as the form's
+ * "activity date" (when the thing actually happened, e.g. Date of supervision /
+ * assessment / training), used to stamp the completion date instead of submit time.
+ */
+export function firstDateFieldKey(schema: FormSchema): string | null {
+  return flattenFields(schema).find((f) => f.type === "date")?.key ?? null;
+}
+
+/**
  * Narrow an unknown value (e.g. jsonb from the database) to a FormSchema.
  * Cheap structural guard: enough to fail fast on a malformed schema before the
  * renderer or validator touch it.

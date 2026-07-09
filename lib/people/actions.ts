@@ -17,7 +17,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
-import type { Answers } from "@/lib/form-schema";
+import { type Answers, type FormSchema, firstDateFieldKey, isFormSchema } from "@/lib/form-schema";
 import type { ActionState } from "@/lib/forms";
 import type { CheckDefinition } from "./types";
 import { listPeopleCheckDefinitions, getPublishedFormVersion, getCompanyFormByKey } from "./data";
@@ -703,16 +703,14 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
     .eq("key", "supervision")
     .maybeSingle();
   const supInterval = (supDef?.interval as number | null) ?? 90;
-  // Completion date = the activity date captured on the form when present (supervision's
-  // "Date of supervision"), else today. It stamps last_completed and anchors the next
-  // due date, so a back-dated supervision schedules the next one correctly.
-  const supervisionDate = answers.supervision_date;
+  // Completion date = the activity date captured on the form (the first date field,
+  // e.g. Date of supervision / assessment / training) when present, else today. It
+  // stamps last_completed and anchors the next due date, so a back-dated completion
+  // schedules the next one correctly. Applies to every check, not just supervision.
+  const dateKey = isFormSchema(version.schema) ? firstDateFieldKey(version.schema as FormSchema) : null;
+  const dateAnswer = dateKey ? answers[dateKey] : undefined;
   const completedOnIso =
-    def.key === "supervision" &&
-    typeof supervisionDate === "string" &&
-    /^\d{4}-\d{2}-\d{2}$/.test(supervisionDate)
-      ? supervisionDate
-      : todayIso();
+    typeof dateAnswer === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateAnswer) ? dateAnswer : todayIso();
   const { nextDue, expiry } = nextDueAfterCompletion(def, answers, supInterval, parseCivilDate(completedOnIso));
   const { error: advanceErr } = await supabase.rpc("complete_check", {
     p_instance_id: instanceId,
@@ -744,7 +742,7 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
   // completion + supervision interval, none completed yet). The display slots use
   // the same anchor (supervisionCycleAnchor), so screen and RAG stay in step.
   if (def.key === "appraisal") {
-    const supDue = addDaysIso(todayIso(), supInterval);
+    const supDue = addDaysIso(completedOnIso, supInterval);
     if (supDue) {
       await supabase.rpc("reanchor_supervision_cycle", {
         p_person_id: instance.person_id as string,
