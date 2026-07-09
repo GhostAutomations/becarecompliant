@@ -404,7 +404,12 @@ export default function RegisterMatrix({
               const mc = row.statusByKey["competency"];
               const sc = row.statusByKey["spot_check"];
               const aa = row.statusByKey["appraisal"];
-              const sup = supervisionSlots(config.supInterval, row.supComps, config.supAmber);
+              const sup = supervisionSlots(
+                config.supInterval,
+                row.supComps,
+                config.supAmber,
+                t?.probation_end_actual ?? t?.probation_end_due ?? null,
+              );
               return (
                 <tr key={row.person.id}>
                   <td className="col-carer">

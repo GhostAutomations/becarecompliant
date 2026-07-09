@@ -86,7 +86,8 @@ export default async function PersonPage({
   const supComps = await getSupervisionComps(id, supFormId);
   const supInterval = supDef?.interval ?? 90;
   const supAmber = supDef?.amber_days ?? 30;
-  const slots = supervisionSlots(supInterval, supComps, supAmber);
+  const probationEnd = tracker?.probation_end_actual ?? tracker?.probation_end_due ?? null;
+  const slots = supervisionSlots(supInterval, supComps, supAmber, probationEnd);
 
   const statusByDef = new Map<string, CheckStatus>(statuses.map((s) => [s.definition_id, s]));
   const supStatus = statuses.find((s) => s.check_key === "supervision") ?? null;
@@ -160,8 +161,8 @@ export default async function PersonPage({
               ))}
             </div>
             <p className="text-[11px] text-white/40">
-              Complete Supervision 1 whenever it happens; each next supervision is due
-              {" "}{supInterval} days after the previous one is completed.
+              Supervision 1 is due {supInterval} days after successful probation end.
+              {" "}Each further supervision is due {supInterval} days after the previous one is completed.
             </p>
           </section>
 

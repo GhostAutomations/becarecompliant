@@ -187,26 +187,30 @@ export function recurrenceLabel(def: CheckDefinition): string {
 
 /**
  * Derive the three Supervision slots (Sup 1/2/3) from the Supervision interval
- * (Settings) counted from the start date, plus the ordered completion history:
- * Sup N is due at start + N intervals, and its completion is the Nth supervision
- * evidence, if any. A completed slot is green; an outstanding one is RAG by its due.
+ * (Settings) plus the ordered completion history:
+ *  - Sup 1 is due the interval after the successful probation end (actual if set,
+ *    else the planned end due date); it has no due until a probation end exists.
+ *  - Sup N (N >= 2) is due the interval after the previous supervision was completed.
+ * A completed slot is green; an outstanding one is RAG by its due.
  */
 export function supervisionSlots(
   intervalDays: number | null,
   comps: Record<string, string>,
   amberDays: number,
+  probationEnd: string | null = null,
   today: CivilDate = todayInLondon(),
   count = 3,
 ): SupervisionSlot[] {
   const slots: SupervisionSlot[] = [];
+  const hasInterval = !!intervalDays && intervalDays >= 1;
   for (let n = 1; n <= count; n++) {
     const comp = comps[String(n)] ?? null;
-    // Sup 1 has no auto due (do it whenever); Sup N due = previous completion + interval.
     let due: CivilDate | null = null;
-    if (n >= 2 && intervalDays && intervalDays >= 1) {
-      const prev = comps[String(n - 1)];
-      if (prev && /^\d{4}-\d{2}-\d{2}$/.test(prev)) {
-        due = addInterval(parseCivilDate(prev), "day", intervalDays);
+    if (hasInterval) {
+      // Sup 1 anchors on the probation end; Sup N on the previous completion.
+      const anchor = n === 1 ? probationEnd : comps[String(n - 1)];
+      if (anchor && /^\d{4}-\d{2}-\d{2}$/.test(anchor)) {
+        due = addInterval(parseCivilDate(anchor), "day", intervalDays!);
       }
     }
     const rag: Rag | "none" = comp ? "green" : due ? ragStatus(due, today, amberDays) : "none";
