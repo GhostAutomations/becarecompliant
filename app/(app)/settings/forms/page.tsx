@@ -43,7 +43,7 @@ export default async function SettingsFormsPage() {
           </p>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-3">
           <FormGroup title="People forms" forms={forms.filter((f) => f.population === "people")} />
           <FormGroup
             title="Service User forms"
@@ -58,33 +58,33 @@ export default async function SettingsFormsPage() {
 function FormGroup({ title, forms }: { title: string; forms: FormSummary[] }) {
   if (forms.length === 0) return null;
   return (
-    <section className="space-y-2">
-      <h2 className="text-xs font-semibold uppercase tracking-wide text-white/40">{title}</h2>
-      <div className="space-y-2">
+    <details className="glass-card section-card">
+      <summary>
+        {title} ({forms.length})
+      </summary>
+      <div className="border-t border-white/10">
         {forms.map((f) => (
           <Link
             key={f.id}
             href={`/settings/forms/${f.id}`}
-            className="app-tile flex items-center justify-between gap-3"
+            className="flex items-center gap-3 border-b border-white/5 px-5 py-2.5 last:border-b-0 hover:bg-white/5"
           >
-            <div className="min-w-0">
-              <p className="truncate text-base font-semibold text-white">{f.name}</p>
-              <p className="text-xs text-white/45">
-                {POP_LABEL[f.population]}
-                {f.sourceTemplateKey ? " · from starter library" : " · authored"}
-              </p>
-            </div>
-            <div className="flex shrink-0 items-center gap-2 text-xs">
+            <span className="truncate text-sm font-medium text-white">{f.name}</span>
+            <span className="truncate text-xs text-white/40">
+              {POP_LABEL[f.population]}
+              {f.sourceTemplateKey ? " · starter" : " · authored"}
+            </span>
+            <span className="ml-auto flex shrink-0 items-center gap-2 text-xs">
               {f.currentVersion == null ? (
                 <span className="pill pill-amber">Not published</span>
               ) : (
                 <span className="pill pill-green">v{f.currentVersion}</span>
               )}
               {f.hasDraft && <span className="pill pill-amber">Draft</span>}
-            </div>
+            </span>
           </Link>
         ))}
       </div>
-    </section>
+    </details>
   );
 }
