@@ -65,6 +65,22 @@ export async function getServiceUserColumnLabels(companyId: string): Promise<Rec
   return ((data?.service_user_column_labels as Record<string, string> | null) ?? {}) as Record<string, string>;
 }
 
+export type BranchType = { id: string; name: string; service_user_type: "simple" | "complex" };
+
+/** Active branches (not the office/team) with their Service User type, for the
+ *  Settings > Service Users Type section. */
+export async function listBranchTypes(companyId: string): Promise<BranchType[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("branches")
+    .select("id, name, service_user_type")
+    .eq("company_id", companyId)
+    .eq("kind", "branch")
+    .eq("status", "active")
+    .order("name", { ascending: true });
+  return (data as BranchType[]) ?? [];
+}
+
 export async function listServiceUserCheckDefinitions(companyId: string): Promise<CheckDefinition[]> {
   const supabase = await createClient();
   const { data } = await supabase

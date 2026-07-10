@@ -4,9 +4,11 @@ import { requireCompanyAdmin } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import CheckConfigForm from "@/components/people/check-config-form";
 import SuColumnNamesForm from "@/components/service-users/su-column-names-form";
+import BranchTypeForm from "@/components/service-users/branch-type-form";
 import {
   listAllServiceUserCheckDefinitions,
   getServiceUserColumnLabels,
+  listBranchTypes,
 } from "@/lib/service-users/data";
 import { SU_REGISTER_COLUMNS } from "@/lib/service-users/types";
 
@@ -16,9 +18,10 @@ export default async function SettingsServiceUsersPage() {
   const { profile } = await requireCompanyAdmin();
   if (!profile.company_id) redirect("/founder");
 
-  const [definitions, columnLabels] = await Promise.all([
+  const [definitions, columnLabels, branchTypes] = await Promise.all([
     listAllServiceUserCheckDefinitions(profile.company_id),
     getServiceUserColumnLabels(profile.company_id),
+    listBranchTypes(profile.company_id),
   ]);
 
   return (
@@ -48,6 +51,18 @@ export default async function SettingsServiceUsersPage() {
             Creating brand new check types with their own forms arrives with the form
             builder in a later phase.
           </p>
+        </div>
+      </details>
+
+      <details className="glass-card section-card">
+        <summary>Service Users Type</summary>
+        <div className="space-y-3 border-t border-white/10 p-5">
+          <p className="page-subtitle">
+            Set whether each branch runs a Simple or Complex Service User setup. Every
+            branch defaults to Simple. Branches are created elsewhere; this only sets
+            the type.
+          </p>
+          <BranchTypeForm branches={branchTypes} />
         </div>
       </details>
 

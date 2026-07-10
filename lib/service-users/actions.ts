@@ -473,6 +473,36 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
   };
 }
 
+/** Set a branch's Service User type (Simple or Complex). Company Admin only, enforced
+ *  by the branches_update RLS policy. */
+export async function setBranchServiceUserType(formData: FormData): Promise<void> {
+  const { user, profile } = await requireCompany();
+  const branchId = String(formData.get("branch_id") ?? "");
+  const type = String(formData.get("type") ?? "");
+  if (!branchId || !["simple", "complex"].includes(type)) return;
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("branches")
+    .update({ service_user_type: type })
+    .eq("id", branchId);
+  if (error) return;
+
+  await writeAudit({
+    companyId: profile.company_id ?? "",
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "branch.service_user_type_set",
+    entityType: "branch",
+    entityId: branchId,
+    summary: `Set Service User type to ${type}`,
+    metadata: { type },
+  });
+
+  revalidatePath("/settings/service-users");
+}
+
 /** Save the per-company shorthand labels for the Service User register columns. */
 export async function updateServiceUserColumnLabels(formData: FormData): Promise<ActionState> {
   const { user, profile } = await requireCompany();
