@@ -18,7 +18,6 @@ import {
   todayInLondon,
 } from "@/lib/recurrence";
 import type { CheckDefinition } from "@/lib/people/types";
-import type { FormSchema } from "@/lib/form-schema";
 import type { ReviewSlot, ReviewStatus } from "./types";
 // The date formatter is identical for both populations; reuse the People one so
 // DD MMM YY rendering never diverges between the two registers. Imported for local
@@ -89,20 +88,21 @@ export function addDaysToIso(iso: string | null, days: number): string | null {
 
 /**
  * Derive the four Care Plan Review slots (Review 1-4) for a Complex branch from the
- * package start date, the review interval (days, default 80) and the completion
- * history, keyed by review number (like People's Supervision 1/2/3):
- *  - Review 1 due = the cycle anchor + interval.
- *  - Review n (n >= 2) due = the previous review's completion + interval.
- *  - Review n completed = the completion whose "which review" answer is n.
- * Completing the FINAL review (Review `count`) restarts the cycle, exactly like a
- * completed Annual Appraisal restarts People's supervision cycle: the cycle anchor
- * moves to that completion, all slots reset (completions on/before it are dropped),
- * and Review 1 becomes due one interval after it. A completed slot is green; an
- * outstanding one is RAG by its due date.
+ * package start date, the review interval (days, default 80) and the ordered list of
+ * ALL Care Plan Review completions (oldest first). Positional, so it works no matter
+ * how the reviews were completed: switching a branch Simple <-> Complex simply
+ * reinterprets the same completions.
+ *  - Review 1 due = the cycle anchor + interval; Review n (n >= 2) due = the previous
+ *    review's completion + interval.
+ *  - Review n completed = the n-th completion within the current cycle.
+ * Completing the final review (Review `count`) restarts the cycle (like a completed
+ * Annual Appraisal restarts People's supervision cycle): the cycle anchor becomes that
+ * completion, all slots reset, and Review 1 becomes due one interval later. A completed
+ * slot is green; an outstanding one is RAG by its due date.
  */
 export function reviewSlots(
   packageStart: string | null,
-  comps: Record<string, string>,
+  orderedComps: string[],
   intervalDays: number,
   count = 4,
   amberDays = 30,
@@ -111,57 +111,23 @@ export function reviewSlots(
   const slots: ReviewSlot[] = [];
   const valid = (d: string | null | undefined): d is string => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d);
   const interval = intervalDays >= 1 ? intervalDays : 80;
-  // The last final-review completion restarts the cycle. The cycle anchor is the LATER
-  // of the package start and that completion; only completions strictly after it count
-  // towards the current cycle (so completing Review `count` resets every slot).
-  const restartFrom = valid(comps[String(count)]) ? comps[String(count)] : null;
-  const anchorCandidates = [packageStart, restartFrom].filter(valid);
-  const cycleAnchor = anchorCandidates.length ? anchorCandidates.sort()[anchorCandidates.length - 1] : null;
-  const compOf = (n: number): string | null => {
-    const d = comps[String(n)];
-    if (!valid(d)) return null;
-    if (restartFrom && d <= restartFrom) return null;
-    return d;
-  };
-  for (let n = 1; n <= count; n++) {
-    const comp = compOf(n);
-    const anchor = n === 1 ? cycleAnchor : compOf(n - 1);
+  const comps = orderedComps.filter(valid);
+  const n = comps.length;
+  // Completions form cycles of `count`. The current cycle is whatever is left after the
+  // last full cycle; the anchor is the package start (first cycle) or the last
+  // completion of the previous cycle.
+  const completedCycles = Math.floor(n / count);
+  const cycleBase = completedCycles * count;
+  const cycleComps = comps.slice(cycleBase);
+  const cycleAnchor = cycleBase > 0 ? comps[cycleBase - 1] : packageStart;
+  for (let i = 1; i <= count; i++) {
+    const comp = cycleComps[i - 1] ?? null;
+    const anchor = i === 1 ? cycleAnchor : (cycleComps[i - 2] ?? null);
     const due = valid(anchor) ? formatCivilDate(addInterval(parseCivilDate(anchor), "day", interval)) : null;
     const rag: Rag | "none" = comp ? "green" : due ? ragStatus(parseCivilDate(due), today, amberDays) : "none";
-    slots.push({ n, due, comp, rag });
+    slots.push({ n: i, due, comp, rag });
   }
   return slots;
-}
-
-/** Annotate the Care Plan Review form's "Which review" options with this Service
- *  User's slot due/completion dates, and flag the next one to complete, so the person
- *  filling the form knows which review is next. Pure: returns a new schema. */
-export function annotateReviewOptions(schema: FormSchema, slots: ReviewSlot[]): FormSchema {
-  const nextN = slots.find((s) => !s.comp)?.n ?? null;
-  const bySlot = new Map(slots.map((s) => [String(s.n), s]));
-  return {
-    ...schema,
-    sections: schema.sections.map((section) => ({
-      ...section,
-      fields: section.fields.map((field) => {
-        if (field.key !== "review_number" || !field.options) return field;
-        return {
-          ...field,
-          options: field.options.map((o) => {
-            const slot = bySlot.get(o.value);
-            if (!slot) return o;
-            let hint: string;
-            if (slot.comp) hint = `completed ${formatDisplayDate(slot.comp)}`;
-            else if (slot.due) hint = `due ${formatDisplayDate(slot.due)}`;
-            else if (slot.n > 1) hint = `due after Review ${slot.n - 1}`;
-            else hint = "";
-            if (slot.n === nextN) hint = hint ? `${hint} (next)` : "next";
-            return { ...o, hint: hint || undefined };
-          }),
-        };
-      }),
-    })),
-  };
 }
 
 /**

@@ -4,15 +4,8 @@ import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import BackLink from "@/components/back-link";
 import CompleteCheck from "@/components/service-users/complete-check";
-import {
-  getServiceUser,
-  getPublishedFormVersion,
-  getReviewComps,
-  getServiceUserBranchType,
-  getComplexReviewInterval,
-} from "@/lib/service-users/data";
-import { reviewSlots, annotateReviewOptions } from "@/lib/service-users/logic";
-import { isFormSchema, removeField, type Answers, type FormSchema } from "@/lib/form-schema";
+import { getServiceUser, getPublishedFormVersion } from "@/lib/service-users/data";
+import { isFormSchema, removeField, type FormSchema } from "@/lib/form-schema";
 import type { CheckDefinition } from "@/lib/people/types";
 
 export const metadata: Metadata = { title: "Complete check" };
@@ -21,14 +14,11 @@ const COMPLETE_ROLES = ["company_admin", "manager", "supervisor", "platform_admi
 
 export default async function CompleteServiceUserCheckPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string; instanceId: string }>;
-  searchParams: Promise<{ rev?: string }>;
 }) {
   const { profile } = await requireCompany();
   const { id, instanceId } = await params;
-  const { rev } = await searchParams;
   if (!COMPLETE_ROLES.includes(profile.role)) redirect(`/service-users/${id}`);
 
   const supabase = await createClient();
@@ -56,37 +46,18 @@ export default async function CompleteServiceUserCheckPage({
   }
 
   let schema = version.schema as FormSchema;
-  let presetAnswers: Answers | undefined;
-  let heading = def.name;
-
-  // Care Plan Review: the "which review" (1-4) is set by the slot Complete button on a
-  // Complex branch, passed as ?rev=. Hide the field and supply the value. On a Simple
-  // branch (or no rev) hide the field entirely (single annual review).
+  // The Care Plan Review slot (Review 1-4) is derived positionally from the completion
+  // history, so the "which review" field is never shown; a completion just adds the
+  // next review.
   if (def.key === "care_plan_review") {
-    if (rev === "1" || rev === "2" || rev === "3" || rev === "4") {
-      schema = removeField(schema, "review_number");
-      presetAnswers = { review_number: rev };
-      heading = `Review ${rev}`;
-    } else {
-      const { isComplex } = await getServiceUserBranchType(id);
-      if (isComplex) {
-        const [comps, interval] = await Promise.all([
-          getReviewComps(id, def.form_id),
-          getComplexReviewInterval(profile.company_id ?? ""),
-        ]);
-        const slots = reviewSlots(serviceUser?.package_start_date ?? null, comps, interval);
-        schema = annotateReviewOptions(schema, slots);
-      } else {
-        schema = removeField(schema, "review_number");
-      }
-    }
+    schema = removeField(schema, "review_number");
   }
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
         <BackLink href={`/service-users/${id}`} label={`Back to ${serviceUser?.full_name ?? "record"}`} />
-        <h1 className="page-title mt-1">{heading}</h1>
+        <h1 className="page-title mt-1">{def.name}</h1>
         <p className="page-subtitle">
           Completing this form stores it as inspection evidence and schedules the next
           due date automatically.
@@ -94,7 +65,7 @@ export default async function CompleteServiceUserCheckPage({
       </div>
 
       <div className="glass-card p-6">
-        <CompleteCheck schema={schema} instanceId={instanceId} presetAnswers={presetAnswers} />
+        <CompleteCheck schema={schema} instanceId={instanceId} />
       </div>
     </div>
   );

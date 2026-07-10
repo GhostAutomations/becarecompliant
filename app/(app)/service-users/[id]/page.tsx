@@ -103,10 +103,12 @@ export default async function ServiceUserPage({
   // Complex branches run four rolling reviews (Review 1-4), shown as slot cards like
   // People's Supervision. Simple branches keep the single review card.
   const isComplex = branchType.isComplex;
-  const reviewComps = isComplex ? await getReviewComps(id, reviewDef?.form_id ?? null) : {};
+  const reviewComps = isComplex ? await getReviewComps(id, reviewDef?.form_id ?? null) : [];
   const slots = isComplex
     ? reviewSlots(serviceUser.package_start_date, reviewComps, complexInterval)
     : [];
+  // Reviews are completed in order, so only the next outstanding slot can be completed.
+  const nextReviewN = slots.find((s) => !s.comp)?.n ?? null;
 
   const worstRag =
     statuses.length === 0
@@ -175,9 +177,9 @@ export default async function ServiceUserPage({
                         <div className="flex justify-between"><dt>Due</dt><dd className="text-white/80">{formatDisplayDate(s.due) || "—"}</dd></div>
                         <div className="flex justify-between"><dt>Completed</dt><dd className="text-white/80">{formatDisplayDate(s.comp) || "Not yet"}</dd></div>
                       </dl>
-                      {reviewStatusCheck && reviewDef?.form_id && canComplete ? (
+                      {s.n === nextReviewN && reviewStatusCheck && reviewDef?.form_id && canComplete ? (
                         <Link
-                          href={`/service-users/${serviceUser.id}/checks/${reviewStatusCheck.instance_id}/complete?rev=${s.n}`}
+                          href={`/service-users/${serviceUser.id}/checks/${reviewStatusCheck.instance_id}/complete`}
                           className="btn-primary mt-3 w-full justify-center text-xs"
                         >
                           Complete

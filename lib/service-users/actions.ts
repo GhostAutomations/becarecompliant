@@ -554,6 +554,33 @@ export async function setBranchServiceUserType(formData: FormData): Promise<void
     .eq("id", branchId);
   if (error) return;
 
+  // Re-anchor every Service User's Care Plan Review due date in this branch to the new
+  // mode's cadence: Complex uses the company Complex interval, Simple the Care Plan
+  // Review definition interval. The register slots recompute from the completion
+  // history automatically; this keeps the RAG rollup correct.
+  let intervalDays = 365;
+  if (type === "complex") {
+    const { data: company } = await supabase
+      .from("companies")
+      .select("complex_review_interval_days")
+      .eq("id", profile.company_id ?? "")
+      .maybeSingle();
+    intervalDays = (company?.complex_review_interval_days as number | null) ?? 80;
+  } else {
+    const { data: def } = await supabase
+      .from("check_definitions")
+      .select("interval")
+      .eq("company_id", profile.company_id ?? "")
+      .eq("population", "service_users")
+      .eq("key", "care_plan_review")
+      .maybeSingle();
+    intervalDays = (def?.interval as number | null) ?? 365;
+  }
+  await supabase.rpc("reschedule_branch_reviews", {
+    p_branch_id: branchId,
+    p_interval_days: intervalDays,
+  });
+
   await writeAudit({
     companyId: profile.company_id ?? "",
     actorId: user.id,
@@ -563,10 +590,11 @@ export async function setBranchServiceUserType(formData: FormData): Promise<void
     entityType: "branch",
     entityId: branchId,
     summary: `Set Service User type to ${type}`,
-    metadata: { type },
+    metadata: { type, interval_days: intervalDays },
   });
 
   revalidatePath("/settings/service-users");
+  revalidatePath("/service-users");
 }
 
 /** Save the per-company shorthand labels for the Service User register columns. */

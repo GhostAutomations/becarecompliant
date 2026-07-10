@@ -90,14 +90,14 @@ export type ReviewSlot = {
 };
 
 /** One row of the Service User register: a Record plus its checks and tracker.
- *  reviewComps holds the Care Plan Review completion date keyed by review number
- *  ("1".."4"), used to derive the Review 1-4 slots on Complex branches. */
+ *  reviewComps holds ALL Care Plan Review completion dates (oldest first), used to
+ *  derive the Review 1-4 slots positionally on Complex branches. */
 export type ServiceUserRow = {
   service_user: ServiceUserRecord;
   rollup: ServiceUserRollup | null;
   statusByKey: Record<string, SuCheckStatus>;
   tracker: ServiceUserTracker | null;
-  reviewComps: Record<string, string>;
+  reviewComps: string[];
 };
 
 /** The Service User register columns that can be given a shorthand label in
