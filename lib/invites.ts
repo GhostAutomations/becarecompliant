@@ -159,10 +159,12 @@ export async function createAndSendInvite(
     .eq("id", link.userId);
 
   if (p.branchId && p.role !== "company_admin") {
+    // The invited branch is the user's primary branch (drives auto-fill). Additional
+    // branch views are added later from the Users screen.
     await admin
       .from("user_branches")
       .upsert(
-        { user_id: link.userId, branch_id: p.branchId },
+        { user_id: link.userId, branch_id: p.branchId, is_primary: true },
         { onConflict: "user_id,branch_id" },
       );
   }

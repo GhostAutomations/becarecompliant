@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
 import {
   createAndSendInvite,
@@ -146,6 +147,112 @@ export async function setUserStatus(formData: FormData): Promise<void> {
     entityId: userId,
     summary: `Set user status to ${status}`,
     metadata: { status },
+  });
+  revalidatePath("/settings/users");
+}
+
+/** Save a team member's role, Primary Branch and Additional Branch Views in one go.
+ *  Primary = auto-fill branch (their name appears when that branch is chosen on Add).
+ *  Additional views = branches they can see but are not auto-filled into. */
+export async function saveTeamMember(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const ctx = await adminContext();
+  if (!ctx.ok) return { error: ctx.error };
+
+  const userId = String(formData.get("user_id") ?? "");
+  const role = String(formData.get("role") ?? "") as InviteRole;
+  const primary = String(formData.get("primary_branch_id") ?? "").trim();
+  const additional = formData.getAll("additional_branch_ids").map(String).filter(Boolean);
+
+  if (!userId) return { error: "Missing user." };
+  if (!INVITABLE_ROLES.includes(role)) return { error: "Choose Manager, Supervisor or Team Member." };
+  if (userId === ctx.actor.id) return { error: "You cannot edit your own account here." };
+  if (!primary) return { error: "Choose a primary branch." };
+
+  const supabase = await createClient();
+  const { data: target } = await supabase
+    .from("profiles")
+    .select("id, company_id, role")
+    .eq("id", userId)
+    .maybeSingle();
+  if (!target || target.company_id !== ctx.companyId) return { error: "User not found." };
+  if (target.role === "company_admin" || target.role === "platform_admin") {
+    return { error: "Admins are managed separately." };
+  }
+
+  // Validate every branch belongs to this company and is an active branch (not office).
+  const wanted = Array.from(new Set([primary, ...additional]));
+  const { data: validBranches } = await supabase
+    .from("branches")
+    .select("id")
+    .eq("company_id", ctx.companyId)
+    .eq("kind", "branch")
+    .eq("status", "active")
+    .in("id", wanted);
+  const validSet = new Set((validBranches ?? []).map((b) => b.id as string));
+  if (!validSet.has(primary)) return { error: "Choose a valid primary branch." };
+  const cleanAdditional = additional.filter((id) => id !== primary && validSet.has(id));
+
+  // Role.
+  const { error: roleErr } = await supabase.from("profiles").update({ role }).eq("id", userId);
+  if (roleErr) return { error: roleErr.message };
+
+  // Replace the branch rows: one primary + the additional views.
+  await supabase.from("user_branches").delete().eq("user_id", userId);
+  const rows = [
+    { user_id: userId, branch_id: primary, is_primary: true },
+    ...cleanAdditional.map((id) => ({ user_id: userId, branch_id: id, is_primary: false })),
+  ];
+  const { error: insErr } = await supabase.from("user_branches").insert(rows);
+  if (insErr) return { error: insErr.message };
+
+  await writeAudit({
+    companyId: ctx.companyId,
+    actorId: ctx.actor.id,
+    actorEmail: ctx.actor.email,
+    actorRole: ctx.actor.role,
+    action: "user.updated",
+    entityType: "profile",
+    entityId: userId,
+    summary: "Updated role and branches",
+    metadata: { role, primary_branch_id: primary, additional_branch_ids: cleanAdditional },
+  });
+  revalidatePath("/settings/users");
+  return { ok: "Saved" };
+}
+
+/** Permanently delete a team member (removes their login and all their assignments). */
+export async function deleteUser(formData: FormData): Promise<void> {
+  const ctx = await adminContext();
+  if (!ctx.ok) return;
+  const userId = String(formData.get("user_id") ?? "");
+  if (!userId || userId === ctx.actor.id) return;
+
+  const supabase = await createClient();
+  const { data: target } = await supabase
+    .from("profiles")
+    .select("id, company_id, role, email")
+    .eq("id", userId)
+    .maybeSingle();
+  if (!target || target.company_id !== ctx.companyId) return;
+  if (target.role === "company_admin" || target.role === "platform_admin") return;
+
+  // Deleting the auth user cascades the profile, branch rows and assignments.
+  const admin = createServiceClient();
+  const { error } = await admin.auth.admin.deleteUser(userId);
+  if (error) {
+    console.error("[deleteUser] failed:", error.message);
+    return;
+  }
+
+  await writeAudit({
+    companyId: ctx.companyId,
+    actorId: ctx.actor.id,
+    actorEmail: ctx.actor.email,
+    actorRole: ctx.actor.role,
+    action: "user.deleted",
+    entityType: "profile",
+    entityId: userId,
+    summary: `Deleted user ${target.email}`,
   });
   revalidatePath("/settings/users");
 }

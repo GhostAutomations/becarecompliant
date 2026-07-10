@@ -5,12 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { ROLE_LABELS } from "@/lib/nav";
 import BackLink from "@/components/back-link";
 import { InviteForm } from "@/components/settings/invite-form";
-import {
-  resendInviteAction,
-  revokeInviteAction,
-  setUserStatus,
-  changeUserRole,
-} from "../actions";
+import TeamMemberControls from "@/components/settings/team-member-controls";
+import { resendInviteAction, revokeInviteAction } from "../actions";
 
 export const metadata: Metadata = { title: "Users and invites" };
 
@@ -48,18 +44,20 @@ export default async function UsersPage() {
   const activeBranches = branchList.filter((b) => b.status === "active");
   const branchName = new Map(branchList.map((b) => [b.id, b.name]));
 
-  // Branch assignments for the company's users.
+  // Branch assignments for the company's users, split into the primary branch and the
+  // additional branch views.
   const branchIds = branchList.map((b) => b.id);
-  const assignments = new Map<string, string[]>();
+  const primaryByUser = new Map<string, string>();
+  const additionalByUser = new Map<string, string[]>();
   if (branchIds.length > 0) {
     const { data: ub } = await supabase
       .from("user_branches")
-      .select("user_id, branch_id")
+      .select("user_id, branch_id, is_primary")
       .in("branch_id", branchIds);
     for (const row of ub ?? []) {
-      const name = branchName.get(row.branch_id);
-      if (!name) continue;
-      assignments.set(row.user_id, [...(assignments.get(row.user_id) ?? []), name]);
+      if (!branchName.has(row.branch_id)) continue;
+      if (row.is_primary) primaryByUser.set(row.user_id, row.branch_id);
+      else additionalByUser.set(row.user_id, [...(additionalByUser.get(row.user_id) ?? []), row.branch_id]);
     }
   }
 
@@ -147,7 +145,12 @@ export default async function UsersPage() {
             const isSelf = u.id === user.id;
             const isAdmin = u.role === "company_admin";
             const canManage = !isSelf && !isAdmin;
-            const userBranches = assignments.get(u.id) ?? [];
+            const primaryId = primaryByUser.get(u.id) ?? null;
+            const additionalIds = additionalByUser.get(u.id) ?? [];
+            const branchSummary = [
+              primaryId ? branchName.get(primaryId) : null,
+              ...additionalIds.map((id) => branchName.get(id)),
+            ].filter(Boolean);
             return (
               <div key={u.id} className="glass-card p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -162,8 +165,8 @@ export default async function UsersPage() {
                       {u.email} ·{" "}
                       {isAdmin
                         ? "all branches"
-                        : userBranches.length > 0
-                          ? userBranches.join(", ")
+                        : branchSummary.length > 0
+                          ? branchSummary.join(", ")
                           : "no branch"}
                     </p>
                   </div>
@@ -180,45 +183,14 @@ export default async function UsersPage() {
                 </div>
 
                 {canManage ? (
-                  <div className="mt-3 flex flex-wrap items-end gap-3 border-t border-white/10 pt-3">
-                    <form
-                      action={changeUserRole}
-                      className="flex items-end gap-2"
-                    >
-                      <input type="hidden" name="user_id" value={u.id} />
-                      <div>
-                        <label
-                          htmlFor={`role-${u.id}`}
-                          className="form-label text-xs"
-                        >
-                          Role
-                        </label>
-                        <select
-                          id={`role-${u.id}`}
-                          name="role"
-                          defaultValue={u.role}
-                        >
-                          <option value="manager">Manager</option>
-                          <option value="supervisor">Supervisor</option>
-                          <option value="team_member">Team Member</option>
-                        </select>
-                      </div>
-                      <button type="submit" className="btn-outline text-xs">
-                        Update role
-                      </button>
-                    </form>
-                    <form action={setUserStatus}>
-                      <input type="hidden" name="user_id" value={u.id} />
-                      <input
-                        type="hidden"
-                        name="status"
-                        value={u.status === "active" ? "disabled" : "active"}
-                      />
-                      <button type="submit" className="btn-ghost px-3 py-2 text-xs">
-                        {u.status === "active" ? "Disable" : "Enable"}
-                      </button>
-                    </form>
-                  </div>
+                  <TeamMemberControls
+                    userId={u.id}
+                    role={u.role}
+                    status={u.status}
+                    primaryBranchId={primaryId}
+                    additionalBranchIds={additionalIds}
+                    branches={activeBranches.filter((b) => b.kind === "branch").map((b) => ({ id: b.id, name: b.name }))}
+                  />
                 ) : null}
               </div>
             );

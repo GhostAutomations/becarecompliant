@@ -337,8 +337,10 @@ export type BranchStaff = Record<string, { managers: ProfileLite[]; supervisors:
  *  resource / RLS quirks. */
 export async function getBranchStaffMap(companyId: string): Promise<BranchStaff> {
   const supabase = await createClient();
+  // Auto-fill uses each user's PRIMARY branch only: a user is auto-filled into the
+  // branch they belong to, not the "additional branch views" they can merely see.
   const [{ data: ubs }, { data: profs }] = await Promise.all([
-    supabase.from("user_branches").select("user_id, branch_id"),
+    supabase.from("user_branches").select("user_id, branch_id").eq("is_primary", true),
     supabase
       .from("profiles")
       .select("id, full_name, email, role")
