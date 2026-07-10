@@ -91,10 +91,14 @@ export function addDaysToIso(iso: string | null, days: number): string | null {
  * Derive the four Care Plan Review slots (Review 1-4) for a Complex branch from the
  * package start date, the review interval (days, default 80) and the completion
  * history, keyed by review number (like People's Supervision 1/2/3):
- *  - Review 1 due = package start + interval.
+ *  - Review 1 due = the cycle anchor + interval.
  *  - Review n (n >= 2) due = the previous review's completion + interval.
  *  - Review n completed = the completion whose "which review" answer is n.
- * A completed slot is green; an outstanding one is RAG by its due date.
+ * Completing the FINAL review (Review `count`) restarts the cycle, exactly like a
+ * completed Annual Appraisal restarts People's supervision cycle: the cycle anchor
+ * moves to that completion, all slots reset (completions on/before it are dropped),
+ * and Review 1 becomes due one interval after it. A completed slot is green; an
+ * outstanding one is RAG by its due date.
  */
 export function reviewSlots(
   packageStart: string | null,
@@ -107,10 +111,21 @@ export function reviewSlots(
   const slots: ReviewSlot[] = [];
   const valid = (d: string | null | undefined): d is string => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d);
   const interval = intervalDays >= 1 ? intervalDays : 80;
-  const compOf = (n: number): string | null => (valid(comps[String(n)]) ? comps[String(n)] : null);
+  // The last final-review completion restarts the cycle. The cycle anchor is the LATER
+  // of the package start and that completion; only completions strictly after it count
+  // towards the current cycle (so completing Review `count` resets every slot).
+  const restartFrom = valid(comps[String(count)]) ? comps[String(count)] : null;
+  const anchorCandidates = [packageStart, restartFrom].filter(valid);
+  const cycleAnchor = anchorCandidates.length ? anchorCandidates.sort()[anchorCandidates.length - 1] : null;
+  const compOf = (n: number): string | null => {
+    const d = comps[String(n)];
+    if (!valid(d)) return null;
+    if (restartFrom && d <= restartFrom) return null;
+    return d;
+  };
   for (let n = 1; n <= count; n++) {
     const comp = compOf(n);
-    const anchor = n === 1 ? packageStart : compOf(n - 1);
+    const anchor = n === 1 ? cycleAnchor : compOf(n - 1);
     const due = valid(anchor) ? formatCivilDate(addInterval(parseCivilDate(anchor), "day", interval)) : null;
     const rag: Rag | "none" = comp ? "green" : due ? ragStatus(parseCivilDate(due), today, amberDays) : "none";
     slots.push({ n, due, comp, rag });
