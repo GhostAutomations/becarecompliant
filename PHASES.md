@@ -76,7 +76,11 @@ Agreed decisions (2026-07-08 popups; Phil shared his live Monday "Team Complianc
 
 Build order: recurrence engine (+ tests) → migration 0004 (people, check_definitions, check_instances, person_assignments, RAG view/fns, RLS, seed people catalogue; ref bgrtcvyjuwopunpnudeu only) → register matrix UI → record drill-down → check config/assignment → complete-Form-satisfies-Check via submitEvidence(record_type='person') → RAG rollups + realtime → leaver/archived exclusion → deploy + test checklist.
 
-## Phase 4 — Service Users section  🔨 IN PROGRESS (scope agreed by popup 2026-07-09)
+## Phase 4 — Service Users section  ✅ COMPLETE (signed off by Phil 2026-07-10; full testing deferred to Final Testing)
+
+Open decision parked for the next Complex-review pass (Phil, 2026-07-10): when Review 4 is completed, should the four Review cards (A) stay visible as completed until the next review starts a fresh cycle, or (B) blank immediately with Review 1 showing its new due date. Currently B (reset on the 4th completion, positional model). Phil leaned towards A but did not finalise; revisit if he raises it. Also deferred: the Planned Review Date reviewer calendar-invite email (Phase 6) and the full TEST-CHECKLIST-PHASE4.md run (Final Testing).
+
+Phase 4 as originally scoped (agreed by popup 2026-07-09):
 
 Same loop for service users, SU-specific check types and templates (care plan reviews, risk assessments, MAR checks, consent reviews), special-category data handling: access audit logging (reads, not just writes), strict role isolation (Team Members never see service user data unless assigned), discharged service users excluded everywhere.
 
