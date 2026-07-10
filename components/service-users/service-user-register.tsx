@@ -255,6 +255,11 @@ export default function ServiceUserRegister({
                     const su = row.service_user;
                     const review = row.statusByKey["care_plan_review"];
                     const setup = row.statusByKey["setup"];
+                    const setupDue = setup?.due_date ?? null;
+                    const setupComp = setup?.last_completed_on ?? null;
+                    // Completed on time (green) when the completion is on or before the
+                    // due date, otherwise late (red).
+                    const setupLate = !!setupComp && !!setupDue && setupComp > setupDue;
                     const newReviewDue = review?.due_date ?? null;
                     const planned = row.tracker?.planned_review_date ?? null;
                     const rs = reviewStatus(newReviewDue, planned);
@@ -288,8 +293,22 @@ export default function ServiceUserRegister({
                           )}
                         </td>
                         <td><span className="text-white/70">{formatDisplayDate(su.package_start_date) || "—"}</span></td>
-                        <td><RagDate date={setup?.due_date ?? null} rag={setup?.rag ?? "none"} /></td>
-                        <td><span className="text-white/70">{formatDisplayDate(setup?.last_completed_on ?? null) || "—"}</span></td>
+                        <td>
+                          {setupComp ? (
+                            <span className="text-white/70">{formatDisplayDate(setupDue) || "—"}</span>
+                          ) : (
+                            <RagDate date={setupDue} rag={setup?.rag ?? "none"} />
+                          )}
+                        </td>
+                        <td>
+                          {setupComp ? (
+                            <span className={`rag-cell ${setupLate ? "rag-cell-red" : "rag-cell-green"}`}>
+                              {formatDisplayDate(setupComp)}
+                            </span>
+                          ) : (
+                            <span className="rag-cell rag-cell-none">—</span>
+                          )}
+                        </td>
                         <td><span className="text-white/70">{formatDisplayDate(review?.last_completed_on ?? null) || "—"}</span></td>
                         <td><RagDate date={newReviewDue} rag={review?.rag ?? "none"} /></td>
                         <td>
