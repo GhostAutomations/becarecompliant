@@ -195,20 +195,23 @@ export async function listRegister(
           }),
     ]);
 
-  // Care Plan Review completion dates per Service User (oldest first), used to derive
-  // the REV1-4 slots on Complex branches. Completion date = the form's review_date
-  // when captured, else the submission timestamp.
-  const reviewCompsBySu = new Map<string, string[]>();
+  // Care Plan Review completion date per Service User keyed by review number ("1".."4"),
+  // used to derive the Review 1-4 slots on Complex branches. Completion date = the
+  // form's review_date when captured, else the submission timestamp; the latest
+  // completion of each slot wins (evidence is ordered oldest first).
+  const reviewCompsBySu = new Map<string, Record<string, string>>();
   for (const e of (reviewEvidence as Array<{
     record_id: string;
     submitted_at: string;
     answers: Record<string, unknown>;
   }>) ?? []) {
+    const slot = String(e.answers?.review_number ?? "");
+    if (slot !== "1" && slot !== "2" && slot !== "3" && slot !== "4") continue;
     const d = e.answers?.review_date;
     const iso = typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : e.submitted_at.slice(0, 10);
-    const list = reviewCompsBySu.get(e.record_id) ?? [];
-    list.push(iso);
-    reviewCompsBySu.set(e.record_id, list);
+    const map = reviewCompsBySu.get(e.record_id) ?? {};
+    map[slot] = iso;
+    reviewCompsBySu.set(e.record_id, map);
   }
 
   const statuses = (statusData as SuCheckStatus[]) ?? [];
@@ -236,7 +239,7 @@ export async function listRegister(
     rollup: rollupBySu.get(service_user.id) ?? null,
     statusByKey: statusByKeyBySu.get(service_user.id) ?? {},
     tracker: trackerBySu.get(service_user.id) ?? null,
-    reviewComps: reviewCompsBySu.get(service_user.id) ?? [],
+    reviewComps: reviewCompsBySu.get(service_user.id) ?? {},
   }));
 
   return { definitions, rows };
@@ -252,6 +255,45 @@ export async function getServiceUserTracker(id: string): Promise<ServiceUserTrac
   if (!data) return null;
   const { reviewer, ...rest } = data as ServiceUserTracker & { reviewer: { full_name: string | null } | null };
   return { ...rest, planned_reviewer_name: reviewer?.full_name ?? null };
+}
+
+/** Care Plan Review completion date keyed by review number ("1".."4") for one
+ *  Service User, most recent completion of each slot winning. */
+export async function getReviewComps(
+  serviceUserId: string,
+  reviewFormId: string | null,
+): Promise<Record<string, string>> {
+  if (!reviewFormId) return {};
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("evidence")
+    .select("submitted_at, answers")
+    .eq("record_type", "service_user")
+    .eq("record_id", serviceUserId)
+    .eq("form_id", reviewFormId)
+    .order("submitted_at", { ascending: true });
+  const out: Record<string, string> = {};
+  for (const e of (data as Array<{ submitted_at: string; answers: Record<string, unknown> }>) ?? []) {
+    const slot = String(e.answers?.review_number ?? "");
+    if (slot !== "1" && slot !== "2" && slot !== "3" && slot !== "4") continue;
+    const d = e.answers?.review_date;
+    out[slot] = typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : e.submitted_at.slice(0, 10);
+  }
+  return out;
+}
+
+/** Is a Service User on a Complex branch, and the company Complex review interval. */
+export async function getServiceUserBranchType(
+  serviceUserId: string,
+): Promise<{ isComplex: boolean }> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("service_users")
+    .select("branches(service_user_type)")
+    .eq("id", serviceUserId)
+    .maybeSingle();
+  const branch = (data as { branches: { service_user_type: string } | null } | null)?.branches;
+  return { isComplex: branch?.service_user_type === "complex" };
 }
 
 export async function getServiceUserChecks(id: string): Promise<SuCheckStatus[]> {

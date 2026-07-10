@@ -18,11 +18,14 @@ import {
   todayInLondon,
 } from "@/lib/recurrence";
 import type { CheckDefinition } from "@/lib/people/types";
+import type { FormSchema } from "@/lib/form-schema";
 import type { ReviewSlot, ReviewStatus } from "./types";
-
 // The date formatter is identical for both populations; reuse the People one so
-// DD MMM YY rendering never diverges between the two registers.
-export { formatDisplayDate, recurrenceLabel } from "@/lib/people/logic";
+// DD MMM YY rendering never diverges between the two registers. Imported for local
+// use here and re-exported for callers.
+import { formatDisplayDate, recurrenceLabel } from "@/lib/people/logic";
+
+export { formatDisplayDate, recurrenceLabel };
 
 function ruleOf(def: CheckDefinition): RecurrenceRule | null {
   if (!def.frequency || !def.interval) return null;
@@ -85,17 +88,17 @@ export function addDaysToIso(iso: string | null, days: number): string | null {
 }
 
 /**
- * Derive the four Care Plan Review slots (REV1-4) for a Complex branch from the
+ * Derive the four Care Plan Review slots (Review 1-4) for a Complex branch from the
  * package start date, the review interval (days, default 80) and the completion
- * history:
- *  - REV1 due = package start + interval.
- *  - REV n (n >= 2) due = the previous review's completion + interval.
- *  - REV n completed = the n-th completion (completions sorted oldest first).
+ * history, keyed by review number (like People's Supervision 1/2/3):
+ *  - Review 1 due = package start + interval.
+ *  - Review n (n >= 2) due = the previous review's completion + interval.
+ *  - Review n completed = the completion whose "which review" answer is n.
  * A completed slot is green; an outstanding one is RAG by its due date.
  */
 export function reviewSlots(
   packageStart: string | null,
-  sortedComps: string[],
+  comps: Record<string, string>,
   intervalDays: number,
   count = 4,
   amberDays = 30,
@@ -104,7 +107,7 @@ export function reviewSlots(
   const slots: ReviewSlot[] = [];
   const valid = (d: string | null | undefined): d is string => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d);
   const interval = intervalDays >= 1 ? intervalDays : 80;
-  const compOf = (n: number): string | null => (valid(sortedComps[n - 1]) ? sortedComps[n - 1] : null);
+  const compOf = (n: number): string | null => (valid(comps[String(n)]) ? comps[String(n)] : null);
   for (let n = 1; n <= count; n++) {
     const comp = compOf(n);
     const anchor = n === 1 ? packageStart : compOf(n - 1);
@@ -113,6 +116,37 @@ export function reviewSlots(
     slots.push({ n, due, comp, rag });
   }
   return slots;
+}
+
+/** Annotate the Care Plan Review form's "Which review" options with this Service
+ *  User's slot due/completion dates, and flag the next one to complete, so the person
+ *  filling the form knows which review is next. Pure: returns a new schema. */
+export function annotateReviewOptions(schema: FormSchema, slots: ReviewSlot[]): FormSchema {
+  const nextN = slots.find((s) => !s.comp)?.n ?? null;
+  const bySlot = new Map(slots.map((s) => [String(s.n), s]));
+  return {
+    ...schema,
+    sections: schema.sections.map((section) => ({
+      ...section,
+      fields: section.fields.map((field) => {
+        if (field.key !== "review_number" || !field.options) return field;
+        return {
+          ...field,
+          options: field.options.map((o) => {
+            const slot = bySlot.get(o.value);
+            if (!slot) return o;
+            let hint: string;
+            if (slot.comp) hint = `completed ${formatDisplayDate(slot.comp)}`;
+            else if (slot.due) hint = `due ${formatDisplayDate(slot.due)}`;
+            else if (slot.n > 1) hint = `due after Review ${slot.n - 1}`;
+            else hint = "";
+            if (slot.n === nextN) hint = hint ? `${hint} (next)` : "next";
+            return { ...o, hint: hint || undefined };
+          }),
+        };
+      }),
+    })),
+  };
 }
 
 /**

@@ -10,6 +10,9 @@ import {
   getServiceUser,
   getServiceUserChecks,
   getServiceUserTracker,
+  getReviewComps,
+  getServiceUserBranchType,
+  getComplexReviewInterval,
   listBranches,
   listSupervisoryUsers,
   listServiceUserCheckDefinitions,
@@ -23,7 +26,7 @@ import {
   setServiceStatus,
   transferServiceUser,
 } from "@/lib/service-users/actions";
-import { formatDisplayDate, recurrenceLabel, reviewStatus } from "@/lib/service-users/logic";
+import { formatDisplayDate, recurrenceLabel, reviewStatus, reviewSlots } from "@/lib/service-users/logic";
 import {
   type SuCheckStatus,
   type ServiceStatus,
@@ -75,15 +78,18 @@ export default async function ServiceUserPage({
     summary: `Viewed ${serviceUser.full_name}`,
   });
 
-  const [statuses, definitions, evidence, users, assignments, branches, tracker] = await Promise.all([
-    getServiceUserChecks(id),
-    listServiceUserCheckDefinitions(companyId),
-    listServiceUserEvidence(id),
-    canManage ? listSupervisoryUsers(companyId) : Promise.resolve([]),
-    canManage ? listServiceUserAssignments(id) : Promise.resolve([]),
-    canManage ? listBranches(companyId) : Promise.resolve([]),
-    getServiceUserTracker(id),
-  ]);
+  const [statuses, definitions, evidence, users, assignments, branches, tracker, branchType, complexInterval] =
+    await Promise.all([
+      getServiceUserChecks(id),
+      listServiceUserCheckDefinitions(companyId),
+      listServiceUserEvidence(id),
+      canManage ? listSupervisoryUsers(companyId) : Promise.resolve([]),
+      canManage ? listServiceUserAssignments(id) : Promise.resolve([]),
+      canManage ? listBranches(companyId) : Promise.resolve([]),
+      getServiceUserTracker(id),
+      getServiceUserBranchType(id),
+      getComplexReviewInterval(companyId),
+    ]);
 
   const statusByDef = new Map<string, SuCheckStatus>(statuses.map((s) => [s.definition_id, s]));
   const reviewDef = definitions.find((d) => d.key === "care_plan_review");
@@ -93,6 +99,14 @@ export default async function ServiceUserPage({
   const newReviewDue = reviewStatusCheck?.due_date ?? null;
   const plannedDate = tracker?.planned_review_date ?? null;
   const rs = reviewStatus(newReviewDue, plannedDate);
+
+  // Complex branches run four rolling reviews (Review 1-4), shown as slot cards like
+  // People's Supervision. Simple branches keep the single review card.
+  const isComplex = branchType.isComplex;
+  const reviewComps = isComplex ? await getReviewComps(id, reviewDef?.form_id ?? null) : {};
+  const slots = isComplex
+    ? reviewSlots(serviceUser.package_start_date, reviewComps, complexInterval)
+    : [];
 
   const worstRag =
     statuses.length === 0
@@ -134,7 +148,51 @@ export default async function ServiceUserPage({
         </div>
       ) : (
         <>
-          {/* Care Plan Review workflow */}
+          {/* Care Plan Review workflow. Complex branches: four rolling Review slots
+              (like People's Supervision). Simple branches: a single review card. */}
+          {isComplex ? (
+            <section className="space-y-3">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Care Plan Reviews</h2>
+              <div className="glass-card grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
+                {slots.map((s) => {
+                  const slotCls =
+                    s.rag === "red"
+                      ? "rag-cell-red"
+                      : s.rag === "amber"
+                        ? "rag-cell-amber"
+                        : s.rag === "green"
+                          ? "rag-cell-green"
+                          : "rag-cell-none";
+                  return (
+                    <div key={s.n} className="flex flex-col rounded-xl border border-white/10 p-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-white/70">Review {s.n}</span>
+                        <span className={`rag-cell ${slotCls}`}>
+                          {s.comp ? "Done" : s.due ? formatDisplayDate(s.due) : "—"}
+                        </span>
+                      </div>
+                      <dl className="mt-2 space-y-1 text-[11px] text-white/55">
+                        <div className="flex justify-between"><dt>Due</dt><dd className="text-white/80">{formatDisplayDate(s.due) || "—"}</dd></div>
+                        <div className="flex justify-between"><dt>Completed</dt><dd className="text-white/80">{formatDisplayDate(s.comp) || "Not yet"}</dd></div>
+                      </dl>
+                      {reviewStatusCheck && reviewDef?.form_id && canComplete ? (
+                        <Link
+                          href={`/service-users/${serviceUser.id}/checks/${reviewStatusCheck.instance_id}/complete?rev=${s.n}`}
+                          className="btn-primary mt-3 w-full justify-center text-xs"
+                        >
+                          Complete
+                        </Link>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-[11px] text-white/40">
+                Review 1 is due {complexInterval} days after the package start; each further
+                review is due {complexInterval} days after the previous one is completed.
+              </p>
+            </section>
+          ) : (
           <section className="space-y-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Care Plan Review</h2>
             <div className="glass-card space-y-4 p-5">
@@ -179,6 +237,7 @@ export default async function ServiceUserPage({
               ) : null}
             </div>
           </section>
+          )}
 
           {/* Other recurring checks: risk assessment, MAR audit, consent review */}
           <section className="space-y-3">
