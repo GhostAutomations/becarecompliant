@@ -127,7 +127,7 @@ export default function TeamMemberControls({
         <button
           type="submit"
           disabled={pending}
-          className={`btn ${state.ok ? "btn-saved" : "btn-primary"} h-[42px] text-xs`}
+          className={`btn ${state.ok ? "btn-saved" : "btn-primary"} h-[42px] w-28 text-xs`}
         >
           {pending ? "Saving…" : state.ok ? "Saved" : "Save"}
         </button>
