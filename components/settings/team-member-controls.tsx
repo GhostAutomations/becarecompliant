@@ -64,7 +64,7 @@ export default function TeamMemberControls({
           <input key={id} type="hidden" name="additional_branch_ids" value={id} />
         ))}
 
-        <div>
+        <div className="w-52">
           <label htmlFor={`role-${userId}`} className="form-label text-xs">Role</label>
           <select
             id={`role-${userId}`}
@@ -78,7 +78,7 @@ export default function TeamMemberControls({
           </select>
         </div>
 
-        <div>
+        <div className="w-52">
           <label htmlFor={`primary-${userId}`} className="form-label text-xs">Primary branch</label>
           <select
             id={`primary-${userId}`}
@@ -93,18 +93,18 @@ export default function TeamMemberControls({
           </select>
         </div>
 
-        <div ref={menuRef} className="relative">
+        <div ref={menuRef} className="relative w-52">
           <span className="form-label text-xs">Additional branch views</span>
           <button
             type="button"
             onClick={() => setMenuOpen((v) => !v)}
-            className="inline-cell text-left"
+            className="flex w-full items-center justify-between rounded-xl border border-white/20 bg-white/10 px-3.5 py-2.5 text-left text-sm text-white shadow-sm backdrop-blur"
           >
             {selectedNames.length > 0 ? `${selectedNames.length} selected` : "None"}
             <span aria-hidden className="ml-2 opacity-60">▾</span>
           </button>
           {menuOpen ? (
-            <div className="absolute z-50 mt-1 flex max-h-56 min-w-[12rem] flex-col gap-1 overflow-auto rounded-xl border border-white/15 bg-navy-900 p-2 shadow-2xl">
+            <div className="absolute z-50 mt-1 flex max-h-56 w-full flex-col gap-1 overflow-auto rounded-xl border border-white/15 bg-navy-900 p-2 shadow-2xl">
               {additionalOptions.length === 0 ? (
                 <span className="px-2 py-1 text-xs text-white/50">No other branches.</span>
               ) : (
@@ -121,9 +121,6 @@ export default function TeamMemberControls({
               )}
             </div>
           ) : null}
-          <p className="mt-1 max-w-[13rem] text-[10px] text-white/40">
-            Can view these branches, but is not auto filled into them when adding records.
-          </p>
         </div>
 
         <button
