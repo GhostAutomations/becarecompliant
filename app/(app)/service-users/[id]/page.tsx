@@ -170,12 +170,14 @@ export default async function ServiceUserPage({
                 </div>
               </div>
               {reviewStatusCheck && reviewDef?.form_id && canComplete ? (
-                <Link
-                  href={`/service-users/${serviceUser.id}/checks/${reviewStatusCheck.instance_id}/complete`}
-                  className="btn-primary w-full justify-center text-sm"
-                >
-                  Complete a review
-                </Link>
+                <div className="flex justify-center">
+                  <Link
+                    href={`/service-users/${serviceUser.id}/checks/${reviewStatusCheck.instance_id}/complete`}
+                    className="btn-primary w-full max-w-sm justify-center text-xs"
+                  >
+                    Complete a review
+                  </Link>
+                </div>
               ) : null}
             </div>
           </section>
