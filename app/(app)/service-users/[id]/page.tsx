@@ -137,45 +137,47 @@ export default async function ServiceUserPage({
           {/* Care Plan Review workflow */}
           <section className="space-y-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Care Plan Review</h2>
-            <div className="glass-card grid gap-4 p-5 sm:grid-cols-4">
-              <div>
-                <p className="text-[11px] text-white/45">Most recent review</p>
-                <p className="text-sm text-white/85">{formatDisplayDate(reviewStatusCheck?.last_completed_on ?? null) || "None yet"}</p>
-              </div>
-              <div>
-                <p className="text-[11px] text-white/45">New review due</p>
-                <p className="text-sm text-white/85">{formatDisplayDate(newReviewDue) || "—"}</p>
-              </div>
-              <div>
-                <p className="text-[11px] text-white/45">Planned review date</p>
-                <div className="text-sm text-white/85">
-                  <PlannedReviewCell
-                    serviceUserId={serviceUser.id}
-                    plannedDate={plannedDate}
-                    reviewerId={tracker?.planned_reviewer_id ?? null}
-                    reviewerName={tracker?.planned_reviewer_name ?? null}
-                    reviewers={users}
-                    editable={canManage}
-                  />
+            <div className="glass-card space-y-4 p-5">
+              <div className="grid gap-4 sm:grid-cols-4">
+                <div>
+                  <p className="text-[11px] text-white/45">Most recent review</p>
+                  <p className="text-sm text-white/85">{formatDisplayDate(reviewStatusCheck?.last_completed_on ?? null) || "None yet"}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-white/45">New review due</p>
+                  <p className="text-sm text-white/85">{formatDisplayDate(newReviewDue) || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-white/45">Planned review date</p>
+                  <div className="text-sm text-white/85">
+                    <PlannedReviewCell
+                      serviceUserId={serviceUser.id}
+                      plannedDate={plannedDate}
+                      reviewerId={tracker?.planned_reviewer_id ?? null}
+                      reviewerName={tracker?.planned_reviewer_name ?? null}
+                      reviewers={users}
+                      editable={canManage}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[11px] text-white/45">Review status</p>
+                  <p className="mt-1">
+                    <span className={rs === "overdue" ? "pill-red" : rs === "booked" ? "pill-green" : "pill-neutral"}>
+                      {REVIEW_STATUS_LABELS[rs]}
+                    </span>
+                  </p>
                 </div>
               </div>
-              <div>
-                <p className="text-[11px] text-white/45">Review status</p>
-                <p className="mt-1">
-                  <span className={rs === "overdue" ? "pill-red" : rs === "booked" ? "pill-green" : "pill-neutral"}>
-                    {REVIEW_STATUS_LABELS[rs]}
-                  </span>
-                </p>
-              </div>
+              {reviewStatusCheck && reviewDef?.form_id && canComplete ? (
+                <Link
+                  href={`/service-users/${serviceUser.id}/checks/${reviewStatusCheck.instance_id}/complete`}
+                  className="btn-primary w-full justify-center text-sm"
+                >
+                  Complete a review
+                </Link>
+              ) : null}
             </div>
-            {reviewStatusCheck && reviewDef?.form_id && canComplete ? (
-              <Link
-                href={`/service-users/${serviceUser.id}/checks/${reviewStatusCheck.instance_id}/complete`}
-                className="btn-primary inline-flex text-xs"
-              >
-                Complete a review
-              </Link>
-            ) : null}
           </section>
 
           {/* Other recurring checks: risk assessment, MAR audit, consent review */}
