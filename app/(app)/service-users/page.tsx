@@ -6,7 +6,7 @@ import {
   listRegister,
   listSupervisoryUsers,
   getServiceUserColumnLabels,
-  listBranchTypes,
+  listAccessibleBranchTypes,
   getComplexReviewInterval,
 } from "@/lib/service-users/data";
 
@@ -19,7 +19,7 @@ export default async function ServiceUsersPage({
 }: {
   searchParams: Promise<{ branch?: string; view?: string }>;
 }) {
-  const { profile } = await requireCompany();
+  const { user, profile } = await requireCompany();
 
   if (!profile.company_id) {
     return (
@@ -39,7 +39,7 @@ export default async function ServiceUsersPage({
   // Load EVERY Service User once (all statuses, all the viewer's branches). Branches
   // and View are then switched instantly on the client with no server round trip.
   const [branches, register, reviewers, columnLabels, complexIntervalDays] = await Promise.all([
-    listBranchTypes(companyId),
+    listAccessibleBranchTypes(companyId, profile.role, user.id),
     listRegister(companyId, null, "all"),
     listSupervisoryUsers(companyId),
     getServiceUserColumnLabels(companyId),

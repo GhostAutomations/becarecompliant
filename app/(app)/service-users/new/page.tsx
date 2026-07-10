@@ -3,20 +3,19 @@ import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import CreateServiceUserForm from "@/components/service-users/create-service-user-form";
-import { listBranches } from "@/lib/service-users/data";
+import { listAccessibleBranchTypes } from "@/lib/service-users/data";
 
 export const metadata: Metadata = { title: "Add service user" };
 
 const MANAGE_ROLES = ["company_admin", "manager", "platform_admin"];
 
 export default async function NewServiceUserPage() {
-  const { profile } = await requireCompany();
+  const { user, profile } = await requireCompany();
   if (!profile.company_id) redirect("/service-users");
   if (!MANAGE_ROLES.includes(profile.role)) redirect("/service-users");
 
-  const branches = await listBranches(profile.company_id);
-  // Service Users are only assigned to a branch, never the office (team).
-  const branchOptions = branches.filter((b) => b.kind === "branch");
+  // Only the branches this user is assigned to (Admins see all); never the office.
+  const branchOptions = await listAccessibleBranchTypes(profile.company_id, profile.role, user.id);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">

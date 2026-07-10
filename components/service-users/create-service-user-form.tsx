@@ -3,9 +3,12 @@
 import { useActionState } from "react";
 import { createServiceUser } from "@/lib/service-users/actions";
 import { IDLE_STATE } from "@/lib/forms";
-import type { BranchLite } from "@/lib/service-users/data";
 
-export default function CreateServiceUserForm({ branches }: { branches: BranchLite[] }) {
+export default function CreateServiceUserForm({
+  branches,
+}: {
+  branches: Array<{ id: string; name: string }>;
+}) {
   const [state, formAction, pending] = useActionState(createServiceUser, IDLE_STATE);
 
   return (

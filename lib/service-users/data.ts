@@ -79,7 +79,7 @@ export async function getComplexReviewInterval(companyId: string): Promise<numbe
 export type BranchType = { id: string; name: string; service_user_type: "simple" | "complex" };
 
 /** Active branches (not the office/team) with their Service User type, for the
- *  Settings > Service Users Type section. */
+ *  Settings > Service Users Type section (Admin only, so all branches). */
 export async function listBranchTypes(companyId: string): Promise<BranchType[]> {
   const supabase = await createClient();
   const { data } = await supabase
@@ -89,6 +89,35 @@ export async function listBranchTypes(companyId: string): Promise<BranchType[]> 
     .eq("kind", "branch")
     .eq("status", "active")
     .order("name", { ascending: true });
+  return (data as BranchType[]) ?? [];
+}
+
+/** The branches (not the office/team) the current user may work in: Admin and
+ *  Platform see all; everyone else (Managers, Supervisors, Team Members) sees only
+ *  the branches they are assigned to (user_branches). Used for the register Branches
+ *  dropdown and the Add Service User branch picker, so a user never sees a branch they
+ *  are not assigned to. */
+export async function listAccessibleBranchTypes(
+  companyId: string,
+  role: string,
+  userId: string,
+): Promise<BranchType[]> {
+  const supabase = await createClient();
+  let branchIds: string[] | null = null;
+  if (role !== "company_admin" && role !== "platform_admin") {
+    const { data: ubs } = await supabase.from("user_branches").select("branch_id").eq("user_id", userId);
+    branchIds = ((ubs as Array<{ branch_id: string }> | null) ?? []).map((r) => r.branch_id);
+    if (branchIds.length === 0) return [];
+  }
+  let query = supabase
+    .from("branches")
+    .select("id, name, service_user_type")
+    .eq("company_id", companyId)
+    .eq("kind", "branch")
+    .eq("status", "active")
+    .order("name", { ascending: true });
+  if (branchIds) query = query.in("id", branchIds);
+  const { data } = await query;
   return (data as BranchType[]) ?? [];
 }
 
