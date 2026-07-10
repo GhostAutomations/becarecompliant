@@ -36,6 +36,7 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
       fd.set("days", days);
       fd.set("amber_days", amber);
       fd.set("schedule_mode", scheduleMode);
+      fd.set("recurring", def.recurring ? "1" : "0");
     }
     startTransition(async () => {
       const res = await updateCheckDefinition(fd);
@@ -132,7 +133,7 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
               <input
                 id={`days-${def.id}`}
                 type="number"
-                min={1}
+                min={def.recurring ? 1 : undefined}
                 value={days}
                 onChange={(e) => {
                   setDays(e.target.value);
@@ -140,6 +141,9 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
                 }}
                 className="max-w-[8rem]"
               />
+              {!def.recurring ? (
+                <p className="form-hint">Use a negative number for before the start date, e.g. -1.</p>
+              ) : null}
             </div>
           )}
 

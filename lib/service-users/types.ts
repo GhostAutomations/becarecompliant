@@ -92,9 +92,11 @@ export type ServiceUserRow = {
  *  Settings. key is stable (used in the labels map + headers); name is the full
  *  default label. The sticky Service User column is intentionally excluded. */
 export const SU_REGISTER_COLUMNS: Array<{ key: string; name: string }> = [
-  { key: "package_start_date", name: "Package Start Date" },
   { key: "ssid", name: "SSID" },
   { key: "status", name: "Status" },
+  { key: "package_start_date", name: "Package Start Date" },
+  { key: "setup_due", name: "Setup Due" },
+  { key: "setup_completed", name: "Setup Completed" },
   { key: "most_recent_review", name: "Most Recent Review" },
   { key: "new_review_due", name: "New Review Due" },
   { key: "planned_review_date", name: "Planned Review Date" },

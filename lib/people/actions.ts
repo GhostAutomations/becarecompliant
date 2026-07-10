@@ -380,8 +380,11 @@ export async function updateCheckDefinition(formData: FormData): Promise<ActionS
     const flag = Number.parseInt(String(formData.get("flag_days") ?? "").trim(), 10);
     if (Number.isInteger(flag) && flag >= 0) patch.amber_days = flag;
   } else {
+    // Recurring checks need a positive interval; a non-recurring check (e.g. Setup)
+    // may be due before its anchor, so a negative day offset is allowed (never zero).
+    const recurring = String(formData.get("recurring") ?? "1") === "1";
     const days = Number.parseInt(String(formData.get("days") ?? "").trim(), 10);
-    if (Number.isInteger(days) && days >= 1) {
+    if (Number.isInteger(days) && days !== 0 && (recurring ? days >= 1 : true)) {
       patch.frequency = "day";
       patch.interval = days;
     }

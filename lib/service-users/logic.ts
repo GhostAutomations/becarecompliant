@@ -32,20 +32,40 @@ function ruleOf(def: CheckDefinition): RecurrenceRule | null {
   };
 }
 
+/** Add a signed number of days to an ISO date (UTC-safe), for offsets the recurrence
+ *  engine rejects (it only accepts positive intervals). Used for the Setup check,
+ *  which is due a configurable number of days relative to the package start (default
+ *  -1 = the day before). Returns an ISO string. */
+function addSignedDaysIso(iso: string, days: number): string {
+  const { year, month, day } = parseCivilDate(iso);
+  const dt = new Date(Date.UTC(year, month - 1, day));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${dt.getUTCFullYear()}-${p(dt.getUTCMonth() + 1)}-${p(dt.getUTCDate())}`;
+}
+
 /**
  * The initial due date when a SU definition is first applied to a Record. Unlike
  * People (where most checks start blank), a Service User's recurring reviews are
  * scheduled from the package start date + one interval, so the register shows an
- * accurate RAG picture from day one. Expiry-anchored checks stay blank until a
- * document expiry is recorded. Returned as an ISO string for the RPC, or null.
+ * accurate RAG picture from day one. The one-off Setup check schedules relative to
+ * the package start by its day offset (which may be negative, e.g. -1 = the day
+ * before). Expiry-anchored checks stay blank until a document expiry is recorded.
+ * Returned as an ISO string for the RPC, or null.
  */
 export function initialDueDate(def: CheckDefinition, packageStart: string | null): string | null {
   if (def.anchor === "expiry") return null;
-  if (!def.recurring) return null;
   if (!packageStart || !/^\d{4}-\d{2}-\d{2}$/.test(packageStart)) return null;
-  const rule = ruleOf(def);
-  if (!rule) return null;
-  return formatCivilDate(addInterval(parseCivilDate(packageStart), rule.frequency, rule.interval));
+  if (def.frequency == null || def.interval == null) return null;
+  if (def.recurring) {
+    const rule = ruleOf(def);
+    if (!rule) return null;
+    return formatCivilDate(addInterval(parseCivilDate(packageStart), rule.frequency, rule.interval));
+  }
+  // Non-recurring completion-anchored checks (Setup): schedule package start + the
+  // day offset, allowing a negative offset the recurrence engine would reject.
+  if (def.frequency === "day") return addSignedDaysIso(packageStart, def.interval);
+  return null;
 }
 
 /** Alias used by the shared updateCheckDefinition reschedule path (People action). */

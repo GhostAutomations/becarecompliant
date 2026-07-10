@@ -239,9 +239,11 @@ export default function ServiceUserRegister({
                 <thead>
                   <tr>
                     <th className="col-carer">Service User</th>
-                    <th>{col("package_start_date", "Package Start Date")}</th>
                     <th>{col("ssid", "SSID")}</th>
                     <th>{col("status", "Status")}</th>
+                    <th>{col("package_start_date", "Package Start Date")}</th>
+                    <th>{col("setup_due", "Setup Due")}</th>
+                    <th>{col("setup_completed", "Setup Completed")}</th>
                     <th>{col("most_recent_review", "Most Recent Review")}</th>
                     <th>{col("new_review_due", "New Review Due")}</th>
                     <th>{col("planned_review_date", "Planned Review Date")}</th>
@@ -252,6 +254,7 @@ export default function ServiceUserRegister({
                   {filtered.map((row) => {
                     const su = row.service_user;
                     const review = row.statusByKey["care_plan_review"];
+                    const setup = row.statusByKey["setup"];
                     const newReviewDue = review?.due_date ?? null;
                     const planned = row.tracker?.planned_review_date ?? null;
                     const rs = reviewStatus(newReviewDue, planned);
@@ -265,7 +268,6 @@ export default function ServiceUserRegister({
                             {su.full_name}
                           </Link>
                         </td>
-                        <td><span className="text-white/70">{formatDisplayDate(su.package_start_date) || "—"}</span></td>
                         <td><span className="text-white/70">{su.ssid || "—"}</span></td>
                         <td>
                           {canManage ? (
@@ -285,6 +287,9 @@ export default function ServiceUserRegister({
                             </span>
                           )}
                         </td>
+                        <td><span className="text-white/70">{formatDisplayDate(su.package_start_date) || "—"}</span></td>
+                        <td><RagDate date={setup?.due_date ?? null} rag={setup?.rag ?? "none"} /></td>
+                        <td><span className="text-white/70">{formatDisplayDate(setup?.last_completed_on ?? null) || "—"}</span></td>
                         <td><span className="text-white/70">{formatDisplayDate(review?.last_completed_on ?? null) || "—"}</span></td>
                         <td><RagDate date={newReviewDue} rag={review?.rag ?? "none"} /></td>
                         <td>
