@@ -3,7 +3,9 @@ import { redirect } from "next/navigation";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import CheckConfigForm from "@/components/people/check-config-form";
+import CreateCheckTypeForm from "@/components/people/create-check-type-form";
 import SuColumnNamesForm from "@/components/service-users/su-column-names-form";
+import { listCompanyForms } from "@/lib/form-builder/data";
 import BranchTypeForm from "@/components/service-users/branch-type-form";
 import ComplexIntervalForm from "@/components/service-users/complex-interval-form";
 import {
@@ -20,12 +22,16 @@ export default async function SettingsServiceUsersPage() {
   const { profile } = await requireCompanyAdmin();
   if (!profile.company_id) redirect("/founder");
 
-  const [definitions, columnLabels, branchTypes, complexInterval] = await Promise.all([
+  const [definitions, columnLabels, branchTypes, complexInterval, allForms] = await Promise.all([
     listAllServiceUserCheckDefinitions(profile.company_id),
     getServiceUserColumnLabels(profile.company_id),
     listBranchTypes(profile.company_id),
     getComplexReviewInterval(profile.company_id),
+    listCompanyForms(profile.company_id),
   ]);
+  const publishableForms = allForms
+    .filter((f) => f.population === "service_users" && f.currentVersion != null)
+    .map((f) => ({ id: f.id, name: f.name }));
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -55,10 +61,9 @@ export default async function SettingsServiceUsersPage() {
             cadence instead of the single annual review used by Simple branches.
           </p>
           <ComplexIntervalForm days={complexInterval} />
-          <p className="text-xs text-white/40">
-            Creating brand new check types with their own forms arrives with the form
-            builder in a later phase.
-          </p>
+          <div className="border-t border-white/10 pt-4">
+            <CreateCheckTypeForm population="service_users" forms={publishableForms} />
+          </div>
         </div>
       </details>
 

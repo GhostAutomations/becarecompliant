@@ -13,7 +13,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireCompany } from "@/lib/auth/guards";
+import { requireCompany, requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
@@ -477,6 +477,72 @@ export async function updateCheckDefinition(formData: FormData): Promise<ActionS
 function enumOrNull(v: FormDataEntryValue | null, allowed: string[]): string | null {
   const s = String(v ?? "").trim();
   return allowed.includes(s) ? s : null;
+}
+
+/**
+ * Create a brand new form-completion CHECK TYPE tied to a form built in the form
+ * builder (Phase 5). Company Admin only. Applies to existing active Records now
+ * (blank due until first completion) and to all future Records. Both populations.
+ */
+export async function createCheckType(input: {
+  population: "people" | "service_users";
+  name: string;
+  formId: string;
+  frequency: "day" | "week" | "month" | "year";
+  interval: number;
+  amberDays?: number | null;
+}): Promise<ActionState> {
+  const { user, profile } = await requireCompanyAdmin();
+  if (!profile.company_id) return { error: "No company context." };
+  const companyId = profile.company_id;
+
+  const name = input.name.trim();
+  if (!name) return { error: "Enter a check name." };
+  if (input.population !== "people" && input.population !== "service_users") {
+    return { error: "Choose who the check is for." };
+  }
+  if (!input.formId) return { error: "Choose the form this check completes." };
+  if (!["day", "week", "month", "year"].includes(input.frequency)) {
+    return { error: "Choose how often it recurs." };
+  }
+  if (!Number.isInteger(input.interval) || input.interval < 1) {
+    return { error: "The interval must be a whole number of at least 1." };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("create_check_definition_with_form", {
+    p_company_id: companyId,
+    p_population: input.population,
+    p_name: name,
+    p_form_id: input.formId,
+    p_frequency: input.frequency,
+    p_interval: input.interval,
+    p_amber_days: input.amberDays ?? null,
+  });
+  if (error) return { error: error.message };
+
+  await writeAudit({
+    companyId,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "check_definition.created",
+    entityType: "check_definition",
+    entityId: (data as string) ?? null,
+    summary: `Created check "${name}"`,
+    metadata: {
+      population: input.population,
+      form_id: input.formId,
+      frequency: input.frequency,
+      interval: input.interval,
+    },
+  });
+
+  revalidatePath("/settings/people");
+  revalidatePath("/settings/service-users");
+  revalidatePath("/people");
+  revalidatePath("/service-users");
+  return { ok: `Check "${name}" created.` };
 }
 
 /** Save the company Probationary Period (days). Applies to carers added afterwards;

@@ -5,8 +5,10 @@ import BackLink from "@/components/back-link";
 import { listAllPeopleCheckDefinitions, getColumnLabels, getProbationPeriod } from "@/lib/people/data";
 import { REGISTER_COLUMNS } from "@/lib/people/logic";
 import CheckConfigForm from "@/components/people/check-config-form";
+import CreateCheckTypeForm from "@/components/people/create-check-type-form";
 import ColumnNamesForm from "@/components/people/column-names-form";
 import ProbationPeriodForm from "@/components/people/probation-period-form";
+import { listCompanyForms } from "@/lib/form-builder/data";
 
 export const metadata: Metadata = { title: "People checks" };
 
@@ -14,11 +16,15 @@ export default async function SettingsPeoplePage() {
   const { profile } = await requireCompanyAdmin();
   if (!profile.company_id) redirect("/founder");
 
-  const [definitions, columnLabels, probationDays] = await Promise.all([
+  const [definitions, columnLabels, probationDays, allForms] = await Promise.all([
     listAllPeopleCheckDefinitions(profile.company_id),
     getColumnLabels(profile.company_id),
     getProbationPeriod(profile.company_id),
+    listCompanyForms(profile.company_id),
   ]);
+  const publishableForms = allForms
+    .filter((f) => f.population === "people" && f.currentVersion != null)
+    .map((f) => ({ id: f.id, name: f.name }));
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -38,10 +44,9 @@ export default async function SettingsPeoplePage() {
           {definitions.map((def) => (
             <CheckConfigForm key={def.id} def={def} />
           ))}
-          <p className="text-xs text-white/40">
-            Creating brand new check types with their own forms arrives with the form
-            builder in a later phase.
-          </p>
+          <div className="border-t border-white/10 pt-4">
+            <CreateCheckTypeForm population="people" forms={publishableForms} />
+          </div>
         </div>
       </details>
 

@@ -95,6 +95,13 @@ export default async function SettingsPage() {
             Invite your team, set roles and branches, and manage pending invites.
           </p>
         </Link>
+        <Link href="/settings/forms" className="app-tile">
+          <h2 className="text-base font-semibold text-white">Forms</h2>
+          <p className="text-sm text-white/60">
+            Build and edit the forms your team completes as compliance Evidence, with
+            versions and a live preview.
+          </p>
+        </Link>
         <Link href="/settings/people" className="app-tile">
           <h2 className="text-base font-semibold text-white">People checks</h2>
           <p className="text-sm text-white/60">
