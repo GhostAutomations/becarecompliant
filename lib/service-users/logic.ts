@@ -9,14 +9,16 @@
 
 import {
   type CivilDate,
+  type Rag,
   type RecurrenceRule,
   addInterval,
   formatCivilDate,
   parseCivilDate,
+  ragStatus,
   todayInLondon,
 } from "@/lib/recurrence";
 import type { CheckDefinition } from "@/lib/people/types";
-import type { ReviewStatus } from "./types";
+import type { ReviewSlot, ReviewStatus } from "./types";
 
 // The date formatter is identical for both populations; reuse the People one so
 // DD MMM YY rendering never diverges between the two registers.
@@ -74,6 +76,43 @@ export { initialDueDate as suInitialDueDate };
 /** Today's Europe/London date as an ISO string (the stamped completion date). */
 export function todayIso(): string {
   return formatCivilDate(todayInLondon());
+}
+
+/** Add a positive number of days to an ISO date (e.g. the Complex review cadence). */
+export function addDaysToIso(iso: string | null, days: number): string | null {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso) || days < 1) return null;
+  return formatCivilDate(addInterval(parseCivilDate(iso), "day", days));
+}
+
+/**
+ * Derive the four Care Plan Review slots (REV1-4) for a Complex branch from the
+ * package start date, the review interval (days, default 80) and the completion
+ * history:
+ *  - REV1 due = package start + interval.
+ *  - REV n (n >= 2) due = the previous review's completion + interval.
+ *  - REV n completed = the n-th completion (completions sorted oldest first).
+ * A completed slot is green; an outstanding one is RAG by its due date.
+ */
+export function reviewSlots(
+  packageStart: string | null,
+  sortedComps: string[],
+  intervalDays: number,
+  count = 4,
+  amberDays = 30,
+  today: CivilDate = todayInLondon(),
+): ReviewSlot[] {
+  const slots: ReviewSlot[] = [];
+  const valid = (d: string | null | undefined): d is string => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d);
+  const interval = intervalDays >= 1 ? intervalDays : 80;
+  const compOf = (n: number): string | null => (valid(sortedComps[n - 1]) ? sortedComps[n - 1] : null);
+  for (let n = 1; n <= count; n++) {
+    const comp = compOf(n);
+    const anchor = n === 1 ? packageStart : compOf(n - 1);
+    const due = valid(anchor) ? formatCivilDate(addInterval(parseCivilDate(anchor), "day", interval)) : null;
+    const rag: Rag | "none" = comp ? "green" : due ? ragStatus(parseCivilDate(due), today, amberDays) : "none";
+    slots.push({ n, due, comp, rag });
+  }
+  return slots;
 }
 
 /**

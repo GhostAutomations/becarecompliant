@@ -5,10 +5,12 @@ import BackLink from "@/components/back-link";
 import CheckConfigForm from "@/components/people/check-config-form";
 import SuColumnNamesForm from "@/components/service-users/su-column-names-form";
 import BranchTypeForm from "@/components/service-users/branch-type-form";
+import ComplexIntervalForm from "@/components/service-users/complex-interval-form";
 import {
   listAllServiceUserCheckDefinitions,
   getServiceUserColumnLabels,
   listBranchTypes,
+  getComplexReviewInterval,
 } from "@/lib/service-users/data";
 import { SU_REGISTER_COLUMNS } from "@/lib/service-users/types";
 
@@ -18,10 +20,11 @@ export default async function SettingsServiceUsersPage() {
   const { profile } = await requireCompanyAdmin();
   if (!profile.company_id) redirect("/founder");
 
-  const [definitions, columnLabels, branchTypes] = await Promise.all([
+  const [definitions, columnLabels, branchTypes, complexInterval] = await Promise.all([
     listAllServiceUserCheckDefinitions(profile.company_id),
     getServiceUserColumnLabels(profile.company_id),
     listBranchTypes(profile.company_id),
+    getComplexReviewInterval(profile.company_id),
   ]);
 
   return (
@@ -47,6 +50,11 @@ export default async function SettingsServiceUsersPage() {
           ) : (
             definitions.map((def) => <CheckConfigForm key={def.id} def={def} />)
           )}
+          <p className="page-subtitle pt-2">
+            Complex branches run four rolling Care Plan Reviews (REV1 to REV4) at this
+            cadence instead of the single annual review used by Simple branches.
+          </p>
+          <ComplexIntervalForm days={complexInterval} />
           <p className="text-xs text-white/40">
             Creating brand new check types with their own forms arrives with the form
             builder in a later phase.

@@ -27,8 +27,25 @@ import {
   listServiceUserCheckDefinitions,
   getPublishedFormVersion,
 } from "./data";
-import { initialDueDate, todayIso } from "./logic";
+import { initialDueDate, todayIso, addDaysToIso } from "./logic";
 import { SU_REGISTER_COLUMNS } from "./types";
+
+/** The branch Service User type + company Complex review interval, so care plan
+ *  reviews on a Complex branch schedule at the Complex cadence (default 80 days). */
+async function complexReviewContext(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  companyId: string,
+  branchId: string,
+): Promise<{ isComplex: boolean; intervalDays: number }> {
+  const [{ data: branch }, { data: company }] = await Promise.all([
+    supabase.from("branches").select("service_user_type").eq("id", branchId).maybeSingle(),
+    supabase.from("companies").select("complex_review_interval_days").eq("id", companyId).maybeSingle(),
+  ]);
+  return {
+    isComplex: (branch?.service_user_type as string | null) === "complex",
+    intervalDays: (company?.complex_review_interval_days as number | null) ?? 80,
+  };
+}
 
 function trimOrNull(v: FormDataEntryValue | null): string | null {
   const s = String(v ?? "").trim();
@@ -74,11 +91,16 @@ export async function createServiceUser(_prev: ActionState, formData: FormData):
     return { error: error.message };
   }
 
-  // Auto-apply active definitions, each scheduled from the package start date.
+  // Auto-apply active definitions, each scheduled from the package start date. On a
+  // Complex branch the Care Plan Review (REV1) is due at the Complex cadence.
   const definitions = await listServiceUserCheckDefinitions(companyId);
+  const { isComplex, intervalDays } = await complexReviewContext(supabase, companyId, branch_id);
   const rows = definitions.map((def: CheckDefinition) => ({
     definition_id: def.id,
-    due_date: initialDueDate(def, package_start_date),
+    due_date:
+      def.key === "care_plan_review" && isComplex
+        ? addDaysToIso(package_start_date, intervalDays)
+        : initialDueDate(def, package_start_date),
     expiry_date: null,
   }));
   const { data: applied, error: applyErr } = await supabase.rpc("apply_service_user_checks", {
@@ -425,7 +447,19 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
   const dateAnswer = dateKey ? answers[dateKey] : undefined;
   const completedOnIso =
     typeof dateAnswer === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateAnswer) ? dateAnswer : todayIso();
-  const { nextDue, expiry } = nextDueAfterCompletion(def, answers, null, parseCivilDate(completedOnIso));
+  const advance = nextDueAfterCompletion(def, answers, null, parseCivilDate(completedOnIso));
+  let nextDue = advance.nextDue;
+  const expiry = advance.expiry;
+  // On a Complex branch, the Care Plan Review advances at the Complex cadence (default
+  // 80 days), so the next REV slot / rollup RAG is scheduled correctly.
+  if (def.key === "care_plan_review") {
+    const ctx = await complexReviewContext(
+      supabase,
+      instance.company_id as string,
+      (instance.branch_id as string | null) ?? "",
+    );
+    if (ctx.isComplex) nextDue = addDaysToIso(completedOnIso, ctx.intervalDays);
+  }
   const { error: advanceErr } = await supabase.rpc("complete_check", {
     p_instance_id: instanceId,
     p_completed_on: completedOnIso,
@@ -471,6 +505,38 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
     ok: "completed",
     redirectTo: `/service-users/${instance.service_user_id}?completed=${encodeURIComponent(def.name)}`,
   };
+}
+
+/** Save the company Complex review interval (days) used for the REV1-4 cadence on
+ *  Complex branches. Applies to future scheduling. */
+export async function updateComplexReviewInterval(formData: FormData): Promise<ActionState> {
+  const { user, profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+  const days = Number.parseInt(String(formData.get("days") ?? "").trim(), 10);
+  if (!Number.isInteger(days) || days < 1) return { error: "Enter a number of days." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("companies")
+    .update({ complex_review_interval_days: days })
+    .eq("id", profile.company_id);
+  if (error) return { error: error.message };
+
+  await writeAudit({
+    companyId: profile.company_id,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "company.complex_review_interval_updated",
+    entityType: "company",
+    entityId: profile.company_id,
+    summary: `Set Complex review interval to ${days} days`,
+    metadata: { days },
+  });
+
+  revalidatePath("/settings/service-users");
+  revalidatePath("/service-users");
+  return { ok: "Saved" };
 }
 
 /** Set a branch's Service User type (Simple or Complex). Company Admin only, enforced

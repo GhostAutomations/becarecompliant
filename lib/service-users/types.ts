@@ -80,12 +80,24 @@ export type ServiceUserRollup = {
   rag: Rag | "none";
 };
 
-/** One row of the Service User register: a Record plus its checks and tracker. */
+/** A derived Care Plan Review slot (REV1-4 for Complex branches): scheduled due +
+ *  its completion, if done. */
+export type ReviewSlot = {
+  n: number;
+  due: string | null;
+  comp: string | null;
+  rag: Rag | "none";
+};
+
+/** One row of the Service User register: a Record plus its checks and tracker.
+ *  reviewComps holds the Care Plan Review completion dates (oldest first), used to
+ *  derive the REV1-4 slots on Complex branches. */
 export type ServiceUserRow = {
   service_user: ServiceUserRecord;
   rollup: ServiceUserRollup | null;
   statusByKey: Record<string, SuCheckStatus>;
   tracker: ServiceUserTracker | null;
+  reviewComps: string[];
 };
 
 /** The Service User register columns that can be given a shorthand label in
@@ -101,4 +113,13 @@ export const SU_REGISTER_COLUMNS: Array<{ key: string; name: string }> = [
   { key: "new_review_due", name: "New Review Due" },
   { key: "planned_review_date", name: "Planned Review Date" },
   { key: "review_status", name: "Review Status" },
+  // Complex branches only (shown instead of the four Simple review columns above).
+  { key: "rev1_due", name: "REV1 Due" },
+  { key: "rev1_comp", name: "REV1 Comp" },
+  { key: "rev2_due", name: "REV2 Due" },
+  { key: "rev2_comp", name: "REV2 Comp" },
+  { key: "rev3_due", name: "REV3 Due" },
+  { key: "rev3_comp", name: "REV3 Comp" },
+  { key: "rev4_due", name: "REV4 Due" },
+  { key: "rev4_comp", name: "REV4 Comp" },
 ];

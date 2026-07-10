@@ -14,7 +14,7 @@
  * the record drill-down.
  */
 
-import { useMemo, useRef, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { NavIcon } from "@/components/nav-icon";
@@ -22,7 +22,7 @@ import { PillSelect, toneClass, type Tone } from "@/components/register/pill-sel
 import { HorizontalScrollbar } from "@/components/register/horizontal-scrollbar";
 import PlannedReviewCell from "./planned-review-cell";
 import { setServiceStatus } from "@/lib/service-users/actions";
-import { formatDisplayDate, reviewStatus } from "@/lib/service-users/logic";
+import { formatDisplayDate, reviewStatus, reviewSlots } from "@/lib/service-users/logic";
 import {
   type ServiceUserRow,
   type ServiceStatus,
@@ -30,7 +30,7 @@ import {
   SERVICE_STATUS_LABELS,
   REVIEW_STATUS_LABELS,
 } from "@/lib/service-users/types";
-import type { BranchLite, ProfileLite } from "@/lib/service-users/data";
+import type { BranchType, ProfileLite } from "@/lib/service-users/data";
 
 const RAG_ORDER: Record<string, number> = { red: 0, amber: 1, green: 2, none: 3 };
 
@@ -88,29 +88,37 @@ export default function ServiceUserRegister({
   branches,
   reviewers,
   columnLabels,
+  complexIntervalDays,
   canManage,
   initialView,
   initialBranch,
 }: {
   rows: ServiceUserRow[];
-  branches: BranchLite[];
+  branches: BranchType[];
   reviewers: ProfileLite[];
   columnLabels: Record<string, string>;
+  complexIntervalDays: number;
   canManage: boolean;
   initialView: string;
   initialBranch: string;
 }) {
   const router = useRouter();
   const [view, setView] = useState(VIEW_META[initialView] ? initialView : "main");
-  const [branchId, setBranchId] = useState(initialBranch);
+  // Branch options exclude the office (already only branch-kind) and carry each
+  // branch's Simple/Complex type.
+  const branchOptions = branches;
+  // Service Users are always viewed one branch at a time (no all-branches option),
+  // because Simple and Complex branches show different review columns. Default to the
+  // first branch when none is selected.
+  const [branchId, setBranchId] = useState(
+    branchOptions.some((b) => b.id === initialBranch) ? initialBranch : (branchOptions[0]?.id ?? ""),
+  );
   const [search, setSearch] = useState("");
   const [worstFirst, setWorstFirst] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
-  // Service Users are only ever assigned to a branch, never the office (team), so
-  // the office is excluded from the Branches dropdown.
-  const branchOptions = branches.filter((b) => b.kind === "branch");
   const meta = VIEW_META[view];
   const col = (key: string, def: string) => columnLabels[key] || def;
+  const isComplex = branchOptions.find((b) => b.id === branchId)?.service_user_type === "complex";
   const statusOptions =
     view === "cancelled" ? [...SERVICE_STATUS_OPTIONS, { value: "archive", label: "Archive" }] : SERVICE_STATUS_OPTIONS;
 
@@ -166,11 +174,10 @@ export default function ServiceUserRegister({
       </div>
 
       <div className="flex flex-wrap items-center gap-4">
-        {branchOptions.length > 1 ? (
+        {branchOptions.length >= 1 ? (
           <label className="flex items-center gap-2 text-sm font-bold text-white">
             Branches
             <select className="inline-cell" value={branchId} onChange={(e) => changeBranch(e.target.value)}>
-              <option value="">All branches</option>
               {branchOptions.map((b) => (
                 <option key={b.id} value={b.id}>{b.name}</option>
               ))}
@@ -244,10 +251,25 @@ export default function ServiceUserRegister({
                     <th>{col("package_start_date", "Package Start Date")}</th>
                     <th>{col("setup_due", "Setup Due")}</th>
                     <th>{col("setup_completed", "Setup Completed")}</th>
-                    <th>{col("most_recent_review", "Most Recent Review")}</th>
-                    <th>{col("new_review_due", "New Review Due")}</th>
-                    <th>{col("planned_review_date", "Planned Review Date")}</th>
-                    <th>{col("review_status", "Review Status")}</th>
+                    {isComplex ? (
+                      <>
+                        <th>{col("rev1_due", "REV1 Due")}</th>
+                        <th>{col("rev1_comp", "REV1 Comp")}</th>
+                        <th>{col("rev2_due", "REV2 Due")}</th>
+                        <th>{col("rev2_comp", "REV2 Comp")}</th>
+                        <th>{col("rev3_due", "REV3 Due")}</th>
+                        <th>{col("rev3_comp", "REV3 Comp")}</th>
+                        <th>{col("rev4_due", "REV4 Due")}</th>
+                        <th>{col("rev4_comp", "REV4 Comp")}</th>
+                      </>
+                    ) : (
+                      <>
+                        <th>{col("most_recent_review", "Most Recent Review")}</th>
+                        <th>{col("new_review_due", "New Review Due")}</th>
+                        <th>{col("planned_review_date", "Planned Review Date")}</th>
+                        <th>{col("review_status", "Review Status")}</th>
+                      </>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -309,19 +331,50 @@ export default function ServiceUserRegister({
                             <span className="rag-cell rag-cell-none">—</span>
                           )}
                         </td>
-                        <td><span className="text-white/70">{formatDisplayDate(review?.last_completed_on ?? null) || "—"}</span></td>
-                        <td><RagDate date={newReviewDue} rag={review?.rag ?? "none"} /></td>
-                        <td>
-                          <PlannedReviewCell
-                            serviceUserId={su.id}
-                            plannedDate={planned}
-                            reviewerId={row.tracker?.planned_reviewer_id ?? null}
-                            reviewerName={row.tracker?.planned_reviewer_name ?? null}
-                            reviewers={reviewers}
-                            editable={canManage}
-                          />
-                        </td>
-                        <td><span className={toneClass(reviewStatusTone(rs))}>{REVIEW_STATUS_LABELS[rs]}</span></td>
+                        {isComplex ? (
+                          (() => {
+                            const slots = reviewSlots(su.package_start_date, row.reviewComps, complexIntervalDays);
+                            return slots.map((s) => {
+                              const late = !!s.comp && !!s.due && s.comp > s.due;
+                              return (
+                                <Fragment key={s.n}>
+                                  <td>
+                                    {s.comp ? (
+                                      <span className="text-white/70">{formatDisplayDate(s.due) || "—"}</span>
+                                    ) : (
+                                      <RagDate date={s.due} rag={s.rag} />
+                                    )}
+                                  </td>
+                                  <td>
+                                    {s.comp ? (
+                                      <span className={`rag-cell ${late ? "rag-cell-red" : "rag-cell-green"}`}>
+                                        {formatDisplayDate(s.comp)}
+                                      </span>
+                                    ) : (
+                                      <span className="rag-cell rag-cell-none">—</span>
+                                    )}
+                                  </td>
+                                </Fragment>
+                              );
+                            });
+                          })()
+                        ) : (
+                          <>
+                            <td><span className="text-white/70">{formatDisplayDate(review?.last_completed_on ?? null) || "—"}</span></td>
+                            <td><RagDate date={newReviewDue} rag={review?.rag ?? "none"} /></td>
+                            <td>
+                              <PlannedReviewCell
+                                serviceUserId={su.id}
+                                plannedDate={planned}
+                                reviewerId={row.tracker?.planned_reviewer_id ?? null}
+                                reviewerName={row.tracker?.planned_reviewer_name ?? null}
+                                reviewers={reviewers}
+                                editable={canManage}
+                              />
+                            </td>
+                            <td><span className={toneClass(reviewStatusTone(rs))}>{REVIEW_STATUS_LABELS[rs]}</span></td>
+                          </>
+                        )}
                       </tr>
                     );
                   })}

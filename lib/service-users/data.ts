@@ -65,6 +65,17 @@ export async function getServiceUserColumnLabels(companyId: string): Promise<Rec
   return ((data?.service_user_column_labels as Record<string, string> | null) ?? {}) as Record<string, string>;
 }
 
+/** The company Complex review interval in days (default 80). */
+export async function getComplexReviewInterval(companyId: string): Promise<number> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("companies")
+    .select("complex_review_interval_days")
+    .eq("id", companyId)
+    .maybeSingle();
+  return (data?.complex_review_interval_days as number | null) ?? 80;
+}
+
 export type BranchType = { id: string; name: string; service_user_type: "simple" | "complex" };
 
 /** Active branches (not the office/team) with their Service User type, for the
@@ -161,14 +172,44 @@ export async function listRegister(
   const ids = serviceUsers.map((s) => s.id);
   if (ids.length === 0) return { definitions, rows: [] };
 
-  const [{ data: statusData }, { data: rollupData }, { data: trackerData }] = await Promise.all([
-    supabase.from("service_user_check_status_all").select("*").in("service_user_id", ids),
-    supabase.from("service_user_rollup_all").select("*").in("service_user_id", ids),
-    supabase
-      .from("service_user_trackers")
-      .select("*, reviewer:planned_reviewer_id(full_name)")
-      .in("service_user_id", ids),
-  ]);
+  const reviewFormId = definitions.find((d) => d.key === "care_plan_review")?.form_id ?? null;
+
+  const [{ data: statusData }, { data: rollupData }, { data: trackerData }, { data: reviewEvidence }] =
+    await Promise.all([
+      supabase.from("service_user_check_status_all").select("*").in("service_user_id", ids),
+      supabase.from("service_user_rollup_all").select("*").in("service_user_id", ids),
+      supabase
+        .from("service_user_trackers")
+        .select("*, reviewer:planned_reviewer_id(full_name)")
+        .in("service_user_id", ids),
+      reviewFormId
+        ? supabase
+            .from("evidence")
+            .select("record_id, submitted_at, answers")
+            .eq("record_type", "service_user")
+            .eq("form_id", reviewFormId)
+            .in("record_id", ids)
+            .order("submitted_at", { ascending: true })
+        : Promise.resolve({
+            data: [] as Array<{ record_id: string; submitted_at: string; answers: Record<string, unknown> }>,
+          }),
+    ]);
+
+  // Care Plan Review completion dates per Service User (oldest first), used to derive
+  // the REV1-4 slots on Complex branches. Completion date = the form's review_date
+  // when captured, else the submission timestamp.
+  const reviewCompsBySu = new Map<string, string[]>();
+  for (const e of (reviewEvidence as Array<{
+    record_id: string;
+    submitted_at: string;
+    answers: Record<string, unknown>;
+  }>) ?? []) {
+    const d = e.answers?.review_date;
+    const iso = typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : e.submitted_at.slice(0, 10);
+    const list = reviewCompsBySu.get(e.record_id) ?? [];
+    list.push(iso);
+    reviewCompsBySu.set(e.record_id, list);
+  }
 
   const statuses = (statusData as SuCheckStatus[]) ?? [];
   const rollups = (rollupData as ServiceUserRollup[]) ?? [];
@@ -195,6 +236,7 @@ export async function listRegister(
     rollup: rollupBySu.get(service_user.id) ?? null,
     statusByKey: statusByKeyBySu.get(service_user.id) ?? {},
     tracker: trackerBySu.get(service_user.id) ?? null,
+    reviewComps: reviewCompsBySu.get(service_user.id) ?? [],
   }));
 
   return { definitions, rows };

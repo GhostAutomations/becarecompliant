@@ -3,10 +3,11 @@ import { requireCompany } from "@/lib/auth/guards";
 import ServiceUserRegister from "@/components/service-users/service-user-register";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import {
-  listBranches,
   listRegister,
   listSupervisoryUsers,
   getServiceUserColumnLabels,
+  listBranchTypes,
+  getComplexReviewInterval,
 } from "@/lib/service-users/data";
 
 export const metadata: Metadata = { title: "Service Users" };
@@ -37,11 +38,12 @@ export default async function ServiceUsersPage({
 
   // Load EVERY Service User once (all statuses, all the viewer's branches). Branches
   // and View are then switched instantly on the client with no server round trip.
-  const [branches, register, reviewers, columnLabels] = await Promise.all([
-    listBranches(companyId),
+  const [branches, register, reviewers, columnLabels, complexIntervalDays] = await Promise.all([
+    listBranchTypes(companyId),
     listRegister(companyId, null, "all"),
     listSupervisoryUsers(companyId),
     getServiceUserColumnLabels(companyId),
+    getComplexReviewInterval(companyId),
   ]);
   const canManage = MANAGE_ROLES.includes(profile.role);
 
@@ -56,6 +58,7 @@ export default async function ServiceUsersPage({
         branches={branches}
         reviewers={reviewers}
         columnLabels={columnLabels}
+        complexIntervalDays={complexIntervalDays}
         canManage={canManage}
         initialView={view ?? "main"}
         initialBranch={branch ?? ""}
