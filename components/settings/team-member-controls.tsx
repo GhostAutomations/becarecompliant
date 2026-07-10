@@ -65,7 +65,7 @@ export default function TeamMemberControls({
           <input key={id} type="hidden" name="additional_branch_ids" value={id} />
         ))}
 
-        <div className="w-52">
+        <div className="w-40">
           <label htmlFor={`role-${userId}`} className="form-label text-xs">Role</label>
           <select
             id={`role-${userId}`}
@@ -79,7 +79,7 @@ export default function TeamMemberControls({
           </select>
         </div>
 
-        <div className="w-52">
+        <div className="w-40">
           <label htmlFor={`primary-${userId}`} className="form-label text-xs">Primary branch</label>
           <select
             id={`primary-${userId}`}
@@ -94,7 +94,7 @@ export default function TeamMemberControls({
           </select>
         </div>
 
-        <div ref={menuRef} className="relative w-52">
+        <div ref={menuRef} className="relative w-40">
           <span className="form-label text-xs">Additional branch views</span>
           <button
             type="button"
@@ -127,7 +127,7 @@ export default function TeamMemberControls({
         <button
           type="submit"
           disabled={pending}
-          className={`btn ${state.ok ? "btn-saved" : "btn-primary"} text-xs`}
+          className={`btn ${state.ok ? "btn-saved" : "btn-primary"} h-[42px] text-xs`}
         >
           {pending ? "Saving…" : state.ok ? "Saved" : "Save"}
         </button>
@@ -136,7 +136,7 @@ export default function TeamMemberControls({
       <form action={setUserStatus}>
         <input type="hidden" name="user_id" value={userId} />
         <input type="hidden" name="status" value={status === "active" ? "disabled" : "active"} />
-        <button type="submit" className="btn-ghost text-xs">
+        <button type="submit" className="btn-ghost h-[42px] text-xs">
           {status === "active" ? "Disable" : "Enable"}
         </button>
       </form>
@@ -149,7 +149,7 @@ export default function TeamMemberControls({
         }}
       >
         <input type="hidden" name="user_id" value={userId} />
-        <button type="submit" className="btn-ghost text-xs text-rag-red-soft">
+        <button type="submit" className="btn-ghost h-[42px] text-xs text-rag-red-soft">
           Delete user
         </button>
       </form>
