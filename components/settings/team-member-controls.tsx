@@ -58,6 +58,7 @@ export default function TeamMemberControls({
 
   return (
     <div className="mt-3 space-y-3 border-t border-white/10 pt-3">
+      <div className="flex flex-wrap items-end gap-3">
       <form action={formAction} className="flex flex-wrap items-end gap-3">
         <input type="hidden" name="user_id" value={userId} />
         {additionalClean.map((id) => (
@@ -132,30 +133,29 @@ export default function TeamMemberControls({
         </button>
       </form>
 
-      {state.error ? <p className="form-error">{state.error}</p> : null}
-
-      <div className="flex flex-wrap items-center gap-2">
-        <form action={setUserStatus}>
-          <input type="hidden" name="user_id" value={userId} />
-          <input type="hidden" name="status" value={status === "active" ? "disabled" : "active"} />
-          <button type="submit" className="btn-ghost px-3 py-2 text-xs">
-            {status === "active" ? "Disable" : "Enable"}
-          </button>
-        </form>
-        <form
-          action={deleteUser}
-          onSubmit={(e) => {
-            if (!confirm("Delete this user? This removes their login and cannot be undone.")) {
-              e.preventDefault();
-            }
-          }}
-        >
-          <input type="hidden" name="user_id" value={userId} />
-          <button type="submit" className="btn-ghost px-3 py-2 text-xs text-rag-red-soft">
-            Delete user
-          </button>
-        </form>
+      <form action={setUserStatus}>
+        <input type="hidden" name="user_id" value={userId} />
+        <input type="hidden" name="status" value={status === "active" ? "disabled" : "active"} />
+        <button type="submit" className="btn-ghost text-xs">
+          {status === "active" ? "Disable" : "Enable"}
+        </button>
+      </form>
+      <form
+        action={deleteUser}
+        onSubmit={(e) => {
+          if (!confirm("Delete this user? This removes their login and cannot be undone.")) {
+            e.preventDefault();
+          }
+        }}
+      >
+        <input type="hidden" name="user_id" value={userId} />
+        <button type="submit" className="btn-ghost text-xs text-rag-red-soft">
+          Delete user
+        </button>
+      </form>
       </div>
+
+      {state.error ? <p className="form-error">{state.error}</p> : null}
     </div>
   );
 }
