@@ -21,11 +21,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
+  ADDRESS_PARTS,
+  type AddressValue,
   type Answers,
   type AnswerValue,
   type FieldOption,
   type FormField,
   type FormSchema,
+  isAddressValue,
 } from "@/lib/form-schema";
 import { type FieldError, isFieldVisible } from "@/lib/form-validate";
 
@@ -209,6 +212,80 @@ function Field({
           value={typeof value === "string" ? value : ""}
           disabled={disabled}
           onChange={(e) => onValue(e.target.value)}
+        />,
+      );
+
+    case "time":
+      return labelledControl(
+        <input
+          id={id}
+          type="time"
+          value={typeof value === "string" ? value : ""}
+          disabled={disabled}
+          onChange={(e) => onValue(e.target.value)}
+        />,
+      );
+
+    case "email":
+      return labelledControl(
+        <input
+          id={id}
+          type="email"
+          value={typeof value === "string" ? value : ""}
+          placeholder={field.placeholder}
+          disabled={disabled}
+          onChange={(e) => onValue(e.target.value)}
+        />,
+      );
+
+    case "phone":
+      return labelledControl(
+        <input
+          id={id}
+          type="tel"
+          value={typeof value === "string" ? value : ""}
+          placeholder={field.placeholder}
+          disabled={disabled}
+          onChange={(e) => onValue(e.target.value)}
+        />,
+      );
+
+    case "yes_no":
+      return labelledControl(
+        <div className="mt-1 flex gap-2">
+          {["Yes", "No"].map((opt) => (
+            <button
+              key={opt}
+              type="button"
+              disabled={disabled}
+              onClick={() => onValue(opt)}
+              className={`rounded-xl px-4 py-2 text-sm font-medium ${
+                value === opt ? "bg-gold-400/20 text-white" : "bg-white/5 text-white/60"
+              }`}
+              aria-pressed={value === opt}
+            >
+              {opt}
+            </button>
+          ))}
+        </div>,
+      );
+
+    case "rating":
+      return labelledControl(
+        <RatingStars
+          value={typeof value === "number" ? value : 0}
+          max={field.validation?.max ?? 5}
+          disabled={disabled}
+          onValue={onValue}
+        />,
+      );
+
+    case "address":
+      return labelledControl(
+        <AddressFields
+          value={isAddressValue(value) ? value : {}}
+          disabled={disabled}
+          onValue={onValue}
         />,
       );
 
@@ -455,6 +532,69 @@ function HintSelect({
           document.body,
         )}
     </>
+  );
+}
+
+/** Star rating (1..max). Answer is the chosen number. */
+function RatingStars({
+  value,
+  max,
+  disabled,
+  onValue,
+}: {
+  value: number;
+  max: number;
+  disabled: boolean;
+  onValue: (v: AnswerValue) => void;
+}) {
+  return (
+    <div className="mt-1 flex items-center gap-1.5">
+      {Array.from({ length: max }, (_, i) => i + 1).map((n) => (
+        <button
+          key={n}
+          type="button"
+          disabled={disabled}
+          aria-label={`${n} of ${max}`}
+          aria-pressed={value === n}
+          onClick={() => onValue(value === n ? 0 : n)}
+          className={`text-2xl leading-none ${n <= value ? "text-gold-300" : "text-white/25"}`}
+        >
+          ★
+        </button>
+      ))}
+      {value > 0 && (
+        <span className="ml-2 text-sm text-white/60">
+          {value} of {max}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** Structured postal address: several lines assembled into one AddressValue. */
+function AddressFields({
+  value,
+  disabled,
+  onValue,
+}: {
+  value: AddressValue;
+  disabled: boolean;
+  onValue: (v: AnswerValue) => void;
+}) {
+  return (
+    <div className="mt-1 flex flex-col gap-2">
+      {ADDRESS_PARTS.map(({ key, label }) => (
+        <input
+          key={key}
+          type="text"
+          aria-label={label}
+          placeholder={label}
+          value={value[key] ?? ""}
+          disabled={disabled}
+          onChange={(e) => onValue({ ...value, [key]: e.target.value })}
+        />
+      ))}
+    </div>
   );
 }
 

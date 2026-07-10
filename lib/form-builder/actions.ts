@@ -18,7 +18,7 @@ import { revalidatePath } from "next/cache";
 import { requireCompanyAdmin, requirePlatformAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
-import { isFormSchema, type FormSchema } from "@/lib/form-schema";
+import { isFormSchema, type FieldType, type FormSchema } from "@/lib/form-schema";
 import { validateSchema, hasBlockingErrors } from "@/lib/form-builder/schema-ops";
 import type { ActionState } from "@/lib/forms";
 import type { Population } from "./types";
@@ -251,4 +251,93 @@ export async function setTemplateStatus(
   if (error) return { error: error.message };
   revalidatePath("/founder/forms");
   return { ok: status === "archived" ? "Template archived." : "Template restored." };
+}
+
+// ---------------------------------------------------------------------------
+// Question bank curation (platform admin only; RLS also enforces it)
+// ---------------------------------------------------------------------------
+
+const BANK_FIELD_TYPES: FieldType[] = [
+  "short_text",
+  "long_text",
+  "number",
+  "date",
+  "time",
+  "email",
+  "phone",
+  "address",
+  "yes_no",
+  "single_select",
+  "multi_select",
+  "radio",
+  "rating",
+  "checkbox",
+];
+
+export type BankInput = {
+  label: string;
+  fieldType: FieldType;
+  population: "any" | Population;
+  category?: string | null;
+  helpText?: string | null;
+  options?: { value: string; label: string }[] | null;
+};
+
+function validateBankInput(input: BankInput): string | null {
+  if (input.label.trim() === "") return "Enter a question label.";
+  if (!BANK_FIELD_TYPES.includes(input.fieldType)) return "Choose a valid field type.";
+  if (!["any", "people", "service_users"].includes(input.population)) {
+    return "Choose who the question is for.";
+  }
+  return null;
+}
+
+export async function createQuestionTemplate(input: BankInput): Promise<ActionState> {
+  await requirePlatformAdmin();
+  const err = validateBankInput(input);
+  if (err) return { error: err };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("question_templates").insert({
+    label: input.label.trim(),
+    field_type: input.fieldType,
+    population: input.population,
+    category: input.category?.trim() || null,
+    help_text: input.helpText?.trim() || null,
+    options: input.options && input.options.length > 0 ? input.options : null,
+  });
+  if (error) return { error: error.message };
+  revalidatePath("/founder/question-bank");
+  return { ok: "Question added." };
+}
+
+export async function updateQuestionTemplate(id: string, input: BankInput): Promise<ActionState> {
+  await requirePlatformAdmin();
+  const err = validateBankInput(input);
+  if (err) return { error: err };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("question_templates")
+    .update({
+      label: input.label.trim(),
+      field_type: input.fieldType,
+      population: input.population,
+      category: input.category?.trim() || null,
+      help_text: input.helpText?.trim() || null,
+      options: input.options && input.options.length > 0 ? input.options : null,
+    })
+    .eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/founder/question-bank");
+  return { ok: "Question saved." };
+}
+
+export async function setQuestionTemplateActive(id: string, active: boolean): Promise<ActionState> {
+  await requirePlatformAdmin();
+  const supabase = await createClient();
+  const { error } = await supabase.from("question_templates").update({ active }).eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/founder/question-bank");
+  return { ok: active ? "Question restored." : "Question archived." };
 }

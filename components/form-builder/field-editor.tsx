@@ -27,6 +27,8 @@ type Props = {
   onChange: (patch: Partial<FormField>) => void;
   onMove: (dir: -1 | 1) => void;
   onRemove: () => void;
+  /** Optional drag handle rendered in the header (drag reorder). */
+  dragHandle?: React.ReactNode;
 };
 
 const TEXT_TYPES: FieldType[] = ["short_text", "long_text"];
@@ -39,6 +41,7 @@ export default function FieldEditor({
   onChange,
   onMove,
   onRemove,
+  dragHandle,
 }: Props) {
   const uid = useId();
   const isHeading = field.type === "heading";
@@ -48,7 +51,9 @@ export default function FieldEditor({
 
   // Fields that can drive a conditional (discrete answers), excluding this one.
   const conditionSources = allFields.filter(
-    (f) => f.key !== field.key && (fieldTakesOptions(f.type) || f.type === "checkbox"),
+    (f) =>
+      f.key !== field.key &&
+      (fieldTakesOptions(f.type) || f.type === "checkbox" || f.type === "yes_no"),
   );
 
   function setOptions(options: FieldOption[]) {
@@ -80,19 +85,27 @@ export default function FieldEditor({
           { value: "true", label: "Ticked" },
           { value: "false", label: "Not ticked" },
         ]
-      : conditionField.options ?? []
+      : conditionField.type === "yes_no"
+        ? [
+            { value: "Yes", label: "Yes" },
+            { value: "No", label: "No" },
+          ]
+        : conditionField.options ?? []
     : [];
 
   return (
     <div className="glass-card p-4">
       <div className="mb-3 flex items-start justify-between gap-2">
-        <div className="min-w-0">
+        <div className="flex min-w-0 items-start gap-2">
+          {dragHandle}
+          <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-white">
             {field.label || "Untitled question"}
           </p>
           <p className="text-[11px] text-white/45">
             {fieldTypeLabel(field.type)} · <span className="font-mono">{field.key}</span>
           </p>
+          </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <button
@@ -199,7 +212,7 @@ export default function FieldEditor({
         </div>
       )}
 
-      {(isText || isNumber || field.type === "date") && (
+      {(isText || isNumber || field.type === "email" || field.type === "phone") && (
         <div className="mt-3">
           <label htmlFor={`${uid}-ph`} className="form-label">
             Placeholder
@@ -209,6 +222,26 @@ export default function FieldEditor({
             type="text"
             value={field.placeholder ?? ""}
             onChange={(e) => onChange({ placeholder: e.target.value || undefined })}
+          />
+        </div>
+      )}
+
+      {field.type === "rating" && (
+        <div className="mt-3">
+          <label htmlFor={`${uid}-stars`} className="form-label">
+            Maximum stars
+          </label>
+          <input
+            id={`${uid}-stars`}
+            type="number"
+            min={2}
+            max={10}
+            value={field.validation?.max ?? 5}
+            onChange={(e) =>
+              onChange({
+                validation: cleanVal({ ...field.validation, max: Number(e.target.value) || 5 }),
+              })
+            }
           />
         </div>
       )}

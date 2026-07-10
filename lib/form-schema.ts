@@ -19,13 +19,19 @@ export type FieldType =
   | "long_text"
   | "number"
   | "date"
+  | "time"
+  | "email"
+  | "phone"
+  | "yes_no"
   | "single_select"
   | "multi_select"
   | "radio"
+  | "rating"
   | "checkbox"
   | "heading"
   | "signature"
-  | "file_upload";
+  | "file_upload"
+  | "address";
 
 /** A choice for select / radio / multi_select fields. */
 export type FieldOption = {
@@ -86,10 +92,45 @@ export type FormSchema = {
 };
 
 /** A single answer value. Multi_select is a string[]; checkbox is a boolean. */
-export type AnswerValue = string | number | boolean | string[] | null;
+/** A structured postal address answer (the `address` field type). */
+export type AddressValue = {
+  line1?: string;
+  line2?: string;
+  city?: string;
+  county?: string;
+  postcode?: string;
+};
+
+/** The ordered parts of an address, with display labels. */
+export const ADDRESS_PARTS: ReadonlyArray<{ key: keyof AddressValue; label: string }> = [
+  { key: "line1", label: "Address line 1" },
+  { key: "line2", label: "Address line 2" },
+  { key: "city", label: "Town or city" },
+  { key: "county", label: "County" },
+  { key: "postcode", label: "Postcode" },
+];
+
+export type AnswerValue = string | number | boolean | string[] | AddressValue | null;
 
 /** All answers for a form, keyed by field key. */
 export type Answers = Record<string, AnswerValue>;
+
+/** Narrow an answer to a structured address value (object, not array). */
+export function isAddressValue(v: AnswerValue | undefined): v is AddressValue {
+  return !!v && typeof v === "object" && !Array.isArray(v);
+}
+
+/** True when an address has no parts filled in. */
+export function addressIsEmpty(v: AddressValue): boolean {
+  return ADDRESS_PARTS.every(({ key }) => String(v[key] ?? "").trim() === "");
+}
+
+/** A one line, comma separated rendering of an address (no dashes). */
+export function formatAddress(v: AddressValue): string {
+  return ADDRESS_PARTS.map(({ key }) => String(v[key] ?? "").trim())
+    .filter((part) => part !== "")
+    .join(", ");
+}
 
 /** Field types that do not collect an answer (purely presentational). */
 export function isPresentational(type: FieldType): boolean {

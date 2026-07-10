@@ -10,8 +10,74 @@ import "server-only";
  */
 
 import { createClient } from "@/lib/supabase/server";
-import { isFormSchema, type FormSchema } from "@/lib/form-schema";
-import type { FormSummary, FormVersionRow, Population, TemplateSummary } from "./types";
+import {
+  isFormSchema,
+  type FieldOption,
+  type FieldType,
+  type FormSchema,
+} from "@/lib/form-schema";
+import type {
+  BankQuestion,
+  BankQuestionRow,
+  FormSummary,
+  FormVersionRow,
+  Population,
+  TemplateSummary,
+} from "./types";
+
+type QuestionRow = {
+  id: string;
+  label: string;
+  field_type: string;
+  options: unknown;
+  help_text: string | null;
+  category: string | null;
+  population: "any" | Population;
+  active: boolean;
+  sort_order: number;
+};
+
+function toBankQuestion(r: QuestionRow): BankQuestion {
+  const options = Array.isArray(r.options) ? (r.options as FieldOption[]) : null;
+  return {
+    id: r.id,
+    label: r.label,
+    fieldType: r.field_type as FieldType,
+    options,
+    helpText: r.help_text,
+    category: r.category,
+    population: r.population,
+  };
+}
+
+/** Active question-bank entries for a population (plus "any"), for the builder. */
+export async function listQuestionBank(population: Population): Promise<BankQuestion[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("question_templates")
+    .select("id, label, field_type, options, help_text, category, population, active, sort_order")
+    .eq("active", true)
+    .in("population", ["any", population])
+    .order("sort_order", { ascending: true })
+    .order("label", { ascending: true });
+  return ((data ?? []) as QuestionRow[]).map(toBankQuestion);
+}
+
+/** Every question-bank entry (Founder curation; RLS still blocks non platform admins). */
+export async function listAllQuestionTemplates(): Promise<BankQuestionRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("question_templates")
+    .select("id, label, field_type, options, help_text, category, population, active, sort_order")
+    .order("population", { ascending: true })
+    .order("sort_order", { ascending: true })
+    .order("label", { ascending: true });
+  return ((data ?? []) as QuestionRow[]).map((r) => ({
+    ...toBankQuestion(r),
+    active: r.active,
+    sortOrder: r.sort_order,
+  }));
+}
 
 /** Every company form with its published version and whether a draft is parked. */
 export async function listCompanyForms(companyId: string): Promise<FormSummary[]> {

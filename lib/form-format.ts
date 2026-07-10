@@ -7,7 +7,13 @@
  * "Not answered", never a dash.
  */
 
-import { type AnswerValue, type FormField } from "./form-schema";
+import {
+  type AnswerValue,
+  type FormField,
+  addressIsEmpty,
+  formatAddress,
+  isAddressValue,
+} from "./form-schema";
 
 /** Map an option value to its label, falling back to the raw value. */
 function optionLabel(field: FormField, value: string): string {
@@ -28,6 +34,25 @@ export function formatAnswerForDisplay(field: FormField, value: AnswerValue | un
 
     case "checkbox":
       return value === true ? "Yes" : "No";
+
+    case "yes_no":
+      return value === "Yes" || value === "No" ? value : "Not answered";
+
+    case "rating": {
+      if (value == null || value === "") return "Not answered";
+      const max = field.validation?.max ?? 5;
+      return `${Number(value)} of ${max}`;
+    }
+
+    case "address":
+      return isAddressValue(value) && !addressIsEmpty(value)
+        ? formatAddress(value)
+        : "Not answered";
+
+    case "time":
+    case "email":
+    case "phone":
+      return value == null || String(value).trim() === "" ? "Not answered" : String(value);
 
     case "signature":
       return typeof value === "string" && value.trim() !== "" ? "Signature captured" : "Not signed";

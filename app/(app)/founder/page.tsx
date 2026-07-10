@@ -69,6 +69,12 @@ export default async function FounderPage() {
             builder.
           </p>
         </Link>
+        <Link href="/founder/question-bank" className="app-tile">
+          <h2 className="text-base font-semibold text-white">Question bank</h2>
+          <p className="text-sm text-white/60">
+            Curate reusable questions authors can drop into any form from the builder.
+          </p>
+        </Link>
       </section>
 
       <section aria-label="Companies" className="space-y-3">

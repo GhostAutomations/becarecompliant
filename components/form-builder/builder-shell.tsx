@@ -18,15 +18,19 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import FormRenderer from "@/components/forms/form-renderer";
 import { type FieldType, type FormField, type FormSchema } from "@/lib/form-schema";
-import type { FormVersionRow, Population } from "@/lib/form-builder/types";
+import type { BankQuestion, FormVersionRow, Population } from "@/lib/form-builder/types";
 import {
   addField,
   addSection,
   hasBlockingErrors,
+  insertField,
+  insertFieldFromBank,
   moveField,
   moveSection,
   removeField,
   removeSection,
+  reorderFieldInSection,
+  reorderSection,
   updateField,
   updateSection,
   validateSchema,
@@ -40,6 +44,7 @@ import {
 } from "@/lib/form-builder/actions";
 import SectionEditor from "./section-editor";
 import VersionHistory from "./version-history";
+import ContentOutline from "./content-outline";
 
 type CompanyProps = {
   kind: "company";
@@ -51,6 +56,7 @@ type CompanyProps = {
   schema: FormSchema;
   currentVersion: number | null;
   versions: FormVersionRow[];
+  bank?: BankQuestion[];
 };
 
 type TemplateProps = {
@@ -60,6 +66,7 @@ type TemplateProps = {
   population: Population;
   schema: FormSchema;
   version: number;
+  bank?: BankQuestion[];
 };
 
 type Props = CompanyProps | TemplateProps;
@@ -78,6 +85,8 @@ export default function BuilderShell(props: Props) {
   const [tab, setTab] = useState<"edit" | "preview">("edit");
   const [message, setMessage] = useState<{ ok?: string; error?: string } | null>(null);
   const [pending, startTransition] = useTransition();
+  const [sectionDrag, setSectionDrag] = useState<number | null>(null);
+  const bank = props.bank;
 
   const issues = useMemo(() => validateSchema(schema), [schema]);
   const blocked = hasBlockingErrors(issues);
@@ -282,30 +291,74 @@ export default function BuilderShell(props: Props) {
       )}
 
       {tab === "edit" ? (
-        <div className="space-y-4">
-          {schema.sections.map((section, i) => (
-            <SectionEditor
-              key={i}
-              section={section}
-              allFields={allFields}
-              index={i}
-              count={schema.sections.length}
-              onChangeSection={(patch) => mutate(updateSection(schema, section.id, patch))}
-              onMoveSection={(dir) => mutate(moveSection(schema, section.id, dir))}
-              onRemoveSection={() => mutate(removeSection(schema, section.id))}
-              onAddField={(type: FieldType) => mutate(addField(schema, section.id, type))}
-              onChangeField={(key, patch) => mutate(updateField(schema, section.id, key, patch))}
-              onMoveField={(key, dir) => mutate(moveField(schema, section.id, key, dir))}
-              onRemoveField={(key) => mutate(removeField(schema, section.id, key))}
-            />
-          ))}
-          <button
-            type="button"
-            onClick={() => mutate(addSection(schema))}
-            className="btn-outline px-4 py-2 text-sm"
-          >
-            Add section
-          </button>
+        <div className="lg:grid lg:grid-cols-[220px_1fr] lg:gap-6">
+          <aside className="mb-4 hidden lg:mb-0 lg:block">
+            <div className="sticky top-20">
+              <ContentOutline schema={schema} />
+            </div>
+          </aside>
+          <div className="space-y-4">
+            {schema.sections.map((section, i) => (
+              <div
+                key={section.id}
+                onDragOver={(e) => {
+                  if (sectionDrag != null) e.preventDefault();
+                }}
+                onDrop={() => {
+                  if (sectionDrag != null) mutate(reorderSection(schema, sectionDrag, i));
+                  setSectionDrag(null);
+                }}
+              >
+                <SectionEditor
+                  section={section}
+                  allFields={allFields}
+                  index={i}
+                  count={schema.sections.length}
+                  bank={bank}
+                  dragHandle={
+                    <span
+                      draggable
+                      onDragStart={() => setSectionDrag(i)}
+                      onDragEnd={() => setSectionDrag(null)}
+                      className="cursor-grab select-none text-white/40"
+                      aria-label="Drag to reorder section"
+                      title="Drag to reorder section"
+                    >
+                      ⠿
+                    </span>
+                  }
+                  onChangeSection={(patch) => mutate(updateSection(schema, section.id, patch))}
+                  onMoveSection={(dir) => mutate(moveSection(schema, section.id, dir))}
+                  onRemoveSection={() => mutate(removeSection(schema, section.id))}
+                  onAddField={(type: FieldType) => mutate(addField(schema, section.id, type))}
+                  onInsertField={(at, type) => mutate(insertField(schema, section.id, at, type))}
+                  onInsertBank={(at, q) =>
+                    mutate(
+                      insertFieldFromBank(schema, section.id, at, {
+                        label: q.label,
+                        fieldType: q.fieldType,
+                        options: q.options,
+                        helpText: q.helpText,
+                      }),
+                    )
+                  }
+                  onReorderFields={(from, to) =>
+                    mutate(reorderFieldInSection(schema, section.id, from, to))
+                  }
+                  onChangeField={(key, patch) => mutate(updateField(schema, section.id, key, patch))}
+                  onMoveField={(key, dir) => mutate(moveField(schema, section.id, key, dir))}
+                  onRemoveField={(key) => mutate(removeField(schema, section.id, key))}
+                />
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => mutate(addSection(schema))}
+              className="btn-outline px-4 py-2 text-sm"
+            >
+              Add section
+            </button>
+          </div>
         </div>
       ) : (
         <div className="glass-card p-5">

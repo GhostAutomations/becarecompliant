@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
-import { getFormForEdit } from "@/lib/form-builder/data";
+import { getFormForEdit, listQuestionBank } from "@/lib/form-builder/data";
 import BuilderShell from "@/components/form-builder/builder-shell";
 
 export const metadata: Metadata = { title: "Edit form" };
@@ -18,6 +18,7 @@ export default async function EditFormPage({
 
   const form = await getFormForEdit(profile.company_id, id);
   if (!form) notFound();
+  const bank = await listQuestionBank(form.population);
 
   // Load the draft if one is open, else the published version, else a blank shell.
   const editable = form.draft != null;
@@ -50,6 +51,7 @@ export default async function EditFormPage({
         schema={schema}
         currentVersion={form.currentVersion}
         versions={form.versions}
+        bank={bank}
       />
     </div>
   );

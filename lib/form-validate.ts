@@ -14,11 +14,14 @@
  */
 
 import {
+  type AddressValue,
   type Answers,
   type AnswerValue,
   type FormField,
   type FormSchema,
+  addressIsEmpty,
   flattenFields,
+  isAddressValue,
   isPresentational,
 } from "./form-schema";
 
@@ -36,13 +39,19 @@ export function isFieldVisible(field: FormField, answers: Answers): boolean {
   return field.visibleWhen.in.includes(String(controlling));
 }
 
-/** Treat empty string / null / empty array as "no answer". */
+/** Treat empty string / null / empty array / empty address as "no answer". */
 function isEmpty(value: AnswerValue | undefined): boolean {
   if (value == null) return true;
   if (typeof value === "string") return value.trim() === "";
   if (Array.isArray(value)) return value.length === 0;
+  if (isAddressValue(value)) return addressIsEmpty(value);
   return false;
 }
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// A phone value may contain a hyphen (that is data, not customer-facing copy).
+const PHONE_RE = /^[+()\d\s-]{7,}$/;
+const TIME_RE = /^\d{2}:\d{2}$/;
 
 /**
  * Return only the answers for fields that are currently visible and collect an
@@ -84,6 +93,40 @@ function validateField(field: FormField, value: AnswerValue | undefined): string
       }
       const d = new Date(value + "T00:00:00Z");
       if (Number.isNaN(d.getTime())) return "Enter a valid date.";
+      return null;
+    }
+    case "time": {
+      if (typeof value !== "string" || !TIME_RE.test(value)) return "Enter a valid time.";
+      return null;
+    }
+    case "email": {
+      if (typeof value !== "string" || !EMAIL_RE.test(value.trim())) {
+        return "Enter a valid email address.";
+      }
+      return null;
+    }
+    case "phone": {
+      if (typeof value !== "string" || !PHONE_RE.test(value.trim())) {
+        return "Enter a valid phone number.";
+      }
+      return null;
+    }
+    case "yes_no": {
+      if (value !== "Yes" && value !== "No") return "Choose Yes or No.";
+      return null;
+    }
+    case "rating": {
+      const max = field.validation?.max ?? 5;
+      const n = typeof value === "number" ? value : Number(value);
+      if (!Number.isInteger(n) || n < 1 || n > max) return `Choose a rating from 1 to ${max}.`;
+      return null;
+    }
+    case "address": {
+      if (!isAddressValue(value)) return "Enter an address.";
+      const a = value as AddressValue;
+      if (required && (String(a.line1 ?? "").trim() === "" || String(a.postcode ?? "").trim() === "")) {
+        return "Enter at least the first line and the postcode.";
+      }
       return null;
     }
     case "short_text":

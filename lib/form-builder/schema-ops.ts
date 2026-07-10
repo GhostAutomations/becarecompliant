@@ -8,6 +8,7 @@
  */
 
 import {
+  type FieldOption,
   type FieldType,
   type FormField,
   type FormSchema,
@@ -99,6 +100,7 @@ function newField(schema: FormSchema, type: FieldType): FormField {
       { value: "option_2", label: "Option 2" },
     ];
   }
+  if (type === "rating") field.validation = { max: 5 };
   if (type === "heading") field.label = "Heading";
   return field;
 }
@@ -111,6 +113,88 @@ export function addField(schema: FormSchema, sectionId: string, type: FieldType)
       s.id === sectionId ? { ...s, fields: [...s.fields, field] } : s,
     ),
   };
+}
+
+/** Insert a new field of a type at a specific index within a section. */
+export function insertField(
+  schema: FormSchema,
+  sectionId: string,
+  index: number,
+  type: FieldType,
+): FormSchema {
+  const field = newField(schema, type);
+  return {
+    ...schema,
+    sections: schema.sections.map((s) => {
+      if (s.id !== sectionId) return s;
+      const fields = [...s.fields];
+      const at = Math.max(0, Math.min(index, fields.length));
+      fields.splice(at, 0, field);
+      return { ...s, fields };
+    }),
+  };
+}
+
+/** Insert a field built from a question-bank entry at a position in a section. */
+export function insertFieldFromBank(
+  schema: FormSchema,
+  sectionId: string,
+  index: number,
+  bank: { label: string; fieldType: FieldType; options: FieldOption[] | null; helpText: string | null },
+): FormSchema {
+  const field: FormField = {
+    key: uniqueKey(schema, bank.label),
+    type: bank.fieldType,
+    label: bank.label,
+  };
+  if (bank.helpText) field.help = bank.helpText;
+  if (fieldTakesOptions(bank.fieldType) && bank.options && bank.options.length > 0) {
+    field.options = bank.options;
+  }
+  if (bank.fieldType === "rating") field.validation = { max: 5 };
+  return {
+    ...schema,
+    sections: schema.sections.map((s) => {
+      if (s.id !== sectionId) return s;
+      const fields = [...s.fields];
+      const at = Math.max(0, Math.min(index, fields.length));
+      fields.splice(at, 0, field);
+      return { ...s, fields };
+    }),
+  };
+}
+
+/** Move a field within its section from one index to another (drag reorder). */
+export function reorderFieldInSection(
+  schema: FormSchema,
+  sectionId: string,
+  fromIndex: number,
+  toIndex: number,
+): FormSchema {
+  if (fromIndex === toIndex) return schema;
+  return {
+    ...schema,
+    sections: schema.sections.map((s) => {
+      if (s.id !== sectionId) return s;
+      const fields = [...s.fields];
+      if (fromIndex < 0 || fromIndex >= fields.length) return s;
+      const [moved] = fields.splice(fromIndex, 1);
+      const at = Math.max(0, Math.min(toIndex, fields.length));
+      fields.splice(at, 0, moved);
+      return { ...s, fields };
+    }),
+  };
+}
+
+/** Move a section from one index to another (drag reorder). */
+export function reorderSection(schema: FormSchema, fromIndex: number, toIndex: number): FormSchema {
+  if (fromIndex === toIndex) return schema;
+  const sections = [...schema.sections];
+  if (fromIndex < 0 || fromIndex >= sections.length) return schema;
+  const [moved] = sections.splice(fromIndex, 1);
+  const at = Math.max(0, Math.min(toIndex, sections.length));
+  sections.splice(at, 0, moved);
+  return { ...schema, sections };
 }
 
 export function removeField(schema: FormSchema, sectionId: string, key: string): FormSchema {

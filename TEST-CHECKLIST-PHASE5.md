@@ -85,6 +85,46 @@ never "item" or "board"; no dashes in any customer-facing copy.
 31. A Company Admin cannot reach /founder/forms (redirected); RLS blocks form_templates writes
     for non platform admins.
 
+## G. New field types (engine reopened, Phase 2)
+
+32. Build a form using each new type: Time, Email, Phone, Address, Yes or No, Rating.
+    Each renders via the canonical dark controls in the builder preview and on the real
+    completion screen.
+33. Validation: Email rejects a bad address; Phone rejects letters; Time requires HH:MM;
+    Rating enforces 1 to max; a required Address requires at least line 1 and postcode.
+34. Rating: the Maximum stars setting changes the number of stars; the chosen value shows
+    as "N of M".
+35. Address: the parts (line 1, line 2, town, county, postcode) save together and display
+    as one comma separated line in the record and evidence.
+36. Complete a check whose form uses the new types: immutable Evidence stores the answers,
+    and the branded evidence PDF renders every new type correctly (rating as "N of M",
+    address on one line, Yes/No, time, email, phone).
+37. Conditional logic on a Yes or No trigger: a follow up field shows only when Yes (or No)
+    is chosen, live in preview and on completion.
+
+## H. Builder ergonomics
+
+38. Drag a field by its handle to reorder within a section; the up/down arrows still work
+    as a fallback. Typing in a field's inputs never starts a drag.
+39. Insert a field at any position using the + Insert point between fields, not only at the
+    end of the section.
+40. Drag a section by its handle to reorder sections.
+41. Content outline (left column) lists every section and field; clicking one scrolls the
+    editor to it. Collapses on a narrow screen.
+
+## I. Question bank
+
+42. Founder console shows a Question bank tile; /founder/question-bank lists entries and lets
+    you create one (label, type, scope People / Service Users / Any, category, options).
+43. In the builder, the add-field menu shows a From question bank tab (only when the bank has
+    entries for that population or Any); picking one inserts a field pre-filled from the bank.
+44. Bank scoping: a People-only question does not appear when editing a Service User form, and
+    vice versa; Any appears on both.
+45. Archive a bank question; it stops appearing in the builder add menu but existing forms that
+    already used it are unchanged.
+46. A Company Admin cannot reach /founder/question-bank (redirected); RLS blocks question bank
+    writes for non platform admins (reads are allowed so the builder can offer them).
+
 ## Log to Final Testing if Not tested / needs extra tenants or roles
 
 - Cross-tenant RLS: a Company Admin of company A cannot read or edit company B's forms /
@@ -93,3 +133,8 @@ never "item" or "board"; no dashes in any customer-facing copy.
   blocks forms/form_versions insert-update). Needs those roles.
 - Evidence rendered from a pinned older version after the form is republished (item 19),
   end to end via the download/export path (Phase 8 on-demand PDF).
+- Engine reopened for the new field types (schema, validator, formatter, renderer, evidence
+  PDF): full cross-browser + mobile render of Time, Email, Phone, Address, Yes or No, Rating,
+  and the evidence PDF for each, since Phase 2 was previously signed off on the smaller set.
+- Question bank RLS: any authenticated member can read the bank but only the Founder can
+  write it (needs a non-founder session to confirm the read-only exposure is acceptable).
