@@ -35,7 +35,7 @@ export default async function SettingsServiceUsersPage() {
         <p className="page-subtitle">Configure service user checks and register columns.</p>
       </div>
 
-      <details className="glass-card section-card" open>
+      <details className="glass-card section-card">
         <summary>Service User checks</summary>
         <div className="space-y-3 border-t border-white/10 p-5">
           <p className="page-subtitle">
