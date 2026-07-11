@@ -179,6 +179,7 @@ export async function suggestAbsencePolicy(
     '{"method":"stages"|"bradford","rolling_window_days":number,"thresholds":[...],"summary":"one sentence"}',
     'For "stages" each threshold is {"stage":1,"label":"Stage 1","occasions":3}.',
     'For "bradford" each threshold is {"threshold":51,"label":"Stage 1","action":"Informal discussion"}.',
+    "A Return to Work interview is conducted after EVERY absence, at every stage/level regardless of the stage; state this clearly in the summary.",
     "If the policy does not specify numbers, use sensible UK care-sector defaults and say so in the summary.",
   ].join(" ");
 
@@ -210,8 +211,17 @@ export async function suggestAbsencePolicy(
   }
 
   if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    return { error: `AI request failed (${res.status}). ${detail.slice(0, 200)}` };
+    // Redact anything that looks like a secret before surfacing (defence in depth:
+    // e.g. a misconfigured ANTHROPIC_MODEL echoing the key back in the error body).
+    const detail = (await res.text().catch(() => "")).replace(
+      /sk-ant-[A-Za-z0-9_-]{6,}/g,
+      "sk-ant-***",
+    );
+    const hint =
+      res.status === 404
+        ? " Check ANTHROPIC_MODEL is a valid model name (e.g. claude-sonnet-5)."
+        : "";
+    return { error: `AI request failed (${res.status}).${hint} ${detail.slice(0, 160)}` };
   }
 
   const json = (await res.json()) as {

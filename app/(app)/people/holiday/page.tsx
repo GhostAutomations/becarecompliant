@@ -3,6 +3,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import { listBranches, getCompanyFormByKey } from "@/lib/people/data";
+import { listActivePeople } from "@/lib/absence/data";
 import { listHolidayRequests } from "@/lib/holidays/data";
 import { isFormSchema, type FormSchema } from "@/lib/form-schema";
 import HolidayView from "@/components/holidays/holiday-view";
@@ -25,9 +26,11 @@ export default async function HolidayPage() {
   }
 
   const companyId = profile.company_id;
-  const [branches, requests, requestForm, responseForm] = await Promise.all([
+  const canApprove = ["company_admin", "manager", "platform_admin"].includes(profile.role);
+  const [branches, requests, people, requestForm, responseForm] = await Promise.all([
     listBranches(companyId),
     listHolidayRequests(companyId, null),
+    canApprove ? listActivePeople(companyId) : Promise.resolve([]),
     getCompanyFormByKey(companyId, "holiday_requests"),
     getCompanyFormByKey(companyId, "holiday_response"),
   ]);
@@ -37,8 +40,6 @@ export default async function HolidayPage() {
   const responseSchema: FormSchema | null =
     responseForm && isFormSchema(responseForm.schema) ? (responseForm.schema as FormSchema) : null;
 
-  const canApprove = ["company_admin", "manager", "platform_admin"].includes(profile.role);
-
   return (
     <div className="flex h-full min-h-0 flex-col">
       <RealtimeRefresh tables={["holiday_requests"]} channel="holiday" />
@@ -46,6 +47,7 @@ export default async function HolidayPage() {
       <HolidayView
         requests={requests}
         branches={branches}
+        people={people}
         requestSchema={requestSchema}
         responseSchema={responseSchema}
         canApprove={canApprove}

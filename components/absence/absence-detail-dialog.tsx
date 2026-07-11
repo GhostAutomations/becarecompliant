@@ -78,7 +78,7 @@ function RowEditor({ ev, n, canEdit }: { ev: AbsenceEventRow; n: number; canEdit
             type="button"
             onClick={save}
             disabled={busy}
-            className="btn-outline ml-auto px-3 py-1.5 text-xs"
+            className="btn-primary ml-auto px-3 py-1.5 text-xs"
           >
             {busy ? "Saving…" : state.ok && !dirty ? "Saved" : "Save last date"}
           </button>

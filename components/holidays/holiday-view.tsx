@@ -12,7 +12,14 @@ import FormEvidenceDialog from "@/components/forms/form-evidence-dialog";
 import type { FormSchema } from "@/lib/form-schema";
 import type { HolidayRequestRow } from "@/lib/holidays/data";
 import type { BranchLite } from "@/lib/people/data";
-import { requestHoliday, decideHoliday } from "@/lib/holidays/actions";
+import type { PersonLite } from "@/lib/absence/data";
+import { requestHoliday, decideHoliday, bookHolidayForPerson } from "@/lib/holidays/actions";
+
+const HOLIDAY_HIDE_FOR_PERSON = [
+  "name",
+  "please_enter_your_email_address",
+  "what_area_do_you_work_for",
+];
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -31,20 +38,25 @@ function fmt(dateIso: string): string {
 export default function HolidayView({
   requests,
   branches,
+  people,
   requestSchema,
   responseSchema,
   canApprove,
 }: {
   requests: HolidayRequestRow[];
   branches: BranchLite[];
+  people: PersonLite[];
   requestSchema: FormSchema | null;
   responseSchema: FormSchema | null;
   canApprove: boolean;
 }) {
   const now = new Date();
   const [branch, setBranch] = useState("");
+  const [pickPerson, setPickPerson] = useState("");
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth()); // 0-based
+
+  const visiblePeople = branch ? people.filter((p) => p.branch_id === branch) : people;
 
   const scoped = useMemo(
     () => (branch ? requests.filter((r) => r.branch_id === branch) : requests),
@@ -116,6 +128,44 @@ export default function HolidayView({
           The Holiday Form is not in this company yet, so requests cannot be submitted
           until it is imported.
         </p>
+      )}
+
+      {/* Manager/Admin: book holiday on behalf of a staff member (approved directly). */}
+      {canApprove && requestSchema && (
+        <div className="glass-card flex flex-wrap items-end gap-3 p-4">
+          <div className="min-w-[220px] flex-1">
+            <label htmlFor="holiday-person" className="form-label">
+              Book holiday for
+            </label>
+            <select
+              id="holiday-person"
+              value={pickPerson}
+              onChange={(e) => setPickPerson(e.target.value)}
+            >
+              <option value="">Choose a person…</option>
+              {visiblePeople.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.full_name}
+                </option>
+              ))}
+            </select>
+          </div>
+          {pickPerson ? (
+            <FormEvidenceDialog
+              title="Book holiday"
+              schema={requestSchema}
+              action={bookHolidayForPerson}
+              extraFields={{ person_id: pickPerson }}
+              hideFields={HOLIDAY_HIDE_FOR_PERSON}
+              triggerLabel="Book holiday"
+              submitLabel="Book holiday"
+            />
+          ) : (
+            <button type="button" className="btn-primary px-3 py-2 text-sm opacity-50" disabled>
+              Book holiday
+            </button>
+          )}
+        </div>
       )}
 
       {/* Requests strip */}

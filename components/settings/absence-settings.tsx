@@ -45,6 +45,7 @@ export default function AbsenceSettings({
   const [summary, setSummary] = useState<string | null>(policyAiSummary);
   const [dirty, setDirty] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [fileName, setFileName] = useState<string | null>(null);
 
   const [saveState, saveAction, saving] = useActionState(saveAbsenceConfig, IDLE_STATE);
   const [uploadState, uploadAction] = useActionState(uploadAbsencePolicy, IDLE_STATE);
@@ -237,13 +238,19 @@ export default function AbsenceSettings({
             : "No policy uploaded yet."}
         </p>
 
-        <form action={uploadAction} className="mt-3 flex flex-wrap items-end gap-3">
-          <div>
-            <label htmlFor="policy" className="form-label">
-              Upload policy (PDF)
-            </label>
-            <input id="policy" name="policy" type="file" accept="application/pdf" />
-          </div>
+        <form action={uploadAction} className="mt-3 flex flex-wrap items-center gap-3">
+          <label htmlFor="policy" className="btn-outline cursor-pointer px-3 py-2 text-sm">
+            Choose PDF
+          </label>
+          <input
+            id="policy"
+            name="policy"
+            type="file"
+            accept="application/pdf"
+            className="sr-only"
+            onChange={(e) => setFileName(e.target.files?.[0]?.name ?? null)}
+          />
+          <span className="text-xs text-white/60">{fileName ?? "No file chosen"}</span>
           <button type="submit" className="btn-outline px-3 py-2 text-sm">
             Upload
           </button>

@@ -132,6 +132,88 @@ export async function requestHoliday(
   return { ok: "Request submitted." };
 }
 
+/** A Manager/Admin books holiday ON BEHALF of a chosen staff member. The manager is
+ *  the authority, so it is recorded as approved directly (shows on the calendar).
+ *  Completes the Holiday Form as Evidence against that person. */
+export async function bookHolidayForPerson(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+  const companyId = profile.company_id;
+  const personId = String(formData.get("person_id") ?? "");
+  if (!personId) return { error: "Choose a person to book holiday for." };
+
+  let answers: Answers;
+  try {
+    answers = JSON.parse(String(formData.get("answers") ?? "{}")) as Answers;
+  } catch {
+    return { error: "Could not read the form answers." };
+  }
+
+  const startDate = isoOrNull(answers["start_date_of_holiday"]);
+  const endDate = isoOrNull(answers["end_date_of_holiday"]);
+  if (!startDate || !endDate) {
+    return { error: "Enter the start and end dates of the holiday." };
+  }
+
+  const supabase = await createClient();
+  const { data: person } = await supabase
+    .from("people")
+    .select("full_name, branch_id, company_id")
+    .eq("id", personId)
+    .maybeSingle();
+  if (!person) return { error: "That person could not be found." };
+
+  const form = await getCompanyFormByKey(companyId, "holiday_requests");
+  if (!form) {
+    return { error: "The Holiday Form is not available for your company yet." };
+  }
+
+  const result = await submitEvidence({
+    formVersionId: form.versionId,
+    branchId: (person.branch_id as string | null) ?? null,
+    answers,
+    files: await collectFiles(formData),
+    recordType: "person",
+    recordId: personId,
+  });
+  if (!result.ok) return { error: result.error };
+
+  const { error: insErr } = await supabase.from("holiday_requests").insert({
+    company_id: companyId,
+    branch_id: (person.branch_id as string | null) ?? null,
+    person_id: personId,
+    requested_by: user.id,
+    requester_name: person.full_name as string,
+    start_date: startDate,
+    end_date: endDate,
+    status: "approved",
+    request_evidence_id: result.evidenceId,
+    decided_by: user.id,
+    decided_at: new Date().toISOString(),
+  });
+  if (insErr) {
+    return { error: `Evidence was saved, but the booking could not be logged: ${insErr.message}` };
+  }
+
+  await writeAudit({
+    companyId,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "holiday.booked",
+    entityType: "holiday_request",
+    entityId: personId,
+    summary: `Booked holiday for ${person.full_name} from ${startDate} to ${endDate}`,
+    metadata: { evidence_id: result.evidenceId, start_date: startDate, end_date: endDate },
+  });
+
+  revalidatePath("/people/holiday");
+  return { ok: "Holiday booked." };
+}
+
 /** Approve or decline a holiday request (Manager/Admin) via the Holiday Response form. */
 export async function decideHoliday(
   _prev: ActionState,
