@@ -44,8 +44,9 @@ TWILIO_* for SMS checks; RESEND_* already live from Phase 1).
 
 ## E. Calendar invites (the two carried items)
 
-- [ ] E1. Booking a SU Planned Review with a reviewer sends the reviewer a branded email with invite.ics; opening it on a phone/Outlook adds an all-day event on the right date (Europe/London date, no off-by-one).
-- [ ] E2. Re-saving the same booking (same date + reviewer) does NOT re-send; changing the date DOES send a fresh invite.
+- [ ] E1. AMENDED (Phil, 2026-07-12): bookings now carry a TIME and DURATION (migration 0044). Booking a SU Planned Review sends the reviewer a branded email with invite.ics; opening it on a phone/Outlook adds a TIMED event at the right Europe/London date and time with the right duration (test a BST date; log a GMT-date check to Final Testing).
+- [ ] E1b. The Book in popover stays open showing "Booking…" until the save lands, then closes (no dead seconds where nothing seems to happen).
+- [ ] E2. Re-saving the same booking (same date + time + reviewer) does NOT re-send; changing the date OR time DOES send a fresh invite.
 - [ ] E3. Clearing a booking sends nothing.
 - [ ] E4. Recording an absence meeting dated today or later sends the employee and their manager an invitation with .ics; a past-dated (retrospective) meeting sends nothing.
 - [ ] E5. Audit metadata on the booking/meeting records the invite outcome (sent / already_sent / skipped_no_email_config).

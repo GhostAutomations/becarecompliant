@@ -366,6 +366,8 @@ export default function ServiceUserRegister({
                               <PlannedReviewCell
                                 serviceUserId={su.id}
                                 plannedDate={planned}
+                                plannedTime={row.tracker?.planned_review_time ?? null}
+                                plannedDuration={row.tracker?.planned_review_duration_minutes ?? null}
                                 reviewerId={row.tracker?.planned_reviewer_id ?? null}
                                 reviewerName={row.tracker?.planned_reviewer_name ?? null}
                                 reviewers={reviewers}

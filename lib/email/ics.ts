@@ -45,11 +45,45 @@ function foldLine(line: string): string {
   return parts.join("\r\n");
 }
 
+/**
+ * Convert a Europe/London wall-clock date + time to a UTC instant. Works for
+ * GMT and BST without a timezone library: guess UTC = wall time, read the
+ * guess back in London via Intl, and correct by the difference (one pass is
+ * enough because the UK offset is stable across the correction, except in the
+ * one repeated clock-change hour where either reading is acceptable).
+ */
+export function londonToUtc(dateIso: string, timeHHMM: string): Date {
+  const [y, m, d] = dateIso.split("-").map(Number);
+  const [hh, mm] = timeHHMM.split(":").map(Number);
+  const guess = new Date(Date.UTC(y, m - 1, d, hh, mm));
+  const seen = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(guess);
+  const part = (type: string) => Number(seen.find((p) => p.type === type)?.value ?? 0);
+  const seenUtc = Date.UTC(part("year"), part("month") - 1, part("day"), part("hour") === 24 ? 0 : part("hour"), part("minute"));
+  return new Date(guess.getTime() - (seenUtc - guess.getTime()));
+}
+
+/** 20260715T090000Z from a Date. */
+function basicUtcStamp(d: Date): string {
+  return d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+}
+
 export type IcsEvent = {
   /** Stable unique id, e.g. "su-review-<id>-<date>@becarecompliant.com". */
   uid: string;
-  /** ISO date (all-day event). */
+  /** ISO date. All-day when no time is given. */
   date: string;
+  /** "HH:MM" Europe/London wall time. Makes the event timed. */
+  time?: string | null;
+  /** Minutes; only used with time. Defaults to 60. */
+  durationMinutes?: number | null;
   summary: string;
   description?: string;
   organizerName?: string;
@@ -57,9 +91,20 @@ export type IcsEvent = {
   attendees?: { name: string; email: string }[];
 };
 
-/** Build the .ics text for one all-day invite. */
+/** Build the .ics text for one invite (timed when event.time is set). */
 export function buildIcs(event: IcsEvent): string {
   const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const timing: string[] = [];
+  if (event.time) {
+    const start = londonToUtc(event.date, event.time);
+    const end = new Date(start.getTime() + (event.durationMinutes ?? 60) * 60_000);
+    timing.push(`DTSTART:${basicUtcStamp(start)}`, `DTEND:${basicUtcStamp(end)}`);
+  } else {
+    timing.push(
+      `DTSTART;VALUE=DATE:${basicDate(event.date)}`,
+      `DTEND;VALUE=DATE:${nextDayBasic(event.date)}`,
+    );
+  }
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -69,8 +114,7 @@ export function buildIcs(event: IcsEvent): string {
     "BEGIN:VEVENT",
     `UID:${event.uid}`,
     `DTSTAMP:${stamp}`,
-    `DTSTART;VALUE=DATE:${basicDate(event.date)}`,
-    `DTEND;VALUE=DATE:${nextDayBasic(event.date)}`,
+    ...timing,
     `SUMMARY:${escapeText(event.summary)}`,
   ];
   if (event.description) {

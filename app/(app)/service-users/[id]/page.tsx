@@ -213,6 +213,8 @@ export default async function ServiceUserPage({
                     <PlannedReviewCell
                       serviceUserId={serviceUser.id}
                       plannedDate={plannedDate}
+                      plannedTime={tracker?.planned_review_time ?? null}
+                      plannedDuration={tracker?.planned_review_duration_minutes ?? null}
                       reviewerId={tracker?.planned_reviewer_id ?? null}
                       reviewerName={tracker?.planned_reviewer_name ?? null}
                       reviewers={users}

@@ -23,12 +23,15 @@ export async function sendCalendarInvite(opts: {
   dedupeKey: string;
   recipient: { profileId?: string | null; name: string; email: string };
   eventTitle: string;
-  /** ISO date of the all-day event. */
+  /** ISO date; all-day unless timeHHMM is set. */
   dateIso: string;
+  /** "HH:MM" Europe/London wall time for a timed event. */
+  timeHHMM?: string | null;
+  durationMinutes?: number | null;
   detailHtml: string;
   icsUid: string;
 }): Promise<SendResult & { deduped?: boolean }> {
-  const subject = `${opts.eventTitle}: ${ukDate(opts.dateIso)}`;
+  const subject = `${opts.eventTitle}: ${ukDate(opts.dateIso)}${opts.timeHHMM ? `, ${opts.timeHHMM}` : ""}`;
 
   const logId = await claimNotification({
     companyId: opts.companyId,
@@ -46,6 +49,8 @@ export async function sendCalendarInvite(opts: {
   const ics = buildIcs({
     uid: opts.icsUid,
     date: opts.dateIso,
+    time: opts.timeHHMM ?? null,
+    durationMinutes: opts.durationMinutes ?? null,
     summary: opts.eventTitle,
     description: `${opts.eventTitle} at ${opts.companyName}. Details in Be Care Compliant.`,
     organizerEmail: organizerAddress(),
@@ -61,6 +66,8 @@ export async function sendCalendarInvite(opts: {
       companyName: opts.companyName,
       eventTitle: opts.eventTitle,
       dateIso: opts.dateIso,
+      timeHHMM: opts.timeHHMM ?? null,
+      durationMinutes: opts.durationMinutes ?? null,
       detailHtml: opts.detailHtml,
       actionUrl: siteUrl(),
     }),

@@ -44,6 +44,8 @@ export type ServiceUserRecord = {
 export type ServiceUserTracker = {
   service_user_id: string;
   planned_review_date: string | null;
+  planned_review_time: string | null;
+  planned_review_duration_minutes: number | null;
   planned_reviewer_id: string | null;
   planned_reviewer_name?: string | null;
   planned_review_booked_at: string | null;

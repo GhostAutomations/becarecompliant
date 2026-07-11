@@ -68,6 +68,15 @@ function shell(opts: {
 </html>`;
 }
 
+/** "1 hour", "90 minutes", "2 hours" for email copy. */
+function formatDuration(minutes: number): string {
+  if (minutes % 60 === 0) {
+    const h = minutes / 60;
+    return h === 1 ? "1 hour" : `${h} hours`;
+  }
+  return `${minutes} minutes`;
+}
+
 /** 11 July 2026 style, en-GB, for email copy. */
 function formatDateUk(iso: string): string {
   const [y, m, d] = iso.split("-").map(Number);
@@ -197,18 +206,24 @@ export function calendarInviteEmailHtml(opts: {
   companyName: string;
   eventTitle: string;
   dateIso: string;
+  /** "HH:MM" Europe/London; shown after the date when present. */
+  timeHHMM?: string | null;
+  durationMinutes?: number | null;
   detailHtml: string;
   actionUrl: string;
 }): string {
+  const when = opts.timeHHMM
+    ? `${formatDateUk(opts.dateIso)} at ${opts.timeHHMM}${opts.durationMinutes ? ` (${formatDuration(opts.durationMinutes)})` : ""}`
+    : formatDateUk(opts.dateIso);
   const body = `
     <p style="margin:0 0 12px 0;">${escapeHtml(opts.recipientName)}, you have been invited to
     <strong style="color:#ffffff;">${escapeHtml(opts.eventTitle)}</strong> on
-    <strong style="color:#ffffff;">${escapeHtml(formatDateUk(opts.dateIso))}</strong>
+    <strong style="color:#ffffff;">${escapeHtml(when)}</strong>
     at ${escapeHtml(opts.companyName)}.</p>
     ${opts.detailHtml}
     <p style="margin:12px 0 0 0;font-size:13px;color:${MUTED};">The attached calendar file adds this to your phone or Outlook calendar.</p>`;
   return shell({
-    preheader: `${opts.eventTitle} on ${formatDateUk(opts.dateIso)}.`,
+    preheader: `${opts.eventTitle} on ${when}.`,
     heading: opts.eventTitle,
     bodyHtml: body,
     ctaLabel: "Open Be Care Compliant",

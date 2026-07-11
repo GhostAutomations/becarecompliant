@@ -1,12 +1,13 @@
 "use client";
 
 /**
- * Be Care Compliant — the Planned Review Date cell (Phase 4). Clicking the cell
- * opens a small booking popover (rendered in a portal so the register's scroll area
- * does not clip it): pick a date and the reviewer who will complete the review, then
- * Book. This sets the booking on the record and derives the Review Status to
- * "Booked In". Clear removes it. The reviewer calendar-invite email is Phase 6
- * (Notifications); this cell only records the booking.
+ * Be Care Compliant — the Planned Review Date cell (Phase 4, extended Phase 6).
+ * Clicking the cell opens a small booking popover (rendered in a portal so the
+ * register's scroll area does not clip it): pick a date, TIME and DURATION plus
+ * the reviewer, then Book in. The reviewer receives a branded email with a
+ * timed .ics calendar invite (Phase 6). The popover stays open showing
+ * "Booking…" until the save completes, then closes: no dead seconds where it
+ * looks like nothing happened (Phil, 2026-07-12).
  */
 
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -17,9 +18,19 @@ import { formatDisplayDate } from "@/lib/service-users/logic";
 
 type Reviewer = { id: string; full_name: string; email: string };
 
+const DURATIONS = [
+  { value: 30, label: "30 minutes" },
+  { value: 45, label: "45 minutes" },
+  { value: 60, label: "1 hour" },
+  { value: 90, label: "1 hour 30" },
+  { value: 120, label: "2 hours" },
+];
+
 export default function PlannedReviewCell({
   serviceUserId,
   plannedDate,
+  plannedTime,
+  plannedDuration,
   reviewerId,
   reviewerName,
   reviewers,
@@ -27,6 +38,8 @@ export default function PlannedReviewCell({
 }: {
   serviceUserId: string;
   plannedDate: string | null;
+  plannedTime?: string | null;
+  plannedDuration?: number | null;
   reviewerId: string | null;
   reviewerName: string | null;
   reviewers: Reviewer[];
@@ -37,6 +50,8 @@ export default function PlannedReviewCell({
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState({ top: 0, left: 0 });
   const [date, setDate] = useState(plannedDate ?? "");
+  const [time, setTime] = useState((plannedTime ?? "10:00").slice(0, 5));
+  const [duration, setDuration] = useState(String(plannedDuration ?? 60));
   const [reviewer, setReviewer] = useState(reviewerId ?? "");
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -44,12 +59,13 @@ export default function PlannedReviewCell({
   useEffect(() => {
     if (!open) return;
     function onDown(e: MouseEvent) {
+      if (pending) return; // do not lose the "Booking…" state mid-save
       const t = e.target as Node;
       if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
       setOpen(false);
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape" && !pending) setOpen(false);
     }
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
@@ -57,9 +73,10 @@ export default function PlannedReviewCell({
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);
     };
-  }, [open]);
+  }, [open, pending]);
 
-  const label = plannedDate ? formatDisplayDate(plannedDate) : "—";
+  const timeLabel = plannedTime ? ` ${plannedTime.slice(0, 5)}` : "";
+  const label = plannedDate ? `${formatDisplayDate(plannedDate)}${timeLabel}` : "—";
   const sub = plannedDate && reviewerName ? reviewerName : null;
 
   if (!editable) {
@@ -73,12 +90,14 @@ export default function PlannedReviewCell({
 
   function toggle() {
     if (open) {
-      setOpen(false);
+      if (!pending) setOpen(false);
       return;
     }
     const r = btnRef.current?.getBoundingClientRect();
     if (r) setCoords({ top: r.bottom + 4, left: r.left });
     setDate(plannedDate ?? "");
+    setTime((plannedTime ?? "10:00").slice(0, 5));
+    setDuration(String(plannedDuration ?? 60));
     setReviewer(reviewerId ?? "");
     setOpen(true);
   }
@@ -87,11 +106,13 @@ export default function PlannedReviewCell({
     const fd = new FormData();
     fd.set("service_user_id", serviceUserId);
     fd.set("planned_review_date", clear ? "" : date);
+    fd.set("planned_review_time", clear ? "" : time);
+    fd.set("planned_review_duration", clear ? "" : duration);
     fd.set("planned_reviewer_id", clear ? "" : reviewer);
-    setOpen(false);
     startTransition(async () => {
       await bookReview(fd);
       router.refresh();
+      setOpen(false);
     });
   }
 
@@ -123,16 +144,48 @@ export default function PlannedReviewCell({
         createPortal(
           <div
             ref={menuRef}
-            style={{ position: "fixed", top: coords.top, left: coords.left, width: 240 }}
+            style={{ position: "fixed", top: coords.top, left: coords.left, width: 250 }}
             className="z-50 flex flex-col gap-3 rounded-xl border border-white/15 bg-navy-900 p-3 shadow-2xl"
           >
             <div>
               <label className="form-label">Review date</label>
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+              <input
+                type="date"
+                value={date}
+                disabled={pending}
+                onChange={(e) => setDate(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="form-label">Time</label>
+                <input
+                  type="time"
+                  value={time}
+                  disabled={pending}
+                  onChange={(e) => setTime(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="form-label">Duration</label>
+                <select
+                  value={duration}
+                  disabled={pending}
+                  onChange={(e) => setDuration(e.target.value)}
+                >
+                  {DURATIONS.map((d) => (
+                    <option key={d.value} value={d.value}>{d.label}</option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div>
               <label className="form-label">Reviewer</label>
-              <select value={reviewer} onChange={(e) => setReviewer(e.target.value)}>
+              <select
+                value={reviewer}
+                disabled={pending}
+                onChange={(e) => setReviewer(e.target.value)}
+              >
                 <option value="">Choose a reviewer</option>
                 {reviewers.map((u) => (
                   <option key={u.id} value={u.id}>{u.full_name || u.email}</option>
@@ -143,19 +196,24 @@ export default function PlannedReviewCell({
               <button
                 type="button"
                 className="btn-primary text-xs"
-                disabled={!date}
+                disabled={!date || !time || pending}
                 onClick={() => submit(false)}
               >
-                Book in
+                {pending ? "Booking…" : "Book in"}
               </button>
               {plannedDate ? (
-                <button type="button" className="btn-ghost text-xs" onClick={() => submit(true)}>
-                  Clear
+                <button
+                  type="button"
+                  className="btn-ghost text-xs"
+                  disabled={pending}
+                  onClick={() => submit(true)}
+                >
+                  {pending ? "Working…" : "Clear"}
                 </button>
               ) : null}
             </div>
             <p className="text-[10px] text-white/40">
-              The reviewer calendar invite is sent from Phase 6.
+              Booking emails the reviewer a calendar invite for this slot.
             </p>
           </div>,
           document.body,

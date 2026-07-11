@@ -278,12 +278,19 @@ export async function bookReview(formData: FormData): Promise<void> {
 
   const plannedDate = isoDateOrNull(formData.get("planned_review_date"));
   const reviewerId = trimOrNull(formData.get("planned_reviewer_id"));
+  const rawTime = String(formData.get("planned_review_time") ?? "").trim();
+  const plannedTime = /^\d{2}:\d{2}$/.test(rawTime) ? rawTime : null;
+  const rawDuration = Number.parseInt(String(formData.get("planned_review_duration") ?? ""), 10);
+  const plannedDuration =
+    Number.isFinite(rawDuration) && rawDuration >= 15 && rawDuration <= 480 ? rawDuration : null;
 
   const supabase = await createClient();
   const { error } = await supabase
     .from("service_user_trackers")
     .update({
       planned_review_date: plannedDate,
+      planned_review_time: plannedDate ? plannedTime : null,
+      planned_review_duration_minutes: plannedDate && plannedTime ? plannedDuration : null,
       planned_reviewer_id: plannedDate ? reviewerId : null,
       planned_review_booked_at: plannedDate ? new Date().toISOString() : null,
       updated_by: user.id,
@@ -307,7 +314,9 @@ export async function bookReview(formData: FormData): Promise<void> {
         branchId: (su.branch_id as string | null) ?? null,
         companyName: company?.name ?? "Be Care Compliant",
         kind: "su_review_invite",
-        dedupeKey: `su_review:${id}:${plannedDate}:${reviewerId}`,
+        // Time is part of the key: rebooking the same slot never re-sends, a
+        // changed date OR time sends a fresh invitation.
+        dedupeKey: `su_review:${id}:${plannedDate}:${plannedTime ?? "allday"}:${reviewerId}`,
         recipient: {
           profileId: reviewer.id,
           name: reviewer.full_name || reviewer.email,
@@ -315,8 +324,10 @@ export async function bookReview(formData: FormData): Promise<void> {
         },
         eventTitle: `Care Plan Review: ${su.full_name}`,
         dateIso: plannedDate,
+        timeHHMM: plannedTime,
+        durationMinutes: plannedDuration ?? (plannedTime ? 60 : null),
         detailHtml: `<p style="margin:0;">You are booked to complete the Care Plan Review for <strong style="color:#ffffff;">${escapeHtml(String(su.full_name))}</strong>. The review form is in the Service Users section.</p>`,
-        icsUid: `su-review-${id}-${plannedDate}@becarecompliant.com`,
+        icsUid: `su-review-${id}-${plannedDate}-${(plannedTime ?? "allday").replace(":", "")}@becarecompliant.com`,
       });
       inviteOutcome = result.sent
         ? "sent"
@@ -341,6 +352,8 @@ export async function bookReview(formData: FormData): Promise<void> {
     summary: plannedDate ? `Booked a review for ${plannedDate}` : "Cleared the planned review",
     metadata: {
       planned_review_date: plannedDate,
+      planned_review_time: plannedTime,
+      planned_review_duration_minutes: plannedDuration,
       planned_reviewer_id: reviewerId,
       invite_email: inviteOutcome,
     },
