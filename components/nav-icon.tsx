@@ -58,5 +58,21 @@ export function NavIcon({
           <path d="M9 12l2 2 4-4" />
         </svg>
       );
+    case "holiday":
+      return (
+        <svg {...common}>
+          <rect x="3.5" y="4.5" width="17" height="16" rx="2" />
+          <path d="M3.5 9h17M8 3v3M16 3v3" />
+          <path d="M8.5 13.5l2 2 4-4" />
+        </svg>
+      );
+    case "absence":
+      return (
+        <svg {...common}>
+          <rect x="3.5" y="4.5" width="17" height="16" rx="2" />
+          <path d="M3.5 9h17M8 3v3M16 3v3" />
+          <path d="M9.5 13l5 4M14.5 13l-5 4" />
+        </svg>
+      );
   }
 }

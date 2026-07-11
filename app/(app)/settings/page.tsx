@@ -116,6 +116,13 @@ export default async function SettingsPage() {
             Service Users.
           </p>
         </Link>
+        <Link href="/settings/absence" className="app-tile">
+          <h2 className="text-base font-semibold text-white">Absence</h2>
+          <p className="text-sm text-white/60">
+            Choose how absence is tracked (stages or Bradford Factor), set the
+            thresholds, and upload your policy for AI to read.
+          </p>
+        </Link>
       </section>
     </div>
   );

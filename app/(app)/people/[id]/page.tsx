@@ -15,6 +15,8 @@ import {
   listPersonAssignments,
   listPersonEvidence,
 } from "@/lib/people/data";
+import { listPersonHolidays } from "@/lib/holidays/data";
+import { listPersonAbsences, listPersonMeetings } from "@/lib/absence/data";
 import {
   applyMissingChecks,
   assignSupervisor,
@@ -74,7 +76,18 @@ export default async function PersonPage({
   const canManage = MANAGE_ROLES.includes(profile.role);
   const canComplete = COMPLETE_ROLES.includes(profile.role);
 
-  const [statuses, definitions, evidence, users, assignments, branches, tracker] = await Promise.all([
+  const [
+    statuses,
+    definitions,
+    evidence,
+    users,
+    assignments,
+    branches,
+    tracker,
+    holidays,
+    absences,
+    meetings,
+  ] = await Promise.all([
     getPersonChecks(id),
     listPeopleCheckDefinitions(companyId),
     listPersonEvidence(id),
@@ -82,6 +95,9 @@ export default async function PersonPage({
     canManage ? listPersonAssignments(id) : Promise.resolve([]),
     canManage ? listBranches(companyId) : Promise.resolve([]),
     getPersonTracker(id),
+    listPersonHolidays(id),
+    listPersonAbsences(id),
+    listPersonMeetings(id),
   ]);
 
   const supDef = definitions.find((d) => d.key === "supervision");
@@ -299,6 +315,70 @@ export default async function PersonPage({
           </section>
         </>
       )}
+
+      {/* Holiday & Absence history */}
+      <section className="grid gap-4 lg:grid-cols-2">
+        <div className="glass-card p-5">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white/60">Holiday</h2>
+          {holidays.length === 0 ? (
+            <p className="text-sm text-white/50">No holiday requests.</p>
+          ) : (
+            <ul className="space-y-2">
+              {holidays.map((h) => (
+                <li key={h.id} className="flex items-center justify-between gap-2 text-sm">
+                  <span className="text-white/80">
+                    {formatDisplayDate(h.start_date)} to {formatDisplayDate(h.end_date)}
+                  </span>
+                  <span
+                    className={
+                      h.status === "approved"
+                        ? "pill pill-green"
+                        : h.status === "declined"
+                          ? "pill pill-red"
+                          : "pill pill-amber"
+                    }
+                  >
+                    {h.status}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="glass-card p-5">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white/60">Absence</h2>
+          {absences.length === 0 && meetings.length === 0 ? (
+            <p className="text-sm text-white/50">No absences recorded.</p>
+          ) : (
+            <>
+              <ul className="space-y-1.5 text-sm">
+                {absences.map((a) => (
+                  <li key={a.id} className="flex items-center justify-between gap-2">
+                    <span className="text-white/80">{formatDisplayDate(a.start_date)}</span>
+                    <span className="truncate text-xs text-white/50">{a.reason ?? ""}</span>
+                  </li>
+                ))}
+              </ul>
+              {meetings.length > 0 && (
+                <div className="mt-3 border-t border-white/10 pt-3">
+                  <p className="mb-1 text-[11px] uppercase tracking-wide text-white/40">Meetings</p>
+                  <ul className="space-y-1 text-sm">
+                    {meetings.map((m) => (
+                      <li key={m.id} className="flex items-center justify-between gap-2">
+                        <span className="text-white/80">{formatDisplayDate(m.meeting_date) || "—"}</span>
+                        <span className="pill pill-neutral">
+                          {m.stage ? `Stage ${m.stage}` : "Meeting"}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </section>
 
       {/* Evidence history */}
       <section className="space-y-3">

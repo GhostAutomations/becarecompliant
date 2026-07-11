@@ -9,21 +9,46 @@ import { NavIcon } from "@/components/nav-icon";
 export function SidebarNav({ entries }: { entries: NavEntry[] }) {
   const pathname = usePathname();
 
+  const isActive = (href: string) =>
+    pathname === href || pathname.startsWith(`${href}/`);
+
   return (
     <nav className="flex flex-col gap-1" aria-label="Main">
       {entries.map((entry) => {
-        const active =
-          pathname === entry.href || pathname.startsWith(`${entry.href}/`);
+        const children = entry.children ?? [];
+        // Parent highlights on its own routes, but yields to an active child so
+        // there is a single clear "you are here" in the People group.
+        const childActive = children.some((c) => isActive(c.href));
+        const active = isActive(entry.href) && !childActive;
         return (
-          <Link
-            key={entry.href}
-            href={entry.href}
-            className={`dock-link ${active ? "dock-link-active" : ""}`}
-            aria-current={active ? "page" : undefined}
-          >
-            <NavIcon icon={entry.icon} className="h-5 w-5" />
-            {entry.label}
-          </Link>
+          <div key={entry.href}>
+            <Link
+              href={entry.href}
+              className={`dock-link ${active ? "dock-link-active" : ""}`}
+              aria-current={active ? "page" : undefined}
+            >
+              <NavIcon icon={entry.icon} className="h-5 w-5" />
+              {entry.label}
+            </Link>
+            {children.length > 0 && (
+              <div className="mt-1 flex flex-col gap-1 pl-4">
+                {children.map((child) => {
+                  const cActive = isActive(child.href);
+                  return (
+                    <Link
+                      key={child.href}
+                      href={child.href}
+                      className={`dock-link py-1.5 text-[13px] ${cActive ? "dock-link-active" : ""}`}
+                      aria-current={cActive ? "page" : undefined}
+                    >
+                      <NavIcon icon={child.icon} className="h-4 w-4" />
+                      {child.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         );
       })}
     </nav>
