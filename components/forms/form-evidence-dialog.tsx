@@ -34,6 +34,7 @@ export default function FormEvidenceDialog({
   triggerClassName = "btn-primary px-3 py-2 text-sm",
   submitLabel = "Complete and save evidence",
   presetAnswers,
+  hideFields,
 }: {
   title: string;
   schema: FormSchema;
@@ -43,7 +44,21 @@ export default function FormEvidenceDialog({
   triggerClassName?: string;
   submitLabel?: string;
   presetAnswers?: Answers;
+  /** Field keys to hide (e.g. name/email when the person is already chosen). */
+  hideFields?: string[];
 }) {
+  // Drop hidden fields from what we render and validate. The server still
+  // validates against the full published version, so only omit optional fields.
+  const effectiveSchema: FormSchema =
+    hideFields && hideFields.length
+      ? {
+          ...schema,
+          sections: schema.sections.map((s) => ({
+            ...s,
+            fields: s.fields.filter((f) => !hideFields.includes(f.key)),
+          })),
+        }
+      : schema;
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -69,7 +84,7 @@ export default function FormEvidenceDialog({
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const result = validateAnswers(schema, answers);
+    const result = validateAnswers(effectiveSchema, answers);
     if (!result.ok) {
       setErrors(result.errors);
       return;
@@ -94,8 +109,8 @@ export default function FormEvidenceDialog({
       </button>
 
       {open && mounted && createPortal(
-        <div className="fixed inset-0 z-[100] flex justify-end bg-black/50 backdrop-blur-sm">
-          <div className="flex h-full w-full max-w-2xl flex-col overflow-y-auto border-l border-white/10 bg-navy-900 p-6 shadow-2xl">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-y-auto rounded-2xl border border-white/10 bg-navy-900 p-6 shadow-2xl">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-white">{title}</h2>
               <button
@@ -110,7 +125,7 @@ export default function FormEvidenceDialog({
 
             <form onSubmit={onSubmit} className="space-y-6">
               <FormRenderer
-                schema={schema}
+                schema={effectiveSchema}
                 defaultValue={presetAnswers}
                 errors={errors}
                 onChange={setAnswers}

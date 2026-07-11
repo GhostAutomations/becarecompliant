@@ -123,7 +123,7 @@ export async function recordAbsence(
 
   revalidatePath("/people/absence");
   revalidatePath(`/people/${personId}`);
-  return { ok: "completed", redirectTo: "/people/absence?recorded=1" };
+  return { ok: "Absence recorded." };
 }
 
 /** Record a formal absence-management meeting (Stage 1..4) for a Person. */
@@ -205,5 +205,5 @@ export async function recordAbsenceMeeting(
 
   revalidatePath("/people/absence");
   revalidatePath(`/people/${personId}`);
-  return { ok: "completed", redirectTo: "/people/absence?recorded=1" };
+  return { ok: "Meeting recorded." };
 }

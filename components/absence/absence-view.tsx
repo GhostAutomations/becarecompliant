@@ -110,6 +110,7 @@ export default function AbsenceView({
               extraFields={{ person_id: pickPerson }}
               triggerLabel="Record absence"
               submitLabel="Save absence"
+              hideFields={["name", "email"]}
             />
           ) : (
             <button type="button" className="btn-primary px-3 py-2 text-sm opacity-50" disabled>
@@ -194,6 +195,7 @@ export default function AbsenceView({
                         triggerLabel="Record meeting"
                         triggerClassName="btn-outline px-3 py-1.5 text-xs"
                         submitLabel="Save meeting"
+                        hideFields={["name"]}
                       />
                     ) : null}
                     {absenceSchema ? (
@@ -205,6 +207,7 @@ export default function AbsenceView({
                         triggerLabel="Add absence"
                         triggerClassName="btn-ghost px-3 py-1.5 text-xs"
                         submitLabel="Save absence"
+                        hideFields={["name", "email"]}
                       />
                     ) : null}
                   </div>

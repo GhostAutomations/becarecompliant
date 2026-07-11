@@ -129,7 +129,7 @@ export async function requestHoliday(
   });
 
   revalidatePath("/people/holiday");
-  return { ok: "completed", redirectTo: "/people/holiday?requested=1" };
+  return { ok: "Request submitted." };
 }
 
 /** Approve or decline a holiday request (Manager/Admin) via the Holiday Response form. */
@@ -201,5 +201,5 @@ export async function decideHoliday(
   });
 
   revalidatePath("/people/holiday");
-  return { ok: "completed", redirectTo: `/people/holiday?decided=${status}` };
+  return { ok: "Decision saved." };
 }
