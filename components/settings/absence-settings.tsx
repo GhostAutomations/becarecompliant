@@ -44,6 +44,7 @@ export default function AbsenceSettings({
   const [rows, setRows] = useState<Row[]>(initialThresholds as unknown as Row[]);
   const [summary, setSummary] = useState<string | null>(policyAiSummary);
   const [dirty, setDirty] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const [saveState, saveAction, saving] = useActionState(saveAbsenceConfig, IDLE_STATE);
   const [uploadState, uploadAction] = useActionState(uploadAbsencePolicy, IDLE_STATE);
@@ -73,8 +74,10 @@ export default function AbsenceSettings({
     if (uploadState.ok) router.refresh();
   }, [uploadState.ok, router]);
 
-  // A successful save clears the dirty flag so the button reads "Saved".
+  // When the save action resolves (ok or error), stop the "Saving…" state; a
+  // success also clears dirty so the button reads "Saved".
   useEffect(() => {
+    setSubmitting(false);
     if (saveState.ok) setDirty(false);
   }, [saveState]);
 
@@ -117,7 +120,8 @@ export default function AbsenceSettings({
     fd.set("method", method);
     fd.set("rolling_window_days", windowDays);
     fd.set("thresholds", JSON.stringify(cleaned));
-    saveAction(fd);
+    setSubmitting(true); // show "Saving…" immediately, before the transition's pending flips
+    setTimeout(() => saveAction(fd), 0);
   }
 
   const stageCols =
@@ -212,8 +216,13 @@ export default function AbsenceSettings({
         </div>
 
         <div className="mt-5 flex items-center gap-3">
-          <button type="button" onClick={onSave} disabled={saving} className="btn-primary px-4 py-2 text-sm">
-            {saving ? "Saving…" : saveState.ok && !dirty ? "Saved" : "Save"}
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={submitting || saving}
+            className="btn-primary px-4 py-2 text-sm"
+          >
+            {submitting || saving ? "Saving…" : saveState.ok && !dirty ? "Saved" : "Save"}
           </button>
           {saveState.error && <span className="form-error mt-0 text-xs">{saveState.error}</span>}
         </div>
