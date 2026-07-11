@@ -141,8 +141,9 @@ export default function NotificationSettings({
       <section className="glass-card p-5">
         <h2 className="text-sm font-semibold text-white/80">SMS numbers</h2>
         <p className="mt-1 text-sm text-white/60">
-          Managers and Admins with a number here receive the SMS escalation.
-          International format, for example +447700900123.
+          Managers and Admins with a number here receive the SMS escalation. Enter
+          a UK mobile as you would dial it, for example 07700 900123: it is stored
+          in international format (+44) for sending.
         </p>
         {users.length === 0 ? (
           <p className="mt-4 text-sm text-white/50">
@@ -165,7 +166,7 @@ export default function NotificationSettings({
                     type="tel"
                     name="phone"
                     defaultValue={u.phone ?? ""}
-                    placeholder="+44…"
+                    placeholder="07700 900123"
                     className="w-44"
                   />
                   <button

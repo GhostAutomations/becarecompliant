@@ -7,10 +7,10 @@ TWILIO_* for SMS checks; RESEND_* already live from Phase 1).
 
 ## A. Settings and metering surfaces
 
-- [ ] A1. /settings shows Notifications and Usage tiles; both pages load with a Back link.
-- [ ] A2. Notifications page shows the digest toggle ON and SMS OFF by default (seeded settings row).
-- [ ] A3. Saving thresholds validates: second chaser must be later than the first (error shown, nothing saved).
-- [ ] A4. SMS number accepts +447700900123 format, rejects "07700 900123", and can be cleared.
+- [x] A1. PASS 2026-07-12. /settings shows Notifications and Usage tiles; both pages load with a Back link.
+- [x] A2. PASS 2026-07-12. Notifications page shows the digest toggle ON and SMS OFF by default (seeded settings row).
+- [x] A3. PASS 2026-07-12. Saving thresholds validates: second chaser must be later than the first (error shown, nothing saved).
+- [x] A4. PASS 2026-07-12 then AMENDED (Phil): numbers are entered naturally as 07700 900123 and normalised server side to +447700900123 (E.164, leading 0 dropped, Twilio requirement). RETEST after deploy: 07700 900123 saves and shows as +447700900123; garbage like "0123" is rejected; clearing works.
 - [ ] A5. With TWILIO_* unset, the Notifications page shows the "SMS not configured" notice.
 - [ ] A6. Usage page shows the zero state before any metered events.
 - [ ] A7. Run an AI policy parse (Settings > Absence): a usage_events row appears (kind ai, tokens) and Usage page shows it this month.

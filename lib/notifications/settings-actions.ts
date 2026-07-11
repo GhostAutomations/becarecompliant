@@ -81,8 +81,11 @@ export async function saveUserPhone(
   const targetId = String(formData.get("profile_id") ?? "");
   const rawPhone = String(formData.get("phone") ?? "").trim();
   if (!targetId) return { error: "Missing user." };
-  if (rawPhone && !/^\+[1-9]\d{7,14}$/.test(rawPhone)) {
-    return { error: "Enter the number in international format, for example +447700900123." };
+  // UK mobiles can be typed naturally (07700 900123); we normalise to E.164
+  // (+447700900123, leading 0 dropped) because Twilio requires that format.
+  const phone = rawPhone ? normalizeUkMobile(rawPhone) : "";
+  if (rawPhone && !phone) {
+    return { error: "Enter a UK mobile number, for example 07700 900123." };
   }
 
   // Ownership check before the privileged write: the target must be an active
@@ -102,7 +105,7 @@ export async function saveUserPhone(
 
   const { error } = await service
     .from("profiles")
-    .update({ phone: rawPhone || null })
+    .update({ phone: phone || null })
     .eq("id", targetId);
   if (error) return { error: `The number could not be saved: ${error.message}` };
 
@@ -114,15 +117,29 @@ export async function saveUserPhone(
     action: "profile.phone_updated",
     entityType: "profile",
     entityId: targetId,
-    summary: rawPhone ? "Set an SMS number" : "Removed an SMS number",
+    summary: phone ? "Set an SMS number" : "Removed an SMS number",
   });
 
   revalidatePath("/settings/notifications");
-  return { ok: rawPhone ? "Number saved." : "Number removed." };
+  return { ok: phone ? `Number saved as ${phone}.` : "Number removed." };
 }
 
 function clampDays(value: FormDataEntryValue | null, fallback: number): number {
   const n = Number.parseInt(String(value ?? ""), 10);
   if (!Number.isFinite(n) || n < 1 || n > 365) return fallback;
   return n;
+}
+
+/**
+ * Accepts 07700 900123, 07700900123, +447700900123 or 447700900123 (spaces,
+ * dashes and brackets ignored) and returns E.164 (+447700900123), or null when
+ * it is not a recognisable UK mobile. The leading 0 is dropped after +44: that
+ * is the E.164 rule and what Twilio requires.
+ */
+function normalizeUkMobile(raw: string): string | null {
+  const digits = raw.replace(/[\s\-().]/g, "");
+  if (/^07\d{9}$/.test(digits)) return `+44${digits.slice(1)}`;
+  if (/^\+447\d{9}$/.test(digits)) return digits;
+  if (/^447\d{9}$/.test(digits)) return `+${digits}`;
+  return null;
 }
