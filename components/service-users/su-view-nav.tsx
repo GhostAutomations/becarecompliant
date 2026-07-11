@@ -77,8 +77,8 @@ export default function SuViewNav({
             go(VIEW_PATHS[e.target.value] ?? "/service-users", shownBranch);
           }}
         >
-          <option value="main">Main</option>
-          <option value="summary">Summary</option>
+          <option value="main">Matrix</option>
+          <option value="summary">Compliance</option>
           <option value="hospital">Hospital</option>
           <option value="respite">Respite</option>
           <option value="cancelled">Cancelled</option>

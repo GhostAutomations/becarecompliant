@@ -188,8 +188,8 @@ export default function ServiceUserRegister({
         <label className="flex items-center gap-2 text-sm font-bold text-white">
           View
           <select className="inline-cell" value={view} onChange={(e) => changeView(e.target.value)}>
-            <option value="main">Main</option>
-            <option value="summary">Summary</option>
+            <option value="main">Matrix</option>
+            <option value="summary">Compliance</option>
             <option value="hospital">Hospital</option>
             <option value="respite">Respite</option>
             <option value="cancelled">Cancelled</option>

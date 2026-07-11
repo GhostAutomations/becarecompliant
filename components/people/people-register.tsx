@@ -120,8 +120,8 @@ export default function PeopleRegister({
         <label className="flex items-center gap-2 text-sm font-bold text-white">
           View
           <select className="inline-cell" value={view} onChange={(e) => changeView(e.target.value)}>
-            <option value="main">Main</option>
-            <option value="summary">Summary</option>
+            <option value="main">Matrix</option>
+            <option value="summary">Compliance</option>
             <option value="leavers">Leavers</option>
             <option value="lts_mat">LTS & Mat Leave</option>
             <option value="archive">Archive</option>

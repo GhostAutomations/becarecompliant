@@ -18,7 +18,9 @@ export type NavEntry = {
     | "absence";
   /** Roles allowed to see this entry. Undefined means everyone. */
   roles?: Role[];
-  /** Nested sub-sections shown indented under this entry (e.g. under People). */
+  /** Optional sidebar section heading shown above this entry (e.g. "Departments"). */
+  group?: string;
+  /** Nested sub-sections ("Sub Departments") shown indented under this entry. */
   children?: NavEntry[];
 };
 
@@ -28,6 +30,7 @@ export const NAV_ENTRIES: NavEntry[] = [
     href: "/people",
     label: "People",
     icon: "people",
+    group: "Departments",
     children: [
       { href: "/people/holiday", label: "Holiday", icon: "holiday" },
       {
@@ -38,11 +41,12 @@ export const NAV_ENTRIES: NavEntry[] = [
       },
     ],
   },
-  { href: "/service-users", label: "Service Users", icon: "serviceUsers" },
+  { href: "/service-users", label: "Service Users", icon: "serviceUsers", group: "Departments" },
   {
     href: "/settings",
     label: "Settings",
     icon: "settings",
+    group: "Departments",
     roles: ["company_admin"],
   },
   { href: "/founder", label: "Founder", icon: "founder", roles: ["platform_admin"] },

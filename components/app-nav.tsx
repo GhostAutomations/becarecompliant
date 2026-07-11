@@ -14,15 +14,21 @@ export function SidebarNav({ entries }: { entries: NavEntry[] }) {
 
   return (
     <nav className="flex flex-col gap-1" aria-label="Main">
-      {entries.map((entry) => {
+      {entries.map((entry, i) => {
         const children = entry.children ?? [];
-        // Children only appear once you are inside this section (e.g. click People),
-        // then collapse away again on other sections.
+        // Children ("Sub Departments") only appear once you are inside this section.
         const childActive = children.some((c) => isActive(c.href));
         const inSection = isActive(entry.href);
         const active = inSection && !childActive;
+        // A section heading ("Departments") shows once, above the first entry of a group.
+        const showGroup = entry.group && entry.group !== entries[i - 1]?.group;
         return (
           <div key={entry.href}>
+            {showGroup && (
+              <p className="mb-1 mt-3 px-3 text-[10px] font-semibold uppercase tracking-wider text-white/35">
+                {entry.group}
+              </p>
+            )}
             <Link
               href={entry.href}
               className={`dock-link ${active ? "dock-link-active" : ""}`}
@@ -33,6 +39,9 @@ export function SidebarNav({ entries }: { entries: NavEntry[] }) {
             </Link>
             {children.length > 0 && inSection && (
               <div className="mt-1 flex flex-col gap-1 pl-4">
+                <p className="px-3 text-[10px] font-semibold uppercase tracking-wider text-white/30">
+                  Sub Departments
+                </p>
                 {children.map((child) => {
                   const cActive = isActive(child.href);
                   return (

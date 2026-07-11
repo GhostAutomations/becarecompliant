@@ -81,8 +81,8 @@ export default function ViewNav({
             go(VIEW_PATHS[e.target.value] ?? "/people", shownBranch);
           }}
         >
-          <option value="main">Main</option>
-          <option value="summary">Summary</option>
+          <option value="main">Matrix</option>
+          <option value="summary">Compliance</option>
           <option value="leavers">Leavers</option>
           <option value="lts_mat">LTS & Mat Leave</option>
           <option value="archive">Archive</option>
