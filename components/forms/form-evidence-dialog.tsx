@@ -16,6 +16,7 @@
 
 import { useEffect, useState } from "react";
 import { useActionState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import FormRenderer from "@/components/forms/form-renderer";
 import type { Answers, FormSchema } from "@/lib/form-schema";
@@ -45,6 +46,8 @@ export default function FormEvidenceDialog({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const [state, formAction, pending] = useActionState(action, IDLE_STATE);
   const [answers, setAnswers] = useState<Answers>(presetAnswers ?? {});
   const [files, setFiles] = useState<Record<string, File | null>>({});
@@ -90,8 +93,8 @@ export default function FormEvidenceDialog({
         {triggerLabel}
       </button>
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm">
+      {open && mounted && createPortal(
+        <div className="fixed inset-0 z-[100] flex justify-end bg-black/50 backdrop-blur-sm">
           <div className="flex h-full w-full max-w-2xl flex-col overflow-y-auto border-l border-white/10 bg-navy-900 p-6 shadow-2xl">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-white">{title}</h2>
@@ -133,7 +136,8 @@ export default function FormEvidenceDialog({
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );

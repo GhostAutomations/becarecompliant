@@ -11,6 +11,9 @@ or these flows will show the "form not available" notice and stay disabled.
 
 ENV: AI suggestion needs ANTHROPIC_API_KEY and ANTHROPIC_MODEL set in Vercel.
 
+## Rendering / QC (standing check for ANY modal or slide-over)
+- [ ] Every dialog/slide-over (FormEvidenceDialog: record absence, record meeting, request holiday, review holiday) opens as a FULL-SCREEN overlay, not trapped inside a card. It is portalled to document.body so a glass card's backdrop-filter can never become its containing block. Open each one and confirm it covers the screen and scrolls.
+
 ## Nav
 - [ ] Sidebar shows Holiday and Absence indented under People (desktop).
 - [ ] Team Member sees Holiday but NOT Absence; Admin/Manager/Supervisor see both.
