@@ -123,6 +123,19 @@ export default async function SettingsPage() {
             thresholds, and upload your policy for AI to read.
           </p>
         </Link>
+        <Link href="/settings/notifications" className="app-tile">
+          <h2 className="text-base font-semibold text-white">Notifications</h2>
+          <p className="text-sm text-white/60">
+            The daily compliance digest, overdue chasers, SMS escalation and the
+            numbers texts go to.
+          </p>
+        </Link>
+        <Link href="/settings/usage" className="app-tile">
+          <h2 className="text-base font-semibold text-white">Usage</h2>
+          <p className="text-sm text-white/60">
+            Metered SMS and AI usage for your company, this month and by month.
+          </p>
+        </Link>
       </section>
     </div>
   );

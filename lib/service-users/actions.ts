@@ -17,6 +17,8 @@ import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
+import { sendCalendarInvite } from "@/lib/notifications/invites";
+import { escapeHtml } from "@/lib/email/templates";
 import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
 import { type Answers, type FormSchema, firstDateFieldKey, isFormSchema } from "@/lib/form-schema";
 import type { ActionState } from "@/lib/forms";
@@ -265,8 +267,10 @@ export async function setServiceStatus(formData: FormData): Promise<void> {
 
 /** Book the next Care Plan Review: set the Planned Review Date and the reviewer who
  *  will complete it. Review Status derives to "Booked In" from this (until the due
- *  date passes). The calendar-invite email to the reviewer is Phase 6 (Notifications);
- *  this action only records the booking. Pass an empty date to clear a booking. */
+ *  date passes). Booking also emails the reviewer a branded calendar invite with an
+ *  .ics attachment (Phase 6); the email silently no-ops when Resend is not
+ *  configured and the outcome lands in the audit metadata either way.
+ *  Pass an empty date to clear a booking. */
 export async function bookReview(formData: FormData): Promise<void> {
   const { user, profile } = await requireCompany();
   const id = String(formData.get("service_user_id") ?? "");
@@ -287,6 +291,45 @@ export async function bookReview(formData: FormData): Promise<void> {
     .eq("service_user_id", id);
   if (error) return;
 
+  // Reviewer calendar invite (carried from Phase 4). Idempotent per service
+  // user + date + reviewer, so re-saving the same booking never re-sends and
+  // a changed date sends a fresh invitation.
+  let inviteOutcome = "not_applicable";
+  if (plannedDate && reviewerId) {
+    const [{ data: reviewer }, { data: su }, { data: company }] = await Promise.all([
+      supabase.from("profiles").select("id, full_name, email").eq("id", reviewerId).maybeSingle(),
+      supabase.from("service_users").select("full_name, branch_id").eq("id", id).maybeSingle(),
+      supabase.from("companies").select("name").eq("id", profile.company_id).maybeSingle(),
+    ]);
+    if (reviewer?.email && su) {
+      const result = await sendCalendarInvite({
+        companyId: profile.company_id,
+        branchId: (su.branch_id as string | null) ?? null,
+        companyName: company?.name ?? "Be Care Compliant",
+        kind: "su_review_invite",
+        dedupeKey: `su_review:${id}:${plannedDate}:${reviewerId}`,
+        recipient: {
+          profileId: reviewer.id,
+          name: reviewer.full_name || reviewer.email,
+          email: reviewer.email,
+        },
+        eventTitle: `Care Plan Review: ${su.full_name}`,
+        dateIso: plannedDate,
+        detailHtml: `<p style="margin:0;">You are booked to complete the Care Plan Review for <strong style="color:#ffffff;">${escapeHtml(String(su.full_name))}</strong>. The review form is in the Service Users section.</p>`,
+        icsUid: `su-review-${id}-${plannedDate}@becarecompliant.com`,
+      });
+      inviteOutcome = result.sent
+        ? "sent"
+        : result.deduped
+          ? "already_sent"
+          : result.skippedReason
+            ? "skipped_no_email_config"
+            : `failed: ${result.error}`;
+    } else {
+      inviteOutcome = "skipped_no_reviewer_email";
+    }
+  }
+
   await writeAudit({
     companyId: profile.company_id,
     actorId: user.id,
@@ -296,7 +339,11 @@ export async function bookReview(formData: FormData): Promise<void> {
     entityType: "service_user",
     entityId: id,
     summary: plannedDate ? `Booked a review for ${plannedDate}` : "Cleared the planned review",
-    metadata: { planned_review_date: plannedDate, planned_reviewer_id: reviewerId },
+    metadata: {
+      planned_review_date: plannedDate,
+      planned_reviewer_id: reviewerId,
+      invite_email: inviteOutcome,
+    },
   });
 
   revalidatePath(`/service-users/${id}`);

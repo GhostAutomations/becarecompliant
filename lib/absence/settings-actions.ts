@@ -18,6 +18,7 @@ import { revalidatePath } from "next/cache";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
+import { recordUsage } from "@/lib/notifications/usage";
 import type { ActionState } from "@/lib/forms";
 
 const POLICY_BUCKET = "absence-policies";
@@ -269,6 +270,22 @@ export async function suggestAbsencePolicy(
       input_tokens: json.usage?.input_tokens ?? null,
       output_tokens: json.usage?.output_tokens ?? null,
       model,
+    },
+  });
+
+  // Formal per-company AI metering (Phase 6): units = total tokens.
+  const inputTokens = json.usage?.input_tokens ?? 0;
+  const outputTokens = json.usage?.output_tokens ?? 0;
+  await recordUsage({
+    companyId: profile.company_id,
+    kind: "ai",
+    units: inputTokens + outputTokens,
+    metadata: {
+      feature: "absence_policy_parse",
+      input_tokens: inputTokens,
+      output_tokens: outputTokens,
+      model,
+      unit: "tokens",
     },
   });
 

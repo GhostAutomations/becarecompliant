@@ -15,6 +15,9 @@ import { revalidatePath } from "next/cache";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
+import { sendCalendarInvite } from "@/lib/notifications/invites";
+import { escapeHtml } from "@/lib/email/templates";
+import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
 import type { Answers } from "@/lib/form-schema";
 import type { ActionState } from "@/lib/forms";
@@ -200,7 +203,7 @@ export async function recordAbsenceMeeting(
   const supabase = await createClient();
   const { data: person } = await supabase
     .from("people")
-    .select("branch_id, company_id")
+    .select("branch_id, company_id, full_name, work_email, profile_id, manager_id")
     .eq("id", personId)
     .maybeSingle();
   if (!person) return { error: "That record could not be found." };
@@ -232,17 +235,93 @@ export async function recordAbsenceMeeting(
   const stage = stageMatch ? Number.parseInt(stageMatch[1], 10) : null;
   const meetingDate = isoOrNull(answers["date_of_meeting"]);
 
-  const { error: insErr } = await supabase.from("absence_meetings").insert({
-    company_id: person.company_id as string,
-    branch_id: (person.branch_id as string | null) ?? null,
-    person_id: personId,
-    stage: stage && stage >= 1 && stage <= 4 ? stage : null,
-    meeting_date: meetingDate,
-    evidence_id: result.evidenceId,
-    recorded_by: user.id,
-  });
-  if (insErr) {
-    return { error: `Evidence was saved, but the meeting could not be logged: ${insErr.message}` };
+  const { data: meeting, error: insErr } = await supabase
+    .from("absence_meetings")
+    .insert({
+      company_id: person.company_id as string,
+      branch_id: (person.branch_id as string | null) ?? null,
+      person_id: personId,
+      stage: stage && stage >= 1 && stage <= 4 ? stage : null,
+      meeting_date: meetingDate,
+      evidence_id: result.evidenceId,
+      recorded_by: user.id,
+    })
+    .select("id")
+    .single();
+  if (insErr || !meeting) {
+    return { error: `Evidence was saved, but the meeting could not be logged: ${insErr?.message ?? "no id returned"}` };
+  }
+
+  // Meeting invitations (Phase 6): when the meeting date is today or in the
+  // future, invite the employee and their manager with an .ics calendar
+  // attachment. A meeting logged retrospectively sends nothing. Emails no-op
+  // silently when Resend is not configured; the outcome is audited.
+  const inviteOutcomes: Record<string, string> = {};
+  const todayLondon = formatCivilDate(todayInLondon());
+  if (meetingDate && meetingDate >= todayLondon) {
+    const stageLabel = stage ? `Stage ${stage} absence meeting` : "Absence meeting";
+    const recipients: { key: string; profileId: string | null; name: string; email: string }[] = [];
+
+    let employeeEmail = (person.work_email as string | null) ?? null;
+    if (!employeeEmail && person.profile_id) {
+      const { data: p } = await supabase
+        .from("profiles").select("email").eq("id", person.profile_id).maybeSingle();
+      employeeEmail = p?.email ?? null;
+    }
+    if (employeeEmail) {
+      recipients.push({
+        key: "employee",
+        profileId: (person.profile_id as string | null) ?? null,
+        name: person.full_name as string,
+        email: employeeEmail,
+      });
+    } else {
+      inviteOutcomes.employee = "skipped_no_email";
+    }
+
+    if (person.manager_id) {
+      const { data: manager } = await supabase
+        .from("profiles").select("id, full_name, email").eq("id", person.manager_id).maybeSingle();
+      if (manager?.email) {
+        recipients.push({
+          key: "manager",
+          profileId: manager.id,
+          name: manager.full_name || manager.email,
+          email: manager.email,
+        });
+      } else {
+        inviteOutcomes.manager = "skipped_no_email";
+      }
+    }
+
+    const { data: company } = await supabase
+      .from("companies").select("name").eq("id", person.company_id as string).maybeSingle();
+
+    for (const recipient of recipients) {
+      const inviteResult = await sendCalendarInvite({
+        companyId: person.company_id as string,
+        branchId: (person.branch_id as string | null) ?? null,
+        companyName: company?.name ?? "Be Care Compliant",
+        kind: "absence_meeting_invite",
+        dedupeKey: `absence_meeting:${meeting.id}:${recipient.email}`,
+        recipient: {
+          profileId: recipient.profileId,
+          name: recipient.name,
+          email: recipient.email,
+        },
+        eventTitle: stageLabel,
+        dateIso: meetingDate,
+        detailHtml: `<p style="margin:0;">This is a formal absence management meeting regarding <strong style="color:#ffffff;">${escapeHtml(String(person.full_name))}</strong>. Please attend on the date shown.</p>`,
+        icsUid: `absence-meeting-${meeting.id}-${recipient.key}@becarecompliant.com`,
+      });
+      inviteOutcomes[recipient.key] = inviteResult.sent
+        ? "sent"
+        : inviteResult.deduped
+          ? "already_sent"
+          : inviteResult.skippedReason
+            ? "skipped_no_email_config"
+            : `failed: ${inviteResult.error}`;
+    }
   }
 
   await writeAudit({
@@ -254,7 +333,7 @@ export async function recordAbsenceMeeting(
     entityType: "person",
     entityId: personId,
     summary: stage ? `Recorded a Stage ${stage} absence meeting` : "Recorded an absence meeting",
-    metadata: { evidence_id: result.evidenceId, stage },
+    metadata: { evidence_id: result.evidenceId, stage, meeting_id: meeting.id, invites: inviteOutcomes },
   });
 
   revalidatePath("/people/absence");

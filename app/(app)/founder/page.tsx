@@ -75,6 +75,13 @@ export default async function FounderPage() {
             Curate reusable questions authors can drop into any form from the builder.
           </p>
         </Link>
+        <Link href="/founder/usage" className="app-tile">
+          <h2 className="text-base font-semibold text-white">Usage</h2>
+          <p className="text-sm text-white/60">
+            Metered SMS and AI usage per company, this month and by month. Diamond
+            billing reads from this.
+          </p>
+        </Link>
       </section>
 
       <section aria-label="Companies" className="space-y-3">

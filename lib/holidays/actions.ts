@@ -18,6 +18,7 @@ import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
 import type { Answers } from "@/lib/form-schema";
 import type { ActionState } from "@/lib/forms";
 import { getCompanyFormByKey } from "@/lib/people/data";
+import { notifyHolidayRequested, notifyHolidayDecided } from "@/lib/notifications/holiday";
 
 function isoOrNull(v: unknown): string | null {
   return typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
@@ -100,21 +101,36 @@ export async function requestHoliday(
   });
   if (!result.ok) return { error: result.error };
 
-  const { error: insErr } = await supabase.from("holiday_requests").insert({
-    company_id: companyId,
-    branch_id: branchId,
-    person_id: personId,
-    requested_by: user.id,
-    requester_name: profile.full_name || profile.email,
-    start_date: startDate,
-    end_date: endDate,
-    note: typeof answers["note"] === "string" ? (answers["note"] as string) : null,
-    status: "pending",
-    request_evidence_id: result.evidenceId,
-  });
-  if (insErr) {
-    return { error: `Evidence was saved, but the request could not be logged: ${insErr.message}` };
+  const { data: requestRow, error: insErr } = await supabase
+    .from("holiday_requests")
+    .insert({
+      company_id: companyId,
+      branch_id: branchId,
+      person_id: personId,
+      requested_by: user.id,
+      requester_name: profile.full_name || profile.email,
+      start_date: startDate,
+      end_date: endDate,
+      note: typeof answers["note"] === "string" ? (answers["note"] as string) : null,
+      status: "pending",
+      request_evidence_id: result.evidenceId,
+    })
+    .select("id")
+    .single();
+  if (insErr || !requestRow) {
+    return { error: `Evidence was saved, but the request could not be logged: ${insErr?.message ?? "no id returned"}` };
   }
+
+  // Phase 6: tell the approvers (branch Managers + Company Admins). Best-effort,
+  // idempotent, silently skipped when Resend is not configured.
+  const approverEmails = await notifyHolidayRequested({
+    companyId,
+    branchId,
+    requestId: requestRow.id as string,
+    requesterName: profile.full_name || profile.email,
+    startDate,
+    endDate,
+  });
 
   await writeAudit({
     companyId,
@@ -125,7 +141,13 @@ export async function requestHoliday(
     entityType: "holiday_request",
     entityId: personId,
     summary: `Requested holiday ${startDate} to ${endDate}`,
-    metadata: { evidence_id: result.evidenceId, start_date: startDate, end_date: endDate },
+    metadata: {
+      evidence_id: result.evidenceId,
+      start_date: startDate,
+      end_date: endDate,
+      request_id: requestRow.id,
+      approver_emails: approverEmails,
+    },
   });
 
   revalidatePath("/people/holiday");
@@ -239,7 +261,7 @@ export async function decideHoliday(
   const supabase = await createClient();
   const { data: request } = await supabase
     .from("holiday_requests")
-    .select("company_id, branch_id, person_id")
+    .select("company_id, branch_id, person_id, requested_by, start_date, end_date")
     .eq("id", requestId)
     .maybeSingle();
   if (!request) return { error: "That request could not be found." };
@@ -270,6 +292,19 @@ export async function decideHoliday(
     return { error: `Evidence was saved, but the decision could not be recorded: ${decErr.message}` };
   }
 
+  // Phase 6: tell the requester the outcome. Best-effort, idempotent, silently
+  // skipped when Resend is not configured.
+  const requesterEmail = await notifyHolidayDecided({
+    companyId: request.company_id as string,
+    branchId: (request.branch_id as string | null) ?? null,
+    requestId,
+    requestedBy: (request.requested_by as string | null) ?? null,
+    status,
+    startDate: request.start_date as string,
+    endDate: request.end_date as string,
+    note,
+  });
+
   await writeAudit({
     companyId: request.company_id as string,
     actorId: user.id,
@@ -279,7 +314,7 @@ export async function decideHoliday(
     entityType: "holiday_request",
     entityId: requestId,
     summary: `Holiday request ${status}`,
-    metadata: { evidence_id: result.evidenceId, status },
+    metadata: { evidence_id: result.evidenceId, status, requester_email: requesterEmail },
   });
 
   revalidatePath("/people/holiday");

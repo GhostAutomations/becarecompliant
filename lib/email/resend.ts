@@ -21,11 +21,20 @@ export function resendConfigured(): boolean {
  * the caller can surface "email not sent" in the UI. Customer emails must use
  * branded CTA buttons, never plain-text links: see lib/email/templates.ts.
  */
+export type EmailAttachment = {
+  filename: string;
+  /** Base64 encoded content. */
+  content: string;
+  /** e.g. "text/calendar; charset=utf-8; method=REQUEST" for .ics invites. */
+  contentType?: string;
+};
+
 export async function sendEmail(opts: {
   to: string;
   subject: string;
   html: string;
   replyTo?: string;
+  attachments?: EmailAttachment[];
 }): Promise<SendResult> {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM;
@@ -49,6 +58,15 @@ export async function sendEmail(opts: {
         subject: opts.subject,
         html: opts.html,
         ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
+        ...(opts.attachments && opts.attachments.length > 0
+          ? {
+              attachments: opts.attachments.map((a) => ({
+                filename: a.filename,
+                content: a.content,
+                ...(a.contentType ? { content_type: a.contentType } : {}),
+              })),
+            }
+          : {}),
       }),
     });
 
