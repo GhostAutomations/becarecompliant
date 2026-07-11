@@ -167,19 +167,6 @@ export default function FieldEditor({
 
       {!isHeading && (
         <div className="mt-3">
-          <label className="flex items-center gap-2 text-sm text-white/80">
-            <input
-              type="checkbox"
-              checked={field.required ?? false}
-              onChange={(e) => onChange({ required: e.target.checked })}
-            />
-            Required
-          </label>
-        </div>
-      )}
-
-      {!isHeading && (
-        <div className="mt-3">
           <label htmlFor={`${uid}-help`} className="form-label">
             Help text
           </label>
@@ -388,6 +375,19 @@ export default function FieldEditor({
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {!isHeading && (
+        <div className="mt-4 flex justify-end">
+          <label className="flex items-center gap-2 text-sm text-white/80">
+            <input
+              type="checkbox"
+              checked={field.required ?? false}
+              onChange={(e) => onChange({ required: e.target.checked })}
+            />
+            Required
+          </label>
         </div>
       )}
     </div>
