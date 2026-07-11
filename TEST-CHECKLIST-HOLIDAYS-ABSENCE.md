@@ -1,5 +1,11 @@
 # Test checklist — Holidays & Absence (People extension)
 
+## LIVE RUN 2026-07-11 (Admin, deployed) — results
+PASSED: AI policy suggestion (reads PDF, pre-fills method/thresholds); record absence (first/last date, single occasion); View absence + edit last date (numbered, one occasion); record absence meeting (stage on card); book holiday for a person (manager, approved onto calendar); holiday calendar shows pending amber + approved green; nav terminology (Matrix/Compliance, clean nesting no headings). Bugs found + fixed during the run: modal was trapped by a glass card's backdrop-filter (portalled to body); Save button didn't show Saving (synchronous submitting flag); record dialog hung on a redirect (return ok, close+refresh); hidden required Area/Email blocked holiday submit (made optional); removed redundant Date-of-form-submission field; styled the file picker button; redacted secrets from AI errors.
+STILL COLD (-> Final Testing): TM self-request -> pending -> approve path (likely superseded by the public-forms Additions item); Manager/Supervisor/Team Member permission matrix + cross-tenant isolation on the 4 new tables; branded Evidence PDF for the new forms; stage/Bradford unit tests; realtime (on 10s poll fallback until the tables join the publication); AI parse of a non-PDF rejection + missing-env fail-closed (env now set, happy path passed).
+
+
+
 Run as popups (Pass / Fail / Not tested) once deployed AND the four forms exist in
 the test company. Anything Not tested is logged into the Final Testing phase.
 
