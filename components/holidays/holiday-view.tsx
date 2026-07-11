@@ -64,6 +64,8 @@ export default function HolidayView({
   );
   const pending = scoped.filter((r) => r.status === "pending");
   const approved = scoped.filter((r) => r.status === "approved");
+  // Calendar shows approved (green) AND pending (amber, awaiting approval).
+  const onCalendar = scoped.filter((r) => r.status === "approved" || r.status === "pending");
 
   // Month grid (Monday-first).
   const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7; // 0=Mon
@@ -76,7 +78,7 @@ export default function HolidayView({
 
   const holidaysOn = (day: number) => {
     const d = iso(year, month, day);
-    return approved.filter((r) => r.start_date <= d && d <= r.end_date);
+    return onCalendar.filter((r) => r.start_date <= d && d <= r.end_date);
   };
 
   function stepMonth(delta: number) {
@@ -235,6 +237,15 @@ export default function HolidayView({
           </div>
         </div>
 
+        <div className="mb-2 flex items-center gap-4 text-[11px] text-white/50">
+          <span className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-sm bg-emerald-400/40" /> Approved
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-sm bg-amber-400/40" /> Awaiting approval
+          </span>
+        </div>
+
         <div className="grid grid-cols-7 gap-1 text-center text-[11px] text-white/50">
           {WEEKDAYS.map((d) => (
             <div key={d} className="pb-1">{d}</div>
@@ -251,8 +262,12 @@ export default function HolidayView({
                   {hols.slice(0, 2).map((h) => (
                     <div
                       key={h.id}
-                      className="truncate rounded bg-gold-400/20 px-1 py-0.5 text-[10px] text-gold-200"
-                      title={h.requester_name ?? ""}
+                      className={`truncate rounded px-1 py-0.5 text-[10px] ${
+                        h.status === "approved"
+                          ? "bg-emerald-400/20 text-emerald-200"
+                          : "bg-amber-400/20 text-amber-200"
+                      }`}
+                      title={`${h.requester_name ?? ""}${h.status === "pending" ? " (awaiting approval)" : ""}`}
                     >
                       {(h.requester_name ?? "").split(" ")[0]}
                     </div>
@@ -265,8 +280,8 @@ export default function HolidayView({
             );
           })}
         </div>
-        {approved.length === 0 && (
-          <p className="mt-3 text-xs text-white/50">No approved holidays to show yet.</p>
+        {onCalendar.length === 0 && (
+          <p className="mt-3 text-xs text-white/50">No holidays to show yet.</p>
         )}
       </div>
     </div>
