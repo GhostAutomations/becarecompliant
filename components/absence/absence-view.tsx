@@ -218,7 +218,7 @@ export default function AbsenceView({
                         action={recordAbsence}
                         extraFields={{ person_id: r.personId }}
                         triggerLabel="Add absence"
-                        triggerClassName="btn-ghost px-3 py-1.5 text-xs"
+                        triggerClassName="btn-outline px-3 py-1.5 text-xs"
                         submitLabel="Save absence"
                         hideFields={["name", "email"]}
                       />

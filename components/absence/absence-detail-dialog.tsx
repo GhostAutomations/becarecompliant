@@ -94,7 +94,7 @@ export default function AbsenceDetailDialog({
   events,
   canEdit,
   triggerLabel = "View absence",
-  triggerClassName = "btn-ghost px-3 py-1.5 text-xs",
+  triggerClassName = "btn-outline px-3 py-1.5 text-xs",
 }: {
   personName: string;
   events: AbsenceEventRow[];
