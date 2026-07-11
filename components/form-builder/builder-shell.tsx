@@ -208,7 +208,7 @@ export default function BuilderShell(props: Props) {
       />
 
       {/* Toolbar */}
-      <div className="glass-card sticky top-2 z-10 flex flex-wrap items-center justify-between gap-3 p-3">
+      <div className="glass-card sticky top-2 z-20 flex flex-wrap items-center justify-between gap-3 border border-white/10 bg-navy-900/90 p-3">
         <div className="inline-flex rounded-xl bg-white/5 p-1">
           <button
             type="button"
@@ -291,13 +291,13 @@ export default function BuilderShell(props: Props) {
       )}
 
       {tab === "edit" ? (
-        <div className="lg:grid lg:grid-cols-[220px_1fr] lg:gap-6">
+        <div className="lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-6">
           <aside className="mb-4 hidden lg:mb-0 lg:block">
             <div className="sticky top-20">
               <ContentOutline schema={schema} />
             </div>
           </aside>
-          <div className="space-y-4">
+          <div className="min-w-0 space-y-4">
             {schema.sections.map((section, i) => (
               <div
                 key={section.id}

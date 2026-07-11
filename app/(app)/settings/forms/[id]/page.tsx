@@ -30,7 +30,7 @@ export default async function EditFormPage({
     };
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-6xl space-y-6">
       <div>
         <BackLink href="/settings/forms" label="Back to Forms" />
         <h1 className="page-title mt-1">{form.name}</h1>
