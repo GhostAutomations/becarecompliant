@@ -43,6 +43,7 @@ export default function AbsenceSettings({
   const [windowDays, setWindowDays] = useState(String(initialWindow));
   const [rows, setRows] = useState<Row[]>(initialThresholds as unknown as Row[]);
   const [summary, setSummary] = useState<string | null>(policyAiSummary);
+  const [dirty, setDirty] = useState(false);
 
   const [saveState, saveAction, saving] = useActionState(saveAbsenceConfig, IDLE_STATE);
   const [uploadState, uploadAction] = useActionState(uploadAbsencePolicy, IDLE_STATE);
@@ -62,6 +63,7 @@ export default function AbsenceSettings({
       if (s.rolling_window_days) setWindowDays(String(s.rolling_window_days));
       if (Array.isArray(s.thresholds)) setRows(s.thresholds);
       if (s.summary) setSummary(s.summary);
+      setDirty(true); // AI pre-filled: the admin still needs to Save.
     } catch {
       /* ignore parse issues; the action already surfaced errors */
     }
@@ -71,15 +73,22 @@ export default function AbsenceSettings({
     if (uploadState.ok) router.refresh();
   }, [uploadState.ok, router]);
 
+  // A successful save clears the dirty flag so the button reads "Saved".
+  useEffect(() => {
+    if (saveState.ok) setDirty(false);
+  }, [saveState]);
+
   function switchMethod(next: AbsenceMethod) {
     setMethod(next);
     setRows(
       (next === "bradford" ? DEFAULT_BRADFORD_BANDS : DEFAULT_STAGE_THRESHOLDS) as unknown as Row[],
     );
+    setDirty(true);
   }
 
   function updateCell(i: number, key: string, value: string) {
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, [key]: value } : r)));
+    setDirty(true);
   }
   function addRow() {
     setRows((prev) => [
@@ -88,9 +97,11 @@ export default function AbsenceSettings({
         ? { threshold: 0, label: "", action: "" }
         : { stage: prev.length + 1, label: "", occasions: 0 },
     ]);
+    setDirty(true);
   }
   function removeRow(i: number) {
     setRows((prev) => prev.filter((_, idx) => idx !== i));
+    setDirty(true);
   }
 
   function onSave() {
@@ -157,7 +168,10 @@ export default function AbsenceSettings({
             type="number"
             min={1}
             value={windowDays}
-            onChange={(e) => setWindowDays(e.target.value)}
+            onChange={(e) => {
+              setWindowDays(e.target.value);
+              setDirty(true);
+            }}
           />
         </div>
 
@@ -199,11 +213,8 @@ export default function AbsenceSettings({
 
         <div className="mt-5 flex items-center gap-3">
           <button type="button" onClick={onSave} disabled={saving} className="btn-primary px-4 py-2 text-sm">
-            {saving ? "Saving…" : "Save"}
+            {saving ? "Saving…" : saveState.ok && !dirty ? "Saved" : "Save"}
           </button>
-          {saveState.ok && !saving && (
-            <span className="text-xs text-emerald-300">{saveState.ok}</span>
-          )}
           {saveState.error && <span className="form-error mt-0 text-xs">{saveState.error}</span>}
         </div>
       </section>
