@@ -22,7 +22,7 @@ function fmt(d: string | null): string {
   return `${day}/${m}/${y}`;
 }
 
-function RowEditor({ ev, canEdit }: { ev: AbsenceEventRow; canEdit: boolean }) {
+function RowEditor({ ev, n, canEdit }: { ev: AbsenceEventRow; n: number; canEdit: boolean }) {
   const router = useRouter();
   const [state, action, pending] = useActionState(updateAbsenceEndDate, IDLE_STATE);
   const [end, setEnd] = useState(ev.end_date ?? "");
@@ -49,6 +49,9 @@ function RowEditor({ ev, canEdit }: { ev: AbsenceEventRow; canEdit: boolean }) {
 
   return (
     <div className="rounded-xl bg-white/5 p-3">
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gold-300">
+        Absence {n}
+      </p>
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <p className="form-label text-[11px]">First date of absence</p>
@@ -127,9 +130,11 @@ export default function AbsenceDetailDialog({
               <p className="text-sm text-white/60">No absences recorded.</p>
             ) : (
               <div className="space-y-3">
-                {events.map((ev) => (
-                  <RowEditor key={ev.id} ev={ev} canEdit={canEdit} />
-                ))}
+                {[...events]
+                  .sort((a, b) => a.start_date.localeCompare(b.start_date))
+                  .map((ev, i) => (
+                    <RowEditor key={ev.id} ev={ev} n={i + 1} canEdit={canEdit} />
+                  ))}
               </div>
             )}
           </div>
