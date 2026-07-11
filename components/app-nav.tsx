@@ -16,10 +16,11 @@ export function SidebarNav({ entries }: { entries: NavEntry[] }) {
     <nav className="flex flex-col gap-1" aria-label="Main">
       {entries.map((entry) => {
         const children = entry.children ?? [];
-        // Parent highlights on its own routes, but yields to an active child so
-        // there is a single clear "you are here" in the People group.
+        // Children only appear once you are inside this section (e.g. click People),
+        // then collapse away again on other sections.
         const childActive = children.some((c) => isActive(c.href));
-        const active = isActive(entry.href) && !childActive;
+        const inSection = isActive(entry.href);
+        const active = inSection && !childActive;
         return (
           <div key={entry.href}>
             <Link
@@ -30,7 +31,7 @@ export function SidebarNav({ entries }: { entries: NavEntry[] }) {
               <NavIcon icon={entry.icon} className="h-5 w-5" />
               {entry.label}
             </Link>
-            {children.length > 0 && (
+            {children.length > 0 && inSection && (
               <div className="mt-1 flex flex-col gap-1 pl-4">
                 {children.map((child) => {
                   const cActive = isActive(child.href);
