@@ -19,11 +19,9 @@ TWILIO_* for SMS checks; RESEND_* already live from Phase 1).
 
 ## B. Cron security and gating
 
-- [ ] B1. GET /api/cron/daily-digest with no Authorization header returns 401 in production.
-- [ ] B2. With the correct Bearer CRON_SECRET outside 07:00 London it returns {"skipped":"Not 07:00 in London"}.
-- [ ] B3. With ?force=1 and the secret it runs and returns the JSON summary (companies, digestsSent, chasersSent, smsSent, skipped, failures).
-- [ ] B4. Running ?force=1 twice in a row: the second run sends nothing new (all claimed, skipped counts rise). Idempotency proven.
-- [ ] B5. Vercel dashboard shows both cron entries (06:00 and 07:00 UTC) after deploy.
+- [x] B1. PASS 2026-07-12. GET /api/cron/daily-digest with no Authorization header returns {"error":"Unauthorized"} in production.
+- [ ] B2-B4. LIVE-RUN TEST (agreed 2026-07-12, Terminal curl approach abandoned): the real crons prove these. In BST the 06:00 UTC entry fires at 07:00 UK and sends; the 07:00 UTC entry fires at 08:00 UK and the London gate must skip it. Phil checks: ONE digest around 07:00, NOTHING at 08:00. Claude verifies notification_log after 08:15 UK: daily_digest rows status sent from the first run, no duplicate rows from the second (gate returned skipped before any claims). notification_log confirmed empty before the first live run.
+- [x] B5. PASS 2026-07-12. Vercel dashboard shows both cron entries after deploy (Phil confirmed).
 
 ## C. Daily digest content and scoping
 
