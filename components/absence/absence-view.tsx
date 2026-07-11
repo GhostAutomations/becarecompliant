@@ -11,9 +11,10 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import FormEvidenceDialog from "@/components/forms/form-evidence-dialog";
+import AbsenceDetailDialog from "@/components/absence/absence-detail-dialog";
 import type { FormSchema } from "@/lib/form-schema";
 import type { AbsenceMethod } from "@/lib/absence/logic";
-import type { AbsencePersonRow, PersonLite } from "@/lib/absence/data";
+import type { AbsencePersonRow, PersonLite, AbsenceEventRow } from "@/lib/absence/data";
 import type { BranchLite } from "@/lib/people/data";
 import { recordAbsence, recordAbsenceMeeting } from "@/lib/absence/actions";
 
@@ -22,6 +23,7 @@ export default function AbsenceView({
   rows,
   branches,
   people,
+  events,
   absenceSchema,
   meetingSchema,
   canManage,
@@ -30,12 +32,19 @@ export default function AbsenceView({
   rows: AbsencePersonRow[];
   branches: BranchLite[];
   people: PersonLite[];
+  events: AbsenceEventRow[];
   absenceSchema: FormSchema | null;
   meetingSchema: FormSchema | null;
   canManage: boolean;
 }) {
   const [branch, setBranch] = useState("");
   const [pickPerson, setPickPerson] = useState("");
+
+  const eventsByPerson = useMemo(() => {
+    const map: Record<string, AbsenceEventRow[]> = {};
+    for (const e of events) (map[e.person_id] ??= []).push(e);
+    return map;
+  }, [events]);
 
   const visibleRows = useMemo(
     () => (branch ? rows.filter((r) => r.branchId === branch) : rows),
@@ -184,9 +193,13 @@ export default function AbsenceView({
                   </p>
                 )}
 
-                {canManage && (
-                  <div className="mt-auto flex flex-wrap gap-2 pt-1">
-                    {meetingSchema ? (
+                <div className="mt-auto flex flex-wrap gap-2 pt-1">
+                  <AbsenceDetailDialog
+                    personName={r.fullName}
+                    events={eventsByPerson[r.personId] ?? []}
+                    canEdit={canManage}
+                  />
+                  {canManage && meetingSchema ? (
                       <FormEvidenceDialog
                         title={`Absence meeting — ${r.fullName}`}
                         schema={meetingSchema}
@@ -198,7 +211,7 @@ export default function AbsenceView({
                         hideFields={["name"]}
                       />
                     ) : null}
-                    {absenceSchema ? (
+                    {canManage && absenceSchema ? (
                       <FormEvidenceDialog
                         title={`Record absence — ${r.fullName}`}
                         schema={absenceSchema}
@@ -211,7 +224,6 @@ export default function AbsenceView({
                       />
                     ) : null}
                   </div>
-                )}
               </div>
             );
           })}

@@ -3,7 +3,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import { listBranches, getCompanyFormByKey } from "@/lib/people/data";
-import { listAbsenceRegister, listActivePeople } from "@/lib/absence/data";
+import { listAbsenceRegister, listActivePeople, listAbsenceEvents } from "@/lib/absence/data";
 import { isFormSchema, type FormSchema } from "@/lib/form-schema";
 import AbsenceView from "@/components/absence/absence-view";
 
@@ -25,11 +25,12 @@ export default async function AbsencePage() {
   }
 
   const companyId = profile.company_id;
-  const [branches, { config, rows }, people, absenceForm, meetingForm] =
+  const [branches, { config, rows }, people, events, absenceForm, meetingForm] =
     await Promise.all([
       listBranches(companyId),
       listAbsenceRegister(companyId, null),
       listActivePeople(companyId),
+      listAbsenceEvents(companyId, null),
       getCompanyFormByKey(companyId, "absence_back_office"),
       getCompanyFormByKey(companyId, "absence_management_meeting"),
     ]);
@@ -53,6 +54,7 @@ export default async function AbsencePage() {
         rows={rows}
         branches={branches}
         people={people}
+        events={events}
         absenceSchema={absenceSchema}
         meetingSchema={meetingSchema}
         canManage={canManage}

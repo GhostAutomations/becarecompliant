@@ -129,6 +129,23 @@ export type AbsenceEventRow = {
   created_at: string;
 };
 
+/** All absence events for the company's people (RLS-scoped), for the Absence
+ *  view's "View absence" panels. Grouped by person on the client. */
+export async function listAbsenceEvents(
+  companyId: string,
+  branchId?: string | null,
+): Promise<AbsenceEventRow[]> {
+  const supabase = await createClient();
+  let query = supabase
+    .from("absence_events")
+    .select("id, person_id, start_date, end_date, return_date, days, reason, evidence_id, created_at")
+    .eq("company_id", companyId)
+    .order("start_date", { ascending: false });
+  if (branchId) query = query.eq("branch_id", branchId);
+  const { data } = await query;
+  return (data as AbsenceEventRow[] | null) ?? [];
+}
+
 export async function listPersonAbsences(
   personId: string,
 ): Promise<AbsenceEventRow[]> {

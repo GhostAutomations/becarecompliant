@@ -24,6 +24,13 @@ function isoOrNull(v: unknown): string | null {
   return typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
 }
 
+/** Inclusive day count between two civil dates (>= 1). */
+function inclusiveDays(startIso: string, endIso: string | null): number {
+  if (!endIso || endIso < startIso) return 1;
+  const ms = Date.parse(`${endIso}T00:00:00Z`) - Date.parse(`${startIso}T00:00:00Z`);
+  return Math.max(1, Math.round(ms / 86_400_000) + 1);
+}
+
 async function collectFiles(formData: FormData): Promise<EvidenceFileInput[]> {
   const files: EvidenceFileInput[] = [];
   for (const [key, value] of formData.entries()) {
@@ -83,30 +90,28 @@ export async function recordAbsence(
   });
   if (!result.ok) return { error: result.error };
 
-  // Each filled "Absence N Date" (+ its Reason N) becomes one absence event.
-  const events: Array<{ start_date: string; reason: string | null }> = [];
-  for (let n = 1; n <= 6; n++) {
-    const d = isoOrNull(answers[`absence_${n}_date`]);
-    if (!d) continue;
-    const reason = answers[`reason_${n}`];
-    events.push({ start_date: d, reason: typeof reason === "string" ? reason : null });
+  // One absence = a first date + an (optional) last date, so a multi-day absence
+  // stays a SINGLE occasion (editable later via View absence) rather than several.
+  const startDate = isoOrNull(answers["first_date_of_absence"]);
+  if (!startDate) {
+    return { error: "Evidence was saved, but no first date of absence was entered." };
   }
+  const endDate = isoOrNull(answers["last_date_of_absence"]);
+  const reason = typeof answers["reason"] === "string" ? (answers["reason"] as string) : null;
 
-  if (events.length > 0) {
-    const { error: insErr } = await supabase.from("absence_events").insert(
-      events.map((e) => ({
-        company_id: person.company_id as string,
-        branch_id: (person.branch_id as string | null) ?? null,
-        person_id: personId,
-        start_date: e.start_date,
-        reason: e.reason,
-        evidence_id: result.evidenceId,
-        recorded_by: user.id,
-      })),
-    );
-    if (insErr) {
-      return { error: `Evidence was saved, but the absence could not be logged: ${insErr.message}` };
-    }
+  const { error: insErr } = await supabase.from("absence_events").insert({
+    company_id: person.company_id as string,
+    branch_id: (person.branch_id as string | null) ?? null,
+    person_id: personId,
+    start_date: startDate,
+    end_date: endDate,
+    days: inclusiveDays(startDate, endDate),
+    reason,
+    evidence_id: result.evidenceId,
+    recorded_by: user.id,
+  });
+  if (insErr) {
+    return { error: `Evidence was saved, but the absence could not be logged: ${insErr.message}` };
   }
 
   await writeAudit({
@@ -117,13 +122,62 @@ export async function recordAbsence(
     action: "absence.recorded",
     entityType: "person",
     entityId: personId,
-    summary: `Recorded ${events.length} absence${events.length === 1 ? "" : "s"}`,
-    metadata: { evidence_id: result.evidenceId, count: events.length },
+    summary: `Recorded an absence from ${startDate}${endDate ? ` to ${endDate}` : ""}`,
+    metadata: { evidence_id: result.evidenceId, start_date: startDate, end_date: endDate },
   });
 
   revalidatePath("/people/absence");
   revalidatePath(`/people/${personId}`);
   return { ok: "Absence recorded." };
+}
+
+/** Edit a recorded absence's last date (e.g. a multi-day absence). Recomputes the
+ *  day count. Manager/Admin only (RLS). Keeps it ONE occasion, not several. */
+export async function updateAbsenceEndDate(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requireCompany();
+  const id = String(formData.get("absence_id") ?? "");
+  if (!id) return { error: "Missing absence." };
+
+  const rawEnd = String(formData.get("end_date") ?? "").trim();
+  const endDate = /^\d{4}-\d{2}-\d{2}$/.test(rawEnd) ? rawEnd : null;
+
+  const supabase = await createClient();
+  const { data: ev } = await supabase
+    .from("absence_events")
+    .select("start_date, person_id, company_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (!ev) return { error: "That absence could not be found." };
+
+  const startDate = ev.start_date as string;
+  if (endDate && endDate < startDate) {
+    return { error: "The last date cannot be before the first date." };
+  }
+
+  const { error } = await supabase
+    .from("absence_events")
+    .update({ end_date: endDate, days: inclusiveDays(startDate, endDate) })
+    .eq("id", id);
+  if (error) return { error: error.message };
+
+  await writeAudit({
+    companyId: ev.company_id as string,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "absence.updated",
+    entityType: "person",
+    entityId: ev.person_id as string,
+    summary: `Updated an absence last date to ${endDate ?? "(cleared)"}`,
+    metadata: { absence_id: id, end_date: endDate },
+  });
+
+  revalidatePath("/people/absence");
+  revalidatePath(`/people/${ev.person_id}`);
+  return { ok: "Absence updated." };
 }
 
 /** Record a formal absence-management meeting (Stage 1..4) for a Person. */
