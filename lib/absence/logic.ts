@@ -12,12 +12,11 @@
 
 export type AbsenceMethod = "stages" | "bradford";
 
-/** Trigger-point stage: fires when occasions OR days cross the threshold. */
+/** Trigger-point stage: fires when the number of occasions crosses the threshold. */
 export type StageThreshold = {
   stage: number; // 1..4
   label: string;
   occasions?: number; // e.g. 3 separate absences
-  days?: number; // e.g. 8 total days
 };
 
 /** Bradford action band: fires when the score reaches the threshold. */
@@ -67,14 +66,14 @@ export type AbsenceStatus = {
 /**
  * Sensible editable defaults (conventions, NOT legal requirements — the company
  * confirms/overrides them in Settings > Absence, informed by their policy).
- * Trigger points: the common "3 occasions or 8 days in a rolling 12 months"
- * pattern, escalating. Bradford: the widely used 51 / 201 / 401 bands.
+ * Trigger points: the common "3 occasions in a rolling 12 months" pattern,
+ * escalating. Bradford: the widely used 51 / 201 / 401 bands.
  */
 export const DEFAULT_STAGE_THRESHOLDS: StageThreshold[] = [
-  { stage: 1, label: "Stage 1", occasions: 3, days: 8 },
-  { stage: 2, label: "Stage 2", occasions: 4, days: 10 },
-  { stage: 3, label: "Stage 3", occasions: 6, days: 14 },
-  { stage: 4, label: "Stage 4", occasions: 8, days: 20 },
+  { stage: 1, label: "Stage 1", occasions: 3 },
+  { stage: 2, label: "Stage 2", occasions: 4 },
+  { stage: 3, label: "Stage 3", occasions: 6 },
+  { stage: 4, label: "Stage 4", occasions: 8 },
 ];
 
 export const DEFAULT_BRADFORD_BANDS: BradfordBand[] = [
@@ -119,9 +118,7 @@ export function deriveAbsenceStatus(
       (a, b) => a.stage - b.stage,
     );
     for (const s of stages) {
-      const byOccasions = s.occasions != null && occasions >= s.occasions;
-      const byDays = s.days != null && totalDays >= s.days;
-      if (byOccasions || byDays) {
+      if (s.occasions != null && occasions >= s.occasions) {
         derivedLabel = s.label;
         derivedStage = s.stage;
       }

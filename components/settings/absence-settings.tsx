@@ -86,7 +86,7 @@ export default function AbsenceSettings({
       ...prev,
       method === "bradford"
         ? { threshold: 0, label: "", action: "" }
-        : { stage: prev.length + 1, label: "", occasions: 0, days: 0 },
+        : { stage: prev.length + 1, label: "", occasions: 0 },
     ]);
   }
   function removeRow(i: number) {
@@ -94,7 +94,7 @@ export default function AbsenceSettings({
   }
 
   function onSave() {
-    const numericKeys = method === "bradford" ? ["threshold"] : ["stage", "occasions", "days"];
+    const numericKeys = method === "bradford" ? ["threshold"] : ["stage", "occasions"];
     const cleaned = rows.map((r) => {
       const out: Row = { ...r };
       for (const k of numericKeys) {
@@ -120,7 +120,6 @@ export default function AbsenceSettings({
           { key: "stage", label: "Stage", type: "number" },
           { key: "label", label: "Label", type: "text" },
           { key: "occasions", label: "Occasions", type: "number" },
-          { key: "days", label: "Days", type: "text" },
         ];
 
   return (
@@ -167,7 +166,7 @@ export default function AbsenceSettings({
           <p className="mb-2 text-xs text-white/50">
             {method === "bradford"
               ? "A stage triggers when the Bradford score (occasions squared times days) reaches the value."
-              : "A stage triggers when occasions OR days reach the values, within the rolling window."}
+              : "A stage triggers when the number of occasions reaches the value, within the rolling window."}
           </p>
           <div className="space-y-2">
             {rows.map((r, i) => (

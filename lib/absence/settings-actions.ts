@@ -177,7 +177,7 @@ export async function suggestAbsencePolicy(
     "Read the attached absence policy and decide how absence should be tracked.",
     "Return ONLY valid JSON, no prose, matching exactly:",
     '{"method":"stages"|"bradford","rolling_window_days":number,"thresholds":[...],"summary":"one sentence"}',
-    'For "stages" each threshold is {"stage":1,"label":"Stage 1","occasions":3,"days":8}.',
+    'For "stages" each threshold is {"stage":1,"label":"Stage 1","occasions":3}.',
     'For "bradford" each threshold is {"threshold":51,"label":"Stage 1","action":"Informal discussion"}.',
     "If the policy does not specify numbers, use sensible UK care-sector defaults and say so in the summary.",
   ].join(" ");
