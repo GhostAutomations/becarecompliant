@@ -102,9 +102,7 @@ export default function FieldEditor({
           <p className="truncate text-sm font-semibold text-white">
             {field.label || "Untitled question"}
           </p>
-          <p className="text-[11px] text-white/45">
-            {fieldTypeLabel(field.type)} · <span className="font-mono">{field.key}</span>
-          </p>
+          <p className="text-[11px] text-white/45">{fieldTypeLabel(field.type)}</p>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -168,32 +166,15 @@ export default function FieldEditor({
       </div>
 
       {!isHeading && (
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <div>
-            <label htmlFor={`${uid}-key`} className="form-label">
-              Field key
-            </label>
+        <div className="mt-3">
+          <label className="flex items-center gap-2 text-sm text-white/80">
             <input
-              id={`${uid}-key`}
-              type="text"
-              value={field.key}
-              onChange={(e) => onChange({ key: e.target.value })}
+              type="checkbox"
+              checked={field.required ?? false}
+              onChange={(e) => onChange({ required: e.target.checked })}
             />
-            <p className="form-hint">
-              The stable name answers are stored under. Lowercase letters, numbers and
-              underscores.
-            </p>
-          </div>
-          <div className="flex items-end">
-            <label className="flex items-center gap-2 text-sm text-white/80">
-              <input
-                type="checkbox"
-                checked={field.required ?? false}
-                onChange={(e) => onChange({ required: e.target.checked })}
-              />
-              Required
-            </label>
-          </div>
+            Required
+          </label>
         </div>
       )}
 
