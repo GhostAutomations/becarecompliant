@@ -107,19 +107,21 @@ export default function HolidayView({
               </select>
             </div>
           )}
-          {requestSchema ? (
-            <FormEvidenceDialog
-              title="Request holiday"
-              schema={requestSchema}
-              action={requestHoliday}
-              triggerLabel="Request holiday"
-              submitLabel="Submit request"
-            />
-          ) : (
-            <button type="button" className="btn-primary px-3 py-2 text-sm opacity-50" disabled>
-              Request holiday
-            </button>
-          )}
+          {/* Team Members self-request; Managers/Admins use the "Book holiday for" picker below. */}
+          {!canApprove &&
+            (requestSchema ? (
+              <FormEvidenceDialog
+                title="Request holiday"
+                schema={requestSchema}
+                action={requestHoliday}
+                triggerLabel="Request holiday"
+                submitLabel="Submit request"
+              />
+            ) : (
+              <button type="button" className="btn-primary px-3 py-2 text-sm opacity-50" disabled>
+                Request holiday
+              </button>
+            ))}
         </div>
       </div>
 
