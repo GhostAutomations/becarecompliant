@@ -116,12 +116,16 @@ export default function AbsenceView({
       .filter((s): s is number => s !== null);
     const earliest = bookings[0];
 
+    // No booked-in meeting = nothing to record (Phil, 2026-07-12): the caller
+    // hides the Record meeting button entirely when schema comes back null.
+    if (bookedStages.length === 0) return { schema: null, presets: {} };
+
     const schema: FormSchema = {
       ...meetingSchema,
       sections: meetingSchema.sections.map((s) => ({
         ...s,
         fields: s.fields.map((f) =>
-          f.key === "meeting_type" && "options" in f && bookedStages.length > 0
+          f.key === "meeting_type" && "options" in f
             ? {
                 ...f,
                 options: bookedStages.map((st) => ({
