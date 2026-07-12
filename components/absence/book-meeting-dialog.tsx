@@ -39,6 +39,7 @@ export default function BookMeetingDialog({
   defaultStage,
   minStage,
   conductors,
+  offices,
 }: {
   personId: string;
   personName: string;
