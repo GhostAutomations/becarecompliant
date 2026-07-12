@@ -5,6 +5,25 @@ import { createClient } from "@/lib/supabase/server";
 import { CreateCompanyForm } from "@/components/founder/create-company-form";
 import { setCompanyStatus } from "./actions";
 import { computeSeatUsage, formatPence } from "@/lib/billing/seats";
+import { TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
+
+function billingStatusPill(status: string | null): { cls: string; text: string } {
+  switch (status) {
+    case "active":
+    case "trialing":
+      return { cls: "pill-green", text: "Subscribed" };
+    case "past_due":
+    case "unpaid":
+      return { cls: "pill-red", text: "Payment due" };
+    case "canceled":
+      return { cls: "pill-neutral", text: "Cancelled" };
+    case "incomplete":
+    case "incomplete_expired":
+      return { cls: "pill-amber", text: "Not finished" };
+    default:
+      return { cls: "pill-neutral", text: "No subscription" };
+  }
+}
 
 export const metadata: Metadata = { title: "Founder" };
 
@@ -26,7 +45,7 @@ export default async function FounderPage() {
   await requirePlatformAdmin();
   const supabase = await createClient();
 
-  const [{ data: companies }, { data: profiles }, { data: invites }] =
+  const [{ data: companies }, { data: profiles }, { data: invites }, { data: billingRows }] =
     await Promise.all([
       supabase
         .from("companies")
@@ -34,7 +53,21 @@ export default async function FounderPage() {
         .order("created_at", { ascending: false }),
       supabase.from("profiles").select("company_id, status, role"),
       supabase.from("invites").select("company_id, status"),
+      supabase
+        .from("company_billing")
+        .select("company_id, subscription_status, current_period_end"),
     ]);
+
+  const billingByCompany = new Map<
+    string,
+    { subscription_status: string | null; current_period_end: string | null }
+  >();
+  for (const b of billingRows ?? []) {
+    billingByCompany.set(b.company_id, {
+      subscription_status: b.subscription_status,
+      current_period_end: b.current_period_end,
+    });
+  }
 
   const activeUsers = new Map<string, number>();
   for (const p of profiles ?? []) {
@@ -50,6 +83,18 @@ export default async function FounderPage() {
   }
 
   const list = companies ?? [];
+
+  // Committed MRR: base + extra seats for companies with a live subscription.
+  let mrrPence = 0;
+  for (const company of list) {
+    if (!isSubscriptionTier(company.tier)) continue;
+    const status = billingByCompany.get(company.id)?.subscription_status ?? null;
+    if (!["active", "trialing", "past_due"].includes(status ?? "")) continue;
+    const seats = computeSeatUsage(activeUsers.get(company.id) ?? 0);
+    mrrPence +=
+      TIER_BASE_PENCE[company.tier as keyof typeof TIER_BASE_PENCE] +
+      seats.extraCostPence;
+  }
 
   return (
     <div className="mx-auto max-w-5xl space-y-8">
@@ -85,9 +130,17 @@ export default async function FounderPage() {
       </section>
 
       <section aria-label="Companies" className="space-y-3">
-        <h2 className="text-sm font-semibold text-white/80">
-          Companies ({list.length})
-        </h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-white/80">
+            Companies ({list.length})
+          </h2>
+          <span className="text-xs text-white/60">
+            Committed monthly revenue:{" "}
+            <span className="font-semibold text-white/90">
+              {formatPence(mrrPence)}/mo
+            </span>
+          </span>
+        </div>
 
         {list.length === 0 ? (
           <div className="glass-card px-6 py-12 text-center">
@@ -100,6 +153,13 @@ export default async function FounderPage() {
             {list.map((company) => {
               const seats = computeSeatUsage(activeUsers.get(company.id) ?? 0);
               const pending = pendingInvites.get(company.id) ?? 0;
+              const isSub = isSubscriptionTier(company.tier);
+              const bill = billingByCompany.get(company.id) ?? null;
+              const bpill = billingStatusPill(bill?.subscription_status ?? null);
+              const monthlyTotalPence = isSub
+                ? TIER_BASE_PENCE[company.tier as keyof typeof TIER_BASE_PENCE] +
+                  seats.extraCostPence
+                : 0;
               return (
                 <div key={company.id} className="glass-card p-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
@@ -163,6 +223,31 @@ export default async function FounderPage() {
                       Pending invites:{" "}
                       <span className="text-white/90">{pending}</span>
                     </span>
+                  </div>
+
+                  <div className="mt-2 flex flex-wrap items-center gap-x-6 gap-y-1 border-t border-white/10 pt-2 text-xs text-white/60">
+                    {isSub ? (
+                      <>
+                        <span className={`pill ${bpill.cls}`}>{bpill.text}</span>
+                        <span>
+                          Monthly:{" "}
+                          <span className="text-white/90">
+                            {formatPence(monthlyTotalPence)}/mo
+                          </span>
+                        </span>
+                      </>
+                    ) : (
+                      <span>
+                        Billing:{" "}
+                        <span className="text-white/90">
+                          {company.tier === "diamond"
+                            ? "usage only"
+                            : company.tier === "black"
+                              ? "free, founder granted"
+                              : "not a subscription"}
+                        </span>
+                      </span>
+                    )}
                   </div>
                 </div>
               );

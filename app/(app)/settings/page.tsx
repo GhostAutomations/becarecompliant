@@ -61,8 +61,8 @@ export default async function SettingsPage() {
               </span>
             </p>
           </div>
-          <Link href="/settings/users" className="btn-outline px-3 py-2 text-xs">
-            Manage users
+          <Link href="/settings/billing" className="btn-outline px-3 py-2 text-xs">
+            View billing
           </Link>
         </div>
         <p className="mt-3 text-sm text-white/60">
@@ -74,7 +74,7 @@ export default async function SettingsPage() {
               <span className="font-semibold text-white/90">
                 {formatPence(seats.extraCostPence)}/mo
               </span>
-              . Billing is set up in a later phase.
+              .
             </>
           ) : (
             <>You are within your included seats. Extra users are £5 each per month.</>
@@ -134,6 +134,12 @@ export default async function SettingsPage() {
           <h2 className="text-base font-semibold text-white">Usage</h2>
           <p className="text-sm text-white/60">
             Metered SMS and AI usage for your company, this month and by month.
+          </p>
+        </Link>
+        <Link href="/settings/billing" className="app-tile">
+          <h2 className="text-base font-semibold text-white">Billing</h2>
+          <p className="text-sm text-white/60">
+            Your plan, seat costs, payment method and invoices.
           </p>
         </Link>
       </section>

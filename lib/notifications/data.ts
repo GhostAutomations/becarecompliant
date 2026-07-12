@@ -22,6 +22,7 @@ export type NotificationSettings = {
 export type DigestCompany = {
   id: string;
   name: string;
+  tier: string;
   settings: NotificationSettings;
 };
 
@@ -62,7 +63,7 @@ const DEFAULT_SETTINGS = {
 export async function getDigestCompanies(): Promise<DigestCompany[]> {
   const supabase = createServiceClient();
   const [companiesRes, settingsRes] = await Promise.all([
-    supabase.from("companies").select("id, name").eq("status", "active"),
+    supabase.from("companies").select("id, name, tier").eq("status", "active"),
     supabase.from("notification_settings").select("*"),
   ]);
   if (companiesRes.error) throw new Error(companiesRes.error.message);
@@ -74,6 +75,7 @@ export async function getDigestCompanies(): Promise<DigestCompany[]> {
     return {
       id: c.id,
       name: c.name,
+      tier: (c as { tier?: string }).tier ?? "business",
       settings: {
         companyId: c.id,
         emailDigestEnabled: s?.email_digest_enabled ?? DEFAULT_SETTINGS.emailDigestEnabled,

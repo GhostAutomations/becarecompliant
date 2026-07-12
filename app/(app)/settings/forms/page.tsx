@@ -6,6 +6,7 @@ import BackLink from "@/components/back-link";
 import { listCompanyForms } from "@/lib/form-builder/data";
 import NewFormButton from "@/components/form-builder/new-form-button";
 import type { FormSummary } from "@/lib/form-builder/types";
+import { featureEnabled } from "@/lib/billing/tier";
 
 export const metadata: Metadata = { title: "Forms" };
 
@@ -17,6 +18,31 @@ const POP_LABEL: Record<string, string> = {
 export default async function SettingsFormsPage() {
   const { profile } = await requireCompanyAdmin();
   if (!profile.company_id) redirect("/founder");
+
+  // The form builder is a Pro and above feature (server-side tier gating).
+  const canBuild = await featureEnabled(profile.company_id, "form_builder");
+  if (!canBuild) {
+    return (
+      <div className="mx-auto max-w-4xl space-y-6">
+        <div>
+          <BackLink href="/settings" label="Back to Settings" />
+          <h1 className="page-title mt-1">Forms</h1>
+          <p className="page-subtitle">
+            Build and edit the forms your team completes as compliance Evidence.
+          </p>
+        </div>
+        <div className="glass-card p-6 text-center">
+          <p className="text-sm text-white/70">
+            The form builder is available on the Pro plan and above. Your seeded
+            starter forms keep working; upgrade to create and edit your own.
+          </p>
+          <Link href="/settings/billing" className="btn btn-primary mt-4 inline-block">
+            View plans
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const forms = await listCompanyForms(profile.company_id);
 

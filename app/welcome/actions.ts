@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
 import { decodeSessionId } from "@/lib/auth/jwt";
+import { syncSeatQuantity } from "@/lib/billing/stripe-sync";
 import type { ActionState } from "@/lib/forms";
 
 /** Invitee sets their password and their account activates. */
@@ -71,6 +72,12 @@ export async function completeInvite(
     entityId: user.id,
     summary: "Accepted invite and set password",
   });
+
+  // A new active user may cross the 4 included seats: push the seat quantity to
+  // Stripe (best-effort, never blocks activation; no-op if unbilled/Diamond/Black).
+  if (profile.company_id) {
+    await syncSeatQuantity(profile.company_id);
+  }
 
   // Refresh the single-session claim after the password change.
   const {

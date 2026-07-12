@@ -171,9 +171,25 @@ LIVE-TEST AMENDMENTS (Phil, 2026-07-12): (1) migration 0044 adds planned_review_
 
 - CARRIED FROM PHASE 4 (Phil, 2026-07-10): the Service User Planned Review Date booking must email the chosen reviewer a branded Resend email with an .ics calendar invite (add to phone/Outlook). The booking data + Booked In status shipped in Phase 4 (lib/service-users/actions.ts bookReview); this phase adds the email + .ics generation on booking, respecting the "emails no-op if RESEND_API_KEY/RESEND_FROM missing" dependency and the no-plain-text-links / branded-CTA rule. Remember to test the full booking -> invite flow when built.
 
-## Phase 7 — Billing & tiers
+## Phase 7 — Billing & tiers  🔨 IN PROGRESS (started 2026-07-12)
 
-Ask Phil (popup) before building: tier contents for Business/Pro/Enterprise are TBC. Fixed: 4 included users + £5/extra user/month on subscription tiers, Diamond is usage-only, Black is free and founder-granted with no Stripe subscription. Stripe products, exact seat metering, Billing page with seat usage and cost, server-side tier gating, single-session polish (clear signed-out-elsewhere UX everywhere).
+Fixed (not up for debate): every subscription tier includes 4 users then £5 per extra user per month, EXACT seat counting (5th user starts billing, removing stops it). Diamond has no subscription, pays usage only (SMS + AI from usage_events). Black is free and founder-granted, never purchasable, no Stripe subscription.
+
+PLANNING POPUP AGREED (Phil, 2026-07-12), load-bearing decisions:
+- Architecture: one Stripe Customer per company. Subscription-tier companies get a licensed BASE price per tier PLUS a separate £5/seat licensed price with quantity = max(0, active users − 4). Diamond = no subscription, usage-only via monthly Stripe invoice items generated from usage_monthly. Black = no Stripe objects at all.
+- Card capture: Stripe Checkout (subscribe) + Stripe Customer Portal (payment method, invoices, cancel). We NEVER touch card data (PCI SAQ-A). No embedded card forms.
+- Proration: Stripe default create_prorations (mid-month seat change prorates onto the next monthly invoice; removals credit).
+- Activation: Founder still creates the company and sets the tier; the Company Admin self-serves the card via Checkout on /settings/billing and self-manages in the Portal. Founder keeps full visibility and grants Black/Diamond. Not founder-managed cards.
+- Billing page at /settings/billing (extends the existing Seats card). Webhook at /api/webhooks/stripe (already covered by the /api/webhooks PUBLIC_PATHS prefix). GBP only. No free trials.
+
+PRICING POPUP AGREED (Phil, 2026-07-12), researched against UK care software (competitors £100–£350/site/mo or £6–£12/user/mo):
+- Base prices (monthly, GBP): Business £49, Pro £99, Enterprise £199. All include 4 users then £5/extra. Diamond usage-only, Black free.
+- Tier contents = FEATURES LADDER: all tiers get core compliance (People + Service User registers, checks, forms, RAG, email digest, 1 branch; extra branches a paid add-on on every tier). Pro adds SMS reminders + reporting/inspector exports (Phase 8) + the form builder. Enterprise adds AI (policy parse, future AI form gen) + the integration layer + priority support.
+- Billing period: monthly only for now (annual deferred).
+
+BUILD STATE (2026-07-12): all 13 tasks BUILT in the sandbox; migration 0056 applied to ref bgrtcvyjuwopunpnudeu only. NOT deployed (Phil pushes; `npm install` first because `stripe` is a new dependency) and NOT tested (needs Stripe test-mode setup). Details + cold checks logged to Final Testing; run TEST-CHECKLIST-PHASE7.md once deployed and Stripe is configured.
+
+Build order (13 tasks in the Phase Progress box): (1) Stripe scaffolding lib/stripe/{client,config} + env; (2) migration 0056 company_billing + stripe_events dedupe (claim-then-settle like notification_log), RLS + numbered SQL, ref bgrtcvyjuwopunpnudeu ONLY; (3) Stripe products/prices in TEST mode (founder walkthrough); (4) lib/billing/tier.ts gating helpers (features ladder); (5) lib/billing/stripe-sync.ts exact seat-quantity sync on every user add/remove; (6) Checkout + Portal server actions (ActionState, save-button spec); (7) /api/webhooks/stripe (raw-body signature verify, fail-closed in prod, event-id dedupe, updates company_billing + status, audited); (8) /settings/billing page (tier, seat cost, payment method + invoices, subscribe CTA, past_due/canceled states, Black + Diamond variants); (9) Diamond month-end usage cron -> Stripe invoice items (idempotent per company-month); (10) founder billing visibility (tier, status, seats, MRR, Diamond usage, Black flag); (11) single-session polish (clear signed-out-elsewhere UX everywhere); (12) apply tier gating per the ladder; (13) typecheck + trace + TEST-CHECKLIST-PHASE7.md (Stripe TEST mode end to end) + deploy verify, log untested to Final Testing. Stripe test mode end to end before any live key.
 
 ## Phase 8 — Reporting & exports
 
@@ -279,6 +295,15 @@ Logged from Holidays & Absence (People extension, 2026-07-11). FULLY BUILT, migr
 - Realtime: absence_events / absence_meetings / holiday_requests are NOT in the supabase_realtime publication, so the views rely on the 10s poll fallback. Add REPLICA IDENTITY FULL + publication membership for sub-second live updates.
 - Holiday calendar edge cases: multi-month spans, month boundaries, Monday-first grid, timezone (dates are civil YYYY-MM-DD string-compared, no TZ shift).
 - TM<->Person link: holiday requests attach person_id via people.profile_id when present; confirm a TM's approved holiday shows in their Person drill-down.
+
+Logged from Phase 7 (Billing & tiers, 2026-07-12). FULLY BUILT, migration 0056 applied to ref bgrtcvyjuwopunpnudeu only (company_billing + stripe_events + billing_usage_runs, RLS on all three, select-only policies, service-role writes). NOT yet built/deployed (Phil pushes; the Vercel build is the first compile — `stripe` is a new dependency, so `npm install` must run before commit) and NOT tested (needs Stripe test-mode setup). New code: lib/stripe/{client,config}.ts, lib/billing/{tier,stripe-sync,actions}.ts, components/billing/billing-actions.tsx, app/(app)/settings/billing/page.tsx, app/api/webhooks/stripe/route.ts, app/api/cron/stripe-usage/route.ts. Edits: welcome/actions.ts (seat sync on accept), settings/page.tsx (Billing tile + View billing), founder/page.tsx (status + MRR), settings/forms/page.tsx (form_builder gate), absence/settings-actions.ts (ai_features gate), notifications/data.ts + daily-digest cron (sms_reminders gate), vercel.json (stripe-usage cron), .env.example. Run TEST-CHECKLIST-PHASE7.md as popups once deployed + Stripe set up. Cold items:
+- First real compile: sandbox cannot build (npm registry blocked, stripe not installed). Watch the Vercel build for type errors in the new Stripe files (the webhook casts around subscription.current_period_end / invoice.subscription, and the checkout line_items typing).
+- Stripe test-mode setup gates ALL Phase 7 testing: products + prices (Business £49 / Pro £99 / Enterprise £199 base, one £5/seat price), STRIPE_SECRET_KEY (sk_test_), price ID envs, webhook endpoint + STRIPE_WEBHOOK_SECRET, all in Vercel with a redeploy after each change.
+- Only Thistle (Enterprise) exists, so seat metering (5th user starts billing, removal stops it, proration, idempotency), Business/Pro form-builder + SMS gating, AI gating on non-Enterprise, and Diamond/Black variants all need test companies at those tiers.
+- DIAMOND PER-UNIT CUSTOMER RATE is an OPEN pricing decision (env STRIPE_DIAMOND_SMS_PENCE / STRIPE_DIAMOND_AI_PENCE, default = metered cost pass-through). Confirm with Phil (popup) before the first LIVE Diamond invoice.
+- reporting_exports is a Pro+ feature but the export screens are Phase 8: wire and test that gate when Phase 8 lands.
+- Single-session was VERIFIED present (login claims the session; requireUser signs stale sessions out to /login?reason=signed-out-elsewhere with the clear message), not rebuilt. The live cross-device sign-out test remains as logged from Phase 1.
+- Webhook idempotency: replaying an event id must not double-apply (stripe_events claim-then-settle); a failed handler returns 500 so Stripe retries and reprocesses safely (handlers are idempotent).
 
 ## Phase 12 — Marketing & Launch
 

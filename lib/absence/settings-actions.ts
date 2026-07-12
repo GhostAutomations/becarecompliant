@@ -19,6 +19,7 @@ import { requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { recordUsage } from "@/lib/notifications/usage";
+import { requireFeature } from "@/lib/billing/tier";
 import type { ActionState } from "@/lib/forms";
 
 const POLICY_BUCKET = "absence-policies";
@@ -144,6 +145,10 @@ export async function suggestAbsencePolicy(
 ): Promise<ActionState> {
   const { user, profile } = await requireCompanyAdmin();
   if (!profile.company_id) return { error: "No company context." };
+
+  // AI assistance is an Enterprise and above feature (server-side tier gating).
+  const gated = await requireFeature(profile.company_id, "ai_features");
+  if (gated) return { error: gated };
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   const model = process.env.ANTHROPIC_MODEL;

@@ -27,6 +27,8 @@ import {
 } from "@/lib/notifications/digest";
 import { claimNotification, settleNotification } from "@/lib/notifications/log";
 import { sendSms, twilioConfigured } from "@/lib/sms/twilio";
+import { tierHasFeature } from "@/lib/billing/tier";
+import type { Tier } from "@/lib/stripe/config";
 import { siteUrl } from "@/lib/site";
 
 /**
@@ -194,6 +196,8 @@ export async function GET(request: NextRequest) {
         }
 
         // SMS escalation: opted-in companies, recipients with a phone number.
+        // SMS reminders are a Pro-and-above feature (tier gating, server-side).
+        if (!tierHasFeature(company.tier as Tier, "sms_reminders")) continue;
         if (!company.settings.smsEnabled || !recipient.phone) continue;
         const smsItems = smsEscalationItems(scoped, company.settings);
         const smsClaims: string[] = [];
