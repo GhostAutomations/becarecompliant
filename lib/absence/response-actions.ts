@@ -39,7 +39,7 @@ export async function respondToMeeting(
   const supabase = createServiceClient();
   const { data: meeting } = await supabase
     .from("absence_meetings")
-    .select("id, company_id, branch_id, person_id, stage, meeting_date, meeting_time, response, booked_by")
+    .select("id, company_id, branch_id, person_id, stage, meeting_date, meeting_time, response, booked_by, conducted_by")
     .eq("response_token", token)
     .maybeSingle();
   if (!meeting) return { error: "This response link is not valid." };
@@ -75,8 +75,11 @@ export async function respondToMeeting(
     metadata: { meeting_id: meeting.id, response, reason: reason || null },
   });
 
-  // Tell the booker (fallback: the person's line manager).
-  const notifyId = (meeting.booked_by as string | null) ?? (person?.manager_id as string | null);
+  // Tell whoever is holding the meeting (fallbacks: booker, then line manager).
+  const notifyId =
+    (meeting.conducted_by as string | null) ??
+    (meeting.booked_by as string | null) ??
+    (person?.manager_id as string | null);
   if (notifyId) {
     const { data: notifyProfile } = await supabase
       .from("profiles").select("id, full_name, email").eq("id", notifyId).maybeSingle();

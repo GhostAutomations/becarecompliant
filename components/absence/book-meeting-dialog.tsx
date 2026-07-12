@@ -14,6 +14,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { IDLE_STATE } from "@/lib/forms";
 import { bookAbsenceMeeting } from "@/lib/absence/actions";
+import type { ConductorLite } from "@/lib/absence/data";
 
 /** Earliest bookable date for the picker: 48 hours from now (server enforces
  *  the exact date + time cutoff). */
@@ -33,11 +34,14 @@ export default function BookMeetingDialog({
   personId,
   personName,
   defaultStage,
+  conductors,
 }: {
   personId: string;
   personName: string;
   /** Suggested stage from the card's derived position, clamped 1 to 4. */
   defaultStage: number;
+  /** Active Managers + Admins: the only people who can hold the meeting. */
+  conductors: ConductorLite[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -79,6 +83,17 @@ export default function BookMeetingDialog({
                   <select id="bm-stage" name="stage" defaultValue={String(defaultStage)} disabled={pending}>
                     {[1, 2, 3, 4].map((s) => (
                       <option key={s} value={s}>Stage {s}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="bm-conductor" className="form-label">Who is holding the meeting</label>
+                  <select id="bm-conductor" name="conducted_by" defaultValue="" required disabled={pending}>
+                    <option value="" disabled>Choose a Manager or Admin</option>
+                    {conductors.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {(c.full_name || c.email) + (c.role === "company_admin" ? " (Admin)" : " (Manager)")}
+                      </option>
                     ))}
                   </select>
                 </div>

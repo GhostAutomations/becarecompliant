@@ -48,7 +48,7 @@ TWILIO_* for SMS checks; RESEND_* already live from Phase 1).
 - [x] E1b. PASS 2026-07-12. The Book in popover stays open showing "Booking…" until the save lands, then closes.
 - [ ] E2. Re-saving the same booking (same date + time + reviewer) does NOT re-send; changing the date OR time DOES send a fresh invite.
 - [ ] E3. Clearing a booking sends nothing.
-- [ ] E4. REWORKED (Phil, 2026-07-12): Book meeting (stage, date, time, duration) sends the employee and their line manager the FORMAL LETTER invitation with a timed .ics; the employee letter includes purpose, conducted-by and right to be accompanied. Requires the person to have a Personal email and a Line manager set.
+- [ ] E4. REWORKED (Phil, 2026-07-12): Book meeting (stage, WHO IS HOLDING IT (Manager/Admin dropdown, required, migration 0047), date, time, duration) sends the employee and the chosen conductor the FORMAL LETTER invitation with a timed .ics; the employee letter names the conductor and includes purpose and right to be accompanied. Requires the person to have a Personal email.
 - [ ] E4b. Record meeting sends NO emails, and when an open booking exists for that person/stage the Evidence attaches to it (history shows one meeting, success message says "recorded against the booking").
 - [ ] E4c. Booking a past date is rejected with a clear message pointing to Record meeting. The card shows "Stage N meeting booked: date at time" until recorded, and the booking advances the meeting stage immediately (agreed behaviour).
 - [ ] E4d. 48 HOUR NOTICE (Phil, 2026-07-12): booking inside 48 hours is rejected server side with a clear message; the date picker will not offer dates inside the window.

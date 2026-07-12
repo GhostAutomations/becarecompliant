@@ -351,6 +351,8 @@ export async function bookAbsenceMeeting(
   const rawDuration = Number.parseInt(String(formData.get("duration") ?? ""), 10);
   const duration =
     Number.isFinite(rawDuration) && rawDuration >= 15 && rawDuration <= 480 ? rawDuration : 60;
+  const conductedBy = String(formData.get("conducted_by") ?? "").trim();
+  if (!conductedBy) return { error: "Choose who is holding the meeting." };
 
   const supabase = await createClient();
   const { data: person } = await supabase
@@ -359,6 +361,21 @@ export async function bookAbsenceMeeting(
     .eq("id", personId)
     .maybeSingle();
   if (!person) return { error: "That record could not be found." };
+
+  // The conductor must be an active Manager or Admin in THIS company.
+  const { data: conductor } = await supabase
+    .from("profiles")
+    .select("id, full_name, email, role, company_id, status")
+    .eq("id", conductedBy)
+    .maybeSingle();
+  if (
+    !conductor ||
+    conductor.company_id !== person.company_id ||
+    conductor.status !== "active" ||
+    !["company_admin", "manager"].includes(conductor.role as string)
+  ) {
+    return { error: "The meeting must be held by a Manager or Admin in your company." };
+  }
 
   const { data: meeting, error: insErr } = await supabase
     .from("absence_meetings")
@@ -371,6 +388,7 @@ export async function bookAbsenceMeeting(
       meeting_time: rawTime,
       duration_minutes: duration,
       booked_by: user.id,
+      conducted_by: conductor.id,
     })
     .select("id, response_token")
     .single();
@@ -388,16 +406,10 @@ export async function bookAbsenceMeeting(
       .from("profiles").select("email").eq("id", person.profile_id).maybeSingle();
     employeeEmail = p?.email ?? null;
   }
-  let manager: { id: string; full_name: string; email: string } | null = null;
-  if (person.manager_id) {
-    const { data: m } = await supabase
-      .from("profiles").select("id, full_name, email").eq("id", person.manager_id).maybeSingle();
-    if (m?.email) manager = { id: m.id, full_name: m.full_name || m.email, email: m.email };
-  }
   const { data: company } = await supabase
     .from("companies").select("name").eq("id", person.company_id as string).maybeSingle();
   const companyName = company?.name ?? "Be Care Compliant";
-  const managerName = manager?.full_name ?? "your manager";
+  const managerName = conductor.full_name || conductor.email;
   const employeeName = escapeHtml(String(person.full_name));
 
   const recipients: {
@@ -433,18 +445,18 @@ export async function bookAbsenceMeeting(
   } else {
     inviteOutcomes.employee = "skipped_no_email";
   }
-  if (manager) {
+  if (conductor.email) {
     recipients.push({
-      key: "manager",
-      profileId: manager.id,
-      name: manager.full_name,
-      email: manager.email,
+      key: "conductor",
+      profileId: conductor.id,
+      name: conductor.full_name || conductor.email,
+      email: conductor.email,
       detailHtml: `
         <p style="margin:0 0 10px 0;">You are booked to conduct a <strong style="color:#ffffff;">${stageLabel}</strong> with <strong style="color:#ffffff;">${employeeName}</strong> under the absence procedure at ${escapeHtml(companyName)}.</p>
-        <p style="margin:0;">Their absence record is on the Absence page. Once the meeting has taken place, record it there so the Evidence attaches to this booking.</p>`,
+        <p style="margin:0;">Their absence record is on the Absence page. Once the meeting has taken place, record it there so the Evidence attaches to this booking. You will be emailed when ${employeeName} accepts or declines.</p>`,
     });
   } else {
-    inviteOutcomes.manager = "skipped_no_manager_or_email";
+    inviteOutcomes.conductor = "skipped_no_email";
   }
 
   for (const recipient of recipients) {
@@ -490,6 +502,7 @@ export async function bookAbsenceMeeting(
       meeting_date: meetingDate,
       meeting_time: rawTime,
       duration_minutes: duration,
+      conducted_by: conductor.id,
       invites: inviteOutcomes,
     },
   });

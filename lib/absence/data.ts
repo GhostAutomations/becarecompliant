@@ -104,6 +104,22 @@ export async function listAbsenceRegister(
 
 export type PersonLite = { id: string; full_name: string; branch_id: string | null };
 
+export type ConductorLite = { id: string; full_name: string; email: string; role: string };
+
+/** Active Managers + Company Admins: the only people who can hold a formal
+ *  absence meeting (Phil, 2026-07-12). */
+export async function listMeetingConductors(companyId: string): Promise<ConductorLite[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("id, full_name, email, role")
+    .eq("company_id", companyId)
+    .eq("status", "active")
+    .in("role", ["company_admin", "manager"])
+    .order("full_name");
+  return (data as ConductorLite[] | null) ?? [];
+}
+
 /** Active people (RLS-scoped) for the "record an absence" person picker. */
 export async function listActivePeople(companyId: string): Promise<PersonLite[]> {
   const supabase = await createClient();
