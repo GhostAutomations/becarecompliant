@@ -80,6 +80,68 @@ export default function AbsenceView({
     return map;
   }, [openBookings]);
 
+  // ALL open bookings per person: the Record meeting form's Meeting Type only
+  // offers booked stages, and its details prefill from the booking (Phil,
+  // 2026-07-12). openBookings is date-ordered, so [0] is the earliest.
+  const allBookingsByPerson = useMemo(() => {
+    const map: Record<string, OpenBookingRow[]> = {};
+    for (const b of openBookings) (map[b.person_id] ??= []).push(b);
+    return map;
+  }, [openBookings]);
+
+  /** Personalised Record meeting schema + prefills for one person. */
+  function meetingFormFor(r: AbsencePersonRow): {
+    schema: FormSchema | null;
+    presets: Record<string, string>;
+  } {
+    if (!meetingSchema) return { schema: null, presets: {} };
+    const bookings = allBookingsByPerson[r.personId] ?? [];
+    const bookedStages = bookings
+      .map((b) => b.stage)
+      .filter((s): s is number => s !== null);
+    const earliest = bookings[0];
+
+    const schema: FormSchema = {
+      ...meetingSchema,
+      sections: meetingSchema.sections.map((s) => ({
+        ...s,
+        fields: s.fields.map((f) =>
+          f.key === "meeting_type" && "options" in f && bookedStages.length > 0
+            ? {
+                ...f,
+                options: bookedStages.map((st) => ({
+                  label: `Stage ${st}`,
+                  value: `Stage ${st}`,
+                })),
+              }
+            : f,
+        ),
+      })),
+    };
+
+    const dates = (eventsByPerson[r.personId] ?? [])
+      .map((e) =>
+        e.end_date && e.end_date !== e.start_date
+          ? `${formatBookedDate(e.start_date)} to ${formatBookedDate(e.end_date)}`
+          : formatBookedDate(e.start_date),
+      )
+      .join("; ");
+
+    const presets: Record<string, string> = {
+      purpose_of_meeting:
+        "To discuss the employee's attendance record, review absence history, understand any underlying reasons for absence, and agree any appropriate actions and support measures.",
+      current_absence_level: `${r.occasions} ${r.occasions === 1 ? "occasion" : "occasions"}, ${r.totalDays} ${r.totalDays === 1 ? "day" : "days"} in the review period`,
+      number_of_absences: String(r.occasions),
+      dates_of_absence_discussed: dates,
+    };
+    if (earliest) {
+      if (earliest.stage) presets.meeting_type = `Stage ${earliest.stage}`;
+      if (earliest.conductor_name) presets.manager_conducting = earliest.conductor_name;
+      if (earliest.meeting_date) presets.date_of_meeting = earliest.meeting_date;
+    }
+    return { schema, presets };
+  }
+
   const visibleRows = useMemo(
     () => (branch ? rows.filter((r) => r.branchId === branch) : rows),
     [rows, branch],
@@ -285,16 +347,22 @@ export default function AbsenceView({
                     />
                   ) : null}
                   {canManage && meetingSchema ? (
-                      <FormEvidenceDialog
-                        title={`Absence meeting — ${r.fullName}`}
-                        schema={meetingSchema}
-                        action={recordAbsenceMeeting}
-                        extraFields={{ person_id: r.personId }}
-                        triggerLabel="Record meeting"
-                        triggerClassName="btn-outline px-3 py-1.5 text-xs"
-                        submitLabel="Save meeting"
-                        hideFields={["name"]}
-                      />
+                      (() => {
+                        const mf = meetingFormFor(r);
+                        return mf.schema ? (
+                          <FormEvidenceDialog
+                            title={`Absence meeting — ${r.fullName}`}
+                            schema={mf.schema}
+                            action={recordAbsenceMeeting}
+                            extraFields={{ person_id: r.personId }}
+                            triggerLabel="Record meeting"
+                            triggerClassName="btn-outline px-3 py-1.5 text-xs"
+                            submitLabel="Save meeting"
+                            presetAnswers={mf.presets}
+                            hideFields={["name"]}
+                          />
+                        ) : null;
+                      })()
                     ) : null}
                   {canManage && bookingByPerson[r.personId] ? (
                     <CancelRearrangeDialog
