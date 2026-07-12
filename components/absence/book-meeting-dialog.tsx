@@ -15,6 +15,12 @@ import { useRouter } from "next/navigation";
 import { IDLE_STATE } from "@/lib/forms";
 import { bookAbsenceMeeting } from "@/lib/absence/actions";
 
+/** Earliest bookable date for the picker: 48 hours from now (server enforces
+ *  the exact date + time cutoff). */
+function minNoticeDate(): string {
+  return new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
 const DURATIONS = [
   { value: 30, label: "30 minutes" },
   { value: 45, label: "45 minutes" },
@@ -78,7 +84,17 @@ export default function BookMeetingDialog({
                 </div>
                 <div>
                   <label htmlFor="bm-date" className="form-label">Date</label>
-                  <input id="bm-date" name="meeting_date" type="date" required disabled={pending} />
+                  <input
+                    id="bm-date"
+                    name="meeting_date"
+                    type="date"
+                    min={minNoticeDate()}
+                    required
+                    disabled={pending}
+                  />
+                  <p className="mt-1 text-[10px] text-white/40">
+                    Formal meetings need at least 48 hours notice.
+                  </p>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>

@@ -174,6 +174,8 @@ export type OpenBookingRow = {
   stage: number | null;
   meeting_date: string | null;
   meeting_time: string | null;
+  response: "accepted" | "declined" | null;
+  response_reason: string | null;
 };
 
 /** Booked absence meetings not yet recorded (evidence_id null), for the cards. */
@@ -181,7 +183,7 @@ export async function listOpenBookings(companyId: string): Promise<OpenBookingRo
   const supabase = await createClient();
   const { data } = await supabase
     .from("absence_meetings")
-    .select("person_id, stage, meeting_date, meeting_time")
+    .select("person_id, stage, meeting_date, meeting_time, response, response_reason")
     .eq("company_id", companyId)
     .is("evidence_id", null)
     .order("meeting_date", { ascending: true });

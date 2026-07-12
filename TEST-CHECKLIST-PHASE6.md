@@ -51,6 +51,10 @@ TWILIO_* for SMS checks; RESEND_* already live from Phase 1).
 - [ ] E4. REWORKED (Phil, 2026-07-12): Book meeting (stage, date, time, duration) sends the employee and their line manager the FORMAL LETTER invitation with a timed .ics; the employee letter includes purpose, conducted-by and right to be accompanied. Requires the person to have a Personal email and a Line manager set.
 - [ ] E4b. Record meeting sends NO emails, and when an open booking exists for that person/stage the Evidence attaches to it (history shows one meeting, success message says "recorded against the booking").
 - [ ] E4c. Booking a past date is rejected with a clear message pointing to Record meeting. The card shows "Stage N meeting booked: date at time" until recorded, and the booking advances the meeting stage immediately (agreed behaviour).
+- [ ] E4d. 48 HOUR NOTICE (Phil, 2026-07-12): booking inside 48 hours is rejected server side with a clear message; the date picker will not offer dates inside the window.
+- [ ] E4e. ACCEPT (migration 0046): the employee letter has Accept and I cannot attend buttons. Accept opens the public response page (no login), one click confirms, the card shows "Invitation accepted", and the booker gets an "Invitation accepted" email.
+- [ ] E4f. DECLINE: choosing I cannot attend requires a reason before sending; the card shows "Invitation declined: reason" and the booker's email includes the reason.
+- [ ] E4g. Response safety: answering a second time (or reopening the link) says it has already been answered; a made-up token shows "This link is not valid"; simply OPENING the link never records a response (a POST is required, so email scanners cannot auto-accept).
 - [ ] E5. Audit metadata on the booking/meeting records the invite outcome (sent / already_sent / skipped_no_email_config).
 
 ## F. Holiday emails

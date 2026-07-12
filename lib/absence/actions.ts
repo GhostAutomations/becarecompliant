@@ -17,6 +17,8 @@ import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { sendCalendarInvite } from "@/lib/notifications/invites";
 import { escapeHtml } from "@/lib/email/templates";
+import { londonToUtc } from "@/lib/email/ics";
+import { siteUrl } from "@/lib/site";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
 import type { Answers } from "@/lib/form-schema";
@@ -337,6 +339,15 @@ export async function bookAbsenceMeeting(
   }
   const rawTime = String(formData.get("meeting_time") ?? "").trim();
   if (!/^\d{2}:\d{2}$/.test(rawTime)) return { error: "Choose the meeting time." };
+  // Formal notice period (Phil, 2026-07-12): at least 48 hours between sending
+  // the invitation and the meeting itself. Enforced here, not just in the UI.
+  const meetingInstant = londonToUtc(meetingDate, rawTime);
+  if (meetingInstant.getTime() - Date.now() < 48 * 60 * 60 * 1000) {
+    return {
+      error:
+        "Formal meetings need at least 48 hours notice. Choose a date and time at least two full days from now.",
+    };
+  }
   const rawDuration = Number.parseInt(String(formData.get("duration") ?? ""), 10);
   const duration =
     Number.isFinite(rawDuration) && rawDuration >= 15 && rawDuration <= 480 ? rawDuration : 60;
@@ -361,7 +372,7 @@ export async function bookAbsenceMeeting(
       duration_minutes: duration,
       booked_by: user.id,
     })
-    .select("id")
+    .select("id, response_token")
     .single();
   if (insErr || !meeting) {
     return { error: `The meeting could not be booked: ${insErr?.message ?? "no id returned"}` };
@@ -397,6 +408,7 @@ export async function bookAbsenceMeeting(
     detailHtml: string;
   }[] = [];
   if (employeeEmail) {
+    const respondBase = `${siteUrl()}/meeting-response/${meeting.response_token}`;
     recipients.push({
       key: "employee",
       profileId: (person.profile_id as string | null) ?? null,
@@ -405,7 +417,18 @@ export async function bookAbsenceMeeting(
       detailHtml: `
         <p style="margin:0 0 10px 0;">This is your formal invitation to a <strong style="color:#ffffff;">${stageLabel}</strong> under the absence procedure at ${escapeHtml(companyName)}.</p>
         <p style="margin:0 0 10px 0;">The purpose of the meeting is to review your absence record, discuss any support you may need, and consider the next steps under the procedure. The meeting will be conducted by ${escapeHtml(managerName)}.</p>
-        <p style="margin:0;">You have the right to be accompanied by a colleague or a trade union representative. Please confirm your attendance, and let us know in advance if you will be accompanied or if the time causes you any difficulty.</p>`,
+        <p style="margin:0 0 14px 0;">You have the right to be accompanied by a colleague or a trade union representative. Please let us know in advance if you will be accompanied.</p>
+        <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+          <td style="border-radius:12px;background:#f59e0b;">
+            <a href="${respondBase}?intent=accept" style="display:inline-block;padding:11px 20px;font-size:13px;font-weight:700;color:#081231;text-decoration:none;border-radius:12px;">Accept the invitation</a>
+          </td>
+          <td style="padding-left:10px;">
+            <table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:12px;border:1px solid rgba(255,255,255,0.35);">
+              <a href="${respondBase}?intent=decline" style="display:inline-block;padding:10px 20px;font-size:13px;font-weight:700;color:#e8ecf6;text-decoration:none;border-radius:12px;">I cannot attend</a>
+            </td></tr></table>
+          </td>
+        </tr></table>
+        <p style="margin:12px 0 0 0;font-size:12px;color:#a8b2cc;">If you cannot attend you will be asked for the reason, and the meeting organiser will be told.</p>`,
     });
   } else {
     inviteOutcomes.employee = "skipped_no_email";

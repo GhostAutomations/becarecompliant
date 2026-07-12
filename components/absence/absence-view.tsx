@@ -214,14 +214,27 @@ export default function AbsenceView({
                   </p>
                 )}
                 {bookingByPerson[r.personId] && (
-                  <p className="text-xs font-medium text-sky-300">
-                    {bookingByPerson[r.personId].stage
-                      ? `Stage ${bookingByPerson[r.personId].stage} meeting booked`
-                      : "Meeting booked"}
-                    {bookingByPerson[r.personId].meeting_date
-                      ? `: ${formatBookedDate(bookingByPerson[r.personId].meeting_date!)}${bookingByPerson[r.personId].meeting_time ? ` at ${String(bookingByPerson[r.personId].meeting_time).slice(0, 5)}` : ""}`
-                      : ""}
-                  </p>
+                  <div className="text-xs font-medium text-sky-300">
+                    <p>
+                      {bookingByPerson[r.personId].stage
+                        ? `Stage ${bookingByPerson[r.personId].stage} meeting booked`
+                        : "Meeting booked"}
+                      {bookingByPerson[r.personId].meeting_date
+                        ? `: ${formatBookedDate(bookingByPerson[r.personId].meeting_date!)}${bookingByPerson[r.personId].meeting_time ? ` at ${String(bookingByPerson[r.personId].meeting_time).slice(0, 5)}` : ""}`
+                        : ""}
+                    </p>
+                    {bookingByPerson[r.personId].response === "accepted" && (
+                      <p className="text-emerald-300">Invitation accepted.</p>
+                    )}
+                    {bookingByPerson[r.personId].response === "declined" && (
+                      <p className="text-red-300">
+                        Invitation declined
+                        {bookingByPerson[r.personId].response_reason
+                          ? `: ${bookingByPerson[r.personId].response_reason}`
+                          : "."}
+                      </p>
+                    )}
+                  </div>
                 )}
 
                 <div className="mt-auto flex flex-wrap items-center justify-evenly gap-2 pt-1">
