@@ -163,9 +163,30 @@ export type AbsenceMeetingRow = {
   person_id: string;
   stage: number | null;
   meeting_date: string | null;
+  meeting_time: string | null;
+  duration_minutes: number | null;
   evidence_id: string | null;
   created_at: string;
 };
+
+export type OpenBookingRow = {
+  person_id: string;
+  stage: number | null;
+  meeting_date: string | null;
+  meeting_time: string | null;
+};
+
+/** Booked absence meetings not yet recorded (evidence_id null), for the cards. */
+export async function listOpenBookings(companyId: string): Promise<OpenBookingRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("absence_meetings")
+    .select("person_id, stage, meeting_date, meeting_time")
+    .eq("company_id", companyId)
+    .is("evidence_id", null)
+    .order("meeting_date", { ascending: true });
+  return (data as OpenBookingRow[] | null) ?? [];
+}
 
 export async function listPersonMeetings(
   personId: string,

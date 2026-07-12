@@ -48,7 +48,9 @@ TWILIO_* for SMS checks; RESEND_* already live from Phase 1).
 - [x] E1b. PASS 2026-07-12. The Book in popover stays open showing "Booking…" until the save lands, then closes.
 - [ ] E2. Re-saving the same booking (same date + time + reviewer) does NOT re-send; changing the date OR time DOES send a fresh invite.
 - [ ] E3. Clearing a booking sends nothing.
-- [ ] E4. Recording an absence meeting dated today or later sends the employee and their manager an invitation with .ics; a past-dated (retrospective) meeting sends nothing.
+- [ ] E4. REWORKED (Phil, 2026-07-12): Book meeting (stage, date, time, duration) sends the employee and their line manager the FORMAL LETTER invitation with a timed .ics; the employee letter includes purpose, conducted-by and right to be accompanied. Requires the person to have a Personal email and a Line manager set.
+- [ ] E4b. Record meeting sends NO emails, and when an open booking exists for that person/stage the Evidence attaches to it (history shows one meeting, success message says "recorded against the booking").
+- [ ] E4c. Booking a past date is rejected with a clear message pointing to Record meeting. The card shows "Stage N meeting booked: date at time" until recorded, and the booking advances the meeting stage immediately (agreed behaviour).
 - [ ] E5. Audit metadata on the booking/meeting records the invite outcome (sent / already_sent / skipped_no_email_config).
 
 ## F. Holiday emails

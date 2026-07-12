@@ -12,11 +12,23 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import FormEvidenceDialog from "@/components/forms/form-evidence-dialog";
 import AbsenceDetailDialog from "@/components/absence/absence-detail-dialog";
+import BookMeetingDialog from "@/components/absence/book-meeting-dialog";
 import type { FormSchema } from "@/lib/form-schema";
 import type { AbsenceMethod } from "@/lib/absence/logic";
-import type { AbsencePersonRow, PersonLite, AbsenceEventRow } from "@/lib/absence/data";
+import type { AbsencePersonRow, PersonLite, AbsenceEventRow, OpenBookingRow } from "@/lib/absence/data";
 import type { BranchLite } from "@/lib/people/data";
 import { recordAbsence, recordAbsenceMeeting } from "@/lib/absence/actions";
+
+/** 15 Jul 2026 from 2026-07-15, for the booked-meeting line. */
+function formatBookedDate(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
 
 export default function AbsenceView({
   method,
@@ -26,6 +38,7 @@ export default function AbsenceView({
   events,
   absenceSchema,
   meetingSchema,
+  openBookings,
   canManage,
 }: {
   method: AbsenceMethod;
@@ -35,6 +48,7 @@ export default function AbsenceView({
   events: AbsenceEventRow[];
   absenceSchema: FormSchema | null;
   meetingSchema: FormSchema | null;
+  openBookings: OpenBookingRow[];
   canManage: boolean;
 }) {
   const [branch, setBranch] = useState("");
@@ -45,6 +59,13 @@ export default function AbsenceView({
     for (const e of events) (map[e.person_id] ??= []).push(e);
     return map;
   }, [events]);
+
+  // Earliest open booking per person (a booked meeting awaiting recording).
+  const bookingByPerson = useMemo(() => {
+    const map: Record<string, OpenBookingRow> = {};
+    for (const b of openBookings) map[b.person_id] ??= b;
+    return map;
+  }, [openBookings]);
 
   const visibleRows = useMemo(
     () => (branch ? rows.filter((r) => r.branchId === branch) : rows),
@@ -192,6 +213,16 @@ export default function AbsenceView({
                     A {s.derivedLabel ?? "stage"} meeting is due.
                   </p>
                 )}
+                {bookingByPerson[r.personId] && (
+                  <p className="text-xs font-medium text-sky-300">
+                    {bookingByPerson[r.personId].stage
+                      ? `Stage ${bookingByPerson[r.personId].stage} meeting booked`
+                      : "Meeting booked"}
+                    {bookingByPerson[r.personId].meeting_date
+                      ? `: ${formatBookedDate(bookingByPerson[r.personId].meeting_date!)}${bookingByPerson[r.personId].meeting_time ? ` at ${String(bookingByPerson[r.personId].meeting_time).slice(0, 5)}` : ""}`
+                      : ""}
+                  </p>
+                )}
 
                 <div className="mt-auto flex flex-wrap gap-2 pt-1">
                   <AbsenceDetailDialog
@@ -199,6 +230,13 @@ export default function AbsenceView({
                     events={eventsByPerson[r.personId] ?? []}
                     canEdit={canManage}
                   />
+                  {canManage ? (
+                    <BookMeetingDialog
+                      personId={r.personId}
+                      personName={r.fullName}
+                      defaultStage={Math.min(4, Math.max(1, (s.meetingStage ?? 0) + 1))}
+                    />
+                  ) : null}
                   {canManage && meetingSchema ? (
                       <FormEvidenceDialog
                         title={`Absence meeting — ${r.fullName}`}
