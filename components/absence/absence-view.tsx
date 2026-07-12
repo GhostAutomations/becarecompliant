@@ -28,6 +28,12 @@ function locationLabel(location: string, offices: MeetingOffice[]): string {
   return offices.find((o) => o.address && o.address === location)?.label ?? location;
 }
 
+/** 15/07/2026 from 2026-07-15, for the absence list in the meeting form. */
+function formatSlashDate(iso: string): string {
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
 /** 15 Jul 2026 from 2026-07-15, for the booked-meeting line. */
 function formatBookedDate(iso: string): string {
   const [y, m, d] = iso.split("-").map(Number);
@@ -119,13 +125,19 @@ export default function AbsenceView({
       })),
     };
 
-    const dates = (eventsByPerson[r.personId] ?? [])
-      .map((e) =>
-        e.end_date && e.end_date !== e.start_date
-          ? `${formatBookedDate(e.start_date)} to ${formatBookedDate(e.end_date)}`
-          : formatBookedDate(e.start_date),
-      )
-      .join("; ");
+    // One absence per line, numbered chronologically (Phil, 2026-07-12):
+    //   Absence 1: 10/07/2026
+    //   Absence 2: 11/08/2026 to 13/08/2026
+    const dates = [...(eventsByPerson[r.personId] ?? [])]
+      .sort((a, b) => a.start_date.localeCompare(b.start_date))
+      .map((e, i) => {
+        const range =
+          e.end_date && e.end_date !== e.start_date
+            ? `${formatSlashDate(e.start_date)} to ${formatSlashDate(e.end_date)}`
+            : formatSlashDate(e.start_date);
+        return `Absence ${i + 1}: ${range}`;
+      })
+      .join("\n");
 
     const presets: Record<string, string> = {
       purpose_of_meeting:
