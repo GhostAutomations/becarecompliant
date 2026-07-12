@@ -16,7 +16,7 @@ import BookMeetingDialog from "@/components/absence/book-meeting-dialog";
 import CancelRearrangeDialog from "@/components/absence/cancel-rearrange-dialog";
 import type { FormSchema } from "@/lib/form-schema";
 import type { AbsenceMethod } from "@/lib/absence/logic";
-import type { AbsencePersonRow, PersonLite, AbsenceEventRow, OpenBookingRow, ConductorLite } from "@/lib/absence/data";
+import type { AbsencePersonRow, PersonLite, AbsenceEventRow, OpenBookingRow, ConductorLite, MeetingOffice } from "@/lib/absence/data";
 import type { BranchLite } from "@/lib/people/data";
 import { recordAbsence, recordAbsenceMeeting } from "@/lib/absence/actions";
 
@@ -41,6 +41,7 @@ export default function AbsenceView({
   meetingSchema,
   openBookings,
   conductors,
+  offices,
   canManage,
 }: {
   method: AbsenceMethod;
@@ -52,6 +53,7 @@ export default function AbsenceView({
   meetingSchema: FormSchema | null;
   openBookings: OpenBookingRow[];
   conductors: ConductorLite[];
+  offices: MeetingOffice[];
   canManage: boolean;
 }) {
   const [branch, setBranch] = useState("");
@@ -271,6 +273,7 @@ export default function AbsenceView({
                       defaultStage={Math.min(4, Math.max(1, (s.meetingStage ?? 0) + 1))}
                       minStage={(s.meetingStage ?? 0) + 1}
                       conductors={conductors}
+                      offices={offices}
                     />
                   ) : null}
                   {canManage && meetingSchema ? (
@@ -290,6 +293,7 @@ export default function AbsenceView({
                       booking={bookingByPerson[r.personId]}
                       personName={r.fullName}
                       conductors={conductors}
+                      offices={offices}
                     />
                   ) : null}
                   </div>

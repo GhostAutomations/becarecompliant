@@ -353,9 +353,9 @@ export async function bookAbsenceMeeting(
   const rawDuration = Number.parseInt(String(formData.get("duration") ?? ""), 10);
   const duration =
     Number.isFinite(rawDuration) && rawDuration >= 15 && rawDuration <= 480 ? rawDuration : 60;
-  const locationKind = String(formData.get("location_kind") ?? "");
-  if (locationKind !== "office" && locationKind !== "teams") {
-    return { error: "Choose where the meeting will be held: Office or Teams." };
+  const locationChoice = String(formData.get("location_choice") ?? "").trim();
+  if (!locationChoice) {
+    return { error: "Choose where the meeting will be held." };
   }
   const conductedBy = String(formData.get("conducted_by") ?? "").trim();
   if (!conductedBy) return { error: "Choose who is holding the meeting." };
@@ -368,19 +368,15 @@ export async function bookAbsenceMeeting(
     .maybeSingle();
   if (!person) return { error: "That record could not be found." };
 
-  // Office prints the FULL branch address in the letters (Phil, 2026-07-12).
-  let location = "Microsoft Teams";
-  if (locationKind === "office") {
-    const { data: branch } = await supabase
-      .from("branches")
-      .select("address")
-      .eq("id", person.branch_id as string)
-      .maybeSingle();
-    if (!branch?.address) {
-      return { error: "Set this branch's office address in Settings, Branches first, then book the meeting." };
-    }
-    location = branch.address as string;
-  }
+  // Location: Teams, or a named office whose FULL address (Settings > Branches)
+  // is printed in the letters (Phil, 2026-07-12).
+  const resolved = await resolveMeetingLocation(
+    supabase,
+    person.company_id as string,
+    locationChoice,
+  );
+  if ("error" in resolved) return { error: resolved.error };
+  const { location, locationKind } = resolved;
 
   // Stage gate (Phil, 2026-07-12): a stage that has already been held or
   // booked cannot be booked again; the next stage (or a repeat Stage 4) is
@@ -501,6 +497,34 @@ export async function bookAbsenceMeeting(
         ? `Meeting booked. ${sentCount === 1 ? "1 invitation" : `${sentCount} invitations`} sent.`
         : "Meeting booked. No invitations could be sent (check email addresses).",
   };
+}
+
+/** Resolve the booking's location choice: "teams", or the id of one of the
+ *  company's offices (the Team office or a branch office). Offices must have
+ *  their address set in Settings > Branches; the full address is what the
+ *  letters print. Ownership checked: the office must belong to this company. */
+async function resolveMeetingLocation(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  companyId: string,
+  choice: string,
+): Promise<{ location: string; locationKind: "office" | "teams" } | { error: string }> {
+  if (choice === "teams") {
+    return { location: "Microsoft Teams", locationKind: "teams" };
+  }
+  const { data: office } = await supabase
+    .from("branches")
+    .select("id, name, kind, address, company_id")
+    .eq("id", choice)
+    .maybeSingle();
+  if (!office || office.company_id !== companyId) {
+    return { error: "Choose where the meeting will be held." };
+  }
+  if (!office.address) {
+    return {
+      error: `That office has no address yet. Set it in Settings, Branches first, then book the meeting.`,
+    };
+  }
+  return { location: office.address as string, locationKind: "office" };
 }
 
 /** The formal letter pair for a booked or rearranged meeting: the employee's
@@ -648,9 +672,9 @@ export async function rearrangeAbsenceMeeting(
   const rawDuration = Number.parseInt(String(formData.get("duration") ?? ""), 10);
   const duration =
     Number.isFinite(rawDuration) && rawDuration >= 15 && rawDuration <= 480 ? rawDuration : 60;
-  const locationKind = String(formData.get("location_kind") ?? "");
-  if (locationKind !== "office" && locationKind !== "teams") {
-    return { error: "Choose where the meeting will be held: Office or Teams." };
+  const locationChoice = String(formData.get("location_choice") ?? "").trim();
+  if (!locationChoice) {
+    return { error: "Choose where the meeting will be held." };
   }
   const conductedBy = String(formData.get("conducted_by") ?? "").trim();
   if (!conductedBy) return { error: "Choose who is holding the meeting." };
@@ -668,18 +692,9 @@ export async function rearrangeAbsenceMeeting(
     return { error: "This meeting has already been recorded and cannot be rearranged." };
   }
 
-  let location = "Microsoft Teams";
-  if (locationKind === "office") {
-    const { data: branch } = await supabase
-      .from("branches")
-      .select("address")
-      .eq("id", meeting.branch_id as string)
-      .maybeSingle();
-    if (!branch?.address) {
-      return { error: "Set this branch's office address in Settings, Branches first, then rearrange the meeting." };
-    }
-    location = branch.address as string;
-  }
+  const resolved = await resolveMeetingLocation(supabase, profile.company_id, locationChoice);
+  if ("error" in resolved) return { error: resolved.error };
+  const { location, locationKind } = resolved;
 
   const { data: conductor } = await supabase
     .from("profiles")

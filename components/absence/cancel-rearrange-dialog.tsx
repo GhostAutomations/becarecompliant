@@ -16,7 +16,7 @@ import {
   rearrangeAbsenceMeeting,
   cancelAbsenceMeetingBooking,
 } from "@/lib/absence/actions";
-import type { ConductorLite, OpenBookingRow } from "@/lib/absence/data";
+import type { ConductorLite, OpenBookingRow, MeetingOffice } from "@/lib/absence/data";
 
 function minNoticeDate(): string {
   return new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -34,10 +34,12 @@ export default function CancelRearrangeDialog({
   booking,
   personName,
   conductors,
+  offices,
 }: {
   booking: OpenBookingRow;
   personName: string;
   conductors: ConductorLite[];
+  offices: MeetingOffice[];
 }) {
   const [openInstance, setOpenInstance] = useState(0);
 
@@ -57,6 +59,7 @@ export default function CancelRearrangeDialog({
             booking={booking}
             personName={personName}
             conductors={conductors}
+            offices={offices}
             onClose={() => setOpenInstance(0)}
           />,
           document.body,
@@ -69,11 +72,13 @@ function CancelRearrangeForm({
   booking,
   personName,
   conductors,
+  offices,
   onClose,
 }: {
   booking: OpenBookingRow;
   personName: string;
   conductors: ConductorLite[];
+  offices: MeetingOffice[];
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -171,11 +176,21 @@ function CancelRearrangeForm({
             <label htmlFor="cr-location" className="form-label">Location</label>
             <select
               id="cr-location"
-              name="location_kind"
-              defaultValue={booking.location === "Microsoft Teams" ? "teams" : "office"}
+              name="location_choice"
+              defaultValue={
+                booking.location === "Microsoft Teams"
+                  ? "teams"
+                  : offices.find((o) => o.address && o.address === booking.location)?.id ?? ""
+              }
+              required
               disabled={busy}
             >
-              <option value="office">Office</option>
+              <option value="" disabled>Choose a location</option>
+              {offices.map((o) => (
+                <option key={o.id} value={o.id} disabled={!o.hasAddress}>
+                  {o.label}{o.hasAddress ? "" : " (no address set)"}
+                </option>
+              ))}
               <option value="teams">Teams</option>
             </select>
           </div>

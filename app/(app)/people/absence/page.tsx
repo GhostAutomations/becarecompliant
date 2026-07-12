@@ -3,7 +3,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import { listBranches, getCompanyFormByKey } from "@/lib/people/data";
-import { listAbsenceRegister, listActivePeople, listAbsenceEvents, listOpenBookings, listMeetingConductors } from "@/lib/absence/data";
+import { listAbsenceRegister, listActivePeople, listAbsenceEvents, listOpenBookings, listMeetingConductors, listMeetingOffices } from "@/lib/absence/data";
 import { isFormSchema, type FormSchema } from "@/lib/form-schema";
 import AbsenceView from "@/components/absence/absence-view";
 
@@ -25,7 +25,7 @@ export default async function AbsencePage() {
   }
 
   const companyId = profile.company_id;
-  const [branches, { config, rows }, people, events, absenceForm, meetingForm, openBookings, conductors] =
+  const [branches, { config, rows }, people, events, absenceForm, meetingForm, openBookings, conductors, offices] =
     await Promise.all([
       listBranches(companyId),
       listAbsenceRegister(companyId, null),
@@ -35,6 +35,7 @@ export default async function AbsencePage() {
       getCompanyFormByKey(companyId, "absence_management_meeting"),
       listOpenBookings(companyId),
       listMeetingConductors(companyId),
+      listMeetingOffices(companyId),
     ]);
 
   const absenceSchema: FormSchema | null =
@@ -61,6 +62,7 @@ export default async function AbsencePage() {
         meetingSchema={meetingSchema}
         openBookings={openBookings}
         conductors={conductors}
+        offices={offices}
         canManage={canManage}
       />
     </div>

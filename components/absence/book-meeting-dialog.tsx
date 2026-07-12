@@ -17,7 +17,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { IDLE_STATE } from "@/lib/forms";
 import { bookAbsenceMeeting } from "@/lib/absence/actions";
-import type { ConductorLite } from "@/lib/absence/data";
+import type { ConductorLite, MeetingOffice } from "@/lib/absence/data";
 
 /** Earliest bookable date for the picker: 48 hours from now (server enforces
  *  the exact date + time cutoff). */
@@ -50,6 +50,8 @@ export default function BookMeetingDialog({
   minStage: number;
   /** Active Managers + Admins: the only people who can hold the meeting. */
   conductors: ConductorLite[];
+  /** Named offices (company office + branch offices) for the Location. */
+  offices: MeetingOffice[];
 }) {
   const [openInstance, setOpenInstance] = useState(0);
   const open = openInstance > 0;
@@ -72,6 +74,7 @@ export default function BookMeetingDialog({
             defaultStage={defaultStage}
             minStage={minStage}
             conductors={conductors}
+            offices={offices}
             onClose={() => setOpenInstance(0)}
           />,
           document.body,
@@ -86,6 +89,7 @@ function BookMeetingForm({
   defaultStage,
   minStage,
   conductors,
+  offices,
   onClose,
 }: {
   personId: string;
@@ -93,6 +97,7 @@ function BookMeetingForm({
   defaultStage: number;
   minStage: number;
   conductors: ConductorLite[];
+  offices: MeetingOffice[];
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -168,12 +173,17 @@ function BookMeetingForm({
           </div>
           <div>
             <label htmlFor="bm-location" className="form-label">Location</label>
-            <select id="bm-location" name="location_kind" defaultValue="office" disabled={pending}>
-              <option value="office">Office</option>
+            <select id="bm-location" name="location_choice" defaultValue="" required disabled={pending}>
+              <option value="" disabled>Choose a location</option>
+              {offices.map((o) => (
+                <option key={o.id} value={o.id} disabled={!o.hasAddress}>
+                  {o.label}{o.hasAddress ? "" : " (no address set)"}
+                </option>
+              ))}
               <option value="teams">Teams</option>
             </select>
             <p className="mt-1 text-[10px] text-white/40">
-              Office prints the branch address from Settings, Branches in the
+              An office prints its full address (Settings, Branches) in the
               letters. Teams tells them an invite will follow shortly.
             </p>
           </div>

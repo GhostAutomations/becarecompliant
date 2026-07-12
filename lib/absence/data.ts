@@ -106,6 +106,33 @@ export type PersonLite = { id: string; full_name: string; branch_id: string | nu
 
 export type ConductorLite = { id: string; full_name: string; email: string; role: string };
 
+export type MeetingOffice = { id: string; label: string; hasAddress: boolean; address: string | null };
+
+/** Meeting location options (Phil, 2026-07-12): the company's own office (the
+ *  Team branch) labelled "{Company} Office", then each branch labelled
+ *  "{Branch} Branch Office". The picked office's address (Settings > Branches)
+ *  is printed in full in the formal letters. */
+export async function listMeetingOffices(companyId: string): Promise<MeetingOffice[]> {
+  const supabase = await createClient();
+  const [{ data: company }, { data: branches }] = await Promise.all([
+    supabase.from("companies").select("name").eq("id", companyId).maybeSingle(),
+    supabase
+      .from("branches")
+      .select("id, name, kind, address")
+      .eq("company_id", companyId)
+      .eq("status", "active")
+      .order("kind", { ascending: false }) // team first
+      .order("name", { ascending: true }),
+  ]);
+  const companyName = company?.name ?? "Company";
+  return (branches ?? []).map((b) => ({
+    id: b.id as string,
+    label: b.kind === "team" ? `${companyName} Office` : `${b.name} Branch Office`,
+    hasAddress: Boolean(b.address),
+    address: (b.address as string | null) ?? null,
+  }));
+}
+
 /** Active Managers + Company Admins: the only people who can hold a formal
  *  absence meeting (Phil, 2026-07-12). */
 export async function listMeetingConductors(companyId: string): Promise<ConductorLite[]> {
