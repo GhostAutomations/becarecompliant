@@ -105,7 +105,12 @@ export default function AbsenceView({
     presets: Record<string, string>;
   } {
     if (!meetingSchema) return { schema: null, presets: {} };
-    const bookings = allBookingsByPerson[r.personId] ?? [];
+    // Declined means NOT booked in (Phil, 2026-07-12): declined bookings do
+    // not appear as Meeting Type options and do not drive the prefills. The
+    // manager rearranges (which resets the response) or cancels them.
+    const bookings = (allBookingsByPerson[r.personId] ?? []).filter(
+      (b) => b.response !== "declined",
+    );
     const bookedStages = bookings
       .map((b) => b.stage)
       .filter((s): s is number => s !== null);

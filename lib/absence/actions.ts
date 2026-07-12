@@ -249,6 +249,8 @@ export async function recordAbsenceMeeting(
     .select("id")
     .eq("person_id", personId)
     .is("evidence_id", null)
+    // declined bookings are not booked in (Phil): never attach to them
+    .or("response.is.null,response.eq.accepted")
     .order("meeting_date", { ascending: false })
     .limit(1);
   if (validStage) bookingQuery = bookingQuery.eq("stage", validStage);
@@ -380,13 +382,17 @@ export async function bookAbsenceMeeting(
 
   // Stage gate (Phil, 2026-07-12): a stage that has already been held or
   // booked cannot be booked again; the next stage (or a repeat Stage 4) is
-  // the only option. A "no further action" outcome resetting the cycle
-  // arrives with the meeting outcomes feature (Additions).
+  // the only option. DECLINED open bookings do not count: declined means not
+  // booked in (Phil), so that stage can be booked again. A "no further
+  // action" outcome resetting the cycle arrives with meeting outcomes
+  // (Additions).
   const { data: maxStageRow } = await supabase
     .from("absence_meetings")
     .select("stage")
     .eq("person_id", personId)
     .not("stage", "is", null)
+    // held (has evidence), unanswered, or accepted count; declined opens do not
+    .or("evidence_id.not.is.null,response.is.null,response.eq.accepted")
     .order("stage", { ascending: false })
     .limit(1)
     .maybeSingle();
