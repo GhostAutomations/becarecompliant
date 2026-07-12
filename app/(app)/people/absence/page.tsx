@@ -5,6 +5,7 @@ import RealtimeRefresh from "@/components/realtime-refresh";
 import { listBranches, getCompanyFormByKey } from "@/lib/people/data";
 import { listAbsenceRegister, listActivePeople, listAbsenceEvents, listOpenBookings, listMeetingConductors, listMeetingOffices } from "@/lib/absence/data";
 import { isFormSchema, type FormSchema } from "@/lib/form-schema";
+import type { StageThreshold } from "@/lib/absence/logic";
 import AbsenceView from "@/components/absence/absence-view";
 
 export const metadata: Metadata = { title: "Absence" };
@@ -54,6 +55,7 @@ export default async function AbsencePage() {
       <BackLink href="/people" label="Back to People" />
       <AbsenceView
         method={config.method}
+        stageThresholds={config.method === "stages" ? (config.thresholds as StageThreshold[]) : []}
         rows={rows}
         branches={branches}
         people={people}

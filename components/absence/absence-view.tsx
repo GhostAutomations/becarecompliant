@@ -15,7 +15,7 @@ import AbsenceDetailDialog from "@/components/absence/absence-detail-dialog";
 import BookMeetingDialog from "@/components/absence/book-meeting-dialog";
 import CancelRearrangeDialog from "@/components/absence/cancel-rearrange-dialog";
 import type { FormSchema } from "@/lib/form-schema";
-import type { AbsenceMethod } from "@/lib/absence/logic";
+import type { AbsenceMethod, StageThreshold } from "@/lib/absence/logic";
 import type { AbsencePersonRow, PersonLite, AbsenceEventRow, OpenBookingRow, ConductorLite, MeetingOffice } from "@/lib/absence/data";
 import type { BranchLite } from "@/lib/people/data";
 import { recordAbsence, recordAbsenceMeeting } from "@/lib/absence/actions";
@@ -47,6 +47,7 @@ function formatBookedDate(iso: string): string {
 
 export default function AbsenceView({
   method,
+  stageThresholds,
   rows,
   branches,
   people,
@@ -59,6 +60,9 @@ export default function AbsenceView({
   canManage,
 }: {
   method: AbsenceMethod;
+  /** Stage occasions thresholds (stages method), for scoping which absences a
+   *  Stage N meeting discusses. Empty for Bradford. */
+  stageThresholds: StageThreshold[];
   rows: AbsencePersonRow[];
   branches: BranchLite[];
   people: PersonLite[];
@@ -128,14 +132,31 @@ export default function AbsenceView({
     // One absence per line, numbered chronologically (Phil, 2026-07-12):
     //   Absence 1: 10/07/2026
     //   Absence 2: 11/08/2026 to 13/08/2026
-    const dates = [...(eventsByPerson[r.personId] ?? [])]
-      .sort((a, b) => a.start_date.localeCompare(b.start_date))
-      .map((e, i) => {
+    // A Stage N meeting only discusses ITS absences (Phil): Stage 1 covers the
+    // occasions up to its trigger threshold; each later stage covers the new
+    // absences since the previous stage's threshold. Numbers stay absolute.
+    const chronological = [...(eventsByPerson[r.personId] ?? [])].sort((a, b) =>
+      a.start_date.localeCompare(b.start_date),
+    );
+    let discussed = chronological.map((e, i) => ({ e, n: i + 1 }));
+    const bookedStage = earliest?.stage ?? null;
+    if (bookedStage && stageThresholds.length > 0) {
+      const occAt = (stage: number) =>
+        stageThresholds.find((t) => t.stage === stage)?.occasions;
+      const hi = occAt(bookedStage);
+      const lo = bookedStage > 1 ? occAt(bookedStage - 1) ?? 0 : 0;
+      if (hi) {
+        const scoped = discussed.slice(lo, hi);
+        if (scoped.length > 0) discussed = scoped;
+      }
+    }
+    const dates = discussed
+      .map(({ e, n }) => {
         const range =
           e.end_date && e.end_date !== e.start_date
             ? `${formatSlashDate(e.start_date)} to ${formatSlashDate(e.end_date)}`
             : formatSlashDate(e.start_date);
-        return `Absence ${i + 1}: ${range}`;
+        return `Absence ${n}: ${range}`;
       })
       .join("\n");
 
