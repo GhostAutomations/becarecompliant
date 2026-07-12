@@ -355,7 +355,7 @@ export default async function ServiceUserPage({
                     ))}
                   </select>
                 </div>
-                <button type="submit" className="btn-outline text-xs">Save status</button>
+                <button type="submit" className="btn-primary text-xs">Save status</button>
               </form>
               {/* Archive is only offered once a Service User is Cancelled. */}
               {serviceUser.archived_at || serviceUser.service_status === "cancelled" ? (

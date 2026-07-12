@@ -36,7 +36,7 @@ export default function EditServiceUserForm({ serviceUser }: { serviceUser: Serv
       <button
         type="submit"
         disabled={pending}
-        className={`btn ${state.ok ? "btn-saved" : "btn-outline"}`}
+        className={`btn ${state.ok ? "btn-saved" : "btn-primary"}`}
       >
         {pending ? "Saving…" : state.ok ? "Saved" : "Save details"}
       </button>

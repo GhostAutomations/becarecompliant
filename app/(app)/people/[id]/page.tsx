@@ -454,7 +454,7 @@ export default async function PersonPage({
                     ))}
                   </select>
                 </div>
-                <button type="submit" className="btn-outline text-xs">Save status</button>
+                <button type="submit" className="btn-primary text-xs">Save status</button>
               </form>
               {/* Archive is only offered once a person is a Leaver; Restore shows for
                   an archived record. Active/LTS/Mat Leave staff cannot be archived. */}
