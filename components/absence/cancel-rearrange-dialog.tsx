@@ -91,15 +91,24 @@ function CancelRearrangeForm({
     IDLE_STATE,
   );
   const busy = rearranging || cancelling;
-  const done = rearrangeState.ok || cancelState.ok;
+
+  // Cancel closes IMMEDIATELY on success (a lingering disabled dialog reads as
+  // an error: Phil, 2026-07-12). Rearrange holds briefly so the confirmation
+  // message is seen, then closes.
+  useEffect(() => {
+    if (cancelState.ok) {
+      router.refresh();
+      onClose();
+    }
+  }, [cancelState.ok, router, onClose]);
 
   useEffect(() => {
-    if (done) {
+    if (rearrangeState.ok) {
       router.refresh();
-      const t = setTimeout(onClose, 1400);
+      const t = setTimeout(onClose, 1200);
       return () => clearTimeout(t);
     }
-  }, [done, router, onClose]);
+  }, [rearrangeState.ok, router, onClose]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
