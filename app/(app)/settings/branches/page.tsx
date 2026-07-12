@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import BackLink from "@/components/back-link";
-import { renameBranch } from "../actions";
+import BranchForm from "@/components/settings/branch-form";
 
 export const metadata: Metadata = { title: "Branches" };
 
@@ -43,41 +43,11 @@ export default async function BranchesPage() {
               </span>
               <span className="text-xs text-white/50">{branch.status}</span>
             </div>
-            <form action={renameBranch} className="space-y-3">
-              <input type="hidden" name="branch_id" value={branch.id} />
-              <div>
-                <label
-                  htmlFor={`name-${branch.id}`}
-                  className="form-label"
-                >
-                  Name
-                </label>
-                <input
-                  id={`name-${branch.id}`}
-                  name="name"
-                  defaultValue={branch.name}
-                  required
-                />
-              </div>
-              <div>
-                <label htmlFor={`address-${branch.id}`} className="form-label">
-                  Office address
-                </label>
-                <input
-                  id={`address-${branch.id}`}
-                  name="address"
-                  defaultValue={branch.address ?? ""}
-                  placeholder="1 High Street, Newport, NP20 1AA"
-                />
-                <p className="mt-1 text-[11px] text-white/40">
-                  Printed in full on formal meeting letters when the location is
-                  Office.
-                </p>
-              </div>
-              <button type="submit" className="btn-primary">
-                Save
-              </button>
-            </form>
+            <BranchForm
+              branchId={branch.id}
+              initialName={branch.name}
+              initialAddress={branch.address ?? ""}
+            />
           </div>
         ))}
       </div>

@@ -296,22 +296,28 @@ export async function changeUserRole(formData: FormData): Promise<void> {
 }
 
 /** Rename one of the company's branches and set its office address (printed in
- *  full on formal meeting letters when the Location is Office, migration 0050). */
-export async function renameBranch(formData: FormData): Promise<void> {
+ *  full on formal meeting letters when the Location is Office, migration 0050).
+ *  Returns ActionState so the button can show Saving, Saved and real errors:
+ *  a save must never be silent (standing rule, Phil 2026-07-12). */
+export async function renameBranch(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const ctx = await adminContext();
-  if (!ctx.ok) return;
+  if (!ctx.ok) return { error: "You do not have permission to edit branches." };
   const branchId = String(formData.get("branch_id") ?? "");
   const name = String(formData.get("name") ?? "").trim();
   const address = String(formData.get("address") ?? "").trim().slice(0, 400);
-  if (!branchId || !name) return;
+  if (!branchId || !name) return { error: "The branch needs a name." };
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const { error, count } = await supabase
     .from("branches")
-    .update({ name, address: address || null })
+    .update({ name, address: address || null }, { count: "exact" })
     .eq("id", branchId)
     .eq("company_id", ctx.companyId);
-  if (error) return;
+  if (error) return { error: `The branch could not be saved: ${error.message}` };
+  if (!count) return { error: "The branch could not be saved: no matching branch." };
 
   await writeAudit({
     companyId: ctx.companyId,
@@ -325,4 +331,5 @@ export async function renameBranch(formData: FormData): Promise<void> {
     metadata: { name, address: address || null },
   });
   revalidatePath("/settings/branches");
+  return { ok: "Saved." };
 }
