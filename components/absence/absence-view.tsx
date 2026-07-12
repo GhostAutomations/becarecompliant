@@ -224,7 +224,19 @@ export default function AbsenceView({
                   </p>
                 )}
 
-                <div className="mt-auto flex flex-wrap gap-2 pt-1">
+                <div className="mt-auto flex flex-wrap items-center justify-evenly gap-2 pt-1">
+                  {canManage && absenceSchema ? (
+                      <FormEvidenceDialog
+                        title={`Record absence — ${r.fullName}`}
+                        schema={absenceSchema}
+                        action={recordAbsence}
+                        extraFields={{ person_id: r.personId }}
+                        triggerLabel="Add absence"
+                        triggerClassName="btn-outline px-3 py-1.5 text-xs"
+                        submitLabel="Save absence"
+                        hideFields={["name", "email"]}
+                      />
+                    ) : null}
                   <AbsenceDetailDialog
                     personName={r.fullName}
                     events={eventsByPerson[r.personId] ?? []}
@@ -247,18 +259,6 @@ export default function AbsenceView({
                         triggerClassName="btn-outline px-3 py-1.5 text-xs"
                         submitLabel="Save meeting"
                         hideFields={["name"]}
-                      />
-                    ) : null}
-                    {canManage && absenceSchema ? (
-                      <FormEvidenceDialog
-                        title={`Record absence — ${r.fullName}`}
-                        schema={absenceSchema}
-                        action={recordAbsence}
-                        extraFields={{ person_id: r.personId }}
-                        triggerLabel="Add absence"
-                        triggerClassName="btn-outline px-3 py-1.5 text-xs"
-                        submitLabel="Save absence"
-                        hideFields={["name", "email"]}
                       />
                     ) : null}
                   </div>
