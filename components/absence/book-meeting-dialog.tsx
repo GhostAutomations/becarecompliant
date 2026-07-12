@@ -38,6 +38,7 @@ export default function BookMeetingDialog({
   personName,
   defaultStage,
   minStage,
+  maxStage,
   conductors,
   offices,
 }: {
@@ -49,6 +50,9 @@ export default function BookMeetingDialog({
    *  (Phil, 2026-07-12); the "no further action" reset arrives with meeting
    *  outcomes (Additions). Server enforces the same rule. */
   minStage: number;
+  /** Only stages the person's absence level actually calls for are offered
+   *  (Phil, 2026-07-12): nothing above their derived stage. */
+  maxStage: number;
   /** Active Managers + Admins: the only people who can hold the meeting. */
   conductors: ConductorLite[];
   /** Named offices (company office + branch offices) for the Location. */
@@ -74,6 +78,7 @@ export default function BookMeetingDialog({
             personName={personName}
             defaultStage={defaultStage}
             minStage={minStage}
+            maxStage={maxStage}
             conductors={conductors}
             offices={offices}
             onClose={() => setOpenInstance(0)}
@@ -89,6 +94,7 @@ function BookMeetingForm({
   personName,
   defaultStage,
   minStage,
+  maxStage,
   conductors,
   offices,
   onClose,
@@ -97,6 +103,7 @@ function BookMeetingForm({
   personName: string;
   defaultStage: number;
   minStage: number;
+  maxStage: number;
   conductors: ConductorLite[];
   offices: MeetingOffice[];
   onClose: () => void;
@@ -128,7 +135,7 @@ function BookMeetingForm({
           <div>
             <label htmlFor="bm-stage" className="form-label">Stage</label>
             <select id="bm-stage" name="stage" defaultValue={String(defaultStage)} disabled={pending}>
-              {([1, 2, 3, 4].filter((s) => s >= Math.min(minStage, 4))).map((s) => (
+              {([1, 2, 3, 4].filter((s) => s >= minStage && s <= maxStage)).map((s) => (
                 <option key={s} value={s}>Stage {s}</option>
               ))}
             </select>

@@ -21,6 +21,8 @@ import { escapeHtml, noticeEmailHtml } from "@/lib/email/templates";
 import { claimNotification, settleNotification } from "@/lib/notifications/log";
 import { londonToUtc } from "@/lib/email/ics";
 import { siteUrl } from "@/lib/site";
+import { getAbsenceConfig } from "@/lib/absence/data";
+import { deriveAbsenceStatus } from "@/lib/absence/logic";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
 import type { Answers } from "@/lib/form-schema";
@@ -397,9 +399,38 @@ export async function bookAbsenceMeeting(
     .limit(1)
     .maybeSingle();
   const maxStage = (maxStageRow?.stage as number | null) ?? 0;
-  if (stage <= maxStage && !(stage === 4 && maxStage === 4)) {
+  if (stage <= maxStage) {
     return {
       error: `Stage ${stage} has already been held or booked for this person. Book Stage ${Math.min(maxStage + 1, 4)} instead.`,
+    };
+  }
+
+  // Upper cap (Phil, 2026-07-12): only stages the person's absence level
+  // actually calls for can be booked (their derived stage from the company's
+  // thresholds). Mirrors the dropdown, enforced here.
+  const [{ data: summary }, config] = await Promise.all([
+    supabase
+      .from("person_absence_summary")
+      .select("occasions, total_days, latest_meeting_stage")
+      .eq("person_id", personId)
+      .maybeSingle(),
+    getAbsenceConfig(person.company_id as string),
+  ]);
+  const derived = deriveAbsenceStatus(
+    {
+      occasions: (summary?.occasions as number | null) ?? 0,
+      totalDays: Number(summary?.total_days ?? 0),
+      latestMeetingStage: (summary?.latest_meeting_stage as number | null) ?? null,
+    },
+    config,
+  );
+  const derivedStage = derived.derivedStage ?? 0;
+  if (config.method === "stages" && stage > derivedStage) {
+    return {
+      error:
+        derivedStage > 0
+          ? `Their absence level calls for Stage ${derivedStage} at most. A Stage ${stage} meeting cannot be booked yet.`
+          : "Their absence level does not call for a formal meeting yet.",
     };
   }
 

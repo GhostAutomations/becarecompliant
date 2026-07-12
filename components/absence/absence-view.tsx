@@ -382,6 +382,7 @@ export default function AbsenceView({
                       personName={r.fullName}
                       defaultStage={Math.min(4, Math.max(1, (s.meetingStage ?? 0) + 1))}
                       minStage={(s.meetingStage ?? 0) + 1}
+                      maxStage={s.derivedStage ?? 0}
                       conductors={conductors}
                       offices={offices}
                     />

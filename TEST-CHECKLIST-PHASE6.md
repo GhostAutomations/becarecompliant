@@ -60,7 +60,7 @@ TWILIO_* for SMS checks; RESEND_* already live from Phase 1).
 - [x] E4h. PASS 2026-07-12. Booked line shows who is holding the meeting.
 - [x] E4i. REARRANGE PASS 2026-07-12: replacement letters sent, card updated, earlier acceptance reset. CANCEL path not separately run tonight: log to Final Testing (confirm, booking removed, stage drops back, both invitees get "Meeting cancelled").
 - [x] E4k. PASS 2026-07-12. Named-office location dropdown; full address in letters; card shows the office NAME after a comma (no brackets). Teams wording not separately run: log to Final Testing.
-- [x] E4n. PASS 2026-07-12. Stage dropdown gated (Stage 1 no longer offered once held/booked); server enforces the same.
+- [x] E4n. PASS 2026-07-12, then EXTENDED (Phil): the stage dropdown is capped at BOTH ends, nothing below (already held or booked in) and nothing above the person's derived stage from the company thresholds (only meetings their absence level calls for can be booked, e.g. Coke Can at 4 occasions offers Stage 1 and Stage 2 only). Server enforces both. RETEST after deploy.
 - [x] E4o. PASS 2026-07-12. No Open button on employee emails; conductor copies keep it.
 - [ ] E4l. CONDUCTOR LETTER rewritten: it must read unambiguously as "you are chairing this meeting for X", never as if the conductor is subject to the procedure; their calendar entry is titled "Absence meeting with X (Stage N)".
 - [ ] E4m. Cards are wider (2 per row on large screens) and all five buttons (Add absence, View absence, Book meeting, Record meeting, Cancel / rearrange) sit on one row.
