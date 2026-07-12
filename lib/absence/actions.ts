@@ -353,6 +353,8 @@ export async function bookAbsenceMeeting(
   const rawDuration = Number.parseInt(String(formData.get("duration") ?? ""), 10);
   const duration =
     Number.isFinite(rawDuration) && rawDuration >= 15 && rawDuration <= 480 ? rawDuration : 60;
+  const location = String(formData.get("location") ?? "").trim().slice(0, 300);
+  if (!location) return { error: "Enter where the meeting will be held (an address or Teams)." };
   const conductedBy = String(formData.get("conducted_by") ?? "").trim();
   if (!conductedBy) return { error: "Choose who is holding the meeting." };
 
@@ -389,6 +391,7 @@ export async function bookAbsenceMeeting(
       meeting_date: meetingDate,
       meeting_time: rawTime,
       duration_minutes: duration,
+      location,
       booked_by: user.id,
       conducted_by: conductor.id,
     })
@@ -398,10 +401,7 @@ export async function bookAbsenceMeeting(
     return { error: `The meeting could not be booked: ${insErr?.message ?? "no id returned"}` };
   }
 
-  // Formal letter invitations: employee + line manager.
-  const inviteOutcomes: Record<string, string> = {};
-  const stageLabel = `Stage ${stage} absence management meeting`;
-
+  // Formal letter invitations: employee + conductor.
   let employeeEmail = (person.work_email as string | null) ?? null;
   if (!employeeEmail && person.profile_id) {
     const { data: p } = await supabase
@@ -410,84 +410,30 @@ export async function bookAbsenceMeeting(
   }
   const { data: company } = await supabase
     .from("companies").select("name").eq("id", person.company_id as string).maybeSingle();
-  const companyName = company?.name ?? "Be Care Compliant";
-  const managerName = conductor.full_name || conductor.email;
-  const employeeName = escapeHtml(String(person.full_name));
 
-  const recipients: {
-    key: string;
-    profileId: string | null;
-    name: string;
-    email: string;
-    detailHtml: string;
-  }[] = [];
-  if (employeeEmail) {
-    const respondBase = `${siteUrl()}/meeting-response/${meeting.response_token}`;
-    recipients.push({
-      key: "employee",
+  const inviteOutcomes = await sendMeetingLetters({
+    meetingId: meeting.id as string,
+    responseToken: meeting.response_token as string,
+    companyId: person.company_id as string,
+    branchId: (person.branch_id as string | null) ?? null,
+    companyName: company?.name ?? "Be Care Compliant",
+    stage,
+    meetingDate,
+    timeHHMM: rawTime,
+    duration,
+    location,
+    employee: {
       profileId: (person.profile_id as string | null) ?? null,
       name: person.full_name as string,
       email: employeeEmail,
-      detailHtml: `
-        <p style="margin:0 0 10px 0;">This is your formal invitation to a <strong style="color:#ffffff;">${stageLabel}</strong> under the absence procedure at ${escapeHtml(companyName)}.</p>
-        <p style="margin:0 0 10px 0;">The purpose of the meeting is to review your absence record, discuss any support you may need, and consider the next steps under the procedure. The meeting will be conducted by ${escapeHtml(managerName)}.</p>
-        <p style="margin:0 0 14px 0;">You have the right to be accompanied by a colleague or a trade union representative. Please let us know in advance if you will be accompanied.</p>
-        <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-          <td style="border-radius:12px;background:#f59e0b;">
-            <a href="${respondBase}?intent=accept" style="display:inline-block;padding:11px 20px;font-size:13px;font-weight:700;color:#081231;text-decoration:none;border-radius:12px;">Accept the invitation</a>
-          </td>
-          <td style="padding-left:10px;">
-            <table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:12px;border:1px solid rgba(255,255,255,0.35);">
-              <a href="${respondBase}?intent=decline" style="display:inline-block;padding:10px 20px;font-size:13px;font-weight:700;color:#e8ecf6;text-decoration:none;border-radius:12px;">I cannot attend</a>
-            </td></tr></table>
-          </td>
-        </tr></table>
-        <p style="margin:12px 0 0 0;font-size:12px;color:#a8b2cc;">If you cannot attend you will be asked for the reason, and the meeting organiser will be told.</p>`,
-    });
-  } else {
-    inviteOutcomes.employee = "skipped_no_email";
-  }
-  if (conductor.email) {
-    recipients.push({
-      key: "conductor",
-      profileId: conductor.id,
-      name: conductor.full_name || conductor.email,
-      email: conductor.email,
-      detailHtml: `
-        <p style="margin:0 0 10px 0;">You are booked to conduct a <strong style="color:#ffffff;">${stageLabel}</strong> with <strong style="color:#ffffff;">${employeeName}</strong> under the absence procedure at ${escapeHtml(companyName)}.</p>
-        <p style="margin:0;">Their absence record is on the Absence page. Once the meeting has taken place, record it there so the Evidence attaches to this booking. You will be emailed when ${employeeName} accepts or declines.</p>`,
-    });
-  } else {
-    inviteOutcomes.conductor = "skipped_no_email";
-  }
-
-  for (const recipient of recipients) {
-    const inviteResult = await sendCalendarInvite({
-      companyId: person.company_id as string,
-      branchId: (person.branch_id as string | null) ?? null,
-      companyName,
-      kind: "absence_meeting_invite",
-      dedupeKey: `absence_meeting:${meeting.id}:${recipient.email}`,
-      recipient: {
-        profileId: recipient.profileId,
-        name: recipient.name,
-        email: recipient.email,
-      },
-      eventTitle: stageLabel,
-      dateIso: meetingDate,
-      timeHHMM: rawTime,
-      durationMinutes: duration,
-      detailHtml: recipient.detailHtml,
-      icsUid: `absence-meeting-${meeting.id}-${recipient.key}@becarecompliant.com`,
-    });
-    inviteOutcomes[recipient.key] = inviteResult.sent
-      ? "sent"
-      : inviteResult.deduped
-        ? "already_sent"
-        : inviteResult.skippedReason
-          ? "skipped_no_email_config"
-          : `failed: ${inviteResult.error}`;
-  }
+    },
+    conductor: {
+      id: conductor.id as string,
+      name: (conductor.full_name || conductor.email) as string,
+      email: (conductor.email as string | null) ?? null,
+    },
+    rearranged: false,
+  });
 
   await writeAudit({
     companyId: person.company_id as string,
@@ -504,6 +450,7 @@ export async function bookAbsenceMeeting(
       meeting_date: meetingDate,
       meeting_time: rawTime,
       duration_minutes: duration,
+      location,
       conducted_by: conductor.id,
       invites: inviteOutcomes,
     },
@@ -517,6 +464,260 @@ export async function bookAbsenceMeeting(
       sentCount > 0
         ? `Meeting booked. ${sentCount === 1 ? "1 invitation" : `${sentCount} invitations`} sent.`
         : "Meeting booked. No invitations could be sent (check email addresses).",
+  };
+}
+
+/** The formal letter pair for a booked or rearranged meeting: the employee's
+ *  invitation (purpose, conductor, right to be accompanied, location, Accept /
+ *  I cannot attend buttons) and the conductor's chairing copy (unambiguous
+ *  that THEY are holding it, not attending one: Phil, 2026-07-12). Dedupe keys
+ *  carry the slot, so a rearranged meeting sends fresh letters while the same
+ *  slot can never double-send. Not exported: internal to this file. */
+async function sendMeetingLetters(args: {
+  meetingId: string;
+  responseToken: string;
+  companyId: string;
+  branchId: string | null;
+  companyName: string;
+  stage: number;
+  meetingDate: string;
+  timeHHMM: string;
+  duration: number;
+  location: string;
+  employee: { profileId: string | null; name: string; email: string | null };
+  conductor: { id: string; name: string; email: string | null };
+  rearranged: boolean;
+}): Promise<Record<string, string>> {
+  const outcomes: Record<string, string> = {};
+  const stageLabel = `Stage ${args.stage} absence management meeting`;
+  const slot = `${args.meetingDate}:${args.timeHHMM}`;
+  const employeeName = escapeHtml(args.employee.name);
+  const locationHtml = escapeHtml(args.location);
+  const rearrangedNote = args.rearranged
+    ? `<p style="margin:0 0 10px 0;color:#fcd34d;">This meeting has been rearranged. This invitation replaces the earlier one, please update your calendar.</p>`
+    : "";
+
+  const sends: {
+    key: string;
+    profileId: string | null;
+    name: string;
+    email: string;
+    eventTitle: string;
+    detailHtml: string;
+  }[] = [];
+
+  if (args.employee.email) {
+    const respondBase = `${siteUrl()}/meeting-response/${args.responseToken}`;
+    sends.push({
+      key: "employee",
+      profileId: args.employee.profileId,
+      name: args.employee.name,
+      email: args.employee.email,
+      eventTitle: stageLabel,
+      detailHtml: `
+        ${rearrangedNote}
+        <p style="margin:0 0 10px 0;">This is your formal invitation to a <strong style="color:#ffffff;">${stageLabel}</strong> under the absence procedure at ${escapeHtml(args.companyName)}.</p>
+        <p style="margin:0 0 10px 0;">The purpose of the meeting is to review your absence record, discuss any support you may need, and consider the next steps under the procedure. The meeting will be conducted by ${escapeHtml(args.conductor.name)} and held at <strong style="color:#ffffff;">${locationHtml}</strong>.</p>
+        <p style="margin:0 0 14px 0;">You have the right to be accompanied by a colleague or a trade union representative. Please let us know in advance if you will be accompanied.</p>
+        <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+          <td style="border-radius:12px;background:#f59e0b;">
+            <a href="${respondBase}?intent=accept" style="display:inline-block;padding:11px 20px;font-size:13px;font-weight:700;color:#081231;text-decoration:none;border-radius:12px;">Accept the invitation</a>
+          </td>
+          <td style="padding-left:10px;">
+            <table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:12px;border:1px solid rgba(255,255,255,0.35);">
+              <a href="${respondBase}?intent=decline" style="display:inline-block;padding:10px 20px;font-size:13px;font-weight:700;color:#e8ecf6;text-decoration:none;border-radius:12px;">I cannot attend</a>
+            </td></tr></table>
+          </td>
+        </tr></table>
+        <p style="margin:12px 0 0 0;font-size:12px;color:#a8b2cc;">If you cannot attend you will be asked for the reason, and the meeting organiser will be told.</p>`,
+    });
+  } else {
+    outcomes.employee = "skipped_no_email";
+  }
+
+  if (args.conductor.email) {
+    sends.push({
+      key: "conductor",
+      profileId: args.conductor.id,
+      name: args.conductor.name,
+      email: args.conductor.email,
+      eventTitle: `Absence meeting with ${args.employee.name} (Stage ${args.stage})`,
+      detailHtml: `
+        ${rearrangedNote}
+        <p style="margin:0 0 10px 0;">You are chairing this meeting: a <strong style="color:#ffffff;">${stageLabel}</strong> for <strong style="color:#ffffff;">${employeeName}</strong>, held at <strong style="color:#ffffff;">${locationHtml}</strong>. This is about ${employeeName}'s absence record, not your own.</p>
+        <p style="margin:0;">Their absence record is on the Absence page. Once the meeting has taken place, record it there so the Evidence attaches to this booking. You will be emailed when ${employeeName} accepts or declines.</p>`,
+    });
+  } else {
+    outcomes.conductor = "skipped_no_email";
+  }
+
+  for (const send of sends) {
+    const result = await sendCalendarInvite({
+      companyId: args.companyId,
+      branchId: args.branchId,
+      companyName: args.companyName,
+      kind: "absence_meeting_invite",
+      dedupeKey: `absence_meeting:${args.meetingId}:${slot}:${send.email}`,
+      recipient: { profileId: send.profileId, name: send.name, email: send.email },
+      eventTitle: send.eventTitle,
+      dateIso: args.meetingDate,
+      timeHHMM: args.timeHHMM,
+      durationMinutes: args.duration,
+      location: args.location,
+      detailHtml: send.detailHtml,
+      icsUid: `absence-meeting-${args.meetingId}-${slot.replace(/[^0-9]/g, "")}-${send.key}@becarecompliant.com`,
+    });
+    outcomes[send.key] = result.sent
+      ? "sent"
+      : result.deduped
+        ? "already_sent"
+        : result.skippedReason
+          ? "skipped_no_email_config"
+          : `failed: ${result.error}`;
+  }
+  return outcomes;
+}
+
+/** Rearrange a booked (not yet recorded) meeting in one step: new slot,
+ *  location and conductor, response reset, fresh letters to both invitees
+ *  marked "this replaces the earlier invitation". Same 48 hour notice rule. */
+export async function rearrangeAbsenceMeeting(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+  const meetingId = String(formData.get("meeting_id") ?? "");
+  if (!meetingId) return { error: "Missing meeting." };
+
+  const meetingDate = isoOrNull(String(formData.get("meeting_date") ?? ""));
+  if (!meetingDate) return { error: "Choose the meeting date." };
+  const rawTime = String(formData.get("meeting_time") ?? "").trim();
+  if (!/^\d{2}:\d{2}$/.test(rawTime)) return { error: "Choose the meeting time." };
+  const rearrangedInstant = londonToUtc(meetingDate, rawTime);
+  if (rearrangedInstant.getTime() - Date.now() < 48 * 60 * 60 * 1000) {
+    return {
+      error:
+        "Formal meetings need at least 48 hours notice. Choose a date and time at least two full days from now.",
+    };
+  }
+  const rawDuration = Number.parseInt(String(formData.get("duration") ?? ""), 10);
+  const duration =
+    Number.isFinite(rawDuration) && rawDuration >= 15 && rawDuration <= 480 ? rawDuration : 60;
+  const location = String(formData.get("location") ?? "").trim().slice(0, 300);
+  if (!location) return { error: "Enter where the meeting will be held (an address or Teams)." };
+  const conductedBy = String(formData.get("conducted_by") ?? "").trim();
+  if (!conductedBy) return { error: "Choose who is holding the meeting." };
+
+  const supabase = await createClient();
+  const { data: meeting } = await supabase
+    .from("absence_meetings")
+    .select("id, company_id, branch_id, person_id, stage, evidence_id, response_token")
+    .eq("id", meetingId)
+    .maybeSingle();
+  if (!meeting || meeting.company_id !== profile.company_id) {
+    return { error: "That meeting could not be found." };
+  }
+  if (meeting.evidence_id) {
+    return { error: "This meeting has already been recorded and cannot be rearranged." };
+  }
+
+  const { data: conductor } = await supabase
+    .from("profiles")
+    .select("id, full_name, email, role, company_id, status")
+    .eq("id", conductedBy)
+    .maybeSingle();
+  if (
+    !conductor ||
+    conductor.company_id !== profile.company_id ||
+    conductor.status !== "active" ||
+    !["company_admin", "manager"].includes(conductor.role as string)
+  ) {
+    return { error: "The meeting must be held by a Manager or Admin in your company." };
+  }
+
+  const { error: updErr } = await supabase
+    .from("absence_meetings")
+    .update({
+      meeting_date: meetingDate,
+      meeting_time: rawTime,
+      duration_minutes: duration,
+      location,
+      conducted_by: conductor.id,
+      response: null,
+      response_reason: null,
+      responded_at: null,
+    })
+    .eq("id", meetingId)
+    .is("evidence_id", null);
+  if (updErr) return { error: `The meeting could not be rearranged: ${updErr.message}` };
+
+  const { data: person } = await supabase
+    .from("people")
+    .select("full_name, work_email, profile_id, branch_id")
+    .eq("id", meeting.person_id as string)
+    .maybeSingle();
+  let employeeEmail = (person?.work_email as string | null) ?? null;
+  if (!employeeEmail && person?.profile_id) {
+    const { data: p } = await supabase
+      .from("profiles").select("email").eq("id", person.profile_id).maybeSingle();
+    employeeEmail = p?.email ?? null;
+  }
+  const { data: company } = await supabase
+    .from("companies").select("name").eq("id", profile.company_id).maybeSingle();
+
+  const inviteOutcomes = await sendMeetingLetters({
+    meetingId,
+    responseToken: meeting.response_token as string,
+    companyId: profile.company_id,
+    branchId: (meeting.branch_id as string | null) ?? null,
+    companyName: company?.name ?? "Be Care Compliant",
+    stage: (meeting.stage as number | null) ?? 1,
+    meetingDate,
+    timeHHMM: rawTime,
+    duration,
+    location,
+    employee: {
+      profileId: (person?.profile_id as string | null) ?? null,
+      name: (person?.full_name as string | null) ?? "the employee",
+      email: employeeEmail,
+    },
+    conductor: {
+      id: conductor.id as string,
+      name: (conductor.full_name || conductor.email) as string,
+      email: (conductor.email as string | null) ?? null,
+    },
+    rearranged: true,
+  });
+
+  await writeAudit({
+    companyId: profile.company_id,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "absence.meeting_rearranged",
+    entityType: "person",
+    entityId: meeting.person_id as string,
+    summary: `Rearranged the absence meeting to ${meetingDate} at ${rawTime}`,
+    metadata: {
+      meeting_id: meetingId,
+      meeting_date: meetingDate,
+      meeting_time: rawTime,
+      duration_minutes: duration,
+      location,
+      conducted_by: conductor.id,
+      invites: inviteOutcomes,
+    },
+  });
+
+  revalidatePath("/people/absence");
+  revalidatePath(`/people/${meeting.person_id}`);
+  const sentCount = Object.values(inviteOutcomes).filter((v) => v === "sent").length;
+  return {
+    ok:
+      sentCount > 0
+        ? `Meeting rearranged. ${sentCount === 1 ? "1 new invitation" : `${sentCount} new invitations`} sent.`
+        : "Meeting rearranged. No invitations could be sent (check email addresses).",
   };
 }
 

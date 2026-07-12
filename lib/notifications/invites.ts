@@ -28,6 +28,8 @@ export async function sendCalendarInvite(opts: {
   /** "HH:MM" Europe/London wall time for a timed event. */
   timeHHMM?: string | null;
   durationMinutes?: number | null;
+  /** An address or a video call such as Teams; lands in the .ics LOCATION. */
+  location?: string | null;
   detailHtml: string;
   icsUid: string;
 }): Promise<SendResult & { deduped?: boolean }> {
@@ -51,6 +53,7 @@ export async function sendCalendarInvite(opts: {
     date: opts.dateIso,
     time: opts.timeHHMM ?? null,
     durationMinutes: opts.durationMinutes ?? null,
+    location: opts.location ?? null,
     summary: opts.eventTitle,
     description: `${opts.eventTitle} at ${opts.companyName}. Details in Be Care Compliant.`,
     organizerEmail: organizerAddress(),

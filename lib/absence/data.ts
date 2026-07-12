@@ -191,8 +191,11 @@ export type OpenBookingRow = {
   stage: number | null;
   meeting_date: string | null;
   meeting_time: string | null;
+  duration_minutes: number | null;
+  location: string | null;
   response: "accepted" | "declined" | null;
   response_reason: string | null;
+  conductor_id: string | null;
   conductor_name: string | null;
 };
 
@@ -202,7 +205,7 @@ export async function listOpenBookings(companyId: string): Promise<OpenBookingRo
   const { data } = await supabase
     .from("absence_meetings")
     .select(
-      "id, person_id, stage, meeting_date, meeting_time, response, response_reason, conductor:conducted_by(full_name, email)",
+      "id, person_id, stage, meeting_date, meeting_time, duration_minutes, location, response, response_reason, conducted_by, conductor:conducted_by(full_name, email)",
     )
     .eq("company_id", companyId)
     .is("evidence_id", null)
@@ -219,8 +222,11 @@ export async function listOpenBookings(companyId: string): Promise<OpenBookingRo
       stage: (row.stage as number | null) ?? null,
       meeting_date: (row.meeting_date as string | null) ?? null,
       meeting_time: (row.meeting_time as string | null) ?? null,
+      duration_minutes: (row.duration_minutes as number | null) ?? null,
+      location: (row.location as string | null) ?? null,
       response: (row.response as "accepted" | "declined" | null) ?? null,
       response_reason: (row.response_reason as string | null) ?? null,
+      conductor_id: (row.conducted_by as string | null) ?? null,
       conductor_name: conductor?.full_name || conductor?.email || null,
     };
   });

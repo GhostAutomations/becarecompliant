@@ -39,6 +39,7 @@ export default async function MeetingResponsePage({
     meeting_date: string | null;
     meeting_time: string | null;
     duration_minutes: number | null;
+    location: string | null;
     response: string | null;
     person_name: string;
     company_name: string;
@@ -48,7 +49,7 @@ export default async function MeetingResponsePage({
     const supabase = createServiceClient();
     const { data } = await supabase
       .from("absence_meetings")
-      .select("stage, meeting_date, meeting_time, duration_minutes, response, person:person_id(full_name), company:company_id(name)")
+      .select("stage, meeting_date, meeting_time, duration_minutes, location, response, person:person_id(full_name), company:company_id(name)")
       .eq("response_token", token)
       .maybeSingle();
     if (data) {
@@ -59,6 +60,7 @@ export default async function MeetingResponsePage({
         meeting_date: data.meeting_date,
         meeting_time: data.meeting_time,
         duration_minutes: data.duration_minutes,
+        location: data.location,
         response: data.response,
         person_name: (Array.isArray(person) ? person[0]?.full_name : person?.full_name) ?? "",
         company_name: (Array.isArray(company) ? company[0]?.name : company?.name) ?? "",
@@ -91,6 +93,9 @@ export default async function MeetingResponsePage({
                 {meeting.meeting_time ? ` at ${String(meeting.meeting_time).slice(0, 5)}` : ""}
                 {meeting.duration_minutes ? `, ${meeting.duration_minutes} minutes` : ""}
               </p>
+            )}
+            {meeting.location && (
+              <p className="mt-1 text-sm text-white/85">Location: {meeting.location}</p>
             )}
             <p className="mt-3 text-xs text-white/50">
               You have the right to be accompanied by a colleague or a trade union

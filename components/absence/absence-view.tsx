@@ -13,7 +13,7 @@ import Link from "next/link";
 import FormEvidenceDialog from "@/components/forms/form-evidence-dialog";
 import AbsenceDetailDialog from "@/components/absence/absence-detail-dialog";
 import BookMeetingDialog from "@/components/absence/book-meeting-dialog";
-import CancelBookingButton from "@/components/absence/cancel-booking-button";
+import CancelRearrangeDialog from "@/components/absence/cancel-rearrange-dialog";
 import type { FormSchema } from "@/lib/form-schema";
 import type { AbsenceMethod } from "@/lib/absence/logic";
 import type { AbsencePersonRow, PersonLite, AbsenceEventRow, OpenBookingRow, ConductorLite } from "@/lib/absence/data";
@@ -165,7 +165,7 @@ export default function AbsenceView({
           once an absence is logged against them.
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 lg:grid-cols-2">
           {visibleRows.map((r) => {
             const s = r.status;
             const pill =
@@ -240,9 +240,6 @@ export default function AbsenceView({
                           : "."}
                       </p>
                     )}
-                    {canManage && (
-                      <CancelBookingButton meetingId={bookingByPerson[r.personId].id} />
-                    )}
                   </div>
                 )}
 
@@ -284,6 +281,13 @@ export default function AbsenceView({
                         hideFields={["name"]}
                       />
                     ) : null}
+                  {canManage && bookingByPerson[r.personId] ? (
+                    <CancelRearrangeDialog
+                      booking={bookingByPerson[r.personId]}
+                      personName={r.fullName}
+                      conductors={conductors}
+                    />
+                  ) : null}
                   </div>
               </div>
             );

@@ -158,6 +158,18 @@ function BookMeetingForm({
               </select>
             </div>
           </div>
+          <div>
+            <label htmlFor="bm-location" className="form-label">Location</label>
+            <input
+              id="bm-location"
+              name="location"
+              type="text"
+              maxLength={300}
+              placeholder="Office address or Teams"
+              required
+              disabled={pending}
+            />
+          </div>
           {state.error && <p className="form-error">{state.error}</p>}
           {state.ok && <p className="text-sm text-emerald-300">{state.ok}</p>}
           <div className="flex items-center justify-between gap-2 pt-1">

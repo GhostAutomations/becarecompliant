@@ -86,6 +86,8 @@ export type IcsEvent = {
   durationMinutes?: number | null;
   summary: string;
   description?: string;
+  /** Shown by calendar apps: an address or a video call such as Teams. */
+  location?: string | null;
   organizerName?: string;
   organizerEmail?: string;
   attendees?: { name: string; email: string }[];
@@ -119,6 +121,9 @@ export function buildIcs(event: IcsEvent): string {
   ];
   if (event.description) {
     lines.push(`DESCRIPTION:${escapeText(event.description)}`);
+  }
+  if (event.location) {
+    lines.push(`LOCATION:${escapeText(event.location)}`);
   }
   if (event.organizerEmail) {
     lines.push(

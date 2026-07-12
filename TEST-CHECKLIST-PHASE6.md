@@ -56,7 +56,10 @@ TWILIO_* for SMS checks; RESEND_* already live from Phase 1).
 - [ ] E4f. DECLINE: choosing I cannot attend requires a reason before sending; the card shows "Invitation declined: reason" and the booker's email includes the reason.
 - [ ] E4g. Response safety: answering a second time (or reopening the link) says it has already been answered; a made-up token shows "This link is not valid"; simply OPENING the link never records a response (a POST is required, so email scanners cannot auto-accept).
 - [ ] E4h. The booked line on the card shows who is holding the meeting ("held by X").
-- [ ] E4i. CANCEL (migration 0048): Cancel booking on the card asks for confirmation, removes the booking (stage drops back), and both invitees get a "Meeting cancelled" email. A recorded meeting cannot be cancelled. Rebooking afterwards sends fresh letters.
+- [ ] E4i. CANCEL / REARRANGE (migrations 0048/0049): the Cancel / rearrange button (right of Record meeting, matching pill style) opens ONE popup: rearranging picks a new slot, location and conductor, resets any earlier response, and sends fresh letters marked as replacing the old invitation (slot-based dedupe); cancelling confirms, removes the booking (stage drops back) and emails both invitees "Meeting cancelled". A recorded meeting can do neither.
+- [ ] E4k. LOCATION (Phil): booking and rearranging require a Location (address or Teams); it appears in both letters, in the calendar entry (.ics LOCATION) and on the response page.
+- [ ] E4l. CONDUCTOR LETTER rewritten: it must read unambiguously as "you are chairing this meeting for X", never as if the conductor is subject to the procedure; their calendar entry is titled "Absence meeting with X (Stage N)".
+- [ ] E4m. Cards are wider (2 per row on large screens) and all five buttons (Add absence, View absence, Book meeting, Record meeting, Cancel / rearrange) sit on one row.
 - [ ] E4j. Reopening Book meeting straight after a successful booking stays open with a clean form (no instant self-close).
 - [ ] E5. Audit metadata on the booking/meeting records the invite outcome (sent / already_sent / skipped_no_email_config).
 
