@@ -116,10 +116,8 @@ export default function AbsenceView({
       .filter((s): s is number => s !== null);
     const earliest = bookings[0];
 
-    // No booked-in meeting = nothing to record (Phil, 2026-07-12): the caller
-    // hides the Record meeting button entirely when schema comes back null.
-    if (bookedStages.length === 0) return { schema: null, presets: {} };
-
+    // The Record meeting button ALWAYS shows (Phil, 2026-07-12). When nothing
+    // is booked in, the Meeting Type dropdown simply has no stages to pick.
     const schema: FormSchema = {
       ...meetingSchema,
       sections: meetingSchema.sections.map((s) => ({
