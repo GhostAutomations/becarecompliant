@@ -239,7 +239,7 @@ export default function AbsenceView({
                         ? `, held by ${bookingByPerson[r.personId].conductor_name}`
                         : ""}
                       {bookingByPerson[r.personId].location
-                        ? ` (${locationLabel(bookingByPerson[r.personId].location!, offices)})`
+                        ? `, ${locationLabel(bookingByPerson[r.personId].location!, offices)}`
                         : ""}
                     </p>
                     {bookingByPerson[r.personId].response === "accepted" && (
