@@ -5,6 +5,7 @@ import { requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
+import { syncSeatQuantity } from "@/lib/billing/stripe-sync";
 import {
   createAndSendInvite,
   resendInvite,
@@ -148,6 +149,9 @@ export async function setUserStatus(formData: FormData): Promise<void> {
     summary: `Set user status to ${status}`,
     metadata: { status },
   });
+  // Enabling/disabling a user changes the active seat count: sync to Stripe
+  // (best-effort, no-op if unbilled/Diamond/Black).
+  await syncSeatQuantity(ctx.companyId);
   revalidatePath("/settings/users");
 }
 
@@ -254,6 +258,8 @@ export async function deleteUser(formData: FormData): Promise<void> {
     entityId: userId,
     summary: `Deleted user ${target.email}`,
   });
+  // Removing a user drops the active seat count: sync down to Stripe.
+  await syncSeatQuantity(ctx.companyId);
   revalidatePath("/settings/users");
 }
 

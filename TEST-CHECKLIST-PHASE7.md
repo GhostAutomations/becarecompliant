@@ -1,5 +1,19 @@
 # Phase 7 test checklist — Billing & tiers
 
+## RESULTS LOG (2026-07-12, driven in Chrome + DB, Thistle Enterprise, Stripe test mode)
+- A1 config render: PASS (billing page shows plan, seats, cost; no "not configured").
+- B1 checkout opens: PASS (Stripe Checkout Sandbox, "Subscribe to Be Care Compliant Enterprise £199.00 per month").
+- B2/B3 subscribe activates: PASS (test card 4242; company_billing = customer cus_UsHK…, sub sub_1TsX…, status active, billed_tier enterprise, seat_quantity 0, period end 12 Aug 2026).
+- B4 audit: PASS (checkout.session.completed + customer.subscription.created + invoice.paid all stripe_events status=processed, no errors).
+- Billing page active state: PASS (shows Active, next payment 12 Aug 2026, Manage billing).
+- D1/D2/D3 portal: PASS (Stripe portal test mode; correct customer Thistle Care Wales / ppdavies@gmail.com; invoice 13 Jul £199.00 Paid; Cancel option present).
+- Gotcha found + fixed during test: STRIPE_PRICE_* were set to product NAMES not price_ IDs ("No such price: 'Be Care Compliant Enterprise'"); corrected to price_ IDs + redeploy. Code surfaced the error visibly (no silent failure), as designed.
+- C1/C2 seat increase: PASS (Thistle 3 -> 4 -> 5 active via two accepted invites; seat_quantity 0 -> 1; two customer.subscription.updated events processed; £5 seat line added on Stripe).
+- C3 seat decrease: hooked into setUserStatus (disable/enable) + deleteUser (app/(app)/settings/actions.ts) after C1 test revealed only the accept path was wired; deploy + test disable a 5th user -> seat_quantity back to 0.
+- STILL TO RUN: C3 decrease (after deploy), D4 cancel, E1/E2/E4 webhook signature+fail-closed+payment_failed, F Diamond/Black + A3/A4 gating (need test companies at those tiers), G1 single-session live.
+
+
+
 Run as popups, one at a time, Pass / Fail / Not tested. Anything Not tested is
 logged into Final Testing. Use Stripe TEST mode end to end (sk_test_ + a test
 webhook secret) before any live key is discussed. Do not test until the code is
