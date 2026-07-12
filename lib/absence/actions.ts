@@ -16,7 +16,9 @@ import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { sendCalendarInvite } from "@/lib/notifications/invites";
-import { escapeHtml } from "@/lib/email/templates";
+import { sendEmail } from "@/lib/email/resend";
+import { escapeHtml, noticeEmailHtml } from "@/lib/email/templates";
+import { claimNotification, settleNotification } from "@/lib/notifications/log";
 import { londonToUtc } from "@/lib/email/ics";
 import { siteUrl } from "@/lib/site";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
@@ -516,4 +518,132 @@ export async function bookAbsenceMeeting(
         ? `Meeting booked. ${sentCount === 1 ? "1 invitation" : `${sentCount} invitations`} sent.`
         : "Meeting booked. No invitations could be sent (check email addresses).",
   };
+}
+
+/** Cancel a booked (not yet recorded) absence meeting. Deletes the booking so
+ *  it stops counting towards the meeting stage, and emails a cancellation
+ *  notice to the employee and the conductor. Rebooking is simply booking again
+ *  (fresh letters go out). DB enforced: only open bookings are deletable, by
+ *  Admins or the branch Manager (policy in migration 0048). */
+export async function cancelAbsenceMeetingBooking(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+  const meetingId = String(formData.get("meeting_id") ?? "");
+  if (!meetingId) return { error: "Missing meeting." };
+
+  const supabase = await createClient();
+  const { data: meeting } = await supabase
+    .from("absence_meetings")
+    .select("id, company_id, branch_id, person_id, stage, meeting_date, meeting_time, evidence_id, conducted_by")
+    .eq("id", meetingId)
+    .maybeSingle();
+  if (!meeting || meeting.company_id !== profile.company_id) {
+    return { error: "That meeting could not be found." };
+  }
+  if (meeting.evidence_id) {
+    return { error: "This meeting has already been recorded and cannot be cancelled." };
+  }
+
+  const { error: delErr, count } = await supabase
+    .from("absence_meetings")
+    .delete({ count: "exact" })
+    .eq("id", meetingId)
+    .is("evidence_id", null);
+  if (delErr || !count) {
+    return { error: delErr?.message ?? "You do not have permission to cancel this booking." };
+  }
+
+  // Cancellation notices to everyone who received a formal letter.
+  const { data: person } = await supabase
+    .from("people")
+    .select("full_name, work_email, profile_id")
+    .eq("id", meeting.person_id as string)
+    .maybeSingle();
+  const { data: company } = await supabase
+    .from("companies").select("name").eq("id", profile.company_id).maybeSingle();
+  const stageLabel = meeting.stage
+    ? `Stage ${meeting.stage} absence management meeting`
+    : "Absence management meeting";
+  const when = `${meeting.meeting_date ?? ""}${meeting.meeting_time ? ` at ${String(meeting.meeting_time).slice(0, 5)}` : ""}`;
+
+  const notices: { profileId: string | null; name: string; email: string }[] = [];
+  let employeeEmail = (person?.work_email as string | null) ?? null;
+  if (!employeeEmail && person?.profile_id) {
+    const { data: p } = await supabase
+      .from("profiles").select("email").eq("id", person.profile_id).maybeSingle();
+    employeeEmail = p?.email ?? null;
+  }
+  if (person && employeeEmail) {
+    notices.push({
+      profileId: (person.profile_id as string | null) ?? null,
+      name: person.full_name as string,
+      email: employeeEmail,
+    });
+  }
+  if (meeting.conducted_by) {
+    const { data: conductor } = await supabase
+      .from("profiles").select("id, full_name, email").eq("id", meeting.conducted_by).maybeSingle();
+    if (conductor?.email) {
+      notices.push({
+        profileId: conductor.id,
+        name: conductor.full_name || conductor.email,
+        email: conductor.email,
+      });
+    }
+  }
+
+  const noticeOutcomes: Record<string, string> = {};
+  for (const notice of notices) {
+    const logId = await claimNotification({
+      companyId: profile.company_id,
+      branchId: (meeting.branch_id as string | null) ?? null,
+      recipientProfileId: notice.profileId,
+      channel: "email",
+      kind: "meeting_cancelled",
+      dedupeKey: `meeting_cancelled:${meetingId}:${notice.email}`,
+      toAddress: notice.email,
+      subject: `Cancelled: ${stageLabel}`,
+    });
+    if (!logId) continue;
+    const result = await sendEmail({
+      to: notice.email,
+      subject: `Cancelled: ${stageLabel}`,
+      html: noticeEmailHtml({
+        preheader: `The ${stageLabel.toLowerCase()} on ${when} is cancelled.`,
+        heading: "Meeting cancelled",
+        bodyHtml: `<p style="margin:0;">${escapeHtml(notice.name)}, the <strong style="color:#ffffff;">${stageLabel}</strong> booked for <strong style="color:#ffffff;">${escapeHtml(when)}</strong> at ${escapeHtml(company?.name ?? "your company")} has been cancelled. Please remove it from your calendar. If it is rearranged you will receive a new invitation.</p>`,
+        ctaLabel: "Open Be Care Compliant",
+        ctaUrl: siteUrl(),
+      }),
+    });
+    noticeOutcomes[notice.email] = result.sent
+      ? "sent"
+      : result.skippedReason
+        ? "skipped_no_email_config"
+        : `failed: ${result.error}`;
+    await settleNotification(
+      logId,
+      result.sent ? "sent" : result.skippedReason ? "skipped" : "failed",
+      result.error ?? result.skippedReason,
+    );
+  }
+
+  await writeAudit({
+    companyId: profile.company_id,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "absence.meeting_cancelled",
+    entityType: "person",
+    entityId: meeting.person_id as string,
+    summary: `Cancelled the ${stageLabel.toLowerCase()} booked for ${when}`,
+    metadata: { meeting_id: meetingId, notices: noticeOutcomes },
+  });
+
+  revalidatePath("/people/absence");
+  revalidatePath(`/people/${meeting.person_id}`);
+  return { ok: "Booking cancelled. The invitees have been told." };
 }

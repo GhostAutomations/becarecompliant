@@ -13,6 +13,7 @@ import Link from "next/link";
 import FormEvidenceDialog from "@/components/forms/form-evidence-dialog";
 import AbsenceDetailDialog from "@/components/absence/absence-detail-dialog";
 import BookMeetingDialog from "@/components/absence/book-meeting-dialog";
+import CancelBookingButton from "@/components/absence/cancel-booking-button";
 import type { FormSchema } from "@/lib/form-schema";
 import type { AbsenceMethod } from "@/lib/absence/logic";
 import type { AbsencePersonRow, PersonLite, AbsenceEventRow, OpenBookingRow, ConductorLite } from "@/lib/absence/data";
@@ -224,6 +225,9 @@ export default function AbsenceView({
                       {bookingByPerson[r.personId].meeting_date
                         ? `: ${formatBookedDate(bookingByPerson[r.personId].meeting_date!)}${bookingByPerson[r.personId].meeting_time ? ` at ${String(bookingByPerson[r.personId].meeting_time).slice(0, 5)}` : ""}`
                         : ""}
+                      {bookingByPerson[r.personId].conductor_name
+                        ? `, held by ${bookingByPerson[r.personId].conductor_name}`
+                        : ""}
                     </p>
                     {bookingByPerson[r.personId].response === "accepted" && (
                       <p className="text-emerald-300">Invitation accepted.</p>
@@ -235,6 +239,9 @@ export default function AbsenceView({
                           ? `: ${bookingByPerson[r.personId].response_reason}`
                           : "."}
                       </p>
+                    )}
+                    {canManage && (
+                      <CancelBookingButton meetingId={bookingByPerson[r.personId].id} />
                     )}
                   </div>
                 )}

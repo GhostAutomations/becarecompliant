@@ -186,12 +186,14 @@ export type AbsenceMeetingRow = {
 };
 
 export type OpenBookingRow = {
+  id: string;
   person_id: string;
   stage: number | null;
   meeting_date: string | null;
   meeting_time: string | null;
   response: "accepted" | "declined" | null;
   response_reason: string | null;
+  conductor_name: string | null;
 };
 
 /** Booked absence meetings not yet recorded (evidence_id null), for the cards. */
@@ -199,11 +201,29 @@ export async function listOpenBookings(companyId: string): Promise<OpenBookingRo
   const supabase = await createClient();
   const { data } = await supabase
     .from("absence_meetings")
-    .select("person_id, stage, meeting_date, meeting_time, response, response_reason")
+    .select(
+      "id, person_id, stage, meeting_date, meeting_time, response, response_reason, conductor:conducted_by(full_name, email)",
+    )
     .eq("company_id", companyId)
     .is("evidence_id", null)
     .order("meeting_date", { ascending: true });
-  return (data as OpenBookingRow[] | null) ?? [];
+  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => {
+    const raw = row.conductor as
+      | { full_name: string | null; email: string | null }
+      | Array<{ full_name: string | null; email: string | null }>
+      | null;
+    const conductor = Array.isArray(raw) ? raw[0] : raw;
+    return {
+      id: row.id as string,
+      person_id: row.person_id as string,
+      stage: (row.stage as number | null) ?? null,
+      meeting_date: (row.meeting_date as string | null) ?? null,
+      meeting_time: (row.meeting_time as string | null) ?? null,
+      response: (row.response as "accepted" | "declined" | null) ?? null,
+      response_reason: (row.response_reason as string | null) ?? null,
+      conductor_name: conductor?.full_name || conductor?.email || null,
+    };
+  });
 }
 
 export async function listPersonMeetings(
