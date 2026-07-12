@@ -20,6 +20,14 @@ import type { AbsencePersonRow, PersonLite, AbsenceEventRow, OpenBookingRow, Con
 import type { BranchLite } from "@/lib/people/data";
 import { recordAbsence, recordAbsenceMeeting } from "@/lib/absence/actions";
 
+/** The card shows the office NAME, not the full address (Phil, 2026-07-12):
+ *  "Cardiff Branch Office", "Thistle Care Wales Office" or "Teams". The full
+ *  address still prints in the letters and the calendar entry. */
+function locationLabel(location: string, offices: MeetingOffice[]): string {
+  if (location === "Microsoft Teams") return "Teams";
+  return offices.find((o) => o.address && o.address === location)?.label ?? location;
+}
+
 /** 15 Jul 2026 from 2026-07-15, for the booked-meeting line. */
 function formatBookedDate(iso: string): string {
   const [y, m, d] = iso.split("-").map(Number);
@@ -231,7 +239,7 @@ export default function AbsenceView({
                         ? `, held by ${bookingByPerson[r.personId].conductor_name}`
                         : ""}
                       {bookingByPerson[r.personId].location
-                        ? ` (${bookingByPerson[r.personId].location === "Microsoft Teams" ? "Teams" : bookingByPerson[r.personId].location})`
+                        ? ` (${locationLabel(bookingByPerson[r.personId].location!, offices)})`
                         : ""}
                     </p>
                     {bookingByPerson[r.personId].response === "accepted" && (
