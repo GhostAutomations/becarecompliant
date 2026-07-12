@@ -30,6 +30,9 @@ export async function sendCalendarInvite(opts: {
   durationMinutes?: number | null;
   /** An address or a video call such as Teams; lands in the .ics LOCATION. */
   location?: string | null;
+  /** True for recipients without app accounts: no "Open Be Care Compliant"
+   *  button is rendered (their actions live inside detailHtml). */
+  hideCta?: boolean;
   detailHtml: string;
   icsUid: string;
 }): Promise<SendResult & { deduped?: boolean }> {
@@ -72,7 +75,7 @@ export async function sendCalendarInvite(opts: {
       timeHHMM: opts.timeHHMM ?? null,
       durationMinutes: opts.durationMinutes ?? null,
       detailHtml: opts.detailHtml,
-      actionUrl: siteUrl(),
+      actionUrl: opts.hideCta ? undefined : siteUrl(),
     }),
     attachments: [
       {

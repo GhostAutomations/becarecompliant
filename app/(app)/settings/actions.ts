@@ -295,18 +295,20 @@ export async function changeUserRole(formData: FormData): Promise<void> {
   revalidatePath("/settings/users");
 }
 
-/** Rename one of the company's branches. */
+/** Rename one of the company's branches and set its office address (printed in
+ *  full on formal meeting letters when the Location is Office, migration 0050). */
 export async function renameBranch(formData: FormData): Promise<void> {
   const ctx = await adminContext();
   if (!ctx.ok) return;
   const branchId = String(formData.get("branch_id") ?? "");
   const name = String(formData.get("name") ?? "").trim();
+  const address = String(formData.get("address") ?? "").trim().slice(0, 400);
   if (!branchId || !name) return;
 
   const supabase = await createClient();
   const { error } = await supabase
     .from("branches")
-    .update({ name })
+    .update({ name, address: address || null })
     .eq("id", branchId)
     .eq("company_id", ctx.companyId);
   if (error) return;
@@ -319,8 +321,8 @@ export async function renameBranch(formData: FormData): Promise<void> {
     action: "branch.renamed",
     entityType: "branch",
     entityId: branchId,
-    summary: `Renamed branch to ${name}`,
-    metadata: { name },
+    summary: `Updated branch ${name}`,
+    metadata: { name, address: address || null },
   });
   revalidatePath("/settings/branches");
 }

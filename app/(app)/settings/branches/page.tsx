@@ -14,7 +14,7 @@ export default async function BranchesPage() {
   const supabase = await createClient();
   const { data: branches } = await supabase
     .from("branches")
-    .select("id, name, kind, status")
+    .select("id, name, kind, status, address")
     .eq("company_id", profile.company_id)
     .order("kind", { ascending: true })
     .order("name", { ascending: true });
@@ -43,9 +43,9 @@ export default async function BranchesPage() {
               </span>
               <span className="text-xs text-white/50">{branch.status}</span>
             </div>
-            <form action={renameBranch} className="flex flex-wrap items-end gap-3">
+            <form action={renameBranch} className="space-y-3">
               <input type="hidden" name="branch_id" value={branch.id} />
-              <div className="min-w-0 flex-1">
+              <div>
                 <label
                   htmlFor={`name-${branch.id}`}
                   className="form-label"
@@ -59,7 +59,22 @@ export default async function BranchesPage() {
                   required
                 />
               </div>
-              <button type="submit" className="btn-outline">
+              <div>
+                <label htmlFor={`address-${branch.id}`} className="form-label">
+                  Office address
+                </label>
+                <input
+                  id={`address-${branch.id}`}
+                  name="address"
+                  defaultValue={branch.address ?? ""}
+                  placeholder="1 High Street, Newport, NP20 1AA"
+                />
+                <p className="mt-1 text-[11px] text-white/40">
+                  Printed in full on formal meeting letters when the location is
+                  Office.
+                </p>
+              </div>
+              <button type="submit" className="btn-primary">
                 Save
               </button>
             </form>

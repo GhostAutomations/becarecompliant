@@ -228,6 +228,9 @@ export default function AbsenceView({
                       {bookingByPerson[r.personId].conductor_name
                         ? `, held by ${bookingByPerson[r.personId].conductor_name}`
                         : ""}
+                      {bookingByPerson[r.personId].location
+                        ? ` (${bookingByPerson[r.personId].location === "Microsoft Teams" ? "Teams" : bookingByPerson[r.personId].location})`
+                        : ""}
                     </p>
                     {bookingByPerson[r.personId].response === "accepted" && (
                       <p className="text-emerald-300">Invitation accepted.</p>
@@ -266,6 +269,7 @@ export default function AbsenceView({
                       personId={r.personId}
                       personName={r.fullName}
                       defaultStage={Math.min(4, Math.max(1, (s.meetingStage ?? 0) + 1))}
+                      minStage={(s.meetingStage ?? 0) + 1}
                       conductors={conductors}
                     />
                   ) : null}

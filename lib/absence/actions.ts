@@ -353,8 +353,10 @@ export async function bookAbsenceMeeting(
   const rawDuration = Number.parseInt(String(formData.get("duration") ?? ""), 10);
   const duration =
     Number.isFinite(rawDuration) && rawDuration >= 15 && rawDuration <= 480 ? rawDuration : 60;
-  const location = String(formData.get("location") ?? "").trim().slice(0, 300);
-  if (!location) return { error: "Enter where the meeting will be held (an address or Teams)." };
+  const locationKind = String(formData.get("location_kind") ?? "");
+  if (locationKind !== "office" && locationKind !== "teams") {
+    return { error: "Choose where the meeting will be held: Office or Teams." };
+  }
   const conductedBy = String(formData.get("conducted_by") ?? "").trim();
   if (!conductedBy) return { error: "Choose who is holding the meeting." };
 
@@ -365,6 +367,39 @@ export async function bookAbsenceMeeting(
     .eq("id", personId)
     .maybeSingle();
   if (!person) return { error: "That record could not be found." };
+
+  // Office prints the FULL branch address in the letters (Phil, 2026-07-12).
+  let location = "Microsoft Teams";
+  if (locationKind === "office") {
+    const { data: branch } = await supabase
+      .from("branches")
+      .select("address")
+      .eq("id", person.branch_id as string)
+      .maybeSingle();
+    if (!branch?.address) {
+      return { error: "Set this branch's office address in Settings, Branches first, then book the meeting." };
+    }
+    location = branch.address as string;
+  }
+
+  // Stage gate (Phil, 2026-07-12): a stage that has already been held or
+  // booked cannot be booked again; the next stage (or a repeat Stage 4) is
+  // the only option. A "no further action" outcome resetting the cycle
+  // arrives with the meeting outcomes feature (Additions).
+  const { data: maxStageRow } = await supabase
+    .from("absence_meetings")
+    .select("stage")
+    .eq("person_id", personId)
+    .not("stage", "is", null)
+    .order("stage", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const maxStage = (maxStageRow?.stage as number | null) ?? 0;
+  if (stage <= maxStage && !(stage === 4 && maxStage === 4)) {
+    return {
+      error: `Stage ${stage} has already been held or booked for this person. Book Stage ${Math.min(maxStage + 1, 4)} instead.`,
+    };
+  }
 
   // The conductor must be an active Manager or Admin in THIS company.
   const { data: conductor } = await supabase
@@ -422,6 +457,7 @@ export async function bookAbsenceMeeting(
     timeHHMM: rawTime,
     duration,
     location,
+    locationKind,
     employee: {
       profileId: (person.profile_id as string | null) ?? null,
       name: person.full_name as string,
@@ -484,6 +520,7 @@ async function sendMeetingLetters(args: {
   timeHHMM: string;
   duration: number;
   location: string;
+  locationKind: "office" | "teams";
   employee: { profileId: string | null; name: string; email: string | null };
   conductor: { id: string; name: string; email: string | null };
   rearranged: boolean;
@@ -492,7 +529,10 @@ async function sendMeetingLetters(args: {
   const stageLabel = `Stage ${args.stage} absence management meeting`;
   const slot = `${args.meetingDate}:${args.timeHHMM}`;
   const employeeName = escapeHtml(args.employee.name);
-  const locationHtml = escapeHtml(args.location);
+  const locationSentence =
+    args.locationKind === "teams"
+      ? `held over <strong style="color:#ffffff;">Microsoft Teams</strong>. A Teams invite will follow shortly`
+      : `held at <strong style="color:#ffffff;">${escapeHtml(args.location)}</strong>`;
   const rearrangedNote = args.rearranged
     ? `<p style="margin:0 0 10px 0;color:#fcd34d;">This meeting has been rearranged. This invitation replaces the earlier one, please update your calendar.</p>`
     : "";
@@ -504,6 +544,7 @@ async function sendMeetingLetters(args: {
     email: string;
     eventTitle: string;
     detailHtml: string;
+    hideCta: boolean;
   }[] = [];
 
   if (args.employee.email) {
@@ -514,10 +555,11 @@ async function sendMeetingLetters(args: {
       name: args.employee.name,
       email: args.employee.email,
       eventTitle: stageLabel,
+      hideCta: true, // employees have no app account: no Open button
       detailHtml: `
         ${rearrangedNote}
         <p style="margin:0 0 10px 0;">This is your formal invitation to a <strong style="color:#ffffff;">${stageLabel}</strong> under the absence procedure at ${escapeHtml(args.companyName)}.</p>
-        <p style="margin:0 0 10px 0;">The purpose of the meeting is to review your absence record, discuss any support you may need, and consider the next steps under the procedure. The meeting will be conducted by ${escapeHtml(args.conductor.name)} and held at <strong style="color:#ffffff;">${locationHtml}</strong>.</p>
+        <p style="margin:0 0 10px 0;">The purpose of the meeting is to review your absence record, discuss any support you may need, and consider the next steps under the procedure. The meeting will be conducted by ${escapeHtml(args.conductor.name)} and ${locationSentence}.</p>
         <p style="margin:0 0 14px 0;">You have the right to be accompanied by a colleague or a trade union representative. Please let us know in advance if you will be accompanied.</p>
         <table role="presentation" cellpadding="0" cellspacing="0"><tr>
           <td style="border-radius:12px;background:#f59e0b;">
@@ -542,9 +584,10 @@ async function sendMeetingLetters(args: {
       name: args.conductor.name,
       email: args.conductor.email,
       eventTitle: `Absence meeting with ${args.employee.name} (Stage ${args.stage})`,
+      hideCta: false,
       detailHtml: `
         ${rearrangedNote}
-        <p style="margin:0 0 10px 0;">You are chairing this meeting: a <strong style="color:#ffffff;">${stageLabel}</strong> for <strong style="color:#ffffff;">${employeeName}</strong>, held at <strong style="color:#ffffff;">${locationHtml}</strong>. This is about ${employeeName}'s absence record, not your own.</p>
+        <p style="margin:0 0 10px 0;">You are chairing this meeting: a <strong style="color:#ffffff;">${stageLabel}</strong> for <strong style="color:#ffffff;">${employeeName}</strong>, ${locationSentence}. This is about ${employeeName}'s absence record, not your own.</p>
         <p style="margin:0;">Their absence record is on the Absence page. Once the meeting has taken place, record it there so the Evidence attaches to this booking. You will be emailed when ${employeeName} accepts or declines.</p>`,
     });
   } else {
@@ -564,6 +607,7 @@ async function sendMeetingLetters(args: {
       timeHHMM: args.timeHHMM,
       durationMinutes: args.duration,
       location: args.location,
+      hideCta: send.hideCta,
       detailHtml: send.detailHtml,
       icsUid: `absence-meeting-${args.meetingId}-${slot.replace(/[^0-9]/g, "")}-${send.key}@becarecompliant.com`,
     });
@@ -604,8 +648,10 @@ export async function rearrangeAbsenceMeeting(
   const rawDuration = Number.parseInt(String(formData.get("duration") ?? ""), 10);
   const duration =
     Number.isFinite(rawDuration) && rawDuration >= 15 && rawDuration <= 480 ? rawDuration : 60;
-  const location = String(formData.get("location") ?? "").trim().slice(0, 300);
-  if (!location) return { error: "Enter where the meeting will be held (an address or Teams)." };
+  const locationKind = String(formData.get("location_kind") ?? "");
+  if (locationKind !== "office" && locationKind !== "teams") {
+    return { error: "Choose where the meeting will be held: Office or Teams." };
+  }
   const conductedBy = String(formData.get("conducted_by") ?? "").trim();
   if (!conductedBy) return { error: "Choose who is holding the meeting." };
 
@@ -620,6 +666,19 @@ export async function rearrangeAbsenceMeeting(
   }
   if (meeting.evidence_id) {
     return { error: "This meeting has already been recorded and cannot be rearranged." };
+  }
+
+  let location = "Microsoft Teams";
+  if (locationKind === "office") {
+    const { data: branch } = await supabase
+      .from("branches")
+      .select("address")
+      .eq("id", meeting.branch_id as string)
+      .maybeSingle();
+    if (!branch?.address) {
+      return { error: "Set this branch's office address in Settings, Branches first, then rearrange the meeting." };
+    }
+    location = branch.address as string;
   }
 
   const { data: conductor } = await supabase
@@ -677,6 +736,7 @@ export async function rearrangeAbsenceMeeting(
     timeHHMM: rawTime,
     duration,
     location,
+    locationKind,
     employee: {
       profileId: (person?.profile_id as string | null) ?? null,
       name: (person?.full_name as string | null) ?? "the employee",
@@ -770,7 +830,7 @@ export async function cancelAbsenceMeetingBooking(
     : "Absence management meeting";
   const when = `${meeting.meeting_date ?? ""}${meeting.meeting_time ? ` at ${String(meeting.meeting_time).slice(0, 5)}` : ""}`;
 
-  const notices: { profileId: string | null; name: string; email: string }[] = [];
+  const notices: { profileId: string | null; name: string; email: string; hasAccount: boolean }[] = [];
   let employeeEmail = (person?.work_email as string | null) ?? null;
   if (!employeeEmail && person?.profile_id) {
     const { data: p } = await supabase
@@ -782,6 +842,7 @@ export async function cancelAbsenceMeetingBooking(
       profileId: (person.profile_id as string | null) ?? null,
       name: person.full_name as string,
       email: employeeEmail,
+      hasAccount: false, // employees have no app account: no Open button
     });
   }
   if (meeting.conducted_by) {
@@ -792,6 +853,7 @@ export async function cancelAbsenceMeetingBooking(
         profileId: conductor.id,
         name: conductor.full_name || conductor.email,
         email: conductor.email,
+        hasAccount: true,
       });
     }
   }
@@ -816,8 +878,8 @@ export async function cancelAbsenceMeetingBooking(
         preheader: `The ${stageLabel.toLowerCase()} on ${when} is cancelled.`,
         heading: "Meeting cancelled",
         bodyHtml: `<p style="margin:0;">${escapeHtml(notice.name)}, the <strong style="color:#ffffff;">${stageLabel}</strong> booked for <strong style="color:#ffffff;">${escapeHtml(when)}</strong> at ${escapeHtml(company?.name ?? "your company")} has been cancelled. Please remove it from your calendar. If it is rearranged you will receive a new invitation.</p>`,
-        ctaLabel: "Open Be Care Compliant",
-        ctaUrl: siteUrl(),
+        ctaLabel: notice.hasAccount ? "Open Be Care Compliant" : undefined,
+        ctaUrl: notice.hasAccount ? siteUrl() : undefined,
       }),
     });
     noticeOutcomes[notice.email] = result.sent

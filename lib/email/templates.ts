@@ -19,15 +19,26 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-/** Outer shell shared by all customer emails. */
+/** Outer shell shared by all customer emails. The CTA button is optional:
+ *  emails to people WITHOUT app accounts (employee meeting invitations and
+ *  cancellations) omit it, since "Open Be Care Compliant" means nothing to
+ *  them (Phil, 2026-07-12). Emails to app users keep it. */
 function shell(opts: {
   preheader: string;
   heading: string;
   bodyHtml: string;
-  ctaLabel: string;
-  ctaUrl: string;
+  ctaLabel?: string;
+  ctaUrl?: string;
   footerNote: string;
 }): string {
+  const ctaRow =
+    opts.ctaLabel && opts.ctaUrl
+      ? `<tr><td style="padding:24px 32px 8px 32px;">
+        <table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:12px;background:${GOLD};">
+          <a href="${escapeHtml(opts.ctaUrl)}" style="display:inline-block;padding:13px 26px;font-size:14px;font-weight:700;color:${NAVY};text-decoration:none;border-radius:12px;">${escapeHtml(opts.ctaLabel)}</a>
+        </td></tr></table>
+      </td></tr>`
+      : "";
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -50,11 +61,7 @@ function shell(opts: {
         <h1 style="margin:12px 0 8px 0;font-size:20px;line-height:1.3;color:#ffffff;font-weight:700;">${escapeHtml(opts.heading)}</h1>
         <div style="font-size:14px;line-height:1.6;color:${TEXT};">${opts.bodyHtml}</div>
       </td></tr>
-      <tr><td style="padding:24px 32px 8px 32px;">
-        <table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:12px;background:${GOLD};">
-          <a href="${escapeHtml(opts.ctaUrl)}" style="display:inline-block;padding:13px 26px;font-size:14px;font-weight:700;color:${NAVY};text-decoration:none;border-radius:12px;">${escapeHtml(opts.ctaLabel)}</a>
-        </td></tr></table>
-      </td></tr>
+      ${ctaRow}
       <tr><td style="padding:20px 32px 28px 32px;">
         <p style="margin:0;font-size:12px;line-height:1.6;color:${MUTED};">${escapeHtml(opts.footerNote)}</p>
       </td></tr>
@@ -210,7 +217,8 @@ export function calendarInviteEmailHtml(opts: {
   timeHHMM?: string | null;
   durationMinutes?: number | null;
   detailHtml: string;
-  actionUrl: string;
+  /** Omit for recipients without app accounts: no CTA button is rendered. */
+  actionUrl?: string;
 }): string {
   const when = opts.timeHHMM
     ? `${formatDateUk(opts.dateIso)} at ${opts.timeHHMM}${opts.durationMinutes ? ` (${formatDuration(opts.durationMinutes)})` : ""}`
@@ -226,10 +234,10 @@ export function calendarInviteEmailHtml(opts: {
     preheader: `${opts.eventTitle} on ${when}.`,
     heading: opts.eventTitle,
     bodyHtml: body,
-    ctaLabel: "Open Be Care Compliant",
+    ctaLabel: opts.actionUrl ? "Open Be Care Compliant" : undefined,
     ctaUrl: opts.actionUrl,
     footerNote:
-      "You receive this invitation because of your role with this company on Be Care Compliant. If the date changes you will receive an updated invitation.",
+      "You receive this invitation because of your role with this company. If the date changes you will receive an updated invitation.",
   });
 }
 
@@ -242,8 +250,9 @@ export function noticeEmailHtml(opts: {
   preheader: string;
   heading: string;
   bodyHtml: string;
-  ctaLabel: string;
-  ctaUrl: string;
+  /** Omit both for recipients without app accounts: no CTA is rendered. */
+  ctaLabel?: string;
+  ctaUrl?: string;
   footerNote?: string;
 }): string {
   return shell({

@@ -37,12 +37,17 @@ export default function BookMeetingDialog({
   personId,
   personName,
   defaultStage,
+  minStage,
   conductors,
 }: {
   personId: string;
   personName: string;
   /** Suggested stage from the card's derived position, clamped 1 to 4. */
   defaultStage: number;
+  /** Stages below this were already held or booked and are not offered
+   *  (Phil, 2026-07-12); the "no further action" reset arrives with meeting
+   *  outcomes (Additions). Server enforces the same rule. */
+  minStage: number;
   /** Active Managers + Admins: the only people who can hold the meeting. */
   conductors: ConductorLite[];
 }) {
@@ -65,6 +70,7 @@ export default function BookMeetingDialog({
             personId={personId}
             personName={personName}
             defaultStage={defaultStage}
+            minStage={minStage}
             conductors={conductors}
             onClose={() => setOpenInstance(0)}
           />,
@@ -78,12 +84,14 @@ function BookMeetingForm({
   personId,
   personName,
   defaultStage,
+  minStage,
   conductors,
   onClose,
 }: {
   personId: string;
   personName: string;
   defaultStage: number;
+  minStage: number;
   conductors: ConductorLite[];
   onClose: () => void;
 }) {
@@ -114,7 +122,7 @@ function BookMeetingForm({
           <div>
             <label htmlFor="bm-stage" className="form-label">Stage</label>
             <select id="bm-stage" name="stage" defaultValue={String(defaultStage)} disabled={pending}>
-              {[1, 2, 3, 4].map((s) => (
+              {([1, 2, 3, 4].filter((s) => s >= Math.min(minStage, 4))).map((s) => (
                 <option key={s} value={s}>Stage {s}</option>
               ))}
             </select>
@@ -160,15 +168,14 @@ function BookMeetingForm({
           </div>
           <div>
             <label htmlFor="bm-location" className="form-label">Location</label>
-            <input
-              id="bm-location"
-              name="location"
-              type="text"
-              maxLength={300}
-              placeholder="Office address or Teams"
-              required
-              disabled={pending}
-            />
+            <select id="bm-location" name="location_kind" defaultValue="office" disabled={pending}>
+              <option value="office">Office</option>
+              <option value="teams">Teams</option>
+            </select>
+            <p className="mt-1 text-[10px] text-white/40">
+              Office prints the branch address from Settings, Branches in the
+              letters. Teams tells them an invite will follow shortly.
+            </p>
           </div>
           {state.error && <p className="form-error">{state.error}</p>}
           {state.ok && <p className="text-sm text-emerald-300">{state.ok}</p>}

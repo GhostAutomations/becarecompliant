@@ -169,16 +169,15 @@ function CancelRearrangeForm({
           </div>
           <div>
             <label htmlFor="cr-location" className="form-label">Location</label>
-            <input
+            <select
               id="cr-location"
-              name="location"
-              type="text"
-              maxLength={300}
-              defaultValue={booking.location ?? ""}
-              placeholder="Office address or Teams"
-              required
+              name="location_kind"
+              defaultValue={booking.location === "Microsoft Teams" ? "teams" : "office"}
               disabled={busy}
-            />
+            >
+              <option value="office">Office</option>
+              <option value="teams">Teams</option>
+            </select>
           </div>
           {rearrangeState.error && <p className="form-error">{rearrangeState.error}</p>}
           {rearrangeState.ok && <p className="text-sm text-emerald-300">{rearrangeState.ok}</p>}
