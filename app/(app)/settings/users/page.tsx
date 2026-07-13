@@ -4,6 +4,7 @@ import { requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { ROLE_LABELS } from "@/lib/nav";
 import BackLink from "@/components/back-link";
+import RealtimeRefresh from "@/components/realtime-refresh";
 import { InviteForm } from "@/components/settings/invite-form";
 import TeamMemberControls from "@/components/settings/team-member-controls";
 import { resendInviteAction, revokeInviteAction } from "../actions";
@@ -70,6 +71,9 @@ export default async function UsersPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
+      {/* Live refresh: the pending and team lists update the instant an invite is
+          accepted or a user changes, no manual refresh. RLS scopes events. */}
+      <RealtimeRefresh tables={["invites", "profiles"]} channel="users-live" />
       <div>
         <BackLink href="/settings" label="Back to Settings" />
         <h1 className="page-title mt-1">Users and invites</h1>
