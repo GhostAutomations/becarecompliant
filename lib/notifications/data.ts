@@ -1,5 +1,6 @@
 import "server-only";
 import { createServiceClient } from "@/lib/supabase/admin";
+import { todayInLondon, formatCivilDate } from "@/lib/recurrence";
 
 /**
  * Service-role reads for the notification cron. RLS is bypassed here (the cron
@@ -193,6 +194,125 @@ export async function getAttentionItems(companyId: string): Promise<AttentionIte
   }
   items.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
   return items;
+}
+
+/**
+ * A single check on a Record, for the daily People / Service User reporting
+ * emails. Records overdue, and records with a check due in the next 14 days.
+ * Read from the SAME check status views (server side RAG, active records only,
+ * leavers / archived / discharged already excluded). Compliance checks ONLY:
+ * holiday and absence are deliberately NOT in these views, so the People report
+ * never includes holiday or absence (Phil, 2026-07-13).
+ */
+export type ReportingCheck = {
+  population: "people" | "service_users";
+  recordId: string;
+  recordName: string;
+  branchId: string | null;
+  branchName: string;
+  checkName: string;
+  dueDate: string; // ISO date
+};
+
+/** Horizon for the "due soon" section of the reporting emails: the next N days. */
+export const REPORTING_HORIZON_DAYS = 14;
+
+export type ReportingData = {
+  people: ReportingCheck[];
+  serviceUsers: ReportingCheck[];
+  /** The company has at least one active person / service user (so the report
+   *  is worth sending even on an all clear day; a people only company gets no
+   *  Service User report). */
+  hasPeople: boolean;
+  hasServiceUsers: boolean;
+};
+
+/** ISO date N days after an ISO date (civil, timezone free). */
+function addDaysIso(iso: string, days: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return dt.toISOString().slice(0, 10);
+}
+
+/**
+ * Checks due on or before today + 14 days (so overdue AND due soon), per
+ * population, plus whether the company has active records of each population.
+ * The overdue / due soon split is done in the pure logic layer.
+ */
+export async function getReportingData(companyId: string): Promise<ReportingData> {
+  const supabase = createServiceClient();
+  const horizon = addDaysIso(formatCivilDate(todayInLondon()), REPORTING_HORIZON_DAYS);
+
+  const [peopleChecks, suChecks, people, sus, branches, activePeople, activeSus] =
+    await Promise.all([
+      supabase
+        .from("person_check_status")
+        .select("person_id, branch_id, check_name, due_date")
+        .eq("company_id", companyId)
+        .not("due_date", "is", null)
+        .lte("due_date", horizon),
+      supabase
+        .from("service_user_check_status")
+        .select("service_user_id, branch_id, check_name, due_date")
+        .eq("company_id", companyId)
+        .not("due_date", "is", null)
+        .lte("due_date", horizon),
+      supabase.from("people").select("id, full_name").eq("company_id", companyId),
+      supabase.from("service_users").select("id, full_name").eq("company_id", companyId),
+      supabase.from("branches").select("id, name").eq("company_id", companyId),
+      supabase
+        .from("people")
+        .select("id")
+        .eq("company_id", companyId)
+        .is("archived_at", null)
+        .neq("employment_status", "leaver")
+        .limit(1),
+      supabase
+        .from("service_users")
+        .select("id")
+        .eq("company_id", companyId)
+        .is("archived_at", null)
+        .neq("service_status", "cancelled")
+        .limit(1),
+    ]);
+  for (const res of [peopleChecks, suChecks]) {
+    if (res.error) throw new Error(res.error.message);
+  }
+
+  const personName = new Map((people.data ?? []).map((p) => [p.id, p.full_name]));
+  const suName = new Map((sus.data ?? []).map((s) => [s.id, s.full_name]));
+  const branchName = new Map((branches.data ?? []).map((b) => [b.id, b.name]));
+
+  const peopleOut: ReportingCheck[] = (peopleChecks.data ?? [])
+    .filter((r) => r.due_date)
+    .map((r) => ({
+      population: "people" as const,
+      recordId: r.person_id,
+      recordName: personName.get(r.person_id) ?? "Unknown",
+      branchId: r.branch_id,
+      branchName: branchName.get(r.branch_id) ?? "",
+      checkName: r.check_name,
+      dueDate: r.due_date as string,
+    }));
+  const suOut: ReportingCheck[] = (suChecks.data ?? [])
+    .filter((r) => r.due_date)
+    .map((r) => ({
+      population: "service_users" as const,
+      recordId: r.service_user_id,
+      recordName: suName.get(r.service_user_id) ?? "Unknown",
+      branchId: r.branch_id,
+      branchName: branchName.get(r.branch_id) ?? "",
+      checkName: r.check_name,
+      dueDate: r.due_date as string,
+    }));
+
+  return {
+    people: peopleOut,
+    serviceUsers: suOut,
+    hasPeople: (activePeople.data ?? []).length > 0,
+    hasServiceUsers: (activeSus.data ?? []).length > 0,
+  };
 }
 
 function groupBy<T extends Record<string, unknown>>(

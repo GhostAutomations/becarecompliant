@@ -12,7 +12,12 @@
  *    SMS opted in.
  */
 import { parseCivilDate, daysBetween, todayInLondon, formatCivilDate } from "@/lib/recurrence";
-import type { AttentionItem, Recipient, NotificationSettings } from "@/lib/notifications/data";
+import type {
+  AttentionItem,
+  Recipient,
+  NotificationSettings,
+  ReportingCheck,
+} from "@/lib/notifications/data";
 
 export type RecipientDigest = {
   recipient: Recipient;
@@ -137,4 +142,50 @@ export function smsEscalationItems(
   return items.filter(
     (i) => i.rag === "red" && daysOverdue(i.dueDate, now) >= settings.smsOverdueDays,
   );
+}
+
+// ---------------------------------------------------------------------------
+// Daily People / Service User reporting emails (Phil, 2026-07-13). Managers and
+// Admins get a per population report each morning INSTEAD of the generic digest:
+// records overdue, and records with a check due in the next 14 days. Supervisors
+// keep the caseload digest. Compliance checks only (no holiday or absence).
+// ---------------------------------------------------------------------------
+
+/** Split a population's checks into overdue (due before today) and due soon
+ *  (due today through today + 14 days). Data is already capped at the horizon. */
+export function splitReporting(
+  checks: ReportingCheck[],
+  now: Date = new Date(),
+): { overdue: ReportingCheck[]; dueSoon: ReportingCheck[] } {
+  const today = todayInLondon(now);
+  const overdue: ReportingCheck[] = [];
+  const dueSoon: ReportingCheck[] = [];
+  for (const c of checks) {
+    // daysBetween(due, today) > 0 means today is after the due date, i.e. overdue.
+    if (daysBetween(parseCivilDate(c.dueDate), today) > 0) overdue.push(c);
+    else dueSoon.push(c);
+  }
+  overdue.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+  dueSoon.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+  return { overdue, dueSoon };
+}
+
+/** Scope a population's checks to a recipient: Admins get the whole company,
+ *  Managers get their branches. Supervisors do not receive the company reports. */
+export function scopeReporting(recipient: Recipient, checks: ReportingCheck[]): ReportingCheck[] {
+  if (recipient.role === "company_admin") return checks;
+  if (recipient.role === "manager") {
+    const branches = new Set(recipient.branchIds);
+    return checks.filter((c) => c.branchId !== null && branches.has(c.branchId));
+  }
+  return [];
+}
+
+/** One report per recipient, per population, per London day. */
+export function reportingDedupeKey(
+  profileId: string,
+  population: "people" | "service_users",
+  londonDate: string,
+): string {
+  return `report:${population}:${profileId}:${londonDate}`;
 }

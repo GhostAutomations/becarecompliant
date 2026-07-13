@@ -173,6 +173,132 @@ export function digestEmailHtml(opts: {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Daily People / Service User reporting emails. Two sections: records overdue,
+// and records with a check due in the next 14 days, each record listed with its
+// checks and dates. Sent to Managers and Admins. Compliance checks only.
+// ---------------------------------------------------------------------------
+
+export type ReportingRow = {
+  recordId: string;
+  recordName: string;
+  branchName: string;
+  checkName: string;
+  dueDate: string; // ISO
+};
+
+const REPORTING_MAX_RECORDS = 60;
+
+function populationLabel(population: "people" | "service_users"): string {
+  return population === "people" ? "People" : "Service User";
+}
+
+/** Distinct records in a set of rows, preserving first appearance order. */
+function distinctRecords(rows: ReportingRow[]): string[] {
+  const seen = new Set<string>();
+  const order: string[] = [];
+  for (const r of rows) {
+    if (!seen.has(r.recordId)) {
+      seen.add(r.recordId);
+      order.push(r.recordId);
+    }
+  }
+  return order;
+}
+
+/** One section (Overdue or Due in the next 14 days): records grouped, each with
+ *  its checks and dates. Empty renders a calm all clear line. */
+function reportingSectionHtml(
+  title: string,
+  rows: ReportingRow[],
+  overdue: boolean,
+  emptyText: string,
+): string {
+  const accent = overdue ? RED_PILL : AMBER_PILL;
+  const heading = `<p style="margin:18px 0 6px 0;font-size:13px;font-weight:700;color:${accent};text-transform:uppercase;letter-spacing:0.4px;">${escapeHtml(title)}</p>`;
+  if (rows.length === 0) {
+    return `${heading}<p style="margin:0;font-size:13px;color:${MUTED};">${escapeHtml(emptyText)}</p>`;
+  }
+  const recordIds = distinctRecords(rows).slice(0, REPORTING_MAX_RECORDS);
+  const blocks = recordIds
+    .map((id) => {
+      const recRows = rows.filter((r) => r.recordId === id);
+      const first = recRows[0];
+      const lines = recRows
+        .map(
+          (r) =>
+            `<div style="font-size:12px;color:${TEXT};padding:1px 0;">${escapeHtml(r.checkName)}, ${overdue ? "was due" : "due"} ${escapeHtml(formatDateUk(r.dueDate))}</div>`,
+        )
+        .join("");
+      return `<tr><td style="padding:8px 0;border-top:1px solid rgba(255,255,255,0.10);">
+        <strong style="color:#ffffff;font-size:13px;">${escapeHtml(first.recordName)}</strong>
+        ${first.branchName ? `<span style="font-size:11px;color:${MUTED};">, ${escapeHtml(first.branchName)}</span>` : ""}
+        <div style="margin-top:2px;">${lines}</div>
+      </td></tr>`;
+    })
+    .join("");
+  const moreCount = distinctRecords(rows).length - recordIds.length;
+  const more =
+    moreCount > 0
+      ? `<p style="margin:8px 0 0 0;font-size:12px;color:${MUTED};">Plus ${moreCount} more in the app.</p>`
+      : "";
+  return `${heading}<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${blocks}</table>${more}`;
+}
+
+export function reportingSubject(
+  population: "people" | "service_users",
+  overdueRecords: number,
+  dueSoonRecords: number,
+): string {
+  const label = populationLabel(population);
+  if (overdueRecords > 0) {
+    return `${label} compliance report: ${overdueRecords} overdue, ${dueSoonRecords} due in 14 days`;
+  }
+  if (dueSoonRecords > 0) {
+    return `${label} compliance report: ${dueSoonRecords} due in 14 days`;
+  }
+  return `${label} compliance report: all compliant`;
+}
+
+/** The daily People or Service User compliance report for one recipient. */
+export function reportingEmailHtml(opts: {
+  recipientName: string;
+  companyName: string;
+  dateIso: string;
+  population: "people" | "service_users";
+  overdue: ReportingRow[];
+  dueSoon: ReportingRow[];
+  actionUrl: string;
+}): string {
+  const label = populationLabel(opts.population);
+  const overdueRecords = distinctRecords(opts.overdue).length;
+  const dueSoonRecords = distinctRecords(opts.dueSoon).length;
+  const noun = opts.population === "people" ? "people" : "service users";
+
+  const summary =
+    overdueRecords > 0
+      ? `<strong style="color:${RED_PILL};">${overdueRecords} ${overdueRecords === 1 ? "record" : "records"} overdue</strong> and <strong style="color:${AMBER_PILL};">${dueSoonRecords} due in the next 14 days</strong>`
+      : dueSoonRecords > 0
+        ? `<strong style="color:${AMBER_PILL};">${dueSoonRecords} ${dueSoonRecords === 1 ? "record" : "records"} due in the next 14 days</strong>, nothing overdue`
+        : `every ${noun} record is compliant, nothing overdue or due in the next 14 days`;
+
+  const body = `
+    <p style="margin:0 0 4px 0;">Good morning ${escapeHtml(opts.recipientName)}. Your ${escapeHtml(label)} compliance position for
+    <strong style="color:#ffffff;">${escapeHtml(opts.companyName)}</strong> on ${escapeHtml(formatDateUk(opts.dateIso))}: ${summary}.</p>
+    ${reportingSectionHtml("Records overdue", opts.overdue, true, "Nothing overdue.")}
+    ${reportingSectionHtml("Records due in the next 14 days", opts.dueSoon, false, "Nothing due in the next 14 days.")}`;
+
+  return shell({
+    preheader: reportingSubject(opts.population, overdueRecords, dueSoonRecords),
+    heading: `Daily ${label} compliance report`,
+    bodyHtml: body,
+    ctaLabel: "Open Be Care Compliant",
+    ctaUrl: opts.actionUrl,
+    footerNote:
+      "You receive this report because you manage compliance for this company on Be Care Compliant. A Company Admin can change notification settings in the app.",
+  });
+}
+
 export function chaserSubject(count: number, thresholdDays: number): string {
   const noun = count === 1 ? "check is" : "checks are";
   return `Action needed: ${count} ${noun} ${thresholdDays} or more days overdue`;

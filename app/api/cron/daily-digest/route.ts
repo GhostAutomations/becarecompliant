@@ -5,20 +5,28 @@ import {
   digestSubject,
   chaserEmailHtml,
   chaserSubject,
+  reportingEmailHtml,
+  reportingSubject,
   type DigestEmailItem,
+  type ReportingRow,
 } from "@/lib/email/templates";
 import {
   getDigestCompanies,
   getRecipients,
   getAttentionItems,
+  getReportingData,
   type AttentionItem,
   type Recipient,
+  type ReportingCheck,
 } from "@/lib/notifications/data";
 import {
   buildDigests,
   scopeItems,
   chaserLevel,
   smsEscalationItems,
+  splitReporting,
+  scopeReporting,
+  reportingDedupeKey,
   digestDedupeKey,
   chaserDedupeKey,
   smsDedupeKey,
@@ -79,6 +87,7 @@ export async function GET(request: NextRequest) {
   const summary = {
     companies: 0,
     digestsSent: 0,
+    reportsSent: 0,
     chasersSent: 0,
     smsSent: 0,
     skipped: 0,
@@ -100,15 +109,19 @@ export async function GET(request: NextRequest) {
   for (const company of companies) {
     summary.companies += 1;
     try {
-      const [recipients, items] = await Promise.all([
+      const [recipients, items, reporting] = await Promise.all([
         getRecipients(company.id),
         getAttentionItems(company.id),
+        getReportingData(company.id),
       ]);
-      if (recipients.length === 0 || items.length === 0) continue;
+      if (recipients.length === 0) continue;
 
-      // 1. Daily digests (all recipient roles, their own scope).
       if (company.settings.emailDigestEnabled) {
-        for (const digest of buildDigests(recipients, items)) {
+        // 1a. Caseload digest: SUPERVISORS only. Managers and Admins now get the
+        // two population reports below instead of the generic digest (Phil,
+        // 2026-07-13). Supervisors with nothing to report get no email.
+        const supervisors = recipients.filter((r) => r.role === "supervisor");
+        for (const digest of buildDigests(supervisors, items)) {
           const logId = await claimNotification({
             companyId: company.id,
             recipientProfileId: digest.recipient.profileId,
@@ -142,6 +155,80 @@ export async function GET(request: NextRequest) {
             result.sent ? "sent" : result.skippedReason ? "skipped" : "failed",
             result.error ?? result.skippedReason,
           );
+        }
+
+        // 1b. Daily People + Service User compliance reports to MANAGERS + ADMINS.
+        // Sent every morning, including a positive all clear, but only for a
+        // population the company actually has (a people only company gets no
+        // Service User report). Compliance checks only, never holiday or absence.
+        const toRow = (c: ReportingCheck): ReportingRow => ({
+          recordId: c.recordId,
+          recordName: c.recordName,
+          branchName: c.branchName,
+          checkName: c.checkName,
+          dueDate: c.dueDate,
+        });
+        const reportRecipients = recipients.filter(
+          (r) => r.role === "company_admin" || r.role === "manager",
+        );
+        const populations: Array<{
+          key: "people" | "service_users";
+          checks: ReportingCheck[];
+          has: boolean;
+          kind: string;
+        }> = [
+          { key: "people", checks: reporting.people, has: reporting.hasPeople, kind: "people_report" },
+          {
+            key: "service_users",
+            checks: reporting.serviceUsers,
+            has: reporting.hasServiceUsers,
+            kind: "service_user_report",
+          },
+        ];
+        for (const recipient of reportRecipients) {
+          for (const pop of populations) {
+            if (!pop.has) continue;
+            const scoped = scopeReporting(recipient, pop.checks);
+            const { overdue, dueSoon } = splitReporting(scoped);
+            const overdueRecords = new Set(overdue.map((c) => c.recordId)).size;
+            const dueSoonRecords = new Set(dueSoon.map((c) => c.recordId)).size;
+            const subject = reportingSubject(pop.key, overdueRecords, dueSoonRecords);
+            const logId = await claimNotification({
+              companyId: company.id,
+              recipientProfileId: recipient.profileId,
+              channel: "email",
+              kind: pop.kind,
+              dedupeKey: reportingDedupeKey(recipient.profileId, pop.key, today),
+              toAddress: recipient.email,
+              subject,
+              metadata: { overdue_records: overdueRecords, due_soon_records: dueSoonRecords },
+            });
+            if (!logId) {
+              summary.skipped += 1;
+              continue;
+            }
+            const result = await sendEmail({
+              to: recipient.email,
+              subject,
+              html: reportingEmailHtml({
+                recipientName: recipient.fullName,
+                companyName: company.name,
+                dateIso: today,
+                population: pop.key,
+                overdue: overdue.map(toRow),
+                dueSoon: dueSoon.map(toRow),
+                actionUrl: appUrl,
+              }),
+            });
+            if (result.sent) summary.reportsSent += 1;
+            else if (result.skippedReason) summary.skipped += 1;
+            else summary.failures.push(`report ${recipient.email}: ${result.error}`);
+            await settleNotification(
+              logId,
+              result.sent ? "sent" : result.skippedReason ? "skipped" : "failed",
+              result.error ?? result.skippedReason,
+            );
+          }
         }
       }
 

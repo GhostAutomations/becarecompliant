@@ -1,5 +1,27 @@
 # Phase 8 test checklist: Reporting, exports and audit trail
 
+## Live run 2026-07-13 (Claude driven in Chrome + DB verified, signed in as Akram Abappa, company_admin, Thistle Enterprise)
+
+PASSED:
+- A1/A2 Evidence PDF on demand: opening /api/evidence/<id>/pdf rendered a branded PDF from the frozen snapshot to the /render/ path, 302 to a Supabase signed URL whose token iat/exp were exactly 300s apart (5 min TTL). evidence.downloaded audit row written (actor, "Downloaded evidence PDF", ttl 300). Clears the parked "evidence PDF on demand" + "5-minute signed-URL download audit-logged" items.
+- B1 Evidence pack: /api/reports/evidence-pack for the Person gathered 18 evidence rows, rendered without error, wrote report.exported (evidence_pack, ev_count 18).
+- C1/C4 Register + Compliance reports: both rendered and wrote report.exported (register people PDF; compliance PDF).
+- Reports area + tier gating: /reports shows the four cards + PDF/CSV buttons for the entitled Enterprise admin; Admin sees Open audit log + Export PDF.
+- D1 Company audit viewer (/reports/audit): filters (actor, area, from/to), Export PDF/CSV, table newest first showing report.exported, evidence.downloaded, billing.subscription_cancelled, user.deleted, user.status_changed, invite.accepted.
+- D5 Per record History tab (Person): oldest at top newest at bottom, record changes ("Added ... to the People register") + Evidence events ("Completed Probation form"), each with time + actor + entity tag; three export buttons present; Evidence history rows each have a working PDF button.
+- E1 GDPR read audit: opening the Service User record wrote service_user.viewed ("Viewed Charley Chapplin") live. Clears the parked "GDPR read audit" item.
+- F5 Delete user dialog: styled modal (title, warning naming the user, red Delete + Cancel), not a native confirm; Cancel closes with no deletion.
+- D3 Founder cross company console (/founder/audit, signed in as phil.davies@outlook.com platform_admin): extra Company column + founder only Company id filter + Export PDF/CSV; the founder PDF export wrote report.exported (scope founder, 250 entries, company_id null).
+- Business tier gate (Thistle temporarily flipped to business, then back to enterprise; signed in as Tim Mingle, manager): /reports showed the "Reporting exports are a Pro feature" upgrade card with the single evidence carve out wording and NO download buttons on the report cards; /api/reports/register returned the plain text 403 "Reporting exports are available on the Pro tier and above." (C6, server side). A4 single Evidence PDF STILL rendered on business (the exception) and showed the full branded inspector PDF (Be Care Compliant header, Thistle / Newport, completed by Akram Abappa, Version 4, all sections, no dashes). Bonus G2: the manager saw the audit card note "available to Company Admins" (no company audit log for managers).
+
+STILL TO TEST (cold or needs another tier/tenant/role, logged to Final Testing):
+- Cross tenant export isolation (G1): needs a second company.
+- Team Member / Supervisor isolation (G2): needs those roles; supervisors do not get the History tab by design.
+- Save button visual sweep per control (F1 to F4): converted and typecheck/deploy clean; spot check each Saving/Saved/error live when convenient (mutates data).
+- CSV content inspection (B2, C2, C3): open the downloaded CSVs and eyeball columns/values.
+- A3 real 5 minute expiry: confirmed TTL=300 in the token; actual expiry needs a wait.
+
+
 Run as popups, one check at a time, Pass / Fail / Not tested. Anything Not tested is logged to Final Testing. Test on the deployed build (Vercel) with migration 0058 applied to ref bgrtcvyjuwopunpnudeu.
 
 Prerequisite: Thistle is Enterprise, so reporting_exports is ON there. To test the Business gate and single evidence exception, a Business tier company (or a temporary tier flip on Thistle, reverted after) is needed.
