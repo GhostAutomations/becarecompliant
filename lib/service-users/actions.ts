@@ -178,15 +178,23 @@ export async function updateServiceUser(_prev: ActionState, formData: FormData):
 }
 
 /** Transfer a Record to another branch (its checks follow via the DB trigger). */
-export async function transferServiceUser(formData: FormData): Promise<void> {
+export async function transferServiceUser(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const { user, profile } = await requireCompany();
   const id = String(formData.get("service_user_id") ?? "");
   const branchId = String(formData.get("branch_id") ?? "");
-  if (!id || !branchId) return;
+  if (!id || !branchId) return { error: "Choose a branch." };
 
   const supabase = await createClient();
-  const { error } = await supabase.from("service_users").update({ branch_id: branchId }).eq("id", id);
-  if (error) return;
+  const { data, error } = await supabase
+    .from("service_users")
+    .update({ branch_id: branchId })
+    .eq("id", id)
+    .select("id");
+  if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "No change was saved. You may not have permission." };
 
   await writeAudit({
     companyId: profile.company_id ?? "",
@@ -202,27 +210,33 @@ export async function transferServiceUser(formData: FormData): Promise<void> {
 
   revalidatePath(`/service-users/${id}`);
   revalidatePath("/service-users");
+  return { ok: "Transferred." };
 }
 
 /** Change the service status (active / hospital / respite / cancelled), or archive a
  *  cancelled Record. Cancelled excludes the Record from the active register, rollups,
  *  dashboard and reminders (kept for audit), exactly like a People leaver. */
-export async function setServiceStatus(formData: FormData): Promise<void> {
+export async function setServiceStatus(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const { user, profile } = await requireCompany();
   const id = String(formData.get("service_user_id") ?? "");
   const status = String(formData.get("status") ?? "");
-  if (!id) return;
+  if (!id) return { error: "Missing record." };
 
   const supabase = await createClient();
 
   // "archive" is offered on the Status pill only in the Cancelled view: it archives
   // the cancelled Record (sets archived_at) rather than changing service_status.
   if (status === "archive") {
-    const { error: archErr } = await supabase
+    const { data, error: archErr } = await supabase
       .from("service_users")
       .update({ archived_at: new Date().toISOString() })
-      .eq("id", id);
-    if (archErr) return;
+      .eq("id", id)
+      .select("id");
+    if (archErr) return { error: archErr.message };
+    if (!data || data.length === 0) return { error: "No change was saved. You may not have permission." };
     await writeAudit({
       companyId: profile.company_id ?? "",
       actorId: user.id,
@@ -235,19 +249,23 @@ export async function setServiceStatus(formData: FormData): Promise<void> {
     });
     revalidatePath(`/service-users/${id}`);
     revalidatePath("/service-users");
-    return;
+    return { ok: "Archived." };
   }
 
-  if (!["active", "hospital", "respite", "cancelled"].includes(status)) return;
+  if (!["active", "hospital", "respite", "cancelled"].includes(status)) {
+    return { error: "Choose a valid status." };
+  }
 
   const discharge_date = status === "cancelled" ? todayIso() : null;
   // Setting a status also un-archives, so changing the pill (e.g. back to Active)
   // brings an archived Record back into the relevant view, not stuck in Archive.
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("service_users")
     .update({ service_status: status, discharge_date, archived_at: null })
-    .eq("id", id);
-  if (error) return;
+    .eq("id", id)
+    .select("id");
+  if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "No change was saved. You may not have permission." };
 
   await writeAudit({
     companyId: profile.company_id ?? "",
@@ -263,6 +281,7 @@ export async function setServiceStatus(formData: FormData): Promise<void> {
 
   revalidatePath(`/service-users/${id}`);
   revalidatePath("/service-users");
+  return { ok: "Saved." };
 }
 
 /** Book the next Care Plan Review: set the Planned Review Date and the reviewer who
@@ -364,17 +383,20 @@ export async function bookReview(formData: FormData): Promise<void> {
 }
 
 /** Assign a user to a Record's caseload (visibility for that user). */
-export async function assignServiceUserSupervisor(formData: FormData): Promise<void> {
+export async function assignServiceUserSupervisor(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const { user, profile } = await requireCompany();
   const id = String(formData.get("service_user_id") ?? "");
   const userId = String(formData.get("user_id") ?? "");
-  if (!id || !userId || !profile.company_id) return;
+  if (!id || !userId || !profile.company_id) return { error: "Choose a user to assign." };
 
   const supabase = await createClient();
   const { error } = await supabase
     .from("service_user_assignments")
     .insert({ company_id: profile.company_id, service_user_id: id, user_id: userId, created_by: user.id });
-  if (error && error.code !== "23505") return;
+  if (error && error.code !== "23505") return { error: error.message };
 
   await writeAudit({
     companyId: profile.company_id,
@@ -389,21 +411,26 @@ export async function assignServiceUserSupervisor(formData: FormData): Promise<v
   });
 
   revalidatePath(`/service-users/${id}`);
+  return { ok: "Assigned." };
 }
 
 /** Remove a user from a Record's caseload. */
-export async function unassignServiceUserSupervisor(formData: FormData): Promise<void> {
+export async function unassignServiceUserSupervisor(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const { user, profile } = await requireCompany();
   const id = String(formData.get("service_user_id") ?? "");
   const userId = String(formData.get("user_id") ?? "");
-  if (!id || !userId) return;
+  if (!id || !userId) return { error: "Missing assignment." };
 
   const supabase = await createClient();
-  await supabase
+  const { error } = await supabase
     .from("service_user_assignments")
     .delete()
     .eq("service_user_id", id)
     .eq("user_id", userId);
+  if (error) return { error: error.message };
 
   await writeAudit({
     companyId: profile.company_id ?? "",
@@ -418,13 +445,17 @@ export async function unassignServiceUserSupervisor(formData: FormData): Promise
   });
 
   revalidatePath(`/service-users/${id}`);
+  return { ok: "Removed." };
 }
 
 /** Apply any active SU definitions this Record is missing (idempotent). */
-export async function applyMissingChecks(formData: FormData): Promise<void> {
+export async function applyMissingChecks(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const { profile } = await requireCompany();
   const id = String(formData.get("service_user_id") ?? "");
-  if (!id || !profile.company_id) return;
+  if (!id || !profile.company_id) return { error: "Missing record." };
 
   const supabase = await createClient();
   const { data: su } = await supabase
@@ -438,10 +469,12 @@ export async function applyMissingChecks(formData: FormData): Promise<void> {
     due_date: initialDueDate(def, (su?.package_start_date as string | null) ?? null),
     expiry_date: null,
   }));
-  await supabase.rpc("apply_service_user_checks", { p_service_user_id: id, p_rows: rows });
+  const { error } = await supabase.rpc("apply_service_user_checks", { p_service_user_id: id, p_rows: rows });
+  if (error) return { error: error.message };
 
   revalidatePath(`/service-users/${id}`);
   revalidatePath("/service-users");
+  return { ok: "Checks applied." };
 }
 
 /**

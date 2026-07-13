@@ -4,8 +4,12 @@ import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import { writeAudit } from "@/lib/audit";
 import BackLink from "@/components/back-link";
+import ActionForm from "@/components/action-form";
+import RecordHistory from "@/components/reports/record-history";
 import EditServiceUserForm from "@/components/service-users/edit-service-user-form";
 import PlannedReviewCell from "@/components/service-users/planned-review-cell";
+import { featureEnabled } from "@/lib/billing/tier";
+import { getRecordAuditTrail } from "@/lib/audit-log/data";
 import {
   getServiceUser,
   getServiceUserChecks,
@@ -90,6 +94,12 @@ export default async function ServiceUserPage({
       getServiceUserBranchType(id),
       getComplexReviewInterval(companyId),
     ]);
+
+  // History timeline (managers/admins, via the record_audit_trail RPC) + export gate.
+  const [auditTrail, exportsEnabled] = await Promise.all([
+    canManage ? getRecordAuditTrail("service_user", id) : Promise.resolve([]),
+    featureEnabled(companyId, "reporting_exports"),
+  ]);
 
   const statusByDef = new Map<string, SuCheckStatus>(statuses.map((s) => [s.definition_id, s]));
   const reviewDef = definitions.find((d) => d.key === "care_plan_review");
@@ -248,10 +258,13 @@ export default async function ServiceUserPage({
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Checks</h2>
               {canManage && missingCount > 0 ? (
-                <form action={applyMissingChecks}>
-                  <input type="hidden" name="service_user_id" value={serviceUser.id} />
-                  <button type="submit" className="btn-outline text-xs">Apply {missingCount} missing</button>
-                </form>
+                <ActionForm
+                  action={applyMissingChecks}
+                  hidden={{ service_user_id: serviceUser.id }}
+                  label={`Apply ${missingCount} missing`}
+                  buttonClassName="btn-outline text-xs"
+                  className=""
+                />
               ) : null}
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -291,14 +304,24 @@ export default async function ServiceUserPage({
         ) : (
           <div className="glass-card divide-y divide-white/5">
             {evidence.map((e) => (
-              <div key={e.id} className="flex items-center justify-between px-5 py-3 text-sm">
+              <div key={e.id} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
                 <span className="text-white/85">{formatDisplayDate(e.submitted_at.slice(0, 10))}</span>
-                <span className="text-white/50">{e.author_name ?? "Unknown"}</span>
+                <span className="flex items-center gap-3">
+                  <span className="text-white/50">{e.author_name ?? "Unknown"}</span>
+                  <a href={`/api/evidence/${e.id}/pdf`} className="btn-outline px-2.5 py-1 text-[11px]">
+                    PDF
+                  </a>
+                </span>
               </div>
             ))}
           </div>
         )}
       </section>
+
+      {/* History timeline (managers/admins). Oldest at top, newest at bottom. */}
+      {canManage ? (
+        <RecordHistory recordType="service_user" recordId={serviceUser.id} entries={auditTrail} entitled={exportsEnabled} />
+      ) : null}
 
       {/* Management */}
       {canManage ? (
@@ -308,14 +331,12 @@ export default async function ServiceUserPage({
             <EditServiceUserForm serviceUser={serviceUser} />
 
             <div className="grid gap-5 sm:grid-cols-2">
-              <form action={transferServiceUser} className="space-y-2">
-                <input type="hidden" name="service_user_id" value={serviceUser.id} />
+              <ActionForm action={transferServiceUser} hidden={{ service_user_id: serviceUser.id }} label="Transfer" buttonClassName="btn-outline text-xs">
                 <label htmlFor="transfer_branch" className="form-label">Transfer to branch</label>
                 <select id="transfer_branch" name="branch_id" defaultValue={serviceUser.branch_id}>
                   {branchOptions.map((b) => (<option key={b.id} value={b.id}>{b.name}</option>))}
                 </select>
-                <button type="submit" className="btn-outline text-xs">Transfer</button>
-              </form>
+              </ActionForm>
 
               <div className="space-y-2">
                 <span className="form-label">Caseload</span>
@@ -324,46 +345,46 @@ export default async function ServiceUserPage({
                     <span className="text-xs text-white/50">No one assigned.</span>
                   ) : (
                     assignments.map((a) => (
-                      <form key={a.id} action={unassignServiceUserSupervisor} className="flex items-center justify-between gap-2">
-                        <input type="hidden" name="service_user_id" value={serviceUser.id} />
-                        <input type="hidden" name="user_id" value={a.id} />
+                      <div key={a.id} className="flex items-center justify-between gap-2">
                         <span className="text-xs text-white/80">{a.full_name || a.email}</span>
-                        <button type="submit" className="btn-ghost text-[11px]">Remove</button>
-                      </form>
+                        <ActionForm
+                          action={unassignServiceUserSupervisor}
+                          hidden={{ service_user_id: serviceUser.id, user_id: a.id }}
+                          label="Remove"
+                          buttonClassName="btn-ghost text-[11px]"
+                          className=""
+                        />
+                      </div>
                     ))
                   )}
                 </div>
-                <form action={assignServiceUserSupervisor} className="flex items-end gap-2">
-                  <input type="hidden" name="service_user_id" value={serviceUser.id} />
+                <ActionForm action={assignServiceUserSupervisor} hidden={{ service_user_id: serviceUser.id }} inline label="Assign" buttonClassName="btn-outline text-xs">
                   <select name="user_id" defaultValue="" aria-label="Assign a user">
                     <option value="" disabled>Assign a user</option>
                     {users.map((u) => (<option key={u.id} value={u.id}>{u.full_name || u.email}</option>))}
                   </select>
-                  <button type="submit" className="btn-outline text-xs">Assign</button>
-                </form>
+                </ActionForm>
               </div>
             </div>
 
             <div className="flex flex-wrap items-end gap-3 border-t border-white/10 pt-4">
-              <form action={setServiceStatus} className="flex items-end gap-2">
-                <input type="hidden" name="service_user_id" value={serviceUser.id} />
-                <div>
-                  <label htmlFor="service_status" className="form-label">Service status</label>
-                  <select id="service_status" name="status" defaultValue={serviceUser.service_status}>
-                    {(Object.keys(SERVICE_STATUS_LABELS) as ServiceStatus[]).map((k) => (
-                      <option key={k} value={k}>{SERVICE_STATUS_LABELS[k]}</option>
-                    ))}
-                  </select>
-                </div>
-                <button type="submit" className="btn-primary text-xs">Save status</button>
-              </form>
+              <ActionForm action={setServiceStatus} hidden={{ service_user_id: serviceUser.id }} inline label="Save status">
+                <label htmlFor="service_status" className="form-label">Service status</label>
+                <select id="service_status" name="status" defaultValue={serviceUser.service_status}>
+                  {(Object.keys(SERVICE_STATUS_LABELS) as ServiceStatus[]).map((k) => (
+                    <option key={k} value={k}>{SERVICE_STATUS_LABELS[k]}</option>
+                  ))}
+                </select>
+              </ActionForm>
               {/* Archive is only offered once a Service User is Cancelled. */}
               {serviceUser.archived_at || serviceUser.service_status === "cancelled" ? (
-                <form action={setServiceStatus}>
-                  <input type="hidden" name="service_user_id" value={serviceUser.id} />
-                  <input type="hidden" name="status" value={serviceUser.archived_at ? "cancelled" : "archive"} />
-                  <button type="submit" className="btn-ghost text-xs">{serviceUser.archived_at ? "Restore" : "Archive"}</button>
-                </form>
+                <ActionForm
+                  action={setServiceStatus}
+                  hidden={{ service_user_id: serviceUser.id, status: serviceUser.archived_at ? "cancelled" : "archive" }}
+                  label={serviceUser.archived_at ? "Restore" : "Archive"}
+                  buttonClassName="btn-ghost text-xs"
+                  className=""
+                />
               ) : null}
             </div>
           </div>

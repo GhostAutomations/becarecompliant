@@ -171,15 +171,25 @@ export async function updatePerson(_prev: ActionState, formData: FormData): Prom
 }
 
 /** Transfer a Record to another branch (its checks follow via the DB trigger). */
-export async function transferPerson(formData: FormData): Promise<void> {
+export async function transferPerson(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const { user, profile } = await requireCompany();
   const personId = String(formData.get("person_id") ?? "");
   const branchId = String(formData.get("branch_id") ?? "");
-  if (!personId || !branchId) return;
+  if (!personId || !branchId) return { error: "Choose a branch." };
 
   const supabase = await createClient();
-  const { error } = await supabase.from("people").update({ branch_id: branchId }).eq("id", personId);
-  if (error) return;
+  const { data, error } = await supabase
+    .from("people")
+    .update({ branch_id: branchId })
+    .eq("id", personId)
+    .select("id");
+  if (error) return { error: error.message };
+  if (!data || data.length === 0) {
+    return { error: "No change was saved. You may not have permission." };
+  }
 
   await writeAudit({
     companyId: profile.company_id ?? "",
@@ -195,25 +205,31 @@ export async function transferPerson(formData: FormData): Promise<void> {
 
   revalidatePath(`/people/${personId}`);
   revalidatePath("/people");
+  return { ok: "Transferred." };
 }
 
 /** Mark a Record as a leaver (excluded from the active register) or reactivate it. */
-export async function setEmploymentStatus(formData: FormData): Promise<void> {
+export async function setEmploymentStatus(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const { user, profile } = await requireCompany();
   const personId = String(formData.get("person_id") ?? "");
   const status = String(formData.get("status") ?? "");
-  if (!personId) return;
+  if (!personId) return { error: "Missing record." };
 
   const supabase = await createClient();
 
   // "archive" is offered on the Status pill only in the Leavers view: it archives the
   // leaver (sets archived_at) rather than changing employment_status.
   if (status === "archive") {
-    const { error: archErr } = await supabase
+    const { data, error: archErr } = await supabase
       .from("people")
       .update({ archived_at: new Date().toISOString() })
-      .eq("id", personId);
-    if (archErr) return;
+      .eq("id", personId)
+      .select("id");
+    if (archErr) return { error: archErr.message };
+    if (!data || data.length === 0) return { error: "No change was saved. You may not have permission." };
     await writeAudit({
       companyId: profile.company_id ?? "",
       actorId: user.id,
@@ -226,19 +242,23 @@ export async function setEmploymentStatus(formData: FormData): Promise<void> {
     });
     revalidatePath(`/people/${personId}`);
     revalidatePath("/people");
-    return;
+    return { ok: "Archived." };
   }
 
-  if (!["active", "mat_leave", "lts", "leaver"].includes(status)) return;
+  if (!["active", "mat_leave", "lts", "leaver"].includes(status)) {
+    return { error: "Choose a valid status." };
+  }
 
   const leaver_date = status === "leaver" ? todayIso() : null;
   // Setting a working status also un-archives: changing the Status pill (e.g. back to
   // Active) brings an archived person back into the relevant view, not stuck in Archive.
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("people")
     .update({ employment_status: status, leaver_date, archived_at: null })
-    .eq("id", personId);
-  if (error) return;
+    .eq("id", personId)
+    .select("id");
+  if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "No change was saved. You may not have permission." };
 
   await writeAudit({
     companyId: profile.company_id ?? "",
@@ -254,21 +274,27 @@ export async function setEmploymentStatus(formData: FormData): Promise<void> {
 
   revalidatePath(`/people/${personId}`);
   revalidatePath("/people");
+  return { ok: "Saved." };
 }
 
 /** Archive or restore a Record. */
-export async function setArchived(formData: FormData): Promise<void> {
+export async function setArchived(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const { user, profile } = await requireCompany();
   const personId = String(formData.get("person_id") ?? "");
   const archive = String(formData.get("archive") ?? "") === "true";
-  if (!personId) return;
+  if (!personId) return { error: "Missing record." };
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("people")
     .update({ archived_at: archive ? new Date().toISOString() : null })
-    .eq("id", personId);
-  if (error) return;
+    .eq("id", personId)
+    .select("id");
+  if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "No change was saved. You may not have permission." };
 
   await writeAudit({
     companyId: profile.company_id ?? "",
@@ -283,20 +309,24 @@ export async function setArchived(formData: FormData): Promise<void> {
 
   revalidatePath(`/people/${personId}`);
   revalidatePath("/people");
+  return { ok: archive ? "Archived." : "Restored." };
 }
 
 /** Assign a user to a Record's caseload (Supervisor visibility). */
-export async function assignSupervisor(formData: FormData): Promise<void> {
+export async function assignSupervisor(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const { user, profile } = await requireCompany();
   const personId = String(formData.get("person_id") ?? "");
   const userId = String(formData.get("user_id") ?? "");
-  if (!personId || !userId || !profile.company_id) return;
+  if (!personId || !userId || !profile.company_id) return { error: "Choose a user to assign." };
 
   const supabase = await createClient();
   const { error } = await supabase
     .from("person_assignments")
     .insert({ company_id: profile.company_id, person_id: personId, user_id: userId, created_by: user.id });
-  if (error && error.code !== "23505") return;
+  if (error && error.code !== "23505") return { error: error.message };
 
   await writeAudit({
     companyId: profile.company_id,
@@ -311,20 +341,25 @@ export async function assignSupervisor(formData: FormData): Promise<void> {
   });
 
   revalidatePath(`/people/${personId}`);
+  return { ok: "Assigned." };
 }
 
-export async function unassignSupervisor(formData: FormData): Promise<void> {
+export async function unassignSupervisor(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const { user, profile } = await requireCompany();
   const personId = String(formData.get("person_id") ?? "");
   const userId = String(formData.get("user_id") ?? "");
-  if (!personId || !userId) return;
+  if (!personId || !userId) return { error: "Missing assignment." };
 
   const supabase = await createClient();
-  await supabase
+  const { error } = await supabase
     .from("person_assignments")
     .delete()
     .eq("person_id", personId)
     .eq("user_id", userId);
+  if (error) return { error: error.message };
 
   await writeAudit({
     companyId: profile.company_id ?? "",
@@ -339,13 +374,17 @@ export async function unassignSupervisor(formData: FormData): Promise<void> {
   });
 
   revalidatePath(`/people/${personId}`);
+  return { ok: "Removed." };
 }
 
 /** Re-apply any missing active definitions to a Record (idempotent). */
-export async function applyMissingChecks(formData: FormData): Promise<void> {
+export async function applyMissingChecks(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const { profile } = await requireCompany();
   const personId = String(formData.get("person_id") ?? "");
-  if (!personId || !profile.company_id) return;
+  if (!personId || !profile.company_id) return { error: "Missing record." };
 
   const supabase = await createClient();
   const { data: person } = await supabase.from("people").select("start_date").eq("id", personId).maybeSingle();
@@ -357,9 +396,11 @@ export async function applyMissingChecks(formData: FormData): Promise<void> {
     due_date: initialDueDate(def, startDate),
     expiry_date: null,
   }));
-  await supabase.rpc("apply_person_checks", { p_person_id: personId, p_rows: rows });
+  const { error } = await supabase.rpc("apply_person_checks", { p_person_id: personId, p_rows: rows });
+  if (error) return { error: error.message };
 
   revalidatePath(`/people/${personId}`);
+  return { ok: "Checks applied." };
 }
 
 /** Adjust a People check from Settings: recurring checks store "every X days"
@@ -614,10 +655,13 @@ export async function updateColumnLabels(formData: FormData): Promise<ActionStat
 /** Save one tracker card (DBS, Right to Work or Probation) for a carer. Only the
  *  fields present in the submitted card are patched, so the three cards save
  *  independently. Managers/Admins only (RLS). Audit logged; no evidence form. */
-export async function updateTracker(formData: FormData): Promise<void> {
+export async function updateTracker(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const { user, profile } = await requireCompany();
   const personId = String(formData.get("person_id") ?? "");
-  if (!personId) return;
+  if (!personId) return { error: "Missing record." };
 
   const patch: Record<string, unknown> = { updated_by: user.id };
   const dateFields = [
@@ -649,8 +693,13 @@ export async function updateTracker(formData: FormData): Promise<void> {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.from("person_trackers").update(patch).eq("person_id", personId);
-  if (error) return;
+  const { data, error } = await supabase
+    .from("person_trackers")
+    .update(patch)
+    .eq("person_id", personId)
+    .select("person_id");
+  if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "No change was saved. You may not have permission." };
 
   await writeAudit({
     companyId: profile.company_id ?? "",
@@ -665,6 +714,7 @@ export async function updateTracker(formData: FormData): Promise<void> {
 
   revalidatePath(`/people/${personId}`);
   revalidatePath("/people");
+  return { ok: "Saved." };
 }
 
 /**

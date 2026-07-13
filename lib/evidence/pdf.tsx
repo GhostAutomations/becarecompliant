@@ -80,8 +80,72 @@ function formatWhen(d: Date): string {
   }).format(d);
 }
 
-function EvidenceDocument({ schema, answers, meta }: { schema: FormSchema; answers: Answers; meta: EvidencePdfMeta }) {
+/**
+ * One evidence entry: title, meta grid and answered sections. Exported so the
+ * Phase 8 Evidence pack can render many evidences into a single Document with the
+ * exact same layout as a standalone evidence PDF (no divergence, one source).
+ */
+export function EvidenceEntry({ schema, answers, meta }: { schema: FormSchema; answers: Answers; meta: EvidencePdfMeta }) {
   const author = meta.authorName || meta.authorEmail || "Not recorded";
+  return (
+    <>
+      <Text style={styles.title}>{meta.formName}</Text>
+
+      <View style={styles.metaGrid}>
+        <View style={styles.metaCell}>
+          <Text style={styles.metaLabel}>Company</Text>
+          <Text style={styles.metaValue}>{meta.companyName}</Text>
+        </View>
+        <View style={styles.metaCell}>
+          <Text style={styles.metaLabel}>Branch</Text>
+          <Text style={styles.metaValue}>{meta.branchName || "Not set"}</Text>
+        </View>
+        <View style={styles.metaCell}>
+          <Text style={styles.metaLabel}>Completed by</Text>
+          <Text style={styles.metaValue}>{author}</Text>
+        </View>
+        <View style={styles.metaCell}>
+          <Text style={styles.metaLabel}>Completed at (Europe/London)</Text>
+          <Text style={styles.metaValue}>{formatWhen(meta.submittedAt)}</Text>
+        </View>
+        <View style={styles.metaCell}>
+          <Text style={styles.metaLabel}>Form version</Text>
+          <Text style={styles.metaValue}>Version {meta.formVersion}</Text>
+        </View>
+        <View style={styles.metaCell}>
+          <Text style={styles.metaLabel}>Evidence reference</Text>
+          <Text style={styles.metaValue}>{meta.evidenceRef}</Text>
+        </View>
+      </View>
+
+      {schema.sections.map((section) => {
+        const visible = section.fields.filter((f) => isFieldVisible(f, answers));
+        if (visible.length === 0) return null;
+        return (
+          <View key={section.id} style={styles.section} wrap={false}>
+            <Text style={styles.sectionTitle}>{section.title}</Text>
+            {visible.map((field) =>
+              isPresentational(field.type) ? (
+                <Text key={field.key} style={styles.subHeading}>
+                  {field.label}
+                </Text>
+              ) : (
+                <View key={field.key} style={styles.fieldRow}>
+                  <Text style={styles.fieldLabel}>{field.label}</Text>
+                  <Text style={styles.fieldValue}>
+                    {formatAnswerForDisplay(field, answers[field.key])}
+                  </Text>
+                </View>
+              ),
+            )}
+          </View>
+        );
+      })}
+    </>
+  );
+}
+
+function EvidenceDocument({ schema, answers, meta }: { schema: FormSchema; answers: Answers; meta: EvidencePdfMeta }) {
   return (
     <Document title={`${meta.formName} evidence`} author="Be Care Compliant">
       <Page size="A4" style={styles.page}>
@@ -93,54 +157,7 @@ function EvidenceDocument({ schema, answers, meta }: { schema: FormSchema; answe
           <Text style={styles.evidenceTag}>Evidence reference{"\n"}{meta.evidenceRef}</Text>
         </View>
 
-        <Text style={styles.title}>{meta.formName}</Text>
-
-        <View style={styles.metaGrid}>
-          <View style={styles.metaCell}>
-            <Text style={styles.metaLabel}>Company</Text>
-            <Text style={styles.metaValue}>{meta.companyName}</Text>
-          </View>
-          <View style={styles.metaCell}>
-            <Text style={styles.metaLabel}>Branch</Text>
-            <Text style={styles.metaValue}>{meta.branchName || "Not set"}</Text>
-          </View>
-          <View style={styles.metaCell}>
-            <Text style={styles.metaLabel}>Completed by</Text>
-            <Text style={styles.metaValue}>{author}</Text>
-          </View>
-          <View style={styles.metaCell}>
-            <Text style={styles.metaLabel}>Completed at (Europe/London)</Text>
-            <Text style={styles.metaValue}>{formatWhen(meta.submittedAt)}</Text>
-          </View>
-          <View style={styles.metaCell}>
-            <Text style={styles.metaLabel}>Form version</Text>
-            <Text style={styles.metaValue}>Version {meta.formVersion}</Text>
-          </View>
-        </View>
-
-        {schema.sections.map((section) => {
-          const visible = section.fields.filter((f) => isFieldVisible(f, answers));
-          if (visible.length === 0) return null;
-          return (
-            <View key={section.id} style={styles.section} wrap={false}>
-              <Text style={styles.sectionTitle}>{section.title}</Text>
-              {visible.map((field) =>
-                isPresentational(field.type) ? (
-                  <Text key={field.key} style={styles.subHeading}>
-                    {field.label}
-                  </Text>
-                ) : (
-                  <View key={field.key} style={styles.fieldRow}>
-                    <Text style={styles.fieldLabel}>{field.label}</Text>
-                    <Text style={styles.fieldValue}>
-                      {formatAnswerForDisplay(field, answers[field.key])}
-                    </Text>
-                  </View>
-                ),
-              )}
-            </View>
-          );
-        })}
+        <EvidenceEntry schema={schema} answers={answers} meta={meta} />
 
         <View style={styles.footer} fixed>
           <Text style={styles.footerText}>

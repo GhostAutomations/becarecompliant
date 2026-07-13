@@ -3,7 +3,7 @@ import Link from "next/link";
 import { requirePlatformAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { CreateCompanyForm } from "@/components/founder/create-company-form";
-import { setCompanyStatus } from "./actions";
+import { CompanyStatusButton } from "@/components/founder/company-status-button";
 import { computeSeatUsage, formatPence } from "@/lib/billing/seats";
 import { TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
 
@@ -127,6 +127,13 @@ export default async function FounderPage() {
             billing reads from this.
           </p>
         </Link>
+        <Link href="/founder/audit" className="app-tile">
+          <h2 className="text-base font-semibold text-white">Audit console</h2>
+          <p className="text-sm text-white/60">
+            Every change across every company, who made it and when. Filter and export
+            for an inspector.
+          </p>
+        </Link>
       </section>
 
       <section aria-label="Companies" className="space-y-3">
@@ -179,32 +186,13 @@ export default async function FounderPage() {
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       {company.status !== "active" ? (
-                        <form action={setCompanyStatus}>
-                          <input type="hidden" name="company_id" value={company.id} />
-                          <input type="hidden" name="status" value="active" />
-                          <button type="submit" className="btn-ghost px-3 py-1.5 text-xs">
-                            Activate
-                          </button>
-                        </form>
+                        <CompanyStatusButton companyId={company.id} status="active" label="Activate" />
                       ) : null}
-                      {company.status !== "suspended" &&
-                      company.status !== "archived" ? (
-                        <form action={setCompanyStatus}>
-                          <input type="hidden" name="company_id" value={company.id} />
-                          <input type="hidden" name="status" value="suspended" />
-                          <button type="submit" className="btn-ghost px-3 py-1.5 text-xs">
-                            Suspend
-                          </button>
-                        </form>
+                      {company.status !== "suspended" && company.status !== "archived" ? (
+                        <CompanyStatusButton companyId={company.id} status="suspended" label="Suspend" />
                       ) : null}
                       {company.status !== "archived" ? (
-                        <form action={setCompanyStatus}>
-                          <input type="hidden" name="company_id" value={company.id} />
-                          <input type="hidden" name="status" value="archived" />
-                          <button type="submit" className="btn-ghost px-3 py-1.5 text-xs">
-                            Archive
-                          </button>
-                        </form>
+                        <CompanyStatusButton companyId={company.id} status="archived" label="Archive" />
                       ) : null}
                     </div>
                   </div>

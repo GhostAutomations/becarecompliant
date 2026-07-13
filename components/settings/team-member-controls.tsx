@@ -3,13 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import { useActionState } from "react";
 import { useRouter } from "next/navigation";
-import { saveTeamMember, setUserStatus, deleteUser } from "@/app/(app)/settings/actions";
+import { saveTeamMember, setUserStatus } from "@/app/(app)/settings/actions";
 import { IDLE_STATE } from "@/lib/forms";
+import DeleteUserDialog from "@/components/settings/delete-user-dialog";
 
 type Branch = { id: string; name: string };
 
 export default function TeamMemberControls({
   userId,
+  userLabel,
   role,
   status,
   primaryBranchId,
@@ -17,6 +19,7 @@ export default function TeamMemberControls({
   branches,
 }: {
   userId: string;
+  userLabel: string;
   role: string;
   status: string;
   primaryBranchId: string | null;
@@ -25,6 +28,11 @@ export default function TeamMemberControls({
 }) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState(saveTeamMember, IDLE_STATE);
+  const [statusState, statusAction, statusPending] = useActionState(setUserStatus, IDLE_STATE);
+
+  useEffect(() => {
+    if (statusState.ok) router.refresh();
+  }, [statusState.ok, router]);
   const [roleValue, setRoleValue] = useState(role);
   const [primary, setPrimary] = useState(primaryBranchId ?? "");
   const [additional, setAdditional] = useState<string[]>(additionalBranchIds);
@@ -134,33 +142,19 @@ export default function TeamMemberControls({
       </form>
 
       <div className="flex items-end gap-2">
-        <form action={setUserStatus}>
+        <form action={statusAction}>
           <input type="hidden" name="user_id" value={userId} />
           <input type="hidden" name="status" value={status === "active" ? "disabled" : "active"} />
-          <button type="submit" className="btn-outline h-[42px] text-xs">
-            {status === "active" ? "Disable" : "Enable"}
+          <button type="submit" disabled={statusPending} className="btn-outline h-[42px] text-xs">
+            {statusPending ? "Saving…" : status === "active" ? "Disable" : "Enable"}
           </button>
         </form>
-        <form
-          action={deleteUser}
-          onSubmit={(e) => {
-            if (!confirm("Delete this user? This removes their login and cannot be undone.")) {
-              e.preventDefault();
-            }
-          }}
-        >
-          <input type="hidden" name="user_id" value={userId} />
-          <button
-            type="submit"
-            className="btn-outline h-[42px] border-rag-red/40 text-xs text-rag-red-soft hover:bg-rag-red/10"
-          >
-            Delete user
-          </button>
-        </form>
+        <DeleteUserDialog userId={userId} userLabel={userLabel} />
       </div>
       </div>
 
       {state.error ? <p className="form-error">{state.error}</p> : null}
+      {statusState.error ? <p className="form-error">{statusState.error}</p> : null}
     </div>
   );
 }

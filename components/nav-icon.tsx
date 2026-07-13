@@ -58,6 +58,14 @@ export function NavIcon({
           <path d="M9 12l2 2 4-4" />
         </svg>
       );
+    case "reports":
+      return (
+        <svg {...common}>
+          <path d="M7 3h7l4 4v14a1 1 0 01-1 1H7a1 1 0 01-1-1V4a1 1 0 011-1z" />
+          <path d="M14 3v4h4" />
+          <path d="M9 13h6M9 16.5h6M9 9.5h2" />
+        </svg>
+      );
     case "holiday":
       return (
         <svg {...common}>

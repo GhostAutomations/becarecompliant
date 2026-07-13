@@ -3,7 +3,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
+import ActionForm from "@/components/action-form";
+import RecordHistory from "@/components/reports/record-history";
 import EditPersonForm from "@/components/people/edit-person-form";
+import { featureEnabled } from "@/lib/billing/tier";
+import { getRecordAuditTrail } from "@/lib/audit-log/data";
 import {
   getPerson,
   getPersonChecks,
@@ -98,6 +102,13 @@ export default async function PersonPage({
     listPersonHolidays(id),
     listPersonAbsences(id),
     listPersonMeetings(id),
+  ]);
+
+  // The history timeline uses the record_audit_trail RPC (guarded by
+  // can_manage_person), so only fetch it for managers/admins. Exports are Pro+.
+  const [auditTrail, exportsEnabled] = await Promise.all([
+    canManage ? getRecordAuditTrail("person", id) : Promise.resolve([]),
+    featureEnabled(companyId, "reporting_exports"),
   ]);
 
   const supDef = definitions.find((d) => d.key === "supervision");
@@ -197,10 +208,13 @@ export default async function PersonPage({
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Checks</h2>
               {canManage && missingCount > 0 ? (
-                <form action={applyMissingChecks}>
-                  <input type="hidden" name="person_id" value={person.id} />
-                  <button type="submit" className="btn-outline text-xs">Apply {missingCount} missing</button>
-                </form>
+                <ActionForm
+                  action={applyMissingChecks}
+                  hidden={{ person_id: person.id }}
+                  label={`Apply ${missingCount} missing`}
+                  buttonClassName="btn-outline text-xs"
+                  className=""
+                />
               ) : null}
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -261,9 +275,13 @@ export default async function PersonPage({
                 <div className="flex justify-between"><dt className="text-white/50">Expiry</dt><dd className="text-white/85">{formatDisplayDate(tracker?.rtw_expiry_date ?? null) || "—"}</dd></div>
               </dl>
               {canManage ? (
-                <form action={updateTracker} className="mt-3 flex items-end gap-2">
-                  <input type="hidden" name="person_id" value={person.id} />
-                  <div className="flex-1">
+                <div className="mt-3">
+                  <ActionForm
+                    action={updateTracker}
+                    hidden={{ person_id: person.id }}
+                    inline
+                    buttonClassName="btn-outline text-xs"
+                  >
                     <label htmlFor="rtw_limits" className="form-label">Limits</label>
                     <select id="rtw_limits" name="rtw_limits" defaultValue={tracker?.rtw_limits ?? ""}>
                       <option value="">Not set</option>
@@ -271,9 +289,8 @@ export default async function PersonPage({
                         <option key={k} value={k}>{RTW_LIMIT_LABELS[k]}</option>
                       ))}
                     </select>
-                  </div>
-                  <button type="submit" className="btn-outline text-xs">Save</button>
-                </form>
+                  </ActionForm>
+                </div>
               ) : (
                 <div className="mt-2 flex justify-between text-sm"><span className="text-white/50">Limits</span><span className="text-white/85">{tracker?.rtw_limits ? RTW_LIMIT_LABELS[tracker.rtw_limits] : "—"}</span></div>
               )}
@@ -295,9 +312,13 @@ export default async function PersonPage({
                 <div className="flex justify-between"><dt className="text-white/50">Extension</dt><dd className="text-white/85">{formatDisplayDate(tracker?.probation_extension_date ?? null) || "—"}</dd></div>
               </dl>
               {canManage ? (
-                <form action={updateTracker} className="mt-3 flex items-end gap-2">
-                  <input type="hidden" name="person_id" value={person.id} />
-                  <div className="flex-1">
+                <div className="mt-3">
+                  <ActionForm
+                    action={updateTracker}
+                    hidden={{ person_id: person.id }}
+                    inline
+                    buttonClassName="btn-outline text-xs"
+                  >
                     <label htmlFor="probation_status" className="form-label">Status</label>
                     <select id="probation_status" name="probation_status" defaultValue={tracker?.probation_status ?? ""}>
                       <option value="">Not set</option>
@@ -305,9 +326,8 @@ export default async function PersonPage({
                         <option key={k} value={k}>{PROBATION_STATUS_LABELS[k]}</option>
                       ))}
                     </select>
-                  </div>
-                  <button type="submit" className="btn-outline text-xs">Save</button>
-                </form>
+                  </ActionForm>
+                </div>
               ) : (
                 <div className="mt-2 flex justify-between text-sm"><span className="text-white/50">Status</span><span className="text-white/85">{tracker?.probation_status ? PROBATION_STATUS_LABELS[tracker.probation_status] : "—"}</span></div>
               )}
@@ -390,14 +410,24 @@ export default async function PersonPage({
         ) : (
           <div className="glass-card divide-y divide-white/5">
             {evidence.map((e) => (
-              <div key={e.id} className="flex items-center justify-between px-5 py-3 text-sm">
+              <div key={e.id} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
                 <span className="text-white/85">{formatDisplayDate(e.submitted_at.slice(0, 10))}</span>
-                <span className="text-white/50">{e.author_name ?? "Unknown"}</span>
+                <span className="flex items-center gap-3">
+                  <span className="text-white/50">{e.author_name ?? "Unknown"}</span>
+                  <a href={`/api/evidence/${e.id}/pdf`} className="btn-outline px-2.5 py-1 text-[11px]">
+                    PDF
+                  </a>
+                </span>
               </div>
             ))}
           </div>
         )}
       </section>
+
+      {/* History timeline (managers/admins). Oldest at top, newest at bottom. */}
+      {canManage ? (
+        <RecordHistory recordType="person" recordId={person.id} entries={auditTrail} entitled={exportsEnabled} />
+      ) : null}
 
       {/* Management */}
       {canManage ? (
@@ -407,14 +437,12 @@ export default async function PersonPage({
             <EditPersonForm person={person} users={users} />
 
             <div className="grid gap-5 sm:grid-cols-2">
-              <form action={transferPerson} className="space-y-2">
-                <input type="hidden" name="person_id" value={person.id} />
+              <ActionForm action={transferPerson} hidden={{ person_id: person.id }} label="Transfer" buttonClassName="btn-outline text-xs">
                 <label htmlFor="transfer_branch" className="form-label">Transfer to branch</label>
                 <select id="transfer_branch" name="branch_id" defaultValue={person.branch_id}>
                   {branchOptions.map((b) => (<option key={b.id} value={b.id}>{b.name}</option>))}
                 </select>
-                <button type="submit" className="btn-outline text-xs">Transfer</button>
-              </form>
+              </ActionForm>
 
               <div className="space-y-2">
                 <span className="form-label">Supervisor caseload</span>
@@ -423,47 +451,47 @@ export default async function PersonPage({
                     <span className="text-xs text-white/50">No one assigned.</span>
                   ) : (
                     assignments.map((a) => (
-                      <form key={a.id} action={unassignSupervisor} className="flex items-center justify-between gap-2">
-                        <input type="hidden" name="person_id" value={person.id} />
-                        <input type="hidden" name="user_id" value={a.id} />
+                      <div key={a.id} className="flex items-center justify-between gap-2">
                         <span className="text-xs text-white/80">{a.full_name || a.email}</span>
-                        <button type="submit" className="btn-ghost text-[11px]">Remove</button>
-                      </form>
+                        <ActionForm
+                          action={unassignSupervisor}
+                          hidden={{ person_id: person.id, user_id: a.id }}
+                          label="Remove"
+                          buttonClassName="btn-ghost text-[11px]"
+                          className=""
+                        />
+                      </div>
                     ))
                   )}
                 </div>
-                <form action={assignSupervisor} className="flex items-end gap-2">
-                  <input type="hidden" name="person_id" value={person.id} />
+                <ActionForm action={assignSupervisor} hidden={{ person_id: person.id }} inline label="Assign" buttonClassName="btn-outline text-xs">
                   <select name="user_id" defaultValue="" aria-label="Assign a supervisor">
                     <option value="" disabled>Assign a user</option>
                     {users.map((u) => (<option key={u.id} value={u.id}>{u.full_name || u.email}</option>))}
                   </select>
-                  <button type="submit" className="btn-outline text-xs">Assign</button>
-                </form>
+                </ActionForm>
               </div>
             </div>
 
             <div className="flex flex-wrap items-end gap-3 border-t border-white/10 pt-4">
-              <form action={setEmploymentStatus} className="flex items-end gap-2">
-                <input type="hidden" name="person_id" value={person.id} />
-                <div>
-                  <label htmlFor="working_status" className="form-label">Working status</label>
-                  <select id="working_status" name="status" defaultValue={person.employment_status}>
-                    {(Object.keys(WORKING_STATUS_LABELS) as EmploymentStatus[]).map((k) => (
-                      <option key={k} value={k}>{WORKING_STATUS_LABELS[k]}</option>
-                    ))}
-                  </select>
-                </div>
-                <button type="submit" className="btn-primary text-xs">Save status</button>
-              </form>
+              <ActionForm action={setEmploymentStatus} hidden={{ person_id: person.id }} inline label="Save status">
+                <label htmlFor="working_status" className="form-label">Working status</label>
+                <select id="working_status" name="status" defaultValue={person.employment_status}>
+                  {(Object.keys(WORKING_STATUS_LABELS) as EmploymentStatus[]).map((k) => (
+                    <option key={k} value={k}>{WORKING_STATUS_LABELS[k]}</option>
+                  ))}
+                </select>
+              </ActionForm>
               {/* Archive is only offered once a person is a Leaver; Restore shows for
                   an archived record. Active/LTS/Mat Leave staff cannot be archived. */}
               {person.archived_at || person.employment_status === "leaver" ? (
-                <form action={setArchived}>
-                  <input type="hidden" name="person_id" value={person.id} />
-                  <input type="hidden" name="archive" value={person.archived_at ? "false" : "true"} />
-                  <button type="submit" className="btn-ghost text-xs">{person.archived_at ? "Restore" : "Archive"}</button>
-                </form>
+                <ActionForm
+                  action={setArchived}
+                  hidden={{ person_id: person.id, archive: person.archived_at ? "false" : "true" }}
+                  label={person.archived_at ? "Restore" : "Archive"}
+                  buttonClassName="btn-ghost text-xs"
+                  className=""
+                />
               ) : null}
             </div>
           </div>

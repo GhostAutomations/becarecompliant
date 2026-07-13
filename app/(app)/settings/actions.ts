@@ -96,32 +96,48 @@ export async function inviteUser(
   return { ok: `Invite emailed to ${email}.` };
 }
 
-export async function resendInviteAction(formData: FormData): Promise<void> {
+export async function resendInviteAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const ctx = await adminContext();
-  if (!ctx.ok) return;
+  if (!ctx.ok) return { error: ctx.error };
   const inviteId = String(formData.get("invite_id") ?? "");
-  if (!inviteId) return;
-  await resendInvite(inviteId, ctx.actor);
+  if (!inviteId) return { error: "Missing invite." };
+  const outcome = await resendInvite(inviteId, ctx.actor);
   revalidatePath("/settings/users");
+  if (!outcome.ok) return { error: outcome.error };
+  if (!outcome.emailSent) {
+    return { ok: `Invite updated, but the email was not sent (${outcome.emailNote ?? "email not configured"}).` };
+  }
+  return { ok: "Invite resent." };
 }
 
-export async function revokeInviteAction(formData: FormData): Promise<void> {
+export async function revokeInviteAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const ctx = await adminContext();
-  if (!ctx.ok) return;
+  if (!ctx.ok) return { error: ctx.error };
   const inviteId = String(formData.get("invite_id") ?? "");
-  if (!inviteId) return;
-  await revokeInvite(inviteId, ctx.actor);
+  if (!inviteId) return { error: "Missing invite." };
+  const outcome = await revokeInvite(inviteId, ctx.actor);
   revalidatePath("/settings/users");
+  if (!outcome.ok) return { error: outcome.error };
+  return { ok: "Invite revoked." };
 }
 
 /** Enable or disable an existing user in the admin's company. */
-export async function setUserStatus(formData: FormData): Promise<void> {
+export async function setUserStatus(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const ctx = await adminContext();
-  if (!ctx.ok) return;
+  if (!ctx.ok) return { error: ctx.error };
   const userId = String(formData.get("user_id") ?? "");
   const status = String(formData.get("status") ?? "");
-  if (!userId || !["active", "disabled"].includes(status)) return;
-  if (userId === ctx.actor.id) return; // never disable yourself
+  if (!userId || !["active", "disabled"].includes(status)) return { error: "Choose a valid status." };
+  if (userId === ctx.actor.id) return { error: "You cannot change your own status here." };
 
   const supabase = await createClient();
   const { data: target } = await supabase
@@ -129,14 +145,18 @@ export async function setUserStatus(formData: FormData): Promise<void> {
     .select("id, company_id, role")
     .eq("id", userId)
     .maybeSingle();
-  if (!target || target.company_id !== ctx.companyId) return;
-  if (target.role === "company_admin" || target.role === "platform_admin") return;
+  if (!target || target.company_id !== ctx.companyId) return { error: "User not found." };
+  if (target.role === "company_admin" || target.role === "platform_admin") {
+    return { error: "Admins are managed separately." };
+  }
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("profiles")
     .update({ status })
-    .eq("id", userId);
-  if (error) return;
+    .eq("id", userId)
+    .select("id");
+  if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "No change was saved. You may not have permission." };
 
   await writeAudit({
     companyId: ctx.companyId,
@@ -153,6 +173,7 @@ export async function setUserStatus(formData: FormData): Promise<void> {
   // (best-effort, no-op if unbilled/Diamond/Black).
   await syncSeatQuantity(ctx.companyId);
   revalidatePath("/settings/users");
+  return { ok: status === "disabled" ? "User disabled." : "User enabled." };
 }
 
 /** Save a team member's role, Primary Branch and Additional Branch Views in one go.
@@ -225,11 +246,15 @@ export async function saveTeamMember(_prev: ActionState, formData: FormData): Pr
 }
 
 /** Permanently delete a team member (removes their login and all their assignments). */
-export async function deleteUser(formData: FormData): Promise<void> {
+export async function deleteUser(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const ctx = await adminContext();
-  if (!ctx.ok) return;
+  if (!ctx.ok) return { error: ctx.error };
   const userId = String(formData.get("user_id") ?? "");
-  if (!userId || userId === ctx.actor.id) return;
+  if (!userId) return { error: "Missing user." };
+  if (userId === ctx.actor.id) return { error: "You cannot delete your own account." };
 
   const supabase = await createClient();
   const { data: target } = await supabase
@@ -237,15 +262,17 @@ export async function deleteUser(formData: FormData): Promise<void> {
     .select("id, company_id, role, email")
     .eq("id", userId)
     .maybeSingle();
-  if (!target || target.company_id !== ctx.companyId) return;
-  if (target.role === "company_admin" || target.role === "platform_admin") return;
+  if (!target || target.company_id !== ctx.companyId) return { error: "User not found." };
+  if (target.role === "company_admin" || target.role === "platform_admin") {
+    return { error: "Admins cannot be deleted here." };
+  }
 
   // Deleting the auth user cascades the profile, branch rows and assignments.
   const admin = createServiceClient();
   const { error } = await admin.auth.admin.deleteUser(userId);
   if (error) {
     console.error("[deleteUser] failed:", error.message);
-    return;
+    return { error: `The user could not be deleted: ${error.message}` };
   }
 
   await writeAudit({
@@ -261,6 +288,7 @@ export async function deleteUser(formData: FormData): Promise<void> {
   // Removing a user drops the active seat count: sync down to Stripe.
   await syncSeatQuantity(ctx.companyId);
   revalidatePath("/settings/users");
+  return { ok: "User deleted.", redirectTo: "/settings/users" };
 }
 
 /** Change a user's role (within the non-admin roles). */

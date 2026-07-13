@@ -151,20 +151,35 @@ export async function createCompany(
 }
 
 /** Suspend, archive or reactivate a company. */
-export async function setCompanyStatus(formData: FormData): Promise<void> {
+export async function setCompanyStatus(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const { user, profile } = await requirePlatformAdmin();
   const companyId = String(formData.get("company_id") ?? "");
   const status = String(formData.get("status") ?? "");
   if (!companyId || !["active", "suspended", "archived"].includes(status)) {
-    return;
+    return { error: "Choose a valid status." };
   }
 
   const supabase = await createClient();
-  const { error } = await supabase
+  // Read the previous status so the audit trail records old and new, and so a
+  // no-op (nothing updated) surfaces as a visible error rather than a silent pass.
+  const { data: before } = await supabase
+    .from("companies")
+    .select("status")
+    .eq("id", companyId)
+    .maybeSingle();
+
+  const { data, error } = await supabase
     .from("companies")
     .update({ status })
-    .eq("id", companyId);
-  if (error) return;
+    .eq("id", companyId)
+    .select("id");
+  if (error) return { error: error.message };
+  if (!data || data.length === 0) {
+    return { error: "No change was saved. The company may not exist or you may not have permission." };
+  }
 
   await writeAudit({
     companyId,
@@ -174,9 +189,10 @@ export async function setCompanyStatus(formData: FormData): Promise<void> {
     action: "company.status_changed",
     entityType: "company",
     entityId: companyId,
-    summary: `Set company status to ${status}`,
-    metadata: { status },
+    summary: `Set company status from ${before?.status ?? "unknown"} to ${status}`,
+    metadata: { status, previous_status: before?.status ?? null },
   });
 
   revalidatePath("/founder");
+  return { ok: `Status set to ${status}.` };
 }

@@ -15,7 +15,8 @@ export type NavEntry = {
     | "settings"
     | "founder"
     | "holiday"
-    | "absence";
+    | "absence"
+    | "reports";
   /** Roles allowed to see this entry. Undefined means everyone. */
   roles?: Role[];
   /** Optional sidebar section heading shown above this entry (e.g. "Departments"). */
@@ -42,6 +43,13 @@ export const NAV_ENTRIES: NavEntry[] = [
     ],
   },
   { href: "/service-users", label: "Service Users", icon: "serviceUsers", group: "Departments" },
+  {
+    href: "/reports",
+    label: "Reports",
+    icon: "reports",
+    group: "Departments",
+    roles: ["platform_admin", "company_admin", "manager"],
+  },
   {
     href: "/settings",
     label: "Settings",

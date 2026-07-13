@@ -7,6 +7,7 @@ import BackLink from "@/components/back-link";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import { InviteForm } from "@/components/settings/invite-form";
 import TeamMemberControls from "@/components/settings/team-member-controls";
+import ActionForm from "@/components/action-form";
 import { resendInviteAction, revokeInviteAction } from "../actions";
 
 export const metadata: Metadata = { title: "Users and invites" };
@@ -118,18 +119,20 @@ export default async function UsersPage() {
               </div>
               <div className="flex items-center gap-2">
                 <span className="pill-amber">Pending</span>
-                <form action={resendInviteAction}>
-                  <input type="hidden" name="invite_id" value={invite.id} />
-                  <button type="submit" className="btn-ghost px-3 py-1.5 text-xs">
-                    Resend
-                  </button>
-                </form>
-                <form action={revokeInviteAction}>
-                  <input type="hidden" name="invite_id" value={invite.id} />
-                  <button type="submit" className="btn-ghost px-3 py-1.5 text-xs">
-                    Revoke
-                  </button>
-                </form>
+                <ActionForm
+                  action={resendInviteAction}
+                  hidden={{ invite_id: invite.id }}
+                  label="Resend"
+                  buttonClassName="btn-ghost px-3 py-1.5 text-xs"
+                  className=""
+                />
+                <ActionForm
+                  action={revokeInviteAction}
+                  hidden={{ invite_id: invite.id }}
+                  label="Revoke"
+                  buttonClassName="btn-ghost px-3 py-1.5 text-xs"
+                  className=""
+                />
               </div>
             </div>
           ))
@@ -189,6 +192,7 @@ export default async function UsersPage() {
                 {canManage ? (
                   <TeamMemberControls
                     userId={u.id}
+                    userLabel={u.full_name || u.email}
                     role={u.role}
                     status={u.status}
                     primaryBranchId={primaryId}
