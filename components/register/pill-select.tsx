@@ -12,6 +12,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
+import { IDLE_STATE, type ActionState } from "@/lib/forms";
 
 export type Tone = "green" | "amber" | "red" | "neutral";
 
@@ -41,7 +42,7 @@ export function PillSelect({
   field: string;
   value: string | null;
   options: Array<{ value: string; label: string }>;
-  action: (formData: FormData) => Promise<void>;
+  action: (prev: ActionState, formData: FormData) => Promise<ActionState>;
   toneOf: (value: string | null) => Tone;
   /** Optional per-value toast (e.g. "Moved to Cancelled") shown when chosen. */
   moveToast?: Record<string, string>;
@@ -107,7 +108,13 @@ export function PillSelect({
     fd.set(recordField, recordId);
     fd.set(field, v);
     startTransition(async () => {
-      await action(fd);
+      const res = await action(IDLE_STATE, fd);
+      // Surface a refused inline save (e.g. an RLS no-op) rather than silently
+      // reverting: dispatch the error to the toast host and drop the optimistic value.
+      if (res && res.error) {
+        window.dispatchEvent(new CustomEvent("bcc:toast", { detail: { message: res.error } }));
+        setOptimistic(null);
+      }
       router.refresh();
     });
   }
