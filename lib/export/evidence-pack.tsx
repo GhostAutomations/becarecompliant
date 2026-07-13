@@ -235,7 +235,10 @@ export async function getEvidencePackData(
       branchName,
       recordName,
       recordKind: recordType === "person" ? "Person" : "Service User",
-      evidence: (evidence as PackEvidence[]) ?? [],
+      // Supabase infers the nested to-one relations (form_versions, forms,
+      // branches) as arrays in the query type, but at runtime they are single
+      // objects, so cast through unknown to the real PackEvidence shape.
+      evidence: (evidence as unknown as PackEvidence[]) ?? [],
     },
   };
 }
