@@ -9,8 +9,21 @@
 - D1/D2/D3 portal: PASS (Stripe portal test mode; correct customer Thistle Care Wales / ppdavies@gmail.com; invoice 13 Jul £199.00 Paid; Cancel option present).
 - Gotcha found + fixed during test: STRIPE_PRICE_* were set to product NAMES not price_ IDs ("No such price: 'Be Care Compliant Enterprise'"); corrected to price_ IDs + redeploy. Code surfaced the error visibly (no silent failure), as designed.
 - C1/C2 seat increase: PASS (Thistle 3 -> 4 -> 5 active via two accepted invites; seat_quantity 0 -> 1; two customer.subscription.updated events processed; £5 seat line added on Stripe).
-- C3 seat decrease: hooked into setUserStatus (disable/enable) + deleteUser (app/(app)/settings/actions.ts) after C1 test revealed only the accept path was wired; deploy + test disable a 5th user -> seat_quantity back to 0.
-- STILL TO RUN: C3 decrease (after deploy), D4 cancel, E1/E2/E4 webhook signature+fail-closed+payment_failed, F Diamond/Black + A3/A4 gating (need test companies at those tiers), G1 single-session live.
+- C3 seat decrease: PASS (disable a 5th user -> active 5->4, seat_quantity 1->0, customer.subscription.updated processed). Hook added to setUserStatus + deleteUser after C1 revealed only the accept path was wired (deployed commit 75a7112).
+- Delete path seat sync: PASS (deleted a test user -> deleteUser ran syncSeatQuantity; active 4->3, seat_quantity 0).
+- Live Users/invites list (0057, Additions pulled into Phase 7): DEPLOYED; eyeball the pending/team list updating with no refresh on accept/disable/delete.
+- A3 form-builder gating: PASS (tested by temporarily flipping Thistle tier, reverted to enterprise). Business shows the "available on Pro and above" upgrade card; Pro/Enterprise show the builder.
+- F1 Black display: PASS ("Everything included, with nothing to pay", no billing buttons).
+- F2 Diamond display: PASS ("usage only", this-month SMS/AI usage, Manage billing).
+- Business/Pro billing display: PASS (£49 / builder-unlocked at Pro).
+- D4 cancel subscription: PASS (portal Cancel -> customer.subscription.deleted processed -> company_billing.subscription_status=canceled; cancel modal confirmed BOTH Stripe line items present incl. the £5 Extra Seat, proving the seat item is attached). Thistle left cancelled in TEST mode; re-subscribe via the Subscribe button anytime.
+- CANNOT be tested from this environment (need Stripe CLI / test clock / second device); log to Final Testing:
+  - E1 webhook bad signature -> 400: run `stripe listen`/`stripe trigger` with a wrong secret, or POST a tampered body. Code path: constructEvent throws -> 400 (verified by reading).
+  - E2 webhook fail-closed 503 when STRIPE_WEBHOOK_SECRET missing: code-verified (route returns 503 before verifying); cannot unset the live secret without breaking the endpoint.
+  - E4 invoice.payment_failed -> past_due: use a Stripe test clock or CLI `stripe trigger invoice.payment_failed` against a real subscription; expect subscription_status past_due + audit billing.payment_failed.
+  - F3/F4 Diamond usage cron: needs a Diamond company with prior-month usage_events and a Bearer CRON_SECRET call to /api/cron/stripe-usage; verify one invoice item per kind + billing_usage_runs idempotency. Also confirm the Diamond per-unit rate decision first.
+  - A4 AI gating live + SMS gating live: same requireFeature pattern as A3 (verified); AI needs a policy uploaded to click, SMS needs Twilio (already in Final Testing).
+  - G1 single-session cross-device: code-verified (login claims session; requireUser signs stale sessions out to /login?reason=signed-out-elsewhere). Eyeball on a second device.
 
 
 
