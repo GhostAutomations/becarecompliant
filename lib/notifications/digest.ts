@@ -26,7 +26,14 @@ export function londonDateIso(now: Date = new Date()): string {
   return formatCivilDate(todayInLondon(now));
 }
 
-/** True when it is 07:00 in London: the cron gate (two UTC schedules fire). */
+/**
+ * The cron gate: true from 07:00 London onwards, false before. Two UTC
+ * schedules fire (06:00 and 07:00): whichever lands at 07:00 London sends,
+ * the winter 06:00-London run is refused. Sends AFTER 07:00 also pass, which
+ * makes Vercel's manual "Run" button work at any time of day and lets a
+ * missed morning self-heal: the per-day dedupe keys in notification_log mean
+ * a day that already sent can never send twice (Phil, 2026-07-13).
+ */
 export function isLondonSendHour(now: Date = new Date(), sendHour = 7): boolean {
   const hour = Number(
     new Intl.DateTimeFormat("en-GB", {
@@ -35,7 +42,7 @@ export function isLondonSendHour(now: Date = new Date(), sendHour = 7): boolean 
       hour12: false,
     }).format(now),
   );
-  return hour === sendHour;
+  return hour >= sendHour;
 }
 
 /** Whole days an item is overdue as of the London date. 0 = not overdue. */

@@ -65,11 +65,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Two UTC schedules fire; only the one landing at 07:00 London sends.
-  // ?force=1 (still secret-gated) allows a manual test run at any hour.
+  // Gate: sends from 07:00 London onwards (dedupe keys prevent repeats), so
+  // the winter 06:00-London run is refused, Vercel's manual Run button works
+  // any time of day, and a missed morning self-heals on the next invocation.
+  // ?force=1 (still secret-gated) bypasses even the before-07:00 refusal.
   const force = request.nextUrl.searchParams.get("force") === "1";
   if (!force && !isLondonSendHour()) {
-    return NextResponse.json({ skipped: "Not 07:00 in London" });
+    return NextResponse.json({ skipped: "Before 07:00 in London" });
   }
 
   const today = londonDateIso();
