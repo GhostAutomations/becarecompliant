@@ -33,13 +33,17 @@ export default async function AppLayout({
   const navEntries = navEntriesForRole(
     actingCompanyId ? "company_admin" : profile.role,
   );
+  // The founder's home is the Founder console; everyone else (and the founder
+  // while managing as a company) homes to the dashboard.
+  const homeHref =
+    profile.role === "platform_admin" && !actingCompanyId ? "/founder" : "/dashboard";
 
   return (
     <div className="app-bg flex h-dvh overflow-hidden">
       {/* Gradient sidebar (desktop) */}
       <aside className="sidebar-gradient hidden h-dvh w-44 shrink-0 flex-col px-3 py-4 md:flex">
         <Link
-          href="/dashboard"
+          href={homeHref}
           className="mb-8 flex items-center gap-2.5 px-2 pt-2"
         >
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gold-400/15 ring-1 ring-gold-400/40">

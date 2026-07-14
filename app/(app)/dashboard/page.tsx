@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { NavIcon } from "@/components/nav-icon";
@@ -9,9 +10,10 @@ export const metadata: Metadata = { title: "Dashboard" };
 
 export default async function DashboardPage() {
   // requireCompany so that a founder managing as a company sees that company's
-  // dashboard (shadow profile). A real founder with no company falls through to
-  // the founder view below (company_id is null).
+  // dashboard (shadow profile). A real founder with no company has no compliance
+  // dashboard of their own: send them to the Founder console, their home.
   const { profile } = await requireCompany();
+  if (!profile.company_id) redirect("/founder");
   const firstName = (profile.full_name || profile.email).split(" ")[0];
 
   // Company-wide People + Service User rollups (RLS scopes each to what this role

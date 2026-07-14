@@ -92,6 +92,13 @@ export const NAV_ENTRIES: NavEntry[] = [
 
 /** Nav entries (and their children) visible to a given role. */
 export function navEntriesForRole(role: string): NavEntry[] {
+  // The founder (platform admin) has no company context of their own: their home
+  // is the Founder console. The care sections (Dashboard, People, Service Users,
+  // Reports) are reached only by entering a company via Manage as company, at
+  // which point the layout renders the company_admin nav instead.
+  if (role === "platform_admin") {
+    return NAV_ENTRIES.filter((entry) => entry.href === "/founder");
+  }
   const allowed = (entry: NavEntry) =>
     !entry.roles || entry.roles.includes(role as Role);
   return NAV_ENTRIES.filter(allowed).map((entry) =>
