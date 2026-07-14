@@ -68,6 +68,8 @@ export default async function ServiceUserPage({
   const companyId = profile.company_id;
   const canManage = MANAGE_ROLES.includes(profile.role);
   const canComplete = COMPLETE_ROLES.includes(profile.role);
+  // The audit History timeline is Admins only (Founder + Company Admin).
+  const canViewHistory = profile.role === "platform_admin" || profile.role === "company_admin";
 
   // GDPR (special-category data): audit the READ of a Service User record, not just
   // writes. Best-effort; never blocks the page.
@@ -308,8 +310,8 @@ export default async function ServiceUserPage({
                 <span className="text-white/85">{formatDisplayDate(e.submitted_at.slice(0, 10))}</span>
                 <span className="flex items-center gap-3">
                   <span className="text-white/50">{e.author_name ?? "Unknown"}</span>
-                  <a href={`/api/evidence/${e.id}/pdf`} className="btn-outline px-2.5 py-1 text-[11px]">
-                    PDF
+                  <a href={`/evidence/${e.id}`} className="btn-outline px-2.5 py-1 text-[11px]">
+                    View
                   </a>
                 </span>
               </div>
@@ -318,8 +320,8 @@ export default async function ServiceUserPage({
         )}
       </section>
 
-      {/* History timeline (managers/admins). Oldest at top, newest at bottom. */}
-      {canManage ? (
+      {/* History timeline (Admins only). Oldest at top, newest at bottom. */}
+      {canViewHistory ? (
         <RecordHistory recordType="service_user" recordId={serviceUser.id} entries={auditTrail} entitled={exportsEnabled} />
       ) : null}
 

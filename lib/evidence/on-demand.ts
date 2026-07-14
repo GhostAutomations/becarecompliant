@@ -23,8 +23,81 @@ import { createServiceClient } from "@/lib/supabase/admin";
 import { isFormSchema, type Answers, type FormSchema } from "@/lib/form-schema";
 import { renderEvidencePdf, type EvidencePdfMeta } from "@/lib/evidence/pdf";
 import { EVIDENCE_BUCKET, signEvidenceDownload } from "@/lib/evidence/storage";
+import { writeAudit } from "@/lib/audit";
 
 export type EvidenceActor = { id: string; email: string; role: string };
+
+export type EvidenceView = {
+  id: string;
+  formName: string;
+  formVersion: number;
+  authorName: string | null;
+  submittedAt: string;
+  companyName: string;
+  branchName: string | null;
+  recordType: "person" | "service_user";
+  recordId: string;
+  schema: FormSchema;
+  answers: Answers;
+};
+
+type EvidenceViewRow = EvidenceRow & {
+  record_type: "person" | "service_user";
+  record_id: string;
+};
+
+/**
+ * Load one Evidence for the on screen viewer, authorised by the caller's RLS read,
+ * and write the GDPR read audit (evidence.viewed) for special-category data. The
+ * frozen snapshot is rendered read only in the UI; the PDF is a separate download.
+ */
+export async function getEvidenceView(
+  evidenceId: string,
+  actor: EvidenceActor,
+): Promise<{ ok: true; data: EvidenceView } | { ok: false; error: string }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("evidence")
+    .select(
+      "id, company_id, branch_id, record_type, record_id, schema_snapshot, answers, author_name, author_email, submitted_at, pdf_path, companies(name), branches(name), form_versions(version), forms(name)",
+    )
+    .eq("id", evidenceId)
+    .maybeSingle<EvidenceViewRow>();
+  if (error) return { ok: false, error: error.message };
+  if (!data) return { ok: false, error: "That evidence could not be found, or you cannot access it." };
+  if (!isFormSchema(data.schema_snapshot)) {
+    return { ok: false, error: "This evidence has an invalid snapshot and cannot be shown." };
+  }
+
+  await writeAudit({
+    companyId: data.company_id,
+    actorId: actor.id,
+    actorEmail: actor.email,
+    actorRole: actor.role,
+    action: "evidence.viewed",
+    entityType: "evidence",
+    entityId: data.id,
+    summary: "Viewed evidence on screen",
+    metadata: {},
+  });
+
+  return {
+    ok: true,
+    data: {
+      id: data.id,
+      formName: data.forms?.name ?? "Form",
+      formVersion: data.form_versions?.version ?? 1,
+      authorName: data.author_name,
+      submittedAt: data.submitted_at,
+      companyName: data.companies?.name ?? "Company",
+      branchName: data.branches?.name ?? null,
+      recordType: data.record_type,
+      recordId: data.record_id,
+      schema: data.schema_snapshot as FormSchema,
+      answers: (data.answers ?? {}) as Answers,
+    },
+  };
+}
 
 type EvidenceRow = {
   id: string;
