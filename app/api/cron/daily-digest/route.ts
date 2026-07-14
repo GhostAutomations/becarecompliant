@@ -72,10 +72,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // TEMP 2026-07-14: the 07:00 London gate is disabled for a one-off manual test of
-  // the new People / Service User reporting emails via the Vercel Run button (which
-  // cannot pass ?force). REVERT after testing: restore the isLondonSendHour import and
-  // the gate below.
+  // TEMP 2026-07-14: 07:00 London gate disabled so the Vercel Run button can fire
+  // the reporting emails now for testing. REVERT after (restore the isLondonSendHour
+  // import + the gate):
   //   const force = request.nextUrl.searchParams.get("force") === "1";
   //   if (!force && !isLondonSendHour()) {
   //     return NextResponse.json({ skipped: "Before 07:00 in London" });
@@ -116,11 +115,12 @@ export async function GET(request: NextRequest) {
       if (recipients.length === 0) continue;
 
       if (company.settings.emailDigestEnabled) {
-        // 1a. Caseload digest: SUPERVISORS only. Managers and Admins now get the
-        // two population reports below instead of the generic digest (Phil,
-        // 2026-07-13). Supervisors with nothing to report get no email.
-        const supervisors = recipients.filter((r) => r.role === "supervisor");
-        for (const digest of buildDigests(supervisors, items)) {
+        // 1a. Caseload digest: SUPERVISORS only. Company Admins get the two whole
+        // company reports below; Managers get nothing here (Phil, 2026-07-14: the
+        // company gets exactly two reporting emails a day, to the Admin). Anyone
+        // with nothing to report gets no digest.
+        const digestRecipients = recipients.filter((r) => r.role === "supervisor");
+        for (const digest of buildDigests(digestRecipients, items)) {
           const logId = await claimNotification({
             companyId: company.id,
             recipientProfileId: digest.recipient.profileId,
@@ -156,7 +156,8 @@ export async function GET(request: NextRequest) {
           );
         }
 
-        // 1b. Daily People + Service User compliance reports to MANAGERS + ADMINS.
+        // 1b. Daily People + Service User compliance reports: exactly TWO whole
+        // company emails a day, to COMPANY ADMINS (company-wide, all branches).
         // Sent every morning, including a positive all clear, but only for a
         // population the company actually has (a people only company gets no
         // Service User report). Compliance checks only, never holiday or absence.
@@ -167,9 +168,7 @@ export async function GET(request: NextRequest) {
           checkName: c.checkName,
           dueDate: c.dueDate,
         });
-        const reportRecipients = recipients.filter(
-          (r) => r.role === "company_admin" || r.role === "manager",
-        );
+        const reportRecipients = recipients.filter((r) => r.role === "company_admin");
         const populations: Array<{
           key: "people" | "service_users";
           checks: ReportingCheck[];

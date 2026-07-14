@@ -187,13 +187,19 @@ export type ReportingRow = {
   dueDate: string; // ISO
 };
 
-const REPORTING_MAX_RECORDS = 60;
+const REPORTING_MAX_ROWS = 100;
 
 function populationLabel(population: "people" | "service_users"): string {
   return population === "people" ? "People" : "Service User";
 }
 
-/** Distinct records in a set of rows, preserving first appearance order. */
+/** DD/MM/YYYY for the reporting tables (the format Phil asked for). */
+function formatDateShort(iso: string): string {
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+/** Distinct records in a set of rows (used for the summary counts). */
 function distinctRecords(rows: ReportingRow[]): string[] {
   const seen = new Set<string>();
   const order: string[] = [];
@@ -206,8 +212,8 @@ function distinctRecords(rows: ReportingRow[]): string[] {
   return order;
 }
 
-/** One section (Overdue or Due in the next 14 days): records grouped, each with
- *  its checks and dates. Empty renders a calm all clear line. */
+/** One section (Overdue or Due in the next 14 days) as a three column table:
+ *  Name, Task, Date. One row per check. Empty renders a calm all clear line. */
 function reportingSectionHtml(
   title: string,
   rows: ReportingRow[],
@@ -215,34 +221,32 @@ function reportingSectionHtml(
   emptyText: string,
 ): string {
   const accent = overdue ? RED_PILL : AMBER_PILL;
-  const heading = `<p style="margin:18px 0 6px 0;font-size:13px;font-weight:700;color:${accent};text-transform:uppercase;letter-spacing:0.4px;">${escapeHtml(title)}</p>`;
+  const heading = `<p style="margin:22px 0 8px 0;font-size:13px;font-weight:700;color:${accent};text-transform:uppercase;letter-spacing:0.4px;">${escapeHtml(title)}</p>`;
   if (rows.length === 0) {
     return `${heading}<p style="margin:0;font-size:13px;color:${MUTED};">${escapeHtml(emptyText)}</p>`;
   }
-  const recordIds = distinctRecords(rows).slice(0, REPORTING_MAX_RECORDS);
-  const blocks = recordIds
-    .map((id) => {
-      const recRows = rows.filter((r) => r.recordId === id);
-      const first = recRows[0];
-      const lines = recRows
-        .map(
-          (r) =>
-            `<div style="font-size:12px;color:${TEXT};padding:1px 0;">${escapeHtml(r.checkName)}, ${overdue ? "was due" : "due"} ${escapeHtml(formatDateUk(r.dueDate))}</div>`,
-        )
-        .join("");
-      return `<tr><td style="padding:8px 0;border-top:1px solid rgba(255,255,255,0.10);">
-        <strong style="color:#ffffff;font-size:13px;">${escapeHtml(first.recordName)}</strong>
-        ${first.branchName ? `<span style="font-size:11px;color:${MUTED};">, ${escapeHtml(first.branchName)}</span>` : ""}
-        <div style="margin-top:2px;">${lines}</div>
-      </td></tr>`;
-    })
+  const shown = rows.slice(0, REPORTING_MAX_ROWS);
+  const th = `font-size:11px;font-weight:700;color:${MUTED};text-transform:uppercase;letter-spacing:0.3px;text-align:left;padding:0 8px 6px 0;border-bottom:1px solid rgba(255,255,255,0.16);`;
+  const cell = `padding:7px 8px 7px 0;font-size:13px;vertical-align:top;border-bottom:1px solid rgba(255,255,255,0.07);`;
+  const header = `<tr>
+    <th style="${th}width:40%;">Name</th>
+    <th style="${th}width:34%;">Task</th>
+    <th style="${th}width:26%;">Date</th>
+  </tr>`;
+  const body = shown
+    .map(
+      (r) => `<tr>
+        <td style="${cell}color:#ffffff;font-weight:600;">${escapeHtml(r.recordName)}</td>
+        <td style="${cell}color:${TEXT};">${escapeHtml(r.checkName)}</td>
+        <td style="${cell}color:${accent};white-space:nowrap;">${overdue ? "Overdue " : ""}${escapeHtml(formatDateShort(r.dueDate))}</td>
+      </tr>`,
+    )
     .join("");
-  const moreCount = distinctRecords(rows).length - recordIds.length;
   const more =
-    moreCount > 0
-      ? `<p style="margin:8px 0 0 0;font-size:12px;color:${MUTED};">Plus ${moreCount} more in the app.</p>`
+    rows.length > shown.length
+      ? `<p style="margin:8px 0 0 0;font-size:12px;color:${MUTED};">Plus ${rows.length - shown.length} more in the app.</p>`
       : "";
-  return `${heading}<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${blocks}</table>${more}`;
+  return `${heading}<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${header}${body}</table>${more}`;
 }
 
 export function reportingSubject(
