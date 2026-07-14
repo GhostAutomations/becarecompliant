@@ -9,40 +9,13 @@ import { SignupsChart } from "@/components/founder/signups-chart";
 import { computeSeatUsage, formatPence } from "@/lib/billing/seats";
 import { TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
 import { buildSignupSeries, londonMonthKey, tallyBy } from "@/lib/founder/stats";
-
-function billingStatusPill(status: string | null): { cls: string; text: string } {
-  switch (status) {
-    case "active":
-    case "trialing":
-      return { cls: "pill-green", text: "Subscribed" };
-    case "past_due":
-    case "unpaid":
-      return { cls: "pill-red", text: "Payment due" };
-    case "canceled":
-      return { cls: "pill-neutral", text: "Cancelled" };
-    case "incomplete":
-    case "incomplete_expired":
-      return { cls: "pill-amber", text: "Not finished" };
-    default:
-      return { cls: "pill-neutral", text: "No subscription" };
-  }
-}
+import {
+  billingStatusPill,
+  companyStatusPillClass as statusPillClass,
+  tierLabel,
+} from "@/lib/founder/format";
 
 export const metadata: Metadata = { title: "Founder" };
-
-const TIER_LABELS: Record<string, string> = {
-  business: "Business",
-  pro: "Pro",
-  enterprise: "Enterprise",
-  diamond: "Diamond",
-  black: "Black",
-};
-
-function statusPillClass(status: string): string {
-  if (status === "active") return "pill-green";
-  if (status === "suspended") return "pill-amber";
-  return "pill-neutral";
-}
 
 export default async function FounderPage() {
   await requirePlatformAdmin();
@@ -195,9 +168,7 @@ export default async function FounderPage() {
                   key={t.key}
                   className="flex items-center justify-between text-sm"
                 >
-                  <span className="text-white/70">
-                    {TIER_LABELS[t.key] ?? t.key}
-                  </span>
+                  <span className="text-white/70">{tierLabel(t.key)}</span>
                   <span className="font-semibold text-white/90">{t.count}</span>
                 </div>
               ))}
@@ -283,16 +254,18 @@ export default async function FounderPage() {
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <h3 className="truncate text-base font-semibold text-white">
+                        <Link
+                          href={`/founder/companies/${company.id}`}
+                          className="truncate text-base font-semibold text-white hover:text-gold-300"
+                        >
                           {company.name}
-                        </h3>
+                        </Link>
                         <span className={statusPillClass(company.status)}>
                           {company.status}
                         </span>
                       </div>
                       <p className="mt-0.5 text-xs text-white/50">
-                        {TIER_LABELS[company.tier] ?? company.tier} tier ·{" "}
-                        {company.slug}
+                        {tierLabel(company.tier)} tier · {company.slug}
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">

@@ -23,7 +23,16 @@ export default async function FounderAuditPage({
     company: str(sp.company),
   };
 
-  const entries = await listFounderAudit(filters);
+  // AuditLogView uses the `entity`/`company` query keys for its form fields;
+  // the data layer takes `entityType`/`companyId`. Map across so the founder
+  // company + entity filters actually apply.
+  const entries = await listFounderAudit({
+    actor: filters.actor,
+    entityType: filters.entity,
+    from: filters.from,
+    to: filters.to,
+    companyId: filters.company,
+  });
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
