@@ -11,6 +11,7 @@ import {
   InviteActions,
 } from "@/components/founder/user-admin-controls";
 import { EnterManageAsButton } from "@/components/founder/enter-manage-as-button";
+import { ImportTemplatesButton } from "@/components/founder/import-templates-button";
 import { computeSeatUsage, formatPence } from "@/lib/billing/seats";
 import { TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
 import {
@@ -289,6 +290,17 @@ export default async function FounderCompanyPage({
             </table>
           </div>
         )}
+      </section>
+
+      <section aria-label="Templates" className="glass-card p-5">
+        <h2 className="mb-1 text-sm font-semibold text-white/80">Templates</h2>
+        <p className="mb-3 text-sm text-white/60">
+          Copy the latest founder library (forms and training courses) into this
+          company. Anything it already has is skipped, so this is safe to run
+          again. Use it when you have added or updated master templates after the
+          company was created.
+        </p>
+        <ImportTemplatesButton companyId={company.id} />
       </section>
 
       <section aria-label="Users" className="glass-card p-5">

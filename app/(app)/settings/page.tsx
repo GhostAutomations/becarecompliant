@@ -102,6 +102,13 @@ export default async function SettingsPage() {
             versions and a live preview.
           </p>
         </Link>
+        <Link href="/settings/templates" className="app-tile">
+          <h2 className="text-base font-semibold text-white">Templates</h2>
+          <p className="text-sm text-white/60">
+            Import the latest forms and training courses from the Be Care Compliant
+            library. Safe to run again, your own edits are never touched.
+          </p>
+        </Link>
         <Link href="/settings/people" className="app-tile">
           <h2 className="text-base font-semibold text-white">People checks</h2>
           <p className="text-sm text-white/60">

@@ -14,6 +14,7 @@ import {
   readActingCompanyId,
 } from "@/lib/founder/manage-as";
 import { writeAudit } from "@/lib/audit";
+import { importCompanyTemplates, importSummary } from "@/lib/templates/import";
 import type { ActionState } from "@/lib/forms";
 
 /** The founder acting as themselves, for audit attribution on tenant writes. */
@@ -183,6 +184,43 @@ export async function createCompany(
 
   revalidatePath("/founder");
   return { ok: note };
+}
+
+/** Founder: import the founder-curated master templates (forms + training
+ *  courses) into an existing company, topping up anything it is missing.
+ *  Idempotent; the SECURITY DEFINER seed RPCs authorise the platform admin. */
+export async function founderImportTemplates(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requirePlatformAdmin();
+  const companyId = String(formData.get("company_id") ?? "");
+  if (!companyId) return { error: "Missing company." };
+
+  const result = await importCompanyTemplates(companyId);
+
+  await writeAudit({
+    companyId,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: "platform_admin",
+    action: "company.templates_imported",
+    entityType: "company",
+    entityId: companyId,
+    summary: `Imported master templates: ${result.formsAdded} forms, ${result.trainingAdded} training courses`,
+    metadata: {
+      forms_added: result.formsAdded,
+      training_added: result.trainingAdded,
+      forms_error: result.formsError,
+      training_error: result.trainingError,
+    },
+  });
+
+  revalidatePath(`/founder/companies/${companyId}`);
+  if (result.formsError && result.trainingError) {
+    return { error: importSummary(result) };
+  }
+  return { ok: importSummary(result) };
 }
 
 /** Suspend, archive or reactivate a company. */
