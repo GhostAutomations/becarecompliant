@@ -18,7 +18,7 @@ export default async function FounderNewCompanyPage() {
           a paid add on, added later.
         </p>
       </div>
-      <div className="glass-card max-w-3xl p-6">
+      <div className="glass-card p-6">
         <CreateCompanyForm />
       </div>
     </div>
