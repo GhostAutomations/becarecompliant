@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth/guards";
+import { createClient } from "@/lib/supabase/server";
+import { readActingCompanyId } from "@/lib/founder/manage-as";
+import { ManageAsBanner } from "@/components/founder/manage-as-banner";
 import { SidebarNav, MobileDock } from "@/components/app-nav";
 import ToastHost from "@/components/toast-host";
 import { ROLE_LABELS, navEntriesForRole } from "@/lib/nav";
@@ -12,7 +15,24 @@ export default async function AppLayout({
   // Invited users must finish setup (set a password) before using the app.
   if (profile.status === "invited") redirect("/welcome");
   const displayName = profile.full_name || profile.email;
-  const navEntries = navEntriesForRole(profile.role);
+
+  // Manage-as: when the founder is acting inside a tenant, show that company's
+  // nav and a persistent banner. profile stays the real platform admin here.
+  const actingCompanyId =
+    profile.role === "platform_admin" ? await readActingCompanyId() : null;
+  let actingCompanyName: string | null = null;
+  if (actingCompanyId) {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("companies")
+      .select("name")
+      .eq("id", actingCompanyId)
+      .maybeSingle();
+    actingCompanyName = data?.name ?? "this company";
+  }
+  const navEntries = navEntriesForRole(
+    actingCompanyId ? "company_admin" : profile.role,
+  );
 
   return (
     <div className="app-bg flex h-dvh overflow-hidden">
@@ -73,6 +93,10 @@ export default async function AppLayout({
             </form>
           </div>
         </header>
+
+        {actingCompanyName ? (
+          <ManageAsBanner companyName={actingCompanyName} />
+        ) : null}
 
         <main className="min-h-0 flex-1 overflow-y-auto px-4 pb-24 pt-6 md:px-8 md:pb-8">
           {children}

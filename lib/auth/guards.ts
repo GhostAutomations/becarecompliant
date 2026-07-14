@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { decodeSessionId } from "@/lib/auth/jwt";
+import { readActingCompanyId } from "@/lib/founder/manage-as";
 
 export type Profile = {
   id: string;
@@ -15,7 +16,29 @@ export type Profile = {
     | "supervisor"
     | "team_member";
   status: "invited" | "active" | "disabled";
+  /** Set when a platform admin is operating inside a tenant via manage-as. The
+   *  profile is shadowed to that company with a company_admin role for scoping;
+   *  this flag lets callers know the real user is the founder impersonating. */
+  actingAsCompanyId?: string;
 };
+
+/**
+ * When the real user is the platform admin AND a valid manage-as cookie is set,
+ * return a shadow profile scoped to that company with a company_admin role, so
+ * every existing tenant page and action works unchanged. Otherwise return the
+ * profile as-is. Never shadows a non-platform-admin (a forged cookie is inert).
+ */
+async function applyManageAs(profile: Profile): Promise<Profile> {
+  if (profile.role !== "platform_admin") return profile;
+  const acting = await readActingCompanyId();
+  if (!acting) return profile;
+  return {
+    ...profile,
+    company_id: acting,
+    role: "company_admin",
+    actingAsCompanyId: acting,
+  };
+}
 
 /** Returns the authenticated user, or null. Never redirects. */
 export async function getSessionUser(): Promise<User | null> {
@@ -88,13 +111,16 @@ export async function requireProfile(): Promise<{
   return { user, profile: profile as Profile };
 }
 
-/** Requires an active member of a company (platform admin also passes). */
+/** Requires an active member of a company (platform admin also passes). When
+ *  the founder is managing as a company, the profile is shadowed to it. */
 export async function requireCompany(): Promise<{
   user: User;
   profile: Profile;
 }> {
   const { user, profile } = await requireProfile();
-  if (profile.role === "platform_admin") return { user, profile };
+  if (profile.role === "platform_admin") {
+    return { user, profile: await applyManageAs(profile) };
+  }
   if (!profile.company_id) redirect("/login?reason=no-access");
   return { user, profile };
 }

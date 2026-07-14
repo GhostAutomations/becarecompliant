@@ -216,6 +216,27 @@ export default async function FounderPage() {
             for an inspector.
           </p>
         </Link>
+        <Link href="/founder/revenue" className="app-tile">
+          <h2 className="text-base font-semibold text-white">Revenue</h2>
+          <p className="text-sm text-white/60">
+            Committed MRR, per company billing state, Diamond usage to invoice and
+            Black accounts.
+          </p>
+        </Link>
+        <Link href="/founder/training-templates" className="app-tile">
+          <h2 className="text-base font-semibold text-white">Training templates</h2>
+          <p className="text-sm text-white/60">
+            Curate the master training course catalogue that seeds every new
+            company.
+          </p>
+        </Link>
+        <Link href="/founder/health" className="app-tile">
+          <h2 className="text-base font-semibold text-white">Platform health</h2>
+          <p className="text-sm text-white/60">
+            Dependencies, failed sends and webhook processing, without digging
+            through logs.
+          </p>
+        </Link>
       </section>
 
       <section aria-label="Companies" className="space-y-3">

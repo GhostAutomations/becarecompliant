@@ -20,8 +20,8 @@ export default async function PeoplePage({
       <div className="mx-auto max-w-3xl">
         <h1 className="page-title">People</h1>
         <div className="glass-card mt-6 p-6 text-sm text-white/60">
-          Select a company to view its People register. Manage as company arrives
-          with the Founder console.
+          Open a company from the Founder console and choose Manage as company to
+          view its People register.
         </div>
       </div>
     );

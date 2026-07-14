@@ -1,10 +1,18 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { requirePlatformAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { createAndSendInvite, resendInvite, revokeInvite, type Actor } from "@/lib/invites";
 import { syncSeatQuantity } from "@/lib/billing/stripe-sync";
+import {
+  MANAGE_AS_COOKIE,
+  MANAGE_AS_TTL_SECONDS,
+  signManageAs,
+  readActingCompanyId,
+} from "@/lib/founder/manage-as";
 import { writeAudit } from "@/lib/audit";
 import type { ActionState } from "@/lib/forms";
 
@@ -308,4 +316,179 @@ export async function founderRevokeInvite(
   if (companyId) revalidatePath(`/founder/companies/${companyId}`);
   if (!outcome.ok) return { error: outcome.error };
   return { ok: "Invite revoked." };
+}
+
+// ---------------------------------------------------------------------------
+// Training course template curation (founder master data, seeds new companies).
+// RLS (tct_write) already restricts these tables to the platform admin; we
+// re-guard with requirePlatformAdmin for defence in depth.
+// ---------------------------------------------------------------------------
+
+const TRAINING_TEMPLATES_PATH = "/founder/training-templates";
+
+function parseTemplateFields(formData: FormData): {
+  name: string;
+  renewal_months: number | null;
+  mandatory: boolean;
+  is_safeguarding: boolean;
+  amber_days: number;
+  sort_order: number;
+} {
+  const name = String(formData.get("name") ?? "").trim();
+  const renewalRaw = String(formData.get("renewal_months") ?? "").trim();
+  const renewal_months = renewalRaw === "" ? null : Math.max(1, Number(renewalRaw) || 1);
+  const amberRaw = String(formData.get("amber_days") ?? "").trim();
+  const amber_days = amberRaw === "" ? 30 : Math.max(0, Number(amberRaw) || 0);
+  const sortRaw = String(formData.get("sort_order") ?? "").trim();
+  const sort_order = sortRaw === "" ? 0 : Number(sortRaw) || 0;
+  return {
+    name,
+    renewal_months,
+    mandatory: formData.get("mandatory") === "on",
+    is_safeguarding: formData.get("is_safeguarding") === "on",
+    amber_days,
+    sort_order,
+  };
+}
+
+/** Founder: create a training course template. */
+export async function createTrainingTemplate(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requirePlatformAdmin();
+  const fields = parseTemplateFields(formData);
+  if (!fields.name) return { error: "Enter a course name." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("training_course_templates").insert(fields);
+  if (error) return { error: error.message };
+
+  revalidatePath(TRAINING_TEMPLATES_PATH);
+  return { ok: `Added ${fields.name}.` };
+}
+
+/** Founder: update a training course template. */
+export async function updateTrainingTemplate(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requirePlatformAdmin();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { error: "Missing template." };
+  const fields = parseTemplateFields(formData);
+  if (!fields.name) return { error: "Enter a course name." };
+  const active = formData.get("active") === "on";
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("training_course_templates")
+    .update({ ...fields, active })
+    .eq("id", id)
+    .select("id");
+  if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "No change was saved." };
+
+  revalidatePath(TRAINING_TEMPLATES_PATH);
+  return { ok: "Saved." };
+}
+
+// ---------------------------------------------------------------------------
+// Manage as company (support mode). Founder operates inside one tenant as its
+// Admin via a signed, 30 minute httpOnly cookie. No second login (single-session
+// untouched); the founder already has cross-company DB access. Entry and exit
+// are audited; the guards shadow the profile to the acting company.
+// ---------------------------------------------------------------------------
+
+/** Founder: start managing as a company. Sets the cookie and lands on that
+ *  company's dashboard. */
+export async function enterManageAs(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { actor } = await founderActor();
+  const companyId = String(formData.get("company_id") ?? "");
+  if (!companyId) return { error: "Missing company." };
+
+  const supabase = await createClient();
+  const { data: company } = await supabase
+    .from("companies")
+    .select("id, name, status")
+    .eq("id", companyId)
+    .maybeSingle();
+  if (!company) return { error: "Company not found." };
+
+  const token = signManageAs(companyId);
+  if (!token) {
+    return { error: "Manage as is unavailable: the server secret is not configured." };
+  }
+
+  const store = await cookies();
+  store.set(MANAGE_AS_COOKIE, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: MANAGE_AS_TTL_SECONDS,
+  });
+
+  await writeAudit({
+    companyId,
+    actorId: actor.id,
+    actorEmail: actor.email,
+    actorRole: "platform_admin",
+    action: "founder.manage_as.enter",
+    entityType: "company",
+    entityId: companyId,
+    summary: `Founder started managing as ${company.name}`,
+    metadata: { company_name: company.name },
+  });
+
+  redirect("/dashboard");
+}
+
+/** Founder: stop managing as a company. Clears the cookie and returns to the
+ *  Founder console. Safe to call when not impersonating. */
+export async function exitManageAs(): Promise<void> {
+  const { actor } = await founderActor();
+  const acting = await readActingCompanyId();
+
+  const store = await cookies();
+  store.delete(MANAGE_AS_COOKIE);
+
+  if (acting) {
+    await writeAudit({
+      companyId: acting,
+      actorId: actor.id,
+      actorEmail: actor.email,
+      actorRole: "platform_admin",
+      action: "founder.manage_as.exit",
+      entityType: "company",
+      entityId: acting,
+      summary: "Founder stopped managing as company",
+      metadata: {},
+    });
+  }
+
+  redirect("/founder");
+}
+
+/** Founder: delete a training course template (does not affect companies already seeded). */
+export async function deleteTrainingTemplate(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requirePlatformAdmin();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { error: "Missing template." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("training_course_templates")
+    .delete()
+    .eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath(TRAINING_TEMPLATES_PATH);
+  return { ok: "Template deleted." };
 }

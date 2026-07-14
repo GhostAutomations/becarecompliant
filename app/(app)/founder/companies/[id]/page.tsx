@@ -10,6 +10,7 @@ import {
   UserStatusButton,
   InviteActions,
 } from "@/components/founder/user-admin-controls";
+import { EnterManageAsButton } from "@/components/founder/enter-manage-as-button";
 import { computeSeatUsage, formatPence } from "@/lib/billing/seats";
 import { TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
 import {
@@ -148,6 +149,7 @@ export default async function FounderCompanyPage({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <EnterManageAsButton companyId={company.id} />
           {company.status !== "active" ? (
             <CompanyStatusButton companyId={company.id} status="active" label="Activate" />
           ) : null}
