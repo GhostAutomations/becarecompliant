@@ -20,6 +20,9 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
   const [active, setActive] = useState(def.active);
   const [days, setDays] = useState(String(def.interval ?? 90));
   const [amber, setAmber] = useState(def.amber_days != null ? String(def.amber_days) : "");
+  const [reportingDays, setReportingDays] = useState(
+    def.reporting_interval_days != null ? String(def.reporting_interval_days) : "",
+  );
   const [flagDays, setFlagDays] = useState(String(def.amber_days ?? 30));
   const [scheduleMode, setScheduleMode] = useState<string>(def.schedule_mode);
 
@@ -35,6 +38,7 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
     } else {
       fd.set("days", days);
       fd.set("amber_days", amber);
+      fd.set("reporting_days", reportingDays);
       fd.set("schedule_mode", scheduleMode);
       fd.set("recurring", def.recurring ? "1" : "0");
     }
@@ -162,6 +166,30 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
               className="max-w-[8rem]"
             />
           </div>
+
+          {def.recurring ? (
+            <div>
+              <label htmlFor={`report-${def.id}`} className="form-label">
+                Reporting deadline (days)
+              </label>
+              <input
+                id={`report-${def.id}`}
+                type="number"
+                min={1}
+                value={reportingDays}
+                placeholder="Same as interval"
+                onChange={(e) => {
+                  setReportingDays(e.target.value);
+                  setSaved(false);
+                }}
+                className="max-w-[8rem]"
+              />
+              <p className="form-hint max-w-[14rem]">
+                Regulatory deadline for the on time report (e.g. 90 for three monthly). Leave blank
+                to grade against the interval. Does not change the register.
+              </p>
+            </div>
+          ) : null}
           {saveButton}
         </div>
       )}

@@ -49,6 +49,9 @@ export type CheckDefinition = {
   lead_days: number;
   expiry_field_key: string | null;
   amber_days: number | null;
+  /** Regulatory deadline in days for the on time (PQS) report. Null = grade against
+   *  the operational interval. Does not affect the register or scheduling. */
+  reporting_interval_days: number | null;
   active: boolean;
   sort_order: number;
   /** 'interval' (own days) or 'after_sup3' (first due aligned to Supervision 3). */

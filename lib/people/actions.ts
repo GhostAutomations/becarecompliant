@@ -435,6 +435,14 @@ export async function updateCheckDefinition(formData: FormData): Promise<ActionS
       const amber = Number.parseInt(amberRaw, 10);
       if (Number.isInteger(amber) && amber >= 0) patch.amber_days = amber;
     }
+    // Regulatory deadline for the on time (PQS) report. Blank clears it (grade against
+    // the operational interval); a positive whole number of days sets it.
+    const reportRaw = String(formData.get("reporting_days") ?? "").trim();
+    if (reportRaw === "") patch.reporting_interval_days = null;
+    else {
+      const rep = Number.parseInt(reportRaw, 10);
+      if (Number.isInteger(rep) && rep >= 1) patch.reporting_interval_days = rep;
+    }
     const mode = String(formData.get("schedule_mode") ?? "");
     if (mode === "interval" || mode === "after_sup3") patch.schedule_mode = mode;
   }

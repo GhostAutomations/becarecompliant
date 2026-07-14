@@ -43,6 +43,7 @@ export type OnTimeStat = {
   checkKey: string;
   checkName: string;
   population: "people" | "service_users";
+  gradedAt: string; // the deadline each cycle was graded against (regulatory or operational)
   dueInPeriod: number;
   onTime: number;
   ratePct: number | null; // 0..100, null when nothing fell due
@@ -93,6 +94,7 @@ type DefRow = {
   form_id: string;
   frequency: Frequency;
   interval: number;
+  reporting_interval_days: number | null;
 };
 
 /** London civil date of an evidence timestamp. */
@@ -117,7 +119,7 @@ export async function buildOnTimeReport(input: {
   //    and an interval; one off checks like Setup, interval <= 0, are excluded).
   const { data: defsRaw } = await supabase
     .from("check_definitions")
-    .select("id, key, name, population, form_id, frequency, interval")
+    .select("id, key, name, population, form_id, frequency, interval, reporting_interval_days")
     .eq("company_id", input.companyId)
     .eq("active", true)
     .eq("recurring", true)
@@ -194,10 +196,25 @@ export async function buildOnTimeReport(input: {
   const inWindow = (d: CivilDate) => compareCivil(d, fromC) >= 0 && compareCivil(d, toC) <= 0;
 
   for (const def of defs) {
+    // Grade against the regulatory deadline when one is set on the check, otherwise
+    // fall back to the operational recurrence interval. The register keeps using the
+    // operational interval; only this report honours the regulatory deadline.
+    const useReporting = def.reporting_interval_days != null && def.reporting_interval_days > 0;
+    const dueFrom = (anchor: CivilDate): CivilDate =>
+      useReporting
+        ? addInterval(anchor, "day", def.reporting_interval_days as number)
+        : addInterval(anchor, def.frequency, def.interval);
+    const gradedAt = useReporting
+      ? `${def.reporting_interval_days} days`
+      : def.frequency === "day"
+        ? `${def.interval} days`
+        : `${def.interval} ${def.frequency}${def.interval === 1 ? "" : "s"}`;
+
     const stat: OnTimeStat = {
       checkKey: def.key,
       checkName: def.name,
       population: def.population,
+      gradedAt,
       dueInPeriod: 0,
       onTime: 0,
       ratePct: null,
@@ -209,7 +226,7 @@ export async function buildOnTimeReport(input: {
       const comps = completionsByKey.get(`${def.form_id}|${rec.id}`) ?? [];
       const anchors: CivilDate[] = [parseCivilDate(rec.start), ...comps];
       for (let k = 0; k < anchors.length; k++) {
-        const due = addInterval(anchors[k], def.frequency, def.interval);
+        const due = dueFrom(anchors[k]);
         const next = k + 1 < anchors.length ? anchors[k + 1] : null;
         const overduePast = next === null && compareCivil(due, today) < 0;
         if (next === null && !overduePast) continue; // open cycle, not yet due
@@ -264,6 +281,7 @@ function renderOnTimeDoc(
   const summaryRows = stats.map((s) => [
     { text: s.checkName, strong: true },
     { text: popLabel(s.population) },
+    { text: s.gradedAt },
     { text: String(s.dueInPeriod) },
     { text: String(s.onTime) },
     rateCell(s.ratePct),
@@ -294,18 +312,19 @@ function renderOnTimeDoc(
       { label: "Generated at", value: generatedAt() },
     ],
     footerNote:
-      "On time means a check cycle was completed on or before its due date (last completion plus the interval). Active records only. PQS score band: 100 percent is 10, 85 to 99.99 is 7, 70 to 84.99 is 5, 50 to 69.99 is 2, under 50 is 0.",
+      "On time means a check cycle was completed on or before its due date (last completion plus the deadline shown in Graded at). Each check is graded against its regulatory deadline where one is set, otherwise its operational interval. Active records only. PQS score band: 100 percent is 10, 85 to 99.99 is 7, 70 to 84.99 is 5, 50 to 69.99 is 2, under 50 is 0.",
     blocks: [
       { kind: "heading", text: "On time completion rates" },
       {
         kind: "table",
         emptyText: "No recurring check cycles fell due in this period.",
         columns: [
-          { header: "Check", width: "28%" },
-          { header: "Register", width: "16%" },
-          { header: "Due in period", width: "14%", align: "right" },
-          { header: "On time", width: "12%", align: "right" },
-          { header: "On time rate", width: "16%" },
+          { header: "Check", width: "24%" },
+          { header: "Register", width: "13%" },
+          { header: "Graded at", width: "12%" },
+          { header: "Due in period", width: "13%", align: "right" },
+          { header: "On time", width: "10%", align: "right" },
+          { header: "On time rate", width: "14%" },
           { header: "PQS score", width: "14%" },
         ],
         rows: summaryRows,
@@ -332,6 +351,7 @@ function renderOnTimeDoc(
       "Summary",
       s.checkName,
       popLabel(s.population),
+      s.gradedAt,
       s.dueInPeriod,
       s.onTime,
       s.ratePct === null ? "" : `${s.ratePct}%`,
@@ -347,12 +367,13 @@ function renderOnTimeDoc(
       "",
       "",
       "",
+      "",
       c.recordName,
       `${c.branchName}; due ${fmtDate(c.dueDate)}; ${c.completedOn ? "completed " + fmtDate(c.completedOn) : "not completed"}; ${c.onTime ? "on time" : "late"}`,
     ] as CsvCell[]),
   ];
   const csv = buildCsv(
-    ["Row", "Check", "Register", "Due in period", "On time", "On time rate", "PQS score", "Record", "Detail"],
+    ["Row", "Check", "Register", "Graded at", "Due in period", "On time", "On time rate", "PQS score", "Record", "Detail"],
     csvRows,
   );
 
