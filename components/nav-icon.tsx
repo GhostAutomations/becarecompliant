@@ -90,5 +90,13 @@ export function NavIcon({
           <path d="M21.5 8.5v5" />
         </svg>
       );
+    case "compliance":
+      return (
+        <svg {...common}>
+          <path d="M9 4h6a1 1 0 011 1v1h1a1 1 0 011 1v12a1 1 0 01-1 1H6a1 1 0 01-1-1V7a1 1 0 011-1h1V5a1 1 0 011-1z" />
+          <path d="M9 5.5h6" />
+          <path d="M8.5 12.5l2 2 4-4.5" />
+        </svg>
+      );
   }
 }
