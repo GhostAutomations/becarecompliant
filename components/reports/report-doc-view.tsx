@@ -28,6 +28,15 @@ function Cell({ cell, align }: { cell: ReportCell; align?: "left" | "right" }) {
   return (
     <td className={`px-3 py-2 ${alignClass} ${cell.strong ? "font-semibold text-white" : "text-white/80"}`}>
       {cell.text}
+      {cell.star ? (
+        <span
+          title={cell.star}
+          className="ml-1 cursor-help text-gold-300"
+          aria-label={cell.star}
+        >
+          ★
+        </span>
+      ) : null}
     </td>
   );
 }

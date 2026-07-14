@@ -41,7 +41,7 @@ export type RagTone = keyof typeof RAG;
 
 export type ReportMetaPair = { label: string; value: string };
 export type ReportColumn = { header: string; width?: string; align?: "left" | "right" };
-export type ReportCell = { text: string; rag?: RagTone; strong?: boolean };
+export type ReportCell = { text: string; rag?: RagTone; strong?: boolean; star?: string };
 export type ReportBlock =
   | { kind: "heading"; text: string }
   | { kind: "paragraph"; text: string }
@@ -112,6 +112,7 @@ function Cell({ cell, column }: { cell: ReportCell; column: ReportColumn }) {
   return (
     <Text style={[styles.tableCell, width, align, cell.strong ? { fontWeight: 700 } : {}]}>
       {cell.text}
+      {cell.star ? " *" : ""}
     </Text>
   );
 }

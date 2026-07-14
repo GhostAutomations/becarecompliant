@@ -97,7 +97,13 @@ function bandPct(pct: number | null): number | null {
   return 0;
 }
 
-export type PqsHeadline = { question: string; measure: string; rate: number | null; band: number | null };
+export type PqsMeasure = {
+  name: string;
+  gradedAt: string;
+  rate: number | null;
+  band: number | null;
+  star: string;
+};
 
 type DefRow = {
   id: string;
@@ -285,17 +291,39 @@ export async function buildOnTimeReport(input: {
     if (p.scw_registration_number && p.scw_registration_number.trim() !== "") scwNum += 1;
   }
   const scwPct = scwDenom === 0 ? null : Math.round((scwNum / scwDenom) * 1000) / 10;
-  const supStat = statByKey.get("supervision");
-  const cprStat = statByKey.get("care_plan_review");
-  const headline: PqsHeadline[] = [
-    { question: "Quality Compliance Q1", measure: "Mandatory training compliance", rate: training.summary.mandatoryCompliancePct, band: bandPct(training.summary.mandatoryCompliancePct) },
-    { question: "Quality Compliance Q2", measure: "Supervision completed by due date", rate: supStat?.ratePct ?? null, band: supStat?.band ?? null },
-    { question: "Quality Compliance Q3", measure: "Staff 6+ months registered with Social Care Wales", rate: scwPct, band: bandPct(scwPct) },
-    { question: "User Experience Q1", measure: "Care plan reviews completed by due date", rate: cprStat?.ratePct ?? null, band: cprStat?.band ?? null },
-    { question: "Safeguarding Q1", measure: "Mandatory safeguarding training", rate: training.summary.safeguardingPct, band: bandPct(training.summary.safeguardingPct) },
+
+  // Two of the PQS measures are on-time checks already in the table, so we just
+  // star those rows. The other three are not checks, so they are appended as their
+  // own starred rows. Everything sits in the one On time completion rates box.
+  const pqsStars: Record<string, string> = {
+    supervision: "Quality Compliance Q2: three-monthly supervision completed by the due date.",
+    care_plan_review: "User Experience Q1: three-monthly personal plan reviews completed by the due date.",
+  };
+  const extraMeasures: PqsMeasure[] = [
+    {
+      name: "Mandatory training",
+      gradedAt: "All courses",
+      rate: training.summary.mandatoryCompliancePct,
+      band: bandPct(training.summary.mandatoryCompliancePct),
+      star: "Quality Compliance Q1: care workers in full compliance with mandatory training.",
+    },
+    {
+      name: "Social Care Wales registration",
+      gradedAt: "6 months in post",
+      rate: scwPct,
+      band: bandPct(scwPct),
+      star: "Quality Compliance Q3: staff 6+ months in post registered with Social Care Wales.",
+    },
+    {
+      name: "Safeguarding training",
+      gradedAt: "Safeguarding course",
+      rate: training.summary.safeguardingPct,
+      band: bandPct(training.summary.safeguardingPct),
+      star: "Safeguarding Q1: care workers completed mandatory safeguarding training.",
+    },
   ];
 
-  return renderOnTimeDoc(input, win, stats, cycles, headline);
+  return renderOnTimeDoc(input, win, stats, cycles, pqsStars, extraMeasures);
 }
 
 function bandCell(band: number | null) {
@@ -319,27 +347,34 @@ function renderOnTimeDoc(
   win: OnTimeWindow,
   stats: OnTimeStat[],
   cycles: OnTimeCycle[],
-  headline: PqsHeadline[],
+  pqsStars: Record<string, string>,
+  extraMeasures: PqsMeasure[],
 ): { doc: ReportDoc; csv: string; base: string } {
   const scopeLabel = input.branchName ? input.branchName : "All branches";
   const period = `${fmtDate(win.from)} to ${fmtDate(win.to)}`;
 
-  const headlineRows: ReportCell[][] = headline.map((h) => [
-    { text: h.question },
-    { text: h.measure, strong: true },
-    rateCell(h.rate),
-    bandCell(h.band),
+  const checkRows: ReportCell[][] = stats.map((s) => {
+    const star = pqsStars[s.checkKey];
+    return [
+      { text: s.checkName, strong: true, ...(star ? { star } : {}) },
+      { text: popLabel(s.population) },
+      { text: s.gradedAt },
+      { text: String(s.dueInPeriod) },
+      { text: String(s.onTime) },
+      rateCell(s.ratePct),
+      bandCell(s.band),
+    ];
+  });
+  const measureRows: ReportCell[][] = extraMeasures.map((m) => [
+    { text: m.name, strong: true, star: m.star },
+    { text: "People" },
+    { text: m.gradedAt },
+    { text: "N/A" },
+    { text: "N/A" },
+    rateCell(m.rate),
+    bandCell(m.band),
   ]);
-
-  const summaryRows = stats.map((s) => [
-    { text: s.checkName, strong: true },
-    { text: popLabel(s.population) },
-    { text: s.gradedAt },
-    { text: String(s.dueInPeriod) },
-    { text: String(s.onTime) },
-    rateCell(s.ratePct),
-    bandCell(s.band),
-  ]);
+  const summaryRows: ReportCell[][] = [...checkRows, ...measureRows];
 
   // Breakdown: the cycles that were NOT on time first (the ones to action), then all.
   const sortedCycles = [...cycles].sort(
@@ -365,20 +400,8 @@ function renderOnTimeDoc(
       { label: "Generated at", value: generatedAt() },
     ],
     footerNote:
-      "PQS score band: 100 percent is 10, 85 to 99.99 is 7, 70 to 84.99 is 5, 50 to 69.99 is 2, under 50 is 0. On time means completed on or before the due date (last completion plus the deadline shown in Graded at). Training and Social Care Wales figures cover active staff; the SCW rate counts only staff 6+ months in post. Active records only.",
+      "A star marks a Cardiff PQS measure; on screen, hover the star for the exact question. PQS measures: Mandatory training (Quality Q1), Supervision (Quality Q2), Social Care Wales registration (Quality Q3), Care plan reviews (User Experience Q1), Safeguarding training (Safeguarding Q1). PQS score band: 100 percent is 10, 85 to 99.99 is 7, 70 to 84.99 is 5, 50 to 69.99 is 2, under 50 is 0. On time means completed on or before the due date (last completion plus the deadline shown in Graded at). The SCW rate counts only staff 6+ months in post. Active records only.",
     blocks: [
-      { kind: "heading", text: "PQS headline scores" },
-      {
-        kind: "table",
-        emptyText: "No PQS measures available.",
-        columns: [
-          { header: "PQS question", width: "22%" },
-          { header: "Measure", width: "46%" },
-          { header: "Rate", width: "16%" },
-          { header: "PQS score", width: "16%" },
-        ],
-        rows: headlineRows,
-      },
       { kind: "heading", text: "On time completion rates" },
       {
         kind: "table",
@@ -412,20 +435,8 @@ function renderOnTimeDoc(
   };
 
   const csvRows: CsvCell[][] = [
-    ...headline.map((h) => [
-      "PQS",
-      `${h.question}: ${h.measure}`,
-      "",
-      "",
-      "",
-      "",
-      h.rate === null ? "" : `${h.rate}%`,
-      h.band === null ? "" : h.band,
-      "",
-      "",
-    ] as CsvCell[]),
     ...stats.map((s) => [
-      "Summary",
+      pqsStars[s.checkKey] ? "PQS + Summary" : "Summary",
       s.checkName,
       popLabel(s.population),
       s.gradedAt,
@@ -433,6 +444,18 @@ function renderOnTimeDoc(
       s.onTime,
       s.ratePct === null ? "" : `${s.ratePct}%`,
       s.band === null ? "" : s.band,
+      "",
+      "",
+    ] as CsvCell[]),
+    ...extraMeasures.map((m) => [
+      "PQS",
+      m.name,
+      "People",
+      m.gradedAt,
+      "",
+      "",
+      m.rate === null ? "" : `${m.rate}%`,
+      m.band === null ? "" : m.band,
       "",
       "",
     ] as CsvCell[]),
