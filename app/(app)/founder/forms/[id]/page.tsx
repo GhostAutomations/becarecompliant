@@ -21,7 +21,7 @@ export default async function EditTemplatePage({
   const bank = await listQuestionBank(template.population);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="w-full space-y-6">
       <div>
         <BackLink href="/founder/forms" label="Back to template library" />
         <h1 className="page-title mt-1">{template.name}</h1>

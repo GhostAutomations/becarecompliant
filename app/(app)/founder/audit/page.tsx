@@ -35,7 +35,7 @@ export default async function FounderAuditPage({
   });
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="w-full space-y-6">
       <BackLink href="/founder" label="Back to founder console" />
       <div>
         <h1 className="page-title">Audit console</h1>

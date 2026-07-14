@@ -132,7 +132,7 @@ export default async function FounderCompanyPage({
   );
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="w-full space-y-6">
       <BackLink href="/founder" label="Back to Founder console" />
 
       <div className="flex flex-wrap items-start justify-between gap-3">

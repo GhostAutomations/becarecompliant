@@ -23,7 +23,7 @@ export default async function FounderTrainingTemplatesPage() {
   const templates = (data ?? []) as TrainingTemplate[];
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="w-full space-y-6">
       <div>
         <BackLink href="/founder" label="Back to Founder console" />
         <h1 className="page-title mt-1">Training course templates</h1>
