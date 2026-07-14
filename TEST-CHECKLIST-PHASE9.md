@@ -3,6 +3,26 @@
 Run as popups (Pass / Fail / Not tested), one at a time, once deployed. Anything
 Not tested is logged into Phase 11 Final Testing.
 
+## Live test run — 2026-07-14 (Claude, in Chrome, signed in as the founder)
+
+PASSED live on the deployed build (commit 9bdb89e):
+
+- Dashboard 1 to 4: stats row, tier/status breakdown, sign-ups chart, reconciliation (MRR £0 correct, the one company is Enterprise but its subscription is Cancelled).
+- Drill-in 5 to 9, 14: overview cards, billing panel, metered-usage empty state, users + disabled 4th user, Admin row has no Disable button.
+- Cross-company user management 12, 13, 17: Enable then Disable of "Seat Test One" flipped status and wrote "Founder set user status to active/disabled" audit rows under the founder email; state restored.
+- Revenue 18 to 22: MRR reconciles, Enterprise company shows with Cancelled pill (0 active subs), Diamond + Black empty states.
+- Training templates 23, 24, 27, 28: catalogue of 33 listed; added "ZZ Founder Test Course" (count → 34, success note) then deleted it (count → 33). Write path proven.
+- Health 29 to 32: dependency grid accurate (SMS/Twilio correctly the one "Missing", header "1 missing"), Daily jobs Recent pill, failed-sends + webhooks empty states.
+- Manage-as 33, 35, 36: entered as Thistle Care Wales (amber banner, nav switched to the company nav, tenant dashboard rollups shown), opened the tenant People register (26 records, scoped), exited cleanly back to the Founder console.
+
+NOT TESTED live, logged to Final Testing (need extra conditions):
+
+- 10 audit filter actually filters to the company (spot-verify by clicking Full audit).
+- 15, 16 resend/revoke invite: no pending invite existed on the sandbox company to test.
+- 25, 26 edit a template + confirm a deactivated course does not seed a NEW company (needs a fresh company creation).
+- 34 single-session non-interference, 37 30-minute auto-expiry, 39 forged-cookie inert.
+- Cross-tenant guard (a Company Admin cannot reach /founder/*), mobile layout, RAG/pill accessibility.
+
 ## Dashboard (task 1) — DEPLOYED
 
 1. `/founder` shows the stats row: total companies + active, committed MRR, active users + billable extra seats, this month SMS/AI usage.

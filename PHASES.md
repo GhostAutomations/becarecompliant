@@ -213,7 +213,7 @@ Evidence PDF is now generated ON DEMAND here, not at save time (changed 2026-07-
 
 OPEN QUESTION to raise with Phil (popup) at the start of this phase (Phil request, 2026-07-09): how should reports handle probation extension? i.e. how an extended probation (original end due, actual end, extension date, status) is represented in the compliance reports and inspector-facing exports. Ask before building the report format.
 
-## Phase 9 — Founder console  🔨 IN PROGRESS (scope agreed by Phil 2026-07-14, popup: Full console, Full manage-as-company support session, Full health console, riskiest-last order)
+## Phase 9 — Founder console  🔨 BUILT + LIVE-TESTED, awaiting Phil sign-off (scope agreed by Phil 2026-07-14, popup: Full console, Full manage-as-company support session, Full health console, riskiest-last order). All 7 build tasks done and deployed green (commit 9bdb89e). Claude ran the checklist live in Chrome 2026-07-14: dashboard, drill-in, cross-company user disable/enable + audit, revenue, training add/delete, health console, and the full manage-as enter/operate/exit cycle all PASSED. Remaining cold checks (invite resend/revoke, template edit + deactivation-does-not-seed, single-session non-interference, 30-min expiry, forged-cookie, cross-tenant guard, mobile/a11y) logged to Final Testing. See TEST-CHECKLIST-PHASE9.md.
 
 Cross-company: companies, users, billing and revenue, template library curation, audit logs, platform statistics, error console, manage-as-company mode.
 
