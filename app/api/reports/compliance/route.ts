@@ -4,7 +4,7 @@ import { featureEnabled } from "@/lib/billing/tier";
 import { writeAudit } from "@/lib/audit";
 import { resolveReportScope } from "@/lib/export/context";
 import { renderReportPdf } from "@/lib/export/pdf";
-import { buildComplianceReport } from "@/lib/export/reports";
+import { buildComplianceReport, resolveReportWindow } from "@/lib/export/reports";
 import { pdfResponse, csvResponse, exportError } from "@/lib/export/deliver";
 
 /** Branch / company compliance report (People + Service Users). Pro and above. */
@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
     companyName: scope.companyName,
     branchId: scope.branchId,
     branchName: scope.branchName,
+    window: resolveReportWindow(params.get("from"), params.get("to")),
   });
 
   await writeAudit({

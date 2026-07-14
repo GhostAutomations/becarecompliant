@@ -4,7 +4,11 @@ import { featureEnabled } from "@/lib/billing/tier";
 import { writeAudit } from "@/lib/audit";
 import { resolveReportScope } from "@/lib/export/context";
 import { renderReportPdf } from "@/lib/export/pdf";
-import { buildPeopleRegisterReport, buildServiceUserRegisterReport } from "@/lib/export/reports";
+import {
+  buildPeopleRegisterReport,
+  buildServiceUserRegisterReport,
+  resolveReportWindow,
+} from "@/lib/export/reports";
 import { pdfResponse, csvResponse, exportError } from "@/lib/export/deliver";
 
 /** Register report (People or Service Users), PDF or CSV. Pro and above. */
@@ -25,6 +29,7 @@ export async function GET(req: NextRequest) {
     companyName: scope.companyName,
     branchId: scope.branchId,
     branchName: scope.branchName,
+    window: resolveReportWindow(params.get("from"), params.get("to")),
   };
   const built =
     population === "service_users"

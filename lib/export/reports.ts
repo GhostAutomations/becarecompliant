@@ -14,7 +14,7 @@ import "server-only";
  * overdue and due soon lists drill straight to the exact records that need action.
  */
 
-import type { Rag } from "@/lib/recurrence";
+import { type Rag, todayInLondon, formatCivilDate } from "@/lib/recurrence";
 import { listRegister as listPeopleRegister } from "@/lib/people/data";
 import {
   WORKING_STATUS_LABELS,
@@ -33,16 +33,61 @@ const EXCLUSION_NOTE =
 
 type Overdue = { record: string; check: string; due: string | null };
 
-/** Split a record's checks into overdue (red) and due soon (amber). */
-function splitChecks(recordName: string, checks: (CheckStatus | SuCheckStatus)[]): {
-  overdue: Overdue[];
-  dueSoon: Overdue[];
-} {
+/** The date window a report covers: checks are shown by their due date. `from`
+ *  null means "include everything overdue" (no lower bound); `to` is the upper
+ *  bound (default today + 30 days). */
+export type ReportWindow = { from: string | null; to: string };
+
+function todayIso(): string {
+  return formatCivilDate(todayInLondon());
+}
+function addDaysIso(iso: string, days: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return dt.toISOString().slice(0, 10);
+}
+const ISO_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Default report window: overdue plus the next 30 days (Phil, 2026-07-14). */
+export function defaultReportWindow(): ReportWindow {
+  return { from: null, to: addDaysIso(todayIso(), 30) };
+}
+/** Resolve raw from/to query values into a valid window (falling back to default). */
+export function resolveReportWindow(from: string | null, to: string | null): ReportWindow {
+  return {
+    from: from && ISO_RE.test(from) ? from : null,
+    to: to && ISO_RE.test(to) ? to : addDaysIso(todayIso(), 30),
+  };
+}
+
+/** A readable label for the window, for the report meta. */
+function periodLabel(win: ReportWindow): string {
+  return win.from
+    ? `${fmtDate(win.from)} to ${fmtDate(win.to)}`
+    : `Overdue, and due up to ${fmtDate(win.to)}`;
+}
+
+/**
+ * Split a record's checks into overdue (due before today) and due in the period
+ * (due today up to the window's end), scoped to the window by DUE DATE. Checks
+ * due after the window, or before the window's `from`, are not shown.
+ */
+function splitChecks(
+  recordName: string,
+  checks: (CheckStatus | SuCheckStatus)[],
+  win: ReportWindow,
+  today: string,
+): { overdue: Overdue[]; dueSoon: Overdue[] } {
   const overdue: Overdue[] = [];
   const dueSoon: Overdue[] = [];
   for (const c of checks) {
-    if (c.rag === "red") overdue.push({ record: recordName, check: c.check_name, due: c.due_date });
-    else if (c.rag === "amber") dueSoon.push({ record: recordName, check: c.check_name, due: c.due_date });
+    const due = c.due_date;
+    if (!due) continue;
+    if (win.from && due < win.from) continue;
+    if (due > win.to) continue;
+    if (due < today) overdue.push({ record: recordName, check: c.check_name, due });
+    else dueSoon.push({ record: recordName, check: c.check_name, due });
   }
   return { overdue, dueSoon };
 }
@@ -71,6 +116,8 @@ export type RegisterReportInput = {
   companyName: string;
   branchId: string | null;
   branchName: string | null;
+  /** Date window the report covers (by check due date). Defaults to overdue + 30 days. */
+  window?: ReportWindow;
 };
 
 export async function buildPeopleRegisterReport(
@@ -78,6 +125,8 @@ export async function buildPeopleRegisterReport(
 ): Promise<{ doc: ReportDoc; csv: string; base: string; recordCount: number }> {
   const { rows } = await listPeopleRegister(input.companyId, input.branchId, "active");
   const scopeLabel = input.branchName ? input.branchName : "All branches";
+  const win = input.window ?? defaultReportWindow();
+  const today = todayIso();
 
   const counts = summaryCounts(rows.map((r) => r.rollup?.rag ?? "none"));
   const allOverdue: Overdue[] = [];
@@ -85,7 +134,7 @@ export async function buildPeopleRegisterReport(
 
   const recordRows = rows.map((r: RegisterRow) => {
     const checks = Object.values(r.statuses);
-    const { overdue, dueSoon } = splitChecks(r.person.full_name, checks);
+    const { overdue, dueSoon } = splitChecks(r.person.full_name, checks, win, today);
     allOverdue.push(...overdue);
     allDueSoon.push(...dueSoon);
     return [
@@ -119,10 +168,8 @@ export async function buildPeopleRegisterReport(
     meta: [
       { label: "Company", value: input.companyName },
       { label: "Scope", value: scopeLabel },
+      { label: "Period", value: periodLabel(win) },
       { label: "Generated at", value: generatedAt() },
-      { label: "Active people", value: String(counts.total) },
-      { label: "Overdue people", value: String(counts.red) },
-      { label: "Due soon people", value: String(counts.amber) },
     ],
     footerNote: EXCLUSION_NOTE,
     blocks: [
@@ -154,11 +201,11 @@ export async function buildPeopleRegisterReport(
           { header: "Working status", width: "16%" },
           { header: "Compliance", width: "14%" },
           { header: "Overdue", width: "9%", align: "right" },
-          { header: "Due soon", width: "9%", align: "right" },
+          { header: "Due", width: "9%", align: "right" },
         ],
         rows: recordRows,
       },
-      ...overdueBlocks(allOverdue, allDueSoon),
+      ...overdueBlocks(allOverdue, allDueSoon, win),
       ...(probationRows.length > 0
         ? ([
             { kind: "heading", text: "Probation" },
@@ -180,16 +227,15 @@ export async function buildPeopleRegisterReport(
 
   const csvRows: CsvCell[][] = rows.map((r) => {
     const checks = Object.values(r.statuses);
-    const overdue = checks.filter((c) => c.rag === "red").length;
-    const dueSoon = checks.filter((c) => c.rag === "amber").length;
+    const { overdue, dueSoon } = splitChecks(r.person.full_name, checks, win, today);
     const t = r.tracker;
     return [
       r.person.full_name,
       r.person.branch_name ?? input.branchName ?? "",
       WORKING_STATUS_LABELS[r.person.employment_status],
       r.rollup ? (r.rollup.rag === "none" ? "No checks" : ragLabel(r.rollup.rag)) : "No checks",
-      overdue,
-      dueSoon,
+      overdue.length,
+      dueSoon.length,
       t?.probation_status ? PROBATION_STATUS_LABELS[t.probation_status] : "",
       fmtDate(t?.probation_end_due),
       fmtDate(t?.probation_extension_date),
@@ -197,7 +243,7 @@ export async function buildPeopleRegisterReport(
     ];
   });
   const csv = buildCsv(
-    ["Name", "Branch", "Working status", "Compliance", "Overdue checks", "Due soon checks", "Probation status", "Probation original end due", "Probation extension date", "Probation actual end"],
+    ["Name", "Branch", "Working status", "Compliance", "Overdue checks", "Due checks in period", "Probation status", "Probation original end due", "Probation extension date", "Probation actual end"],
     csvRows,
   );
 
@@ -213,6 +259,8 @@ export async function buildServiceUserRegisterReport(
 ): Promise<{ doc: ReportDoc; csv: string; base: string; recordCount: number }> {
   const { rows } = await listServiceUserRegister(input.companyId, input.branchId, "active");
   const scopeLabel = input.branchName ? input.branchName : "All branches";
+  const win = input.window ?? defaultReportWindow();
+  const today = todayIso();
 
   const counts = summaryCounts(rows.map((r) => r.rollup?.rag ?? "none"));
   const allOverdue: Overdue[] = [];
@@ -220,7 +268,7 @@ export async function buildServiceUserRegisterReport(
 
   const recordRows = rows.map((r: ServiceUserRow) => {
     const checks = Object.values(r.statusByKey);
-    const { overdue, dueSoon } = splitChecks(r.service_user.full_name, checks);
+    const { overdue, dueSoon } = splitChecks(r.service_user.full_name, checks, win, today);
     allOverdue.push(...overdue);
     allDueSoon.push(...dueSoon);
     return [
@@ -240,10 +288,8 @@ export async function buildServiceUserRegisterReport(
     meta: [
       { label: "Company", value: input.companyName },
       { label: "Scope", value: scopeLabel },
+      { label: "Period", value: periodLabel(win) },
       { label: "Generated at", value: generatedAt() },
-      { label: "Active service users", value: String(counts.total) },
-      { label: "Overdue service users", value: String(counts.red) },
-      { label: "Due soon service users", value: String(counts.amber) },
     ],
     footerNote: EXCLUSION_NOTE,
     blocks: [
@@ -275,27 +321,28 @@ export async function buildServiceUserRegisterReport(
           { header: "Status", width: "16%" },
           { header: "Compliance", width: "14%" },
           { header: "Overdue", width: "9%", align: "right" },
-          { header: "Due soon", width: "9%", align: "right" },
+          { header: "Due", width: "9%", align: "right" },
         ],
         rows: recordRows,
       },
-      ...overdueBlocks(allOverdue, allDueSoon),
+      ...overdueBlocks(allOverdue, allDueSoon, win),
     ],
   };
 
   const csvRows: CsvCell[][] = rows.map((r) => {
     const checks = Object.values(r.statusByKey);
+    const { overdue, dueSoon } = splitChecks(r.service_user.full_name, checks, win, today);
     return [
       r.service_user.full_name,
       r.service_user.branch_name ?? input.branchName ?? "",
       SERVICE_STATUS_LABELS[r.service_user.service_status],
       r.rollup ? (r.rollup.rag === "none" ? "No checks" : ragLabel(r.rollup.rag)) : "No checks",
-      checks.filter((c) => c.rag === "red").length,
-      checks.filter((c) => c.rag === "amber").length,
+      overdue.length,
+      dueSoon.length,
     ];
   });
   const csv = buildCsv(
-    ["Name", "Branch", "Status", "Compliance", "Overdue checks", "Due soon checks"],
+    ["Name", "Branch", "Status", "Compliance", "Overdue checks", "Due checks in period"],
     csvRows,
   );
 
@@ -311,41 +358,12 @@ export async function buildServiceUserRegisterReport(
 // Shared overdue / due soon list blocks
 // ---------------------------------------------------------------------------
 
-function overdueBlocks(overdue: Overdue[], dueSoon: Overdue[]): ReportBlock[] {
-  const byDue = (a: Overdue, b: Overdue) => (a.due ?? "").localeCompare(b.due ?? "");
-  overdue.sort(byDue);
-  dueSoon.sort(byDue);
+function overdueBlocks(overdue: Overdue[], dueSoon: Overdue[], win: ReportWindow): ReportBlock[] {
   return [
     { kind: "heading", text: "Overdue checks" },
-    {
-      kind: "table",
-      emptyText: "Nothing overdue. Every check is on track.",
-      columns: [
-        { header: "Record", width: "40%" },
-        { header: "Check", width: "40%" },
-        { header: "Was due", width: "20%" },
-      ],
-      rows: overdue.map((o) => [
-        { text: o.record },
-        { text: o.check },
-        { text: fmtDate(o.due), rag: "red" as const },
-      ]),
-    },
-    { kind: "heading", text: "Due soon" },
-    {
-      kind: "table",
-      emptyText: "Nothing due soon.",
-      columns: [
-        { header: "Record", width: "40%" },
-        { header: "Check", width: "40%" },
-        { header: "Due", width: "20%" },
-      ],
-      rows: dueSoon.map((o) => [
-        { text: o.record },
-        { text: o.check },
-        { text: fmtDate(o.due), rag: "amber" as const },
-      ]),
-    },
+    overdueTable(overdue),
+    { kind: "heading", text: `Due in the period, up to ${fmtDate(win.to)}` },
+    dueTable(dueSoon),
   ];
 }
 
@@ -357,6 +375,8 @@ export async function buildComplianceReport(
   input: RegisterReportInput,
 ): Promise<{ doc: ReportDoc; csv: string; base: string }> {
   const scopeLabel = input.branchName ? input.branchName : "Whole company, all branches";
+  const win = input.window ?? defaultReportWindow();
+  const today = todayIso();
   const [{ rows: pRows }, { rows: sRows }] = await Promise.all([
     listPeopleRegister(input.companyId, input.branchId, "active"),
     listServiceUserRegister(input.companyId, input.branchId, "active"),
@@ -368,17 +388,18 @@ export async function buildComplianceReport(
   const pOverdue: Overdue[] = [];
   const pDueSoon: Overdue[] = [];
   for (const r of pRows) {
-    const s = splitChecks(r.person.full_name, Object.values(r.statuses));
+    const s = splitChecks(r.person.full_name, Object.values(r.statuses), win, today);
     pOverdue.push(...s.overdue);
     pDueSoon.push(...s.dueSoon);
   }
   const sOverdue: Overdue[] = [];
   const sDueSoon: Overdue[] = [];
   for (const r of sRows) {
-    const s = splitChecks(r.service_user.full_name, Object.values(r.statusByKey));
+    const s = splitChecks(r.service_user.full_name, Object.values(r.statusByKey), win, today);
     sOverdue.push(...s.overdue);
     sDueSoon.push(...s.dueSoon);
   }
+  const duePeriod = `Due in the period, up to ${fmtDate(win.to)}`;
 
   const doc: ReportDoc = {
     title: "Compliance report",
@@ -387,6 +408,7 @@ export async function buildComplianceReport(
     meta: [
       { label: "Company", value: input.companyName },
       { label: "Scope", value: scopeLabel },
+      { label: "Period", value: periodLabel(win) },
       { label: "Generated at", value: generatedAt() },
     ],
     footerNote: EXCLUSION_NOTE,
@@ -423,16 +445,20 @@ export async function buildComplianceReport(
       },
       { kind: "heading", text: "People overdue checks" },
       overdueTable(pOverdue),
+      { kind: "heading", text: `People ${duePeriod.toLowerCase()}` },
+      dueTable(pDueSoon),
       { kind: "heading", text: "Service User overdue checks" },
       overdueTable(sOverdue),
+      { kind: "heading", text: `Service User ${duePeriod.toLowerCase()}` },
+      dueTable(sDueSoon),
     ],
   };
 
   const csvRows: CsvCell[][] = [
     ...pOverdue.map((o) => ["People", "Overdue", o.record, o.check, fmtDate(o.due)] as CsvCell[]),
-    ...pDueSoon.map((o) => ["People", "Due soon", o.record, o.check, fmtDate(o.due)] as CsvCell[]),
+    ...pDueSoon.map((o) => ["People", "Due in period", o.record, o.check, fmtDate(o.due)] as CsvCell[]),
     ...sOverdue.map((o) => ["Service User", "Overdue", o.record, o.check, fmtDate(o.due)] as CsvCell[]),
-    ...sDueSoon.map((o) => ["Service User", "Due soon", o.record, o.check, fmtDate(o.due)] as CsvCell[]),
+    ...sDueSoon.map((o) => ["Service User", "Due in period", o.record, o.check, fmtDate(o.due)] as CsvCell[]),
   ];
   const csv = buildCsv(["Register", "Urgency", "Record", "Check", "Due"], csvRows);
 
@@ -443,16 +469,34 @@ function overdueTable(overdue: Overdue[]): ReportBlock {
   overdue.sort((a, b) => (a.due ?? "").localeCompare(b.due ?? ""));
   return {
     kind: "table",
-    emptyText: "Nothing overdue.",
+    emptyText: "Nothing overdue in this period.",
     columns: [
-      { header: "Record", width: "40%" },
-      { header: "Check", width: "40%" },
+      { header: "Name", width: "40%" },
+      { header: "Task", width: "40%" },
       { header: "Was due", width: "20%" },
     ],
     rows: overdue.map((o) => [
       { text: o.record },
       { text: o.check },
       { text: fmtDate(o.due), rag: "red" as const },
+    ]),
+  };
+}
+
+function dueTable(dueSoon: Overdue[]): ReportBlock {
+  dueSoon.sort((a, b) => (a.due ?? "").localeCompare(b.due ?? ""));
+  return {
+    kind: "table",
+    emptyText: "Nothing due in this period.",
+    columns: [
+      { header: "Name", width: "40%" },
+      { header: "Task", width: "40%" },
+      { header: "Due", width: "20%" },
+    ],
+    rows: dueSoon.map((o) => [
+      { text: o.record },
+      { text: o.check },
+      { text: fmtDate(o.due), rag: "amber" as const },
     ]),
   };
 }

@@ -12,15 +12,29 @@ import { useState } from "react";
 
 type BranchLite = { id: string; name: string };
 
-function DownloadPair({ href }: { href: (format: "pdf" | "csv") => string }) {
+function ReportActions({
+  viewHref,
+  download,
+}: {
+  viewHref: string;
+  /** Null when the company is not entitled to exports (View is always allowed). */
+  download: ((format: "pdf" | "csv") => string) | null;
+}) {
   return (
-    <div className="mt-3 flex items-center gap-2">
-      <a href={href("pdf")} className="btn-primary px-3 py-2 text-xs">
-        Download PDF
+    <div className="mt-3 flex flex-wrap items-center gap-2">
+      <a href={viewHref} className="btn-primary px-3 py-2 text-xs">
+        View
       </a>
-      <a href={href("csv")} className="btn-outline px-3 py-2 text-xs">
-        Download CSV
-      </a>
+      {download ? (
+        <>
+          <a href={download("pdf")} className="btn-outline px-3 py-2 text-xs">
+            Download PDF
+          </a>
+          <a href={download("csv")} className="btn-outline px-3 py-2 text-xs">
+            Download CSV
+          </a>
+        </>
+      ) : null}
     </div>
   );
 }
@@ -36,6 +50,7 @@ export default function ReportsPanel({
 }) {
   const [branch, setBranch] = useState<string>("all");
   const q = (extra: string) => `branch=${encodeURIComponent(branch)}&${extra}`;
+  const viewHref = (type: string) => `/reports/view/${type}?branch=${encodeURIComponent(branch)}`;
 
   return (
     <div className="space-y-6">
@@ -82,7 +97,10 @@ export default function ReportsPanel({
             Every active person with their compliance status, overdue and due soon checks, and
             probation history.
           </p>
-          {entitled && <DownloadPair href={(f) => `/api/reports/register?${q(`population=people&format=${f}`)}`} />}
+          <ReportActions
+            viewHref={viewHref("people")}
+            download={entitled ? (f) => `/api/reports/register?${q(`population=people&format=${f}`)}` : null}
+          />
         </div>
 
         <div className="glass-card p-5">
@@ -90,9 +108,10 @@ export default function ReportsPanel({
           <p className="text-sm text-white/60">
             Every active service user with their compliance status and the checks that need action.
           </p>
-          {entitled && (
-            <DownloadPair href={(f) => `/api/reports/register?${q(`population=service_users&format=${f}`)}`} />
-          )}
+          <ReportActions
+            viewHref={viewHref("service_users")}
+            download={entitled ? (f) => `/api/reports/register?${q(`population=service_users&format=${f}`)}` : null}
+          />
         </div>
 
         <div className="glass-card p-5">
@@ -101,7 +120,10 @@ export default function ReportsPanel({
             People and Service Users together: a RAG summary and the full overdue lists, for a branch
             or the whole company.
           </p>
-          {entitled && <DownloadPair href={(f) => `/api/reports/compliance?${q(`format=${f}`)}`} />}
+          <ReportActions
+            viewHref={viewHref("compliance")}
+            download={entitled ? (f) => `/api/reports/compliance?${q(`format=${f}`)}` : null}
+          />
         </div>
 
         <div className="glass-card p-5">
