@@ -20,20 +20,23 @@ type MatrixConfig = { supInterval: number; supAmber: number; rtwAmber: number; p
 
 const VIEW_META: Record<
   string,
-  { title: string; scope: string; match: (r: RegisterRow) => boolean }
+  { title: string; subtitle: string; scope: string; match: (r: RegisterRow) => boolean }
 > = {
   main: {
     title: "Compliance",
+    subtitle: "Every active person with their compliance checks, due dates and RAG status.",
     scope: "active",
     match: (r) => r.person.employment_status === "active" && !r.person.archived_at,
   },
   leavers: {
     title: "Leavers",
+    subtitle: "People who have left. Kept for records and excluded from active compliance.",
     scope: "leaver",
     match: (r) => r.person.employment_status === "leaver" && !r.person.archived_at,
   },
   lts_mat: {
     title: "LTS & Mat Leave",
+    subtitle: "People on long term sick or maternity leave, paused from active compliance.",
     scope: "lts_mat",
     match: (r) =>
       !r.person.archived_at &&
@@ -41,6 +44,7 @@ const VIEW_META: Record<
   },
   archive: {
     title: "Archive",
+    subtitle: "Archived people, excluded from active registers, reminders and reports.",
     scope: "archived",
     match: (r) => !!r.person.archived_at,
   },
@@ -96,7 +100,10 @@ export default function PeopleRegister({
   return (
     <div className="flex h-full min-h-0 flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <h1 className="page-title">{meta.title}</h1>
+        <div>
+          <h1 className="page-title">{meta.title}</h1>
+          <p className="page-subtitle">{meta.subtitle}</p>
+        </div>
         {canManage && view === "main" ? (
           <Link href="/people/new" className="btn-primary">
             Add person
