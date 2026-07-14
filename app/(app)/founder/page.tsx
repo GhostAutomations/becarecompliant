@@ -4,8 +4,11 @@ import { requirePlatformAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { CreateCompanyForm } from "@/components/founder/create-company-form";
 import { CompanyStatusButton } from "@/components/founder/company-status-button";
+import { StatCard } from "@/components/founder/stat-card";
+import { SignupsChart } from "@/components/founder/signups-chart";
 import { computeSeatUsage, formatPence } from "@/lib/billing/seats";
 import { TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
+import { buildSignupSeries, londonMonthKey, tallyBy } from "@/lib/founder/stats";
 
 function billingStatusPill(status: string | null): { cls: string; text: string } {
   switch (status) {
@@ -45,18 +48,29 @@ export default async function FounderPage() {
   await requirePlatformAdmin();
   const supabase = await createClient();
 
-  const [{ data: companies }, { data: profiles }, { data: invites }, { data: billingRows }] =
-    await Promise.all([
-      supabase
-        .from("companies")
-        .select("id, name, slug, tier, status, created_at")
-        .order("created_at", { ascending: false }),
-      supabase.from("profiles").select("company_id, status, role"),
-      supabase.from("invites").select("company_id, status"),
-      supabase
-        .from("company_billing")
-        .select("company_id, subscription_status, current_period_end"),
-    ]);
+  const thisMonth = londonMonthKey(new Date());
+
+  const [
+    { data: companies },
+    { data: profiles },
+    { data: invites },
+    { data: billingRows },
+    { data: usageRows },
+  ] = await Promise.all([
+    supabase
+      .from("companies")
+      .select("id, name, slug, tier, status, created_at")
+      .order("created_at", { ascending: false }),
+    supabase.from("profiles").select("company_id, status, role"),
+    supabase.from("invites").select("company_id, status"),
+    supabase
+      .from("company_billing")
+      .select("company_id, subscription_status, current_period_end"),
+    supabase
+      .from("usage_monthly")
+      .select("kind, month, event_count, units_sum")
+      .eq("month", `${thisMonth}-01`),
+  ]);
 
   const billingByCompany = new Map<
     string,
@@ -96,6 +110,46 @@ export default async function FounderPage() {
       seats.extraCostPence;
   }
 
+  // Platform aggregates for the dashboard.
+  const activeCompanies = list.filter((c) => c.status === "active");
+  const tierCounts = tallyBy(list, (c) => c.tier, [
+    "business",
+    "pro",
+    "enterprise",
+    "diamond",
+    "black",
+  ]);
+  const statusCounts = tallyBy(list, (c) => c.status, [
+    "active",
+    "suspended",
+    "archived",
+  ]);
+
+  let totalActiveUsers = 0;
+  let totalExtraSeats = 0;
+  for (const company of list) {
+    if (company.status === "archived") continue;
+    const used = activeUsers.get(company.id) ?? 0;
+    const seats = computeSeatUsage(used);
+    totalActiveUsers += used;
+    totalExtraSeats += seats.extra;
+  }
+
+  // SMS + AI usage this month (across all companies).
+  let smsUnits = 0;
+  let aiUnits = 0;
+  for (const u of usageRows ?? []) {
+    if (u.kind === "sms") smsUnits += u.units_sum ?? 0;
+    else if (u.kind === "ai") aiUnits += u.units_sum ?? 0;
+  }
+
+  const signupSeries = buildSignupSeries(list, 8);
+  const thisMonthLabel = new Date().toLocaleDateString("en-GB", {
+    month: "long",
+    year: "numeric",
+    timeZone: "Europe/London",
+  });
+
   return (
     <div className="mx-auto max-w-5xl space-y-8">
       <div>
@@ -105,6 +159,63 @@ export default async function FounderPage() {
           the company, set the tier and invite the first Admin.
         </p>
       </div>
+
+      <section aria-label="Platform statistics" className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            label="Companies"
+            value={list.length}
+            sub={`${activeCompanies.length} active`}
+          />
+          <StatCard
+            label="Committed MRR"
+            value={`${formatPence(mrrPence)}/mo`}
+            sub="Base + seats on live subscriptions"
+          />
+          <StatCard
+            label="Active users"
+            value={totalActiveUsers}
+            sub={`${totalExtraSeats} billable extra seats`}
+          />
+          <StatCard
+            label={`Usage, ${thisMonthLabel}`}
+            value={`${smsUnits.toLocaleString("en-GB")} SMS`}
+            sub={`${aiUnits.toLocaleString("en-GB")} AI units`}
+          />
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="glass-card p-5">
+            <h3 className="mb-3 text-sm font-semibold text-white/80">
+              Companies by tier
+            </h3>
+            <div className="space-y-2">
+              {tierCounts.map((t) => (
+                <div
+                  key={t.key}
+                  className="flex items-center justify-between text-sm"
+                >
+                  <span className="text-white/70">
+                    {TIER_LABELS[t.key] ?? t.key}
+                  </span>
+                  <span className="font-semibold text-white/90">{t.count}</span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2 border-t border-white/10 pt-3">
+              {statusCounts.map((s) => (
+                <span
+                  key={s.key}
+                  className={`pill ${statusPillClass(s.key)}`}
+                >
+                  {s.count} {s.key}
+                </span>
+              ))}
+            </div>
+          </div>
+          <SignupsChart data={signupSeries} />
+        </div>
+      </section>
 
       <section aria-label="Library" className="grid gap-4 sm:grid-cols-2">
         <Link href="/founder/forms" className="app-tile">

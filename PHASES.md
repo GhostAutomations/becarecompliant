@@ -213,9 +213,22 @@ Evidence PDF is now generated ON DEMAND here, not at save time (changed 2026-07-
 
 OPEN QUESTION to raise with Phil (popup) at the start of this phase (Phil request, 2026-07-09): how should reports handle probation extension? i.e. how an extended probation (original end due, actual end, extension date, status) is represented in the compliance reports and inspector-facing exports. Ask before building the report format.
 
-## Phase 9 — Founder console
+## Phase 9 — Founder console  🔨 IN PROGRESS (scope agreed by Phil 2026-07-14, popup: Full console, Full manage-as-company support session, Full health console, riskiest-last order)
 
 Cross-company: companies, users, billing and revenue, template library curation, audit logs, platform statistics, error console, manage-as-company mode.
+
+Already in place before Phase 9 (audited 2026-07-14): `/founder` home with company list (tier, status, seats, billing pill, per-company monthly, committed MRR) + activate/suspend/archive; `/founder/forms` (form template library curation); `/founder/question-bank`; `/founder/usage` (SMS + AI per company, Diamond source); `/founder/audit` (cross-company audit viewer, filter + export). All guarded by `requirePlatformAdmin()`. `notification_log` already records `status='failed'` + `error` for email/SMS. Manage-as-company confirmed NOT built (only placeholder text in People/Service User pages).
+
+Phase 9 task split (agreed order, riskiest last):
+
+1. Founder stats dashboard — companies by tier and status, total active users and seats, committed MRR and revenue, SMS + AI usage this month, sign-ups over time. Keep the company list + create-company below it.
+2. Per-company drill-in — `/founder/companies/[id]`: tier, status, seats + cost, billing state, usage (month + by month), recent activity, users. Platform-admin-guarded cross-company read.
+3. Cross-company user management — users per company, status/role, disable/re-enable, resend/revoke invites, seat impact. Reuse invites.ts + existing user actions; all writes audited; single-session preserved.
+4. Billing and revenue oversight — total MRR, per-company billing state (past_due/canceled surfaced), Diamond usage-to-invoice, Black (free) flagged. Read-only; reuse seats.ts + stripe config + company_billing + usage_monthly.
+5. Training course template curation — founder screen for `training_course_templates` (seeded by `seed_company_training_courses`), matching the forms/question-bank curation pattern; mandatory/safeguarding flags.
+6. Error and health console — failed email/SMS (notification_log), Stripe webhook + cron outcomes, missing-env dependency flags. Decide by popup if a new health/log table is needed.
+7. Manage-as-company support mode (built LAST) — full support session: enter any tenant as their Company Admin, persistent banner, clean exit, every action audit-logged as founder impersonation; must not break single-session login. Design entry/exit (server-side) by popup before building.
+8. Phase 9 testing and sign-off — TEST-CHECKLIST-PHASE9.md run as popups; untested items logged to Final Testing; Phil confirms complete.
 
 ## Phase 10 — Additions
 
