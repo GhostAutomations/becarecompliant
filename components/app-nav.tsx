@@ -16,8 +16,13 @@ export function SidebarNav({ entries }: { entries: NavEntry[] }) {
     <nav className="flex flex-col gap-1" aria-label="Main">
       {entries.map((entry) => {
         const children = entry.children ?? [];
-        // Children (our "Sub Departments") only appear once you are inside this section.
-        const childActive = children.some((c) => isActive(c.href));
+        // Only ONE child is active at a time: the most specific match. This stops a
+        // child that shares the parent's path (e.g. Compliance at /people) from also
+        // lighting up on a deeper sibling route (e.g. /people/training).
+        const activeChildHref = children
+          .filter((c) => isActive(c.href))
+          .sort((a, b) => b.href.length - a.href.length)[0]?.href;
+        const childActive = activeChildHref != null;
         const inSection = isActive(entry.href);
         const active = inSection && !childActive;
         return (
@@ -33,7 +38,7 @@ export function SidebarNav({ entries }: { entries: NavEntry[] }) {
             {children.length > 0 && inSection && (
               <div className="mt-1 flex flex-col gap-1 pl-4">
                 {children.map((child) => {
-                  const cActive = isActive(child.href);
+                  const cActive = child.href === activeChildHref;
                   return (
                     <Link
                       key={child.href}
