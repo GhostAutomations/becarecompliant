@@ -50,6 +50,20 @@ export default async function ReportViewPage({
       ? resolveOnTimeWindow(str(sp.from), str(sp.to))
       : resolveReportWindow(str(sp.from), str(sp.to));
 
+  // The on time report is always for a single branch (local authority monitoring
+  // is per contract), never all branches.
+  if (reportType === "on-time" && !scope.branchId) {
+    return (
+      <div className="mx-auto max-w-5xl space-y-5">
+        <BackLink href="/reports" label="Back to reports" />
+        <div className="glass-card p-6 text-sm text-white/70">
+          The on time report is always for a single branch. Choose a branch on the Reports page,
+          then open this report.
+        </div>
+      </div>
+    );
+  }
+
   const base = {
     companyId: profile.company_id,
     companyName: scope.companyName,

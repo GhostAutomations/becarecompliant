@@ -18,6 +18,9 @@ export async function GET(req: NextRequest) {
   const params = req.nextUrl.searchParams;
   const format = params.get("format") === "csv" ? "csv" : "pdf";
   const scope = await resolveReportScope(profile.company_id, params.get("branch"));
+  if (!scope.branchId) {
+    return exportError("The on time report must be run for a single branch, not all branches.", 400);
+  }
 
   const built = await buildOnTimeReport({
     companyId: profile.company_id,

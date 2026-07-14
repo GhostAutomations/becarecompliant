@@ -34,7 +34,7 @@ import {
   todayInLondon,
 } from "@/lib/recurrence";
 import { buildCsv, type CsvCell } from "@/lib/export/csv";
-import type { ReportBlock, ReportDoc } from "@/lib/export/pdf";
+import type { ReportDoc } from "@/lib/export/pdf";
 import { fmtDate, generatedAt } from "@/lib/export/format";
 
 export type OnTimeWindow = { from: string; to: string };

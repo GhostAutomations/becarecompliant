@@ -132,10 +132,17 @@ export default function ReportsPanel({
             Percentage of supervisions and care plan reviews completed by their due date over a
             period, with the score band, for local authority monitoring like the Cardiff PQS.
           </p>
-          <ReportActions
-            viewHref={viewHref("on-time")}
-            download={entitled ? (f) => `/api/reports/on-time?${q(`format=${f}`)}` : null}
-          />
+          {branch === "all" ? (
+            <p className="mt-3 text-xs text-amber-200/80">
+              Choose a branch above to run this report. It is always for a single branch, never all
+              branches.
+            </p>
+          ) : (
+            <ReportActions
+              viewHref={viewHref("on-time")}
+              download={entitled ? (f) => `/api/reports/on-time?${q(`format=${f}`)}` : null}
+            />
+          )}
         </div>
 
         <div className="glass-card p-5">
