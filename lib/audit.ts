@@ -1,5 +1,6 @@
 import "server-only";
 import { createServiceClient } from "@/lib/supabase/admin";
+import { readActingCompanyId } from "@/lib/founder/manage-as";
 
 export type AuditInput = {
   companyId: string | null;
@@ -25,17 +26,34 @@ export type AuditInput = {
  */
 export async function writeAudit(input: AuditInput): Promise<void> {
   try {
+    // If a manage-as cookie is live on this request, the writer is the founder
+    // impersonating a tenant. Only a platform admin can hold a valid signed
+    // cookie, so tag the row as impersonation and record the true role, without
+    // touching any of the individual actions. No cookie (normal user, webhook,
+    // cron) leaves the row exactly as passed in.
+    let actorRole = input.actorRole ?? null;
+    let metadata = input.metadata ?? {};
+    try {
+      const acting = await readActingCompanyId();
+      if (acting) {
+        actorRole = "platform_admin";
+        metadata = { ...metadata, impersonating: true, acting_company_id: acting };
+      }
+    } catch {
+      // cookies() unavailable in this context: leave the row untagged.
+    }
+
     const supabase = createServiceClient();
     const { error } = await supabase.from("audit_log").insert({
       company_id: input.companyId,
       actor_id: input.actorId ?? null,
       actor_email: input.actorEmail ?? null,
-      actor_role: input.actorRole ?? null,
+      actor_role: actorRole,
       action: input.action,
       entity_type: input.entityType,
       entity_id: input.entityId ?? null,
       summary: input.summary ?? "",
-      metadata: input.metadata ?? {},
+      metadata,
     });
     if (error) {
       console.error("[audit] insert failed:", error.message, input.action);

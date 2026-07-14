@@ -14,14 +14,29 @@ export default async function DashboardPage() {
   // dashboard of their own: send them to the Founder console, their home.
   const { profile } = await requireCompany();
   if (!profile.company_id) redirect("/founder");
-  const firstName = (profile.full_name || profile.email).split(" ")[0];
+  const supabase = await createClient();
+
+  // Greeting: a founder managing-as sees a support-session label with the company
+  // name, not their own email; a normal company user is greeted by first name.
+  let heading = `Welcome, ${(profile.full_name || profile.email).split(" ")[0]}`;
+  let subtitle =
+    "Your compliance overview. One glance: are we inspection ready across your team and the people you care for?";
+  if (profile.actingAsCompanyId) {
+    const { data: co } = await supabase
+      .from("companies")
+      .select("name")
+      .eq("id", profile.actingAsCompanyId)
+      .maybeSingle();
+    heading = `Support session: ${co?.name ?? "this company"}`;
+    subtitle =
+      "You are managing this company for support. Its compliance overview is below.";
+  }
 
   // Company-wide People + Service User rollups (RLS scopes each to what this role
   // may see). Both active-only views exclude leavers / cancelled / archived Records.
   const counts = { compliant: 0, dueSoon: 0, overdue: 0 };
   const suCounts = { compliant: 0, dueSoon: 0, overdue: 0 };
   if (profile.company_id) {
-    const supabase = await createClient();
     const [{ data: rollups }, { data: suRollups }] = await Promise.all([
       supabase.from("person_rollup").select("rag").eq("company_id", profile.company_id),
       supabase.from("service_user_rollup").select("rag").eq("company_id", profile.company_id),
@@ -46,11 +61,8 @@ export default async function DashboardPage() {
         channel="service-users-live"
       />
       <div>
-        <h1 className="page-title">Welcome, {firstName}</h1>
-        <p className="page-subtitle">
-          Your compliance overview. One glance: are we inspection ready across your
-          team and the people you care for?
-        </p>
+        <h1 className="page-title">{heading}</h1>
+        <p className="page-subtitle">{subtitle}</p>
       </div>
 
       {/* People RAG rollup strip (zero state until checks exist) */}
