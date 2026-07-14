@@ -82,5 +82,13 @@ export function NavIcon({
           <path d="M9.5 13l5 4M14.5 13l-5 4" />
         </svg>
       );
+    case "training":
+      return (
+        <svg {...common}>
+          <path d="M12 4L2.5 8.5 12 13l9.5-4.5L12 4z" />
+          <path d="M6 10.5V15c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5v-4.5" />
+          <path d="M21.5 8.5v5" />
+        </svg>
+      );
   }
 }

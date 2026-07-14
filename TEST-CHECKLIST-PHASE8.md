@@ -91,3 +91,42 @@ Prerequisite: Thistle is Enterprise, so reporting_exports is ON there. To test t
 - Business tier gating (A4, B5, C6) needs a Business tier company or a temporary tier flip.
 - Cross tenant (G1) needs a second company.
 - Team Member / Supervisor isolation (G2) needs those roles in Thistle.
+
+## H. On time report, report View pages + date filter, reporting deadline (logged to Final Testing 2026-07-14)
+
+Context: added after the 2026-07-13 run. All items below are UNTESTED in the UI; the on time figures were verified only by reproducing the engine in SQL. Test signed in as a company_admin or manager on Thistle (Enterprise) unless stated. Cardiff branch = 9e1c6cc9-d89b-4fbf-96d9-5f06d587ba4b.
+
+### H1. Report View pages (all four reports)
+- On /reports, each of People register, Service User register, Compliance and On time now shows a **View** button (primary) alongside Download PDF/CSV. Click View on each: it opens /reports/view/<type> and renders the report on screen (not a download), with a Back to reports link.
+- Non entitled tiers still see View (View is never gated); only the downloads are Pro+.
+
+### H2. Date range filter on the View page
+- Each View page shows a From / To filter. People/SU/Compliance default to "overdue + next 30 days" (From blank, To = today+30). On time defaults to the **last 6 months** (From = today-6mo, To = today).
+- Change From/To then Apply dates: the on screen report and the Download PDF/CSV links both reflect the chosen window (check the href carries from/to). Reset returns to defaults.
+
+### H3. On time report is per branch only
+- With "All branches" selected on /reports, the On time card shows the amber "choose a branch" note and NO View/Download. Pick Cardiff: View/Download appear.
+- Direct hit /reports/view/on-time with no branch shows the "always for a single branch" empty card, not a crash.
+- /api/reports/on-time?format=pdf with no branch returns the 400 "must be run for a single branch" text.
+
+### H4. On time report content (Cardiff)
+- View the On time report for Cardiff, default 6 month window. Expect a summary table with columns: Check, Register, **Graded at**, Due in period, On time, On time rate, PQS score; then a per cycle breakdown (late first).
+- Sanity vs the SQL reproduction on 2026-07-14: Spot Check ~75.6%, Appraisal/Manual Handling/Medication Competency ~100%, Supervision **48.1%** (graded at 90). These shift as data/date changes; the point is they are populated and non zero, and Supervision shows "90 days" under Graded at (not 80).
+- PQS score bands: 100%=10, 85 to 99.99=7, 70 to 84.99=5, 50 to 69.99=2, under 50=0. Check one row's band matches its rate.
+- Download PDF and CSV: both open; report.exported audit row written (report on_time, branch_id Cardiff, format).
+
+### H5. Reporting deadline config field (migration 0059)
+- Settings > People checks: each recurring check now has an optional "Reporting deadline (days)" box (placeholder "Same as interval"). Supervision should already show 90. Set a value on another check, Save: button goes Saving then Saved; reload shows it persisted.
+- Clear the box and Save: it goes back to blank (null), meaning "grade against the interval".
+- Settings > Service User checks: same field present; Care Plan Review shows 90.
+- Enter 0 or a negative: rejected/ignored (must be >= 1), no crash.
+
+### H6. Reporting deadline actually changes the on time report, and ONLY that report
+- With Supervision reporting deadline = 90, the On time report grades supervision cycles at 90 days (Graded at column = "90 days"). Temporarily clear it to blank and re-view: supervision drops (graded at 80, ~33% on the current Cardiff data), Graded at shows "80 days". Restore to 90.
+- Confirm the **register is unaffected** by the reporting deadline: a supervision's amber/red RAG and its next due date on the People register and the person drill down still follow the 80 day interval, not 90. (The reporting deadline must never move a due date or a RAG.)
+
+### H7. Sticky Carer column hover fix
+- People register (dense matrix). Hover a row: the sticky Carer name cell stays opaque (navy), the name does NOT bleed through / show the row hover colour behind it. Check at a scroll position where rows sit under the sticky column.
+
+### H8. Daily reporting emails (from the digest cron)
+- Already fired once live 2026-07-13 (6 test emails then restricted to admin+managers). Cold confirm on a normal 07:00 London run: admins get 2 company wide emails (People, Service Users); managers get 2 scoped to their branches; supervisors keep the caseload digest. People email is compliance checks only (never holiday/absence). Layout is 3 columns Name / Task / Date, "Overdue DD/MM/YYYY" for overdue, "DD/MM/YYYY" for due soon (next 14 days). All clear email still sends when nothing is due.

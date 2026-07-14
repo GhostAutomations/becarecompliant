@@ -16,6 +16,7 @@ export type NavEntry = {
     | "founder"
     | "holiday"
     | "absence"
+    | "training"
     | "reports";
   /** Roles allowed to see this entry. Undefined means everyone. */
   roles?: Role[];
@@ -39,6 +40,12 @@ export const NAV_ENTRIES: NavEntry[] = [
         label: "Absence",
         icon: "absence",
         roles: ["platform_admin", "company_admin", "manager", "supervisor"],
+      },
+      {
+        href: "/people/training",
+        label: "Training",
+        icon: "training",
+        roles: ["platform_admin", "company_admin", "manager"],
       },
     ],
   },
