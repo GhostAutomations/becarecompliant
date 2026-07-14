@@ -31,6 +31,7 @@ import {
   chaserDedupeKey,
   smsDedupeKey,
   londonDateIso,
+  isLondonSendHour,
 } from "@/lib/notifications/digest";
 import { claimNotification, settleNotification } from "@/lib/notifications/log";
 import { sendSms, twilioConfigured } from "@/lib/sms/twilio";
@@ -72,13 +73,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // TEMP 2026-07-14: 07:00 London gate disabled so the Vercel Run button can fire
-  // the reporting emails now for testing. REVERT after (restore the isLondonSendHour
-  // import + the gate):
-  //   const force = request.nextUrl.searchParams.get("force") === "1";
-  //   if (!force && !isLondonSendHour()) {
-  //     return NextResponse.json({ skipped: "Before 07:00 in London" });
-  //   }
+  // Gate: sends from 07:00 London onwards (dedupe keys prevent repeats), so
+  // the winter 06:00-London run is refused, Vercel's manual Run button works
+  // any time of day, and a missed morning self-heals on the next invocation.
+  // ?force=1 (still secret-gated) bypasses even the before-07:00 refusal.
+  const force = request.nextUrl.searchParams.get("force") === "1";
+  if (!force && !isLondonSendHour()) {
+    return NextResponse.json({ skipped: "Before 07:00 in London" });
+  }
 
   const today = londonDateIso();
   const appUrl = siteUrl();
