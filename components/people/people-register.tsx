@@ -150,7 +150,7 @@ export default function PeopleRegister({
           placeholder="Search people"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="max-w-xs"
+          className="w-44"
           aria-label="Search people"
         />
       </div>
