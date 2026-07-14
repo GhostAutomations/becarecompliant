@@ -390,6 +390,14 @@
     @apply sticky left-0 z-10 bg-navy-950;
   }
 
+  /* The sticky Carer cell must stay OPAQUE on hover, otherwise the general
+     tr:hover rule paints it a translucent white and the columns scrolled
+     underneath the sticky column bleed through the name. navy-900 is a touch
+     lighter than navy-950, so it still reads as a hover without going see through. */
+  .matrix tbody tr:hover td.col-carer {
+    @apply bg-navy-900;
+  }
+
   .matrix th.col-carer {
     @apply z-30 bg-navy-900;
   }
