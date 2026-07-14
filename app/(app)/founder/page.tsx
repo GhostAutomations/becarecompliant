@@ -222,7 +222,7 @@ export default async function FounderPage() {
         </Link>
       </section>
 
-      <section aria-label="Companies" className="space-y-3">
+      <section aria-label="Companies" className="glass-card space-y-3 p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-white/80">
             Companies ({list.length})
@@ -236,9 +236,9 @@ export default async function FounderPage() {
         </div>
 
         {list.length === 0 ? (
-          <div className="glass-card px-6 py-12 text-center">
+          <div className="px-6 py-12 text-center">
             <p className="text-sm text-white/60">
-              No companies yet. Create the first one below.
+              No companies yet. Use Create a company above.
             </p>
           </div>
         ) : (
@@ -254,7 +254,7 @@ export default async function FounderPage() {
                   seats.extraCostPence
                 : 0;
               return (
-                <div key={company.id} className="glass-card p-5">
+                <div key={company.id} className="rounded-xl border border-white/10 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
