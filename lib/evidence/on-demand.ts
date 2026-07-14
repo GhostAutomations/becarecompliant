@@ -27,6 +27,8 @@ import { writeAudit } from "@/lib/audit";
 
 export type EvidenceActor = { id: string; email: string; role: string };
 
+export type EvidenceFileRef = { fileName: string; kind: string };
+
 export type EvidenceView = {
   id: string;
   formName: string;
@@ -39,6 +41,8 @@ export type EvidenceView = {
   recordId: string;
   schema: FormSchema;
   answers: Answers;
+  /** Uploaded files / signatures, keyed by field key, for signed download links. */
+  files: Record<string, EvidenceFileRef>;
 };
 
 type EvidenceViewRow = EvidenceRow & {
@@ -69,6 +73,17 @@ export async function getEvidenceView(
     return { ok: false, error: "This evidence has an invalid snapshot and cannot be shown." };
   }
 
+  // Uploaded files / signatures (same RLS as the parent row). Keyed by field for
+  // the read-only view to offer signed download links.
+  const { data: filesRaw } = await supabase
+    .from("evidence_files")
+    .select("field_key, file_name, storage_path, kind")
+    .eq("evidence_id", data.id);
+  const files: Record<string, EvidenceFileRef> = {};
+  for (const f of (filesRaw as { field_key: string; file_name: string | null; storage_path: string | null; kind: string }[] | null) ?? []) {
+    if (f.storage_path) files[f.field_key] = { fileName: f.file_name ?? "file", kind: f.kind };
+  }
+
   await writeAudit({
     companyId: data.company_id,
     actorId: actor.id,
@@ -95,6 +110,7 @@ export async function getEvidenceView(
       recordId: data.record_id,
       schema: data.schema_snapshot as FormSchema,
       answers: (data.answers ?? {}) as Answers,
+      files,
     },
   };
 }

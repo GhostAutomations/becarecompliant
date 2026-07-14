@@ -93,9 +93,22 @@ export default async function EvidenceViewPage({ params }: { params: Promise<{ i
                 <div key={field.key} className="border-t border-white/5 pt-3 first:border-t-0 first:pt-0">
                   <dt className="text-xs text-white/45">{field.label}</dt>
                   <dd className="mt-0.5 text-sm text-white/90">
-                    {isBinaryField(field.type)
-                      ? "Provided, download the PDF to view the file."
-                      : displayAnswer(ev.answers[field.key])}
+                    {isBinaryField(field.type) ? (
+                      ev.files[field.key] ? (
+                        <a
+                          href={`/api/evidence/${ev.id}/file?key=${encodeURIComponent(field.key)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-gold-300 underline"
+                        >
+                          {ev.files[field.key].kind === "signature" ? "View signature" : ev.files[field.key].fileName}
+                        </a>
+                      ) : (
+                        "Not provided"
+                      )
+                    ) : (
+                      displayAnswer(ev.answers[field.key])
+                    )}
                   </dd>
                 </div>
               ))}
