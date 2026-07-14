@@ -187,61 +187,38 @@ export default async function FounderPage() {
         </div>
       </section>
 
-      <section aria-label="Library" className="grid gap-4 sm:grid-cols-2">
+      <section aria-label="Library" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Link href="/founder/new" className="app-tile">
           <h2 className="text-base font-semibold text-white">Create a company</h2>
-          <p className="text-sm text-white/60">
-            Set up a new tenant: seeds its Team, first Branch, starter forms,
-            checks and training, and optionally invites the first Admin.
-          </p>
+          <p className="text-sm text-white/60">Set up and seed a new tenant.</p>
         </Link>
         <Link href="/founder/forms" className="app-tile">
           <h2 className="text-base font-semibold text-white">Form template library</h2>
-          <p className="text-sm text-white/60">
-            Curate the master starter forms that seed every new company, using the same
-            builder.
-          </p>
+          <p className="text-sm text-white/60">Starter forms for new companies.</p>
         </Link>
         <Link href="/founder/question-bank" className="app-tile">
           <h2 className="text-base font-semibold text-white">Question bank</h2>
-          <p className="text-sm text-white/60">
-            Curate reusable questions authors can drop into any form from the builder.
-          </p>
+          <p className="text-sm text-white/60">Reusable questions for the builder.</p>
         </Link>
         <Link href="/founder/usage" className="app-tile">
           <h2 className="text-base font-semibold text-white">Usage</h2>
-          <p className="text-sm text-white/60">
-            Metered SMS and AI usage per company, this month and by month. Diamond
-            billing reads from this.
-          </p>
+          <p className="text-sm text-white/60">Metered SMS and AI per company.</p>
         </Link>
         <Link href="/founder/audit" className="app-tile">
           <h2 className="text-base font-semibold text-white">Audit console</h2>
-          <p className="text-sm text-white/60">
-            Every change across every company, who made it and when. Filter and export
-            for an inspector.
-          </p>
+          <p className="text-sm text-white/60">Every change across every company.</p>
         </Link>
         <Link href="/founder/revenue" className="app-tile">
           <h2 className="text-base font-semibold text-white">Revenue</h2>
-          <p className="text-sm text-white/60">
-            Committed MRR, per company billing state, Diamond usage to invoice and
-            Black accounts.
-          </p>
+          <p className="text-sm text-white/60">MRR, billing and Diamond usage.</p>
         </Link>
         <Link href="/founder/training-templates" className="app-tile">
           <h2 className="text-base font-semibold text-white">Training templates</h2>
-          <p className="text-sm text-white/60">
-            Curate the master training course catalogue that seeds every new
-            company.
-          </p>
+          <p className="text-sm text-white/60">Master training course catalogue.</p>
         </Link>
         <Link href="/founder/health" className="app-tile">
           <h2 className="text-base font-semibold text-white">Platform health</h2>
-          <p className="text-sm text-white/60">
-            Dependencies, failed sends and webhook processing, without digging
-            through logs.
-          </p>
+          <p className="text-sm text-white/60">Dependencies, sends and webhooks.</p>
         </Link>
       </section>
 
