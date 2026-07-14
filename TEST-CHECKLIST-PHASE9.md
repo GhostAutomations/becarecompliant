@@ -22,6 +22,12 @@ Second run — 2026-07-14 (Claude, further solo checks):
 - Mobile layout PASSED: founder home and revenue at 390px wide, stat cards + tiles stack to one column, tables scroll, pills readable, bottom Founder dock shows.
 - Manage-as 30-minute expiry: code-verified (cookie maxAge 1800 + token exp), enter/exit driven live and working. The exact Set-Cookie max-age is not exposed to the browser network API and the 30-minute lapse cannot be fast-forwarded, so the empirical timing stays a Final Testing item.
 
+Third run — 2026-07-14 (Claude, signed in by Phil as Company Admin "Akram Abappa"):
+
+- Cross-tenant guard PASSED: as a Company Admin, /founder, /founder/revenue and /founder/companies all redirect to the admin's own /dashboard. No founder route reachable. Admin nav has no Founder entry; dashboard greets by name ("Welcome, Akram"), not email.
+- Forged-cookie-inert PASSED: set a fake bcc_manage_as cookie (valid-looking payload, bad signature) in the Admin session; no manage-as banner, no cross-company access, and /founder still redirected. Signature rejected AND the guard only honours the cookie for a platform admin. Cookie cleared after.
+- Single-session non-interference: verified by design (manage-as is a cookie on the FOUNDER's own session; it never creates or overwrites the tenant Admin's auth session / user_sessions row, so it cannot bump the Admin). Manage-as was exercised live earlier with no sign-out. A fully concurrent live test (founder enters manage-as while the Admin is logged in on another device, Admin stays signed in) can be run anytime but is low value given the structure.
+
 NOT TESTED live, logged to Final Testing (need extra conditions):
 
 - 10 audit filter actually filters to the company (spot-verify by clicking Full audit).
