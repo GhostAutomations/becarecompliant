@@ -9,7 +9,7 @@
  * Styled only with canonical classes from globals.css.
  */
 
-import { useMemo, useRef, useState } from "react";
+import { useRef } from "react";
 import Link from "next/link";
 import {
   type RegisterRow,
@@ -81,7 +81,6 @@ type MatrixConfig = {
   probationAmber: number;
 };
 
-const RAG_ORDER: Record<string, number> = { red: 0, amber: 1, green: 2, none: 3 };
 
 function ragClass(rag: string): string {
   return rag === "red"
@@ -124,8 +123,6 @@ export default function RegisterMatrix({
   /** Which view this is; the Status pill offers Archive only in the Leavers view. */
   scope?: string;
 }) {
-  const [search, setSearch] = useState("");
-  const [worstFirst, setWorstFirst] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const col = (key: string, def: string) => columnLabels[key] || def;
   const fromQuery = `?from=${encodeURIComponent(returnTo)}`;
@@ -135,44 +132,11 @@ export default function RegisterMatrix({
       ? [...WORKING_STATUS_OPTIONS, { value: "archive", label: "Archive" }]
       : WORKING_STATUS_OPTIONS;
 
-  const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    let list = rows;
-    if (term) {
-      list = rows.filter(
-        (r) =>
-          r.person.full_name.toLowerCase().includes(term) ||
-          (r.person.job_title ?? "").toLowerCase().includes(term) ||
-          (r.person.team ?? "").toLowerCase().includes(term),
-      );
-    }
-    if (worstFirst) {
-      list = [...list].sort(
-        (a, b) =>
-          (RAG_ORDER[a.rollup?.rag ?? "none"] ?? 3) - (RAG_ORDER[b.rollup?.rag ?? "none"] ?? 3),
-      );
-    }
-    return list;
-  }, [rows, search, worstFirst]);
+  const filtered = rows;
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
-        <input
-          type="text"
-          placeholder="Search people"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-xs"
-          aria-label="Search people"
-        />
-        <button
-          type="button"
-          className={worstFirst ? "btn-primary" : "btn-outline"}
-          onClick={() => setWorstFirst((v) => !v)}
-        >
-          {worstFirst ? "Sorted by status" : "Sort by status"}
-        </button>
         <span className="ml-auto text-xs text-white/50">
           {filtered.length} {filtered.length === 1 ? "record" : "records"}
         </span>

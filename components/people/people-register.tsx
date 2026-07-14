@@ -70,10 +70,20 @@ export default function PeopleRegister({
   const router = useRouter();
   const [view, setView] = useState(VIEW_META[initialView] ? initialView : "main");
   const [branchId, setBranchId] = useState(initialBranch);
+  const [search, setSearch] = useState("");
   const branchOptions = branches.filter((b) => b.kind === "branch" || b.kind === "team");
   const meta = VIEW_META[view];
 
-  const filtered = rows.filter((r) => (!branchId || r.person.branch_id === branchId) && meta.match(r));
+  const term = search.trim().toLowerCase();
+  const filtered = rows.filter(
+    (r) =>
+      (!branchId || r.person.branch_id === branchId) &&
+      meta.match(r) &&
+      (term === "" ||
+        r.person.full_name.toLowerCase().includes(term) ||
+        (r.person.job_title ?? "").toLowerCase().includes(term) ||
+        (r.person.team ?? "").toLowerCase().includes(term)),
+  );
 
   function urlFor(v: string, b: string) {
     const params = new URLSearchParams();
@@ -134,6 +144,15 @@ export default function PeopleRegister({
             <option value="archive">Archive</option>
           </select>
         </label>
+
+        <input
+          type="text"
+          placeholder="Search people"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="max-w-xs"
+          aria-label="Search people"
+        />
       </div>
 
       <div className="min-h-0 flex-1">
