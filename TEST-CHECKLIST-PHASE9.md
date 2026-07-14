@@ -28,6 +28,12 @@ Third run — 2026-07-14 (Claude, signed in by Phil as Company Admin "Akram Abap
 - Forged-cookie-inert PASSED: set a fake bcc_manage_as cookie (valid-looking payload, bad signature) in the Admin session; no manage-as banner, no cross-company access, and /founder still redirected. Signature rejected AND the guard only honours the cookie for a platform admin. Cookie cleared after.
 - Single-session non-interference: verified by design (manage-as is a cookie on the FOUNDER's own session; it never creates or overwrites the tenant Admin's auth session / user_sessions row, so it cannot bump the Admin). Manage-as was exercised live earlier with no sign-out. A fully concurrent live test (founder enters manage-as while the Admin is logged in on another device, Admin stays signed in) can be run anytime but is low value given the structure.
 
+Fourth run — 2026-07-14 (Claude, back on founder login):
+
+- Invite RESEND + REVOKE on a founder drill-in PASSED (checks 15, 16). Seeded a pending invite (ppdavies+bcctest@gmail.com) in Thistle, tested Revoke (invite left the pending list, "Revoked invite for..." audit, no email), then Resend (green "Invite resent.", real branded email sent to the +alias, "Resent invite to..." audit), then revoked to clean up. Also confirmed the manage-as enter/exit audit rows ("Founder started/stopped managing as Thistle Care Wales") from the earlier run.
+
+The ONLY remaining Phase 9 item is the manage-as 30-minute auto-expiry actually lapsing (code correct: 1800s cookie + matching token exp; cannot be fast-forwarded). Everything else in this checklist is tested and passing.
+
 NOT TESTED live, logged to Final Testing (need extra conditions):
 
 - 10 audit filter actually filters to the company (spot-verify by clicking Full audit).
