@@ -3,9 +3,23 @@
 import { revalidatePath } from "next/cache";
 import { requirePlatformAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
-import { createAndSendInvite } from "@/lib/invites";
+import { createAndSendInvite, resendInvite, revokeInvite, type Actor } from "@/lib/invites";
+import { syncSeatQuantity } from "@/lib/billing/stripe-sync";
 import { writeAudit } from "@/lib/audit";
 import type { ActionState } from "@/lib/forms";
+
+/** The founder acting as themselves, for audit attribution on tenant writes. */
+async function founderActor(): Promise<{ actor: Actor }> {
+  const { user, profile } = await requirePlatformAdmin();
+  return {
+    actor: {
+      id: user.id,
+      name: profile.full_name || profile.email,
+      email: profile.email,
+      role: "platform_admin",
+    },
+  };
+}
 
 const VALID_TIERS = ["business", "pro", "enterprise", "diamond", "black"];
 
@@ -208,4 +222,90 @@ export async function setCompanyStatus(
 
   revalidatePath("/founder");
   return { ok: `Status set to ${status}.` };
+}
+
+/** Founder: enable or disable a user in any company (drill-in page). Company
+ *  Admins and other platform admins are managed separately, not here. */
+export async function founderSetUserStatus(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { actor } = await founderActor();
+  const userId = String(formData.get("user_id") ?? "");
+  const status = String(formData.get("status") ?? "");
+  if (!userId || !["active", "disabled"].includes(status)) {
+    return { error: "Choose a valid status." };
+  }
+
+  const supabase = await createClient();
+  const { data: target } = await supabase
+    .from("profiles")
+    .select("id, company_id, role")
+    .eq("id", userId)
+    .maybeSingle();
+  if (!target || !target.company_id) return { error: "User not found." };
+  if (target.role === "company_admin" || target.role === "platform_admin") {
+    return { error: "Admins are managed separately." };
+  }
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({ status })
+    .eq("id", userId)
+    .select("id");
+  if (error) return { error: error.message };
+  if (!data || data.length === 0) {
+    return { error: "No change was saved. The user may not exist." };
+  }
+
+  await writeAudit({
+    companyId: target.company_id,
+    actorId: actor.id,
+    actorEmail: actor.email,
+    actorRole: actor.role,
+    action: "user.status_changed",
+    entityType: "profile",
+    entityId: userId,
+    summary: `Founder set user status to ${status}`,
+    metadata: { status },
+  });
+  // Active seat count changed: sync to Stripe (no-op if unbilled/Diamond/Black).
+  await syncSeatQuantity(target.company_id);
+  revalidatePath(`/founder/companies/${target.company_id}`);
+  return { ok: status === "disabled" ? "User disabled." : "User enabled." };
+}
+
+/** Founder: resend a pending invite in any company (drill-in page). */
+export async function founderResendInvite(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { actor } = await founderActor();
+  const inviteId = String(formData.get("invite_id") ?? "");
+  const companyId = String(formData.get("company_id") ?? "");
+  if (!inviteId) return { error: "Missing invite." };
+  const outcome = await resendInvite(inviteId, actor);
+  if (companyId) revalidatePath(`/founder/companies/${companyId}`);
+  if (!outcome.ok) return { error: outcome.error };
+  if (!outcome.emailSent) {
+    return {
+      ok: `Invite updated, but the email was not sent (${outcome.emailNote ?? "email not configured"}).`,
+    };
+  }
+  return { ok: "Invite resent." };
+}
+
+/** Founder: revoke a pending invite in any company (drill-in page). */
+export async function founderRevokeInvite(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { actor } = await founderActor();
+  const inviteId = String(formData.get("invite_id") ?? "");
+  const companyId = String(formData.get("company_id") ?? "");
+  if (!inviteId) return { error: "Missing invite." };
+  const outcome = await revokeInvite(inviteId, actor);
+  if (companyId) revalidatePath(`/founder/companies/${companyId}`);
+  if (!outcome.ok) return { error: outcome.error };
+  return { ok: "Invite revoked." };
 }

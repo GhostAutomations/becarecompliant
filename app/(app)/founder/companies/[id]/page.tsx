@@ -6,6 +6,10 @@ import { createClient } from "@/lib/supabase/server";
 import BackLink from "@/components/back-link";
 import { StatCard } from "@/components/founder/stat-card";
 import { CompanyStatusButton } from "@/components/founder/company-status-button";
+import {
+  UserStatusButton,
+  InviteActions,
+} from "@/components/founder/user-admin-controls";
 import { computeSeatUsage, formatPence } from "@/lib/billing/seats";
 import { TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
 import {
@@ -313,6 +317,9 @@ export default async function FounderCompanyPage({
                       {ROLE_LABELS[p.role] ?? p.role}
                     </span>
                     <span className={`pill ${s.cls}`}>{s.text}</span>
+                    {p.role !== "company_admin" && p.role !== "platform_admin" ? (
+                      <UserStatusButton userId={p.id} current={p.status} />
+                    ) : null}
                   </div>
                 </div>
               );
@@ -339,6 +346,7 @@ export default async function FounderCompanyPage({
                       {ROLE_LABELS[i.role] ?? i.role}
                     </span>
                     <span className="pill pill-amber">Pending</span>
+                    <InviteActions inviteId={i.id} companyId={company.id} />
                   </div>
                 </div>
               ))}
