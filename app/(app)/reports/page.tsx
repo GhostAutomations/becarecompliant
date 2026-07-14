@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import { featureEnabled } from "@/lib/billing/tier";
-import { listBranches } from "@/lib/people/data";
 import ReportsPanel from "@/components/reports/reports-panel";
 
 export const metadata: Metadata = { title: "Reports" };
@@ -16,10 +15,7 @@ export default async function ReportsPage() {
   }
   if (!profile.company_id) redirect("/founder");
 
-  const [branches, entitled] = await Promise.all([
-    listBranches(profile.company_id),
-    featureEnabled(profile.company_id, "reporting_exports"),
-  ]);
+  const entitled = await featureEnabled(profile.company_id, "reporting_exports");
 
   return (
     <div className="mx-auto max-w-5xl space-y-8">
@@ -30,7 +26,6 @@ export default async function ReportsPage() {
         </p>
       </div>
       <ReportsPanel
-        branches={branches.map((b) => ({ id: b.id, name: b.name }))}
         entitled={entitled}
         isAdmin={profile.role === "company_admin" || profile.role === "platform_admin"}
       />

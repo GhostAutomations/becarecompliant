@@ -11,9 +11,11 @@ import {
 } from "@/lib/export/reports";
 import { buildOnTimeReport, resolveOnTimeWindow } from "@/lib/export/on-time";
 import { buildTrainingReport } from "@/lib/export/training";
+import { listBranches } from "@/lib/people/data";
 import type { ReportDoc } from "@/lib/export/pdf";
 import BackLink from "@/components/back-link";
 import ReportDocView from "@/components/reports/report-doc-view";
+import ReportBranchSelect from "@/components/reports/report-branch-select";
 
 export const metadata: Metadata = { title: "Report" };
 
@@ -45,28 +47,33 @@ export default async function ReportViewPage({
   const reportType = type as ReportType;
   const isTraining = reportType === "training";
 
+  const isOnTime = reportType === "on-time";
   const sp = await searchParams;
   const str = (v: string | string[] | undefined) => (typeof v === "string" && v.length > 0 ? v : null);
+  const branches = await listBranches(profile.company_id);
+  const branchOptions = branches.map((b) => ({ id: b.id, name: b.name }));
+
+  // Branch is chosen inside the view. The PQS report is always a single branch, so
+  // it defaults to the first branch; the others default to all branches.
   const branchParam = str(sp.branch);
-  const branchValue = branchParam ?? "all";
-  const scope = await resolveReportScope(profile.company_id, branchParam);
+  const effectiveBranch = branchParam ?? (isOnTime ? branchOptions[0]?.id ?? null : null);
+  const branchValue = effectiveBranch ?? "all";
+  const scope = await resolveReportScope(profile.company_id, effectiveBranch);
 
   // The on time report uses a "last 6 months" default window; the other reports
   // default to overdue + 30 days. Both carry From/To through to the download.
-  const win =
-    reportType === "on-time"
-      ? resolveOnTimeWindow(str(sp.from), str(sp.to))
-      : resolveReportWindow(str(sp.from), str(sp.to));
+  const win = isOnTime
+    ? resolveOnTimeWindow(str(sp.from), str(sp.to))
+    : resolveReportWindow(str(sp.from), str(sp.to));
 
-  // The on time report is always for a single branch (local authority monitoring
-  // is per contract), never all branches.
-  if (reportType === "on-time" && !scope.branchId) {
+  // The PQS report needs a branch; only reachable with none when the company has no
+  // branches at all.
+  if (isOnTime && !scope.branchId) {
     return (
       <div className="mx-auto max-w-5xl space-y-5">
         <BackLink href="/reports" label="Back to reports" />
         <div className="glass-card p-6 text-sm text-white/70">
-          The on time report is always for a single branch. Choose a branch on the Reports page,
-          then open this report.
+          The PQS report is always for a single branch, and this company has no branches set up yet.
         </div>
       </div>
     );
@@ -112,10 +119,10 @@ export default async function ReportViewPage({
       <BackLink href="/reports" label="Back to reports" />
 
       {isTraining ? (
-        <div className="glass-card flex flex-wrap items-center gap-2 p-4">
-          <p className="text-[11px] text-white/45">
-            Live snapshot of training compliance for this branch. There is no date range: it always
-            reflects today.
+        <div className="glass-card flex flex-wrap items-end gap-3 p-4">
+          <ReportBranchSelect branches={branchOptions} value={branchValue} allowAll={!isOnTime} />
+          <p className="pb-2 text-[11px] text-white/45">
+            Live snapshot of training compliance. There is no date range: it always reflects today.
           </p>
           <span className="ml-auto flex items-center gap-2">
             {entitled ? (
@@ -134,6 +141,7 @@ export default async function ReportViewPage({
         <form method="get" action={selfPath} className="glass-card p-4">
           <input type="hidden" name="branch" value={branchValue} />
           <div className="flex flex-wrap items-end gap-3">
+            <ReportBranchSelect branches={branchOptions} value={branchValue} allowAll={!isOnTime} />
             <div>
               <label htmlFor="from" className="form-label">From</label>
               <input id="from" name="from" type="date" defaultValue={win.from ?? ""} />
@@ -158,8 +166,8 @@ export default async function ReportViewPage({
             </span>
           </div>
           <p className="mt-2 text-[11px] text-white/40">
-            {reportType === "on-time"
-              ? "The on time rate defaults to the last 6 months. Change the dates to look at a different period."
+            {isOnTime
+              ? "The PQS on time rates default to the last 6 months. Change the dates to look at a different period."
               : "Leave From blank to include everything overdue. To defaults to 30 days ahead."}
           </p>
         </form>

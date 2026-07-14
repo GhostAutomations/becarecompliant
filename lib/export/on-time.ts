@@ -34,8 +34,9 @@ import {
   todayInLondon,
 } from "@/lib/recurrence";
 import { buildCsv, type CsvCell } from "@/lib/export/csv";
-import type { ReportDoc } from "@/lib/export/pdf";
+import type { ReportDoc, ReportCell } from "@/lib/export/pdf";
 import { fmtDate, generatedAt } from "@/lib/export/format";
+import { getTrainingMatrix } from "@/lib/training/data";
 
 export type OnTimeWindow = { from: string; to: string };
 
@@ -86,6 +87,18 @@ function pqsBand(onTime: number, total: number): number | null {
   return 0;
 }
 
+/** PQS band straight from a percentage (for training and SCW rates). */
+function bandPct(pct: number | null): number | null {
+  if (pct == null) return null;
+  if (pct >= 100) return 10;
+  if (pct >= 85) return 7;
+  if (pct >= 70) return 5;
+  if (pct >= 50) return 2;
+  return 0;
+}
+
+export type PqsHeadline = { question: string; measure: string; rate: number | null; band: number | null };
+
 type DefRow = {
   id: string;
   key: string;
@@ -133,7 +146,7 @@ export async function buildOnTimeReport(input: {
   // 2. Active records (branch scoped by RLS + the optional branch filter).
   let peopleQ = supabase
     .from("people")
-    .select("id, full_name, branch_id, start_date, branches(name)")
+    .select("id, full_name, branch_id, start_date, scw_registration_number, branches(name)")
     .eq("company_id", input.companyId)
     .is("archived_at", null)
     .neq("employment_status", "leaver");
@@ -150,10 +163,17 @@ export async function buildOnTimeReport(input: {
   const [{ data: peopleRaw }, { data: suRaw }] = await Promise.all([peopleQ, suQ]);
 
   type Rec = { id: string; name: string; branch: string; start: string | null; population: "people" | "service_users" };
-  type PersonRaw = { id: string; full_name: string; start_date: string | null; branches: { name: string } | null };
+  type PersonRaw = {
+    id: string;
+    full_name: string;
+    start_date: string | null;
+    scw_registration_number: string | null;
+    branches: { name: string } | null;
+  };
   type SuRaw = { id: string; full_name: string; package_start_date: string | null; branches: { name: string } | null };
+  const staff = (peopleRaw as unknown as PersonRaw[] | null) ?? [];
   const records: Rec[] = [
-    ...((peopleRaw as unknown as PersonRaw[] | null) ?? []).map((p) => ({
+    ...staff.map((p) => ({
       id: p.id,
       name: p.full_name,
       branch: p.branches?.name ?? input.branchName ?? "",
@@ -250,7 +270,32 @@ export async function buildOnTimeReport(input: {
   }
 
   const stats = Array.from(statByKey.values());
-  return renderOnTimeDoc(input, win, stats, cycles);
+
+  // PQS headline: the specific questions Cardiff scores, pulled together so the
+  // manager reads one return. Supervision (Quality Q2) and care plan review (User
+  // Experience Q1) come from the on-time cycles above; mandatory + safeguarding
+  // training from the Training department; SCW registration is worked out here.
+  const training = await getTrainingMatrix(input.companyId, input.branchId);
+  const cutoff = formatCivilDate(addMonths(today, -6));
+  let scwDenom = 0;
+  let scwNum = 0;
+  for (const p of staff) {
+    if (!p.start_date || p.start_date > cutoff) continue; // 6+ months in post only
+    scwDenom += 1;
+    if (p.scw_registration_number && p.scw_registration_number.trim() !== "") scwNum += 1;
+  }
+  const scwPct = scwDenom === 0 ? null : Math.round((scwNum / scwDenom) * 1000) / 10;
+  const supStat = statByKey.get("supervision");
+  const cprStat = statByKey.get("care_plan_review");
+  const headline: PqsHeadline[] = [
+    { question: "Quality Compliance Q1", measure: "Mandatory training compliance", rate: training.summary.mandatoryCompliancePct, band: bandPct(training.summary.mandatoryCompliancePct) },
+    { question: "Quality Compliance Q2", measure: "Supervision completed by due date", rate: supStat?.ratePct ?? null, band: supStat?.band ?? null },
+    { question: "Quality Compliance Q3", measure: "Staff 6+ months registered with Social Care Wales", rate: scwPct, band: bandPct(scwPct) },
+    { question: "User Experience Q1", measure: "Care plan reviews completed by due date", rate: cprStat?.ratePct ?? null, band: cprStat?.band ?? null },
+    { question: "Safeguarding Q1", measure: "Mandatory safeguarding training", rate: training.summary.safeguardingPct, band: bandPct(training.summary.safeguardingPct) },
+  ];
+
+  return renderOnTimeDoc(input, win, stats, cycles, headline);
 }
 
 function bandCell(band: number | null) {
@@ -274,9 +319,17 @@ function renderOnTimeDoc(
   win: OnTimeWindow,
   stats: OnTimeStat[],
   cycles: OnTimeCycle[],
+  headline: PqsHeadline[],
 ): { doc: ReportDoc; csv: string; base: string } {
   const scopeLabel = input.branchName ? input.branchName : "All branches";
   const period = `${fmtDate(win.from)} to ${fmtDate(win.to)}`;
+
+  const headlineRows: ReportCell[][] = headline.map((h) => [
+    { text: h.question },
+    { text: h.measure, strong: true },
+    rateCell(h.rate),
+    bandCell(h.band),
+  ]);
 
   const summaryRows = stats.map((s) => [
     { text: s.checkName, strong: true },
@@ -302,9 +355,9 @@ function renderOnTimeDoc(
   ]);
 
   const doc: ReportDoc = {
-    title: "Compliance on time report",
+    title: "PQS report",
     subtitle: `${input.companyName}, ${scopeLabel}`,
-    reference: `ONTIME-${new Date().toISOString().slice(0, 10)}`,
+    reference: `PQS-${new Date().toISOString().slice(0, 10)}`,
     meta: [
       { label: "Company", value: input.companyName },
       { label: "Scope", value: scopeLabel },
@@ -312,8 +365,20 @@ function renderOnTimeDoc(
       { label: "Generated at", value: generatedAt() },
     ],
     footerNote:
-      "On time means a check cycle was completed on or before its due date (last completion plus the deadline shown in Graded at). Each check is graded against its regulatory deadline where one is set, otherwise its operational interval. Active records only. PQS score band: 100 percent is 10, 85 to 99.99 is 7, 70 to 84.99 is 5, 50 to 69.99 is 2, under 50 is 0.",
+      "PQS score band: 100 percent is 10, 85 to 99.99 is 7, 70 to 84.99 is 5, 50 to 69.99 is 2, under 50 is 0. On time means completed on or before the due date (last completion plus the deadline shown in Graded at). Training and Social Care Wales figures cover active staff; the SCW rate counts only staff 6+ months in post. Active records only.",
     blocks: [
+      { kind: "heading", text: "PQS headline scores" },
+      {
+        kind: "table",
+        emptyText: "No PQS measures available.",
+        columns: [
+          { header: "PQS question", width: "22%" },
+          { header: "Measure", width: "46%" },
+          { header: "Rate", width: "16%" },
+          { header: "PQS score", width: "16%" },
+        ],
+        rows: headlineRows,
+      },
       { kind: "heading", text: "On time completion rates" },
       {
         kind: "table",
@@ -347,6 +412,18 @@ function renderOnTimeDoc(
   };
 
   const csvRows: CsvCell[][] = [
+    ...headline.map((h) => [
+      "PQS",
+      `${h.question}: ${h.measure}`,
+      "",
+      "",
+      "",
+      "",
+      h.rate === null ? "" : `${h.rate}%`,
+      h.band === null ? "" : h.band,
+      "",
+      "",
+    ] as CsvCell[]),
     ...stats.map((s) => [
       "Summary",
       s.checkName,
@@ -387,7 +464,7 @@ function emptyReport(
   const scopeLabel = input.branchName ? input.branchName : "All branches";
   return {
     doc: {
-      title: "Compliance on time report",
+      title: "PQS report",
       subtitle: `${input.companyName}, ${scopeLabel}`,
       meta: [
         { label: "Company", value: input.companyName },
@@ -397,6 +474,6 @@ function emptyReport(
       blocks: [{ kind: "paragraph", text: note }],
     },
     csv: buildCsv(["Note"], [[note]]),
-    base: `on-time-${scopeLabel.replace(/\s+/g, "-").toLowerCase()}`,
+    base: `pqs-${scopeLabel.replace(/\s+/g, "-").toLowerCase()}`,
   };
 }
