@@ -117,10 +117,9 @@ export async function GET(request: NextRequest) {
       if (recipients.length === 0) continue;
 
       if (company.settings.emailDigestEnabled) {
-        // 1a. Caseload digest: SUPERVISORS only. Company Admins get the two whole
-        // company reports below; Managers get nothing here (Phil, 2026-07-14: the
-        // company gets exactly two reporting emails a day, to the Admin). Anyone
-        // with nothing to report gets no digest.
+        // 1a. Caseload digest: SUPERVISORS only. Admins and Managers get the two
+        // compliance reports below instead (admins company-wide, managers their
+        // branches). Anyone with nothing to report gets no digest.
         const digestRecipients = recipients.filter((r) => r.role === "supervisor");
         for (const digest of buildDigests(digestRecipients, items)) {
           const logId = await claimNotification({
@@ -158,11 +157,12 @@ export async function GET(request: NextRequest) {
           );
         }
 
-        // 1b. Daily People + Service User compliance reports: exactly TWO whole
-        // company emails a day, to COMPANY ADMINS (company-wide, all branches).
-        // Sent every morning, including a positive all clear, but only for a
-        // population the company actually has (a people only company gets no
-        // Service User report). Compliance checks only, never holiday or absence.
+        // 1b. Daily People + Service User compliance reports (the two emails, Name /
+        // Task / Date). ADMINS get them company-wide; MANAGERS get them scoped to
+        // their branches (Phil, 2026-07-14). Sent every morning, including a positive
+        // all clear, but only for a population the company actually has (a people only
+        // company gets no Service User report). Compliance checks only, never holiday
+        // or absence.
         const toRow = (c: ReportingCheck): ReportingRow => ({
           recordId: c.recordId,
           recordName: c.recordName,
@@ -170,7 +170,9 @@ export async function GET(request: NextRequest) {
           checkName: c.checkName,
           dueDate: c.dueDate,
         });
-        const reportRecipients = recipients.filter((r) => r.role === "company_admin");
+        const reportRecipients = recipients.filter(
+          (r) => r.role === "company_admin" || r.role === "manager",
+        );
         const populations: Array<{
           key: "people" | "service_users";
           checks: ReportingCheck[];
