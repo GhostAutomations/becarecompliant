@@ -15,6 +15,13 @@ PASSED live on the deployed build (commit 9bdb89e):
 - Health 29 to 32: dependency grid accurate (SMS/Twilio correctly the one "Missing", header "1 missing"), Daily jobs Recent pill, failed-sends + webhooks empty states.
 - Manage-as 33, 35, 36: entered as Thistle Care Wales (amber banner, nav switched to the company nav, tenant dashboard rollups shown), opened the tenant People register (26 records, scoped), exited cleanly back to the Founder console.
 
+Second run — 2026-07-14 (Claude, further solo checks):
+
+- Training 24 to 27 PASSED including deactivation: edited a template (unchecked Active, Saved), created a throwaway company "ZZ Seed Test", and confirmed it got 32 training courses (not 33) with the deactivated course absent. Reactivated the course and archived the test company.
+- BUG FOUND + FIXED (migration 0062, applied 2026-07-14): seed_company_people_checks failed with "column amber_days is of type integer but expression is of type text" (all-NULL amber_days column in the VALUES list inferred as text). New companies were seeding Service User checks, forms and training but ZERO People checks. Fixed with v.amber_days::int; verified the corrected insert seeds the 5 People checks.
+- Mobile layout PASSED: founder home and revenue at 390px wide, stat cards + tiles stack to one column, tables scroll, pills readable, bottom Founder dock shows.
+- Manage-as 30-minute expiry: code-verified (cookie maxAge 1800 + token exp), enter/exit driven live and working. The exact Set-Cookie max-age is not exposed to the browser network API and the 30-minute lapse cannot be fast-forwarded, so the empirical timing stays a Final Testing item.
+
 NOT TESTED live, logged to Final Testing (need extra conditions):
 
 - 10 audit filter actually filters to the company (spot-verify by clicking Full audit).
