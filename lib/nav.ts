@@ -12,6 +12,7 @@ export type NavEntry = {
     | "dashboard"
     | "people"
     | "serviceUsers"
+    | "complaints"
     | "settings"
     | "founder"
     | "holiday"
@@ -72,6 +73,13 @@ export const NAV_ENTRIES: NavEntry[] = [
         roles: ["platform_admin", "company_admin", "manager"],
       },
     ],
+  },
+  {
+    href: "/complaints",
+    label: "Complaints",
+    icon: "complaints",
+    group: "Departments",
+    roles: ["platform_admin", "company_admin", "manager"],
   },
   {
     href: "/reports",

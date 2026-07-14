@@ -5,8 +5,11 @@ import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { NavIcon } from "@/components/nav-icon";
 import RealtimeRefresh from "@/components/realtime-refresh";
+import { getComplaintCounts } from "@/lib/complaints/data";
 
 export const metadata: Metadata = { title: "Dashboard" };
+
+const COMPLAINTS_ROLES = ["company_admin", "manager", "platform_admin"];
 
 export default async function DashboardPage() {
   // requireCompany so that a founder managing as a company sees that company's
@@ -52,6 +55,13 @@ export default async function DashboardPage() {
       else if (r.rag === "green") suCounts.compliant += 1;
     }
   }
+
+  // Complaints (Managers + Admins only): open / in progress / overdue response.
+  const canSeeComplaints = COMPLAINTS_ROLES.includes(profile.role);
+  const complaintCounts =
+    canSeeComplaints && profile.company_id
+      ? await getComplaintCounts(profile.company_id)
+      : { open: 0, inProgress: 0, closed: 0, overdue: 0 };
 
   return (
     <div className="mx-auto max-w-5xl space-y-8">
@@ -109,6 +119,30 @@ export default async function DashboardPage() {
         </div>
       </section>
 
+      {/* Complaints status strip (Managers + Admins) */}
+      {canSeeComplaints ? (
+        <section aria-label="Complaints status" className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Complaints</h2>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="glass-card p-5">
+              <span className="pill-neutral">Open</span>
+              <p className="mt-3 text-3xl font-bold text-white">{complaintCounts.open + complaintCounts.inProgress}</p>
+              <p className="text-xs text-white/50">Complaints still being handled</p>
+            </div>
+            <div className="glass-card p-5">
+              <span className="pill-red"><span className="pill-dot" /> Overdue</span>
+              <p className="mt-3 text-3xl font-bold text-white">{complaintCounts.overdue}</p>
+              <p className="text-xs text-white/50">Past their response deadline</p>
+            </div>
+            <div className="glass-card p-5">
+              <span className="pill-green"><span className="pill-dot" /> Closed</span>
+              <p className="mt-3 text-3xl font-bold text-white">{complaintCounts.closed}</p>
+              <p className="text-xs text-white/50">Complaints resolved and closed</p>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       {/* App grid */}
       <section aria-label="Sections" className="grid gap-4 sm:grid-cols-2">
         <Link href="/people" className="app-tile">
@@ -136,6 +170,20 @@ export default async function DashboardPage() {
           </p>
           <span className="pill-green mt-auto w-fit"><span className="pill-dot" /> Live</span>
         </Link>
+
+        {canSeeComplaints ? (
+          <Link href="/complaints" className="app-tile">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-400/10 text-gold-400">
+              <NavIcon icon="complaints" className="h-5 w-5" />
+            </span>
+            <h2 className="text-base font-semibold text-white">Complaints</h2>
+            <p className="text-sm text-white/60">
+              Complaints and concerns tracked from raised to resolved, with response
+              deadlines and immutable evidence.
+            </p>
+            <span className="pill-green mt-auto w-fit"><span className="pill-dot" /> Live</span>
+          </Link>
+        ) : null}
       </section>
     </div>
   );

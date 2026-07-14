@@ -123,6 +123,13 @@ export default async function SettingsPage() {
             Service Users.
           </p>
         </Link>
+        <Link href="/settings/complaints" className="app-tile">
+          <h2 className="text-base font-semibold text-white">Complaints</h2>
+          <p className="text-sm text-white/60">
+            Set the acknowledgement and response timescales used to calculate complaint
+            deadlines.
+          </p>
+        </Link>
         <Link href="/settings/absence" className="app-tile">
           <h2 className="text-base font-semibold text-white">Absence</h2>
           <p className="text-sm text-white/60">
