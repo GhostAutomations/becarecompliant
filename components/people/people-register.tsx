@@ -23,7 +23,7 @@ const VIEW_META: Record<
   { title: string; scope: string; match: (r: RegisterRow) => boolean }
 > = {
   main: {
-    title: "People",
+    title: "Compliance",
     scope: "active",
     match: (r) => r.person.employment_status === "active" && !r.person.archived_at,
   },
