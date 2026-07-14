@@ -127,6 +127,18 @@ export default function ReportsPanel({
         </div>
 
         <div className="glass-card p-5">
+          <h2 className="text-base font-semibold text-white">On time report</h2>
+          <p className="text-sm text-white/60">
+            Percentage of supervisions and care plan reviews completed by their due date over a
+            period, with the score band, for local authority monitoring like the Cardiff PQS.
+          </p>
+          <ReportActions
+            viewHref={viewHref("on-time")}
+            download={entitled ? (f) => `/api/reports/on-time?${q(`format=${f}`)}` : null}
+          />
+        </div>
+
+        <div className="glass-card p-5">
           <h2 className="text-base font-semibold text-white">Audit trail</h2>
           <p className="text-sm text-white/60">
             Who changed what and when across your company. Open the log to filter, or export it for an

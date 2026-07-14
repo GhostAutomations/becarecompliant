@@ -9,13 +9,14 @@ import {
   buildComplianceReport,
   resolveReportWindow,
 } from "@/lib/export/reports";
+import { buildOnTimeReport, resolveOnTimeWindow } from "@/lib/export/on-time";
 import type { ReportDoc } from "@/lib/export/pdf";
 import BackLink from "@/components/back-link";
 import ReportDocView from "@/components/reports/report-doc-view";
 
 export const metadata: Metadata = { title: "Report" };
 
-type ReportType = "people" | "service_users" | "compliance";
+type ReportType = "people" | "service_users" | "compliance" | "on-time";
 
 export default async function ReportViewPage({
   params,
@@ -31,7 +32,7 @@ export default async function ReportViewPage({
   if (!profile.company_id) redirect("/founder");
 
   const { type } = await params;
-  if (type !== "people" && type !== "service_users" && type !== "compliance") {
+  if (type !== "people" && type !== "service_users" && type !== "compliance" && type !== "on-time") {
     redirect("/reports");
   }
   const reportType = type as ReportType;
@@ -39,32 +40,42 @@ export default async function ReportViewPage({
   const sp = await searchParams;
   const str = (v: string | string[] | undefined) => (typeof v === "string" && v.length > 0 ? v : null);
   const branchParam = str(sp.branch);
+  const branchValue = branchParam ?? "all";
   const scope = await resolveReportScope(profile.company_id, branchParam);
-  const win = resolveReportWindow(str(sp.from), str(sp.to));
 
-  const input = {
+  // The on time report uses a "last 6 months" default window; the other reports
+  // default to overdue + 30 days. Both carry From/To through to the download.
+  const win =
+    reportType === "on-time"
+      ? resolveOnTimeWindow(str(sp.from), str(sp.to))
+      : resolveReportWindow(str(sp.from), str(sp.to));
+
+  const base = {
     companyId: profile.company_id,
     companyName: scope.companyName,
     branchId: scope.branchId,
     branchName: scope.branchName,
-    window: win,
   };
 
   let doc: ReportDoc;
   let exportPath: string;
-  if (reportType === "compliance") {
-    doc = (await buildComplianceReport(input)).doc;
+  let populationQuery = "";
+  if (reportType === "on-time") {
+    doc = (await buildOnTimeReport({ ...base, window: { from: win.from ?? "", to: win.to } })).doc;
+    exportPath = "/api/reports/on-time";
+  } else if (reportType === "compliance") {
+    doc = (await buildComplianceReport({ ...base, window: win })).doc;
     exportPath = "/api/reports/compliance";
   } else if (reportType === "service_users") {
-    doc = (await buildServiceUserRegisterReport(input)).doc;
+    doc = (await buildServiceUserRegisterReport({ ...base, window: win })).doc;
     exportPath = "/api/reports/register";
+    populationQuery = "population=service_users&";
   } else {
-    doc = (await buildPeopleRegisterReport(input)).doc;
+    doc = (await buildPeopleRegisterReport({ ...base, window: win })).doc;
     exportPath = "/api/reports/register";
+    populationQuery = "population=people&";
   }
 
-  const branchValue = branchParam ?? "all";
-  const populationQuery = reportType === "compliance" ? "" : `population=${reportType}&`;
   const exportHref = (format: "pdf" | "csv") =>
     `${exportPath}?${populationQuery}branch=${encodeURIComponent(branchValue)}&from=${win.from ?? ""}&to=${win.to}&format=${format}`;
 
@@ -102,7 +113,9 @@ export default async function ReportViewPage({
           </span>
         </div>
         <p className="mt-2 text-[11px] text-white/40">
-          Leave From blank to include everything overdue. To defaults to 30 days ahead.
+          {reportType === "on-time"
+            ? "The on time rate defaults to the last 6 months. Change the dates to look at a different period."
+            : "Leave From blank to include everything overdue. To defaults to 30 days ahead."}
         </p>
       </form>
 
