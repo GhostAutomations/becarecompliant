@@ -73,7 +73,7 @@ export function HorizontalScrollbar({ targetRef }: { targetRef: React.RefObject<
   return (
     <div
       ref={trackRef}
-      className="relative h-3.5 w-full shrink-0 rounded-full bg-white/10"
+      className="relative h-2 w-full shrink-0 rounded-full bg-white/10"
       style={{ visibility: thumb.visible ? "visible" : "hidden" }}
       onPointerDown={(e) => {
         const el = targetRef.current;
@@ -85,7 +85,7 @@ export function HorizontalScrollbar({ targetRef }: { targetRef: React.RefObject<
       }}
     >
       <div
-        className="absolute top-0 h-3.5 cursor-grab rounded-full bg-white/40 hover:bg-white/60 active:cursor-grabbing"
+        className="absolute top-0 h-2 cursor-grab rounded-full bg-white/40 hover:bg-white/60 active:cursor-grabbing"
         style={{ width: `${thumb.width}px`, transform: `translateX(${thumb.left}px)` }}
         onPointerDown={(e) => {
           const el = targetRef.current;

@@ -21,6 +21,7 @@ import { formatDisplayDate, supervisionSlots, dateRag } from "@/lib/people/logic
 import { setEmploymentStatus, updateTracker } from "@/lib/people/actions";
 import { PillSelect, toneClass, type Tone } from "@/components/register/pill-select";
 import { HorizontalScrollbar } from "@/components/register/horizontal-scrollbar";
+import { VerticalScrollbar } from "@/components/register/vertical-scrollbar";
 
 function workingTone(v: string | null): Tone {
   if (v === "active") return "green";
@@ -177,8 +178,10 @@ export default function RegisterMatrix({
         </span>
       </div>
 
-      <div ref={wrapRef} className="matrix-wrap min-h-0 flex-1">
-        <table className="matrix">
+      <div className="flex min-h-0 flex-1 flex-col gap-1">
+        <div className="flex min-h-0 flex-1 gap-1">
+          <div ref={wrapRef} className="matrix-wrap min-h-0 flex-1">
+            <table className="matrix">
           <thead>
             <tr>
               <th className="col-carer">Carer</th>
@@ -315,10 +318,12 @@ export default function RegisterMatrix({
               );
             })}
           </tbody>
-        </table>
+            </table>
+          </div>
+          <VerticalScrollbar targetRef={wrapRef} />
+        </div>
+        <HorizontalScrollbar targetRef={wrapRef} />
       </div>
-
-      <HorizontalScrollbar targetRef={wrapRef} />
     </div>
   );
 }

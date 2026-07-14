@@ -73,7 +73,7 @@ export function VerticalScrollbar({ targetRef }: { targetRef: React.RefObject<HT
   return (
     <div
       ref={trackRef}
-      className="relative w-3.5 shrink-0 rounded-full bg-white/10"
+      className="relative w-2 shrink-0 rounded-full bg-white/10"
       style={{ visibility: thumb.visible ? "visible" : "hidden" }}
       onPointerDown={(e) => {
         const el = targetRef.current;
@@ -85,7 +85,7 @@ export function VerticalScrollbar({ targetRef }: { targetRef: React.RefObject<HT
       }}
     >
       <div
-        className="absolute left-0 w-3.5 cursor-grab rounded-full bg-white/40 hover:bg-white/60 active:cursor-grabbing"
+        className="absolute left-0 w-2 cursor-grab rounded-full bg-white/40 hover:bg-white/60 active:cursor-grabbing"
         style={{ height: `${thumb.height}px`, transform: `translateY(${thumb.top}px)` }}
         onPointerDown={(e) => {
           const el = targetRef.current;
