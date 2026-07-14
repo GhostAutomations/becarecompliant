@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requirePlatformAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
-import { CreateCompanyForm } from "@/components/founder/create-company-form";
 import { CompanyStatusButton } from "@/components/founder/company-status-button";
 import { StatCard } from "@/components/founder/stat-card";
 import { SignupsChart } from "@/components/founder/signups-chart";
@@ -189,6 +188,13 @@ export default async function FounderPage() {
       </section>
 
       <section aria-label="Library" className="grid gap-4 sm:grid-cols-2">
+        <Link href="/founder/new" className="app-tile">
+          <h2 className="text-base font-semibold text-white">Create a company</h2>
+          <p className="text-sm text-white/60">
+            Set up a new tenant: seeds its Team, first Branch, starter forms,
+            checks and training, and optionally invites the first Admin.
+          </p>
+        </Link>
         <Link href="/founder/forms" className="app-tile">
           <h2 className="text-base font-semibold text-white">Form template library</h2>
           <p className="text-sm text-white/60">
@@ -347,17 +353,6 @@ export default async function FounderPage() {
             })}
           </div>
         )}
-      </section>
-
-      <section aria-label="Create a company" className="glass-card p-6">
-        <h2 className="mb-1 text-base font-semibold text-white">
-          Create a company
-        </h2>
-        <p className="mb-5 text-sm text-white/60">
-          Seeds one Team (office) and one Branch. Additional branches are a paid
-          add on, added later.
-        </p>
-        <CreateCompanyForm />
       </section>
     </div>
   );
