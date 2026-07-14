@@ -130,3 +130,17 @@ Context: added after the 2026-07-13 run. All items below are UNTESTED in the UI;
 
 ### H8. Daily reporting emails (from the digest cron)
 - Already fired once live 2026-07-13 (6 test emails then restricted to admin+managers). Cold confirm on a normal 07:00 London run: admins get 2 company wide emails (People, Service Users); managers get 2 scoped to their branches; supervisors keep the caseload digest. People email is compliance checks only (never holiday/absence). Layout is 3 columns Name / Task / Date, "Overdue DD/MM/YYYY" for overdue, "DD/MM/YYYY" for due soon (next 14 days). All clear email still sends when nothing is due.
+
+## I. Logged to Final Testing at Phase 8 close (2026-07-14)
+
+Admin-testable surface was driven live in Chrome on 2026-07-14 and PASSED: PQS report (single box, starred measures incl. SCW "6 months in post", instant star tooltip, in-view branch/dates/downloads), Reports page (no top branch selector, View-only cards, on-time renamed PQS), Compliance register (title/subtitle, search beside View, no Sort button, slim H+V sliders, nav highlight), Training (no stat cards, correct nav highlight, sliders, legend), Service Users Outcomes + Satisfaction placeholders, Evidence "View" button + Evidence View page (title, meta, read-only sections, Download PDF). The following need another login or real data and are logged here:
+
+- I1. Role isolation: sign in as a Manager, confirm NO History timeline on a person or service user record (Admins only). Sign in as a Team Member, confirm no Service User access and own-record-only.
+- I2. File / signature evidence: complete a form in-app with a real file upload and a signature, open its Evidence View, confirm the file shows as a signed download link and the signature as "View signature" (imported evidence shows "Not provided", which is correct).
+- I3. Training edit + certificate: click a training cell, save a completed + renewal date, upload a certificate, confirm it saves, the matrix RAG updates, and "View current certificate" downloads via a signed URL (audit-logged).
+- I4. Training course config: Settings > People > Training courses, add/rename/retire a course, change renewal/mandatory/safeguarding/amber, confirm the matrix and PQS report reflect it.
+- I5. Training RLS: a branch Manager sees only their branch's training; no Supervisor/Team Member access at all.
+- I6. Founder training templates: create a NEW company as Founder, confirm the 33 training courses are seeded automatically (note says "33 training courses were added").
+- I7. Reporting-deadline: clear Supervision's reporting deadline in check config, confirm the PQS report supervision row grades at 80 again (Graded at "80 days"), then restore 90; confirm the register RAG/due never changes with it.
+- I8. Cross-tenant export isolation (needs a second company) and Business-tier gating on downloads (needs a tier flip): register/compliance/PQS/training downloads blocked below Pro, single Evidence PDF still allowed.
+- I9. Daily reporting emails cold checks (07:00 London run): admins get 2 company-wide emails, managers 2 branch-scoped, supervisors the caseload digest; People email is compliance checks only.
