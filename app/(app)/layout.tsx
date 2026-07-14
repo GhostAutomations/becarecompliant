@@ -71,10 +71,6 @@ export default async function AppLayout({
         </Link>
 
         <SidebarNav entries={navEntries} />
-
-        <p className="mt-auto px-3 pb-2 text-[11px] text-white/40">
-          Forms, reports and settings arrive in later phases.
-        </p>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
