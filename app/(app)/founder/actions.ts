@@ -86,6 +86,13 @@ export async function createCompany(
     { cid: company.id },
   );
 
+  // Seed the founder-curated training course catalogue (idempotent). A failure
+  // must not fail company creation.
+  const { data: trainingSeeded, error: trainingErr } = await supabase.rpc(
+    "seed_company_training_courses",
+    { cid: company.id },
+  );
+
   await writeAudit({
     companyId: company.id,
     actorId: user.id,
@@ -102,6 +109,7 @@ export async function createCompany(
       forms_seeded: seededCount ?? 0,
       checks_seeded: checksErr ? 0 : (checksSeeded ?? 0),
       su_checks_seeded: suChecksErr ? 0 : (suChecksSeeded ?? 0),
+      training_seeded: trainingErr ? 0 : (trainingSeeded ?? 0),
     },
   });
 
@@ -120,6 +128,11 @@ export async function createCompany(
     note += ` The Service User checks could not be seeded: ${suChecksErr.message}`;
   } else {
     note += ` ${suChecksSeeded ?? 0} Service User checks were configured.`;
+  }
+  if (trainingErr) {
+    note += ` The training courses could not be seeded: ${trainingErr.message}`;
+  } else {
+    note += ` ${trainingSeeded ?? 0} training courses were added.`;
   }
 
   if (adminEmail) {

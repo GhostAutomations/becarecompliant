@@ -18,6 +18,8 @@ export type NavEntry = {
     | "absence"
     | "training"
     | "compliance"
+    | "outcomes"
+    | "satisfaction"
     | "reports";
   /** Roles allowed to see this entry. Undefined means everyone. */
   roles?: Role[];
@@ -51,7 +53,26 @@ export const NAV_ENTRIES: NavEntry[] = [
       },
     ],
   },
-  { href: "/service-users", label: "Service Users", icon: "serviceUsers", group: "Departments" },
+  {
+    href: "/service-users",
+    label: "Service Users",
+    icon: "serviceUsers",
+    group: "Departments",
+    children: [
+      {
+        href: "/service-users/outcomes",
+        label: "Outcomes",
+        icon: "outcomes",
+        roles: ["platform_admin", "company_admin", "manager"],
+      },
+      {
+        href: "/service-users/satisfaction",
+        label: "Satisfaction",
+        icon: "satisfaction",
+        roles: ["platform_admin", "company_admin", "manager"],
+      },
+    ],
+  },
   {
     href: "/reports",
     label: "Reports",

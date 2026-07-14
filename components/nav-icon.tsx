@@ -98,5 +98,21 @@ export function NavIcon({
           <path d="M8.5 12.5l2 2 4-4.5" />
         </svg>
       );
+    case "outcomes":
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="8.5" />
+          <circle cx="12" cy="12" r="4.5" />
+          <circle cx="12" cy="12" r="0.8" fill="currentColor" />
+        </svg>
+      );
+    case "satisfaction":
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="8.5" />
+          <path d="M8.5 14c.9 1.4 2.1 2.1 3.5 2.1s2.6-.7 3.5-2.1" />
+          <path d="M9 9.5h.01M15 9.5h.01" />
+        </svg>
+      );
   }
 }
