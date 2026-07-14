@@ -10,13 +10,14 @@ import {
   resolveReportWindow,
 } from "@/lib/export/reports";
 import { buildOnTimeReport, resolveOnTimeWindow } from "@/lib/export/on-time";
+import { buildTrainingReport } from "@/lib/export/training";
 import type { ReportDoc } from "@/lib/export/pdf";
 import BackLink from "@/components/back-link";
 import ReportDocView from "@/components/reports/report-doc-view";
 
 export const metadata: Metadata = { title: "Report" };
 
-type ReportType = "people" | "service_users" | "compliance" | "on-time";
+type ReportType = "people" | "service_users" | "compliance" | "on-time" | "training";
 
 export default async function ReportViewPage({
   params,
@@ -32,10 +33,17 @@ export default async function ReportViewPage({
   if (!profile.company_id) redirect("/founder");
 
   const { type } = await params;
-  if (type !== "people" && type !== "service_users" && type !== "compliance" && type !== "on-time") {
+  if (
+    type !== "people" &&
+    type !== "service_users" &&
+    type !== "compliance" &&
+    type !== "on-time" &&
+    type !== "training"
+  ) {
     redirect("/reports");
   }
   const reportType = type as ReportType;
+  const isTraining = reportType === "training";
 
   const sp = await searchParams;
   const str = (v: string | string[] | undefined) => (typeof v === "string" && v.length > 0 ? v : null);
@@ -74,7 +82,10 @@ export default async function ReportViewPage({
   let doc: ReportDoc;
   let exportPath: string;
   let populationQuery = "";
-  if (reportType === "on-time") {
+  if (reportType === "training") {
+    doc = (await buildTrainingReport(base)).doc;
+    exportPath = "/api/reports/training";
+  } else if (reportType === "on-time") {
     doc = (await buildOnTimeReport({ ...base, window: { from: win.from ?? "", to: win.to } })).doc;
     exportPath = "/api/reports/on-time";
   } else if (reportType === "compliance") {
@@ -100,19 +111,12 @@ export default async function ReportViewPage({
     <div className="mx-auto max-w-5xl space-y-5">
       <BackLink href="/reports" label="Back to reports" />
 
-      <form method="get" action={selfPath} className="glass-card p-4">
-        <input type="hidden" name="branch" value={branchValue} />
-        <div className="flex flex-wrap items-end gap-3">
-          <div>
-            <label htmlFor="from" className="form-label">From</label>
-            <input id="from" name="from" type="date" defaultValue={win.from ?? ""} />
-          </div>
-          <div>
-            <label htmlFor="to" className="form-label">To</label>
-            <input id="to" name="to" type="date" defaultValue={win.to} />
-          </div>
-          <button type="submit" className="btn-primary px-3 py-2 text-xs">Apply dates</button>
-          <a href={selfPath} className="btn-outline px-3 py-2 text-xs">Reset</a>
+      {isTraining ? (
+        <div className="glass-card flex flex-wrap items-center gap-2 p-4">
+          <p className="text-[11px] text-white/45">
+            Live snapshot of training compliance for this branch. There is no date range: it always
+            reflects today.
+          </p>
           <span className="ml-auto flex items-center gap-2">
             {entitled ? (
               <>
@@ -126,12 +130,40 @@ export default async function ReportViewPage({
             )}
           </span>
         </div>
-        <p className="mt-2 text-[11px] text-white/40">
-          {reportType === "on-time"
-            ? "The on time rate defaults to the last 6 months. Change the dates to look at a different period."
-            : "Leave From blank to include everything overdue. To defaults to 30 days ahead."}
-        </p>
-      </form>
+      ) : (
+        <form method="get" action={selfPath} className="glass-card p-4">
+          <input type="hidden" name="branch" value={branchValue} />
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label htmlFor="from" className="form-label">From</label>
+              <input id="from" name="from" type="date" defaultValue={win.from ?? ""} />
+            </div>
+            <div>
+              <label htmlFor="to" className="form-label">To</label>
+              <input id="to" name="to" type="date" defaultValue={win.to} />
+            </div>
+            <button type="submit" className="btn-primary px-3 py-2 text-xs">Apply dates</button>
+            <a href={selfPath} className="btn-outline px-3 py-2 text-xs">Reset</a>
+            <span className="ml-auto flex items-center gap-2">
+              {entitled ? (
+                <>
+                  <a href={exportHref("pdf")} className="btn-outline px-3 py-2 text-xs">Download PDF</a>
+                  <a href={exportHref("csv")} className="btn-outline px-3 py-2 text-xs">Download CSV</a>
+                </>
+              ) : (
+                <a href="/settings/billing" className="btn-outline px-3 py-2 text-xs">
+                  Downloads are a Pro feature
+                </a>
+              )}
+            </span>
+          </div>
+          <p className="mt-2 text-[11px] text-white/40">
+            {reportType === "on-time"
+              ? "The on time rate defaults to the last 6 months. Change the dates to look at a different period."
+              : "Leave From blank to include everything overdue. To defaults to 30 days ahead."}
+          </p>
+        </form>
+      )}
 
       <ReportDocView doc={doc} />
     </div>

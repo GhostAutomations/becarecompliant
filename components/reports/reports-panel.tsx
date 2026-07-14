@@ -146,6 +146,18 @@ export default function ReportsPanel({
         </div>
 
         <div className="glass-card p-5">
+          <h2 className="text-base font-semibold text-white">Training compliance report</h2>
+          <p className="text-sm text-white/60">
+            Mandatory training and safeguarding compliance rates with PQS score bands, plus the list
+            of expired or missing mandatory training to action.
+          </p>
+          <ReportActions
+            viewHref={viewHref("training")}
+            download={entitled ? (f) => `/api/reports/training?${q(`format=${f}`)}` : null}
+          />
+        </div>
+
+        <div className="glass-card p-5">
           <h2 className="text-base font-semibold text-white">Audit trail</h2>
           <p className="text-sm text-white/60">
             Who changed what and when across your company. Open the log to filter, or export it for an

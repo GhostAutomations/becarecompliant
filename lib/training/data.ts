@@ -19,6 +19,7 @@ export type TrainingCourse = {
   is_safeguarding: boolean;
   amber_days: number;
   sort_order: number;
+  active: boolean;
 };
 
 export type Rag = "green" | "amber" | "red" | "none";
@@ -29,6 +30,8 @@ export type TrainingCell = {
   sub?: string; // small tag, e.g. "Expired", "Due soon"
   completedOn?: string | null; // ISO, for the edit panel
   expiryOn?: string | null; // ISO, for the edit panel
+  recordId?: string | null; // person_training id, when a record exists
+  hasCertificate?: boolean;
 };
 
 export type TrainingPerson = {
@@ -77,11 +80,13 @@ function addDaysIso(iso: string, days: number): string {
 
 type CourseRow = TrainingCourse;
 type RecordRow = {
+  id: string;
   person_id: string;
   course_id: string;
   status: string;
   completed_on: string | null;
   expiry_on: string | null;
+  certificate_path: string | null;
 };
 type PersonRow = {
   id: string;
@@ -96,32 +101,42 @@ function cellFor(
   rec: RecordRow | undefined,
   todayIso: string,
 ): TrainingCell {
+  const meta = {
+    completedOn: rec?.completed_on ?? null,
+    expiryOn: rec?.expiry_on ?? null,
+    recordId: rec?.id ?? null,
+    hasCertificate: !!rec?.certificate_path,
+  };
+  const done = rec && rec.status === "completed";
+
   // One off course: done (green) or not done (red).
   if (course.renewal_months == null) {
-    if (rec && rec.status === "completed") {
-      return { rag: "green", label: "Done", completedOn: rec.completed_on, expiryOn: null };
-    }
-    return { rag: "red", label: "Not done" };
+    return done
+      ? { rag: "green", label: "Done", ...meta }
+      : { rag: "red", label: "Not done", ...meta };
   }
 
   // Recurring course: no record means it has never been done.
-  if (!rec || rec.status !== "completed") {
-    return { rag: "red", label: "Not done" };
-  }
-  // Completed but no expiry recorded: treat as valid but flag it needs a date.
-  if (!rec.expiry_on) {
-    return { rag: "amber", label: "Done", sub: "No renewal date", completedOn: rec.completed_on, expiryOn: null };
-  }
+  if (!done) return { rag: "red", label: "Not done", ...meta };
+  // Completed but no expiry recorded: valid, but flag it needs a date.
+  if (!rec!.expiry_on) return { rag: "amber", label: "Done", sub: "No renewal date", ...meta };
 
   const amberIso = addDaysIso(todayIso, course.amber_days);
-  const disp = fmtDMY(rec.expiry_on);
-  if (rec.expiry_on < todayIso) {
-    return { rag: "red", label: disp, sub: "Expired", completedOn: rec.completed_on, expiryOn: rec.expiry_on };
-  }
-  if (rec.expiry_on <= amberIso) {
-    return { rag: "amber", label: disp, sub: "Due soon", completedOn: rec.completed_on, expiryOn: rec.expiry_on };
-  }
-  return { rag: "green", label: disp, completedOn: rec.completed_on, expiryOn: rec.expiry_on };
+  const disp = fmtDMY(rec!.expiry_on);
+  if (rec!.expiry_on < todayIso) return { rag: "red", label: disp, sub: "Expired", ...meta };
+  if (rec!.expiry_on <= amberIso) return { rag: "amber", label: disp, sub: "Due soon", ...meta };
+  return { rag: "green", label: disp, ...meta };
+}
+
+/** All courses for the company (active and inactive), for the config screen. */
+export async function listAllCourses(companyId: string): Promise<TrainingCourse[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("training_courses")
+    .select("id, name, renewal_months, mandatory, is_safeguarding, amber_days, sort_order, active")
+    .eq("company_id", companyId)
+    .order("sort_order", { ascending: true });
+  return (data as TrainingCourse[] | null) ?? [];
 }
 
 export async function getTrainingMatrix(
@@ -133,7 +148,7 @@ export async function getTrainingMatrix(
 
   const coursesQ = supabase
     .from("training_courses")
-    .select("id, name, renewal_months, mandatory, is_safeguarding, amber_days, sort_order")
+    .select("id, name, renewal_months, mandatory, is_safeguarding, amber_days, sort_order, active")
     .eq("company_id", companyId)
     .eq("active", true)
     .order("sort_order", { ascending: true });
@@ -156,7 +171,7 @@ export async function getTrainingMatrix(
   if (personIds.length > 0) {
     const { data: recRaw } = await supabase
       .from("person_training")
-      .select("person_id, course_id, status, completed_on, expiry_on")
+      .select("id, person_id, course_id, status, completed_on, expiry_on, certificate_path")
       .eq("company_id", companyId)
       .in("person_id", personIds);
     for (const r of (recRaw as RecordRow[] | null) ?? []) {

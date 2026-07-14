@@ -4,10 +4,14 @@ import { useMemo, useState } from "react";
 import type {
   TrainingCourse,
   TrainingPerson,
+  TrainingCell,
   Rag,
 } from "@/lib/training/data";
+import TrainingCellDialog from "@/components/training/training-cell-dialog";
 
 type BranchLite = { id: string; name: string };
+
+type Selected = { personId: string; personName: string; course: TrainingCourse; cell: TrainingCell };
 
 function ragClass(rag: Rag): string {
   return rag === "green"
@@ -23,12 +27,15 @@ export default function TrainingMatrix({
   courses,
   people,
   branches,
+  canManage,
 }: {
   courses: TrainingCourse[];
   people: TrainingPerson[];
   branches: BranchLite[];
+  canManage: boolean;
 }) {
   const [branch, setBranch] = useState<string>("all");
+  const [selected, setSelected] = useState<Selected | null>(null);
 
   const shown = useMemo(
     () => (branch === "all" ? people : people.filter((p) => p.branch_id === branch)),
@@ -168,12 +175,28 @@ export default function TrainingMatrix({
                   </td>
                   {courses.map((c) => {
                     const cell = p.cells[c.id];
+                    const inner = (
+                      <span className={`rag-cell ${ragClass(cell.rag)}`}>
+                        {cell.label}
+                        {cell.sub ? <span className="rag-sub">{cell.sub}</span> : null}
+                      </span>
+                    );
                     return (
                       <td key={c.id}>
-                        <span className={`rag-cell ${ragClass(cell.rag)}`}>
-                          {cell.label}
-                          {cell.sub ? <span className="rag-sub">{cell.sub}</span> : null}
-                        </span>
+                        {canManage ? (
+                          <button
+                            type="button"
+                            className="rounded-lg transition hover:ring-2 hover:ring-gold-400/50"
+                            onClick={() =>
+                              setSelected({ personId: p.id, personName: p.full_name, course: c, cell })
+                            }
+                            title="Edit this training record"
+                          >
+                            {inner}
+                          </button>
+                        ) : (
+                          inner
+                        )}
                       </td>
                     );
                   })}
@@ -186,7 +209,19 @@ export default function TrainingMatrix({
 
       <p className="text-[11px] text-white/40">
         Green: in date. Amber: due soon. Red: expired or not done. ★ marks the safeguarding course.
+        {canManage ? " Click any cell to record or update it." : ""}
       </p>
+
+      {selected ? (
+        <TrainingCellDialog
+          key={`${selected.personId}-${selected.course.id}`}
+          personId={selected.personId}
+          personName={selected.personName}
+          course={selected.course}
+          cell={selected.cell}
+          onClose={() => setSelected(null)}
+        />
+      ) : null}
     </div>
   );
 }

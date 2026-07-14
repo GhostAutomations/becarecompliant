@@ -38,7 +38,12 @@ export default async function TrainingPage() {
       <RealtimeRefresh tables={["person_training", "training_courses"]} channel="training" />
       <BackLink href="/people" label="Back to People" />
       <div className="mt-1 min-h-0 flex-1">
-        <TrainingMatrix courses={matrix.courses} people={matrix.people} branches={branches} />
+        <TrainingMatrix
+          courses={matrix.courses}
+          people={matrix.people}
+          branches={branches}
+          canManage={["platform_admin", "company_admin", "manager"].includes(profile.role)}
+        />
       </div>
     </div>
   );
