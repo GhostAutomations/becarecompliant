@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type {
   TrainingCourse,
   TrainingPerson,
@@ -8,6 +8,8 @@ import type {
   Rag,
 } from "@/lib/training/data";
 import TrainingCellDialog from "@/components/training/training-cell-dialog";
+import { HorizontalScrollbar } from "@/components/register/horizontal-scrollbar";
+import { VerticalScrollbar } from "@/components/register/vertical-scrollbar";
 
 type BranchLite = { id: string; name: string };
 
@@ -36,6 +38,7 @@ export default function TrainingMatrix({
 }) {
   const [branch, setBranch] = useState<string>("all");
   const [selected, setSelected] = useState<Selected | null>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
 
   const shown = useMemo(
     () => (branch === "all" ? people : people.filter((p) => p.branch_id === branch)),
@@ -151,8 +154,10 @@ export default function TrainingMatrix({
           No active people in this branch yet. Add people to the register to track their training.
         </div>
       ) : (
-        <div className="matrix-wrap min-h-0 flex-1">
-          <table className="matrix">
+        <div className="flex min-h-0 flex-1 flex-col gap-1">
+          <div className="flex min-h-0 flex-1 gap-1">
+            <div ref={wrapRef} className="matrix-wrap min-h-0 flex-1">
+              <table className="matrix">
             <thead>
               <tr>
                 <th className="col-carer">Carer</th>
@@ -169,9 +174,6 @@ export default function TrainingMatrix({
                 <tr key={p.id}>
                   <td className="col-carer">
                     <div className="font-medium text-white/90">{p.full_name}</div>
-                    {branch === "all" && p.branch_name ? (
-                      <div className="text-[10px] text-white/40">{p.branch_name}</div>
-                    ) : null}
                   </td>
                   {courses.map((c) => {
                     const cell = p.cells[c.id];
@@ -203,7 +205,11 @@ export default function TrainingMatrix({
                 </tr>
               ))}
             </tbody>
-          </table>
+              </table>
+            </div>
+            <VerticalScrollbar targetRef={wrapRef} />
+          </div>
+          <HorizontalScrollbar targetRef={wrapRef} />
         </div>
       )}
 
