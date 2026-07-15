@@ -270,16 +270,6 @@ export default async function ComplaintPage({
         ) : null}
       </section>
 
-      {/* Status control */}
-      <section className="glass-card space-y-3 p-5">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Progress</h2>
-        <ComplaintStatusControl
-          complaintId={complaint.id}
-          status={complaint.status}
-          outcome={complaint.outcome}
-        />
-      </section>
-
       {/* Complaint forms as Evidence */}
       <section className="glass-card space-y-3 p-5">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
@@ -289,6 +279,16 @@ export default async function ComplaintPage({
           Completing a form stores it as immutable evidence against this complaint.
         </p>
         <ComplaintForms complaintId={complaint.id} forms={usableForms} />
+      </section>
+
+      {/* Status control */}
+      <section className="glass-card space-y-3 p-5">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Progress</h2>
+        <ComplaintStatusControl
+          complaintId={complaint.id}
+          status={complaint.status}
+          outcome={complaint.outcome}
+        />
       </section>
 
       {/* Evidence history */}
