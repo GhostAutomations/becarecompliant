@@ -95,7 +95,7 @@ export default function InitialResponseButton({
 
   return (
     <>
-      <button type="button" className="btn-primary px-3 py-2 text-sm" onClick={openDialog}>
+      <button type="button" className="btn-outline px-3 py-2 text-sm" onClick={openDialog}>
         Initial Response
       </button>
 
