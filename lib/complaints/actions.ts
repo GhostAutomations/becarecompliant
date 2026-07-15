@@ -234,8 +234,10 @@ export async function submitComplaintEvidence(_prev: ActionState, formData: Form
 
   revalidatePath(`/complaints/${complaintId}`);
   revalidatePath("/complaints");
-  // Client-redirect rule: never redirect() from a Server Action to a ?query URL.
-  return { ok: "logged", redirectTo: `/complaints/${complaintId}?logged=1` };
+  // Return ok WITHOUT redirectTo so the shared FormEvidenceDialog closes itself and
+  // refreshes. (A redirectTo keeps the dialog open on "Saving…" because its busy
+  // state stays true and it never calls setOpen(false) on the redirect path.)
+  return { ok: "Evidence saved." };
 }
 
 /** Company Admin: save the complaint response timescales (Settings > Complaints). */
