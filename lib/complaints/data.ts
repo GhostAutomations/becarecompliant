@@ -137,6 +137,19 @@ export async function listServiceUsersLite(
   return (data as Array<{ id: string; full_name: string }> | null) ?? [];
 }
 
+/** Initial responses drafted/sent for a complaint (newest first). */
+export async function listComplaintResponses(complaintId: string): Promise<
+  Array<{ id: string; method: string; subject: string | null; body: string; recipient: string | null; sent_at: string | null; created_at: string }>
+> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("complaint_responses")
+    .select("id, method, subject, body, recipient, sent_at, created_at")
+    .eq("complaint_id", complaintId)
+    .order("created_at", { ascending: false });
+  return (data as Array<{ id: string; method: string; subject: string | null; body: string; recipient: string | null; sent_at: string | null; created_at: string }>) ?? [];
+}
+
 /** Evidence attached to a complaint (newest first), for the drill-down timeline. */
 export async function listComplaintEvidence(id: string): Promise<
   Array<{ id: string; form_id: string; submitted_at: string; author_name: string | null }>

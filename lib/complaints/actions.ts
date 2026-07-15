@@ -16,11 +16,15 @@ import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { submitEvidence } from "@/lib/evidence/submit";
+import { requireFeature } from "@/lib/billing/tier";
+import { recordUsage } from "@/lib/notifications/usage";
+import { sendEmail } from "@/lib/email/resend";
+import { noticeEmailHtml, escapeHtml } from "@/lib/email/templates";
 import type { Answers } from "@/lib/form-schema";
 import type { ActionState } from "@/lib/forms";
 import { getComplaintsConfig, getCompanyFormByKey } from "./data";
-import { addBusinessOrCalendarDays, todayIso } from "./logic";
-import { CONCERN_TYPES, FORMALITY_TYPES } from "./types";
+import { addBusinessOrCalendarDays, formatDisplayDate, todayIso } from "./logic";
+import { CONCERN_TYPES, FORMALITY_TYPES, RELATIONSHIP_LABELS, type ComplaintRelationship } from "./types";
 
 const MANAGE_ROLES = ["company_admin", "manager", "platform_admin"];
 
@@ -302,4 +306,238 @@ export async function updateComplaintsConfig(_prev: ActionState, formData: FormD
 
   revalidatePath("/settings/complaints");
   return { ok: "Saved." };
+}
+
+/** Non-exported helper: complaint fields into paragraph HTML for the email body. */
+function paragraphsToHtml(text: string): string {
+  return text
+    .split(/\n{2,}/)
+    .map((p) => `<p style="margin:0 0 12px;">${escapeHtml(p).replace(/\n/g, "<br/>")}</p>`)
+    .join("");
+}
+
+/** AI: draft an Initial Response (acknowledgement) for a complaint from its details.
+ *  Email format when the complainant wants email, otherwise a formal letter to print
+ *  on headed paper. Returns the draft as JSON in `ok` for the client to review. Metered
+ *  AI usage; Enterprise tier (ai_features) gated. */
+export async function generateInitialResponse(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { profile } = await requireCompany();
+  const id = String(formData.get("complaint_id") ?? "");
+  if (!id || !profile.company_id) return { error: "Missing complaint." };
+  if (!MANAGE_ROLES.includes(profile.role)) return { error: "You do not have permission." };
+
+  const gated = await requireFeature(profile.company_id, "ai_features");
+  if (gated) return { error: gated };
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const model = process.env.ANTHROPIC_MODEL;
+  if (!apiKey || !model) {
+    return { error: "AI is not configured. Set ANTHROPIC_API_KEY and ANTHROPIC_MODEL to enable this." };
+  }
+
+  const supabase = await createClient();
+  const { data: c } = await supabase
+    .from("complaints")
+    .select("*, branches(name), companies:company_id(name)")
+    .eq("id", id)
+    .maybeSingle();
+  if (!c) return { error: "That complaint could not be found." };
+
+  const method = c.contact_method === "email" ? "email" : "post";
+  const companyName = ((c.companies as { name: string } | null)?.name) ?? "the care provider";
+  const branchName = ((c.branches as { name: string } | null)?.name) ?? "";
+  const relationship = c.complainant_relationship
+    ? RELATIONSHIP_LABELS[c.complainant_relationship as ComplaintRelationship]
+    : "not stated";
+
+  const facts = [
+    `Care provider: ${companyName}${branchName ? ` (${branchName} branch)` : ""}`,
+    `Complaint reference: #${c.ref_number}`,
+    `Complainant: ${c.complainant_name || "not named"} (${relationship})`,
+    `Subject: ${c.subject}`,
+    c.concern_type ? `Category: ${c.concern_type}` : null,
+    c.formality ? `Nature: ${c.formality}` : null,
+    c.date_raised ? `Date raised: ${formatDisplayDate(c.date_raised as string)}` : null,
+    c.date_occurred ? `Date it happened: ${formatDisplayDate(c.date_occurred as string)}` : null,
+    c.response_due ? `We aim to respond fully by: ${formatDisplayDate(c.response_due as string)}` : null,
+    c.details ? `Details: ${c.details}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const jsonShape =
+    method === "email"
+      ? `{"subject": "<email subject>", "body": "<email body>"}`
+      : `{"body": "<letter body>"}`;
+  const formatGuidance =
+    method === "email"
+      ? "Write a warm, professional acknowledgement EMAIL. Confirm the complaint has been received, that it is being taken seriously and investigated, give the date we aim to respond by if provided, and invite them to get in touch with any questions. Sign off from the team, not a named individual."
+      : "Write a formal acknowledgement LETTER to be printed on the company's headed paper. Start with a salutation to the complainant, use short paragraphs, then end with 'Yours sincerely,' followed by a blank line for the manager to sign. Do NOT include the sender address, recipient address or the date (the headed paper carries these).";
+
+  const prompt = `You are writing on behalf of ${companyName}, a UK care provider, responding to a complaint. ${formatGuidance}\n\nUse only these details, do not invent facts:\n${facts}\n\nReturn ONLY valid JSON in exactly this shape, no markdown, no commentary: ${jsonShape}`;
+
+  let res: Response;
+  try {
+    res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+      body: JSON.stringify({ model, max_tokens: 1200, messages: [{ role: "user", content: prompt }] }),
+    });
+  } catch (e) {
+    return { error: `AI request failed: ${(e as Error).message}` };
+  }
+  if (!res.ok) {
+    const detail = (await res.text().catch(() => "")).replace(/sk-ant-[A-Za-z0-9_-]{6,}/g, "[redacted]");
+    return { error: `AI request failed (${res.status}). ${detail.slice(0, 160)}` };
+  }
+
+  const json = (await res.json()) as {
+    content?: Array<{ text?: string }>;
+    usage?: { input_tokens?: number; output_tokens?: number };
+  };
+  await recordUsage({
+    companyId: profile.company_id,
+    kind: "ai",
+    units: (json.usage?.input_tokens ?? 0) + (json.usage?.output_tokens ?? 0),
+    metadata: { feature: "complaint_initial_response", input_tokens: json.usage?.input_tokens ?? 0, output_tokens: json.usage?.output_tokens ?? 0 },
+  });
+
+  const raw = json.content?.map((b) => b.text ?? "").join("") ?? "";
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  if (start === -1 || end === -1) return { error: "The AI response could not be read. Try again." };
+  let parsed: { subject?: string; body?: string };
+  try {
+    parsed = JSON.parse(raw.slice(start, end + 1));
+  } catch {
+    return { error: "The AI response could not be read. Try again." };
+  }
+  if (!parsed.body) return { error: "The AI returned an empty response. Try again." };
+
+  return { ok: JSON.stringify({ method, subject: parsed.subject ?? "", body: parsed.body }) };
+}
+
+/** Send an approved Initial Response email via Resend, record it, and stamp the
+ *  complaint as acknowledged today. */
+export async function sendInitialResponse(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { user, profile } = await requireCompany();
+  const id = String(formData.get("complaint_id") ?? "");
+  const subject = String(formData.get("subject") ?? "").trim();
+  const body = String(formData.get("body") ?? "").trim();
+  if (!id || !profile.company_id) return { error: "Missing complaint." };
+  if (!MANAGE_ROLES.includes(profile.role)) return { error: "You do not have permission." };
+  if (!body) return { error: "The response is empty." };
+
+  const supabase = await createClient();
+  const { data: c } = await supabase
+    .from("complaints")
+    .select("id, branch_id, contact_method, contact_email, date_acknowledged")
+    .eq("id", id)
+    .maybeSingle();
+  if (!c) return { error: "That complaint could not be found." };
+  if (c.contact_method !== "email") return { error: "This complaint's preferred contact is not email." };
+  if (!c.contact_email) return { error: "There is no contact email on this complaint." };
+
+  const finalSubject = subject || "Response to your complaint";
+  const send = await sendEmail({
+    to: c.contact_email as string,
+    subject: finalSubject,
+    html: noticeEmailHtml({
+      preheader: finalSubject,
+      heading: finalSubject,
+      bodyHtml: paragraphsToHtml(body),
+      footerNote: "This message was sent in response to a complaint you raised.",
+    }),
+    replyTo: profile.email ?? undefined,
+  });
+  if (!send.sent) {
+    return { error: send.error ?? send.skippedReason ?? "The email could not be sent." };
+  }
+
+  await supabase.from("complaint_responses").insert({
+    company_id: profile.company_id,
+    branch_id: c.branch_id,
+    complaint_id: id,
+    method: "email",
+    subject: finalSubject,
+    body,
+    recipient: c.contact_email,
+    sent_at: new Date().toISOString(),
+    created_by: user.id,
+  });
+
+  if (!c.date_acknowledged) {
+    await supabase
+      .from("complaints")
+      .update({ date_acknowledged: todayIso(), updated_by: user.id, updated_at: new Date().toISOString() })
+      .eq("id", id);
+  }
+
+  await writeAudit({
+    companyId: profile.company_id,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "complaint.response_sent",
+    entityType: "complaint",
+    entityId: id,
+    summary: "Sent an initial response email to the complainant",
+    metadata: { method: "email", recipient: c.contact_email },
+  });
+
+  revalidatePath(`/complaints/${id}`);
+  return { ok: "Response sent to the complainant." };
+}
+
+/** Record an approved postal Initial Response (letter copied onto headed paper) and
+ *  stamp the complaint as acknowledged today. */
+export async function recordPostalResponse(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { user, profile } = await requireCompany();
+  const id = String(formData.get("complaint_id") ?? "");
+  const body = String(formData.get("body") ?? "").trim();
+  if (!id || !profile.company_id) return { error: "Missing complaint." };
+  if (!MANAGE_ROLES.includes(profile.role)) return { error: "You do not have permission." };
+  if (!body) return { error: "The letter is empty." };
+
+  const supabase = await createClient();
+  const { data: c } = await supabase
+    .from("complaints")
+    .select("id, branch_id, contact_address, date_acknowledged")
+    .eq("id", id)
+    .maybeSingle();
+  if (!c) return { error: "That complaint could not be found." };
+
+  await supabase.from("complaint_responses").insert({
+    company_id: profile.company_id,
+    branch_id: c.branch_id,
+    complaint_id: id,
+    method: "post",
+    subject: null,
+    body,
+    recipient: c.contact_address,
+    sent_at: null,
+    created_by: user.id,
+  });
+
+  if (!c.date_acknowledged) {
+    await supabase
+      .from("complaints")
+      .update({ date_acknowledged: todayIso(), updated_by: user.id, updated_at: new Date().toISOString() })
+      .eq("id", id);
+  }
+
+  await writeAudit({
+    companyId: profile.company_id,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "complaint.response_recorded",
+    entityType: "complaint",
+    entityId: id,
+    summary: "Recorded a postal initial response letter",
+    metadata: { method: "post" },
+  });
+
+  revalidatePath(`/complaints/${id}`);
+  return { ok: "Letter recorded." };
 }

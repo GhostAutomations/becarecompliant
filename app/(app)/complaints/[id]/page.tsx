@@ -7,12 +7,14 @@ import BackLink from "@/components/back-link";
 import ActionForm from "@/components/action-form";
 import ComplaintForms from "@/components/complaints/complaint-forms";
 import ComplaintStatusControl from "@/components/complaints/complaint-status-control";
+import InitialResponseButton from "@/components/complaints/initial-response-button";
 import { isFormSchema, type Answers, type FormSchema } from "@/lib/form-schema";
 import {
   getComplaint,
   getComplaintsConfig,
   listComplaintForms,
   listComplaintEvidence,
+  listComplaintResponses,
   listServiceUsersLite,
   listCompanyBranchNames,
   getPublishedFormVersion,
@@ -145,10 +147,11 @@ export default async function ComplaintPage({
     summary: `Viewed complaint: ${complaint.subject}`,
   });
 
-  const [config, forms, evidence, serviceUsers, branchNames] = await Promise.all([
+  const [config, forms, evidence, responses, serviceUsers, branchNames] = await Promise.all([
     getComplaintsConfig(companyId),
     listComplaintForms(companyId),
     listComplaintEvidence(id),
+    listComplaintResponses(id),
     listServiceUsersLite(companyId),
     listCompanyBranchNames(companyId),
   ]);
@@ -276,10 +279,40 @@ export default async function ComplaintPage({
           Response and investigation forms
         </h2>
         <p className="text-xs text-white/50">
-          Completing a form stores it as immutable evidence against this complaint.
+          Generate an initial response, or complete a form. Both are stored against this complaint.
         </p>
-        <ComplaintForms complaintId={complaint.id} forms={usableForms} />
+        <div className="flex flex-wrap items-center gap-3">
+          <InitialResponseButton
+            complaintId={complaint.id}
+            contactMethod={complaint.contact_method}
+            contactEmail={complaint.contact_email}
+            contactAddress={complaint.contact_address}
+          />
+          <ComplaintForms complaintId={complaint.id} forms={usableForms} />
+        </div>
       </section>
+
+      {/* Responses sent / recorded */}
+      {responses.length > 0 ? (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Responses</h2>
+          <div className="glass-card divide-y divide-white/5">
+            {responses.map((r) => (
+              <details key={r.id} className="px-5 py-3 text-sm">
+                <summary className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-white/85">
+                    {r.method === "email" ? "Email sent" : "Letter recorded"}
+                    {r.recipient ? ` to ${r.recipient}` : ""}
+                  </span>
+                  <span className="text-xs text-white/40">{formatDisplayDate(r.created_at.slice(0, 10))}</span>
+                </summary>
+                {r.subject ? <p className="mt-2 text-white/70">Subject: {r.subject}</p> : null}
+                <p className="mt-2 whitespace-pre-wrap text-white/80">{r.body}</p>
+              </details>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {/* Status control */}
       <section className="glass-card space-y-3 p-5">
