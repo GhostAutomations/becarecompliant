@@ -7,15 +7,17 @@ import BackLink from "@/components/back-link";
 import ActionForm from "@/components/action-form";
 import ComplaintForms from "@/components/complaints/complaint-forms";
 import ComplaintStatusControl from "@/components/complaints/complaint-status-control";
-import { isFormSchema, type FormSchema } from "@/lib/form-schema";
+import { isFormSchema, type Answers, type FormSchema } from "@/lib/form-schema";
 import {
   getComplaint,
   getComplaintsConfig,
   listComplaintForms,
   listComplaintEvidence,
   listServiceUsersLite,
+  listCompanyBranchNames,
   getPublishedFormVersion,
 } from "@/lib/complaints/data";
+import type { ComplaintRecord } from "@/lib/complaints/types";
 import { updateComplaint } from "@/lib/complaints/actions";
 import { responseRag, formatDisplayDate } from "@/lib/complaints/logic";
 import {
@@ -43,6 +45,34 @@ function DateField({ label, value }: { label: string; value: string | null }) {
       <p className="text-sm text-white/85">{formatDisplayDate(value) || "—"}</p>
     </div>
   );
+}
+
+/** The first word of a branch name, lowercased, used to tie a region specific
+ *  form (e.g. "newport_complaint_response") to its branch ("Newport"). */
+function firstToken(name: string | null | undefined): string {
+  return (name ?? "").trim().toLowerCase().split(/\s+/)[0] ?? "";
+}
+
+/** Pre-fill the complaint's known details into a response form. Only free text and
+ *  date fields are seeded; select fields are left for the user so their value always
+ *  matches the form's own options. Unknown keys are harmless (ignored on submit). */
+function buildComplaintPresets(key: string, c: ComplaintRecord): Answers {
+  const p: Answers = {};
+  const set = (k: string, v: string | null) => {
+    if (v) p[k] = v;
+  };
+  if (key === "complaints_concerns") {
+    set("individual_name", c.service_user_name ?? c.complainant_name ?? null);
+    set("date_raised", c.date_raised);
+    set("date_occurred", c.date_occurred);
+    set("describe_complaint", c.details);
+  } else {
+    // Region response forms (cardiff_/newport_complaint_response and similar).
+    set("complaint_reference", `#${c.ref_number}`);
+    set("acknowledgement_date", c.date_acknowledged);
+    set("investigation_completed", c.investigation_completed);
+  }
+  return p;
 }
 
 export default async function ComplaintPage({
@@ -73,24 +103,42 @@ export default async function ComplaintPage({
     summary: `Viewed complaint: ${complaint.subject}`,
   });
 
-  const [config, forms, evidence, serviceUsers] = await Promise.all([
+  const [config, forms, evidence, serviceUsers, branchNames] = await Promise.all([
     getComplaintsConfig(companyId),
     listComplaintForms(companyId),
     listComplaintEvidence(id),
     listServiceUsersLite(companyId),
+    listCompanyBranchNames(companyId),
   ]);
 
-  // Pin each complaint form's published schema for the Evidence dialogs.
+  // Hide region specific forms that belong to a DIFFERENT branch: on a Cardiff
+  // complaint, drop "newport_complaint_response" but keep the general form and the
+  // Cardiff one. A form is "another branch's" when its key starts with that branch's
+  // name token.
+  const currentToken = firstToken(complaint.branch_name);
+  const otherTokens = branchNames
+    .map(firstToken)
+    .filter((t) => t && t !== currentToken);
+
+  // Pin each complaint form's published schema for the Evidence dialogs, filtered to
+  // this branch, and pre-filled from the complaint's details.
   const formSchemas = await Promise.all(
-    forms.map(async (f) => {
-      const version = await getPublishedFormVersion(f.id);
-      return version && isFormSchema(version.schema)
-        ? { key: f.key, name: f.name, schema: version.schema as FormSchema }
-        : null;
-    }),
+    forms
+      .filter((f) => !otherTokens.some((t) => f.key.toLowerCase().startsWith(`${t}_`)))
+      .map(async (f) => {
+        const version = await getPublishedFormVersion(f.id);
+        return version && isFormSchema(version.schema)
+          ? {
+              key: f.key,
+              name: f.name,
+              schema: version.schema as FormSchema,
+              presets: buildComplaintPresets(f.key, complaint),
+            }
+          : null;
+      }),
   );
   const usableForms = formSchemas.filter(
-    (f): f is { key: string; name: string; schema: FormSchema } => f != null,
+    (f): f is { key: string; name: string; schema: FormSchema; presets: Answers } => f != null,
   );
 
   const rag = responseRag(complaint.status, complaint.response_due, config.amber_days);

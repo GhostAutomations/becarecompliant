@@ -111,6 +111,18 @@ export async function listComplaintForms(
   return (data as Array<{ id: string; key: string; name: string }> | null) ?? [];
 }
 
+/** Active branch names for the company, used to hide other branches' region
+ *  specific complaint forms (e.g. a Newport form on a Cardiff complaint). */
+export async function listCompanyBranchNames(companyId: string): Promise<string[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("branches")
+    .select("name")
+    .eq("company_id", companyId)
+    .eq("kind", "branch");
+  return ((data as Array<{ name: string }> | null) ?? []).map((b) => b.name);
+}
+
 /** Active Service Users the user may see, for the optional complaint link dropdown. */
 export async function listServiceUsersLite(
   companyId: string,

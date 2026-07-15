@@ -9,14 +9,14 @@
 
 import FormEvidenceDialog from "@/components/forms/form-evidence-dialog";
 import { submitComplaintEvidence } from "@/lib/complaints/actions";
-import type { FormSchema } from "@/lib/form-schema";
+import type { Answers, FormSchema } from "@/lib/form-schema";
 
 export default function ComplaintForms({
   complaintId,
   forms,
 }: {
   complaintId: string;
-  forms: Array<{ key: string; name: string; schema: FormSchema }>;
+  forms: Array<{ key: string; name: string; schema: FormSchema; presets?: Answers }>;
 }) {
   if (forms.length === 0) {
     return (
@@ -35,6 +35,7 @@ export default function ComplaintForms({
           schema={f.schema}
           action={submitComplaintEvidence}
           extraFields={{ complaint_id: complaintId, form_key: f.key }}
+          presetAnswers={f.presets}
           triggerLabel={f.name}
           triggerClassName="btn-outline px-3 py-2 text-sm"
           submitLabel="Save as evidence"
