@@ -89,12 +89,16 @@ export default function FormRenderer({
     <div className="flex flex-col gap-6">
       {schema.sections.map((section) => (
         <section key={section.id} className="section-card p-5">
-          <div className="mb-4">
-            <h3 className="text-base font-semibold text-white">{section.title}</h3>
-            {section.description ? (
-              <p className="page-subtitle mt-1">{section.description}</p>
-            ) : null}
-          </div>
+          {section.title || section.description ? (
+            <div className="mb-4">
+              {section.title ? (
+                <h3 className="text-base font-semibold text-white">{section.title}</h3>
+              ) : null}
+              {section.description ? (
+                <p className="page-subtitle mt-1">{section.description}</p>
+              ) : null}
+            </div>
+          ) : null}
           <div className="flex flex-col gap-5">
             {section.fields.map((field) =>
               isFieldVisible(field, answers) ? (

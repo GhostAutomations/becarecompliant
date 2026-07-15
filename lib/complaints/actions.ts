@@ -20,8 +20,25 @@ import type { Answers } from "@/lib/form-schema";
 import type { ActionState } from "@/lib/forms";
 import { getComplaintsConfig, getCompanyFormByKey } from "./data";
 import { addBusinessOrCalendarDays, todayIso } from "./logic";
+import { CONCERN_TYPES, FORMALITY_TYPES } from "./types";
 
 const MANAGE_ROLES = ["company_admin", "manager", "platform_admin"];
+
+/** Parse the log-time intake fields (Complaint/Concern, Type, contact method) into a
+ *  validated shape shared by create and update. */
+function intakeFields(formData: FormData) {
+  const concernRaw = String(formData.get("concern_type") ?? "").trim();
+  const formalityRaw = String(formData.get("formality") ?? "").trim();
+  const methodRaw = String(formData.get("contact_method") ?? "").trim();
+  const contact_method = methodRaw === "email" || methodRaw === "post" ? methodRaw : null;
+  return {
+    concern_type: (CONCERN_TYPES as readonly string[]).includes(concernRaw) ? concernRaw : null,
+    formality: (FORMALITY_TYPES as readonly string[]).includes(formalityRaw) ? formalityRaw : null,
+    contact_method,
+    contact_email: contact_method === "email" ? (String(formData.get("contact_email") ?? "").trim() || null) : null,
+    contact_address: contact_method === "post" ? (String(formData.get("contact_address") ?? "").trim() || null) : null,
+  };
+}
 
 function trimOrNull(v: FormDataEntryValue | null): string | null {
   const s = String(v ?? "").trim();
@@ -62,6 +79,7 @@ export async function createComplaint(_prev: ActionState, formData: FormData): P
       details: trimOrNull(formData.get("details")),
       complainant_name: trimOrNull(formData.get("complainant_name")),
       complainant_relationship: relationship && RELATIONSHIPS.includes(relationship) ? relationship : null,
+      ...intakeFields(formData),
       service_user_id: trimOrNull(formData.get("service_user_id")),
       date_raised,
       date_occurred: isoDateOrNull(formData.get("date_occurred")),
@@ -107,6 +125,7 @@ export async function updateComplaint(_prev: ActionState, formData: FormData): P
       details: trimOrNull(formData.get("details")),
       complainant_name: trimOrNull(formData.get("complainant_name")),
       complainant_relationship: relationship && RELATIONSHIPS.includes(relationship) ? relationship : null,
+      ...intakeFields(formData),
       service_user_id: trimOrNull(formData.get("service_user_id")),
       date_occurred: isoDateOrNull(formData.get("date_occurred")),
       date_acknowledged: isoDateOrNull(formData.get("date_acknowledged")),

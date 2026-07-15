@@ -1,9 +1,15 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { createComplaint } from "@/lib/complaints/actions";
 import { IDLE_STATE } from "@/lib/forms";
-import { RELATIONSHIP_LABELS, type ComplaintRelationship } from "@/lib/complaints/types";
+import {
+  RELATIONSHIP_LABELS,
+  CONCERN_TYPES,
+  FORMALITY_TYPES,
+  CONTACT_METHODS,
+  type ComplaintRelationship,
+} from "@/lib/complaints/types";
 
 export default function CreateComplaintForm({
   branches,
@@ -15,6 +21,7 @@ export default function CreateComplaintForm({
   todayIso: string;
 }) {
   const [state, formAction, pending] = useActionState(createComplaint, IDLE_STATE);
+  const [contactMethod, setContactMethod] = useState("");
 
   return (
     <form action={formAction} className="space-y-5">
@@ -59,6 +66,55 @@ export default function CreateComplaintForm({
           <label htmlFor="date_occurred" className="form-label">Date it happened</label>
           <input id="date_occurred" name="date_occurred" type="date" />
         </div>
+
+        <div>
+          <label htmlFor="concern_type" className="form-label">Complaint/Concern</label>
+          <select id="concern_type" name="concern_type" defaultValue="">
+            <option value="">Please choose</option>
+            {CONCERN_TYPES.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="formality" className="form-label">Type</label>
+          <select id="formality" name="formality" defaultValue="">
+            <option value="">Please choose</option>
+            {FORMALITY_TYPES.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="contact_method" className="form-label">Preferred contact method</label>
+          <select
+            id="contact_method"
+            name="contact_method"
+            value={contactMethod}
+            onChange={(e) => setContactMethod(e.target.value)}
+          >
+            <option value="">Not stated</option>
+            {CONTACT_METHODS.map((m) => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+          </select>
+        </div>
+
+        {contactMethod === "email" ? (
+          <div>
+            <label htmlFor="contact_email" className="form-label">Contact email</label>
+            <input id="contact_email" name="contact_email" type="email" placeholder="name@example.com" />
+          </div>
+        ) : null}
+
+        {contactMethod === "post" ? (
+          <div className="sm:col-span-2">
+            <label htmlFor="contact_address" className="form-label">Contact address</label>
+            <textarea id="contact_address" name="contact_address" rows={3} placeholder="Postal address for the response" />
+          </div>
+        ) : null}
 
         <div>
           <label htmlFor="service_user_id" className="form-label">Related service user</label>

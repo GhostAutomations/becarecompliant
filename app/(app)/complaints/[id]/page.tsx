@@ -23,6 +23,9 @@ import { responseRag, formatDisplayDate } from "@/lib/complaints/logic";
 import {
   COMPLAINT_STATUS_LABELS,
   RELATIONSHIP_LABELS,
+  CONCERN_TYPES,
+  FORMALITY_TYPES,
+  CONTACT_METHODS,
   type ComplaintRelationship,
 } from "@/lib/complaints/types";
 
@@ -104,6 +107,13 @@ function buildComplaintPresets(key: string, c: ComplaintRecord, schema: FormSche
   // works whether the option reads "Closed" or "Close".
   const needle = c.status === "open" ? "open" : c.status === "in_progress" ? "progress" : "clos";
   set("status", optionValueFor(schema, "status", (v) => v.toLowerCase().includes(needle)));
+  // Complaint/Concern + Type dropdowns, captured at log time (values match the form).
+  if (c.concern_type) {
+    set("complaint_concern_type", optionValueFor(schema, "complaint_concern_type", (v) => v === c.concern_type));
+  }
+  if (c.formality) {
+    set("type", optionValueFor(schema, "type", (v) => v === c.formality));
+  }
   return p;
 }
 
@@ -220,6 +230,24 @@ export default async function ComplaintPage({
               )}
             </p>
           </div>
+          <div>
+            <p className="text-[11px] text-white/45">Complaint/Concern</p>
+            <p className="text-sm text-white/85">{complaint.concern_type ?? "—"}</p>
+          </div>
+          <div>
+            <p className="text-[11px] text-white/45">Type</p>
+            <p className="text-sm text-white/85">{complaint.formality ?? "—"}</p>
+          </div>
+          <div>
+            <p className="text-[11px] text-white/45">Preferred contact</p>
+            <p className="text-sm text-white/85">
+              {complaint.contact_method === "email"
+                ? `Email: ${complaint.contact_email ?? "—"}`
+                : complaint.contact_method === "post"
+                  ? `Post: ${complaint.contact_address ?? "—"}`
+                  : "—"}
+            </p>
+          </div>
           <DateField label="Date raised" value={complaint.date_raised} />
           <DateField label="Date it happened" value={complaint.date_occurred} />
           <DateField label="Acknowledged" value={complaint.date_acknowledged} />
@@ -316,6 +344,41 @@ export default async function ComplaintPage({
                     <option key={s.id} value={s.id}>{s.full_name}</option>
                   ))}
                 </select>
+              </div>
+              <div>
+                <label htmlFor="concern_type" className="form-label">Complaint/Concern</label>
+                <select id="concern_type" name="concern_type" defaultValue={complaint.concern_type ?? ""}>
+                  <option value="">Not set</option>
+                  {CONCERN_TYPES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="formality" className="form-label">Type</label>
+                <select id="formality" name="formality" defaultValue={complaint.formality ?? ""}>
+                  <option value="">Not set</option>
+                  {FORMALITY_TYPES.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="contact_method" className="form-label">Preferred contact method</label>
+                <select id="contact_method" name="contact_method" defaultValue={complaint.contact_method ?? ""}>
+                  <option value="">Not stated</option>
+                  {CONTACT_METHODS.map((m) => (
+                    <option key={m.value} value={m.value}>{m.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="contact_email" className="form-label">Contact email</label>
+                <input id="contact_email" name="contact_email" type="email" defaultValue={complaint.contact_email ?? ""} />
+              </div>
+              <div className="sm:col-span-2">
+                <label htmlFor="contact_address" className="form-label">Contact address</label>
+                <textarea id="contact_address" name="contact_address" rows={2} defaultValue={complaint.contact_address ?? ""} />
               </div>
               <div>
                 <label htmlFor="date_occurred" className="form-label">Date it happened</label>

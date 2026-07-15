@@ -37,6 +37,17 @@ export const RELATIONSHIP_LABELS: Record<ComplaintRelationship, string> = {
   anonymous: "Anonymous",
 };
 
+/** Captured at log time. Values match the Complaint Investigation Form's options so
+ *  they prefill its dropdowns exactly. */
+export const CONCERN_TYPES = ["Concern", "Complaint", "Minor Complaint", "Audit Identification"] as const;
+export const FORMALITY_TYPES = ["Informal", "Formal"] as const;
+
+export type ContactMethod = "email" | "post";
+export const CONTACT_METHODS: Array<{ value: ContactMethod; label: string }> = [
+  { value: "email", label: "Email" },
+  { value: "post", label: "Post" },
+];
+
 /** RAG for a complaint's response deadline. "closed" = resolved, "none" = no due date. */
 export type ComplaintRag = Rag | "closed" | "none";
 
@@ -50,6 +61,11 @@ export type ComplaintRecord = {
   details: string | null;
   complainant_name: string | null;
   complainant_relationship: ComplaintRelationship | null;
+  concern_type: string | null;
+  formality: string | null;
+  contact_method: ContactMethod | null;
+  contact_email: string | null;
+  contact_address: string | null;
   service_user_id: string | null;
   service_user_name?: string | null;
   status: ComplaintStatus;
