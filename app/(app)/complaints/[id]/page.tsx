@@ -182,9 +182,15 @@ export default async function ComplaintPage({
           : null;
       }),
   );
-  const usableForms = formSchemas.filter(
-    (f): f is { key: string; name: string; schema: FormSchema; presets: Answers } => f != null,
-  );
+  const usableForms = formSchemas
+    .filter(
+      (f): f is { key: string; name: string; schema: FormSchema; presets: Answers } => f != null,
+    )
+    // Complaint Investigation sits first among the forms so, next to the Initial
+    // Response button, it lands in the middle of the row; region forms follow.
+    .sort((a, b) =>
+      a.key === "complaints_concerns" ? -1 : b.key === "complaints_concerns" ? 1 : a.name.localeCompare(b.name),
+    );
 
   const rag = responseRag(complaint.status, complaint.response_due, config.amber_days);
 
