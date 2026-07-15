@@ -53,10 +53,33 @@ function firstToken(name: string | null | undefined): string {
   return (name ?? "").trim().toLowerCase().split(/\s+/)[0] ?? "";
 }
 
-/** Pre-fill the complaint's known details into a response form. Only free text and
- *  date fields are seeded; select fields are left for the user so their value always
- *  matches the form's own options. Unknown keys are harmless (ignored on submit). */
-function buildComplaintPresets(key: string, c: ComplaintRecord): Answers {
+/** The value of a select field's option matching a predicate, or null. Lets us set a
+ *  dropdown to the form's OWN option value (which can differ between forms, e.g. one
+ *  form's "Closed" is another's "Close"), so we never set an invalid option. */
+function optionValueFor(
+  schema: FormSchema,
+  fieldKey: string,
+  match: (v: string) => boolean,
+): string | null {
+  for (const s of schema.sections) {
+    for (const f of s.fields) {
+      if (f.key === fieldKey) {
+        const opts = (f as { options?: Array<{ value?: unknown }> }).options;
+        if (Array.isArray(opts)) {
+          const found = opts.find((o) => match(String(o.value ?? "")));
+          if (found) return String(found.value ?? "");
+        }
+        return null;
+      }
+    }
+  }
+  return null;
+}
+
+/** Pre-fill the complaint's known details into a response form. Free text and date
+ *  fields are seeded directly; the Region and Status dropdowns are matched to each
+ *  form's own option values. Unknown keys are harmless (ignored on submit). */
+function buildComplaintPresets(key: string, c: ComplaintRecord, schema: FormSchema): Answers {
   const p: Answers = {};
   const set = (k: string, v: string | null) => {
     if (v) p[k] = v;
@@ -72,6 +95,15 @@ function buildComplaintPresets(key: string, c: ComplaintRecord): Answers {
     set("acknowledgement_date", c.date_acknowledged);
     set("investigation_completed", c.investigation_completed);
   }
+  // Region dropdown = this complaint's branch, matched to the form's options.
+  const branchLower = (c.branch_name ?? "").trim().toLowerCase();
+  if (branchLower) {
+    set("region", optionValueFor(schema, "region", (v) => v.toLowerCase() === branchLower));
+  }
+  // Status dropdown = the complaint's status, matched by a distinctive token so it
+  // works whether the option reads "Closed" or "Close".
+  const needle = c.status === "open" ? "open" : c.status === "in_progress" ? "progress" : "clos";
+  set("status", optionValueFor(schema, "status", (v) => v.toLowerCase().includes(needle)));
   return p;
 }
 
@@ -132,7 +164,7 @@ export default async function ComplaintPage({
               key: f.key,
               name: f.name,
               schema: version.schema as FormSchema,
-              presets: buildComplaintPresets(f.key, complaint),
+              presets: buildComplaintPresets(f.key, complaint, version.schema as FormSchema),
             }
           : null;
       }),
