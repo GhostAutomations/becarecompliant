@@ -36,7 +36,7 @@ export default function ComplaintForms({
           action={submitComplaintEvidence}
           extraFields={{ complaint_id: complaintId, form_key: f.key }}
           presetAnswers={f.presets}
-          triggerLabel={f.name}
+          triggerLabel={f.name.replace(/\s+Form$/i, "")}
           triggerClassName="btn-outline px-3 py-2 text-sm"
           submitLabel="Save as evidence"
         />
