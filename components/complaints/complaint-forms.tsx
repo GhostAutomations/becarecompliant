@@ -16,7 +16,7 @@ export default function ComplaintForms({
   forms,
 }: {
   complaintId: string;
-  forms: Array<{ key: string; name: string; schema: FormSchema; presets?: Answers }>;
+  forms: Array<{ key: string; name: string; label?: string; schema: FormSchema; presets?: Answers }>;
 }) {
   if (forms.length === 0) {
     return (
@@ -36,7 +36,7 @@ export default function ComplaintForms({
           action={submitComplaintEvidence}
           extraFields={{ complaint_id: complaintId, form_key: f.key }}
           presetAnswers={f.presets}
-          triggerLabel={f.name.replace(/\s+Form$/i, "")}
+          triggerLabel={f.label ?? f.name.replace(/\s+Form$/i, "")}
           triggerClassName="btn-outline px-3 py-2 text-sm"
           submitLabel="Save as evidence"
         />

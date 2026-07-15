@@ -58,6 +58,17 @@ function firstToken(name: string | null | undefined): string {
   return (name ?? "").trim().toLowerCase().split(/\s+/)[0] ?? "";
 }
 
+/** The button label for a form: drop a trailing "Form" and, for a branch's own
+ *  response form, the leading branch word (so "Cardiff Complaint Response" reads
+ *  "Complaint Response" on a Cardiff complaint). The stored form name is unchanged. */
+function buttonLabel(name: string, branchToken: string): string {
+  let label = name.replace(/\s+Form$/i, "");
+  if (branchToken && label.toLowerCase().startsWith(`${branchToken} `)) {
+    label = label.slice(branchToken.length + 1);
+  }
+  return label;
+}
+
 /** The value of a select field's option matching a predicate, or null. Lets us set a
  *  dropdown to the form's OWN option value (which can differ between forms, e.g. one
  *  form's "Closed" is another's "Close"), so we never set an invalid option. */
@@ -176,6 +187,7 @@ export default async function ComplaintPage({
           ? {
               key: f.key,
               name: f.name,
+              label: buttonLabel(f.name, currentToken),
               schema: version.schema as FormSchema,
               presets: buildComplaintPresets(f.key, complaint, version.schema as FormSchema),
             }
@@ -184,7 +196,7 @@ export default async function ComplaintPage({
   );
   const usableForms = formSchemas
     .filter(
-      (f): f is { key: string; name: string; schema: FormSchema; presets: Answers } => f != null,
+      (f): f is { key: string; name: string; label: string; schema: FormSchema; presets: Answers } => f != null,
     )
     // Complaint Investigation sits first among the forms so, next to the Initial
     // Response button, it lands in the middle of the row; region forms follow.
