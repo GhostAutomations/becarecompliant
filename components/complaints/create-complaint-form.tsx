@@ -88,6 +88,17 @@ export default function CreateComplaintForm({
         </div>
 
         <div>
+          <label htmlFor="service_user_id" className="form-label">Related service user</label>
+          <select id="service_user_id" name="service_user_id" defaultValue="">
+            <option value="">Not about a specific service user</option>
+            {serviceUsers.map((s) => (
+              <option key={s.id} value={s.id}>{s.full_name}</option>
+            ))}
+          </select>
+          <p className="form-hint">Optional. Link the complaint to a service user if it is about their care.</p>
+        </div>
+
+        <div>
           <label htmlFor="contact_method" className="form-label">Preferred contact method</label>
           <select
             id="contact_method"
@@ -115,17 +126,6 @@ export default function CreateComplaintForm({
             <textarea id="contact_address" name="contact_address" rows={3} placeholder="Postal address for the response" />
           </div>
         ) : null}
-
-        <div>
-          <label htmlFor="service_user_id" className="form-label">Related service user</label>
-          <select id="service_user_id" name="service_user_id" defaultValue="">
-            <option value="">Not about a specific service user</option>
-            {serviceUsers.map((s) => (
-              <option key={s.id} value={s.id}>{s.full_name}</option>
-            ))}
-          </select>
-          <p className="form-hint">Optional. Link the complaint to a service user if it is about their care.</p>
-        </div>
 
         <div className="sm:col-span-2">
           <label htmlFor="details" className="form-label">Details</label>
