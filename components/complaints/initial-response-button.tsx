@@ -104,9 +104,11 @@ export default function InitialResponseButton({
           <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-y-auto rounded-2xl border border-white/10 bg-navy-900 p-6 shadow-2xl">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-white">Initial Response</h2>
-              <button type="button" className="btn-ghost px-3 py-1.5 text-sm" onClick={() => setOpen(false)} disabled={busy}>
-                Close
-              </button>
+              {!generating ? (
+                <button type="button" className="btn-ghost px-3 py-1.5 text-sm" onClick={() => setOpen(false)} disabled={busy}>
+                  Close
+                </button>
+              ) : null}
             </div>
 
             {generating ? (
