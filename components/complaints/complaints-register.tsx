@@ -106,7 +106,7 @@ export default function ComplaintsRegister({
         <div className="glass-card overflow-x-auto">
           <table className="w-full min-w-[840px] text-sm">
             <thead>
-              <tr className="text-left text-xs uppercase tracking-wide text-white/40">
+              <tr className="text-center text-xs uppercase tracking-wide text-white/40">
                 <th className="px-4 py-3 font-medium">Ref</th>
                 <th className="px-4 py-3 font-medium">Subject</th>
                 <th className="px-4 py-3 font-medium">Branch</th>
@@ -120,7 +120,7 @@ export default function ComplaintsRegister({
             </thead>
             <tbody>
               {filtered.map((r) => (
-                <tr key={r.id} className="border-t border-white/5 hover:bg-white/5">
+                <tr key={r.id} className="border-t border-white/5 text-center hover:bg-white/5">
                   <td className="px-4 py-3 text-white/50">#{r.ref_number}</td>
                   <td className="px-4 py-3">
                     <Link href={`/complaints/${r.id}`} className="font-medium text-white hover:underline">
