@@ -34,7 +34,7 @@ export default function EditComplaintForm({
           <input id="e_complainant_name" name="complainant_name" defaultValue={complaint.complainant_name ?? ""} />
         </div>
         <div>
-          <label htmlFor="e_relationship" className="form-label">Complainant is a</label>
+          <label htmlFor="e_relationship" className="form-label">Complainant</label>
           <select id="e_relationship" name="complainant_relationship" defaultValue={complaint.complainant_relationship ?? ""}>
             <option value="">Not stated</option>
             {(Object.keys(RELATIONSHIP_LABELS) as ComplaintRelationship[]).map((k) => (

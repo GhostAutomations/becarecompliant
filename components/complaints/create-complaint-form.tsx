@@ -48,26 +48,6 @@ export default function CreateComplaintForm({
         </div>
 
         <div>
-          <label htmlFor="complainant_name" className="form-label">Complainant name</label>
-          <input id="complainant_name" name="complainant_name" placeholder="Leave blank if anonymous" />
-        </div>
-
-        <div>
-          <label htmlFor="complainant_relationship" className="form-label">Complainant is a</label>
-          <select id="complainant_relationship" name="complainant_relationship" defaultValue="">
-            <option value="">Not stated</option>
-            {(Object.keys(RELATIONSHIP_LABELS) as ComplaintRelationship[]).map((k) => (
-              <option key={k} value={k}>{RELATIONSHIP_LABELS[k]}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label htmlFor="date_occurred" className="form-label">Date it happened</label>
-          <input id="date_occurred" name="date_occurred" type="date" />
-        </div>
-
-        <div>
           <label htmlFor="concern_type" className="form-label">Complaint/Concern</label>
           <select id="concern_type" name="concern_type" defaultValue="">
             <option value="">Please choose</option>
@@ -83,6 +63,26 @@ export default function CreateComplaintForm({
             <option value="">Please choose</option>
             {FORMALITY_TYPES.map((t) => (
               <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="date_occurred" className="form-label">Date it happened</label>
+          <input id="date_occurred" name="date_occurred" type="date" />
+        </div>
+
+        <div>
+          <label htmlFor="complainant_name" className="form-label">Complainant name</label>
+          <input id="complainant_name" name="complainant_name" placeholder="Leave blank if anonymous" />
+        </div>
+
+        <div>
+          <label htmlFor="complainant_relationship" className="form-label">Complainant</label>
+          <select id="complainant_relationship" name="complainant_relationship" defaultValue="">
+            <option value="">Not stated</option>
+            {(Object.keys(RELATIONSHIP_LABELS) as ComplaintRelationship[]).map((k) => (
+              <option key={k} value={k}>{RELATIONSHIP_LABELS[k]}</option>
             ))}
           </select>
         </div>
