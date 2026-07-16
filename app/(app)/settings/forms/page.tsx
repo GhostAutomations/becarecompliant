@@ -31,6 +31,18 @@ function peopleSubDept(key: string): string {
   return PEOPLE_SUBDEPT[key] ?? "Compliance";
 }
 
+/** Forms that link to a whole section/feature rather than a register column
+ *  (Holiday, Absence, Training, Complaints). Compliance and Service User forms
+ *  link to a column instead, so they return null. */
+function sectionLabelFor(f: FormSummary): string | null {
+  if ((f.population as string) === "complaints") return "Complaints section";
+  if (f.population === "people") {
+    const sub = peopleSubDept(f.key);
+    if (sub === "Holiday" || sub === "Absence" || sub === "Training") return sub;
+  }
+  return null;
+}
+
 export default async function SettingsFormsPage() {
   const { profile } = await requireCompanyAdmin();
   if (!profile.company_id) redirect("/founder");
@@ -88,7 +100,7 @@ export default async function SettingsFormsPage() {
   // Forms wired to a column (People/Service User) or the Complaints section, duplicated
   // into their own aggregate section.
   const linkedForms = forms.filter(
-    (f) => formLinkedCheck.has(f.id) || (f.population as string) === "complaints",
+    (f) => formLinkedCheck.has(f.id) || sectionLabelFor(f) !== null,
   );
 
   return (
@@ -122,11 +134,11 @@ export default async function SettingsFormsPage() {
             formLinkedCheck={formLinkedCheck}
           />
           <FormGroup title="People forms" forms={peopleBySub("Compliance")} checks={peopleChecks} formLinkedCheck={formLinkedCheck} />
-          <FormGroup title="Holiday forms" forms={peopleBySub("Holiday")} checks={peopleChecks} formLinkedCheck={formLinkedCheck} />
-          <FormGroup title="Absence forms" forms={peopleBySub("Absence")} checks={peopleChecks} formLinkedCheck={formLinkedCheck} />
-          <FormGroup title="Training forms" forms={peopleBySub("Training")} checks={peopleChecks} formLinkedCheck={formLinkedCheck} />
+          <FormGroup title="Holiday forms" forms={peopleBySub("Holiday")} checks={[]} formLinkedCheck={formLinkedCheck} sectionLabel="Holiday" />
+          <FormGroup title="Absence forms" forms={peopleBySub("Absence")} checks={[]} formLinkedCheck={formLinkedCheck} sectionLabel="Absence" />
+          <FormGroup title="Training forms" forms={peopleBySub("Training")} checks={[]} formLinkedCheck={formLinkedCheck} sectionLabel="Training" />
           <FormGroup title="Service User forms" forms={suForms} checks={suChecks} formLinkedCheck={formLinkedCheck} />
-          <FormGroup title="Complaints forms" forms={complaintForms} checks={[]} formLinkedCheck={formLinkedCheck} isComplaints />
+          <FormGroup title="Complaints forms" forms={complaintForms} checks={[]} formLinkedCheck={formLinkedCheck} sectionLabel="Complaints section" />
         </div>
       )}
     </div>
@@ -178,11 +190,11 @@ function FormRow({
   f: FormSummary;
   checks: Array<{ id: string; name: string }>;
   formLinkedCheck: Map<string, string>;
-  isComplaints: boolean;
+  sectionLabel: string | null;
 }) {
   const linkedCheckId = formLinkedCheck.get(f.id);
   const linkedName = linkedCheckId ? checks.find((c) => c.id === linkedCheckId)?.name ?? null : null;
-  const linkLabel = isComplaints ? "Complaints section" : linkedName;
+  const linkLabel = checks.length > 0 ? linkedName : sectionLabel;
   return (
     <div className="flex items-center gap-3 border-b border-white/5 px-5 py-2.5 last:border-b-0 hover:bg-white/5">
       <Link href={`/settings/forms/${f.id}`} className="flex min-w-0 flex-1 items-center gap-3">
@@ -225,13 +237,13 @@ function FormGroup({
   forms,
   checks,
   formLinkedCheck,
-  isComplaints = false,
+  sectionLabel = null,
 }: {
   title: string;
   forms: FormSummary[];
   checks: Array<{ id: string; name: string }>;
   formLinkedCheck: Map<string, string>;
-  isComplaints?: boolean;
+  sectionLabel?: string | null;
 }) {
   if (forms.length === 0) return null;
   return (
@@ -241,15 +253,15 @@ function FormGroup({
       </summary>
       <div className="border-t border-white/10">
         {forms.map((f) => (
-          <FormRow key={f.id} f={f} checks={checks} formLinkedCheck={formLinkedCheck} isComplaints={isComplaints} />
+          <FormRow key={f.id} f={f} checks={checks} formLinkedCheck={formLinkedCheck} sectionLabel={sectionLabel} />
         ))}
       </div>
     </details>
   );
 }
 
-/** Aggregate section: every form wired to a column or the Complaints section, using
- *  the right column dropdown per population. These forms also appear in their own
+/** Aggregate section: every form wired to a column or a section, using the right
+ *  column dropdown per population. These forms also appear in their own
  *  department/sub-department section. */
 function LinkedFormsGroup({
   forms,
@@ -270,15 +282,21 @@ function LinkedFormsGroup({
       </summary>
       <div className="border-t border-white/10">
         {forms.map((f) => {
-          const checks =
-            f.population === "people" ? peopleChecks : f.population === "service_users" ? suChecks : [];
+          const sectionLabel = sectionLabelFor(f);
+          const checks = sectionLabel
+            ? []
+            : f.population === "people"
+              ? peopleChecks
+              : f.population === "service_users"
+                ? suChecks
+                : [];
           return (
             <FormRow
               key={f.id}
               f={f}
               checks={checks}
               formLinkedCheck={formLinkedCheck}
-              isComplaints={(f.population as string) === "complaints"}
+              sectionLabel={sectionLabel}
             />
           );
         })}
