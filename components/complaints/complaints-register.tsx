@@ -15,7 +15,7 @@ import {
   type ComplaintRecord,
   type ComplaintStatus,
 } from "@/lib/complaints/types";
-import { responseRag, formatUkDate as formatDisplayDate } from "@/lib/complaints/logic";
+import { responseRag, formatUkDate as formatDisplayDate, formatComplaintRef } from "@/lib/complaints/logic";
 
 function statusPill(status: ComplaintStatus) {
   const cls = status === "closed" ? "pill-green" : status === "in_progress" ? "pill-amber" : "pill-neutral";
@@ -35,11 +35,13 @@ export default function ComplaintsRegister({
   rows,
   branches,
   amberDays,
+  refPrefix,
   canManage,
 }: {
   rows: ComplaintRecord[];
   branches: Array<{ id: string; name: string }>;
   amberDays: number;
+  refPrefix: string;
   canManage: boolean;
 }) {
   const [status, setStatus] = useState<"all" | ComplaintStatus>("all");
@@ -121,7 +123,7 @@ export default function ComplaintsRegister({
             <tbody>
               {filtered.map((r) => (
                 <tr key={r.id} className="border-t border-white/5 text-center hover:bg-white/5">
-                  <td className="px-4 py-3 text-white/50">#{r.ref_number}</td>
+                  <td className="px-4 py-3 text-white/50">{formatComplaintRef(refPrefix, r.date_raised, r.ref_number)}</td>
                   <td className="px-4 py-3">
                     <Link href={`/complaints/${r.id}`} className="font-medium text-white hover:underline">
                       {r.subject}

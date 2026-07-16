@@ -9,6 +9,7 @@ import "server-only";
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { deriveComplaintPrefix } from "./logic";
 import {
   DEFAULT_COMPLAINTS_CONFIG,
   type ComplaintRecord,
@@ -40,7 +41,7 @@ export async function getComplaintsConfig(companyId: string): Promise<Complaints
   const supabase = await createClient();
   const { data } = await supabase
     .from("complaints_config")
-    .select("acknowledgement_days, response_days, amber_days, count_working_days")
+    .select("acknowledgement_days, response_days, amber_days, count_working_days, ref_prefix")
     .eq("company_id", companyId)
     .maybeSingle();
   if (!data) return DEFAULT_COMPLAINTS_CONFIG;
@@ -49,7 +50,21 @@ export async function getComplaintsConfig(companyId: string): Promise<Complaints
     response_days: data.response_days ?? DEFAULT_COMPLAINTS_CONFIG.response_days,
     amber_days: data.amber_days ?? DEFAULT_COMPLAINTS_CONFIG.amber_days,
     count_working_days: data.count_working_days ?? DEFAULT_COMPLAINTS_CONFIG.count_working_days,
+    ref_prefix: (data.ref_prefix as string | null) ?? null,
   };
+}
+
+/** The resolved complaint reference prefix: the configured one, else derived from the
+ *  company name initials. */
+export async function getComplaintRefPrefix(companyId: string): Promise<string> {
+  const supabase = await createClient();
+  const [{ data: cfg }, { data: company }] = await Promise.all([
+    supabase.from("complaints_config").select("ref_prefix").eq("company_id", companyId).maybeSingle(),
+    supabase.from("companies").select("name").eq("id", companyId).maybeSingle(),
+  ]);
+  const configured = ((cfg?.ref_prefix as string | null) ?? "").trim();
+  if (configured) return configured;
+  return deriveComplaintPrefix((company?.name as string | null) ?? null);
 }
 
 /** The Complaints register: every complaint the current user may see (newest

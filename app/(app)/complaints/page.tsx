@@ -6,6 +6,7 @@ import ComplaintsRegister from "@/components/complaints/complaints-register";
 import {
   listComplaints,
   getComplaintsConfig,
+  getComplaintRefPrefix,
   listAccessibleBranchTypes,
 } from "@/lib/complaints/data";
 
@@ -20,10 +21,11 @@ export default async function ComplaintsPage() {
   if (!MANAGE_ROLES.includes(profile.role)) redirect("/dashboard");
 
   const companyId = profile.company_id;
-  const [rows, branches, config] = await Promise.all([
+  const [rows, branches, config, refPrefix] = await Promise.all([
     listComplaints(companyId),
     listAccessibleBranchTypes(companyId, profile.role, user.id),
     getComplaintsConfig(companyId),
+    getComplaintRefPrefix(companyId),
   ]);
 
   return (
@@ -33,6 +35,7 @@ export default async function ComplaintsPage() {
         rows={rows}
         branches={branches.map((b) => ({ id: b.id, name: b.name }))}
         amberDays={config.amber_days}
+        refPrefix={refPrefix}
         canManage
       />
     </div>

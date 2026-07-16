@@ -67,3 +67,23 @@ export function todayIso(): string {
 export function isFormalComplaint(concernType: string | null, formality: string | null): boolean {
   return concernType === "Complaint" && formality === "Formal";
 }
+
+/** Fallback complaint reference prefix from the company name initials (skipping legal
+ *  suffixes), e.g. "Thistle Care Wales" -> "TCW". Used when no prefix is configured. */
+export function deriveComplaintPrefix(companyName: string | null | undefined): string {
+  const skip = new Set(["ltd", "limited", "llp", "plc", "cic", "co", "company", "the"]);
+  const initials = (companyName ?? "")
+    .split(/\s+/)
+    .filter((w) => w && !skip.has(w.toLowerCase()))
+    .map((w) => w[0].toUpperCase())
+    .join("");
+  return initials.slice(0, 4) || "C";
+}
+
+/** The displayed complaint reference: {prefix}{DD}{MM}{number}, e.g. TC15071. */
+export function formatComplaintRef(prefix: string, dateRaised: string | null, refNumber: number): string {
+  const d = dateRaised && /^\d{4}-\d{2}-\d{2}/.test(dateRaised) ? parseCivilDate(dateRaised) : todayInLondon();
+  const dd = String(d.day).padStart(2, "0");
+  const mm = String(d.month).padStart(2, "0");
+  return `${prefix}${dd}${mm}${refNumber}`;
+}

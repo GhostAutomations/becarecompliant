@@ -24,8 +24,8 @@ import { createServiceClient } from "@/lib/supabase/admin";
 import { EVIDENCE_BUCKET } from "@/lib/evidence/storage";
 import type { Answers } from "@/lib/form-schema";
 import type { ActionState } from "@/lib/forms";
-import { getComplaintsConfig, getCompanyFormByKey, getInvestigationEvidence } from "./data";
-import { addBusinessOrCalendarDays, formatDisplayDate, isFormalComplaint, todayIso } from "./logic";
+import { getComplaintsConfig, getCompanyFormByKey, getInvestigationEvidence, getComplaintRefPrefix } from "./data";
+import { addBusinessOrCalendarDays, formatComplaintRef, formatDisplayDate, isFormalComplaint, todayIso } from "./logic";
 import { CONCERN_TYPES, FORMALITY_TYPES, RELATIONSHIP_LABELS, type ComplaintRelationship } from "./types";
 
 const MANAGE_ROLES = ["company_admin", "manager", "platform_admin"];
@@ -320,6 +320,7 @@ export async function updateComplaintsConfig(_prev: ActionState, formData: FormD
         response_days: num("response_days", 25),
         amber_days: num("amber_days", 5),
         count_working_days: formData.get("count_working_days") === "on",
+        ref_prefix: String(formData.get("ref_prefix") ?? "").trim().toUpperCase() || null,
         updated_by: user.id,
         updated_at: new Date().toISOString(),
       },
@@ -383,10 +384,11 @@ export async function generateInitialResponse(_prev: ActionState, formData: Form
   const relationship = c.complainant_relationship
     ? RELATIONSHIP_LABELS[c.complainant_relationship as ComplaintRelationship]
     : "not stated";
+  const refPrefix = await getComplaintRefPrefix(profile.company_id);
 
   const facts = [
     `Care provider: ${companyName}${branchName ? ` (${branchName} branch)` : ""}`,
-    `Complaint reference: #${c.ref_number}`,
+    `Complaint reference: ${formatComplaintRef(refPrefix, c.date_raised as string | null, c.ref_number as number)}`,
     `Complainant: ${c.complainant_name || "not named"} (${relationship})`,
     `Subject: ${c.subject}`,
     c.concern_type ? `Category: ${c.concern_type}` : null,
@@ -612,6 +614,7 @@ export async function generateComplaintResponse(_prev: ActionState, formData: Fo
   const relationship = c.complainant_relationship
     ? RELATIONSHIP_LABELS[c.complainant_relationship as ComplaintRelationship]
     : "not stated";
+  const refPrefix = await getComplaintRefPrefix(profile.company_id);
   const a = inv.answers;
   const s = (k: string): string | null => {
     const v = a[k];
@@ -620,7 +623,7 @@ export async function generateComplaintResponse(_prev: ActionState, formData: Fo
 
   const facts = [
     `Care provider: ${companyName}${branchName ? ` (${branchName} branch)` : ""}`,
-    `Complaint reference: #${c.ref_number}`,
+    `Complaint reference: ${formatComplaintRef(refPrefix, c.date_raised as string | null, c.ref_number as number)}`,
     `Complainant: ${c.complainant_name || "not named"} (${relationship})`,
     `Subject: ${c.subject}`,
     s("describe_complaint") ? `What the complaint was about: ${s("describe_complaint")}` : null,

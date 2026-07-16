@@ -85,6 +85,7 @@ export type ComplaintsConfig = {
   response_days: number;
   amber_days: number;
   count_working_days: boolean;
+  ref_prefix: string | null;
 };
 
 /** Defaults: acknowledge within 3 days, respond within 25 days, counted as CALENDAR
@@ -97,4 +98,5 @@ export const DEFAULT_COMPLAINTS_CONFIG: ComplaintsConfig = {
   response_days: 25,
   amber_days: 5,
   count_working_days: false,
+  ref_prefix: null,
 };

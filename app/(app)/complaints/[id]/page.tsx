@@ -18,10 +18,11 @@ import {
   listComplaintResponses,
   listServiceUsersLite,
   listCompanyBranchNames,
+  getComplaintRefPrefix,
   getPublishedFormVersion,
 } from "@/lib/complaints/data";
 import type { ComplaintRecord } from "@/lib/complaints/types";
-import { responseRag, formatUkDate as formatDisplayDate, isFormalComplaint } from "@/lib/complaints/logic";
+import { responseRag, formatUkDate as formatDisplayDate, isFormalComplaint, formatComplaintRef } from "@/lib/complaints/logic";
 import { COMPLAINT_STATUS_LABELS, RELATIONSHIP_LABELS } from "@/lib/complaints/types";
 
 export const metadata: Metadata = { title: "Complaint" };
@@ -88,7 +89,7 @@ function optionValueFor(
 /** Pre-fill the complaint's known details into a response form. Free text and date
  *  fields are seeded directly; the Region and Status dropdowns are matched to each
  *  form's own option values. Unknown keys are harmless (ignored on submit). */
-function buildComplaintPresets(key: string, c: ComplaintRecord, schema: FormSchema): Answers {
+function buildComplaintPresets(key: string, c: ComplaintRecord, schema: FormSchema, refPrefix: string): Answers {
   const p: Answers = {};
   const set = (k: string, v: string | null) => {
     if (v) p[k] = v;
@@ -99,8 +100,8 @@ function buildComplaintPresets(key: string, c: ComplaintRecord, schema: FormSche
     set("date_occurred", c.date_occurred);
     set("describe_complaint", c.details);
   } else {
-    // Region response forms (cardiff_/newport_complaint_response and similar).
-    set("complaint_reference", `#${c.ref_number}`);
+    // Region response forms (complaint_response and similar).
+    set("complaint_reference", formatComplaintRef(refPrefix, c.date_raised, c.ref_number));
     set("acknowledgement_date", c.date_acknowledged);
     set("investigation_completed", c.investigation_completed);
   }
@@ -151,13 +152,14 @@ export default async function ComplaintPage({
     summary: `Viewed complaint: ${complaint.subject}`,
   });
 
-  const [config, forms, evidence, responses, serviceUsers, branchNames] = await Promise.all([
+  const [config, forms, evidence, responses, serviceUsers, branchNames, refPrefix] = await Promise.all([
     getComplaintsConfig(companyId),
     listComplaintForms(companyId),
     listComplaintEvidence(id),
     listComplaintResponses(id),
     listServiceUsersLite(companyId),
     listCompanyBranchNames(companyId),
+    getComplaintRefPrefix(companyId),
   ]);
 
   // Hide region specific forms that belong to a DIFFERENT branch: on a Cardiff
@@ -187,7 +189,7 @@ export default async function ComplaintPage({
               label: buttonLabel(f.name, currentToken),
               done: completedFormKeys.has(f.key),
               schema: version.schema as FormSchema,
-              presets: buildComplaintPresets(f.key, complaint, version.schema as FormSchema),
+              presets: buildComplaintPresets(f.key, complaint, version.schema as FormSchema, refPrefix),
             }
           : null;
       }),
@@ -240,7 +242,7 @@ export default async function ComplaintPage({
       <div>
         <BackLink href="/complaints" label="Back to Complaints" />
         <div className="mt-1 flex flex-wrap items-center gap-3">
-          <h1 className="page-title">Complaint #{complaint.ref_number}</h1>
+          <h1 className="page-title">Complaint {formatComplaintRef(refPrefix, complaint.date_raised, complaint.ref_number)}</h1>
           <span className={complaint.status === "closed" ? "pill-green" : complaint.status === "in_progress" ? "pill-amber" : "pill-neutral"}>
             {COMPLAINT_STATUS_LABELS[complaint.status]}
           </span>

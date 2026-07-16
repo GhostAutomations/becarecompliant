@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import ActionForm from "@/components/action-form";
-import { getComplaintsConfig } from "@/lib/complaints/data";
+import { getComplaintsConfig, getComplaintRefPrefix } from "@/lib/complaints/data";
 import { updateComplaintsConfig } from "@/lib/complaints/actions";
 
 export const metadata: Metadata = { title: "Complaints settings" };
@@ -11,7 +11,10 @@ export const metadata: Metadata = { title: "Complaints settings" };
 export default async function ComplaintsSettingsPage() {
   const { profile } = await requireCompanyAdmin();
   if (!profile.company_id) redirect("/founder");
-  const config = await getComplaintsConfig(profile.company_id);
+  const [config, effectivePrefix] = await Promise.all([
+    getComplaintsConfig(profile.company_id),
+    getComplaintRefPrefix(profile.company_id),
+  ]);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -25,7 +28,22 @@ export default async function ComplaintsSettingsPage() {
       </div>
 
       <section className="glass-card p-5">
-        <ActionForm action={updateComplaintsConfig} label="Save timescales">
+        <ActionForm action={updateComplaintsConfig} label="Save">
+          <div className="mb-4">
+            <label htmlFor="ref_prefix" className="form-label">Complaint reference prefix</label>
+            <input
+              id="ref_prefix"
+              name="ref_prefix"
+              defaultValue={config.ref_prefix ?? ""}
+              placeholder={effectivePrefix}
+              maxLength={6}
+              className="max-w-[10rem] uppercase"
+            />
+            <p className="form-hint">
+              References read {effectivePrefix} then the day and month then the number, e.g.{" "}
+              {effectivePrefix}15071. Leave blank to use the company initials.
+            </p>
+          </div>
           <div className="grid gap-4 sm:grid-cols-3">
             <div>
               <label htmlFor="acknowledgement_days" className="form-label">Acknowledge within</label>
