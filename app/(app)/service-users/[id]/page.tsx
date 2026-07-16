@@ -310,11 +310,13 @@ export default async function ServiceUserPage({
                 <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
                   <span className="w-24 shrink-0 text-white/50">{formatDisplayDate(e.submitted_at.slice(0, 10))}</span>
                   <span className="text-white/50">{e.form_name ?? "Evidence"}</span>
-                  <span className="text-white/50">{e.author_name ?? "Unknown"}</span>
                 </div>
-                <a href={`/evidence/${e.id}`} className="btn-outline px-2.5 py-1 text-[11px]">
-                  View
-                </a>
+                <div className="flex items-center gap-4">
+                  <span className="w-40 text-right text-white/50">{e.author_name ?? "Unknown"}</span>
+                  <a href={`/evidence/${e.id}`} className="btn-outline px-2.5 py-1 text-[11px]">
+                    View
+                  </a>
+                </div>
               </div>
             ))}
           </div>

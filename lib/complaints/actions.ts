@@ -243,6 +243,16 @@ export async function submitComplaintEvidence(_prev: ActionState, formData: Form
       .eq("id", complaintId);
   }
 
+  // Completing the Complaint Investigation form stamps the investigation completed
+  // date (only if not already set).
+  if (formKey === "complaints_concerns") {
+    await supabase
+      .from("complaints")
+      .update({ investigation_completed: todayIso(), updated_by: user.id, updated_at: new Date().toISOString() })
+      .eq("id", complaintId)
+      .is("investigation_completed", null);
+  }
+
   await writeAudit({
     companyId: profile.company_id,
     actorId: user.id,

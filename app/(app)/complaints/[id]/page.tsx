@@ -277,17 +277,22 @@ export default async function ComplaintPage({
           <div>
             <p className="text-[11px] text-white/45">Preferred contact</p>
             <p className="text-sm text-white/85">
-              {complaint.contact_method === "email"
-                ? `Email: ${complaint.contact_email ?? "—"}`
-                : complaint.contact_method === "post"
-                  ? `Post: ${complaint.contact_address ?? "—"}`
-                  : "—"}
+              {complaint.contact_method === "email" ? "Email" : complaint.contact_method === "post" ? "Post" : "—"}
             </p>
           </div>
           <DateField label="Date raised" value={complaint.date_raised} />
           <DateField label="Date it happened" value={complaint.date_occurred} />
           <DateField label="Initial response due" value={complaint.acknowledgement_due} />
-          <DateField label="Initial response sent" value={complaint.date_acknowledged} />
+          <div>
+            <p className="text-[11px] text-white/45">Initial response sent</p>
+            {complaint.date_acknowledged ? (
+              <p className="mt-0.5">
+                <span className="pill-green">{formatDisplayDate(complaint.date_acknowledged)}</span>
+              </p>
+            ) : (
+              <p className="text-sm text-white/85">—</p>
+            )}
+          </div>
           <DateField label="Investigation completed" value={complaint.investigation_completed} />
           <DateField label="Response due" value={complaint.response_due} />
           <DateField label="Closed" value={complaint.date_closed} />
@@ -351,9 +356,11 @@ export default async function ComplaintPage({
                 <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
                   <span className="w-24 shrink-0 text-white/50">{formatDisplayDate(h.date.slice(0, 10))}</span>
                   <span className="text-white/50">{h.title}</span>
-                  <span className="text-white/50">{h.person}</span>
                 </div>
-                <a href={h.href} className="btn-outline px-2.5 py-1 text-[11px]">View</a>
+                <div className="flex items-center gap-4">
+                  <span className="w-40 text-right text-white/50">{h.person}</span>
+                  <a href={h.href} className="btn-outline px-2.5 py-1 text-[11px]">View</a>
+                </div>
               </div>
             ))}
           </div>
