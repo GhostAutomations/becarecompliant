@@ -43,19 +43,25 @@ export default function ActionForm({
   confirm?: string;
 }) {
   const [state, formAction, pending] = useActionState(action, IDLE_STATE);
-  const [dirty, setDirty] = useState(false);
+  const [saved, setSaved] = useState(false);
 
+  // Flash "Saved" briefly on success, then revert to the normal Save button.
+  // (Persisting the green state until the next edit read as a stuck green box.)
   useEffect(() => {
-    if (state.ok) setDirty(false);
-  }, [state.ok]);
+    if (state.ok && !pending) {
+      setSaved(true);
+      const t = setTimeout(() => setSaved(false), 2000);
+      return () => clearTimeout(t);
+    }
+  }, [state, pending]);
 
-  const showSaved = Boolean(state.ok) && !dirty && !pending;
+  const showSaved = saved && !pending;
   const btnLabel = pending ? savingLabel : showSaved ? "Saved" : label;
 
   return (
     <form
       action={formAction}
-      onChange={() => setDirty(true)}
+      onChange={() => setSaved(false)}
       onSubmit={(e) => {
         if (confirm && !window.confirm(confirm)) e.preventDefault();
       }}
