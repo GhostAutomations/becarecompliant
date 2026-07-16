@@ -180,6 +180,9 @@ function FormRow({
   formLinkedCheck: Map<string, string>;
   isComplaints: boolean;
 }) {
+  const linkedCheckId = formLinkedCheck.get(f.id);
+  const linkedName = linkedCheckId ? checks.find((c) => c.id === linkedCheckId)?.name ?? null : null;
+  const linkLabel = isComplaints ? "Complaints section" : linkedName;
   return (
     <div className="flex items-center gap-3 border-b border-white/5 px-5 py-2.5 last:border-b-0 hover:bg-white/5">
       <Link href={`/settings/forms/${f.id}`} className="flex min-w-0 flex-1 items-center gap-3">
@@ -187,12 +190,13 @@ function FormRow({
         <span className="truncate text-xs text-white/40">{POP_LABEL[f.population]}</span>
       </Link>
       {checks.length > 0 ? (
-        <FormColumnLink formId={f.id} checks={checks} currentCheckId={formLinkedCheck.get(f.id) ?? ""} />
-      ) : isComplaints ? (
+        <FormColumnLink formId={f.id} checks={checks} currentCheckId={linkedCheckId ?? ""} />
+      ) : null}
+      {linkLabel ? (
         <span className="group relative inline-flex shrink-0">
           <LinkIcon />
           <span className="pointer-events-none absolute bottom-full right-0 z-20 mb-1.5 hidden whitespace-nowrap rounded-md border border-white/10 bg-navy-950 px-2 py-1 text-[11px] text-white/90 shadow-lg group-hover:block">
-            Links to Complaints section
+            Links to {linkLabel}
           </span>
         </span>
       ) : null}
