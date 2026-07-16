@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import { writeAudit } from "@/lib/audit";
 import BackLink from "@/components/back-link";
-import ActionForm from "@/components/action-form";
+import EditComplaintForm from "@/components/complaints/edit-complaint-form";
 import ComplaintForms from "@/components/complaints/complaint-forms";
 import ComplaintStatusControl from "@/components/complaints/complaint-status-control";
 import InitialResponseButton from "@/components/complaints/initial-response-button";
@@ -20,16 +20,8 @@ import {
   getPublishedFormVersion,
 } from "@/lib/complaints/data";
 import type { ComplaintRecord } from "@/lib/complaints/types";
-import { updateComplaint } from "@/lib/complaints/actions";
 import { responseRag, formatDisplayDate } from "@/lib/complaints/logic";
-import {
-  COMPLAINT_STATUS_LABELS,
-  RELATIONSHIP_LABELS,
-  CONCERN_TYPES,
-  FORMALITY_TYPES,
-  CONTACT_METHODS,
-  type ComplaintRelationship,
-} from "@/lib/complaints/types";
+import { COMPLAINT_STATUS_LABELS, RELATIONSHIP_LABELS } from "@/lib/complaints/types";
 
 export const metadata: Metadata = { title: "Complaint" };
 
@@ -368,95 +360,7 @@ export default async function ComplaintPage({
       <details className="glass-card section-card">
         <summary>Edit complaint</summary>
         <div className="border-t border-white/10 p-5">
-          <ActionForm action={updateComplaint} hidden={{ complaint_id: complaint.id }} label="Save changes">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <label htmlFor="subject" className="form-label">Subject</label>
-                <input id="subject" name="subject" defaultValue={complaint.subject} required />
-              </div>
-              <div>
-                <label htmlFor="complainant_name" className="form-label">Complainant name</label>
-                <input id="complainant_name" name="complainant_name" defaultValue={complaint.complainant_name ?? ""} />
-              </div>
-              <div>
-                <label htmlFor="complainant_relationship" className="form-label">Complainant is a</label>
-                <select id="complainant_relationship" name="complainant_relationship" defaultValue={complaint.complainant_relationship ?? ""}>
-                  <option value="">Not stated</option>
-                  {(Object.keys(RELATIONSHIP_LABELS) as ComplaintRelationship[]).map((k) => (
-                    <option key={k} value={k}>{RELATIONSHIP_LABELS[k]}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="service_user_id" className="form-label">Related service user</label>
-                <select id="service_user_id" name="service_user_id" defaultValue={complaint.service_user_id ?? ""}>
-                  <option value="">None</option>
-                  {serviceUsers.map((s) => (
-                    <option key={s.id} value={s.id}>{s.full_name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="concern_type" className="form-label">Complaint/Concern</label>
-                <select id="concern_type" name="concern_type" defaultValue={complaint.concern_type ?? ""}>
-                  <option value="">Not set</option>
-                  {CONCERN_TYPES.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="formality" className="form-label">Type</label>
-                <select id="formality" name="formality" defaultValue={complaint.formality ?? ""}>
-                  <option value="">Not set</option>
-                  {FORMALITY_TYPES.map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="contact_method" className="form-label">Preferred contact method</label>
-                <select id="contact_method" name="contact_method" defaultValue={complaint.contact_method ?? ""}>
-                  <option value="">Not stated</option>
-                  {CONTACT_METHODS.map((m) => (
-                    <option key={m.value} value={m.value}>{m.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="contact_email" className="form-label">Contact email</label>
-                <input id="contact_email" name="contact_email" type="email" defaultValue={complaint.contact_email ?? ""} />
-              </div>
-              <div className="sm:col-span-2">
-                <label htmlFor="contact_address" className="form-label">Contact address</label>
-                <textarea id="contact_address" name="contact_address" rows={2} defaultValue={complaint.contact_address ?? ""} />
-              </div>
-              <div>
-                <label htmlFor="date_occurred" className="form-label">Date it happened</label>
-                <input id="date_occurred" name="date_occurred" type="date" defaultValue={complaint.date_occurred ?? ""} />
-              </div>
-              <div>
-                <label htmlFor="date_acknowledged" className="form-label">Acknowledged</label>
-                <input id="date_acknowledged" name="date_acknowledged" type="date" defaultValue={complaint.date_acknowledged ?? ""} />
-              </div>
-              <div>
-                <label htmlFor="acknowledgement_due" className="form-label">Acknowledgement due</label>
-                <input id="acknowledgement_due" name="acknowledgement_due" type="date" defaultValue={complaint.acknowledgement_due ?? ""} />
-              </div>
-              <div>
-                <label htmlFor="investigation_completed" className="form-label">Investigation completed</label>
-                <input id="investigation_completed" name="investigation_completed" type="date" defaultValue={complaint.investigation_completed ?? ""} />
-              </div>
-              <div>
-                <label htmlFor="response_due" className="form-label">Response due</label>
-                <input id="response_due" name="response_due" type="date" defaultValue={complaint.response_due ?? ""} />
-              </div>
-              <div className="sm:col-span-2">
-                <label htmlFor="details" className="form-label">Details</label>
-                <textarea id="details" name="details" rows={4} defaultValue={complaint.details ?? ""} />
-              </div>
-            </div>
-          </ActionForm>
+          <EditComplaintForm complaint={complaint} serviceUsers={serviceUsers} />
         </div>
       </details>
     </div>
