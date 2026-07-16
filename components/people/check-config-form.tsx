@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateCheckDefinition } from "@/lib/people/actions";
 import { recurrenceLabel } from "@/lib/people/logic";
+import { useSavedFlash } from "@/lib/use-saved-flash";
 import type { CheckDefinition } from "@/lib/people/types";
 
 /**
@@ -14,7 +15,7 @@ import type { CheckDefinition } from "@/lib/people/types";
 export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [saved, setSaved] = useState(false);
+  const [saved, flash, reset] = useSavedFlash();
   const [error, setError] = useState<string | null>(null);
 
   const [active, setActive] = useState(def.active);
@@ -46,10 +47,10 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
       const res = await updateCheckDefinition(fd);
       if (res.error) {
         setError(res.error);
-        setSaved(false);
+        reset();
       } else {
         setError(null);
-        setSaved(true);
+        flash();
         router.refresh();
       }
     });
@@ -79,7 +80,7 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
             checked={active}
             onChange={(e) => {
               setActive(e.target.checked);
-              setSaved(false);
+              reset();
             }}
           />
           Active
@@ -99,7 +100,7 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
               value={flagDays}
               onChange={(e) => {
                 setFlagDays(e.target.value);
-                setSaved(false);
+                reset();
               }}
               className="max-w-[8rem]"
             />
@@ -116,7 +117,7 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
                 value={scheduleMode}
                 onChange={(e) => {
                   setScheduleMode(e.target.value);
-                  setSaved(false);
+                  reset();
                 }}
               >
                 <option value="interval">Yearly</option>
@@ -141,7 +142,7 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
                 value={days}
                 onChange={(e) => {
                   setDays(e.target.value);
-                  setSaved(false);
+                  reset();
                 }}
                 className="max-w-[8rem]"
               />
@@ -161,7 +162,7 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
               placeholder="Default 30"
               onChange={(e) => {
                 setAmber(e.target.value);
-                setSaved(false);
+                reset();
               }}
               className="max-w-[8rem]"
             />
@@ -180,7 +181,7 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
                 placeholder="Same as interval"
                 onChange={(e) => {
                   setReportingDays(e.target.value);
-                  setSaved(false);
+                  reset();
                 }}
                 className="max-w-[8rem]"
               />

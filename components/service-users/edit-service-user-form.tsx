@@ -1,15 +1,18 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { updateServiceUser } from "@/lib/service-users/actions";
 import { IDLE_STATE } from "@/lib/forms";
+import { useSavedFlash } from "@/lib/use-saved-flash";
 import type { ServiceUserRecord } from "@/lib/service-users/types";
 
 export default function EditServiceUserForm({ serviceUser }: { serviceUser: ServiceUserRecord }) {
   const [state, formAction, pending] = useActionState(updateServiceUser, IDLE_STATE);
+  const [saved, flash, reset] = useSavedFlash();
+  useEffect(() => { if (state.ok && !pending) flash(); }, [state, pending, flash]);
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form action={formAction} className="space-y-5" onChange={reset}>
       <input type="hidden" name="service_user_id" value={serviceUser.id} />
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="sm:col-span-2">
@@ -36,9 +39,9 @@ export default function EditServiceUserForm({ serviceUser }: { serviceUser: Serv
       <button
         type="submit"
         disabled={pending}
-        className={`btn ${state.ok ? "btn-saved" : "btn-primary"}`}
+        className={`btn ${saved ? "btn-saved" : "btn-primary"}`}
       >
-        {pending ? "Saving…" : state.ok ? "Saved" : "Save details"}
+        {pending ? "Saving…" : saved ? "Saved" : "Save details"}
       </button>
     </form>
   );

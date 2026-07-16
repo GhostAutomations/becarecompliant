@@ -7,9 +7,10 @@
  * again, and errors shown next to the button. A save is never silent.
  */
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect } from "react";
 import { IDLE_STATE } from "@/lib/forms";
 import { renameBranch } from "@/app/(app)/settings/actions";
+import { useSavedFlash } from "@/lib/use-saved-flash";
 
 export default function BranchForm({
   branchId,
@@ -21,17 +22,17 @@ export default function BranchForm({
   initialAddress: string;
 }) {
   const [state, action, pending] = useActionState(renameBranch, IDLE_STATE);
-  const [dirty, setDirty] = useState(false);
+  const [saved, flash, reset] = useSavedFlash();
 
-  // A fresh success clears dirty so the button reads "Saved" until re-edited.
+  // Success flashes "Saved" briefly, then the button reverts to "Save".
   useEffect(() => {
-    if (state.ok) setDirty(false);
-  }, [state.ok]);
+    if (state.ok && !pending) flash();
+  }, [state, pending, flash]);
 
-  const label = pending ? "Saving…" : state.ok && !dirty ? "Saved" : "Save";
+  const label = pending ? "Saving…" : saved ? "Saved" : "Save";
 
   return (
-    <form action={action} className="space-y-3" onChange={() => setDirty(true)}>
+    <form action={action} className="space-y-3" onChange={reset}>
       <input type="hidden" name="branch_id" value={branchId} />
       <div>
         <label htmlFor={`name-${branchId}`} className="form-label">
@@ -63,7 +64,7 @@ export default function BranchForm({
       <div className="flex items-center gap-3">
         <button
           type="submit"
-          className={`btn ${state.ok && !dirty ? "btn-saved" : "btn-primary"}`}
+          className={`btn ${saved ? "btn-saved" : "btn-primary"}`}
           disabled={pending}
         >
           {label}

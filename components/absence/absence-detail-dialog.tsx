@@ -14,6 +14,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { IDLE_STATE } from "@/lib/forms";
 import { updateAbsenceEndDate } from "@/lib/absence/actions";
+import { useSavedFlash } from "@/lib/use-saved-flash";
 import type { AbsenceEventRow } from "@/lib/absence/data";
 
 function fmt(d: string | null): string {
@@ -26,16 +27,16 @@ function RowEditor({ ev, n, canEdit }: { ev: AbsenceEventRow; n: number; canEdit
   const router = useRouter();
   const [state, action, pending] = useActionState(updateAbsenceEndDate, IDLE_STATE);
   const [end, setEnd] = useState(ev.end_date ?? "");
-  const [dirty, setDirty] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [saved, flash, reset] = useSavedFlash();
 
   useEffect(() => {
     setSubmitting(false);
     if (state.ok) {
-      setDirty(false);
+      flash();
       router.refresh();
     }
-  }, [state, router]);
+  }, [state, flash, router]);
 
   function save() {
     const fd = new FormData();
@@ -65,7 +66,7 @@ function RowEditor({ ev, n, canEdit }: { ev: AbsenceEventRow; n: number; canEdit
             disabled={!canEdit || busy}
             onChange={(e) => {
               setEnd(e.target.value);
-              setDirty(true);
+              reset();
             }}
           />
         </div>
@@ -80,7 +81,7 @@ function RowEditor({ ev, n, canEdit }: { ev: AbsenceEventRow; n: number; canEdit
             disabled={busy}
             className="btn-primary ml-auto px-3 py-1.5 text-xs"
           >
-            {busy ? "Saving…" : state.ok && !dirty ? "Saved" : "Save last date"}
+            {busy ? "Saving…" : saved ? "Saved" : "Save last date"}
           </button>
         )}
       </div>

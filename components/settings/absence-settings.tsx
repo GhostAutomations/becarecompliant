@@ -22,6 +22,7 @@ import {
   uploadAbsencePolicy,
   suggestAbsencePolicy,
 } from "@/lib/absence/settings-actions";
+import { useSavedFlash } from "@/lib/use-saved-flash";
 
 type Row = Record<string, string | number>;
 
@@ -48,6 +49,7 @@ export default function AbsenceSettings({
   const [fileName, setFileName] = useState<string | null>(null);
 
   const [saveState, saveAction, saving] = useActionState(saveAbsenceConfig, IDLE_STATE);
+  const [saved, flash] = useSavedFlash();
   const [uploadState, uploadAction] = useActionState(uploadAbsencePolicy, IDLE_STATE);
   const [aiState, aiAction, aiPending] = useActionState(suggestAbsencePolicy, IDLE_STATE);
 
@@ -79,8 +81,11 @@ export default function AbsenceSettings({
   // success also clears dirty so the button reads "Saved".
   useEffect(() => {
     setSubmitting(false);
-    if (saveState.ok) setDirty(false);
-  }, [saveState]);
+    if (saveState.ok) {
+      setDirty(false);
+      flash();
+    }
+  }, [saveState, flash]);
 
   function switchMethod(next: AbsenceMethod) {
     setMethod(next);
@@ -223,7 +228,7 @@ export default function AbsenceSettings({
             disabled={submitting || saving}
             className="btn-primary px-4 py-2 text-sm"
           >
-            {submitting || saving ? "Saving…" : saveState.ok && !dirty ? "Saved" : "Save"}
+            {submitting || saving ? "Saving…" : saved ? "Saved" : "Save"}
           </button>
           {saveState.error && <span className="form-error mt-0 text-xs">{saveState.error}</span>}
         </div>

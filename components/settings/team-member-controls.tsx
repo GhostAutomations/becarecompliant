@@ -5,6 +5,7 @@ import { useActionState } from "react";
 import { useRouter } from "next/navigation";
 import { saveTeamMember, setUserStatus } from "@/app/(app)/settings/actions";
 import { IDLE_STATE } from "@/lib/forms";
+import { useSavedFlash } from "@/lib/use-saved-flash";
 import DeleteUserDialog from "@/components/settings/delete-user-dialog";
 
 type Branch = { id: string; name: string };
@@ -39,10 +40,14 @@ export default function TeamMemberControls({
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  const [saved, flash, reset] = useSavedFlash();
   // Refresh after a successful save so the list reflects the change.
   useEffect(() => {
-    if (state.ok) router.refresh();
-  }, [state.ok, router]);
+    if (state.ok && !pending) {
+      flash();
+      router.refresh();
+    }
+  }, [state, pending, flash, router]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -67,7 +72,7 @@ export default function TeamMemberControls({
   return (
     <div className="mt-3 space-y-3 border-t border-white/10 pt-3">
       <div className="flex flex-wrap items-end justify-between gap-3">
-      <form action={formAction} className="flex flex-wrap items-end gap-3">
+      <form action={formAction} className="flex flex-wrap items-end gap-3" onChange={reset}>
         <input type="hidden" name="user_id" value={userId} />
         {additionalClean.map((id) => (
           <input key={id} type="hidden" name="additional_branch_ids" value={id} />
@@ -135,9 +140,9 @@ export default function TeamMemberControls({
         <button
           type="submit"
           disabled={pending}
-          className={`btn ${state.ok ? "btn-saved" : "btn-primary"} h-[42px] w-28 text-sm`}
+          className={`btn ${saved ? "btn-saved" : "btn-primary"} h-[42px] w-28 text-sm`}
         >
-          {pending ? "Saving…" : state.ok ? "Saved" : "Save"}
+          {pending ? "Saving…" : saved ? "Saved" : "Save"}
         </button>
       </form>
 

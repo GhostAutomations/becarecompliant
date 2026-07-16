@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { updatePerson } from "@/lib/people/actions";
 import { IDLE_STATE } from "@/lib/forms";
+import { useSavedFlash } from "@/lib/use-saved-flash";
 import type { PersonRecord } from "@/lib/people/types";
 import type { ProfileLite as UserLite } from "@/lib/people/data";
 
@@ -14,9 +15,11 @@ export default function EditPersonForm({
   users: UserLite[];
 }) {
   const [state, formAction, pending] = useActionState(updatePerson, IDLE_STATE);
+  const [saved, flash, reset] = useSavedFlash();
+  useEffect(() => { if (state.ok && !pending) flash(); }, [state, pending, flash]);
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form action={formAction} className="space-y-5" onChange={reset}>
       <input type="hidden" name="person_id" value={person.id} />
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="sm:col-span-2">
@@ -55,9 +58,9 @@ export default function EditPersonForm({
       <button
         type="submit"
         disabled={pending}
-        className={`btn ${state.ok ? "btn-saved" : "btn-primary"}`}
+        className={`btn ${saved ? "btn-saved" : "btn-primary"}`}
       >
-        {pending ? "Saving…" : state.ok ? "Saved" : "Save details"}
+        {pending ? "Saving…" : saved ? "Saved" : "Save details"}
       </button>
     </form>
   );

@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { updateComplaint } from "@/lib/complaints/actions";
 import { IDLE_STATE } from "@/lib/forms";
+import { useSavedFlash } from "@/lib/use-saved-flash";
 import {
   RELATIONSHIP_LABELS,
   CONCERN_TYPES,
@@ -20,9 +21,11 @@ export default function EditComplaintForm({
   serviceUsers: Array<{ id: string; full_name: string }>;
 }) {
   const [state, formAction, pending] = useActionState(updateComplaint, IDLE_STATE);
+  const [saved, flash, reset] = useSavedFlash();
+  useEffect(() => { if (state.ok && !pending) flash(); }, [state, pending, flash]);
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form action={formAction} className="space-y-5" onChange={reset}>
       <input type="hidden" name="complaint_id" value={complaint.id} />
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
@@ -114,8 +117,8 @@ export default function EditComplaintForm({
 
       {state.error ? <p className="form-error">{state.error}</p> : null}
 
-      <button type="submit" disabled={pending} className={`btn ${state.ok ? "btn-saved" : "btn-primary"}`}>
-        {pending ? "Saving…" : state.ok ? "Saved" : "Save changes"}
+      <button type="submit" disabled={pending} className={`btn ${saved ? "btn-saved" : "btn-primary"}`}>
+        {pending ? "Saving…" : saved ? "Saved" : "Save changes"}
       </button>
     </form>
   );

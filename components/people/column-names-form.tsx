@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateColumnLabels } from "@/lib/people/actions";
+import { useSavedFlash } from "@/lib/use-saved-flash";
 
 export default function ColumnNamesForm({
   columns,
@@ -13,7 +14,7 @@ export default function ColumnNamesForm({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [saved, setSaved] = useState(false);
+  const [saved, flash, reset] = useSavedFlash();
   const [vals, setVals] = useState<Record<string, string>>(() => {
     const o: Record<string, string> = {};
     for (const c of columns) o[c.key] = labels[c.key] ?? "";
@@ -25,7 +26,7 @@ export default function ColumnNamesForm({
     for (const c of columns) fd.set(`col_${c.key}`, vals[c.key] ?? "");
     startTransition(async () => {
       await updateColumnLabels(fd);
-      setSaved(true);
+      flash();
       router.refresh();
     });
   }
@@ -41,7 +42,7 @@ export default function ColumnNamesForm({
             className="max-w-[10rem]"
             onChange={(e) => {
               setVals((v) => ({ ...v, [c.key]: e.target.value }));
-              setSaved(false);
+              reset();
             }}
           />
         </div>

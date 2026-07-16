@@ -3,19 +3,20 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateComplexReviewInterval } from "@/lib/service-users/actions";
+import { useSavedFlash } from "@/lib/use-saved-flash";
 
 export default function ComplexIntervalForm({ days }: { days: number }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [value, setValue] = useState(String(days));
-  const [saved, setSaved] = useState(false);
+  const [saved, flash, reset] = useSavedFlash();
 
   function save() {
     const fd = new FormData();
     fd.set("days", value);
     startTransition(async () => {
       await updateComplexReviewInterval(fd);
-      setSaved(true);
+      flash();
       router.refresh();
     });
   }
@@ -31,7 +32,7 @@ export default function ComplexIntervalForm({ days }: { days: number }) {
           value={value}
           onChange={(e) => {
             setValue(e.target.value);
-            setSaved(false);
+            reset();
           }}
           className="max-w-[8rem]"
         />

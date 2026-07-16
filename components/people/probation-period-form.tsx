@@ -3,11 +3,12 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateProbationPeriod } from "@/lib/people/actions";
+import { useSavedFlash } from "@/lib/use-saved-flash";
 
 export default function ProbationPeriodForm({ days }: { days: number }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [saved, setSaved] = useState(false);
+  const [saved, flash, reset] = useSavedFlash();
   const [error, setError] = useState<string | null>(null);
   const [val, setVal] = useState(String(days));
 
@@ -18,10 +19,10 @@ export default function ProbationPeriodForm({ days }: { days: number }) {
       const res = await updateProbationPeriod(fd);
       if (res.error) {
         setError(res.error);
-        setSaved(false);
+        reset();
       } else {
         setError(null);
-        setSaved(true);
+        flash();
         router.refresh();
       }
     });
@@ -39,7 +40,7 @@ export default function ProbationPeriodForm({ days }: { days: number }) {
             value={val}
             onChange={(e) => {
               setVal(e.target.value);
-              setSaved(false);
+              reset();
             }}
             className="max-w-[8rem]"
           />
