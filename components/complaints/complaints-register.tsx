@@ -15,7 +15,7 @@ import {
   type ComplaintRecord,
   type ComplaintStatus,
 } from "@/lib/complaints/types";
-import { responseRag, formatDisplayDate } from "@/lib/complaints/logic";
+import { responseRag, formatUkDate as formatDisplayDate } from "@/lib/complaints/logic";
 
 function statusPill(status: ComplaintStatus) {
   const cls = status === "closed" ? "pill-green" : status === "in_progress" ? "pill-amber" : "pill-neutral";

@@ -16,6 +16,14 @@ import type { ComplaintRag } from "./types";
 
 export { formatDisplayDate };
 
+/** Format an ISO date (or the date part of a timestamp) as DD/MM/YYYY, matching the
+ *  rest of the Complaints section. Returns "" for null/invalid input. */
+export function formatUkDate(iso: string | null): string {
+  if (!iso) return "";
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : "";
+}
+
 /** The response-deadline RAG for a complaint. Closed complaints are resolved;
  *  a complaint with no response due date has no RAG. Otherwise red when the
  *  response is overdue, amber within the amber window, else green. */

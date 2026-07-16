@@ -20,7 +20,7 @@ import {
   getPublishedFormVersion,
 } from "@/lib/complaints/data";
 import type { ComplaintRecord } from "@/lib/complaints/types";
-import { responseRag, formatDisplayDate } from "@/lib/complaints/logic";
+import { responseRag, formatUkDate as formatDisplayDate } from "@/lib/complaints/logic";
 import { COMPLAINT_STATUS_LABELS, RELATIONSHIP_LABELS } from "@/lib/complaints/types";
 
 export const metadata: Metadata = { title: "Complaint" };
