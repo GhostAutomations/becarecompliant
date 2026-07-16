@@ -113,6 +113,24 @@ export default async function SettingsFormsPage() {
   );
 }
 
+function ShieldIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="#f59e0b"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4 shrink-0"
+      aria-hidden
+    >
+      <path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z" />
+      <path d="M9 12l2 2 4-4" />
+    </svg>
+  );
+}
+
 function LinkIcon() {
   return (
     <svg
@@ -154,10 +172,15 @@ function FormGroup({
             className="flex items-center gap-3 border-b border-white/5 px-5 py-2.5 last:border-b-0 hover:bg-white/5"
           >
             <span className="truncate text-sm font-medium text-white">{f.name}</span>
-            <span className="truncate text-xs text-white/40">
-              {POP_LABEL[f.population]}
-              {f.sourceTemplateKey ? " · starter" : " · authored"}
-            </span>
+            <span className="truncate text-xs text-white/40">{POP_LABEL[f.population]}</span>
+            {f.sourceTemplateKey ? (
+              <span className="group relative inline-flex shrink-0">
+                <ShieldIcon />
+                <span className="pointer-events-none absolute bottom-full left-0 z-20 mb-1.5 hidden whitespace-nowrap rounded-md border border-white/10 bg-navy-950 px-2 py-1 text-[11px] text-white/90 shadow-lg group-hover:block">
+                  Be Care Compliant form
+                </span>
+              </span>
+            ) : null}
             {linkInfo.has(f.id) ? (
               <span className="group relative inline-flex shrink-0">
                 <LinkIcon />
