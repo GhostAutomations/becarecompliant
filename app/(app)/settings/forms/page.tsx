@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
+import { createClient } from "@/lib/supabase/server";
 import BackLink from "@/components/back-link";
 import { listCompanyForms } from "@/lib/form-builder/data";
 import NewFormButton from "@/components/form-builder/new-form-button";
@@ -13,6 +14,7 @@ export const metadata: Metadata = { title: "Forms" };
 const POP_LABEL: Record<string, string> = {
   people: "People",
   service_users: "Service Users",
+  complaints: "Complaints",
 };
 
 export default async function SettingsFormsPage() {
@@ -46,6 +48,19 @@ export default async function SettingsFormsPage() {
 
   const forms = await listCompanyForms(profile.company_id);
 
+  // Forms wired to a compliance check (a register column) get a link icon.
+  const supabase = await createClient();
+  const { data: checkForms } = await supabase
+    .from("check_definitions")
+    .select("form_id")
+    .eq("company_id", profile.company_id)
+    .not("form_id", "is", null);
+  const linkedFormIds = new Set(
+    ((checkForms as Array<{ form_id: string | null }> | null) ?? [])
+      .map((c) => c.form_id)
+      .filter((v): v is string => Boolean(v)),
+  );
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
@@ -70,10 +85,20 @@ export default async function SettingsFormsPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          <FormGroup title="People forms" forms={forms.filter((f) => f.population === "people")} />
+          <FormGroup
+            title="People forms"
+            forms={forms.filter((f) => f.population === "people")}
+            linkedFormIds={linkedFormIds}
+          />
           <FormGroup
             title="Service User forms"
             forms={forms.filter((f) => f.population === "service_users")}
+            linkedFormIds={linkedFormIds}
+          />
+          <FormGroup
+            title="Complaints forms"
+            forms={forms.filter((f) => (f.population as string) === "complaints")}
+            linkedFormIds={linkedFormIds}
           />
         </div>
       )}
@@ -81,7 +106,33 @@ export default async function SettingsFormsPage() {
   );
 }
 
-function FormGroup({ title, forms }: { title: string; forms: FormSummary[] }) {
+function LinkIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4 shrink-0 text-gold-300"
+      aria-hidden
+    >
+      <path d="M9.5 13.5a3 3 0 004.24 0l3-3a3 3 0 10-4.24-4.24l-1 1" />
+      <path d="M14.5 10.5a3 3 0 00-4.24 0l-3 3a3 3 0 104.24 4.24l1-1" />
+    </svg>
+  );
+}
+
+function FormGroup({
+  title,
+  forms,
+  linkedFormIds,
+}: {
+  title: string;
+  forms: FormSummary[];
+  linkedFormIds: Set<string>;
+}) {
   if (forms.length === 0) return null;
   return (
     <details className="glass-card section-card">
@@ -95,6 +146,11 @@ function FormGroup({ title, forms }: { title: string; forms: FormSummary[] }) {
             href={`/settings/forms/${f.id}`}
             className="flex items-center gap-3 border-b border-white/5 px-5 py-2.5 last:border-b-0 hover:bg-white/5"
           >
+            {linkedFormIds.has(f.id) ? (
+              <span title="Linked to a compliance check">
+                <LinkIcon />
+              </span>
+            ) : null}
             <span className="truncate text-sm font-medium text-white">{f.name}</span>
             <span className="truncate text-xs text-white/40">
               {POP_LABEL[f.population]}
