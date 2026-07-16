@@ -23,11 +23,13 @@ export default function InitialResponseButton({
   contactMethod,
   contactEmail,
   contactAddress,
+  done = false,
 }: {
   complaintId: string;
   contactMethod: "email" | "post" | null;
   contactEmail: string | null;
   contactAddress: string | null;
+  done?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -94,7 +96,11 @@ export default function InitialResponseButton({
 
   return (
     <>
-      <button type="button" className="btn-outline px-3 py-2 text-sm" onClick={openDialog}>
+      <button
+        type="button"
+        className={done ? "btn btn-saved px-3 py-2 text-sm" : "btn-outline px-3 py-2 text-sm"}
+        onClick={openDialog}
+      >
         Initial Response
       </button>
 

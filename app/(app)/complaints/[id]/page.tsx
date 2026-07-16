@@ -168,6 +168,10 @@ export default async function ComplaintPage({
     .map(firstToken)
     .filter((t) => t && t !== currentToken);
 
+  // Which forms have already been completed as evidence (so their button turns green).
+  const evidenceFormIds = new Set(evidence.map((e) => e.form_id));
+  const completedFormKeys = new Set(forms.filter((f) => evidenceFormIds.has(f.id)).map((f) => f.key));
+
   // Pin each complaint form's published schema for the Evidence dialogs, filtered to
   // this branch, and pre-filled from the complaint's details.
   const formSchemas = await Promise.all(
@@ -180,6 +184,7 @@ export default async function ComplaintPage({
               key: f.key,
               name: f.name,
               label: buttonLabel(f.name, currentToken),
+              done: completedFormKeys.has(f.key),
               schema: version.schema as FormSchema,
               presets: buildComplaintPresets(f.key, complaint, version.schema as FormSchema),
             }
@@ -188,7 +193,7 @@ export default async function ComplaintPage({
   );
   const usableForms = formSchemas
     .filter(
-      (f): f is { key: string; name: string; label: string; schema: FormSchema; presets: Answers } => f != null,
+      (f): f is { key: string; name: string; label: string; done: boolean; schema: FormSchema; presets: Answers } => f != null,
     )
     // Complaint Investigation sits first among the forms so, next to the Initial
     // Response button, it lands in the middle of the row; region forms follow.
@@ -297,6 +302,7 @@ export default async function ComplaintPage({
             contactMethod={complaint.contact_method}
             contactEmail={complaint.contact_email}
             contactAddress={complaint.contact_address}
+            done={responses.length > 0}
           />
           <ComplaintForms complaintId={complaint.id} forms={usableForms} />
         </div>
