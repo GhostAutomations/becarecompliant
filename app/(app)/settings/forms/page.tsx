@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import BackLink from "@/components/back-link";
 import { listCompanyForms } from "@/lib/form-builder/data";
 import NewFormButton from "@/components/form-builder/new-form-button";
+import FormColumnLink from "@/components/form-builder/form-column-link";
 import type { FormSummary } from "@/lib/form-builder/types";
 import { featureEnabled } from "@/lib/billing/tier";
 
@@ -48,24 +49,23 @@ export default async function SettingsFormsPage() {
 
   const forms = await listCompanyForms(profile.company_id);
 
-  // Where each form links: a compliance check (a register column) or the Complaints
-  // section. Forms that link somewhere get a link icon with an instant hover label.
+  // The department columns (compliance checks) a form can link to, and which check
+  // each form is currently wired to.
   const supabase = await createClient();
-  const { data: checkForms } = await supabase
+  const { data: checkDefs } = await supabase
     .from("check_definitions")
-    .select("form_id, name, population")
+    .select("id, name, population, form_id")
     .eq("company_id", profile.company_id)
-    .not("form_id", "is", null);
+    .eq("active", true)
+    .in("population", ["people", "service_users"])
+    .order("sort_order", { ascending: true });
 
-  const linkInfo = new Map<string, string>();
-  for (const c of (checkForms as Array<{ form_id: string | null; name: string; population: string }> | null) ?? []) {
-    if (!c.form_id) continue;
-    const dept = c.population === "service_users" ? "Service Users" : "People";
-    const label = `${dept} check: ${c.name}`;
-    linkInfo.set(c.form_id, linkInfo.has(c.form_id) ? `${linkInfo.get(c.form_id)}, ${c.name}` : label);
-  }
-  for (const f of forms) {
-    if ((f.population as string) === "complaints") linkInfo.set(f.id, "Complaints section");
+  const peopleChecks: Array<{ id: string; name: string }> = [];
+  const suChecks: Array<{ id: string; name: string }> = [];
+  const formLinkedCheck = new Map<string, string>();
+  for (const c of (checkDefs as Array<{ id: string; name: string; population: string; form_id: string | null }> | null) ?? []) {
+    (c.population === "service_users" ? suChecks : peopleChecks).push({ id: c.id, name: c.name });
+    if (c.form_id) formLinkedCheck.set(c.form_id, c.id);
   }
 
   return (
@@ -95,17 +95,21 @@ export default async function SettingsFormsPage() {
           <FormGroup
             title="People forms"
             forms={forms.filter((f) => f.population === "people")}
-            linkInfo={linkInfo}
+            checks={peopleChecks}
+            formLinkedCheck={formLinkedCheck}
           />
           <FormGroup
             title="Service User forms"
             forms={forms.filter((f) => f.population === "service_users")}
-            linkInfo={linkInfo}
+            checks={suChecks}
+            formLinkedCheck={formLinkedCheck}
           />
           <FormGroup
             title="Complaints forms"
             forms={forms.filter((f) => (f.population as string) === "complaints")}
-            linkInfo={linkInfo}
+            checks={[]}
+            formLinkedCheck={formLinkedCheck}
+            isComplaints
           />
         </div>
       )}
@@ -152,11 +156,15 @@ function LinkIcon() {
 function FormGroup({
   title,
   forms,
-  linkInfo,
+  checks,
+  formLinkedCheck,
+  isComplaints = false,
 }: {
   title: string;
   forms: FormSummary[];
-  linkInfo: Map<string, string>;
+  checks: Array<{ id: string; name: string }>;
+  formLinkedCheck: Map<string, string>;
+  isComplaints?: boolean;
 }) {
   if (forms.length === 0) return null;
   return (
@@ -166,30 +174,37 @@ function FormGroup({
       </summary>
       <div className="border-t border-white/10">
         {forms.map((f) => (
-          <Link
+          <div
             key={f.id}
-            href={`/settings/forms/${f.id}`}
             className="flex items-center gap-3 border-b border-white/5 px-5 py-2.5 last:border-b-0 hover:bg-white/5"
           >
-            <span className="truncate text-sm font-medium text-white">{f.name}</span>
-            <span className="truncate text-xs text-white/40">{POP_LABEL[f.population]}</span>
-            {linkInfo.has(f.id) ? (
+            <Link href={`/settings/forms/${f.id}`} className="flex min-w-0 flex-1 items-center gap-3">
+              <span className="truncate text-sm font-medium text-white">{f.name}</span>
+              <span className="truncate text-xs text-white/40">{POP_LABEL[f.population]}</span>
+            </Link>
+            {checks.length > 0 ? (
+              <FormColumnLink
+                formId={f.id}
+                checks={checks}
+                currentCheckId={formLinkedCheck.get(f.id) ?? ""}
+              />
+            ) : isComplaints ? (
               <span className="group relative inline-flex shrink-0">
                 <LinkIcon />
-                <span className="pointer-events-none absolute bottom-full left-0 z-20 mb-1.5 hidden whitespace-nowrap rounded-md border border-white/10 bg-navy-950 px-2 py-1 text-[11px] text-white/90 shadow-lg group-hover:block">
-                  Links to {linkInfo.get(f.id)}
+                <span className="pointer-events-none absolute bottom-full right-0 z-20 mb-1.5 hidden whitespace-nowrap rounded-md border border-white/10 bg-navy-950 px-2 py-1 text-[11px] text-white/90 shadow-lg group-hover:block">
+                  Links to Complaints section
                 </span>
               </span>
             ) : null}
-            <span className="ml-auto flex shrink-0 items-center gap-2 text-xs">
-              {f.sourceTemplateKey ? (
-                <span className="group relative inline-flex shrink-0">
-                  <ShieldIcon />
-                  <span className="pointer-events-none absolute bottom-full right-0 z-20 mb-1.5 hidden whitespace-nowrap rounded-md border border-white/10 bg-navy-950 px-2 py-1 text-[11px] text-white/90 shadow-lg group-hover:block">
-                    Be Care Compliant form
-                  </span>
+            {f.sourceTemplateKey ? (
+              <span className="group relative inline-flex shrink-0">
+                <ShieldIcon />
+                <span className="pointer-events-none absolute bottom-full right-0 z-20 mb-1.5 hidden whitespace-nowrap rounded-md border border-white/10 bg-navy-950 px-2 py-1 text-[11px] text-white/90 shadow-lg group-hover:block">
+                  Be Care Compliant form
                 </span>
-              ) : null}
+              </span>
+            ) : null}
+            <span className="flex shrink-0 items-center gap-2 text-xs">
               {f.currentVersion == null ? (
                 <span className="pill pill-amber">Not published</span>
               ) : (
@@ -197,7 +212,7 @@ function FormGroup({
               )}
               {f.hasDraft && <span className="pill pill-amber">Draft</span>}
             </span>
-          </Link>
+          </div>
         ))}
       </div>
     </details>
