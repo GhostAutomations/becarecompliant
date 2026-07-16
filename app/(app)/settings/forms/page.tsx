@@ -185,7 +185,7 @@ function FormRow({
   f,
   checks,
   formLinkedCheck,
-  isComplaints,
+  sectionLabel,
 }: {
   f: FormSummary;
   checks: Array<{ id: string; name: string }>;
