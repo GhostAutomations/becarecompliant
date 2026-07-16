@@ -32,7 +32,8 @@ export default async function ComplaintResponsePage({
   const response = await getComplaintResponse(responseId);
   if (!response) redirect(`/complaints/${id}`);
 
-  const heading = response.method === "email" ? "Initial response (email)" : "Initial response (letter)";
+  const kindLabel = response.kind === "response" ? "Complaint response" : "Initial response";
+  const heading = `${kindLabel} (${response.method === "email" ? "email" : "letter"})`;
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">

@@ -8,6 +8,7 @@ import EditComplaintForm from "@/components/complaints/edit-complaint-form";
 import ComplaintForms from "@/components/complaints/complaint-forms";
 import ComplaintStatusControl from "@/components/complaints/complaint-status-control";
 import InitialResponseButton from "@/components/complaints/initial-response-button";
+import ComplaintResponseButton from "@/components/complaints/complaint-response-button";
 import { isFormSchema, type Answers, type FormSchema } from "@/lib/form-schema";
 import {
   getComplaint,
@@ -228,7 +229,7 @@ export default async function ComplaintPage({
     ...responses.map((r) => ({
       key: `r-${r.id}`,
       date: r.created_at,
-      title: r.method === "email" ? "Initial response (email)" : "Initial response (letter)",
+      title: `${r.kind === "response" ? "Complaint response" : "Initial response"} (${r.method === "email" ? "email" : "letter"})`,
       person: r.author_name ?? "Unknown",
       href: `/complaints/${complaint.id}/responses/${r.id}`,
     })),
@@ -347,9 +348,24 @@ export default async function ComplaintPage({
             contactMethod={complaint.contact_method}
             contactEmail={complaint.contact_email}
             contactAddress={complaint.contact_address}
-            done={responses.length > 0}
+            done={responses.some((r) => r.kind === "initial")}
           />
-          {isFormal ? <ComplaintForms complaintId={complaint.id} forms={usableForms} /> : null}
+          {isFormal ? (
+            <ComplaintForms
+              complaintId={complaint.id}
+              forms={usableForms.filter((f) => f.key === "complaints_concerns")}
+            />
+          ) : null}
+          {isFormal ? (
+            <ComplaintResponseButton
+              complaintId={complaint.id}
+              contactMethod={complaint.contact_method}
+              contactEmail={complaint.contact_email}
+              contactAddress={complaint.contact_address}
+              hasInvestigation={completedFormKeys.has("complaints_concerns")}
+              done={responses.some((r) => r.kind === "response")}
+            />
+          ) : null}
         </div>
       </section>
 

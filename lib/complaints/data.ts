@@ -140,6 +140,7 @@ export async function listServiceUsersLite(
 export type ComplaintResponseRow = {
   id: string;
   method: string;
+  kind: string;
   subject: string | null;
   body: string;
   recipient: string | null;
@@ -152,7 +153,52 @@ type ComplaintResponseDbRow = Omit<ComplaintResponseRow, "author_name"> & {
   created_by: string | null;
 };
 
-const RESPONSE_COLS = "id, method, subject, body, recipient, sent_at, created_at, created_by";
+const RESPONSE_COLS = "id, method, kind, subject, body, recipient, sent_at, created_at, created_by";
+
+export type InvestigationAttachment = {
+  path: string;
+  name: string;
+  mime: string;
+  fieldKey: string;
+};
+
+/** The latest completed Complaint Investigation form for a complaint: its answers
+ *  (source material for the AI response) and any uploaded file attachments. */
+export async function getInvestigationEvidence(
+  companyId: string,
+  complaintId: string,
+): Promise<{ id: string; answers: Record<string, unknown>; attachments: InvestigationAttachment[] } | null> {
+  const supabase = await createClient();
+  const { data: form } = await supabase
+    .from("forms")
+    .select("id")
+    .eq("company_id", companyId)
+    .eq("key", "complaints_concerns")
+    .maybeSingle();
+  if (!form) return null;
+
+  const { data: ev } = await supabase
+    .from("evidence")
+    .select("id, answers")
+    .eq("record_type", "complaint")
+    .eq("record_id", complaintId)
+    .eq("form_id", form.id)
+    .order("submitted_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!ev) return null;
+
+  const { data: files } = await supabase
+    .from("evidence_files")
+    .select("storage_path, file_name, mime_type, field_key, kind")
+    .eq("evidence_id", ev.id);
+
+  const attachments = ((files as Array<{ storage_path: string; file_name: string; mime_type: string; field_key: string; kind: string }> | null) ?? [])
+    .filter((f) => f.kind === "upload")
+    .map((f) => ({ path: f.storage_path, name: f.file_name, mime: f.mime_type, fieldKey: f.field_key }));
+
+  return { id: ev.id, answers: (ev.answers as Record<string, unknown>) ?? {}, attachments };
+}
 
 /** Resolve author display names for a set of user ids (created_by references
  *  auth.users, so it cannot be embedded; profiles share the same id). */
