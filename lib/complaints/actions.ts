@@ -23,7 +23,7 @@ import { noticeEmailHtml, escapeHtml } from "@/lib/email/templates";
 import type { Answers } from "@/lib/form-schema";
 import type { ActionState } from "@/lib/forms";
 import { getComplaintsConfig, getCompanyFormByKey } from "./data";
-import { addBusinessOrCalendarDays, formatDisplayDate, todayIso } from "./logic";
+import { addBusinessOrCalendarDays, formatDisplayDate, isFormalComplaint, todayIso } from "./logic";
 import { CONCERN_TYPES, FORMALITY_TYPES, RELATIONSHIP_LABELS, type ComplaintRelationship } from "./types";
 
 const MANAGE_ROLES = ["company_admin", "manager", "platform_admin"];
@@ -72,6 +72,9 @@ export async function createComplaint(_prev: ActionState, formData: FormData): P
   const date_raised = isoDateOrNull(formData.get("date_raised")) ?? todayIso();
   const relationship = trimOrNull(formData.get("complainant_relationship"));
   const config = await getComplaintsConfig(companyId);
+  const intake = intakeFields(formData);
+  // All complaints are acknowledged; only formal complaints get a response deadline.
+  const formal = isFormalComplaint(intake.concern_type, intake.formality);
 
   const supabase = await createClient();
   const { data: complaint, error } = await supabase
@@ -83,12 +86,14 @@ export async function createComplaint(_prev: ActionState, formData: FormData): P
       details: trimOrNull(formData.get("details")),
       complainant_name: trimOrNull(formData.get("complainant_name")),
       complainant_relationship: relationship && RELATIONSHIPS.includes(relationship) ? relationship : null,
-      ...intakeFields(formData),
+      ...intake,
       service_user_id: trimOrNull(formData.get("service_user_id")),
       date_raised,
       date_occurred: isoDateOrNull(formData.get("date_occurred")),
       acknowledgement_due: addBusinessOrCalendarDays(date_raised, config.acknowledgement_days, config.count_working_days),
-      response_due: addBusinessOrCalendarDays(date_raised, config.response_days, config.count_working_days),
+      response_due: formal
+        ? addBusinessOrCalendarDays(date_raised, config.response_days, config.count_working_days)
+        : null,
       created_by: user.id,
     })
     .select("id")
@@ -122,6 +127,23 @@ export async function updateComplaint(_prev: ActionState, formData: FormData): P
   const relationship = trimOrNull(formData.get("complainant_relationship"));
 
   const supabase = await createClient();
+  const intake = intakeFields(formData);
+  const formal = isFormalComplaint(intake.concern_type, intake.formality);
+
+  // Response deadline only exists for formal complaints. If it becomes formal without
+  // one, derive it from the raised date; if it stops being formal, clear it.
+  let responseDue = isoDateOrNull(formData.get("response_due"));
+  if (!formal) {
+    responseDue = null;
+  } else if (!responseDue) {
+    const [{ data: existing }, config] = await Promise.all([
+      supabase.from("complaints").select("date_raised").eq("id", id).maybeSingle(),
+      getComplaintsConfig(profile.company_id),
+    ]);
+    const raised = (existing?.date_raised as string | null) ?? todayIso();
+    responseDue = addBusinessOrCalendarDays(raised, config.response_days, config.count_working_days);
+  }
+
   const { data, error } = await supabase
     .from("complaints")
     .update({
@@ -129,13 +151,13 @@ export async function updateComplaint(_prev: ActionState, formData: FormData): P
       details: trimOrNull(formData.get("details")),
       complainant_name: trimOrNull(formData.get("complainant_name")),
       complainant_relationship: relationship && RELATIONSHIPS.includes(relationship) ? relationship : null,
-      ...intakeFields(formData),
+      ...intake,
       service_user_id: trimOrNull(formData.get("service_user_id")),
       date_occurred: isoDateOrNull(formData.get("date_occurred")),
       date_acknowledged: isoDateOrNull(formData.get("date_acknowledged")),
       acknowledgement_due: isoDateOrNull(formData.get("acknowledgement_due")),
       investigation_completed: isoDateOrNull(formData.get("investigation_completed")),
-      response_due: isoDateOrNull(formData.get("response_due")),
+      response_due: responseDue,
       updated_by: user.id,
       updated_at: new Date().toISOString(),
     })

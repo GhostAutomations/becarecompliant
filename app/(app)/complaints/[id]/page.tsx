@@ -20,7 +20,7 @@ import {
   getPublishedFormVersion,
 } from "@/lib/complaints/data";
 import type { ComplaintRecord } from "@/lib/complaints/types";
-import { responseRag, formatUkDate as formatDisplayDate } from "@/lib/complaints/logic";
+import { responseRag, formatUkDate as formatDisplayDate, isFormalComplaint } from "@/lib/complaints/logic";
 import { COMPLAINT_STATUS_LABELS, RELATIONSHIP_LABELS } from "@/lib/complaints/types";
 
 export const metadata: Metadata = { title: "Complaint" };
@@ -202,6 +202,9 @@ export default async function ComplaintPage({
     );
 
   const rag = responseRag(complaint.status, complaint.response_due, config.amber_days);
+  // Only a formal complaint (Complaint + Formal) needs the investigation/response
+  // forms; everything else is acknowledged and logged.
+  const isFormal = isFormalComplaint(complaint.concern_type, complaint.formality);
 
   // Closed pill colour: green if closed before the response due date, amber if on it,
   // red if after (dates are civil YYYY-MM-DD strings, so string compare is chronological).
@@ -328,13 +331,15 @@ export default async function ComplaintPage({
         ) : null}
       </section>
 
-      {/* Complaint forms as Evidence */}
+      {/* Acknowledgement (all complaints) + investigation/response forms (formal only) */}
       <section className="glass-card space-y-3 p-5">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
-          Response and investigation forms
+          {isFormal ? "Response and investigation forms" : "Response"}
         </h2>
         <p className="text-xs text-white/50">
-          Generate an initial response, or complete a form. Both are stored against this complaint.
+          {isFormal
+            ? "Acknowledge the complainant with an initial response, then complete the investigation and response forms."
+            : "Acknowledge the complainant with an initial response. This is not a formal complaint, so a formal investigation and response are not required."}
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <InitialResponseButton
@@ -344,7 +349,7 @@ export default async function ComplaintPage({
             contactAddress={complaint.contact_address}
             done={responses.length > 0}
           />
-          <ComplaintForms complaintId={complaint.id} forms={usableForms} />
+          {isFormal ? <ComplaintForms complaintId={complaint.id} forms={usableForms} /> : null}
         </div>
       </section>
 

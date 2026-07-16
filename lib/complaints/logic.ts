@@ -60,3 +60,10 @@ export function addBusinessOrCalendarDays(
 export function todayIso(): string {
   return formatCivilDate(todayInLondon());
 }
+
+/** A complaint only needs a formal investigation + response (25 working day deadline
+ *  and the investigation/response forms) when it is a Complaint AND Formal. Everything
+ *  else is acknowledged and logged, but has no response deadline. */
+export function isFormalComplaint(concernType: string | null, formality: string | null): boolean {
+  return concernType === "Complaint" && formality === "Formal";
+}
