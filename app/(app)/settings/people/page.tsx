@@ -45,7 +45,7 @@ export default async function SettingsPeoplePage() {
             scheduling; the amber window updates the register straight away.
           </p>
           {definitions.map((def) => (
-            <CheckConfigForm key={def.id} def={def} />
+            <CheckConfigForm key={def.id} def={def} forms={publishableForms} />
           ))}
           <div className="border-t border-white/10 pt-4">
             <CreateCheckTypeForm population="people" forms={publishableForms} />
