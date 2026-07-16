@@ -138,18 +138,19 @@ export async function listCompanyBranchNames(companyId: string): Promise<string[
   return ((data as Array<{ name: string }> | null) ?? []).map((b) => b.name);
 }
 
-/** Active Service Users the user may see, for the optional complaint link dropdown. */
+/** Active Service Users the user may see, for the optional complaint link dropdown.
+ *  Carries branch_id so the log-a-complaint form can filter to the chosen branch. */
 export async function listServiceUsersLite(
   companyId: string,
-): Promise<Array<{ id: string; full_name: string }>> {
+): Promise<Array<{ id: string; full_name: string; branch_id: string | null }>> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("service_users")
-    .select("id, full_name")
+    .select("id, full_name, branch_id")
     .eq("company_id", companyId)
     .is("archived_at", null)
     .order("full_name", { ascending: true });
-  return (data as Array<{ id: string; full_name: string }> | null) ?? [];
+  return (data as Array<{ id: string; full_name: string; branch_id: string | null }> | null) ?? [];
 }
 
 export type ComplaintResponseRow = {

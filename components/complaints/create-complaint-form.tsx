@@ -17,11 +17,17 @@ export default function CreateComplaintForm({
   todayIso,
 }: {
   branches: Array<{ id: string; name: string }>;
-  serviceUsers: Array<{ id: string; full_name: string }>;
+  serviceUsers: Array<{ id: string; full_name: string; branch_id: string | null }>;
   todayIso: string;
 }) {
   const [state, formAction, pending] = useActionState(createComplaint, IDLE_STATE);
   const [contactMethod, setContactMethod] = useState("");
+  const [branchId, setBranchId] = useState("");
+
+  // Once a branch is chosen, only its service users are selectable.
+  const visibleServiceUsers = branchId
+    ? serviceUsers.filter((s) => s.branch_id === branchId)
+    : serviceUsers;
 
   return (
     <form action={formAction} className="space-y-5">
@@ -33,7 +39,13 @@ export default function CreateComplaintForm({
 
         <div>
           <label htmlFor="branch_id" className="form-label">Branch *</label>
-          <select id="branch_id" name="branch_id" required defaultValue="">
+          <select
+            id="branch_id"
+            name="branch_id"
+            required
+            value={branchId}
+            onChange={(e) => setBranchId(e.target.value)}
+          >
             <option value="" disabled>Please choose</option>
             {branches.map((b) => (
               <option key={b.id} value={b.id}>{b.name}</option>
@@ -86,11 +98,15 @@ export default function CreateComplaintForm({
           <label htmlFor="service_user_id" className="form-label">Related service user</label>
           <select id="service_user_id" name="service_user_id" defaultValue="">
             <option value="">Not about a specific service user</option>
-            {serviceUsers.map((s) => (
+            {visibleServiceUsers.map((s) => (
               <option key={s.id} value={s.id}>{s.full_name}</option>
             ))}
           </select>
-          <p className="form-hint">Optional. Link the complaint to a service user if it is about their care.</p>
+          <p className="form-hint">
+            {branchId
+              ? "Optional. Service users in the chosen branch."
+              : "Optional. Choose a branch first to narrow this list."}
+          </p>
         </div>
 
         <div>

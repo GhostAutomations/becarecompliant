@@ -620,6 +620,7 @@ export async function generateComplaintResponse(_prev: ActionState, formData: Fo
     const v = a[k];
     return typeof v === "string" && v.trim() ? v.trim() : null;
   };
+  const signatory = s("name");
 
   const facts = [
     `Care provider: ${companyName}${branchName ? ` (${branchName} branch)` : ""}`,
@@ -630,19 +631,29 @@ export async function generateComplaintResponse(_prev: ActionState, formData: Fo
     s("category") ? `Category: ${s("category")}` : null,
     s("initial_response") ? `Initial response given when raised: ${s("initial_response")}` : null,
     s("desired_outcome") ? `Outcome the complainant wanted: ${s("desired_outcome")}` : null,
+    s("investigation_outcome") ? `Outcome of the investigation: ${s("investigation_outcome")}` : null,
     c.investigation_completed ? `Investigation completed on: ${formatDisplayDate(c.investigation_completed as string)}` : null,
     c.details ? `Original details logged: ${c.details}` : null,
+    signatory ? `Sign the response off with this name: ${signatory}` : null,
   ]
     .filter(Boolean)
     .join("\n");
 
+  const signOff = signatory
+    ? `Sign off from ${signatory} on behalf of ${companyName}.`
+    : "Sign off from the team.";
   const jsonShape = method === "email" ? `{"subject": "...", "body": "..."}` : `{"body": "..."}`;
   const formatGuidance =
     method === "email"
-      ? "Write the FULL complaint response EMAIL to the complainant, following the investigation. Thank them, summarise the complaint, explain that it has been investigated and what was found or done, state the outcome and any actions taken or apology, and let them know they can come back if they are not satisfied and may escalate to the relevant Ombudsman. Warm, professional and clear. Sign off from the team."
-      : "Write the FULL complaint response LETTER for the company's headed paper, following the investigation. Salutation to the complainant, short paragraphs covering the acknowledgement, what was investigated and found, the outcome and any actions or apology, and how to escalate if unsatisfied. End with 'Yours sincerely,' then a blank line to sign. Do NOT include addresses or the date.";
+      ? `Write the FULL complaint response EMAIL to the complainant, following the investigation. Thank them, summarise the complaint, explain that it has been investigated and what was found or done, state the outcome and any actions taken or apology, and let them know they can come back if they are not satisfied and may escalate to the relevant Ombudsman. Warm, professional and clear. ${signOff}`
+      : `Write the FULL complaint response LETTER for the company's headed paper, following the investigation. Salutation to the complainant, short paragraphs covering the acknowledgement, what was investigated and found, the outcome and any actions or apology, and how to escalate if unsatisfied. End with 'Yours sincerely,' then a blank line to sign, then ${signatory ?? "the manager's name"}. Do NOT include addresses or the date.`;
 
-  const prompt = `You are writing on behalf of ${companyName}, a UK care provider, sending the final response to a complaint after investigating it. ${formatGuidance}\n\nUse only these details from the complaint and its investigation, do not invent findings:\n${facts}\n\nReturn ONLY valid JSON in exactly this shape, no markdown: ${jsonShape}`;
+  // Confidentiality: this response is sent to an external complainant. Internal staff
+  // and HR matters must never be disclosed.
+  const confidentiality =
+    "IMPORTANT: This response is sent to the complainant, who is external to the organisation. Do NOT disclose any confidential internal staff or HR matters or disciplinary outcomes (for example that a member of staff was dismissed, suspended, given a warning, or subject to any disciplinary action), even if such detail appears in the investigation notes above. You may reassure the complainant that the matter has been taken seriously and appropriate action has been taken with the staff involved, WITHOUT stating what that action was or naming any staff member.";
+
+  const prompt = `You are writing on behalf of ${companyName}, a UK care provider, sending the final response to a complaint after investigating it. ${formatGuidance}\n\n${confidentiality}\n\nUse only these details from the complaint and its investigation, do not invent findings:\n${facts}\n\nReturn ONLY valid JSON in exactly this shape, no markdown: ${jsonShape}`;
 
   let res: Response;
   try {

@@ -86,10 +86,32 @@ function optionValueFor(
   return null;
 }
 
-/** Pre-fill the complaint's known details into a response form. Free text and date
- *  fields are seeded directly; the Region and Status dropdowns are matched to each
- *  form's own option values. Unknown keys are harmless (ignored on submit). */
-function buildComplaintPresets(key: string, c: ComplaintRecord, schema: FormSchema, refPrefix: string): Answers {
+/** Turn a sent initial response letter/email into a few short bullet points, so the
+ *  investigation form's "initial response" field starts from what was already said. */
+function toBullets(text: string | null): string | null {
+  if (!text) return null;
+  const skip = /^(dear |yours |kind regards|kind regards,|regards|sincerely|best wishes|thank you for|many thanks|on behalf of)/i;
+  const parts = text
+    .replace(/\r/g, "")
+    .split(/\n+|(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0 && !skip.test(s));
+  if (parts.length === 0) return null;
+  return parts.slice(0, 6).map((s) => `• ${s.replace(/\.$/, "")}`).join("\n");
+}
+
+/** Pre-fill the complaint's known details into a form. Free text and date fields are
+ *  seeded directly; the Branch/Region and Status dropdowns are matched to each form's
+ *  own option values. The investigation form also seeds the sign-off name (whoever is
+ *  completing it) and the initial response. Unknown keys are ignored on submit. */
+function buildComplaintPresets(
+  key: string,
+  c: ComplaintRecord,
+  schema: FormSchema,
+  refPrefix: string,
+  authorName: string,
+  initialResponse: string | null,
+): Answers {
   const p: Answers = {};
   const set = (k: string, v: string | null) => {
     if (v) p[k] = v;
@@ -99,16 +121,21 @@ function buildComplaintPresets(key: string, c: ComplaintRecord, schema: FormSche
     set("date_raised", c.date_raised);
     set("date_occurred", c.date_occurred);
     set("describe_complaint", c.details);
+    set("initial_response", toBullets(initialResponse));
+    set("name", authorName);
   } else {
     // Region response forms (complaint_response and similar).
     set("complaint_reference", formatComplaintRef(refPrefix, c.date_raised, c.ref_number));
     set("acknowledgement_date", c.date_acknowledged);
     set("investigation_completed", c.investigation_completed);
   }
-  // Region dropdown = this complaint's branch, matched to the form's options.
+  // Branch/Region dropdown = this complaint's branch, matched to whichever field the
+  // form has (the investigation form uses "branch"; region response forms use "region").
   const branchLower = (c.branch_name ?? "").trim().toLowerCase();
   if (branchLower) {
-    set("region", optionValueFor(schema, "region", (v) => v.toLowerCase() === branchLower));
+    const eq = (v: string) => v.toLowerCase() === branchLower;
+    set("branch", optionValueFor(schema, "branch", eq));
+    set("region", optionValueFor(schema, "region", eq));
   }
   // Status dropdown = the complaint's status, matched by a distinctive token so it
   // works whether the option reads "Closed" or "Close".
@@ -175,6 +202,11 @@ export default async function ComplaintPage({
   const evidenceFormIds = new Set(evidence.map((e) => e.form_id));
   const completedFormKeys = new Set(forms.filter((f) => evidenceFormIds.has(f.id)).map((f) => f.key));
 
+  // Investigation form pre-fill: sign-off name = whoever is completing it (this user),
+  // initial-response field = bullets from the sent initial response (newest first).
+  const authorName = profile.full_name || profile.email || "";
+  const initialResponseText = responses.find((r) => r.kind === "initial")?.body ?? null;
+
   // Pin each complaint form's published schema for the Evidence dialogs, filtered to
   // this branch, and pre-filled from the complaint's details.
   const formSchemas = await Promise.all(
@@ -189,7 +221,7 @@ export default async function ComplaintPage({
               label: buttonLabel(f.name, currentToken),
               done: completedFormKeys.has(f.key),
               schema: version.schema as FormSchema,
-              presets: buildComplaintPresets(f.key, complaint, version.schema as FormSchema, refPrefix),
+              presets: buildComplaintPresets(f.key, complaint, version.schema as FormSchema, refPrefix, authorName, initialResponseText),
             }
           : null;
       }),
@@ -326,12 +358,6 @@ export default async function ComplaintPage({
             <p className="whitespace-pre-wrap text-sm text-white/80">{complaint.details}</p>
           </div>
         ) : null}
-        {complaint.status === "closed" && complaint.outcome ? (
-          <div>
-            <p className="text-[11px] text-white/45">Outcome</p>
-            <p className="whitespace-pre-wrap text-sm text-white/80">{complaint.outcome}</p>
-          </div>
-        ) : null}
       </section>
 
       {/* Acknowledgement (all complaints) + investigation/response forms (formal only) */}
@@ -374,11 +400,7 @@ export default async function ComplaintPage({
       {/* Status control */}
       <section className="glass-card space-y-3 p-5">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Progress</h2>
-        <ComplaintStatusControl
-          complaintId={complaint.id}
-          status={complaint.status}
-          outcome={complaint.outcome}
-        />
+        <ComplaintStatusControl complaintId={complaint.id} status={complaint.status} />
       </section>
 
       {/* Evidence history (completed forms + recorded responses) */}

@@ -8,11 +8,9 @@ import { COMPLAINT_STATUS_LABELS, COMPLAINT_STATUS_ORDER, type ComplaintStatus }
 export default function ComplaintStatusControl({
   complaintId,
   status,
-  outcome,
 }: {
   complaintId: string;
   status: ComplaintStatus;
-  outcome: string | null;
 }) {
   const [state, action, pending] = useActionState(setComplaintStatus, IDLE_STATE);
   const [value, setValue] = useState<ComplaintStatus>(status);
@@ -33,18 +31,6 @@ export default function ComplaintStatusControl({
           ))}
         </select>
       </div>
-      {value === "closed" ? (
-        <div>
-          <label htmlFor="outcome" className="form-label">Outcome</label>
-          <textarea
-            id="outcome"
-            name="outcome"
-            rows={3}
-            defaultValue={outcome ?? ""}
-            placeholder="How was the complaint resolved?"
-          />
-        </div>
-      ) : null}
       <div className="flex items-center gap-2">
         <button type="submit" className="btn-primary text-sm" disabled={pending}>
           {pending ? "Saving…" : "Update status"}
