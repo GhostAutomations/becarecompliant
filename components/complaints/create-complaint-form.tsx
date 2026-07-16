@@ -68,16 +68,6 @@ export default function CreateComplaintForm({
         </div>
 
         <div>
-          <label htmlFor="date_occurred" className="form-label">Date it happened</label>
-          <input id="date_occurred" name="date_occurred" type="date" />
-        </div>
-
-        <div>
-          <label htmlFor="complainant_name" className="form-label">Complainant name</label>
-          <input id="complainant_name" name="complainant_name" placeholder="Leave blank if anonymous" />
-        </div>
-
-        <div>
           <label htmlFor="complainant_relationship" className="form-label">Complainant</label>
           <select id="complainant_relationship" name="complainant_relationship" defaultValue="">
             <option value="">Not stated</option>
@@ -85,6 +75,11 @@ export default function CreateComplaintForm({
               <option key={k} value={k}>{RELATIONSHIP_LABELS[k]}</option>
             ))}
           </select>
+        </div>
+
+        <div>
+          <label htmlFor="complainant_name" className="form-label">Complainant name</label>
+          <input id="complainant_name" name="complainant_name" placeholder="Leave blank if anonymous" />
         </div>
 
         <div>
@@ -96,6 +91,11 @@ export default function CreateComplaintForm({
             ))}
           </select>
           <p className="form-hint">Optional. Link the complaint to a service user if it is about their care.</p>
+        </div>
+
+        <div>
+          <label htmlFor="date_occurred" className="form-label">Date it happened</label>
+          <input id="date_occurred" name="date_occurred" type="date" />
         </div>
 
         <div>
