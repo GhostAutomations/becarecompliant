@@ -48,18 +48,25 @@ export default async function SettingsFormsPage() {
 
   const forms = await listCompanyForms(profile.company_id);
 
-  // Forms wired to a compliance check (a register column) get a link icon.
+  // Where each form links: a compliance check (a register column) or the Complaints
+  // section. Forms that link somewhere get a link icon with an instant hover label.
   const supabase = await createClient();
   const { data: checkForms } = await supabase
     .from("check_definitions")
-    .select("form_id")
+    .select("form_id, name, population")
     .eq("company_id", profile.company_id)
     .not("form_id", "is", null);
-  const linkedFormIds = new Set(
-    ((checkForms as Array<{ form_id: string | null }> | null) ?? [])
-      .map((c) => c.form_id)
-      .filter((v): v is string => Boolean(v)),
-  );
+
+  const linkInfo = new Map<string, string>();
+  for (const c of (checkForms as Array<{ form_id: string | null; name: string; population: string }> | null) ?? []) {
+    if (!c.form_id) continue;
+    const dept = c.population === "service_users" ? "Service Users" : "People";
+    const label = `${dept} check: ${c.name}`;
+    linkInfo.set(c.form_id, linkInfo.has(c.form_id) ? `${linkInfo.get(c.form_id)}, ${c.name}` : label);
+  }
+  for (const f of forms) {
+    if ((f.population as string) === "complaints") linkInfo.set(f.id, "Complaints section");
+  }
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -88,17 +95,17 @@ export default async function SettingsFormsPage() {
           <FormGroup
             title="People forms"
             forms={forms.filter((f) => f.population === "people")}
-            linkedFormIds={linkedFormIds}
+            linkInfo={linkInfo}
           />
           <FormGroup
             title="Service User forms"
             forms={forms.filter((f) => f.population === "service_users")}
-            linkedFormIds={linkedFormIds}
+            linkInfo={linkInfo}
           />
           <FormGroup
             title="Complaints forms"
             forms={forms.filter((f) => (f.population as string) === "complaints")}
-            linkedFormIds={linkedFormIds}
+            linkInfo={linkInfo}
           />
         </div>
       )}
@@ -127,11 +134,11 @@ function LinkIcon() {
 function FormGroup({
   title,
   forms,
-  linkedFormIds,
+  linkInfo,
 }: {
   title: string;
   forms: FormSummary[];
-  linkedFormIds: Set<string>;
+  linkInfo: Map<string, string>;
 }) {
   if (forms.length === 0) return null;
   return (
@@ -146,9 +153,12 @@ function FormGroup({
             href={`/settings/forms/${f.id}`}
             className="flex items-center gap-3 border-b border-white/5 px-5 py-2.5 last:border-b-0 hover:bg-white/5"
           >
-            {linkedFormIds.has(f.id) ? (
-              <span title="Linked to a compliance check">
+            {linkInfo.has(f.id) ? (
+              <span className="group relative inline-flex shrink-0">
                 <LinkIcon />
+                <span className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1.5 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-white/10 bg-navy-950 px-2 py-1 text-[11px] text-white/90 shadow-lg group-hover:block">
+                  Links to {linkInfo.get(f.id)}
+                </span>
               </span>
             ) : null}
             <span className="truncate text-sm font-medium text-white">{f.name}</span>
