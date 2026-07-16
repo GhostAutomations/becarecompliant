@@ -80,6 +80,10 @@ export const NAV_ENTRIES: NavEntry[] = [
     icon: "complaints",
     group: "Departments",
     roles: ["platform_admin", "company_admin", "manager"],
+    children: [
+      { href: "/complaints", label: "Open", icon: "complaints" },
+      { href: "/complaints/closed", label: "Closed", icon: "complaints" },
+    ],
   },
   {
     href: "/reports",

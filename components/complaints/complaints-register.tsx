@@ -37,34 +37,44 @@ export default function ComplaintsRegister({
   amberDays,
   refPrefix,
   canManage,
+  scope = "open",
 }: {
   rows: ComplaintRecord[];
   branches: Array<{ id: string; name: string }>;
   amberDays: number;
   refPrefix: string;
   canManage: boolean;
+  scope?: "open" | "closed";
 }) {
   const [status, setStatus] = useState<"all" | ComplaintStatus>("all");
   const [branch, setBranch] = useState<string>("");
 
+  // Open sub department = every complaint that is not yet closed; Closed = the rest.
+  const scoped = useMemo(
+    () => rows.filter((r) => (scope === "closed" ? r.status === "closed" : r.status !== "closed")),
+    [rows, scope],
+  );
+
   const filtered = useMemo(
     () =>
-      rows.filter(
+      scoped.filter(
         (r) => (status === "all" || r.status === status) && (branch === "" || r.branch_id === branch),
       ),
-    [rows, status, branch],
+    [scoped, status, branch],
   );
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="page-title">Complaints</h1>
+          <h1 className="page-title">{scope === "closed" ? "Closed complaints" : "Complaints"}</h1>
           <p className="page-subtitle">
-            Complaints and concerns, from raised to resolved, with their response deadlines.
+            {scope === "closed"
+              ? "Complaints and concerns that have been resolved and closed."
+              : "Open complaints and concerns, from raised to resolved, with their response deadlines."}
           </p>
         </div>
-        {canManage ? (
+        {canManage && scope === "open" ? (
           <Link href="/complaints/new" className="btn-primary px-4 py-2 text-sm">
             Log a complaint
           </Link>
@@ -72,19 +82,20 @@ export default function ComplaintsRegister({
       </div>
 
       <div className="flex flex-wrap items-end gap-3">
-        <div>
-          <label htmlFor="status_filter" className="form-label">Status</label>
-          <select
-            id="status_filter"
-            value={status}
-            onChange={(e) => setStatus(e.target.value as "all" | ComplaintStatus)}
-          >
-            <option value="all">All statuses</option>
-            <option value="open">Open</option>
-            <option value="in_progress">In Progress</option>
-            <option value="closed">Closed</option>
-          </select>
-        </div>
+        {scope === "open" ? (
+          <div>
+            <label htmlFor="status_filter" className="form-label">Status</label>
+            <select
+              id="status_filter"
+              value={status}
+              onChange={(e) => setStatus(e.target.value as "all" | ComplaintStatus)}
+            >
+              <option value="all">All statuses</option>
+              <option value="open">Open</option>
+              <option value="in_progress">In Progress</option>
+            </select>
+          </div>
+        ) : null}
         {branches.length > 1 ? (
           <div>
             <label htmlFor="branch_filter" className="form-label">Branch</label>
@@ -100,8 +111,10 @@ export default function ComplaintsRegister({
 
       {filtered.length === 0 ? (
         <div className="glass-card p-8 text-center text-sm text-white/60">
-          {rows.length === 0
-            ? "No complaints logged yet. When a complaint or concern comes in, log it here to track it through to resolution."
+          {scoped.length === 0
+            ? scope === "closed"
+              ? "No closed complaints yet. When a complaint is closed it moves here."
+              : "No open complaints. When a complaint or concern comes in, log it here to track it through to resolution."
             : "No complaints match these filters."}
         </div>
       ) : (

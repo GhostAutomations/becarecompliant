@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { setComplaintStatus } from "@/lib/complaints/actions";
 import { IDLE_STATE } from "@/lib/forms";
+import { useSavedFlash } from "@/lib/use-saved-flash";
 import { COMPLAINT_STATUS_LABELS, COMPLAINT_STATUS_ORDER, type ComplaintStatus } from "@/lib/complaints/types";
 
 export default function ComplaintStatusControl({
@@ -14,6 +15,8 @@ export default function ComplaintStatusControl({
 }) {
   const [state, action, pending] = useActionState(setComplaintStatus, IDLE_STATE);
   const [value, setValue] = useState<ComplaintStatus>(status);
+  const [saved, flash, reset] = useSavedFlash();
+  useEffect(() => { if (state.ok && !pending) flash(); }, [state, pending, flash]);
 
   return (
     <form action={action} className="space-y-3">
@@ -24,7 +27,10 @@ export default function ComplaintStatusControl({
           id="complaint_status"
           name="status"
           value={value}
-          onChange={(e) => setValue(e.target.value as ComplaintStatus)}
+          onChange={(e) => {
+            setValue(e.target.value as ComplaintStatus);
+            reset();
+          }}
         >
           {COMPLAINT_STATUS_ORDER.map((k) => (
             <option key={k} value={k}>{COMPLAINT_STATUS_LABELS[k]}</option>
@@ -32,10 +38,9 @@ export default function ComplaintStatusControl({
         </select>
       </div>
       <div className="flex items-center gap-2">
-        <button type="submit" className="btn-primary text-sm" disabled={pending}>
-          {pending ? "Saving…" : "Update status"}
+        <button type="submit" className={`${saved ? "btn-saved" : "btn-primary"} text-sm`} disabled={pending}>
+          {pending ? "Saving…" : saved ? "Saved" : "Update status"}
         </button>
-        {state.ok ? <span className="text-xs text-emerald-300">Saved</span> : null}
         {state.error ? <span className="text-xs text-red-300">{state.error}</span> : null}
       </div>
     </form>
