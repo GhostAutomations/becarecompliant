@@ -38,7 +38,7 @@ export default function InitialResponseButton({
   const [genError, setGenError] = useState<string | null>(null);
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
-  const [copied, setCopied] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   const [sendState, sendAction, sending] = useActionState(sendInitialResponse, IDLE_STATE);
   const [recordState, recordAction, recording] = useActionState(recordPostalResponse, IDLE_STATE);
@@ -49,6 +49,7 @@ export default function InitialResponseButton({
   async function generate() {
     setGenerating(true);
     setGenError(null);
+    setConfirming(false);
     const fd = new FormData();
     fd.set("complaint_id", complaintId);
     const res = await generateInitialResponse(IDLE_STATE, fd);
@@ -71,7 +72,7 @@ export default function InitialResponseButton({
     setSubject("");
     setBody("");
     setGenError(null);
-    setCopied(false);
+    setConfirming(false);
     void generate();
   }
 
@@ -86,8 +87,6 @@ export default function InitialResponseButton({
   async function copyLetter() {
     try {
       await navigator.clipboard.writeText(body);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
     } catch {
       // Clipboard may be unavailable; the text is still selectable in the box.
     }
@@ -124,9 +123,8 @@ export default function InitialResponseButton({
               <div className="space-y-4">
                 <p className="text-xs text-white/50">
                   {isEmail
-                    ? `This will email ${contactEmail} on approval.`
-                    : "Review this letter, then copy it onto your headed paper."}{" "}
-                  Sending marks the complaint acknowledged today. Review and edit before sending.
+                    ? `Review and edit this email, then send it to ${contactEmail}. Sending marks the complaint as acknowledged today.`
+                    : "Review and edit this letter, then copy and save it. Saving records the response and marks the complaint as acknowledged today, ready for you to print on your headed paper and post."}
                 </p>
 
                 {isEmail ? (
@@ -159,17 +157,39 @@ export default function InitialResponseButton({
                     </div>
                     {contactAddress ? <p className="text-xs text-white/50">Send to: {contactAddress}</p> : null}
                     {recordState.error ? <p className="form-error">{recordState.error}</p> : null}
-                    <div className="flex flex-wrap items-center gap-3">
-                      <button type="button" className="btn-primary" onClick={copyLetter}>
-                        {copied ? "Copied" : "Copy letter"}
-                      </button>
-                      <button type="submit" className="btn-outline px-3 py-2 text-sm" disabled={busy}>
-                        {recording ? "Saving…" : "Save to record"}
-                      </button>
-                      <button type="button" className="btn-ghost px-3 py-2 text-sm" onClick={() => void generate()} disabled={busy}>
-                        Regenerate
-                      </button>
-                    </div>
+                    {confirming ? (
+                      <div className="space-y-3 rounded-xl border border-white/10 bg-white/5 p-4">
+                        <p className="text-sm text-white/80">
+                          The letter has been copied to your clipboard. Paste it onto your headed paper and
+                          post it to the complainant. Confirming records this response and marks the complaint
+                          as acknowledged today.
+                        </p>
+                        <div className="flex flex-wrap items-center gap-3">
+                          <button type="submit" className="btn-primary" disabled={busy}>
+                            {recording ? "Saving…" : "Confirm, I have copied the letter"}
+                          </button>
+                          <button type="button" className="btn-ghost px-3 py-2 text-sm" onClick={() => setConfirming(false)} disabled={busy}>
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap items-center gap-3">
+                        <button
+                          type="button"
+                          className="btn-primary"
+                          onClick={async () => {
+                            await copyLetter();
+                            setConfirming(true);
+                          }}
+                        >
+                          Copy and save letter to record
+                        </button>
+                        <button type="button" className="btn-ghost px-3 py-2 text-sm" onClick={() => void generate()} disabled={busy}>
+                          Regenerate
+                        </button>
+                      </div>
+                    )}
                   </form>
                 )}
               </div>
