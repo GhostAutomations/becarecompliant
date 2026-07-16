@@ -153,6 +153,11 @@ function FormGroup({
             href={`/settings/forms/${f.id}`}
             className="flex items-center gap-3 border-b border-white/5 px-5 py-2.5 last:border-b-0 hover:bg-white/5"
           >
+            <span className="truncate text-sm font-medium text-white">{f.name}</span>
+            <span className="truncate text-xs text-white/40">
+              {POP_LABEL[f.population]}
+              {f.sourceTemplateKey ? " · starter" : " · authored"}
+            </span>
             {linkInfo.has(f.id) ? (
               <span className="group relative inline-flex shrink-0">
                 <LinkIcon />
@@ -161,11 +166,6 @@ function FormGroup({
                 </span>
               </span>
             ) : null}
-            <span className="truncate text-sm font-medium text-white">{f.name}</span>
-            <span className="truncate text-xs text-white/40">
-              {POP_LABEL[f.population]}
-              {f.sourceTemplateKey ? " · starter" : " · authored"}
-            </span>
             <span className="ml-auto flex shrink-0 items-center gap-2 text-xs">
               {f.currentVersion == null ? (
                 <span className="pill pill-amber">Not published</span>
