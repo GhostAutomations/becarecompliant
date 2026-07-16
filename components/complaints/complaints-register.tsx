@@ -67,7 +67,7 @@ export default function ComplaintsRegister({
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="page-title">{scope === "closed" ? "Closed complaints" : "Complaints"}</h1>
+          <h1 className="page-title">{scope === "closed" ? "Complaints: Closed" : "Complaints: Open"}</h1>
           <p className="page-subtitle">
             {scope === "closed"
               ? "Complaints and concerns that have been resolved and closed."
