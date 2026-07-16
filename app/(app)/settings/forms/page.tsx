@@ -27,7 +27,6 @@ const PEOPLE_SUBDEPT: Record<string, string> = {
   absence_management_meeting: "Absence",
   training_request: "Training",
 };
-const PEOPLE_SUBDEPT_ORDER = ["Compliance", "Holiday", "Absence", "Training"];
 function peopleSubDept(key: string): string {
   return PEOPLE_SUBDEPT[key] ?? "Compliance";
 }
@@ -82,6 +81,16 @@ export default async function SettingsFormsPage() {
     if (c.form_id) formLinkedCheck.set(c.form_id, c.id);
   }
 
+  const peopleForms = forms.filter((f) => f.population === "people");
+  const suForms = forms.filter((f) => f.population === "service_users");
+  const complaintForms = forms.filter((f) => (f.population as string) === "complaints");
+  const peopleBySub = (sub: string) => peopleForms.filter((f) => peopleSubDept(f.key) === sub);
+  // Forms wired to a column (People/Service User) or the Complaints section, duplicated
+  // into their own aggregate section.
+  const linkedForms = forms.filter(
+    (f) => formLinkedCheck.has(f.id) || (f.population as string) === "complaints",
+  );
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
@@ -106,27 +115,18 @@ export default async function SettingsFormsPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          <FormGroup
-            title="People forms"
-            forms={forms.filter((f) => f.population === "people")}
-            checks={peopleChecks}
-            formLinkedCheck={formLinkedCheck}
-            subDeptOf={peopleSubDept}
-            subOrder={PEOPLE_SUBDEPT_ORDER}
-          />
-          <FormGroup
-            title="Service User forms"
-            forms={forms.filter((f) => f.population === "service_users")}
-            checks={suChecks}
+          <LinkedFormsGroup
+            forms={linkedForms}
+            peopleChecks={peopleChecks}
+            suChecks={suChecks}
             formLinkedCheck={formLinkedCheck}
           />
-          <FormGroup
-            title="Complaints forms"
-            forms={forms.filter((f) => (f.population as string) === "complaints")}
-            checks={[]}
-            formLinkedCheck={formLinkedCheck}
-            isComplaints
-          />
+          <FormGroup title="People forms" forms={peopleBySub("Compliance")} checks={peopleChecks} formLinkedCheck={formLinkedCheck} />
+          <FormGroup title="Holiday forms" forms={peopleBySub("Holiday")} checks={peopleChecks} formLinkedCheck={formLinkedCheck} />
+          <FormGroup title="Absence forms" forms={peopleBySub("Absence")} checks={peopleChecks} formLinkedCheck={formLinkedCheck} />
+          <FormGroup title="Training forms" forms={peopleBySub("Training")} checks={peopleChecks} formLinkedCheck={formLinkedCheck} />
+          <FormGroup title="Service User forms" forms={suForms} checks={suChecks} formLinkedCheck={formLinkedCheck} />
+          <FormGroup title="Complaints forms" forms={complaintForms} checks={[]} formLinkedCheck={formLinkedCheck} isComplaints />
         </div>
       )}
     </div>
@@ -222,16 +222,12 @@ function FormGroup({
   checks,
   formLinkedCheck,
   isComplaints = false,
-  subDeptOf,
-  subOrder,
 }: {
   title: string;
   forms: FormSummary[];
   checks: Array<{ id: string; name: string }>;
   formLinkedCheck: Map<string, string>;
   isComplaints?: boolean;
-  subDeptOf?: (key: string) => string;
-  subOrder?: string[];
 }) {
   if (forms.length === 0) return null;
   return (
@@ -240,24 +236,48 @@ function FormGroup({
         {title} ({forms.length})
       </summary>
       <div className="border-t border-white/10">
-        {subDeptOf && subOrder
-          ? subOrder.map((sub) => {
-              const subForms = forms.filter((f) => subDeptOf(f.key) === sub);
-              if (subForms.length === 0) return null;
-              return (
-                <div key={sub}>
-                  <p className="bg-white/5 px-5 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-white/45">
-                    {sub}
-                  </p>
-                  {subForms.map((f) => (
-                    <FormRow key={f.id} f={f} checks={checks} formLinkedCheck={formLinkedCheck} isComplaints={isComplaints} />
-                  ))}
-                </div>
-              );
-            })
-          : forms.map((f) => (
-              <FormRow key={f.id} f={f} checks={checks} formLinkedCheck={formLinkedCheck} isComplaints={isComplaints} />
-            ))}
+        {forms.map((f) => (
+          <FormRow key={f.id} f={f} checks={checks} formLinkedCheck={formLinkedCheck} isComplaints={isComplaints} />
+        ))}
+      </div>
+    </details>
+  );
+}
+
+/** Aggregate section: every form wired to a column or the Complaints section, using
+ *  the right column dropdown per population. These forms also appear in their own
+ *  department/sub-department section. */
+function LinkedFormsGroup({
+  forms,
+  peopleChecks,
+  suChecks,
+  formLinkedCheck,
+}: {
+  forms: FormSummary[];
+  peopleChecks: Array<{ id: string; name: string }>;
+  suChecks: Array<{ id: string; name: string }>;
+  formLinkedCheck: Map<string, string>;
+}) {
+  if (forms.length === 0) return null;
+  return (
+    <details className="glass-card section-card">
+      <summary>
+        Linked forms ({forms.length})
+      </summary>
+      <div className="border-t border-white/10">
+        {forms.map((f) => {
+          const checks =
+            f.population === "people" ? peopleChecks : f.population === "service_users" ? suChecks : [];
+          return (
+            <FormRow
+              key={f.id}
+              f={f}
+              checks={checks}
+              formLinkedCheck={formLinkedCheck}
+              isComplaints={(f.population as string) === "complaints"}
+            />
+          );
+        })}
       </div>
     </details>
   );
