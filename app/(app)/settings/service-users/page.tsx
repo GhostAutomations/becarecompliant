@@ -54,9 +54,7 @@ export default async function SettingsServiceUsersPage() {
               form library when the company is set up.
             </p>
           ) : (
-            definitions.map((def) => (
-              <CheckConfigForm key={def.id} def={def} forms={publishableForms} />
-            ))
+            definitions.map((def) => <CheckConfigForm key={def.id} def={def} />)
           )}
           <p className="page-subtitle pt-2">
             Complex branches run four rolling Care Plan Reviews (REV1 to REV4) at this

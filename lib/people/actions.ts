@@ -416,12 +416,6 @@ export async function updateCheckDefinition(formData: FormData): Promise<ActionS
   const active = String(formData.get("active") ?? "") === "on";
   const patch: Record<string, unknown> = { active };
 
-  // Swap the form this check uses (past evidence keeps its own form/version).
-  if (formData.has("form_id")) {
-    const fid = String(formData.get("form_id") ?? "").trim();
-    patch.form_id = fid === "" ? null : fid;
-  }
-
   if (anchor === "expiry") {
     // The box is "days before expiry to flag" -> amber window.
     const flag = Number.parseInt(String(formData.get("flag_days") ?? "").trim(), 10);

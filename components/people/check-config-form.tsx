@@ -11,20 +11,13 @@ import type { CheckDefinition } from "@/lib/people/types";
  * snapping the Schedule dropdown back to a stale value. We hold the values in state
  * and save on click, so a selection can never revert.
  */
-export default function CheckConfigForm({
-  def,
-  forms = [],
-}: {
-  def: CheckDefinition;
-  forms?: Array<{ id: string; name: string }>;
-}) {
+export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [active, setActive] = useState(def.active);
-  const [formId, setFormId] = useState(def.form_id ?? "");
   const [days, setDays] = useState(String(def.interval ?? 90));
   const [amber, setAmber] = useState(def.amber_days != null ? String(def.amber_days) : "");
   const [reportingDays, setReportingDays] = useState(
@@ -39,7 +32,6 @@ export default function CheckConfigForm({
     const fd = new FormData();
     fd.set("definition_id", def.id);
     fd.set("anchor", def.anchor);
-    fd.set("form_id", formId);
     if (active) fd.set("active", "on");
     if (isExpiry) {
       fd.set("flag_days", flagDays);
@@ -93,29 +85,6 @@ export default function CheckConfigForm({
           Active
         </label>
       </div>
-
-      {forms.length > 0 ? (
-        <div className="mb-4">
-          <label htmlFor={`form-${def.id}`} className="form-label">Form completed for this check</label>
-          <select
-            id={`form-${def.id}`}
-            value={formId}
-            onChange={(e) => {
-              setFormId(e.target.value);
-              setSaved(false);
-            }}
-            className="max-w-sm"
-          >
-            <option value="">None</option>
-            {forms.map((f) => (
-              <option key={f.id} value={f.id}>{f.name}</option>
-            ))}
-          </select>
-          <p className="form-hint">
-            Swap the form this check uses. Past evidence keeps the form it was completed on.
-          </p>
-        </div>
-      ) : null}
 
       {isExpiry ? (
         <div className="flex flex-wrap items-end gap-3">
