@@ -173,14 +173,6 @@ function FormGroup({
           >
             <span className="truncate text-sm font-medium text-white">{f.name}</span>
             <span className="truncate text-xs text-white/40">{POP_LABEL[f.population]}</span>
-            {f.sourceTemplateKey ? (
-              <span className="group relative inline-flex shrink-0">
-                <ShieldIcon />
-                <span className="pointer-events-none absolute bottom-full left-0 z-20 mb-1.5 hidden whitespace-nowrap rounded-md border border-white/10 bg-navy-950 px-2 py-1 text-[11px] text-white/90 shadow-lg group-hover:block">
-                  Be Care Compliant form
-                </span>
-              </span>
-            ) : null}
             {linkInfo.has(f.id) ? (
               <span className="group relative inline-flex shrink-0">
                 <LinkIcon />
@@ -190,6 +182,14 @@ function FormGroup({
               </span>
             ) : null}
             <span className="ml-auto flex shrink-0 items-center gap-2 text-xs">
+              {f.sourceTemplateKey ? (
+                <span className="group relative inline-flex shrink-0">
+                  <ShieldIcon />
+                  <span className="pointer-events-none absolute bottom-full right-0 z-20 mb-1.5 hidden whitespace-nowrap rounded-md border border-white/10 bg-navy-950 px-2 py-1 text-[11px] text-white/90 shadow-lg group-hover:block">
+                    Be Care Compliant form
+                  </span>
+                </span>
+              ) : null}
               {f.currentVersion == null ? (
                 <span className="pill pill-amber">Not published</span>
               ) : (
