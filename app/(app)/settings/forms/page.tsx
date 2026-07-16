@@ -18,6 +18,20 @@ const POP_LABEL: Record<string, string> = {
   complaints: "Complaints",
 };
 
+// People forms are grouped by sub-department (mirrors the People nav children).
+// Anything not explicitly mapped falls under Compliance.
+const PEOPLE_SUBDEPT: Record<string, string> = {
+  holiday_requests: "Holiday",
+  holiday_response: "Holiday",
+  absence_back_office: "Absence",
+  absence_management_meeting: "Absence",
+  training_request: "Training",
+};
+const PEOPLE_SUBDEPT_ORDER = ["Compliance", "Holiday", "Absence", "Training"];
+function peopleSubDept(key: string): string {
+  return PEOPLE_SUBDEPT[key] ?? "Compliance";
+}
+
 export default async function SettingsFormsPage() {
   const { profile } = await requireCompanyAdmin();
   if (!profile.company_id) redirect("/founder");
@@ -97,6 +111,8 @@ export default async function SettingsFormsPage() {
             forms={forms.filter((f) => f.population === "people")}
             checks={peopleChecks}
             formLinkedCheck={formLinkedCheck}
+            subDeptOf={peopleSubDept}
+            subOrder={PEOPLE_SUBDEPT_ORDER}
           />
           <FormGroup
             title="Service User forms"
@@ -153,18 +169,69 @@ function LinkIcon() {
   );
 }
 
+function FormRow({
+  f,
+  checks,
+  formLinkedCheck,
+  isComplaints,
+}: {
+  f: FormSummary;
+  checks: Array<{ id: string; name: string }>;
+  formLinkedCheck: Map<string, string>;
+  isComplaints: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-3 border-b border-white/5 px-5 py-2.5 last:border-b-0 hover:bg-white/5">
+      <Link href={`/settings/forms/${f.id}`} className="flex min-w-0 flex-1 items-center gap-3">
+        <span className="truncate text-sm font-medium text-white">{f.name}</span>
+        <span className="truncate text-xs text-white/40">{POP_LABEL[f.population]}</span>
+      </Link>
+      {checks.length > 0 ? (
+        <FormColumnLink formId={f.id} checks={checks} currentCheckId={formLinkedCheck.get(f.id) ?? ""} />
+      ) : isComplaints ? (
+        <span className="group relative inline-flex shrink-0">
+          <LinkIcon />
+          <span className="pointer-events-none absolute bottom-full right-0 z-20 mb-1.5 hidden whitespace-nowrap rounded-md border border-white/10 bg-navy-950 px-2 py-1 text-[11px] text-white/90 shadow-lg group-hover:block">
+            Links to Complaints section
+          </span>
+        </span>
+      ) : null}
+      {f.sourceTemplateKey ? (
+        <span className="group relative inline-flex shrink-0">
+          <ShieldIcon />
+          <span className="pointer-events-none absolute bottom-full right-0 z-20 mb-1.5 hidden whitespace-nowrap rounded-md border border-white/10 bg-navy-950 px-2 py-1 text-[11px] text-white/90 shadow-lg group-hover:block">
+            Be Care Compliant form
+          </span>
+        </span>
+      ) : null}
+      <span className="flex shrink-0 items-center gap-2 text-xs">
+        {f.currentVersion == null ? (
+          <span className="pill pill-amber">Not published</span>
+        ) : (
+          <span className="pill pill-green">v{f.currentVersion}</span>
+        )}
+        {f.hasDraft && <span className="pill pill-amber">Draft</span>}
+      </span>
+    </div>
+  );
+}
+
 function FormGroup({
   title,
   forms,
   checks,
   formLinkedCheck,
   isComplaints = false,
+  subDeptOf,
+  subOrder,
 }: {
   title: string;
   forms: FormSummary[];
   checks: Array<{ id: string; name: string }>;
   formLinkedCheck: Map<string, string>;
   isComplaints?: boolean;
+  subDeptOf?: (key: string) => string;
+  subOrder?: string[];
 }) {
   if (forms.length === 0) return null;
   return (
@@ -173,47 +240,24 @@ function FormGroup({
         {title} ({forms.length})
       </summary>
       <div className="border-t border-white/10">
-        {forms.map((f) => (
-          <div
-            key={f.id}
-            className="flex items-center gap-3 border-b border-white/5 px-5 py-2.5 last:border-b-0 hover:bg-white/5"
-          >
-            <Link href={`/settings/forms/${f.id}`} className="flex min-w-0 flex-1 items-center gap-3">
-              <span className="truncate text-sm font-medium text-white">{f.name}</span>
-              <span className="truncate text-xs text-white/40">{POP_LABEL[f.population]}</span>
-            </Link>
-            {checks.length > 0 ? (
-              <FormColumnLink
-                formId={f.id}
-                checks={checks}
-                currentCheckId={formLinkedCheck.get(f.id) ?? ""}
-              />
-            ) : isComplaints ? (
-              <span className="group relative inline-flex shrink-0">
-                <LinkIcon />
-                <span className="pointer-events-none absolute bottom-full right-0 z-20 mb-1.5 hidden whitespace-nowrap rounded-md border border-white/10 bg-navy-950 px-2 py-1 text-[11px] text-white/90 shadow-lg group-hover:block">
-                  Links to Complaints section
-                </span>
-              </span>
-            ) : null}
-            {f.sourceTemplateKey ? (
-              <span className="group relative inline-flex shrink-0">
-                <ShieldIcon />
-                <span className="pointer-events-none absolute bottom-full right-0 z-20 mb-1.5 hidden whitespace-nowrap rounded-md border border-white/10 bg-navy-950 px-2 py-1 text-[11px] text-white/90 shadow-lg group-hover:block">
-                  Be Care Compliant form
-                </span>
-              </span>
-            ) : null}
-            <span className="flex shrink-0 items-center gap-2 text-xs">
-              {f.currentVersion == null ? (
-                <span className="pill pill-amber">Not published</span>
-              ) : (
-                <span className="pill pill-green">v{f.currentVersion}</span>
-              )}
-              {f.hasDraft && <span className="pill pill-amber">Draft</span>}
-            </span>
-          </div>
-        ))}
+        {subDeptOf && subOrder
+          ? subOrder.map((sub) => {
+              const subForms = forms.filter((f) => subDeptOf(f.key) === sub);
+              if (subForms.length === 0) return null;
+              return (
+                <div key={sub}>
+                  <p className="bg-white/5 px-5 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-white/45">
+                    {sub}
+                  </p>
+                  {subForms.map((f) => (
+                    <FormRow key={f.id} f={f} checks={checks} formLinkedCheck={formLinkedCheck} isComplaints={isComplaints} />
+                  ))}
+                </div>
+              );
+            })
+          : forms.map((f) => (
+              <FormRow key={f.id} f={f} checks={checks} formLinkedCheck={formLinkedCheck} isComplaints={isComplaints} />
+            ))}
       </div>
     </details>
   );
