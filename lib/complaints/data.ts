@@ -137,29 +137,65 @@ export async function listServiceUsersLite(
   return (data as Array<{ id: string; full_name: string }> | null) ?? [];
 }
 
+export type ComplaintResponseRow = {
+  id: string;
+  method: string;
+  subject: string | null;
+  body: string;
+  recipient: string | null;
+  sent_at: string | null;
+  created_at: string;
+  author_name: string | null;
+};
+
+type ComplaintResponseDbRow = Omit<ComplaintResponseRow, "author_name"> & {
+  author: { full_name: string | null; email: string | null } | null;
+};
+
 /** Initial responses drafted/sent for a complaint (newest first). */
-export async function listComplaintResponses(complaintId: string): Promise<
-  Array<{ id: string; method: string; subject: string | null; body: string; recipient: string | null; sent_at: string | null; created_at: string }>
-> {
+export async function listComplaintResponses(complaintId: string): Promise<ComplaintResponseRow[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("complaint_responses")
-    .select("id, method, subject, body, recipient, sent_at, created_at")
+    .select("id, method, subject, body, recipient, sent_at, created_at, author:created_by(full_name, email)")
     .eq("complaint_id", complaintId)
     .order("created_at", { ascending: false });
-  return (data as Array<{ id: string; method: string; subject: string | null; body: string; recipient: string | null; sent_at: string | null; created_at: string }>) ?? [];
+  return ((data as unknown as ComplaintResponseDbRow[] | null) ?? []).map((r) => {
+    const { author, ...rest } = r;
+    return { ...rest, author_name: author?.full_name || author?.email || null };
+  });
+}
+
+/** One recorded response, for its own view page. */
+export async function getComplaintResponse(id: string): Promise<ComplaintResponseRow | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("complaint_responses")
+    .select("id, method, subject, body, recipient, sent_at, created_at, author:created_by(full_name, email)")
+    .eq("id", id)
+    .maybeSingle();
+  if (!data) return null;
+  const r = data as unknown as ComplaintResponseDbRow;
+  const { author, ...rest } = r;
+  return { ...rest, author_name: author?.full_name || author?.email || null };
 }
 
 /** Evidence attached to a complaint (newest first), for the drill-down timeline. */
 export async function listComplaintEvidence(id: string): Promise<
-  Array<{ id: string; form_id: string; submitted_at: string; author_name: string | null }>
+  Array<{ id: string; form_id: string; form_name: string | null; submitted_at: string; author_name: string | null }>
 > {
   const supabase = await createClient();
   const { data } = await supabase
     .from("evidence")
-    .select("id, form_id, submitted_at, author_name")
+    .select("id, form_id, submitted_at, author_name, forms(name)")
     .eq("record_type", "complaint")
     .eq("record_id", id)
     .order("submitted_at", { ascending: false });
-  return (data as Array<{ id: string; form_id: string; submitted_at: string; author_name: string | null }>) ?? [];
+  return ((data as unknown as Array<{ id: string; form_id: string; submitted_at: string; author_name: string | null; forms: { name: string } | null }>) ?? []).map((e) => ({
+    id: e.id,
+    form_id: e.form_id,
+    form_name: e.forms?.name ?? null,
+    submitted_at: e.submitted_at,
+    author_name: e.author_name,
+  }));
 }

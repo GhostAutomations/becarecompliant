@@ -203,6 +203,24 @@ export default async function ComplaintPage({
 
   const rag = responseRag(complaint.status, complaint.response_due, config.amber_days);
 
+  // One Evidence history combining completed forms and recorded responses, newest first.
+  const historyRows = [
+    ...evidence.map((e) => ({
+      key: `e-${e.id}`,
+      date: e.submitted_at,
+      title: e.form_name ?? "Evidence",
+      person: e.author_name ?? "Unknown",
+      href: `/evidence/${e.id}`,
+    })),
+    ...responses.map((r) => ({
+      key: `r-${r.id}`,
+      date: r.created_at,
+      title: r.method === "email" ? "Initial response (email)" : "Initial response (letter)",
+      person: r.author_name ?? "Unknown",
+      href: `/complaints/${complaint.id}/responses/${r.id}`,
+    })),
+  ].sort((a, b) => b.date.localeCompare(a.date));
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
@@ -308,28 +326,6 @@ export default async function ComplaintPage({
         </div>
       </section>
 
-      {/* Responses sent / recorded */}
-      {responses.length > 0 ? (
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Responses</h2>
-          <div className="glass-card divide-y divide-white/5">
-            {responses.map((r) => (
-              <details key={r.id} className="px-5 py-3 text-sm">
-                <summary className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-white/85">
-                    {r.method === "email" ? "Email sent" : "Letter recorded"}
-                    {r.recipient ? ` to ${r.recipient}` : ""}
-                  </span>
-                  <span className="text-xs text-white/40">{formatDisplayDate(r.created_at.slice(0, 10))}</span>
-                </summary>
-                {r.subject ? <p className="mt-2 text-white/70">Subject: {r.subject}</p> : null}
-                <p className="mt-2 whitespace-pre-wrap text-white/80">{r.body}</p>
-              </details>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
       {/* Status control */}
       <section className="glass-card space-y-3 p-5">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Progress</h2>
@@ -340,22 +336,24 @@ export default async function ComplaintPage({
         />
       </section>
 
-      {/* Evidence history */}
+      {/* Evidence history (completed forms + recorded responses) */}
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Evidence history</h2>
-        {evidence.length === 0 ? (
+        {historyRows.length === 0 ? (
           <div className="glass-card p-6 text-sm text-white/60">
-            No evidence yet. Completing a complaint form stores it here as immutable inspection evidence.
+            No evidence yet. A recorded response or a completed complaint form is stored here as
+            immutable inspection evidence.
           </div>
         ) : (
           <div className="glass-card divide-y divide-white/5">
-            {evidence.map((e) => (
-              <div key={e.id} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
-                <span className="text-white/85">{formatDisplayDate(e.submitted_at.slice(0, 10))}</span>
-                <span className="flex items-center gap-3">
-                  <span className="text-white/50">{e.author_name ?? "Unknown"}</span>
-                  <a href={`/evidence/${e.id}`} className="btn-outline px-2.5 py-1 text-[11px]">View</a>
-                </span>
+            {historyRows.map((h) => (
+              <div key={h.key} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm">
+                <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
+                  <span className="w-24 shrink-0 text-white/50">{formatDisplayDate(h.date.slice(0, 10))}</span>
+                  <span className="font-medium text-white/90">{h.title}</span>
+                  <span className="text-white/50">{h.person}</span>
+                </div>
+                <a href={h.href} className="btn-outline px-2.5 py-1 text-[11px]">View</a>
               </div>
             ))}
           </div>

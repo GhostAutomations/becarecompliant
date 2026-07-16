@@ -377,14 +377,20 @@ export async function listPersonAssignments(personId: string): Promise<ProfileLi
 
 /** Evidence history for a Record (newest first), for the drill-down timeline. */
 export async function listPersonEvidence(personId: string): Promise<
-  Array<{ id: string; form_id: string; submitted_at: string; author_name: string | null }>
+  Array<{ id: string; form_id: string; form_name: string | null; submitted_at: string; author_name: string | null }>
 > {
   const supabase = await createClient();
   const { data } = await supabase
     .from("evidence")
-    .select("id, form_id, submitted_at, author_name")
+    .select("id, form_id, submitted_at, author_name, forms(name)")
     .eq("record_type", "person")
     .eq("record_id", personId)
     .order("submitted_at", { ascending: false });
-  return (data as Array<{ id: string; form_id: string; submitted_at: string; author_name: string | null }>) ?? [];
+  return ((data as unknown as Array<{ id: string; form_id: string; submitted_at: string; author_name: string | null; forms: { name: string } | null }>) ?? []).map((e) => ({
+    id: e.id,
+    form_id: e.form_id,
+    form_name: e.forms?.name ?? null,
+    submitted_at: e.submitted_at,
+    author_name: e.author_name,
+  }));
 }
