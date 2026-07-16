@@ -263,8 +263,8 @@ export default async function ComplaintPage({
           </div>
           <DateField label="Date raised" value={complaint.date_raised} />
           <DateField label="Date it happened" value={complaint.date_occurred} />
-          <DateField label="Acknowledged" value={complaint.date_acknowledged} />
           <DateField label="Initial response due" value={complaint.acknowledgement_due} />
+          <DateField label="Initial response sent" value={complaint.date_acknowledged} />
           <DateField label="Investigation completed" value={complaint.investigation_completed} />
           <DateField label="Response due" value={complaint.response_due} />
           <DateField label="Closed" value={complaint.date_closed} />

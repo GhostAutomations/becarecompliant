@@ -91,7 +91,7 @@ export default function EditComplaintForm({
           <input id="e_date_occurred" name="date_occurred" type="date" defaultValue={complaint.date_occurred ?? ""} />
         </div>
         <div>
-          <label htmlFor="e_date_acknowledged" className="form-label">Acknowledged</label>
+          <label htmlFor="e_date_acknowledged" className="form-label">Initial response sent</label>
           <input id="e_date_acknowledged" name="date_acknowledged" type="date" defaultValue={complaint.date_acknowledged ?? ""} />
         </div>
         <div>
