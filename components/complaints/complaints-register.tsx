@@ -104,7 +104,7 @@ export default function ComplaintsRegister({
         </div>
       ) : (
         <div className="glass-card overflow-x-auto">
-          <table className="w-full min-w-[720px] text-sm">
+          <table className="w-full min-w-[840px] text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-white/40">
                 <th className="px-4 py-3 font-medium">Ref</th>
@@ -112,6 +112,7 @@ export default function ComplaintsRegister({
                 <th className="px-4 py-3 font-medium">Branch</th>
                 <th className="px-4 py-3 font-medium">Complainant</th>
                 <th className="px-4 py-3 font-medium">Raised</th>
+                <th className="px-4 py-3 font-medium">Initial response due</th>
                 <th className="px-4 py-3 font-medium">Response due</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">Response</th>
@@ -131,6 +132,7 @@ export default function ComplaintsRegister({
                     {r.complainant_name || (r.complainant_relationship ? RELATIONSHIP_LABELS[r.complainant_relationship] : "—")}
                   </td>
                   <td className="px-4 py-3 text-white/70">{formatDisplayDate(r.date_raised) || "—"}</td>
+                  <td className="px-4 py-3 text-white/70">{formatDisplayDate(r.acknowledgement_due) || "—"}</td>
                   <td className="px-4 py-3 text-white/70">{formatDisplayDate(r.response_due) || "—"}</td>
                   <td className="px-4 py-3">{statusPill(r.status)}</td>
                   <td className="px-4 py-3">{ragPill(r.status, r.response_due, amberDays)}</td>
