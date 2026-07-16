@@ -412,14 +412,15 @@ export default async function PersonPage({
         ) : (
           <div className="glass-card divide-y divide-white/5">
             {evidence.map((e) => (
-              <div key={e.id} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
-                <span className="text-white/85">{formatDisplayDate(e.submitted_at.slice(0, 10))}</span>
-                <span className="flex items-center gap-3">
+              <div key={e.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm">
+                <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
+                  <span className="w-24 shrink-0 text-white/85">{formatDisplayDate(e.submitted_at.slice(0, 10))}</span>
+                  <span className="text-white/85">{e.form_name ?? "Evidence"}</span>
                   <span className="text-white/50">{e.author_name ?? "Unknown"}</span>
-                  <a href={`/evidence/${e.id}`} className="btn-outline px-2.5 py-1 text-[11px]">
-                    View
-                  </a>
-                </span>
+                </div>
+                <a href={`/evidence/${e.id}`} className="btn-outline px-2.5 py-1 text-[11px]">
+                  View
+                </a>
               </div>
             ))}
           </div>

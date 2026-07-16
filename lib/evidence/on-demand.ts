@@ -37,7 +37,7 @@ export type EvidenceView = {
   submittedAt: string;
   companyName: string;
   branchName: string | null;
-  recordType: "person" | "service_user";
+  recordType: "person" | "service_user" | "complaint";
   recordId: string;
   schema: FormSchema;
   answers: Answers;

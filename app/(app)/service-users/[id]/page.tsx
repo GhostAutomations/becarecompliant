@@ -309,7 +309,7 @@ export default async function ServiceUserPage({
               <div key={e.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm">
                 <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
                   <span className="w-24 shrink-0 text-white/50">{formatDisplayDate(e.submitted_at.slice(0, 10))}</span>
-                  <span className="font-medium text-white/90">{e.form_name ?? "Evidence"}</span>
+                  <span className="text-white/50">{e.form_name ?? "Evidence"}</span>
                   <span className="text-white/50">{e.author_name ?? "Unknown"}</span>
                 </div>
                 <a href={`/evidence/${e.id}`} className="btn-outline px-2.5 py-1 text-[11px]">

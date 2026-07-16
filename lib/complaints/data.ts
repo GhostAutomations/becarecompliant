@@ -149,35 +149,52 @@ export type ComplaintResponseRow = {
 };
 
 type ComplaintResponseDbRow = Omit<ComplaintResponseRow, "author_name"> & {
-  author: { full_name: string | null; email: string | null } | null;
+  created_by: string | null;
 };
+
+const RESPONSE_COLS = "id, method, subject, body, recipient, sent_at, created_at, created_by";
+
+/** Resolve author display names for a set of user ids (created_by references
+ *  auth.users, so it cannot be embedded; profiles share the same id). */
+async function authorNames(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  ids: string[],
+): Promise<Map<string, string>> {
+  const unique = [...new Set(ids.filter(Boolean))];
+  if (unique.length === 0) return new Map();
+  const { data } = await supabase.from("profiles").select("id, full_name, email").in("id", unique);
+  return new Map(
+    ((data as Array<{ id: string; full_name: string | null; email: string | null }> | null) ?? []).map((p) => [
+      p.id,
+      p.full_name || p.email || "Unknown",
+    ]),
+  );
+}
 
 /** Initial responses drafted/sent for a complaint (newest first). */
 export async function listComplaintResponses(complaintId: string): Promise<ComplaintResponseRow[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("complaint_responses")
-    .select("id, method, subject, body, recipient, sent_at, created_at, author:created_by(full_name, email)")
+    .select(RESPONSE_COLS)
     .eq("complaint_id", complaintId)
     .order("created_at", { ascending: false });
-  return ((data as unknown as ComplaintResponseDbRow[] | null) ?? []).map((r) => {
-    const { author, ...rest } = r;
-    return { ...rest, author_name: author?.full_name || author?.email || null };
-  });
+  const rows = (data as ComplaintResponseDbRow[] | null) ?? [];
+  const names = await authorNames(supabase, rows.map((r) => r.created_by ?? ""));
+  return rows.map(({ created_by, ...rest }) => ({
+    ...rest,
+    author_name: created_by ? names.get(created_by) ?? null : null,
+  }));
 }
 
 /** One recorded response, for its own view page. */
 export async function getComplaintResponse(id: string): Promise<ComplaintResponseRow | null> {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("complaint_responses")
-    .select("id, method, subject, body, recipient, sent_at, created_at, author:created_by(full_name, email)")
-    .eq("id", id)
-    .maybeSingle();
+  const { data } = await supabase.from("complaint_responses").select(RESPONSE_COLS).eq("id", id).maybeSingle();
   if (!data) return null;
-  const r = data as unknown as ComplaintResponseDbRow;
-  const { author, ...rest } = r;
-  return { ...rest, author_name: author?.full_name || author?.email || null };
+  const { created_by, ...rest } = data as ComplaintResponseDbRow;
+  const names = await authorNames(supabase, [created_by ?? ""]);
+  return { ...rest, author_name: created_by ? names.get(created_by) ?? null : null };
 }
 
 /** Evidence attached to a complaint (newest first), for the drill-down timeline. */

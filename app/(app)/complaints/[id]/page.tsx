@@ -350,7 +350,7 @@ export default async function ComplaintPage({
               <div key={h.key} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm">
                 <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
                   <span className="w-24 shrink-0 text-white/50">{formatDisplayDate(h.date.slice(0, 10))}</span>
-                  <span className="font-medium text-white/90">{h.title}</span>
+                  <span className="text-white/50">{h.title}</span>
                   <span className="text-white/50">{h.person}</span>
                 </div>
                 <a href={h.href} className="btn-outline px-2.5 py-1 text-[11px]">View</a>
