@@ -156,7 +156,7 @@ function FormGroup({
             {linkInfo.has(f.id) ? (
               <span className="group relative inline-flex shrink-0">
                 <LinkIcon />
-                <span className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1.5 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-white/10 bg-navy-950 px-2 py-1 text-[11px] text-white/90 shadow-lg group-hover:block">
+                <span className="pointer-events-none absolute bottom-full left-0 z-20 mb-1.5 hidden whitespace-nowrap rounded-md border border-white/10 bg-navy-950 px-2 py-1 text-[11px] text-white/90 shadow-lg group-hover:block">
                   Links to {linkInfo.get(f.id)}
                 </span>
               </span>
