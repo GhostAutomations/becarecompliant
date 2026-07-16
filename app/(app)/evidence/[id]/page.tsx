@@ -44,8 +44,18 @@ export default async function EvidenceViewPage({ params }: { params: Promise<{ i
   }
 
   const ev = result.data;
-  const backHref = ev.recordType === "person" ? `/people/${ev.recordId}` : `/service-users/${ev.recordId}`;
-  const backLabel = ev.recordType === "person" ? "Back to person" : "Back to service user";
+  const backHref =
+    ev.recordType === "person"
+      ? `/people/${ev.recordId}`
+      : ev.recordType === "complaint"
+        ? `/complaints/${ev.recordId}`
+        : `/service-users/${ev.recordId}`;
+  const backLabel =
+    ev.recordType === "person"
+      ? "Back to person"
+      : ev.recordType === "complaint"
+        ? "Back to complaint"
+        : "Back to service user";
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
