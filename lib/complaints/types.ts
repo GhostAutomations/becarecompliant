@@ -87,12 +87,14 @@ export type ComplaintsConfig = {
   count_working_days: boolean;
 };
 
-/** Cited defaults: acknowledge 3 working days, respond 25 working days (England CQC
- *  Regulation 16 / LGSCO benchmarks; Wales Social Services Complaints Procedure
- *  (Wales) Regulations 2014). Amber window 5 days before the response is due. */
+/** Defaults: acknowledge within 3 days, respond within 25 days, counted as CALENDAR
+ *  days (Phil's choice). The regulatory benchmarks (England CQC Regulation 16 / LGSCO;
+ *  Wales Social Services Complaints Procedure (Wales) Regulations 2014) are expressed
+ *  in working days, so a company can switch to working days in Settings. Amber window
+ *  5 days before the response is due. */
 export const DEFAULT_COMPLAINTS_CONFIG: ComplaintsConfig = {
   acknowledgement_days: 3,
   response_days: 25,
   amber_days: 5,
-  count_working_days: true,
+  count_working_days: false,
 };
