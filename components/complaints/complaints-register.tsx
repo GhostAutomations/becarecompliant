@@ -132,7 +132,13 @@ export default function ComplaintsRegister({
                     {r.complainant_name || (r.complainant_relationship ? RELATIONSHIP_LABELS[r.complainant_relationship] : "—")}
                   </td>
                   <td className="px-4 py-3 text-white/70">{formatDisplayDate(r.date_raised) || "—"}</td>
-                  <td className="px-4 py-3 text-white/70">{formatDisplayDate(r.acknowledgement_due) || "—"}</td>
+                  <td className="px-4 py-3 text-white/70">
+                    {r.date_acknowledged ? (
+                      <span className="pill-green">Sent {formatDisplayDate(r.date_acknowledged)}</span>
+                    ) : (
+                      formatDisplayDate(r.acknowledgement_due) || "—"
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-white/70">{formatDisplayDate(r.response_due) || "—"}</td>
                   <td className="px-4 py-3">{statusPill(r.status)}</td>
                   <td className="px-4 py-3">{ragPill(r.status, r.response_due, amberDays)}</td>
