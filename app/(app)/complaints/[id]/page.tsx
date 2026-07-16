@@ -203,6 +203,16 @@ export default async function ComplaintPage({
 
   const rag = responseRag(complaint.status, complaint.response_due, config.amber_days);
 
+  // Closed pill colour: green if closed before the response due date, amber if on it,
+  // red if after (dates are civil YYYY-MM-DD strings, so string compare is chronological).
+  const closedCls = complaint.date_closed
+    ? !complaint.response_due || complaint.date_closed < complaint.response_due
+      ? "pill-green"
+      : complaint.date_closed === complaint.response_due
+        ? "pill-amber"
+        : "pill-red"
+    : null;
+
   // One Evidence history combining completed forms and recorded responses, newest first.
   const historyRows = [
     ...evidence.map((e) => ({
@@ -295,7 +305,14 @@ export default async function ComplaintPage({
           </div>
           <DateField label="Investigation completed" value={complaint.investigation_completed} />
           <DateField label="Response due" value={complaint.response_due} />
-          <DateField label="Closed" value={complaint.date_closed} />
+          <div>
+            <p className="text-[11px] text-white/45">Closed</p>
+            {complaint.date_closed && closedCls ? (
+              <p className="mt-0.5"><span className={closedCls}>{formatDisplayDate(complaint.date_closed)}</span></p>
+            ) : (
+              <p className="text-sm text-white/85">—</p>
+            )}
+          </div>
         </div>
         {complaint.details ? (
           <div>
