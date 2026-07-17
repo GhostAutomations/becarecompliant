@@ -37,12 +37,12 @@ export function importSummaryEmail(opts: {
     opts.flags.errored.map((e) => `${escapeHtml(e.name)}: ${escapeHtml(e.errors.join(" "))}`),
   );
   const reviewBlock = listBlock(
-    "Recorded but need a review date",
+    "Saved, but need a due date set",
     opts.flags.review.map((r) => `${escapeHtml(r.name)}: ${escapeHtml(r.check)}`),
   );
   const reviewNote =
     opts.flags.review.length > 0
-      ? `<p style="margin:10px 0 0 0;font-size:12px;color:#a8b2cc;">These are checks scheduled from another check, for example an appraisal set from the supervision cycle. The date is recorded, please set the next due date on the record.</p>`
+      ? `<p style="margin:10px 0 0 0;font-size:12px;color:#a8b2cc;">We saved these completed dates, but could not work out when each check is next due, so they have no due date yet. Open each person's record and set the next due date for the check shown, so it appears on your compliance calendar.</p>`
       : "";
 
   const body = `

@@ -143,7 +143,7 @@ export default function ImportUploader() {
           {flags.review.length > 0 ? (
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-amber-200">
-                Recorded but need a review date
+                Saved, but need a due date set
               </p>
               <ul className="mt-1 space-y-1 text-white/75">
                 {flags.review.map((r, i) => (
@@ -153,9 +153,9 @@ export default function ImportUploader() {
                 ))}
               </ul>
               <p className="mt-1 text-xs text-white/50">
-                These checks are scheduled from another check, for example an appraisal set
-                from the supervision cycle. The date is recorded, set the next due date on the
-                record.
+                We saved these completed dates, but could not work out when each check is next
+                due, so they have no due date yet. Open each person&apos;s record and set the
+                next due date for the check shown, so it appears on your compliance calendar.
               </p>
             </div>
           ) : null}
