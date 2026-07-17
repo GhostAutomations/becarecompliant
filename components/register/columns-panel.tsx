@@ -99,8 +99,6 @@ export default function ColumnsPanel({
               {items.map((c, i) => (
                 <li
                   key={c.id}
-                  draggable
-                  onDragStart={() => (dragIndex.current = i)}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={() => {
                     if (dragIndex.current != null) move(dragIndex.current, i);
@@ -108,7 +106,15 @@ export default function ColumnsPanel({
                   }}
                   className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-sm text-white/85"
                 >
-                  <span className="cursor-grab select-none text-white/40" aria-hidden>⠿</span>
+                  <span
+                    draggable
+                    onDragStart={() => (dragIndex.current = i)}
+                    onDragEnd={() => (dragIndex.current = null)}
+                    className="cursor-grab select-none text-white/40"
+                    aria-hidden
+                  >
+                    ⠿
+                  </span>
                   <button
                     type="button"
                     onClick={() => toggle(c.id)}
