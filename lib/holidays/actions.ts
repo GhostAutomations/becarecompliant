@@ -203,6 +203,11 @@ export async function bookHolidayForPerson(
   });
   if (!result.ok) return { error: result.error };
 
+  // Branch Manager and above book directly (approved); a Supervisor's booking is
+  // logged as pending until a Branch Manager or higher approves it.
+  const canApproveOwn = ["company_admin", "registered_individual", "registered_manager", "manager", "platform_admin"].includes(
+    profile.role,
+  );
   const { error: insErr } = await supabase.from("holiday_requests").insert({
     company_id: companyId,
     branch_id: (person.branch_id as string | null) ?? null,
@@ -211,10 +216,10 @@ export async function bookHolidayForPerson(
     requester_name: person.full_name as string,
     start_date: startDate,
     end_date: endDate,
-    status: "approved",
+    status: canApproveOwn ? "approved" : "pending",
     request_evidence_id: result.evidenceId,
-    decided_by: user.id,
-    decided_at: new Date().toISOString(),
+    decided_by: canApproveOwn ? user.id : null,
+    decided_at: canApproveOwn ? new Date().toISOString() : null,
   });
   if (insErr) {
     return { error: `Evidence was saved, but the booking could not be logged: ${insErr.message}` };
@@ -233,7 +238,7 @@ export async function bookHolidayForPerson(
   });
 
   revalidatePath("/people/holiday");
-  return { ok: "Holiday booked." };
+  return { ok: canApproveOwn ? "Holiday booked." : "Holiday booked, pending approval." };
 }
 
 /** Approve or decline a holiday request (Manager/Admin) via the Holiday Response form. */

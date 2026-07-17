@@ -11,7 +11,7 @@ import { pdfResponse, csvResponse, exportError } from "@/lib/export/deliver";
 export async function GET(req: NextRequest) {
   const { profile } = await requireCompany();
   if (!profile.company_id) return exportError("No company context for this report.", 400);
-  if (!["platform_admin", "company_admin", "manager"].includes(profile.role)) {
+  if (!["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"].includes(profile.role)) {
     return exportError("Training reports are for Admins and Managers.", 403);
   }
   if (!(await featureEnabled(profile.company_id, "reporting_exports"))) {

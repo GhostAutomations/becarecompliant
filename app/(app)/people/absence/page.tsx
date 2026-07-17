@@ -44,7 +44,9 @@ export default async function AbsencePage() {
   const meetingSchema: FormSchema | null =
     meetingForm && isFormSchema(meetingForm.schema) ? (meetingForm.schema as FormSchema) : null;
 
-  const canManage = ["company_admin", "manager", "platform_admin"].includes(profile.role);
+  const canManage = ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor", "platform_admin"].includes(
+    profile.role,
+  );
 
   return (
     <div className="flex h-full min-h-0 flex-col">

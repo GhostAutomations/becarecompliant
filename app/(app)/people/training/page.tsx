@@ -9,7 +9,7 @@ import TrainingMatrix from "@/components/training/training-matrix";
 
 export const metadata: Metadata = { title: "Training" };
 
-const ALLOWED = ["platform_admin", "company_admin", "manager"];
+const ALLOWED = ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"];
 
 export default async function TrainingPage() {
   const { profile } = await requireCompany();
@@ -42,7 +42,7 @@ export default async function TrainingPage() {
           courses={matrix.courses}
           people={matrix.people}
           branches={branches}
-          canManage={["platform_admin", "company_admin", "manager"].includes(profile.role)}
+          canManage={["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"].includes(profile.role)}
         />
       </div>
     </div>

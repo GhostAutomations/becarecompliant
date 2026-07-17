@@ -5,7 +5,7 @@ import BackLink from "@/components/back-link";
 
 export const metadata: Metadata = { title: "Outcomes" };
 
-const ALLOWED = ["platform_admin", "company_admin", "manager"];
+const ALLOWED = ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"];
 
 export default async function OutcomesPage() {
   const { profile } = await requireCompany();

@@ -10,7 +10,7 @@ export default async function ReportsPage() {
   const { profile } = await requireCompany();
   // Reports are a management view. Supervisors (caseload only) and Team Members
   // (read only register) do not run company reports.
-  if (!["platform_admin", "company_admin", "manager"].includes(profile.role)) {
+  if (!["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"].includes(profile.role)) {
     redirect("/dashboard");
   }
   if (!profile.company_id) redirect("/founder");

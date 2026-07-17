@@ -26,11 +26,16 @@ export default async function HolidayPage() {
   }
 
   const companyId = profile.company_id;
-  const canApprove = ["company_admin", "manager", "platform_admin"].includes(profile.role);
+  // Branch Manager and above approve/decline; a Supervisor may book a holiday for a
+  // person (it lands pending) but cannot approve.
+  const canApprove = ["company_admin", "registered_individual", "registered_manager", "manager", "platform_admin"].includes(
+    profile.role,
+  );
+  const canBookForPerson = canApprove || profile.role === "supervisor";
   const [branches, requests, people, requestForm, responseForm] = await Promise.all([
     listBranches(companyId),
     listHolidayRequests(companyId, null),
-    canApprove ? listActivePeople(companyId) : Promise.resolve([]),
+    canBookForPerson ? listActivePeople(companyId) : Promise.resolve([]),
     getCompanyFormByKey(companyId, "holiday_requests"),
     getCompanyFormByKey(companyId, "holiday_response"),
   ]);
@@ -51,6 +56,7 @@ export default async function HolidayPage() {
         requestSchema={requestSchema}
         responseSchema={responseSchema}
         canApprove={canApprove}
+        canBookForPerson={canBookForPerson}
       />
     </div>
   );

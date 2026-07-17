@@ -17,6 +17,8 @@ export default async function DashboardPage() {
   // dashboard of their own: send them to the Founder console, their home.
   const { profile } = await requireCompany();
   if (!profile.company_id) redirect("/founder");
+  // A Viewer (read-only) has no dashboard; their home is the People register.
+  if (profile.role === "team_member") redirect("/people");
   const supabase = await createClient();
 
   // Greeting: a founder managing-as sees a support-session label with the company

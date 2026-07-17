@@ -29,7 +29,7 @@ export default async function ReportViewPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { profile } = await requireCompany();
-  if (!["platform_admin", "company_admin", "manager"].includes(profile.role)) {
+  if (!["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"].includes(profile.role)) {
     redirect("/dashboard");
   }
   if (!profile.company_id) redirect("/founder");

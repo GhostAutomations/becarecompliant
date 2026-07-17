@@ -41,8 +41,18 @@ export type NavEntry = {
   children?: NavEntry[];
 };
 
+/** Everyone except a Viewer (read-only, People + Service Users only). */
+const NOT_VIEWER: Role[] = [
+  "platform_admin",
+  "company_admin",
+  "registered_individual",
+  "registered_manager",
+  "manager",
+  "supervisor",
+];
+
 export const NAV_ENTRIES: NavEntry[] = [
-  { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
+  { href: "/dashboard", label: "Dashboard", icon: "dashboard", roles: NOT_VIEWER },
   {
     href: "/people",
     label: "People",
@@ -56,7 +66,7 @@ export const NAV_ENTRIES: NavEntry[] = [
         icon: "training",
         roles: ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"],
       },
-      { href: "/people/holiday", label: "Holiday", icon: "holiday" },
+      { href: "/people/holiday", label: "Holiday", icon: "holiday", roles: NOT_VIEWER },
       {
         href: "/people/absence",
         label: "Absence",

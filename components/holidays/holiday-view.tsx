@@ -42,13 +42,18 @@ export default function HolidayView({
   requestSchema,
   responseSchema,
   canApprove,
+  canBookForPerson,
 }: {
   requests: HolidayRequestRow[];
   branches: BranchLite[];
   people: PersonLite[];
   requestSchema: FormSchema | null;
   responseSchema: FormSchema | null;
+  /** Branch Manager and above: can approve/decline pending requests. */
   canApprove: boolean;
+  /** Branch Manager and above + Supervisor: can book a holiday for a person (a
+   *  Supervisor's booking is created pending until approved). */
+  canBookForPerson: boolean;
 }) {
   const now = new Date();
   const [branch, setBranch] = useState("");
@@ -109,8 +114,9 @@ export default function HolidayView({
               </select>
             </div>
           )}
-          {/* Team Members self-request; Managers/Admins use the "Book holiday for" picker below. */}
-          {!canApprove &&
+          {/* Self-request for anyone without the booking picker; branch staff use the
+              "Book holiday for" picker below. */}
+          {!canBookForPerson &&
             (requestSchema ? (
               <FormEvidenceDialog
                 title="Request holiday"
@@ -134,8 +140,9 @@ export default function HolidayView({
         </p>
       )}
 
-      {/* Manager/Admin: book holiday on behalf of a staff member (approved directly). */}
-      {canApprove && requestSchema && (
+      {/* Branch staff: book holiday on behalf of a person. Manager+ books directly;
+          a Supervisor's booking is created pending approval. */}
+      {canBookForPerson && requestSchema && (
         <div className="glass-card flex flex-wrap items-end gap-3 p-4">
           <div className="min-w-[220px] flex-1">
             <label htmlFor="holiday-person" className="form-label">

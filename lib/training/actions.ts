@@ -18,7 +18,7 @@ const ISO_RE = /^\d{4}-\d{2}-\d{2}$/;
 export async function saveTraining(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const { profile } = await requireCompany();
   if (!profile.company_id) return { error: "No company context." };
-  if (!["platform_admin", "company_admin", "manager"].includes(profile.role)) {
+  if (!["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"].includes(profile.role)) {
     return { error: "Only Admins and Managers can record training." };
   }
 
