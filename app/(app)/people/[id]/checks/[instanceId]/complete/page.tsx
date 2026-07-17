@@ -10,8 +10,10 @@ import {
   getPersonChecks,
   getPersonTracker,
   getSupervisionComps,
+  listBranches,
 } from "@/lib/people/data";
 import { supervisionSlots, annotateSupervisionOptions } from "@/lib/people/logic";
+import { recordFormPresets } from "@/lib/forms/record-presets";
 import { isFormSchema, removeField, type Answers, type FormSchema } from "@/lib/form-schema";
 import type { CheckDefinition } from "@/lib/people/types";
 
@@ -83,6 +85,20 @@ export default async function CompleteCheckPage({
       schema = annotateSupervisionOptions(schema, slots);
     }
   }
+
+  // Pre-fill the person's own details (name + branch) into whatever form this check
+  // uses, so it never re-asks who the check is for. Works for any form, including
+  // ones the company builds later.
+  const branches = await listBranches(profile.company_id ?? "");
+  const branchNames = branches.filter((b) => b.kind === "branch" || b.kind === "team").map((b) => b.name);
+  const personBranchName = branches.find((b) => b.id === person?.branch_id)?.name ?? null;
+  const recordPresets = recordFormPresets(schema, {
+    fullName: person?.full_name ?? null,
+    branchName: personBranchName,
+    branchNames,
+  });
+  schema = recordPresets.schema;
+  presetAnswers = { ...recordPresets.presets, ...(presetAnswers ?? {}) };
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">

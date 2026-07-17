@@ -5,7 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 import BackLink from "@/components/back-link";
 import CompleteCheck from "@/components/service-users/complete-check";
 import { getServiceUser, getPublishedFormVersion } from "@/lib/service-users/data";
-import { isFormSchema, removeField, type FormSchema } from "@/lib/form-schema";
+import { listBranches } from "@/lib/people/data";
+import { recordFormPresets } from "@/lib/forms/record-presets";
+import { isFormSchema, removeField, type Answers, type FormSchema } from "@/lib/form-schema";
 import type { CheckDefinition } from "@/lib/people/types";
 
 export const metadata: Metadata = { title: "Complete check" };
@@ -53,6 +55,19 @@ export default async function CompleteServiceUserCheckPage({
     schema = removeField(schema, "review_number");
   }
 
+  // Pre-fill the service user's own details (name + branch) into whatever form this
+  // check uses, so it never re-asks who it is for. Works for any form, new or old.
+  const branches = await listBranches(profile.company_id ?? "");
+  const branchNames = branches.filter((b) => b.kind === "branch" || b.kind === "team").map((b) => b.name);
+  const suBranchName = branches.find((b) => b.id === serviceUser?.branch_id)?.name ?? null;
+  const { schema: presetSchema, presets } = recordFormPresets(schema, {
+    fullName: serviceUser?.full_name ?? null,
+    branchName: suBranchName,
+    branchNames,
+  });
+  schema = presetSchema;
+  const presetAnswers: Answers = presets;
+
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
@@ -65,7 +80,7 @@ export default async function CompleteServiceUserCheckPage({
       </div>
 
       <div className="glass-card p-6">
-        <CompleteCheck schema={schema} instanceId={instanceId} />
+        <CompleteCheck schema={schema} instanceId={instanceId} presetAnswers={presetAnswers} />
       </div>
     </div>
   );
