@@ -42,7 +42,7 @@ export default async function ImportPage() {
           </a>
           <a
             href="/api/import/template?population=service_users"
-            className="btn-outline px-4 py-2 text-sm"
+            className="btn-primary px-4 py-2 text-sm"
           >
             Download Service Users template
           </a>
