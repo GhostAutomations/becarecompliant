@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
 import { listBranches } from "@/lib/people/data";
 import BackLink from "@/components/back-link";
+import ImportUploader from "@/components/settings/import-uploader";
 
 export const metadata: Metadata = { title: "Import records" };
 
@@ -73,14 +74,7 @@ export default async function ImportPage() {
         </ul>
       </section>
 
-      <section className="glass-card space-y-2 p-6">
-        <h2 className="text-sm font-semibold text-white/80">Step 2. Upload your sheet</h2>
-        <p className="text-sm text-white/60">
-          Uploading, checking and committing the filled sheet is the next part of this
-          feature. Prepare your templates now and you will be able to upload them here
-          shortly, with a preview to check everything before anything is saved.
-        </p>
-      </section>
+      <ImportUploader />
     </div>
   );
 }
