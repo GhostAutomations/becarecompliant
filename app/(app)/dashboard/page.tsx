@@ -4,7 +4,6 @@ import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
-import { NavIcon } from "@/components/nav-icon";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import { getComplaintCounts } from "@/lib/complaints/data";
 import {
@@ -252,49 +251,6 @@ export default async function DashboardPage() {
           </div>
         </section>
       ) : null}
-
-      {/* App grid */}
-      <section aria-label="Sections" className="grid gap-4 sm:grid-cols-2">
-        <Link href="/people" className="app-tile">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-400/10 text-gold-400">
-            <NavIcon icon="people" className="h-5 w-5" />
-          </span>
-          <h2 className="text-base font-semibold text-white">People</h2>
-          <p className="text-sm text-white/60">
-            Your staff team register: supervisions, appraisals, DBS renewals,
-            training refreshers.
-          </p>
-          <span className="pill-green mt-auto w-fit"><span className="pill-dot" /> Live</span>
-        </Link>
-
-        <Link href="/service-users" className="app-tile">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-400/10 text-gold-400">
-            <NavIcon icon="serviceUsers" className="h-5 w-5" />
-          </span>
-          <h2 className="text-base font-semibold text-white">
-            Service Users
-          </h2>
-          <p className="text-sm text-white/60">
-            Your clients receiving care: care plan reviews, risk assessments,
-            medication audits.
-          </p>
-          <span className="pill-green mt-auto w-fit"><span className="pill-dot" /> Live</span>
-        </Link>
-
-        {canSeeComplaints ? (
-          <Link href="/complaints" className="app-tile">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-400/10 text-gold-400">
-              <NavIcon icon="complaints" className="h-5 w-5" />
-            </span>
-            <h2 className="text-base font-semibold text-white">Complaints</h2>
-            <p className="text-sm text-white/60">
-              Complaints and concerns tracked from raised to resolved, with response
-              deadlines and immutable evidence.
-            </p>
-            <span className="pill-green mt-auto w-fit"><span className="pill-dot" /> Live</span>
-          </Link>
-        ) : null}
-      </section>
     </div>
   );
 }
