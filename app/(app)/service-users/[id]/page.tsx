@@ -40,8 +40,8 @@ import {
 
 export const metadata: Metadata = { title: "Service User" };
 
-const MANAGE_ROLES = ["company_admin", "manager", "platform_admin"];
-const COMPLETE_ROLES = ["company_admin", "manager", "supervisor", "platform_admin"];
+const MANAGE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "platform_admin"];
+const COMPLETE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor", "platform_admin"];
 const RAG_RANK: Record<string, number> = { red: 0, amber: 1, green: 2, none: 3 };
 
 function ragPill(rag: string) {

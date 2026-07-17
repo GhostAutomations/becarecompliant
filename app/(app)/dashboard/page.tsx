@@ -9,7 +9,7 @@ import { getComplaintCounts } from "@/lib/complaints/data";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
-const COMPLAINTS_ROLES = ["company_admin", "manager", "platform_admin"];
+const COMPLAINTS_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "platform_admin"];
 
 export default async function DashboardPage() {
   // requireCompany so that a founder managing as a company sees that company's

@@ -8,7 +8,7 @@ import { todayIso } from "@/lib/complaints/logic";
 
 export const metadata: Metadata = { title: "Log a complaint" };
 
-const MANAGE_ROLES = ["company_admin", "manager", "platform_admin"];
+const MANAGE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "platform_admin"];
 
 export default async function NewComplaintPage() {
   const { user, profile } = await requireCompany();

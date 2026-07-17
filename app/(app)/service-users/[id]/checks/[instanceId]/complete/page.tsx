@@ -12,7 +12,7 @@ import type { CheckDefinition } from "@/lib/people/types";
 
 export const metadata: Metadata = { title: "Complete check" };
 
-const COMPLETE_ROLES = ["company_admin", "manager", "supervisor", "platform_admin"];
+const COMPLETE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor", "platform_admin"];
 
 export default async function CompleteServiceUserCheckPage({
   params,

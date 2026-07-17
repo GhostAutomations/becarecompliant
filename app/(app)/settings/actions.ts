@@ -15,7 +15,13 @@ import {
 } from "@/lib/invites";
 import type { ActionState } from "@/lib/forms";
 
-const INVITABLE_ROLES: InviteRole[] = ["manager", "supervisor", "team_member"];
+const INVITABLE_ROLES: InviteRole[] = [
+  "registered_individual",
+  "registered_manager",
+  "manager",
+  "supervisor",
+  "team_member",
+];
 
 async function adminContext(): Promise<
   | { ok: true; companyId: string; actor: Actor }
@@ -51,7 +57,7 @@ export async function inviteUser(
   const branchId = String(formData.get("branch_id") ?? "").trim();
 
   if (!INVITABLE_ROLES.includes(role)) {
-    return { error: "Only the Founder can create Company Admins. Choose Manager, Supervisor or Team Member." };
+    return { error: "Only the Founder can create Company Admins. Choose one of the available roles." };
   }
   if (!branchId) {
     return { error: "Choose a branch for this person." };
@@ -189,7 +195,7 @@ export async function saveTeamMember(_prev: ActionState, formData: FormData): Pr
   const additional = formData.getAll("additional_branch_ids").map(String).filter(Boolean);
 
   if (!userId) return { error: "Missing user." };
-  if (!INVITABLE_ROLES.includes(role)) return { error: "Choose Manager, Supervisor or Team Member." };
+  if (!INVITABLE_ROLES.includes(role)) return { error: "Choose a valid role." };
   if (userId === ctx.actor.id) return { error: "You cannot edit your own account here." };
   if (!primary) return { error: "Choose a primary branch." };
 

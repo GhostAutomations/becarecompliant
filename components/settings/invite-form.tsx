@@ -38,9 +38,11 @@ export function InviteForm({ branches }: { branches: BranchOption[] }) {
             Role
           </label>
           <select id="role" name="role" defaultValue="team_member">
-            <option value="manager">Manager</option>
+            <option value="registered_individual">Registered Individual</option>
+            <option value="registered_manager">Registered Manager</option>
+            <option value="manager">Branch Manager</option>
             <option value="supervisor">Supervisor</option>
-            <option value="team_member">Team Member</option>
+            <option value="team_member">Viewer</option>
           </select>
         </div>
         <div>

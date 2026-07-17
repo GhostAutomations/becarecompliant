@@ -7,7 +7,7 @@ import { listBranches, listSupervisoryUsers, getBranchStaffMap } from "@/lib/peo
 
 export const metadata: Metadata = { title: "Add person" };
 
-const MANAGE_ROLES = ["company_admin", "manager", "platform_admin"];
+const MANAGE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "platform_admin"];
 
 export default async function NewPersonPage() {
   const { profile } = await requireCompany();

@@ -9,7 +9,7 @@ import { isFormSchema, type FormSchema } from "@/lib/form-schema";
 
 export const metadata: Metadata = { title: "Record document" };
 
-const MANAGE_ROLES = ["company_admin", "manager", "platform_admin"];
+const MANAGE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "platform_admin"];
 
 export default async function CompleteTrackerPage({
   params,

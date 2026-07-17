@@ -1,9 +1,20 @@
 export type Role =
   | "platform_admin"
   | "company_admin"
+  | "registered_individual"
+  | "registered_manager"
   | "manager"
   | "supervisor"
   | "team_member";
+
+/** Senior roles that see every branch and everything a Branch Manager can, but not
+ *  Settings or Billing (Company Admin only). Kept in one place so app-side gating
+ *  matches the is_company_wide() RLS helper. */
+export const COMPANY_WIDE_ROLES: Role[] = [
+  "company_admin",
+  "registered_individual",
+  "registered_manager",
+];
 
 export type NavEntry = {
   href: string;
@@ -43,14 +54,14 @@ export const NAV_ENTRIES: NavEntry[] = [
         href: "/people/training",
         label: "Training",
         icon: "training",
-        roles: ["platform_admin", "company_admin", "manager"],
+        roles: ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"],
       },
       { href: "/people/holiday", label: "Holiday", icon: "holiday" },
       {
         href: "/people/absence",
         label: "Absence",
         icon: "absence",
-        roles: ["platform_admin", "company_admin", "manager", "supervisor"],
+        roles: ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager", "supervisor"],
       },
     ],
   },
@@ -64,13 +75,13 @@ export const NAV_ENTRIES: NavEntry[] = [
         href: "/service-users/outcomes",
         label: "Outcomes",
         icon: "outcomes",
-        roles: ["platform_admin", "company_admin", "manager"],
+        roles: ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"],
       },
       {
         href: "/service-users/satisfaction",
         label: "Satisfaction",
         icon: "satisfaction",
-        roles: ["platform_admin", "company_admin", "manager"],
+        roles: ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"],
       },
     ],
   },
@@ -79,7 +90,7 @@ export const NAV_ENTRIES: NavEntry[] = [
     label: "Complaints",
     icon: "complaints",
     group: "Departments",
-    roles: ["platform_admin", "company_admin", "manager"],
+    roles: ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"],
     children: [
       { href: "/complaints", label: "Open", icon: "complaints" },
       { href: "/complaints/closed", label: "Closed", icon: "complaints" },
@@ -90,7 +101,7 @@ export const NAV_ENTRIES: NavEntry[] = [
     label: "Reports",
     icon: "reports",
     group: "Departments",
-    roles: ["platform_admin", "company_admin", "manager"],
+    roles: ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"],
   },
   {
     href: "/settings",
@@ -123,7 +134,9 @@ export function navEntriesForRole(role: string): NavEntry[] {
 export const ROLE_LABELS: Record<string, string> = {
   platform_admin: "Founder",
   company_admin: "Admin",
-  manager: "Manager",
+  registered_individual: "Registered Individual",
+  registered_manager: "Registered Manager",
+  manager: "Branch Manager",
   supervisor: "Supervisor",
-  team_member: "Team Member",
+  team_member: "Viewer",
 };

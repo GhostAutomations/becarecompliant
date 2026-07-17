@@ -9,6 +9,8 @@ import { ROLE_LABELS } from "@/lib/nav";
 
 export type InviteRole =
   | "company_admin"
+  | "registered_individual"
+  | "registered_manager"
   | "manager"
   | "supervisor"
   | "team_member";
