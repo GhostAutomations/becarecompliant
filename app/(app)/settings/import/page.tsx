@@ -55,9 +55,11 @@ export default async function ImportPage() {
           <li>One row per person or service user. Columns marked * are required.</li>
           <li>Dates are day/month/year, for example 04/03/2026.</li>
           <li>
-            For a recurring check with several dated columns, put the most recent
-            completed date in column 1, the one before it in column 2, and so on. Leave
-            the rest blank.
+            Most checks have a single column: enter the most recent completed date.
+          </li>
+          <li>
+            Supervision has several columns for its history. Put the most recent in
+            Supervision 1, then work backwards (2, 3 and so on). Leave the rest blank.
           </li>
           <li>Leave a check blank if it has never been done: it will start as due.</li>
           <li>

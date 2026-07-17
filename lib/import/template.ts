@@ -17,6 +17,11 @@ import { createClient } from "@/lib/supabase/server";
 
 export const HISTORY_CAP = 8;
 
+// Only these checks collect a multi-date back-history (roughly 2 years, most recent
+// first). Every other recurring check just needs its single most recent completed
+// date (the recurrence engine calculates the next due from it). Phil, 2026-07-17.
+const HISTORY_KEYS = new Set(["supervision", "care_plan_review"]);
+
 /** Convert a recurrence frequency + interval to a rough day count. */
 function intervalDays(frequency: string | null, interval: number | null): number {
   const n = interval && interval > 0 ? interval : 0;
@@ -32,14 +37,18 @@ function intervalDays(frequency: string | null, interval: number | null): number
   }
 }
 
-/** Dated columns for one check: up to 8 for a recurring check, else a single date. */
-function historyColumns(name: string, recurring: boolean, days: number): string[] {
-  if (!recurring || days <= 0) return [`${name} completed date`];
-  const per2yr = Math.max(1, Math.ceil(730 / days));
-  const n = Math.min(per2yr, HISTORY_CAP);
-  if (n === 1) return [`${name} completed date`];
-  // 1 = most recent.
-  return Array.from({ length: n }, (_, i) => `${name} ${i + 1}`);
+/**
+ * Dated columns for one check. Supervision and Care Plan Review collect up to 8
+ * historical dates (1 = most recent, then work backwards); every other check gets
+ * a single most-recent completed date.
+ */
+function historyColumns(key: string, name: string, recurring: boolean, days: number): string[] {
+  if (recurring && days > 0 && HISTORY_KEYS.has(key)) {
+    const per2yr = Math.max(1, Math.ceil(730 / days));
+    const n = Math.min(per2yr, HISTORY_CAP);
+    if (n > 1) return Array.from({ length: n }, (_, i) => `${name} ${i + 1}`);
+  }
+  return [`${name} completed date`];
 }
 
 const PEOPLE_IDENTITY = [
@@ -48,7 +57,7 @@ const PEOPLE_IDENTITY = [
   "Job title",
   "Team",
   "Start date",
-  "Work email",
+  "Email",
   "Mobile",
   "SCW number",
 ];
@@ -75,7 +84,7 @@ export async function buildImportTemplate(
   const supabase = await createClient();
   const { data: defs } = await supabase
     .from("check_definitions")
-    .select("name, recurring, frequency, interval, sort_order")
+    .select("key, name, recurring, frequency, interval, sort_order")
     .eq("company_id", companyId)
     .eq("population", population)
     .eq("active", true)
@@ -83,12 +92,15 @@ export async function buildImportTemplate(
 
   const checkColumns: string[] = [];
   for (const d of (defs as Array<{
+    key: string;
     name: string;
     recurring: boolean;
     frequency: string | null;
     interval: number | null;
   }> | null) ?? []) {
-    checkColumns.push(...historyColumns(d.name, d.recurring, intervalDays(d.frequency, d.interval)));
+    checkColumns.push(
+      ...historyColumns(d.key, d.name, d.recurring, intervalDays(d.frequency, d.interval)),
+    );
   }
 
   const identity = population === "people" ? PEOPLE_IDENTITY : SU_IDENTITY;
