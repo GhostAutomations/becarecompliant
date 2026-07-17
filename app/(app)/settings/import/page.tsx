@@ -58,8 +58,9 @@ export default async function ImportPage() {
             Most checks have a single column: enter the most recent completed date.
           </li>
           <li>
-            Supervision has several columns for its history. Put the most recent in
-            Supervision 1, then work backwards (2, 3 and so on). Leave the rest blank.
+            Supervision and Care Plan Review have several columns for their history.
+            Put the most recent in column 1, then work backwards (2, 3 and so on).
+            Leave the rest blank.
           </li>
           <li>Leave a check blank if it has never been done: it will start as due.</li>
           <li>
