@@ -64,9 +64,8 @@ export async function commitImportAction(
   const flags: ImportFlags = {
     skipped: result.skipped,
     errored: result.errored,
-    review: result.review,
   };
-  const flagCount = flags.skipped.length + flags.errored.length + flags.review.length;
+  const flagCount = flags.skipped.length + flags.errored.length;
 
   await writeAudit({
     companyId: profile.company_id,
@@ -81,7 +80,6 @@ export async function commitImportAction(
       created: result.created,
       skipped: flags.skipped.length,
       errors: flags.errored.length,
-      review: flags.review.length,
     },
   });
 
@@ -117,6 +115,5 @@ export async function commitImportAction(
   const parts = [`Created ${result.created}`];
   if (flags.skipped.length) parts.push(`skipped ${flags.skipped.length} existing`);
   if (flags.errored.length) parts.push(`${flags.errored.length} could not be added`);
-  if (flags.review.length) parts.push(`${flags.review.length} need a review date`);
   return { ok: true, message: `${parts.join(", ")}.`, flags, emailNote };
 }

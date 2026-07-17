@@ -25,8 +25,7 @@ export function importSummaryEmail(opts: {
   flags: ImportFlags;
 }): { subject: string; html: string } {
   const noun = opts.population === "people" ? "people" : "service users";
-  const flagCount =
-    opts.flags.skipped.length + opts.flags.errored.length + opts.flags.review.length;
+  const flagCount = opts.flags.skipped.length + opts.flags.errored.length;
 
   const skippedBlock = listBlock(
     "Already in the system, so skipped",
@@ -36,14 +35,6 @@ export function importSummaryEmail(opts: {
     "Not added, please fix these in the sheet and upload again",
     opts.flags.errored.map((e) => `${escapeHtml(e.name)}: ${escapeHtml(e.errors.join(" "))}`),
   );
-  const reviewBlock = listBlock(
-    "Saved, but need a due date set",
-    opts.flags.review.map((r) => `${escapeHtml(r.name)}: ${escapeHtml(r.check)}`),
-  );
-  const reviewNote =
-    opts.flags.review.length > 0
-      ? `<p style="margin:10px 0 0 0;font-size:12px;color:#a8b2cc;">We saved these completed dates, but could not work out when each check is next due, so they have no due date yet. Open each person's record and set the next due date for the check shown, so it appears on your compliance calendar.</p>`
-      : "";
 
   const body = `
     <p style="margin:0 0 6px 0;">The bulk import into
@@ -51,17 +42,15 @@ export function importSummaryEmail(opts: {
     <strong style="color:#ffffff;">${opts.created}</strong> ${noun} were added.
     ${flagCount > 0 ? "Some items need your attention:" : "Nothing needs your attention."}</p>
     ${skippedBlock}
-    ${erroredBlock}
-    ${reviewBlock}
-    ${reviewNote}`;
+    ${erroredBlock}`;
 
   const path = opts.population === "people" ? "/people" : "/service-users";
   const label = opts.population === "people" ? "People" : "Service User";
 
   return {
-    subject: `${label} import complete: ${opts.created} added, ${flagCount} to review`,
+    subject: `${label} import: ${opts.created} added, ${flagCount} not imported`,
     html: noticeEmailHtml({
-      preheader: `${opts.created} ${noun} added, ${flagCount} items to review.`,
+      preheader: `${opts.created} ${noun} added, ${flagCount} not imported.`,
       heading: "Your import needs a look",
       bodyHtml: body,
       ctaLabel: "Open the register",

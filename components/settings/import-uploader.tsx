@@ -63,9 +63,7 @@ export default function ImportUploader() {
     });
   }
 
-  const hasFlags = Boolean(
-    flags && (flags.skipped.length || flags.errored.length || flags.review.length),
-  );
+  const hasFlags = Boolean(flags && (flags.skipped.length || flags.errored.length));
 
   const counts = result && result.ok ? result.counts : null;
   const canCommit = Boolean(counts && counts.new > 0 && !pending);
@@ -138,25 +136,6 @@ export default function ImportUploader() {
                   </li>
                 ))}
               </ul>
-            </div>
-          ) : null}
-          {flags.review.length > 0 ? (
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-amber-200">
-                Saved, but need a due date set
-              </p>
-              <ul className="mt-1 space-y-1 text-white/75">
-                {flags.review.map((r, i) => (
-                  <li key={i}>
-                    <span className="text-white/90">{r.name}</span>: {r.check}
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-1 text-xs text-white/50">
-                We saved these completed dates, but could not work out when each check is next
-                due, so they have no due date yet. Open each person&apos;s record and set the
-                next due date for the check shown, so it appears on your compliance calendar.
-              </p>
             </div>
           ) : null}
           {flags.skipped.length > 0 ? (
