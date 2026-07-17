@@ -7,7 +7,10 @@ import "server-only";
  * as the one-at-a-time flow), stamp tracker/document dates, then seed each check's
  * completed dates via seed_migrated_completion (newest date advances the check with
  * a recurrence-calculated next due and no evidence = "migrated, no form on file";
- * older dates are recorded as history). Existing rows (status !== 'new') are skipped.
+ * older dates are recorded as history). Existing rows are skipped, errored rows are
+ * reported, and any check that recorded a date but could not be given a next due
+ * (e.g. an appraisal scheduled off the supervision cycle) is flagged for review, so
+ * the admin can be told (in-app summary + email).
  */
 
 import { createClient } from "@/lib/supabase/server";
@@ -22,8 +25,16 @@ import {
 import { initialDueDate as suInitialDue } from "@/lib/service-users/logic";
 import type { ParsedRow } from "./parse";
 
-export type CommitResult = { created: number; skipped: number; errors: number };
+export type ImportFlags = {
+  skipped: string[];
+  errored: Array<{ name: string; errors: string[] }>;
+  review: Array<{ name: string; check: string }>;
+};
 
+export type CommitResult = { created: number } & ImportFlags;
+
+/** Seed a record's migrated check dates. Returns the checks that recorded a date
+ *  but got no next due (need a review date). */
 async function seedRowChecks(
   supabase: Awaited<ReturnType<typeof createClient>>,
   recordType: "person" | "service_user",
@@ -31,7 +42,8 @@ async function seedRowChecks(
   row: ParsedRow,
   defById: Map<string, CheckDefinition>,
   supInterval: number,
-) {
+): Promise<string[]> {
+  const review: string[] = [];
   for (const c of row.checks) {
     const def = defById.get(c.definitionId);
     if (!def || c.dates.length === 0) continue;
@@ -47,7 +59,12 @@ async function seedRowChecks(
         p_is_latest: i === 0,
       });
     }
+    // Flag only recurring checks that recorded a date but got no next due (e.g. an
+    // appraisal scheduled off the supervision cycle). A one-off check having no next
+    // due is correct, not something to review.
+    if (def.recurring && !nextDue) review.push(def.name);
   }
+  return review;
 }
 
 export async function commitPeople(
@@ -61,13 +78,23 @@ export async function commitPeople(
   const supInterval = defs.find((d) => d.key === "supervision")?.interval ?? 90;
 
   let created = 0;
-  let skipped = 0;
-  let errors = 0;
+  const flags: ImportFlags = { skipped: [], errored: [], review: [] };
+
   for (const row of rows) {
-    if (row.status !== "new" || !row.branchId) {
-      skipped += 1;
+    const label = row.name || `Row ${row.row}`;
+    if (row.status === "duplicate") {
+      flags.skipped.push(label);
       continue;
     }
+    if (row.status === "error") {
+      flags.errored.push({ name: label, errors: row.errors });
+      continue;
+    }
+    if (!row.branchId) {
+      flags.errored.push({ name: label, errors: ["Branch could not be matched."] });
+      continue;
+    }
+
     const { data: person, error } = await supabase
       .from("people")
       .insert({
@@ -85,7 +112,7 @@ export async function commitPeople(
       .select("id")
       .single();
     if (error || !person) {
-      errors += 1;
+      flags.errored.push({ name: label, errors: [error?.message ?? "Could not create the record."] });
       continue;
     }
 
@@ -96,17 +123,17 @@ export async function commitPeople(
     }));
     await supabase.rpc("apply_person_checks", { p_person_id: person.id, p_rows: applyRows });
 
-    // Tracker/document dates (only set columns the sheet provided).
     const patch: Record<string, unknown> = { updated_by: userId };
     for (const [col, val] of Object.entries(row.docs)) if (val != null) patch[col] = val;
     if (Object.keys(patch).length > 1) {
       await supabase.from("person_trackers").update(patch).eq("person_id", person.id);
     }
 
-    await seedRowChecks(supabase, "person", person.id, row, defById, supInterval);
+    const reviews = await seedRowChecks(supabase, "person", person.id, row, defById, supInterval);
+    for (const check of reviews) flags.review.push({ name: row.name, check });
     created += 1;
   }
-  return { created, skipped, errors };
+  return { created, ...flags };
 }
 
 export async function commitServiceUsers(
@@ -119,13 +146,23 @@ export async function commitServiceUsers(
   const defById = new Map(defs.map((d) => [d.id, d]));
 
   let created = 0;
-  let skipped = 0;
-  let errors = 0;
+  const flags: ImportFlags = { skipped: [], errored: [], review: [] };
+
   for (const row of rows) {
-    if (row.status !== "new" || !row.branchId) {
-      skipped += 1;
+    const label = row.name || `Row ${row.row}`;
+    if (row.status === "duplicate") {
+      flags.skipped.push(label);
       continue;
     }
+    if (row.status === "error") {
+      flags.errored.push({ name: label, errors: row.errors });
+      continue;
+    }
+    if (!row.branchId) {
+      flags.errored.push({ name: label, errors: ["Branch could not be matched."] });
+      continue;
+    }
+
     const { data: su, error } = await supabase
       .from("service_users")
       .insert({
@@ -139,7 +176,7 @@ export async function commitServiceUsers(
       .select("id")
       .single();
     if (error || !su) {
-      errors += 1;
+      flags.errored.push({ name: label, errors: [error?.message ?? "Could not create the record."] });
       continue;
     }
 
@@ -150,8 +187,9 @@ export async function commitServiceUsers(
     }));
     await supabase.rpc("apply_service_user_checks", { p_service_user_id: su.id, p_rows: applyRows });
 
-    await seedRowChecks(supabase, "service_user", su.id, row, defById, 90);
+    const reviews = await seedRowChecks(supabase, "service_user", su.id, row, defById, 90);
+    for (const check of reviews) flags.review.push({ name: row.name, check });
     created += 1;
   }
-  return { created, skipped, errors };
+  return { created, ...flags };
 }

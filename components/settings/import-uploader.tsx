@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { validateImportAction, commitImportAction } from "@/lib/import/actions";
+import type { CommitOutcome } from "@/lib/import/actions";
 import type { ValidateResult } from "@/lib/import/parse";
 
 type Pop = "people" | "service_users";
@@ -18,12 +19,16 @@ export default function ImportUploader() {
   const [csvText, setCsvText] = useState<string>("");
   const [result, setResult] = useState<ValidateResult | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [flags, setFlags] = useState<CommitOutcome["flags"] | null>(null);
+  const [emailNote, setEmailNote] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
 
   function reset() {
     setResult(null);
     setMessage(null);
+    setFlags(null);
+    setEmailNote(null);
     setCsvText("");
     setFileName(null);
     if (fileRef.current) fileRef.current.value = "";
@@ -47,6 +52,8 @@ export default function ImportUploader() {
     startTransition(async () => {
       const res = await commitImportAction(pop, csvText);
       setMessage(res.message);
+      setFlags(res.flags ?? null);
+      setEmailNote(res.emailNote ?? null);
       if (res.ok) {
         setResult(null);
         setCsvText("");
@@ -55,6 +62,10 @@ export default function ImportUploader() {
       }
     });
   }
+
+  const hasFlags = Boolean(
+    flags && (flags.skipped.length || flags.errored.length || flags.review.length),
+  );
 
   const counts = result && result.ok ? result.counts : null;
   const canCommit = Boolean(counts && counts.new > 0 && !pending);
@@ -111,6 +122,55 @@ export default function ImportUploader() {
           {message}
         </div>
       ) : null}
+
+      {hasFlags && flags ? (
+        <div className="space-y-3 rounded-lg border border-amber-400/30 bg-amber-500/[0.06] p-4 text-sm">
+          <p className="font-semibold text-white/90">Needs attention</p>
+          {flags.errored.length > 0 ? (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-red-200">
+                Not added, fix these and upload again
+              </p>
+              <ul className="mt-1 space-y-1 text-white/75">
+                {flags.errored.map((e, i) => (
+                  <li key={i}>
+                    <span className="text-white/90">{e.name}</span>: {e.errors.join(" ")}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {flags.review.length > 0 ? (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-amber-200">
+                Recorded but need a review date
+              </p>
+              <ul className="mt-1 space-y-1 text-white/75">
+                {flags.review.map((r, i) => (
+                  <li key={i}>
+                    <span className="text-white/90">{r.name}</span>: {r.check}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-1 text-xs text-white/50">
+                These checks are scheduled from another check, for example an appraisal set
+                from the supervision cycle. The date is recorded, set the next due date on the
+                record.
+              </p>
+            </div>
+          ) : null}
+          {flags.skipped.length > 0 ? (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-white/50">
+                Already in the system, skipped
+              </p>
+              <p className="mt-1 text-white/70">{flags.skipped.join(", ")}</p>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {emailNote ? <p className="text-xs text-white/50">{emailNote}</p> : null}
 
       {result && !result.ok ? (
         <div className="rounded-lg border border-red-400/40 bg-red-500/10 p-3 text-sm text-red-100">
