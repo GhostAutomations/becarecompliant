@@ -61,9 +61,12 @@ export default async function SettingsServiceUsersPage() {
             cadence instead of the single annual review used by Simple branches.
           </p>
           <ComplexIntervalForm days={complexInterval} />
-          <div className="border-t border-white/10 pt-4">
-            <CreateCheckTypeForm population="service_users" forms={publishableForms} />
-          </div>
+          {/* Create custom check type: parked as a later feature (Phil, 2026-07-16), hidden. */}
+          {false && (
+            <div className="border-t border-white/10 pt-4">
+              <CreateCheckTypeForm population="service_users" forms={publishableForms} />
+            </div>
+          )}
         </div>
       </details>
 

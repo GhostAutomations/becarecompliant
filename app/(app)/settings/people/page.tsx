@@ -47,9 +47,12 @@ export default async function SettingsPeoplePage() {
           {definitions.map((def) => (
             <CheckConfigForm key={def.id} def={def} />
           ))}
-          <div className="border-t border-white/10 pt-4">
-            <CreateCheckTypeForm population="people" forms={publishableForms} />
-          </div>
+          {/* Create custom check type: parked as a later feature (Phil, 2026-07-16), hidden. */}
+          {false && (
+            <div className="border-t border-white/10 pt-4">
+              <CreateCheckTypeForm population="people" forms={publishableForms} />
+            </div>
+          )}
         </div>
       </details>
 
