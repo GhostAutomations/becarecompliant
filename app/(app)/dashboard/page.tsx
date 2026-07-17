@@ -1,15 +1,110 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { NavIcon } from "@/components/nav-icon";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import { getComplaintCounts } from "@/lib/complaints/data";
+import {
+  getComplianceBuckets,
+  getHolidayPendingCount,
+  getAbsenceMeetingSummary,
+  type DueBuckets,
+  type AbsenceMeetingLine,
+  type AbsenceMeetingSoon,
+} from "@/lib/dashboard/data";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
-const COMPLAINTS_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "platform_admin"];
+// Complaints, Holidays and Absence dashboard surfaces are "Managers and above":
+// Company Admin, both Registered roles and Branch Manager (plus Founder via
+// manage-as). Supervisors and Viewers do not see them.
+const MANAGER_PLUS_ROLES = [
+  "company_admin",
+  "registered_individual",
+  "registered_manager",
+  "manager",
+  "platform_admin",
+];
+
+/** A single clickable metric card. */
+function MetricCard({
+  href,
+  pill,
+  value,
+  sub,
+}: {
+  href: string;
+  pill: ReactNode;
+  value: ReactNode;
+  sub: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="glass-card block p-5 transition hover:bg-white/[0.07] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/30"
+    >
+      {pill}
+      <p className="mt-3 text-3xl font-bold text-white">{value}</p>
+      <p className="text-xs text-white/50">{sub}</p>
+    </Link>
+  );
+}
+
+/** A card listing up to 5 people (name + stage) with a "+N more" overflow. */
+function MeetingListCard({
+  href,
+  title,
+  lines,
+  emptyText,
+}: {
+  href: string;
+  title: string;
+  lines: Array<{ name: string; stage: string; when?: string }>;
+  emptyText: string;
+}) {
+  const shown = lines.slice(0, 5);
+  const extra = lines.length - shown.length;
+  return (
+    <Link
+      href={href}
+      className="glass-card block p-5 transition hover:bg-white/[0.07] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/30"
+    >
+      <div className="flex items-baseline justify-between">
+        <span className="text-sm font-semibold text-white/80">{title}</span>
+        <span className="text-2xl font-bold text-white">{lines.length}</span>
+      </div>
+      {shown.length === 0 ? (
+        <p className="mt-3 text-xs text-white/50">{emptyText}</p>
+      ) : (
+        <ul className="mt-3 space-y-1.5">
+          {shown.map((l, i) => (
+            <li key={i} className="flex items-center justify-between gap-3 text-sm">
+              <span className="truncate text-white/85">{l.name}</span>
+              <span className="shrink-0 text-xs text-white/55">
+                {l.when ? `${l.stage} · ${l.when}` : l.stage}
+              </span>
+            </li>
+          ))}
+          {extra > 0 ? (
+            <li className="pt-1 text-xs text-white/45">+{extra} more</li>
+          ) : null}
+        </ul>
+      )}
+    </Link>
+  );
+}
+
+function formatMeetingDate(iso: string): string {
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    timeZone: "Europe/London",
+  });
+}
 
 export default async function DashboardPage() {
   // requireCompany so that a founder managing as a company sees that company's
@@ -20,6 +115,7 @@ export default async function DashboardPage() {
   // A Viewer (read-only) has no dashboard; their home is the People register.
   if (profile.role === "team_member") redirect("/people");
   const supabase = await createClient();
+  const companyId = profile.company_id;
 
   // Greeting: a founder managing-as sees a support-session label with the company
   // name, not their own email; a normal company user is greeted by first name.
@@ -37,33 +133,46 @@ export default async function DashboardPage() {
       "You are managing this company for support. Its compliance overview is below.";
   }
 
-  // Company-wide People + Service User rollups (RLS scopes each to what this role
-  // may see). Both active-only views exclude leavers / cancelled / archived Records.
-  const counts = { compliant: 0, dueSoon: 0, overdue: 0 };
-  const suCounts = { compliant: 0, dueSoon: 0, overdue: 0 };
-  if (profile.company_id) {
-    const [{ data: rollups }, { data: suRollups }] = await Promise.all([
-      supabase.from("person_rollup").select("rag").eq("company_id", profile.company_id),
-      supabase.from("service_user_rollup").select("rag").eq("company_id", profile.company_id),
-    ]);
-    for (const r of (rollups as Array<{ rag: string }> | null) ?? []) {
-      if (r.rag === "red") counts.overdue += 1;
-      else if (r.rag === "amber") counts.dueSoon += 1;
-      else if (r.rag === "green") counts.compliant += 1;
-    }
-    for (const r of (suRollups as Array<{ rag: string }> | null) ?? []) {
-      if (r.rag === "red") suCounts.overdue += 1;
-      else if (r.rag === "amber") suCounts.dueSoon += 1;
-      else if (r.rag === "green") suCounts.compliant += 1;
-    }
-  }
+  const canSeeComplaints = MANAGER_PLUS_ROLES.includes(profile.role);
+  const isManagerPlus = MANAGER_PLUS_ROLES.includes(profile.role);
 
-  // Complaints (Managers + Admins only): open / in progress / overdue response.
-  const canSeeComplaints = COMPLAINTS_ROLES.includes(profile.role);
-  const complaintCounts =
-    canSeeComplaints && profile.company_id
-      ? await getComplaintCounts(profile.company_id)
-      : { open: 0, inProgress: 0, closed: 0, overdue: 0 };
+  // Everyone with a dashboard sees the People + Service User due buckets.
+  const { people, serviceUsers } = await getComplianceBuckets(companyId);
+
+  const complaintCounts = canSeeComplaints
+    ? await getComplaintCounts(companyId)
+    : { open: 0, inProgress: 0, closed: 0, overdue: 0, avgDaysToClose: null as number | null };
+
+  const holidayPending = isManagerPlus ? await getHolidayPendingCount(companyId) : 0;
+  const absence = isManagerPlus
+    ? await getAbsenceMeetingSummary(companyId)
+    : { toBook: [] as AbsenceMeetingLine[], next7: [] as AbsenceMeetingSoon[] };
+
+  const complianceStrip = (label: string, href: string, b: DueBuckets, noun: string) => (
+    <section aria-label={`${label} compliance status`} className="space-y-3">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">{label}</h2>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <MetricCard
+          href={href}
+          pill={<span className="pill-red"><span className="pill-dot" /> Overdue</span>}
+          value={b.overdue}
+          sub={`${noun} with an overdue check`}
+        />
+        <MetricCard
+          href={href}
+          pill={<span className="pill-amber"><span className="pill-dot" /> Due in 14 days</span>}
+          value={b.due14}
+          sub={`${noun} with a check due within 14 days`}
+        />
+        <MetricCard
+          href={href}
+          pill={<span className="pill-neutral">Due in 30 days</span>}
+          value={b.due30}
+          sub={`${noun} with a check due within 30 days`}
+        />
+      </div>
+    </section>
+  );
 
   return (
     <div className="mx-auto max-w-5xl space-y-8">
@@ -77,70 +186,69 @@ export default async function DashboardPage() {
         <p className="page-subtitle">{subtitle}</p>
       </div>
 
-      {/* People RAG rollup strip (zero state until checks exist) */}
-      <section aria-label="People compliance status" className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">People</h2>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div className="glass-card p-5">
-            <span className="pill-green"><span className="pill-dot" /> Compliant</span>
-            <p className="mt-3 text-3xl font-bold text-white">{counts.compliant}</p>
-            <p className="text-xs text-white/50">People with everything in date</p>
-          </div>
-          <div className="glass-card p-5">
-            <span className="pill-amber"><span className="pill-dot" /> Due soon</span>
-            <p className="mt-3 text-3xl font-bold text-white">{counts.dueSoon}</p>
-            <p className="text-xs text-white/50">People with a check due soon</p>
-          </div>
-          <div className="glass-card p-5">
-            <span className="pill-red"><span className="pill-dot" /> Overdue</span>
-            <p className="mt-3 text-3xl font-bold text-white">{counts.overdue}</p>
-            <p className="text-xs text-white/50">People with an overdue check</p>
-          </div>
-        </div>
-      </section>
+      {complianceStrip("People", "/people", people, "People")}
+      {complianceStrip("Service Users", "/service-users", serviceUsers, "Service users")}
 
-      {/* Service User RAG rollup strip (cancelled + archived excluded) */}
-      <section aria-label="Service User compliance status" className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Service Users</h2>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div className="glass-card p-5">
-            <span className="pill-green"><span className="pill-dot" /> Compliant</span>
-            <p className="mt-3 text-3xl font-bold text-white">{suCounts.compliant}</p>
-            <p className="text-xs text-white/50">Service users with everything in date</p>
-          </div>
-          <div className="glass-card p-5">
-            <span className="pill-amber"><span className="pill-dot" /> Due soon</span>
-            <p className="mt-3 text-3xl font-bold text-white">{suCounts.dueSoon}</p>
-            <p className="text-xs text-white/50">Service users with a check due soon</p>
-          </div>
-          <div className="glass-card p-5">
-            <span className="pill-red"><span className="pill-dot" /> Overdue</span>
-            <p className="mt-3 text-3xl font-bold text-white">{suCounts.overdue}</p>
-            <p className="text-xs text-white/50">Service users with an overdue check</p>
-          </div>
-        </div>
-      </section>
-
-      {/* Complaints status strip (Managers + Admins) */}
       {canSeeComplaints ? (
         <section aria-label="Complaints status" className="space-y-3">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Complaints</h2>
           <div className="grid gap-4 sm:grid-cols-3">
-            <div className="glass-card p-5">
-              <span className="pill-neutral">Open</span>
-              <p className="mt-3 text-3xl font-bold text-white">{complaintCounts.open + complaintCounts.inProgress}</p>
-              <p className="text-xs text-white/50">Complaints still being handled</p>
-            </div>
-            <div className="glass-card p-5">
-              <span className="pill-red"><span className="pill-dot" /> Overdue</span>
-              <p className="mt-3 text-3xl font-bold text-white">{complaintCounts.overdue}</p>
-              <p className="text-xs text-white/50">Past their response deadline</p>
-            </div>
-            <div className="glass-card p-5">
-              <span className="pill-green"><span className="pill-dot" /> Closed</span>
-              <p className="mt-3 text-3xl font-bold text-white">{complaintCounts.closed}</p>
-              <p className="text-xs text-white/50">Complaints resolved and closed</p>
-            </div>
+            <MetricCard
+              href="/complaints"
+              pill={<span className="pill-neutral">Open</span>}
+              value={complaintCounts.open + complaintCounts.inProgress}
+              sub="Complaints still being handled"
+            />
+            <MetricCard
+              href="/complaints"
+              pill={<span className="pill-red"><span className="pill-dot" /> Overdue</span>}
+              value={complaintCounts.overdue}
+              sub="Past their response deadline"
+            />
+            <MetricCard
+              href="/complaints"
+              pill={<span className="pill-neutral">Avg days to close</span>}
+              value={complaintCounts.avgDaysToClose ?? "—"}
+              sub="Average days from raised to closed"
+            />
+          </div>
+        </section>
+      ) : null}
+
+      {isManagerPlus ? (
+        <section aria-label="Holidays" className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Holidays</h2>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <MetricCard
+              href="/people/holiday"
+              pill={<span className="pill-amber"><span className="pill-dot" /> Pending requests</span>}
+              value={holidayPending}
+              sub="Holiday requests awaiting a decision"
+            />
+          </div>
+        </section>
+      ) : null}
+
+      {isManagerPlus ? (
+        <section aria-label="Absence" className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Absence</h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <MeetingListCard
+              href="/people/absence"
+              title="Meetings to book"
+              lines={absence.toBook}
+              emptyText="No absence meetings need booking."
+            />
+            <MeetingListCard
+              href="/people/absence"
+              title="Meetings in the next 7 days"
+              lines={absence.next7.map((m) => ({
+                name: m.name,
+                stage: m.stage,
+                when: formatMeetingDate(m.date),
+              }))}
+              emptyText="No meetings scheduled in the next 7 days."
+            />
           </div>
         </section>
       ) : null}

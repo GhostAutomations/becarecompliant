@@ -94,20 +94,46 @@ export async function getComplaint(id: string): Promise<ComplaintRecord | null> 
  *  closed) for the dashboard surface. */
 export async function getComplaintCounts(
   companyId: string,
-): Promise<{ open: number; inProgress: number; closed: number; overdue: number }> {
+): Promise<{
+  open: number;
+  inProgress: number;
+  closed: number;
+  overdue: number;
+  avgDaysToClose: number | null;
+}> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("complaints")
-    .select("status, response_due")
+    .select("status, response_due, date_raised, date_closed")
     .eq("company_id", companyId);
-  const counts = { open: 0, inProgress: 0, closed: 0, overdue: 0 };
+  const counts = { open: 0, inProgress: 0, closed: 0, overdue: 0, avgDaysToClose: null as number | null };
   const today = new Date().toISOString().slice(0, 10);
-  for (const r of (data as Array<{ status: string; response_due: string | null }> | null) ?? []) {
+  let closedDaysTotal = 0;
+  let closedWithDates = 0;
+  for (const r of (data as Array<{
+    status: string;
+    response_due: string | null;
+    date_raised: string | null;
+    date_closed: string | null;
+  }> | null) ?? []) {
     if (r.status === "open") counts.open += 1;
     else if (r.status === "in_progress") counts.inProgress += 1;
-    else if (r.status === "closed") counts.closed += 1;
+    else if (r.status === "closed") {
+      counts.closed += 1;
+      if (r.date_raised && r.date_closed) {
+        const days = Math.round(
+          (Date.parse(`${r.date_closed}T00:00:00Z`) - Date.parse(`${r.date_raised}T00:00:00Z`)) /
+            86_400_000,
+        );
+        if (days >= 0) {
+          closedDaysTotal += days;
+          closedWithDates += 1;
+        }
+      }
+    }
     if (r.status !== "closed" && r.response_due && r.response_due < today) counts.overdue += 1;
   }
+  counts.avgDaysToClose = closedWithDates > 0 ? Math.round(closedDaysTotal / closedWithDates) : null;
   return counts;
 }
 
