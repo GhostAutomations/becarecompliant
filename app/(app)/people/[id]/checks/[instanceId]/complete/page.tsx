@@ -87,18 +87,15 @@ export default async function CompleteCheckPage({
   }
 
   // Pre-fill the person's own details (name + branch) into whatever form this check
-  // uses, so it never re-asks who the check is for. Works for any form, including
-  // ones the company builds later.
+  // uses, so it never re-asks who the check is for. Presets only (no schema change),
+  // so client and server validate the same form. Works for any form, new or old.
   const branches = await listBranches(profile.company_id ?? "");
-  const branchNames = branches.filter((b) => b.kind === "branch" || b.kind === "team").map((b) => b.name);
   const personBranchName = branches.find((b) => b.id === person?.branch_id)?.name ?? null;
   const recordPresets = recordFormPresets(schema, {
     fullName: person?.full_name ?? null,
     branchName: personBranchName,
-    branchNames,
   });
-  schema = recordPresets.schema;
-  presetAnswers = { ...recordPresets.presets, ...(presetAnswers ?? {}) };
+  presetAnswers = { ...recordPresets, ...(presetAnswers ?? {}) };
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">

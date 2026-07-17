@@ -56,17 +56,14 @@ export default async function CompleteServiceUserCheckPage({
   }
 
   // Pre-fill the service user's own details (name + branch) into whatever form this
-  // check uses, so it never re-asks who it is for. Works for any form, new or old.
+  // check uses, so it never re-asks who it is for. Presets only (no schema change),
+  // so client and server validate the same form. Works for any form, new or old.
   const branches = await listBranches(profile.company_id ?? "");
-  const branchNames = branches.filter((b) => b.kind === "branch" || b.kind === "team").map((b) => b.name);
   const suBranchName = branches.find((b) => b.id === serviceUser?.branch_id)?.name ?? null;
-  const { schema: presetSchema, presets } = recordFormPresets(schema, {
+  const presetAnswers: Answers = recordFormPresets(schema, {
     fullName: serviceUser?.full_name ?? null,
     branchName: suBranchName,
-    branchNames,
   });
-  schema = presetSchema;
-  const presetAnswers: Answers = presets;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">

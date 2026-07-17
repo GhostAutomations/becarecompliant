@@ -2,18 +2,17 @@
  * Be Care Compliant — pre-fill a check-completion form with the record's own
  * details, so a form never re-asks who the check is for.
  *
- * Works for EVERY check form, including ones a company builds later, because it
- * keys off field names rather than a fixed form:
- *   - any Name field  -> seeded with the record's name (still editable)
- *   - any Branch/Region field -> becomes a Branch dropdown of the company's
- *     branches, pre-selected to the record's branch and relabelled "Branch"
- *
- * Applied at render time on the People and Service User complete-check pages, so
- * no existing form has to be edited and new forms are covered automatically.
+ * Returns ONLY answer presets (it never rewrites the schema), so the client and the
+ * server validate exactly the same stored form — no divergence. Keys off field
+ * names, so it works for every form, including ones a company builds later:
+ *   - any Name field   -> seeded with the record's name
+ *   - any Branch field -> seeded with the record's branch, but ONLY when that
+ *     branch is one of the field's options (so the select can never hold an invalid
+ *     value). The Branch field's options are kept correct in the stored form.
  * Isomorphic (no side effects) — safe to import anywhere.
  */
 
-import type { Answers, FormField, FormSchema } from "@/lib/form-schema";
+import type { Answers, FormSchema } from "@/lib/form-schema";
 
 const NAME_KEYS = new Set([
   "name",
@@ -31,41 +30,28 @@ const BRANCH_KEYS = new Set(["branch", "region"]);
 
 export function recordFormPresets(
   schema: FormSchema,
-  opts: { fullName: string | null; branchName: string | null; branchNames: string[] },
-): { schema: FormSchema; presets: Answers } {
+  opts: { fullName: string | null; branchName: string | null },
+): Answers {
   const presets: Answers = {};
-  let changed = false;
 
-  const sections = schema.sections.map((sec) => ({
-    ...sec,
-    fields: sec.fields.map((f): FormField => {
+  for (const sec of schema.sections) {
+    for (const f of sec.fields) {
       const key = (f.key ?? "").toLowerCase();
 
       if (NAME_KEYS.has(key) && opts.fullName) {
         presets[f.key] = opts.fullName;
-        return f;
+        continue;
       }
 
-      if (BRANCH_KEYS.has(key)) {
-        if (opts.branchName) presets[f.key] = opts.branchName;
-        const options = opts.branchNames.map((n) => ({ label: n, value: n }));
-        // A "Region" (or blank) label becomes "Branch"; a field already named
-        // Branch keeps its label. Either way it is a select of the real branches.
-        const label = /region/i.test(f.label) || f.label.trim() === "" ? "Branch" : f.label;
-        const next: FormField = { ...f, label, type: "single_select", options };
-        if (
-          label !== f.label ||
-          f.type !== "single_select" ||
-          JSON.stringify(f.options ?? []) !== JSON.stringify(options)
-        ) {
-          changed = true;
-        }
-        return next;
+      if (BRANCH_KEYS.has(key) && opts.branchName) {
+        const bn = opts.branchName.toLowerCase();
+        const match = (f.options ?? []).find(
+          (o) => String(o.value ?? "").toLowerCase() === bn || String(o.label ?? "").toLowerCase() === bn,
+        );
+        if (match) presets[f.key] = String(match.value);
       }
+    }
+  }
 
-      return f;
-    }),
-  }));
-
-  return { schema: changed ? { ...schema, sections } : schema, presets };
+  return presets;
 }
