@@ -80,7 +80,9 @@ export default function ImportUploader() {
                 reset();
               }}
               className={`px-3 py-2 text-sm ${
-                pop === p ? "bg-gold-400/20 text-white" : "text-white/60 hover:bg-white/5"
+                pop === p
+                  ? "bg-gold-400 font-semibold text-[#0f1424]"
+                  : "text-white/60 hover:bg-white/5"
               }`}
             >
               {p === "people" ? "People" : "Service Users"}
