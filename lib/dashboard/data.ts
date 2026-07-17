@@ -49,33 +49,46 @@ async function bucketPopulation(
   const supabase = await createClient();
   const [{ data: active }, { data: checks }] = await Promise.all([
     supabase.from(rollupView).select(idCol).eq("company_id", companyId),
-    supabase.from(statusView).select(`${idCol}, due_date`).eq("company_id", companyId),
+    supabase.from(statusView).select(`${idCol}, due_date, rag`).eq("company_id", companyId),
   ]);
 
   const activeSet = new Set<string>(
     ((active as Array<Record<string, string>> | null) ?? []).map((r) => r[idCol]),
   );
 
-  // Soonest (min) due date per active record.
-  const soonest = new Map<string, string>();
-  for (const c of (checks as Array<Record<string, string | null>> | null) ?? []) {
-    const id = c[idCol] as string | null;
-    const due = c.due_date as string | null;
-    if (!id || !due || !activeSet.has(id)) continue;
-    const cur = soonest.get(id);
-    if (!cur || due < cur) soonest.set(id, due);
-  }
-
   const today = londonTodayIso();
   const in14 = addDaysIso(today, 14);
   const in30 = addDaysIso(today, 30);
+
+  // Aggregate per active record: is it overdue (any red check), and the soonest
+  // FUTURE due date. Overdue is authoritative from the view's rag, NOT from a raw
+  // date compare (a completed one-off check keeps a historical due_date but is
+  // green, so it must not read as overdue).
+  const agg = new Map<string, { red: boolean; minFuture: string | null }>();
+  for (const c of (checks as Array<Record<string, string | null>> | null) ?? []) {
+    const id = c[idCol] as string | null;
+    if (!id || !activeSet.has(id)) continue;
+    let a = agg.get(id);
+    if (!a) {
+      a = { red: false, minFuture: null };
+      agg.set(id, a);
+    }
+    if (c.rag === "red") a.red = true;
+    const due = c.due_date as string | null;
+    if (due && due >= today && (!a.minFuture || due < a.minFuture)) a.minFuture = due;
+  }
+
   const buckets: DueBuckets = { overdue: 0, due14: 0, due30: 0 };
-  for (const due of soonest.values()) {
-    if (due < today) buckets.overdue += 1;
-    else if (due <= in14) {
+  for (const a of agg.values()) {
+    if (a.red) {
+      buckets.overdue += 1;
+      continue;
+    }
+    if (!a.minFuture) continue;
+    if (a.minFuture <= in14) {
       buckets.due14 += 1;
       buckets.due30 += 1;
-    } else if (due <= in30) {
+    } else if (a.minFuture <= in30) {
       buckets.due30 += 1;
     }
   }
