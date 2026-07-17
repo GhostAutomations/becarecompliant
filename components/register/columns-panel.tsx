@@ -84,7 +84,7 @@ export default function ColumnsPanel({
       </button>
 
       {open ? (
-        <div className="absolute z-50 mt-2 w-80 rounded-2xl border border-white/15 bg-navy-900 p-4 shadow-2xl">
+        <div className="absolute right-0 z-50 mt-2 w-80 rounded-2xl border border-white/15 bg-navy-900 p-4 shadow-2xl">
           <p className="mb-1 text-sm font-semibold text-white">Custom check columns</p>
           <p className="mb-3 text-xs text-white/50">
             Show or hide checks and drag to reorder. The core columns are always shown.
@@ -109,10 +109,21 @@ export default function ColumnsPanel({
                   className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-sm text-white/85"
                 >
                   <span className="cursor-grab select-none text-white/40" aria-hidden>⠿</span>
-                  <label className="flex flex-1 items-center gap-2">
-                    <input type="checkbox" checked={c.show} onChange={() => toggle(c.id)} />
-                    <span className="truncate">{c.name}</span>
-                  </label>
+                  <button
+                    type="button"
+                    onClick={() => toggle(c.id)}
+                    className="flex flex-1 items-center gap-2 text-left"
+                    aria-pressed={c.show}
+                  >
+                    <span
+                      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded text-[10px] font-bold ${
+                        c.show ? "bg-gold-400 text-navy-900" : "border border-white/30 text-transparent"
+                      }`}
+                    >
+                      ✓
+                    </span>
+                    <span className={`truncate ${c.show ? "" : "text-white/50"}`}>{c.name}</span>
+                  </button>
                   <div className="flex items-center">
                     <button
                       type="button"
