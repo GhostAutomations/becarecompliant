@@ -37,6 +37,11 @@ import type { BranchType, ProfileLite } from "@/lib/service-users/data";
 
 const RAG_ORDER: Record<string, number> = { red: 0, amber: 1, green: 2, none: 3 };
 
+// Custom check register columns are parked as a later feature (Phil, 2026-07-16):
+// code + migrations stay, but the Columns panel and the extra columns are hidden.
+// Flip to true to bring it back.
+const CUSTOM_COLUMNS_ENABLED = false;
+
 function serviceStatusTone(v: string | null): Tone {
   if (v === "active") return "green";
   if (v === "hospital" || v === "respite") return "amber";
@@ -127,7 +132,7 @@ export default function ServiceUserRegister({
   const wrapRef = useRef<HTMLDivElement>(null);
   const meta = VIEW_META[view];
   const col = (key: string, def: string) => columnLabels[key] || def;
-  const shownColumns = checkColumns.filter((c) => c.show);
+  const shownColumns = CUSTOM_COLUMNS_ENABLED ? checkColumns.filter((c) => c.show) : [];
   const isComplex = branchOptions.find((b) => b.id === branchId)?.service_user_type === "complex";
   const statusOptions =
     view === "cancelled" ? [...SERVICE_STATUS_OPTIONS, { value: "archive", label: "Archive" }] : SERVICE_STATUS_OPTIONS;
@@ -206,7 +211,7 @@ export default function ServiceUserRegister({
           </select>
         </label>
 
-        {isAdmin ? (
+        {CUSTOM_COLUMNS_ENABLED && isAdmin ? (
           <div className="ml-auto">
             <ColumnsPanel population="service_users" columns={checkColumns} />
           </div>

@@ -20,6 +20,11 @@ import type { RegisterCheckColumn } from "@/lib/register/custom-columns";
 
 type MatrixConfig = { supInterval: number; supAmber: number; rtwAmber: number; probationAmber: number };
 
+// Custom check register columns are parked as a later feature (Phil, 2026-07-16):
+// the code + migrations stay, but the Columns panel and the extra columns are hidden.
+// Flip to true to bring it back.
+const CUSTOM_COLUMNS_ENABLED = false;
+
 const VIEW_META: Record<
   string,
   { title: string; subtitle: string; scope: string; match: (r: RegisterRow) => boolean }
@@ -162,7 +167,7 @@ export default function PeopleRegister({
           aria-label="Search people"
         />
 
-        {isAdmin && view === "main" ? (
+        {CUSTOM_COLUMNS_ENABLED && isAdmin && view === "main" ? (
           <div className="ml-auto">
             <ColumnsPanel population="people" columns={checkColumns} />
           </div>
@@ -198,7 +203,7 @@ export default function PeopleRegister({
             config={config}
             editable={canManage}
             columnLabels={columnLabels}
-            extraColumns={checkColumns.filter((c) => c.show)}
+            extraColumns={CUSTOM_COLUMNS_ENABLED ? checkColumns.filter((c) => c.show) : []}
             scope={meta.scope}
             returnTo={urlFor(view, branchId)}
           />
