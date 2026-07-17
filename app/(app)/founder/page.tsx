@@ -128,21 +128,25 @@ export default async function FounderPage() {
             label="Companies"
             value={list.length}
             sub={`${activeCompanies.length} active`}
+            href="/founder/companies"
           />
           <StatCard
             label="Committed MRR"
             value={`${formatPence(mrrPence)}/mo`}
             sub="Base + seats on live subscriptions"
+            href="/founder/revenue"
           />
           <StatCard
             label="Active users"
             value={totalActiveUsers}
             sub={`${totalExtraSeats} billable extra seats`}
+            href="/founder/revenue"
           />
           <StatCard
             label={`Usage, ${thisMonthLabel}`}
             value={`${smsUnits.toLocaleString("en-GB")} SMS`}
             sub={`${aiUnits.toLocaleString("en-GB")} AI units`}
+            href="/founder/usage"
           />
         </div>
 
