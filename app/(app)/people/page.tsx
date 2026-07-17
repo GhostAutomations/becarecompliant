@@ -3,6 +3,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import PeopleRegister from "@/components/people/people-register";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import { listBranches, listRegister, getColumnLabels } from "@/lib/people/data";
+import { listRegisterCheckColumns } from "@/lib/register/data";
 
 export const metadata: Metadata = { title: "People" };
 
@@ -32,13 +33,15 @@ export default async function PeoplePage({
 
   // Load EVERY person once (all statuses, all the viewer's branches). Branches and
   // View are then switched instantly on the client with no server round trip.
-  const [branches, register, columnLabels] = await Promise.all([
+  const [branches, register, columnLabels, checkColumns] = await Promise.all([
     listBranches(companyId),
     listRegister(companyId, null, "all"),
     getColumnLabels(companyId),
+    listRegisterCheckColumns(companyId, "people"),
   ]);
   const { definitions, rows } = register;
   const canManage = MANAGE_ROLES.includes(profile.role);
+  const isAdmin = profile.role === "company_admin" || profile.role === "platform_admin";
 
   const defByKey = Object.fromEntries(definitions.map((d) => [d.key, d]));
   const matrixConfig = {
@@ -56,7 +59,9 @@ export default async function PeoplePage({
         branches={branches}
         config={matrixConfig}
         columnLabels={columnLabels}
+        checkColumns={checkColumns}
         canManage={canManage}
+        isAdmin={isAdmin}
         initialView={view ?? "main"}
         initialBranch={branch ?? ""}
       />

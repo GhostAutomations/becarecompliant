@@ -13,8 +13,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { NavIcon } from "@/components/nav-icon";
 import RegisterMatrix from "./register-matrix";
+import ColumnsPanel from "@/components/register/columns-panel";
 import type { RegisterRow } from "@/lib/people/types";
 import type { BranchLite } from "@/lib/people/data";
+import type { RegisterCheckColumn } from "@/lib/register/custom-columns";
 
 type MatrixConfig = { supInterval: number; supAmber: number; rtwAmber: number; probationAmber: number };
 
@@ -55,7 +57,9 @@ export default function PeopleRegister({
   branches,
   config,
   columnLabels,
+  checkColumns = [],
   canManage,
+  isAdmin = false,
   initialView,
   initialBranch,
 }: {
@@ -63,7 +67,11 @@ export default function PeopleRegister({
   branches: BranchLite[];
   config: MatrixConfig;
   columnLabels: Record<string, string>;
+  /** All custom (non-curated) check columns for this register, including hidden. */
+  checkColumns?: RegisterCheckColumn[];
   canManage: boolean;
+  /** Only a Company Admin can change which columns show + their order. */
+  isAdmin?: boolean;
   initialView: string;
   initialBranch: string;
 }) {
@@ -153,6 +161,12 @@ export default function PeopleRegister({
           className="w-44"
           aria-label="Search people"
         />
+
+        {isAdmin && view === "main" ? (
+          <div className="ml-auto">
+            <ColumnsPanel population="people" columns={checkColumns} />
+          </div>
+        ) : null}
       </div>
 
       <div className="min-h-0 flex-1">
@@ -184,6 +198,7 @@ export default function PeopleRegister({
             config={config}
             editable={canManage}
             columnLabels={columnLabels}
+            extraColumns={checkColumns.filter((c) => c.show)}
             scope={meta.scope}
             returnTo={urlFor(view, branchId)}
           />

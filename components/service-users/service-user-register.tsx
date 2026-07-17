@@ -20,6 +20,9 @@ import { useRouter } from "next/navigation";
 import { NavIcon } from "@/components/nav-icon";
 import { PillSelect, toneClass, type Tone } from "@/components/register/pill-select";
 import { HorizontalScrollbar } from "@/components/register/horizontal-scrollbar";
+import ColumnsPanel from "@/components/register/columns-panel";
+import ExtraCheckCell from "@/components/register/extra-check-cell";
+import type { RegisterCheckColumn } from "@/lib/register/custom-columns";
 import PlannedReviewCell from "./planned-review-cell";
 import { setServiceStatus } from "@/lib/service-users/actions";
 import { formatDisplayDate, reviewStatus, reviewSlots } from "@/lib/service-users/logic";
@@ -88,8 +91,10 @@ export default function ServiceUserRegister({
   branches,
   reviewers,
   columnLabels,
+  checkColumns = [],
   complexIntervalDays,
   canManage,
+  isAdmin = false,
   initialView,
   initialBranch,
 }: {
@@ -97,8 +102,12 @@ export default function ServiceUserRegister({
   branches: BranchType[];
   reviewers: ProfileLite[];
   columnLabels: Record<string, string>;
+  /** All custom (non-curated) check columns for this register, including hidden. */
+  checkColumns?: RegisterCheckColumn[];
   complexIntervalDays: number;
   canManage: boolean;
+  /** Only a Company Admin can change which columns show + their order. */
+  isAdmin?: boolean;
   initialView: string;
   initialBranch: string;
 }) {
@@ -118,6 +127,7 @@ export default function ServiceUserRegister({
   const wrapRef = useRef<HTMLDivElement>(null);
   const meta = VIEW_META[view];
   const col = (key: string, def: string) => columnLabels[key] || def;
+  const shownColumns = checkColumns.filter((c) => c.show);
   const isComplex = branchOptions.find((b) => b.id === branchId)?.service_user_type === "complex";
   const statusOptions =
     view === "cancelled" ? [...SERVICE_STATUS_OPTIONS, { value: "archive", label: "Archive" }] : SERVICE_STATUS_OPTIONS;
@@ -195,6 +205,12 @@ export default function ServiceUserRegister({
             <option value="cancelled">Cancelled</option>
           </select>
         </label>
+
+        {isAdmin ? (
+          <div className="ml-auto">
+            <ColumnsPanel population="service_users" columns={checkColumns} />
+          </div>
+        ) : null}
       </div>
 
       <div className="min-h-0 flex-1">
@@ -270,6 +286,9 @@ export default function ServiceUserRegister({
                         <th>{col("review_status", "Review Status")}</th>
                       </>
                     )}
+                    {shownColumns.map((c) => (
+                      <th key={c.id}>{c.name}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
@@ -377,6 +396,17 @@ export default function ServiceUserRegister({
                             <td><span className={toneClass(reviewStatusTone(rs))}>{REVIEW_STATUS_LABELS[rs]}</span></td>
                           </>
                         )}
+                        {shownColumns.map((c) => (
+                          <td key={c.id}>
+                            <ExtraCheckCell
+                              status={row.statusByKey[c.key]}
+                              recordId={su.id}
+                              basePath="/service-users"
+                              fromQuery={fromQuery}
+                              editable={canManage}
+                            />
+                          </td>
+                        ))}
                       </tr>
                     );
                   })}

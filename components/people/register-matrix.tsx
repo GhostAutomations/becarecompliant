@@ -22,6 +22,8 @@ import { setEmploymentStatus, updateTracker } from "@/lib/people/actions";
 import { PillSelect, toneClass, type Tone } from "@/components/register/pill-select";
 import { HorizontalScrollbar } from "@/components/register/horizontal-scrollbar";
 import { VerticalScrollbar } from "@/components/register/vertical-scrollbar";
+import ExtraCheckCell from "@/components/register/extra-check-cell";
+import type { RegisterCheckColumn } from "@/lib/register/custom-columns";
 
 function workingTone(v: string | null): Tone {
   if (v === "active") return "green";
@@ -111,6 +113,7 @@ export default function RegisterMatrix({
   config,
   editable,
   columnLabels,
+  extraColumns = [],
   returnTo = "/people",
   scope = "active",
 }: {
@@ -118,6 +121,8 @@ export default function RegisterMatrix({
   config: MatrixConfig;
   editable: boolean;
   columnLabels: Record<string, string>;
+  /** Custom (non-curated) check columns to render at the right, already ordered + shown-only. */
+  extraColumns?: RegisterCheckColumn[];
   /** Where "Back to People" should return (the current view's URL). */
   returnTo?: string;
   /** Which view this is; the Status pill offers Archive only in the Leavers view. */
@@ -171,6 +176,9 @@ export default function RegisterMatrix({
               <th>{col("sup3_comp", "Sup 3 Comp")}</th>
               <th>{col("aa_due", "AA Next Due")}</th>
               <th>{col("aa_comp", "AA Comp")}</th>
+              {extraColumns.map((c) => (
+                <th key={c.id}>{c.name}</th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -278,6 +286,17 @@ export default function RegisterMatrix({
                   <td><Plain date={sup[2].comp} /></td>
                   <td><RagDate date={aa?.due_date ?? null} rag={aa?.rag ?? "none"} /></td>
                   <td><Plain date={aa?.last_completed_on ?? null} /></td>
+                  {extraColumns.map((c) => (
+                    <td key={c.id}>
+                      <ExtraCheckCell
+                        status={row.statusByKey[c.key]}
+                        recordId={row.person.id}
+                        basePath="/people"
+                        fromQuery={fromQuery}
+                        editable={editable}
+                      />
+                    </td>
+                  ))}
                 </tr>
               );
             })}
