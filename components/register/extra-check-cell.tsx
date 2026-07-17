@@ -43,13 +43,8 @@ export default function ExtraCheckCell({
   if (!status) return <span className="rag-cell rag-cell-none">—</span>;
 
   const inner = (
-    <span className="inline-flex flex-col items-start leading-tight">
-      <span className={`rag-cell ${ragClass(status.rag)}`}>
-        {status.due_date ? formatDisplayDate(status.due_date) : "—"}
-      </span>
-      {status.last_completed_on ? (
-        <span className="mt-0.5 text-[10px] text-white/45">Done {formatDisplayDate(status.last_completed_on)}</span>
-      ) : null}
+    <span className={`rag-cell ${ragClass(status.rag)}`}>
+      {status.due_date ? formatDisplayDate(status.due_date) : "—"}
     </span>
   );
 
