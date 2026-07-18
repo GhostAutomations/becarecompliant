@@ -8,6 +8,7 @@ import ActionForm from "@/components/action-form";
 import RecordHistory from "@/components/reports/record-history";
 import EditServiceUserForm from "@/components/service-users/edit-service-user-form";
 import PlannedReviewCell from "@/components/service-users/planned-review-cell";
+import CarePlanUpload from "@/components/service-users/care-plan-upload";
 import { featureEnabled } from "@/lib/billing/tier";
 import { getRecordAuditTrail } from "@/lib/audit-log/data";
 import {
@@ -156,6 +157,12 @@ export default async function ServiceUserPage({
           {completed} completed. Evidence stored and the next due date scheduled.
         </div>
       ) : null}
+
+      <CarePlanUpload
+        serviceUserId={serviceUser.id}
+        uploadedAt={serviceUser.care_plan_uploaded_at ?? null}
+        editable={canManage}
+      />
 
       {isCancelled ? (
         <div className="glass-card p-6 text-sm text-white/60">

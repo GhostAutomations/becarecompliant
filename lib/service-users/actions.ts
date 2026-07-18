@@ -31,6 +31,7 @@ import {
 } from "./data";
 import { initialDueDate, todayIso, addDaysToIso } from "./logic";
 import { SU_REGISTER_COLUMNS } from "./types";
+import { uploadCarePlanFile, signCarePlan } from "./care-plan";
 
 /** The branch Service User type + company Complex review interval, so care plan
  *  reviews on a Complex branch schedule at the Complex cadence (default 80 days). */
@@ -109,6 +110,19 @@ export async function createServiceUser(_prev: ActionState, formData: FormData):
     p_service_user_id: su.id,
     p_rows: rows,
   });
+
+  // Optional Care Plan document uploaded on the Add form. If they do not have it yet
+  // they can add it later on the Setup form or the record.
+  const carePlan = formData.get("care_plan");
+  if (carePlan instanceof File && carePlan.size > 0) {
+    const up = await uploadCarePlanFile(companyId, su.id, carePlan);
+    if (up.ok) {
+      await supabase
+        .from("service_users")
+        .update({ care_plan_path: up.path, care_plan_uploaded_at: new Date().toISOString() })
+        .eq("id", su.id);
+    }
+  }
 
   // Assign the chosen users to the caseload (auto-filled from the branch).
   const assigneeIds = formData.getAll("supervisor_ids").map(String).filter(Boolean);
@@ -722,4 +736,75 @@ export async function updateServiceUserColumnLabels(formData: FormData): Promise
   revalidatePath("/settings/service-users");
   revalidatePath("/service-users");
   return { ok: "Saved" };
+}
+
+/** Upload (or replace) a Service User's Care Plan document. */
+export async function uploadCarePlan(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { user, profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+  const suId = String(formData.get("service_user_id") ?? "");
+  const file = formData.get("care_plan");
+  if (!suId) return { error: "Missing record." };
+  if (!(file instanceof File) || file.size === 0) return { error: "Choose a Care Plan file to upload." };
+
+  const supabase = await createClient();
+  const { data: su } = await supabase
+    .from("service_users")
+    .select("id, company_id")
+    .eq("id", suId)
+    .maybeSingle();
+  if (!su) return { error: "That record could not be found." };
+
+  const up = await uploadCarePlanFile(su.company_id as string, su.id as string, file);
+  if (!up.ok) return { error: up.error };
+
+  const { data, error } = await supabase
+    .from("service_users")
+    .update({ care_plan_path: up.path, care_plan_uploaded_at: new Date().toISOString() })
+    .eq("id", suId)
+    .select("id");
+  if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "No change was saved. You may not have permission." };
+
+  await writeAudit({
+    companyId: su.company_id as string,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "service_user.care_plan_uploaded",
+    entityType: "service_user",
+    entityId: suId,
+    summary: "Uploaded a care plan document",
+  });
+
+  revalidatePath(`/service-users/${suId}`);
+  return { ok: "Care plan uploaded." };
+}
+
+/** Signed URL to view a Service User's Care Plan (RLS-checked read, then service-role sign). */
+export async function getCarePlanUrl(
+  serviceUserId: string,
+): Promise<{ url?: string; error?: string }> {
+  const { user, profile } = await requireCompany();
+  const supabase = await createClient();
+  const { data: su } = await supabase
+    .from("service_users")
+    .select("company_id, care_plan_path")
+    .eq("id", serviceUserId)
+    .maybeSingle();
+  const path = (su?.care_plan_path as string | null) ?? null;
+  if (!su || !path) return { error: "No care plan on file." };
+  const res = await signCarePlan(path);
+  if (!res.ok) return { error: res.error };
+  await writeAudit({
+    companyId: su.company_id as string,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "service_user.care_plan_downloaded",
+    entityType: "service_user",
+    entityId: serviceUserId,
+    summary: "Viewed a care plan document",
+  });
+  return { url: res.url };
 }

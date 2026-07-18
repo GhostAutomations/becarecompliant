@@ -36,6 +36,8 @@ export type ServiceUserRecord = {
   service_status: ServiceStatus;
   discharge_date: string | null;
   archived_at: string | null;
+  care_plan_path?: string | null;
+  care_plan_uploaded_at?: string | null;
 };
 
 /** Directly-recorded fields on a Service User Record (edited on the record, not a
