@@ -133,7 +133,8 @@ export default function ServiceUserRegister({
   const meta = VIEW_META[view];
   const col = (key: string, def: string) => columnLabels[key] || def;
   const shownColumns = CUSTOM_COLUMNS_ENABLED ? checkColumns.filter((c) => c.show) : [];
-  const isComplex = branchOptions.find((b) => b.id === branchId)?.service_user_type === "complex";
+  // All Service Users now use the Rev 1-4 cycle, not just Complex branches (Phil, 2026-07-18).
+  const isComplex = true;
   const statusOptions =
     view === "cancelled" ? [...SERVICE_STATUS_OPTIONS, { value: "archive", label: "Archive" }] : SERVICE_STATUS_OPTIONS;
 
@@ -364,7 +365,7 @@ export default function ServiceUserRegister({
                                 <Fragment key={s.n}>
                                   <td>
                                     {s.comp ? (
-                                      <span className="text-white/70">{formatDisplayDate(s.due) || "—"}</span>
+                                      <span className="rag-cell rag-cell-none">—</span>
                                     ) : (
                                       <RagDate date={s.due} rag={s.rag} />
                                     )}

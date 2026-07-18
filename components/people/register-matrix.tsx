@@ -17,7 +17,7 @@ import {
   PROBATION_STATUS_LABELS,
   WORKING_STATUS_LABELS,
 } from "@/lib/people/types";
-import { formatDisplayDate, supervisionSlots, dateRag } from "@/lib/people/logic";
+import { formatDisplayDate, supervisionSlots, appraisalSlot, dateRag } from "@/lib/people/logic";
 import { setEmploymentStatus, updateTracker } from "@/lib/people/actions";
 import { PillSelect, toneClass, type Tone } from "@/components/register/pill-select";
 import { HorizontalScrollbar } from "@/components/register/horizontal-scrollbar";
@@ -187,13 +187,18 @@ export default function RegisterMatrix({
               const mh = row.statusByKey["manual_handling"];
               const mc = row.statusByKey["competency"];
               const sc = row.statusByKey["spot_check"];
-              const aa = row.statusByKey["appraisal"];
               const sup = supervisionSlots(
                 config.supInterval,
                 row.supCompDates,
                 config.supAmber,
                 row.statusByKey["appraisal"]?.last_completed_on ?? null,
                 t?.probation_end_actual ?? null,
+              );
+              const aaSlot = appraisalSlot(
+                row.statusByKey["appraisal"]?.last_completed_on ?? null,
+                row.supCompDates,
+                config.supInterval,
+                config.supAmber,
               );
               return (
                 <tr key={row.person.id}>
@@ -287,8 +292,8 @@ export default function RegisterMatrix({
                   <td>{sup[1].comp ? <RagDate date={sup[1].comp} rag={sup[1].rag} /> : <RagDate date={null} rag="none" />}</td>
                   <td>{sup[2].comp ? <RagDate date={null} rag="none" /> : <RagDate date={sup[2].due} rag={sup[2].rag} />}</td>
                   <td>{sup[2].comp ? <RagDate date={sup[2].comp} rag={sup[2].rag} /> : <RagDate date={null} rag="none" />}</td>
-                  <td><RagDate date={aa?.due_date ?? null} rag={aa?.rag ?? "none"} /></td>
-                  <td><Plain date={aa?.last_completed_on ?? null} /></td>
+                  <td><RagDate date={aaSlot.nextDue} rag={aaSlot.nextDueRag} /></td>
+                  <td>{aaSlot.comp ? <RagDate date={aaSlot.comp} rag={aaSlot.compRag} /> : <RagDate date={null} rag="none" />}</td>
                   {extraColumns.map((c) => (
                     <td key={c.id}>
                       <ExtraCheckCell

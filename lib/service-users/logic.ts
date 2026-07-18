@@ -124,7 +124,15 @@ export function reviewSlots(
     const comp = cycleComps[i - 1] ?? null;
     const anchor = i === 1 ? cycleAnchor : (cycleComps[i - 2] ?? null);
     const due = valid(anchor) ? formatCivilDate(addInterval(parseCivilDate(anchor), "day", interval)) : null;
-    const rag: Rag | "none" = comp ? "green" : due ? ragStatus(parseCivilDate(due), today, amberDays) : "none";
+    // Pill rule (Phil, 2026-07-18): a completed review is GREEN only if done on/before
+    // its due date, RED if late (and it stays red). Outstanding: amber/red by due.
+    const rag: Rag | "none" = comp
+      ? due && comp > due
+        ? "red"
+        : "green"
+      : due
+        ? ragStatus(parseCivilDate(due), today, amberDays)
+        : "none";
     slots.push({ n: i, due, comp, rag });
   }
   return slots;

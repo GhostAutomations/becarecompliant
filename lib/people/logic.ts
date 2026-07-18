@@ -270,6 +270,62 @@ export function supervisionSlots(
   return slots;
 }
 
+export type AppraisalSlot = {
+  /** When the NEXT appraisal is due: the current cycle's Sup 3 completion + interval,
+   *  or null until three supervisions are done in the current cycle. */
+  nextDue: string | null;
+  nextDueRag: Rag | "none";
+  /** The last completed appraisal date, or null. */
+  comp: string | null;
+  /** Pill for the completed appraisal: green if it was done on/before the due it was
+   *  set against (the supervision that triggered it + interval), red if late. */
+  compRag: Rag | "none";
+};
+
+/**
+ * The appraisal cycle slot (Phil, 2026-07-18): the appraisal is scheduled off the
+ * supervision cycle (due after Sup 3), so its next due comes from the current cycle's
+ * third supervision, and the completed appraisal is coloured on time (green) or late
+ * (red) against the supervision that triggered it.
+ */
+export function appraisalSlot(
+  appraisalCompletedOn: string | null,
+  supCompDates: string[],
+  intervalDays: number | null,
+  amberDays: number,
+  today: CivilDate = todayInLondon(),
+): AppraisalSlot {
+  const hasInterval = !!intervalDays && intervalDays >= 1;
+  const validSups = supCompDates.filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d));
+  const done =
+    appraisalCompletedOn && /^\d{4}-\d{2}-\d{2}$/.test(appraisalCompletedOn)
+      ? appraisalCompletedOn
+      : null;
+
+  let comp: string | null = null;
+  let compRag: Rag | "none" = "none";
+  if (done) {
+    comp = done;
+    const pre = validSups.filter((d) => d <= done).sort();
+    if (hasInterval && pre.length > 0) {
+      const due = formatCivilDate(addInterval(parseCivilDate(pre[pre.length - 1]), "day", intervalDays!));
+      compRag = done > due ? "red" : "green";
+    } else {
+      compRag = "green"; // no earlier supervision to judge lateness against
+    }
+  }
+
+  let nextDue: string | null = null;
+  let nextDueRag: Rag | "none" = "none";
+  const cycle = Array.from(new Set(validSups.filter((d) => !done || d > done))).sort();
+  if (hasInterval && cycle.length >= 3) {
+    nextDue = formatCivilDate(addInterval(parseCivilDate(cycle[2]), "day", intervalDays!));
+    nextDueRag = ragStatus(parseCivilDate(nextDue), today, amberDays);
+  }
+
+  return { nextDue, nextDueRag, comp, compRag };
+}
+
 /**
  * Annotate the supervision form's "Which supervision" options with this person's
  * current-cycle due/completion dates, and flag the next one to complete, so the

@@ -201,28 +201,43 @@ export async function listRegister(
   const ids = serviceUsers.map((s) => s.id);
   if (ids.length === 0) return { definitions, rows: [] };
 
-  const reviewFormId = definitions.find((d) => d.key === "care_plan_review")?.form_id ?? null;
+  const reviewDef = definitions.find((d) => d.key === "care_plan_review");
+  const reviewFormId = reviewDef?.form_id ?? null;
+  const reviewDefId = reviewDef?.id ?? null;
 
-  const [{ data: statusData }, { data: rollupData }, { data: trackerData }, { data: reviewEvidence }] =
-    await Promise.all([
-      supabase.from("service_user_check_status_all").select("*").in("service_user_id", ids),
-      supabase.from("service_user_rollup_all").select("*").in("service_user_id", ids),
-      supabase
-        .from("service_user_trackers")
-        .select("*, reviewer:planned_reviewer_id(full_name)")
-        .in("service_user_id", ids),
-      reviewFormId
-        ? supabase
-            .from("evidence")
-            .select("record_id, submitted_at, answers")
-            .eq("record_type", "service_user")
-            .eq("form_id", reviewFormId)
-            .in("record_id", ids)
-            .order("submitted_at", { ascending: true })
-        : Promise.resolve({
-            data: [] as Array<{ record_id: string; submitted_at: string; answers: Record<string, unknown> }>,
-          }),
-    ]);
+  const [
+    { data: statusData },
+    { data: rollupData },
+    { data: trackerData },
+    { data: reviewEvidence },
+    { data: reviewMigrated },
+  ] = await Promise.all([
+    supabase.from("service_user_check_status_all").select("*").in("service_user_id", ids),
+    supabase.from("service_user_rollup_all").select("*").in("service_user_id", ids),
+    supabase
+      .from("service_user_trackers")
+      .select("*, reviewer:planned_reviewer_id(full_name)")
+      .in("service_user_id", ids),
+    reviewFormId
+      ? supabase
+          .from("evidence")
+          .select("record_id, submitted_at, answers")
+          .eq("record_type", "service_user")
+          .eq("form_id", reviewFormId)
+          .in("record_id", ids)
+          .order("submitted_at", { ascending: true })
+      : Promise.resolve({
+          data: [] as Array<{ record_id: string; submitted_at: string; answers: Record<string, unknown> }>,
+        }),
+    reviewDefId
+      ? supabase
+          .from("migrated_completions")
+          .select("record_id, completed_on")
+          .eq("record_type", "service_user")
+          .eq("definition_id", reviewDefId)
+          .in("record_id", ids)
+      : Promise.resolve({ data: [] as Array<{ record_id: string; completed_on: string }> }),
+  ]);
 
   // ALL Care Plan Review completion dates per Service User (oldest first), used to
   // derive the Review 1-4 slots positionally on Complex branches. Completion date =
@@ -240,6 +255,12 @@ export async function listRegister(
     const list = reviewCompsBySu.get(e.record_id) ?? [];
     list.push(iso);
     reviewCompsBySu.set(e.record_id, list);
+  }
+  // Merge migrated review history (imported companies) alongside real evidence.
+  for (const m of (reviewMigrated as Array<{ record_id: string; completed_on: string }>) ?? []) {
+    const list = reviewCompsBySu.get(m.record_id) ?? [];
+    list.push(m.completed_on);
+    reviewCompsBySu.set(m.record_id, list);
   }
   // Keep each list in completion-date order.
   for (const [, list] of reviewCompsBySu) list.sort();
