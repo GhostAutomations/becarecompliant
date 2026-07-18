@@ -16,6 +16,7 @@ import "server-only";
 
 import { type Rag, todayInLondon, formatCivilDate } from "@/lib/recurrence";
 import { listRegister as listPeopleRegister } from "@/lib/people/data";
+import { supervisionSlots, appraisalSlot } from "@/lib/people/logic";
 import {
   WORKING_STATUS_LABELS,
   PROBATION_STATUS_LABELS,
@@ -23,6 +24,7 @@ import {
   type RegisterRow,
 } from "@/lib/people/types";
 import { listRegister as listServiceUserRegister } from "@/lib/service-users/data";
+import { reviewSlots } from "@/lib/service-users/logic";
 import { SERVICE_STATUS_LABELS, type SuCheckStatus, type ServiceUserRow } from "@/lib/service-users/types";
 import { buildCsv, type CsvCell } from "@/lib/export/csv";
 import type { ReportBlock, ReportDoc } from "@/lib/export/pdf";
@@ -97,6 +99,14 @@ function ragCell(rag: Rag | "none") {
   return { text: ragLabel(rag), rag: ragTone(rag) };
 }
 
+/** A completed date cell coloured on time (green) or late (red), matching the
+ *  register pill. Blank when never completed. */
+function completedCell(date: string | null, rag: Rag | "none") {
+  if (!date) return { text: "—", rag: "neutral" as const };
+  const late = rag === "red";
+  return { text: `${fmtDate(date)}${late ? " (late)" : ""}`, rag: (late ? "red" : "green") as const };
+}
+
 function summaryCounts(rags: (Rag | "none")[]) {
   return {
     total: rags.length,
@@ -123,10 +133,30 @@ export type RegisterReportInput = {
 export async function buildPeopleRegisterReport(
   input: RegisterReportInput,
 ): Promise<{ doc: ReportDoc; csv: string; base: string; recordCount: number }> {
-  const { rows } = await listPeopleRegister(input.companyId, input.branchId, "active");
+  const { definitions, rows } = await listPeopleRegister(input.companyId, input.branchId, "active");
   const scopeLabel = input.branchName ? input.branchName : "All branches";
   const win = input.window ?? defaultReportWindow();
   const today = todayIso();
+
+  const supDef = definitions.find((d) => d.key === "supervision");
+  const supInterval = supDef?.interval ?? 90;
+  const supAmber = supDef?.amber_days ?? 30;
+  // Latest supervision + appraisal per person, coloured on time / late (register pill).
+  const cycleRows = rows
+    .map((r: RegisterRow) => {
+      const appraisalCompletedOn = r.statusByKey["appraisal"]?.last_completed_on ?? null;
+      const sup = supervisionSlots(
+        supInterval,
+        r.supCompDates,
+        supAmber,
+        appraisalCompletedOn,
+        r.tracker?.probation_end_actual ?? null,
+      );
+      const lastSup = [...sup].reverse().find((s) => s.comp) ?? null;
+      const aa = appraisalSlot(appraisalCompletedOn, r.supCompDates, supInterval, supAmber);
+      return { name: r.person.full_name, lastSup, aa };
+    })
+    .filter((x) => (x.lastSup && x.lastSup.comp) || x.aa.comp);
 
   const counts = summaryCounts(rows.map((r) => r.rollup?.rag ?? "none"));
   const allOverdue: Overdue[] = [];
@@ -206,6 +236,24 @@ export async function buildPeopleRegisterReport(
         rows: recordRows,
       },
       ...overdueBlocks(allOverdue, allDueSoon, win),
+      ...(cycleRows.length > 0
+        ? ([
+            { kind: "heading", text: "Supervision and appraisal" },
+            {
+              kind: "table",
+              columns: [
+                { header: "Name", width: "40%" },
+                { header: "Latest supervision", width: "30%" },
+                { header: "Latest appraisal", width: "30%" },
+              ],
+              rows: cycleRows.map((x) => [
+                { text: x.name, strong: true },
+                completedCell(x.lastSup?.comp ?? null, x.lastSup?.rag ?? "none"),
+                completedCell(x.aa.comp, x.aa.compRag),
+              ]),
+            },
+          ] as ReportBlock[])
+        : []),
       ...(probationRows.length > 0
         ? ([
             { kind: "heading", text: "Probation" },
@@ -257,10 +305,22 @@ export async function buildPeopleRegisterReport(
 export async function buildServiceUserRegisterReport(
   input: RegisterReportInput,
 ): Promise<{ doc: ReportDoc; csv: string; base: string; recordCount: number }> {
-  const { rows } = await listServiceUserRegister(input.companyId, input.branchId, "active");
+  const { definitions, rows } = await listServiceUserRegister(input.companyId, input.branchId, "active");
   const scopeLabel = input.branchName ? input.branchName : "All branches";
   const win = input.window ?? defaultReportWindow();
   const today = todayIso();
+
+  const reviewDef = definitions.find((d) => d.key === "care_plan_review");
+  const reviewInterval = reviewDef?.interval ?? 80;
+  const reviewAmber = reviewDef?.amber_days ?? 30;
+  // Latest care plan review per service user, coloured on time / late (register pill).
+  const reviewRows = rows
+    .map((r: ServiceUserRow) => {
+      const slots = reviewSlots(r.service_user.package_start_date, r.reviewComps, reviewInterval, 4, reviewAmber);
+      const lastRev = [...slots].reverse().find((s) => s.comp) ?? null;
+      return { name: r.service_user.full_name, lastRev };
+    })
+    .filter((x) => x.lastRev && x.lastRev.comp);
 
   const counts = summaryCounts(rows.map((r) => r.rollup?.rag ?? "none"));
   const allOverdue: Overdue[] = [];
@@ -326,6 +386,22 @@ export async function buildServiceUserRegisterReport(
         rows: recordRows,
       },
       ...overdueBlocks(allOverdue, allDueSoon, win),
+      ...(reviewRows.length > 0
+        ? ([
+            { kind: "heading", text: "Care reviews" },
+            {
+              kind: "table",
+              columns: [
+                { header: "Service user", width: "50%" },
+                { header: "Latest review", width: "50%" },
+              ],
+              rows: reviewRows.map((x) => [
+                { text: x.name, strong: true },
+                completedCell(x.lastRev?.comp ?? null, x.lastRev?.rag ?? "none"),
+              ]),
+            },
+          ] as ReportBlock[])
+        : []),
     ],
   };
 
