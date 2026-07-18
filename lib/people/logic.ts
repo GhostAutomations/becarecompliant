@@ -217,7 +217,7 @@ export function supervisionCycleAnchor(
  */
 export function supervisionSlots(
   intervalDays: number | null,
-  comps: Record<string, string>,
+  compDates: string[],
   amberDays: number,
   appraisalCompletedOn: string | null = null,
   probationEndActual: string | null = null,
@@ -227,25 +227,29 @@ export function supervisionSlots(
   const slots: SupervisionSlot[] = [];
   const hasInterval = !!intervalDays && intervalDays >= 1;
   // Sup 1 is due one interval after the LATER of the appraisal completion and the
-  // probation end. But only an Annual Appraisal RESTARTS the cycle (clears prior
+  // probation end. Only an Annual Appraisal RESTARTS the cycle (clears prior
   // completions); the probation end just sets year-one's Sup 1 due, it must not hide
-  // supervisions dated before it. So completions are filtered only against the last
-  // appraisal, strictly after it (a supervision on the appraisal day is the old cycle).
+  // supervisions dated before it.
   const dueAnchor = supervisionCycleAnchor(appraisalCompletedOn, probationEndActual);
   const restartFrom =
     appraisalCompletedOn && /^\d{4}-\d{2}-\d{2}$/.test(appraisalCompletedOn) ? appraisalCompletedOn : null;
-  const compOf = (n: number): string | null => {
-    const d = comps[String(n)] ?? null;
-    if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return null;
-    if (restartFrom && d <= restartFrom) return null;
-    return d;
-  };
+  // Sequential model (Phil, 2026-07-18): the slot is the Nth completion in the current
+  // cycle, in date order, from ANY source (real evidence or migrated history). So Sup 1
+  // = the earliest completion after the appraisal restart, Sup 2 the next, and so on.
+  const cycle = Array.from(
+    new Set(
+      compDates.filter(
+        (d) => /^\d{4}-\d{2}-\d{2}$/.test(d) && (!restartFrom || d > restartFrom),
+      ),
+    ),
+  ).sort();
+  const compAt = (n: number): string | null => cycle[n - 1] ?? null;
   for (let n = 1; n <= count; n++) {
-    const comp = compOf(n);
+    const comp = compAt(n);
     let due: CivilDate | null = null;
     if (hasInterval) {
       // Sup 1 anchors on the due anchor; Sup N on the previous cycle completion.
-      const anchor = n === 1 ? dueAnchor : compOf(n - 1);
+      const anchor = n === 1 ? dueAnchor : compAt(n - 1);
       if (anchor && /^\d{4}-\d{2}-\d{2}$/.test(anchor)) {
         due = addInterval(parseCivilDate(anchor), "day", intervalDays!);
       }

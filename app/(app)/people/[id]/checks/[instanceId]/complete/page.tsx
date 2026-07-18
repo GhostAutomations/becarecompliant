@@ -9,7 +9,7 @@ import {
   getPublishedFormVersion,
   getPersonChecks,
   getPersonTracker,
-  getSupervisionComps,
+  getSupervisionCompDates,
   listBranches,
 } from "@/lib/people/data";
 import { supervisionSlots, annotateSupervisionOptions } from "@/lib/people/logic";
@@ -69,15 +69,15 @@ export default async function CompleteCheckPage({
       presetAnswers = { supervision_type: sup };
       heading = `Supervision ${sup}`;
     } else {
-      const [supComps, tracker, statuses] = await Promise.all([
-        getSupervisionComps(id, def.form_id),
+      const [supCompDates, tracker, statuses] = await Promise.all([
+        getSupervisionCompDates(id, def.form_id, def.id),
         getPersonTracker(id),
         getPersonChecks(id),
       ]);
       const appraisalCompletedOn = statuses.find((s) => s.check_key === "appraisal")?.last_completed_on ?? null;
       const slots = supervisionSlots(
         def.interval,
-        supComps,
+        supCompDates,
         def.amber_days ?? 30,
         appraisalCompletedOn,
         tracker?.probation_end_actual ?? null,

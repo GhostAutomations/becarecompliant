@@ -12,7 +12,7 @@ import {
   getPerson,
   getPersonChecks,
   getPersonTracker,
-  getSupervisionComps,
+  getSupervisionCompDates,
   listBranches,
   listSupervisoryUsers,
   listPeopleCheckDefinitions,
@@ -115,7 +115,7 @@ export default async function PersonPage({
 
   const supDef = definitions.find((d) => d.key === "supervision");
   const supFormId = supDef?.form_id ?? null;
-  const supComps = await getSupervisionComps(id, supFormId);
+  const supCompDates = await getSupervisionCompDates(id, supFormId, supDef?.id ?? null);
   const supInterval = supDef?.interval ?? 90;
   const supAmber = supDef?.amber_days ?? 30;
   // Sup 1 due anchors on the later of the last Annual Appraisal completion and the
@@ -123,7 +123,7 @@ export default async function PersonPage({
   const appraisalCompletedOn = statuses.find((s) => s.check_key === "appraisal")?.last_completed_on ?? null;
   const slots = supervisionSlots(
     supInterval,
-    supComps,
+    supCompDates,
     supAmber,
     appraisalCompletedOn,
     tracker?.probation_end_actual ?? null,

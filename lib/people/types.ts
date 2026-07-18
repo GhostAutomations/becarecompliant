@@ -120,8 +120,9 @@ export type RegisterRow = {
   statuses: Record<string, CheckStatus>;
   statusByKey: Record<string, CheckStatus>;
   tracker: PersonTracker | null;
-  /** Supervision completion date keyed by chosen slot ("1"|"2"|"3"). */
-  supComps: Record<string, string>;
+  /** All supervision completion dates (ISO), from real evidence and migrated history.
+   *  The cycle slots (Sup 1/2/3) are derived from these in date order. */
+  supCompDates: string[];
 };
 
 export const RTW_LIMIT_LABELS: Record<RtwLimit, string> = {

@@ -190,7 +190,7 @@ export default function RegisterMatrix({
               const aa = row.statusByKey["appraisal"];
               const sup = supervisionSlots(
                 config.supInterval,
-                row.supComps,
+                row.supCompDates,
                 config.supAmber,
                 row.statusByKey["appraisal"]?.last_completed_on ?? null,
                 t?.probation_end_actual ?? null,
@@ -278,12 +278,15 @@ export default function RegisterMatrix({
                   </td>
                   <td><RagDate date={sc?.due_date ?? null} rag={sc?.rag ?? "none"} /></td>
                   <td><Plain date={sc?.last_completed_on ?? null} /></td>
-                  <td><RagDate date={sup[0].due} rag={sup[0].rag} /></td>
-                  <td><Plain date={sup[0].comp} /></td>
-                  <td><RagDate date={sup[1].due} rag={sup[1].rag} /></td>
-                  <td><Plain date={sup[1].comp} /></td>
-                  <td><RagDate date={sup[2].due} rag={sup[2].rag} /></td>
-                  <td><Plain date={sup[2].comp} /></td>
+                  {/* Pill rule: once a slot is completed the DUE clears and the
+                      COMPLETED date carries the pill, green if done on/before the due
+                      date, red if late (sup[n].rag). Outstanding: due carries amber/red. */}
+                  <td>{sup[0].comp ? <RagDate date={null} rag="none" /> : <RagDate date={sup[0].due} rag={sup[0].rag} />}</td>
+                  <td>{sup[0].comp ? <RagDate date={sup[0].comp} rag={sup[0].rag} /> : <RagDate date={null} rag="none" />}</td>
+                  <td>{sup[1].comp ? <RagDate date={null} rag="none" /> : <RagDate date={sup[1].due} rag={sup[1].rag} />}</td>
+                  <td>{sup[1].comp ? <RagDate date={sup[1].comp} rag={sup[1].rag} /> : <RagDate date={null} rag="none" />}</td>
+                  <td>{sup[2].comp ? <RagDate date={null} rag="none" /> : <RagDate date={sup[2].due} rag={sup[2].rag} />}</td>
+                  <td>{sup[2].comp ? <RagDate date={sup[2].comp} rag={sup[2].rag} /> : <RagDate date={null} rag="none" />}</td>
                   <td><RagDate date={aa?.due_date ?? null} rag={aa?.rag ?? "none"} /></td>
                   <td><Plain date={aa?.last_completed_on ?? null} /></td>
                   {extraColumns.map((c) => (

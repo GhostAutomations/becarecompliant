@@ -155,25 +155,40 @@ export async function listRegister(
 
   if (ids.length === 0) return { definitions, rows: [] };
 
-  const supFormId = definitions.find((d) => d.key === "supervision")?.form_id ?? null;
+  const supDef = definitions.find((d) => d.key === "supervision");
+  const supFormId = supDef?.form_id ?? null;
+  const supDefId = supDef?.id ?? null;
 
-  const [{ data: statusData }, { data: rollupData }, { data: trackerData }, { data: supEvidence }] =
-    await Promise.all([
-      supabase.from("person_check_status_all").select("*").in("person_id", ids),
-      supabase.from("person_rollup_all").select("*").in("person_id", ids),
-      supabase.from("person_trackers").select("*").in("person_id", ids),
-      supFormId
-        ? supabase
-            .from("evidence")
-            .select("record_id, submitted_at, answers")
-            .eq("record_type", "person")
-            .eq("form_id", supFormId)
-            .in("record_id", ids)
-            .order("submitted_at", { ascending: true })
-        : Promise.resolve({
-            data: [] as Array<{ record_id: string; submitted_at: string; answers: Record<string, unknown> }>,
-          }),
-    ]);
+  const [
+    { data: statusData },
+    { data: rollupData },
+    { data: trackerData },
+    { data: supEvidence },
+    { data: supMigrated },
+  ] = await Promise.all([
+    supabase.from("person_check_status_all").select("*").in("person_id", ids),
+    supabase.from("person_rollup_all").select("*").in("person_id", ids),
+    supabase.from("person_trackers").select("*").in("person_id", ids),
+    supFormId
+      ? supabase
+          .from("evidence")
+          .select("record_id, submitted_at, answers")
+          .eq("record_type", "person")
+          .eq("form_id", supFormId)
+          .in("record_id", ids)
+          .order("submitted_at", { ascending: true })
+      : Promise.resolve({
+          data: [] as Array<{ record_id: string; submitted_at: string; answers: Record<string, unknown> }>,
+        }),
+    supDefId
+      ? supabase
+          .from("migrated_completions")
+          .select("record_id, completed_on")
+          .eq("record_type", "person")
+          .eq("definition_id", supDefId)
+          .in("record_id", ids)
+      : Promise.resolve({ data: [] as Array<{ record_id: string; completed_on: string }> }),
+  ]);
 
   const statuses = (statusData as CheckStatus[]) ?? [];
   const rollups = (rollupData as PersonRollup[]) ?? [];
@@ -194,17 +209,25 @@ export async function listRegister(
     statusByKeyByPerson.set(s.person_id, byKey);
   }
 
-  const supByPerson = new Map<string, Record<string, string>>();
+  // All supervision completion dates per person, from real evidence AND migrated
+  // history. The Sup 1/2/3 slots are derived from these in date order (sequential
+  // model), so the chosen "which supervision" number no longer drives the slots.
+  const supDatesByPerson = new Map<string, string[]>();
+  const pushSupDate = (pid: string, d: string | null) => {
+    if (!d) return;
+    const a = supDatesByPerson.get(pid) ?? [];
+    a.push(d);
+    supDatesByPerson.set(pid, a);
+  };
   for (const e of (supEvidence as Array<{
     record_id: string;
     submitted_at: string;
     answers: Record<string, unknown>;
   }>) ?? []) {
-    const slot = String(e.answers?.supervision_type ?? "");
-    if (slot !== "1" && slot !== "2" && slot !== "3") continue;
-    const map = supByPerson.get(e.record_id) ?? {};
-    map[slot] = supervisionCompDate(e.answers, e.submitted_at);
-    supByPerson.set(e.record_id, map);
+    pushSupDate(e.record_id, supervisionCompDate(e.answers, e.submitted_at));
+  }
+  for (const m of (supMigrated as Array<{ record_id: string; completed_on: string }>) ?? []) {
+    pushSupDate(m.record_id, m.completed_on);
   }
 
   const rows: RegisterRow[] = people.map((person) => ({
@@ -213,7 +236,7 @@ export async function listRegister(
     statuses: statusByPerson.get(person.id) ?? {},
     statusByKey: statusByKeyByPerson.get(person.id) ?? {},
     tracker: trackerByPerson.get(person.id) ?? null,
-    supComps: supByPerson.get(person.id) ?? {},
+    supCompDates: supDatesByPerson.get(person.id) ?? [],
   }));
 
   return { definitions, rows };
@@ -237,27 +260,37 @@ function supervisionCompDate(answers: Record<string, unknown>, submittedAt: stri
   return submittedAt.slice(0, 10);
 }
 
-/** Supervision completion date keyed by the chosen slot ("1"|"2"|"3"), most recent
- *  completion of each slot winning. */
-export async function getSupervisionComps(
+/** All supervision completion dates (ISO) for a person, from real form evidence AND
+ *  migrated history. The cycle slots are derived from these in date order. */
+export async function getSupervisionCompDates(
   personId: string,
   supFormId: string | null,
-): Promise<Record<string, string>> {
-  if (!supFormId) return {};
+  supDefId: string | null,
+): Promise<string[]> {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("evidence")
-    .select("submitted_at, answers")
-    .eq("record_type", "person")
-    .eq("record_id", personId)
-    .eq("form_id", supFormId)
-    .order("submitted_at", { ascending: true });
-  const out: Record<string, string> = {};
-  for (const e of (data as Array<{ submitted_at: string; answers: Record<string, unknown> }>) ?? []) {
-    const slot = String(e.answers?.supervision_type ?? "");
-    if (slot === "1" || slot === "2" || slot === "3") out[slot] = supervisionCompDate(e.answers, e.submitted_at);
+  const dates: string[] = [];
+  if (supFormId) {
+    const { data } = await supabase
+      .from("evidence")
+      .select("submitted_at, answers")
+      .eq("record_type", "person")
+      .eq("record_id", personId)
+      .eq("form_id", supFormId)
+      .order("submitted_at", { ascending: true });
+    for (const e of (data as Array<{ submitted_at: string; answers: Record<string, unknown> }>) ?? []) {
+      dates.push(supervisionCompDate(e.answers, e.submitted_at));
+    }
   }
-  return out;
+  if (supDefId) {
+    const { data } = await supabase
+      .from("migrated_completions")
+      .select("completed_on")
+      .eq("record_type", "person")
+      .eq("record_id", personId)
+      .eq("definition_id", supDefId);
+    for (const m of (data as Array<{ completed_on: string }>) ?? []) dates.push(m.completed_on);
+  }
+  return dates;
 }
 
 export async function getPersonChecks(personId: string): Promise<CheckStatus[]> {
