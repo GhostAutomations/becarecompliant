@@ -251,10 +251,9 @@ export default async function PersonPage({
             </p>
           </section>
 
-          {/* Probation shows here (above Checks) until the employee passes. */}
-          {!probationPassed ? (
-            <section className="grid gap-3 lg:grid-cols-3">{probationTile}</section>
-          ) : null}
+          {/* Probation shows here (above Checks) until the employee passes, full
+              width to match the Supervision card above (Phil, 2026-07-18). */}
+          {!probationPassed ? probationTile : null}
 
           {/* Other recurring checks */}
           <section className="space-y-3">
