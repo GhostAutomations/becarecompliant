@@ -165,17 +165,17 @@ export default async function PersonPage({
         ) : null}
       </div>
       <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-xl border border-white/10 p-4">
-          <p className="text-xs text-white/50">End due</p>
-          <p className="mt-1 text-lg text-white/90">{formatDisplayDate(tracker?.probation_end_due ?? null) || "—"}</p>
+        <div className="rounded-lg border border-white/10 px-3 py-2">
+          <p className="text-[11px] text-white/50">End due</p>
+          <p className="text-sm text-white/90">{formatDisplayDate(tracker?.probation_end_due ?? null) || "—"}</p>
         </div>
-        <div className="rounded-xl border border-white/10 p-4">
-          <p className="text-xs text-white/50">End actual</p>
-          <p className="mt-1 text-lg text-white/90">{formatDisplayDate(tracker?.probation_end_actual ?? null) || "—"}</p>
+        <div className="rounded-lg border border-white/10 px-3 py-2">
+          <p className="text-[11px] text-white/50">End actual</p>
+          <p className="text-sm text-white/90">{formatDisplayDate(tracker?.probation_end_actual ?? null) || "—"}</p>
         </div>
-        <div className="rounded-xl border border-white/10 p-4">
-          <p className="text-xs text-white/50">Extension</p>
-          <p className="mt-1 text-lg text-white/90">{formatDisplayDate(tracker?.probation_extension_date ?? null) || "—"}</p>
+        <div className="rounded-lg border border-white/10 px-3 py-2">
+          <p className="text-[11px] text-white/50">Extension</p>
+          <p className="text-sm text-white/90">{formatDisplayDate(tracker?.probation_extension_date ?? null) || "—"}</p>
         </div>
       </div>
     </div>
