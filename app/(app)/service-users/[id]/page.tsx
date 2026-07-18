@@ -115,7 +115,9 @@ export default async function ServiceUserPage({
   // Complex branches run four rolling reviews (Review 1-4), shown as slot cards like
   // People's Supervision. Simple branches keep the single review card.
   const isComplex = branchType.isComplex;
-  const reviewComps = isComplex ? await getReviewComps(id, reviewDef?.form_id ?? null) : [];
+  const reviewComps = isComplex
+    ? await getReviewComps(id, reviewDef?.form_id ?? null, reviewDef?.id ?? null)
+    : [];
   const slots = isComplex
     ? reviewSlots(serviceUser.package_start_date, reviewComps, complexInterval)
     : [];

@@ -313,20 +313,31 @@ export async function getServiceUserTracker(id: string): Promise<ServiceUserTrac
 export async function getReviewComps(
   serviceUserId: string,
   reviewFormId: string | null,
+  reviewDefId: string | null = null,
 ): Promise<string[]> {
-  if (!reviewFormId) return [];
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("evidence")
-    .select("submitted_at, answers")
-    .eq("record_type", "service_user")
-    .eq("record_id", serviceUserId)
-    .eq("form_id", reviewFormId)
-    .order("submitted_at", { ascending: true });
   const out: string[] = [];
-  for (const e of (data as Array<{ submitted_at: string; answers: Record<string, unknown> }>) ?? []) {
-    const d = e.answers?.review_date;
-    out.push(typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : e.submitted_at.slice(0, 10));
+  if (reviewFormId) {
+    const { data } = await supabase
+      .from("evidence")
+      .select("submitted_at, answers")
+      .eq("record_type", "service_user")
+      .eq("record_id", serviceUserId)
+      .eq("form_id", reviewFormId)
+      .order("submitted_at", { ascending: true });
+    for (const e of (data as Array<{ submitted_at: string; answers: Record<string, unknown> }>) ?? []) {
+      const d = e.answers?.review_date;
+      out.push(typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : e.submitted_at.slice(0, 10));
+    }
+  }
+  if (reviewDefId) {
+    const { data } = await supabase
+      .from("migrated_completions")
+      .select("completed_on")
+      .eq("record_type", "service_user")
+      .eq("record_id", serviceUserId)
+      .eq("definition_id", reviewDefId);
+    for (const m of (data as Array<{ completed_on: string }>) ?? []) out.push(m.completed_on);
   }
   return out.sort();
 }
