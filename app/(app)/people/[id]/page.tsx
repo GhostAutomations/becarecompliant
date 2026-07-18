@@ -144,8 +144,8 @@ export default async function PersonPage({
   const probationPassed = tracker?.probation_status === "passed";
   const probationWide = (
     <div className="glass-card p-5">
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
-        <div className="flex flex-wrap items-end gap-4">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           <h2 className="text-sm font-semibold text-white">Probation</h2>
           {canManage ? (
             <ActionForm
@@ -154,19 +154,25 @@ export default async function PersonPage({
               inline
               buttonClassName="btn-outline text-xs"
             >
-              <label htmlFor="probation_status_wide" className="form-label">Status</label>
-              <select id="probation_status_wide" name="probation_status" defaultValue={tracker?.probation_status ?? ""}>
-                <option value="">Not set</option>
-                {(Object.keys(PROBATION_STATUS_LABELS) as ProbationStatus[]).map((k) => (
-                  <option key={k} value={k}>{PROBATION_STATUS_LABELS[k]}</option>
-                ))}
-              </select>
+              <div className="flex items-center gap-2">
+                <label htmlFor="probation_status_wide" className="text-xs text-white/50">Status</label>
+                <select
+                  id="probation_status_wide"
+                  name="probation_status"
+                  defaultValue={tracker?.probation_status ?? ""}
+                  className="max-w-[10rem]"
+                >
+                  <option value="">Not set</option>
+                  {(Object.keys(PROBATION_STATUS_LABELS) as ProbationStatus[]).map((k) => (
+                    <option key={k} value={k}>{PROBATION_STATUS_LABELS[k]}</option>
+                  ))}
+                </select>
+              </div>
             </ActionForm>
           ) : (
-            <div>
-              <p className="text-[11px] text-white/50">Status</p>
-              <p className="text-sm text-white/85">{tracker?.probation_status ? PROBATION_STATUS_LABELS[tracker.probation_status] : "—"}</p>
-            </div>
+            <span className="text-sm text-white/85">
+              Status: {tracker?.probation_status ? PROBATION_STATUS_LABELS[tracker.probation_status] : "—"}
+            </span>
           )}
         </div>
         {canManage ? (
