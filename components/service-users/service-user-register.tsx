@@ -133,8 +133,7 @@ export default function ServiceUserRegister({
   const meta = VIEW_META[view];
   const col = (key: string, def: string) => columnLabels[key] || def;
   const shownColumns = CUSTOM_COLUMNS_ENABLED ? checkColumns.filter((c) => c.show) : [];
-  // All Service Users now use the Rev 1-4 cycle, not just Complex branches (Phil, 2026-07-18).
-  const isComplex = true;
+  const isComplex = branchOptions.find((b) => b.id === branchId)?.service_user_type === "complex";
   const statusOptions =
     view === "cancelled" ? [...SERVICE_STATUS_OPTIONS, { value: "archive", label: "Archive" }] : SERVICE_STATUS_OPTIONS;
 
@@ -283,6 +282,8 @@ export default function ServiceUserRegister({
                         <th>{col("rev3_comp", "REV3 Comp")}</th>
                         <th>{col("rev4_due", "REV4 Due")}</th>
                         <th>{col("rev4_comp", "REV4 Comp")}</th>
+                        <th>{col("planned_review_date", "Planned Review Date")}</th>
+                        <th>{col("review_status", "Review Status")}</th>
                       </>
                     ) : (
                       <>
@@ -359,29 +360,48 @@ export default function ServiceUserRegister({
                         {isComplex ? (
                           (() => {
                             const slots = reviewSlots(su.package_start_date, row.reviewComps, complexIntervalDays);
-                            return slots.map((s) => {
-                              const late = !!s.comp && !!s.due && s.comp > s.due;
-                              return (
-                                <Fragment key={s.n}>
-                                  <td>
-                                    {s.comp ? (
-                                      <span className="rag-cell rag-cell-none">—</span>
-                                    ) : (
-                                      <RagDate date={s.due} rag={s.rag} />
-                                    )}
-                                  </td>
-                                  <td>
-                                    {s.comp ? (
-                                      <span className={`rag-cell ${late ? "rag-cell-red" : "rag-cell-green"}`}>
-                                        {formatDisplayDate(s.comp)}
-                                      </span>
-                                    ) : (
-                                      <span className="rag-cell rag-cell-none">—</span>
-                                    )}
-                                  </td>
-                                </Fragment>
-                              );
-                            });
+                            return (
+                              <>
+                                {slots.map((s) => {
+                                  const late = !!s.comp && !!s.due && s.comp > s.due;
+                                  return (
+                                    <Fragment key={s.n}>
+                                      <td>
+                                        {s.comp ? (
+                                          <span className="rag-cell rag-cell-none">—</span>
+                                        ) : (
+                                          <RagDate date={s.due} rag={s.rag} />
+                                        )}
+                                      </td>
+                                      <td>
+                                        {s.comp ? (
+                                          <span className={`rag-cell ${late ? "rag-cell-red" : "rag-cell-green"}`}>
+                                            {formatDisplayDate(s.comp)}
+                                          </span>
+                                        ) : (
+                                          <span className="rag-cell rag-cell-none">—</span>
+                                        )}
+                                      </td>
+                                    </Fragment>
+                                  );
+                                })}
+                                <td>
+                                  <PlannedReviewCell
+                                    serviceUserId={su.id}
+                                    plannedDate={planned}
+                                    plannedTime={row.tracker?.planned_review_time ?? null}
+                                    plannedDuration={row.tracker?.planned_review_duration_minutes ?? null}
+                                    reviewerId={row.tracker?.planned_reviewer_id ?? null}
+                                    reviewerName={row.tracker?.planned_reviewer_name ?? null}
+                                    reviewers={reviewers}
+                                    editable={canManage}
+                                  />
+                                </td>
+                                <td>
+                                  <span className={toneClass(reviewStatusTone(rs))}>{REVIEW_STATUS_LABELS[rs]}</span>
+                                </td>
+                              </>
+                            );
                           })()
                         ) : (
                           <>
