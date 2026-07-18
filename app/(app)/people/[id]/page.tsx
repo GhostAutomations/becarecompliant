@@ -144,50 +144,48 @@ export default async function PersonPage({
   const probationPassed = tracker?.probation_status === "passed";
   const probationWide = (
     <div className="glass-card p-5">
-      <div className="mb-3 flex items-center justify-between">
+      <div className="flex flex-wrap items-end gap-6">
         <h2 className="text-sm font-semibold text-white">Probation</h2>
+        <div className="flex flex-1 flex-wrap items-end justify-around gap-6">
+          <div>
+            <p className="text-[11px] text-white/50">End due</p>
+            <p className="text-sm text-white/85">{formatDisplayDate(tracker?.probation_end_due ?? null) || "—"}</p>
+          </div>
+          <div>
+            <p className="text-[11px] text-white/50">End actual</p>
+            <p className="text-sm text-white/85">{formatDisplayDate(tracker?.probation_end_actual ?? null) || "—"}</p>
+          </div>
+          <div>
+            <p className="text-[11px] text-white/50">Extension</p>
+            <p className="text-sm text-white/85">{formatDisplayDate(tracker?.probation_extension_date ?? null) || "—"}</p>
+          </div>
+        </div>
+        {canManage ? (
+          <ActionForm
+            action={updateTracker}
+            hidden={{ person_id: person.id }}
+            inline
+            buttonClassName="btn-outline text-xs"
+          >
+            <label htmlFor="probation_status_wide" className="form-label">Status</label>
+            <select id="probation_status_wide" name="probation_status" defaultValue={tracker?.probation_status ?? ""}>
+              <option value="">Not set</option>
+              {(Object.keys(PROBATION_STATUS_LABELS) as ProbationStatus[]).map((k) => (
+                <option key={k} value={k}>{PROBATION_STATUS_LABELS[k]}</option>
+              ))}
+            </select>
+          </ActionForm>
+        ) : (
+          <div>
+            <p className="text-[11px] text-white/50">Status</p>
+            <p className="text-sm text-white/85">{tracker?.probation_status ? PROBATION_STATUS_LABELS[tracker.probation_status] : "—"}</p>
+          </div>
+        )}
         {canManage ? (
           <Link href={`/people/${person.id}/tracker/probation_review/complete`} className="btn-outline text-xs">
             Record
           </Link>
         ) : null}
-      </div>
-      <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
-        <div>
-          <p className="text-[11px] text-white/50">End due</p>
-          <p className="text-sm text-white/85">{formatDisplayDate(tracker?.probation_end_due ?? null) || "—"}</p>
-        </div>
-        <div>
-          <p className="text-[11px] text-white/50">End actual</p>
-          <p className="text-sm text-white/85">{formatDisplayDate(tracker?.probation_end_actual ?? null) || "—"}</p>
-        </div>
-        <div>
-          <p className="text-[11px] text-white/50">Extension</p>
-          <p className="text-sm text-white/85">{formatDisplayDate(tracker?.probation_extension_date ?? null) || "—"}</p>
-        </div>
-        <div className="ml-auto">
-          {canManage ? (
-            <ActionForm
-              action={updateTracker}
-              hidden={{ person_id: person.id }}
-              inline
-              buttonClassName="btn-outline text-xs"
-            >
-              <label htmlFor="probation_status_wide" className="form-label">Status</label>
-              <select id="probation_status_wide" name="probation_status" defaultValue={tracker?.probation_status ?? ""}>
-                <option value="">Not set</option>
-                {(Object.keys(PROBATION_STATUS_LABELS) as ProbationStatus[]).map((k) => (
-                  <option key={k} value={k}>{PROBATION_STATUS_LABELS[k]}</option>
-                ))}
-              </select>
-            </ActionForm>
-          ) : (
-            <div>
-              <p className="text-[11px] text-white/50">Status</p>
-              <p className="text-sm text-white/85">{tracker?.probation_status ? PROBATION_STATUS_LABELS[tracker.probation_status] : "—"}</p>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );
