@@ -111,28 +111,45 @@ export function reviewSlots(
   const slots: ReviewSlot[] = [];
   const valid = (d: string | null | undefined): d is string => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d);
   const interval = intervalDays >= 1 ? intervalDays : 80;
-  const comps = orderedComps.filter(valid);
+  const comps = orderedComps.filter(valid).slice().sort();
   const n = comps.length;
-  // Completions form cycles of `count`. The current cycle is whatever is left after the
-  // last full cycle; the anchor is the package start (first cycle) or the last
-  // completion of the previous cycle.
-  const completedCycles = Math.floor(n / count);
-  const cycleBase = completedCycles * count;
-  const cycleComps = comps.slice(cycleBase);
+  const addI = (d: string) => formatCivilDate(addInterval(parseCivilDate(d), "day", interval));
+  // The due a completion was measured against = the previous completion (or package
+  // start for the very first) + interval; used to colour it on time (green) / late (red).
+  const lateOf = (k: number): boolean => {
+    const anchor = k === 0 ? packageStart : comps[k - 1];
+    return valid(anchor) ? comps[k] > addI(anchor) : false;
+  };
+  // Display model (Phil, 2026-07-18): the next review to do is the active slot (after a
+  // full cycle it is slot 1 again, restarting). Slots BEFORE it are this cycle's
+  // completions and keep both their due and completed date. Slots AFTER it keep the
+  // previous cycle's completed date as history (no due) until that slot is redone.
+  const activeSlot = (n % count) + 1;
+  const cycleBase = n - (n % count);
   const cycleAnchor = cycleBase > 0 ? comps[cycleBase - 1] : packageStart;
+  const histIndex = (pos: number): number => {
+    for (let k = n - 1; k >= 0; k--) if (k % count === pos - 1) return k;
+    return -1;
+  };
   for (let i = 1; i <= count; i++) {
-    const comp = cycleComps[i - 1] ?? null;
-    const anchor = i === 1 ? cycleAnchor : (cycleComps[i - 2] ?? null);
-    const due = valid(anchor) ? formatCivilDate(addInterval(parseCivilDate(anchor), "day", interval)) : null;
-    // Pill rule (Phil, 2026-07-18): a completed review is GREEN only if done on/before
-    // its due date, RED if late (and it stays red). Outstanding: amber/red by due.
-    const rag: Rag | "none" = comp
-      ? due && comp > due
-        ? "red"
-        : "green"
-      : due
-        ? ragStatus(parseCivilDate(due), today, amberDays)
-        : "none";
+    let comp: string | null = null;
+    let due: string | null = null;
+    let rag: Rag | "none" = "none";
+    if (i < activeSlot) {
+      const k = cycleBase + (i - 1);
+      comp = comps[k] ?? null;
+      const anchor = i === 1 ? cycleAnchor : comps[cycleBase + i - 2];
+      due = valid(anchor) ? addI(anchor) : null;
+      rag = comp ? (lateOf(k) ? "red" : "green") : "none";
+    } else if (i === activeSlot) {
+      const anchor = n > 0 ? comps[n - 1] : packageStart;
+      due = valid(anchor) ? addI(anchor) : null;
+      rag = due ? ragStatus(parseCivilDate(due), today, amberDays) : "none";
+    } else {
+      const k = histIndex(i);
+      comp = k >= 0 ? comps[k] : null;
+      rag = comp ? (lateOf(k) ? "red" : "green") : "none";
+    }
     slots.push({ n: i, due, comp, rag });
   }
   return slots;

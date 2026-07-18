@@ -362,29 +362,28 @@ export default function ServiceUserRegister({
                             const slots = reviewSlots(su.package_start_date, row.reviewComps, complexIntervalDays);
                             return (
                               <>
-                                {slots.map((s) => {
-                                  const late = !!s.comp && !!s.due && s.comp > s.due;
-                                  return (
-                                    <Fragment key={s.n}>
-                                      <td>
-                                        {s.comp ? (
-                                          <span className="rag-cell rag-cell-none">—</span>
-                                        ) : (
-                                          <RagDate date={s.due} rag={s.rag} />
-                                        )}
-                                      </td>
-                                      <td>
-                                        {s.comp ? (
-                                          <span className={`rag-cell ${late ? "rag-cell-red" : "rag-cell-green"}`}>
-                                            {formatDisplayDate(s.comp)}
-                                          </span>
+                                {slots.map((s) => (
+                                  <Fragment key={s.n}>
+                                    <td>
+                                      {s.comp ? (
+                                        s.due ? (
+                                          <span className="text-white/70">{formatDisplayDate(s.due)}</span>
                                         ) : (
                                           <span className="rag-cell rag-cell-none">—</span>
-                                        )}
-                                      </td>
-                                    </Fragment>
-                                  );
-                                })}
+                                        )
+                                      ) : (
+                                        <RagDate date={s.due} rag={s.rag} />
+                                      )}
+                                    </td>
+                                    <td>
+                                      {s.comp ? (
+                                        <RagDate date={s.comp} rag={s.rag} />
+                                      ) : (
+                                        <span className="rag-cell rag-cell-none">—</span>
+                                      )}
+                                    </td>
+                                  </Fragment>
+                                ))}
                                 <td>
                                   <PlannedReviewCell
                                     serviceUserId={su.id}
