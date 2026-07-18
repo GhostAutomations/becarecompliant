@@ -145,7 +145,8 @@ export default async function PersonPage({
   const probationWide = (
     <div className="glass-card p-5">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
-        <div className="flex flex-wrap items-end gap-3">
+        <div className="flex flex-wrap items-end gap-4">
+          <h2 className="text-sm font-semibold text-white">Probation</h2>
           {canManage ? (
             <ActionForm
               action={updateTracker}
@@ -167,13 +168,12 @@ export default async function PersonPage({
               <p className="text-sm text-white/85">{tracker?.probation_status ? PROBATION_STATUS_LABELS[tracker.probation_status] : "—"}</p>
             </div>
           )}
-          {canManage ? (
-            <Link href={`/people/${person.id}/tracker/probation_review/complete`} className="btn-outline text-xs">
-              Record
-            </Link>
-          ) : null}
         </div>
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Probation</h2>
+        {canManage ? (
+          <Link href={`/people/${person.id}/tracker/probation_review/complete`} className="btn-outline text-xs">
+            Record
+          </Link>
+        ) : null}
       </div>
       <div className="grid grid-cols-3 gap-3">
         <div className="rounded-xl border border-white/10 p-4">
