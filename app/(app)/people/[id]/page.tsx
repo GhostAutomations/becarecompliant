@@ -60,6 +60,15 @@ function slotPill(rag: string) {
   return cls;
 }
 
+// Read-only probation status pill. Status is only ever set by completing the
+// Probation Review form (never inline), which then feeds the register (Phil, 2026-07-18).
+function probationStatusPill(status: ProbationStatus | null) {
+  if (!status) return <span className="pill-neutral">Not set</span>;
+  const cls =
+    status === "passed" ? "pill-green" : status === "failed" ? "pill-red" : status === "extended" ? "pill-amber" : "pill-neutral";
+  return <span className={cls}>{PROBATION_STATUS_LABELS[status]}</span>;
+}
+
 export default async function PersonPage({
   params,
   searchParams,
@@ -145,35 +154,9 @@ export default async function PersonPage({
   const probationWide = (
     <div className="glass-card p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3">
           <h2 className="text-sm font-semibold text-white">Probation</h2>
-          {canManage ? (
-            <ActionForm
-              action={updateTracker}
-              hidden={{ person_id: person.id }}
-              inline
-              buttonClassName="btn-outline text-xs"
-            >
-              <div className="flex items-center gap-2">
-                <label htmlFor="probation_status_wide" className="text-xs text-white/50">Status</label>
-                <select
-                  id="probation_status_wide"
-                  name="probation_status"
-                  defaultValue={tracker?.probation_status ?? ""}
-                  className="max-w-[10rem]"
-                >
-                  <option value="">Not set</option>
-                  {(Object.keys(PROBATION_STATUS_LABELS) as ProbationStatus[]).map((k) => (
-                    <option key={k} value={k}>{PROBATION_STATUS_LABELS[k]}</option>
-                  ))}
-                </select>
-              </div>
-            </ActionForm>
-          ) : (
-            <span className="text-sm text-white/85">
-              Status: {tracker?.probation_status ? PROBATION_STATUS_LABELS[tracker.probation_status] : "—"}
-            </span>
-          )}
+          {probationStatusPill(tracker?.probation_status ?? null)}
         </div>
         {canManage ? (
           <Link href={`/people/${person.id}/tracker/probation_review/complete`} className="btn-outline text-xs">
@@ -212,26 +195,10 @@ export default async function PersonPage({
         <div className="flex justify-between"><dt className="text-white/50">End actual</dt><dd className="text-white/85">{formatDisplayDate(tracker?.probation_end_actual ?? null) || "—"}</dd></div>
         <div className="flex justify-between"><dt className="text-white/50">Extension</dt><dd className="text-white/85">{formatDisplayDate(tracker?.probation_extension_date ?? null) || "—"}</dd></div>
       </dl>
-      {canManage ? (
-        <div className="mt-3">
-          <ActionForm
-            action={updateTracker}
-            hidden={{ person_id: person.id }}
-            inline
-            buttonClassName="btn-outline text-xs"
-          >
-            <label htmlFor="probation_status" className="form-label">Status</label>
-            <select id="probation_status" name="probation_status" defaultValue={tracker?.probation_status ?? ""}>
-              <option value="">Not set</option>
-              {(Object.keys(PROBATION_STATUS_LABELS) as ProbationStatus[]).map((k) => (
-                <option key={k} value={k}>{PROBATION_STATUS_LABELS[k]}</option>
-              ))}
-            </select>
-          </ActionForm>
-        </div>
-      ) : (
-        <div className="mt-2 flex justify-between text-sm"><span className="text-white/50">Status</span><span className="text-white/85">{tracker?.probation_status ? PROBATION_STATUS_LABELS[tracker.probation_status] : "—"}</span></div>
-      )}
+      <div className="mt-3 flex items-center justify-between text-sm">
+        <span className="text-white/50">Status</span>
+        {probationStatusPill(tracker?.probation_status ?? null)}
+      </div>
     </div>
   );
 
