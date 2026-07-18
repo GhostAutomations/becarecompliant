@@ -960,3 +960,75 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
   // to a URL with a query string trips Next.js issue #78396 (React #310).
   return { ok: "completed", redirectTo: `/people/${instance.person_id}?completed=${encodeURIComponent(def.name)}` };
 }
+
+/** Add a job title to the company's managed list (Settings > People). Admin only. */
+export async function addJobTitle(formData: FormData): Promise<ActionState> {
+  const { user, profile } = await requireCompanyAdmin();
+  if (!profile.company_id) return { error: "No company context." };
+  const title = String(formData.get("title") ?? "").trim();
+  if (!title) return { error: "Enter a job title." };
+
+  const supabase = await createClient();
+  const { data: max } = await supabase
+    .from("company_job_titles")
+    .select("sort_order")
+    .eq("company_id", profile.company_id)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const nextOrder = ((max?.sort_order as number | null) ?? 0) + 1;
+
+  const { error } = await supabase
+    .from("company_job_titles")
+    .insert({ company_id: profile.company_id, title, sort_order: nextOrder });
+  if (error) {
+    if (error.code === "23505") return { error: "That job title already exists." };
+    return { error: error.message };
+  }
+
+  await writeAudit({
+    companyId: profile.company_id,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "company.job_title_added",
+    entityType: "company",
+    entityId: profile.company_id,
+    summary: `Added job title ${title}`,
+    metadata: { title },
+  });
+
+  revalidatePath("/settings/people");
+  return { ok: "Added" };
+}
+
+/** Remove a job title from the company's managed list. Admin only. */
+export async function removeJobTitle(formData: FormData): Promise<ActionState> {
+  const { user, profile } = await requireCompanyAdmin();
+  if (!profile.company_id) return { error: "No company context." };
+  const id = String(formData.get("id") ?? "").trim();
+  if (!id) return { error: "Missing job title." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("company_job_titles")
+    .delete()
+    .eq("id", id)
+    .eq("company_id", profile.company_id);
+  if (error) return { error: error.message };
+
+  await writeAudit({
+    companyId: profile.company_id,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "company.job_title_removed",
+    entityType: "company",
+    entityId: profile.company_id,
+    summary: "Removed a job title",
+    metadata: { id },
+  });
+
+  revalidatePath("/settings/people");
+  return { ok: "Removed" };
+}

@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
-import { listAllPeopleCheckDefinitions, getColumnLabels, getProbationPeriod } from "@/lib/people/data";
+import { listAllPeopleCheckDefinitions, getColumnLabels, getProbationPeriod, listJobTitles } from "@/lib/people/data";
 import { REGISTER_COLUMNS } from "@/lib/people/logic";
 import CheckConfigForm from "@/components/people/check-config-form";
 import CreateCheckTypeForm from "@/components/people/create-check-type-form";
 import ColumnNamesForm from "@/components/people/column-names-form";
 import ProbationPeriodForm from "@/components/people/probation-period-form";
+import JobTitlesForm from "@/components/people/job-titles-form";
 import CourseConfig from "@/components/training/course-config";
 import { listAllCourses } from "@/lib/training/data";
 import { listCompanyForms } from "@/lib/form-builder/data";
@@ -18,12 +19,13 @@ export default async function SettingsPeoplePage() {
   const { profile } = await requireCompanyAdmin();
   if (!profile.company_id) redirect("/founder");
 
-  const [definitions, columnLabels, probationDays, allForms, courses] = await Promise.all([
+  const [definitions, columnLabels, probationDays, allForms, courses, jobTitles] = await Promise.all([
     listAllPeopleCheckDefinitions(profile.company_id),
     getColumnLabels(profile.company_id),
     getProbationPeriod(profile.company_id),
     listCompanyForms(profile.company_id),
     listAllCourses(profile.company_id),
+    listJobTitles(profile.company_id),
   ]);
   const publishableForms = allForms
     .filter((f) => f.population === "people" && f.currentVersion != null)
@@ -60,6 +62,13 @@ export default async function SettingsPeoplePage() {
         <summary>Training courses</summary>
         <div className="border-t border-white/10 p-5">
           <CourseConfig courses={courses} />
+        </div>
+      </details>
+
+      <details className="glass-card section-card">
+        <summary>Job titles</summary>
+        <div className="border-t border-white/10 p-5">
+          <JobTitlesForm titles={jobTitles} />
         </div>
       </details>
 

@@ -131,7 +131,53 @@ export default async function PersonPage({
 
   const statusByDef = new Map<string, CheckStatus>(statuses.map((s) => [s.definition_id, s]));
   const supStatus = statuses.find((s) => s.check_key === "supervision") ?? null;
-  const otherDefs = definitions.filter((d) => d.key !== "supervision");
+  // Checks grid order: Spot Check first, then Annual Appraisal, then the rest
+  // (Phil, 2026-07-18). Unlisted checks keep their natural order after these.
+  const CHECK_ORDER: Record<string, number> = { spot_check: 0, appraisal: 1 };
+  const otherDefs = definitions
+    .filter((d) => d.key !== "supervision")
+    .sort((a, b) => (CHECK_ORDER[a.key] ?? 99) - (CHECK_ORDER[b.key] ?? 99));
+
+  // Probation tile sits ABOVE the Checks until the employee passes probation, then
+  // drops into the DBS / Right to Work tracker row (Phil, 2026-07-18).
+  const probationPassed = tracker?.probation_status === "passed";
+  const probationTile = (
+    <div className="glass-card p-5">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-white">Probation</h2>
+        {canManage ? (
+          <Link href={`/people/${person.id}/tracker/probation_review/complete`} className="btn-outline text-xs">
+            Record
+          </Link>
+        ) : null}
+      </div>
+      <dl className="space-y-1 text-sm">
+        <div className="flex justify-between"><dt className="text-white/50">End due</dt><dd className="text-white/85">{formatDisplayDate(tracker?.probation_end_due ?? null) || "—"}</dd></div>
+        <div className="flex justify-between"><dt className="text-white/50">End actual</dt><dd className="text-white/85">{formatDisplayDate(tracker?.probation_end_actual ?? null) || "—"}</dd></div>
+        <div className="flex justify-between"><dt className="text-white/50">Extension</dt><dd className="text-white/85">{formatDisplayDate(tracker?.probation_extension_date ?? null) || "—"}</dd></div>
+      </dl>
+      {canManage ? (
+        <div className="mt-3">
+          <ActionForm
+            action={updateTracker}
+            hidden={{ person_id: person.id }}
+            inline
+            buttonClassName="btn-outline text-xs"
+          >
+            <label htmlFor="probation_status" className="form-label">Status</label>
+            <select id="probation_status" name="probation_status" defaultValue={tracker?.probation_status ?? ""}>
+              <option value="">Not set</option>
+              {(Object.keys(PROBATION_STATUS_LABELS) as ProbationStatus[]).map((k) => (
+                <option key={k} value={k}>{PROBATION_STATUS_LABELS[k]}</option>
+              ))}
+            </select>
+          </ActionForm>
+        </div>
+      ) : (
+        <div className="mt-2 flex justify-between text-sm"><span className="text-white/50">Status</span><span className="text-white/85">{tracker?.probation_status ? PROBATION_STATUS_LABELS[tracker.probation_status] : "—"}</span></div>
+      )}
+    </div>
+  );
 
   const worstRag =
     statuses.length === 0
@@ -205,6 +251,11 @@ export default async function PersonPage({
             </p>
           </section>
 
+          {/* Probation shows here (above Checks) until the employee passes. */}
+          {!probationPassed ? (
+            <section className="grid gap-3 lg:grid-cols-3">{probationTile}</section>
+          ) : null}
+
           {/* Other recurring checks */}
           <section className="space-y-3">
             <div className="flex items-center justify-between">
@@ -244,9 +295,9 @@ export default async function PersonPage({
             </div>
           </section>
 
-          {/* Trackers: DBS, Right to Work, Probation. Dates are fed by completing a
-              form (Record button); statuses/limits are quick-edit dropdowns. */}
-          <section className="grid gap-3 lg:grid-cols-3">
+          {/* Trackers: DBS, Right to Work, and Probation (only once passed; before
+              that it sits above the Checks). Dates are fed by completing a form. */}
+          <section className={`grid gap-3 ${probationPassed ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}>
             {/* DBS */}
             <div className="glass-card p-5">
               <div className="mb-3 flex items-center justify-between">
@@ -298,42 +349,8 @@ export default async function PersonPage({
               )}
             </div>
 
-            {/* Probation */}
-            <div className="glass-card p-5">
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-white">Probation</h2>
-                {canManage ? (
-                  <Link href={`/people/${person.id}/tracker/probation_review/complete`} className="btn-outline text-xs">
-                    Record
-                  </Link>
-                ) : null}
-              </div>
-              <dl className="space-y-1 text-sm">
-                <div className="flex justify-between"><dt className="text-white/50">End due</dt><dd className="text-white/85">{formatDisplayDate(tracker?.probation_end_due ?? null) || "—"}</dd></div>
-                <div className="flex justify-between"><dt className="text-white/50">End actual</dt><dd className="text-white/85">{formatDisplayDate(tracker?.probation_end_actual ?? null) || "—"}</dd></div>
-                <div className="flex justify-between"><dt className="text-white/50">Extension</dt><dd className="text-white/85">{formatDisplayDate(tracker?.probation_extension_date ?? null) || "—"}</dd></div>
-              </dl>
-              {canManage ? (
-                <div className="mt-3">
-                  <ActionForm
-                    action={updateTracker}
-                    hidden={{ person_id: person.id }}
-                    inline
-                    buttonClassName="btn-outline text-xs"
-                  >
-                    <label htmlFor="probation_status" className="form-label">Status</label>
-                    <select id="probation_status" name="probation_status" defaultValue={tracker?.probation_status ?? ""}>
-                      <option value="">Not set</option>
-                      {(Object.keys(PROBATION_STATUS_LABELS) as ProbationStatus[]).map((k) => (
-                        <option key={k} value={k}>{PROBATION_STATUS_LABELS[k]}</option>
-                      ))}
-                    </select>
-                  </ActionForm>
-                </div>
-              ) : (
-                <div className="mt-2 flex justify-between text-sm"><span className="text-white/50">Status</span><span className="text-white/85">{tracker?.probation_status ? PROBATION_STATUS_LABELS[tracker.probation_status] : "—"}</span></div>
-              )}
-            </div>
+            {/* Probation joins this row only once passed; otherwise it renders above. */}
+            {probationPassed ? probationTile : null}
           </section>
         </>
       )}

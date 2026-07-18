@@ -116,6 +116,10 @@ export async function createCompany(
     { cid: company.id },
   );
 
+  // Seed the default staff job-title list (idempotent). A failure must not fail
+  // company creation.
+  await supabase.rpc("seed_company_job_titles", { cid: company.id });
+
   await writeAudit({
     companyId: company.id,
     actorId: user.id,

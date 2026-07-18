@@ -3,16 +3,18 @@
 import { useActionState, useState } from "react";
 import { createPerson } from "@/lib/people/actions";
 import { IDLE_STATE } from "@/lib/forms";
-import type { BranchLite, ProfileLite, BranchStaff } from "@/lib/people/data";
+import type { BranchLite, ProfileLite, BranchStaff, JobTitle } from "@/lib/people/data";
 
 export default function CreatePersonForm({
   branches,
   users,
   branchStaff,
+  jobTitles,
 }: {
   branches: BranchLite[];
   users: ProfileLite[];
   branchStaff: BranchStaff;
+  jobTitles: JobTitle[];
 }) {
   const [state, formAction, pending] = useActionState(createPerson, IDLE_STATE);
   const managers = users.filter((u) => u.role === "manager" || u.role === "company_admin");
@@ -52,20 +54,34 @@ export default function CreatePersonForm({
         </div>
 
         <div>
-          <label htmlFor="job_title" className="form-label">Job title</label>
-          <input id="job_title" name="job_title" />
+          <label htmlFor="job_title" className="form-label">Job title *</label>
+          {jobTitles.length === 0 ? (
+            <>
+              <input id="job_title" name="job_title" required />
+              <p className="form-hint">
+                Tip: add your company&rsquo;s job titles in Settings, People to get a dropdown here.
+              </p>
+            </>
+          ) : (
+            <select id="job_title" name="job_title" required defaultValue="">
+              <option value="" disabled>Please choose</option>
+              {jobTitles.map((t) => (
+                <option key={t.id} value={t.title}>{t.title}</option>
+              ))}
+            </select>
+          )}
         </div>
 
         <div>
-          <label htmlFor="start_date" className="form-label">Start date</label>
-          <input id="start_date" name="start_date" type="date" />
+          <label htmlFor="start_date" className="form-label">Start date *</label>
+          <input id="start_date" name="start_date" type="date" required />
           <p className="form-hint">Checks are scheduled from this date.</p>
         </div>
 
         <div>
-          <label htmlFor="manager_id" className="form-label">Line manager</label>
-          <select id="manager_id" name="manager_id" value={managerId} onChange={(e) => setManagerId(e.target.value)}>
-            <option value="">None</option>
+          <label htmlFor="manager_id" className="form-label">Line manager *</label>
+          <select id="manager_id" name="manager_id" required value={managerId} onChange={(e) => setManagerId(e.target.value)}>
+            <option value="" disabled>Please choose</option>
             {managers.map((u) => (
               <option key={u.id} value={u.id}>{u.full_name || u.email}</option>
             ))}
@@ -74,13 +90,13 @@ export default function CreatePersonForm({
         </div>
 
         <div>
-          <label htmlFor="work_email" className="form-label">Personal email</label>
-          <input id="work_email" name="work_email" type="email" />
+          <label htmlFor="work_email" className="form-label">Personal email *</label>
+          <input id="work_email" name="work_email" type="email" required />
         </div>
 
         <div>
-          <label htmlFor="mobile" className="form-label">Mobile</label>
-          <input id="mobile" name="mobile" />
+          <label htmlFor="mobile" className="form-label">Mobile *</label>
+          <input id="mobile" name="mobile" required />
         </div>
 
         <div>

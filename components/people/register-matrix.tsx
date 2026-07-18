@@ -68,14 +68,6 @@ const RTW_LIMIT_OPTIONS = [
     label: RTW_LIMIT_LABELS[k],
   })),
 ];
-const PROBATION_STATUS_OPTIONS = [
-  { value: "", label: "—" },
-  ...(Object.keys(PROBATION_STATUS_LABELS) as Array<keyof typeof PROBATION_STATUS_LABELS>).map((k) => ({
-    value: k,
-    label: PROBATION_STATUS_LABELS[k],
-  })),
-];
-
 type MatrixConfig = {
   supInterval: number;
   supAmber: number;
@@ -259,18 +251,16 @@ export default function RegisterMatrix({
                   </td>
                   <td><Plain date={t?.probation_end_actual ?? null} /></td>
                   <td className="text-white/70">
-                    {editable ? (
-                      <PillSelect
-                        recordId={row.person.id}
-                        recordField="person_id"
-                        field="probation_status"
-                        value={t?.probation_status ?? ""}
-                        options={PROBATION_STATUS_OPTIONS}
-                        action={updateTracker}
-                        toneOf={(v) => probationTone(v, t?.probation_end_due ?? null, config.probationAmber)}
-                      />
-                    ) : t?.probation_status ? (
-                      PROBATION_STATUS_LABELS[t.probation_status]
+                    {/* Read-only: probation status only changes by completing the
+                        Probation Review form (Phil, 2026-07-18), never inline. */}
+                    {t?.probation_status ? (
+                      <span
+                        className={`rag-cell ${toneClass(
+                          probationTone(t.probation_status, t?.probation_end_due ?? null, config.probationAmber),
+                        )}`}
+                      >
+                        {PROBATION_STATUS_LABELS[t.probation_status]}
+                      </span>
                     ) : (
                       "—"
                     )}

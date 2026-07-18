@@ -50,6 +50,21 @@ export async function getProbationPeriod(companyId: string): Promise<number> {
   return (data?.probation_period_days as number | null) ?? 180;
 }
 
+export type JobTitle = { id: string; title: string };
+
+/** Company-managed staff job titles, used for the Add a Person dropdown and the
+ *  Settings > People management list. Ordered by sort_order then title. */
+export async function listJobTitles(companyId: string): Promise<JobTitle[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("company_job_titles")
+    .select("id, title")
+    .eq("company_id", companyId)
+    .order("sort_order", { ascending: true })
+    .order("title", { ascending: true });
+  return (data as JobTitle[] | null) ?? [];
+}
+
 /** Per-company shorthand labels for the People register columns ({} if none). */
 export async function getColumnLabels(companyId: string): Promise<Record<string, string>> {
   const supabase = await createClient();
