@@ -94,6 +94,7 @@ export default async function CompleteCheckPage({
   const recordPresets = recordFormPresets(schema, {
     fullName: person?.full_name ?? null,
     branchName: personBranchName,
+    authorName: profile.full_name || profile.email || null,
   });
   presetAnswers = { ...recordPresets, ...(presetAnswers ?? {}) };
 

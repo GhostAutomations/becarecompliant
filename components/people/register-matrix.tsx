@@ -286,11 +286,11 @@ export default function RegisterMatrix({
                   {/* Pill rule: once a slot is completed the DUE clears and the
                       COMPLETED date carries the pill, green if done on/before the due
                       date, red if late (sup[n].rag). Outstanding: due carries amber/red. */}
-                  <td>{sup[0].comp ? <RagDate date={null} rag="none" /> : <RagDate date={sup[0].due} rag={sup[0].rag} />}</td>
+                  <td>{sup[0].comp ? (sup[0].due ? <Plain date={sup[0].due} /> : <RagDate date={null} rag="none" />) : <RagDate date={sup[0].due} rag={sup[0].rag} />}</td>
                   <td>{sup[0].comp ? <RagDate date={sup[0].comp} rag={sup[0].rag} /> : <RagDate date={null} rag="none" />}</td>
-                  <td>{sup[1].comp ? <RagDate date={null} rag="none" /> : <RagDate date={sup[1].due} rag={sup[1].rag} />}</td>
+                  <td>{sup[1].comp ? (sup[1].due ? <Plain date={sup[1].due} /> : <RagDate date={null} rag="none" />) : <RagDate date={sup[1].due} rag={sup[1].rag} />}</td>
                   <td>{sup[1].comp ? <RagDate date={sup[1].comp} rag={sup[1].rag} /> : <RagDate date={null} rag="none" />}</td>
-                  <td>{sup[2].comp ? <RagDate date={null} rag="none" /> : <RagDate date={sup[2].due} rag={sup[2].rag} />}</td>
+                  <td>{sup[2].comp ? (sup[2].due ? <Plain date={sup[2].due} /> : <RagDate date={null} rag="none" />) : <RagDate date={sup[2].due} rag={sup[2].rag} />}</td>
                   <td>{sup[2].comp ? <RagDate date={sup[2].comp} rag={sup[2].rag} /> : <RagDate date={null} rag="none" />}</td>
                   <td><RagDate date={aaSlot.nextDue} rag={aaSlot.nextDueRag} /></td>
                   <td>{aaSlot.comp ? <RagDate date={aaSlot.comp} rag={aaSlot.compRag} /> : <RagDate date={null} rag="none" />}</td>

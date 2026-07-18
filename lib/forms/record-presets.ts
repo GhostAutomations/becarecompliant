@@ -28,18 +28,44 @@ const NAME_KEYS = new Set([
 
 const BRANCH_KEYS = new Set(["branch", "region"]);
 
+// "Completed by" / "Reviewed by" style fields: seed with the logged-in user's name.
+// It is only a preset, so the user can still edit it (a text field stays editable).
+const AUTHOR_KEYS = new Set([
+  "completed_by",
+  "completedby",
+  "reviewed_by",
+  "reviewedby",
+  "signed_by",
+  "signedby",
+  "assessor",
+  "reviewer",
+  "reviewer_name",
+  "supervisor_name",
+]);
+
 export function recordFormPresets(
   schema: FormSchema,
-  opts: { fullName: string | null; branchName: string | null },
+  opts: { fullName: string | null; branchName: string | null; authorName?: string | null },
 ): Answers {
   const presets: Answers = {};
 
   for (const sec of schema.sections) {
     for (const f of sec.fields) {
       const key = (f.key ?? "").toLowerCase();
+      const label = (f.label ?? "").toLowerCase();
 
       if (NAME_KEYS.has(key) && opts.fullName) {
         presets[f.key] = opts.fullName;
+        continue;
+      }
+
+      const isAuthor =
+        AUTHOR_KEYS.has(key) ||
+        label.includes("completed by") ||
+        label.includes("reviewed by") ||
+        label.includes("signed by");
+      if (isAuthor && opts.authorName) {
+        presets[f.key] = opts.authorName;
         continue;
       }
 

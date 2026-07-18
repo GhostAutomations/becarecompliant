@@ -63,6 +63,7 @@ export default async function CompleteServiceUserCheckPage({
   const presetAnswers: Answers = recordFormPresets(schema, {
     fullName: serviceUser?.full_name ?? null,
     branchName: suBranchName,
+    authorName: profile.full_name || profile.email || null,
   });
 
   return (

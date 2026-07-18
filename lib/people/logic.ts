@@ -225,47 +225,41 @@ export function supervisionSlots(
   count = 3,
 ): SupervisionSlot[] {
   const slots: SupervisionSlot[] = [];
+  const valid = (d: string | null | undefined): d is string => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d);
   const hasInterval = !!intervalDays && intervalDays >= 1;
-  // Sup 1 is due one interval after the LATER of the appraisal completion and the
-  // probation end. Only an Annual Appraisal RESTARTS the cycle (clears prior
-  // completions); the probation end just sets year-one's Sup 1 due, it must not hide
-  // supervisions dated before it.
+  const addI = (d: string) => formatCivilDate(addInterval(parseCivilDate(d), "day", intervalDays!));
+  // The cycle restarts when the Annual Appraisal is completed. Current cycle =
+  // supervisions after that; history = the last `count` before it (the previous cycle),
+  // kept visible until each slot is redone. Sup 1 anchors on the appraisal/probation.
   const dueAnchor = supervisionCycleAnchor(appraisalCompletedOn, probationEndActual);
-  const restartFrom =
-    appraisalCompletedOn && /^\d{4}-\d{2}-\d{2}$/.test(appraisalCompletedOn) ? appraisalCompletedOn : null;
-  // Sequential model (Phil, 2026-07-18): the slot is the Nth completion in the current
-  // cycle, in date order, from ANY source (real evidence or migrated history). So Sup 1
-  // = the earliest completion after the appraisal restart, Sup 2 the next, and so on.
-  const cycle = Array.from(
-    new Set(
-      compDates.filter(
-        (d) => /^\d{4}-\d{2}-\d{2}$/.test(d) && (!restartFrom || d > restartFrom),
-      ),
-    ),
-  ).sort();
-  const compAt = (n: number): string | null => cycle[n - 1] ?? null;
-  for (let n = 1; n <= count; n++) {
-    const comp = compAt(n);
-    let due: CivilDate | null = null;
-    if (hasInterval) {
-      // Sup 1 anchors on the due anchor; Sup N on the previous cycle completion.
-      const anchor = n === 1 ? dueAnchor : compAt(n - 1);
-      if (anchor && /^\d{4}-\d{2}-\d{2}$/.test(anchor)) {
-        due = addInterval(parseCivilDate(anchor), "day", intervalDays!);
-      }
+  const rf = valid(appraisalCompletedOn) ? appraisalCompletedOn : null;
+  const all = compDates.filter(valid).slice().sort();
+  const cycle = all.filter((d) => !rf || d > rf);
+  const prev = rf ? all.filter((d) => d <= rf).slice(-count) : [];
+  // Display model (Phil, 2026-07-18): the active slot is the next supervision to do (after
+  // an appraisal it is Sup 1 again). Slots before it keep both due and completed date;
+  // slots after it keep the previous cycle's completed date (no due) until redone.
+  const activeSlot = cycle.length + 1;
+  for (let i = 1; i <= count; i++) {
+    let comp: string | null = null;
+    let due: string | null = null;
+    let rag: Rag | "none" = "none";
+    if (i < activeSlot) {
+      comp = cycle[i - 1] ?? null;
+      const anchor = i === 1 ? dueAnchor : cycle[i - 2];
+      due = hasInterval && valid(anchor) ? addI(anchor) : null;
+      rag = comp ? (due && comp > due ? "red" : "green") : "none";
+    } else if (i === activeSlot) {
+      const anchor = cycle.length > 0 ? cycle[cycle.length - 1] : dueAnchor;
+      due = hasInterval && valid(anchor) ? addI(anchor) : null;
+      rag = due ? ragStatus(parseCivilDate(due), today, amberDays) : "none";
+    } else {
+      comp = prev[i - 1] ?? null;
+      const anchor = i > 1 ? prev[i - 2] : null;
+      const hd = hasInterval && valid(anchor) ? addI(anchor) : null;
+      rag = comp ? (hd && comp > hd ? "red" : "green") : "none";
     }
-    // Pill rule (Phil, 2026-07-18): a completed slot is GREEN only if it was done on
-    // or before its due date, RED if completed late (and it stays red). An
-    // outstanding slot keeps the amber/red RAG by its due date.
-    const dueIso = due ? formatCivilDate(due) : null;
-    const rag: Rag | "none" = comp
-      ? dueIso && comp > dueIso
-        ? "red"
-        : "green"
-      : due
-        ? ragStatus(due, today, amberDays)
-        : "none";
-    slots.push({ n, due: dueIso, comp, rag });
+    slots.push({ n: i, due, comp, rag });
   }
   return slots;
 }
