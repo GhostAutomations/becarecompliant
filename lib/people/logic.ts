@@ -250,8 +250,18 @@ export function supervisionSlots(
         due = addInterval(parseCivilDate(anchor), "day", intervalDays!);
       }
     }
-    const rag: Rag | "none" = comp ? "green" : due ? ragStatus(due, today, amberDays) : "none";
-    slots.push({ n, due: due ? formatCivilDate(due) : null, comp, rag });
+    // Pill rule (Phil, 2026-07-18): a completed slot is GREEN only if it was done on
+    // or before its due date, RED if completed late (and it stays red). An
+    // outstanding slot keeps the amber/red RAG by its due date.
+    const dueIso = due ? formatCivilDate(due) : null;
+    const rag: Rag | "none" = comp
+      ? dueIso && comp > dueIso
+        ? "red"
+        : "green"
+      : due
+        ? ragStatus(due, today, amberDays)
+        : "none";
+    slots.push({ n, due: dueIso, comp, rag });
   }
   return slots;
 }
