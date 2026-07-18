@@ -104,7 +104,8 @@ function ragCell(rag: Rag | "none") {
 function completedCell(date: string | null, rag: Rag | "none") {
   if (!date) return { text: "—", rag: "neutral" as const };
   const late = rag === "red";
-  return { text: `${fmtDate(date)}${late ? " (late)" : ""}`, rag: (late ? "red" : "green") as const };
+  const tone: "red" | "green" = late ? "red" : "green";
+  return { text: `${fmtDate(date)}${late ? " (late)" : ""}`, rag: tone };
 }
 
 function summaryCounts(rags: (Rag | "none")[]) {
