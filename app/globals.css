@@ -436,3 +436,33 @@
     @apply cursor-wait opacity-60;
   }
 }
+
+/* Marketing site: scroll reveal + hero glow. Plain CSS (no @apply) so it never
+   trips the Tailwind v4 custom-class caveat. Respects reduced motion. */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+  will-change: opacity, transform;
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+.hero-glow {
+  position: absolute;
+  inset: -10% 0 auto 0;
+  height: 620px;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(55% 45% at 50% 0%, color-mix(in srgb, var(--color-gold-400) 16%, transparent), transparent 70%),
+    radial-gradient(45% 40% at 50% 30%, color-mix(in srgb, var(--color-navy-700) 60%, transparent), transparent 75%);
+}

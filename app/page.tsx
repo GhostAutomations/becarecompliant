@@ -7,6 +7,10 @@ import PricingTiers from "@/components/marketing/pricing-tiers";
 import ProductPreview from "@/components/marketing/product-preview";
 import Comparison from "@/components/marketing/comparison";
 import PqsReportPreview from "@/components/marketing/pqs-report-preview";
+import FeatureSpotlights from "@/components/marketing/feature-spotlights";
+import Outcomes from "@/components/marketing/outcomes";
+import SocialProof from "@/components/marketing/social-proof";
+import Reveal from "@/components/marketing/reveal";
 
 const TRUST = ["CQC in England", "CIW in Wales", "Local authority monitoring", "UK data, kept private"];
 
@@ -37,24 +41,12 @@ const FEATURES: Array<{ title: string; body: string }> = [
     body: "Two clear registers, your staff team and the people you care for, each with their own checks, due dates and evidence.",
   },
   {
-    title: "Checks that update themselves",
-    body: "Complete a form against a record and everything updates itself: the check completes, the date is stamped, the evidence is stored and the next due date is set. No manual date keeping, ever.",
-  },
-  {
-    title: "Red, amber, green at a glance",
-    body: "Every check is compliant, due soon or overdue, and it rolls up from the check to the record, the branch and the whole company. Know if you are inspection ready in one look, then reach the exact overdue item in two clicks.",
-  },
-  {
-    title: "Evidence inspectors can trust",
-    body: "Completed forms are stored as timestamped evidence with the author and the form version used. Export inspection ready reports as PDF or CSV the moment they are asked for.",
-  },
-  {
     title: "Reminders that chase for you",
     body: "A daily digest and reminders keep nothing slipping through, so supervisions, reviews and renewals are done on time, not discovered late.",
   },
   {
     title: "Your forms, your way",
-    body: "Start from a founder curated library of care templates, then build and version your own forms with the built in form builder.",
+    body: "Start from a curated library of care templates, then build and version your own forms with the built in form builder.",
   },
 ];
 
@@ -103,35 +95,39 @@ export default async function Home() {
       <SiteHeader authed={Boolean(user)} />
 
       {/* Hero */}
-      <section className="mx-auto max-w-6xl px-4 pb-16 pt-20 text-center sm:pt-28">
-        <span className="inline-block rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/70">
-          Compliance software for UK care providers
-        </span>
-        <h1 className="mx-auto mt-6 max-w-3xl text-4xl font-bold leading-tight sm:text-5xl">
-          Inspection ready, <span className="text-gold-400">every day.</span>
-        </h1>
-        <p className="mx-auto mt-5 max-w-2xl text-lg text-white/70">
-          The compliance platform built for UK care providers. Track every check, stay ready for CQC and CIW,
-          and hand inspectors the evidence in one click. No spreadsheets, no wall charts, no last minute scramble.
-        </p>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Link href="/start-trial" className="btn-primary">Start your 14 day free trial</Link>
-          <Link href="/pricing" className="btn-outline">See pricing</Link>
-        </div>
-        <p className="mt-4 text-xs text-white/45">No card needed. Set up for you, ready to use.</p>
+      <section className="relative overflow-hidden px-4 pb-16 pt-20 text-center sm:pt-28">
+        <div className="hero-glow" aria-hidden />
+        <div className="relative z-10 mx-auto max-w-6xl">
+          <span className="reveal is-visible inline-block rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/70">
+            Compliance software for UK care providers
+          </span>
+          <h1 className="mx-auto mt-6 max-w-3xl text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl">
+            Inspection ready,{" "}
+            <span className="bg-gradient-to-r from-gold-300 to-gold-400 bg-clip-text text-transparent">every day.</span>
+          </h1>
+          <p className="mx-auto mt-6 max-w-2xl text-lg text-white/75">
+            The compliance platform built for UK care providers. Track every check, stay ready for CQC and CIW,
+            and hand inspectors the evidence in one click. No spreadsheets, no wall charts, no last minute scramble.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            <Link href="/start-trial" className="btn-primary">Start your 14 day free trial</Link>
+            <Link href="/pricing" className="btn-outline">See pricing</Link>
+          </div>
+          <p className="mt-4 text-xs text-white/45">No card needed. Set up for you, ready to use.</p>
 
-        <div className="mx-auto mt-10 max-w-4xl">
-          <ProductPreview />
-        </div>
+          <Reveal className="mx-auto mt-12 max-w-4xl" delay={80}>
+            <ProductPreview />
+          </Reveal>
 
-        <ul className="mx-auto mt-8 flex max-w-3xl flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-white/55">
-          {TRUST.map((t) => (
-            <li key={t} className="flex items-center gap-2">
-              <span aria-hidden className="text-gold-400">&#10003;</span>
-              {t}
-            </li>
-          ))}
-        </ul>
+          <ul className="mx-auto mt-8 flex max-w-3xl flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-white/55">
+            {TRUST.map((t) => (
+              <li key={t} className="flex items-center gap-2">
+                <span aria-hidden className="text-gold-400">&#10003;</span>
+                {t}
+              </li>
+            ))}
+          </ul>
+        </div>
       </section>
 
       {/* Problem */}
@@ -162,22 +158,33 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Features */}
-      <section id="features" className="mx-auto max-w-6xl px-4 py-20">
-        <div className="mx-auto max-w-2xl text-center">
+      {/* Feature spotlights (show the product) */}
+      <div id="features" className="pt-20">
+        <div className="mx-auto max-w-2xl px-4 text-center">
           <h2 className="text-2xl font-semibold sm:text-3xl">Everything a registered manager needs</h2>
-          <p className="mt-3 text-white/70">Simple enough to run your service from, thorough enough for an inspector.</p>
+          <p className="mt-3 text-white/75">Simple enough to run your service from, thorough enough for an inspector.</p>
         </div>
-        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map((f) => (
-            <div key={f.title} className="glass-card glass-card-hover p-6">
-              <span aria-hidden className="block h-1 w-10 rounded-full bg-gold-400" />
-              <h3 className="mt-4 text-base font-semibold text-white">{f.title}</h3>
-              <p className="mt-2 text-sm text-white/75">{f.body}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+        <FeatureSpotlights />
+
+        {/* And everything else */}
+        <section className="mx-auto max-w-6xl px-4 pb-20">
+          <h3 className="text-center text-sm font-semibold uppercase tracking-wide text-white/50">And everything else you need</h3>
+          <div className="mt-8 grid gap-5 sm:grid-cols-3">
+            {FEATURES.map((f) => (
+              <div key={f.title} className="glass-card glass-card-hover p-6">
+                <span aria-hidden className="block h-1 w-10 rounded-full bg-gold-400" />
+                <h4 className="mt-4 text-base font-semibold text-white">{f.title}</h4>
+                <p className="mt-2 text-sm text-white/75">{f.body}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      {/* Outcomes */}
+      <Reveal>
+        <Outcomes />
+      </Reveal>
 
       {/* How it works */}
       <section id="how" className="border-y border-white/10 bg-white/[0.03]">
@@ -219,13 +226,13 @@ export default async function Home() {
             <span className="text-xs font-semibold uppercase tracking-wide text-gold-300">Built for CQC and CIW</span>
             <h2 className="mt-3 text-2xl font-semibold sm:text-3xl">Regulator ready reports, in one click</h2>
             <p className="mt-4 text-white/75">
-              Be Care Compliant does not just store your records, it speaks the regulator's language. Local authority
-              quality returns are built in: your on time completion rates, the quality measures and the scores,
-              worked out for you and ready to export.
+              Be Care Compliant does not just store your records, it speaks the regulator's language. The Provider
+              Quality System (PQS) return is built in: your on time completion rates, the starred PQS measures and
+              the PQS score, worked out for you and ready to export.
             </p>
             <ul className="mt-6 space-y-2.5 text-sm text-white/80">
               {[
-                "The quality measures your local authority asks for, scored the way they score them",
+                "The exact PQS measures, scored the way the PQS scores them",
                 "On time rates graded against the regulatory deadline, not just your calendar",
                 "Export to PDF or CSV and hand it straight to your local authority",
               ].map((t) => (
@@ -241,6 +248,9 @@ export default async function Home() {
           </div>
         </div>
       </section>
+
+      {/* Social proof (ready to fill) */}
+      <SocialProof />
 
       {/* Pricing */}
       <section id="pricing" className="mx-auto max-w-6xl px-4 py-20">
