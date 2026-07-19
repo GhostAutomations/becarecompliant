@@ -71,7 +71,7 @@ export default function ProductPreview() {
             <tr className="text-[11px] uppercase tracking-wide text-white/45">
               <th className="px-2 py-1 text-left font-medium">Carer</th>
               {COLS.map((c) => (
-                <th key={c} className="px-2 py-1 text-left font-medium">{c}</th>
+                <th key={c} className="px-2 py-1 text-center font-medium">{c}</th>
               ))}
             </tr>
           </thead>
@@ -83,7 +83,7 @@ export default function ProductPreview() {
                   <div className="text-[11px] text-white/45">{r.role}</div>
                 </td>
                 {r.cells.map((cell, i) => (
-                  <td key={i} className="px-2 py-1.5">
+                  <td key={i} className="px-2 py-1.5 text-center">
                     <span className={`${pillClass(cell.tone)} text-[11px]`}>
                       <span className="pill-dot" /> {cell.label}
                     </span>
