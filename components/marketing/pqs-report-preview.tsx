@@ -54,33 +54,31 @@ export default function PqsReportPreview() {
           </span>
         </div>
 
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[520px] border-separate border-spacing-y-1.5 text-sm">
+        <div className="mt-4">
+          <table className="w-full border-separate border-spacing-y-1.5 text-sm">
             <thead>
               <tr className="text-[11px] uppercase tracking-wide text-white/45">
-                <th className="px-2 py-1 text-left font-medium">Measure</th>
-                <th className="px-2 py-1 text-left font-medium">Graded at</th>
-                <th className="px-2 py-1 text-left font-medium">On time rate</th>
-                <th className="px-2 py-1 text-right font-medium">PQS score</th>
+                <th className="px-1 py-1 text-left font-medium">Measure</th>
+                <th className="px-1 py-1 text-right font-medium">On time</th>
+                <th className="px-1 py-1 text-right font-medium">Score</th>
               </tr>
             </thead>
             <tbody>
               {ROWS.map((r) => (
                 <tr key={r.name}>
-                  <td className="px-2 py-1.5">
+                  <td className="px-1 py-1.5">
                     <span className="font-semibold text-white">
                       {r.star ? <span className="mr-1 text-gold-400" aria-label="PQS measure">&#9733;</span> : null}
                       {r.name}
                     </span>
                     <span className="ml-2 text-[11px] text-white/40">{r.register}</span>
                   </td>
-                  <td className="px-2 py-1.5 text-white/60">{r.gradedAt}</td>
-                  <td className="px-2 py-1.5">
+                  <td className="px-1 py-1.5 text-right">
                     <span className={`${pill(rateTone(r.rate))} text-[11px]`}>
                       <span className="pill-dot" /> {r.rate.toFixed(1)}%
                     </span>
                   </td>
-                  <td className="px-2 py-1.5 text-right">
+                  <td className="px-1 py-1.5 text-right">
                     <span className={`${pill(scoreTone(r.score))} text-[11px]`}>{r.score}</span>
                   </td>
                 </tr>
