@@ -183,11 +183,11 @@ export default function RegisterMatrix({
                 config.supInterval,
                 row.supCompDates,
                 config.supAmber,
-                row.statusByKey["appraisal"]?.last_completed_on ?? null,
+                row.appraisalCompDates,
                 t?.probation_end_actual ?? null,
               );
               const aaSlot = appraisalSlot(
-                row.statusByKey["appraisal"]?.last_completed_on ?? null,
+                row.appraisalCompDates,
                 row.supCompDates,
                 config.supInterval,
                 config.supAmber,

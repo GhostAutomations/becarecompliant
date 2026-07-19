@@ -13,6 +13,7 @@ import {
   getPersonChecks,
   getPersonTracker,
   getSupervisionCompDates,
+  getAppraisalCompDates,
   listBranches,
   listSupervisoryUsers,
   listPeopleCheckDefinitions,
@@ -124,17 +125,21 @@ export default async function PersonPage({
 
   const supDef = definitions.find((d) => d.key === "supervision");
   const supFormId = supDef?.form_id ?? null;
-  const supCompDates = await getSupervisionCompDates(id, supFormId, supDef?.id ?? null);
+  const appraisalDef = definitions.find((d) => d.key === "appraisal");
+  const [supCompDates, appraisalCompDates] = await Promise.all([
+    getSupervisionCompDates(id, supFormId, supDef?.id ?? null),
+    getAppraisalCompDates(id, appraisalDef?.form_id ?? null, appraisalDef?.id ?? null),
+  ]);
   const supInterval = supDef?.interval ?? 90;
   const supAmber = supDef?.amber_days ?? 30;
   // Sup 1 due anchors on the later of the last Annual Appraisal completion and the
-  // successful probation end; only an appraisal restarts the cycle (see supervisionSlots).
-  const appraisalCompletedOn = statuses.find((s) => s.check_key === "appraisal")?.last_completed_on ?? null;
+  // successful probation end; each completed appraisal restarts the cycle by count
+  // (see supervisionSlots), matching the Service User reviews.
   const slots = supervisionSlots(
     supInterval,
     supCompDates,
     supAmber,
-    appraisalCompletedOn,
+    appraisalCompDates,
     tracker?.probation_end_actual ?? null,
   );
 

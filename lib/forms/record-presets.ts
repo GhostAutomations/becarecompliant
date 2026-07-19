@@ -45,14 +45,30 @@ const AUTHOR_KEYS = new Set([
 
 export function recordFormPresets(
   schema: FormSchema,
-  opts: { fullName: string | null; branchName: string | null; authorName?: string | null },
+  opts: {
+    fullName: string | null;
+    branchName: string | null;
+    authorName?: string | null;
+    /** Today's date (ISO, Europe/London). Seeds the first date field so the completion
+     *  date defaults to today; it stays editable. */
+    today?: string | null;
+  },
 ): Answers {
   const presets: Answers = {};
+  let dateSeeded = false;
 
   for (const sec of schema.sections) {
     for (const f of sec.fields) {
       const key = (f.key ?? "").toLowerCase();
       const label = (f.label ?? "").toLowerCase();
+
+      // First date field: default to today (editable). This is the activity date used
+      // to stamp the completion (e.g. Date of supervision, Date of Appraisal).
+      if (!dateSeeded && f.type === "date" && opts.today) {
+        presets[f.key] = opts.today;
+        dateSeeded = true;
+        continue;
+      }
 
       if (NAME_KEYS.has(key) && opts.fullName) {
         presets[f.key] = opts.fullName;

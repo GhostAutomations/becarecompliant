@@ -173,6 +173,9 @@ export async function listRegister(
   const supDef = definitions.find((d) => d.key === "supervision");
   const supFormId = supDef?.form_id ?? null;
   const supDefId = supDef?.id ?? null;
+  const appraisalDef = definitions.find((d) => d.key === "appraisal");
+  const appraisalFormId = appraisalDef?.form_id ?? null;
+  const appraisalDefId = appraisalDef?.id ?? null;
 
   const [
     { data: statusData },
@@ -180,6 +183,8 @@ export async function listRegister(
     { data: trackerData },
     { data: supEvidence },
     { data: supMigrated },
+    { data: appraisalEvidence },
+    { data: appraisalMigrated },
   ] = await Promise.all([
     supabase.from("person_check_status_all").select("*").in("person_id", ids),
     supabase.from("person_rollup_all").select("*").in("person_id", ids),
@@ -201,6 +206,25 @@ export async function listRegister(
           .select("record_id, completed_on")
           .eq("record_type", "person")
           .eq("definition_id", supDefId)
+          .in("record_id", ids)
+      : Promise.resolve({ data: [] as Array<{ record_id: string; completed_on: string }> }),
+    appraisalFormId
+      ? supabase
+          .from("evidence")
+          .select("record_id, submitted_at, answers")
+          .eq("record_type", "person")
+          .eq("form_id", appraisalFormId)
+          .in("record_id", ids)
+          .order("submitted_at", { ascending: true })
+      : Promise.resolve({
+          data: [] as Array<{ record_id: string; submitted_at: string; answers: Record<string, unknown> }>,
+        }),
+    appraisalDefId
+      ? supabase
+          .from("migrated_completions")
+          .select("record_id, completed_on")
+          .eq("record_type", "person")
+          .eq("definition_id", appraisalDefId)
           .in("record_id", ids)
       : Promise.resolve({ data: [] as Array<{ record_id: string; completed_on: string }> }),
   ]);
@@ -245,6 +269,27 @@ export async function listRegister(
     pushSupDate(m.record_id, m.completed_on);
   }
 
+  // All appraisal completion dates per person (evidence + migrated). The count of
+  // these drives the supervision cycle reset (each appraisal ends a 3-supervision
+  // cycle), matching the count-based Service User review model.
+  const appraisalDatesByPerson = new Map<string, string[]>();
+  const pushAppraisalDate = (pid: string, d: string | null) => {
+    if (!d) return;
+    const a = appraisalDatesByPerson.get(pid) ?? [];
+    a.push(d);
+    appraisalDatesByPerson.set(pid, a);
+  };
+  for (const e of (appraisalEvidence as Array<{
+    record_id: string;
+    submitted_at: string;
+    answers: Record<string, unknown>;
+  }>) ?? []) {
+    pushAppraisalDate(e.record_id, appraisalCompDate(e.answers, e.submitted_at));
+  }
+  for (const m of (appraisalMigrated as Array<{ record_id: string; completed_on: string }>) ?? []) {
+    pushAppraisalDate(m.record_id, m.completed_on);
+  }
+
   const rows: RegisterRow[] = people.map((person) => ({
     person,
     rollup: rollupByPerson.get(person.id) ?? null,
@@ -252,6 +297,7 @@ export async function listRegister(
     statusByKey: statusByKeyByPerson.get(person.id) ?? {},
     tracker: trackerByPerson.get(person.id) ?? null,
     supCompDates: supDatesByPerson.get(person.id) ?? [],
+    appraisalCompDates: appraisalDatesByPerson.get(person.id) ?? [],
   }));
 
   return { definitions, rows };
@@ -273,6 +319,47 @@ function supervisionCompDate(answers: Record<string, unknown>, submittedAt: stri
   const d = answers?.supervision_date;
   if (typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
   return submittedAt.slice(0, 10);
+}
+
+/** The appraisal completion date: the form's "Date of Appraisal" if captured,
+ *  else the submission timestamp. */
+function appraisalCompDate(answers: Record<string, unknown>, submittedAt: string): string {
+  const d = answers?.date_of_appraisal;
+  if (typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+  return submittedAt.slice(0, 10);
+}
+
+/** All appraisal completion dates (ISO) for a person, from evidence AND migrated
+ *  history. The COUNT of these drives the supervision cycle reset. */
+export async function getAppraisalCompDates(
+  personId: string,
+  appraisalFormId: string | null,
+  appraisalDefId: string | null,
+): Promise<string[]> {
+  const supabase = await createClient();
+  const dates: string[] = [];
+  if (appraisalFormId) {
+    const { data } = await supabase
+      .from("evidence")
+      .select("submitted_at, answers")
+      .eq("record_type", "person")
+      .eq("record_id", personId)
+      .eq("form_id", appraisalFormId)
+      .order("submitted_at", { ascending: true });
+    for (const e of (data as Array<{ submitted_at: string; answers: Record<string, unknown> }>) ?? []) {
+      dates.push(appraisalCompDate(e.answers, e.submitted_at));
+    }
+  }
+  if (appraisalDefId) {
+    const { data } = await supabase
+      .from("migrated_completions")
+      .select("completed_on")
+      .eq("record_type", "person")
+      .eq("record_id", personId)
+      .eq("definition_id", appraisalDefId);
+    for (const m of (data as Array<{ completed_on: string }>) ?? []) dates.push(m.completed_on);
+  }
+  return dates;
 }
 
 /** All supervision completion dates (ISO) for a person, from real form evidence AND

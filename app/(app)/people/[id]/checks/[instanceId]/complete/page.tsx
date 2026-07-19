@@ -13,6 +13,7 @@ import {
   listBranches,
 } from "@/lib/people/data";
 import { supervisionSlots, annotateSupervisionOptions } from "@/lib/people/logic";
+import { todayInLondon } from "@/lib/recurrence";
 import { recordFormPresets } from "@/lib/forms/record-presets";
 import { isFormSchema, removeField, type Answers, type FormSchema } from "@/lib/form-schema";
 import type { CheckDefinition } from "@/lib/people/types";
@@ -69,17 +70,17 @@ export default async function CompleteCheckPage({
       presetAnswers = { supervision_type: sup };
       heading = `Supervision ${sup}`;
     } else {
-      const [supCompDates, tracker, statuses] = await Promise.all([
+      const appraisalDef = (await getPersonChecks(id)).find((s) => s.check_key === "appraisal") ?? null;
+      const [supCompDates, appraisalCompDates, tracker] = await Promise.all([
         getSupervisionCompDates(id, def.form_id, def.id),
+        getAppraisalCompDates(id, appraisalDef?.form_id ?? null, appraisalDef?.definition_id ?? null),
         getPersonTracker(id),
-        getPersonChecks(id),
       ]);
-      const appraisalCompletedOn = statuses.find((s) => s.check_key === "appraisal")?.last_completed_on ?? null;
       const slots = supervisionSlots(
         def.interval,
         supCompDates,
         def.amber_days ?? 30,
-        appraisalCompletedOn,
+        appraisalCompDates,
         tracker?.probation_end_actual ?? null,
       );
       schema = annotateSupervisionOptions(schema, slots);
@@ -95,6 +96,7 @@ export default async function CompleteCheckPage({
     fullName: person?.full_name ?? null,
     branchName: personBranchName,
     authorName: profile.full_name || profile.email || null,
+    today: todayInLondon(),
   });
   presetAnswers = { ...recordPresets, ...(presetAnswers ?? {}) };
 

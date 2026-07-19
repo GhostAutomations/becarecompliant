@@ -145,16 +145,15 @@ export async function buildPeopleRegisterReport(
   // Latest supervision + appraisal per person, coloured on time / late (register pill).
   const cycleRows = rows
     .map((r: RegisterRow) => {
-      const appraisalCompletedOn = r.statusByKey["appraisal"]?.last_completed_on ?? null;
       const sup = supervisionSlots(
         supInterval,
         r.supCompDates,
         supAmber,
-        appraisalCompletedOn,
+        r.appraisalCompDates,
         r.tracker?.probation_end_actual ?? null,
       );
       const lastSup = [...sup].reverse().find((s) => s.comp) ?? null;
-      const aa = appraisalSlot(appraisalCompletedOn, r.supCompDates, supInterval, supAmber);
+      const aa = appraisalSlot(r.appraisalCompDates, r.supCompDates, supInterval, supAmber);
       return { name: r.person.full_name, lastSup, aa };
     })
     .filter((x) => (x.lastSup && x.lastSup.comp) || x.aa.comp);

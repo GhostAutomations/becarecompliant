@@ -123,6 +123,9 @@ export type RegisterRow = {
   /** All supervision completion dates (ISO), from real evidence and migrated history.
    *  The cycle slots (Sup 1/2/3) are derived from these in date order. */
   supCompDates: string[];
+  /** All appraisal completion dates (ISO). Their COUNT resets the supervision cycle
+   *  (each completed appraisal ends a 3-supervision cycle). */
+  appraisalCompDates: string[];
 };
 
 export const RTW_LIMIT_LABELS: Record<RtwLimit, string> = {

@@ -219,7 +219,7 @@ export function supervisionSlots(
   intervalDays: number | null,
   compDates: string[],
   amberDays: number,
-  appraisalCompletedOn: string | null = null,
+  appraisalCompDates: string[] = [],
   probationEndActual: string | null = null,
   today: CivilDate = todayInLondon(),
   count = 3,
@@ -228,14 +228,20 @@ export function supervisionSlots(
   const valid = (d: string | null | undefined): d is string => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d);
   const hasInterval = !!intervalDays && intervalDays >= 1;
   const addI = (d: string) => formatCivilDate(addInterval(parseCivilDate(d), "day", intervalDays!));
-  // The cycle restarts when the Annual Appraisal is completed. Current cycle =
-  // supervisions after that; history = the last `count` before it (the previous cycle),
-  // kept visible until each slot is redone. Sup 1 anchors on the appraisal/probation.
-  const dueAnchor = supervisionCycleAnchor(appraisalCompletedOn, probationEndActual);
-  const rf = valid(appraisalCompletedOn) ? appraisalCompletedOn : null;
+  // Count-based cycle, matching the Service User reviews: completing the Annual
+  // Appraisal restarts the cycle, regardless of the dates entered. Each completed
+  // appraisal ends a cycle of `count` supervisions, so the first (count * appraisalCount)
+  // supervisions belong to prior cycles and the rest are the current cycle. History =
+  // the previous cycle's supervisions, kept visible until each slot is redone. Sup 1
+  // anchors on the LATER of the last appraisal completion and the probation end.
+  const appraisals = appraisalCompDates.filter(valid).slice().sort();
+  const appraisalCount = appraisals.length;
+  const lastAppraisal = appraisalCount > 0 ? appraisals[appraisalCount - 1] : null;
+  const dueAnchor = supervisionCycleAnchor(lastAppraisal, probationEndActual);
   const all = compDates.filter(valid).slice().sort();
-  const cycle = all.filter((d) => !rf || d > rf);
-  const prev = rf ? all.filter((d) => d <= rf).slice(-count) : [];
+  const consumed = count * appraisalCount;
+  const cycle = all.slice(consumed);
+  const prev = all.slice(Math.max(0, consumed - count), consumed);
   // Display model (Phil, 2026-07-18): the active slot is the next supervision to do (after
   // an appraisal it is Sup 1 again). Slots before it keep both due and completed date;
   // slots after it keep the previous cycle's completed date (no due) until redone.
@@ -283,37 +289,40 @@ export type AppraisalSlot = {
  * (red) against the supervision that triggered it.
  */
 export function appraisalSlot(
-  appraisalCompletedOn: string | null,
+  appraisalCompDates: string[],
   supCompDates: string[],
   intervalDays: number | null,
   amberDays: number,
   today: CivilDate = todayInLondon(),
 ): AppraisalSlot {
+  const isDate = (d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d);
   const hasInterval = !!intervalDays && intervalDays >= 1;
-  const validSups = supCompDates.filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d));
-  const done =
-    appraisalCompletedOn && /^\d{4}-\d{2}-\d{2}$/.test(appraisalCompletedOn)
-      ? appraisalCompletedOn
-      : null;
+  const addI = (d: string) => formatCivilDate(addInterval(parseCivilDate(d), "day", intervalDays!));
+  const appraisals = appraisalCompDates.filter(isDate).slice().sort();
+  const appraisalCount = appraisals.length;
+  const comp = appraisalCount > 0 ? appraisals[appraisalCount - 1] : null;
+  const sups = supCompDates.filter(isDate).slice().sort();
+  // Each appraisal closes a cycle of three supervisions (count-based, like the reviews).
+  const consumed = 3 * appraisalCount;
 
-  let comp: string | null = null;
+  // Lateness of the last appraisal: judged against the third supervision of the cycle
+  // it closed (that supervision + interval).
   let compRag: Rag | "none" = "none";
-  if (done) {
-    comp = done;
-    const pre = validSups.filter((d) => d <= done).sort();
-    if (hasInterval && pre.length > 0) {
-      const due = formatCivilDate(addInterval(parseCivilDate(pre[pre.length - 1]), "day", intervalDays!));
-      compRag = done > due ? "red" : "green";
+  if (comp) {
+    const closedThirdSup = sups[consumed - 1] ?? null;
+    if (hasInterval && closedThirdSup) {
+      compRag = comp > addI(closedThirdSup) ? "red" : "green";
     } else {
-      compRag = "green"; // no earlier supervision to judge lateness against
+      compRag = "green"; // no completed cycle to judge lateness against
     }
   }
 
+  // Next appraisal due once three supervisions are done in the CURRENT (open) cycle.
   let nextDue: string | null = null;
   let nextDueRag: Rag | "none" = "none";
-  const cycle = Array.from(new Set(validSups.filter((d) => !done || d > done))).sort();
-  if (hasInterval && cycle.length >= 3) {
-    nextDue = formatCivilDate(addInterval(parseCivilDate(cycle[2]), "day", intervalDays!));
+  const currentCycleSups = sups.slice(consumed);
+  if (hasInterval && currentCycleSups.length >= 3) {
+    nextDue = addI(currentCycleSups[2]);
     nextDueRag = ragStatus(parseCivilDate(nextDue), today, amberDays);
   }
 
