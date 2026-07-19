@@ -4,6 +4,9 @@ import { getSessionUser } from "@/lib/auth/guards";
 import SiteHeader from "@/components/marketing/site-header";
 import SiteFooter from "@/components/marketing/site-footer";
 import PricingTiers from "@/components/marketing/pricing-tiers";
+import ProductPreview from "@/components/marketing/product-preview";
+
+const TRUST = ["CQC in England", "CIW in Wales", "Local authority monitoring", "UK data, kept private"];
 
 export const metadata: Metadata = {
   title: "Be Care Compliant | CQC and CIW compliance software for care providers",
@@ -99,6 +102,19 @@ export default async function Home() {
           <Link href="/pricing" className="btn-outline">See pricing</Link>
         </div>
         <p className="mt-4 text-xs text-white/45">No card needed. Set up for you, ready to use.</p>
+
+        <div className="mx-auto mt-10 max-w-4xl">
+          <ProductPreview />
+        </div>
+
+        <ul className="mx-auto mt-8 flex max-w-3xl flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-white/55">
+          {TRUST.map((t) => (
+            <li key={t} className="flex items-center gap-2">
+              <span aria-hidden className="text-gold-400">&#10003;</span>
+              {t}
+            </li>
+          ))}
+        </ul>
       </section>
 
       {/* Problem */}
@@ -121,9 +137,10 @@ export default async function Home() {
         </div>
         <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f) => (
-            <div key={f.title} className="glass-card p-6">
-              <h3 className="text-base font-semibold text-white">{f.title}</h3>
-              <p className="mt-2 text-sm text-white/70">{f.body}</p>
+            <div key={f.title} className="glass-card glass-card-hover p-6">
+              <span aria-hidden className="block h-1 w-10 rounded-full bg-gold-400" />
+              <h3 className="mt-4 text-base font-semibold text-white">{f.title}</h3>
+              <p className="mt-2 text-sm text-white/75">{f.body}</p>
             </div>
           ))}
         </div>
