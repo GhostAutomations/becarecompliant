@@ -17,16 +17,16 @@ const FEATURES: Array<{ title: string; body: string }> = [
     body: "Two clear registers, your staff team and the people you care for, each with their own checks, due dates and evidence.",
   },
   {
-    title: "The compliance loop",
-    body: "Complete a form against a record and everything updates itself: the check completes, the date is stamped, the evidence is stored and the next due date is set. No manual date keeping.",
+    title: "Checks that update themselves",
+    body: "Complete a form against a record and everything updates itself: the check completes, the date is stamped, the evidence is stored and the next due date is set. No manual date keeping, ever.",
   },
   {
     title: "Red, amber, green at a glance",
-    body: "Every check is compliant, due soon or overdue, and it rolls up from the check to the record, the branch and the whole company. Answer are we inspection ready in one look.",
+    body: "Every check is compliant, due soon or overdue, and it rolls up from the check to the record, the branch and the whole company. Know if you are inspection ready in one look, then reach the exact overdue item in two clicks.",
   },
   {
-    title: "Evidence for inspectors",
-    body: "Completed forms are stored as timestamped evidence with the author and form version. Export inspection ready reports as PDF or CSV whenever you need them.",
+    title: "Evidence inspectors can trust",
+    body: "Completed forms are stored as timestamped evidence with the author and the form version used. Export inspection ready reports as PDF or CSV the moment they are asked for.",
   },
   {
     title: "Reminders that chase for you",
@@ -91,8 +91,8 @@ export default async function Home() {
           Inspection ready, <span className="text-gold-400">every day.</span>
         </h1>
         <p className="mx-auto mt-5 max-w-2xl text-lg text-white/70">
-          Be Care Compliant replaces spreadsheets, wall charts and generic tools with a purpose built
-          platform that keeps your care service compliant with CQC, CIW and your local authority.
+          The compliance platform built for UK care providers. Track every check, stay ready for CQC and CIW,
+          and hand inspectors the evidence in one click. No spreadsheets, no wall charts, no last minute scramble.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Link href="/start-trial" className="btn-primary">Start your 14 day free trial</Link>
