@@ -7,7 +7,7 @@ import CompleteCheck from "@/components/service-users/complete-check";
 import { getServiceUser, getPublishedFormVersion } from "@/lib/service-users/data";
 import { listBranches } from "@/lib/people/data";
 import { recordFormPresets } from "@/lib/forms/record-presets";
-import { todayInLondon } from "@/lib/recurrence";
+import { todayInLondon, formatCivilDate } from "@/lib/recurrence";
 import { isFormSchema, removeField, type Answers, type FormSchema } from "@/lib/form-schema";
 import type { CheckDefinition } from "@/lib/people/types";
 
@@ -65,7 +65,7 @@ export default async function CompleteServiceUserCheckPage({
     fullName: serviceUser?.full_name ?? null,
     branchName: suBranchName,
     authorName: profile.full_name || profile.email || null,
-    today: todayInLondon(),
+    today: formatCivilDate(todayInLondon()),
   });
 
   return (

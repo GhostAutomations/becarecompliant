@@ -14,7 +14,7 @@ import {
   listBranches,
 } from "@/lib/people/data";
 import { supervisionSlots, annotateSupervisionOptions } from "@/lib/people/logic";
-import { todayInLondon } from "@/lib/recurrence";
+import { todayInLondon, formatCivilDate } from "@/lib/recurrence";
 import { recordFormPresets } from "@/lib/forms/record-presets";
 import { isFormSchema, removeField, type Answers, type FormSchema } from "@/lib/form-schema";
 import type { CheckDefinition } from "@/lib/people/types";
@@ -97,7 +97,7 @@ export default async function CompleteCheckPage({
     fullName: person?.full_name ?? null,
     branchName: personBranchName,
     authorName: profile.full_name || profile.email || null,
-    today: todayInLondon(),
+    today: formatCivilDate(todayInLondon()),
   });
   presetAnswers = { ...recordPresets, ...(presetAnswers ?? {}) };
 
