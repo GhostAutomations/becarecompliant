@@ -227,12 +227,12 @@ export default async function Home() {
             <h2 className="mt-3 text-2xl font-semibold sm:text-3xl">Regulator ready reports, in one click</h2>
             <p className="mt-4 text-white/75">
               Be Care Compliant does not just store your records, it speaks the regulator's language. The Provider
-              Quality System (PQS) return is built in: your on time completion rates, the starred PQS measures and
+              Quality System return is built in: your on time completion rates, the starred PQS measures and
               the PQS score, worked out for you and ready to export.
             </p>
             <ul className="mt-6 space-y-2.5 text-sm text-white/80">
               {[
-                "The exact PQS measures, scored the way the PQS scores them",
+                "The PQS measures, scored the way the PQS scores them",
                 "On time rates graded against the regulatory deadline, not just your calendar",
                 "Export to PDF or CSV and hand it straight to your local authority",
               ].map((t) => (

@@ -47,7 +47,7 @@ export default function PqsReportPreview() {
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
             <h3 className="text-base font-semibold text-white">On time completion rates</h3>
-            <p className="text-xs text-white/45">Provider Quality System (PQS) return, last 6 months</p>
+            <p className="text-xs text-white/45">Provider Quality System return, last 6 months</p>
           </div>
           <span className="rounded-lg bg-gold-400/10 px-3 py-1.5 text-xs font-semibold text-gold-300">
             Export PDF or CSV
