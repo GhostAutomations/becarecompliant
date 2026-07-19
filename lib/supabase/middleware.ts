@@ -5,7 +5,16 @@ import { NextResponse, type NextRequest } from "next/server";
  * Paths reachable without a session. Webhook paths MUST be added here
  * when they are created (Stripe, Twilio, Resend, crons).
  */
-export const PUBLIC_PATHS = ["/login", "/auth", "/api/webhooks", "/api/cron", "/meeting-response"];
+export const PUBLIC_PATHS = [
+  "/", // marketing homepage
+  "/pricing",
+  "/start-trial",
+  "/login",
+  "/auth",
+  "/api/webhooks",
+  "/api/cron",
+  "/meeting-response",
+];
 
 export function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some(
