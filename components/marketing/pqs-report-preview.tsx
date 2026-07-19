@@ -57,10 +57,10 @@ export default function PqsReportPreview() {
         <div className="mt-4">
           <table className="w-full border-separate border-spacing-y-1.5 text-sm">
             <thead>
-              <tr className="text-[11px] uppercase tracking-wide text-white/45">
-                <th className="px-1 py-1 text-left font-medium">Measure</th>
-                <th className="px-1 py-1 text-right font-medium">On time</th>
-                <th className="px-1 py-1 text-right font-medium">Score</th>
+              <tr className="text-[11px] uppercase tracking-wide">
+                <th className="px-1 py-1 text-left font-bold text-white">Measure</th>
+                <th className="px-1 py-1 text-center font-bold text-white">On time</th>
+                <th className="px-1 py-1 text-center font-bold text-white">Score</th>
               </tr>
             </thead>
             <tbody>
@@ -73,12 +73,12 @@ export default function PqsReportPreview() {
                     </span>
                     <span className="ml-2 text-[11px] text-white/40">{r.register}</span>
                   </td>
-                  <td className="px-1 py-1.5 text-right">
+                  <td className="px-1 py-1.5 text-center">
                     <span className={`${pill(rateTone(r.rate))} text-[11px]`}>
                       <span className="pill-dot" /> {r.rate.toFixed(1)}%
                     </span>
                   </td>
-                  <td className="px-1 py-1.5 text-right">
+                  <td className="px-1 py-1.5 text-center">
                     <span className={`${pill(scoreTone(r.score))} text-[11px]`}>{r.score}</span>
                   </td>
                 </tr>
