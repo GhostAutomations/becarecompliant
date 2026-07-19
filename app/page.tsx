@@ -6,6 +6,7 @@ import SiteFooter from "@/components/marketing/site-footer";
 import PricingTiers from "@/components/marketing/pricing-tiers";
 import ProductPreview from "@/components/marketing/product-preview";
 import Comparison from "@/components/marketing/comparison";
+import PqsReportPreview from "@/components/marketing/pqs-report-preview";
 
 const TRUST = ["CQC in England", "CIW in Wales", "Local authority monitoring", "UK data, kept private"];
 
@@ -208,6 +209,36 @@ export default async function Home() {
         </div>
         <div className="mt-12">
           <Comparison />
+        </div>
+      </section>
+
+      {/* Regulator ready reports (PQS example) */}
+      <section className="border-y border-white/10 bg-white/[0.03]">
+        <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-20 lg:grid-cols-2">
+          <div>
+            <span className="text-xs font-semibold uppercase tracking-wide text-gold-300">Built for Wales, and England</span>
+            <h2 className="mt-3 text-2xl font-semibold sm:text-3xl">Regulator ready reports, in one click</h2>
+            <p className="mt-4 text-white/75">
+              Be Care Compliant does not just store your records, it speaks the regulator's language. The Cardiff
+              Provider Quality System return is built in: your on time completion rates, the starred PQS measures and
+              the PQS score, worked out for you and ready to export.
+            </p>
+            <ul className="mt-6 space-y-2.5 text-sm text-white/80">
+              {[
+                "The exact PQS measures, scored the way the regulator scores them",
+                "On time rates graded against the regulatory deadline, not just your calendar",
+                "Export to PDF or CSV and hand it straight to your local authority",
+              ].map((t) => (
+                <li key={t} className="flex gap-2.5">
+                  <span aria-hidden className="mt-0.5 text-gold-400">&#10003;</span>
+                  <span>{t}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <PqsReportPreview />
+          </div>
         </div>
       </section>
 
