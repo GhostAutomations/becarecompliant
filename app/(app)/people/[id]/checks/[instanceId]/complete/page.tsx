@@ -10,6 +10,7 @@ import {
   getPersonChecks,
   getPersonTracker,
   getSupervisionCompDates,
+  getAppraisalCompDates,
   listBranches,
 } from "@/lib/people/data";
 import { supervisionSlots, annotateSupervisionOptions } from "@/lib/people/logic";
