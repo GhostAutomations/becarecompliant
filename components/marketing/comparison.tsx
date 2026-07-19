@@ -19,14 +19,14 @@ const ROWS: Array<{ label: string; marks: [Mark, Mark, Mark] }> = [
   { label: "Staff and service users in one place", marks: ["limited", "limited", "yes"] },
 ];
 
-function Cell({ mark, strong }: { mark: Mark; strong: boolean }) {
+function Cell({ mark }: { mark: Mark; strong?: boolean }) {
   if (mark === "yes") {
-    return <span className={`text-lg ${strong ? "text-gold-400" : "text-white/80"}`} aria-label="Yes">&#10003;</span>;
+    return <span className="text-xl font-bold text-gold-400" aria-label="Yes">&#10003;</span>;
   }
   if (mark === "limited") {
     return <span className="text-xs text-white/45" aria-label="Limited">Limited</span>;
   }
-  return <span className="text-base text-white/25" aria-label="No">&#10005;</span>;
+  return <span className="text-lg font-bold text-red-400" aria-label="No">&#10005;</span>;
 }
 
 export default function Comparison() {
@@ -35,19 +35,15 @@ export default function Comparison() {
       <table className="w-full min-w-[560px] border-collapse text-sm">
         <thead>
           <tr>
-            <th className="px-3 py-3 text-left font-medium text-white/50">How it compares</th>
+            <th className="px-3 py-3 text-left text-sm font-bold text-white">How it compares</th>
             {COLS.map((c, i) => (
               <th
                 key={c}
-                className={`px-3 py-3 text-center align-bottom text-xs font-semibold ${
-                  i === 2 ? "text-white" : "text-white/55"
+                className={`px-3 py-3 text-center align-bottom text-xs font-bold ${
+                  i === 2 ? "text-gold-400" : "text-white"
                 }`}
               >
-                {i === 2 ? (
-                  <span className="inline-block rounded-t-lg bg-gold-400/10 px-3 py-1 text-gold-300">{c}</span>
-                ) : (
-                  c
-                )}
+                {c}
               </th>
             ))}
           </tr>
@@ -57,7 +53,7 @@ export default function Comparison() {
             <tr key={r.label} className="border-t border-white/10">
               <td className="px-3 py-3 text-left text-white/80">{r.label}</td>
               {r.marks.map((m, i) => (
-                <td key={i} className={`px-3 py-3 text-center ${i === 2 ? "bg-gold-400/[0.06]" : ""}`}>
+                <td key={i} className="px-3 py-3 text-center">
                   <Cell mark={m} strong={i === 2} />
                 </td>
               ))}

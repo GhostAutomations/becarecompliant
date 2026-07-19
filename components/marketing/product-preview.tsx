@@ -80,7 +80,6 @@ export default function ProductPreview() {
               <tr key={r.name}>
                 <td className="whitespace-nowrap px-2 py-1.5">
                   <div className="font-semibold text-white">{r.name}</div>
-                  <div className="text-[11px] text-white/45">{r.role}</div>
                 </td>
                 {r.cells.map((cell, i) => (
                   <td key={i} className="px-2 py-1.5 text-center">
