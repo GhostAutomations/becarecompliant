@@ -5,8 +5,24 @@ import SiteHeader from "@/components/marketing/site-header";
 import SiteFooter from "@/components/marketing/site-footer";
 import PricingTiers from "@/components/marketing/pricing-tiers";
 import ProductPreview from "@/components/marketing/product-preview";
+import Comparison from "@/components/marketing/comparison";
 
 const TRUST = ["CQC in England", "CIW in Wales", "Local authority monitoring", "UK data, kept private"];
+
+const EDGES: Array<{ title: string; body: string }> = [
+  {
+    title: "Built for care, not adapted for it",
+    body: "This is not a spreadsheet or a generic board bent into shape. Every screen speaks the language of CQC and CIW, from supervisions to care plan reviews.",
+  },
+  {
+    title: "Compliance that maintains itself",
+    body: "Other tools remind you to update a date. Be Care Compliant does it for you: complete the form and the next due date, the evidence and the status all update in one step.",
+  },
+  {
+    title: "Ready for inspection, not just organised",
+    body: "A tidy board still leaves you scrambling on the day. Here the evidence is timestamped, versioned and one click from a report you can hand straight to an inspector.",
+  },
+];
 
 export const metadata: Metadata = {
   title: "Be Care Compliant | CQC and CIW compliance software for care providers",
@@ -129,6 +145,22 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* Why we are different */}
+      <section className="mx-auto max-w-6xl px-4 py-20">
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="text-2xl font-semibold sm:text-3xl">Built for care, better by design</h2>
+          <p className="mt-3 text-white/75">Three things a spreadsheet or a general purpose tool will never do for you.</p>
+        </div>
+        <div className="mt-12 grid gap-5 md:grid-cols-3">
+          {EDGES.map((e) => (
+            <div key={e.title} className="glass-card p-6">
+              <h3 className="text-base font-semibold text-white">{e.title}</h3>
+              <p className="mt-2 text-sm text-white/75">{e.body}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* Features */}
       <section id="features" className="mx-auto max-w-6xl px-4 py-20">
         <div className="mx-auto max-w-2xl text-center">
@@ -163,6 +195,19 @@ export default async function Home() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Comparison */}
+      <section className="mx-auto max-w-5xl px-4 py-20">
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="text-2xl font-semibold sm:text-3xl">Why care teams choose us</h2>
+          <p className="mt-3 text-white/75">
+            The same job, done properly. See how a purpose built platform compares with how most services track compliance today.
+          </p>
+        </div>
+        <div className="mt-12">
+          <Comparison />
         </div>
       </section>
 
