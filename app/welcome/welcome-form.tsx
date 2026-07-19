@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import { completeInvite } from "./actions";
 import { IDLE_STATE } from "@/lib/forms";
 
-export function WelcomeForm({ defaultName }: { defaultName: string }) {
+export function WelcomeForm({ defaultName, email }: { defaultName: string; email: string }) {
   const [state, formAction, pending] = useActionState(
     completeInvite,
     IDLE_STATE,
@@ -12,6 +12,23 @@ export function WelcomeForm({ defaultName }: { defaultName: string }) {
 
   return (
     <form action={formAction} className="space-y-5">
+      {/* Read-only email as the login identity so password managers save
+          email + password together (autoComplete="username"). */}
+      <div>
+        <label htmlFor="email" className="form-label">
+          Email
+        </label>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          value={email}
+          readOnly
+          autoComplete="username"
+          className="cursor-not-allowed opacity-80"
+        />
+      </div>
+
       <div>
         <label htmlFor="full_name" className="form-label">
           Your name
@@ -20,6 +37,7 @@ export function WelcomeForm({ defaultName }: { defaultName: string }) {
           id="full_name"
           name="full_name"
           defaultValue={defaultName}
+          autoComplete="name"
           placeholder="Your full name"
         />
       </div>

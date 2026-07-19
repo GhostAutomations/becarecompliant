@@ -30,7 +30,7 @@ export default async function WelcomePage() {
             Set a password to finish setting up your account.
           </p>
         </div>
-        <WelcomeForm defaultName={profile?.full_name ?? ""} />
+        <WelcomeForm defaultName={profile?.full_name ?? ""} email={user.email ?? ""} />
       </div>
     </main>
   );
