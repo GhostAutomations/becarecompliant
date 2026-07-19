@@ -1,8 +1,8 @@
 /**
- * Decorative example of the Cardiff PQS report (the Wales Provider Quality System
- * return). Mirrors the real report in lib/export/on-time.ts: on time completion
- * rates with starred PQS measures and the PQS score band (100 = 10, 85 to 99.99 = 7,
- * 70 to 84.99 = 5, 50 to 69.99 = 2, under 50 = 0). Static and illustrative.
+ * Decorative example of a local authority quality return. Mirrors the real report in
+ * lib/export/on-time.ts: on time completion rates with starred quality measures and a
+ * score band (100 = 10, 85 to 99.99 = 7, 70 to 84.99 = 5, 50 to 69.99 = 2, under 50 = 0).
+ * Marketing copy names no city, authority or company. Static and illustrative.
  */
 
 type Row = {
@@ -18,7 +18,7 @@ const ROWS: Row[] = [
   { name: "Supervision", register: "People", gradedAt: "90 days", rate: 91.7, score: 7, star: true },
   { name: "Care plan review", register: "Service Users", gradedAt: "90 days", rate: 100, score: 10, star: true },
   { name: "Mandatory training", register: "People", gradedAt: "All courses", rate: 96.0, score: 7, star: true },
-  { name: "Social Care Wales registration", register: "People", gradedAt: "6 months in post", rate: 100, score: 10, star: true },
+  { name: "Staff registration", register: "People", gradedAt: "6 months in post", rate: 100, score: 10, star: true },
   { name: "Safeguarding training", register: "People", gradedAt: "Safeguarding", rate: 88.0, score: 7, star: true },
   { name: "Spot check", register: "People", gradedAt: "90 days", rate: 83.3, score: 5, star: false },
 ];
@@ -40,14 +40,14 @@ export default function PqsReportPreview() {
         <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
         <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
         <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
-        <span className="ml-2 text-xs text-white/45">PQS report, Thistle Care Wales</span>
+        <span className="ml-2 text-xs text-white/45">Quality return, your service</span>
       </div>
 
       <div className="p-5">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
             <h3 className="text-base font-semibold text-white">On time completion rates</h3>
-            <p className="text-xs text-white/45">Cardiff Provider Quality System return, last 6 months</p>
+            <p className="text-xs text-white/45">Local authority quality return, last 6 months</p>
           </div>
           <span className="rounded-lg bg-gold-400/10 px-3 py-1.5 text-xs font-semibold text-gold-300">
             Export PDF or CSV
@@ -68,7 +68,7 @@ export default function PqsReportPreview() {
                 <tr key={r.name}>
                   <td className="px-1 py-1.5">
                     <span className="font-semibold text-white">
-                      {r.star ? <span className="mr-1 text-gold-400" aria-label="PQS measure">&#9733;</span> : null}
+                      {r.star ? <span className="mr-1 text-gold-400" aria-label="Quality monitoring measure">&#9733;</span> : null}
                       {r.name}
                     </span>
                     <span className="ml-2 text-[11px] text-white/40">{r.register}</span>
@@ -88,8 +88,8 @@ export default function PqsReportPreview() {
         </div>
 
         <p className="mt-3 text-[11px] text-white/40">
-          A star marks a Cardiff PQS measure. Scores band the on time rate the way the regulator does, so you know
-          exactly where you stand before you submit.
+          A star marks a quality monitoring measure. Scores band the on time rate the way your local authority does,
+          so you know exactly where you stand before you submit.
         </p>
       </div>
     </div>

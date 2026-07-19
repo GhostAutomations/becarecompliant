@@ -212,20 +212,20 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Regulator ready reports (PQS example) */}
+      {/* Regulator ready reports (local authority quality return example) */}
       <section className="border-y border-white/10 bg-white/[0.03]">
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-20 lg:grid-cols-2">
           <div>
-            <span className="text-xs font-semibold uppercase tracking-wide text-gold-300">Built for Wales, and England</span>
+            <span className="text-xs font-semibold uppercase tracking-wide text-gold-300">Built for CQC and CIW</span>
             <h2 className="mt-3 text-2xl font-semibold sm:text-3xl">Regulator ready reports, in one click</h2>
             <p className="mt-4 text-white/75">
-              Be Care Compliant does not just store your records, it speaks the regulator's language. The Cardiff
-              Provider Quality System return is built in: your on time completion rates, the starred PQS measures and
-              the PQS score, worked out for you and ready to export.
+              Be Care Compliant does not just store your records, it speaks the regulator's language. Local authority
+              quality returns are built in: your on time completion rates, the quality measures and the scores,
+              worked out for you and ready to export.
             </p>
             <ul className="mt-6 space-y-2.5 text-sm text-white/80">
               {[
-                "The exact PQS measures, scored the way the regulator scores them",
+                "The quality measures your local authority asks for, scored the way they score them",
                 "On time rates graded against the regulatory deadline, not just your calendar",
                 "Export to PDF or CSV and hand it straight to your local authority",
               ].map((t) => (

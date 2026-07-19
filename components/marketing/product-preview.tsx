@@ -62,7 +62,7 @@ export default function ProductPreview() {
         <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
         <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
         <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
-        <span className="ml-2 text-xs text-white/45">People compliance, Caerphilly branch</span>
+        <span className="ml-2 text-xs text-white/45">People compliance, North branch</span>
       </div>
 
       <div className="overflow-x-auto p-4">
