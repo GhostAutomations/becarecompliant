@@ -83,7 +83,7 @@ export async function startCheckout(
   }
 
   const active = await getActiveSeatCount(profile.company_id);
-  const extra = extraSeats(active);
+  const extra = extraSeats(active, tier);
 
   const lineItems: { price: string; quantity: number }[] = [
     { price: tierBasePriceId(tier as SubscriptionTier)!, quantity: 1 },

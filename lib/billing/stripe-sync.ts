@@ -2,7 +2,7 @@ import "server-only";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe/client";
 import { seatPriceId, isSubscriptionTier } from "@/lib/stripe/config";
-import { INCLUDED_SEATS } from "@/lib/billing/seats";
+import { includedSeatsForTier } from "@/lib/billing/seats";
 
 /**
  * Exact seat sync to Stripe. Product rule: 4 users included, then £5/extra/mo.
@@ -43,9 +43,10 @@ export async function getActiveSeatCount(companyId: string): Promise<number> {
   return count ?? 0;
 }
 
-/** Extra billable seats = users beyond the 4 included. Never negative. */
-export function extraSeats(activeUsers: number): number {
-  return Math.max(0, activeUsers - INCLUDED_SEATS);
+/** Extra billable seats = users beyond the tier's included allowance (Business 4,
+ *  Pro 6). Never negative. */
+export function extraSeats(activeUsers: number, tier: string = "business"): number {
+  return Math.max(0, activeUsers - includedSeatsForTier(tier));
 }
 
 /** Read the company_billing row, or null when the company has never billed. */
@@ -122,7 +123,7 @@ export async function syncSeatQuantity(
     if (!seatPrice) return { synced: false, reason: "no_seat_price" };
 
     const active = await getActiveSeatCount(companyId);
-    const quantity = extraSeats(active);
+    const quantity = extraSeats(active, billing.billed_tier ?? "business");
 
     const subscription = await stripe.subscriptions.retrieve(
       billing.stripe_subscription_id,

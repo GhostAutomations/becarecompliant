@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
-import { getSeatUsage, formatPence, INCLUDED_SEATS } from "@/lib/billing/seats";
+import { getSeatUsage, getBranchUsage, formatPence } from "@/lib/billing/seats";
 import { getAiCreditBalance } from "@/lib/billing/ai-credits";
 import { TIER_LABELS, TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
 import { stripeConfigured } from "@/lib/stripe/client";
@@ -71,6 +71,7 @@ export default async function BillingPage() {
   ]);
 
   const tier = company?.tier ?? "business";
+  const branches = await getBranchUsage(profile.company_id, tier);
   const aiCredits = await getAiCreditBalance(profile.company_id);
   const AI_ALLOWANCE: Record<string, number> = { business: 25, pro: 50, enterprise: 50, diamond: 50, black: 1000 };
   const aiMonthly = AI_ALLOWANCE[tier] ?? 25;
@@ -168,7 +169,7 @@ export default async function BillingPage() {
           {seats.used}
           <span className="text-base font-medium text-white/50">
             {" "}
-            of {INCLUDED_SEATS} included
+            of {seats.included} included
           </span>
         </p>
         {isSub ? (
@@ -189,7 +190,7 @@ export default async function BillingPage() {
               <span>{formatPence(monthlyTotalPence)}/mo</span>
             </div>
             <p className="pt-1 text-xs text-white/40">
-              Each user beyond the first {INCLUDED_SEATS} is {formatPence(500)} per
+              Each user beyond the first {seats.included} is {formatPence(500)} per
               month. Changes are prorated onto your next invoice.
             </p>
           </div>
@@ -198,6 +199,26 @@ export default async function BillingPage() {
             {tier === "diamond"
               ? "Users are included. You are billed for usage only."
               : "All users are included at no charge on the Black plan."}
+          </p>
+        )}
+      </section>
+
+      {/* Branches */}
+      <section className="glass-card p-5">
+        <h2 className="text-sm font-semibold text-white/80">Branches</h2>
+        <p className="mt-2 text-3xl font-bold text-white">
+          {branches.used}
+          <span className="text-base font-medium text-white/50"> of {branches.included} included</span>
+        </p>
+        {branches.extra > 0 ? (
+          <p className="mt-3 text-sm text-white/70">
+            {branches.extra} extra {branches.extra === 1 ? "branch" : "branches"} at {formatPence(750)} each,
+            <span className="font-semibold text-white"> {formatPence(branches.extraCostPence)}/mo</span>.
+          </p>
+        ) : (
+          <p className="mt-3 text-sm text-white/60">
+            Your plan includes {branches.included} {branches.included === 1 ? "branch" : "branches"}. Extra branches
+            are {formatPence(750)} each per month. Contact us to add a branch.
           </p>
         )}
       </section>
