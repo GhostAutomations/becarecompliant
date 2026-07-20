@@ -1,0 +1,191 @@
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { requireCompanyAdmin } from "@/lib/auth/guards";
+import { featureEnabled } from "@/lib/billing/tier";
+import BackLink from "@/components/back-link";
+import ActionForm from "@/components/action-form";
+import { getInvoicingConfig, listRateList } from "@/lib/invoicing/data";
+import { saveInvoicingConfig, addRateLine, deleteRateLine } from "@/lib/invoicing/actions";
+import { formatMoney } from "@/lib/invoicing/types";
+
+export const metadata: Metadata = { title: "Invoicing settings" };
+
+export default async function InvoicingSettingsPage() {
+  const { profile } = await requireCompanyAdmin();
+  if (!profile.company_id) redirect("/founder");
+  if (!(await featureEnabled(profile.company_id, "invoicing"))) redirect("/settings");
+
+  const [config, rates] = await Promise.all([
+    getInvoicingConfig(profile.company_id),
+    listRateList(profile.company_id),
+  ]);
+  const canEditStart = profile.role === "platform_admin" || Boolean(profile.actingAsCompanyId);
+
+  return (
+    <div className="mx-auto max-w-2xl space-y-6">
+      <BackLink href="/settings" label="Back to Settings" />
+      <div>
+        <h1 className="page-title">Invoicing</h1>
+        <p className="page-subtitle">
+          VAT, bank details, invoice numbering, reminders and your reusable rate list.
+        </p>
+      </div>
+
+      {/* Configuration */}
+      <section className="glass-card p-5">
+        <ActionForm action={saveInvoicingConfig} label="Save">
+          <div className="space-y-4">
+            <div>
+              <label className="flex items-center gap-2 text-sm text-white/80">
+                <input type="checkbox" name="vat_enabled" defaultChecked={config.vat_enabled} />
+                Charge VAT on invoices
+              </label>
+              <p className="form-hint">
+                Most regulated personal care is VAT exempt. Only tick this if your company is VAT
+                registered. With no VAT number, no VAT is charged.
+              </p>
+            </div>
+            <div>
+              <label htmlFor="vat_number" className="form-label">VAT number</label>
+              <input
+                id="vat_number"
+                name="vat_number"
+                defaultValue={config.vat_number ?? ""}
+                placeholder="GB123456789"
+                className="max-w-[16rem]"
+              />
+              <p className="form-hint">Required when VAT is ticked. Shown on every VAT invoice.</p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="number_prefix" className="form-label">Invoice number prefix</label>
+                <input
+                  id="number_prefix"
+                  name="number_prefix"
+                  defaultValue={config.number_prefix}
+                  maxLength={12}
+                  className="max-w-[10rem]"
+                />
+                <p className="form-hint">e.g. {config.number_prefix}00042</p>
+              </div>
+              <div>
+                <label htmlFor="number_start" className="form-label">Start number</label>
+                <input
+                  id="number_start"
+                  name="number_start"
+                  type="number"
+                  min={1}
+                  defaultValue={config.number_start}
+                  disabled={!canEditStart}
+                  className="max-w-[8rem]"
+                />
+                <p className="form-hint">
+                  {canEditStart
+                    ? "The first invoice number. Locked once invoices exist."
+                    : "System controlled so numbering stays sequential."}
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="default_payment_terms_days" className="form-label">Payment terms</label>
+              <input
+                id="default_payment_terms_days"
+                name="default_payment_terms_days"
+                type="number"
+                min={0}
+                defaultValue={config.default_payment_terms_days}
+                className="max-w-[8rem]"
+              />
+              <p className="form-hint">Days until an invoice is due, from its issue date.</p>
+            </div>
+
+            <div>
+              <label htmlFor="payment_details" className="form-label">Bank / payment details</label>
+              <textarea
+                id="payment_details"
+                name="payment_details"
+                rows={3}
+                defaultValue={config.payment_details ?? ""}
+                placeholder={"Account name: Your Company Ltd\nSort code: 00-00-00\nAccount number: 12345678"}
+              />
+              <p className="form-hint">Shown on every invoice so clients can pay by bank transfer.</p>
+            </div>
+
+            <div>
+              <label htmlFor="invoice_footer" className="form-label">Invoice footer (optional)</label>
+              <textarea
+                id="invoice_footer"
+                name="invoice_footer"
+                rows={2}
+                defaultValue={config.invoice_footer ?? ""}
+                placeholder="Thank you for your business. Terms: payment due within 14 days."
+              />
+            </div>
+
+            <label className="flex items-center gap-2 text-sm text-white/80">
+              <input
+                type="checkbox"
+                name="overdue_reminders_enabled"
+                defaultChecked={config.overdue_reminders_enabled}
+              />
+              Send automatic email reminders for overdue invoices
+            </label>
+          </div>
+        </ActionForm>
+      </section>
+
+      {/* Rate list */}
+      <section className="glass-card p-5">
+        <h2 className="text-sm font-semibold text-white/80">Rate list</h2>
+        <p className="form-hint mt-1">
+          Saved lines you can drop onto an invoice with one click. Edit prices any time.
+        </p>
+
+        <div className="mt-4 space-y-2">
+          {rates.length === 0 ? (
+            <p className="text-sm text-white/50">No saved rates yet. Add your first below.</p>
+          ) : (
+            rates.map((r) => (
+              <div
+                key={r.id}
+                className="flex items-center justify-between gap-3 rounded-lg border border-white/10 px-3 py-2"
+              >
+                <span className="min-w-0 truncate text-sm text-white/85">{r.description}</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-semibold text-white/90">
+                    {formatMoney(r.unit_price_pence)}
+                  </span>
+                  <ActionForm
+                    action={deleteRateLine}
+                    hidden={{ id: r.id }}
+                    label="Remove"
+                    buttonClassName="btn-ghost text-xs"
+                    confirm="Remove this rate?"
+                    className=""
+                  />
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="mt-4 border-t border-white/10 pt-4">
+          <ActionForm action={addRateLine} label="Add rate" buttonClassName="btn-outline text-xs">
+            <div className="grid gap-3 sm:grid-cols-[1fr_10rem]">
+              <div>
+                <label htmlFor="rate_description" className="form-label">Description</label>
+                <input id="rate_description" name="description" placeholder="Care visit, per hour" />
+              </div>
+              <div>
+                <label htmlFor="rate_price" className="form-label">Unit price (£)</label>
+                <input id="rate_price" name="unit_price" type="text" inputMode="decimal" placeholder="25.00" />
+              </div>
+            </div>
+          </ActionForm>
+        </div>
+      </section>
+    </div>
+  );
+}

@@ -31,14 +31,20 @@ export default async function AppLayout({
       .maybeSingle();
     actingCompanyName = data?.name ?? "this company";
   }
-  // Complaints is a Pro feature: hide the nav entry for companies without it.
+  // Complaints and Invoicing are Pro features: hide their nav entries for
+  // companies without them.
   const navCompanyId = actingCompanyId ?? profile.company_id;
-  const complaintsEnabled = navCompanyId
-    ? await featureEnabled(navCompanyId, "complaints")
-    : true;
+  const [complaintsEnabled, invoicingEnabled] = navCompanyId
+    ? await Promise.all([
+        featureEnabled(navCompanyId, "complaints"),
+        featureEnabled(navCompanyId, "invoicing"),
+      ])
+    : [true, true];
   const navEntries = navEntriesForRole(
     actingCompanyId ? "company_admin" : profile.role,
-  ).filter((e) => e.href !== "/complaints" || complaintsEnabled);
+  )
+    .filter((e) => e.href !== "/complaints" || complaintsEnabled)
+    .filter((e) => e.href !== "/invoicing" || invoicingEnabled);
   // The founder's home is the Founder console; everyone else (and the founder
   // while managing as a company) homes to the dashboard.
   const homeHref =

@@ -24,6 +24,7 @@ export type NavEntry = {
     | "people"
     | "serviceUsers"
     | "complaints"
+    | "invoicing"
     | "settings"
     | "founder"
     | "holiday"
@@ -104,6 +105,17 @@ export const NAV_ENTRIES: NavEntry[] = [
     children: [
       { href: "/complaints", label: "Open", icon: "complaints" },
       { href: "/complaints/closed", label: "Closed", icon: "complaints" },
+    ],
+  },
+  {
+    href: "/invoicing",
+    label: "Invoicing",
+    icon: "invoicing",
+    group: "Departments",
+    roles: ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"],
+    children: [
+      { href: "/invoicing", label: "Invoices", icon: "invoicing" },
+      { href: "/invoicing/clients", label: "Private Clients", icon: "people" },
     ],
   },
   {

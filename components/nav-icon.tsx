@@ -51,6 +51,13 @@ export function NavIcon({
           <path d="M12 8.5v3M12 13.3h.01" />
         </svg>
       );
+    case "invoicing":
+      return (
+        <svg {...common}>
+          <path d="M6 3h9l3 3v14.5l-2-1.2-2 1.2-2-1.2-2 1.2-2-1.2-2 1.2V4a1 1 0 011-1z" />
+          <path d="M9 8h6M9 11.5h6M9 15h3" />
+        </svg>
+      );
     case "settings":
       return (
         <svg {...common}>

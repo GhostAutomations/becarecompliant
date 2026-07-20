@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { getSeatUsage, formatPence } from "@/lib/billing/seats";
+import { featureEnabled } from "@/lib/billing/tier";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -20,13 +21,14 @@ export default async function SettingsPage() {
   if (!profile.company_id) redirect("/founder");
 
   const supabase = await createClient();
-  const [{ data: company }, seats] = await Promise.all([
+  const [{ data: company }, seats, invoicingEnabled] = await Promise.all([
     supabase
       .from("companies")
       .select("name, tier, status")
       .eq("id", profile.company_id)
       .maybeSingle(),
     getSeatUsage(profile.company_id),
+    featureEnabled(profile.company_id, "invoicing"),
   ]);
 
   return (
@@ -137,6 +139,15 @@ export default async function SettingsPage() {
             deadlines.
           </p>
         </Link>
+        {invoicingEnabled && (
+          <Link href="/settings/invoicing" className="app-tile">
+            <h2 className="text-base font-semibold text-white">Invoicing</h2>
+            <p className="text-sm text-white/60">
+              VAT and bank details, invoice numbering, overdue reminders and your reusable
+              rate list.
+            </p>
+          </Link>
+        )}
         <Link href="/settings/absence" className="app-tile">
           <h2 className="text-base font-semibold text-white">Absence</h2>
           <p className="text-sm text-white/60">
