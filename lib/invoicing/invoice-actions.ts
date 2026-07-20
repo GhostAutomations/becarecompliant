@@ -10,6 +10,7 @@
  */
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
@@ -355,7 +356,10 @@ export async function cancelSchedule(_prev: ActionState, formData: FormData): Pr
   return { ok: "Cancelled" };
 }
 
-export async function voidInvoice(_prev: ActionState, formData: FormData): Promise<ActionState> {
+/** Hard delete an invoice and all record of it (its lines cascade). Per Phil: no
+ *  void state, a delete removes everything. Note this can leave a gap in the sent
+ *  number sequence. */
+export async function deleteInvoice(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const { profile } = await requireCompany();
   const err = await guard(profile.company_id, profile.role);
   if (err) return { error: err };
@@ -364,25 +368,29 @@ export async function voidInvoice(_prev: ActionState, formData: FormData): Promi
   if (!id) return { error: "Missing invoice." };
 
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const { data: existing } = await supabase
     .from("invoices")
-    .update({ status: "void", updated_by: profile.id, updated_at: new Date().toISOString() })
+    .select("number")
     .eq("id", id)
     .eq("company_id", companyId)
-    .in("status", ["draft", "sent"])
+    .maybeSingle();
+  const { data, error } = await supabase
+    .from("invoices")
+    .delete()
+    .eq("id", id)
+    .eq("company_id", companyId)
     .select("id");
-  if (error || !data || data.length === 0) return { error: "Could not void this invoice." };
+  if (error || !data || data.length === 0) return { error: "Could not delete this invoice. Check your access and try again." };
   await writeAudit({
     companyId,
     actorId: profile.id,
     actorEmail: profile.email,
     actorRole: profile.role,
-    action: "invoicing.invoice_voided",
+    action: "invoicing.invoice_deleted",
     entityType: "invoice",
     entityId: id,
-    summary: "Voided an invoice",
+    summary: `Deleted invoice ${existing?.number ?? "(draft)"}`,
   });
-  revalidatePath(`/invoicing/${id}`);
   revalidatePath("/invoicing");
-  return { ok: "Voided" };
+  redirect("/invoicing");
 }

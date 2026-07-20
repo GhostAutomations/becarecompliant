@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { requireInvoicing } from "@/lib/invoicing/guard";
 import { getInvoice, getInvoicingConfig, getCompanyName, londonToday } from "@/lib/invoicing/data";
 import { getCompanyLogoDataUrl } from "@/lib/invoicing/logo";
-import { sendInvoice, markInvoicePaid, voidInvoice } from "@/lib/invoicing/invoice-actions";
+import { sendInvoice, markInvoicePaid, deleteInvoice } from "@/lib/invoicing/invoice-actions";
 import { formatMoney, displayStatus, STATUS_PILL, STATUS_LABEL } from "@/lib/invoicing/types";
 import ActionForm from "@/components/action-form";
 import BackLink from "@/components/back-link";
@@ -52,12 +52,9 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
             <>
               <Link href={`/invoicing/${inv.id}/edit`} className="btn-outline text-xs">Edit</Link>
               <ActionForm action={sendInvoice} hidden={{ invoice_id: inv.id }} label="Send" buttonClassName="btn-primary text-xs" confirm="Send this invoice? It will be given its invoice number." className="" />
-              <ActionForm action={voidInvoice} hidden={{ invoice_id: inv.id }} label="Void" buttonClassName="btn-ghost text-xs" confirm="Void this draft?" className="" />
             </>
           ) : null}
-          {inv.status === "sent" ? (
-            <ActionForm action={voidInvoice} hidden={{ invoice_id: inv.id }} label="Void" buttonClassName="btn-ghost text-xs" confirm="Void this invoice?" className="" />
-          ) : null}
+          <ActionForm action={deleteInvoice} hidden={{ invoice_id: inv.id }} label="Delete" buttonClassName="btn-ghost text-xs" confirm="Delete this invoice and all record of it? This cannot be undone." className="" />
         </div>
       </div>
 
