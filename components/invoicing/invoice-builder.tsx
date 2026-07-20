@@ -169,7 +169,6 @@ export default function InvoiceBuilder({
               <input
                 aria-label="Description"
                 placeholder="Description"
-                list="line-templates"
                 value={r.description}
                 onChange={(e) => onDescriptionChange(i, e.target.value)}
               />
@@ -200,11 +199,6 @@ export default function InvoiceBuilder({
             </div>
           ))}
         </div>
-        <datalist id="line-templates">
-          {presets.map((p, i) => (
-            <option key={i} value={p.description} />
-          ))}
-        </datalist>
         <div className="flex flex-wrap items-center gap-3 pt-1">
           <button type="button" onClick={addBlank} className="btn-outline text-xs">Add line</button>
           {presets.length > 0 ? (
