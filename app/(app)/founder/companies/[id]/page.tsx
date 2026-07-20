@@ -12,7 +12,7 @@ import {
 } from "@/components/founder/user-admin-controls";
 import { EnterManageAsButton } from "@/components/founder/enter-manage-as-button";
 import { ImportTemplatesButton } from "@/components/founder/import-templates-button";
-import { computeSeatUsage, formatPence } from "@/lib/billing/seats";
+import { computeSeatUsage, includedSeatsForTier, formatPence } from "@/lib/billing/seats";
 import { TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
 import {
   billingStatusPill,
@@ -105,7 +105,7 @@ export default async function FounderCompanyPage({
   ]);
 
   const activeUsers = (profiles ?? []).filter((p) => p.status === "active").length;
-  const seats = computeSeatUsage(activeUsers);
+  const seats = computeSeatUsage(activeUsers, includedSeatsForTier(company.tier));
   const isSub = isSubscriptionTier(company.tier);
   const monthlyTotalPence = isSub
     ? TIER_BASE_PENCE[company.tier as keyof typeof TIER_BASE_PENCE] +

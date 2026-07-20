@@ -4,7 +4,7 @@ import { requirePlatformAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import BackLink from "@/components/back-link";
 import { StatCard } from "@/components/founder/stat-card";
-import { computeSeatUsage, formatPence } from "@/lib/billing/seats";
+import { computeSeatUsage, includedSeatsForTier, formatPence } from "@/lib/billing/seats";
 import { TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
 import { billingStatusPill, tierLabel } from "@/lib/founder/format";
 import { londonMonthKey } from "@/lib/founder/stats";
@@ -92,7 +92,7 @@ export default async function FounderRevenuePage() {
 
   for (const c of list) {
     const b = billingByCompany.get(c.id) ?? null;
-    const seats = computeSeatUsage(activeUsers.get(c.id) ?? 0);
+    const seats = computeSeatUsage(activeUsers.get(c.id) ?? 0, includedSeatsForTier(c.tier));
     const row: Row = {
       id: c.id,
       name: c.name,

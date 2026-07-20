@@ -4,7 +4,7 @@ import { requirePlatformAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { StatCard } from "@/components/founder/stat-card";
 import { SignupsChart } from "@/components/founder/signups-chart";
-import { computeSeatUsage, formatPence } from "@/lib/billing/seats";
+import { computeSeatUsage, includedSeatsForTier, formatPence } from "@/lib/billing/seats";
 import { TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
 import { buildSignupSeries, londonMonthKey, tallyBy } from "@/lib/founder/stats";
 import {
@@ -66,7 +66,7 @@ export default async function FounderPage() {
     if (!isSubscriptionTier(company.tier)) continue;
     const status = billingByCompany.get(company.id)?.subscription_status ?? null;
     if (!["active", "trialing", "past_due"].includes(status ?? "")) continue;
-    const seats = computeSeatUsage(activeUsers.get(company.id) ?? 0);
+    const seats = computeSeatUsage(activeUsers.get(company.id) ?? 0, includedSeatsForTier(company.tier));
     mrrPence +=
       TIER_BASE_PENCE[company.tier as keyof typeof TIER_BASE_PENCE] +
       seats.extraCostPence;
@@ -92,7 +92,7 @@ export default async function FounderPage() {
   for (const company of list) {
     if (company.status === "archived") continue;
     const used = activeUsers.get(company.id) ?? 0;
-    const seats = computeSeatUsage(used);
+    const seats = computeSeatUsage(used, includedSeatsForTier(company.tier));
     totalActiveUsers += used;
     totalExtraSeats += seats.extra;
   }

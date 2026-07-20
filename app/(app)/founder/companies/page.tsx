@@ -4,7 +4,7 @@ import { requirePlatformAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import BackLink from "@/components/back-link";
 import { CompanyStatusButton } from "@/components/founder/company-status-button";
-import { computeSeatUsage, formatPence } from "@/lib/billing/seats";
+import { computeSeatUsage, includedSeatsForTier, formatPence } from "@/lib/billing/seats";
 import { TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
 import {
   billingStatusPill,
@@ -53,7 +53,7 @@ export default async function FounderCompaniesPage() {
     if (!isSubscriptionTier(company.tier)) continue;
     const status = billingByCompany.get(company.id)?.subscription_status ?? null;
     if (!["active", "trialing", "past_due"].includes(status ?? "")) continue;
-    const seats = computeSeatUsage(activeUsers.get(company.id) ?? 0);
+    const seats = computeSeatUsage(activeUsers.get(company.id) ?? 0, includedSeatsForTier(company.tier));
     mrrPence +=
       TIER_BASE_PENCE[company.tier as keyof typeof TIER_BASE_PENCE] +
       seats.extraCostPence;
@@ -91,7 +91,7 @@ export default async function FounderCompaniesPage() {
       ) : (
         <div className="space-y-3">
           {list.map((company) => {
-            const seats = computeSeatUsage(activeUsers.get(company.id) ?? 0);
+            const seats = computeSeatUsage(activeUsers.get(company.id) ?? 0, includedSeatsForTier(company.tier));
             const pending = pendingInvites.get(company.id) ?? 0;
             const isSub = isSubscriptionTier(company.tier);
             const bill = billingByCompany.get(company.id) ?? null;
