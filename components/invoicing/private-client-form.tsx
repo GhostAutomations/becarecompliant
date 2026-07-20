@@ -12,7 +12,7 @@ export type ClientInitial = {
   client_type?: "person" | "organisation";
   name?: string;
   branch_id?: string;
-  branch_name?: string;
+  branch_name?: string | null;
   contact_name?: string | null;
   email?: string | null;
   phone?: string | null;
