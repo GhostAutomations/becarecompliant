@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     "Request a 14 day free trial of Be Care Compliant. Tell us about your care service and we will set you up. No card needed.",
 };
 
-const VALID_TIERS = new Set(["business", "pro", "enterprise"]);
+const VALID_TIERS = new Set(["business", "pro"]);
 
 export default async function StartTrialPage({
   searchParams,

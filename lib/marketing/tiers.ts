@@ -1,19 +1,19 @@
 /**
- * Public pricing tiers shown on the marketing site. Prices and the feature split
- * mirror the billing ladder in lib/billing/tier.ts (agreed with Phil): Business is
- * core compliance, Pro adds SMS + reporting/exports + the form builder, Enterprise
- * adds AI + integrations + priority support. Base price includes 4 users, then £5
- * per extra user per month. No em dashes in any customer-facing copy.
+ * Public pricing tiers shown on the marketing site (two plans, agreed with Phil).
+ * Business is core compliance with 25 AI credits a month; Pro adds Complaints, all
+ * reports, SMS, the form builder and priority support, with more included branches,
+ * users and AI credits. Marketing only: the billing backend keeps its own tiers.
+ * No em dashes in any customer-facing copy.
  */
 
 export type PricingTier = {
-  key: "business" | "pro" | "enterprise";
+  key: "business" | "pro";
   name: string;
   price: string;
   cadence: string;
   tagline: string;
   featured?: boolean;
-  /** "Everything in X, plus:" lead-in for stacked tiers. */
+  /** "Everything in Business, plus:" lead-in for the stacked Pro tier. */
   inherits?: string;
   features: string[];
 };
@@ -28,39 +28,37 @@ export const PRICING_TIERS: PricingTier[] = [
     features: [
       "People and Service User registers",
       "Recurring compliance checks with red, amber, green status",
+      "Holiday and absence tracking",
+      "Training records",
+      "Company dashboard",
+      "Role based access",
+      "Bulk import to take on an existing service",
       "Built in forms stored as inspection evidence",
       "Email reminders and the daily compliance digest",
-      "One branch included, four users included",
+      "Basic reporting: the compliance register",
+      "AI access, 25 credits a month",
+      "One branch and four users included",
     ],
   },
   {
     key: "pro",
     name: "Pro",
-    price: "£99",
+    price: "£69",
     cadence: "per month",
-    tagline: "For growing providers who want reporting and reminders.",
+    tagline: "For growing providers who want every report and more room.",
     featured: true,
     inherits: "Everything in Business, plus:",
     features: [
+      "Complaints management",
+      "All reports: PQS return, evidence packs, audit trail and training",
       "SMS reminders",
-      "Reporting and inspector ready exports in PDF and CSV",
       "The form builder to create and version your own forms",
-    ],
-  },
-  {
-    key: "enterprise",
-    name: "Enterprise",
-    price: "£199",
-    cadence: "per month",
-    tagline: "For multi service groups and more complex needs.",
-    inherits: "Everything in Pro, plus:",
-    features: [
-      "AI assistance, including policy parsing",
-      "The integration layer for your other systems",
       "Priority support",
+      "AI access, 50 credits a month",
+      "Two branches and six users included",
     ],
   },
 ];
 
 export const PRICING_FOOTNOTE =
-  "Every plan includes four users. Extra users are £5 each per month. Additional branches are available as an add on. Prices exclude VAT.";
+  "Extra users are £5 each per month and extra branches £7.50 each per month. AI credits carry over until used; top up 100 credits for £10. All prices exclude VAT.";

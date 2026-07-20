@@ -55,7 +55,6 @@ export default function TrialRequestForm({ defaultTier = "" }: { defaultTier?: s
             <option value="">Not sure yet</option>
             <option value="business">Business</option>
             <option value="pro">Pro</option>
-            <option value="enterprise">Enterprise</option>
           </select>
         </div>
         <div className="sm:col-span-2">

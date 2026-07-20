@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getSessionUser } from "@/lib/auth/guards";
 import SiteHeader from "@/components/marketing/site-header";
 import SiteFooter from "@/components/marketing/site-footer";
-import PricingTiers from "@/components/marketing/pricing-tiers";
+import PricingTable from "@/components/marketing/pricing-table";
 import ProductPreview from "@/components/marketing/product-preview";
 import Comparison from "@/components/marketing/comparison";
 import PqsReportPreview from "@/components/marketing/pqs-report-preview";
@@ -259,7 +259,7 @@ export default async function Home() {
           <p className="mt-3 text-white/70">Every plan starts with a 14 day free trial.</p>
         </div>
         <div className="mt-12">
-          <PricingTiers />
+          <PricingTable />
         </div>
       </section>
 

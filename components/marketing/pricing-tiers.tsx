@@ -4,7 +4,7 @@ import { PRICING_TIERS, PRICING_FOOTNOTE } from "@/lib/marketing/tiers";
 export default function PricingTiers() {
   return (
     <div>
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="mx-auto grid max-w-3xl gap-5 sm:grid-cols-2">
         {PRICING_TIERS.map((t) => (
           <div
             key={t.key}

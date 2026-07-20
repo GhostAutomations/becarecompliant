@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getSessionUser } from "@/lib/auth/guards";
 import SiteHeader from "@/components/marketing/site-header";
 import SiteFooter from "@/components/marketing/site-footer";
-import PricingTiers from "@/components/marketing/pricing-tiers";
+import PricingTable from "@/components/marketing/pricing-table";
 
 export const metadata: Metadata = {
   title: "Pricing | Be Care Compliant",
@@ -25,8 +25,8 @@ export default async function PricingPage() {
         </p>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 pb-16">
-        <PricingTiers />
+      <section className="mx-auto max-w-4xl px-4 pb-16">
+        <PricingTable />
       </section>
 
       <section className="border-t border-white/10 bg-white/[0.03]">
