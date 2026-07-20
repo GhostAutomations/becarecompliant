@@ -62,6 +62,14 @@ export function seatPriceId(): string | null {
   return process.env.STRIPE_PRICE_SEAT ?? null;
 }
 
+/** AI credit top-up: a one-time payment for a bundle of credits. The Stripe Price
+ *  (£10 + VAT, one time) is created in the dashboard and supplied via env; each unit
+ *  purchased grants AI_TOPUP_CREDITS credits, which carry over until used. */
+export const AI_TOPUP_CREDITS = 100;
+export function aiTopupPriceId(): string | null {
+  return process.env.STRIPE_PRICE_AI_TOPUP ?? null;
+}
+
 /**
  * Whether every price this tier needs is configured. The Checkout action uses
  * this to fail visibly ("billing not configured") rather than 500 on a missing

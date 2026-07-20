@@ -6,7 +6,7 @@ import { getSeatUsage, formatPence, INCLUDED_SEATS } from "@/lib/billing/seats";
 import { getAiCreditBalance } from "@/lib/billing/ai-credits";
 import { TIER_LABELS, TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
 import { stripeConfigured } from "@/lib/stripe/client";
-import { SubscribeButton, ManageBillingButton } from "@/components/billing/billing-actions";
+import { SubscribeButton, ManageBillingButton, TopUpCreditsButton } from "@/components/billing/billing-actions";
 import BackLink from "@/components/back-link";
 
 export const metadata: Metadata = { title: "Billing" };
@@ -156,6 +156,9 @@ export default async function BillingPage() {
           One credit is used each time you use an AI feature, such as generating a complaint response. Your plan
           includes {aiMonthly} credits a month and any unused credits carry over. Top ups are 100 credits for £10 plus VAT.
         </p>
+        <div className="mt-4">
+          <TopUpCreditsButton />
+        </div>
       </section>
 
       {/* Seats and cost */}

@@ -137,6 +137,34 @@ async function handleEvent(
         session.client_reference_id ?? session.metadata?.company_id ?? null,
       );
       if (!companyId) return null;
+
+      // AI credit top-up (one-time payment): grant credits = quantity x per-unit.
+      if (session.metadata?.kind === "ai_topup") {
+        if (session.payment_status !== "paid") return companyId;
+        const perUnit = Number(session.metadata?.credits_per_unit ?? 0) || 0;
+        const items = await stripe.checkout.sessions.listLineItems(session.id, { limit: 10 });
+        const qty = items.data.reduce((s, li) => s + (li.quantity ?? 0), 0);
+        const credits = perUnit * qty;
+        if (credits > 0) {
+          const supabase = createServiceClient();
+          await supabase.rpc("grant_ai_credits", {
+            cid: companyId,
+            amount: credits,
+            p_reason: "topup",
+            p_ref: session.id,
+          });
+          await writeAudit({
+            companyId,
+            action: "billing.ai_topup_purchased",
+            entityType: "company",
+            entityId: companyId,
+            summary: `Purchased ${credits} AI credits`,
+            metadata: { credits, session: session.id },
+          });
+        }
+        return companyId;
+      }
+
       const subId =
         typeof session.subscription === "string"
           ? session.subscription
