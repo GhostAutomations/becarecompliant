@@ -83,27 +83,19 @@ export default function InvoiceBuilder({
   function updateRow(i: number, patch: Partial<LineRow>) {
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   }
-  /** Typing or picking a template name in the description also fills its price. */
-  function onDescriptionChange(i: number, value: string) {
-    const match = presets.find((p) => p.description === value);
-    setRows((prev) =>
-      prev.map((r, idx) =>
-        idx === i
-          ? { ...r, description: value, ...(match ? { unitPrice: (match.unit_price_pence / 100).toFixed(2) } : {}) }
-          : r,
-      ),
-    );
-  }
   function addBlank() {
     setRows((prev) => [...prev, { description: "", quantity: "1", unitPrice: "" }]);
   }
-  function addPreset(idx: string) {
-    const p = presets[Number(idx)];
-    if (!p) return;
-    setRows((prev) => [
-      ...prev,
-      { description: p.description, quantity: "1", unitPrice: (p.unit_price_pence / 100).toFixed(2) },
-    ]);
+  /** Pick a template/rate for a line: fills the description and its price. */
+  function selectPreset(i: number, value: string) {
+    const p = presets.find((pp) => pp.description === value);
+    setRows((prev) =>
+      prev.map((r, idx) =>
+        idx === i
+          ? { ...r, description: value, ...(p ? { unitPrice: (p.unit_price_pence / 100).toFixed(2) } : {}) }
+          : r,
+      ),
+    );
   }
   function removeRow(i: number) {
     setRows((prev) => (prev.length === 1 ? prev : prev.filter((_, idx) => idx !== i)));
@@ -166,12 +158,21 @@ export default function InvoiceBuilder({
         <div className="space-y-2">
           {rows.map((r, i) => (
             <div key={i} className="grid grid-cols-[1fr_5rem_7rem_6rem_2rem] items-center gap-2">
-              <input
-                aria-label="Description"
-                placeholder="Description"
+              <select
+                aria-label="Line"
                 value={r.description}
-                onChange={(e) => onDescriptionChange(i, e.target.value)}
-              />
+                onChange={(e) => selectPreset(i, e.target.value)}
+              >
+                <option value="">Choose a line…</option>
+                {presets.map((p, pi) => (
+                  <option key={pi} value={p.description}>
+                    {p.description} ({formatMoney(p.unit_price_pence)})
+                  </option>
+                ))}
+                {r.description && !presets.some((p) => p.description === r.description) ? (
+                  <option value={r.description}>{r.description}</option>
+                ) : null}
+              </select>
               <input
                 aria-label="Quantity"
                 type="text"
@@ -201,22 +202,6 @@ export default function InvoiceBuilder({
         </div>
         <div className="flex flex-wrap items-center gap-3 pt-1">
           <button type="button" onClick={addBlank} className="btn-outline text-xs">Add line</button>
-          {presets.length > 0 ? (
-            <select
-              aria-label="Add a template line"
-              defaultValue=""
-              onChange={(e) => {
-                addPreset(e.target.value);
-                e.currentTarget.selectedIndex = 0;
-              }}
-              className="max-w-[18rem] text-xs"
-            >
-              <option value="">Add a template line…</option>
-              {presets.map((p, i) => (
-                <option key={i} value={i}>{p.description} ({formatMoney(p.unit_price_pence)})</option>
-              ))}
-            </select>
-          ) : null}
         </div>
 
         <div className="mt-3 space-y-1 border-t border-white/10 pt-3 text-sm">
