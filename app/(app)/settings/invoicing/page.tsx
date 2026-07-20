@@ -42,7 +42,7 @@ export default async function InvoicingSettingsPage() {
           <img src={logoUrl} alt="Company logo" className="mt-3 max-h-16 rounded bg-white/90 p-2" />
         ) : null}
         <div className="mt-4">
-          <ActionForm action={saveCompanyLogo} label="Upload logo" buttonClassName="btn-outline text-xs">
+          <ActionForm action={saveCompanyLogo} label="Upload logo">
             <input
               type="file"
               name="logo"
@@ -172,7 +172,7 @@ export default async function InvoicingSettingsPage() {
             Set an hourly rate and, if you use one, a fixed rate (a flat fee for the whole visit)
             per service. Double handed hourly lines are charged at twice the rate automatically.
           </p>
-          <ActionForm action={saveHourlyRates} label="Save rates" buttonClassName="btn-outline text-xs" className="mt-3 space-y-3">
+          <ActionForm action={saveHourlyRates} label="Save rates" className="mt-3 space-y-3">
             <div className="grid grid-cols-[1fr_8rem_8rem] items-center gap-x-3 gap-y-2">
               <span className="text-xs uppercase tracking-wide text-white/45">Service</span>
               <span className="text-center text-xs uppercase tracking-wide text-white/45">Hourly rate</span>
@@ -231,7 +231,7 @@ export default async function InvoicingSettingsPage() {
         </div>
 
         <div className="mt-4 border-t border-white/10 pt-4">
-          <ActionForm action={addRateLine} label="Add rate" buttonClassName="btn-outline text-xs">
+          <ActionForm action={addRateLine} label="Add rate">
             <div className="grid gap-3 sm:grid-cols-[1fr_10rem]">
               <div>
                 <label htmlFor="rate_description" className="form-label">Description</label>
