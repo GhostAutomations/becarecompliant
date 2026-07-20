@@ -175,8 +175,8 @@ export default async function InvoicingSettingsPage() {
           <ActionForm action={saveHourlyRates} label="Save rates" buttonClassName="btn-outline text-xs" className="mt-3 space-y-3">
             <div className="grid grid-cols-[1fr_8rem_8rem] items-center gap-x-3 gap-y-2">
               <span className="text-xs uppercase tracking-wide text-white/45">Service</span>
-              <span className="text-xs uppercase tracking-wide text-white/45">Hourly rate</span>
-              <span className="text-xs uppercase tracking-wide text-white/45">Fixed rate</span>
+              <span className="text-center text-xs uppercase tracking-wide text-white/45">Hourly rate</span>
+              <span className="text-center text-xs uppercase tracking-wide text-white/45">Fixed rate</span>
               {INVOICE_SERVICES.map((s) => (
                 <div key={s.key} className="contents">
                   <label htmlFor={`rate_${s.key}`} className="text-sm text-white/85">{s.label}</label>
