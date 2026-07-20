@@ -37,7 +37,10 @@ export default async function InvoicingPage() {
           <h1 className="page-title">Invoicing</h1>
           <p className="page-subtitle">Private client invoices for your branches.</p>
         </div>
-        <Link href="/invoicing/clients" className="btn-outline text-sm">Private Clients</Link>
+        <div className="flex items-center gap-2">
+          <Link href="/invoicing/clients" className="btn-outline text-sm">Private Clients</Link>
+          <Link href="/invoicing/new" className="btn-primary text-sm">New invoice</Link>
+        </div>
       </div>
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -50,7 +53,12 @@ export default async function InvoicingPage() {
       </section>
 
       <section className="glass-card p-5">
-        <h2 className="text-sm font-semibold text-white/80">Invoices</h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-white/80">Invoices</h2>
+          {invoices.length > 0 ? (
+            <a href="/api/invoicing/export" className="btn-ghost text-xs">Export CSV</a>
+          ) : null}
+        </div>
         {invoices.length === 0 ? (
           <div className="px-2 py-10 text-center">
             <p className="text-sm text-white/60">

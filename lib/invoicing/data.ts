@@ -191,6 +191,72 @@ export async function listInvoices(companyId: string): Promise<InvoiceRow[]> {
   }));
 }
 
+export type InvoiceLine = {
+  id: string;
+  description: string;
+  quantity: number;
+  unit_price_pence: number;
+  line_total_pence: number;
+  vat_rate: number;
+  position: number;
+};
+
+export type InvoiceDetail = {
+  id: string;
+  company_id: string;
+  branch_id: string;
+  service_user_id: string | null;
+  number: string | null;
+  status: InvoiceStatus;
+  issue_date: string | null;
+  due_date: string | null;
+  supply_period_start: string | null;
+  supply_period_end: string | null;
+  subtotal_pence: number;
+  vat_pence: number;
+  total_pence: number;
+  vat_applied: boolean;
+  vat_number_snapshot: string | null;
+  invoice_to: string | null;
+  bill_to_name: string | null;
+  bill_to_address: string | null;
+  bill_to_email: string | null;
+  bill_to_phone: string | null;
+  delivery_method: string | null;
+  notes: string | null;
+  paid_date: string | null;
+  paid_method: string | null;
+  client_name: string;
+  lines: InvoiceLine[];
+};
+
+export async function getInvoice(id: string): Promise<InvoiceDetail | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("invoices")
+    .select("*, service_users(full_name), invoice_lines(*)")
+    .eq("id", id)
+    .maybeSingle();
+  if (!data) return null;
+  const row = data as InvoiceDetail & {
+    service_users: { full_name: string } | null;
+    invoice_lines: InvoiceLine[];
+  };
+  const lines = (row.invoice_lines ?? []).slice().sort((a, b) => a.position - b.position);
+  return {
+    ...row,
+    client_name: row.service_users?.full_name ?? row.bill_to_name ?? "Unknown client",
+    lines,
+  };
+}
+
+/** Company display name, for the invoice header and PDF. */
+export async function getCompanyName(companyId: string): Promise<string> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("companies").select("name").eq("id", companyId).maybeSingle();
+  return (data?.name as string) ?? "Your company";
+}
+
 export type InvoiceSummary = {
   outstandingPence: number; // sent + unpaid (incl overdue)
   overdueCount: number;
