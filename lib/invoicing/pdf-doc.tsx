@@ -115,16 +115,18 @@ function InvoiceDocument({
         </View>
 
         <View style={s.tHead}>
-          <Text style={[s.th, { width: "52%" }]}>Description</Text>
+          <Text style={[s.th, { width: "34%" }]}>Service</Text>
+          <Text style={[s.th, { width: "16%" }]}>Unit</Text>
+          <Text style={[s.th, { width: "20%" }]}>Handed</Text>
           <Text style={[s.th, { width: "12%", textAlign: "right" }]}>Qty</Text>
-          <Text style={[s.th, { width: "18%", textAlign: "right" }]}>Unit</Text>
           <Text style={[s.th, { width: "18%", textAlign: "right" }]}>Amount</Text>
         </View>
         {inv.lines.map((l) => (
           <View style={s.tRow} key={l.id} wrap={false}>
-            <Text style={[s.td, { width: "52%" }]}>{l.description}</Text>
+            <Text style={[s.td, { width: "34%" }]}>{l.service ?? l.description}</Text>
+            <Text style={[s.td, { width: "16%" }]}>{l.unit_label ?? "—"}</Text>
+            <Text style={[s.td, { width: "20%" }]}>{l.handed === "double" ? "Double handed" : l.handed === "single" ? "Single handed" : "—"}</Text>
             <Text style={[s.td, { width: "12%", textAlign: "right" }]}>{l.quantity}</Text>
-            <Text style={[s.td, { width: "18%", textAlign: "right" }]}>{formatMoney(l.unit_price_pence)}</Text>
             <Text style={[s.td, { width: "18%", textAlign: "right" }]}>{formatMoney(l.line_total_pence)}</Text>
           </View>
         ))}

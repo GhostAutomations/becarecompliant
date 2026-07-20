@@ -252,17 +252,21 @@ export async function saveCarePlan(_prev: ActionState, formData: FormData): Prom
   const serviceUserId = String(formData.get("service_user_id") ?? "").trim();
   if (!serviceUserId) return { error: "Missing service user." };
 
-  let rows: Array<{ day_of_week: number; service: string; unit: string; quantity: number }> = [];
+  let rows: Array<{ day_of_week: number; service: string; unit: string; handed: string; quantity: number }> = [];
   try {
     const parsed = JSON.parse(String(formData.get("entries") ?? "[]"));
     if (Array.isArray(parsed)) {
       rows = parsed
-        .map((r) => ({
-          day_of_week: Math.max(0, Math.min(6, Math.trunc(Number((r as Record<string, unknown>).day_of_week)))),
-          service: String((r as Record<string, unknown>).service ?? "").trim(),
-          unit: String((r as Record<string, unknown>).unit ?? "").trim(),
-          quantity: Math.max(0, Number((r as Record<string, unknown>).quantity) || 0),
-        }))
+        .map((r) => {
+          const o = r as Record<string, unknown>;
+          return {
+            day_of_week: Math.max(0, Math.min(6, Math.trunc(Number(o.day_of_week)))),
+            service: String(o.service ?? "").trim(),
+            unit: String(o.unit ?? "").trim(),
+            handed: o.handed === "double" ? "double" : "single",
+            quantity: Math.max(0, Number(o.quantity) || 0),
+          };
+        })
         .filter((r) => r.service !== "" && r.unit !== "");
     }
   } catch {
@@ -288,6 +292,7 @@ export async function saveCarePlan(_prev: ActionState, formData: FormData): Prom
         day_of_week: r.day_of_week,
         service: r.service,
         unit: r.unit,
+        handed: r.handed,
         quantity: r.quantity,
         position: i,
       })),

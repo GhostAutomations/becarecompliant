@@ -435,6 +435,12 @@
   .inline-cell:disabled {
     @apply cursor-wait opacity-60;
   }
+
+  /* Compact select/input for dense grids (care plan, invoice lines). Keeps the
+     canonical look but shorter, so rows do not feel chunky. */
+  .ctl-sm {
+    @apply rounded-lg px-2.5 py-1.5 text-sm;
+  }
 }
 
 /* Marketing site: scroll reveal + hero glow. Plain CSS (no @apply) so it never

@@ -194,6 +194,9 @@ export async function listInvoices(companyId: string): Promise<InvoiceRow[]> {
 export type InvoiceLine = {
   id: string;
   description: string;
+  service: string | null;
+  unit_label: string | null;
+  handed: string | null;
   quantity: number;
   unit_price_pence: number;
   line_total_pence: number;

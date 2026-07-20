@@ -84,15 +84,18 @@ export async function runRecurringInvoices(): Promise<{ drafted: number; failure
       const [{ data: su }, { data: cfg }, { data: lines }] = await Promise.all([
         supabase.from("service_users").select("full_name, invoice_to, invoice_contact_name, invoice_address, invoice_phone, invoice_email, invoice_delivery").eq("id", sc.service_user_id).maybeSingle(),
         supabase.from("invoicing_config").select("vat_enabled, default_payment_terms_days").eq("company_id", sc.company_id).maybeSingle(),
-        supabase.from("invoice_schedule_lines").select("description, quantity, unit_price_pence, vat_rate, position").eq("schedule_id", sc.id).order("position", { ascending: true }),
+        supabase.from("invoice_schedule_lines").select("description, service, unit_label, handed, quantity, unit_price_pence, vat_rate, position").eq("schedule_id", sc.id).order("position", { ascending: true }),
       ]);
-      const scheduleLines = (lines as Array<{ description: string; quantity: number; unit_price_pence: number; vat_rate: number; position: number }> | null) ?? [];
+      const scheduleLines = (lines as Array<{ description: string; service: string | null; unit_label: string | null; handed: string | null; quantity: number; unit_price_pence: number; vat_rate: number; position: number }> | null) ?? [];
       if (!su || scheduleLines.length === 0) continue;
 
       const vatEnabled = Boolean(cfg?.vat_enabled);
       const terms = Number(cfg?.default_payment_terms_days ?? 14);
       const withRates = scheduleLines.map((l) => ({
         description: l.description,
+        service: l.service,
+        unit_label: l.unit_label,
+        handed: l.handed,
         quantity: Number(l.quantity),
         unit_price_pence: l.unit_price_pence,
         vat_rate: vatEnabled ? l.vat_rate || 20 : 0,
@@ -133,6 +136,9 @@ export async function runRecurringInvoices(): Promise<{ drafted: number; failure
           invoice_id: inv.id,
           company_id: sc.company_id,
           description: l.description,
+          service: l.service,
+          unit_label: l.unit_label,
+          handed: l.handed,
           quantity: l.quantity,
           unit_price_pence: l.unit_price_pence,
           line_total_pence: Math.round(l.quantity * l.unit_price_pence),

@@ -2,12 +2,11 @@ import type { Metadata } from "next";
 import { requireInvoicing } from "@/lib/invoicing/guard";
 import {
   listPrivateInvoicingClients,
-  listRateList,
   getInvoicingConfig,
   londonToday,
 } from "@/lib/invoicing/data";
 import { createInvoice } from "@/lib/invoicing/invoice-actions";
-import { serviceTemplates } from "@/lib/invoicing/types";
+import { INVOICE_SERVICES, serviceRatePence, serviceFixedPence } from "@/lib/invoicing/types";
 import InvoiceBuilder from "@/components/invoicing/invoice-builder";
 import BackLink from "@/components/back-link";
 
@@ -15,9 +14,8 @@ export const metadata: Metadata = { title: "New invoice" };
 
 export default async function NewInvoicePage() {
   const { companyId } = await requireInvoicing();
-  const [clients, rates, config] = await Promise.all([
+  const [clients, config] = await Promise.all([
     listPrivateInvoicingClients(companyId),
-    listRateList(companyId, true),
     getInvoicingConfig(companyId),
   ]);
 
@@ -34,10 +32,11 @@ export default async function NewInvoicePage() {
           invoice_to_label: c.invoice_to_label,
           invoice_delivery: c.invoice_delivery,
         }))}
-        presets={[
-          ...serviceTemplates(config),
-          ...rates.map((r) => ({ description: r.description, unit_price_pence: r.unit_price_pence })),
-        ]}
+        services={INVOICE_SERVICES.map((s) => ({
+          label: s.label,
+          hourly_pence: serviceRatePence(config, s.key),
+          fixed_pence: serviceFixedPence(config, s.key),
+        }))}
         vatEnabled={config.vat_enabled}
         today={londonToday()}
       />

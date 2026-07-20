@@ -16,10 +16,18 @@ import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { requireFeature } from "@/lib/billing/tier";
 import type { ActionState } from "@/lib/forms";
-import { INVOICING_ROLES, computeTotals, advanceRunDate } from "./types";
+import { INVOICING_ROLES, INVOICE_SERVICES, computeTotals, advanceRunDate } from "./types";
 import { londonToday } from "./data";
+import { unitPricePence, type ServiceRate } from "@/lib/service-users/care-plan-consts";
 
-type LineInput = { description: string; quantity: number; unit_price_pence: number };
+type LineInput = {
+  description: string;
+  quantity: number;
+  unit_price_pence: number;
+  service: string | null;
+  unit_label: string | null;
+  handed: string | null;
+};
 
 function trimOrNull(v: FormDataEntryValue | null): string | null {
   const s = String(v ?? "").trim();
@@ -46,6 +54,9 @@ function parseLines(raw: FormDataEntryValue | null): LineInput[] {
         description: String(o.description ?? "").trim(),
         quantity: Math.max(0, Number(o.quantity ?? 0)),
         unit_price_pence: Math.round(Math.max(0, Number(o.unit_price_pence ?? 0))),
+        service: o.service ? String(o.service) : null,
+        unit_label: o.unit_label ? String(o.unit_label) : null,
+        handed: o.handed ? String(o.handed) : null,
       };
     })
     .filter((l) => l.description !== "" && (l.quantity > 0 || l.unit_price_pence > 0));
@@ -64,6 +75,90 @@ async function guard(companyId: string | null, role: string): Promise<string | n
   if (gate) return gate;
   if (!INVOICING_ROLES.includes(role)) return "You do not have permission to manage invoices.";
   return null;
+}
+
+type BuilderLine = {
+  service: string;
+  unit: string;
+  handed: string;
+  quantity: number;
+  unit_price_pence: number;
+  description: string;
+};
+
+const HANDED_SUFFIX: Record<string, string> = { single: "Single Handed", double: "Double Handed" };
+
+/** Expand a service user's care plan over a date range into merged invoice lines,
+ *  counting how many times each weekday falls in the range. Priced from the
+ *  company rates. Called by the invoice builder when a service period is chosen. */
+export async function carePlanLinesForPeriod(
+  serviceUserId: string,
+  from: string,
+  to: string,
+): Promise<{ lines: BuilderLine[]; error?: string }> {
+  const { profile } = await requireCompany();
+  const err = await guard(profile.company_id, profile.role);
+  if (err) return { lines: [], error: err };
+  if (!serviceUserId || !/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || from > to) {
+    return { lines: [] };
+  }
+
+  const supabase = await createClient();
+  const [{ data: entries }, { data: cfg }] = await Promise.all([
+    supabase
+      .from("care_plan_entries")
+      .select("day_of_week, service, unit, handed, quantity")
+      .eq("service_user_id", serviceUserId)
+      .order("position", { ascending: true }),
+    supabase.from("invoicing_config").select("*").eq("company_id", profile.company_id!).maybeSingle(),
+  ]);
+  const plan = (entries as Array<{ day_of_week: number; service: string; unit: string; handed: string; quantity: number }> | null) ?? [];
+  if (plan.length === 0) return { lines: [] };
+
+  const config = (cfg ?? {}) as Record<string, number>;
+  const rateFor = (label: string): ServiceRate | undefined => {
+    const svc = INVOICE_SERVICES.find((s) => s.label === label);
+    if (!svc) return undefined;
+    return {
+      label,
+      hourly_pence: Number(config[`rate_${svc.key}_pence`] ?? 0),
+      fixed_pence: Number(config[`rate_${svc.key}_fixed_pence`] ?? 0),
+    };
+  };
+
+  // Count each weekday (0 = Monday) in the range, capped to a year.
+  const counts = [0, 0, 0, 0, 0, 0, 0];
+  let d = new Date(`${from}T00:00:00Z`);
+  const end = new Date(`${to}T00:00:00Z`);
+  let guardCount = 0;
+  while (d <= end && guardCount < 400) {
+    counts[(d.getUTCDay() + 6) % 7] += 1;
+    d.setUTCDate(d.getUTCDate() + 1);
+    guardCount += 1;
+  }
+
+  // Merge by service + unit + handed, summing quantities.
+  const merged = new Map<string, BuilderLine>();
+  for (const e of plan) {
+    const occ = counts[e.day_of_week] ?? 0;
+    const qty = occ * Number(e.quantity);
+    if (qty <= 0) continue;
+    const handed = e.handed === "double" ? "double" : "single";
+    const key = `${e.service}|${e.unit}|${handed}`;
+    const price = unitPricePence(rateFor(e.service), e.unit, handed);
+    const existing = merged.get(key);
+    if (existing) existing.quantity += qty;
+    else
+      merged.set(key, {
+        service: e.service,
+        unit: e.unit,
+        handed,
+        quantity: qty,
+        unit_price_pence: price,
+        description: `${e.service} - ${e.unit} (${HANDED_SUFFIX[handed]})`,
+      });
+  }
+  return { lines: [...merged.values()] };
 }
 
 export async function createInvoice(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -141,6 +236,9 @@ export async function createInvoice(_prev: ActionState, formData: FormData): Pro
       invoice_id: inv.id,
       company_id: companyId,
       description: l.description,
+      service: l.service,
+      unit_label: l.unit_label,
+      handed: l.handed,
       quantity: l.quantity,
       unit_price_pence: l.unit_price_pence,
       line_total_pence: Math.round(l.quantity * l.unit_price_pence),
@@ -178,6 +276,9 @@ export async function createInvoice(_prev: ActionState, formData: FormData): Pro
           schedule_id: sched.id,
           company_id: companyId,
           description: l.description,
+          service: l.service,
+          unit_label: l.unit_label,
+          handed: l.handed,
           quantity: l.quantity,
           unit_price_pence: l.unit_price_pence,
           vat_rate: l.vat_rate,
@@ -238,6 +339,9 @@ export async function updateInvoice(_prev: ActionState, formData: FormData): Pro
       invoice_id: id,
       company_id: companyId,
       description: l.description,
+      service: l.service,
+      unit_label: l.unit_label,
+      handed: l.handed,
       quantity: l.quantity,
       unit_price_pence: l.unit_price_pence,
       line_total_pence: Math.round(l.quantity * l.unit_price_pence),

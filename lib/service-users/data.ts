@@ -158,7 +158,7 @@ export async function getCarePlanEntries(
   const supabase = await createClient();
   const { data } = await supabase
     .from("care_plan_entries")
-    .select("id, day_of_week, service, unit, quantity, position")
+    .select("id, day_of_week, service, unit, handed, quantity, position")
     .eq("service_user_id", serviceUserId)
     .order("position", { ascending: true });
   return ((data as Array<{
@@ -166,6 +166,7 @@ export async function getCarePlanEntries(
     day_of_week: number;
     service: string;
     unit: string;
+    handed: string;
     quantity: number;
     position: number;
   }> | null) ?? []).map((r) => ({ ...r, quantity: Number(r.quantity) }));

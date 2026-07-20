@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireInvoicing } from "@/lib/invoicing/guard";
-import { getInvoice, listRateList, getInvoicingConfig, londonToday } from "@/lib/invoicing/data";
+import { getInvoice, getInvoicingConfig, londonToday } from "@/lib/invoicing/data";
 import { updateInvoice } from "@/lib/invoicing/invoice-actions";
-import { serviceTemplates } from "@/lib/invoicing/types";
+import { INVOICE_SERVICES, serviceRatePence, serviceFixedPence } from "@/lib/invoicing/types";
 import InvoiceBuilder from "@/components/invoicing/invoice-builder";
 import BackLink from "@/components/back-link";
 
@@ -15,10 +15,7 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
   const inv = await getInvoice(id);
   if (!inv || inv.company_id !== companyId) redirect("/invoicing");
   if (inv.status !== "draft") redirect(`/invoicing/${id}`);
-  const [rates, config] = await Promise.all([
-    listRateList(companyId, true),
-    getInvoicingConfig(companyId),
-  ]);
+  const config = await getInvoicingConfig(companyId);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -28,10 +25,11 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
         mode="edit"
         action={updateInvoice}
         clients={[]}
-        presets={[
-          ...serviceTemplates(config),
-          ...rates.map((r) => ({ description: r.description, unit_price_pence: r.unit_price_pence })),
-        ]}
+        services={INVOICE_SERVICES.map((s) => ({
+          label: s.label,
+          hourly_pence: serviceRatePence(config, s.key),
+          fixed_pence: serviceFixedPence(config, s.key),
+        }))}
         vatEnabled={config.vat_enabled}
         today={londonToday()}
         initial={{
@@ -44,9 +42,10 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
           supply_period_end: inv.supply_period_end,
           notes: inv.notes,
           lines: inv.lines.map((l) => ({
-            description: l.description,
+            service: l.service,
+            unit_label: l.unit_label,
+            handed: l.handed,
             quantity: l.quantity,
-            unit_price_pence: l.unit_price_pence,
           })),
         }}
       />

@@ -114,18 +114,20 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs uppercase tracking-wide text-white/45">
-              <th className="py-2 pr-3">Description</th>
+              <th className="py-2 pr-3">Service</th>
+              <th className="py-2 pr-3">Unit</th>
+              <th className="py-2 pr-3">Handed</th>
               <th className="py-2 pr-3 text-right">Qty</th>
-              <th className="py-2 pr-3 text-right">Unit</th>
               <th className="py-2 text-right">Amount</th>
             </tr>
           </thead>
           <tbody>
             {inv.lines.map((l) => (
               <tr key={l.id} className="border-t border-white/10">
-                <td className="py-2 pr-3 text-white/85">{l.description}</td>
+                <td className="py-2 pr-3 text-white/85">{l.service ?? l.description}</td>
+                <td className="py-2 pr-3 text-white/70">{l.unit_label ?? "—"}</td>
+                <td className="py-2 pr-3 text-white/70">{l.handed === "double" ? "Double" : l.handed === "single" ? "Single" : "—"}</td>
                 <td className="py-2 pr-3 text-right text-white/70">{l.quantity}</td>
-                <td className="py-2 pr-3 text-right text-white/70">{formatMoney(l.unit_price_pence)}</td>
                 <td className="py-2 text-right text-white/90">{formatMoney(l.line_total_pence)}</td>
               </tr>
             ))}

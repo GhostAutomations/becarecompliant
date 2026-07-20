@@ -1,14 +1,18 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { IDLE_STATE, type ActionState } from "@/lib/forms";
 import { formatMoney } from "@/lib/invoicing/types";
+import { carePlanLinesForPeriod } from "@/lib/invoicing/invoice-actions";
+import { CARE_PLAN_UNITS, HANDED_OPTIONS, unitPricePence } from "@/lib/service-users/care-plan-consts";
 
 type ServerAction = (prev: ActionState, formData: FormData) => Promise<ActionState>;
 type Client = { id: string; name: string; invoice_to_label: string; invoice_delivery: string | null };
-type Preset = { description: string; unit_price_pence: number };
-type LineRow = { description: string; quantity: string; unitPrice: string };
+type ServiceRate = { label: string; hourly_pence: number; fixed_pence: number };
+type Row = { service: string; unit: string; handed: string; quantity: string };
+
+const HANDED_SUFFIX: Record<string, string> = { single: "Single Handed", double: "Double Handed" };
 
 export type InvoiceBuilderInitial = {
   invoice_id: string;
@@ -19,19 +23,14 @@ export type InvoiceBuilderInitial = {
   supply_period_start: string | null;
   supply_period_end: string | null;
   notes: string | null;
-  lines: { description: string; quantity: number; unit_price_pence: number }[];
+  lines: { service: string | null; unit_label: string | null; handed: string | null; quantity: number }[];
 };
-
-function penceFromPounds(s: string): number {
-  const n = Number(String(s).replace(/[^0-9.\-]/g, ""));
-  return Number.isFinite(n) ? Math.round(n * 100) : 0;
-}
 
 export default function InvoiceBuilder({
   mode,
   action,
   clients,
-  presets,
+  services,
   vatEnabled,
   today,
   initial,
@@ -39,7 +38,7 @@ export default function InvoiceBuilder({
   mode: "create" | "edit";
   action: ServerAction;
   clients: Client[];
-  presets: Preset[];
+  services: ServiceRate[];
   vatEnabled: boolean;
   today: string;
   initial?: InvoiceBuilderInitial;
@@ -48,57 +47,78 @@ export default function InvoiceBuilder({
   const [state, formAction, pending] = useActionState(action, IDLE_STATE);
   const [clientId, setClientId] = useState<string>(initial?.service_user_id ?? "");
   const [repeat, setRepeat] = useState(false);
-  const [rows, setRows] = useState<LineRow[]>(
+  const [periodFrom, setPeriodFrom] = useState<string>(initial?.supply_period_start ?? "");
+  const [periodTo, setPeriodTo] = useState<string>(initial?.supply_period_end ?? "");
+  const [filling, startFill] = useTransition();
+  const [rows, setRows] = useState<Row[]>(
     initial?.lines.length
       ? initial.lines.map((l) => ({
-          description: l.description,
+          service: l.service ?? services[0]?.label ?? "Care",
+          unit: l.unit_label ?? "1hr",
+          handed: l.handed ?? "single",
           quantity: String(l.quantity),
-          unitPrice: (l.unit_price_pence / 100).toFixed(2),
         }))
-      : [{ description: "", quantity: "1", unitPrice: "" }],
+      : [{ service: services[0]?.label ?? "Care", unit: "1hr", handed: "single", quantity: "1" }],
   );
 
   useEffect(() => {
     if (state.redirectTo) router.replace(state.redirectTo);
   }, [state, router]);
 
+  const rateFor = (label: string): ServiceRate | undefined => services.find((s) => s.label === label);
+
   const linesPence = useMemo(
     () =>
       rows.map((r) => {
         const q = Math.max(0, Number(r.quantity) || 0);
-        const unit = penceFromPounds(r.unitPrice);
-        return { description: r.description.trim(), quantity: q, unit_price_pence: unit, line_total: Math.round(q * unit) };
+        const unit = unitPricePence(rateFor(r.service), r.unit, r.handed);
+        return { unit_price_pence: unit, line_total: Math.round(unit * q) };
       }),
-    [rows],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rows, services],
   );
   const subtotal = linesPence.reduce((s, l) => s + l.line_total, 0);
   const vat = vatEnabled ? Math.round(subtotal * 0.2) : 0;
   const total = subtotal + vat;
+
   const linesJson = JSON.stringify(
-    linesPence
-      .filter((l) => l.description && (l.quantity > 0 || l.unit_price_pence > 0))
-      .map((l) => ({ description: l.description, quantity: l.quantity, unit_price_pence: l.unit_price_pence })),
+    rows
+      .filter((r) => r.service && r.unit && (Number(r.quantity) || 0) > 0)
+      .map((r) => ({
+        service: r.service,
+        unit_label: r.unit,
+        handed: r.handed,
+        quantity: Number(r.quantity) || 0,
+        unit_price_pence: unitPricePence(rateFor(r.service), r.unit, r.handed),
+        description: `${r.service} - ${r.unit} (${HANDED_SUFFIX[r.handed] ?? "Single Handed"})`,
+      })),
   );
 
-  function updateRow(i: number, patch: Partial<LineRow>) {
+  function updateRow(i: number, patch: Partial<Row>) {
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   }
-  function addBlank() {
-    setRows((prev) => [...prev, { description: "", quantity: "1", unitPrice: "" }]);
-  }
-  /** Pick a template/rate for a line: fills the description and its price. */
-  function selectPreset(i: number, value: string) {
-    const p = presets.find((pp) => pp.description === value);
-    setRows((prev) =>
-      prev.map((r, idx) =>
-        idx === i
-          ? { ...r, description: value, ...(p ? { unitPrice: (p.unit_price_pence / 100).toFixed(2) } : {}) }
-          : r,
-      ),
-    );
+  function addRow() {
+    setRows((prev) => [...prev, { service: services[0]?.label ?? "Care", unit: "1hr", handed: "single", quantity: "1" }]);
   }
   function removeRow(i: number) {
     setRows((prev) => (prev.length === 1 ? prev : prev.filter((_, idx) => idx !== i)));
+  }
+
+  function fillFromCarePlan(from: string, to: string) {
+    if (!clientId || !from || !to) return;
+    startFill(async () => {
+      const res = await carePlanLinesForPeriod(clientId, from, to);
+      if (res.lines.length > 0) {
+        setRows(
+          res.lines.map((l) => ({
+            service: l.service,
+            unit: l.unit,
+            handed: l.handed,
+            quantity: String(l.quantity),
+          })),
+        );
+      }
+    });
   }
 
   return (
@@ -143,35 +163,82 @@ export default function InvoiceBuilder({
             <p className="form-hint">Leave blank to use your payment terms.</p>
           </div>
           <div>
-            <label htmlFor="supply_period_start" className="form-label">Service period from (optional)</label>
-            <input id="supply_period_start" name="supply_period_start" type="date" defaultValue={initial?.supply_period_start ?? ""} />
+            <label htmlFor="supply_period_start" className="form-label">Service period from</label>
+            <input
+              id="supply_period_start"
+              name="supply_period_start"
+              type="date"
+              value={periodFrom}
+              onChange={(e) => setPeriodFrom(e.target.value)}
+            />
           </div>
           <div>
-            <label htmlFor="supply_period_end" className="form-label">Service period to (optional)</label>
-            <input id="supply_period_end" name="supply_period_end" type="date" defaultValue={initial?.supply_period_end ?? ""} />
+            <label htmlFor="supply_period_end" className="form-label">Service period to</label>
+            <input
+              id="supply_period_end"
+              name="supply_period_end"
+              type="date"
+              value={periodTo}
+              onChange={(e) => {
+                setPeriodTo(e.target.value);
+                fillFromCarePlan(periodFrom, e.target.value);
+              }}
+            />
           </div>
         </div>
+        {clientId && periodFrom && periodTo ? (
+          <button
+            type="button"
+            onClick={() => fillFromCarePlan(periodFrom, periodTo)}
+            className="btn-outline text-xs"
+            disabled={filling}
+          >
+            {filling ? "Filling…" : "Fill lines from care plan"}
+          </button>
+        ) : null}
       </section>
 
       <section className="glass-card space-y-3 p-5">
         <h2 className="text-sm font-semibold text-white/80">Lines</h2>
-        <div className="space-y-2">
+        <div className="grid grid-cols-[1.2fr_1fr_1.3fr_0.8fr_5rem_1.5rem] items-center gap-2 text-center">
+          <span className="text-xs uppercase tracking-wide text-white/45">Service</span>
+          <span className="text-xs uppercase tracking-wide text-white/45">Unit</span>
+          <span className="text-xs uppercase tracking-wide text-white/45">Handed</span>
+          <span className="text-xs uppercase tracking-wide text-white/45">Qty</span>
+          <span className="text-xs uppercase tracking-wide text-white/45">Amount</span>
+          <span />
+
           {rows.map((r, i) => (
-            <div key={i} className="grid grid-cols-[1fr_5rem_7rem_6rem_2rem] items-center gap-2">
+            <div key={i} className="contents">
               <select
-                aria-label="Line"
-                value={r.description}
-                onChange={(e) => selectPreset(i, e.target.value)}
+                aria-label="Service"
+                value={r.service}
+                onChange={(e) => updateRow(i, { service: e.target.value })}
+                className="ctl-sm text-center"
               >
-                <option value="">Choose a line…</option>
-                {presets.map((p, pi) => (
-                  <option key={pi} value={p.description}>
-                    {p.description} ({formatMoney(p.unit_price_pence)})
-                  </option>
+                {services.map((s) => (
+                  <option key={s.label} value={s.label}>{s.label}</option>
                 ))}
-                {r.description && !presets.some((p) => p.description === r.description) ? (
-                  <option value={r.description}>{r.description}</option>
-                ) : null}
+              </select>
+              <select
+                aria-label="Unit"
+                value={r.unit}
+                onChange={(e) => updateRow(i, { unit: e.target.value })}
+                className="ctl-sm text-center"
+              >
+                {CARE_PLAN_UNITS.map((u) => (
+                  <option key={u} value={u}>{u}</option>
+                ))}
+              </select>
+              <select
+                aria-label="Handed"
+                value={r.handed}
+                onChange={(e) => updateRow(i, { handed: e.target.value })}
+                className="ctl-sm text-center"
+              >
+                {HANDED_OPTIONS.map((h) => (
+                  <option key={h.value} value={h.value}>{h.label}</option>
+                ))}
               </select>
               <input
                 aria-label="Quantity"
@@ -179,16 +246,9 @@ export default function InvoiceBuilder({
                 inputMode="decimal"
                 value={r.quantity}
                 onChange={(e) => updateRow(i, { quantity: e.target.value })}
+                className="ctl-sm text-center"
               />
-              <input
-                aria-label="Unit price in pounds"
-                type="text"
-                inputMode="decimal"
-                placeholder="0.00"
-                value={r.unitPrice}
-                onChange={(e) => updateRow(i, { unitPrice: e.target.value })}
-              />
-              <span className="text-right text-sm text-white/80">{formatMoney(linesPence[i]?.line_total ?? 0)}</span>
+              <span className="text-center text-sm text-white/80">{formatMoney(linesPence[i]?.line_total ?? 0)}</span>
               <button
                 type="button"
                 onClick={() => removeRow(i)}
@@ -200,8 +260,8 @@ export default function InvoiceBuilder({
             </div>
           ))}
         </div>
-        <div className="flex flex-wrap items-center gap-3 pt-1">
-          <button type="button" onClick={addBlank} className="btn-outline text-xs">Add line</button>
+        <div className="pt-1">
+          <button type="button" onClick={addRow} className="btn-outline text-xs">Add line</button>
         </div>
 
         <div className="mt-3 space-y-1 border-t border-white/10 pt-3 text-sm">
