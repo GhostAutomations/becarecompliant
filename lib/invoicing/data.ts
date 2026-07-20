@@ -91,61 +91,64 @@ export async function listRateList(companyId: string, activeOnly = false): Promi
   return (data as RateLine[]) ?? [];
 }
 
-export type PrivateClient = {
-  id: string;
-  company_id: string;
-  branch_id: string;
-  client_type: "person" | "organisation";
-  name: string;
-  contact_name: string | null;
-  email: string | null;
-  phone: string | null;
-  address_line1: string | null;
-  address_line2: string | null;
-  city: string | null;
-  postcode: string | null;
-  service_user_id: string | null;
-  payment_terms_days: number | null;
-  notes: string | null;
-  status: "active" | "archived";
-  branch_name?: string | null;
-  service_user_name?: string | null;
+const INVOICE_TO_LABEL: Record<string, string> = {
+  service_user: "The service user",
+  nhs: "NHS",
+  solicitor: "Solicitor",
+  next_of_kin: "Next of kin",
+  other: "Other",
 };
 
-export async function listPrivateClients(
-  companyId: string,
-  status: "active" | "archived" = "active",
-): Promise<PrivateClient[]> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("private_clients")
-    .select("*, branches(name), service_users(full_name)")
-    .eq("company_id", companyId)
-    .eq("status", status)
-    .order("name", { ascending: true });
-  return ((data as Array<PrivateClient & {
-    branches: { name: string } | null;
-    service_users: { full_name: string } | null;
-  }> | null) ?? []).map(({ branches, service_users, ...rest }) => ({
-    ...rest,
-    branch_name: branches?.name ?? null,
-    service_user_name: service_users?.full_name ?? null,
-  }));
-}
+export type PrivateInvoicingClient = {
+  id: string; // service_user_id
+  name: string;
+  branch_id: string;
+  branch_name: string | null;
+  invoice_to: string | null;
+  invoice_to_label: string;
+  invoice_contact_name: string | null;
+  invoice_delivery: string | null;
+  invoice_email: string | null;
+  invoice_phone: string | null;
+  invoice_address: string | null;
+};
 
-export async function getPrivateClient(id: string): Promise<PrivateClient | null> {
+/** Service users flagged for private invoicing = the Invoicing department's clients. */
+export async function listPrivateInvoicingClients(companyId: string): Promise<PrivateInvoicingClient[]> {
   const supabase = await createClient();
   const { data } = await supabase
-    .from("private_clients")
-    .select("*, branches(name), service_users(full_name)")
-    .eq("id", id)
-    .maybeSingle();
-  if (!data) return null;
-  const { branches, service_users, ...rest } = data as PrivateClient & {
+    .from("service_users")
+    .select(
+      "id, full_name, branch_id, invoice_to, invoice_contact_name, invoice_delivery, invoice_email, invoice_phone, invoice_address, branches(name)",
+    )
+    .eq("company_id", companyId)
+    .eq("private_invoicing", true)
+    .eq("service_status", "active")
+    .order("full_name", { ascending: true });
+  return ((data as Array<{
+    id: string;
+    full_name: string;
+    branch_id: string;
+    invoice_to: string | null;
+    invoice_contact_name: string | null;
+    invoice_delivery: string | null;
+    invoice_email: string | null;
+    invoice_phone: string | null;
+    invoice_address: string | null;
     branches: { name: string } | null;
-    service_users: { full_name: string } | null;
-  };
-  return { ...rest, branch_name: branches?.name ?? null, service_user_name: service_users?.full_name ?? null };
+  }> | null) ?? []).map((r) => ({
+    id: r.id,
+    name: r.full_name,
+    branch_id: r.branch_id,
+    branch_name: r.branches?.name ?? null,
+    invoice_to: r.invoice_to,
+    invoice_to_label: INVOICE_TO_LABEL[r.invoice_to ?? "service_user"] ?? "The service user",
+    invoice_contact_name: r.invoice_contact_name,
+    invoice_delivery: r.invoice_delivery,
+    invoice_email: r.invoice_email,
+    invoice_phone: r.invoice_phone,
+    invoice_address: r.invoice_address,
+  }));
 }
 
 export type InvoiceRow = {
@@ -163,7 +166,7 @@ export async function listInvoices(companyId: string): Promise<InvoiceRow[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("invoices")
-    .select("id, number, status, issue_date, due_date, total_pence, created_at, private_clients(name), branches(name)")
+    .select("id, number, status, issue_date, due_date, total_pence, bill_to_name, created_at, service_users(full_name), branches(name)")
     .eq("company_id", companyId)
     .order("created_at", { ascending: false });
   return ((data as Array<{
@@ -173,7 +176,8 @@ export async function listInvoices(companyId: string): Promise<InvoiceRow[]> {
     issue_date: string | null;
     due_date: string | null;
     total_pence: number;
-    private_clients: { name: string } | null;
+    bill_to_name: string | null;
+    service_users: { full_name: string } | null;
     branches: { name: string } | null;
   }> | null) ?? []).map((r) => ({
     id: r.id,
@@ -182,7 +186,7 @@ export async function listInvoices(companyId: string): Promise<InvoiceRow[]> {
     issue_date: r.issue_date,
     due_date: r.due_date,
     total_pence: r.total_pence,
-    client_name: r.private_clients?.name ?? "Unknown client",
+    client_name: r.service_users?.full_name ?? r.bill_to_name ?? "Unknown client",
     branch_name: r.branches?.name ?? null,
   }));
 }

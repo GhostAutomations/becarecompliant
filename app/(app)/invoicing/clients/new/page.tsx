@@ -1,29 +1,7 @@
-import type { Metadata } from "next";
-import { requireInvoicing } from "@/lib/invoicing/guard";
-import { listAccessibleBranches, listAccessibleServiceUsers } from "@/lib/invoicing/data";
-import { createPrivateClient } from "@/lib/invoicing/actions";
-import PrivateClientForm from "@/components/invoicing/private-client-form";
-import BackLink from "@/components/back-link";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Add client" };
-
-export default async function NewPrivateClientPage() {
-  const { profile, user, companyId } = await requireInvoicing();
-  const [branches, serviceUsers] = await Promise.all([
-    listAccessibleBranches(companyId, profile.role, user.id),
-    listAccessibleServiceUsers(companyId),
-  ]);
-
-  return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <BackLink href="/invoicing/clients" label="Back to Private Clients" />
-      <h1 className="page-title">Add a private client</h1>
-      <PrivateClientForm
-        action={createPrivateClient}
-        mode="create"
-        branches={branches}
-        serviceUsers={serviceUsers}
-      />
-    </div>
-  );
+// Private invoicing clients are now Service Users flagged for private invoicing.
+// Add one by adding a Service User with the "Private invoicing" box ticked.
+export default function Page() {
+  redirect("/service-users/new");
 }

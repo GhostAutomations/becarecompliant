@@ -38,6 +38,15 @@ export type ServiceUserRecord = {
   archived_at: string | null;
   care_plan_path?: string | null;
   care_plan_uploaded_at?: string | null;
+  // Private invoicing (Invoicing department). The client is the service user; the
+  // bill-to may be them or a third party (NHS, solicitor, next of kin).
+  private_invoicing?: boolean;
+  invoice_to?: string | null;
+  invoice_contact_name?: string | null;
+  invoice_address?: string | null;
+  invoice_phone?: string | null;
+  invoice_email?: string | null;
+  invoice_delivery?: string | null;
 };
 
 /** Directly-recorded fields on a Service User Record (edited on the record, not a

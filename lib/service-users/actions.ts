@@ -60,6 +60,53 @@ function isoDateOrNull(v: FormDataEntryValue | null): string | null {
   return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
 }
 
+const INVOICE_TO = ["service_user", "nhs", "solicitor", "next_of_kin", "other"];
+
+/** Parse and validate the private invoicing fields from an SU form. Returns the
+ *  db values, or an error string when the chosen delivery method lacks its
+ *  required contact detail (email needs an email, post needs an address). */
+function invoicingFieldsFromForm(
+  formData: FormData,
+): { values: Record<string, unknown>; error?: undefined } | { error: string; values?: undefined } {
+  const on = formData.get("private_invoicing") === "on";
+  if (!on) {
+    return {
+      values: {
+        private_invoicing: false,
+        invoice_to: null,
+        invoice_contact_name: null,
+        invoice_address: null,
+        invoice_phone: null,
+        invoice_email: null,
+        invoice_delivery: null,
+      },
+    };
+  }
+  const invoice_to_raw = String(formData.get("invoice_to") ?? "").trim();
+  const invoice_to = INVOICE_TO.includes(invoice_to_raw) ? invoice_to_raw : "service_user";
+  const deliveryRaw = String(formData.get("invoice_delivery") ?? "").trim();
+  const invoice_delivery = deliveryRaw === "post" ? "post" : "email";
+  const invoice_email = trimOrNull(formData.get("invoice_email"));
+  const invoice_address = trimOrNull(formData.get("invoice_address"));
+  if (invoice_delivery === "email" && !invoice_email) {
+    return { error: "Add an email address to invoice this service user by email." };
+  }
+  if (invoice_delivery === "post" && !invoice_address) {
+    return { error: "Add an address to invoice this service user by post." };
+  }
+  return {
+    values: {
+      private_invoicing: true,
+      invoice_to,
+      invoice_contact_name: trimOrNull(formData.get("invoice_contact_name")),
+      invoice_address,
+      invoice_phone: trimOrNull(formData.get("invoice_phone")),
+      invoice_email,
+      invoice_delivery,
+    },
+  };
+}
+
 /** Create a Service User Record and auto-apply the company's active SU checks, each
  *  with its initial due date computed from the package start date. */
 export async function createServiceUser(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -74,6 +121,8 @@ export async function createServiceUser(_prev: ActionState, formData: FormData):
 
   const ssid = trimOrNull(formData.get("ssid"));
   const package_start_date = isoDateOrNull(formData.get("package_start_date"));
+  const inv = invoicingFieldsFromForm(formData);
+  if (inv.error) return { error: inv.error };
 
   const supabase = await createClient();
   const { data: su, error } = await supabase
@@ -85,6 +134,7 @@ export async function createServiceUser(_prev: ActionState, formData: FormData):
       ssid,
       package_start_date,
       created_by: user.id,
+      ...inv.values,
     })
     .select("id")
     .single();
@@ -160,6 +210,8 @@ export async function updateServiceUser(_prev: ActionState, formData: FormData):
 
   const full_name = String(formData.get("full_name") ?? "").trim();
   if (!full_name) return { error: "Enter the service user's name." };
+  const inv = invoicingFieldsFromForm(formData);
+  if (inv.error) return { error: inv.error };
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -168,6 +220,7 @@ export async function updateServiceUser(_prev: ActionState, formData: FormData):
       full_name,
       ssid: trimOrNull(formData.get("ssid")),
       package_start_date: isoDateOrNull(formData.get("package_start_date")),
+      ...inv.values,
     })
     .eq("id", id);
   if (error) {

@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { createServiceUser } from "@/lib/service-users/actions";
 import { IDLE_STATE } from "@/lib/forms";
+import PrivateInvoicingFields from "@/components/service-users/private-invoicing-fields";
 
 export default function CreateServiceUserForm({
   branches,
@@ -54,6 +55,8 @@ export default function CreateServiceUserForm({
             Optional. If you do not have it yet, you can upload it later on the Setup form or the record.
           </p>
         </div>
+
+        <PrivateInvoicingFields />
       </div>
 
       {state.error ? <p className="form-error">{state.error}</p> : null}

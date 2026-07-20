@@ -4,6 +4,7 @@ import { useActionState, useEffect } from "react";
 import { updateServiceUser } from "@/lib/service-users/actions";
 import { IDLE_STATE } from "@/lib/forms";
 import { useSavedFlash } from "@/lib/use-saved-flash";
+import PrivateInvoicingFields from "@/components/service-users/private-invoicing-fields";
 import type { ServiceUserRecord } from "@/lib/service-users/types";
 
 export default function EditServiceUserForm({ serviceUser }: { serviceUser: ServiceUserRecord }) {
@@ -32,6 +33,18 @@ export default function EditServiceUserForm({ serviceUser }: { serviceUser: Serv
             defaultValue={serviceUser.package_start_date ?? ""}
           />
         </div>
+
+        <PrivateInvoicingFields
+          initial={{
+            private_invoicing: serviceUser.private_invoicing,
+            invoice_to: serviceUser.invoice_to,
+            invoice_contact_name: serviceUser.invoice_contact_name,
+            invoice_address: serviceUser.invoice_address,
+            invoice_phone: serviceUser.invoice_phone,
+            invoice_email: serviceUser.invoice_email,
+            invoice_delivery: serviceUser.invoice_delivery,
+          }}
+        />
       </div>
 
       {state.error ? <p className="form-error">{state.error}</p> : null}
