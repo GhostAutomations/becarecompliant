@@ -16,8 +16,8 @@ import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { submitEvidence } from "@/lib/evidence/submit";
-import { requireFeature } from "@/lib/billing/tier";
 import { recordUsage } from "@/lib/notifications/usage";
+import { spendAiCredit, refundAiCredit, OUT_OF_CREDITS } from "@/lib/billing/ai-credits";
 import { sendEmail, type EmailAttachment } from "@/lib/email/resend";
 import { noticeEmailHtml, escapeHtml } from "@/lib/email/templates";
 import { createServiceClient } from "@/lib/supabase/admin";
@@ -361,9 +361,6 @@ export async function generateInitialResponse(_prev: ActionState, formData: Form
   if (!id || !profile.company_id) return { error: "Missing complaint." };
   if (!MANAGE_ROLES.includes(profile.role)) return { error: "You do not have permission." };
 
-  const gated = await requireFeature(profile.company_id, "ai_features");
-  if (gated) return { error: gated };
-
   const apiKey = process.env.ANTHROPIC_API_KEY;
   const model = process.env.ANTHROPIC_MODEL;
   if (!apiKey || !model) {
@@ -412,6 +409,9 @@ export async function generateInitialResponse(_prev: ActionState, formData: Form
 
   const prompt = `You are writing on behalf of ${companyName}, a UK care provider, responding to a complaint. ${formatGuidance}\n\nUse only these details, do not invent facts:\n${facts}\n\nReturn ONLY valid JSON in exactly this shape, no markdown, no commentary: ${jsonShape}`;
 
+  const spent = await spendAiCredit(profile.company_id);
+  if (!spent.ok) return { error: OUT_OF_CREDITS };
+
   let res: Response;
   try {
     res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -420,9 +420,11 @@ export async function generateInitialResponse(_prev: ActionState, formData: Form
       body: JSON.stringify({ model, max_tokens: 1200, messages: [{ role: "user", content: prompt }] }),
     });
   } catch (e) {
+    await refundAiCredit(profile.company_id);
     return { error: `AI request failed: ${(e as Error).message}` };
   }
   if (!res.ok) {
+    await refundAiCredit(profile.company_id);
     const detail = (await res.text().catch(() => "")).replace(/sk-ant-[A-Za-z0-9_-]{6,}/g, "[redacted]");
     return { error: `AI request failed (${res.status}). ${detail.slice(0, 160)}` };
   }
@@ -587,8 +589,6 @@ export async function generateComplaintResponse(_prev: ActionState, formData: Fo
   if (!id || !profile.company_id) return { error: "Missing complaint." };
   if (!MANAGE_ROLES.includes(profile.role)) return { error: "You do not have permission." };
 
-  const gated = await requireFeature(profile.company_id, "ai_features");
-  if (gated) return { error: gated };
   const apiKey = process.env.ANTHROPIC_API_KEY;
   const model = process.env.ANTHROPIC_MODEL;
   if (!apiKey || !model) {
@@ -655,6 +655,9 @@ export async function generateComplaintResponse(_prev: ActionState, formData: Fo
 
   const prompt = `You are writing on behalf of ${companyName}, a UK care provider, sending the final response to a complaint after investigating it. ${formatGuidance}\n\n${confidentiality}\n\nUse only these details from the complaint and its investigation, do not invent findings:\n${facts}\n\nReturn ONLY valid JSON in exactly this shape, no markdown: ${jsonShape}`;
 
+  const spent = await spendAiCredit(profile.company_id);
+  if (!spent.ok) return { error: OUT_OF_CREDITS };
+
   let res: Response;
   try {
     res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -663,9 +666,11 @@ export async function generateComplaintResponse(_prev: ActionState, formData: Fo
       body: JSON.stringify({ model, max_tokens: 1500, messages: [{ role: "user", content: prompt }] }),
     });
   } catch (e) {
+    await refundAiCredit(profile.company_id);
     return { error: `AI request failed: ${(e as Error).message}` };
   }
   if (!res.ok) {
+    await refundAiCredit(profile.company_id);
     const detail = (await res.text().catch(() => "")).replace(/sk-ant-[A-Za-z0-9_-]{6,}/g, "[redacted]");
     return { error: `AI request failed (${res.status}). ${detail.slice(0, 160)}` };
   }

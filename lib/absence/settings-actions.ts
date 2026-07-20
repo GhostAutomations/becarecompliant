@@ -19,7 +19,7 @@ import { requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { recordUsage } from "@/lib/notifications/usage";
-import { requireFeature } from "@/lib/billing/tier";
+import { spendAiCredit, refundAiCredit, OUT_OF_CREDITS } from "@/lib/billing/ai-credits";
 import type { ActionState } from "@/lib/forms";
 
 const POLICY_BUCKET = "absence-policies";
@@ -146,10 +146,6 @@ export async function suggestAbsencePolicy(
   const { user, profile } = await requireCompanyAdmin();
   if (!profile.company_id) return { error: "No company context." };
 
-  // AI assistance is an Enterprise and above feature (server-side tier gating).
-  const gated = await requireFeature(profile.company_id, "ai_features");
-  if (gated) return { error: gated };
-
   const apiKey = process.env.ANTHROPIC_API_KEY;
   const model = process.env.ANTHROPIC_MODEL;
   if (!apiKey || !model) {
@@ -189,6 +185,9 @@ export async function suggestAbsencePolicy(
     "If the policy does not specify numbers, use sensible UK care-sector defaults and say so in the summary.",
   ].join(" ");
 
+  const spent = await spendAiCredit(profile.company_id);
+  if (!spent.ok) return { error: OUT_OF_CREDITS };
+
   let res: Response;
   try {
     res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -213,10 +212,12 @@ export async function suggestAbsencePolicy(
       }),
     });
   } catch (e) {
+    await refundAiCredit(profile.company_id);
     return { error: `Could not reach the AI service: ${(e as Error).message}` };
   }
 
   if (!res.ok) {
+    await refundAiCredit(profile.company_id);
     // Redact anything that looks like a secret before surfacing (defence in depth:
     // e.g. a misconfigured ANTHROPIC_MODEL echoing the key back in the error body).
     const detail = (await res.text().catch(() => "")).replace(

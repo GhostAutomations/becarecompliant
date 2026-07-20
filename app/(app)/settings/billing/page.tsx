@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { getSeatUsage, formatPence, INCLUDED_SEATS } from "@/lib/billing/seats";
+import { getAiCreditBalance } from "@/lib/billing/ai-credits";
 import { TIER_LABELS, TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
 import { stripeConfigured } from "@/lib/stripe/client";
 import { SubscribeButton, ManageBillingButton } from "@/components/billing/billing-actions";
@@ -70,6 +71,9 @@ export default async function BillingPage() {
   ]);
 
   const tier = company?.tier ?? "business";
+  const aiCredits = await getAiCreditBalance(profile.company_id);
+  const AI_ALLOWANCE: Record<string, number> = { business: 25, pro: 50, enterprise: 50, diamond: 50, black: 1000 };
+  const aiMonthly = AI_ALLOWANCE[tier] ?? 25;
   const isSub = isSubscriptionTier(tier);
   const basePence = isSub ? TIER_BASE_PENCE[tier as keyof typeof TIER_BASE_PENCE] : 0;
   const monthlyTotalPence = basePence + seats.extraCostPence;
@@ -140,6 +144,18 @@ export default async function BillingPage() {
           )}
         </div>
         <p className="mt-3 text-sm text-white/60">{TIER_BLURB[tier] ?? ""}</p>
+      </section>
+
+      {/* AI credits */}
+      <section className="glass-card p-5">
+        <h2 className="text-sm font-semibold text-white/80">AI credits</h2>
+        <p className="mt-2 text-3xl font-bold text-white">
+          {aiCredits} <span className="text-base font-medium text-white/55">credits left</span>
+        </p>
+        <p className="mt-2 text-sm text-white/60">
+          One credit is used each time you use an AI feature, such as generating a complaint response. Your plan
+          includes {aiMonthly} credits a month and any unused credits carry over. Top ups are 100 credits for £10 plus VAT.
+        </p>
       </section>
 
       {/* Seats and cost */}

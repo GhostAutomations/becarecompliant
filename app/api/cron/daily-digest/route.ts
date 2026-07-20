@@ -73,6 +73,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Grant this month's AI credits to every active company (idempotent per calendar
+  // month, tier based). Runs before the send-hour gate so it happens once a day
+  // regardless of whether the digest sends this invocation.
+  try {
+    const { createServiceClient } = await import("@/lib/supabase/admin");
+    await createServiceClient().rpc("grant_monthly_ai_credits");
+  } catch (e) {
+    console.error("[cron] monthly AI credit grant failed:", (e as Error).message);
+  }
+
   // Gate: sends from 07:00 London onwards (dedupe keys prevent repeats), so
   // the winter 06:00-London run is refused, Vercel's manual Run button works
   // any time of day, and a missed morning self-heals on the next invocation.
