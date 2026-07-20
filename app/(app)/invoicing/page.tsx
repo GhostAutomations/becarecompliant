@@ -62,12 +62,7 @@ export default async function InvoicingPage() {
         </div>
         {invoices.length === 0 ? (
           <div className="px-2 py-10 text-center">
-            <p className="text-sm text-white/60">
-              No invoices yet. Add your private clients, then raise an invoice from a client.
-            </p>
-            <Link href="/invoicing/clients" className="btn-outline mt-4 inline-block text-sm">
-              Go to Private Clients
-            </Link>
+            <p className="text-sm text-white/50">No invoices yet.</p>
           </div>
         ) : (
           <div className="mt-3 overflow-x-auto">

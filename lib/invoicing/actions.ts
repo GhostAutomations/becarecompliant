@@ -142,6 +142,7 @@ export async function saveHourlyRates(_prev: ActionState, formData: FormData): P
   const patch: Record<string, number> = {};
   for (const s of INVOICE_SERVICES) {
     patch[`rate_${s.key}_pence`] = poundsToPence(formData.get(`rate_${s.key}`));
+    patch[`rate_${s.key}_fixed_pence`] = poundsToPence(formData.get(`rate_${s.key}_fixed`));
   }
   const supabase = await createClient();
   const { error } = await supabase

@@ -7,7 +7,7 @@ import ActionForm from "@/components/action-form";
 import { getInvoicingConfig, listRateList } from "@/lib/invoicing/data";
 import { getCompanyLogoDataUrl } from "@/lib/invoicing/logo";
 import { saveInvoicingConfig, addRateLine, deleteRateLine, saveHourlyRates, saveCompanyLogo } from "@/lib/invoicing/actions";
-import { formatMoney, INVOICE_SERVICES, serviceRatePence } from "@/lib/invoicing/types";
+import { formatMoney, INVOICE_SERVICES, serviceRatePence, serviceFixedPence } from "@/lib/invoicing/types";
 
 export const metadata: Metadata = { title: "Invoicing settings" };
 
@@ -165,18 +165,21 @@ export default async function InvoicingSettingsPage() {
           Saved lines you can drop onto an invoice with one click. Edit prices any time.
         </p>
 
-        {/* Hourly rates */}
+        {/* Rates */}
         <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-4">
-          <h3 className="text-sm font-semibold text-white/80">Hourly rates</h3>
+          <h3 className="text-sm font-semibold text-white/80">Rates</h3>
           <p className="form-hint mt-1">
-            Your hourly rate per service. Double handed lines are charged at twice the rate
-            automatically.
+            Set an hourly rate and, if you use one, a fixed rate (a flat fee for the whole visit)
+            per service. Double handed hourly lines are charged at twice the rate automatically.
           </p>
           <ActionForm action={saveHourlyRates} label="Save rates" buttonClassName="btn-outline text-xs" className="mt-3 space-y-3">
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-[1fr_8rem_8rem] items-center gap-x-3 gap-y-2">
+              <span className="text-xs uppercase tracking-wide text-white/45">Service</span>
+              <span className="text-xs uppercase tracking-wide text-white/45">Hourly rate</span>
+              <span className="text-xs uppercase tracking-wide text-white/45">Fixed rate</span>
               {INVOICE_SERVICES.map((s) => (
-                <div key={s.key}>
-                  <label htmlFor={`rate_${s.key}`} className="form-label">{s.label} (£/hr)</label>
+                <div key={s.key} className="contents">
+                  <label htmlFor={`rate_${s.key}`} className="text-sm text-white/85">{s.label}</label>
                   <input
                     id={`rate_${s.key}`}
                     name={`rate_${s.key}`}
@@ -184,6 +187,14 @@ export default async function InvoicingSettingsPage() {
                     inputMode="decimal"
                     placeholder="0.00"
                     defaultValue={(serviceRatePence(config, s.key) / 100 || 0).toFixed(2)}
+                  />
+                  <input
+                    id={`rate_${s.key}_fixed`}
+                    name={`rate_${s.key}_fixed`}
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="0.00"
+                    defaultValue={(serviceFixedPence(config, s.key) / 100 || 0).toFixed(2)}
                   />
                 </div>
               ))}

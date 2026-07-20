@@ -31,6 +31,12 @@ export type InvoicingConfig = {
   rate_sleep_pence: number;
   rate_shopping_pence: number;
   rate_cleaning_pence: number;
+  rate_care_fixed_pence: number;
+  rate_sit_fixed_pence: number;
+  rate_overnight_fixed_pence: number;
+  rate_sleep_fixed_pence: number;
+  rate_shopping_fixed_pence: number;
+  rate_cleaning_fixed_pence: number;
 };
 
 export const DEFAULT_INVOICING_CONFIG: Omit<InvoicingConfig, "company_id"> = {
@@ -48,6 +54,12 @@ export const DEFAULT_INVOICING_CONFIG: Omit<InvoicingConfig, "company_id"> = {
   rate_sleep_pence: 0,
   rate_shopping_pence: 0,
   rate_cleaning_pence: 0,
+  rate_care_fixed_pence: 0,
+  rate_sit_fixed_pence: 0,
+  rate_overnight_fixed_pence: 0,
+  rate_sleep_fixed_pence: 0,
+  rate_shopping_fixed_pence: 0,
+  rate_cleaning_fixed_pence: 0,
 };
 
 /** The six hourly service rates the company sets in Settings. */
@@ -72,9 +84,14 @@ export function serviceRatePence(config: InvoicingConfig, service: ServiceKey): 
   return config[`rate_${service}_pence` as keyof InvoicingConfig] as number;
 }
 
+export function serviceFixedPence(config: InvoicingConfig, service: ServiceKey): number {
+  return config[`rate_${service}_fixed_pence` as keyof InvoicingConfig] as number;
+}
+
 export type InvoiceTemplate = { description: string; unit_price_pence: number };
 
-/** The twelve derived line templates: each service x single/double handed. */
+/** Derived line templates: each service x single/double handed (hourly), plus a
+ *  Fixed line per service when a fixed rate is set. */
 export function serviceTemplates(config: InvoicingConfig): InvoiceTemplate[] {
   const out: InvoiceTemplate[] = [];
   for (const s of INVOICE_SERVICES) {
@@ -82,6 +99,8 @@ export function serviceTemplates(config: InvoicingConfig): InvoiceTemplate[] {
     for (const h of HANDED) {
       out.push({ description: `${s.label} - ${h.label}`, unit_price_pence: Math.round(base * h.multiplier) });
     }
+    const fixed = serviceFixedPence(config, s.key);
+    if (fixed > 0) out.push({ description: `${s.label} - Fixed`, unit_price_pence: fixed });
   }
   return out;
 }
