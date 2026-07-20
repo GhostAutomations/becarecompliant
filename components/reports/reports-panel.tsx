@@ -5,24 +5,32 @@
  * page stays calm and there is only one place to pick a branch.
  */
 
-type ReportCardProps = { title: string; description: string; viewHref: string };
+type ReportCardProps = { title: string; description: string; viewHref: string; locked?: boolean };
 
-function ReportCard({ title, description, viewHref }: ReportCardProps) {
+function ReportCard({ title, description, viewHref, locked = false }: ReportCardProps) {
   return (
     <div className="glass-card p-5">
-      <h2 className="text-base font-semibold text-white">{title}</h2>
+      <div className="flex items-start justify-between gap-2">
+        <h2 className="text-base font-semibold text-white">{title}</h2>
+        {locked ? (
+          <span className="rounded-full bg-gold-400/15 px-2 py-0.5 text-[10px] font-semibold text-gold-300">Pro</span>
+        ) : null}
+      </div>
       <p className="text-sm text-white/60">{description}</p>
       <div className="mt-3">
-        <a href={viewHref} className="btn-primary px-3 py-2 text-xs">
-          View
-        </a>
+        {locked ? (
+          <a href="/settings/billing" className="btn-outline px-3 py-2 text-xs">Upgrade to Pro</a>
+        ) : (
+          <a href={viewHref} className="btn-primary px-3 py-2 text-xs">View</a>
+        )}
       </div>
     </div>
   );
 }
 
-export default function ReportsPanel({ isAdmin }: { entitled: boolean; isAdmin: boolean }) {
+export default function ReportsPanel({ entitled, isAdmin }: { entitled: boolean; isAdmin: boolean }) {
   const viewHref = (type: string) => `/reports/view/${type}`;
+  const proLocked = !entitled;
 
   return (
     <div className="space-y-6">
@@ -49,25 +57,37 @@ export default function ReportsPanel({ isAdmin }: { entitled: boolean; isAdmin: 
           title="Compliance report"
           description="People and Service Users together: a RAG summary and the full overdue lists, for a branch or the whole company."
           viewHref={viewHref("compliance")}
+          locked={proLocked}
         />
         <ReportCard
           title="PQS report"
-          description="The Cardiff PQS headline scores (mandatory training, supervision, Social Care Wales, care plan reviews and safeguarding) with score bands, plus the on time cycle detail, for one branch."
+          description="The PQS headline scores (mandatory training, supervision, staff registration, care plan reviews and safeguarding) with score bands, plus the on time cycle detail, for one branch."
           viewHref={viewHref("on-time")}
+          locked={proLocked}
         />
         <ReportCard
           title="Training compliance report"
           description="Mandatory training and safeguarding compliance rates with PQS score bands, plus the list of expired or missing mandatory training to action."
           viewHref={viewHref("training")}
+          locked={proLocked}
         />
 
         <div className="glass-card p-5">
-          <h2 className="text-base font-semibold text-white">Audit trail</h2>
+          <div className="flex items-start justify-between gap-2">
+            <h2 className="text-base font-semibold text-white">Audit trail</h2>
+            {proLocked ? (
+              <span className="rounded-full bg-gold-400/15 px-2 py-0.5 text-[10px] font-semibold text-gold-300">Pro</span>
+            ) : null}
+          </div>
           <p className="text-sm text-white/60">
             Who changed what and when across your company. Open the log to filter, or export it for
             an inspector.
           </p>
-          {isAdmin ? (
+          {proLocked ? (
+            <div className="mt-3">
+              <a href="/settings/billing" className="btn-outline px-3 py-2 text-xs">Upgrade to Pro</a>
+            </div>
+          ) : isAdmin ? (
             <div className="mt-3">
               <a href="/reports/audit" className="btn-outline px-3 py-2 text-xs">
                 Open audit log

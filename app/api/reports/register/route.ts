@@ -1,6 +1,5 @@
 import type { NextRequest } from "next/server";
 import { requireCompany } from "@/lib/auth/guards";
-import { featureEnabled } from "@/lib/billing/tier";
 import { writeAudit } from "@/lib/audit";
 import { resolveReportScope } from "@/lib/export/context";
 import { renderReportPdf } from "@/lib/export/pdf";
@@ -11,13 +10,11 @@ import {
 } from "@/lib/export/reports";
 import { pdfResponse, csvResponse, exportError } from "@/lib/export/deliver";
 
-/** Register report (People or Service Users), PDF or CSV. Pro and above. */
+/** Register report (People or Service Users), PDF or CSV. This is the BASIC report
+ *  included on every tier (Business and Pro); all other reports are Pro and above. */
 export async function GET(req: NextRequest) {
   const { profile } = await requireCompany();
   if (!profile.company_id) return exportError("No company context for this report.", 400);
-  if (!(await featureEnabled(profile.company_id, "reporting_exports"))) {
-    return exportError("Reporting exports are available on the Pro tier and above.", 403);
-  }
 
   const params = req.nextUrl.searchParams;
   const population = params.get("population") === "service_users" ? "service_users" : "people";

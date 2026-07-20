@@ -111,7 +111,12 @@ export default async function ReportViewPage({
   const exportHref = (format: "pdf" | "csv") =>
     `${exportPath}?${populationQuery}branch=${encodeURIComponent(branchValue)}&from=${win.from ?? ""}&to=${win.to}&format=${format}`;
 
-  const entitled = await featureEnabled(profile.company_id, "reporting_exports");
+  // The People and Service User compliance registers are the BASIC report included on
+  // every tier; every other report is Pro and above. Business cannot open a Pro report.
+  const isBasicRegister = reportType === "people" || reportType === "service_users";
+  const hasExports = await featureEnabled(profile.company_id, "reporting_exports");
+  if (!isBasicRegister && !hasExports) redirect("/reports");
+  const entitled = isBasicRegister || hasExports;
   const selfPath = `/reports/view/${reportType}`;
 
   return (
