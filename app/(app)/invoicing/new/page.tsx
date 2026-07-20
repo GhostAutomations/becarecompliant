@@ -7,6 +7,7 @@ import {
   londonToday,
 } from "@/lib/invoicing/data";
 import { createInvoice } from "@/lib/invoicing/invoice-actions";
+import { serviceTemplates } from "@/lib/invoicing/types";
 import InvoiceBuilder from "@/components/invoicing/invoice-builder";
 import BackLink from "@/components/back-link";
 
@@ -33,7 +34,10 @@ export default async function NewInvoicePage() {
           invoice_to_label: c.invoice_to_label,
           invoice_delivery: c.invoice_delivery,
         }))}
-        rateList={rates.map((r) => ({ id: r.id, description: r.description, unit_price_pence: r.unit_price_pence }))}
+        presets={[
+          ...serviceTemplates(config),
+          ...rates.map((r) => ({ description: r.description, unit_price_pence: r.unit_price_pence })),
+        ]}
         vatEnabled={config.vat_enabled}
         today={londonToday()}
       />

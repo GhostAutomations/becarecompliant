@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { requireInvoicing } from "@/lib/invoicing/guard";
 import { getInvoice, listRateList, getInvoicingConfig, londonToday } from "@/lib/invoicing/data";
 import { updateInvoice } from "@/lib/invoicing/invoice-actions";
+import { serviceTemplates } from "@/lib/invoicing/types";
 import InvoiceBuilder from "@/components/invoicing/invoice-builder";
 import BackLink from "@/components/back-link";
 
@@ -27,7 +28,10 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
         mode="edit"
         action={updateInvoice}
         clients={[]}
-        rateList={rates.map((r) => ({ id: r.id, description: r.description, unit_price_pence: r.unit_price_pence }))}
+        presets={[
+          ...serviceTemplates(config),
+          ...rates.map((r) => ({ description: r.description, unit_price_pence: r.unit_price_pence })),
+        ]}
         vatEnabled={config.vat_enabled}
         today={londonToday()}
         initial={{

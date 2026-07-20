@@ -10,10 +10,12 @@
 import { revalidatePath } from "next/cache";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
 import { requireFeature } from "@/lib/billing/tier";
 import type { ActionState } from "@/lib/forms";
-import { INVOICING_ROLES } from "./types";
+import { INVOICING_ROLES, INVOICE_SERVICES } from "./types";
+import { uploadCompanyLogo } from "./logo";
 
 function trimOrNull(v: FormDataEntryValue | null): string | null {
   const s = String(v ?? "").trim();
@@ -126,6 +128,48 @@ export async function addRateLine(_prev: ActionState, formData: FormData): Promi
   if (error) return { error: "Could not add. Please try again." };
   revalidatePath("/settings/invoicing");
   return { ok: "Added" };
+}
+
+/** Save the six hourly service rates (Care, Sit, Overnight, Sleep, Shopping,
+ *  Cleaning). Double handed line prices are derived (x2) in the app. */
+export async function saveHourlyRates(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { user, profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+  const gate = await requireFeature(profile.company_id, "invoicing");
+  if (gate) return { error: gate };
+  if (!ADMIN_ROLES.includes(profile.role)) return { error: "Only an Admin can set hourly rates." };
+
+  const patch: Record<string, number> = {};
+  for (const s of INVOICE_SERVICES) {
+    patch[`rate_${s.key}_pence`] = poundsToPence(formData.get(`rate_${s.key}`));
+  }
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("invoicing_config")
+    .upsert({ company_id: profile.company_id, ...patch, updated_by: user.id, updated_at: new Date().toISOString() }, { onConflict: "company_id" });
+  if (error) return { error: "Could not save. Please try again." };
+  revalidatePath("/settings/invoicing");
+  return { ok: "Saved" };
+}
+
+/** Upload a company logo for branded invoices (Admin only). */
+export async function saveCompanyLogo(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+  const gate = await requireFeature(profile.company_id, "invoicing");
+  if (gate) return { error: gate };
+  if (!ADMIN_ROLES.includes(profile.role)) return { error: "Only an Admin can change the logo." };
+  const file = formData.get("logo");
+  if (!(file instanceof File) || file.size === 0) return { error: "Choose an image file." };
+  if (file.size > 2_000_000) return { error: "Please use a logo under 2MB." };
+
+  const up = await uploadCompanyLogo(profile.company_id, file);
+  if (!up.ok) return { error: "Could not upload the logo. Please try again." };
+  const service = createServiceClient();
+  const { error } = await service.from("companies").update({ logo_path: up.path }).eq("id", profile.company_id);
+  if (error) return { error: "Could not save the logo. Please try again." };
+  revalidatePath("/settings/invoicing");
+  return { ok: "Logo saved" };
 }
 
 export async function deleteRateLine(_prev: ActionState, formData: FormData): Promise<ActionState> {

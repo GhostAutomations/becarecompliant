@@ -25,6 +25,12 @@ export type InvoicingConfig = {
   payment_details: string | null;
   invoice_footer: string | null;
   overdue_reminders_enabled: boolean;
+  rate_care_pence: number;
+  rate_sit_pence: number;
+  rate_overnight_pence: number;
+  rate_sleep_pence: number;
+  rate_shopping_pence: number;
+  rate_cleaning_pence: number;
 };
 
 export const DEFAULT_INVOICING_CONFIG: Omit<InvoicingConfig, "company_id"> = {
@@ -36,7 +42,49 @@ export const DEFAULT_INVOICING_CONFIG: Omit<InvoicingConfig, "company_id"> = {
   payment_details: null,
   invoice_footer: null,
   overdue_reminders_enabled: false,
+  rate_care_pence: 0,
+  rate_sit_pence: 0,
+  rate_overnight_pence: 0,
+  rate_sleep_pence: 0,
+  rate_shopping_pence: 0,
+  rate_cleaning_pence: 0,
 };
+
+/** The six hourly service rates the company sets in Settings. */
+export const INVOICE_SERVICES = [
+  { key: "care", label: "Care" },
+  { key: "sit", label: "Sit" },
+  { key: "overnight", label: "Overnight" },
+  { key: "sleep", label: "Sleep" },
+  { key: "shopping", label: "Shopping" },
+  { key: "cleaning", label: "Cleaning" },
+] as const;
+
+export type ServiceKey = (typeof INVOICE_SERVICES)[number]["key"];
+
+/** Single handed is the base hourly rate; double handed (two carers) is twice it. */
+export const HANDED = [
+  { key: "single", label: "Single Handed", multiplier: 1 },
+  { key: "double", label: "Double Handed", multiplier: 2 },
+] as const;
+
+export function serviceRatePence(config: InvoicingConfig, service: ServiceKey): number {
+  return config[`rate_${service}_pence` as keyof InvoicingConfig] as number;
+}
+
+export type InvoiceTemplate = { description: string; unit_price_pence: number };
+
+/** The twelve derived line templates: each service x single/double handed. */
+export function serviceTemplates(config: InvoicingConfig): InvoiceTemplate[] {
+  const out: InvoiceTemplate[] = [];
+  for (const s of INVOICE_SERVICES) {
+    const base = serviceRatePence(config, s.key);
+    for (const h of HANDED) {
+      out.push({ description: `${s.label} - ${h.label}`, unit_price_pence: Math.round(base * h.multiplier) });
+    }
+  }
+  return out;
+}
 
 /** £ from integer pence, always 2dp. */
 export function formatMoney(pence: number): string {

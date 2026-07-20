@@ -3,6 +3,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import { featureEnabled } from "@/lib/billing/tier";
 import { writeAudit } from "@/lib/audit";
 import { getInvoice, getInvoicingConfig, getCompanyName, londonToday } from "@/lib/invoicing/data";
+import { getCompanyLogoDataUrl } from "@/lib/invoicing/logo";
 import { renderInvoicePdf } from "@/lib/invoicing/pdf";
 
 /** Branded invoice PDF. Manager+ RLS lets the invoice load; Pro gates the export. */
@@ -18,12 +19,13 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   if (!inv || inv.company_id !== profile.company_id) {
     return new Response("Invoice not found", { status: 404 });
   }
-  const [config, companyName] = await Promise.all([
+  const [config, companyName, logo] = await Promise.all([
     getInvoicingConfig(profile.company_id),
     getCompanyName(profile.company_id),
+    getCompanyLogoDataUrl(profile.company_id),
   ]);
 
-  const buffer = await renderInvoicePdf(inv, config, companyName, londonToday());
+  const buffer = await renderInvoicePdf(inv, config, companyName, londonToday(), logo);
 
   await writeAudit({
     companyId: profile.company_id,

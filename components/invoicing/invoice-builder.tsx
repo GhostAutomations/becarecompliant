@@ -7,7 +7,7 @@ import { formatMoney } from "@/lib/invoicing/types";
 
 type ServerAction = (prev: ActionState, formData: FormData) => Promise<ActionState>;
 type Client = { id: string; name: string; invoice_to_label: string; invoice_delivery: string | null };
-type Rate = { id: string; description: string; unit_price_pence: number };
+type Preset = { description: string; unit_price_pence: number };
 type LineRow = { description: string; quantity: string; unitPrice: string };
 
 export type InvoiceBuilderInitial = {
@@ -31,7 +31,7 @@ export default function InvoiceBuilder({
   mode,
   action,
   clients,
-  rateList,
+  presets,
   vatEnabled,
   today,
   initial,
@@ -39,7 +39,7 @@ export default function InvoiceBuilder({
   mode: "create" | "edit";
   action: ServerAction;
   clients: Client[];
-  rateList: Rate[];
+  presets: Preset[];
   vatEnabled: boolean;
   today: string;
   initial?: InvoiceBuilderInitial;
@@ -85,12 +85,12 @@ export default function InvoiceBuilder({
   function addBlank() {
     setRows((prev) => [...prev, { description: "", quantity: "1", unitPrice: "" }]);
   }
-  function addFromRate(rateId: string) {
-    const rate = rateList.find((r) => r.id === rateId);
-    if (!rate) return;
+  function addPreset(idx: string) {
+    const p = presets[Number(idx)];
+    if (!p) return;
     setRows((prev) => [
       ...prev,
-      { description: rate.description, quantity: "1", unitPrice: (rate.unit_price_pence / 100).toFixed(2) },
+      { description: p.description, quantity: "1", unitPrice: (p.unit_price_pence / 100).toFixed(2) },
     ]);
   }
   function removeRow(i: number) {
@@ -157,6 +157,7 @@ export default function InvoiceBuilder({
               <input
                 aria-label="Description"
                 placeholder="Description"
+                list="line-templates"
                 value={r.description}
                 onChange={(e) => updateRow(i, { description: e.target.value })}
               />
@@ -187,21 +188,26 @@ export default function InvoiceBuilder({
             </div>
           ))}
         </div>
+        <datalist id="line-templates">
+          {presets.map((p, i) => (
+            <option key={i} value={p.description} />
+          ))}
+        </datalist>
         <div className="flex flex-wrap items-center gap-3 pt-1">
           <button type="button" onClick={addBlank} className="btn-outline text-xs">Add line</button>
-          {rateList.length > 0 ? (
+          {presets.length > 0 ? (
             <select
-              aria-label="Add from rate list"
+              aria-label="Add a template line"
               defaultValue=""
               onChange={(e) => {
-                addFromRate(e.target.value);
+                addPreset(e.target.value);
                 e.currentTarget.selectedIndex = 0;
               }}
-              className="max-w-[16rem] text-xs"
+              className="max-w-[18rem] text-xs"
             >
-              <option value="">Add from rate list…</option>
-              {rateList.map((r) => (
-                <option key={r.id} value={r.id}>{r.description} ({formatMoney(r.unit_price_pence)})</option>
+              <option value="">Add a template line…</option>
+              {presets.map((p, i) => (
+                <option key={i} value={i}>{p.description} ({formatMoney(p.unit_price_pence)})</option>
               ))}
             </select>
           ) : null}
