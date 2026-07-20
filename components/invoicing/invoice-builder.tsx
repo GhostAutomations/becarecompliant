@@ -83,6 +83,17 @@ export default function InvoiceBuilder({
   function updateRow(i: number, patch: Partial<LineRow>) {
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   }
+  /** Typing or picking a template name in the description also fills its price. */
+  function onDescriptionChange(i: number, value: string) {
+    const match = presets.find((p) => p.description === value);
+    setRows((prev) =>
+      prev.map((r, idx) =>
+        idx === i
+          ? { ...r, description: value, ...(match ? { unitPrice: (match.unit_price_pence / 100).toFixed(2) } : {}) }
+          : r,
+      ),
+    );
+  }
   function addBlank() {
     setRows((prev) => [...prev, { description: "", quantity: "1", unitPrice: "" }]);
   }
@@ -160,7 +171,7 @@ export default function InvoiceBuilder({
                 placeholder="Description"
                 list="line-templates"
                 value={r.description}
-                onChange={(e) => updateRow(i, { description: e.target.value })}
+                onChange={(e) => onDescriptionChange(i, e.target.value)}
               />
               <input
                 aria-label="Quantity"
