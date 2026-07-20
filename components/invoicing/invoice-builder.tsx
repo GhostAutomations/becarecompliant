@@ -47,6 +47,7 @@ export default function InvoiceBuilder({
   const router = useRouter();
   const [state, formAction, pending] = useActionState(action, IDLE_STATE);
   const [clientId, setClientId] = useState<string>(initial?.service_user_id ?? "");
+  const [repeat, setRepeat] = useState(false);
   const [rows, setRows] = useState<LineRow[]>(
     initial?.lines.length
       ? initial.lines.map((l) => ({
@@ -235,6 +236,30 @@ export default function InvoiceBuilder({
         <label htmlFor="notes" className="form-label">Notes (optional)</label>
         <textarea id="notes" name="notes" rows={2} defaultValue={initial?.notes ?? ""} placeholder="Shown on the invoice." />
       </section>
+
+      {mode === "create" ? (
+        <section className="glass-card space-y-3 p-5">
+          <label className="flex items-center gap-2 text-sm font-medium text-white/90">
+            <input type="checkbox" name="repeat" checked={repeat} onChange={(e) => setRepeat(e.target.checked)} />
+            Repeat this invoice automatically
+          </label>
+          {repeat ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label htmlFor="frequency" className="form-label">Every</label>
+                <div className="flex items-center gap-2">
+                  <input name="interval_count" type="number" min={1} defaultValue={1} className="max-w-[5rem]" />
+                  <select id="frequency" name="frequency" defaultValue="monthly" className="max-w-[10rem]">
+                    <option value="weekly">week(s)</option>
+                    <option value="monthly">month(s)</option>
+                  </select>
+                </div>
+                <p className="form-hint">The next invoice drafts automatically on this cadence, starting after the issue date.</p>
+              </div>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
 
       <div className="flex items-center gap-3">
         <button type="submit" disabled={pending} className="btn-primary text-sm">

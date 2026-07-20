@@ -257,6 +257,37 @@ export async function getCompanyName(companyId: string): Promise<string> {
   return (data?.name as string) ?? "Your company";
 }
 
+export type ScheduleRow = {
+  id: string;
+  client_name: string;
+  frequency: string;
+  interval_count: number;
+  next_run_date: string;
+};
+
+export async function listSchedules(companyId: string): Promise<ScheduleRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("invoice_schedules")
+    .select("id, frequency, interval_count, next_run_date, service_users(full_name)")
+    .eq("company_id", companyId)
+    .eq("active", true)
+    .order("next_run_date", { ascending: true });
+  return ((data as Array<{
+    id: string;
+    frequency: string;
+    interval_count: number;
+    next_run_date: string;
+    service_users: { full_name: string } | null;
+  }> | null) ?? []).map((r) => ({
+    id: r.id,
+    client_name: r.service_users?.full_name ?? "Unknown client",
+    frequency: r.frequency,
+    interval_count: r.interval_count,
+    next_run_date: r.next_run_date,
+  }));
+}
+
 export type InvoiceSummary = {
   outstandingPence: number; // sent + unpaid (incl overdue)
   overdueCount: number;

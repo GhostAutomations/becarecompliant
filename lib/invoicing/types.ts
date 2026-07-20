@@ -127,6 +127,22 @@ export const STATUS_LABEL: Record<DisplayStatus, string> = {
   void: "Void",
 };
 
+/** Advance a run date by a schedule cadence (weekly = 7 days, monthly = calendar
+ *  months with end-of-month clamping). Pure, shared by the action and the cron. */
+export function advanceRunDate(iso: string, frequency: string, interval: number): string {
+  const n = Math.max(1, interval);
+  const [y, m, d] = iso.split("-").map(Number);
+  if (frequency === "weekly") {
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    dt.setUTCDate(dt.getUTCDate() + 7 * n);
+    return dt.toISOString().slice(0, 10);
+  }
+  const target = new Date(Date.UTC(y, m - 1 + n, 1));
+  const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+  target.setUTCDate(Math.min(d, lastDay));
+  return target.toISOString().slice(0, 10);
+}
+
 /** Compute line and invoice totals from raw lines. VAT only applies when the
  *  company has VAT enabled; each line carries its own rate (usually the same). */
 export function computeTotals(

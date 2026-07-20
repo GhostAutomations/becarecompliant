@@ -15,7 +15,7 @@ import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { requireFeature } from "@/lib/billing/tier";
 import type { ActionState } from "@/lib/forms";
-import { INVOICING_ROLES, computeTotals } from "./types";
+import { INVOICING_ROLES, computeTotals, advanceRunDate } from "./types";
 import { londonToday } from "./data";
 
 type LineInput = { description: string; quantity: number; unit_price_pence: number };
@@ -150,6 +150,40 @@ export async function createInvoice(_prev: ActionState, formData: FormData): Pro
   if (lineErr) {
     await supabase.from("invoices").delete().eq("id", inv.id);
     return { error: "Could not save the invoice lines. Please try again." };
+  }
+
+  // Optional recurring schedule: the next invoice drafts automatically on the
+  // chosen cadence. The template lines mirror this invoice's lines.
+  if (formData.get("repeat") === "on") {
+    const frequency = formData.get("frequency") === "weekly" ? "weekly" : "monthly";
+    const interval = Math.max(1, Number(formData.get("interval_count") ?? 1) || 1);
+    const { data: sched } = await supabase
+      .from("invoice_schedules")
+      .insert({
+        company_id: companyId,
+        branch_id: su.branch_id,
+        service_user_id: su.id,
+        frequency,
+        interval_count: interval,
+        next_run_date: advanceRunDate(issue, frequency, interval),
+        active: true,
+        created_by: user.id,
+      })
+      .select("id")
+      .single();
+    if (sched) {
+      await supabase.from("invoice_schedule_lines").insert(
+        withRates.map((l, i) => ({
+          schedule_id: sched.id,
+          company_id: companyId,
+          description: l.description,
+          quantity: l.quantity,
+          unit_price_pence: l.unit_price_pence,
+          vat_rate: l.vat_rate,
+          position: i,
+        })),
+      );
+    }
   }
 
   await writeAudit({
@@ -301,6 +335,24 @@ export async function markInvoicePaid(_prev: ActionState, formData: FormData): P
   revalidatePath(`/invoicing/${id}`);
   revalidatePath("/invoicing");
   return { ok: "Marked paid" };
+}
+
+export async function cancelSchedule(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { profile } = await requireCompany();
+  const err = await guard(profile.company_id, profile.role);
+  if (err) return { error: err };
+  const id = trimOrNull(formData.get("schedule_id"));
+  if (!id) return { error: "Missing schedule." };
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("invoice_schedules")
+    .update({ active: false, updated_by: profile.id, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("company_id", profile.company_id!)
+    .select("id");
+  if (error || !data || data.length === 0) return { error: "Could not cancel this schedule." };
+  revalidatePath("/invoicing/schedules");
+  return { ok: "Cancelled" };
 }
 
 export async function voidInvoice(_prev: ActionState, formData: FormData): Promise<ActionState> {

@@ -38,6 +38,7 @@ export default async function InvoicingPage() {
           <p className="page-subtitle">Private client invoices for your branches.</p>
         </div>
         <div className="flex items-center gap-2">
+          <Link href="/invoicing/schedules" className="btn-outline text-sm">Recurring</Link>
           <Link href="/invoicing/clients" className="btn-outline text-sm">Private Clients</Link>
           <Link href="/invoicing/new" className="btn-primary text-sm">New invoice</Link>
         </div>
