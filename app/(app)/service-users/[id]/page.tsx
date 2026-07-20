@@ -8,7 +8,6 @@ import ActionForm from "@/components/action-form";
 import RecordHistory from "@/components/reports/record-history";
 import EditServiceUserForm from "@/components/service-users/edit-service-user-form";
 import PlannedReviewCell from "@/components/service-users/planned-review-cell";
-import CarePlanUpload from "@/components/service-users/care-plan-upload";
 import { featureEnabled } from "@/lib/billing/tier";
 import { getRecordAuditTrail } from "@/lib/audit-log/data";
 import {
@@ -158,11 +157,18 @@ export default async function ServiceUserPage({
         </div>
       ) : null}
 
-      <CarePlanUpload
-        serviceUserId={serviceUser.id}
-        uploadedAt={serviceUser.care_plan_uploaded_at ?? null}
-        editable={canManage}
-      />
+      {canManage ? (
+        <Link
+          href={`/service-users/${serviceUser.id}/care-plan`}
+          className="glass-card flex items-center justify-between gap-3 p-4 text-left transition hover:bg-white/15"
+        >
+          <div>
+            <h2 className="text-base font-semibold text-white">Care plan</h2>
+            <p className="text-sm text-white/60">The weekly care schedule and the care plan document.</p>
+          </div>
+          <span className="btn-outline text-xs">Open</span>
+        </Link>
+      ) : null}
 
       {isCancelled ? (
         <div className="glass-card p-6 text-sm text-white/60">

@@ -152,6 +152,25 @@ function toServiceUser(row: SuRow): ServiceUserRecord {
   return { ...rest, branch_name: branches?.name ?? null };
 }
 
+export async function getCarePlanEntries(
+  serviceUserId: string,
+): Promise<import("./care-plan-consts").CarePlanEntry[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("care_plan_entries")
+    .select("id, day_of_week, service, unit, quantity, position")
+    .eq("service_user_id", serviceUserId)
+    .order("position", { ascending: true });
+  return ((data as Array<{
+    id: string;
+    day_of_week: number;
+    service: string;
+    unit: string;
+    quantity: number;
+    position: number;
+  }> | null) ?? []).map((r) => ({ ...r, quantity: Number(r.quantity) }));
+}
+
 export async function getServiceUser(id: string): Promise<ServiceUserRecord | null> {
   const supabase = await createClient();
   const { data } = await supabase

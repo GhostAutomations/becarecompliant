@@ -244,6 +244,71 @@ export async function updateServiceUser(_prev: ActionState, formData: FormData):
   return { ok: "Saved." };
 }
 
+/** Replace the whole weekly care plan for a service user (delete then insert).
+ *  Manager+ via RLS; rows are day of week, service, unit and quantity. */
+export async function saveCarePlan(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+  const serviceUserId = String(formData.get("service_user_id") ?? "").trim();
+  if (!serviceUserId) return { error: "Missing service user." };
+
+  let rows: Array<{ day_of_week: number; service: string; unit: string; quantity: number }> = [];
+  try {
+    const parsed = JSON.parse(String(formData.get("entries") ?? "[]"));
+    if (Array.isArray(parsed)) {
+      rows = parsed
+        .map((r) => ({
+          day_of_week: Math.max(0, Math.min(6, Math.trunc(Number((r as Record<string, unknown>).day_of_week)))),
+          service: String((r as Record<string, unknown>).service ?? "").trim(),
+          unit: String((r as Record<string, unknown>).unit ?? "").trim(),
+          quantity: Math.max(0, Number((r as Record<string, unknown>).quantity) || 0),
+        }))
+        .filter((r) => r.service !== "" && r.unit !== "");
+    }
+  } catch {
+    return { error: "Could not read the care plan." };
+  }
+
+  const supabase = await createClient();
+  const { data: su } = await supabase
+    .from("service_users")
+    .select("company_id")
+    .eq("id", serviceUserId)
+    .maybeSingle();
+  if (!su) return { error: "Service user not found." };
+
+  const { error: delErr } = await supabase.from("care_plan_entries").delete().eq("service_user_id", serviceUserId);
+  if (delErr) return { error: "Could not save the care plan. Check your access and try again." };
+
+  if (rows.length > 0) {
+    const { error: insErr } = await supabase.from("care_plan_entries").insert(
+      rows.map((r, i) => ({
+        company_id: su.company_id,
+        service_user_id: serviceUserId,
+        day_of_week: r.day_of_week,
+        service: r.service,
+        unit: r.unit,
+        quantity: r.quantity,
+        position: i,
+      })),
+    );
+    if (insErr) return { error: "Could not save the care plan. Please try again." };
+  }
+
+  await writeAudit({
+    companyId: su.company_id as string,
+    actorId: profile.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "service_user.care_plan_saved",
+    entityType: "service_user",
+    entityId: serviceUserId,
+    summary: `Updated the care plan (${rows.length} ${rows.length === 1 ? "entry" : "entries"})`,
+  });
+  revalidatePath(`/service-users/${serviceUserId}/care-plan`);
+  return { ok: "Saved" };
+}
+
 /** Transfer a Record to another branch (its checks follow via the DB trigger). */
 export async function transferServiceUser(
   _prev: ActionState,
