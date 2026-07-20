@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
+import { featureEnabled } from "@/lib/billing/tier";
 import { writeAudit } from "@/lib/audit";
 import BackLink from "@/components/back-link";
 import EditComplaintForm from "@/components/complaints/edit-complaint-form";
@@ -162,6 +163,7 @@ export default async function ComplaintPage({
   const { id } = await params;
   const { logged } = await searchParams;
   if (!profile.company_id || !MANAGE_ROLES.includes(profile.role)) redirect("/complaints");
+  if (!(await featureEnabled(profile.company_id, "complaints"))) redirect("/dashboard");
 
   const complaint = await getComplaint(id);
   if (!complaint) redirect("/complaints");

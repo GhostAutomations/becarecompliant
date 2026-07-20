@@ -6,6 +6,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import { getComplaintCounts } from "@/lib/complaints/data";
+import { featureEnabled } from "@/lib/billing/tier";
 import {
   getComplianceBuckets,
   getHolidayPendingCount,
@@ -132,7 +133,9 @@ export default async function DashboardPage() {
       "You are managing this company for support. Its compliance overview is below.";
   }
 
-  const canSeeComplaints = MANAGER_PLUS_ROLES.includes(profile.role);
+  // Complaints is a Pro feature and Managers-and-above only.
+  const canSeeComplaints =
+    MANAGER_PLUS_ROLES.includes(profile.role) && (await featureEnabled(companyId, "complaints"));
   const isManagerPlus = MANAGER_PLUS_ROLES.includes(profile.role);
 
   // Everyone with a dashboard sees the People + Service User due buckets.

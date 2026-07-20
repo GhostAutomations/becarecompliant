@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
+import { featureEnabled } from "@/lib/billing/tier";
 import BackLink from "@/components/back-link";
 import CreateComplaintForm from "@/components/complaints/create-complaint-form";
 import { listAccessibleBranchTypes, listServiceUsersLite } from "@/lib/complaints/data";
@@ -13,6 +14,7 @@ const MANAGE_ROLES = ["company_admin", "registered_individual", "registered_mana
 export default async function NewComplaintPage() {
   const { user, profile } = await requireCompany();
   if (!profile.company_id) redirect("/complaints");
+  if (!(await featureEnabled(profile.company_id, "complaints"))) redirect("/dashboard");
   if (!MANAGE_ROLES.includes(profile.role)) redirect("/complaints");
 
   const [branches, serviceUsers] = await Promise.all([

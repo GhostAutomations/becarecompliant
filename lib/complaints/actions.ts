@@ -18,6 +18,7 @@ import { writeAudit } from "@/lib/audit";
 import { submitEvidence } from "@/lib/evidence/submit";
 import { recordUsage } from "@/lib/notifications/usage";
 import { spendAiCredit, refundAiCredit, OUT_OF_CREDITS } from "@/lib/billing/ai-credits";
+import { requireFeature } from "@/lib/billing/tier";
 import { sendEmail, type EmailAttachment } from "@/lib/email/resend";
 import { noticeEmailHtml, escapeHtml } from "@/lib/email/templates";
 import { createServiceClient } from "@/lib/supabase/admin";
@@ -63,6 +64,8 @@ const RELATIONSHIPS = ["service_user", "relative", "staff", "professional", "pub
 export async function createComplaint(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const { user, profile } = await requireCompany();
   if (!profile.company_id) return { error: "No company context." };
+  const gate = await requireFeature(profile.company_id, "complaints");
+  if (gate) return { error: gate };
   if (!MANAGE_ROLES.includes(profile.role)) return { error: "You do not have permission to log complaints." };
   const companyId = profile.company_id;
 

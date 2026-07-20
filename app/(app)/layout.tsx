@@ -7,6 +7,7 @@ import { ManageAsBanner } from "@/components/founder/manage-as-banner";
 import { SidebarNav, MobileDock } from "@/components/app-nav";
 import ToastHost from "@/components/toast-host";
 import { ROLE_LABELS, navEntriesForRole } from "@/lib/nav";
+import { featureEnabled } from "@/lib/billing/tier";
 
 export default async function AppLayout({
   children,
@@ -30,9 +31,14 @@ export default async function AppLayout({
       .maybeSingle();
     actingCompanyName = data?.name ?? "this company";
   }
+  // Complaints is a Pro feature: hide the nav entry for companies without it.
+  const navCompanyId = actingCompanyId ?? profile.company_id;
+  const complaintsEnabled = navCompanyId
+    ? await featureEnabled(navCompanyId, "complaints")
+    : true;
   const navEntries = navEntriesForRole(
     actingCompanyId ? "company_admin" : profile.role,
-  );
+  ).filter((e) => e.href !== "/complaints" || complaintsEnabled);
   // The founder's home is the Founder console; everyone else (and the founder
   // while managing as a company) homes to the dashboard.
   const homeHref =

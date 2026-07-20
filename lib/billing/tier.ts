@@ -8,27 +8,28 @@ import type { Tier } from "@/lib/stripe/config";
  * gated work. companies.tier is the source of truth (set by the Founder);
  * Stripe state only reflects billing, it does not grant features.
  *
- * FEATURES LADDER agreed with Phil 2026-07-12:
- *   - All tiers: core compliance (People + Service User registers, checks,
- *     forms, RAG, email digest, one included branch). Extra branches are a paid
- *     add-on on every tier.
- *   - Pro adds: SMS reminders, reporting + inspector exports (Phase 8), the
- *     form builder.
- *   - Enterprise adds: AI (policy parse, future AI form generation), the
- *     integration layer, priority support.
- *   - Diamond and Black are premium/partner arrangements and get everything.
+ * FEATURES LADDER (two public tiers, Phil 2026-07-19):
+ *   - Business (core): People + Service User registers, checks, RAG, holiday and
+ *     absence, training records, dashboard, role based access, bulk import, forms
+ *     as evidence, email digest, the BASIC compliance register report, one branch.
+ *   - Pro adds: complaints management, ALL reports (PQS, evidence packs, audit
+ *     trail, training) + inspector exports, SMS reminders, the form builder.
+ *   - AI is on every tier now, metered by credits (see lib/billing/ai-credits.ts),
+ *     so it is NOT gated here. ai_features remains only for legacy references.
+ *   - Enterprise/Diamond/Black are legacy/premium and get everything.
  */
 
 export type Feature =
   | "sms_reminders"
   | "reporting_exports"
   | "form_builder"
+  | "complaints"
   | "ai_features"
   | "integration_layer"
   | "priority_support";
 
 /** The minimum ordered subscription tier that unlocks each feature. */
-const PRO_FEATURES: Feature[] = ["sms_reminders", "reporting_exports", "form_builder"];
+const PRO_FEATURES: Feature[] = ["sms_reminders", "reporting_exports", "form_builder", "complaints"];
 const ENTERPRISE_FEATURES: Feature[] = [
   "ai_features",
   "integration_layer",

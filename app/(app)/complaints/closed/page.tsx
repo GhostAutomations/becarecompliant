@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
+import { featureEnabled } from "@/lib/billing/tier";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import ComplaintsRegister from "@/components/complaints/complaints-register";
 import {
@@ -17,6 +18,7 @@ const MANAGE_ROLES = ["company_admin", "registered_individual", "registered_mana
 export default async function ClosedComplaintsPage() {
   const { user, profile } = await requireCompany();
   if (!profile.company_id) redirect("/dashboard");
+  if (!(await featureEnabled(profile.company_id, "complaints"))) redirect("/dashboard");
   // Complaints hold special-category data: Managers + Admins only.
   if (!MANAGE_ROLES.includes(profile.role)) redirect("/dashboard");
 
