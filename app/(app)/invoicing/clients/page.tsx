@@ -36,7 +36,7 @@ export default async function PrivateClientsPage() {
             <Link
               key={c.id}
               href={`/invoicing/clients/${c.id}`}
-              className="app-tile flex items-center justify-between gap-3"
+              className="glass-card flex items-center justify-between gap-3 p-4 text-left transition hover:bg-white/15"
             >
               <div className="min-w-0">
                 <p className="truncate text-base font-semibold text-white">{c.name}</p>
