@@ -50,9 +50,9 @@ export async function listAccessibleServiceUsers(companyId: string): Promise<Ser
   const supabase = await createClient();
   const { data } = await supabase
     .from("service_users")
-    .select("id, full_name, branch_id, status")
+    .select("id, full_name, branch_id, service_status")
     .eq("company_id", companyId)
-    .eq("status", "active")
+    .eq("service_status", "active")
     .order("full_name", { ascending: true });
   return ((data as Array<{ id: string; full_name: string; branch_id: string }> | null) ?? []).map(
     (r) => ({ id: r.id, name: r.full_name, branch_id: r.branch_id }),
