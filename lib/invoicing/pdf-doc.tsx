@@ -31,6 +31,14 @@ const INVOICE_TO_LABEL: Record<string, string> = {
   other: "other",
 };
 
+const GOLD = "#8a6a1f";
+
+function fmtDate(iso: string | null): string {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "";
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
 const s = StyleSheet.create({
   page: { paddingTop: 40, paddingBottom: 56, paddingHorizontal: 40, fontSize: 10, color: INK },
   topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 },
@@ -121,15 +129,28 @@ function InvoiceDocument({
           <Text style={[s.th, { width: "12%", textAlign: "right" }]}>Qty</Text>
           <Text style={[s.th, { width: "18%", textAlign: "right" }]}>Amount</Text>
         </View>
-        {inv.lines.map((l) => (
-          <View style={s.tRow} key={l.id} wrap={false}>
-            <Text style={[s.td, { width: "34%" }]}>{l.service ?? l.description}</Text>
-            <Text style={[s.td, { width: "16%" }]}>{l.unit_label ?? "—"}</Text>
-            <Text style={[s.td, { width: "20%" }]}>{l.handed === "double" ? "Double handed" : l.handed === "single" ? "Single handed" : "—"}</Text>
-            <Text style={[s.td, { width: "12%", textAlign: "right" }]}>{l.quantity}</Text>
-            <Text style={[s.td, { width: "18%", textAlign: "right" }]}>{formatMoney(l.line_total_pence)}</Text>
-          </View>
-        ))}
+        {inv.lines.map((l, i) => {
+          const prev = inv.lines[i - 1];
+          const weekKey = `${l.period_start ?? ""}|${l.period_end ?? ""}`;
+          const prevKey = prev ? `${prev.period_start ?? ""}|${prev.period_end ?? ""}` : null;
+          const showWeek = l.period_start && l.period_end && weekKey !== prevKey;
+          return (
+            <View key={l.id} wrap={false}>
+              {showWeek ? (
+                <Text style={{ fontSize: 8.5, fontWeight: 700, color: GOLD, marginTop: 6, marginBottom: 2 }}>
+                  Week: {fmtDate(l.period_start)} to {fmtDate(l.period_end)}
+                </Text>
+              ) : null}
+              <View style={s.tRow}>
+                <Text style={[s.td, { width: "34%" }]}>{l.service ?? l.description}</Text>
+                <Text style={[s.td, { width: "16%" }]}>{l.unit_label ?? "—"}</Text>
+                <Text style={[s.td, { width: "20%" }]}>{l.handed === "double" ? "Double handed" : l.handed === "single" ? "Single handed" : "—"}</Text>
+                <Text style={[s.td, { width: "12%", textAlign: "right" }]}>{l.quantity}</Text>
+                <Text style={[s.td, { width: "18%", textAlign: "right" }]}>{formatMoney(l.line_total_pence)}</Text>
+              </View>
+            </View>
+          );
+        })}
 
         <View style={{ marginTop: 8 }}>
           <View style={s.totalsRow}><Text style={s.totalsKey}>Subtotal</Text><Text style={s.totalsVal}>{formatMoney(inv.subtotal_pence)}</Text></View>

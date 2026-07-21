@@ -46,6 +46,8 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
             unit_label: l.unit_label,
             handed: l.handed,
             quantity: l.quantity,
+            period_start: l.period_start,
+            period_end: l.period_end,
           })),
         }}
       />

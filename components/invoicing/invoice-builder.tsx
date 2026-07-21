@@ -5,14 +5,21 @@ import { useRouter } from "next/navigation";
 import { IDLE_STATE, type ActionState } from "@/lib/forms";
 import { formatMoney } from "@/lib/invoicing/types";
 import { carePlanLinesForPeriod } from "@/lib/invoicing/invoice-actions";
-import { CARE_PLAN_UNITS, HANDED_OPTIONS, unitPricePence } from "@/lib/service-users/care-plan-consts";
+import { CARE_PLAN_UNITS, HANDED_OPTIONS, unitPricePence, lineAmountPence } from "@/lib/service-users/care-plan-consts";
 
 type ServerAction = (prev: ActionState, formData: FormData) => Promise<ActionState>;
 type Client = { id: string; name: string; invoice_to_label: string; invoice_delivery: string | null };
 type ServiceRate = { label: string; hourly_pence: number; fixed_pence: number };
-type Row = { service: string; unit: string; handed: string; quantity: string };
+type Row = { service: string; unit: string; handed: string; quantity: string; periodStart: string; periodEnd: string };
 
 const HANDED_SUFFIX: Record<string, string> = { single: "Single Handed", double: "Double Handed" };
+
+/** dd/mm/yyyy for a YYYY-MM-DD string; "" for blanks. */
+function fmtDate(iso: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "";
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
 
 export type InvoiceBuilderInitial = {
   invoice_id: string;
@@ -23,7 +30,14 @@ export type InvoiceBuilderInitial = {
   supply_period_start: string | null;
   supply_period_end: string | null;
   notes: string | null;
-  lines: { service: string | null; unit_label: string | null; handed: string | null; quantity: number }[];
+  lines: {
+    service: string | null;
+    unit_label: string | null;
+    handed: string | null;
+    quantity: number;
+    period_start: string | null;
+    period_end: string | null;
+  }[];
 };
 
 export default function InvoiceBuilder({
@@ -57,8 +71,10 @@ export default function InvoiceBuilder({
           unit: l.unit_label ?? "1hr",
           handed: l.handed ?? "single",
           quantity: String(l.quantity),
+          periodStart: l.period_start ?? "",
+          periodEnd: l.period_end ?? "",
         }))
-      : [{ service: services[0]?.label ?? "Care", unit: "1hr", handed: "single", quantity: "1" }],
+      : [{ service: services[0]?.label ?? "Care", unit: "1hr", handed: "single", quantity: "1", periodStart: "", periodEnd: "" }],
   );
 
   useEffect(() => {
@@ -71,8 +87,11 @@ export default function InvoiceBuilder({
     () =>
       rows.map((r) => {
         const q = Math.max(0, Number(r.quantity) || 0);
-        const unit = unitPricePence(rateFor(r.service), r.unit, r.handed);
-        return { unit_price_pence: unit, line_total: Math.round(unit * q) };
+        // Exact: bill quantity at the true rate, rounding only the line total.
+        return {
+          unit_price_pence: unitPricePence(rateFor(r.service), r.unit, r.handed),
+          line_total: lineAmountPence(rateFor(r.service), r.unit, r.handed, q),
+        };
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [rows, services],
@@ -84,15 +103,33 @@ export default function InvoiceBuilder({
   const linesJson = JSON.stringify(
     rows
       .filter((r) => r.service && r.unit && (Number(r.quantity) || 0) > 0)
-      .map((r) => ({
-        service: r.service,
-        unit_label: r.unit,
-        handed: r.handed,
-        quantity: Number(r.quantity) || 0,
-        unit_price_pence: unitPricePence(rateFor(r.service), r.unit, r.handed),
-        description: `${r.service} - ${r.unit} (${HANDED_SUFFIX[r.handed] ?? "Single Handed"})`,
-      })),
+      .map((r) => {
+        const q = Number(r.quantity) || 0;
+        return {
+          service: r.service,
+          unit_label: r.unit,
+          handed: r.handed,
+          quantity: q,
+          unit_price_pence: unitPricePence(rateFor(r.service), r.unit, r.handed),
+          line_total_pence: lineAmountPence(rateFor(r.service), r.unit, r.handed, q),
+          period_start: r.periodStart || null,
+          period_end: r.periodEnd || null,
+          description: `${r.service} - ${r.unit} (${HANDED_SUFFIX[r.handed] ?? "Single Handed"})`,
+        };
+      }),
   );
+
+  // Group consecutive rows by their week (period_start|period_end) for display.
+  const groups = useMemo(() => {
+    const out: { key: string; start: string; end: string; idxs: number[] }[] = [];
+    rows.forEach((r, i) => {
+      const key = `${r.periodStart}|${r.periodEnd}`;
+      const last = out[out.length - 1];
+      if (last && last.key === key) last.idxs.push(i);
+      else out.push({ key, start: r.periodStart, end: r.periodEnd, idxs: [i] });
+    });
+    return out;
+  }, [rows]);
 
   function updateRow(i: number, patch: Partial<Row>) {
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
@@ -111,7 +148,7 @@ export default function InvoiceBuilder({
     );
   }
   function addRow() {
-    setRows((prev) => [...prev, { service: services[0]?.label ?? "Care", unit: "1hr", handed: "single", quantity: "1" }]);
+    setRows((prev) => [...prev, { service: services[0]?.label ?? "Care", unit: "1hr", handed: "single", quantity: "1", periodStart: "", periodEnd: "" }]);
   }
   function removeRow(i: number) {
     setRows((prev) => (prev.length === 1 ? prev : prev.filter((_, idx) => idx !== i)));
@@ -128,6 +165,8 @@ export default function InvoiceBuilder({
             unit: l.unit,
             handed: l.handed,
             quantity: String(l.quantity),
+            periodStart: l.period_start ?? "",
+            periodEnd: l.period_end ?? "",
           })),
         );
       }
@@ -221,55 +260,67 @@ export default function InvoiceBuilder({
           <span className="text-xs uppercase tracking-wide text-white/45">Amount</span>
           <span />
 
-          {rows.map((r, i) => (
-            <div key={i} className="contents">
-              <select
-                aria-label="Service"
-                value={r.service}
-                onChange={(e) => onServiceChange(i, e.target.value)}
-                className="ctl-sm text-center"
-              >
-                {services.map((s) => (
-                  <option key={s.label} value={s.label}>{s.label}</option>
-                ))}
-              </select>
-              <select
-                aria-label="Unit"
-                value={r.unit}
-                onChange={(e) => updateRow(i, { unit: e.target.value })}
-                className="ctl-sm text-center"
-              >
-                {CARE_PLAN_UNITS.map((u) => (
-                  <option key={u} value={u}>{u}</option>
-                ))}
-              </select>
-              <select
-                aria-label="Handed"
-                value={r.handed}
-                onChange={(e) => updateRow(i, { handed: e.target.value })}
-                className="ctl-sm text-center"
-              >
-                {HANDED_OPTIONS.map((h) => (
-                  <option key={h.value} value={h.value}>{h.label}</option>
-                ))}
-              </select>
-              <input
-                aria-label="Quantity"
-                type="text"
-                inputMode="decimal"
-                value={r.quantity}
-                onChange={(e) => updateRow(i, { quantity: e.target.value })}
-                className="ctl-sm text-center"
-              />
-              <span className="text-center text-sm text-white/80">{formatMoney(linesPence[i]?.line_total ?? 0)}</span>
-              <button
-                type="button"
-                onClick={() => removeRow(i)}
-                className="text-white/40 hover:text-red-300"
-                aria-label="Remove line"
-              >
-                ✕
-              </button>
+          {groups.map((g) => (
+            <div key={g.key} className="contents">
+              {g.start && g.end ? (
+                <div className="col-span-full mt-2 border-t border-dashed border-gold-400/40 pt-2 text-left text-xs font-medium text-gold-300">
+                  Week: {fmtDate(g.start)} to {fmtDate(g.end)}
+                </div>
+              ) : null}
+              {g.idxs.map((i) => {
+                const r = rows[i];
+                return (
+                  <div key={i} className="contents">
+                    <select
+                      aria-label="Service"
+                      value={r.service}
+                      onChange={(e) => onServiceChange(i, e.target.value)}
+                      className="ctl-sm text-center"
+                    >
+                      {services.map((s) => (
+                        <option key={s.label} value={s.label}>{s.label}</option>
+                      ))}
+                    </select>
+                    <select
+                      aria-label="Unit"
+                      value={r.unit}
+                      onChange={(e) => updateRow(i, { unit: e.target.value })}
+                      className="ctl-sm text-center"
+                    >
+                      {CARE_PLAN_UNITS.map((u) => (
+                        <option key={u} value={u}>{u}</option>
+                      ))}
+                    </select>
+                    <select
+                      aria-label="Handed"
+                      value={r.handed}
+                      onChange={(e) => updateRow(i, { handed: e.target.value })}
+                      className="ctl-sm text-center"
+                    >
+                      {HANDED_OPTIONS.map((h) => (
+                        <option key={h.value} value={h.value}>{h.label}</option>
+                      ))}
+                    </select>
+                    <input
+                      aria-label="Quantity"
+                      type="text"
+                      inputMode="decimal"
+                      value={r.quantity}
+                      onChange={(e) => updateRow(i, { quantity: e.target.value })}
+                      className="ctl-sm text-center"
+                    />
+                    <span className="text-center text-sm text-white/80">{formatMoney(linesPence[i]?.line_total ?? 0)}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeRow(i)}
+                      className="text-white/40 hover:text-red-300"
+                      aria-label="Remove line"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           ))}
         </div>

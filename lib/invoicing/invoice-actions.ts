@@ -16,17 +16,20 @@ import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { requireFeature } from "@/lib/billing/tier";
 import type { ActionState } from "@/lib/forms";
-import { INVOICING_ROLES, INVOICE_SERVICES, computeTotals, advanceRunDate } from "./types";
+import { INVOICING_ROLES, INVOICE_SERVICES, advanceRunDate } from "./types";
 import { londonToday } from "./data";
-import { unitPricePence, type ServiceRate } from "@/lib/service-users/care-plan-consts";
+import { unitPricePence, lineAmountPence, type ServiceRate } from "@/lib/service-users/care-plan-consts";
 
 type LineInput = {
   description: string;
   quantity: number;
   unit_price_pence: number;
+  line_total_pence: number;
   service: string | null;
   unit_label: string | null;
   handed: string | null;
+  period_start: string | null;
+  period_end: string | null;
 };
 
 function trimOrNull(v: FormDataEntryValue | null): string | null {
@@ -47,19 +50,42 @@ function parseLines(raw: FormDataEntryValue | null): LineInput[] {
     return [];
   }
   if (!Array.isArray(arr)) return [];
+  const isoOrNull = (v: unknown): string | null =>
+    /^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "")) ? String(v) : null;
   return arr
     .map((r) => {
       const o = r as Record<string, unknown>;
+      const quantity = Math.max(0, Number(o.quantity ?? 0));
+      const unit_price_pence = Math.round(Math.max(0, Number(o.unit_price_pence ?? 0)));
+      // Prefer the exact total the builder computed; fall back to qty x unit.
+      const provided = Number(o.line_total_pence);
+      const line_total_pence = Number.isFinite(provided) && provided >= 0
+        ? Math.round(provided)
+        : Math.round(quantity * unit_price_pence);
       return {
         description: String(o.description ?? "").trim(),
-        quantity: Math.max(0, Number(o.quantity ?? 0)),
-        unit_price_pence: Math.round(Math.max(0, Number(o.unit_price_pence ?? 0))),
+        quantity,
+        unit_price_pence,
+        line_total_pence,
         service: o.service ? String(o.service) : null,
         unit_label: o.unit_label ? String(o.unit_label) : null,
         handed: o.handed ? String(o.handed) : null,
+        period_start: isoOrNull(o.period_start),
+        period_end: isoOrNull(o.period_end),
       };
     })
     .filter((l) => l.description !== "" && (l.quantity > 0 || l.unit_price_pence > 0));
+}
+
+/** Totals from lines that already carry an exact line_total_pence. */
+function totalsFromLines(lines: LineInput[], vatEnabled: boolean, vatRate: number) {
+  let subtotal = 0;
+  let vat = 0;
+  for (const l of lines) {
+    subtotal += l.line_total_pence;
+    if (vatEnabled) vat += Math.round((l.line_total_pence * vatRate) / 100);
+  }
+  return { subtotalPence: subtotal, vatPence: vat, totalPence: subtotal + vat };
 }
 
 function addDaysIso(iso: string, days: number): string {
@@ -83,14 +109,26 @@ type BuilderLine = {
   handed: string;
   quantity: number;
   unit_price_pence: number;
+  line_total_pence: number;
   description: string;
+  period_start: string;
+  period_end: string;
 };
 
 const HANDED_SUFFIX: Record<string, string> = { single: "Single Handed", double: "Double Handed" };
 
-/** Expand a service user's care plan over a date range into merged invoice lines,
- *  counting how many times each weekday falls in the range. Priced from the
- *  company rates. Called by the invoice builder when a service period is chosen. */
+function addDaysUtc(iso: string, days: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return dt.toISOString().slice(0, 10);
+}
+
+/** Expand a service user's care plan over a date range into invoice lines,
+ *  BROKEN DOWN BY WEEK: the period is split into 7 day windows from the start
+ *  date, and each week produces its own set of lines (one per service+unit+handed)
+ *  tagged with that week's from/to dates. Amounts are billed at the exact rate
+ *  (rounded only at the line total). Called by the builder when a period is set. */
 export async function carePlanLinesForPeriod(
   serviceUserId: string,
   from: string,
@@ -126,39 +164,56 @@ export async function carePlanLinesForPeriod(
     };
   };
 
-  // Count each weekday (0 = Monday) in the range, capped to a year.
-  const counts = [0, 0, 0, 0, 0, 0, 0];
-  let d = new Date(`${from}T00:00:00Z`);
-  const end = new Date(`${to}T00:00:00Z`);
-  let guardCount = 0;
-  while (d <= end && guardCount < 400) {
-    counts[(d.getUTCDay() + 6) % 7] += 1;
-    d.setUTCDate(d.getUTCDate() + 1);
-    guardCount += 1;
-  }
+  const out: BuilderLine[] = [];
+  // Walk the period one week (7 days) at a time, from the start date.
+  let weekStart = from;
+  let weekGuard = 0;
+  while (weekStart <= to && weekGuard < 60) {
+    weekGuard += 1;
+    const rawEnd = addDaysUtc(weekStart, 6);
+    const weekEnd = rawEnd > to ? to : rawEnd; // last week may be partial
 
-  // Merge by service + unit + handed, summing quantities.
-  const merged = new Map<string, BuilderLine>();
-  for (const e of plan) {
-    const occ = counts[e.day_of_week] ?? 0;
-    const qty = occ * Number(e.quantity);
-    if (qty <= 0) continue;
-    const handed = e.handed === "double" ? "double" : "single";
-    const key = `${e.service}|${e.unit}|${handed}`;
-    const price = unitPricePence(rateFor(e.service), e.unit, handed);
-    const existing = merged.get(key);
-    if (existing) existing.quantity += qty;
-    else
-      merged.set(key, {
-        service: e.service,
-        unit: e.unit,
-        handed,
-        quantity: qty,
-        unit_price_pence: price,
-        description: `${e.service} - ${e.unit} (${HANDED_SUFFIX[handed]})`,
-      });
+    // Count each weekday (0 = Monday) inside this week window.
+    const counts = [0, 0, 0, 0, 0, 0, 0];
+    let d = new Date(`${weekStart}T00:00:00Z`);
+    const end = new Date(`${weekEnd}T00:00:00Z`);
+    let dayGuard = 0;
+    while (d <= end && dayGuard < 8) {
+      counts[(d.getUTCDay() + 6) % 7] += 1;
+      d.setUTCDate(d.getUTCDate() + 1);
+      dayGuard += 1;
+    }
+
+    // Merge this week's plan entries by service + unit + handed.
+    const merged = new Map<string, BuilderLine>();
+    for (const e of plan) {
+      const occ = counts[e.day_of_week] ?? 0;
+      const qty = occ * Number(e.quantity);
+      if (qty <= 0) continue;
+      const handed = e.handed === "double" ? "double" : "single";
+      const key = `${e.service}|${e.unit}|${handed}`;
+      const existing = merged.get(key);
+      if (existing) {
+        existing.quantity += qty;
+        existing.line_total_pence = lineAmountPence(rateFor(e.service), e.unit, handed, existing.quantity);
+      } else {
+        merged.set(key, {
+          service: e.service,
+          unit: e.unit,
+          handed,
+          quantity: qty,
+          unit_price_pence: unitPricePence(rateFor(e.service), e.unit, handed),
+          line_total_pence: lineAmountPence(rateFor(e.service), e.unit, handed, qty),
+          description: `${e.service} - ${e.unit} (${HANDED_SUFFIX[handed]})`,
+          period_start: weekStart,
+          period_end: weekEnd,
+        });
+      }
+    }
+    out.push(...merged.values());
+    weekStart = addDaysUtc(weekStart, 7);
   }
-  return { lines: [...merged.values()] };
+  return { lines: out };
 }
 
 export async function createInvoice(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -194,7 +249,7 @@ export async function createInvoice(_prev: ActionState, formData: FormData): Pro
   const vatRate = vatEnabled ? 20 : 0;
 
   const withRates = lines.map((l) => ({ ...l, vat_rate: vatRate }));
-  const totals = computeTotals(withRates, vatEnabled);
+  const totals = totalsFromLines(lines, vatEnabled, vatRate);
 
   const issue = isoDateOr(formData.get("issue_date"), londonToday())!;
   const due = isoDateOr(formData.get("due_date"), addDaysIso(issue, terms))!;
@@ -241,7 +296,9 @@ export async function createInvoice(_prev: ActionState, formData: FormData): Pro
       handed: l.handed,
       quantity: l.quantity,
       unit_price_pence: l.unit_price_pence,
-      line_total_pence: Math.round(l.quantity * l.unit_price_pence),
+      line_total_pence: l.line_total_pence,
+      period_start: l.period_start,
+      period_end: l.period_end,
       vat_rate: l.vat_rate,
       position: i,
     })),
@@ -281,6 +338,8 @@ export async function createInvoice(_prev: ActionState, formData: FormData): Pro
           handed: l.handed,
           quantity: l.quantity,
           unit_price_pence: l.unit_price_pence,
+          period_start: l.period_start,
+          period_end: l.period_end,
           vat_rate: l.vat_rate,
           position: i,
         })),
@@ -331,7 +390,7 @@ export async function updateInvoice(_prev: ActionState, formData: FormData): Pro
   const vatEnabled = Boolean(cfg?.vat_enabled);
   const vatRate = vatEnabled ? 20 : 0;
   const withRates = lines.map((l) => ({ ...l, vat_rate: vatRate }));
-  const totals = computeTotals(withRates, vatEnabled);
+  const totals = totalsFromLines(lines, vatEnabled, vatRate);
 
   await supabase.from("invoice_lines").delete().eq("invoice_id", id);
   const { error: lineErr } = await supabase.from("invoice_lines").insert(
@@ -344,7 +403,9 @@ export async function updateInvoice(_prev: ActionState, formData: FormData): Pro
       handed: l.handed,
       quantity: l.quantity,
       unit_price_pence: l.unit_price_pence,
-      line_total_pence: Math.round(l.quantity * l.unit_price_pence),
+      line_total_pence: l.line_total_pence,
+      period_start: l.period_start,
+      period_end: l.period_end,
       vat_rate: l.vat_rate,
       position: i,
     })),

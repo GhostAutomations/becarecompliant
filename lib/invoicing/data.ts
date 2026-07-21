@@ -200,6 +200,8 @@ export type InvoiceLine = {
   quantity: number;
   unit_price_pence: number;
   line_total_pence: number;
+  period_start: string | null;
+  period_end: string | null;
   vat_rate: number;
   position: number;
 };

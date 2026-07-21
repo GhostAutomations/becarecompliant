@@ -76,8 +76,8 @@ export const UNIT_HOURS: Record<string, number | null> = {
 /** A service and its two rates (pence), keyed by the service label ("Care" etc). */
 export type ServiceRate = { label: string; hourly_pence: number; fixed_pence: number };
 
-/** Price of ONE unit of a service: the fixed rate for Fixed, else hourly x hours,
- *  doubled for double handed (two carers). */
+/** Price of ONE unit of a service (rounded to the penny), for reference/display.
+ *  Fixed rate for Fixed, else hourly x hours, doubled for double handed. */
 export function unitPricePence(
   rate: ServiceRate | undefined,
   unit: string,
@@ -86,4 +86,18 @@ export function unitPricePence(
   if (!rate) return 0;
   const base = unit === "Fixed" ? rate.fixed_pence : Math.round(rate.hourly_pence * (UNIT_HOURS[unit] ?? 0));
   return handed === "double" ? base * 2 : base;
+}
+
+/** EXACT line amount: quantity billed at the true rate, rounded only at the end
+ *  (so e.g. 56 x 15m of £25.50/hr = £357.00, not 56 x £6.38). */
+export function lineAmountPence(
+  rate: ServiceRate | undefined,
+  unit: string,
+  handed: string,
+  quantity: number,
+): number {
+  if (!rate) return 0;
+  const mult = handed === "double" ? 2 : 1;
+  const perUnit = unit === "Fixed" ? rate.fixed_pence : rate.hourly_pence * (UNIT_HOURS[unit] ?? 0);
+  return Math.round(quantity * perUnit * mult);
 }
