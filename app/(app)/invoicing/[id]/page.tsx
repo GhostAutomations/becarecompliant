@@ -69,7 +69,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
       {inv.status === "sent" ? (
         <section className="glass-card p-5">
           <h2 className="text-sm font-semibold text-white/80">Record a payment</h2>
-          <ActionForm action={markInvoicePaid} label="Mark paid" buttonClassName="btn-primary text-xs" className="mt-3">
+          <ActionForm action={markInvoicePaid} label="Mark paid" buttonClassName="btn-primary text-xs" className="mt-3 space-y-4">
             <input type="hidden" name="invoice_id" value={inv.id} />
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
