@@ -38,6 +38,7 @@ import type { ReportDoc, ReportCell } from "@/lib/export/pdf";
 import { fmtDate, generatedAt } from "@/lib/export/format";
 import { getTrainingMatrix } from "@/lib/training/data";
 import { getSatisfaction } from "@/lib/service-users/satisfaction";
+import { getOutcomesRegister } from "@/lib/service-users/data";
 
 export type OnTimeWindow = { from: string; to: string };
 
@@ -297,6 +298,16 @@ export async function buildOnTimeReport(input: {
   // questions across reviews completed in the same window (branch scoped to match).
   const satisfaction = await getSatisfaction(input.companyId, { from: win.from, to: win.to }, input.branchId);
 
+  // Personal outcomes: percentage of service user outcomes achieved or progressing,
+  // branch scoped to match this report.
+  const outcomesReg = await getOutcomesRegister(input.companyId);
+  const outcomeRows = input.branchId
+    ? outcomesReg.rows.filter((r) => r.branch_id === input.branchId)
+    : outcomesReg.rows;
+  const outcomeInScope = outcomeRows.reduce((n, r) => n + r.total, 0);
+  const outcomeAchieving = outcomeRows.reduce((n, r) => n + r.achievingOrProgressing, 0);
+  const outcomesPct = outcomeInScope > 0 ? Math.round((outcomeAchieving / outcomeInScope) * 100) : null;
+
   // Two of the PQS measures are on-time checks already in the table, so we just
   // star those rows. The other three are not checks, so they are appended as their
   // own starred rows. Everything sits in the one On time completion rates box.
@@ -332,6 +343,13 @@ export async function buildOnTimeReport(input: {
       rate: satisfaction.pct,
       band: bandPct(satisfaction.pct),
       star: "User Experience Q2: percentage customer satisfaction from service user feedback, last 6 months.",
+    },
+    {
+      name: "Personal outcomes",
+      gradedAt: "Achieving/progressing",
+      rate: outcomesPct,
+      band: bandPct(outcomesPct),
+      star: "Supplier Performance Q2: percentage of service user personal outcomes achieved or progressing.",
     },
   ];
 
@@ -434,7 +452,7 @@ function renderOnTimeDoc(
       { label: "Generated at", value: generatedAt() },
     ],
     footerNote:
-      "A star marks a Cardiff PQS measure; on screen, hover the star for the exact question. PQS measures: Mandatory training (Quality Q1), Supervision (Quality Q2), Social Care Wales registration (Quality Q3), Care plan reviews (User Experience Q1), Customer satisfaction (User Experience Q2), Safeguarding training (Safeguarding Q1). PQS score band: 100 percent is 10, 85 to 99.99 is 7, 70 to 84.99 is 5, 50 to 69.99 is 2, under 50 is 0. On time means completed on or before the due date (last completion plus the deadline shown in Graded at). The SCW rate counts only staff 6+ months in post. Active records only.",
+      "A star marks a Cardiff PQS measure; on screen, hover the star for the exact question. PQS measures: Mandatory training (Quality Q1), Supervision (Quality Q2), Social Care Wales registration (Quality Q3), Care plan reviews (User Experience Q1), Customer satisfaction (User Experience Q2), Personal outcomes (Supplier Performance Q2), Safeguarding training (Safeguarding Q1). PQS score band: 100 percent is 10, 85 to 99.99 is 7, 70 to 84.99 is 5, 50 to 69.99 is 2, under 50 is 0. On time means completed on or before the due date (last completion plus the deadline shown in Graded at). The SCW rate counts only staff 6+ months in post. Active records only.",
     blocks: [
       { kind: "heading", text: "On time completion rates" },
       {
