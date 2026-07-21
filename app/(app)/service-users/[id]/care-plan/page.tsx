@@ -40,44 +40,45 @@ export default async function CarePlanPage({ params }: { params: Promise<{ id: s
         <p className="page-subtitle">{su.full_name}</p>
       </div>
 
-      <CarePlanManager
-        serviceUserId={id}
-        initial={entries}
-        servicesWithFixed={servicesWithFixed}
-        today={londonToday()}
-        hasPlan={entries.length > 0}
-      />
+      <details className="glass-card p-5" open={entries.length === 0}>
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-2">
+          <span className="text-sm font-semibold text-white/80">Care Plan: Current</span>
+          <span className="text-xs text-white/45">Show</span>
+        </summary>
+        <div className="mt-4">
+          <CarePlanManager
+            serviceUserId={id}
+            initial={entries}
+            servicesWithFixed={servicesWithFixed}
+            today={londonToday()}
+            hasPlan={entries.length > 0}
+          />
+        </div>
+      </details>
 
-      {versions.length > 0 ? (
-        <details className="glass-card p-5">
+      {versions.map((v) => (
+        <details key={`${v.effective_from}-${v.effective_to}`} className="glass-card p-5">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-2">
-            <span className="text-sm font-semibold text-white/80">Previous care plans ({versions.length})</span>
+            <span className="text-sm font-semibold text-white/80">
+              Care Plan: {fmtDate(v.effective_from)} - {fmtDate(v.effective_to)}
+            </span>
             <span className="text-xs text-white/45">Show</span>
           </summary>
-          <div className="mt-3 space-y-4">
-            {versions.map((v) => (
-              <div key={`${v.effective_from}-${v.effective_to}`} className="rounded-lg border border-white/10 p-3">
-                <p className="text-xs font-medium text-gold-300">
-                  {fmtDate(v.effective_from)} to {fmtDate(v.effective_to)}
-                </p>
-                <table className="mt-2 w-full text-sm">
-                  <tbody>
-                    {v.entries.map((e) => (
-                      <tr key={e.id} className="border-t border-white/5">
-                        <td className="py-1 pr-3 text-white/70">{CARE_PLAN_DAYS[e.day_of_week]}</td>
-                        <td className="py-1 pr-3 text-white/85">{e.service}</td>
-                        <td className="py-1 pr-3 text-white/70">{e.unit}</td>
-                        <td className="py-1 pr-3 text-white/70">{e.handed === "double" ? "Double" : "Single"}</td>
-                        <td className="py-1 text-right text-white/70">{e.quantity}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ))}
-          </div>
+          <table className="mt-3 w-full text-sm">
+            <tbody>
+              {v.entries.map((e) => (
+                <tr key={e.id} className="border-t border-white/5">
+                  <td className="py-1 pr-3 text-white/70">{CARE_PLAN_DAYS[e.day_of_week]}</td>
+                  <td className="py-1 pr-3 text-white/85">{e.service}</td>
+                  <td className="py-1 pr-3 text-white/70">{e.unit}</td>
+                  <td className="py-1 pr-3 text-white/70">{e.handed === "double" ? "Double" : "Single"}</td>
+                  <td className="py-1 text-right text-white/70">{e.quantity}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </details>
-      ) : null}
+      ))}
 
       <CarePlanUpload serviceUserId={id} uploadedAt={su.care_plan_uploaded_at ?? null} editable />
     </div>

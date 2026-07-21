@@ -25,41 +25,35 @@ export default function CarePlanManager({
   today: string;
   hasPlan: boolean;
 }) {
-  // Start collapsed when a plan already exists; expanded to build the first one.
   const [editing, setEditing] = useState(!hasPlan);
   const [updating, setUpdating] = useState(false);
 
   return (
     <div className="space-y-4">
-      <div>
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-white/80">Current plan</h2>
-          {hasPlan && !editing ? (
-            <button type="button" onClick={() => setEditing(true)} className="btn-outline text-xs">
-              Edit
-            </button>
-          ) : null}
-        </div>
-
-        {editing ? (
-          <CarePlanEditor
-            mode="edit"
-            action={saveCarePlan}
-            serviceUserId={serviceUserId}
-            initial={initial}
-            servicesWithFixed={servicesWithFixed}
-            onSaved={hasPlan ? () => setEditing(false) : undefined}
-          />
-        ) : (
+      {editing ? (
+        <CarePlanEditor
+          mode="edit"
+          action={saveCarePlan}
+          serviceUserId={serviceUserId}
+          initial={initial}
+          servicesWithFixed={servicesWithFixed}
+          onSaved={hasPlan ? () => setEditing(false) : undefined}
+        />
+      ) : (
+        <>
           <CurrentPlanSummary entries={initial} />
-        )}
-      </div>
-
-      {hasPlan && !editing && !updating ? (
-        <button type="button" onClick={() => setUpdating(true)} className="btn-outline text-sm">
-          Update care plan
-        </button>
-      ) : null}
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => setEditing(true)} className="btn-outline text-xs">
+              Edit current plan
+            </button>
+            {hasPlan && !updating ? (
+              <button type="button" onClick={() => setUpdating(true)} className="btn-outline text-xs">
+                Update care plan
+              </button>
+            ) : null}
+          </div>
+        </>
+      )}
 
       {hasPlan && updating ? (
         <section className="glass-card space-y-3 p-5">
