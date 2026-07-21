@@ -7,9 +7,9 @@
  * result (ok or error). The action is idempotent, so it is safe to run again.
  */
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { IDLE_STATE } from "@/lib/forms";
-import SavedFlashMessage from "@/components/saved-flash-message";
+import { useSavedFlash } from "@/lib/use-saved-flash";
 import { founderImportTemplates } from "@/app/(app)/founder/actions";
 
 export function ImportTemplatesButton({ companyId }: { companyId: string }) {
@@ -17,13 +17,14 @@ export function ImportTemplatesButton({ companyId }: { companyId: string }) {
     founderImportTemplates,
     IDLE_STATE,
   );
+  const [saved, flash, reset] = useSavedFlash();
+  useEffect(() => { if (state.ok && !pending) flash(); }, [state, pending, flash]);
   return (
-    <form action={action} className="space-y-2">
+    <form action={action} className="space-y-2" onChange={reset}>
       <input type="hidden" name="company_id" value={companyId} />
-      <button type="submit" disabled={pending} className="btn-primary px-3 py-2 text-xs">
-        {pending ? "Importing…" : "Import latest templates"}
+      <button type="submit" disabled={pending} className={`${saved ? "btn-saved" : "btn-primary"} px-3 py-2 text-xs`}>
+        {pending ? "Importing…" : saved ? "Imported" : "Import latest templates"}
       </button>
-      <SavedFlashMessage message={state.ok} token={state} className="text-xs text-emerald-300" />
       {state.error && <p className="text-xs text-red-300">{state.error}</p>}
     </form>
   );

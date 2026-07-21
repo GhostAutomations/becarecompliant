@@ -7,9 +7,9 @@
  * it is safe to run again.
  */
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { IDLE_STATE } from "@/lib/forms";
-import SavedFlashMessage from "@/components/saved-flash-message";
+import { useSavedFlash } from "@/lib/use-saved-flash";
 import { importOwnCompanyTemplates } from "@/app/(app)/settings/templates/actions";
 
 export function ImportTemplatesPanel() {
@@ -17,12 +17,13 @@ export function ImportTemplatesPanel() {
     importOwnCompanyTemplates,
     IDLE_STATE,
   );
+  const [saved, flash, reset] = useSavedFlash();
+  useEffect(() => { if (state.ok && !pending) flash(); }, [state, pending, flash]);
   return (
-    <form action={action} className="space-y-3">
-      <button type="submit" disabled={pending} className="btn-primary px-4 py-2 text-sm">
-        {pending ? "Importing…" : "Import latest templates"}
+    <form action={action} className="space-y-3" onChange={reset}>
+      <button type="submit" disabled={pending} className={`${saved ? "btn-saved" : "btn-primary"} px-4 py-2 text-sm`}>
+        {pending ? "Importing…" : saved ? "Imported" : "Import latest templates"}
       </button>
-      <SavedFlashMessage message={state.ok} token={state} className="text-sm text-emerald-300" />
       {state.error && <p className="text-sm text-red-300">{state.error}</p>}
     </form>
   );

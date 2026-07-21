@@ -7,9 +7,9 @@
  * (globals.css); save-button discipline with inline error/ok.
  */
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { IDLE_STATE } from "@/lib/forms";
-import SavedFlashMessage from "@/components/saved-flash-message";
+import { useSavedFlash } from "@/lib/use-saved-flash";
 import {
   createTrainingTemplate,
   updateTrainingTemplate,
@@ -29,8 +29,10 @@ export type TrainingTemplate = {
 
 function AddForm() {
   const [state, action, pending] = useActionState(createTrainingTemplate, IDLE_STATE);
+  const [saved, flash, reset] = useSavedFlash();
+  useEffect(() => { if (state.ok && !pending) flash(); }, [state, pending, flash]);
   return (
-    <form action={action} className="glass-card space-y-4 p-5">
+    <form action={action} className="glass-card space-y-4 p-5" onChange={reset}>
       <h2 className="text-base font-semibold text-white">Add a course</h2>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block text-sm">
@@ -59,12 +61,11 @@ function AddForm() {
           <input type="checkbox" name="is_safeguarding" />
           Safeguarding
         </label>
-        <button type="submit" disabled={pending} className="btn-primary ml-auto px-4 py-2 text-sm">
-          {pending ? "Adding…" : "Add course"}
+        <button type="submit" disabled={pending} className={`${saved ? "btn-saved" : "btn-primary"} ml-auto px-4 py-2 text-sm`}>
+          {pending ? "Adding…" : saved ? "Added" : "Add course"}
         </button>
       </div>
       {state.error && <p className="text-sm text-red-300">{state.error}</p>}
-      {!state.error && <SavedFlashMessage message={state.ok} token={state} className="text-sm text-emerald-300" />}
     </form>
   );
 }
@@ -72,9 +73,11 @@ function AddForm() {
 function TemplateRow({ t }: { t: TrainingTemplate }) {
   const [saveState, saveAction, saving] = useActionState(updateTrainingTemplate, IDLE_STATE);
   const [delState, delAction, deleting] = useActionState(deleteTrainingTemplate, IDLE_STATE);
+  const [saved, flash, reset] = useSavedFlash();
+  useEffect(() => { if (saveState.ok && !saving) flash(); }, [saveState, saving, flash]);
   return (
     <div className="glass-card p-5">
-      <form action={saveAction} className="space-y-3">
+      <form action={saveAction} className="space-y-3" onChange={reset}>
         <input type="hidden" name="id" value={t.id} />
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="block text-sm sm:col-span-2 lg:col-span-1">
@@ -113,12 +116,11 @@ function TemplateRow({ t }: { t: TrainingTemplate }) {
             <input type="checkbox" name="active" defaultChecked={t.active} />
             Active (seeds new companies)
           </label>
-          <button type="submit" disabled={saving} className="btn-ghost ml-auto px-3 py-1.5 text-xs">
-            {saving ? "Saving…" : "Save"}
+          <button type="submit" disabled={saving} className={`${saved ? "btn-saved" : "btn-outline"} ml-auto px-3 py-1.5 text-xs`}>
+            {saving ? "Saving…" : saved ? "Saved" : "Save"}
           </button>
         </div>
         {saveState.error && <p className="text-sm text-red-300">{saveState.error}</p>}
-        {!saveState.error && <SavedFlashMessage message={saveState.ok} token={saveState} className="text-sm text-emerald-300" />}
       </form>
       <form action={delAction} className="mt-2 border-t border-white/10 pt-2">
         <input type="hidden" name="id" value={t.id} />

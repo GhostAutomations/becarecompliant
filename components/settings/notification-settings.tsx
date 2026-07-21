@@ -7,8 +7,9 @@
  * controls only (globals.css), no inline control styling.
  */
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { IDLE_STATE } from "@/lib/forms";
+import { useSavedFlash } from "@/lib/use-saved-flash";
 import SavedFlashMessage from "@/components/saved-flash-message";
 import {
   saveNotificationSettings,
@@ -48,6 +49,8 @@ export default function NotificationSettings({
     saveUserPhone,
     IDLE_STATE,
   );
+  const [savedMain, flashMain, resetMain] = useSavedFlash();
+  useEffect(() => { if (saveState.ok && !saving) flashMain(); }, [saveState, saving, flashMain]);
 
   return (
     <div className="space-y-6">
@@ -58,7 +61,7 @@ export default function NotificationSettings({
         </div>
       )}
 
-      <form action={saveAction} className="glass-card space-y-5 p-5">
+      <form action={saveAction} className="glass-card space-y-5 p-5" onChange={resetMain}>
         <div>
           <h2 className="text-sm font-semibold text-white/80">Channels</h2>
           <label className="mt-3 flex items-start gap-3">
@@ -133,9 +136,8 @@ export default function NotificationSettings({
         {saveState.error && (
           <p className="text-sm text-red-300">{saveState.error}</p>
         )}
-        <SavedFlashMessage message={saveState.ok} token={saveState} className="text-sm text-emerald-300" />
-        <button type="submit" className="btn-primary px-4 py-2 text-sm" disabled={saving}>
-          {saving ? "Saving…" : "Save settings"}
+        <button type="submit" className={`${savedMain ? "btn-saved" : "btn-primary"} px-4 py-2 text-sm`} disabled={saving}>
+          {saving ? "Saving…" : savedMain ? "Saved" : "Save settings"}
         </button>
       </form>
 

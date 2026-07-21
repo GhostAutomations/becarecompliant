@@ -17,7 +17,6 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import FormRenderer from "@/components/forms/form-renderer";
-import SavedFlashMessage from "@/components/saved-flash-message";
 import { type FieldType, type FormField, type FormSchema } from "@/lib/form-schema";
 import type { BankQuestion, FormVersionRow, Population } from "@/lib/form-builder/types";
 import {
@@ -233,14 +232,13 @@ export default function BuilderShell(props: Props) {
 
         <div className="flex flex-wrap items-center gap-2">
           {dirty && <span className="text-xs text-amber-300">Unsaved changes</span>}
-          <SavedFlashMessage message={!dirty ? message?.ok : null} token={message} className="text-xs text-emerald-300" />
           <button
             type="button"
             onClick={() => doSave()}
             disabled={pending}
-            className="btn-outline px-3 py-2 text-sm"
+            className={`${!dirty && message?.ok ? "btn-saved" : "btn-outline"} px-3 py-2 text-sm`}
           >
-            {pending ? "Saving…" : props.kind === "template" ? "Save template" : "Save draft"}
+            {pending ? "Saving…" : !dirty && message?.ok ? "Saved" : props.kind === "template" ? "Save template" : "Save draft"}
           </button>
           {props.kind === "company" && (
             <>

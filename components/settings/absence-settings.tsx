@@ -23,7 +23,6 @@ import {
   suggestAbsencePolicy,
 } from "@/lib/absence/settings-actions";
 import { useSavedFlash } from "@/lib/use-saved-flash";
-import SavedFlashMessage from "@/components/saved-flash-message";
 
 type Row = Record<string, string | number>;
 
@@ -51,6 +50,7 @@ export default function AbsenceSettings({
 
   const [saveState, saveAction, saving] = useActionState(saveAbsenceConfig, IDLE_STATE);
   const [saved, flash] = useSavedFlash();
+  const [uploadSaved, flashUpload, resetUpload] = useSavedFlash();
   const [uploadState, uploadAction] = useActionState(uploadAbsencePolicy, IDLE_STATE);
   const [aiState, aiAction, aiPending] = useActionState(suggestAbsencePolicy, IDLE_STATE);
 
@@ -75,8 +75,11 @@ export default function AbsenceSettings({
   }, [aiState]);
 
   useEffect(() => {
-    if (uploadState.ok) router.refresh();
-  }, [uploadState.ok, router]);
+    if (uploadState.ok) {
+      flashUpload();
+      router.refresh();
+    }
+  }, [uploadState.ok, router, flashUpload]);
 
   // When the save action resolves (ok or error), stop the "Saving…" state; a
   // success also clears dirty so the button reads "Saved".
@@ -227,9 +230,9 @@ export default function AbsenceSettings({
             type="button"
             onClick={onSave}
             disabled={submitting || saving}
-            className="btn-primary px-4 py-2 text-sm"
+            className={`${saved && !dirty ? "btn-saved" : "btn-primary"} px-4 py-2 text-sm`}
           >
-            {submitting || saving ? "Saving…" : saved ? "Saved" : "Save"}
+            {submitting || saving ? "Saving…" : saved && !dirty ? "Saved" : "Save"}
           </button>
           {saveState.error && <span className="form-error mt-0 text-xs">{saveState.error}</span>}
         </div>
@@ -254,13 +257,12 @@ export default function AbsenceSettings({
             type="file"
             accept="application/pdf"
             className="sr-only"
-            onChange={(e) => setFileName(e.target.files?.[0]?.name ?? null)}
+            onChange={(e) => { setFileName(e.target.files?.[0]?.name ?? null); resetUpload(); }}
           />
           <span className="text-xs text-white/60">{fileName ?? "No file chosen"}</span>
-          <button type="submit" className="btn-outline px-3 py-2 text-sm">
-            Upload
+          <button type="submit" className={`${uploadSaved ? "btn-saved" : "btn-outline"} px-3 py-2 text-sm`}>
+            {uploadSaved ? "Uploaded" : "Upload"}
           </button>
-          <SavedFlashMessage message={uploadState.ok} token={uploadState} className="text-xs text-emerald-300" />
           {uploadState.error && <span className="form-error mt-0 text-xs">{uploadState.error}</span>}
         </form>
 

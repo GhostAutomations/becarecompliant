@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import SavedFlashMessage from "@/components/saved-flash-message";
+import { useActionState, useEffect, useState } from "react";
+import { useSavedFlash } from "@/lib/use-saved-flash";
 import { uploadCarePlan, getCarePlanUrl } from "@/lib/service-users/actions";
 
 /** Care Plan document upload + view for a service user (drill-down and Setup form). */
@@ -16,6 +16,8 @@ export default function CarePlanUpload({
 }) {
   const [state, action, pending] = useActionState(uploadCarePlan, {} as { ok?: string; error?: string });
   const [viewMsg, setViewMsg] = useState<string | null>(null);
+  const [saved, flash, reset] = useSavedFlash();
+  useEffect(() => { if (state?.ok && !pending) flash(); }, [state, pending, flash]);
 
   async function view() {
     setViewMsg(null);
@@ -42,7 +44,7 @@ export default function CarePlanUpload({
           : "No care plan uploaded yet."}
       </p>
       {editable ? (
-        <form action={action} className="flex flex-wrap items-center gap-3">
+        <form action={action} className="flex flex-wrap items-center gap-3" onChange={reset}>
           <input type="hidden" name="service_user_id" value={serviceUserId} />
           <input
             type="file"
@@ -50,12 +52,11 @@ export default function CarePlanUpload({
             accept=".pdf,.doc,.docx,image/*"
             className="text-sm text-white/70 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-gold-400 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-[#0f1424] hover:file:bg-gold-400/90"
           />
-          <button type="submit" disabled={pending} className="btn-primary px-3 py-2 text-xs disabled:opacity-40">
-            {pending ? "Uploading…" : hasPlan ? "Replace" : "Upload"}
+          <button type="submit" disabled={pending} className={`${saved ? "btn-saved" : "btn-primary"} px-3 py-2 text-xs disabled:opacity-40`}>
+            {pending ? "Uploading…" : saved ? "Uploaded" : hasPlan ? "Replace" : "Upload"}
           </button>
         </form>
       ) : null}
-      <SavedFlashMessage message={state?.ok} token={state} className="text-xs text-green-300" />
       {state?.error ? <p className="text-xs text-red-300">{state.error}</p> : null}
       {viewMsg ? <p className="text-xs text-white/50">{viewMsg}</p> : null}
     </section>
