@@ -10,7 +10,6 @@
 import { useActionState, useEffect } from "react";
 import { IDLE_STATE } from "@/lib/forms";
 import { useSavedFlash } from "@/lib/use-saved-flash";
-import SavedFlashMessage from "@/components/saved-flash-message";
 import {
   saveNotificationSettings,
   saveUserPhone,
@@ -43,10 +42,6 @@ export default function NotificationSettings({
 }) {
   const [saveState, saveAction, saving] = useActionState(
     saveNotificationSettings,
-    IDLE_STATE,
-  );
-  const [phoneState, phoneAction, phoneSaving] = useActionState(
-    saveUserPhone,
     IDLE_STATE,
   );
   const [savedMain, flashMain, resetMain] = useSavedFlash();
@@ -155,40 +150,47 @@ export default function NotificationSettings({
         ) : (
           <ul className="mt-4 space-y-3">
             {users.map((u) => (
-              <li key={u.profileId}>
-                <form action={phoneAction} className="flex flex-wrap items-center gap-3">
-                  <input type="hidden" name="profile_id" value={u.profileId} />
-                  <span className="min-w-40 text-sm text-white/80">
-                    <span className="font-semibold text-white">{u.fullName}</span>
-                    <br />
-                    <span className="text-xs text-white/50">
-                      {u.role === "company_admin" ? "Admin" : "Manager"}
-                    </span>
-                  </span>
-                  <input
-                    type="tel"
-                    name="phone"
-                    defaultValue={u.phone ?? ""}
-                    placeholder="07700 900123"
-                    className="w-44"
-                  />
-                  <button
-                    type="submit"
-                    className="btn-primary px-3 py-1.5 text-xs"
-                    disabled={phoneSaving}
-                  >
-                    {phoneSaving ? "Saving…" : "Save"}
-                  </button>
-                </form>
-              </li>
+              <PhoneRow key={u.profileId} u={u} />
             ))}
           </ul>
         )}
-        {phoneState.error && (
-          <p className="mt-3 text-sm text-red-300">{phoneState.error}</p>
-        )}
-        <div className="mt-3"><SavedFlashMessage message={phoneState.ok} token={phoneState} className="text-sm text-emerald-300" /></div>
       </section>
     </div>
+  );
+}
+
+/** One SMS-number row with its own save state, so only the saved row turns green. */
+function PhoneRow({ u }: { u: EscalationUser }) {
+  const [state, action, saving] = useActionState(saveUserPhone, IDLE_STATE);
+  const [saved, flash, reset] = useSavedFlash();
+  useEffect(() => { if (state.ok && !saving) flash(); }, [state, saving, flash]);
+  return (
+    <li>
+      <form action={action} className="flex flex-wrap items-center gap-3" onChange={reset}>
+        <input type="hidden" name="profile_id" value={u.profileId} />
+        <span className="min-w-40 text-sm text-white/80">
+          <span className="font-semibold text-white">{u.fullName}</span>
+          <br />
+          <span className="text-xs text-white/50">
+            {u.role === "company_admin" ? "Admin" : "Manager"}
+          </span>
+        </span>
+        <input
+          type="tel"
+          name="phone"
+          defaultValue={u.phone ?? ""}
+          placeholder="07700 900123"
+          className="w-44"
+        />
+        <button
+          type="submit"
+          className={`${saved ? "btn-saved" : "btn-primary"} px-3 py-1.5 text-xs`}
+          disabled={saving}
+        >
+          {saving ? "Saving…" : saved ? "Saved" : "Save"}
+        </button>
+        {state.error && <span className="text-xs text-red-300">{state.error}</span>}
+      </form>
+    </li>
   );
 }

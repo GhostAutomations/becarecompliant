@@ -7,9 +7,9 @@
  * (the actions check the update count so an RLS no-op never passes silently).
  */
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { IDLE_STATE } from "@/lib/forms";
-import SavedFlashMessage from "@/components/saved-flash-message";
+import { useSavedFlash } from "@/lib/use-saved-flash";
 import {
   founderSetUserStatus,
   founderResendInvite,
@@ -55,8 +55,9 @@ export function InviteActions({
     founderRevokeInvite,
     IDLE_STATE,
   );
+  const [resent, flashResent] = useSavedFlash();
+  useEffect(() => { if (resendState.ok && !resendPending) flashResent(); }, [resendState, resendPending, flashResent]);
   const err = resendState.error || revokeState.error;
-  const ok = resendState.ok || revokeState.ok;
   return (
     <div className="inline-flex items-center gap-2">
       <form action={resendAction} className="inline">
@@ -65,9 +66,9 @@ export function InviteActions({
         <button
           type="submit"
           disabled={resendPending}
-          className="btn-ghost px-2.5 py-1 text-xs"
+          className={`${resent ? "btn-saved" : "btn-ghost"} px-2.5 py-1 text-xs`}
         >
-          {resendPending ? "Working…" : "Resend"}
+          {resendPending ? "Working…" : resent ? "Sent" : "Resend"}
         </button>
       </form>
       <form action={revokeAction} className="inline">
@@ -82,7 +83,6 @@ export function InviteActions({
         </button>
       </form>
       {err && <span className="text-xs text-red-300">{err}</span>}
-      {!err && <SavedFlashMessage message={ok} token={ok} className="text-xs text-emerald-300" />}
     </div>
   );
 }
