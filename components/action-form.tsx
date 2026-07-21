@@ -49,14 +49,11 @@ export default function ActionForm({
   const [state, formAction, pending] = useActionState(action, IDLE_STATE);
   const [saved, setSaved] = useState(false);
 
-  // Flash "Saved" briefly on success, then revert to the normal Save button.
-  // (Persisting the green state until the next edit read as a stuck green box.)
+  // On success the button turns green and reads Saved/Sent, and STAYS that way
+  // until the section is edited again (onChange below resets it). Per Phil: this
+  // is a persistent confirmation, not a brief flash.
   useEffect(() => {
-    if (state.ok && !pending) {
-      setSaved(true);
-      const t = setTimeout(() => setSaved(false), 2000);
-      return () => clearTimeout(t);
-    }
+    if (state.ok && !pending) setSaved(true);
   }, [state, pending]);
 
   const showSaved = saved && !pending;

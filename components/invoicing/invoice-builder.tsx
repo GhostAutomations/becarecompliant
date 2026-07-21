@@ -67,7 +67,7 @@ export default function InvoiceBuilder({
 }) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState(action, IDLE_STATE);
-  const [saved, flashSaved] = useSavedFlash();
+  const [saved, flashSaved, resetSaved] = useSavedFlash();
   const [clientId, setClientId] = useState<string>(initial?.service_user_id ?? "");
   const [repeat, setRepeat] = useState(false);
   const [freq, setFreq] = useState<"weekly" | "monthly">("monthly");
@@ -185,7 +185,7 @@ export default function InvoiceBuilder({
   }
 
   return (
-    <form action={formAction} className="space-y-6">
+    <form action={formAction} className="space-y-6" onChange={resetSaved}>
       {mode === "edit" && initial ? <input type="hidden" name="invoice_id" value={initial.invoice_id} /> : null}
       <input type="hidden" name="service_user_id" value={clientId} />
       <input type="hidden" name="lines" value={linesJson} />
