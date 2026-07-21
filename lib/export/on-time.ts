@@ -399,21 +399,21 @@ function renderOnTimeDoc(
   }));
   const allEntries = [...checkEntries, ...measureEntries];
   const byName = (a: SummaryEntry, b: SummaryEntry) => a.name.localeCompare(b.name);
-  const starred = allEntries.filter((e) => e.starred).sort(byName);
-  const others = allEntries.filter((e) => !e.starred).sort(byName);
-  const dividerRow: ReportCell[] = [{ text: "", divider: true }];
-  // Starred PQS measures (alphabetical) at the top, a dashed line, then the other
-  // checks (alphabetical).
-  const summaryRows: ReportCell[][] = [
-    ...starred.map((e) => e.cells),
-    ...(starred.length > 0 && others.length > 0 ? [dividerRow] : []),
-    ...others.map((e) => e.cells),
-  ];
+  // Only the items that actually count towards the PQS score (the starred measures),
+  // alphabetical. Operational checks that are not PQS scored are left out.
+  const summaryRows: ReportCell[][] = allEntries
+    .filter((e) => e.starred)
+    .sort(byName)
+    .map((e) => e.cells);
 
-  // Breakdown: the cycles that were NOT on time first (the ones to action), then all.
-  const sortedCycles = [...cycles].sort(
-    (a, b) => Number(a.onTime) - Number(b.onTime) || a.checkName.localeCompare(b.checkName) || a.dueDate.localeCompare(b.dueDate),
-  );
+  // Breakdown: only the PQS scored checks (the starred ones), cycles that were NOT on
+  // time first (the ones to action), then the rest.
+  const starredCheckNames = new Set(stats.filter((s) => pqsStars[s.checkKey]).map((s) => s.checkName));
+  const sortedCycles = [...cycles]
+    .filter((c) => starredCheckNames.has(c.checkName))
+    .sort(
+      (a, b) => Number(a.onTime) - Number(b.onTime) || a.checkName.localeCompare(b.checkName) || a.dueDate.localeCompare(b.dueDate),
+    );
   const breakdownRows = sortedCycles.map((c) => [
     { text: c.checkName },
     { text: c.recordName, strong: true },
@@ -469,8 +469,8 @@ function renderOnTimeDoc(
   };
 
   const csvRows: CsvCell[][] = [
-    ...stats.map((s) => [
-      pqsStars[s.checkKey] ? "PQS + Summary" : "Summary",
+    ...stats.filter((s) => pqsStars[s.checkKey]).map((s) => [
+      "PQS + Summary",
       s.checkName,
       popLabel(s.population),
       s.gradedAt,
