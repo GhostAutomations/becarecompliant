@@ -85,6 +85,12 @@ export default async function SettingsPage() {
       </section>
 
       <section aria-label="Sections" className="grid gap-4 sm:grid-cols-2">
+        <Link href="/settings/branding" className="app-tile">
+          <h2 className="text-base font-semibold text-white">Branding</h2>
+          <p className="text-sm text-white/60">
+            Your company logo, used on invoices and other documents.
+          </p>
+        </Link>
         <Link href="/settings/branches" className="app-tile">
           <h2 className="text-base font-semibold text-white">Branches</h2>
           <p className="text-sm text-white/60">

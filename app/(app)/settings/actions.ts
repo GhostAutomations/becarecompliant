@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
 import { syncSeatQuantity } from "@/lib/billing/stripe-sync";
+import { uploadCompanyLogo } from "@/lib/invoicing/logo";
 import {
   createAndSendInvite,
   resendInvite,
@@ -41,6 +42,35 @@ async function adminContext(): Promise<
       role: profile.role,
     },
   };
+}
+
+/** Company Admin uploads the company logo (Branding). Used on invoices and any
+ *  other branded document. Not tied to the Invoicing feature. */
+export async function saveCompanyLogo(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const ctx = await adminContext();
+  if (!ctx.ok) return { error: ctx.error };
+  const file = formData.get("logo");
+  if (!(file instanceof File) || file.size === 0) return { error: "Choose an image file." };
+  if (file.size > 2_000_000) return { error: "Please use a logo under 2MB." };
+
+  const up = await uploadCompanyLogo(ctx.companyId, file);
+  if (!up.ok) return { error: "Could not upload the logo. Please try again." };
+  const admin = createServiceClient();
+  const { error } = await admin.from("companies").update({ logo_path: up.path }).eq("id", ctx.companyId);
+  if (error) return { error: "Could not save the logo. Please try again." };
+
+  await writeAudit({
+    companyId: ctx.companyId,
+    actorId: ctx.actor.id,
+    actorEmail: ctx.actor.email,
+    actorRole: ctx.actor.role,
+    action: "company.logo_updated",
+    entityType: "company",
+    entityId: ctx.companyId,
+    summary: "Updated company logo",
+  });
+  revalidatePath("/settings/branding");
+  return { ok: "Logo saved" };
 }
 
 /** Admin invites a Manager, Supervisor or Team Member into a branch. */

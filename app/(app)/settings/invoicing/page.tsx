@@ -5,8 +5,7 @@ import { featureEnabled } from "@/lib/billing/tier";
 import BackLink from "@/components/back-link";
 import ActionForm from "@/components/action-form";
 import { getInvoicingConfig, listRateList } from "@/lib/invoicing/data";
-import { getCompanyLogoDataUrl } from "@/lib/invoicing/logo";
-import { saveInvoicingConfig, addRateLine, deleteRateLine, saveHourlyRates, saveCompanyLogo } from "@/lib/invoicing/actions";
+import { saveInvoicingConfig, addRateLine, deleteRateLine, saveHourlyRates } from "@/lib/invoicing/actions";
 import { formatMoney, INVOICE_SERVICES, serviceRatePence, serviceFixedPence } from "@/lib/invoicing/types";
 
 export const metadata: Metadata = { title: "Invoicing settings" };
@@ -16,10 +15,9 @@ export default async function InvoicingSettingsPage() {
   if (!profile.company_id) redirect("/founder");
   if (!(await featureEnabled(profile.company_id, "invoicing"))) redirect("/settings");
 
-  const [config, rates, logoUrl] = await Promise.all([
+  const [config, rates] = await Promise.all([
     getInvoicingConfig(profile.company_id),
     listRateList(profile.company_id),
-    getCompanyLogoDataUrl(profile.company_id),
   ]);
   const canEditStart = profile.role === "platform_admin" || Boolean(profile.actingAsCompanyId);
 
@@ -32,26 +30,6 @@ export default async function InvoicingSettingsPage() {
           VAT, bank details, invoice numbering, reminders and your reusable rate list.
         </p>
       </div>
-
-      {/* Company logo */}
-      <section className="glass-card p-5">
-        <h2 className="text-sm font-semibold text-white/80">Company logo</h2>
-        <p className="form-hint mt-1">Shown at the top of every invoice and its PDF. PNG or JPG, under 2MB.</p>
-        {logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={logoUrl} alt="Company logo" className="mt-3 max-h-16 rounded bg-white/90 p-2" />
-        ) : null}
-        <div className="mt-4">
-          <ActionForm action={saveCompanyLogo} label="Upload logo">
-            <input
-              type="file"
-              name="logo"
-              accept="image/png,image/jpeg,image/webp"
-              className="text-sm text-white/70 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-gold-400 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-[#0f1424] hover:file:bg-gold-400/90"
-            />
-          </ActionForm>
-        </div>
-      </section>
 
       {/* Configuration */}
       <section className="glass-card p-5">
