@@ -116,13 +116,15 @@ export default function LogoUploader() {
   if (!src) {
     return (
       <div>
-        <input
-          type="file"
-          accept="image/png,image/jpeg,image/webp"
-          onChange={onFile}
-          className="text-sm text-white/70 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-gold-400 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-[#0f1424] hover:file:bg-gold-400/90"
-        />
-        {msg?.ok ? <p className="mt-2 text-xs text-emerald-300">{msg.ok}</p> : null}
+        <label className="btn-primary inline-flex cursor-pointer text-sm">
+          Choose an image to crop
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            onChange={onFile}
+            className="hidden"
+          />
+        </label>
         {msg?.error ? <p className="mt-2 text-xs text-red-300">{msg.error}</p> : null}
       </div>
     );
@@ -130,6 +132,7 @@ export default function LogoUploader() {
 
   return (
     <div className="space-y-3">
+      <p className="text-sm font-semibold text-white/80">Crop your logo</p>
       <p className="form-hint">Drag the box to move it, and the gold corner to resize. Save when the crop looks right.</p>
       <div
         ref={wrapRef}
