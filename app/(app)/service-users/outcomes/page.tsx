@@ -73,7 +73,7 @@ export default async function OutcomesPage() {
                   <th className="py-2 pr-3 text-right">Outcomes</th>
                   <th className="py-2 pr-3 text-right">On track</th>
                   <th className="py-2 pr-3 text-right">%</th>
-                  <th className="py-2 pr-3">Review</th>
+                  <th className="py-2 pr-3">Updates</th>
                 </tr>
               </thead>
               <tbody>
@@ -100,7 +100,7 @@ export default async function OutcomesPage() {
                       {r.reviewRag === "none" ? (
                         <span className="text-white/40">—</span>
                       ) : (
-                        <span className={`pill ${REVIEW_RAG_PILL[r.reviewRag]}`} title={r.reviewDue ? `Due ${fmtDate(r.reviewDue)}` : undefined}>
+                        <span className={`pill ${REVIEW_RAG_PILL[r.reviewRag]}`} title={r.reviewDue ? `Update due ${fmtDate(r.reviewDue)}` : undefined}>
                           {r.reviewLabel}
                         </span>
                       )}

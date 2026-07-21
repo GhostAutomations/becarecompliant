@@ -34,7 +34,7 @@ export async function GET(_req: NextRequest) {
   ]);
 
   const csv = buildCsv(
-    ["Service user", "Branch", "Outcomes in scope", "Achieving or progressing", "Percent", "Review status", "Review due"],
+    ["Service user", "Branch", "Outcomes in scope", "Achieving or progressing", "Percent", "Update status", "Update due"],
     rows,
   );
 

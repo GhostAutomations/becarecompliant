@@ -65,8 +65,8 @@ export default async function SettingsServiceUsersPage() {
           </p>
           <ComplexIntervalForm days={complexInterval} />
           <p className="page-subtitle pt-2">
-            Personal outcomes are reviewed on their own cadence, separate from the
-            care plan reviews above.
+            Active personal outcomes are flagged for a progress update on this cadence,
+            separate from the care plan reviews above.
           </p>
           <OutcomesIntervalForm months={outcomesMonths} />
           {/* Create custom check type: parked as a later feature (Phil, 2026-07-16), hidden. */}

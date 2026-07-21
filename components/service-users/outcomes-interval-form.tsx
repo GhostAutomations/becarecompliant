@@ -24,7 +24,7 @@ export default function OutcomesIntervalForm({ months }: { months: number }) {
   return (
     <div className="glass-card flex flex-wrap items-end gap-3 p-5">
       <div>
-        <label htmlFor="outcomes_review_months" className="form-label">Outcomes review cadence (months)</label>
+        <label htmlFor="outcomes_review_months" className="form-label">Outcomes update cadence (months)</label>
         <input
           id="outcomes_review_months"
           type="number"
@@ -37,7 +37,7 @@ export default function OutcomesIntervalForm({ months }: { months: number }) {
           }}
           className="max-w-[8rem]"
         />
-        <p className="form-hint">How often each service user&apos;s personal outcomes are reviewed. The review pill turns amber near the due date and red when overdue.</p>
+        <p className="form-hint">How long an active outcome can go without a progress update before it is flagged. The flag turns amber near the due date and red when overdue.</p>
       </div>
       <button
         type="button"

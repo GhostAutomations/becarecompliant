@@ -240,30 +240,46 @@ export async function getCarePlanVersions(serviceUserId: string): Promise<CarePl
   return [...byVersion.values()];
 }
 
+/** Rich outcomes for a service user, each with its progress-update timeline
+ *  (oldest first), ordered by position. */
 export async function getServiceUserOutcomes(
   serviceUserId: string,
 ): Promise<import("./outcome-consts").OutcomeRow[]> {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("service_user_outcomes")
-    .select("id, statement, status, last_reviewed, review_note, position")
-    .eq("service_user_id", serviceUserId)
-    .order("position", { ascending: true });
-  return ((data as Array<{
-    id: string;
-    statement: string;
-    status: import("./outcome-consts").OutcomeStatus;
-    last_reviewed: string | null;
-    review_note: string | null;
-    position: number;
-  }> | null) ?? []);
+  const [{ data: outcomes }, { data: updates }] = await Promise.all([
+    supabase
+      .from("service_user_outcomes")
+      .select("id, title, detail, status, target_date, achieved_at, last_update_at, created_at, position")
+      .eq("service_user_id", serviceUserId)
+      .is("archived_at", null)
+      .order("position", { ascending: true }),
+    supabase
+      .from("service_user_outcome_updates")
+      .select("id, outcome_id, kind, progress, note, author_name, created_at")
+      .eq("service_user_id", serviceUserId)
+      .order("created_at", { ascending: true }),
+  ]);
+
+  const byOutcome = new Map<string, import("./outcome-consts").OutcomeUpdateRow[]>();
+  for (const u of (updates as Array<{ outcome_id: string } & import("./outcome-consts").OutcomeUpdateRow> | null) ?? []) {
+    const list = byOutcome.get(u.outcome_id) ?? [];
+    list.push({ id: u.id, kind: u.kind, progress: u.progress, note: u.note, author_name: u.author_name, created_at: u.created_at });
+    byOutcome.set(u.outcome_id, list);
+  }
+
+  return ((outcomes as Array<Omit<import("./outcome-consts").OutcomeRow, "updates" | "detail"> & { detail: string | null }> | null) ?? []).map((o) => ({
+    ...o,
+    detail: o.detail ?? null,
+    updates: byOutcome.get(o.id) ?? [],
+  }));
 }
 
 export type OutcomesRegisterRow = {
   id: string;
   full_name: string;
   branch_name: string | null;
-  total: number; // outcomes in scope (excludes "no longer relevant")
+  total: number; // active (non-archived) outcomes
+  achieved: number;
   achievingOrProgressing: number;
   pct: number | null; // % achieving or progressing, or null when no in-scope outcomes
   reviewRag: import("./outcome-consts").ReviewRag;
@@ -279,12 +295,14 @@ export type OutcomesRegister = {
   reviewsOverdue: number;
 };
 
-/** Company-wide personal outcomes rollup for the register and the PQS headline %. */
+/** Company-wide personal outcomes rollup for the register and the PQS headline %.
+ *  Each service user's worst outcome-update RAG surfaces so managers see who needs
+ *  a progress update. */
 export async function getOutcomesRegister(companyId: string): Promise<OutcomesRegister> {
-  const { outcomesReviewRag } = await import("./outcome-consts");
+  const { outcomeUpdateRag } = await import("./outcome-consts");
   const supabase = await createClient();
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
-  const [{ data: sus }, { data: outcomes }, { data: reviews }, { data: company }] = await Promise.all([
+  const [{ data: sus }, { data: outcomes }, { data: company }] = await Promise.all([
     supabase
       .from("service_users")
       .select("id, full_name, branch_id, branches(name)")
@@ -293,31 +311,33 @@ export async function getOutcomesRegister(companyId: string): Promise<OutcomesRe
       .order("full_name", { ascending: true }),
     supabase
       .from("service_user_outcomes")
-      .select("service_user_id, status")
-      .eq("company_id", companyId),
-    supabase
-      .from("outcomes_reviews")
-      .select("service_user_id, reviewed_at")
-      .eq("company_id", companyId),
+      .select("service_user_id, status, last_update_at, created_at")
+      .eq("company_id", companyId)
+      .is("archived_at", null),
     supabase.from("companies").select("outcomes_review_months").eq("id", companyId).maybeSingle(),
   ]);
 
   const intervalMonths = Number((company?.outcomes_review_months as number | undefined) ?? 3);
+  const RAG_RANK: Record<string, number> = { red: 0, amber: 1, green: 2, none: 3 };
 
-  const byId = new Map<string, { inScope: number; ap: number }>();
-  for (const o of (outcomes as Array<{ service_user_id: string; status: string }> | null) ?? []) {
-    if (o.status === "no_longer_relevant") continue;
-    const rec = byId.get(o.service_user_id) ?? { inScope: 0, ap: 0 };
+  type Acc = { inScope: number; ap: number; achieved: number; rag: string; dueIso: string | null };
+  const byId = new Map<string, Acc>();
+  for (const o of (outcomes as Array<{ service_user_id: string; status: string; last_update_at: string | null; created_at: string }> | null) ?? []) {
+    const rec = byId.get(o.service_user_id) ?? { inScope: 0, ap: 0, achieved: 0, rag: "none", dueIso: null };
     rec.inScope += 1;
+    if (o.status === "achieved") rec.achieved += 1;
     if (o.status === "achieved" || o.status === "progressing") rec.ap += 1;
+    const isActive = o.status !== "achieved";
+    const anchor = (o.last_update_at ?? o.created_at)?.slice(0, 10) ?? null;
+    const r = outcomeUpdateRag(anchor, intervalMonths, today, isActive);
+    if (RAG_RANK[r.rag] < RAG_RANK[rec.rag]) {
+      rec.rag = r.rag;
+      rec.dueIso = r.dueIso;
+    }
     byId.set(o.service_user_id, rec);
   }
 
-  const latestReview = new Map<string, string>();
-  for (const r of (reviews as Array<{ service_user_id: string; reviewed_at: string }> | null) ?? []) {
-    const cur = latestReview.get(r.service_user_id);
-    if (!cur || r.reviewed_at > cur) latestReview.set(r.service_user_id, r.reviewed_at);
-  }
+  const ragLabel: Record<string, string> = { red: "Update overdue", amber: "Needs an update", green: "On track", none: "—" };
 
   let totalInScope = 0;
   let totalAP = 0;
@@ -328,21 +348,21 @@ export async function getOutcomesRegister(companyId: string): Promise<OutcomesRe
     branch_id: string;
     branches: { name: string } | null;
   }> | null) ?? []).map((s) => {
-    const rec = byId.get(s.id) ?? { inScope: 0, ap: 0 };
+    const rec = byId.get(s.id) ?? { inScope: 0, ap: 0, achieved: 0, rag: "none", dueIso: null };
     totalInScope += rec.inScope;
     totalAP += rec.ap;
-    const review = outcomesReviewRag(latestReview.get(s.id) ?? null, intervalMonths, today, rec.inScope > 0);
-    if (review.rag === "red") reviewsOverdue += 1;
+    if (rec.rag === "red") reviewsOverdue += 1;
     return {
       id: s.id,
       full_name: s.full_name,
       branch_name: s.branches?.name ?? null,
       total: rec.inScope,
+      achieved: rec.achieved,
       achievingOrProgressing: rec.ap,
       pct: rec.inScope > 0 ? Math.round((rec.ap / rec.inScope) * 100) : null,
-      reviewRag: review.rag,
-      reviewLabel: review.label,
-      reviewDue: review.dueIso,
+      reviewRag: rec.rag as import("./outcome-consts").ReviewRag,
+      reviewLabel: ragLabel[rec.rag],
+      reviewDue: rec.dueIso,
     };
   });
 
@@ -352,28 +372,6 @@ export async function getOutcomesRegister(companyId: string): Promise<OutcomesRe
     totalAchievingOrProgressing: totalAP,
     pqsPct: totalInScope > 0 ? Math.round((totalAP / totalInScope) * 100) : null,
     reviewsOverdue,
-  };
-}
-
-/** Latest outcomes review + the history, for the per-service-user page. */
-export async function getOutcomesReviewData(
-  serviceUserId: string,
-  companyId: string,
-): Promise<{ intervalMonths: number; latest: string | null; reviews: Array<{ id: string; reviewed_at: string; reviewer_name: string | null; note: string | null }> }> {
-  const supabase = await createClient();
-  const [{ data: reviews }, { data: company }] = await Promise.all([
-    supabase
-      .from("outcomes_reviews")
-      .select("id, reviewed_at, reviewer_name, note")
-      .eq("service_user_id", serviceUserId)
-      .order("reviewed_at", { ascending: false }),
-    supabase.from("companies").select("outcomes_review_months").eq("id", companyId).maybeSingle(),
-  ]);
-  const list = (reviews as Array<{ id: string; reviewed_at: string; reviewer_name: string | null; note: string | null }> | null) ?? [];
-  return {
-    intervalMonths: Number((company?.outcomes_review_months as number | undefined) ?? 3),
-    latest: list[0]?.reviewed_at ?? null,
-    reviews: list,
   };
 }
 
