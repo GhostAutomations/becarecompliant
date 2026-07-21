@@ -97,14 +97,12 @@ export default async function OutcomesPage() {
                       )}
                     </td>
                     <td className="py-2 pr-3">
-                      {r.reviewRag === "amber" || r.reviewRag === "red" ? (
+                      {r.reviewRag === "none" ? (
+                        <span className="text-white/40">—</span>
+                      ) : (
                         <span className={`pill ${REVIEW_RAG_PILL[r.reviewRag]}`} title={r.reviewDue ? `Update due ${fmtDate(r.reviewDue)}` : undefined}>
                           {r.reviewLabel}
                         </span>
-                      ) : r.reviewRag === "green" ? (
-                        <span className="text-white/45">Up to date</span>
-                      ) : (
-                        <span className="text-white/40">—</span>
                       )}
                     </td>
                   </tr>

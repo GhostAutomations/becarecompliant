@@ -337,7 +337,7 @@ export async function getOutcomesRegister(companyId: string): Promise<OutcomesRe
     byId.set(o.service_user_id, rec);
   }
 
-  const ragLabel: Record<string, string> = { red: "Update overdue", amber: "Needs an update", green: "On track", none: "—" };
+  const ragLabel: Record<string, string> = { red: "Update overdue", amber: "Needs an update", green: "Up to date", none: "—" };
 
   let totalInScope = 0;
   let totalAP = 0;
