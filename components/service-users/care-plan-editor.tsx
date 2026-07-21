@@ -1,8 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { saveCarePlan } from "@/lib/service-users/actions";
-import { IDLE_STATE } from "@/lib/forms";
+import { IDLE_STATE, type ActionState } from "@/lib/forms";
 import { useSavedFlash } from "@/lib/use-saved-flash";
 import {
   CARE_PLAN_DAYS,
@@ -13,6 +12,7 @@ import {
 } from "@/lib/service-users/care-plan-consts";
 
 type Row = { day_of_week: number; service: string; unit: string; handed: string; quantity: string };
+type ServerAction = (prev: ActionState, formData: FormData) => Promise<ActionState>;
 
 const DEFAULT_UNIT = "15m";
 
@@ -20,12 +20,20 @@ export default function CarePlanEditor({
   serviceUserId,
   initial,
   servicesWithFixed,
+  action,
+  mode = "edit",
+  today,
 }: {
   serviceUserId: string;
   initial: CarePlanEntry[];
   servicesWithFixed: string[];
+  action: ServerAction;
+  /** "edit" fixes the current plan in place; "update" starts a new dated version. */
+  mode?: "edit" | "update";
+  /** Default effective date for update mode (today, YYYY-MM-DD). */
+  today?: string;
 }) {
-  const [state, formAction, pending] = useActionState(saveCarePlan, IDLE_STATE);
+  const [state, formAction, pending] = useActionState(action, IDLE_STATE);
   const [saved, flash, reset] = useSavedFlash();
   const [rows, setRows] = useState<Row[]>(
     initial.length
@@ -134,6 +142,22 @@ export default function CarePlanEditor({
       <input type="hidden" name="service_user_id" value={serviceUserId} />
       <input type="hidden" name="entries" value={entriesJson} />
 
+      {mode === "update" ? (
+        <div className="glass-card p-5">
+          <label htmlFor="cp-effective" className="form-label">New plan takes effect from</label>
+          <input
+            id="cp-effective"
+            name="effective_from"
+            type="date"
+            defaultValue={today}
+            required
+            className="max-w-[12rem]"
+            onChange={reset}
+          />
+          <p className="form-hint">The current plan is billed up to the day before this date, then this plan applies. Invoices that straddle the date bill part on each plan.</p>
+        </div>
+      ) : null}
+
       <div className="glass-card p-5">
         <div className="grid grid-cols-[1fr_1fr_1fr_1.2fr_0.8fr_1.5rem] items-center gap-x-2 gap-y-1.5 text-center">
           <span className="text-xs uppercase tracking-wide text-white/45">Day</span>
@@ -240,7 +264,11 @@ export default function CarePlanEditor({
 
       <div className="flex items-center gap-3">
         <button type="submit" disabled={pending} className={`btn ${showSaved ? "btn-saved" : "btn-primary"}`}>
-          {pending ? "Saving…" : showSaved ? "Saved" : "Save care plan"}
+          {pending
+            ? "Saving…"
+            : showSaved
+              ? mode === "update" ? "Started" : "Saved"
+              : mode === "update" ? "Start new plan" : "Save care plan"}
         </button>
         {state.error ? <span className="text-xs text-red-300">{state.error}</span> : null}
       </div>

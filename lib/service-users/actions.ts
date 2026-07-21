@@ -244,34 +244,46 @@ export async function updateServiceUser(_prev: ActionState, formData: FormData):
   return { ok: "Saved." };
 }
 
-/** Replace the whole weekly care plan for a service user (delete then insert).
- *  Manager+ via RLS; rows are day of week, service, unit and quantity. */
+type CarePlanRow = { day_of_week: number; service: string; unit: string; handed: string; quantity: number };
+
+function parseCarePlanRows(formData: FormData): CarePlanRow[] | null {
+  try {
+    const parsed = JSON.parse(String(formData.get("entries") ?? "[]"));
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((r) => {
+        const o = r as Record<string, unknown>;
+        return {
+          day_of_week: Math.max(0, Math.min(6, Math.trunc(Number(o.day_of_week)))),
+          service: String(o.service ?? "").trim(),
+          unit: String(o.unit ?? "").trim(),
+          handed: o.handed === "double" ? "double" : "single",
+          quantity: Math.max(0, Number(o.quantity) || 0),
+        };
+      })
+      .filter((r) => r.service !== "" && r.unit !== "");
+  } catch {
+    return null;
+  }
+}
+
+function addDaysIso(iso: string, days: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return dt.toISOString().slice(0, 10);
+}
+
+/** Edit the CURRENT (open) care plan version in place, for corrections. Keeps the
+ *  version's effective_from; does not touch superseded versions. Manager+ via RLS. */
 export async function saveCarePlan(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const { profile } = await requireCompany();
   if (!profile.company_id) return { error: "No company context." };
   const serviceUserId = String(formData.get("service_user_id") ?? "").trim();
   if (!serviceUserId) return { error: "Missing service user." };
 
-  let rows: Array<{ day_of_week: number; service: string; unit: string; handed: string; quantity: number }> = [];
-  try {
-    const parsed = JSON.parse(String(formData.get("entries") ?? "[]"));
-    if (Array.isArray(parsed)) {
-      rows = parsed
-        .map((r) => {
-          const o = r as Record<string, unknown>;
-          return {
-            day_of_week: Math.max(0, Math.min(6, Math.trunc(Number(o.day_of_week)))),
-            service: String(o.service ?? "").trim(),
-            unit: String(o.unit ?? "").trim(),
-            handed: o.handed === "double" ? "double" : "single",
-            quantity: Math.max(0, Number(o.quantity) || 0),
-          };
-        })
-        .filter((r) => r.service !== "" && r.unit !== "");
-    }
-  } catch {
-    return { error: "Could not read the care plan." };
-  }
+  const rows = parseCarePlanRows(formData);
+  if (rows === null) return { error: "Could not read the care plan." };
 
   const supabase = await createClient();
   const { data: su } = await supabase
@@ -281,7 +293,23 @@ export async function saveCarePlan(_prev: ActionState, formData: FormData): Prom
     .maybeSingle();
   if (!su) return { error: "Service user not found." };
 
-  const { error: delErr } = await supabase.from("care_plan_entries").delete().eq("service_user_id", serviceUserId);
+  // Preserve the current open version's start date (or start one from long ago so
+  // a brand new plan bills any period). Only the open version is replaced.
+  const { data: current } = await supabase
+    .from("care_plan_entries")
+    .select("effective_from")
+    .eq("service_user_id", serviceUserId)
+    .is("effective_to", null)
+    .order("effective_from", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const effectiveFrom = (current?.effective_from as string | undefined) ?? "2020-01-01";
+
+  const { error: delErr } = await supabase
+    .from("care_plan_entries")
+    .delete()
+    .eq("service_user_id", serviceUserId)
+    .is("effective_to", null);
   if (delErr) return { error: "Could not save the care plan. Check your access and try again." };
 
   if (rows.length > 0) {
@@ -295,6 +323,8 @@ export async function saveCarePlan(_prev: ActionState, formData: FormData): Prom
         handed: r.handed,
         quantity: r.quantity,
         position: i,
+        effective_from: effectiveFrom,
+        effective_to: null,
       })),
     );
     if (insErr) return { error: "Could not save the care plan. Please try again." };
@@ -309,6 +339,84 @@ export async function saveCarePlan(_prev: ActionState, formData: FormData): Prom
     entityType: "service_user",
     entityId: serviceUserId,
     summary: `Updated the care plan (${rows.length} ${rows.length === 1 ? "entry" : "entries"})`,
+  });
+  revalidatePath(`/service-users/${serviceUserId}/care-plan`);
+  return { ok: "Saved" };
+}
+
+/** Supersede the current care plan with a new version effective from a chosen date.
+ *  The old version is CLOSED (effective_to = new start minus one day), not deleted,
+ *  so invoices bill the old plan up to the change and the new plan from it. */
+export async function updateCarePlan(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+  const serviceUserId = String(formData.get("service_user_id") ?? "").trim();
+  if (!serviceUserId) return { error: "Missing service user." };
+
+  const newFrom = String(formData.get("effective_from") ?? "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(newFrom)) return { error: "Choose the date the new plan takes effect." };
+
+  const rows = parseCarePlanRows(formData);
+  if (rows === null) return { error: "Could not read the care plan." };
+  if (rows.length === 0) return { error: "Add at least one line to the new care plan." };
+
+  const supabase = await createClient();
+  const { data: su } = await supabase
+    .from("service_users")
+    .select("company_id")
+    .eq("id", serviceUserId)
+    .maybeSingle();
+  if (!su) return { error: "Service user not found." };
+
+  // The new version must start after the current one started.
+  const { data: current } = await supabase
+    .from("care_plan_entries")
+    .select("effective_from")
+    .eq("service_user_id", serviceUserId)
+    .is("effective_to", null)
+    .order("effective_from", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const currentFrom = current?.effective_from as string | undefined;
+  if (currentFrom && newFrom <= currentFrom) {
+    return { error: `The new plan must start after the current plan began (${currentFrom}).` };
+  }
+
+  // Close the current open version the day before the new one starts.
+  if (currentFrom) {
+    const { error: closeErr } = await supabase
+      .from("care_plan_entries")
+      .update({ effective_to: addDaysIso(newFrom, -1) })
+      .eq("service_user_id", serviceUserId)
+      .is("effective_to", null);
+    if (closeErr) return { error: "Could not update the care plan. Please try again." };
+  }
+
+  const { error: insErr } = await supabase.from("care_plan_entries").insert(
+    rows.map((r, i) => ({
+      company_id: su.company_id,
+      service_user_id: serviceUserId,
+      day_of_week: r.day_of_week,
+      service: r.service,
+      unit: r.unit,
+      handed: r.handed,
+      quantity: r.quantity,
+      position: i,
+      effective_from: newFrom,
+      effective_to: null,
+    })),
+  );
+  if (insErr) return { error: "Could not save the new care plan. Please try again." };
+
+  await writeAudit({
+    companyId: su.company_id as string,
+    actorId: profile.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "service_user.care_plan_updated",
+    entityType: "service_user",
+    entityId: serviceUserId,
+    summary: `New care plan version effective ${newFrom}`,
   });
   revalidatePath(`/service-users/${serviceUserId}/care-plan`);
   return { ok: "Saved" };

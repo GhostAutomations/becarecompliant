@@ -134,11 +134,15 @@ function addDaysUtc(iso: string, days: number): string {
   return dt.toISOString().slice(0, 10);
 }
 
-/** Expand a service user's care plan over a date range into invoice lines,
- *  BROKEN DOWN BY WEEK: the period is split into 7 day windows from the start
- *  date, and each week produces its own set of lines (one per service+unit+handed)
- *  tagged with that week's from/to dates. Amounts are billed at the exact rate
- *  (rounded only at the line total). Called by the builder when a period is set. */
+type PlanEntry = { day_of_week: number; service: string; unit: string; handed: string; quantity: number };
+type PlanVersion = { from: string; to: string | null; entries: PlanEntry[] };
+
+/** Expand a service user's care plan over a date range into invoice lines, BROKEN
+ *  DOWN BY WEEK and by CARE PLAN VERSION. The period is split into 7 day windows
+ *  from the start date; within a week, if a care plan change takes effect mid-week
+ *  the week is further split at the change date (e.g. change on Thursday bills
+ *  Mon..Wed on the old plan and Thu..Sun on the new plan), each segment its own
+ *  dated line group. Amounts are billed at the exact rate. */
 export async function carePlanLinesForPeriod(
   serviceUserId: string,
   from: string,
@@ -155,13 +159,13 @@ export async function carePlanLinesForPeriod(
   const [{ data: entries }, { data: cfg }] = await Promise.all([
     supabase
       .from("care_plan_entries")
-      .select("day_of_week, service, unit, handed, quantity")
+      .select("day_of_week, service, unit, handed, quantity, effective_from, effective_to")
       .eq("service_user_id", serviceUserId)
       .order("position", { ascending: true }),
     supabase.from("invoicing_config").select("*").eq("company_id", profile.company_id!).maybeSingle(),
   ]);
-  const plan = (entries as Array<{ day_of_week: number; service: string; unit: string; handed: string; quantity: number }> | null) ?? [];
-  if (plan.length === 0) return { lines: [] };
+  const all = (entries as Array<PlanEntry & { effective_from: string; effective_to: string | null }> | null) ?? [];
+  if (all.length === 0) return { lines: [] };
 
   const config = (cfg ?? {}) as Record<string, number>;
   const rateFor = (label: string): ServiceRate | undefined => {
@@ -174,29 +178,37 @@ export async function carePlanLinesForPeriod(
     };
   };
 
-  const out: BuilderLine[] = [];
-  // Walk the period one week (7 days) at a time, from the start date.
-  let weekStart = from;
-  let weekGuard = 0;
-  while (weekStart <= to && weekGuard < 60) {
-    weekGuard += 1;
-    const rawEnd = addDaysUtc(weekStart, 6);
-    const weekEnd = rawEnd > to ? to : rawEnd; // last week may be partial
+  // Group entries into versions by effective range; find the version live on a day.
+  const vmap = new Map<string, PlanVersion>();
+  for (const e of all) {
+    const key = `${e.effective_from}|${e.effective_to ?? ""}`;
+    let v = vmap.get(key);
+    if (!v) { v = { from: e.effective_from, to: e.effective_to, entries: [] }; vmap.set(key, v); }
+    v.entries.push({ day_of_week: e.day_of_week, service: e.service, unit: e.unit, handed: e.handed, quantity: e.quantity });
+  }
+  const versions = [...vmap.values()];
+  const versionForDay = (iso: string): PlanVersion | undefined =>
+    versions.find((v) => v.from <= iso && (v.to === null || v.to >= iso));
+  const versionKey = (iso: string): string => {
+    const v = versionForDay(iso);
+    return v ? `${v.from}|${v.to ?? ""}` : "none";
+  };
 
-    // Count each weekday (0 = Monday) inside this week window.
+  /** Bill one contiguous same-version segment [sStart, sEnd] as a dated line group. */
+  function billSegment(sStart: string, sEnd: string, out: BuilderLine[]) {
+    const v = versionForDay(sStart);
+    if (!v) return;
     const counts = [0, 0, 0, 0, 0, 0, 0];
-    let d = new Date(`${weekStart}T00:00:00Z`);
-    const end = new Date(`${weekEnd}T00:00:00Z`);
-    let dayGuard = 0;
-    while (d <= end && dayGuard < 8) {
+    let d = new Date(`${sStart}T00:00:00Z`);
+    const de = new Date(`${sEnd}T00:00:00Z`);
+    let g = 0;
+    while (d <= de && g < 8) {
       counts[(d.getUTCDay() + 6) % 7] += 1;
       d.setUTCDate(d.getUTCDate() + 1);
-      dayGuard += 1;
+      g += 1;
     }
-
-    // Merge this week's plan entries by service + unit + handed.
     const merged = new Map<string, BuilderLine>();
-    for (const e of plan) {
+    for (const e of v.entries) {
       const occ = counts[e.day_of_week] ?? 0;
       const qty = occ * Number(e.quantity);
       if (qty <= 0) continue;
@@ -215,12 +227,40 @@ export async function carePlanLinesForPeriod(
           unit_price_pence: unitPricePence(rateFor(e.service), e.unit, handed),
           line_total_pence: lineAmountPence(rateFor(e.service), e.unit, handed, qty),
           description: `${e.service} - ${e.unit} (${HANDED_SUFFIX[handed]})`,
-          period_start: weekStart,
-          period_end: weekEnd,
+          period_start: sStart,
+          period_end: sEnd,
         });
       }
     }
     out.push(...merged.values());
+  }
+
+  const out: BuilderLine[] = [];
+  let weekStart = from;
+  let weekGuard = 0;
+  while (weekStart <= to && weekGuard < 60) {
+    weekGuard += 1;
+    const rawEnd = addDaysUtc(weekStart, 6);
+    const weekEnd = rawEnd > to ? to : rawEnd;
+
+    // Split the week into contiguous same-version segments, bill each separately.
+    let segStart = weekStart;
+    let curKey = versionKey(weekStart);
+    let day = weekStart;
+    let g = 0;
+    while (g < 8) {
+      const isLast = day === weekEnd;
+      const nextDay = addDaysUtc(day, 1);
+      const nextKey = isLast ? null : versionKey(nextDay);
+      if (isLast || nextKey !== curKey) {
+        billSegment(segStart, day, out);
+        if (isLast) break;
+        segStart = nextDay;
+        curKey = nextKey!;
+      }
+      day = nextDay;
+      g += 1;
+    }
     weekStart = addDaysUtc(weekStart, 7);
   }
   return { lines: out };

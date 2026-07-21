@@ -152,6 +152,7 @@ function toServiceUser(row: SuRow): ServiceUserRecord {
   return { ...rest, branch_name: branches?.name ?? null };
 }
 
+/** The CURRENT (open) care plan version's entries, for the editor. */
 export async function getCarePlanEntries(
   serviceUserId: string,
 ): Promise<import("./care-plan-consts").CarePlanEntry[]> {
@@ -160,6 +161,7 @@ export async function getCarePlanEntries(
     .from("care_plan_entries")
     .select("id, day_of_week, service, unit, handed, quantity, position")
     .eq("service_user_id", serviceUserId)
+    .is("effective_to", null)
     .order("position", { ascending: true });
   return ((data as Array<{
     id: string;
@@ -170,6 +172,61 @@ export async function getCarePlanEntries(
     quantity: number;
     position: number;
   }> | null) ?? []).map((r) => ({ ...r, quantity: Number(r.quantity) }));
+}
+
+export type CarePlanVersion = {
+  effective_from: string;
+  effective_to: string | null;
+  entries: import("./care-plan-consts").CarePlanEntry[];
+};
+
+/** The current open version's effective_from (null if no plan yet). */
+export async function getCurrentCarePlanFrom(serviceUserId: string): Promise<string | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("care_plan_entries")
+    .select("effective_from")
+    .eq("service_user_id", serviceUserId)
+    .is("effective_to", null)
+    .order("effective_from", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return (data?.effective_from as string | undefined) ?? null;
+}
+
+/** Superseded (closed) care plan versions, newest first, for the collapsed history. */
+export async function getCarePlanVersions(serviceUserId: string): Promise<CarePlanVersion[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("care_plan_entries")
+    .select("day_of_week, service, unit, handed, quantity, position, effective_from, effective_to")
+    .eq("service_user_id", serviceUserId)
+    .not("effective_to", "is", null)
+    .order("effective_from", { ascending: false })
+    .order("position", { ascending: true });
+  const rows = (data as Array<{
+    day_of_week: number; service: string; unit: string; handed: string;
+    quantity: number; position: number; effective_from: string; effective_to: string;
+  }> | null) ?? [];
+  const byVersion = new Map<string, CarePlanVersion>();
+  for (const r of rows) {
+    const key = `${r.effective_from}|${r.effective_to}`;
+    let v = byVersion.get(key);
+    if (!v) {
+      v = { effective_from: r.effective_from, effective_to: r.effective_to, entries: [] };
+      byVersion.set(key, v);
+    }
+    v.entries.push({
+      id: `${key}-${r.position}`,
+      day_of_week: r.day_of_week,
+      service: r.service,
+      unit: r.unit,
+      handed: r.handed,
+      quantity: Number(r.quantity),
+      position: r.position,
+    });
+  }
+  return [...byVersion.values()];
 }
 
 export async function getServiceUser(id: string): Promise<ServiceUserRecord | null> {
