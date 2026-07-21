@@ -4,7 +4,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireInvoicing } from "@/lib/invoicing/guard";
 import { getInvoice, getInvoicingConfig, getCompanyName, londonToday } from "@/lib/invoicing/data";
-import { getCompanyLogoDataUrl } from "@/lib/invoicing/logo";
 import { sendInvoice, markInvoicePaid, deleteInvoice, resendInvoiceEmail } from "@/lib/invoicing/invoice-actions";
 import { formatMoney, displayStatus, STATUS_PILL, STATUS_LABEL } from "@/lib/invoicing/types";
 import ActionForm from "@/components/action-form";
@@ -31,10 +30,9 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
   const { companyId } = await requireInvoicing();
   const inv = await getInvoice(id);
   if (!inv || inv.company_id !== companyId) redirect("/invoicing");
-  const [config, companyName, logo] = await Promise.all([
+  const [config, companyName] = await Promise.all([
     getInvoicingConfig(companyId),
     getCompanyName(companyId),
-    getCompanyLogoDataUrl(companyId),
   ]);
   const today = londonToday();
   const ds = displayStatus(inv.status, inv.due_date, today);
@@ -108,10 +106,6 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
           {inv.delivery_method ? <p className="mt-1 text-xs text-white/45">Sent by {inv.delivery_method}</p> : null}
         </div>
         <div className="space-y-1 text-sm text-white/70">
-          {logo ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={logo} alt={companyName} className="mb-2 ml-auto max-h-20 w-auto object-contain rounded bg-white/90 p-1" />
-          ) : null}
           <div className="text-right">
             <p className="text-sm font-semibold text-white">{companyName}</p>
             {config.from_address ? <p className="whitespace-pre-line text-xs text-white/55">{config.from_address}</p> : null}
