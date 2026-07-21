@@ -135,7 +135,7 @@ export default function CarePlanEditor({
       <input type="hidden" name="entries" value={entriesJson} />
 
       <div className="glass-card p-5">
-        <div className="grid grid-cols-[1fr_1fr_1fr_1.2fr_0.8fr_1.5rem] items-center gap-2 text-center">
+        <div className="grid grid-cols-[1fr_1fr_1fr_1.2fr_0.8fr_1.5rem] items-center gap-x-2 gap-y-1.5 text-center">
           <span className="text-xs uppercase tracking-wide text-white/45">Day</span>
           <span className="text-xs uppercase tracking-wide text-white/45">Service</span>
           <span className="text-xs uppercase tracking-wide text-white/45">Unit</span>
@@ -145,6 +145,9 @@ export default function CarePlanEditor({
 
           {rows.map((r, i) => (
             <div key={i} className="contents">
+              {i > 0 && r.day_of_week !== rows[i - 1].day_of_week ? (
+                <div className="col-span-full my-0.5 border-t border-dashed border-white/15" />
+              ) : null}
               <select
                 aria-label="Day"
                 value={r.day_of_week}

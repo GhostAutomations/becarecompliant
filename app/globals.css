@@ -439,7 +439,7 @@
   /* Compact select/input for dense grids (care plan, invoice lines). Keeps the
      canonical look but shorter, so rows do not feel chunky. */
   .ctl-sm {
-    @apply rounded-lg px-2.5 py-1.5 text-sm;
+    @apply rounded-lg px-2.5 py-1 text-sm leading-tight;
   }
 }
 
