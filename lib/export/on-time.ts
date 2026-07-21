@@ -101,6 +101,7 @@ function bandPct(pct: number | null): number | null {
 
 export type PqsMeasure = {
   name: string;
+  register: "People" | "Service Users";
   gradedAt: string;
   rate: number | null;
   band: number | null;
@@ -318,6 +319,7 @@ export async function buildOnTimeReport(input: {
   const extraMeasures: PqsMeasure[] = [
     {
       name: "Mandatory training",
+      register: "People",
       gradedAt: "All courses",
       rate: training.summary.mandatoryCompliancePct,
       band: bandPct(training.summary.mandatoryCompliancePct),
@@ -325,6 +327,7 @@ export async function buildOnTimeReport(input: {
     },
     {
       name: "Social Care Wales registration",
+      register: "People",
       gradedAt: "6 months in post",
       rate: scwPct,
       band: bandPct(scwPct),
@@ -332,6 +335,7 @@ export async function buildOnTimeReport(input: {
     },
     {
       name: "Safeguarding training",
+      register: "People",
       gradedAt: "Safeguarding course",
       rate: training.summary.safeguardingPct,
       band: bandPct(training.summary.safeguardingPct),
@@ -339,6 +343,7 @@ export async function buildOnTimeReport(input: {
     },
     {
       name: "Customer satisfaction",
+      register: "Service Users",
       gradedAt: "Plan reviews",
       rate: satisfaction.pct,
       band: bandPct(satisfaction.pct),
@@ -346,6 +351,7 @@ export async function buildOnTimeReport(input: {
     },
     {
       name: "Personal outcomes",
+      register: "Service Users",
       gradedAt: "Achieved or progressing",
       rate: outcomesPct,
       band: bandPct(outcomesPct),
@@ -407,7 +413,7 @@ function renderOnTimeDoc(
     starred: true,
     cells: [
       { text: m.name, strong: true, star: m.star },
-      { text: "People" },
+      { text: m.register },
       { text: m.gradedAt },
       { text: "N/A" },
       { text: "N/A" },
@@ -502,7 +508,7 @@ function renderOnTimeDoc(
     ...extraMeasures.map((m) => [
       "PQS",
       m.name,
-      "People",
+      m.register,
       m.gradedAt,
       "",
       "",
