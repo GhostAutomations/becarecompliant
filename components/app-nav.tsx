@@ -11,6 +11,10 @@ export function SidebarNav({ entries }: { entries: NavEntry[] }) {
 
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(`${href}/`);
+  // A child is active on its own path, or on any extra pattern it declares (e.g. the
+  // Outcomes register also lights up on a single service user's outcomes page).
+  const childActiveFor = (c: NavEntry) =>
+    isActive(c.href) || (c.activeMatch ?? []).some((p) => new RegExp(p).test(pathname));
 
   return (
     <nav className="flex flex-col gap-1" aria-label="Main">
@@ -20,7 +24,7 @@ export function SidebarNav({ entries }: { entries: NavEntry[] }) {
         // child that shares the parent's path (e.g. Compliance at /people) from also
         // lighting up on a deeper sibling route (e.g. /people/training).
         const activeChildHref = children
-          .filter((c) => isActive(c.href))
+          .filter(childActiveFor)
           .sort((a, b) => b.href.length - a.href.length)[0]?.href;
         const childActive = activeChildHref != null;
         const inSection = isActive(entry.href);

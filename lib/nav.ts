@@ -40,6 +40,9 @@ export type NavEntry = {
   group?: string;
   /** Nested sub-sections ("Sub Departments") shown indented under this entry. */
   children?: NavEntry[];
+  /** Extra regex path patterns (as strings, so they serialise to the client) that
+   *  also mark this entry active, e.g. a per-record page under a different path. */
+  activeMatch?: string[];
 };
 
 /** Everyone except a Viewer (read-only, People + Service Users only). */
@@ -87,6 +90,8 @@ export const NAV_ENTRIES: NavEntry[] = [
         label: "Outcomes",
         icon: "outcomes",
         roles: ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"],
+        // Also light up on a single service user's Personal outcomes page.
+        activeMatch: ["^/service-users/[^/]+/outcomes$"],
       },
       {
         href: "/service-users/satisfaction",
