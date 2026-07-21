@@ -9,7 +9,6 @@ import "server-only";
 
 import type { ReactNode } from "react";
 import type { ReportDoc, ReportBlock, ReportCell, RagTone } from "@/lib/export/pdf";
-import StarTip from "@/components/reports/star-tip";
 
 function pillClass(rag: RagTone): string {
   if (rag === "green") return "pill-green";
@@ -30,7 +29,6 @@ function Cell({ cell, align }: { cell: ReportCell; align?: "left" | "right" }) {
   return (
     <td className={`px-3 py-2 ${alignClass} ${cell.strong ? "font-semibold text-white" : "text-white/80"}`}>
       {cell.text}
-      {cell.star ? <StarTip text={cell.star} /> : null}
     </td>
   );
 }

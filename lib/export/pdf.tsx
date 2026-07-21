@@ -112,7 +112,6 @@ function Cell({ cell, column }: { cell: ReportCell; column: ReportColumn }) {
   return (
     <Text style={[styles.tableCell, width, align, cell.strong ? { fontWeight: 700 } : {}]}>
       {cell.text}
-      {cell.star ? " *" : ""}
     </Text>
   );
 }

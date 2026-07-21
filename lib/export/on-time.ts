@@ -452,7 +452,7 @@ function renderOnTimeDoc(
       { label: "Generated at", value: generatedAt() },
     ],
     footerNote:
-      "A star marks a Cardiff PQS measure; on screen, hover the star for the exact question. PQS measures: Mandatory training (Quality Q1), Supervision (Quality Q2), Social Care Wales registration (Quality Q3), Care plan reviews (User Experience Q1), Customer satisfaction (User Experience Q2), Personal outcomes (Supplier Performance Q2), Safeguarding training (Safeguarding Q1). PQS score band: 100 percent is 10, 85 to 99.99 is 7, 70 to 84.99 is 5, 50 to 69.99 is 2, under 50 is 0. On time means completed on or before the due date (last completion plus the deadline shown in Graded at). The SCW rate counts only staff 6+ months in post. Active records only.",
+      "Every row is a Cardiff PQS scored measure: Mandatory training (Quality Q1), Supervision (Quality Q2), Social Care Wales registration (Quality Q3), Care plan reviews (User Experience Q1), Customer satisfaction (User Experience Q2), Personal outcomes (Supplier Performance Q2), Safeguarding training (Safeguarding Q1). PQS score band: 100 percent is 10, 85 to 99.99 is 7, 70 to 84.99 is 5, 50 to 69.99 is 2, under 50 is 0. On time means completed on or before the due date (last completion plus the deadline shown in Graded at). The SCW rate counts only staff 6+ months in post. Active records only.",
     blocks: [
       { kind: "heading", text: "On time completion rates" },
       {
