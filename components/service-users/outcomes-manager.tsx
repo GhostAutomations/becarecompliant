@@ -159,9 +159,9 @@ function OutcomeCard({
             {outcome.last_update_at ? <span>Last update {fmt(outcome.last_update_at)}</span> : <span>No updates yet</span>}
           </div>
         </div>
-        <div className="flex flex-col items-end gap-1">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <span className={`pill ${OUTCOME_STATUS_PILL[outcome.status]}`}>{OUTCOME_STATUS_LABEL[outcome.status]}</span>
-          {isActive && rag.rag !== "none" ? (
+          {isActive && (rag.rag === "amber" || rag.rag === "red") ? (
             <span className={`pill ${REVIEW_RAG_PILL[rag.rag]}`} title={rag.dueIso ? `Update due ${fmt(rag.dueIso)}` : undefined}>
               {rag.label}
             </span>
@@ -182,11 +182,11 @@ function OutcomeCard({
         ) : (
           <ReopenButton serviceUserId={serviceUserId} outcomeId={outcome.id} />
         )}
-        <button type="button" onClick={() => setPanel(panel === "edit" ? null : "edit")} className="btn-ghost text-xs">
+        <button type="button" onClick={() => setPanel(panel === "edit" ? null : "edit")} className="btn-outline text-xs">
           Edit
         </button>
         {outcome.updates.length > 0 ? (
-          <button type="button" onClick={() => setShowHistory((v) => !v)} className="btn-ghost text-xs">
+          <button type="button" onClick={() => setShowHistory((v) => !v)} className="btn-outline text-xs">
             History ({outcome.updates.length})
           </button>
         ) : null}
@@ -357,7 +357,7 @@ function RemoveButton({ serviceUserId, outcomeId }: { serviceUserId: string; out
   const [confirm, setConfirm] = useState(false);
   if (!confirm) {
     return (
-      <button type="button" onClick={() => setConfirm(true)} className="btn-ghost text-xs text-white/50 hover:text-red-300">
+      <button type="button" onClick={() => setConfirm(true)} className="btn-outline text-xs text-red-300">
         Remove
       </button>
     );
