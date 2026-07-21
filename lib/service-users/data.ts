@@ -248,6 +248,76 @@ export async function getServiceUserOutcomes(
   }> | null) ?? []);
 }
 
+export type OutcomesRegisterRow = {
+  id: string;
+  full_name: string;
+  branch_name: string | null;
+  total: number; // outcomes in scope (excludes "no longer relevant")
+  achievingOrProgressing: number;
+  pct: number | null; // % achieving or progressing, or null when no in-scope outcomes
+};
+
+export type OutcomesRegister = {
+  rows: OutcomesRegisterRow[];
+  totalInScope: number;
+  totalAchievingOrProgressing: number;
+  pqsPct: number | null;
+};
+
+/** Company-wide personal outcomes rollup for the register and the PQS headline %. */
+export async function getOutcomesRegister(companyId: string): Promise<OutcomesRegister> {
+  const supabase = await createClient();
+  const [{ data: sus }, { data: outcomes }] = await Promise.all([
+    supabase
+      .from("service_users")
+      .select("id, full_name, branch_id, branches(name)")
+      .eq("company_id", companyId)
+      .eq("service_status", "active")
+      .order("full_name", { ascending: true }),
+    supabase
+      .from("service_user_outcomes")
+      .select("service_user_id, status")
+      .eq("company_id", companyId),
+  ]);
+
+  const byId = new Map<string, { inScope: number; ap: number }>();
+  for (const o of (outcomes as Array<{ service_user_id: string; status: string }> | null) ?? []) {
+    if (o.status === "no_longer_relevant") continue;
+    const rec = byId.get(o.service_user_id) ?? { inScope: 0, ap: 0 };
+    rec.inScope += 1;
+    if (o.status === "achieved" || o.status === "progressing") rec.ap += 1;
+    byId.set(o.service_user_id, rec);
+  }
+
+  let totalInScope = 0;
+  let totalAP = 0;
+  const rows: OutcomesRegisterRow[] = ((sus as Array<{
+    id: string;
+    full_name: string;
+    branch_id: string;
+    branches: { name: string } | null;
+  }> | null) ?? []).map((s) => {
+    const rec = byId.get(s.id) ?? { inScope: 0, ap: 0 };
+    totalInScope += rec.inScope;
+    totalAP += rec.ap;
+    return {
+      id: s.id,
+      full_name: s.full_name,
+      branch_name: s.branches?.name ?? null,
+      total: rec.inScope,
+      achievingOrProgressing: rec.ap,
+      pct: rec.inScope > 0 ? Math.round((rec.ap / rec.inScope) * 100) : null,
+    };
+  });
+
+  return {
+    rows,
+    totalInScope,
+    totalAchievingOrProgressing: totalAP,
+    pqsPct: totalInScope > 0 ? Math.round((totalAP / totalInScope) * 100) : null,
+  };
+}
+
 export async function getServiceUser(id: string): Promise<ServiceUserRecord | null> {
   const supabase = await createClient();
   const { data } = await supabase
