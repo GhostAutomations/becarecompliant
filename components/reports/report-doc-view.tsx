@@ -7,6 +7,7 @@ import "server-only";
  * RAG pills, scrollable tables. No dashes in copy.
  */
 
+import type { ReactNode } from "react";
 import type { ReportDoc, ReportBlock, ReportCell, RagTone } from "@/lib/export/pdf";
 import StarTip from "@/components/reports/star-tip";
 
@@ -82,18 +83,62 @@ function Block({ block }: { block: ReportBlock }) {
               </td>
             </tr>
           ) : (
-            block.rows.map((row, ri) => (
-              <tr key={ri} className="border-b border-white/5 align-top">
-                {row.map((cell, ci) => (
-                  <Cell key={ci} cell={cell} align={block.columns[ci]?.align} />
-                ))}
-              </tr>
-            ))
+            block.rows.map((row, ri) =>
+              row[0]?.divider ? (
+                <tr key={ri} aria-hidden>
+                  <td colSpan={block.columns.length} className="px-3 py-1">
+                    <div className="border-t border-dashed border-white/25" />
+                  </td>
+                </tr>
+              ) : (
+                <tr key={ri} className="border-b border-white/5 align-top">
+                  {row.map((cell, ci) => (
+                    <Cell key={ci} cell={cell} align={block.columns[ci]?.align} />
+                  ))}
+                </tr>
+              ),
+            )
           )}
         </tbody>
       </table>
     </div>
   );
+}
+
+/** Render blocks, wrapping a collapsible heading and the blocks that follow it (up
+ *  to the next heading) in a details/summary so long breakdowns can be collapsed. */
+function renderBlocks(blocks: ReportBlock[]): ReactNode[] {
+  const out: ReactNode[] = [];
+  let i = 0;
+  while (i < blocks.length) {
+    const b = blocks[i];
+    if (b.kind === "heading" && b.collapsible) {
+      const inner: ReportBlock[] = [];
+      let j = i + 1;
+      while (j < blocks.length && blocks[j].kind !== "heading") {
+        inner.push(blocks[j]);
+        j += 1;
+      }
+      out.push(
+        <details key={i} className="group">
+          <summary className="mt-6 mb-2 flex cursor-pointer list-none items-center gap-1 text-sm font-semibold uppercase tracking-wide text-white/60 hover:text-white/90">
+            <span className="inline-block transition group-open:rotate-90">▸</span>
+            {b.text}
+          </summary>
+          <div className="space-y-2">
+            {inner.map((ib, k) => (
+              <Block key={k} block={ib} />
+            ))}
+          </div>
+        </details>,
+      );
+      i = j;
+    } else {
+      out.push(<Block key={i} block={b} />);
+      i += 1;
+    }
+  }
+  return out;
 }
 
 export default function ReportDocView({ doc }: { doc: ReportDoc }) {
@@ -115,11 +160,7 @@ export default function ReportDocView({ doc }: { doc: ReportDoc }) {
         </div>
       ) : null}
 
-      <div className="space-y-2">
-        {doc.blocks.map((block, i) => (
-          <Block key={i} block={block} />
-        ))}
-      </div>
+      <div className="space-y-2">{renderBlocks(doc.blocks)}</div>
 
       {doc.footerNote ? <p className="pt-2 text-xs text-white/40">{doc.footerNote}</p> : null}
     </div>

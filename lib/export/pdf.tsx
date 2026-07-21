@@ -41,9 +41,9 @@ export type RagTone = keyof typeof RAG;
 
 export type ReportMetaPair = { label: string; value: string };
 export type ReportColumn = { header: string; width?: string; align?: "left" | "right" };
-export type ReportCell = { text: string; rag?: RagTone; strong?: boolean; star?: string };
+export type ReportCell = { text: string; rag?: RagTone; strong?: boolean; star?: string; divider?: boolean };
 export type ReportBlock =
-  | { kind: "heading"; text: string }
+  | { kind: "heading"; text: string; collapsible?: boolean }
   | { kind: "paragraph"; text: string }
   | { kind: "keyvalues"; pairs: ReportMetaPair[] }
   | { kind: "table"; columns: ReportColumn[]; rows: ReportCell[][]; caption?: string; emptyText?: string }
@@ -135,13 +135,20 @@ function TableBlock({ columns, rows, caption, emptyText }: Extract<ReportBlock, 
       {rows.length === 0 ? (
         <Text style={styles.emptyText}>{emptyText ?? "Nothing to report."}</Text>
       ) : (
-        rows.map((row, ri) => (
-          <View key={ri} style={[styles.tableRow, ri % 2 === 1 ? styles.tableRowAlt : {}]} wrap={false}>
-            {row.map((cell, ci) => (
-              <Cell key={ci} cell={cell} column={{ ...columns[ci], width: widths[ci] }} />
-            ))}
-          </View>
-        ))
+        rows.map((row, ri) =>
+          row[0]?.divider ? (
+            <View
+              key={ri}
+              style={{ borderBottomWidth: 1, borderBottomColor: "#94a3b8", borderStyle: "dashed", marginVertical: 3 }}
+            />
+          ) : (
+            <View key={ri} style={[styles.tableRow, ri % 2 === 1 ? styles.tableRowAlt : {}]} wrap={false}>
+              {row.map((cell, ci) => (
+                <Cell key={ci} cell={cell} column={{ ...columns[ci], width: widths[ci] }} />
+              ))}
+            </View>
+          ),
+        )
       )}
     </View>
   );

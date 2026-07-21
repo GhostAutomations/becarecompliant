@@ -365,28 +365,49 @@ function renderOnTimeDoc(
   const scopeLabel = input.branchName ? input.branchName : "All branches";
   const period = `${fmtDate(win.from)} to ${fmtDate(win.to)}`;
 
-  const checkRows: ReportCell[][] = stats.map((s) => {
+  // Each summary row, tagged with whether it has started (a rate could be worked out,
+  // i.e. there is data in the period) so started rows sit at the top of the table.
+  type SummaryEntry = { name: string; started: boolean; cells: ReportCell[] };
+  const checkEntries: SummaryEntry[] = stats.map((s) => {
     const star = pqsStars[s.checkKey];
-    return [
-      { text: s.checkName, strong: true, ...(star ? { star } : {}) },
-      { text: popLabel(s.population) },
-      { text: s.gradedAt },
-      { text: String(s.dueInPeriod) },
-      { text: String(s.onTime) },
-      rateCell(s.ratePct),
-      bandCell(s.band),
-    ];
+    return {
+      name: s.checkName,
+      started: s.ratePct !== null,
+      cells: [
+        { text: s.checkName, strong: true, ...(star ? { star } : {}) },
+        { text: popLabel(s.population) },
+        { text: s.gradedAt },
+        { text: String(s.dueInPeriod) },
+        { text: String(s.onTime) },
+        rateCell(s.ratePct),
+        bandCell(s.band),
+      ],
+    };
   });
-  const measureRows: ReportCell[][] = extraMeasures.map((m) => [
-    { text: m.name, strong: true, star: m.star },
-    { text: "People" },
-    { text: m.gradedAt },
-    { text: "N/A" },
-    { text: "N/A" },
-    rateCell(m.rate),
-    bandCell(m.band),
-  ]);
-  const summaryRows: ReportCell[][] = [...checkRows, ...measureRows];
+  const measureEntries: SummaryEntry[] = extraMeasures.map((m) => ({
+    name: m.name,
+    started: m.rate !== null,
+    cells: [
+      { text: m.name, strong: true, star: m.star },
+      { text: "People" },
+      { text: m.gradedAt },
+      { text: "N/A" },
+      { text: "N/A" },
+      rateCell(m.rate),
+      bandCell(m.band),
+    ],
+  }));
+  const allEntries = [...checkEntries, ...measureEntries];
+  const byName = (a: SummaryEntry, b: SummaryEntry) => a.name.localeCompare(b.name);
+  const startedEntries = allEntries.filter((e) => e.started).sort(byName);
+  const notStartedEntries = allEntries.filter((e) => !e.started).sort(byName);
+  const dividerRow: ReportCell[] = [{ text: "", divider: true }];
+  // Started items (alphabetical) at the top, a dashed line, then the rest (alphabetical).
+  const summaryRows: ReportCell[][] = [
+    ...startedEntries.map((e) => e.cells),
+    ...(startedEntries.length > 0 && notStartedEntries.length > 0 ? [dividerRow] : []),
+    ...notStartedEntries.map((e) => e.cells),
+  ];
 
   // Breakdown: the cycles that were NOT on time first (the ones to action), then all.
   const sortedCycles = [...cycles].sort(
@@ -429,7 +450,7 @@ function renderOnTimeDoc(
         ],
         rows: summaryRows,
       },
-      { kind: "heading", text: "Breakdown by cycle" },
+      { kind: "heading", text: "Breakdown by cycle", collapsible: true },
       {
         kind: "table",
         emptyText: "Nothing due in this period.",
