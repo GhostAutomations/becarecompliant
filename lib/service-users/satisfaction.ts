@@ -109,18 +109,27 @@ export async function getSatisfaction(
 
     for (const e of (ev as Array<{ record_id: string; submitted_at: string; answers: Record<string, unknown> }> | null) ?? []) {
       if (!suById.has(e.record_id)) continue; // active service users only
-      const rec = acc.get(e.record_id) ?? { reviews: 0, latestAt: null, latestAnswers: {}, positive: 0, answered: 0 };
-      rec.reviews += 1;
+
+      // Score this review. Legacy reviews completed before the feedback section
+      // existed answer none of these, so they do not count towards satisfaction.
       const answers: Record<string, "Yes" | "No" | null> = {};
+      let answered = 0;
+      let positive = 0;
       for (const q of SATISFACTION_QUESTIONS) {
         const val = normalise((e.answers ?? {})[q.key]);
         answers[q.key] = val;
         if (val !== null) {
-          rec.answered += 1;
-          if (val === "Yes") rec.positive += 1;
+          answered += 1;
+          if (val === "Yes") positive += 1;
         }
       }
-      // Evidence is ordered newest first, so the first one we see is the latest.
+      if (answered === 0) continue; // no satisfaction data captured in this review
+
+      const rec = acc.get(e.record_id) ?? { reviews: 0, latestAt: null, latestAnswers: {}, positive: 0, answered: 0 };
+      rec.reviews += 1;
+      rec.answered += answered;
+      rec.positive += positive;
+      // Evidence is ordered newest first, so the first scoring one is the latest.
       if (rec.latestAt === null) {
         rec.latestAt = e.submitted_at;
         rec.latestAnswers = answers;
