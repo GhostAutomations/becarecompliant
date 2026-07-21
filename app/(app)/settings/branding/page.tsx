@@ -2,9 +2,8 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
-import ActionForm from "@/components/action-form";
+import LogoUploader from "@/components/settings/logo-uploader";
 import { getCompanyLogoDataUrl } from "@/lib/invoicing/logo";
-import { saveCompanyLogo } from "@/app/(app)/settings/actions";
 
 export const metadata: Metadata = { title: "Branding" };
 
@@ -23,20 +22,16 @@ export default async function BrandingSettingsPage() {
 
       <section className="glass-card p-5">
         <h2 className="text-sm font-semibold text-white/80">Company logo</h2>
-        <p className="form-hint mt-1">Shown at the top of every invoice and its PDF. PNG or JPG, under 2MB.</p>
+        <p className="form-hint mt-1">Shown at the top of every invoice and its PDF. PNG or JPG. You can crop it before saving.</p>
         {logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={logoUrl} alt="Company logo" className="mt-3 max-h-24 w-auto object-contain rounded bg-white/90 p-2" />
+          <div>
+            <p className="mt-3 text-xs uppercase tracking-wide text-white/45">Current logo</p>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={logoUrl} alt="Company logo" className="mt-1 max-h-24 w-auto object-contain rounded bg-white/90 p-2" />
+          </div>
         ) : null}
         <div className="mt-4">
-          <ActionForm action={saveCompanyLogo} label="Upload logo">
-            <input
-              type="file"
-              name="logo"
-              accept="image/png,image/jpeg,image/webp"
-              className="text-sm text-white/70 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-gold-400 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-[#0f1424] hover:file:bg-gold-400/90"
-            />
-          </ActionForm>
+          <LogoUploader />
         </div>
       </section>
     </div>
