@@ -6,7 +6,7 @@ import { IDLE_STATE, type ActionState } from "@/lib/forms";
 import { useSavedFlash } from "@/lib/use-saved-flash";
 import { formatMoney } from "@/lib/invoicing/types";
 import { carePlanLinesForPeriod } from "@/lib/invoicing/invoice-actions";
-import { CARE_PLAN_UNITS, HANDED_OPTIONS, unitPricePence, lineAmountPence } from "@/lib/service-users/care-plan-consts";
+import { CARE_PLAN_UNITS, CARE_PLAN_DAYS, HANDED_OPTIONS, unitPricePence, lineAmountPence } from "@/lib/service-users/care-plan-consts";
 
 type ServerAction = (prev: ActionState, formData: FormData) => Promise<ActionState>;
 type Client = { id: string; name: string; invoice_to_label: string; invoice_delivery: string | null };
@@ -20,6 +20,13 @@ function fmtDate(iso: string): string {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "";
   const [y, m, d] = iso.split("-");
   return `${d}/${m}/${y}`;
+}
+
+/** 1 -> "1st", 2 -> "2nd", 3 -> "3rd", 21 -> "21st", etc. */
+function ordinal(n: number): string {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return `${n}${s[(v - 20) % 10] ?? s[v] ?? s[0]}`;
 }
 
 export type InvoiceBuilderInitial = {
@@ -63,6 +70,7 @@ export default function InvoiceBuilder({
   const [saved, flashSaved] = useSavedFlash();
   const [clientId, setClientId] = useState<string>(initial?.service_user_id ?? "");
   const [repeat, setRepeat] = useState(false);
+  const [freq, setFreq] = useState<"weekly" | "monthly">("monthly");
   const [periodFrom, setPeriodFrom] = useState<string>(initial?.supply_period_start ?? "");
   const [periodTo, setPeriodTo] = useState<string>(initial?.supply_period_end ?? "");
   const [filling, startFill] = useTransition();
@@ -361,17 +369,45 @@ export default function InvoiceBuilder({
             Repeat this invoice automatically
           </label>
           {repeat ? (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-3">
               <div>
                 <label htmlFor="frequency" className="form-label">Every</label>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <input name="interval_count" type="number" min={1} defaultValue={1} className="max-w-[5rem]" />
-                  <select id="frequency" name="frequency" defaultValue="monthly" className="max-w-[10rem]">
+                  <select
+                    id="frequency"
+                    name="frequency"
+                    value={freq}
+                    onChange={(e) => setFreq(e.target.value as "weekly" | "monthly")}
+                    className="max-w-[10rem]"
+                  >
                     <option value="weekly">week(s)</option>
                     <option value="monthly">month(s)</option>
                   </select>
+
+                  {freq === "weekly" ? (
+                    <>
+                      <span className="text-sm text-white/60">on a</span>
+                      <select name="day_of_week" defaultValue="0" className="max-w-[9rem]">
+                        {CARE_PLAN_DAYS.map((d, i) => (
+                          <option key={d} value={i}>{d}</option>
+                        ))}
+                      </select>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-sm text-white/60">on the</span>
+                      <select name="day_of_month" defaultValue="1" className="max-w-[7rem]">
+                        {Array.from({ length: 28 }, (_, i) => i + 1).map((n) => (
+                          <option key={n} value={n}>{ordinal(n)}</option>
+                        ))}
+                      </select>
+                    </>
+                  )}
                 </div>
-                <p className="form-hint">The next invoice drafts automatically on this cadence, starting after the issue date.</p>
+                <p className="form-hint">
+                  The next invoice is created automatically as a draft on this schedule. It is never sent on its own: you review it in Invoices and send it when you are happy.
+                </p>
               </div>
             </div>
           ) : null}

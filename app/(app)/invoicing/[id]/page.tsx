@@ -58,7 +58,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
           {inv.status === "draft" ? (
             <>
               <Link href={`/invoicing/${inv.id}/edit`} className="btn-outline text-xs">Edit</Link>
-              <ActionForm action={sendInvoice} hidden={{ invoice_id: inv.id }} label="Send" buttonClassName="btn-primary text-xs" confirm="Send this invoice? It will be given its invoice number." className="" />
+              <ActionForm action={sendInvoice} hidden={{ invoice_id: inv.id }} label="Send" buttonClassName="btn-primary text-xs" confirm="Send this invoice? It will be given its invoice number, and emailed to the client if they receive invoices by email." className="" />
             </>
           ) : null}
           <ActionForm action={deleteInvoice} hidden={{ invoice_id: inv.id }} label="Delete" buttonClassName="btn-outline text-xs" confirm="Delete this invoice and all record of it? This cannot be undone." className="" />

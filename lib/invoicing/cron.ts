@@ -34,13 +34,30 @@ function addDaysIso(iso: string, days: number): string {
   return dt.toISOString().slice(0, 10);
 }
 
-function advance(iso: string, frequency: string, interval: number): string {
+function advance(
+  iso: string,
+  frequency: string,
+  interval: number,
+  dayOfWeek?: number | null,
+  dayOfMonth?: number | null,
+): string {
   const n = Math.max(1, interval);
-  if (frequency === "weekly") return addDaysIso(iso, 7 * n);
+  if (frequency === "weekly") {
+    let out = addDaysIso(iso, 7 * n);
+    if (dayOfWeek != null && dayOfWeek >= 0 && dayOfWeek <= 6) {
+      const [yy, mm, dd] = out.split("-").map(Number);
+      const dt = new Date(Date.UTC(yy, mm - 1, dd));
+      const cur = (dt.getUTCDay() + 6) % 7; // Mon=0
+      dt.setUTCDate(dt.getUTCDate() + (dayOfWeek - cur));
+      out = dt.toISOString().slice(0, 10);
+    }
+    return out;
+  }
   const [y, m, d] = iso.split("-").map(Number);
   const target = new Date(Date.UTC(y, m - 1 + n, 1));
   const last = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
-  target.setUTCDate(Math.min(d, last));
+  const wanted = dayOfMonth != null && dayOfMonth >= 1 && dayOfMonth <= 28 ? dayOfMonth : d;
+  target.setUTCDate(Math.min(wanted, last));
   return target.toISOString().slice(0, 10);
 }
 
@@ -60,18 +77,19 @@ export async function runRecurringInvoices(): Promise<{ drafted: number; failure
 
   const { data: due } = await supabase
     .from("invoice_schedules")
-    .select("id, company_id, branch_id, service_user_id, frequency, interval_count, next_run_date")
+    .select("id, company_id, branch_id, service_user_id, frequency, interval_count, next_run_date, day_of_week, day_of_month")
     .eq("active", true)
     .lte("next_run_date", today);
   const schedules = (due as Array<{
     id: string; company_id: string; branch_id: string; service_user_id: string | null;
     frequency: string; interval_count: number; next_run_date: string;
+    day_of_week: number | null; day_of_month: number | null;
   }> | null) ?? [];
 
   for (const sc of schedules) {
     try {
       // Claim the run by advancing next_run_date; if no row updates, another run won.
-      const nextDate = advance(sc.next_run_date, sc.frequency, sc.interval_count);
+      const nextDate = advance(sc.next_run_date, sc.frequency, sc.interval_count, sc.day_of_week, sc.day_of_month);
       const { data: claimed } = await supabase
         .from("invoice_schedules")
         .update({ next_run_date: nextDate, updated_at: new Date().toISOString() })

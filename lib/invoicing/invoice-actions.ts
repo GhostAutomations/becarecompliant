@@ -16,8 +16,12 @@ import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { requireFeature } from "@/lib/billing/tier";
 import type { ActionState } from "@/lib/forms";
-import { INVOICING_ROLES, INVOICE_SERVICES, advanceRunDate } from "./types";
-import { londonToday } from "./data";
+import { INVOICING_ROLES, INVOICE_SERVICES, advanceRunDate, formatMoney } from "./types";
+import { londonToday, getInvoice, getInvoicingConfig, getCompanyName } from "./data";
+import { getCompanyLogoDataUrl } from "./logo";
+import { renderInvoicePdf } from "./pdf";
+import { sendEmail } from "@/lib/email/resend";
+import { noticeEmailHtml } from "@/lib/email/templates";
 import { unitPricePence, lineAmountPence, type ServiceRate } from "@/lib/service-users/care-plan-consts";
 
 type LineInput = {
@@ -35,6 +39,12 @@ type LineInput = {
 function trimOrNull(v: FormDataEntryValue | null): string | null {
   const s = String(v ?? "").trim();
   return s === "" ? null : s;
+}
+function intOrNull(v: FormDataEntryValue | null): number | null {
+  const s = String(v ?? "").trim();
+  if (s === "") return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? Math.trunc(n) : null;
 }
 function isoDateOr(v: FormDataEntryValue | null, fallback: string | null): string | null {
   const s = String(v ?? "").trim();
@@ -313,6 +323,10 @@ export async function createInvoice(_prev: ActionState, formData: FormData): Pro
   if (formData.get("repeat") === "on") {
     const frequency = formData.get("frequency") === "weekly" ? "weekly" : "monthly";
     const interval = Math.max(1, Number(formData.get("interval_count") ?? 1) || 1);
+    const dowRaw = intOrNull(formData.get("day_of_week"));
+    const domRaw = intOrNull(formData.get("day_of_month"));
+    const day_of_week = frequency === "weekly" && dowRaw != null && dowRaw >= 0 && dowRaw <= 6 ? dowRaw : null;
+    const day_of_month = frequency === "monthly" && domRaw != null && domRaw >= 1 && domRaw <= 28 ? domRaw : null;
     const { data: sched } = await supabase
       .from("invoice_schedules")
       .insert({
@@ -321,7 +335,9 @@ export async function createInvoice(_prev: ActionState, formData: FormData): Pro
         service_user_id: su.id,
         frequency,
         interval_count: interval,
-        next_run_date: advanceRunDate(issue, frequency, interval),
+        day_of_week,
+        day_of_month,
+        next_run_date: advanceRunDate(issue, frequency, interval, { dayOfWeek: day_of_week, dayOfMonth: day_of_month }),
         active: true,
         created_by: user.id,
       })
@@ -455,9 +471,76 @@ export async function sendInvoice(_prev: ActionState, formData: FormData): Promi
     entityId: id,
     summary: `Sent invoice ${String(data ?? "")}`,
   });
+
+  // Email the branded PDF to the client when their delivery method is Email.
+  // Post clients are numbered and marked Sent, but not emailed.
+  const emailNote = await emailInvoiceOnSend(id, profile);
+
   revalidatePath(`/invoicing/${id}`);
   revalidatePath("/invoicing");
-  return { ok: "Sent" };
+  return { ok: emailNote ? `Sent. ${emailNote}` : "Sent" };
+}
+
+/** Attach the branded invoice PDF and email it to the bill-to address. Returns a
+ *  short note for the UI when something needs surfacing (emailed, not emailed, or
+ *  the email dependency is missing), or null when there is nothing to add. */
+async function emailInvoiceOnSend(
+  invoiceId: string,
+  profile: { id: string; email: string; role: string; company_id: string | null },
+): Promise<string | null> {
+  try {
+    const inv = await getInvoice(invoiceId);
+    if (!inv) return null;
+    if (inv.delivery_method !== "email") return "This client is set to receive invoices by post, so no email was sent.";
+    if (!inv.bill_to_email) return "No email address on file for this client, so no email was sent.";
+
+    const [config, companyName, logo] = await Promise.all([
+      getInvoicingConfig(inv.company_id),
+      getCompanyName(inv.company_id),
+      getCompanyLogoDataUrl(inv.company_id),
+    ]);
+    const pdf = await renderInvoicePdf(inv, config, companyName, londonToday(), logo);
+
+    const dueLine = inv.due_date ? ` It is due by ${inv.due_date}.` : "";
+    const payLine = config.payment_details
+      ? `<p style="margin:12px 0 0 0;">Payment details are on the invoice and below:</p><p style="margin:6px 0 0 0;white-space:pre-line;">${config.payment_details}</p>`
+      : "";
+    const html = noticeEmailHtml({
+      preheader: `Invoice ${inv.number} from ${companyName}.`,
+      heading: `Invoice ${inv.number}`,
+      bodyHtml: `<p style="margin:0 0 12px 0;">Please find attached invoice <strong>${inv.number}</strong> from
+        <strong>${companyName}</strong> for <strong>${formatMoney(inv.total_pence)}</strong>.${dueLine}</p>
+        <p style="margin:0;">The invoice is attached as a PDF. If you have any questions, please reply to this email.</p>${payLine}`,
+      footerNote: `This invoice was sent to you by ${companyName}.`,
+    });
+
+    const result = await sendEmail({
+      to: inv.bill_to_email,
+      subject: `Invoice ${inv.number} from ${companyName}`,
+      html,
+      attachments: [
+        { filename: `Invoice-${inv.number}.pdf`, content: pdf.toString("base64"), contentType: "application/pdf" },
+      ],
+    });
+
+    if (result.sent) {
+      await writeAudit({
+        companyId: inv.company_id,
+        actorId: profile.id,
+        actorEmail: profile.email,
+        actorRole: profile.role,
+        action: "invoicing.invoice_emailed",
+        entityType: "invoice",
+        entityId: invoiceId,
+        summary: `Emailed invoice ${inv.number} to ${inv.bill_to_email}`,
+      });
+      return `Emailed to ${inv.bill_to_email}.`;
+    }
+    if (result.skippedReason) return "Email is not set up yet, so the invoice was not emailed. Ask the founder to configure email.";
+    return "The invoice was marked sent, but the email could not be delivered. Please try again or send it manually.";
+  } catch {
+    return "The invoice was marked sent, but the email could not be prepared.";
+  }
 }
 
 export async function markInvoicePaid(_prev: ActionState, formData: FormData): Promise<ActionState> {

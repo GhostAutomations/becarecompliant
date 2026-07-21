@@ -149,18 +149,33 @@ export const STATUS_LABEL: Record<DisplayStatus, string> = {
 };
 
 /** Advance a run date by a schedule cadence (weekly = 7 days, monthly = calendar
- *  months with end-of-month clamping). Pure, shared by the action and the cron. */
-export function advanceRunDate(iso: string, frequency: string, interval: number): string {
+ *  months with end-of-month clamping). Optionally snap to a chosen day: weekly to
+ *  a day of week (0 = Monday .. 6 = Sunday) within the resulting week, monthly to
+ *  a day of month (1..28). Pure, shared by the action and the cron. */
+export function advanceRunDate(
+  iso: string,
+  frequency: string,
+  interval: number,
+  opts?: { dayOfWeek?: number | null; dayOfMonth?: number | null },
+): string {
   const n = Math.max(1, interval);
   const [y, m, d] = iso.split("-").map(Number);
   if (frequency === "weekly") {
     const dt = new Date(Date.UTC(y, m - 1, d));
     dt.setUTCDate(dt.getUTCDate() + 7 * n);
+    const dow = opts?.dayOfWeek;
+    if (dow != null && dow >= 0 && dow <= 6) {
+      // Snap to the chosen weekday within the same Mon..Sun week.
+      const cur = (dt.getUTCDay() + 6) % 7; // Mon=0
+      dt.setUTCDate(dt.getUTCDate() + (dow - cur));
+    }
     return dt.toISOString().slice(0, 10);
   }
   const target = new Date(Date.UTC(y, m - 1 + n, 1));
   const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
-  target.setUTCDate(Math.min(d, lastDay));
+  const dom = opts?.dayOfMonth;
+  const wanted = dom != null && dom >= 1 && dom <= 28 ? dom : d;
+  target.setUTCDate(Math.min(wanted, lastDay));
   return target.toISOString().slice(0, 10);
 }
 
