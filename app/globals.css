@@ -206,8 +206,11 @@
     @apply border border-white/20 bg-white/5 text-white/90 backdrop-blur hover:bg-white/15;
   }
 
+  /* "Saved" flash: the SAME gold button, only the label changes to Saved/Sent
+     for ~2s then reverts. Deliberately NOT a green box: one green rectangle here
+     showed up as a green rectangle on every save button across the whole app. */
   .btn-saved {
-    @apply border border-rag-green/50 bg-rag-green-soft text-rag-green-deep;
+    @apply bg-gold-400 text-navy-950 shadow-sm;
   }
 
   /* Status pills (RAG) */
