@@ -9,6 +9,7 @@
 
 import { useActionState } from "react";
 import { IDLE_STATE } from "@/lib/forms";
+import SavedFlashMessage from "@/components/saved-flash-message";
 import {
   founderSetUserStatus,
   founderResendInvite,
@@ -81,7 +82,7 @@ export function InviteActions({
         </button>
       </form>
       {err && <span className="text-xs text-red-300">{err}</span>}
-      {!err && ok && <span className="text-xs text-emerald-300">{ok}</span>}
+      {!err && <SavedFlashMessage message={ok} token={ok} className="text-xs text-emerald-300" />}
     </div>
   );
 }

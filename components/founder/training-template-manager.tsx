@@ -9,6 +9,7 @@
 
 import { useActionState } from "react";
 import { IDLE_STATE } from "@/lib/forms";
+import SavedFlashMessage from "@/components/saved-flash-message";
 import {
   createTrainingTemplate,
   updateTrainingTemplate,
@@ -63,7 +64,7 @@ function AddForm() {
         </button>
       </div>
       {state.error && <p className="text-sm text-red-300">{state.error}</p>}
-      {!state.error && state.ok && <p className="text-sm text-emerald-300">{state.ok}</p>}
+      {!state.error && <SavedFlashMessage message={state.ok} token={state} className="text-sm text-emerald-300" />}
     </form>
   );
 }
@@ -117,9 +118,7 @@ function TemplateRow({ t }: { t: TrainingTemplate }) {
           </button>
         </div>
         {saveState.error && <p className="text-sm text-red-300">{saveState.error}</p>}
-        {!saveState.error && saveState.ok && (
-          <p className="text-sm text-emerald-300">{saveState.ok}</p>
-        )}
+        {!saveState.error && <SavedFlashMessage message={saveState.ok} token={saveState} className="text-sm text-emerald-300" />}
       </form>
       <form action={delAction} className="mt-2 border-t border-white/10 pt-2">
         <input type="hidden" name="id" value={t.id} />

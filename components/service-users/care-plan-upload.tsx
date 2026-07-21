@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import SavedFlashMessage from "@/components/saved-flash-message";
 import { uploadCarePlan, getCarePlanUrl } from "@/lib/service-users/actions";
 
 /** Care Plan document upload + view for a service user (drill-down and Setup form). */
@@ -54,7 +55,7 @@ export default function CarePlanUpload({
           </button>
         </form>
       ) : null}
-      {state?.ok ? <p className="text-xs text-green-300">{state.ok}</p> : null}
+      <SavedFlashMessage message={state?.ok} token={state} className="text-xs text-green-300" />
       {state?.error ? <p className="text-xs text-red-300">{state.error}</p> : null}
       {viewMsg ? <p className="text-xs text-white/50">{viewMsg}</p> : null}
     </section>

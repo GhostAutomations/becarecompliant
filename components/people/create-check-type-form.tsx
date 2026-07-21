@@ -9,6 +9,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import SavedFlashMessage from "@/components/saved-flash-message";
 import { createCheckType } from "@/lib/people/actions";
 
 type PublishableForm = { id: string; name: string };
@@ -76,7 +77,7 @@ export default function CreateCheckTypeForm({
   if (!open) {
     return (
       <div className="space-y-2">
-        {ok && <p className="text-xs text-emerald-300">{ok}</p>}
+        <SavedFlashMessage message={ok} token={ok} className="text-xs text-emerald-300" />
         <button type="button" onClick={() => setOpen(true)} className="btn-outline px-3 py-2 text-xs">
           New check type
         </button>

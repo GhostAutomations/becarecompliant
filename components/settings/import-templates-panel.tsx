@@ -9,6 +9,7 @@
 
 import { useActionState } from "react";
 import { IDLE_STATE } from "@/lib/forms";
+import SavedFlashMessage from "@/components/saved-flash-message";
 import { importOwnCompanyTemplates } from "@/app/(app)/settings/templates/actions";
 
 export function ImportTemplatesPanel() {
@@ -21,7 +22,7 @@ export function ImportTemplatesPanel() {
       <button type="submit" disabled={pending} className="btn-primary px-4 py-2 text-sm">
         {pending ? "Importing…" : "Import latest templates"}
       </button>
-      {state.ok && <p className="text-sm text-emerald-300">{state.ok}</p>}
+      <SavedFlashMessage message={state.ok} token={state} className="text-sm text-emerald-300" />
       {state.error && <p className="text-sm text-red-300">{state.error}</p>}
     </form>
   );

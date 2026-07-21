@@ -9,6 +9,7 @@
 
 import { useActionState } from "react";
 import { IDLE_STATE } from "@/lib/forms";
+import SavedFlashMessage from "@/components/saved-flash-message";
 import {
   saveNotificationSettings,
   saveUserPhone,
@@ -132,7 +133,7 @@ export default function NotificationSettings({
         {saveState.error && (
           <p className="text-sm text-red-300">{saveState.error}</p>
         )}
-        {saveState.ok && <p className="text-sm text-emerald-300">{saveState.ok}</p>}
+        <SavedFlashMessage message={saveState.ok} token={saveState} className="text-sm text-emerald-300" />
         <button type="submit" className="btn-primary px-4 py-2 text-sm" disabled={saving}>
           {saving ? "Saving…" : "Save settings"}
         </button>
@@ -184,7 +185,7 @@ export default function NotificationSettings({
         {phoneState.error && (
           <p className="mt-3 text-sm text-red-300">{phoneState.error}</p>
         )}
-        {phoneState.ok && <p className="mt-3 text-sm text-emerald-300">{phoneState.ok}</p>}
+        <div className="mt-3"><SavedFlashMessage message={phoneState.ok} token={phoneState} className="text-sm text-emerald-300" /></div>
       </section>
     </div>
   );

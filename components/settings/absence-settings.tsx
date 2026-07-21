@@ -23,6 +23,7 @@ import {
   suggestAbsencePolicy,
 } from "@/lib/absence/settings-actions";
 import { useSavedFlash } from "@/lib/use-saved-flash";
+import SavedFlashMessage from "@/components/saved-flash-message";
 
 type Row = Record<string, string | number>;
 
@@ -259,7 +260,7 @@ export default function AbsenceSettings({
           <button type="submit" className="btn-outline px-3 py-2 text-sm">
             Upload
           </button>
-          {uploadState.ok && <span className="text-xs text-emerald-300">{uploadState.ok}</span>}
+          <SavedFlashMessage message={uploadState.ok} token={uploadState} className="text-xs text-emerald-300" />
           {uploadState.error && <span className="form-error mt-0 text-xs">{uploadState.error}</span>}
         </form>
 
