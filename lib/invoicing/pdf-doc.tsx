@@ -170,7 +170,7 @@ function InvoiceDocument({
         <View style={s.footer} fixed>
           <Text style={s.footerText}>
             {config.invoice_footer ? config.invoice_footer : companyName}
-            {config.vat_enabled ? "" : "  ·  Care services provided under the VAT welfare exemption."}
+            {config.company_number ? `  ·  Company number ${config.company_number}` : ""}
           </Text>
         </View>
       </Page>

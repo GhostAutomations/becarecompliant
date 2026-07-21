@@ -24,6 +24,7 @@ export type InvoicingConfig = {
   default_payment_terms_days: number;
   payment_details: string | null;
   invoice_footer: string | null;
+  company_number: string | null;
   overdue_reminders_enabled: boolean;
   rate_care_pence: number;
   rate_sit_pence: number;
@@ -47,6 +48,7 @@ export const DEFAULT_INVOICING_CONFIG: Omit<InvoicingConfig, "company_id"> = {
   default_payment_terms_days: 14,
   payment_details: null,
   invoice_footer: null,
+  company_number: null,
   overdue_reminders_enabled: false,
   rate_care_pence: 0,
   rate_sit_pence: 0,

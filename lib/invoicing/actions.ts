@@ -60,6 +60,7 @@ export async function saveInvoicingConfig(_prev: ActionState, formData: FormData
   const default_payment_terms_days = Math.max(0, intOrNull(formData.get("default_payment_terms_days")) ?? 14);
   const payment_details = trimOrNull(formData.get("payment_details"));
   const invoice_footer = trimOrNull(formData.get("invoice_footer"));
+  const company_number = trimOrNull(formData.get("company_number"));
   const overdue_reminders_enabled = formData.get("overdue_reminders_enabled") === "on";
 
   const supabase = await createClient();
@@ -84,6 +85,7 @@ export async function saveInvoicingConfig(_prev: ActionState, formData: FormData
       default_payment_terms_days,
       payment_details,
       invoice_footer,
+      company_number,
       overdue_reminders_enabled,
       updated_by: user.id,
       updated_at: new Date().toISOString(),

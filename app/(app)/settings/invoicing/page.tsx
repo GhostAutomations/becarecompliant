@@ -136,6 +136,17 @@ export default async function InvoicingSettingsPage() {
             </div>
 
             <div>
+              <label htmlFor="company_number" className="form-label">Company number (optional)</label>
+              <input
+                id="company_number"
+                name="company_number"
+                defaultValue={config.company_number ?? ""}
+                placeholder="e.g. 12345678"
+              />
+              <p className="form-hint">Your Companies House number. When set, it is shown in the invoice footer.</p>
+            </div>
+
+            <div>
               <label htmlFor="invoice_footer" className="form-label">Invoice footer (optional)</label>
               <textarea
                 id="invoice_footer"
