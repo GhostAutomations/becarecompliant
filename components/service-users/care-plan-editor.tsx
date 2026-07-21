@@ -149,18 +149,22 @@ export default function CarePlanEditor({
       <input type="hidden" name="entries" value={entriesJson} />
 
       {mode === "update" ? (
-        <div className="glass-card p-5">
-          <label htmlFor="cp-effective" className="form-label">New plan takes effect from</label>
+        <div className="rounded-xl border border-gold-400/40 bg-gold-400/10 p-5">
+          <label htmlFor="cp-effective" className="text-sm font-semibold text-gold-200">
+            New plan starts on
+          </label>
           <input
             id="cp-effective"
             name="effective_from"
             type="date"
             defaultValue={today}
             required
-            className="max-w-[12rem]"
+            className="mt-2 block max-w-[12rem]"
             onChange={reset}
           />
-          <p className="form-hint">The current plan is billed up to the day before this date, then this plan applies. Invoices that straddle the date bill part on each plan.</p>
+          <p className="form-hint mt-2">
+            This creates a NEW dated version. The current plan is kept and billed up to the day before; this plan applies from this date. Invoices that straddle the date bill part on each plan.
+          </p>
         </div>
       ) : null}
 

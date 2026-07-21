@@ -118,13 +118,13 @@ export default function CarePlanManager({
             </button>
           </div>
           <p className="text-xs text-white/55">
-            This keeps the current plan and starts a new version. Pick the date it takes effect and adjust the lines. The old plan is billed up to the day before.
+            This keeps the current plan and starts a brand new one. Pick the date it takes effect and build the plan from scratch. The old plan is billed up to the day before.
           </p>
           <CarePlanEditor
             mode="update"
             action={updateCarePlan}
             serviceUserId={serviceUserId}
-            initial={initial}
+            initial={[]}
             servicesWithFixed={servicesWithFixed}
             today={today}
             onSaved={() => setMode(null)}
