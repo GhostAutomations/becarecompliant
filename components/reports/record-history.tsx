@@ -35,10 +35,17 @@ export default function RecordHistory({
   const histBase = `/api/reports/audit?scope=record&type=${recordType}&record=${recordId}`;
 
   return (
-    <section className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">History</h2>
-        <div className="flex flex-wrap items-center gap-2">
+    <details className="group">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
+          History{entries.length > 0 ? ` (${entries.length})` : ""}
+        </h2>
+        <span className="text-xs text-white/45 group-open:hidden">Show</span>
+        <span className="hidden text-xs text-white/45 group-open:inline">Hide</span>
+      </summary>
+
+      <div className="mt-3 space-y-3">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {entitled ? (
             <>
               <a href={`${packBase}&format=pdf`} className="btn-primary px-3 py-1.5 text-xs">
@@ -57,27 +64,27 @@ export default function RecordHistory({
             </span>
           )}
         </div>
-      </div>
 
-      {entries.length === 0 ? (
-        <div className="glass-card p-6 text-sm text-white/60">
-          No history yet. Changes to this record and its evidence appear here in order.
-        </div>
-      ) : (
-        <ol className="glass-card divide-y divide-white/5">
-          {entries.map((e, i) => (
-            <li key={e.id ?? i} className="flex items-start justify-between gap-3 px-5 py-3">
-              <div className="min-w-0">
-                <p className="text-sm text-white/85">{e.summary || e.action.replace(/[._]/g, " ")}</p>
-                <p className="mt-0.5 text-[11px] text-white/45">
-                  {fmtDateTime(e.created_at)} · {e.actor_email || "System"}
-                </p>
-              </div>
-              <span className={actionTone(e.action)}>{e.action.split(".")[0]}</span>
-            </li>
-          ))}
-        </ol>
-      )}
-    </section>
+        {entries.length === 0 ? (
+          <div className="glass-card p-6 text-sm text-white/60">
+            No history yet. Changes to this record and its evidence appear here in order.
+          </div>
+        ) : (
+          <ol className="glass-card divide-y divide-white/5">
+            {entries.map((e, i) => (
+              <li key={e.id ?? i} className="flex items-start justify-between gap-3 px-5 py-3">
+                <div className="min-w-0">
+                  <p className="text-sm text-white/85">{e.summary || e.action.replace(/[._]/g, " ")}</p>
+                  <p className="mt-0.5 text-[11px] text-white/45">
+                    {fmtDateTime(e.created_at)} · {e.actor_email || "System"}
+                  </p>
+                </div>
+                <span className={actionTone(e.action)}>{e.action.split(".")[0]}</span>
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
+    </details>
   );
 }
