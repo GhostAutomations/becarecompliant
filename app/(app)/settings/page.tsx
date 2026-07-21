@@ -85,10 +85,17 @@ export default async function SettingsPage() {
       </section>
 
       <section aria-label="Sections" className="grid gap-4 sm:grid-cols-2">
-        <Link href="/settings/branding" className="app-tile">
-          <h2 className="text-base font-semibold text-white">Branding</h2>
+        <Link href="/settings/absence" className="app-tile">
+          <h2 className="text-base font-semibold text-white">Absence</h2>
           <p className="text-sm text-white/60">
-            Your company logo, used on invoices and other documents.
+            Choose how absence is tracked (stages or Bradford Factor), set the
+            thresholds, and upload your policy for AI to read.
+          </p>
+        </Link>
+        <Link href="/settings/billing" className="app-tile">
+          <h2 className="text-base font-semibold text-white">Billing</h2>
+          <p className="text-sm text-white/60">
+            Your plan, seat costs, payment method and invoices.
           </p>
         </Link>
         <Link href="/settings/branches" className="app-tile">
@@ -97,10 +104,17 @@ export default async function SettingsPage() {
             Your Team (office) and Branch. Rename them or view their details.
           </p>
         </Link>
-        <Link href="/settings/users" className="app-tile">
-          <h2 className="text-base font-semibold text-white">Users and invites</h2>
+        <Link href="/settings/branding" className="app-tile">
+          <h2 className="text-base font-semibold text-white">Branding</h2>
           <p className="text-sm text-white/60">
-            Invite your team, set roles and branches, and manage pending invites.
+            Your company logo, used on invoices and other documents.
+          </p>
+        </Link>
+        <Link href="/settings/complaints" className="app-tile">
+          <h2 className="text-base font-semibold text-white">Complaints</h2>
+          <p className="text-sm text-white/60">
+            Set the acknowledgement and response timescales used to calculate complaint
+            deadlines.
           </p>
         </Link>
         <Link href="/settings/forms" className="app-tile">
@@ -110,18 +124,27 @@ export default async function SettingsPage() {
             versions and a live preview.
           </p>
         </Link>
-        <Link href="/settings/templates" className="app-tile">
-          <h2 className="text-base font-semibold text-white">Templates</h2>
-          <p className="text-sm text-white/60">
-            Import the latest forms and training courses from the Be Care Compliant
-            library. Safe to run again, your own edits are never touched.
-          </p>
-        </Link>
         <Link href="/settings/import" className="app-tile">
           <h2 className="text-base font-semibold text-white">Import records</h2>
           <p className="text-sm text-white/60">
             Bulk add existing staff and service users, with their compliance history,
             when a company comes on board.
+          </p>
+        </Link>
+        {invoicingEnabled && (
+          <Link href="/settings/invoicing" className="app-tile">
+            <h2 className="text-base font-semibold text-white">Invoicing</h2>
+            <p className="text-sm text-white/60">
+              VAT and bank details, invoice numbering, overdue reminders and your reusable
+              rate list.
+            </p>
+          </Link>
+        )}
+        <Link href="/settings/notifications" className="app-tile">
+          <h2 className="text-base font-semibold text-white">Notifications</h2>
+          <p className="text-sm text-white/60">
+            The daily compliance digest, overdue chasers, SMS escalation and the
+            numbers texts go to.
           </p>
         </Link>
         <Link href="/settings/people" className="app-tile">
@@ -138,34 +161,11 @@ export default async function SettingsPage() {
             Service Users.
           </p>
         </Link>
-        <Link href="/settings/complaints" className="app-tile">
-          <h2 className="text-base font-semibold text-white">Complaints</h2>
+        <Link href="/settings/templates" className="app-tile">
+          <h2 className="text-base font-semibold text-white">Templates</h2>
           <p className="text-sm text-white/60">
-            Set the acknowledgement and response timescales used to calculate complaint
-            deadlines.
-          </p>
-        </Link>
-        {invoicingEnabled && (
-          <Link href="/settings/invoicing" className="app-tile">
-            <h2 className="text-base font-semibold text-white">Invoicing</h2>
-            <p className="text-sm text-white/60">
-              VAT and bank details, invoice numbering, overdue reminders and your reusable
-              rate list.
-            </p>
-          </Link>
-        )}
-        <Link href="/settings/absence" className="app-tile">
-          <h2 className="text-base font-semibold text-white">Absence</h2>
-          <p className="text-sm text-white/60">
-            Choose how absence is tracked (stages or Bradford Factor), set the
-            thresholds, and upload your policy for AI to read.
-          </p>
-        </Link>
-        <Link href="/settings/notifications" className="app-tile">
-          <h2 className="text-base font-semibold text-white">Notifications</h2>
-          <p className="text-sm text-white/60">
-            The daily compliance digest, overdue chasers, SMS escalation and the
-            numbers texts go to.
+            Import the latest forms and training courses from the Be Care Compliant
+            library. Safe to run again, your own edits are never touched.
           </p>
         </Link>
         <Link href="/settings/usage" className="app-tile">
@@ -174,10 +174,10 @@ export default async function SettingsPage() {
             Metered SMS and AI usage for your company, this month and by month.
           </p>
         </Link>
-        <Link href="/settings/billing" className="app-tile">
-          <h2 className="text-base font-semibold text-white">Billing</h2>
+        <Link href="/settings/users" className="app-tile">
+          <h2 className="text-base font-semibold text-white">Users and invites</h2>
           <p className="text-sm text-white/60">
-            Your plan, seat costs, payment method and invoices.
+            Invite your team, set roles and branches, and manage pending invites.
           </p>
         </Link>
       </section>
