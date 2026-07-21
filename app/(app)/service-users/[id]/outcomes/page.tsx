@@ -5,6 +5,7 @@ import BackLink from "@/components/back-link";
 import OutcomesManager from "@/components/service-users/outcomes-manager";
 import { getServiceUser, getServiceUserOutcomes, getOutcomesReviewMonths } from "@/lib/service-users/data";
 import { isOutcomeAchievingOrProgressing } from "@/lib/service-users/outcome-consts";
+import { featureEnabled } from "@/lib/billing/tier";
 
 export const metadata: Metadata = { title: "Personal outcomes" };
 
@@ -23,6 +24,7 @@ export default async function ServiceUserOutcomesPage({
   const su = await getServiceUser(id);
   if (!su || !profile.company_id) redirect("/service-users");
   if (!MANAGE_ROLES.includes(profile.role)) redirect(`/service-users/${id}`);
+  if (!(await featureEnabled(profile.company_id, "outcomes_satisfaction"))) redirect(`/service-users/${id}`);
 
   // Back goes to wherever you came from: the Outcomes register, or the record's tile.
   const cameFromRegister = from === "/service-users/outcomes";

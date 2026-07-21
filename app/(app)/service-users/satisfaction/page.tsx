@@ -5,6 +5,7 @@ import BackLink from "@/components/back-link";
 import SatisfactionRegisterTable from "@/components/service-users/satisfaction-register-table";
 import { getSatisfaction, SATISFACTION_QUESTIONS } from "@/lib/service-users/satisfaction";
 import { listAccessibleBranchTypes } from "@/lib/service-users/data";
+import { featureEnabled } from "@/lib/billing/tier";
 
 export const metadata: Metadata = { title: "Satisfaction" };
 
@@ -20,6 +21,7 @@ export default async function SatisfactionPage() {
   const { user, profile } = await requireCompany();
   if (!profile.company_id) redirect("/founder");
   if (!ALLOWED.includes(profile.role)) redirect("/service-users");
+  if (!(await featureEnabled(profile.company_id, "outcomes_satisfaction"))) redirect("/service-users");
 
   const [sat, branchTypes] = await Promise.all([
     getSatisfaction(profile.company_id),

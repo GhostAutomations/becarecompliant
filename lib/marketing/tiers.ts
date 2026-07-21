@@ -50,6 +50,7 @@ export const PRICING_TIERS: PricingTier[] = [
     inherits: "Everything in Business, plus:",
     features: [
       "Complaints management",
+      "Personal outcomes and satisfaction tracking for the PQS",
       "All reports: PQS return, evidence packs, audit trail and training",
       "SMS reminders",
       "The form builder to create and version your own forms",

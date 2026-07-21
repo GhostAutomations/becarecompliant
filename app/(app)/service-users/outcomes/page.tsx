@@ -4,6 +4,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import OutcomesRegisterTable from "@/components/service-users/outcomes-register-table";
 import { getOutcomesRegister, listAccessibleBranchTypes } from "@/lib/service-users/data";
+import { featureEnabled } from "@/lib/billing/tier";
 
 export const metadata: Metadata = { title: "Outcomes" };
 
@@ -13,6 +14,7 @@ export default async function OutcomesPage() {
   const { user, profile } = await requireCompany();
   if (!profile.company_id) redirect("/founder");
   if (!ALLOWED.includes(profile.role)) redirect("/service-users");
+  if (!(await featureEnabled(profile.company_id, "outcomes_satisfaction"))) redirect("/service-users");
   const [reg, branchTypes] = await Promise.all([
     getOutcomesRegister(profile.company_id),
     listAccessibleBranchTypes(profile.company_id, profile.role, user.id),

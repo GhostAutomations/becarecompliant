@@ -13,7 +13,8 @@ import type { Tier } from "@/lib/stripe/config";
  *     absence, training records, dashboard, role based access, bulk import, forms
  *     as evidence, email digest, the BASIC compliance register report, one branch.
  *   - Pro adds: complaints management, ALL reports (PQS, evidence packs, audit
- *     trail, training) + inspector exports, SMS reminders, the form builder.
+ *     trail, training) + inspector exports, SMS reminders, the form builder, and
+ *     Service User personal outcomes + satisfaction tracking (PQS).
  *   - AI is on every tier now, metered by credits (see lib/billing/ai-credits.ts),
  *     so it is NOT gated here. ai_features remains only for legacy references.
  *   - Enterprise/Diamond/Black are legacy/premium and get everything.
@@ -25,12 +26,13 @@ export type Feature =
   | "form_builder"
   | "complaints"
   | "invoicing"
+  | "outcomes_satisfaction"
   | "ai_features"
   | "integration_layer"
   | "priority_support";
 
 /** The minimum ordered subscription tier that unlocks each feature. */
-const PRO_FEATURES: Feature[] = ["sms_reminders", "reporting_exports", "form_builder", "complaints", "invoicing"];
+const PRO_FEATURES: Feature[] = ["sms_reminders", "reporting_exports", "form_builder", "complaints", "invoicing", "outcomes_satisfaction"];
 const ENTERPRISE_FEATURES: Feature[] = [
   "ai_features",
   "integration_layer",

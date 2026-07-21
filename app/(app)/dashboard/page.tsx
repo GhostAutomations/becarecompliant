@@ -44,11 +44,13 @@ function MetricCard({
   return (
     <Link
       href={href}
-      className="glass-card block p-5 transition hover:bg-white/[0.07] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/30"
+      className="glass-card block p-4 transition hover:bg-white/[0.07] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/30"
     >
-      {pill}
-      <p className="mt-3 text-3xl font-bold text-white">{value}</p>
-      <p className="text-xs text-white/50">{sub}</p>
+      <div className="flex items-start justify-between gap-3">
+        <span>{pill}</span>
+        <span className="text-2xl font-bold leading-none text-white">{value}</span>
+      </div>
+      <p className="mt-2 text-xs text-white/50">{sub}</p>
     </Link>
   );
 }

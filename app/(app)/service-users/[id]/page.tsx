@@ -98,9 +98,10 @@ export default async function ServiceUserPage({
     ]);
 
   // History timeline (managers/admins, via the record_audit_trail RPC) + export gate.
-  const [auditTrail, exportsEnabled] = await Promise.all([
+  const [auditTrail, exportsEnabled, outcomesEnabled] = await Promise.all([
     canManage ? getRecordAuditTrail("service_user", id) : Promise.resolve([]),
     featureEnabled(companyId, "reporting_exports"),
+    featureEnabled(companyId, "outcomes_satisfaction"),
   ]);
 
   const statusByDef = new Map<string, SuCheckStatus>(statuses.map((s) => [s.definition_id, s]));
@@ -158,7 +159,7 @@ export default async function ServiceUserPage({
       ) : null}
 
       {canManage ? (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className={`grid gap-3 ${outcomesEnabled ? "sm:grid-cols-2" : ""}`}>
           <Link
             href={`/service-users/${serviceUser.id}/care-plan`}
             className="glass-card flex items-center justify-between gap-3 p-4 text-left transition hover:bg-white/15"
@@ -167,13 +168,15 @@ export default async function ServiceUserPage({
             <span className="btn-outline text-xs">Open</span>
           </Link>
 
-          <Link
-            href={`/service-users/${serviceUser.id}/outcomes`}
-            className="glass-card flex items-center justify-between gap-3 p-4 text-left transition hover:bg-white/15"
-          >
-            <h2 className="text-base font-semibold text-white">Personal outcomes</h2>
-            <span className="btn-outline text-xs">Open</span>
-          </Link>
+          {outcomesEnabled ? (
+            <Link
+              href={`/service-users/${serviceUser.id}/outcomes`}
+              className="glass-card flex items-center justify-between gap-3 p-4 text-left transition hover:bg-white/15"
+            >
+              <h2 className="text-base font-semibold text-white">Personal outcomes</h2>
+              <span className="btn-outline text-xs">Open</span>
+            </Link>
+          ) : null}
         </div>
       ) : null}
 

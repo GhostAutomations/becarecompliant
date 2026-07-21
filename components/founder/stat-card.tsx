@@ -18,10 +18,12 @@ export function StatCard({
 }) {
   const body = (
     <>
-      <p className="text-xs font-medium uppercase tracking-wide text-white/50">
-        {label}
-      </p>
-      <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-xs font-medium uppercase tracking-wide text-white/50">
+          {label}
+        </p>
+        <p className="text-2xl font-semibold leading-none text-white">{value}</p>
+      </div>
       {sub ? <p className="mt-1 text-xs text-white/50">{sub}</p> : null}
     </>
   );
@@ -30,12 +32,12 @@ export function StatCard({
     return (
       <Link
         href={href}
-        className="glass-card block p-5 transition hover:bg-white/[0.07] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/30"
+        className="glass-card block p-4 transition hover:bg-white/[0.07] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/30"
       >
         {body}
       </Link>
     );
   }
 
-  return <div className="glass-card p-5">{body}</div>;
+  return <div className="glass-card p-4">{body}</div>;
 }
