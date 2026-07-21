@@ -7,11 +7,13 @@ import { CARE_PLAN_DAYS, type CarePlanEntry } from "@/lib/service-users/care-pla
 
 /**
  * The "Care Plan: Current" area. The collapsible tile shows a compact
- * one-line-per-day summary; the "Update care plan" button sits ABOVE the tile on
- * the right and opens a dated new-version editor (the old plan is kept and billed
- * up to the day before the new one). With no plan yet the tile holds the editor to
- * build the first one.
+ * one-line-per-day summary. "Update care plan" (top right, level with the title)
+ * offers two paths: CHANGE CURRENT (fix the current plan in place, no new version)
+ * or CREATE NEW (a dated new version; the old plan is kept and billed up to the
+ * day before the new one). With no plan yet the tile holds the editor to build it.
  */
+type Mode = null | "choose" | "edit" | "new";
+
 export default function CarePlanManager({
   serviceUserId,
   serviceUserName,
@@ -27,7 +29,7 @@ export default function CarePlanManager({
   today: string;
   hasPlan: boolean;
 }) {
-  const [updating, setUpdating] = useState(false);
+  const [mode, setMode] = useState<Mode>(null);
 
   return (
     <div className="space-y-3">
@@ -36,8 +38,8 @@ export default function CarePlanManager({
           <h1 className="page-title">Care plan</h1>
           <p className="page-subtitle">{serviceUserName}</p>
         </div>
-        {hasPlan && !updating ? (
-          <button type="button" onClick={() => setUpdating(true)} className="btn-outline text-sm">
+        {hasPlan && !mode ? (
+          <button type="button" onClick={() => setMode("choose")} className="btn-outline text-sm">
             Update care plan
           </button>
         ) : null}
@@ -63,15 +65,55 @@ export default function CarePlanManager({
         </div>
       </details>
 
-      {hasPlan && updating ? (
+      {mode === "choose" ? (
         <section className="glass-card space-y-3 p-5">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-white/80">Update care plan</h2>
-            <button
-              type="button"
-              onClick={() => setUpdating(false)}
-              className="text-xs text-white/50 hover:text-white/80"
-            >
+            <button type="button" onClick={() => setMode(null)} className="text-xs text-white/50 hover:text-white/80">
+              Cancel
+            </button>
+          </div>
+          <p className="text-xs text-white/55">
+            Correct the current plan, or start a new plan from a date and keep the old one for past invoices?
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => setMode("edit")} className="btn-outline text-sm">
+              Change current plan
+            </button>
+            <button type="button" onClick={() => setMode("new")} className="btn-primary text-sm">
+              Create new version
+            </button>
+          </div>
+        </section>
+      ) : null}
+
+      {mode === "edit" ? (
+        <section className="glass-card space-y-3 p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-white/80">Change current plan</h2>
+            <button type="button" onClick={() => setMode(null)} className="text-xs text-white/50 hover:text-white/80">
+              Cancel
+            </button>
+          </div>
+          <p className="text-xs text-white/55">
+            This corrects the current plan in place. No new version is created.
+          </p>
+          <CarePlanEditor
+            mode="edit"
+            action={saveCarePlan}
+            serviceUserId={serviceUserId}
+            initial={initial}
+            servicesWithFixed={servicesWithFixed}
+            onSaved={() => setMode(null)}
+          />
+        </section>
+      ) : null}
+
+      {mode === "new" ? (
+        <section className="glass-card space-y-3 p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-white/80">Create new version</h2>
+            <button type="button" onClick={() => setMode(null)} className="text-xs text-white/50 hover:text-white/80">
               Cancel
             </button>
           </div>
@@ -85,7 +127,7 @@ export default function CarePlanManager({
             initial={initial}
             servicesWithFixed={servicesWithFixed}
             today={today}
-            onSaved={() => setUpdating(false)}
+            onSaved={() => setMode(null)}
           />
         </section>
       ) : null}
