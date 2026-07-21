@@ -38,8 +38,7 @@ export default function CarePlanEditor({
         }))
       : [{ day_of_week: 0, service: "Care", unit: DEFAULT_UNIT, handed: "single", quantity: "1" }],
   );
-  const [copyFrom, setCopyFrom] = useState(0);
-  const [copyTo, setCopyTo] = useState(1);
+  const [copyPrompt, setCopyPrompt] = useState<{ source: number; target: number } | null>(null);
 
   useEffect(() => {
     if (state.ok && !pending) flash();
@@ -74,6 +73,25 @@ export default function CarePlanEditor({
     reset();
     // Keep at least one row so a save can never silently wipe the plan.
     setRows((prev) => (prev.length === 1 ? [newRow()] : prev.filter((_, idx) => idx !== i)));
+  }
+
+  /** When a row is moved to a new day and another day already has a plan, offer
+   *  to copy that day here or across the week. */
+  function onDayChange(i: number, newDay: number) {
+    update(i, { day_of_week: newDay });
+    const counts = new Map<number, number>();
+    rows.forEach((r, idx) => {
+      if (idx !== i && r.day_of_week !== newDay) counts.set(r.day_of_week, (counts.get(r.day_of_week) ?? 0) + 1);
+    });
+    let source = -1;
+    let best = 0;
+    counts.forEach((c, d) => {
+      if (c > best) {
+        best = c;
+        source = d;
+      }
+    });
+    setCopyPrompt(source >= 0 ? { source, target: newDay } : null);
   }
 
   function copyDay(from: number, to: number) {
@@ -116,32 +134,6 @@ export default function CarePlanEditor({
       <input type="hidden" name="service_user_id" value={serviceUserId} />
       <input type="hidden" name="entries" value={entriesJson} />
 
-      {/* Copy a day */}
-      <div className="glass-card flex flex-wrap items-end gap-3 p-4">
-        <div>
-          <label className="form-label">Copy</label>
-          <select value={copyFrom} onChange={(e) => setCopyFrom(Number(e.target.value))} className="ctl-sm">
-            {CARE_PLAN_DAYS.map((d, idx) => (
-              <option key={d} value={idx}>{d}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="form-label">to</label>
-          <select value={copyTo} onChange={(e) => setCopyTo(Number(e.target.value))} className="ctl-sm">
-            {CARE_PLAN_DAYS.map((d, idx) => (
-              <option key={d} value={idx}>{d}</option>
-            ))}
-          </select>
-        </div>
-        <button type="button" onClick={() => copyDay(copyFrom, copyTo)} className="btn-outline text-xs">
-          Copy day
-        </button>
-        <button type="button" onClick={() => copyToRestOfWeek(copyFrom)} className="btn-outline text-xs">
-          Copy {CARE_PLAN_DAYS[copyFrom]} to the rest of the week
-        </button>
-      </div>
-
       <div className="glass-card p-5">
         <div className="grid grid-cols-[1fr_1fr_1fr_1.2fr_0.8fr_1.5rem] items-center gap-2 text-center">
           <span className="text-xs uppercase tracking-wide text-white/45">Day</span>
@@ -156,7 +148,7 @@ export default function CarePlanEditor({
               <select
                 aria-label="Day"
                 value={r.day_of_week}
-                onChange={(e) => update(i, { day_of_week: Number(e.target.value) })}
+                onChange={(e) => onDayChange(i, Number(e.target.value))}
                 className="ctl-sm text-center"
               >
                 {CARE_PLAN_DAYS.map((d, idx) => (
@@ -212,6 +204,31 @@ export default function CarePlanEditor({
             </div>
           ))}
         </div>
+
+        {copyPrompt ? (
+          <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-gold-400/20 bg-gold-400/5 p-3 text-sm">
+            <span className="text-white/80">
+              Copy {CARE_PLAN_DAYS[copyPrompt.source]}’s plan to {CARE_PLAN_DAYS[copyPrompt.target]}?
+            </span>
+            <button
+              type="button"
+              onClick={() => { copyDay(copyPrompt.source, copyPrompt.target); setCopyPrompt(null); }}
+              className="btn-outline text-xs"
+            >
+              Copy {CARE_PLAN_DAYS[copyPrompt.source]}
+            </button>
+            <button
+              type="button"
+              onClick={() => { copyToRestOfWeek(copyPrompt.source); setCopyPrompt(null); }}
+              className="btn-outline text-xs"
+            >
+              Copy {CARE_PLAN_DAYS[copyPrompt.source]} to the rest of the week
+            </button>
+            <button type="button" onClick={() => setCopyPrompt(null)} className="text-white/40 hover:text-white/70">
+              Dismiss
+            </button>
+          </div>
+        ) : null}
 
         <div className="mt-4">
           <button type="button" onClick={addRow} className="btn-outline text-xs">Add row</button>
