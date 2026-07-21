@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { saveOutcomes } from "@/lib/service-users/outcomes-actions";
 import { IDLE_STATE } from "@/lib/forms";
 import { useSavedFlash } from "@/lib/use-saved-flash";
@@ -21,32 +21,52 @@ export default function OutcomesEditor({
 }) {
   const [state, formAction, pending] = useActionState(saveOutcomes, IDLE_STATE);
   const [saved, flash, reset] = useSavedFlash();
-  const [rows, setRows] = useState<Row[]>(
-    initial.length
-      ? initial.map((o) => ({
+  const toRows = (list: OutcomeRow[]): Row[] =>
+    list.length
+      ? list.map((o) => ({
           statement: o.statement,
           status: o.status,
           last_reviewed: o.last_reviewed ?? "",
           review_note: o.review_note ?? "",
         }))
-      : [newRow()],
-  );
+      : [newRow()];
+  const [rows, setRows] = useState<Row[]>(() => toRows(initial));
+  // True once the user has edited without saving, so a server refresh (e.g. a
+  // review being recorded elsewhere on the page) never clobbers active typing.
+  const dirty = useRef(false);
 
   useEffect(() => {
-    if (state.ok && !pending) flash();
+    if (state.ok && !pending) {
+      flash();
+      dirty.current = false;
+    }
   }, [state, pending, flash]);
   const showSaved = saved && !pending;
 
+  // Re-seed from the server when the saved outcomes change underneath us
+  // (recording a review stamps every outcome's last reviewed date to today).
+  const initialSig = JSON.stringify(
+    initial.map((o) => [o.statement, o.status, o.last_reviewed, o.review_note]),
+  );
+  useEffect(() => {
+    if (dirty.current) return;
+    setRows(toRows(initial));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialSig]);
+
   function update(i: number, patch: Partial<Row>) {
     reset();
+    dirty.current = true;
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   }
   function addRow() {
     reset();
+    dirty.current = true;
     setRows((prev) => [...prev, newRow()]);
   }
   function removeRow(i: number) {
     reset();
+    dirty.current = true;
     setRows((prev) => (prev.length === 1 ? [newRow()] : prev.filter((_, idx) => idx !== i)));
   }
 
