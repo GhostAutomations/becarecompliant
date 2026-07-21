@@ -170,6 +170,19 @@ export default async function ServiceUserPage({
         </Link>
       ) : null}
 
+      {canManage ? (
+        <Link
+          href={`/service-users/${serviceUser.id}/outcomes`}
+          className="glass-card flex items-center justify-between gap-3 p-4 text-left transition hover:bg-white/15"
+        >
+          <div>
+            <h2 className="text-base font-semibold text-white">Personal outcomes</h2>
+            <p className="text-sm text-white/60">What matters to this person and how they are progressing.</p>
+          </div>
+          <span className="btn-outline text-xs">Open</span>
+        </Link>
+      ) : null}
+
       {isCancelled ? (
         <div className="glass-card p-6 text-sm text-white/60">
           This service user is cancelled, so their checks are excluded from the active

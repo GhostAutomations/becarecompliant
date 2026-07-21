@@ -229,6 +229,25 @@ export async function getCarePlanVersions(serviceUserId: string): Promise<CarePl
   return [...byVersion.values()];
 }
 
+export async function getServiceUserOutcomes(
+  serviceUserId: string,
+): Promise<import("./outcome-consts").OutcomeRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("service_user_outcomes")
+    .select("id, statement, status, last_reviewed, review_note, position")
+    .eq("service_user_id", serviceUserId)
+    .order("position", { ascending: true });
+  return ((data as Array<{
+    id: string;
+    statement: string;
+    status: import("./outcome-consts").OutcomeStatus;
+    last_reviewed: string | null;
+    review_note: string | null;
+    position: number;
+  }> | null) ?? []);
+}
+
 export async function getServiceUser(id: string): Promise<ServiceUserRecord | null> {
   const supabase = await createClient();
   const { data } = await supabase
