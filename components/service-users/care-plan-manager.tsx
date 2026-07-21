@@ -3,14 +3,14 @@
 import { useState } from "react";
 import CarePlanEditor from "./care-plan-editor";
 import { saveCarePlan, updateCarePlan } from "@/lib/service-users/actions";
-import { type CarePlanEntry } from "@/lib/service-users/care-plan-consts";
+import { CARE_PLAN_DAYS, type CarePlanEntry } from "@/lib/service-users/care-plan-consts";
 
 /**
  * Care plan editing surface, shown inside the collapsible "Care Plan: Current".
- * The current plan is editable in place (Save). "Update care plan" opens a second
- * editor, prefilled from the current plan, that starts a NEW dated version: the
- * old plan is kept and billed up to the day before the new one, so invoices split
- * correctly across the change.
+ * With a plan set it shows a compact one-line-per-day summary; changes go through
+ * "Update care plan", which starts a NEW dated version (the old plan is kept and
+ * billed up to the day before the new one, so invoices split across the change).
+ * With no plan yet it shows the editor to build the first one.
  */
 export default function CarePlanManager({
   serviceUserId,
@@ -27,8 +27,9 @@ export default function CarePlanManager({
 }) {
   const [updating, setUpdating] = useState(false);
 
-  return (
-    <div className="space-y-4">
+  // No plan yet: show the editor to build the first one.
+  if (!hasPlan) {
+    return (
       <CarePlanEditor
         mode="edit"
         action={saveCarePlan}
@@ -36,14 +37,18 @@ export default function CarePlanManager({
         initial={initial}
         servicesWithFixed={servicesWithFixed}
       />
+    );
+  }
 
-      {hasPlan && !updating ? (
+  return (
+    <div className="space-y-4">
+      <CurrentPlanSummary entries={initial} />
+
+      {!updating ? (
         <button type="button" onClick={() => setUpdating(true)} className="btn-outline text-sm">
           Update care plan
         </button>
-      ) : null}
-
-      {hasPlan && updating ? (
+      ) : (
         <section className="glass-card space-y-3 p-5">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-white/80">Update care plan</h2>
@@ -68,7 +73,35 @@ export default function CarePlanManager({
             onSaved={() => setUpdating(false)}
           />
         </section>
-      ) : null}
+      )}
+    </div>
+  );
+}
+
+/** Compact read-only view of the current plan: one line per day. */
+function CurrentPlanSummary({ entries }: { entries: CarePlanEntry[] }) {
+  const byDay = new Map<number, CarePlanEntry[]>();
+  for (const e of entries) {
+    const list = byDay.get(e.day_of_week) ?? [];
+    list.push(e);
+    byDay.set(e.day_of_week, list);
+  }
+  return (
+    <div className="glass-card divide-y divide-white/5 p-5">
+      {CARE_PLAN_DAYS.map((day, idx) => {
+        const list = byDay.get(idx);
+        if (!list || list.length === 0) return null;
+        return (
+          <div key={day} className="flex flex-wrap gap-x-4 gap-y-1 py-2 first:pt-0 last:pb-0">
+            <span className="min-w-24 text-sm font-medium text-white/80">{day}</span>
+            <span className="text-sm text-white/70">
+              {list
+                .map((e) => `${e.service} ${e.unit} ${e.handed === "double" ? "double" : "single"} ×${e.quantity}`)
+                .join(", ")}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
