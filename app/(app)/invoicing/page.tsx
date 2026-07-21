@@ -30,6 +30,53 @@ export default async function InvoicingPage() {
     { label: "Paid this month", value: formatMoney(summary.paidThisMonthPence), tone: "text-emerald-300" },
   ];
 
+  // Paid invoices move into their own folder so the main list stays focused on
+  // what still needs action (drafts, sent and overdue).
+  const active = invoices.filter((i) => i.status !== "paid");
+  const paid = invoices.filter((i) => i.status === "paid");
+
+  const InvoiceTable = ({ rows }: { rows: typeof invoices }) => (
+    <div className="mt-3 overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-left text-xs uppercase tracking-wide text-white/45">
+            <th className="py-2 pr-3">Number</th>
+            <th className="py-2 pr-3">Client</th>
+            <th className="py-2 pr-3">Branch</th>
+            <th className="py-2 pr-3">Issued</th>
+            <th className="py-2 pr-3">Due</th>
+            <th className="py-2 pr-3 text-right">Total</th>
+            <th className="py-2 pr-3">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((inv) => {
+            const ds = displayStatus(inv.status, inv.due_date, today);
+            return (
+              <tr key={inv.id} className="border-t border-white/10">
+                <td className="py-2 pr-3">
+                  <Link href={`/invoicing/${inv.id}`} className="text-gold-300 hover:underline">
+                    {inv.number ?? "Draft"}
+                  </Link>
+                </td>
+                <td className="py-2 pr-3 text-white/85">{inv.client_name}</td>
+                <td className="py-2 pr-3 text-white/60">{inv.branch_name}</td>
+                <td className="py-2 pr-3 text-white/60">{inv.issue_date ?? "—"}</td>
+                <td className="py-2 pr-3 text-white/60">{inv.due_date ?? "—"}</td>
+                <td className="py-2 pr-3 text-right font-semibold text-white/90">
+                  {formatMoney(inv.total_pence)}
+                </td>
+                <td className="py-2 pr-3">
+                  <span className={`pill ${STATUS_PILL[ds]}`}>{STATUS_LABEL[ds]}</span>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -39,7 +86,6 @@ export default async function InvoicingPage() {
         </div>
         <div className="flex items-center gap-2">
           <Link href="/invoicing/schedules" className="btn-outline text-sm">Recurring</Link>
-          <Link href="/invoicing/clients" className="btn-outline text-sm">Private Clients</Link>
           <Link href="/invoicing/new" className="btn-primary text-sm">New invoice</Link>
         </div>
       </div>
@@ -60,52 +106,26 @@ export default async function InvoicingPage() {
             <a href="/api/invoicing/export" className="btn-ghost text-xs">Export CSV</a>
           ) : null}
         </div>
-        {invoices.length === 0 ? (
+        {active.length === 0 ? (
           <div className="px-2 py-10 text-center">
-            <p className="text-sm text-white/50">No invoices yet.</p>
+            <p className="text-sm text-white/50">
+              {paid.length > 0 ? "No open invoices. Paid invoices are in the folder below." : "No invoices yet."}
+            </p>
           </div>
         ) : (
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs uppercase tracking-wide text-white/45">
-                  <th className="py-2 pr-3">Number</th>
-                  <th className="py-2 pr-3">Client</th>
-                  <th className="py-2 pr-3">Branch</th>
-                  <th className="py-2 pr-3">Issued</th>
-                  <th className="py-2 pr-3">Due</th>
-                  <th className="py-2 pr-3 text-right">Total</th>
-                  <th className="py-2 pr-3">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {invoices.map((inv) => {
-                  const ds = displayStatus(inv.status, inv.due_date, today);
-                  return (
-                    <tr key={inv.id} className="border-t border-white/10">
-                      <td className="py-2 pr-3">
-                        <Link href={`/invoicing/${inv.id}`} className="text-gold-300 hover:underline">
-                          {inv.number ?? "Draft"}
-                        </Link>
-                      </td>
-                      <td className="py-2 pr-3 text-white/85">{inv.client_name}</td>
-                      <td className="py-2 pr-3 text-white/60">{inv.branch_name}</td>
-                      <td className="py-2 pr-3 text-white/60">{inv.issue_date ?? "—"}</td>
-                      <td className="py-2 pr-3 text-white/60">{inv.due_date ?? "—"}</td>
-                      <td className="py-2 pr-3 text-right font-semibold text-white/90">
-                        {formatMoney(inv.total_pence)}
-                      </td>
-                      <td className="py-2 pr-3">
-                        <span className={`pill ${STATUS_PILL[ds]}`}>{STATUS_LABEL[ds]}</span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <InvoiceTable rows={active} />
         )}
       </section>
+
+      {paid.length > 0 ? (
+        <details className="glass-card p-5">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+            <span className="text-sm font-semibold text-white/80">Paid ({paid.length})</span>
+            <span className="text-xs text-white/45">Click to open</span>
+          </summary>
+          <InvoiceTable rows={paid} />
+        </details>
+      ) : null}
     </div>
   );
 }
