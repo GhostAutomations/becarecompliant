@@ -67,7 +67,7 @@ export default function OutcomesEditor({
   function removeRow(i: number) {
     reset();
     dirty.current = true;
-    setRows((prev) => (prev.length === 1 ? [newRow()] : prev.filter((_, idx) => idx !== i)));
+    setRows((prev) => prev.filter((_, idx) => idx !== i));
   }
 
   const outcomesJson = JSON.stringify(
@@ -86,9 +86,14 @@ export default function OutcomesEditor({
       <input type="hidden" name="service_user_id" value={serviceUserId} />
       <input type="hidden" name="outcomes" value={outcomesJson} />
 
-      <div className="space-y-3">
+      <h2 className="text-sm font-semibold text-white/80">Outcomes</h2>
+
+      <div className="space-y-4">
+        {rows.length === 0 ? (
+          <p className="text-sm text-white/50">No outcomes yet. Add what matters to this person.</p>
+        ) : null}
         {rows.map((r, i) => (
-          <div key={i} className="glass-card space-y-3 p-4">
+          <div key={i} className="space-y-3 border-b border-white/10 pb-4 last:border-0 last:pb-0">
             <div className="flex items-start gap-2">
               <textarea
                 aria-label="Outcome"

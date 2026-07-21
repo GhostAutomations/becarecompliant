@@ -45,7 +45,7 @@ export default function OutcomesReviewPanel({
   const showSaved = saved && !pending;
 
   return (
-    <section className="glass-card space-y-4 p-5">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold text-white/80">Outcomes review</h2>
@@ -110,6 +110,6 @@ export default function OutcomesReviewPanel({
           ) : null}
         </div>
       ) : null}
-    </section>
+    </div>
   );
 }

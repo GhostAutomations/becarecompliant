@@ -34,17 +34,21 @@ export default async function ServiceUserOutcomesPage({ params }: { params: Prom
         What matters to this person, and how they are progressing. These feed the well-being outcomes in your PQS return.
       </p>
 
-      <OutcomesReviewPanel
-        serviceUserId={id}
-        rag={review.rag}
-        ragLabel={review.label}
-        dueIso={review.dueIso}
-        intervalMonths={reviewData.intervalMonths}
-        reviews={reviewData.reviews}
-        hasOutcomes={inScope > 0}
-      />
+      <section className="glass-card space-y-5 p-5">
+        <OutcomesReviewPanel
+          serviceUserId={id}
+          rag={review.rag}
+          ragLabel={review.label}
+          dueIso={review.dueIso}
+          intervalMonths={reviewData.intervalMonths}
+          reviews={reviewData.reviews}
+          hasOutcomes={inScope > 0}
+        />
 
-      <OutcomesEditor serviceUserId={id} initial={outcomes} />
+        <div className="border-t border-white/10" />
+
+        <OutcomesEditor serviceUserId={id} initial={outcomes} />
+      </section>
     </div>
   );
 }
