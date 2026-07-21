@@ -37,6 +37,7 @@ import { buildCsv, type CsvCell } from "@/lib/export/csv";
 import type { ReportDoc, ReportCell } from "@/lib/export/pdf";
 import { fmtDate, generatedAt } from "@/lib/export/format";
 import { getTrainingMatrix } from "@/lib/training/data";
+import { getSatisfaction } from "@/lib/service-users/satisfaction";
 
 export type OnTimeWindow = { from: string; to: string };
 
@@ -292,6 +293,10 @@ export async function buildOnTimeReport(input: {
   }
   const scwPct = scwDenom === 0 ? null : Math.round((scwNum / scwDenom) * 1000) / 10;
 
+  // Customer satisfaction: positive answers from the personal plan review feedback
+  // questions across reviews completed in the same window (branch scoped to match).
+  const satisfaction = await getSatisfaction(input.companyId, { from: win.from, to: win.to }, input.branchId);
+
   // Two of the PQS measures are on-time checks already in the table, so we just
   // star those rows. The other three are not checks, so they are appended as their
   // own starred rows. Everything sits in the one On time completion rates box.
@@ -320,6 +325,13 @@ export async function buildOnTimeReport(input: {
       rate: training.summary.safeguardingPct,
       band: bandPct(training.summary.safeguardingPct),
       star: "Safeguarding Q1: care workers completed mandatory safeguarding training.",
+    },
+    {
+      name: "Customer satisfaction",
+      gradedAt: "Plan reviews",
+      rate: satisfaction.pct,
+      band: bandPct(satisfaction.pct),
+      star: "User Experience: service users satisfied with call times and their care, from personal plan review feedback.",
     },
   ];
 
@@ -400,7 +412,7 @@ function renderOnTimeDoc(
       { label: "Generated at", value: generatedAt() },
     ],
     footerNote:
-      "A star marks a Cardiff PQS measure; on screen, hover the star for the exact question. PQS measures: Mandatory training (Quality Q1), Supervision (Quality Q2), Social Care Wales registration (Quality Q3), Care plan reviews (User Experience Q1), Safeguarding training (Safeguarding Q1). PQS score band: 100 percent is 10, 85 to 99.99 is 7, 70 to 84.99 is 5, 50 to 69.99 is 2, under 50 is 0. On time means completed on or before the due date (last completion plus the deadline shown in Graded at). The SCW rate counts only staff 6+ months in post. Active records only.",
+      "A star marks a Cardiff PQS measure; on screen, hover the star for the exact question. PQS measures: Mandatory training (Quality Q1), Supervision (Quality Q2), Social Care Wales registration (Quality Q3), Care plan reviews (User Experience Q1), Customer satisfaction (User Experience, from plan review feedback), Safeguarding training (Safeguarding Q1). PQS score band: 100 percent is 10, 85 to 99.99 is 7, 70 to 84.99 is 5, 50 to 69.99 is 2, under 50 is 0. On time means completed on or before the due date (last completion plus the deadline shown in Graded at). The SCW rate counts only staff 6+ months in post. Active records only.",
     blocks: [
       { kind: "heading", text: "On time completion rates" },
       {
