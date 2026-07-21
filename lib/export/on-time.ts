@@ -346,7 +346,7 @@ export async function buildOnTimeReport(input: {
     },
     {
       name: "Personal outcomes",
-      gradedAt: "Achieving/progressing",
+      gradedAt: "Achieved or progressing",
       rate: outcomesPct,
       band: bandPct(outcomesPct),
       star: "Supplier Performance Q2: percentage of service user personal outcomes achieved or progressing.",
