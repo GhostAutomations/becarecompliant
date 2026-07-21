@@ -146,7 +146,7 @@ export default function CarePlanEditor({
           {rows.map((r, i) => (
             <div key={i} className="contents">
               {i > 0 && r.day_of_week !== rows[i - 1].day_of_week ? (
-                <div className="col-span-full my-0.5 border-t border-dashed border-white/15" />
+                <div className="col-span-full my-0.5 border-t border-dashed border-gold-400/40" />
               ) : null}
               <select
                 aria-label="Day"
