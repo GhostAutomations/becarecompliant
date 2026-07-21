@@ -114,6 +114,18 @@ export default async function InvoicingSettingsPage() {
             </div>
 
             <div>
+              <label htmlFor="from_address" className="form-label">Address on invoices (optional)</label>
+              <textarea
+                id="from_address"
+                name="from_address"
+                rows={3}
+                defaultValue={config.from_address ?? ""}
+                placeholder={"Head office or a branch address\nStreet, Town\nPostcode"}
+              />
+              <p className="form-hint">Shown under your company name on invoices. Use your head office or a branch address.</p>
+            </div>
+
+            <div>
               <label htmlFor="company_number" className="form-label">Company number (optional)</label>
               <input
                 id="company_number"

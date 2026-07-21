@@ -112,7 +112,10 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
             // eslint-disable-next-line @next/next/no-img-element
             <img src={logo} alt={companyName} className="mb-2 ml-auto max-h-20 w-auto object-contain rounded bg-white/90 p-1" />
           ) : null}
-          <div className="flex justify-between"><span className="text-white/45">From</span><span>{companyName}</span></div>
+          <div className="text-right">
+            <p className="text-sm font-semibold text-white">{companyName}</p>
+            {config.from_address ? <p className="whitespace-pre-line text-xs text-white/55">{config.from_address}</p> : null}
+          </div>
           <div className="flex justify-between"><span className="text-white/45">Issued</span><span>{inv.issue_date ?? "—"}</span></div>
           <div className="flex justify-between"><span className="text-white/45">Due</span><span>{inv.due_date ?? "—"}</span></div>
           {inv.supply_period_start || inv.supply_period_end ? (

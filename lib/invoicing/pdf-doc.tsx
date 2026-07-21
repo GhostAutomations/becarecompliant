@@ -40,12 +40,14 @@ function fmtDate(iso: string | null): string {
 }
 
 const s = StyleSheet.create({
-  page: { paddingTop: 40, paddingBottom: 56, paddingHorizontal: 40, fontSize: 10, color: INK },
+  page: { paddingTop: 28, paddingBottom: 56, paddingHorizontal: 36, fontSize: 10, color: INK },
   topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 },
-  logo: { height: 76, maxWidth: 300, objectFit: "contain", marginBottom: 8 },
-  company: { fontSize: 15, fontWeight: 700, color: INK },
-  invoiceWord: { fontSize: 20, fontWeight: 700, color: HEAD, textAlign: "right" },
-  invoiceNo: { fontSize: 10, color: MUTED, textAlign: "right", marginTop: 2 },
+  logo: { height: 48, maxWidth: 180, objectFit: "contain" },
+  rightCol: { maxWidth: 260, alignItems: "flex-end" },
+  company: { fontSize: 16, fontWeight: 700, color: INK, textAlign: "right" },
+  fromAddress: { fontSize: 9, color: MUTED, textAlign: "right", lineHeight: 1.35, marginTop: 3 },
+  invoiceWord: { fontSize: 16, fontWeight: 700, color: HEAD, textAlign: "right", marginTop: 10 },
+  invoiceNo: { fontSize: 9.5, color: MUTED, textAlign: "right", marginTop: 2 },
   cols: { flexDirection: "row", justifyContent: "space-between", marginBottom: 16 },
   col: { width: "48%" },
   label: { fontSize: 8, color: MUTED, textTransform: "uppercase", marginBottom: 2 },
@@ -65,7 +67,7 @@ const s = StyleSheet.create({
   section: { marginTop: 16 },
   heading: { fontSize: 9, fontWeight: 700, color: HEAD, textTransform: "uppercase", marginBottom: 3 },
   para: { fontSize: 9.5, color: INK, lineHeight: 1.4 },
-  footer: { position: "absolute", bottom: 26, left: 40, right: 40, borderTopWidth: 0.5, borderTopColor: LINE, paddingTop: 6 },
+  footer: { position: "absolute", bottom: 26, left: 36, right: 36, borderTopWidth: 0.5, borderTopColor: LINE, paddingTop: 6 },
   footerText: { fontSize: 7.5, color: MUTED },
 });
 
@@ -89,9 +91,10 @@ function InvoiceDocument({
         <View style={s.topRow}>
           <View>
             {logo ? <Image src={logo} style={s.logo} /> : null}
-            <Text style={s.company}>{companyName}</Text>
           </View>
-          <View>
+          <View style={s.rightCol}>
+            <Text style={s.company}>{companyName}</Text>
+            {config.from_address ? <Text style={s.fromAddress}>{config.from_address}</Text> : null}
             <Text style={s.invoiceWord}>INVOICE</Text>
             <Text style={s.invoiceNo}>{inv.number ?? "Draft"}</Text>
             <Text style={s.invoiceNo}>{STATUS_LABEL[ds]}</Text>
