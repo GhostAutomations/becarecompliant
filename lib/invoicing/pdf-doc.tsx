@@ -42,7 +42,7 @@ function fmtDate(iso: string | null): string {
 const s = StyleSheet.create({
   page: { paddingTop: 40, paddingBottom: 56, paddingHorizontal: 40, fontSize: 10, color: INK },
   topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 },
-  logo: { height: 48, maxWidth: 200, objectFit: "contain", marginBottom: 6 },
+  logo: { height: 76, maxWidth: 300, objectFit: "contain", marginBottom: 8 },
   company: { fontSize: 15, fontWeight: 700, color: INK },
   invoiceWord: { fontSize: 20, fontWeight: 700, color: HEAD, textAlign: "right" },
   invoiceNo: { fontSize: 10, color: MUTED, textAlign: "right", marginTop: 2 },

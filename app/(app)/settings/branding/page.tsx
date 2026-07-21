@@ -26,7 +26,7 @@ export default async function BrandingSettingsPage() {
         <p className="form-hint mt-1">Shown at the top of every invoice and its PDF. PNG or JPG, under 2MB.</p>
         {logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={logoUrl} alt="Company logo" className="mt-3 max-h-16 w-auto object-contain rounded bg-white/90 p-2" />
+          <img src={logoUrl} alt="Company logo" className="mt-3 max-h-24 w-auto object-contain rounded bg-white/90 p-2" />
         ) : null}
         <div className="mt-4">
           <ActionForm action={saveCompanyLogo} label="Upload logo">
