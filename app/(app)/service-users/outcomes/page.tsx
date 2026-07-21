@@ -3,17 +3,21 @@ import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import OutcomesRegisterTable from "@/components/service-users/outcomes-register-table";
-import { getOutcomesRegister } from "@/lib/service-users/data";
+import { getOutcomesRegister, listAccessibleBranchTypes } from "@/lib/service-users/data";
 
 export const metadata: Metadata = { title: "Outcomes" };
 
 const ALLOWED = ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"];
 
 export default async function OutcomesPage() {
-  const { profile } = await requireCompany();
+  const { user, profile } = await requireCompany();
   if (!profile.company_id) redirect("/founder");
   if (!ALLOWED.includes(profile.role)) redirect("/service-users");
-  const reg = await getOutcomesRegister(profile.company_id);
+  const [reg, branchTypes] = await Promise.all([
+    getOutcomesRegister(profile.company_id),
+    listAccessibleBranchTypes(profile.company_id, profile.role, user.id),
+  ]);
+  const branches = branchTypes.map((b) => ({ id: b.id, name: b.name }));
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -25,7 +29,7 @@ export default async function OutcomesPage() {
         </p>
       </div>
 
-      <OutcomesRegisterTable rows={reg.rows} />
+      <OutcomesRegisterTable rows={reg.rows} branches={branches} />
     </div>
   );
 }

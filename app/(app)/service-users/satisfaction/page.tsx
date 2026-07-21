@@ -4,6 +4,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import SatisfactionRegisterTable from "@/components/service-users/satisfaction-register-table";
 import { getSatisfaction, SATISFACTION_QUESTIONS } from "@/lib/service-users/satisfaction";
+import { listAccessibleBranchTypes } from "@/lib/service-users/data";
 
 export const metadata: Metadata = { title: "Satisfaction" };
 
@@ -16,11 +17,15 @@ function fmtDate(iso: string | null): string {
 }
 
 export default async function SatisfactionPage() {
-  const { profile } = await requireCompany();
+  const { user, profile } = await requireCompany();
   if (!profile.company_id) redirect("/founder");
   if (!ALLOWED.includes(profile.role)) redirect("/service-users");
 
-  const sat = await getSatisfaction(profile.company_id);
+  const [sat, branchTypes] = await Promise.all([
+    getSatisfaction(profile.company_id),
+    listAccessibleBranchTypes(profile.company_id, profile.role, user.id),
+  ]);
+  const branches = branchTypes.map((b) => ({ id: b.id, name: b.name }));
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -37,7 +42,7 @@ export default async function SatisfactionPage() {
         section of each Individual Plan Review completed in this period.
       </p>
 
-      <SatisfactionRegisterTable rows={sat.rows} questions={SATISFACTION_QUESTIONS} />
+      <SatisfactionRegisterTable rows={sat.rows} questions={SATISFACTION_QUESTIONS} branches={branches} />
     </div>
   );
 }

@@ -18,17 +18,13 @@ function ans(v: "Yes" | "No" | null | undefined) {
 export default function SatisfactionRegisterTable({
   rows,
   questions,
+  branches,
 }: {
   rows: SatisfactionRow[];
   questions: { key: string; label: string }[];
+  branches: { id: string; name: string }[];
 }) {
   const withReviews = useMemo(() => rows.filter((r) => r.reviewsInWindow > 0), [rows]);
-  const branches = useMemo(() => {
-    const seen = new Map<string, string>();
-    for (const r of withReviews) if (r.branch_id) seen.set(r.branch_id, r.branch_name ?? "Branch");
-    return Array.from(seen, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
-  }, [withReviews]);
-
   const [branchId, setBranchId] = useState("");
   const shown = branchId ? withReviews.filter((r) => r.branch_id === branchId) : withReviews;
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { REVIEW_RAG_PILL } from "@/lib/service-users/outcome-consts";
 import type { OutcomesRegisterRow } from "@/lib/service-users/data";
@@ -11,13 +11,13 @@ function fmtDate(iso: string | null): string {
   return `${d}/${m}/${y}`;
 }
 
-export default function OutcomesRegisterTable({ rows }: { rows: OutcomesRegisterRow[] }) {
-  const branches = useMemo(() => {
-    const seen = new Map<string, string>();
-    for (const r of rows) if (r.branch_id) seen.set(r.branch_id, r.branch_name ?? "Branch");
-    return Array.from(seen, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
-  }, [rows]);
-
+export default function OutcomesRegisterTable({
+  rows,
+  branches,
+}: {
+  rows: OutcomesRegisterRow[];
+  branches: { id: string; name: string }[];
+}) {
   const [branchId, setBranchId] = useState("");
   const shown = branchId ? rows.filter((r) => r.branch_id === branchId) : rows;
 
