@@ -365,14 +365,14 @@ function renderOnTimeDoc(
   const scopeLabel = input.branchName ? input.branchName : "All branches";
   const period = `${fmtDate(win.from)} to ${fmtDate(win.to)}`;
 
-  // Each summary row, tagged with whether it has started (a rate could be worked out,
-  // i.e. there is data in the period) so started rows sit at the top of the table.
-  type SummaryEntry = { name: string; started: boolean; cells: ReportCell[] };
+  // Each summary row, tagged with its name and whether it is a starred PQS measure,
+  // so the PQS scored (starred) items group at the top of the table.
+  type SummaryEntry = { name: string; starred: boolean; cells: ReportCell[] };
   const checkEntries: SummaryEntry[] = stats.map((s) => {
     const star = pqsStars[s.checkKey];
     return {
       name: s.checkName,
-      started: s.ratePct !== null,
+      starred: Boolean(star),
       cells: [
         { text: s.checkName, strong: true, ...(star ? { star } : {}) },
         { text: popLabel(s.population) },
@@ -386,7 +386,7 @@ function renderOnTimeDoc(
   });
   const measureEntries: SummaryEntry[] = extraMeasures.map((m) => ({
     name: m.name,
-    started: m.rate !== null,
+    starred: true,
     cells: [
       { text: m.name, strong: true, star: m.star },
       { text: "People" },
@@ -399,14 +399,15 @@ function renderOnTimeDoc(
   }));
   const allEntries = [...checkEntries, ...measureEntries];
   const byName = (a: SummaryEntry, b: SummaryEntry) => a.name.localeCompare(b.name);
-  const startedEntries = allEntries.filter((e) => e.started).sort(byName);
-  const notStartedEntries = allEntries.filter((e) => !e.started).sort(byName);
+  const starred = allEntries.filter((e) => e.starred).sort(byName);
+  const others = allEntries.filter((e) => !e.starred).sort(byName);
   const dividerRow: ReportCell[] = [{ text: "", divider: true }];
-  // Started items (alphabetical) at the top, a dashed line, then the rest (alphabetical).
+  // Starred PQS measures (alphabetical) at the top, a dashed line, then the other
+  // checks (alphabetical).
   const summaryRows: ReportCell[][] = [
-    ...startedEntries.map((e) => e.cells),
-    ...(startedEntries.length > 0 && notStartedEntries.length > 0 ? [dividerRow] : []),
-    ...notStartedEntries.map((e) => e.cells),
+    ...starred.map((e) => e.cells),
+    ...(starred.length > 0 && others.length > 0 ? [dividerRow] : []),
+    ...others.map((e) => e.cells),
   ];
 
   // Breakdown: the cycles that were NOT on time first (the ones to action), then all.
