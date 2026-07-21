@@ -23,6 +23,7 @@ export default function CarePlanEditor({
   action,
   mode = "edit",
   today,
+  onSaved,
 }: {
   serviceUserId: string;
   initial: CarePlanEntry[];
@@ -32,6 +33,8 @@ export default function CarePlanEditor({
   mode?: "edit" | "update";
   /** Default effective date for update mode (today, YYYY-MM-DD). */
   today?: string;
+  /** Called after a successful save (used to collapse the editor). */
+  onSaved?: () => void;
 }) {
   const [state, formAction, pending] = useActionState(action, IDLE_STATE);
   const [saved, flash, reset] = useSavedFlash();
@@ -49,8 +52,11 @@ export default function CarePlanEditor({
   const [copyPrompt, setCopyPrompt] = useState<{ source: number; target: number } | null>(null);
 
   useEffect(() => {
-    if (state.ok && !pending) flash();
-  }, [state, pending, flash]);
+    if (state.ok && !pending) {
+      flash();
+      onSaved?.();
+    }
+  }, [state, pending, flash, onSaved]);
   const showSaved = saved && !pending;
 
   function newRow(): Row {
