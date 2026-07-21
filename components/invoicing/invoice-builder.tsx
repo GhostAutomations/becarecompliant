@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { IDLE_STATE, type ActionState } from "@/lib/forms";
+import { useSavedFlash } from "@/lib/use-saved-flash";
 import { formatMoney } from "@/lib/invoicing/types";
 import { carePlanLinesForPeriod } from "@/lib/invoicing/invoice-actions";
 import { CARE_PLAN_UNITS, HANDED_OPTIONS, unitPricePence, lineAmountPence } from "@/lib/service-users/care-plan-consts";
@@ -59,6 +60,7 @@ export default function InvoiceBuilder({
 }) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState(action, IDLE_STATE);
+  const [saved, flashSaved] = useSavedFlash();
   const [clientId, setClientId] = useState<string>(initial?.service_user_id ?? "");
   const [repeat, setRepeat] = useState(false);
   const [periodFrom, setPeriodFrom] = useState<string>(initial?.supply_period_start ?? "");
@@ -79,7 +81,8 @@ export default function InvoiceBuilder({
 
   useEffect(() => {
     if (state.redirectTo) router.replace(state.redirectTo);
-  }, [state, router]);
+    else if (state.ok) flashSaved();
+  }, [state, router, flashSaved]);
 
   const rateFor = (label: string): ServiceRate | undefined => services.find((s) => s.label === label);
 
@@ -376,10 +379,9 @@ export default function InvoiceBuilder({
       ) : null}
 
       <div className="flex items-center gap-3">
-        <button type="submit" disabled={pending} className="btn-primary text-sm">
-          {pending ? "Saving…" : mode === "create" ? "Save draft" : "Save changes"}
+        <button type="submit" disabled={pending} className={`${saved ? "btn-saved" : "btn-primary"} text-sm`}>
+          {pending ? "Saving…" : saved ? "Saved" : mode === "create" ? "Save draft" : "Save changes"}
         </button>
-        {state.ok ? <span className="text-xs text-emerald-300">{state.ok}</span> : null}
         {state.error ? <span className="text-xs text-red-300">{state.error}</span> : null}
       </div>
     </form>

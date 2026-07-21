@@ -61,7 +61,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
               <ActionForm action={sendInvoice} hidden={{ invoice_id: inv.id }} label="Send" buttonClassName="btn-primary text-xs" confirm="Send this invoice? It will be given its invoice number." className="" />
             </>
           ) : null}
-          <ActionForm action={deleteInvoice} hidden={{ invoice_id: inv.id }} label="Delete" buttonClassName="btn-ghost text-xs" confirm="Delete this invoice and all record of it? This cannot be undone." className="" />
+          <ActionForm action={deleteInvoice} hidden={{ invoice_id: inv.id }} label="Delete" buttonClassName="btn-outline text-xs" confirm="Delete this invoice and all record of it? This cannot be undone." className="" />
         </div>
       </div>
 
