@@ -481,6 +481,20 @@ export async function sendInvoice(_prev: ActionState, formData: FormData): Promi
   return { ok: emailNote ? `Sent. ${emailNote}` : "Sent" };
 }
 
+/** Re-send the invoice email to the client (gold Resend button on a sent invoice).
+ *  Uses the exact same company-branded email as the first send. */
+export async function resendInvoiceEmail(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { profile } = await requireCompany();
+  const err = await guard(profile.company_id, profile.role);
+  if (err) return { error: err };
+  const id = trimOrNull(formData.get("invoice_id"));
+  if (!id) return { error: "Missing invoice." };
+  const note = await emailInvoiceOnSend(id, profile);
+  if (note === null) return { error: "Invoice not found." };
+  revalidatePath(`/invoicing/${id}`);
+  return { ok: note };
+}
+
 /** Attach the branded invoice PDF and email it to the bill-to address. Returns a
  *  short note for the UI when something needs surfacing (emailed, not emailed, or
  *  the email dependency is missing), or null when there is nothing to add. */

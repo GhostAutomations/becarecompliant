@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { requireInvoicing } from "@/lib/invoicing/guard";
 import { getInvoice, getInvoicingConfig, getCompanyName, londonToday } from "@/lib/invoicing/data";
 import { getCompanyLogoDataUrl } from "@/lib/invoicing/logo";
-import { sendInvoice, markInvoicePaid, deleteInvoice } from "@/lib/invoicing/invoice-actions";
+import { sendInvoice, markInvoicePaid, deleteInvoice, resendInvoiceEmail } from "@/lib/invoicing/invoice-actions";
 import { formatMoney, displayStatus, STATUS_PILL, STATUS_LABEL } from "@/lib/invoicing/types";
 import ActionForm from "@/components/action-form";
 import BackLink from "@/components/back-link";
@@ -52,6 +52,16 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
           <p className="page-subtitle">{inv.client_name}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {inv.status !== "draft" && inv.delivery_method === "email" ? (
+            <ActionForm
+              action={resendInvoiceEmail}
+              hidden={{ invoice_id: inv.id }}
+              label="Resend"
+              buttonClassName="btn-primary text-xs"
+              confirm="Resend this invoice to the client by email?"
+              className=""
+            />
+          ) : null}
           <a href={`/api/invoicing/${inv.id}/pdf`} target="_blank" rel="noopener" className="btn-outline text-xs">
             Download PDF
           </a>
