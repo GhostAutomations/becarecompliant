@@ -12,6 +12,7 @@ import {
 } from "@/components/founder/user-admin-controls";
 import { EnterManageAsButton } from "@/components/founder/enter-manage-as-button";
 import { ImportTemplatesButton } from "@/components/founder/import-templates-button";
+import SupervisionCycleToggle from "@/components/founder/supervision-cycle-toggle";
 import { computeSeatUsage, includedSeatsForTier, formatPence } from "@/lib/billing/seats";
 import { TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
 import {
@@ -58,7 +59,7 @@ export default async function FounderCompanyPage({
 
   const { data: company } = await supabase
     .from("companies")
-    .select("id, name, slug, tier, status, created_at")
+    .select("id, name, slug, tier, status, created_at, supervision_cycle_mode")
     .eq("id", id)
     .maybeSingle();
 
@@ -290,6 +291,18 @@ export default async function FounderCompanyPage({
             </table>
           </div>
         )}
+      </section>
+
+      <section aria-label="Company settings" className="glass-card p-5">
+        <h2 className="mb-1 text-sm font-semibold text-white/80">Supervision cycle</h2>
+        <p className="mb-3 text-sm text-white/60">
+          How this company runs the People supervision cycle. Changing it updates the
+          matrix columns and how the next supervision is scheduled.
+        </p>
+        <SupervisionCycleToggle
+          companyId={company.id}
+          mode={(company.supervision_cycle_mode as "appraisal" | "four_supervisions") ?? "appraisal"}
+        />
       </section>
 
       <section aria-label="Templates" className="glass-card p-5">

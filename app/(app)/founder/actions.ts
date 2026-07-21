@@ -227,6 +227,39 @@ export async function founderImportTemplates(
   return { ok: importSummary(result) };
 }
 
+/** Founder: set a company's People supervision cycle mode (Annual Appraisal cycle,
+ *  or four supervisions with no appraisal). */
+export async function setSupervisionCycleMode(formData: FormData): Promise<ActionState> {
+  const { user, profile } = await requirePlatformAdmin();
+  const companyId = String(formData.get("company_id") ?? "").trim();
+  const mode = String(formData.get("mode") ?? "").trim();
+  if (!companyId) return { error: "Missing company." };
+  if (mode !== "appraisal" && mode !== "four_supervisions") return { error: "Invalid cycle mode." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("companies")
+    .update({ supervision_cycle_mode: mode })
+    .eq("id", companyId);
+  if (error) return { error: error.message };
+
+  await writeAudit({
+    companyId,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: "platform_admin",
+    action: "company.supervision_cycle_mode_set",
+    entityType: "company",
+    entityId: companyId,
+    summary: `Set supervision cycle mode to ${mode === "appraisal" ? "Supervision 1-3 + Annual Appraisal" : "4 Supervisions"}`,
+    metadata: { mode },
+  });
+
+  revalidatePath(`/founder/companies/${companyId}`);
+  revalidatePath("/people");
+  return { ok: "Saved" };
+}
+
 /** Suspend, archive or reactivate a company. */
 export async function setCompanyStatus(
   _prev: ActionState,
