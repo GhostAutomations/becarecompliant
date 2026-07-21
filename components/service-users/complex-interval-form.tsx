@@ -42,7 +42,7 @@ export default function ComplexIntervalForm({ days }: { days: number }) {
         type="button"
         onClick={save}
         disabled={pending}
-        className={`btn ${saved ? "btn-saved" : "btn-outline"} text-xs`}
+        className={`btn ${saved ? "btn-saved" : "btn-primary"} text-xs`}
       >
         {pending ? "Saving…" : saved ? "Saved" : "Save"}
       </button>

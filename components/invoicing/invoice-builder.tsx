@@ -97,6 +97,19 @@ export default function InvoiceBuilder({
   function updateRow(i: number, patch: Partial<Row>) {
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   }
+  /** Changing service to one with a fixed rate auto-selects the Fixed unit. */
+  function onServiceChange(i: number, value: string) {
+    const rate = rateFor(value);
+    setRows((prev) =>
+      prev.map((r, idx) => {
+        if (idx !== i) return r;
+        const next = { ...r, service: value };
+        if (rate && rate.fixed_pence > 0) next.unit = "Fixed";
+        else if (next.unit === "Fixed") next.unit = "1hr";
+        return next;
+      }),
+    );
+  }
   function addRow() {
     setRows((prev) => [...prev, { service: services[0]?.label ?? "Care", unit: "1hr", handed: "single", quantity: "1" }]);
   }
@@ -213,7 +226,7 @@ export default function InvoiceBuilder({
               <select
                 aria-label="Service"
                 value={r.service}
-                onChange={(e) => updateRow(i, { service: e.target.value })}
+                onChange={(e) => onServiceChange(i, e.target.value)}
                 className="ctl-sm text-center"
               >
                 {services.map((s) => (

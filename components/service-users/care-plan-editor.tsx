@@ -14,12 +14,16 @@ import {
 
 type Row = { day_of_week: number; service: string; unit: string; handed: string; quantity: string };
 
+const DEFAULT_UNIT = "15m";
+
 export default function CarePlanEditor({
   serviceUserId,
   initial,
+  servicesWithFixed,
 }: {
   serviceUserId: string;
   initial: CarePlanEntry[];
+  servicesWithFixed: string[];
 }) {
   const [state, formAction, pending] = useActionState(saveCarePlan, IDLE_STATE);
   const [saved, flash, reset] = useSavedFlash();
@@ -32,25 +36,69 @@ export default function CarePlanEditor({
           handed: e.handed || "single",
           quantity: String(e.quantity),
         }))
-      : [{ day_of_week: 0, service: "Care", unit: "1hr", handed: "single", quantity: "1" }],
+      : [{ day_of_week: 0, service: "Care", unit: DEFAULT_UNIT, handed: "single", quantity: "1" }],
   );
+  const [copyFrom, setCopyFrom] = useState(0);
+  const [copyTo, setCopyTo] = useState(1);
 
   useEffect(() => {
     if (state.ok && !pending) flash();
   }, [state, pending, flash]);
   const showSaved = saved && !pending;
 
+  function newRow(): Row {
+    return { day_of_week: 0, service: "Care", unit: DEFAULT_UNIT, handed: "single", quantity: "1" };
+  }
+
   function update(i: number, patch: Partial<Row>) {
     reset();
-    setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+    setRows((prev) =>
+      prev.map((r, idx) => {
+        if (idx !== i) return r;
+        const next = { ...r, ...patch };
+        // When the service is changed to one that has a fixed rate, default its
+        // unit to Fixed; when moving off a fixed-rate service, leave a duration.
+        if (patch.service !== undefined) {
+          if (servicesWithFixed.includes(patch.service)) next.unit = "Fixed";
+          else if (next.unit === "Fixed") next.unit = DEFAULT_UNIT;
+        }
+        return next;
+      }),
+    );
   }
   function addRow() {
     reset();
-    setRows((prev) => [...prev, { day_of_week: 0, service: "Care", unit: "1hr", handed: "single", quantity: "1" }]);
+    setRows((prev) => [...prev, newRow()]);
   }
   function removeRow(i: number) {
     reset();
-    setRows((prev) => prev.filter((_, idx) => idx !== i));
+    // Keep at least one row so a save can never silently wipe the plan.
+    setRows((prev) => (prev.length === 1 ? [newRow()] : prev.filter((_, idx) => idx !== i)));
+  }
+
+  function copyDay(from: number, to: number) {
+    if (from === to) return;
+    reset();
+    setRows((prev) => {
+      const source = prev.filter((r) => r.day_of_week === from);
+      if (source.length === 0) return prev;
+      const kept = prev.filter((r) => r.day_of_week !== to);
+      const copied = source.map((r) => ({ ...r, day_of_week: to }));
+      return [...kept, ...copied];
+    });
+  }
+  function copyToRestOfWeek(from: number) {
+    reset();
+    setRows((prev) => {
+      const source = prev.filter((r) => r.day_of_week === from);
+      if (source.length === 0) return prev;
+      const result: Row[] = [...source];
+      for (let d = 0; d < 7; d++) {
+        if (d === from) continue;
+        source.forEach((r) => result.push({ ...r, day_of_week: d }));
+      }
+      return result;
+    });
   }
 
   const entriesJson = JSON.stringify(
@@ -67,6 +115,32 @@ export default function CarePlanEditor({
     <form action={formAction} className="space-y-4">
       <input type="hidden" name="service_user_id" value={serviceUserId} />
       <input type="hidden" name="entries" value={entriesJson} />
+
+      {/* Copy a day */}
+      <div className="glass-card flex flex-wrap items-end gap-3 p-4">
+        <div>
+          <label className="form-label">Copy</label>
+          <select value={copyFrom} onChange={(e) => setCopyFrom(Number(e.target.value))} className="ctl-sm">
+            {CARE_PLAN_DAYS.map((d, idx) => (
+              <option key={d} value={idx}>{d}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="form-label">to</label>
+          <select value={copyTo} onChange={(e) => setCopyTo(Number(e.target.value))} className="ctl-sm">
+            {CARE_PLAN_DAYS.map((d, idx) => (
+              <option key={d} value={idx}>{d}</option>
+            ))}
+          </select>
+        </div>
+        <button type="button" onClick={() => copyDay(copyFrom, copyTo)} className="btn-outline text-xs">
+          Copy day
+        </button>
+        <button type="button" onClick={() => copyToRestOfWeek(copyFrom)} className="btn-outline text-xs">
+          Copy {CARE_PLAN_DAYS[copyFrom]} to the rest of the week
+        </button>
+      </div>
 
       <div className="glass-card p-5">
         <div className="grid grid-cols-[1fr_1fr_1fr_1.2fr_0.8fr_1.5rem] items-center gap-2 text-center">
@@ -145,7 +219,7 @@ export default function CarePlanEditor({
       </div>
 
       <div className="flex items-center gap-3">
-        <button type="submit" disabled={pending} className={showSaved ? "btn-saved" : "btn-primary"}>
+        <button type="submit" disabled={pending} className={`btn ${showSaved ? "btn-saved" : "btn-primary"}`}>
           {pending ? "Saving…" : showSaved ? "Saved" : "Save care plan"}
         </button>
         {state.error ? <span className="text-xs text-red-300">{state.error}</span> : null}
