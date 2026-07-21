@@ -537,6 +537,7 @@ async function emailInvoiceOnSend(
       invoiceNumber: inv.number ?? "Invoice",
       dueDateIso: inv.due_date,
       logoCid,
+      replyable: Boolean(config.reply_to_email),
     });
 
     const result = await sendEmail({
@@ -544,6 +545,8 @@ async function emailInvoiceOnSend(
       subject: `${companyName} invoice ${inv.number}`,
       html,
       attachments,
+      // Client replies go to the company's own inbox, not the no-reply sender.
+      ...(config.reply_to_email ? { replyTo: config.reply_to_email } : {}),
     });
 
     if (result.sent) {

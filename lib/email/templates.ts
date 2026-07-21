@@ -412,9 +412,14 @@ export function companyInvoiceEmailHtml(opts: {
   dueDateIso?: string | null;
   /** content-id of the inline logo attachment, or null to show the name only. */
   logoCid?: string | null;
+  /** True when a reply-to inbox is configured, so "reply to this email" is honest. */
+  replyable?: boolean;
 }): string {
   const due = opts.dueDateIso ? ` It is due by ${escapeHtml(formatDateUk(opts.dueDateIso))}.` : "";
   const name = escapeHtml(opts.companyName);
+  const closing = opts.replyable
+    ? "The invoice is attached as a PDF. If you have any questions, please reply to this email."
+    : "The invoice is attached as a PDF.";
   const header = opts.logoCid
     ? `<img src="cid:${escapeHtml(opts.logoCid)}" alt="${name}" style="max-height:56px;max-width:220px;margin:0 0 6px 0;" />`
     : `<div style="font-size:18px;font-weight:700;color:#0d1d4b;">${name}</div>`;
@@ -435,7 +440,7 @@ export function companyInvoiceEmailHtml(opts: {
         <h1 style="margin:10px 0 8px 0;font-size:20px;line-height:1.3;color:#0d1d4b;font-weight:700;">Invoice ${escapeHtml(opts.invoiceNumber)}</h1>
         <div style="font-size:14px;line-height:1.6;color:#243459;">
           <p style="margin:0 0 12px 0;">Please find attached invoice <strong>${escapeHtml(opts.invoiceNumber)}</strong> from <strong>${name}</strong>.${due}</p>
-          <p style="margin:0;">The invoice is attached as a PDF. If you have any questions, please reply to this email.</p>
+          <p style="margin:0;">${closing}</p>
         </div>
       </td></tr>
       <tr><td style="padding:20px 32px 28px 32px;">

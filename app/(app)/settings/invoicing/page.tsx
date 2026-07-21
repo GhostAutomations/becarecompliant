@@ -147,6 +147,18 @@ export default async function InvoicingSettingsPage() {
             </div>
 
             <div>
+              <label htmlFor="reply_to_email" className="form-label">Reply to email (optional)</label>
+              <input
+                id="reply_to_email"
+                name="reply_to_email"
+                type="email"
+                defaultValue={config.reply_to_email ?? ""}
+                placeholder="e.g. accounts@yourcompany.co.uk"
+              />
+              <p className="form-hint">Invoice emails are sent by Be Care Compliant, but when a client hits Reply it goes to this address, your own inbox. Without it, replies go to an unmonitored address.</p>
+            </div>
+
+            <div>
               <label htmlFor="invoice_footer" className="form-label">Invoice footer (optional)</label>
               <textarea
                 id="invoice_footer"

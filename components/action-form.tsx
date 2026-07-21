@@ -25,6 +25,7 @@ export default function ActionForm({
   children,
   label = "Save",
   savingLabel = "Saving…",
+  savedLabel = "Saved",
   buttonClassName = "btn-primary text-xs",
   className = "space-y-2",
   inline = false,
@@ -35,6 +36,9 @@ export default function ActionForm({
   children?: ReactNode;
   label?: string;
   savingLabel?: string;
+  /** Word shown during the brief success flash. Defaults to "Saved"; use "Sent",
+   *  "Paid" etc. for non-save actions so the flash reads correctly. */
+  savedLabel?: string;
   buttonClassName?: string;
   className?: string;
   /** Lay children and the button out on one row (select + Save). */
@@ -56,7 +60,7 @@ export default function ActionForm({
   }, [state, pending]);
 
   const showSaved = saved && !pending;
-  const btnLabel = pending ? savingLabel : showSaved ? "Saved" : label;
+  const btnLabel = pending ? savingLabel : showSaved ? savedLabel : label;
 
   return (
     <form

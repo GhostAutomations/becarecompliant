@@ -61,6 +61,10 @@ export async function saveInvoicingConfig(_prev: ActionState, formData: FormData
   const payment_details = trimOrNull(formData.get("payment_details"));
   const invoice_footer = trimOrNull(formData.get("invoice_footer"));
   const company_number = trimOrNull(formData.get("company_number"));
+  const reply_to_email = trimOrNull(formData.get("reply_to_email"));
+  if (reply_to_email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(reply_to_email)) {
+    return { error: "Enter a valid reply to email address, or leave it blank." };
+  }
   const overdue_reminders_enabled = formData.get("overdue_reminders_enabled") === "on";
 
   const supabase = await createClient();
@@ -86,6 +90,7 @@ export async function saveInvoicingConfig(_prev: ActionState, formData: FormData
       payment_details,
       invoice_footer,
       company_number,
+      reply_to_email,
       overdue_reminders_enabled,
       updated_by: user.id,
       updated_at: new Date().toISOString(),
