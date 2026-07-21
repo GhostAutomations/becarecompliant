@@ -14,12 +14,14 @@ import { CARE_PLAN_DAYS, type CarePlanEntry } from "@/lib/service-users/care-pla
  */
 export default function CarePlanManager({
   serviceUserId,
+  serviceUserName,
   initial,
   servicesWithFixed,
   today,
   hasPlan,
 }: {
   serviceUserId: string;
+  serviceUserName: string;
   initial: CarePlanEntry[];
   servicesWithFixed: string[];
   today: string;
@@ -29,13 +31,17 @@ export default function CarePlanManager({
 
   return (
     <div className="space-y-3">
-      {hasPlan && !updating ? (
-        <div className="flex justify-end">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="page-title">Care plan</h1>
+          <p className="page-subtitle">{serviceUserName}</p>
+        </div>
+        {hasPlan && !updating ? (
           <button type="button" onClick={() => setUpdating(true)} className="btn-outline text-sm">
             Update care plan
           </button>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
 
       <details className="glass-card p-5" open={!hasPlan}>
         <summary className="flex cursor-pointer list-none items-center justify-between gap-2">

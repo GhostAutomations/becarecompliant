@@ -35,13 +35,10 @@ export default async function CarePlanPage({ params }: { params: Promise<{ id: s
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <BackLink href={`/service-users/${id}`} label="Back to record" />
-      <div>
-        <h1 className="page-title">Care plan</h1>
-        <p className="page-subtitle">{su.full_name}</p>
-      </div>
 
       <CarePlanManager
         serviceUserId={id}
+        serviceUserName={su.full_name}
         initial={entries}
         servicesWithFixed={servicesWithFixed}
         today={londonToday()}
