@@ -76,6 +76,17 @@ export async function getComplexReviewInterval(companyId: string): Promise<numbe
   return (data?.complex_review_interval_days as number | null) ?? 80;
 }
 
+/** The company outcomes review cadence in months (default 3). */
+export async function getOutcomesReviewMonths(companyId: string): Promise<number> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("companies")
+    .select("outcomes_review_months")
+    .eq("id", companyId)
+    .maybeSingle();
+  return Number((data?.outcomes_review_months as number | null) ?? 3);
+}
+
 export type BranchType = { id: string; name: string; service_user_type: "simple" | "complex" };
 
 /** Active branches (not the office/team) with their Service User type, for the
@@ -255,6 +266,9 @@ export type OutcomesRegisterRow = {
   total: number; // outcomes in scope (excludes "no longer relevant")
   achievingOrProgressing: number;
   pct: number | null; // % achieving or progressing, or null when no in-scope outcomes
+  reviewRag: import("./outcome-consts").ReviewRag;
+  reviewLabel: string;
+  reviewDue: string | null;
 };
 
 export type OutcomesRegister = {
@@ -262,12 +276,15 @@ export type OutcomesRegister = {
   totalInScope: number;
   totalAchievingOrProgressing: number;
   pqsPct: number | null;
+  reviewsOverdue: number;
 };
 
 /** Company-wide personal outcomes rollup for the register and the PQS headline %. */
 export async function getOutcomesRegister(companyId: string): Promise<OutcomesRegister> {
+  const { outcomesReviewRag } = await import("./outcome-consts");
   const supabase = await createClient();
-  const [{ data: sus }, { data: outcomes }] = await Promise.all([
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
+  const [{ data: sus }, { data: outcomes }, { data: reviews }, { data: company }] = await Promise.all([
     supabase
       .from("service_users")
       .select("id, full_name, branch_id, branches(name)")
@@ -278,7 +295,14 @@ export async function getOutcomesRegister(companyId: string): Promise<OutcomesRe
       .from("service_user_outcomes")
       .select("service_user_id, status")
       .eq("company_id", companyId),
+    supabase
+      .from("outcomes_reviews")
+      .select("service_user_id, reviewed_at")
+      .eq("company_id", companyId),
+    supabase.from("companies").select("outcomes_review_months").eq("id", companyId).maybeSingle(),
   ]);
+
+  const intervalMonths = Number((company?.outcomes_review_months as number | undefined) ?? 3);
 
   const byId = new Map<string, { inScope: number; ap: number }>();
   for (const o of (outcomes as Array<{ service_user_id: string; status: string }> | null) ?? []) {
@@ -289,8 +313,15 @@ export async function getOutcomesRegister(companyId: string): Promise<OutcomesRe
     byId.set(o.service_user_id, rec);
   }
 
+  const latestReview = new Map<string, string>();
+  for (const r of (reviews as Array<{ service_user_id: string; reviewed_at: string }> | null) ?? []) {
+    const cur = latestReview.get(r.service_user_id);
+    if (!cur || r.reviewed_at > cur) latestReview.set(r.service_user_id, r.reviewed_at);
+  }
+
   let totalInScope = 0;
   let totalAP = 0;
+  let reviewsOverdue = 0;
   const rows: OutcomesRegisterRow[] = ((sus as Array<{
     id: string;
     full_name: string;
@@ -300,6 +331,8 @@ export async function getOutcomesRegister(companyId: string): Promise<OutcomesRe
     const rec = byId.get(s.id) ?? { inScope: 0, ap: 0 };
     totalInScope += rec.inScope;
     totalAP += rec.ap;
+    const review = outcomesReviewRag(latestReview.get(s.id) ?? null, intervalMonths, today, rec.inScope > 0);
+    if (review.rag === "red") reviewsOverdue += 1;
     return {
       id: s.id,
       full_name: s.full_name,
@@ -307,6 +340,9 @@ export async function getOutcomesRegister(companyId: string): Promise<OutcomesRe
       total: rec.inScope,
       achievingOrProgressing: rec.ap,
       pct: rec.inScope > 0 ? Math.round((rec.ap / rec.inScope) * 100) : null,
+      reviewRag: review.rag,
+      reviewLabel: review.label,
+      reviewDue: review.dueIso,
     };
   });
 
@@ -315,6 +351,29 @@ export async function getOutcomesRegister(companyId: string): Promise<OutcomesRe
     totalInScope,
     totalAchievingOrProgressing: totalAP,
     pqsPct: totalInScope > 0 ? Math.round((totalAP / totalInScope) * 100) : null,
+    reviewsOverdue,
+  };
+}
+
+/** Latest outcomes review + the history, for the per-service-user page. */
+export async function getOutcomesReviewData(
+  serviceUserId: string,
+  companyId: string,
+): Promise<{ intervalMonths: number; latest: string | null; reviews: Array<{ id: string; reviewed_at: string; reviewer_name: string | null; note: string | null }> }> {
+  const supabase = await createClient();
+  const [{ data: reviews }, { data: company }] = await Promise.all([
+    supabase
+      .from("outcomes_reviews")
+      .select("id, reviewed_at, reviewer_name, note")
+      .eq("service_user_id", serviceUserId)
+      .order("reviewed_at", { ascending: false }),
+    supabase.from("companies").select("outcomes_review_months").eq("id", companyId).maybeSingle(),
+  ]);
+  const list = (reviews as Array<{ id: string; reviewed_at: string; reviewer_name: string | null; note: string | null }> | null) ?? [];
+  return {
+    intervalMonths: Number((company?.outcomes_review_months as number | undefined) ?? 3),
+    latest: list[0]?.reviewed_at ?? null,
+    reviews: list,
   };
 }
 

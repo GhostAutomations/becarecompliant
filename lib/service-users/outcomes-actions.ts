@@ -93,3 +93,100 @@ export async function saveOutcomes(_prev: ActionState, formData: FormData): Prom
   revalidatePath(`/service-users/${serviceUserId}`);
   return { ok: "Saved" };
 }
+
+function londonToday(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
+}
+
+/** Save the company outcomes review cadence (months). Admin-only; applies to the
+ *  review RAG next-due date across all service users. */
+export async function updateOutcomesReviewMonths(formData: FormData): Promise<ActionState> {
+  const { profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+  const months = Number.parseInt(String(formData.get("months") ?? "").trim(), 10);
+  if (!Number.isInteger(months) || months < 1 || months > 24) {
+    return { error: "Enter a number of months between 1 and 24." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("companies")
+    .update({ outcomes_review_months: months })
+    .eq("id", profile.company_id);
+  if (error) return { error: error.message };
+
+  await writeAudit({
+    companyId: profile.company_id,
+    actorId: profile.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "company.outcomes_review_months_updated",
+    entityType: "company",
+    entityId: profile.company_id,
+    summary: `Set outcomes review cadence to ${months} month(s)`,
+    metadata: { months },
+  });
+
+  revalidatePath("/settings/service-users");
+  revalidatePath("/service-users/outcomes");
+  return { ok: "Saved" };
+}
+
+/** Record an outcomes review: stores an immutable evidence snapshot of the current
+ *  outcomes, stamps them all as reviewed today, and resets the review RAG. */
+export async function recordOutcomesReview(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+  const serviceUserId = String(formData.get("service_user_id") ?? "").trim();
+  if (!serviceUserId) return { error: "Missing service user." };
+  const note = (String(formData.get("note") ?? "").trim().slice(0, 2000)) || null;
+
+  const supabase = await createClient();
+  const { data: su } = await supabase
+    .from("service_users")
+    .select("company_id")
+    .eq("id", serviceUserId)
+    .maybeSingle();
+  if (!su) return { error: "Service user not found." };
+
+  const { data: outcomes } = await supabase
+    .from("service_user_outcomes")
+    .select("statement, status, review_note, position")
+    .eq("service_user_id", serviceUserId)
+    .order("position", { ascending: true });
+  if (!outcomes || outcomes.length === 0) {
+    return { error: "Add at least one personal outcome before recording a review." };
+  }
+
+  const today = londonToday();
+  const { error: revErr } = await supabase.from("outcomes_reviews").insert({
+    company_id: su.company_id,
+    service_user_id: serviceUserId,
+    reviewed_at: today,
+    reviewed_by: profile.id,
+    reviewer_name: profile.full_name || profile.email,
+    note,
+    snapshot: outcomes,
+  });
+  if (revErr) return { error: "Could not record the review. Please try again." };
+
+  // Mark every outcome as reviewed today so the review RAG resets.
+  await supabase
+    .from("service_user_outcomes")
+    .update({ last_reviewed: today, updated_by: profile.id, updated_at: new Date().toISOString() })
+    .eq("service_user_id", serviceUserId);
+
+  await writeAudit({
+    companyId: su.company_id as string,
+    actorId: profile.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "service_user.outcomes_reviewed",
+    entityType: "service_user",
+    entityId: serviceUserId,
+    summary: "Recorded an outcomes review",
+  });
+  revalidatePath(`/service-users/${serviceUserId}/outcomes`);
+  revalidatePath("/service-users/outcomes");
+  return { ok: "Review recorded" };
+}

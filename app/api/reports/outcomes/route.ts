@@ -12,24 +12,29 @@ export async function GET(_req: NextRequest) {
   if (!ALLOWED.includes(profile.role)) return new Response("Forbidden", { status: 403 });
 
   const reg = await getOutcomesRegister(profile.company_id);
+  const fmt = (iso: string | null) => (iso ? iso.split("-").reverse().join("/") : "");
   const rows = reg.rows.map((r) => [
     r.full_name,
     r.branch_name ?? "",
     String(r.total),
     String(r.achievingOrProgressing),
     r.pct === null ? "" : `${r.pct}%`,
+    r.reviewRag === "none" ? "" : r.reviewLabel,
+    fmt(r.reviewDue),
   ]);
-  rows.push(["", "", "", "", ""]);
+  rows.push(["", "", "", "", "", "", ""]);
   rows.push([
     "OVERALL (PQS)",
     "",
     String(reg.totalInScope),
     String(reg.totalAchievingOrProgressing),
     reg.pqsPct === null ? "" : `${reg.pqsPct}%`,
+    "",
+    "",
   ]);
 
   const csv = buildCsv(
-    ["Service user", "Branch", "Outcomes in scope", "Achieving or progressing", "Percent"],
+    ["Service user", "Branch", "Outcomes in scope", "Achieving or progressing", "Percent", "Review status", "Review due"],
     rows,
   );
 

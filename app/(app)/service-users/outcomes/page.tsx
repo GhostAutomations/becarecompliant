@@ -4,6 +4,13 @@ import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import { getOutcomesRegister } from "@/lib/service-users/data";
+import { REVIEW_RAG_PILL } from "@/lib/service-users/outcome-consts";
+
+function fmtDate(iso: string | null): string {
+  if (!iso) return "—";
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
 
 export const metadata: Metadata = { title: "Outcomes" };
 
@@ -66,6 +73,7 @@ export default async function OutcomesPage() {
                   <th className="py-2 pr-3 text-right">Outcomes</th>
                   <th className="py-2 pr-3 text-right">On track</th>
                   <th className="py-2 pr-3 text-right">%</th>
+                  <th className="py-2 pr-3">Review</th>
                 </tr>
               </thead>
               <tbody>
@@ -85,6 +93,15 @@ export default async function OutcomesPage() {
                       ) : (
                         <span className={r.pct >= 100 ? "text-emerald-300" : r.pct >= 50 ? "text-white/80" : "text-amber-300"}>
                           {r.pct}%
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-2 pr-3">
+                      {r.reviewRag === "none" ? (
+                        <span className="text-white/40">—</span>
+                      ) : (
+                        <span className={`pill ${REVIEW_RAG_PILL[r.reviewRag]}`} title={r.reviewDue ? `Due ${fmtDate(r.reviewDue)}` : undefined}>
+                          {r.reviewLabel}
                         </span>
                       )}
                     </td>

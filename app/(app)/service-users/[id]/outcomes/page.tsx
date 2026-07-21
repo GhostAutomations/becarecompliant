@@ -3,7 +3,9 @@ import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import OutcomesEditor from "@/components/service-users/outcomes-editor";
-import { getServiceUser, getServiceUserOutcomes } from "@/lib/service-users/data";
+import OutcomesReviewPanel from "@/components/service-users/outcomes-review-panel";
+import { getServiceUser, getServiceUserOutcomes, getOutcomesReviewData } from "@/lib/service-users/data";
+import { outcomesReviewRag, isOutcomeInScope } from "@/lib/service-users/outcome-consts";
 
 export const metadata: Metadata = { title: "Personal outcomes" };
 
@@ -16,6 +18,10 @@ export default async function ServiceUserOutcomesPage({ params }: { params: Prom
   if (!su) redirect("/service-users");
   if (!MANAGE_ROLES.includes(profile.role)) redirect(`/service-users/${id}`);
   const outcomes = await getServiceUserOutcomes(id);
+  const reviewData = await getOutcomesReviewData(id, profile.company_id!);
+  const inScope = outcomes.filter((o) => isOutcomeInScope(o.status)).length;
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
+  const review = outcomesReviewRag(reviewData.latest, reviewData.intervalMonths, today, inScope > 0);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -27,6 +33,16 @@ export default async function ServiceUserOutcomesPage({ params }: { params: Prom
       <p className="text-sm text-white/55">
         What matters to this person, and how they are progressing. These feed the well-being outcomes in your PQS return.
       </p>
+
+      <OutcomesReviewPanel
+        serviceUserId={id}
+        rag={review.rag}
+        ragLabel={review.label}
+        dueIso={review.dueIso}
+        intervalMonths={reviewData.intervalMonths}
+        reviews={reviewData.reviews}
+        hasOutcomes={inScope > 0}
+      />
 
       <OutcomesEditor serviceUserId={id} initial={outcomes} />
     </div>

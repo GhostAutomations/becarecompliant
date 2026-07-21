@@ -8,11 +8,13 @@ import SuColumnNamesForm from "@/components/service-users/su-column-names-form";
 import { listCompanyForms } from "@/lib/form-builder/data";
 import BranchTypeForm from "@/components/service-users/branch-type-form";
 import ComplexIntervalForm from "@/components/service-users/complex-interval-form";
+import OutcomesIntervalForm from "@/components/service-users/outcomes-interval-form";
 import {
   listAllServiceUserCheckDefinitions,
   getServiceUserColumnLabels,
   listBranchTypes,
   getComplexReviewInterval,
+  getOutcomesReviewMonths,
 } from "@/lib/service-users/data";
 import { SU_REGISTER_COLUMNS } from "@/lib/service-users/types";
 
@@ -22,11 +24,12 @@ export default async function SettingsServiceUsersPage() {
   const { profile } = await requireCompanyAdmin();
   if (!profile.company_id) redirect("/founder");
 
-  const [definitions, columnLabels, branchTypes, complexInterval, allForms] = await Promise.all([
+  const [definitions, columnLabels, branchTypes, complexInterval, outcomesMonths, allForms] = await Promise.all([
     listAllServiceUserCheckDefinitions(profile.company_id),
     getServiceUserColumnLabels(profile.company_id),
     listBranchTypes(profile.company_id),
     getComplexReviewInterval(profile.company_id),
+    getOutcomesReviewMonths(profile.company_id),
     listCompanyForms(profile.company_id),
   ]);
   const publishableForms = allForms
@@ -61,6 +64,11 @@ export default async function SettingsServiceUsersPage() {
             cadence instead of the single annual review used by Simple branches.
           </p>
           <ComplexIntervalForm days={complexInterval} />
+          <p className="page-subtitle pt-2">
+            Personal outcomes are reviewed on their own cadence, separate from the
+            care plan reviews above.
+          </p>
+          <OutcomesIntervalForm months={outcomesMonths} />
           {/* Create custom check type: parked as a later feature (Phil, 2026-07-16), hidden. */}
           {false && (
             <div className="border-t border-white/10 pt-4">
