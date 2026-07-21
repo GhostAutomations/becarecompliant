@@ -27,6 +27,8 @@ export type EmailAttachment = {
   content: string;
   /** e.g. "text/calendar; charset=utf-8; method=REQUEST" for .ics invites. */
   contentType?: string;
+  /** Set to reference this attachment inline via <img src="cid:ID">. */
+  contentId?: string;
 };
 
 export async function sendEmail(opts: {
@@ -64,6 +66,7 @@ export async function sendEmail(opts: {
                 filename: a.filename,
                 content: a.content,
                 ...(a.contentType ? { content_type: a.contentType } : {}),
+                ...(a.contentId ? { content_id: a.contentId } : {}),
               })),
             }
           : {}),

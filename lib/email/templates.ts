@@ -397,6 +397,57 @@ export function noticeEmailHtml(opts: {
   });
 }
 
+/**
+ * Company-branded invoice email. UNLIKE every other template here, this carries
+ * the CARE COMPANY's brand, not Be Care Compliant's: the client is theirs, so the
+ * email leads with the company's logo and name and never mentions Be Care
+ * Compliant. Light theme to read like a normal business invoice email. The logo
+ * is passed as an inline attachment (cid) so it renders in Gmail and Outlook,
+ * which strip data-URI images. No amount or bank details in the body (those live
+ * on the attached PDF only).
+ */
+export function companyInvoiceEmailHtml(opts: {
+  companyName: string;
+  invoiceNumber: string;
+  dueDateIso?: string | null;
+  /** content-id of the inline logo attachment, or null to show the name only. */
+  logoCid?: string | null;
+}): string {
+  const due = opts.dueDateIso ? ` It is due by ${escapeHtml(formatDateUk(opts.dueDateIso))}.` : "";
+  const name = escapeHtml(opts.companyName);
+  const header = opts.logoCid
+    ? `<img src="cid:${escapeHtml(opts.logoCid)}" alt="${name}" style="max-height:56px;max-width:220px;margin:0 0 6px 0;" />`
+    : `<div style="font-size:18px;font-weight:700;color:#0d1d4b;">${name}</div>`;
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>${escapeHtml(opts.invoiceNumber)}</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f6fb;color:#0d1d4b;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+<span style="display:none;max-height:0;overflow:hidden;opacity:0;">Invoice ${escapeHtml(opts.invoiceNumber)} from ${name}.</span>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6fb;padding:32px 16px;">
+  <tr><td align="center">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border:1px solid #e3e8f2;border-radius:14px;overflow:hidden;">
+      <tr><td style="padding:26px 32px 6px 32px;">${header}</td></tr>
+      <tr><td style="padding:6px 32px 0 32px;">
+        <h1 style="margin:10px 0 8px 0;font-size:20px;line-height:1.3;color:#0d1d4b;font-weight:700;">Invoice ${escapeHtml(opts.invoiceNumber)}</h1>
+        <div style="font-size:14px;line-height:1.6;color:#243459;">
+          <p style="margin:0 0 12px 0;">Please find attached invoice <strong>${escapeHtml(opts.invoiceNumber)}</strong> from <strong>${name}</strong>.${due}</p>
+          <p style="margin:0;">The invoice is attached as a PDF. If you have any questions, please reply to this email.</p>
+        </div>
+      </td></tr>
+      <tr><td style="padding:20px 32px 28px 32px;">
+        <p style="margin:0;font-size:12px;line-height:1.6;color:#6b7794;">This invoice was sent to you by ${name}.</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`;
+}
+
 export { escapeHtml, formatDateUk };
 
 export function inviteSubject(companyName: string): string {

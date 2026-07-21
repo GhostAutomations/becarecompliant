@@ -20,8 +20,8 @@ import { INVOICING_ROLES, INVOICE_SERVICES, advanceRunDate } from "./types";
 import { londonToday, getInvoice, getInvoicingConfig, getCompanyName } from "./data";
 import { getCompanyLogoDataUrl } from "./logo";
 import { renderInvoicePdf } from "./pdf";
-import { sendEmail } from "@/lib/email/resend";
-import { noticeEmailHtml } from "@/lib/email/templates";
+import { sendEmail, type EmailAttachment } from "@/lib/email/resend";
+import { companyInvoiceEmailHtml } from "@/lib/email/templates";
 import { unitPricePence, lineAmountPence, type ServiceRate } from "@/lib/service-users/care-plan-consts";
 
 type LineInput = {
@@ -501,23 +501,35 @@ async function emailInvoiceOnSend(
     ]);
     const pdf = await renderInvoicePdf(inv, config, companyName, londonToday(), logo);
 
-    const dueLine = inv.due_date ? ` It is due by ${inv.due_date}.` : "";
-    const html = noticeEmailHtml({
-      preheader: `Invoice ${inv.number} from ${companyName}.`,
-      heading: `Invoice ${inv.number}`,
-      bodyHtml: `<p style="margin:0 0 12px 0;">Please find attached invoice <strong>${inv.number}</strong> from
-        <strong>${companyName}</strong>.${dueLine}</p>
-        <p style="margin:0;">The invoice is attached as a PDF. If you have any questions, please reply to this email.</p>`,
-      footerNote: `This invoice was sent to you by ${companyName}.`,
+    // Inline the company logo (cid) so Gmail/Outlook render it (they strip
+    // data-URI images). Falls back to the company name if there is no logo.
+    const attachments: EmailAttachment[] = [
+      { filename: `Invoice-${inv.number}.pdf`, content: pdf.toString("base64"), contentType: "application/pdf" },
+    ];
+    let logoCid: string | null = null;
+    const logoMatch = logo?.match(/^data:(.*?);base64,(.*)$/);
+    if (logoMatch) {
+      logoCid = "companylogo";
+      attachments.push({
+        filename: "logo",
+        content: logoMatch[2],
+        contentType: logoMatch[1],
+        contentId: logoCid,
+      });
+    }
+
+    const html = companyInvoiceEmailHtml({
+      companyName,
+      invoiceNumber: inv.number ?? "Invoice",
+      dueDateIso: inv.due_date,
+      logoCid,
     });
 
     const result = await sendEmail({
       to: inv.bill_to_email,
-      subject: `Invoice ${inv.number} from ${companyName}`,
+      subject: `${companyName} invoice ${inv.number}`,
       html,
-      attachments: [
-        { filename: `Invoice-${inv.number}.pdf`, content: pdf.toString("base64"), contentType: "application/pdf" },
-      ],
+      attachments,
     });
 
     if (result.sent) {
