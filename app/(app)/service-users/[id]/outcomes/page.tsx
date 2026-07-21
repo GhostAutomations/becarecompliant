@@ -10,12 +10,24 @@ export const metadata: Metadata = { title: "Personal outcomes" };
 
 const MANAGE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "platform_admin"];
 
-export default async function ServiceUserOutcomesPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ServiceUserOutcomesPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string }>;
+}) {
   const { id } = await params;
+  const { from } = await searchParams;
   const { profile } = await requireCompany();
   const su = await getServiceUser(id);
   if (!su || !profile.company_id) redirect("/service-users");
   if (!MANAGE_ROLES.includes(profile.role)) redirect(`/service-users/${id}`);
+
+  // Back goes to wherever you came from: the Outcomes register, or the record's tile.
+  const cameFromRegister = from === "/service-users/outcomes";
+  const backHref = cameFromRegister ? "/service-users/outcomes" : `/service-users/${id}`;
+  const backLabel = cameFromRegister ? "Back to Outcomes" : "Back to record";
 
   const [outcomes, intervalMonths] = await Promise.all([
     getServiceUserOutcomes(id),
@@ -29,7 +41,7 @@ export default async function ServiceUserOutcomesPage({ params }: { params: Prom
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <BackLink href={`/service-users/${id}`} label="Back to record" />
+      <BackLink href={backHref} label={backLabel} />
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="page-title">Personal outcomes</h1>

@@ -80,7 +80,7 @@ export default async function OutcomesPage() {
                 {reg.rows.map((r) => (
                   <tr key={r.id} className="border-t border-white/10">
                     <td className="py-2 pr-3">
-                      <Link href={`/service-users/${r.id}/outcomes`} className="text-gold-300 hover:underline">
+                      <Link href={`/service-users/${r.id}/outcomes?from=/service-users/outcomes`} className="text-gold-300 hover:underline">
                         {r.full_name}
                       </Link>
                     </td>
