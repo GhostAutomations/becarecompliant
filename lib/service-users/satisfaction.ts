@@ -36,6 +36,7 @@ export function defaultSatisfactionWindow(now: Date = new Date()): SatisfactionW
 export type SatisfactionRow = {
   id: string;
   full_name: string;
+  branch_id: string | null;
   branch_name: string | null;
   reviewsInWindow: number;
   latestReviewAt: string | null;
@@ -151,6 +152,7 @@ export async function getSatisfaction(
     return {
       id: s.id,
       full_name: s.full_name,
+      branch_id: s.branch_id ?? null,
       branch_name: s.branches?.name ?? null,
       reviewsInWindow: rec?.reviews ?? 0,
       latestReviewAt: rec?.latestAt ?? null,

@@ -277,6 +277,7 @@ export async function getServiceUserOutcomes(
 export type OutcomesRegisterRow = {
   id: string;
   full_name: string;
+  branch_id: string | null;
   branch_name: string | null;
   total: number; // active (non-archived) outcomes
   achieved: number;
@@ -355,6 +356,7 @@ export async function getOutcomesRegister(companyId: string): Promise<OutcomesRe
     return {
       id: s.id,
       full_name: s.full_name,
+      branch_id: s.branch_id ?? null,
       branch_name: s.branches?.name ?? null,
       total: rec.inScope,
       achieved: rec.achieved,
