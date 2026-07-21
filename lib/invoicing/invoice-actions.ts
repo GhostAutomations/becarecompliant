@@ -16,7 +16,7 @@ import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { requireFeature } from "@/lib/billing/tier";
 import type { ActionState } from "@/lib/forms";
-import { INVOICING_ROLES, INVOICE_SERVICES, advanceRunDate, formatMoney } from "./types";
+import { INVOICING_ROLES, INVOICE_SERVICES, advanceRunDate } from "./types";
 import { londonToday, getInvoice, getInvoicingConfig, getCompanyName } from "./data";
 import { getCompanyLogoDataUrl } from "./logo";
 import { renderInvoicePdf } from "./pdf";
@@ -502,15 +502,12 @@ async function emailInvoiceOnSend(
     const pdf = await renderInvoicePdf(inv, config, companyName, londonToday(), logo);
 
     const dueLine = inv.due_date ? ` It is due by ${inv.due_date}.` : "";
-    const payLine = config.payment_details
-      ? `<p style="margin:12px 0 0 0;">Payment details are on the invoice and below:</p><p style="margin:6px 0 0 0;white-space:pre-line;">${config.payment_details}</p>`
-      : "";
     const html = noticeEmailHtml({
       preheader: `Invoice ${inv.number} from ${companyName}.`,
       heading: `Invoice ${inv.number}`,
       bodyHtml: `<p style="margin:0 0 12px 0;">Please find attached invoice <strong>${inv.number}</strong> from
-        <strong>${companyName}</strong> for <strong>${formatMoney(inv.total_pence)}</strong>.${dueLine}</p>
-        <p style="margin:0;">The invoice is attached as a PDF. If you have any questions, please reply to this email.</p>${payLine}`,
+        <strong>${companyName}</strong>.${dueLine}</p>
+        <p style="margin:0;">The invoice is attached as a PDF. If you have any questions, please reply to this email.</p>`,
       footerNote: `This invoice was sent to you by ${companyName}.`,
     });
 
