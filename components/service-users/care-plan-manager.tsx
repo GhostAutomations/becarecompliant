@@ -6,11 +6,11 @@ import { saveCarePlan, updateCarePlan } from "@/lib/service-users/actions";
 import { CARE_PLAN_DAYS, type CarePlanEntry } from "@/lib/service-users/care-plan-consts";
 
 /**
- * Care plan editing surface, shown inside the collapsible "Care Plan: Current".
- * With a plan set it shows a compact one-line-per-day summary; changes go through
- * "Update care plan", which starts a NEW dated version (the old plan is kept and
- * billed up to the day before the new one, so invoices split across the change).
- * With no plan yet it shows the editor to build the first one.
+ * The "Care Plan: Current" area. The collapsible tile shows a compact
+ * one-line-per-day summary; the "Update care plan" button sits ABOVE the tile on
+ * the right and opens a dated new-version editor (the old plan is kept and billed
+ * up to the day before the new one). With no plan yet the tile holds the editor to
+ * build the first one.
  */
 export default function CarePlanManager({
   serviceUserId,
@@ -27,28 +27,37 @@ export default function CarePlanManager({
 }) {
   const [updating, setUpdating] = useState(false);
 
-  // No plan yet: show the editor to build the first one.
-  if (!hasPlan) {
-    return (
-      <CarePlanEditor
-        mode="edit"
-        action={saveCarePlan}
-        serviceUserId={serviceUserId}
-        initial={initial}
-        servicesWithFixed={servicesWithFixed}
-      />
-    );
-  }
-
   return (
-    <div className="space-y-4">
-      <CurrentPlanSummary entries={initial} />
+    <div className="space-y-3">
+      {hasPlan && !updating ? (
+        <div className="flex justify-end">
+          <button type="button" onClick={() => setUpdating(true)} className="btn-outline text-sm">
+            Update care plan
+          </button>
+        </div>
+      ) : null}
 
-      {!updating ? (
-        <button type="button" onClick={() => setUpdating(true)} className="btn-outline text-sm">
-          Update care plan
-        </button>
-      ) : (
+      <details className="glass-card p-5" open={!hasPlan}>
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-2">
+          <span className="text-sm font-semibold text-white/80">Care Plan: Current</span>
+          <span className="text-xs text-white/45">Show</span>
+        </summary>
+        <div className="mt-4">
+          {hasPlan ? (
+            <CurrentPlanSummary entries={initial} />
+          ) : (
+            <CarePlanEditor
+              mode="edit"
+              action={saveCarePlan}
+              serviceUserId={serviceUserId}
+              initial={initial}
+              servicesWithFixed={servicesWithFixed}
+            />
+          )}
+        </div>
+      </details>
+
+      {hasPlan && updating ? (
         <section className="glass-card space-y-3 p-5">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-white/80">Update care plan</h2>
@@ -73,7 +82,7 @@ export default function CarePlanManager({
             onSaved={() => setUpdating(false)}
           />
         </section>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -87,7 +96,7 @@ function CurrentPlanSummary({ entries }: { entries: CarePlanEntry[] }) {
     byDay.set(e.day_of_week, list);
   }
   return (
-    <div className="glass-card divide-y divide-white/5 p-5">
+    <div className="divide-y divide-white/5">
       {CARE_PLAN_DAYS.map((day, idx) => {
         const list = byDay.get(idx);
         if (!list || list.length === 0) return null;

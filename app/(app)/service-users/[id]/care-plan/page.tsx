@@ -40,21 +40,13 @@ export default async function CarePlanPage({ params }: { params: Promise<{ id: s
         <p className="page-subtitle">{su.full_name}</p>
       </div>
 
-      <details className="glass-card p-5" open={entries.length === 0}>
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-2">
-          <span className="text-sm font-semibold text-white/80">Care Plan: Current</span>
-          <span className="text-xs text-white/45">Show</span>
-        </summary>
-        <div className="mt-4">
-          <CarePlanManager
-            serviceUserId={id}
-            initial={entries}
-            servicesWithFixed={servicesWithFixed}
-            today={londonToday()}
-            hasPlan={entries.length > 0}
-          />
-        </div>
-      </details>
+      <CarePlanManager
+        serviceUserId={id}
+        initial={entries}
+        servicesWithFixed={servicesWithFixed}
+        today={londonToday()}
+        hasPlan={entries.length > 0}
+      />
 
       {versions.map((v) => (
         <details key={`${v.effective_from}-${v.effective_to}`} className="glass-card p-5">
