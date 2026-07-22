@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { rescheduleBooking, completeBooking, cancelBooking } from "@/lib/planner/actions";
-import { TIME_OPTIONS } from "./booking-form";
 import type { PlannerBookingView } from "@/lib/planner/data";
 
 function fmtDate(iso: string): string {
@@ -96,12 +95,7 @@ function BookingCard({ b, todayIso }: { b: PlannerBookingView; todayIso: string 
           </label>
           <label className="text-xs text-white/70">
             Time
-            <select name="start_time" defaultValue={b.startTime ?? ""} className="ml-2">
-              <option value="">—</option>
-              {TIME_OPTIONS.map((t) => (
-                <option key={t.value} value={t.value}>{t.label}</option>
-              ))}
-            </select>
+            <input type="time" name="start_time" min="08:00" max="20:00" step={900} defaultValue={b.startTime ?? ""} className="ml-2" />
           </label>
           <label className="text-xs text-white/70">
             Min
