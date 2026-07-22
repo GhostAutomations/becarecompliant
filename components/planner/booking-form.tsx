@@ -214,14 +214,14 @@ export default function BookingForm({
         </label>
         <label className="block text-sm">
           <span className="mb-1 block font-medium text-white/80">Time</span>
-          <div className="flex items-stretch divide-x divide-white/15 overflow-hidden rounded-lg border border-white/15 bg-white/5">
-            <select name="start_hour" defaultValue="" className="w-full border-0 bg-transparent px-3 py-2 focus:outline-none focus:ring-0">
+          <div className="flex gap-2">
+            <select name="start_hour" defaultValue="" className="w-full">
               <option value="">Hr</option>
               {HOUR_OPTIONS.map((h) => (
                 <option key={h.value} value={h.value}>{h.label}</option>
               ))}
             </select>
-            <select name="start_minute" defaultValue="" className="w-full border-0 bg-transparent px-3 py-2 focus:outline-none focus:ring-0">
+            <select name="start_minute" defaultValue="" className="w-full">
               <option value="">Min</option>
               {MINUTE_OPTIONS.map((m) => (
                 <option key={m} value={m}>{m}</option>

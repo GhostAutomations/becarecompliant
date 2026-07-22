@@ -103,20 +103,18 @@ function BookingCard({ b, todayIso }: { b: PlannerBookingView; todayIso: string 
           </label>
           <label className="text-xs text-white/70">
             Time
-            <span className="ml-2 inline-flex items-stretch divide-x divide-white/15 overflow-hidden rounded-lg border border-white/15 bg-white/5 align-middle">
-              <select name="start_hour" defaultValue={(b.startTime ?? "").split(":")[0] ?? ""} className="border-0 bg-transparent px-2 py-1 focus:outline-none focus:ring-0">
-                <option value="">Hr</option>
-                {HOUR_OPTIONS.map((h) => (
-                  <option key={h.value} value={h.value}>{h.label}</option>
-                ))}
-              </select>
-              <select name="start_minute" defaultValue={(b.startTime ?? "").split(":")[1] ?? ""} className="border-0 bg-transparent px-2 py-1 focus:outline-none focus:ring-0">
-                <option value="">Min</option>
-                {MINUTE_OPTIONS.map((m) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
-            </span>
+            <select name="start_hour" defaultValue={(b.startTime ?? "").split(":")[0] ?? ""} className="ml-2">
+              <option value="">Hr</option>
+              {HOUR_OPTIONS.map((h) => (
+                <option key={h.value} value={h.value}>{h.label}</option>
+              ))}
+            </select>
+            <select name="start_minute" defaultValue={(b.startTime ?? "").split(":")[1] ?? ""} className="ml-1">
+              <option value="">Min</option>
+              {MINUTE_OPTIONS.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
           </label>
           <label className="text-xs text-white/70">
             Min
