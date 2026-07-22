@@ -90,7 +90,7 @@ export default function WhiteboardBoard({
                   <span className="min-w-0 truncate font-semibold text-slate-800">{b.recordName}</span>
                   <span className="flex shrink-0 items-center gap-2 whitespace-nowrap text-slate-500">
                     <span>
-                      {b.conductorName ? `${b.conductorName} · ` : ""}{fmtShort(b.date)}{b.startTime ? ` · ${b.startTime}` : ""}{b.durationMinutes ? ` · ${b.durationMinutes} min` : ""}
+                      {b.conductorName ? `${b.conductorName} · ` : ""}{fmtShort(b.date)}{b.startTime ? ` · ${b.startTime}` : ""}
                     </span>
                     <form action={(fd) => { if (!confirm("Cancel this booking? It moves back to 'to book'.")) return; run(cancelBooking, fd); }}>
                       <input type="hidden" name="booking_id" value={b.bookingId} />
