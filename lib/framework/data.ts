@@ -20,8 +20,18 @@ export type RequirementReadiness = {
   title: string;
   description: string;
   status: Rag;
+  score: number | null; // 0-100 readiness score, or null when nothing is mapped
   checks: { overdue: number; dueSoon: number; onTrack: number; total: number };
   metrics: ReadinessMetric[];
+};
+
+export type FrameworkItem = {
+  instanceId: string;
+  recordId: string;
+  recordName: string;
+  checkName: string;
+  dueDate: string;
+  population: "people" | "service_users";
 };
 
 export type FrameworkReadiness = {
@@ -105,16 +115,119 @@ export async function getFrameworkReadiness(
     }
     for (const m of metrics) status = worst(status, pctToRag(m.pct));
 
+    // Score: % of checks not overdue, averaged with any metric percentages.
+    const signals: number[] = [];
+    if (checks.total > 0) signals.push(Math.round((100 * (checks.total - checks.overdue)) / checks.total));
+    for (const m of metrics) if (m.pct != null) signals.push(m.pct);
+    const score = signals.length ? Math.round(signals.reduce((a, b) => a + b, 0) / signals.length) : null;
+
     return {
       code: r.code,
       keyArea: r.key_area,
       title: r.title,
       description: r.description,
       status,
+      score,
       checks,
       metrics,
     };
   });
 
   return { regulator, requirements: out };
+}
+
+/** Overall readiness score across the mapped requirements (0-100), or null. */
+export function overallScore(reqs: RequirementReadiness[]): number | null {
+  const s = reqs.map((r) => r.score).filter((x): x is number => x != null);
+  return s.length ? Math.round(s.reduce((a, b) => a + b, 0) / s.length) : null;
+}
+
+/** The exact overdue and due-soon items behind each requirement, for the
+ *  drill-down. Keyed by requirement code. RLS scopes to the caller. */
+export async function getFrameworkItems(
+  companyId: string,
+  regulator: "cqc" | "ciw",
+): Promise<Map<string, { overdue: FrameworkItem[]; dueSoon: FrameworkItem[] }>> {
+  const supabase = await createClient();
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
+
+  const { data: mapRows } = await supabase
+    .from("requirement_evidence_map")
+    .select("check_definition_id, framework_requirements!inner(regulator, code)")
+    .eq("company_id", companyId)
+    .not("check_definition_id", "is", null);
+
+  const defToCode = new Map<string, string>();
+  for (const m of (mapRows as Array<{ check_definition_id: string; framework_requirements: { regulator: string; code: string } | { regulator: string; code: string }[] }> | null) ?? []) {
+    const fr = relOne(m.framework_requirements);
+    if (fr && fr.regulator === regulator && m.check_definition_id) defToCode.set(m.check_definition_id, fr.code);
+  }
+  const defIds = [...defToCode.keys()];
+  const byCode = new Map<string, { overdue: FrameworkItem[]; dueSoon: FrameworkItem[] }>();
+  if (defIds.length === 0) return byCode;
+
+  const { data: inst } = await supabase
+    .from("check_instances")
+    .select("id, definition_id, due_date, record_type, person_id, service_user_id, check_definitions(name), people(full_name, employment_status, archived_at), service_users(full_name, service_status, archived_at)")
+    .eq("company_id", companyId)
+    .eq("active", true)
+    .not("due_date", "is", null)
+    .in("definition_id", defIds)
+    .order("due_date", { ascending: true });
+
+  for (const raw of (inst as unknown[]) ?? []) {
+    const r = raw as {
+      id: string; definition_id: string; due_date: string; record_type: string;
+      person_id: string | null; service_user_id: string | null;
+      check_definitions: { name: string } | { name: string }[] | null;
+      people: { full_name: string; employment_status: string; archived_at: string | null } | { full_name: string; employment_status: string; archived_at: string | null }[] | null;
+      service_users: { full_name: string; service_status: string; archived_at: string | null } | { full_name: string; service_status: string; archived_at: string | null }[] | null;
+    };
+    const def = relOne(r.check_definitions);
+    let recordName: string | null = null;
+    let recordId: string | null = null;
+    let population: "people" | "service_users";
+    if (r.record_type === "person") {
+      const p = relOne(r.people);
+      if (!p || p.employment_status !== "active" || p.archived_at) continue;
+      recordName = p.full_name; recordId = r.person_id; population = "people";
+    } else {
+      const su = relOne(r.service_users);
+      if (!su || su.service_status !== "active" || su.archived_at) continue;
+      recordName = su.full_name; recordId = r.service_user_id; population = "service_users";
+    }
+    if (!recordId) continue;
+    const code = defToCode.get(r.definition_id);
+    if (!code) continue;
+
+    const item: FrameworkItem = { instanceId: r.id, recordId, recordName: recordName!, checkName: def?.name ?? "check", dueDate: r.due_date, population };
+    const bucket = byCode.get(code) ?? { overdue: [], dueSoon: [] };
+    if (r.due_date < today) bucket.overdue.push(item);
+    else {
+      // due soon: within 30 days
+      const [ty, tm, td] = today.split("-").map(Number);
+      const in30 = new Date(Date.UTC(ty, tm - 1, td + 30)).toISOString().slice(0, 10);
+      if (r.due_date <= in30) bucket.dueSoon.push(item);
+    }
+    byCode.set(code, bucket);
+  }
+  return byCode;
+}
+
+/** Previous readiness scores by requirement code (the most recent snapshot before
+ *  today), for the trend delta. */
+export async function getReadinessTrend(companyId: string): Promise<Map<string, number>> {
+  const supabase = await createClient();
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
+  const { data } = await supabase
+    .from("framework_readiness_snapshots")
+    .select("requirement_code, score, captured_on")
+    .eq("company_id", companyId)
+    .lt("captured_on", today)
+    .order("captured_on", { ascending: false });
+  const prev = new Map<string, number>();
+  for (const r of (data as Array<{ requirement_code: string; score: number }> | null) ?? []) {
+    if (!prev.has(r.requirement_code)) prev.set(r.requirement_code, r.score);
+  }
+  return prev;
 }
