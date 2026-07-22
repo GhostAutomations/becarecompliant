@@ -10,6 +10,12 @@ import { getSatisfaction } from "@/lib/service-users/satisfaction";
  * caller's RLS, so it is automatically scoped to their role and branch.
  */
 
+/** Supabase types a to-one embedded relation as an array; normalise to one row. */
+function relOne<T>(v: T[] | T | null | undefined): T | null {
+  if (Array.isArray(v)) return v[0] ?? null;
+  return v ?? null;
+}
+
 export type Rag = "red" | "amber" | "green" | "none";
 
 export type ReadinessMetric = { label: string; pct: number | null; note?: string };
