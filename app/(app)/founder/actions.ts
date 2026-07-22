@@ -15,6 +15,8 @@ import {
 } from "@/lib/founder/manage-as";
 import { writeAudit } from "@/lib/audit";
 import { importCompanyTemplates, importSummary } from "@/lib/templates/import";
+import { REGISTER_COLUMNS } from "@/lib/people/logic";
+import { SU_REGISTER_COLUMNS } from "@/lib/service-users/types";
 import type { ActionState } from "@/lib/forms";
 
 /** The founder acting as themselves, for audit attribution on tenant writes. */
@@ -267,6 +269,77 @@ export async function setSupervisionCycleMode(formData: FormData): Promise<Actio
 
   revalidatePath(`/founder/companies/${companyId}`);
   revalidatePath("/people");
+  return { ok: "Saved" };
+}
+
+/** Founder: rename the People register column terminology for one company. A
+ *  company may call a column something different; blank reverts to the default. */
+export async function setPeopleColumnLabels(formData: FormData): Promise<ActionState> {
+  const { user, profile } = await requirePlatformAdmin();
+  const companyId = String(formData.get("company_id") ?? "").trim();
+  if (!companyId) return { error: "Missing company." };
+
+  const labels: Record<string, string> = {};
+  for (const col of REGISTER_COLUMNS) {
+    const v = String(formData.get(`col_${col.key}`) ?? "").trim();
+    if (v) labels[col.key] = v;
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("companies")
+    .update({ people_column_labels: labels })
+    .eq("id", companyId);
+  if (error) return { error: error.message };
+
+  await writeAudit({
+    companyId,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: "platform_admin",
+    action: "company.column_labels_updated",
+    entityType: "company",
+    entityId: companyId,
+    summary: "Founder updated People register column terminology",
+  });
+
+  revalidatePath(`/founder/companies/${companyId}`);
+  revalidatePath("/people");
+  return { ok: "Saved" };
+}
+
+/** Founder: rename the Service User register column terminology for one company. */
+export async function setServiceUserColumnLabels(formData: FormData): Promise<ActionState> {
+  const { user, profile } = await requirePlatformAdmin();
+  const companyId = String(formData.get("company_id") ?? "").trim();
+  if (!companyId) return { error: "Missing company." };
+
+  const labels: Record<string, string> = {};
+  for (const col of SU_REGISTER_COLUMNS) {
+    const v = String(formData.get(`col_${col.key}`) ?? "").trim();
+    if (v) labels[col.key] = v;
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("companies")
+    .update({ service_user_column_labels: labels })
+    .eq("id", companyId);
+  if (error) return { error: error.message };
+
+  await writeAudit({
+    companyId,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: "platform_admin",
+    action: "company.su_column_labels_updated",
+    entityType: "company",
+    entityId: companyId,
+    summary: "Founder updated Service User register column terminology",
+  });
+
+  revalidatePath(`/founder/companies/${companyId}`);
+  revalidatePath("/service-users");
   return { ok: "Saved" };
 }
 

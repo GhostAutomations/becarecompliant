@@ -13,6 +13,9 @@ import {
 import { EnterManageAsButton } from "@/components/founder/enter-manage-as-button";
 import { ImportTemplatesButton } from "@/components/founder/import-templates-button";
 import SupervisionCycleToggle from "@/components/founder/supervision-cycle-toggle";
+import FounderColumnNamesForm from "@/components/founder/founder-column-names-form";
+import { REGISTER_COLUMNS } from "@/lib/people/logic";
+import { SU_REGISTER_COLUMNS } from "@/lib/service-users/types";
 import { computeSeatUsage, includedSeatsForTier, formatPence } from "@/lib/billing/seats";
 import { TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
 import {
@@ -59,7 +62,7 @@ export default async function FounderCompanyPage({
 
   const { data: company } = await supabase
     .from("companies")
-    .select("id, name, slug, tier, status, created_at, supervision_cycle_mode")
+    .select("id, name, slug, tier, status, created_at, supervision_cycle_mode, people_column_labels, service_user_column_labels")
     .eq("id", id)
     .maybeSingle();
 
@@ -303,6 +306,37 @@ export default async function FounderCompanyPage({
           companyId={company.id}
           mode={(company.supervision_cycle_mode as "appraisal" | "four_supervisions") ?? "appraisal"}
         />
+      </section>
+
+      <section aria-label="Register column terminology" className="glass-card p-5">
+        <h2 className="mb-1 text-sm font-semibold text-white/80">Register column terminology</h2>
+        <p className="mb-3 text-sm text-white/60">
+          Rename any register column to match the words this company uses. Leave a
+          box blank to keep the default. Changes apply across the register, drill
+          downs and exports for this company only.
+        </p>
+        <details className="section-card">
+          <summary>People columns</summary>
+          <div className="border-t border-white/10 p-5">
+            <FounderColumnNamesForm
+              companyId={company.id}
+              population="people"
+              columns={REGISTER_COLUMNS}
+              labels={(company.people_column_labels as Record<string, string> | null) ?? {}}
+            />
+          </div>
+        </details>
+        <details className="section-card mt-3">
+          <summary>Service User columns</summary>
+          <div className="border-t border-white/10 p-5">
+            <FounderColumnNamesForm
+              companyId={company.id}
+              population="service_users"
+              columns={SU_REGISTER_COLUMNS}
+              labels={(company.service_user_column_labels as Record<string, string> | null) ?? {}}
+            />
+          </div>
+        </details>
       </section>
 
       <section aria-label="Templates" className="glass-card p-5">
