@@ -12,15 +12,19 @@ function fmtDue(iso: string): string {
 }
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
-/** 8am to 8pm in 5-minute steps. value = 24h HH:MM, label = 12h am/pm. */
-export const TIME_OPTIONS: Array<{ value: string; label: string }> = (() => {
+/** Hours 8am to 8pm. value = 24h "08".."20", label = 12h am/pm. */
+export const HOUR_OPTIONS: Array<{ value: string; label: string }> = (() => {
   const out: Array<{ value: string; label: string }> = [];
-  for (let t = 8 * 60; t <= 20 * 60; t += 5) {
-    const h = Math.floor(t / 60);
-    const m = t % 60;
+  for (let h = 8; h <= 20; h++) {
     const hour12 = ((h + 11) % 12) + 1;
-    out.push({ value: `${pad2(h)}:${pad2(m)}`, label: `${hour12}:${pad2(m)} ${h < 12 ? "am" : "pm"}` });
+    out.push({ value: pad2(h), label: `${hour12}${h < 12 ? "am" : "pm"}` });
   }
+  return out;
+})();
+/** Minutes in 5-minute steps: 00, 05, ... 55. */
+export const MINUTE_OPTIONS: string[] = (() => {
+  const out: string[] = [];
+  for (let m = 0; m < 60; m += 5) out.push(pad2(m));
   return out;
 })();
 
@@ -87,6 +91,11 @@ export default function BookingForm({
     fd.set("subject_kind", department === "people" ? "person" : "service_user");
     fd.set("subject_id", subjectId);
     fd.set("check_instance_id", checkInstanceId);
+    // Combine the hour + minute dropdowns into a single HH:MM start time.
+    const hh = String(fd.get("start_hour") ?? "");
+    const mm = String(fd.get("start_minute") ?? "");
+    if (hh && mm) fd.set("start_time", `${hh}:${mm}`);
+    else fd.delete("start_time");
     startTransition(async () => {
       const res = await createBooking(fd);
       if (res.error) { setError(res.error); return; }
@@ -209,12 +218,20 @@ export default function BookingForm({
         </label>
         <label className="block text-sm">
           <span className="mb-1 block font-medium text-white/80">Time</span>
-          <select name="start_time" className="w-full" defaultValue="">
-            <option value="">Choose…</option>
-            {TIME_OPTIONS.map((t) => (
-              <option key={t.value} value={t.value}>{t.label}</option>
-            ))}
-          </select>
+          <div className="flex gap-2">
+            <select name="start_hour" className="w-full" defaultValue="">
+              <option value="">Hr</option>
+              {HOUR_OPTIONS.map((h) => (
+                <option key={h.value} value={h.value}>{h.label}</option>
+              ))}
+            </select>
+            <select name="start_minute" className="w-full" defaultValue="">
+              <option value="">Min</option>
+              {MINUTE_OPTIONS.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+          </div>
         </label>
         <label className="block text-sm">
           <span className="mb-1 block font-medium text-white/80">Minutes</span>
