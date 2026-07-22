@@ -40,7 +40,8 @@ export default function WhiteboardCalendar({
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
   const sep = basePath.includes("?") ? "&" : "?";
-  const filtered = branchId ? bookings.filter((b) => b.branchId === branchId) : bookings;
+  // Only planned bookings belong on the calendar; completed and cancelled ones drop off.
+  const filtered = bookings.filter((b) => b.status === "planned" && (!branchId || b.branchId === branchId));
 
   const byDay = useMemo(() => {
     const m = new Map<string, PlannerBookingView[]>();
