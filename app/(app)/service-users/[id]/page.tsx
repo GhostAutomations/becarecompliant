@@ -8,6 +8,7 @@ import ActionForm from "@/components/action-form";
 import RecordHistory from "@/components/reports/record-history";
 import EditServiceUserForm from "@/components/service-users/edit-service-user-form";
 import PlannedReviewCell from "@/components/service-users/planned-review-cell";
+import RecordPlanner from "@/components/planner/record-planner";
 import { featureEnabled } from "@/lib/billing/tier";
 import { getRecordAuditTrail } from "@/lib/audit-log/data";
 import {
@@ -320,6 +321,15 @@ export default async function ServiceUserPage({
           </section>
         </>
       )}
+
+      {/* Planner: tasks booked in for this record (Pro; renders nothing otherwise). */}
+      <RecordPlanner
+        companyId={companyId}
+        population="service_users"
+        recordId={serviceUser.id}
+        recordName={serviceUser.full_name}
+        branchId={serviceUser.branch_id}
+      />
 
       {/* Evidence history */}
       <section className="space-y-3">

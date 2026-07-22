@@ -6,6 +6,7 @@ import BackLink from "@/components/back-link";
 import ActionForm from "@/components/action-form";
 import RecordHistory from "@/components/reports/record-history";
 import EditPersonForm from "@/components/people/edit-person-form";
+import RecordPlanner from "@/components/planner/record-planner";
 import { featureEnabled } from "@/lib/billing/tier";
 import { getRecordAuditTrail } from "@/lib/audit-log/data";
 import {
@@ -452,6 +453,15 @@ export default async function PersonPage({
           )}
         </div>
       </section>
+
+      {/* Planner: tasks booked in for this record (Pro; renders nothing otherwise). */}
+      <RecordPlanner
+        companyId={companyId}
+        population="people"
+        recordId={person.id}
+        recordName={person.full_name}
+        branchId={person.branch_id}
+      />
 
       {/* Evidence history */}
       <section className="space-y-3">
