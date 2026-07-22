@@ -3,7 +3,6 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createBooking } from "@/lib/planner/actions";
-import TimePicker from "./time-picker";
 import type { PlannerFormData, PlannerSubject } from "@/lib/planner/data";
 
 /** ISO date -> DD/MM/YYYY for display. */
@@ -199,7 +198,7 @@ export default function BookingForm({
         </label>
         <label className="block text-sm">
           <span className="mb-1 block font-medium text-white/80">Time</span>
-          <TimePicker name="start_time" className="w-full" />
+          <input type="time" name="start_time" className="w-full" />
         </label>
         <label className="block text-sm">
           <span className="mb-1 block font-medium text-white/80">Minutes</span>
