@@ -102,7 +102,7 @@ function BookingCard({ b, todayIso }: { b: PlannerBookingView; todayIso: string 
           </label>
           <label className="text-xs text-white/70">
             Min
-            <input type="number" name="duration_minutes" min={5} step={5} defaultValue={b.durationMinutes ?? ""} className="ml-2 w-20" />
+            <input type="number" name="duration_minutes" min={5} step={5} defaultValue={b.durationMinutes ?? 30} className="ml-2 w-20" />
           </label>
           <button type="submit" disabled={pending} className="btn-primary text-xs">Save</button>
         </form>

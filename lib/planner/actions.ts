@@ -89,7 +89,8 @@ export async function createBooking(formData: FormData): Promise<ActionState> {
     if (!br || br.company_id !== companyId) return { error: "That branch was not found." };
   }
 
-  const duration = durationRaw ? Math.max(1, Number(durationRaw) || 0) || null : null;
+  // Duration defaults to 30 minutes when left blank.
+  const duration = durationRaw ? Math.max(5, Number(durationRaw) || 30) : 30;
 
   const { data: inserted, error } = await supabase
     .from("planner_bookings")
@@ -153,7 +154,7 @@ export async function rescheduleBooking(formData: FormData): Promise<ActionState
   const existing = await loadBooking(bookingId, profile.company_id);
   if (!existing) return { error: "Booking not found." };
 
-  const duration = durationRaw ? Math.max(1, Number(durationRaw) || 0) || null : null;
+  const duration = durationRaw ? Math.max(5, Number(durationRaw) || 30) : 30;
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("planner_bookings")

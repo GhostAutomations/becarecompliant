@@ -214,7 +214,7 @@ export default function BookingForm({
         </label>
         <label className="block text-sm">
           <span className="mb-1 block font-medium text-white/80">Minutes</span>
-          <input type="number" name="duration_minutes" min={5} step={5} className="w-full" placeholder="60" />
+          <input type="number" name="duration_minutes" min={5} step={5} defaultValue={30} className="w-full" />
         </label>
       </div>
 
