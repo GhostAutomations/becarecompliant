@@ -168,6 +168,8 @@ export const REGISTER_COLUMNS: Array<{ key: string; name: string }> = [
   { key: "sup3_comp", name: "Sup 3 Comp" },
   { key: "aa_due", name: "AA Next Due" },
   { key: "aa_comp", name: "AA Comp" },
+  { key: "sup4_due", name: "Sup 4 Due" },
+  { key: "sup4_comp", name: "Sup 4 Comp" },
 ];
 
 /** Today's Europe/London date as an ISO string (the stamped completion date). */
