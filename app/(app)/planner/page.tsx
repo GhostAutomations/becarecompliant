@@ -6,6 +6,7 @@ import { featureEnabled } from "@/lib/billing/tier";
 import { listMyBookings, getPlannerFormData } from "@/lib/planner/data";
 import BookingForm from "@/components/planner/booking-form";
 import MyPlannerList from "@/components/planner/my-planner-list";
+import WhiteboardCalendar from "@/components/planner/whiteboard-calendar";
 
 export const metadata: Metadata = { title: "My Planner" };
 
@@ -18,7 +19,11 @@ const ALLOWED = [
   "supervisor",
 ];
 
-export default async function PlannerPage() {
+export default async function PlannerPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ month?: string; view?: string }>;
+}) {
   const { user, profile } = await requireCompany();
   if (!profile.company_id) redirect("/founder");
   if (!ALLOWED.includes(profile.role)) redirect("/dashboard");
@@ -30,6 +35,13 @@ export default async function PlannerPage() {
   ]);
   const todayIso = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
 
+  const { month: monthParam, view } = await searchParams;
+  const isCalendar = view === "calendar";
+  const match = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? monthParam : todayIso.slice(0, 7);
+  const [yearStr, monthStr] = match.split("-");
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+
   return (
     <div className="mx-auto flex h-full min-h-0 max-w-3xl flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -40,11 +52,29 @@ export default async function PlannerPage() {
             is coming up.
           </p>
         </div>
-        <Link href="/planner/whiteboard" className="btn-ghost text-sm">Whiteboard</Link>
+        <div className="flex items-center gap-2">
+          <div className="flex overflow-hidden rounded-lg border border-white/15 text-xs">
+            <Link href="/planner" className={`px-3 py-1.5 ${!isCalendar ? "bg-white/15 text-white" : "text-white/60 hover:bg-white/10"}`}>List</Link>
+            <Link href="/planner?view=calendar" className={`px-3 py-1.5 ${isCalendar ? "bg-white/15 text-white" : "text-white/60 hover:bg-white/10"}`}>Calendar</Link>
+          </div>
+          <Link href="/planner/whiteboard" className="btn-ghost text-sm">Whiteboard</Link>
+        </div>
       </div>
 
       <BookingForm data={formData} currentUserId={user.id} />
-      <MyPlannerList bookings={bookings} todayIso={todayIso} />
+
+      {isCalendar ? (
+        <WhiteboardCalendar
+          year={year}
+          month={month}
+          todayIso={todayIso}
+          bookings={bookings}
+          branches={[]}
+          basePath="/planner?view=calendar"
+        />
+      ) : (
+        <MyPlannerList bookings={bookings} todayIso={todayIso} />
+      )}
     </div>
   );
 }

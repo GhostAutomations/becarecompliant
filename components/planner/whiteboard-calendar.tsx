@@ -26,16 +26,20 @@ export default function WhiteboardCalendar({
   todayIso,
   bookings,
   branches,
+  basePath = "/planner/whiteboard",
 }: {
   year: number;
   month: number;
   todayIso: string;
   bookings: PlannerBookingView[];
   branches: Array<{ id: string; name: string }>;
+  /** Where the month prev/next links point (so the calendar works on both pages). */
+  basePath?: string;
 }) {
   const [branchId, setBranchId] = useState("");
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
+  const sep = basePath.includes("?") ? "&" : "?";
   const filtered = branchId ? bookings.filter((b) => b.branchId === branchId) : bookings;
 
   const byDay = useMemo(() => {
@@ -60,9 +64,9 @@ export default function WhiteboardCalendar({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Link href={`/planner/whiteboard?month=${shiftMonth(year, month, -1)}`} className="btn-ghost text-xs">‹ Prev</Link>
+          <Link href={`${basePath}${sep}month=${shiftMonth(year, month, -1)}`} className="btn-ghost text-xs">‹ Prev</Link>
           <span className="min-w-[9rem] text-center text-sm font-semibold text-white">{monthName(year, month)}</span>
-          <Link href={`/planner/whiteboard?month=${shiftMonth(year, month, 1)}`} className="btn-ghost text-xs">Next ›</Link>
+          <Link href={`${basePath}${sep}month=${shiftMonth(year, month, 1)}`} className="btn-ghost text-xs">Next ›</Link>
         </div>
         {branches.length > 1 ? (
           <label className="flex items-center gap-2 text-sm font-medium text-white/80">
