@@ -87,7 +87,13 @@ export default async function WhiteboardPage({
           basePath="/planner/whiteboard?view=calendar"
         />
       ) : (
-        <WhiteboardBoard board={board!} branchId={branchId} todayIso={todayIso} />
+        <WhiteboardBoard
+          board={board!}
+          branchId={branchId}
+          conductors={formData.conductors}
+          currentUserId={user.id}
+          todayIso={todayIso}
+        />
       )}
     </div>
   );

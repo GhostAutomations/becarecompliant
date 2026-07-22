@@ -1,9 +1,10 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { quickBookCheck, cancelBooking } from "@/lib/planner/actions";
-import type { WhiteboardBoard } from "@/lib/planner/data";
+import { createBooking, cancelBooking } from "@/lib/planner/actions";
+import { handleTimeFocus, handleTimeChange } from "./booking-form";
+import type { WhiteboardBoard, BoardToBook } from "@/lib/planner/data";
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
 function addDays(iso: string, n: number): string {
@@ -19,15 +20,20 @@ function fmtShort(iso: string): string {
 export default function WhiteboardBoard({
   board,
   branchId,
+  conductors,
+  currentUserId,
   todayIso,
 }: {
   board: WhiteboardBoard;
-  /** Selected branch id (from the header selector); empty = all branches. */
   branchId: string;
+  conductors: Array<{ id: string; name: string }>;
+  currentUserId: string;
   todayIso: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [active, setActive] = useState<BoardToBook | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   function run(fn: (fd: FormData) => Promise<{ ok?: string; error?: string }>, fd: FormData) {
     startTransition(async () => {
@@ -37,10 +43,25 @@ export default function WhiteboardBoard({
     });
   }
 
+  function submitBooking(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!active) return;
+    setError(null);
+    const fd = new FormData(e.currentTarget);
+    fd.set("subject_kind", active.population === "people" ? "person" : "service_user");
+    fd.set("subject_id", active.subjectId);
+    fd.set("check_instance_id", active.instanceId);
+    startTransition(async () => {
+      const res = await createBooking(fd);
+      if (res.error) { setError(res.error); return; }
+      setActive(null);
+      router.refresh();
+    });
+  }
+
   const inBranch = <T extends { branchId: string | null }>(x: T) => !branchId || x.branchId === branchId;
   const toBook = board.toBook.filter(inBranch);
   const booked = board.booked.filter(inBranch);
-
   const blocks = [0, 1, 2, 3];
 
   function column(population: "people" | "service_users", headings: string[]) {
@@ -54,15 +75,15 @@ export default function WhiteboardBoard({
           ) : (
             <div className="mt-1 space-y-1">
               {items.map((b) => (
-                <div key={b.bookingId} className="flex items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-700 shadow-sm">
-                  <span className="min-w-0 truncate">
+                <div key={b.bookingId} className="flex items-start justify-between gap-2 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-700 shadow-sm">
+                  <span className="min-w-0">
                     <span className="font-semibold text-slate-800">{b.recordName}</span>
-                    <span className="text-slate-500"> · {fmtShort(b.date)}</span>
-                    {b.conductorName ? <span className="text-slate-400"> · {b.conductorName}</span> : null}
+                    {b.conductorName ? <span className="block text-slate-500">{b.conductorName}</span> : null}
+                    <span className="block text-slate-500">
+                      {fmtShort(b.date)}{b.startTime ? ` · ${b.startTime}` : ""}{b.durationMinutes ? ` · ${b.durationMinutes} min` : ""}
+                    </span>
                   </span>
-                  <form
-                    action={(fd) => { if (!confirm("Cancel this booking? It moves back to 'to book'.")) return; run(cancelBooking, fd); }}
-                  >
+                  <form action={(fd) => { if (!confirm("Cancel this booking? It moves back to 'to book'.")) return; run(cancelBooking, fd); }}>
                     <input type="hidden" name="booking_id" value={b.bookingId} />
                     <button type="submit" disabled={pending} className="text-slate-400 hover:text-rag-red" aria-label="Cancel booking">✕</button>
                   </form>
@@ -93,18 +114,16 @@ export default function WhiteboardBoard({
                 ) : (
                   <div className="space-y-1">
                     {items.map((t) => (
-                      <form key={t.instanceId} action={(fd) => run(quickBookCheck, fd)}>
-                        <input type="hidden" name="check_instance_id" value={t.instanceId} />
-                        <button
-                          type="submit"
-                          disabled={pending}
-                          title="Click to book"
-                          className="block w-full truncate rounded-md border border-white/10 bg-white/5 px-2 py-1 text-left text-[11px] text-white/80 hover:border-gold-400/50 hover:bg-gold-400/10"
-                        >
-                          <span className="font-semibold text-white">{t.recordName}</span>
-                          <span className="text-white/50"> · {t.checkName} · {fmtShort(t.dueDate)}</span>
-                        </button>
-                      </form>
+                      <button
+                        key={t.instanceId}
+                        type="button"
+                        onClick={() => { setActive(t); setError(null); }}
+                        title="Click to book"
+                        className="block w-full truncate rounded-md border border-white/10 bg-white/5 px-2 py-1 text-left text-[11px] text-white/80 hover:border-gold-400/50 hover:bg-gold-400/10"
+                      >
+                        <span className="font-semibold text-white">{t.recordName}</span>
+                        <span className="text-white/50"> · {t.checkName} · {fmtShort(t.dueDate)}</span>
+                      </button>
                     ))}
                   </div>
                 )}
@@ -127,6 +146,61 @@ export default function WhiteboardBoard({
           </div>
         </div>
       </div>
+
+      {/* Booking modal, opened by clicking a to-book check. */}
+      {active ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onMouseDown={() => setActive(null)}>
+          <form
+            onSubmit={submitBooking}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="glass-card w-full max-w-md space-y-4 p-5"
+          >
+            <div>
+              <h3 className="text-sm font-semibold text-white">Book {active.checkName}</h3>
+              <p className="text-sm text-white/60">
+                For <span className="font-semibold text-white">{active.recordName}</span> · due {fmtShort(active.dueDate)}
+              </p>
+            </div>
+
+            <label className="block text-sm">
+              <span className="mb-1 block font-medium text-white/80">Carried out by</span>
+              <select name="conductor_id" defaultValue={currentUserId} className="w-full" required>
+                <option value="">Choose…</option>
+                {conductors.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </label>
+
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <label className="block text-sm">
+                <span className="mb-1 block font-medium text-white/80">Date</span>
+                <input type="date" name="scheduled_date" defaultValue={active.dueDate} className="w-full" required />
+              </label>
+              <label className="block text-sm">
+                <span className="mb-1 block font-medium text-white/80">Time</span>
+                <input type="time" name="start_time" className="w-full" onFocus={handleTimeFocus} onChange={handleTimeChange} />
+              </label>
+              <label className="block text-sm">
+                <span className="mb-1 block font-medium text-white/80">Minutes</span>
+                <input type="number" name="duration_minutes" min={5} step={5} defaultValue={30} className="w-full" />
+              </label>
+            </div>
+
+            <label className="block text-sm">
+              <span className="mb-1 block font-medium text-white/80">Notes (optional)</span>
+              <textarea name="notes" rows={2} className="w-full" />
+            </label>
+
+            {error ? <p className="text-sm text-red-300">{error}</p> : null}
+
+            <div className="flex justify-end gap-2">
+              <button type="button" className="btn-ghost text-xs" onClick={() => setActive(null)}>Cancel</button>
+              <button type="submit" disabled={pending} className="btn-primary text-xs">{pending ? "Booking…" : "Book task"}</button>
+            </div>
+          </form>
+        </div>
+      ) : null}
     </div>
   );
 }

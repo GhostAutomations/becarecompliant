@@ -21,6 +21,7 @@ function daysBetweenIso(from: string, to: string): number {
 
 export type BoardToBook = {
   instanceId: string;
+  subjectId: string;
   population: "people" | "service_users";
   recordName: string;
   checkName: string;
@@ -34,6 +35,8 @@ export type BoardBooked = {
   recordName: string;
   checkName: string;
   date: string; // scheduled date ISO
+  startTime: string | null;
+  durationMinutes: number | null;
   conductorName: string | null;
   branchId: string | null;
 };
@@ -97,6 +100,8 @@ export async function getWhiteboardBoard(companyId: string, todayIso: string): P
       recordName: v.subjectName ?? "—",
       checkName: v.label,
       date: v.scheduledDate,
+      startTime: v.startTime,
+      durationMinutes: v.durationMinutes,
       conductorName: v.conductorName,
       branchId: v.branchId,
     });
@@ -115,6 +120,7 @@ export async function getWhiteboardBoard(companyId: string, todayIso: string): P
       if (!p || p.employment_status !== "active" || p.archived_at) continue;
       toBook.push({
         instanceId: raw.id as string,
+        subjectId: raw.person_id as string,
         population: "people",
         recordName: p.full_name,
         checkName: def.name,
@@ -127,6 +133,7 @@ export async function getWhiteboardBoard(companyId: string, todayIso: string): P
       if (!su || su.service_status !== "active" || su.archived_at) continue;
       toBook.push({
         instanceId: raw.id as string,
+        subjectId: raw.service_user_id as string,
         population: "service_users",
         recordName: su.full_name,
         checkName: def.name,
