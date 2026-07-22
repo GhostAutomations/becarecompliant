@@ -71,7 +71,10 @@ export async function createBooking(formData: FormData): Promise<ActionState> {
         (subjectKind === "person" && inst.person_id === subjectId) ||
         (subjectKind === "service_user" && inst.service_user_id === subjectId);
       if (!belongs) return { error: "That check does not belong to this record." };
-      const def = (inst as { check_definitions: { name: string } | null }).check_definitions;
+      const defRaw = (inst as unknown as {
+        check_definitions: { name: string }[] | { name: string } | null;
+      }).check_definitions;
+      const def = Array.isArray(defRaw) ? defRaw[0] ?? null : defRaw;
       checkKind = def?.name ?? null;
     }
   } else {

@@ -1,6 +1,12 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 
+/** Supabase types a to-one embedded relation as an array; normalise to one row. */
+function relOne<T>(v: T[] | T | null | undefined): T | null {
+  if (Array.isArray(v)) return v[0] ?? null;
+  return v ?? null;
+}
+
 /**
  * Planner data layer. All reads go through the user's RLS-scoped client, so branch
  * and role visibility (Branch Manager / Supervisor see their branch, company-wide
@@ -190,7 +196,7 @@ export async function getPlannerRecordForm(
   }));
   const checks: BookableCheck[] = [];
   for (const raw of instRes.data ?? []) {
-    const def = (raw as { check_definitions: { name: string; key: string } | null }).check_definitions;
+    const def = relOne((raw as { check_definitions: { name: string; key: string }[] | { name: string; key: string } | null }).check_definitions);
     if (!def) continue;
     checks.push({ instanceId: raw.id as string, name: def.name, key: def.key, dueDate: (raw.due_date as string | null) ?? null });
   }
@@ -245,7 +251,7 @@ export async function getPlannerFormData(companyId: string): Promise<PlannerForm
   const byPerson = new Map<string, BookableCheck[]>();
   const bySu = new Map<string, BookableCheck[]>();
   for (const raw of instRes.data ?? []) {
-    const def = (raw as { check_definitions: { name: string; key: string } | null }).check_definitions;
+    const def = relOne((raw as { check_definitions: { name: string; key: string }[] | { name: string; key: string } | null }).check_definitions);
     if (!def) continue;
     const c: BookableCheck = {
       instanceId: raw.id as string,
