@@ -36,7 +36,8 @@ export default async function PlannerPage({
   const todayIso = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
 
   const { month: monthParam, view } = await searchParams;
-  const isCalendar = view === "calendar";
+  // Calendar is the default view; the list is opt-in via ?view=list.
+  const isCalendar = view !== "list";
   const match = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? monthParam : todayIso.slice(0, 7);
   const [yearStr, monthStr] = match.split("-");
   const year = Number(yearStr);
@@ -54,8 +55,8 @@ export default async function PlannerPage({
         </div>
         <div className="flex items-center gap-2">
           <div className="flex overflow-hidden rounded-lg border border-white/15 text-xs">
-            <Link href="/planner" className={`px-3 py-1.5 ${!isCalendar ? "bg-white/15 text-white" : "text-white/60 hover:bg-white/10"}`}>List</Link>
-            <Link href="/planner?view=calendar" className={`px-3 py-1.5 ${isCalendar ? "bg-white/15 text-white" : "text-white/60 hover:bg-white/10"}`}>Calendar</Link>
+            <Link href="/planner?view=list" className={`px-3 py-1.5 ${!isCalendar ? "bg-white/15 text-white" : "text-white/60 hover:bg-white/10"}`}>List</Link>
+            <Link href="/planner" className={`px-3 py-1.5 ${isCalendar ? "bg-white/15 text-white" : "text-white/60 hover:bg-white/10"}`}>Calendar</Link>
           </div>
           <Link href="/planner/whiteboard" className="btn-ghost text-sm">Whiteboard</Link>
         </div>
@@ -70,7 +71,7 @@ export default async function PlannerPage({
           todayIso={todayIso}
           bookings={bookings}
           branches={[]}
-          basePath="/planner?view=calendar"
+          basePath="/planner"
         />
       ) : (
         <MyPlannerList bookings={bookings} todayIso={todayIso} />
