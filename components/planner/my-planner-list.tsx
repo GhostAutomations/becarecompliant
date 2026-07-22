@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { rescheduleBooking, completeBooking, cancelBooking } from "@/lib/planner/actions";
+import TimePicker from "./time-picker";
 import type { PlannerBookingView } from "@/lib/planner/data";
 
 function fmtDate(iso: string): string {
@@ -95,7 +96,9 @@ function BookingCard({ b, todayIso }: { b: PlannerBookingView; todayIso: string 
           </label>
           <label className="text-xs text-white/70">
             Time
-            <input type="time" name="start_time" min="08:00" max="20:00" step={900} defaultValue={b.startTime ?? ""} className="ml-2" />
+            <span className="ml-2 inline-block align-middle">
+              <TimePicker name="start_time" defaultValue={b.startTime ?? ""} />
+            </span>
           </label>
           <label className="text-xs text-white/70">
             Min
