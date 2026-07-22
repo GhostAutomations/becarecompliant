@@ -97,7 +97,7 @@ export default function WhiteboardBoard({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       {/* To book: the next 28 days in four 7-day blocks. Click a check to book it. */}
       <div>
         <h3 className="mb-2 text-sm font-semibold text-white/80">To book, next 28 days</h3>
@@ -137,7 +137,7 @@ export default function WhiteboardBoard({
       </div>
 
       {/* The whiteboard: off-white, split People | Service Users by a dashed gold line. */}
-      <div className="rounded-2xl bg-[#f6f5ef] p-4 shadow-inner">
+      <div className="min-h-0 flex-1 overflow-auto rounded-2xl bg-[#f6f5ef] p-4 shadow-inner">
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <div className="md:pr-6">
             <h3 className="mb-3 border-b border-slate-300 pb-1 text-sm font-bold text-slate-800">People</h3>
