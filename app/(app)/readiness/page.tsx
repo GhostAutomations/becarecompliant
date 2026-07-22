@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { getFrameworkReadiness, type Rag } from "@/lib/framework/data";
+import AssistantPanel from "@/components/framework/assistant-panel";
 
 export const metadata: Metadata = { title: "Inspection Readiness" };
 
@@ -107,6 +108,8 @@ export default async function ReadinessPage() {
           </div>
         ))}
       </div>
+
+      <AssistantPanel />
 
       <p className="text-xs text-white/40">
         Readiness is a live view of your own data and a preparation aid, not a rating. The regulator
