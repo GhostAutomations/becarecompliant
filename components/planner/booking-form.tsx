@@ -12,18 +12,17 @@ function fmtDue(iso: string): string {
 }
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
-/** One dropdown of valid times: 8am to 8pm, 5-minute steps only. value = 24h
- *  HH:MM (stored), label = 12h am/pm. */
-export const TIME_OPTIONS: Array<{ value: string; label: string }> = (() => {
+/** Left dropdown: hours 8am to 8pm. value = 24h "08".."20", label = 12h am/pm. */
+export const HOUR_OPTIONS: Array<{ value: string; label: string }> = (() => {
   const out: Array<{ value: string; label: string }> = [];
-  for (let t = 8 * 60; t <= 20 * 60; t += 5) {
-    const h = Math.floor(t / 60);
-    const m = t % 60;
+  for (let h = 8; h <= 20; h++) {
     const hour12 = ((h + 11) % 12) + 1;
-    out.push({ value: `${pad2(h)}:${pad2(m)}`, label: `${hour12}:${pad2(m)} ${h < 12 ? "am" : "pm"}` });
+    out.push({ value: pad2(h), label: `${hour12}${h < 12 ? "am" : "pm"}` });
   }
   return out;
 })();
+/** Right dropdown: quarter-hour minutes. */
+export const MINUTE_OPTIONS: string[] = ["00", "15", "30", "45"];
 
 
 /**
@@ -89,6 +88,10 @@ export default function BookingForm({
     fd.set("subject_kind", department === "people" ? "person" : "service_user");
     fd.set("subject_id", subjectId);
     fd.set("check_instance_id", checkInstanceId);
+    const hh = String(fd.get("start_hour") ?? "");
+    const mm = String(fd.get("start_minute") ?? "");
+    if (hh && mm) fd.set("start_time", `${hh}:${mm}`);
+    else fd.delete("start_time");
     startTransition(async () => {
       const res = await createBooking(fd);
       if (res.error) { setError(res.error); return; }
@@ -211,12 +214,20 @@ export default function BookingForm({
         </label>
         <label className="block text-sm">
           <span className="mb-1 block font-medium text-white/80">Time</span>
-          <select name="start_time" className="w-full" defaultValue="">
-            <option value="">Choose…</option>
-            {TIME_OPTIONS.map((t) => (
-              <option key={t.value} value={t.value}>{t.label}</option>
-            ))}
-          </select>
+          <div className="flex items-stretch divide-x divide-white/15 overflow-hidden rounded-lg border border-white/15 bg-white/5">
+            <select name="start_hour" defaultValue="" className="w-full border-0 bg-transparent px-3 py-2 focus:outline-none focus:ring-0">
+              <option value="">Hr</option>
+              {HOUR_OPTIONS.map((h) => (
+                <option key={h.value} value={h.value}>{h.label}</option>
+              ))}
+            </select>
+            <select name="start_minute" defaultValue="" className="w-full border-0 bg-transparent px-3 py-2 focus:outline-none focus:ring-0">
+              <option value="">Min</option>
+              {MINUTE_OPTIONS.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+          </div>
         </label>
         <label className="block text-sm">
           <span className="mb-1 block font-medium text-white/80">Minutes</span>
