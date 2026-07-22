@@ -17,8 +17,10 @@ function fmtDate(iso: string): string {
 }
 
 function timeLabel(b: PlannerBookingView): string {
-  if (!b.startTime) return "";
-  return b.durationMinutes ? `${b.startTime} · ${b.durationMinutes} min` : b.startTime;
+  const parts: string[] = [];
+  if (b.startTime) parts.push(b.startTime);
+  if (b.durationMinutes) parts.push(`${b.durationMinutes} min`);
+  return parts.join(" · ");
 }
 
 function BookingCard({ b, todayIso }: { b: PlannerBookingView; todayIso: string }) {
@@ -65,7 +67,7 @@ function BookingCard({ b, todayIso }: { b: PlannerBookingView; todayIso: string 
           <button
             type="button"
             disabled={pending}
-            className="btn-ghost text-xs"
+            className="btn-outline text-xs"
             onClick={() => setRescheduling((v) => !v)}
           >
             Reschedule
@@ -77,7 +79,7 @@ function BookingCard({ b, todayIso }: { b: PlannerBookingView; todayIso: string 
             }}
           >
             <input type="hidden" name="booking_id" value={b.id} />
-            <button type="submit" disabled={pending} className="btn-ghost text-xs text-red-300">Cancel</button>
+            <button type="submit" disabled={pending} className="btn-outline text-xs text-red-300">Cancel</button>
           </form>
         </div>
       ) : (
