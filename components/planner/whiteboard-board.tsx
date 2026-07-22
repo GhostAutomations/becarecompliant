@@ -81,9 +81,9 @@ export default function WhiteboardBoard({
           {items.length === 0 ? (
             <p className="text-[11px] text-slate-400">—</p>
           ) : (
-            <div className="mt-1 space-y-1">
+            <div className="mt-1 space-y-0.5">
               {items.map((b) => (
-                <div key={b.bookingId} className="flex items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-700 shadow-sm">
+                <div key={b.bookingId} className="flex items-center justify-between gap-2 rounded border border-slate-200 bg-white px-2 py-px text-[11px] leading-tight text-slate-700 shadow-sm">
                   <span className="min-w-0 truncate">
                     <span className="font-semibold text-slate-800">{b.recordName}</span>
                     {b.conductorName ? <span className="text-slate-500"> · {b.conductorName}</span> : null}
