@@ -108,11 +108,14 @@ export default function WhiteboardBoard({
             const items = toBook.filter((t) => t.block === i);
             return (
               <div key={i} className="glass-card p-3">
-                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-white/50">{fmtShort(start)} – {fmtShort(end)}</p>
+                <p className="mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-white/50">
+                  <span>{fmtShort(start)} – {fmtShort(end)}</span>
+                  <span className="rounded-full bg-white/10 px-2 py-0.5 text-white/70">{items.length}</span>
+                </p>
                 {items.length === 0 ? (
                   <p className="text-[11px] text-white/30">Nothing due.</p>
                 ) : (
-                  <div className="space-y-1">
+                  <div className="max-h-[150px] space-y-1 overflow-y-auto pr-1">
                     {items.map((t) => (
                       <button
                         key={t.instanceId}
