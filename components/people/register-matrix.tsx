@@ -163,21 +163,21 @@ export default function RegisterMatrix({
               <th>{col("probation_extension", "Probation Extension")}</th>
               <th>{col("spot_check_due", "Spot Check Due")}</th>
               <th>{col("recent_spot_check", "Recent Spot Check")}</th>
-              <th>{col("sup1_due", "Sup 1 Due")}</th>
-              <th>{col("sup1_comp", "Sup 1 Comp")}</th>
-              <th>{col("sup2_due", "Sup 2 Due")}</th>
-              <th>{col("sup2_comp", "Sup 2 Comp")}</th>
-              <th>{col("sup3_due", "Sup 3 Due")}</th>
-              <th>{col("sup3_comp", "Sup 3 Comp")}</th>
+              <th>{col("sup1_due", "Supervision 1 Due")}</th>
+              <th>{col("sup1_comp", "Supervision 1 Comp")}</th>
+              <th>{col("sup2_due", "Supervision 2 Due")}</th>
+              <th>{col("sup2_comp", "Supervision 2 Comp")}</th>
+              <th>{col("sup3_due", "Supervision 3 Due")}</th>
+              <th>{col("sup3_comp", "Supervision 3 Comp")}</th>
               {fourSup ? (
                 <>
-                  <th>{col("sup4_due", "Sup 4 Due")}</th>
-                  <th>{col("sup4_comp", "Sup 4 Comp")}</th>
+                  <th>{col("sup4_due", "Supervision 4 Due")}</th>
+                  <th>{col("sup4_comp", "Supervision 4 Comp")}</th>
                 </>
               ) : (
                 <>
-                  <th>{col("aa_due", "AA Next Due")}</th>
-                  <th>{col("aa_comp", "AA Comp")}</th>
+                  <th>{col("aa_due", "Annual Appraisal Next Due")}</th>
+                  <th>{col("aa_comp", "Annual Appraisal Comp")}</th>
                 </>
               )}
               {extraColumns.map((c) => (
