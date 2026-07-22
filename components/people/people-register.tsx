@@ -18,7 +18,7 @@ import type { RegisterRow } from "@/lib/people/types";
 import type { BranchLite } from "@/lib/people/data";
 import type { RegisterCheckColumn } from "@/lib/register/custom-columns";
 
-type MatrixConfig = { supInterval: number; supAmber: number; rtwAmber: number; probationAmber: number };
+type MatrixConfig = { supInterval: number; supAmber: number; rtwAmber: number; probationAmber: number; cycleMode: "appraisal" | "four_supervisions" };
 
 // Custom check register columns are parked as a later feature (Phil, 2026-07-16):
 // the code + migrations stay, but the Columns panel and the extra columns are hidden.

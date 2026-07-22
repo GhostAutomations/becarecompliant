@@ -14,6 +14,7 @@ import {
   getPersonTracker,
   getSupervisionCompDates,
   getAppraisalCompDates,
+  getSupervisionCycleMode,
   listBranches,
   listSupervisoryUsers,
   listPeopleCheckDefinitions,
@@ -132,15 +133,21 @@ export default async function PersonPage({
   ]);
   const supInterval = supDef?.interval ?? 90;
   const supAmber = supDef?.amber_days ?? 30;
+  const cycleMode = await getSupervisionCycleMode(companyId);
+  const supCount = cycleMode === "four_supervisions" ? 4 : 3;
   // Sup 1 due anchors on the later of the last Annual Appraisal completion and the
   // successful probation end; each completed appraisal restarts the cycle by count
-  // (see supervisionSlots), matching the Service User reviews.
+  // (see supervisionSlots), matching the Service User reviews. In four-supervisions
+  // mode there is no appraisal and every fourth supervision restarts the cycle.
   const slots = supervisionSlots(
     supInterval,
     supCompDates,
     supAmber,
     appraisalCompDates,
     tracker?.probation_end_actual ?? null,
+    undefined,
+    supCount,
+    cycleMode,
   );
 
   const statusByDef = new Map<string, CheckStatus>(statuses.map((s) => [s.definition_id, s]));
@@ -245,10 +252,10 @@ export default async function PersonPage({
         </div>
       ) : (
         <>
-          {/* Supervision (Sup 1/2/3) */}
+          {/* Supervision slots (Sup 1-3 + appraisal, or Sup 1-4 in four-supervisions mode) */}
           <section className="space-y-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Supervision</h2>
-            <div className="glass-card grid gap-3 p-4 sm:grid-cols-3">
+            <div className={`glass-card grid gap-3 p-4 ${supCount === 4 ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3"}`}>
               {slots.map((s) => (
                 <div key={s.n} className="flex flex-col rounded-xl border border-white/10 p-3">
                   <div className="flex items-center justify-between">
@@ -274,7 +281,7 @@ export default async function PersonPage({
             </div>
             <p className="text-[11px] text-white/40">
               Supervision 1 is due {supInterval} days after successful probation end, then
-              {" "}{supInterval} days after each Annual Appraisal (which restarts the cycle).
+              {" "}{supInterval} days after {supCount === 4 ? `every ${supCount} supervisions (which restarts the cycle)` : "each Annual Appraisal (which restarts the cycle)"}.
               {" "}Each further supervision is due {supInterval} days after the previous one is completed.
             </p>
           </section>

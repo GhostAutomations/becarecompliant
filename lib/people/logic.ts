@@ -223,23 +223,30 @@ export function supervisionSlots(
   probationEndActual: string | null = null,
   today: CivilDate = todayInLondon(),
   count = 3,
+  mode: "appraisal" | "four_supervisions" = "appraisal",
 ): SupervisionSlot[] {
   const slots: SupervisionSlot[] = [];
   const valid = (d: string | null | undefined): d is string => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d);
   const hasInterval = !!intervalDays && intervalDays >= 1;
   const addI = (d: string) => formatCivilDate(addInterval(parseCivilDate(d), "day", intervalDays!));
-  // Count-based cycle, matching the Service User reviews: completing the Annual
-  // Appraisal restarts the cycle, regardless of the dates entered. Each completed
-  // appraisal ends a cycle of `count` supervisions, so the first (count * appraisalCount)
-  // supervisions belong to prior cycles and the rest are the current cycle. History =
-  // the previous cycle's supervisions, kept visible until each slot is redone. Sup 1
-  // anchors on the LATER of the last appraisal completion and the probation end.
-  const appraisals = appraisalCompDates.filter(valid).slice().sort();
-  const appraisalCount = appraisals.length;
-  const lastAppraisal = appraisalCount > 0 ? appraisals[appraisalCount - 1] : null;
-  const dueAnchor = supervisionCycleAnchor(lastAppraisal, probationEndActual);
   const all = compDates.filter(valid).slice().sort();
-  const consumed = count * appraisalCount;
+  // What closes and restarts a cycle:
+  //  - appraisal mode: a completed Annual Appraisal (each ends a cycle of `count`).
+  //    Sup 1 anchors on the LATER of the last appraisal completion and the probation end.
+  //  - four_supervisions mode: no appraisal; every `count` completed supervisions closes
+  //    a cycle, and the last supervision of the previous cycle anchors the next Sup 1.
+  let consumed: number;
+  let dueAnchor: string | null;
+  if (mode === "four_supervisions") {
+    consumed = count * Math.floor(all.length / count);
+    dueAnchor = consumed > 0 ? all[consumed - 1] : (valid(probationEndActual) ? probationEndActual : null);
+  } else {
+    const appraisals = appraisalCompDates.filter(valid).slice().sort();
+    const appraisalCount = appraisals.length;
+    const lastAppraisal = appraisalCount > 0 ? appraisals[appraisalCount - 1] : null;
+    dueAnchor = supervisionCycleAnchor(lastAppraisal, probationEndActual);
+    consumed = count * appraisalCount;
+  }
   const cycle = all.slice(consumed);
   const prev = all.slice(Math.max(0, consumed - count), consumed);
   // Display model (Phil, 2026-07-18): the active slot is the next supervision to do (after
@@ -341,6 +348,15 @@ export function annotateSupervisionOptions(
   slots: SupervisionSlot[],
 ): FormSchema {
   const nextN = slots.find((s) => !s.comp)?.n ?? null;
+  const hintFor = (slot: SupervisionSlot): string | undefined => {
+    let hint: string;
+    if (slot.comp) hint = `completed ${formatDisplayDate(slot.comp)}`;
+    else if (slot.due) hint = `due ${formatDisplayDate(slot.due)}`;
+    else if (slot.n > 1) hint = `due after Supervision ${slot.n - 1}`;
+    else hint = "";
+    if (slot.n === nextN) hint = hint ? `${hint} (next)` : "next";
+    return hint || undefined;
+  };
   const bySlot = new Map(slots.map((s) => [String(s.n), s]));
   return {
     ...schema,
@@ -348,20 +364,17 @@ export function annotateSupervisionOptions(
       ...section,
       fields: section.fields.map((field) => {
         if (field.key !== "supervision_type" || !field.options) return field;
-        return {
-          ...field,
-          options: field.options.map((o) => {
-            const slot = bySlot.get(o.value);
-            if (!slot) return o;
-            let hint: string;
-            if (slot.comp) hint = `completed ${formatDisplayDate(slot.comp)}`;
-            else if (slot.due) hint = `due ${formatDisplayDate(slot.due)}`;
-            else if (slot.n > 1) hint = `due after Supervision ${slot.n - 1}`;
-            else hint = "";
-            if (slot.n === nextN) hint = hint ? `${hint} (next)` : "next";
-            return { ...o, hint: hint || undefined };
-          }),
-        };
+        const existing = field.options.map((o) => {
+          const slot = bySlot.get(o.value);
+          return slot ? { ...o, hint: hintFor(slot) } : o;
+        });
+        // Add any cycle slot (e.g. Supervision 4 in four-supervisions mode) the stored
+        // form does not already offer, so the whole cycle is selectable.
+        const existingValues = new Set(field.options.map((o) => o.value));
+        const extra = slots
+          .filter((s) => !existingValues.has(String(s.n)))
+          .map((s) => ({ label: `Supervision ${s.n}`, value: String(s.n), hint: hintFor(s) }));
+        return { ...field, options: [...existing, ...extra] };
       }),
     })),
   };

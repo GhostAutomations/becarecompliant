@@ -100,6 +100,20 @@ export async function listPeopleCheckDefinitions(companyId: string): Promise<Che
   return (data as CheckDefinition[]) ?? [];
 }
 
+export type SupervisionCycleMode = "appraisal" | "four_supervisions";
+
+/** The company's People supervision cycle mode (default 'appraisal'). Drives whether
+ *  the cycle is Sup 1-3 + Annual Appraisal, or four supervisions with no appraisal. */
+export async function getSupervisionCycleMode(companyId: string): Promise<SupervisionCycleMode> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("companies")
+    .select("supervision_cycle_mode")
+    .eq("id", companyId)
+    .maybeSingle();
+  return (data?.supervision_cycle_mode as SupervisionCycleMode | null) ?? "appraisal";
+}
+
 /** All People definitions (active and inactive) for the configuration screen. */
 export async function listAllPeopleCheckDefinitions(companyId: string): Promise<CheckDefinition[]> {
   const supabase = await createClient();

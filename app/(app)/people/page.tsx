@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { requireCompany } from "@/lib/auth/guards";
 import PeopleRegister from "@/components/people/people-register";
 import RealtimeRefresh from "@/components/realtime-refresh";
-import { listBranches, listRegister, getColumnLabels } from "@/lib/people/data";
+import { listBranches, listRegister, getColumnLabels, getSupervisionCycleMode } from "@/lib/people/data";
 import { listRegisterCheckColumns } from "@/lib/register/data";
 
 export const metadata: Metadata = { title: "People" };
@@ -33,11 +33,12 @@ export default async function PeoplePage({
 
   // Load EVERY person once (all statuses, all the viewer's branches). Branches and
   // View are then switched instantly on the client with no server round trip.
-  const [branches, register, columnLabels, checkColumns] = await Promise.all([
+  const [branches, register, columnLabels, checkColumns, cycleMode] = await Promise.all([
     listBranches(companyId),
     listRegister(companyId, null, "all"),
     getColumnLabels(companyId),
     listRegisterCheckColumns(companyId, "people"),
+    getSupervisionCycleMode(companyId),
   ]);
   const { definitions, rows } = register;
   const canManage = MANAGE_ROLES.includes(profile.role);
@@ -49,6 +50,7 @@ export default async function PeoplePage({
     supAmber: defByKey["supervision"]?.amber_days ?? 30,
     rtwAmber: defByKey["right_to_work"]?.amber_days ?? 30,
     probationAmber: defByKey["probation_review"]?.amber_days ?? 14,
+    cycleMode,
   };
 
   return (

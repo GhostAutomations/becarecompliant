@@ -243,6 +243,16 @@ export async function setSupervisionCycleMode(formData: FormData): Promise<Actio
     .eq("id", companyId);
   if (error) return { error: error.message };
 
+  // The Annual Appraisal check only exists in appraisal mode. Deactivating it in
+  // four-supervisions mode cleanly removes it from the matrix, register, scheduling
+  // and reports (they all filter active checks), and restores it on switch back.
+  await supabase
+    .from("check_definitions")
+    .update({ active: mode === "appraisal" })
+    .eq("company_id", companyId)
+    .eq("population", "people")
+    .eq("key", "appraisal");
+
   await writeAudit({
     companyId,
     actorId: user.id,

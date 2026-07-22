@@ -15,7 +15,7 @@ import "server-only";
  */
 
 import { type Rag, todayInLondon, formatCivilDate } from "@/lib/recurrence";
-import { listRegister as listPeopleRegister } from "@/lib/people/data";
+import { listRegister as listPeopleRegister, getSupervisionCycleMode } from "@/lib/people/data";
 import { supervisionSlots, appraisalSlot } from "@/lib/people/logic";
 import {
   WORKING_STATUS_LABELS,
@@ -142,6 +142,7 @@ export async function buildPeopleRegisterReport(
   const supDef = definitions.find((d) => d.key === "supervision");
   const supInterval = supDef?.interval ?? 90;
   const supAmber = supDef?.amber_days ?? 30;
+  const cycleMode = await getSupervisionCycleMode(input.companyId);
   // Latest supervision + appraisal per person, coloured on time / late (register pill).
   const cycleRows = rows
     .map((r: RegisterRow) => {
@@ -151,6 +152,9 @@ export async function buildPeopleRegisterReport(
         supAmber,
         r.appraisalCompDates,
         r.tracker?.probation_end_actual ?? null,
+        undefined,
+        cycleMode === "four_supervisions" ? 4 : 3,
+        cycleMode,
       );
       const lastSup = [...sup].reverse().find((s) => s.comp) ?? null;
       const aa = appraisalSlot(r.appraisalCompDates, r.supCompDates, supInterval, supAmber);

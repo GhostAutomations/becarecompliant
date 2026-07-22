@@ -941,6 +941,7 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
       .eq("company_id", instance.company_id as string)
       .eq("population", "people")
       .eq("key", "appraisal")
+      .eq("active", true)
       .maybeSingle();
     if ((apprDef?.schedule_mode as string | null) === "after_sup3") {
       const apprDue = addDaysIso(completedOnIso, supInterval);

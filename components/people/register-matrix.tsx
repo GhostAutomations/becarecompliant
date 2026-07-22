@@ -73,6 +73,7 @@ type MatrixConfig = {
   supAmber: number;
   rtwAmber: number;
   probationAmber: number;
+  cycleMode: "appraisal" | "four_supervisions";
 };
 
 
@@ -130,6 +131,8 @@ export default function RegisterMatrix({
       : WORKING_STATUS_OPTIONS;
 
   const filtered = rows;
+  // Four-supervisions mode: show a Sup 4 column pair and no Annual Appraisal columns.
+  const fourSup = config.cycleMode === "four_supervisions";
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
@@ -166,8 +169,17 @@ export default function RegisterMatrix({
               <th>{col("sup2_comp", "Sup 2 Comp")}</th>
               <th>{col("sup3_due", "Sup 3 Due")}</th>
               <th>{col("sup3_comp", "Sup 3 Comp")}</th>
-              <th>{col("aa_due", "AA Next Due")}</th>
-              <th>{col("aa_comp", "AA Comp")}</th>
+              {fourSup ? (
+                <>
+                  <th>{col("sup4_due", "Sup 4 Due")}</th>
+                  <th>{col("sup4_comp", "Sup 4 Comp")}</th>
+                </>
+              ) : (
+                <>
+                  <th>{col("aa_due", "AA Next Due")}</th>
+                  <th>{col("aa_comp", "AA Comp")}</th>
+                </>
+              )}
               {extraColumns.map((c) => (
                 <th key={c.id}>{c.name}</th>
               ))}
@@ -185,6 +197,9 @@ export default function RegisterMatrix({
                 config.supAmber,
                 row.appraisalCompDates,
                 t?.probation_end_actual ?? null,
+                undefined,
+                fourSup ? 4 : 3,
+                config.cycleMode,
               );
               const aaSlot = appraisalSlot(
                 row.appraisalCompDates,
@@ -282,8 +297,17 @@ export default function RegisterMatrix({
                   <td>{sup[1].comp ? <RagDate date={sup[1].comp} rag={sup[1].rag} /> : <RagDate date={null} rag="none" />}</td>
                   <td>{sup[2].comp ? (sup[2].due ? <Plain date={sup[2].due} /> : <RagDate date={null} rag="none" />) : <RagDate date={sup[2].due} rag={sup[2].rag} />}</td>
                   <td>{sup[2].comp ? <RagDate date={sup[2].comp} rag={sup[2].rag} /> : <RagDate date={null} rag="none" />}</td>
-                  <td><RagDate date={aaSlot.nextDue} rag={aaSlot.nextDueRag} /></td>
-                  <td>{aaSlot.comp ? <RagDate date={aaSlot.comp} rag={aaSlot.compRag} /> : <RagDate date={null} rag="none" />}</td>
+                  {fourSup ? (
+                    <>
+                      <td>{sup[3].comp ? (sup[3].due ? <Plain date={sup[3].due} /> : <RagDate date={null} rag="none" />) : <RagDate date={sup[3].due} rag={sup[3].rag} />}</td>
+                      <td>{sup[3].comp ? <RagDate date={sup[3].comp} rag={sup[3].rag} /> : <RagDate date={null} rag="none" />}</td>
+                    </>
+                  ) : (
+                    <>
+                      <td><RagDate date={aaSlot.nextDue} rag={aaSlot.nextDueRag} /></td>
+                      <td>{aaSlot.comp ? <RagDate date={aaSlot.comp} rag={aaSlot.compRag} /> : <RagDate date={null} rag="none" />}</td>
+                    </>
+                  )}
                   {extraColumns.map((c) => (
                     <td key={c.id}>
                       <ExtraCheckCell

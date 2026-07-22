@@ -11,6 +11,7 @@ import {
   getPersonTracker,
   getSupervisionCompDates,
   getAppraisalCompDates,
+  getSupervisionCycleMode,
   listBranches,
 } from "@/lib/people/data";
 import { supervisionSlots, annotateSupervisionOptions } from "@/lib/people/logic";
@@ -66,12 +67,13 @@ export default async function CompleteCheckPage({
   let presetAnswers: Answers | undefined;
   let heading = def.name;
   if (def.key === "supervision") {
-    if (sup === "1" || sup === "2" || sup === "3") {
+    if (sup === "1" || sup === "2" || sup === "3" || sup === "4") {
       schema = removeField(schema, "supervision_type");
       presetAnswers = { supervision_type: sup };
       heading = `Supervision ${sup}`;
     } else {
       const appraisalDef = (await getPersonChecks(id)).find((s) => s.check_key === "appraisal") ?? null;
+      const cycleMode = await getSupervisionCycleMode(def.company_id as string);
       const [supCompDates, appraisalCompDates, tracker] = await Promise.all([
         getSupervisionCompDates(id, def.form_id, def.id),
         getAppraisalCompDates(id, appraisalDef?.form_id ?? null, appraisalDef?.definition_id ?? null),
@@ -83,6 +85,9 @@ export default async function CompleteCheckPage({
         def.amber_days ?? 30,
         appraisalCompDates,
         tracker?.probation_end_actual ?? null,
+        undefined,
+        cycleMode === "four_supervisions" ? 4 : 3,
+        cycleMode,
       );
       schema = annotateSupervisionOptions(schema, slots);
     }
