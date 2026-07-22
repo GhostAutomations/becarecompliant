@@ -64,6 +64,15 @@ export default function WhiteboardBoard({
   const booked = board.booked.filter(inBranch);
   const blocks = [0, 1, 2, 3];
 
+  // Split each population's headings (the company's own checks, in order) evenly
+  // across the two columns of its half, so the board adapts to any check set.
+  const splitCols = (hs: string[]): [string[], string[]] => {
+    const mid = Math.ceil(hs.length / 2);
+    return [hs.slice(0, mid), hs.slice(mid)];
+  };
+  const [peopleLeft, peopleRight] = splitCols(board.peopleHeadings);
+  const [suLeft, suRight] = splitCols(board.suHeadings);
+
   function headingBlock(population: "people" | "service_users", h: string) {
       const items = booked.filter((b) => b.population === population && b.checkName === h);
       return (
@@ -148,11 +157,11 @@ export default function WhiteboardBoard({
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <div className="md:pr-6">
             <h3 className="mb-3 border-b border-slate-300 pb-1 text-sm font-bold text-slate-800">People</h3>
-            {half("people", ["Spot Check", "Supervision", "Annual Appraisal"], ["Medication Competency", "Manual Handling"])}
+            {half("people", peopleLeft, peopleRight)}
           </div>
           <div className="md:border-l-2 md:border-dashed md:border-gold-400 md:pl-6">
             <h3 className="mb-3 border-b border-slate-300 pb-1 text-sm font-bold text-slate-800">Service Users</h3>
-            {half("service_users", ["Setup"], ["Care Plan Review"])}
+            {half("service_users", suLeft, suRight)}
           </div>
         </div>
       </div>
