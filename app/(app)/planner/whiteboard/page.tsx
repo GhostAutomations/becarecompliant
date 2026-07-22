@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import { featureEnabled } from "@/lib/billing/tier";
 import { listBoardBookings, getPlannerFormData } from "@/lib/planner/data";
+import { listAccessibleBranchTypes } from "@/lib/service-users/data";
 import BookingForm from "@/components/planner/booking-form";
 import WhiteboardCalendar from "@/components/planner/whiteboard-calendar";
 
@@ -39,10 +40,12 @@ export default async function WhiteboardPage({
   const monthStart = `${year}-${pad(month)}-01`;
   const monthEnd = `${year}-${pad(month)}-${pad(new Date(Date.UTC(year, month, 0)).getUTCDate())}`;
 
-  const [bookings, formData] = await Promise.all([
+  const [bookings, formData, branchTypes] = await Promise.all([
     listBoardBookings(monthStart, monthEnd),
     getPlannerFormData(profile.company_id),
+    listAccessibleBranchTypes(profile.company_id, profile.role, user.id),
   ]);
+  const branches = branchTypes.map((b) => ({ id: b.id, name: b.name }));
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-6">
@@ -61,7 +64,7 @@ export default async function WhiteboardPage({
         month={month}
         todayIso={todayIso}
         bookings={bookings}
-        branches={formData.branches}
+        branches={branches}
       />
     </div>
   );

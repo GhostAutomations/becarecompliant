@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import { featureEnabled } from "@/lib/billing/tier";
 import { listMyBookings, getPlannerFormData } from "@/lib/planner/data";
+import { listAccessibleBranchTypes } from "@/lib/service-users/data";
 import BookingForm from "@/components/planner/booking-form";
 import MyPlannerList from "@/components/planner/my-planner-list";
 import WhiteboardCalendar from "@/components/planner/whiteboard-calendar";
@@ -29,10 +30,12 @@ export default async function PlannerPage({
   if (!ALLOWED.includes(profile.role)) redirect("/dashboard");
   if (!(await featureEnabled(profile.company_id, "planner"))) redirect("/dashboard");
 
-  const [bookings, formData] = await Promise.all([
+  const [bookings, formData, branchTypes] = await Promise.all([
     listMyBookings(user.id),
     getPlannerFormData(profile.company_id),
+    listAccessibleBranchTypes(profile.company_id, profile.role, user.id),
   ]);
+  const branches = branchTypes.map((b) => ({ id: b.id, name: b.name }));
   const todayIso = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
 
   const { month: monthParam, view } = await searchParams;
@@ -68,7 +71,7 @@ export default async function PlannerPage({
           month={month}
           todayIso={todayIso}
           bookings={bookings}
-          branches={[]}
+          branches={branches}
           basePath="/planner"
         />
       ) : (
