@@ -104,6 +104,17 @@ export const NAV_ENTRIES: NavEntry[] = [
     ],
   },
   {
+    href: "/complaints",
+    label: "Complaints",
+    icon: "complaints",
+    group: "Departments",
+    roles: ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"],
+    children: [
+      { href: "/complaints", label: "Open", icon: "complaints" },
+      { href: "/complaints/closed", label: "Closed", icon: "complaints" },
+    ],
+  },
+  {
     href: "/planner",
     label: "Planner",
     icon: "planner",
@@ -114,17 +125,6 @@ export const NAV_ENTRIES: NavEntry[] = [
     children: [
       { href: "/planner", label: "My Planner", icon: "planner" },
       { href: "/planner/whiteboard", label: "Whiteboard", icon: "whiteboard" },
-    ],
-  },
-  {
-    href: "/complaints",
-    label: "Complaints",
-    icon: "complaints",
-    group: "Departments",
-    roles: ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"],
-    children: [
-      { href: "/complaints", label: "Open", icon: "complaints" },
-      { href: "/complaints/closed", label: "Closed", icon: "complaints" },
     ],
   },
   {
