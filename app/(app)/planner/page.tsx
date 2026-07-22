@@ -45,7 +45,7 @@ export default async function PlannerPage({
 
   return (
     <div className={`flex h-full min-h-0 flex-col gap-6 ${isCalendar ? "w-full" : "mx-auto max-w-3xl"}`}>
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="page-title">My Planner</h1>
           <p className="page-subtitle">
@@ -58,11 +58,9 @@ export default async function PlannerPage({
             <Link href="/planner" className={`px-3 py-1.5 ${isCalendar ? "bg-white/15 text-white" : "text-white/60 hover:bg-white/10"}`}>Calendar</Link>
             <Link href="/planner?view=list" className={`px-3 py-1.5 ${!isCalendar ? "bg-white/15 text-white" : "text-white/60 hover:bg-white/10"}`}>List</Link>
           </div>
-          <Link href="/planner/whiteboard" className="btn-ghost text-sm">Whiteboard</Link>
+          <BookingForm data={formData} currentUserId={user.id} />
         </div>
       </div>
-
-      <BookingForm data={formData} currentUserId={user.id} />
 
       {isCalendar ? (
         <WhiteboardCalendar

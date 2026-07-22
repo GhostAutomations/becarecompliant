@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createBooking } from "@/lib/planner/actions";
 import type { PlannerFormData, PlannerSubject } from "@/lib/planner/data";
@@ -47,6 +47,15 @@ export default function BookingForm({
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onDoc(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    if (open) document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
 
   const [department, setDepartment] = useState<"" | "people" | "service_users">(preset ? preset.population : "");
   const [branchId, setBranchId] = useState(preset?.branchId ?? "");
@@ -97,18 +106,13 @@ export default function BookingForm({
     });
   }
 
-  if (!open) {
-    return (
-      <div className="flex justify-end">
-        <button type="button" className="btn-primary text-xs" onClick={() => setOpen(true)}>
-          {buttonLabel}
-        </button>
-      </div>
-    );
-  }
-
   return (
-    <form onSubmit={submit} className="glass-card space-y-4 p-5">
+    <div ref={ref} className="relative inline-block text-left">
+      <button type="button" className="btn-primary text-xs" onClick={() => setOpen((o) => !o)}>
+        {buttonLabel}
+      </button>
+      {open ? (
+    <form onSubmit={submit} className="glass-card absolute right-0 top-full z-40 mt-2 w-[30rem] max-w-[90vw] space-y-4 p-5">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-white">Book a task</h3>
         <button type="button" className="text-xs text-white/50 hover:text-white" onClick={() => { setOpen(false); resetAll(); }}>
@@ -233,5 +237,7 @@ export default function BookingForm({
         </button>
       </div>
     </form>
+      ) : null}
+    </div>
   );
 }

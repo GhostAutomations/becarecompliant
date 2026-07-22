@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import { featureEnabled } from "@/lib/billing/tier";
@@ -47,17 +46,16 @@ export default async function WhiteboardPage({
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="page-title">Whiteboard</h1>
           <p className="page-subtitle">
             Everything booked in across the branch, on a month calendar.
           </p>
         </div>
-        <Link href="/planner" className="btn-ghost text-sm">My Planner</Link>
+        <BookingForm data={formData} currentUserId={user.id} />
       </div>
 
-      <BookingForm data={formData} currentUserId={user.id} />
       <WhiteboardCalendar
         year={year}
         month={month}
