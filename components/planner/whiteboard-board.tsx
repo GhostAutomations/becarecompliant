@@ -64,8 +64,7 @@ export default function WhiteboardBoard({
   const booked = board.booked.filter(inBranch);
   const blocks = [0, 1, 2, 3];
 
-  function column(population: "people" | "service_users", headings: string[]) {
-    return headings.map((h) => {
+  function headingBlock(population: "people" | "service_users", h: string) {
       const items = booked.filter((b) => b.population === population && b.checkName === h);
       return (
         <div key={h} className="mb-3">
@@ -93,7 +92,15 @@ export default function WhiteboardBoard({
           )}
         </div>
       );
-    });
+  }
+
+  function half(population: "people" | "service_users", left: string[], right: string[]) {
+    return (
+      <div className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
+        <div>{left.map((h) => headingBlock(population, h))}</div>
+        <div>{right.map((h) => headingBlock(population, h))}</div>
+      </div>
+    );
   }
 
   return (
@@ -141,11 +148,11 @@ export default function WhiteboardBoard({
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <div className="md:pr-6">
             <h3 className="mb-3 border-b border-slate-300 pb-1 text-sm font-bold text-slate-800">People</h3>
-            {column("people", board.peopleHeadings)}
+            {half("people", ["Spot Check", "Supervision", "Annual Appraisal"], ["Medication Competency", "Manual Handling"])}
           </div>
           <div className="md:border-l-2 md:border-dashed md:border-gold-400 md:pl-6">
             <h3 className="mb-3 border-b border-slate-300 pb-1 text-sm font-bold text-slate-800">Service Users</h3>
-            {column("service_users", board.suHeadings)}
+            {half("service_users", ["Setup"], ["Care Plan Review"])}
           </div>
         </div>
       </div>
