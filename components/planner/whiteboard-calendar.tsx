@@ -81,7 +81,7 @@ export default function WhiteboardCalendar({
         ) : null}
       </div>
 
-      <div className="grid grid-cols-7 gap-px overflow-hidden rounded-xl bg-white/10 text-xs">
+      <div className="grid grid-cols-7 gap-px rounded-xl bg-white/10 text-xs">
         {WEEKDAYS.map((w) => (
           <div key={w} className="bg-slate-900/60 px-2 py-1.5 text-center font-semibold text-white/60">{w}</div>
         ))}
@@ -99,8 +99,19 @@ export default function WhiteboardCalendar({
               <span className={`block text-[11px] font-semibold ${isToday ? "text-gold-300" : "text-white/50"}`}>{cell.day}</span>
               <span className="mt-1 flex flex-col gap-0.5">
                 {items.slice(0, 3).map((b) => (
-                  <span key={b.id} className="truncate rounded bg-gold-400/15 px-1 py-0.5 text-[10px] text-gold-100">
-                    {b.startTime ? `${b.startTime} ` : ""}{b.label}
+                  <span key={b.id} className="group/appt relative block">
+                    <span className="block truncate rounded bg-gold-400/15 px-1 py-0.5 text-[10px] text-gold-100">
+                      {b.startTime ? `${b.startTime} ` : ""}{b.label}
+                    </span>
+                    <span className="pointer-events-none absolute left-0 top-full z-40 mt-1 hidden w-48 rounded-lg border border-white/15 bg-slate-900 p-2 text-left shadow-xl group-hover/appt:block">
+                      <span className="block text-[11px] font-semibold text-white">{b.label}</span>
+                      <span className="block text-[10px] text-white/70">
+                        {b.subjectName ?? "Ad-hoc"}{b.branchName ? ` · ${b.branchName}` : ""}
+                      </span>
+                      <span className="block text-[10px] text-white/60">
+                        {b.conductorName ?? "Unassigned"}{b.startTime ? ` · ${b.startTime}` : ""}{b.durationMinutes ? ` · ${b.durationMinutes} min` : ""}
+                      </span>
+                    </span>
                   </span>
                 ))}
                 {items.length > 3 ? (
