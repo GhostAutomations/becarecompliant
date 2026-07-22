@@ -11,22 +11,6 @@ function fmtDue(iso: string): string {
   return `${d}/${m}/${y}`;
 }
 
-const pad2 = (n: number) => String(n).padStart(2, "0");
-/** Hours 8am to 8pm. value = 24h "08".."20", label = 12h am/pm. */
-export const HOUR_OPTIONS: Array<{ value: string; label: string }> = (() => {
-  const out: Array<{ value: string; label: string }> = [];
-  for (let h = 8; h <= 20; h++) {
-    const hour12 = ((h + 11) % 12) + 1;
-    out.push({ value: pad2(h), label: `${hour12}${h < 12 ? "am" : "pm"}` });
-  }
-  return out;
-})();
-/** Minutes in 5-minute steps: 00, 05, ... 55. */
-export const MINUTE_OPTIONS: string[] = (() => {
-  const out: string[] = [];
-  for (let m = 0; m < 60; m += 5) out.push(pad2(m));
-  return out;
-})();
 
 /**
  * Book a task. Pick the department, branch and name (or, on a record page, that
@@ -91,11 +75,6 @@ export default function BookingForm({
     fd.set("subject_kind", department === "people" ? "person" : "service_user");
     fd.set("subject_id", subjectId);
     fd.set("check_instance_id", checkInstanceId);
-    // Combine the hour + minute dropdowns into a single HH:MM start time.
-    const hh = String(fd.get("start_hour") ?? "");
-    const mm = String(fd.get("start_minute") ?? "");
-    if (hh && mm) fd.set("start_time", `${hh}:${mm}`);
-    else fd.delete("start_time");
     startTransition(async () => {
       const res = await createBooking(fd);
       if (res.error) { setError(res.error); return; }
@@ -218,20 +197,7 @@ export default function BookingForm({
         </label>
         <label className="block text-sm">
           <span className="mb-1 block font-medium text-white/80">Time</span>
-          <div className="flex gap-2">
-            <select name="start_hour" className="w-full" defaultValue="">
-              <option value="">Hr</option>
-              {HOUR_OPTIONS.map((h) => (
-                <option key={h.value} value={h.value}>{h.label}</option>
-              ))}
-            </select>
-            <select name="start_minute" className="w-full" defaultValue="">
-              <option value="">Min</option>
-              {MINUTE_OPTIONS.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
-          </div>
+          <input type="time" name="start_time" min="08:00" max="20:00" step={300} className="w-full" />
         </label>
         <label className="block text-sm">
           <span className="mb-1 block font-medium text-white/80">Minutes</span>

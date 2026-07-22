@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { rescheduleBooking, completeBooking, cancelBooking } from "@/lib/planner/actions";
-import { HOUR_OPTIONS, MINUTE_OPTIONS } from "./booking-form";
 import type { PlannerBookingView } from "@/lib/planner/data";
 
 function fmtDate(iso: string): string {
@@ -86,14 +85,7 @@ function BookingCard({ b, todayIso }: { b: PlannerBookingView; todayIso: string 
 
       {rescheduling ? (
         <form
-          action={(fd) => {
-            const hh = String(fd.get("start_hour") ?? "");
-            const mm = String(fd.get("start_minute") ?? "");
-            if (hh && mm) fd.set("start_time", `${hh}:${mm}`);
-            else fd.delete("start_time");
-            run(rescheduleBooking, fd);
-            setRescheduling(false);
-          }}
+          action={(fd) => { run(rescheduleBooking, fd); setRescheduling(false); }}
           className="mt-3 flex flex-wrap items-end gap-2 border-t border-white/10 pt-3"
         >
           <input type="hidden" name="booking_id" value={b.id} />
@@ -103,18 +95,7 @@ function BookingCard({ b, todayIso }: { b: PlannerBookingView; todayIso: string 
           </label>
           <label className="text-xs text-white/70">
             Time
-            <select name="start_hour" defaultValue={(b.startTime ?? "").split(":")[0] ?? ""} className="ml-2">
-              <option value="">Hr</option>
-              {HOUR_OPTIONS.map((h) => (
-                <option key={h.value} value={h.value}>{h.label}</option>
-              ))}
-            </select>
-            <select name="start_minute" defaultValue={(b.startTime ?? "").split(":")[1] ?? ""} className="ml-1">
-              <option value="">Min</option>
-              {MINUTE_OPTIONS.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
+            <input type="time" name="start_time" min="08:00" max="20:00" step={300} defaultValue={b.startTime ?? ""} className="ml-2" />
           </label>
           <label className="text-xs text-white/70">
             Min
