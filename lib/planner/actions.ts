@@ -141,6 +141,33 @@ export async function createBooking(formData: FormData): Promise<ActionState> {
   return { ok: "Booked." };
 }
 
+/** Quick-book a due check straight from the Whiteboard: books it to the current
+ *  user on the check's due date (30 minutes). It can be rescheduled/reassigned
+ *  afterwards. Reuses createBooking for validation, branch derivation and audit. */
+export async function quickBookCheck(formData: FormData): Promise<ActionState> {
+  const { user, profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+  const instanceId = String(formData.get("check_instance_id") ?? "").trim();
+  if (!instanceId) return { error: "Missing check." };
+
+  const supabase = await createClient();
+  const { data: inst } = await supabase
+    .from("check_instances")
+    .select("record_type, person_id, service_user_id, due_date, company_id")
+    .eq("id", instanceId)
+    .maybeSingle();
+  if (!inst || inst.company_id !== profile.company_id) return { error: "Check not found." };
+
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
+  const fd = new FormData();
+  fd.set("subject_kind", inst.record_type === "person" ? "person" : "service_user");
+  fd.set("subject_id", String(inst.record_type === "person" ? inst.person_id : inst.service_user_id));
+  fd.set("check_instance_id", instanceId);
+  fd.set("conductor_id", user.id);
+  fd.set("scheduled_date", (inst.due_date as string | null) ?? today);
+  return createBooking(fd);
+}
+
 async function loadBooking(bookingId: string, companyId: string) {
   const supabase = await createClient();
   const { data } = await supabase

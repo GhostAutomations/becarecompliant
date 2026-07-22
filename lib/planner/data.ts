@@ -7,6 +7,141 @@ function relOne<T>(v: T[] | T | null | undefined): T | null {
   return v ?? null;
 }
 
+const pad2 = (n: number) => String(n).padStart(2, "0");
+function addDaysIso(iso: string, n: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + n));
+  return `${dt.getUTCFullYear()}-${pad2(dt.getUTCMonth() + 1)}-${pad2(dt.getUTCDate())}`;
+}
+function daysBetweenIso(from: string, to: string): number {
+  const [ay, am, ad] = from.split("-").map(Number);
+  const [by, bm, bd] = to.split("-").map(Number);
+  return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86400000);
+}
+
+export type BoardToBook = {
+  instanceId: string;
+  population: "people" | "service_users";
+  recordName: string;
+  checkName: string;
+  dueDate: string;
+  branchId: string | null;
+  block: number; // 0..3 (which 7-day block of the next 28 days)
+};
+export type BoardBooked = {
+  bookingId: string;
+  population: "people" | "service_users";
+  recordName: string;
+  checkName: string;
+  date: string; // scheduled date ISO
+  conductorName: string | null;
+  branchId: string | null;
+};
+export type WhiteboardBoard = {
+  toBook: BoardToBook[];
+  booked: BoardBooked[];
+  peopleHeadings: string[];
+  suHeadings: string[];
+};
+
+/**
+ * The Whiteboard board view. Above the board: checks due in the next 28 days that
+ * are not yet booked, in four 7-day blocks. On the board: planned bookings grouped
+ * by population and by their check heading. Headings are the company's active check
+ * definitions (plus any heading a booking already uses). RLS scopes every read.
+ */
+export async function getWhiteboardBoard(companyId: string, todayIso: string): Promise<WhiteboardBoard> {
+  const supabase = await createClient();
+  const horizon = addDaysIso(todayIso, 28);
+
+  const [defsRes, bookedRows, instRes] = await Promise.all([
+    supabase
+      .from("check_definitions")
+      .select("name, population, active, sort_order")
+      .eq("company_id", companyId)
+      .eq("active", true)
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("planner_bookings")
+      .select(SELECT)
+      .eq("status", "planned"),
+    supabase
+      .from("check_instances")
+      .select(
+        "id, record_type, person_id, service_user_id, due_date, branch_id, active, check_definitions(name), people(full_name, employment_status, archived_at), service_users(full_name, service_status, archived_at)",
+      )
+      .eq("company_id", companyId)
+      .eq("active", true)
+      .not("due_date", "is", null)
+      .gte("due_date", todayIso)
+      .lte("due_date", horizon),
+  ]);
+
+  const peopleHeadings: string[] = [];
+  const suHeadings: string[] = [];
+  for (const d of defsRes.data ?? []) {
+    if (d.population === "people") peopleHeadings.push(d.name as string);
+    else if (d.population === "service_users") suHeadings.push(d.name as string);
+  }
+
+  // Booked (planned) bookings, and the set of booked check instances so the
+  // to-book list can exclude anything already booked.
+  const booked: BoardBooked[] = [];
+  const bookedInstanceIds = new Set<string>();
+  for (const r of (bookedRows.data as Row[] | null) ?? []) {
+    const v = toView(r);
+    if (v.checkInstanceId) bookedInstanceIds.add(v.checkInstanceId);
+    booked.push({
+      bookingId: v.id,
+      population: (v.population ?? "people") as "people" | "service_users",
+      recordName: v.subjectName ?? "—",
+      checkName: v.label,
+      date: v.scheduledDate,
+      conductorName: v.conductorName,
+      branchId: v.branchId,
+    });
+    if (v.population === "people" && !peopleHeadings.includes(v.label)) peopleHeadings.push(v.label);
+    if (v.population === "service_users" && !suHeadings.includes(v.label)) suHeadings.push(v.label);
+  }
+
+  const toBook: BoardToBook[] = [];
+  for (const raw of instRes.data ?? []) {
+    if (bookedInstanceIds.has(raw.id as string)) continue;
+    const def = relOne((raw as { check_definitions: { name: string }[] | { name: string } | null }).check_definitions);
+    if (!def) continue;
+    const dueDate = raw.due_date as string;
+    if (raw.record_type === "person") {
+      const p = relOne((raw as { people: { full_name: string; employment_status: string; archived_at: string | null }[] | { full_name: string; employment_status: string; archived_at: string | null } | null }).people);
+      if (!p || p.employment_status !== "active" || p.archived_at) continue;
+      toBook.push({
+        instanceId: raw.id as string,
+        population: "people",
+        recordName: p.full_name,
+        checkName: def.name,
+        dueDate,
+        branchId: (raw.branch_id as string | null) ?? null,
+        block: Math.min(3, Math.max(0, Math.floor(daysBetweenIso(todayIso, dueDate) / 7))),
+      });
+    } else if (raw.record_type === "service_user") {
+      const su = relOne((raw as { service_users: { full_name: string; service_status: string; archived_at: string | null }[] | { full_name: string; service_status: string; archived_at: string | null } | null }).service_users);
+      if (!su || su.service_status !== "active" || su.archived_at) continue;
+      toBook.push({
+        instanceId: raw.id as string,
+        population: "service_users",
+        recordName: su.full_name,
+        checkName: def.name,
+        dueDate,
+        branchId: (raw.branch_id as string | null) ?? null,
+        block: Math.min(3, Math.max(0, Math.floor(daysBetweenIso(todayIso, dueDate) / 7))),
+      });
+    }
+  }
+
+  toBook.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+  booked.sort((a, b) => a.date.localeCompare(b.date));
+  return { toBook, booked, peopleHeadings, suHeadings };
+}
+
 /**
  * Planner data layer. All reads go through the user's RLS-scoped client, so branch
  * and role visibility (Branch Manager / Supervisor see their branch, company-wide
