@@ -128,5 +128,21 @@ export function NavIcon({
           <path d="M9 9.5h.01M15 9.5h.01" />
         </svg>
       );
+    case "planner":
+      return (
+        <svg {...common}>
+          <rect x="3.5" y="4.5" width="17" height="16" rx="2" />
+          <path d="M3.5 9h17M8 3v3M16 3v3" />
+          <path d="M12 12v2.5l1.6 1" />
+        </svg>
+      );
+    case "whiteboard":
+      return (
+        <svg {...common}>
+          <rect x="3.5" y="4.5" width="17" height="13" rx="1.5" />
+          <path d="M12 17.5v3M9 20.5h6" />
+          <path d="M7 8.5h4M7 12h7" />
+        </svg>
+      );
   }
 }

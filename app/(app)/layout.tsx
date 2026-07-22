@@ -34,18 +34,20 @@ export default async function AppLayout({
   // Complaints and Invoicing are Pro features: hide their nav entries for
   // companies without them.
   const navCompanyId = actingCompanyId ?? profile.company_id;
-  const [complaintsEnabled, invoicingEnabled, outcomesSatisfactionEnabled] = navCompanyId
+  const [complaintsEnabled, invoicingEnabled, outcomesSatisfactionEnabled, plannerEnabled] = navCompanyId
     ? await Promise.all([
         featureEnabled(navCompanyId, "complaints"),
         featureEnabled(navCompanyId, "invoicing"),
         featureEnabled(navCompanyId, "outcomes_satisfaction"),
+        featureEnabled(navCompanyId, "planner"),
       ])
-    : [true, true, true];
+    : [true, true, true, true];
   const navEntries = navEntriesForRole(
     actingCompanyId ? "company_admin" : profile.role,
   )
     .filter((e) => e.href !== "/complaints" || complaintsEnabled)
     .filter((e) => e.href !== "/invoicing" || invoicingEnabled)
+    .filter((e) => e.href !== "/planner" || plannerEnabled)
     // Outcomes + Satisfaction are Pro sub-departments under Service Users.
     .map((e) =>
       e.href === "/service-users" && !outcomesSatisfactionEnabled

@@ -33,6 +33,8 @@ export type NavEntry = {
     | "compliance"
     | "outcomes"
     | "satisfaction"
+    | "planner"
+    | "whiteboard"
     | "reports";
   /** Roles allowed to see this entry. Undefined means everyone. */
   roles?: Role[];
@@ -99,6 +101,19 @@ export const NAV_ENTRIES: NavEntry[] = [
         icon: "satisfaction",
         roles: ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"],
       },
+    ],
+  },
+  {
+    href: "/planner",
+    label: "Planner",
+    icon: "planner",
+    group: "Departments",
+    roles: NOT_VIEWER,
+    // Light up the parent on a single conductor's planner and the whiteboard.
+    activeMatch: ["^/planner"],
+    children: [
+      { href: "/planner", label: "My Planner", icon: "planner" },
+      { href: "/planner/whiteboard", label: "Whiteboard", icon: "whiteboard" },
     ],
   },
   {

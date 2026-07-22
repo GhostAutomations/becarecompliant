@@ -27,12 +27,13 @@ export type Feature =
   | "complaints"
   | "invoicing"
   | "outcomes_satisfaction"
+  | "planner"
   | "ai_features"
   | "integration_layer"
   | "priority_support";
 
 /** The minimum ordered subscription tier that unlocks each feature. */
-const PRO_FEATURES: Feature[] = ["sms_reminders", "reporting_exports", "form_builder", "complaints", "invoicing", "outcomes_satisfaction"];
+const PRO_FEATURES: Feature[] = ["sms_reminders", "reporting_exports", "form_builder", "complaints", "invoicing", "outcomes_satisfaction", "planner"];
 const ENTERPRISE_FEATURES: Feature[] = [
   "ai_features",
   "integration_layer",
