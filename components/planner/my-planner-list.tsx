@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { rescheduleBooking, completeBooking, cancelBooking } from "@/lib/planner/actions";
 import { handleTimeFocus, handleTimeChange } from "./booking-form";
@@ -58,12 +59,21 @@ function BookingCard({ b, todayIso }: { b: PlannerBookingView; todayIso: string 
 
       {b.status === "planned" ? (
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <form
-            action={(fd) => run(completeBooking, fd)}
-          >
-            <input type="hidden" name="booking_id" value={b.id} />
-            <button type="submit" disabled={pending} className="btn-primary text-xs">Mark done</button>
-          </form>
+          {b.checkInstanceId && b.subjectId && b.population ? (
+            // Linked to a check: completing the check auto-completes this booking,
+            // so send the user to the check's form rather than marking it done here.
+            <Link
+              href={`/${b.population === "people" ? "people" : "service-users"}/${b.subjectId}/checks/${b.checkInstanceId}/complete`}
+              className="btn-primary text-xs"
+            >
+              Complete check
+            </Link>
+          ) : (
+            <form action={(fd) => run(completeBooking, fd)}>
+              <input type="hidden" name="booking_id" value={b.id} />
+              <button type="submit" disabled={pending} className="btn-primary text-xs">Mark done</button>
+            </form>
+          )}
           <button
             type="button"
             disabled={pending}
