@@ -176,7 +176,7 @@ export default function RegisterMatrix({
                 </>
               ) : (
                 <>
-                  <th>{col("aa_due", "Annual Appraisal Next Due")}</th>
+                  <th>{col("aa_due", "Annual Appraisal Due")}</th>
                   <th>{col("aa_comp", "Annual Appraisal Done")}</th>
                 </>
               )}

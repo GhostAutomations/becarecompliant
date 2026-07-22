@@ -166,7 +166,7 @@ export const REGISTER_COLUMNS: Array<{ key: string; name: string }> = [
   { key: "sup2_comp", name: "Supervision 2 Done" },
   { key: "sup3_due", name: "Supervision 3 Due" },
   { key: "sup3_comp", name: "Supervision 3 Done" },
-  { key: "aa_due", name: "Annual Appraisal Next Due" },
+  { key: "aa_due", name: "Annual Appraisal Due" },
   { key: "aa_comp", name: "Annual Appraisal Done" },
   { key: "sup4_due", name: "Supervision 4 Due" },
   { key: "sup4_comp", name: "Supervision 4 Done" },
