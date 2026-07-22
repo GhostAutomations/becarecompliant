@@ -3,8 +3,6 @@ import { sendEmail, resendConfigured } from "@/lib/email/resend";
 import {
   digestEmailHtml,
   digestSubject,
-  chaserEmailHtml,
-  chaserSubject,
   reportingEmailHtml,
   reportingSubject,
   type DigestEmailItem,
@@ -22,13 +20,12 @@ import {
 import {
   buildDigests,
   scopeItems,
-  chaserLevel,
+  daysOverdue,
   smsEscalationItems,
   splitReporting,
   scopeReporting,
   reportingDedupeKey,
   digestDedupeKey,
-  chaserDedupeKey,
   smsDedupeKey,
   londonDateIso,
   isLondonSendHour,
@@ -40,7 +37,9 @@ import type { Tier } from "@/lib/stripe/config";
 import { siteUrl } from "@/lib/site";
 
 /**
- * Daily compliance digest + escalating overdue chasers + SMS escalation.
+ * Daily compliance digest (Supervisor caseload) + the two People / Service User
+ * reports (Admins, Managers) + SMS escalation. Overdue items, with their days
+ * overdue, live inside the two reports; there is no separate chaser email.
  *
  * Scheduled twice in vercel.json (06:00 and 07:00 UTC) because Vercel Cron is
  * UTC only; the isLondonSendHour gate means exactly one of the two runs sends,
@@ -98,7 +97,6 @@ export async function GET(request: NextRequest) {
     companies: 0,
     digestsSent: 0,
     reportsSent: 0,
-    chasersSent: 0,
     smsSent: 0,
     skipped: 0,
     failures: [] as string[],
@@ -179,6 +177,7 @@ export async function GET(request: NextRequest) {
           branchName: c.branchName,
           checkName: c.checkName,
           dueDate: c.dueDate,
+          daysOverdue: daysOverdue(c.dueDate),
         });
         const reportRecipients = recipients.filter(
           (r) => r.role === "company_admin" || r.role === "manager",
@@ -244,57 +243,15 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // 2. Chasers (Managers + Admins only) and 3. SMS escalation.
+      // 2. SMS escalation. Overdue "action" chasers are no longer a separate
+      // email (Phil, 2026-07-22): overdue items, with their days overdue, are
+      // folded into the two daily reports above, so recipients get exactly two
+      // emails a day. SMS (a different channel) still escalates badly overdue items.
       const escalationRecipients = recipients.filter(
         (r): r is Recipient => r.role === "company_admin" || r.role === "manager",
       );
       for (const recipient of escalationRecipients) {
         const scoped = scopeItems(recipient, items);
-
-        // Chaser emails: claim per item per level, one email per level.
-        const byLevel = new Map<string, { thresholdDays: number; claims: { logId: string; item: AttentionItem }[] }>();
-        for (const item of scoped) {
-          const level = chaserLevel(item, company.settings);
-          if (!level) continue;
-          const logId = await claimNotification({
-            companyId: company.id,
-            branchId: item.branchId,
-            recipientProfileId: recipient.profileId,
-            channel: "email",
-            kind: level.kind,
-            dedupeKey: chaserDedupeKey(level.kind, item.instanceId, item.dueDate, recipient.profileId),
-            toAddress: recipient.email,
-            metadata: { check: item.checkName, record: item.recordName },
-          });
-          if (!logId) continue;
-          const bucket = byLevel.get(level.kind) ?? { thresholdDays: level.thresholdDays, claims: [] };
-          bucket.claims.push({ logId, item });
-          byLevel.set(level.kind, bucket);
-        }
-        for (const [, bucket] of byLevel) {
-          const chaserItems = bucket.claims.map((c) => c.item);
-          const result = await sendEmail({
-            to: recipient.email,
-            subject: chaserSubject(chaserItems.length, bucket.thresholdDays),
-            html: chaserEmailHtml({
-              recipientName: recipient.fullName,
-              companyName: company.name,
-              thresholdDays: bucket.thresholdDays,
-              items: chaserItems.map(asEmailItem),
-              actionUrl: appUrl,
-            }),
-          });
-          if (result.sent) summary.chasersSent += 1;
-          else if (result.skippedReason) summary.skipped += 1;
-          else summary.failures.push(`chaser ${recipient.email}: ${result.error}`);
-          for (const claim of bucket.claims) {
-            await settleNotification(
-              claim.logId,
-              result.sent ? "sent" : result.skippedReason ? "skipped" : "failed",
-              result.error ?? result.skippedReason,
-            );
-          }
-        }
 
         // SMS escalation: opted-in companies, recipients with a phone number.
         // SMS reminders are a Pro-and-above feature (tier gating, server-side).

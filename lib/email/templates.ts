@@ -185,6 +185,9 @@ export type ReportingRow = {
   branchName: string;
   checkName: string;
   dueDate: string; // ISO
+  /** Whole days overdue as of today; used to flag escalations in the overdue
+   *  section (folded in from the old separate chaser emails). */
+  daysOverdue?: number;
 };
 
 const REPORTING_MAX_ROWS = 100;
@@ -234,13 +237,23 @@ function reportingSectionHtml(
     <th style="${th}width:26%;">Date</th>
   </tr>`;
   const body = shown
-    .map(
-      (r) => `<tr>
+    .map((r) => {
+      // Overdue rows lead with how many days overdue (the escalation signal that
+      // used to be a separate chaser email), then the due date.
+      const dateCell = overdue
+        ? `${
+            r.daysOverdue != null && r.daysOverdue > 0
+              ? `${r.daysOverdue} ${r.daysOverdue === 1 ? "day" : "days"} overdue · `
+              : "Overdue "
+          }${escapeHtml(formatDateShort(r.dueDate))}`
+        : escapeHtml(formatDateShort(r.dueDate));
+      const weight = overdue && r.daysOverdue != null && r.daysOverdue >= 7 ? "font-weight:700;" : "";
+      return `<tr>
         <td style="${cell}color:#ffffff;font-weight:600;">${escapeHtml(r.recordName)}</td>
         <td style="${cell}color:${TEXT};">${escapeHtml(r.checkName)}</td>
-        <td style="${cell}color:${accent};white-space:nowrap;">${overdue ? "Overdue " : ""}${escapeHtml(formatDateShort(r.dueDate))}</td>
-      </tr>`,
-    )
+        <td style="${cell}color:${accent};white-space:nowrap;${weight}">${dateCell}</td>
+      </tr>`;
+    })
     .join("");
   const more =
     rows.length > shown.length
