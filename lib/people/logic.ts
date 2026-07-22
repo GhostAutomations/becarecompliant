@@ -161,15 +161,15 @@ export const REGISTER_COLUMNS: Array<{ key: string; name: string }> = [
   { key: "spot_check_due", name: "Spot Check Due" },
   { key: "recent_spot_check", name: "Recent Spot Check" },
   { key: "sup1_due", name: "Supervision 1 Due" },
-  { key: "sup1_comp", name: "Supervision 1 Comp" },
+  { key: "sup1_comp", name: "Supervision 1 Done" },
   { key: "sup2_due", name: "Supervision 2 Due" },
-  { key: "sup2_comp", name: "Supervision 2 Comp" },
+  { key: "sup2_comp", name: "Supervision 2 Done" },
   { key: "sup3_due", name: "Supervision 3 Due" },
-  { key: "sup3_comp", name: "Supervision 3 Comp" },
+  { key: "sup3_comp", name: "Supervision 3 Done" },
   { key: "aa_due", name: "Annual Appraisal Next Due" },
-  { key: "aa_comp", name: "Annual Appraisal Comp" },
+  { key: "aa_comp", name: "Annual Appraisal Done" },
   { key: "sup4_due", name: "Supervision 4 Due" },
-  { key: "sup4_comp", name: "Supervision 4 Comp" },
+  { key: "sup4_comp", name: "Supervision 4 Done" },
 ];
 
 /** Today's Europe/London date as an ISO string (the stamped completion date). */

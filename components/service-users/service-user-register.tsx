@@ -275,13 +275,13 @@ export default function ServiceUserRegister({
                     {isComplex ? (
                       <>
                         <th>{col("rev1_due", "Review 1 Due")}</th>
-                        <th>{col("rev1_comp", "Review 1 Comp")}</th>
+                        <th>{col("rev1_comp", "Review 1 Done")}</th>
                         <th>{col("rev2_due", "Review 2 Due")}</th>
-                        <th>{col("rev2_comp", "Review 2 Comp")}</th>
+                        <th>{col("rev2_comp", "Review 2 Done")}</th>
                         <th>{col("rev3_due", "Review 3 Due")}</th>
-                        <th>{col("rev3_comp", "Review 3 Comp")}</th>
+                        <th>{col("rev3_comp", "Review 3 Done")}</th>
                         <th>{col("rev4_due", "Review 4 Due")}</th>
-                        <th>{col("rev4_comp", "Review 4 Comp")}</th>
+                        <th>{col("rev4_comp", "Review 4 Done")}</th>
                         <th>{col("planned_review_date", "Planned Review Date")}</th>
                         <th>{col("review_status", "Review Status")}</th>
                       </>

@@ -128,11 +128,11 @@ export const SU_REGISTER_COLUMNS: Array<{ key: string; name: string }> = [
   { key: "review_status", name: "Review Status" },
   // Complex branches only (shown instead of the four Simple review columns above).
   { key: "rev1_due", name: "Review 1 Due" },
-  { key: "rev1_comp", name: "Review 1 Comp" },
+  { key: "rev1_comp", name: "Review 1 Done" },
   { key: "rev2_due", name: "Review 2 Due" },
-  { key: "rev2_comp", name: "Review 2 Comp" },
+  { key: "rev2_comp", name: "Review 2 Done" },
   { key: "rev3_due", name: "Review 3 Due" },
-  { key: "rev3_comp", name: "Review 3 Comp" },
+  { key: "rev3_comp", name: "Review 3 Done" },
   { key: "rev4_due", name: "Review 4 Due" },
-  { key: "rev4_comp", name: "Review 4 Comp" },
+  { key: "rev4_comp", name: "Review 4 Done" },
 ];

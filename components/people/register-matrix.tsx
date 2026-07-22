@@ -164,20 +164,20 @@ export default function RegisterMatrix({
               <th>{col("spot_check_due", "Spot Check Due")}</th>
               <th>{col("recent_spot_check", "Recent Spot Check")}</th>
               <th>{col("sup1_due", "Supervision 1 Due")}</th>
-              <th>{col("sup1_comp", "Supervision 1 Comp")}</th>
+              <th>{col("sup1_comp", "Supervision 1 Done")}</th>
               <th>{col("sup2_due", "Supervision 2 Due")}</th>
-              <th>{col("sup2_comp", "Supervision 2 Comp")}</th>
+              <th>{col("sup2_comp", "Supervision 2 Done")}</th>
               <th>{col("sup3_due", "Supervision 3 Due")}</th>
-              <th>{col("sup3_comp", "Supervision 3 Comp")}</th>
+              <th>{col("sup3_comp", "Supervision 3 Done")}</th>
               {fourSup ? (
                 <>
                   <th>{col("sup4_due", "Supervision 4 Due")}</th>
-                  <th>{col("sup4_comp", "Supervision 4 Comp")}</th>
+                  <th>{col("sup4_comp", "Supervision 4 Done")}</th>
                 </>
               ) : (
                 <>
                   <th>{col("aa_due", "Annual Appraisal Next Due")}</th>
-                  <th>{col("aa_comp", "Annual Appraisal Comp")}</th>
+                  <th>{col("aa_comp", "Annual Appraisal Done")}</th>
                 </>
               )}
               {extraColumns.map((c) => (
