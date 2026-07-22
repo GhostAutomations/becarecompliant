@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { quickBookCheck, cancelBooking } from "@/lib/planner/actions";
 import type { WhiteboardBoard } from "@/lib/planner/data";
@@ -18,16 +18,16 @@ function fmtShort(iso: string): string {
 
 export default function WhiteboardBoard({
   board,
-  branches,
+  branchId,
   todayIso,
 }: {
   board: WhiteboardBoard;
-  branches: Array<{ id: string; name: string }>;
+  /** Selected branch id (from the header selector); empty = all branches. */
+  branchId: string;
   todayIso: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [branchId, setBranchId] = useState("");
 
   function run(fn: (fd: FormData) => Promise<{ ok?: string; error?: string }>, fd: FormData) {
     startTransition(async () => {
@@ -77,18 +77,6 @@ export default function WhiteboardBoard({
 
   return (
     <div className="space-y-4">
-      {branches.length > 1 ? (
-        <label className="flex items-center gap-2 text-sm font-medium text-white/80">
-          Branch
-          <select className="inline-cell" value={branchId} onChange={(e) => setBranchId(e.target.value)}>
-            <option value="">All branches</option>
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>{b.name}</option>
-            ))}
-          </select>
-        </label>
-      ) : null}
-
       {/* To book: the next 28 days in four 7-day blocks. Click a check to book it. */}
       <div>
         <h3 className="mb-2 text-sm font-semibold text-white/80">To book, next 28 days</h3>

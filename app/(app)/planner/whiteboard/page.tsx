@@ -6,6 +6,7 @@ import { featureEnabled } from "@/lib/billing/tier";
 import { listBoardBookings, getPlannerFormData, getWhiteboardBoard } from "@/lib/planner/data";
 import { listAccessibleBranchTypes } from "@/lib/service-users/data";
 import BookingForm from "@/components/planner/booking-form";
+import BranchSelect from "@/components/planner/branch-select";
 import WhiteboardCalendar from "@/components/planner/whiteboard-calendar";
 import WhiteboardBoard from "@/components/planner/whiteboard-board";
 
@@ -25,7 +26,7 @@ const pad = (n: number) => String(n).padStart(2, "0");
 export default async function WhiteboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string; view?: string }>;
+  searchParams: Promise<{ month?: string; view?: string; branch?: string }>;
 }) {
   const { user, profile } = await requireCompany();
   if (!profile.company_id) redirect("/founder");
@@ -33,9 +34,10 @@ export default async function WhiteboardPage({
   if (!(await featureEnabled(profile.company_id, "planner"))) redirect("/dashboard");
 
   const todayIso = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
-  const { month: monthParam, view } = await searchParams;
+  const { month: monthParam, view, branch } = await searchParams;
   // Whiteboard board is the default view; the month calendar is opt-in.
   const isCalendar = view === "calendar";
+  const branchId = branch ?? "";
 
   const [formData, branchTypes] = await Promise.all([
     getPlannerFormData(profile.company_id),
@@ -67,7 +69,11 @@ export default async function WhiteboardPage({
             <Link href="/planner/whiteboard" className={`px-3 py-1.5 ${!isCalendar ? "bg-white/15 text-white" : "text-white/60 hover:bg-white/10"}`}>Whiteboard</Link>
             <Link href="/planner/whiteboard?view=calendar" className={`px-3 py-1.5 ${isCalendar ? "bg-white/15 text-white" : "text-white/60 hover:bg-white/10"}`}>Calendar</Link>
           </div>
-          <BookingForm data={formData} currentUserId={user.id} />
+          {isCalendar ? (
+            <BookingForm data={formData} currentUserId={user.id} />
+          ) : branches.length > 1 ? (
+            <BranchSelect branches={branches} value={branchId} basePath="/planner/whiteboard" />
+          ) : null}
         </div>
       </div>
 
@@ -81,7 +87,7 @@ export default async function WhiteboardPage({
           basePath="/planner/whiteboard?view=calendar"
         />
       ) : (
-        <WhiteboardBoard board={board!} branches={branches} todayIso={todayIso} />
+        <WhiteboardBoard board={board!} branchId={branchId} todayIso={todayIso} />
       )}
     </div>
   );
