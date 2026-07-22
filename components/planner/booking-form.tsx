@@ -11,6 +11,20 @@ function fmtDue(iso: string): string {
   return `${d}/${m}/${y}`;
 }
 
+const pad2 = (n: number) => String(n).padStart(2, "0");
+/** One dropdown of valid times: 8am to 8pm, 5-minute steps only. value = 24h
+ *  HH:MM (stored), label = 12h am/pm. */
+export const TIME_OPTIONS: Array<{ value: string; label: string }> = (() => {
+  const out: Array<{ value: string; label: string }> = [];
+  for (let t = 8 * 60; t <= 20 * 60; t += 5) {
+    const h = Math.floor(t / 60);
+    const m = t % 60;
+    const hour12 = ((h + 11) % 12) + 1;
+    out.push({ value: `${pad2(h)}:${pad2(m)}`, label: `${hour12}:${pad2(m)} ${h < 12 ? "am" : "pm"}` });
+  }
+  return out;
+})();
+
 
 /**
  * Book a task. Pick the department, branch and name (or, on a record page, that
@@ -197,7 +211,12 @@ export default function BookingForm({
         </label>
         <label className="block text-sm">
           <span className="mb-1 block font-medium text-white/80">Time</span>
-          <input type="time" name="start_time" min="08:00" max="20:00" step={300} className="w-full" />
+          <select name="start_time" className="w-full" defaultValue="">
+            <option value="">Choose…</option>
+            {TIME_OPTIONS.map((t) => (
+              <option key={t.value} value={t.value}>{t.label}</option>
+            ))}
+          </select>
         </label>
         <label className="block text-sm">
           <span className="mb-1 block font-medium text-white/80">Minutes</span>
