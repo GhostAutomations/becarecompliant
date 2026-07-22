@@ -12,6 +12,16 @@ function revalidatePlanner() {
   revalidatePath("/planner/whiteboard");
 }
 
+/** Remember the user's My Planner view choice (calendar or list) so it persists
+ *  across pages and sessions. */
+export async function setPlannerView(view: "calendar" | "list"): Promise<void> {
+  await requireCompany();
+  if (view !== "calendar" && view !== "list") return;
+  const supabase = await createClient();
+  await supabase.rpc("set_planner_view", { v: view });
+  revalidatePath("/planner");
+}
+
 /** Book a task: either against one of a record's checks, or ad-hoc. Lands on the
  *  chosen conductor's planner and the branch whiteboard. */
 export async function createBooking(formData: FormData): Promise<ActionState> {

@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
+import { createClient } from "@/lib/supabase/server";
 import { featureEnabled } from "@/lib/billing/tier";
 import { listMyBookings, getPlannerFormData } from "@/lib/planner/data";
 import { listAccessibleBranchTypes } from "@/lib/service-users/data";
 import BookingForm from "@/components/planner/booking-form";
+import PlannerViewToggle from "@/components/planner/view-toggle";
 import MyPlannerList from "@/components/planner/my-planner-list";
 import WhiteboardCalendar from "@/components/planner/whiteboard-calendar";
 
@@ -23,7 +24,7 @@ const ALLOWED = [
 export default async function PlannerPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string; view?: string }>;
+  searchParams: Promise<{ month?: string }>;
 }) {
   const { user, profile } = await requireCompany();
   if (!profile.company_id) redirect("/founder");
@@ -38,9 +39,13 @@ export default async function PlannerPage({
   const branches = branchTypes.map((b) => ({ id: b.id, name: b.name }));
   const todayIso = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
 
-  const { month: monthParam, view } = await searchParams;
-  // Calendar is the default view; the list is opt-in via ?view=list.
-  const isCalendar = view !== "list";
+  // The view (Calendar or List) is the user's saved choice, remembered across
+  // pages and sessions. Calendar is the default.
+  const supabase = await createClient();
+  const { data: pref } = await supabase.from("profiles").select("planner_view").eq("id", user.id).maybeSingle();
+  const isCalendar = (pref?.planner_view ?? "calendar") !== "list";
+
+  const { month: monthParam } = await searchParams;
   const match = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? monthParam : todayIso.slice(0, 7);
   const [yearStr, monthStr] = match.split("-");
   const year = Number(yearStr);
@@ -57,10 +62,7 @@ export default async function PlannerPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex overflow-hidden rounded-lg border border-white/15 text-xs">
-            <Link href="/planner" className={`px-3 py-1.5 ${isCalendar ? "bg-white/15 text-white" : "text-white/60 hover:bg-white/10"}`}>Calendar</Link>
-            <Link href="/planner?view=list" className={`px-3 py-1.5 ${!isCalendar ? "bg-white/15 text-white" : "text-white/60 hover:bg-white/10"}`}>List</Link>
-          </div>
+          <PlannerViewToggle current={isCalendar ? "calendar" : "list"} />
           <BookingForm data={formData} currentUserId={user.id} />
         </div>
       </div>
