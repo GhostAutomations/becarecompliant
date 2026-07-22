@@ -5,6 +5,12 @@ import { useRouter } from "next/navigation";
 import { createBooking } from "@/lib/planner/actions";
 import type { PlannerFormData, PlannerSubject } from "@/lib/planner/data";
 
+/** ISO date -> DD/MM/YYYY for display. */
+function fmtDue(iso: string): string {
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
 /**
  * Book a task. Pick the department, branch and name (or, on a record page, that
  * record is fixed), then the check it is for, who carries it out and when. The
@@ -165,7 +171,7 @@ export default function BookingForm({
               <option value="">Choose…</option>
               {checks.map((c) => (
                 <option key={c.instanceId} value={c.instanceId}>
-                  {c.name}{c.dueDate ? ` — due ${c.dueDate}` : ""}
+                  {c.name}{c.dueDate ? ` — due ${fmtDue(c.dueDate)}` : ""}
                 </option>
               ))}
             </select>
