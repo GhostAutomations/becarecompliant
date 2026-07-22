@@ -43,7 +43,7 @@ export default async function PlannerPage() {
         <Link href="/planner/whiteboard" className="btn-ghost text-sm">Whiteboard</Link>
       </div>
 
-      <BookingForm data={formData} />
+      <BookingForm data={formData} currentUserId={user.id} />
       <MyPlannerList bookings={bookings} todayIso={todayIso} />
     </div>
   );

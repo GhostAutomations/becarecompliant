@@ -25,7 +25,7 @@ export default async function WhiteboardPage({
 }: {
   searchParams: Promise<{ month?: string }>;
 }) {
-  const { profile } = await requireCompany();
+  const { user, profile } = await requireCompany();
   if (!profile.company_id) redirect("/founder");
   if (!ALLOWED.includes(profile.role)) redirect("/dashboard");
   if (!(await featureEnabled(profile.company_id, "planner"))) redirect("/dashboard");
@@ -57,7 +57,7 @@ export default async function WhiteboardPage({
         <Link href="/planner" className="btn-ghost text-sm">My Planner</Link>
       </div>
 
-      <BookingForm data={formData} />
+      <BookingForm data={formData} currentUserId={user.id} />
       <WhiteboardCalendar
         year={year}
         month={month}

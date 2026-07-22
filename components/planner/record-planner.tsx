@@ -1,3 +1,4 @@
+import { requireCompany } from "@/lib/auth/guards";
 import { featureEnabled } from "@/lib/billing/tier";
 import { listRecordBookings, getPlannerRecordForm } from "@/lib/planner/data";
 import BookingForm from "./booking-form";
@@ -33,6 +34,7 @@ export default async function RecordPlanner({
 }) {
   if (!(await featureEnabled(companyId, "planner"))) return null;
 
+  const { user } = await requireCompany();
   const [bookings, form] = await Promise.all([
     listRecordBookings(population === "people" ? "person" : "service_user", recordId),
     getPlannerRecordForm(companyId, population, recordId, recordName, branchId),
@@ -42,7 +44,7 @@ export default async function RecordPlanner({
     <section className="glass-card space-y-3 p-5">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-white/50">Planner</h2>
-        <BookingForm data={form.data} preset={form.preset} buttonLabel="Book a task" />
+        <BookingForm data={form.data} currentUserId={user.id} preset={form.preset} buttonLabel="Book a task" />
       </div>
       {bookings.length === 0 ? (
         <p className="text-sm text-white/50">Nothing booked in.</p>
