@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { rescheduleBooking, completeBooking, cancelBooking } from "@/lib/planner/actions";
+import { handleTimeFocus, handleTimeChange } from "./booking-form";
 import type { PlannerBookingView } from "@/lib/planner/data";
 
 function fmtDate(iso: string): string {
@@ -95,7 +96,7 @@ function BookingCard({ b, todayIso }: { b: PlannerBookingView; todayIso: string 
           </label>
           <label className="text-xs text-white/70">
             Time
-            <input type="time" name="start_time" defaultValue={b.startTime ?? ""} className="ml-2" onChange={(e) => e.currentTarget.blur()} />
+            <input type="time" name="start_time" defaultValue={b.startTime ?? ""} className="ml-2" onFocus={handleTimeFocus} onChange={handleTimeChange} />
           </label>
           <label className="text-xs text-white/70">
             Min
