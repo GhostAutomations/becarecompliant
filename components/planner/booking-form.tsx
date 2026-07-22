@@ -99,9 +99,11 @@ export default function BookingForm({
 
   if (!open) {
     return (
-      <button type="button" className="btn-primary text-sm" onClick={() => setOpen(true)}>
-        {buttonLabel}
-      </button>
+      <div className="flex justify-end">
+        <button type="button" className="btn-primary text-xs" onClick={() => setOpen(true)}>
+          {buttonLabel}
+        </button>
+      </div>
     );
   }
 
