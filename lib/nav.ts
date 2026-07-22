@@ -35,6 +35,7 @@ export type NavEntry = {
     | "satisfaction"
     | "planner"
     | "whiteboard"
+    | "readiness"
     | "reports";
   /** Roles allowed to see this entry. Undefined means everyone. */
   roles?: Role[];
@@ -137,6 +138,13 @@ export const NAV_ENTRIES: NavEntry[] = [
       { href: "/invoicing", label: "Invoices", icon: "invoicing" },
       { href: "/invoicing/clients", label: "Private Clients", icon: "people" },
     ],
+  },
+  {
+    href: "/readiness",
+    label: "Readiness",
+    icon: "readiness",
+    group: "Departments",
+    roles: ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"],
   },
   {
     href: "/reports",

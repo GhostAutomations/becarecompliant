@@ -144,5 +144,12 @@ export function NavIcon({
           <path d="M7 8.5h4M7 12h7" />
         </svg>
       );
+    case "readiness":
+      return (
+        <svg {...common}>
+          <path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z" />
+          <path d="M9 11.5l2 2 4-4.5" />
+        </svg>
+      );
   }
 }

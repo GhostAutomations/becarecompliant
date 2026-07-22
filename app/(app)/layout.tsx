@@ -42,12 +42,24 @@ export default async function AppLayout({
         featureEnabled(navCompanyId, "planner"),
       ])
     : [true, true, true, true];
+  // Inspection Readiness is a per-company beta flag (hidden unless switched on).
+  let readinessEnabled = false;
+  if (navCompanyId) {
+    const supabase = await createClient();
+    const { data: co } = await supabase
+      .from("companies")
+      .select("framework_enabled")
+      .eq("id", navCompanyId)
+      .maybeSingle();
+    readinessEnabled = !!co?.framework_enabled;
+  }
   const navEntries = navEntriesForRole(
     actingCompanyId ? "company_admin" : profile.role,
   )
     .filter((e) => e.href !== "/complaints" || complaintsEnabled)
     .filter((e) => e.href !== "/invoicing" || invoicingEnabled)
     .filter((e) => e.href !== "/planner" || plannerEnabled)
+    .filter((e) => e.href !== "/readiness" || readinessEnabled)
     // Outcomes + Satisfaction are Pro sub-departments under Service Users.
     .map((e) =>
       e.href === "/service-users" && !outcomesSatisfactionEnabled
