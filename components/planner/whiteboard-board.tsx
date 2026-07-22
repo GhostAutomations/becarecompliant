@@ -86,18 +86,17 @@ export default function WhiteboardBoard({
           ) : (
             <div className="mt-1 space-y-0.5">
               {items.map((b) => (
-                <div key={b.bookingId} className="flex items-center justify-between gap-2 rounded border border-slate-200 bg-white px-2 py-px text-[11px] leading-tight text-slate-700 shadow-sm">
-                  <span className="min-w-0 truncate">
-                    <span className="font-semibold text-slate-800">{b.recordName}</span>
-                    {b.conductorName ? <span className="text-slate-500"> · {b.conductorName}</span> : null}
-                    <span className="text-slate-500">
-                      {" · "}{fmtShort(b.date)}{b.startTime ? ` · ${b.startTime}` : ""}{b.durationMinutes ? ` · ${b.durationMinutes} min` : ""}
+                <div key={b.bookingId} className="flex items-center justify-between gap-3 rounded border border-slate-200 bg-white px-2 py-px text-[11px] leading-tight text-slate-700 shadow-sm">
+                  <span className="min-w-0 truncate font-semibold text-slate-800">{b.recordName}</span>
+                  <span className="flex shrink-0 items-center gap-2 whitespace-nowrap text-slate-500">
+                    <span>
+                      {b.conductorName ? `${b.conductorName} · ` : ""}{fmtShort(b.date)}{b.startTime ? ` · ${b.startTime}` : ""}{b.durationMinutes ? ` · ${b.durationMinutes} min` : ""}
                     </span>
+                    <form action={(fd) => { if (!confirm("Cancel this booking? It moves back to 'to book'.")) return; run(cancelBooking, fd); }}>
+                      <input type="hidden" name="booking_id" value={b.bookingId} />
+                      <button type="submit" disabled={pending} className="text-slate-400 hover:text-rag-red" aria-label="Cancel booking">✕</button>
+                    </form>
                   </span>
-                  <form action={(fd) => { if (!confirm("Cancel this booking? It moves back to 'to book'.")) return; run(cancelBooking, fd); }}>
-                    <input type="hidden" name="booking_id" value={b.bookingId} />
-                    <button type="submit" disabled={pending} className="text-slate-400 hover:text-rag-red" aria-label="Cancel booking">✕</button>
-                  </form>
                 </div>
               ))}
             </div>
@@ -141,10 +140,10 @@ export default function WhiteboardBoard({
                         type="button"
                         onClick={() => { setActive(t); setError(null); }}
                         title="Click to book"
-                        className="block w-full truncate rounded-md border border-white/10 bg-white/5 px-2 py-1 text-left text-[11px] text-white/80 hover:border-gold-400/50 hover:bg-gold-400/10"
+                        className="flex w-full items-center justify-between gap-2 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-left text-[11px] text-white/80 hover:border-gold-400/50 hover:bg-gold-400/10"
                       >
-                        <span className="font-semibold text-white">{t.recordName}</span>
-                        <span className="text-white/50"> · {t.checkName} · {fmtShort(t.dueDate)}</span>
+                        <span className="min-w-0 truncate font-semibold text-white">{t.recordName}</span>
+                        <span className="shrink-0 whitespace-nowrap text-white/50">{t.checkName} · {fmtShort(t.dueDate)}</span>
                       </button>
                     ))}
                   </div>
