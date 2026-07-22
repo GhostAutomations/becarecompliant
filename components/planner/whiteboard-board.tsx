@@ -75,12 +75,12 @@ export default function WhiteboardBoard({
           ) : (
             <div className="mt-1 space-y-1">
               {items.map((b) => (
-                <div key={b.bookingId} className="flex items-start justify-between gap-2 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-700 shadow-sm">
-                  <span className="min-w-0">
+                <div key={b.bookingId} className="flex items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-700 shadow-sm">
+                  <span className="min-w-0 truncate">
                     <span className="font-semibold text-slate-800">{b.recordName}</span>
-                    {b.conductorName ? <span className="block text-slate-500">{b.conductorName}</span> : null}
-                    <span className="block text-slate-500">
-                      {fmtShort(b.date)}{b.startTime ? ` · ${b.startTime}` : ""}{b.durationMinutes ? ` · ${b.durationMinutes} min` : ""}
+                    {b.conductorName ? <span className="text-slate-500"> · {b.conductorName}</span> : null}
+                    <span className="text-slate-500">
+                      {" · "}{fmtShort(b.date)}{b.startTime ? ` · ${b.startTime}` : ""}{b.durationMinutes ? ` · ${b.durationMinutes} min` : ""}
                     </span>
                   </span>
                   <form action={(fd) => { if (!confirm("Cancel this booking? It moves back to 'to book'.")) return; run(cancelBooking, fd); }}>
