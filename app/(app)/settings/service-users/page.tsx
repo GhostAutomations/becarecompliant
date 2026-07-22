@@ -94,8 +94,8 @@ export default async function SettingsServiceUsersPage() {
         <summary>Column names</summary>
         <div className="border-t border-white/10 p-5">
           <p className="page-subtitle mb-3">
-            Give any register column a shorthand to make it narrower, so more columns
-            fit on screen. Leave blank to use the full name.
+            Rename any register column to match the words your team uses. Edit the
+            name in the box; clear it to go back to the default.
           </p>
           <SuColumnNamesForm columns={SU_REGISTER_COLUMNS} labels={columnLabels} />
         </div>

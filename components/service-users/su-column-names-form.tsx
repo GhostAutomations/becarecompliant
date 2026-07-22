@@ -17,7 +17,9 @@ export default function SuColumnNamesForm({
   const [saved, flash, reset] = useSavedFlash();
   const [vals, setVals] = useState<Record<string, string>>(() => {
     const o: Record<string, string> = {};
-    for (const c of columns) o[c.key] = labels[c.key] ?? "";
+    // Pre-fill with the current name (your own wording if set, else the default).
+    // Edit it in place; clearing it reverts to the default.
+    for (const c of columns) o[c.key] = labels[c.key] ?? c.name;
     return o;
   });
 
@@ -35,11 +37,11 @@ export default function SuColumnNamesForm({
     <div className="glass-card space-y-2 p-5">
       {columns.map((c) => (
         <div key={c.key} className="flex items-center gap-3">
-          <span className="min-w-[11rem] text-sm text-white/80">{c.name}</span>
+          <span className="min-w-[10rem] text-xs text-white/40">{c.name}</span>
           <input
             value={vals[c.key] ?? ""}
-            placeholder="Shorthand"
-            className="max-w-[10rem]"
+            placeholder={c.name}
+            className="max-w-[14rem]"
             onChange={(e) => {
               setVals((v) => ({ ...v, [c.key]: e.target.value }));
               reset();

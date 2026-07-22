@@ -282,7 +282,8 @@ export async function setPeopleColumnLabels(formData: FormData): Promise<ActionS
   const labels: Record<string, string> = {};
   for (const col of REGISTER_COLUMNS) {
     const v = String(formData.get(`col_${col.key}`) ?? "").trim();
-    if (v) labels[col.key] = v;
+    // Store the company's wording only; matching the default (or blank) reverts.
+    if (v && v !== col.name) labels[col.key] = v;
   }
 
   const supabase = await createClient();
@@ -317,7 +318,8 @@ export async function setServiceUserColumnLabels(formData: FormData): Promise<Ac
   const labels: Record<string, string> = {};
   for (const col of SU_REGISTER_COLUMNS) {
     const v = String(formData.get(`col_${col.key}`) ?? "").trim();
-    if (v) labels[col.key] = v;
+    // Store the company's wording only; matching the default (or blank) reverts.
+    if (v && v !== col.name) labels[col.key] = v;
   }
 
   const supabase = await createClient();

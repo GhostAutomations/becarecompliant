@@ -943,7 +943,8 @@ export async function updateServiceUserColumnLabels(formData: FormData): Promise
   const labels: Record<string, string> = {};
   for (const col of SU_REGISTER_COLUMNS) {
     const v = String(formData.get(`col_${col.key}`) ?? "").trim();
-    if (v) labels[col.key] = v;
+    // Store your own wording only; matching the default (or blank) reverts.
+    if (v && v !== col.name) labels[col.key] = v;
   }
 
   const supabase = await createClient();
