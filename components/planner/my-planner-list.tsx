@@ -95,7 +95,7 @@ function BookingCard({ b, todayIso }: { b: PlannerBookingView; todayIso: string 
           </label>
           <label className="text-xs text-white/70">
             Time
-            <input type="time" name="start_time" defaultValue={b.startTime ?? ""} className="ml-2" />
+            <input type="time" name="start_time" defaultValue={b.startTime ?? ""} className="ml-2" onChange={(e) => e.currentTarget.blur()} />
           </label>
           <label className="text-xs text-white/70">
             Min

@@ -198,7 +198,7 @@ export default function BookingForm({
         </label>
         <label className="block text-sm">
           <span className="mb-1 block font-medium text-white/80">Time</span>
-          <input type="time" name="start_time" className="w-full" />
+          <input type="time" name="start_time" className="w-full" onChange={(e) => e.currentTarget.blur()} />
         </label>
         <label className="block text-sm">
           <span className="mb-1 block font-medium text-white/80">Minutes</span>
