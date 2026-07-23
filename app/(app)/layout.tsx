@@ -34,14 +34,15 @@ export default async function AppLayout({
   // Complaints and Invoicing are Pro features: hide their nav entries for
   // companies without them.
   const navCompanyId = actingCompanyId ?? profile.company_id;
-  const [complaintsEnabled, invoicingEnabled, outcomesSatisfactionEnabled, plannerEnabled] = navCompanyId
+  const [complaintsEnabled, invoicingEnabled, outcomesSatisfactionEnabled, plannerEnabled, onCallEnabled] = navCompanyId
     ? await Promise.all([
         featureEnabled(navCompanyId, "complaints"),
         featureEnabled(navCompanyId, "invoicing"),
         featureEnabled(navCompanyId, "outcomes_satisfaction"),
         featureEnabled(navCompanyId, "planner"),
+        featureEnabled(navCompanyId, "on_call"),
       ])
-    : [true, true, true, true];
+    : [true, true, true, true, true];
   // Inspection Readiness is a per-company beta flag (hidden unless switched on).
   let readinessEnabled = false;
   if (navCompanyId) {
@@ -59,6 +60,7 @@ export default async function AppLayout({
     .filter((e) => e.href !== "/complaints" || complaintsEnabled)
     .filter((e) => e.href !== "/invoicing" || invoicingEnabled)
     .filter((e) => e.href !== "/planner" || plannerEnabled)
+    .filter((e) => e.href !== "/on-call" || onCallEnabled)
     .filter((e) => e.href !== "/readiness" || readinessEnabled)
     // Outcomes + Satisfaction are Pro sub-departments under Service Users.
     .map((e) =>
@@ -74,7 +76,11 @@ export default async function AppLayout({
   // The founder's home is the Founder console; everyone else (and the founder
   // while managing as a company) homes to the dashboard.
   const homeHref =
-    profile.role === "platform_admin" && !actingCompanyId ? "/founder" : "/dashboard";
+    profile.role === "platform_admin" && !actingCompanyId
+      ? "/founder"
+      : profile.role === "on_call"
+        ? "/on-call"
+        : "/dashboard";
 
   return (
     <div className="app-bg flex h-dvh overflow-hidden">

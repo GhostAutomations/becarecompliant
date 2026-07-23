@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import RealtimeRefresh from "@/components/realtime-refresh";
@@ -12,6 +13,7 @@ export const metadata: Metadata = { title: "Holiday" };
 
 export default async function HolidayPage() {
   const { profile } = await requireCompany();
+  if (profile.role === "on_call") redirect("/on-call");
 
   if (!profile.company_id) {
     return (

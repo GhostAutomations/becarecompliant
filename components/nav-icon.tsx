@@ -151,5 +151,11 @@ export function NavIcon({
           <path d="M9 11.5l2 2 4-4.5" />
         </svg>
       );
+    case "onCall":
+      return (
+        <svg {...common}>
+          <path d="M5.5 4h3l1.4 3.5-2 1.4a11 11 0 005.2 5.2l1.4-2 3.5 1.4v3a1.6 1.6 0 01-1.7 1.6A14.5 14.5 0 014 5.7 1.6 1.6 0 015.5 4z" />
+        </svg>
+      );
   }
 }

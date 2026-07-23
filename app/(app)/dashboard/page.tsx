@@ -116,6 +116,8 @@ export default async function DashboardPage() {
   if (!profile.company_id) redirect("/founder");
   // A Viewer (read-only) has no dashboard; their home is the People register.
   if (profile.role === "team_member") redirect("/people");
+  // The On Call role has no dashboard; their home is the On Call rota.
+  if (profile.role === "on_call") redirect("/on-call");
   const supabase = await createClient();
   const companyId = profile.company_id;
 

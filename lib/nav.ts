@@ -5,7 +5,8 @@ export type Role =
   | "registered_manager"
   | "manager"
   | "supervisor"
-  | "team_member";
+  | "team_member"
+  | "on_call";
 
 /** Senior roles that see every branch and everything a Branch Manager can, but not
  *  Settings or Billing (Company Admin only). Kept in one place so app-side gating
@@ -35,6 +36,7 @@ export type NavEntry = {
     | "satisfaction"
     | "planner"
     | "whiteboard"
+    | "onCall"
     | "readiness"
     | "reports";
   /** Roles allowed to see this entry. Undefined means everyone. */
@@ -78,7 +80,7 @@ export const NAV_ENTRIES: NavEntry[] = [
         href: "/people/absence",
         label: "Absence",
         icon: "absence",
-        roles: ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager", "supervisor"],
+        roles: ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager", "supervisor", "on_call"],
       },
     ],
   },
@@ -109,10 +111,25 @@ export const NAV_ENTRIES: NavEntry[] = [
     label: "Complaints",
     icon: "complaints",
     group: "Departments",
-    roles: ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"],
+    roles: ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager", "on_call"],
     children: [
       { href: "/complaints", label: "Open", icon: "complaints" },
       { href: "/complaints/closed", label: "Closed", icon: "complaints" },
+    ],
+  },
+  {
+    href: "/on-call",
+    label: "On Call",
+    icon: "onCall",
+    group: "Departments",
+    roles: [
+      "platform_admin", "company_admin", "registered_individual",
+      "registered_manager", "manager", "supervisor", "on_call",
+    ],
+    activeMatch: ["^/on-call"],
+    children: [
+      { href: "/on-call", label: "Rota", icon: "onCall" },
+      { href: "/on-call/log", label: "Call log", icon: "onCall" },
     ],
   },
   {
@@ -172,6 +189,35 @@ export function navEntriesForRole(role: string): NavEntry[] {
   if (role === "platform_admin") {
     return NAV_ENTRIES.filter((entry) => entry.href === "/founder");
   }
+  // The On Call role is a focused out-of-hours role: its ONLY departments are On
+  // Call, Absence and Complaints (all branches). A flat, bespoke nav avoids
+  // showing the People parent (whose /people compliance page it cannot access).
+  if (role === "on_call") {
+    return [
+      {
+        href: "/on-call",
+        label: "On Call",
+        icon: "onCall",
+        group: "Departments",
+        activeMatch: ["^/on-call"],
+        children: [
+          { href: "/on-call", label: "Rota", icon: "onCall" },
+          { href: "/on-call/log", label: "Call log", icon: "onCall" },
+        ],
+      },
+      { href: "/people/absence", label: "Absence", icon: "absence", group: "Departments" },
+      {
+        href: "/complaints",
+        label: "Complaints",
+        icon: "complaints",
+        group: "Departments",
+        children: [
+          { href: "/complaints", label: "Open", icon: "complaints" },
+          { href: "/complaints/closed", label: "Closed", icon: "complaints" },
+        ],
+      },
+    ];
+  }
   const allowed = (entry: NavEntry) =>
     !entry.roles || entry.roles.includes(role as Role);
   return NAV_ENTRIES.filter(allowed).map((entry) =>
@@ -189,4 +235,5 @@ export const ROLE_LABELS: Record<string, string> = {
   manager: "Branch Manager",
   supervisor: "Supervisor",
   team_member: "Viewer",
+  on_call: "On Call",
 };

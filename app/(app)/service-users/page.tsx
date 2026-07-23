@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import ServiceUserRegister from "@/components/service-users/service-user-register";
 import RealtimeRefresh from "@/components/realtime-refresh";
@@ -21,6 +22,7 @@ export default async function ServiceUsersPage({
   searchParams: Promise<{ branch?: string; view?: string }>;
 }) {
   const { user, profile } = await requireCompany();
+  if (profile.role === "on_call") redirect("/on-call");
 
   if (!profile.company_id) {
     return (

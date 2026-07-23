@@ -28,7 +28,7 @@ import { COMPLAINT_STATUS_LABELS, RELATIONSHIP_LABELS } from "@/lib/complaints/t
 
 export const metadata: Metadata = { title: "Complaint" };
 
-const MANAGE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "platform_admin"];
+const MANAGE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "on_call", "platform_admin"];
 
 function ragPill(rag: string) {
   if (rag === "red") return <span className="pill-red"><span className="pill-dot" /> Overdue</span>;

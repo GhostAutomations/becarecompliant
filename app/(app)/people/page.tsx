@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import PeopleRegister from "@/components/people/people-register";
 import RealtimeRefresh from "@/components/realtime-refresh";
@@ -15,6 +16,8 @@ export default async function PeoplePage({
   searchParams: Promise<{ branch?: string; view?: string }>;
 }) {
   const { profile } = await requireCompany();
+  // The On Call role has no People compliance department; send them home.
+  if (profile.role === "on_call") redirect("/on-call");
 
   if (!profile.company_id) {
     return (

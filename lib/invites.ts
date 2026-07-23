@@ -13,6 +13,7 @@ export type InviteRole =
   | "registered_manager"
   | "manager"
   | "supervisor"
+  | "on_call"
   | "team_member";
 
 export type Actor = {

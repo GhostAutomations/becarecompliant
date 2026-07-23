@@ -13,7 +13,7 @@ import {
 
 export const metadata: Metadata = { title: "Complaints" };
 
-const MANAGE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "platform_admin"];
+const MANAGE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "on_call", "platform_admin"];
 
 export default async function ComplaintsPage() {
   const { user, profile } = await requireCompany();

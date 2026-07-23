@@ -21,6 +21,7 @@ const INVITABLE_ROLES: InviteRole[] = [
   "registered_manager",
   "manager",
   "supervisor",
+  "on_call",
   "team_member",
 ];
 

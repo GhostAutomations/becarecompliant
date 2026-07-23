@@ -7,7 +7,7 @@ import { formatUkDate } from "@/lib/complaints/logic";
 
 export const metadata: Metadata = { title: "Response" };
 
-const MANAGE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "platform_admin"];
+const MANAGE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "on_call", "platform_admin"];
 
 function fmtDateTime(iso: string): string {
   return new Intl.DateTimeFormat("en-GB", {

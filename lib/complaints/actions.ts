@@ -29,7 +29,7 @@ import { getComplaintsConfig, getCompanyFormByKey, getInvestigationEvidence, get
 import { addBusinessOrCalendarDays, formatComplaintRef, formatDisplayDate, isFormalComplaint, todayIso } from "./logic";
 import { CONCERN_TYPES, FORMALITY_TYPES, RELATIONSHIP_LABELS, type ComplaintRelationship } from "./types";
 
-const MANAGE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "platform_admin"];
+const MANAGE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "on_call", "platform_admin"];
 
 /** Parse the log-time intake fields (Complaint/Concern, Type, contact method) into a
  *  validated shape shared by create and update. */
