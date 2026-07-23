@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { rescheduleBooking, completeBooking, cancelBooking } from "@/lib/planner/actions";
-import { handleTimeFocus, handleTimeChange } from "./booking-form";
+import TimeSelect from "./time-select";
 import type { PlannerBookingView } from "@/lib/planner/data";
 
 function fmtDate(iso: string): string {
@@ -108,7 +108,7 @@ function BookingCard({ b, todayIso }: { b: PlannerBookingView; todayIso: string 
           </label>
           <label className="text-xs text-white/70">
             Time
-            <input type="time" name="start_time" defaultValue={b.startTime ?? ""} className="ml-2" onFocus={handleTimeFocus} onChange={handleTimeChange} />
+            <span className="mt-1 block"><TimeSelect defaultValue={b.startTime ?? undefined} /></span>
           </label>
           <label className="text-xs text-white/70">
             Min

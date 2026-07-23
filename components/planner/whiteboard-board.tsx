@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createBooking, cancelBooking } from "@/lib/planner/actions";
-import { handleTimeFocus, handleTimeChange } from "./booking-form";
+import TimeSelect from "./time-select";
 import type { WhiteboardBoard, BoardToBook } from "@/lib/planner/data";
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
@@ -200,7 +200,7 @@ export default function WhiteboardBoard({
               </label>
               <label className="block text-sm">
                 <span className="mb-1 block font-medium text-white/80">Time</span>
-                <input type="time" name="start_time" className="w-full" onFocus={handleTimeFocus} onChange={handleTimeChange} />
+                <TimeSelect />
               </label>
               <label className="block text-sm">
                 <span className="mb-1 block font-medium text-white/80">Minutes</span>

@@ -3,24 +3,13 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createBooking } from "@/lib/planner/actions";
+import TimeSelect from "./time-select";
 import type { PlannerFormData, PlannerSubject } from "@/lib/planner/data";
 
 /** ISO date -> DD/MM/YYYY for display. */
 function fmtDue(iso: string): string {
   const [y, m, d] = iso.split("-");
   return `${d}/${m}/${y}`;
-}
-
-// Close the native time picker once BOTH the hour and minute have been picked
-// (it fires a change per column). Reset the count each time the field is opened.
-type TimeInput = HTMLInputElement & { _picks?: number };
-export function handleTimeFocus(e: React.FocusEvent<HTMLInputElement>) {
-  (e.currentTarget as TimeInput)._picks = 0;
-}
-export function handleTimeChange(e: React.ChangeEvent<HTMLInputElement>) {
-  const el = e.currentTarget as TimeInput;
-  el._picks = (el._picks ?? 0) + 1;
-  if (el._picks >= 2 && el.value) el.blur();
 }
 
 
@@ -216,7 +205,7 @@ export default function BookingForm({
         </label>
         <label className="block text-sm">
           <span className="mb-1 block font-medium text-white/80">Time</span>
-          <input type="time" name="start_time" className="w-full" onFocus={handleTimeFocus} onChange={handleTimeChange} />
+          <TimeSelect />
         </label>
         <label className="block text-sm">
           <span className="mb-1 block font-medium text-white/80">Minutes</span>
