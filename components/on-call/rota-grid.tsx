@@ -97,7 +97,7 @@ export default function RotaGrid({
         <section key={week.label}>
           <h2 className="mb-2 text-sm font-semibold text-white/80">{week.label}</h2>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] border-separate border-spacing-1 text-sm">
+            <table className="w-full min-w-[640px] table-fixed border-separate border-spacing-1 text-sm">
               <thead>
                 <tr>
                   <th className="w-10" />
@@ -126,7 +126,7 @@ export default function RotaGrid({
                             disabled={!canManage}
                             onClick={() => canManage && setEditing({ date: d, slot: s.key })}
                             className={[
-                              "h-14 w-full rounded-lg border px-2 text-left transition",
+                              "h-14 w-full overflow-hidden rounded-lg border px-2 text-left transition",
                               cell
                                 ? "border-white/10 bg-white/[0.06]"
                                 : "border-dashed border-white/10 bg-transparent",
@@ -136,8 +136,8 @@ export default function RotaGrid({
                           >
                             {cell ? (
                               <span className="flex h-full flex-col justify-center">
-                                <span className="block truncate text-sm font-medium leading-tight text-white">{firstName(cell.name)}</span>
-                                {surname(cell.name) ? <span className="block truncate text-sm leading-tight text-white/75">{surname(cell.name)}</span> : null}
+                                <span className="block truncate text-xs font-medium leading-tight text-white">{firstName(cell.name)}</span>
+                                {surname(cell.name) ? <span className="block truncate text-xs leading-tight text-white/70">{surname(cell.name)}</span> : null}
                               </span>
                             ) : (
                               <span className="text-white/25">{canManage ? "+" : ""}</span>
