@@ -64,6 +64,8 @@ export type OnCallLog = {
   follow_up_required: boolean;
   follow_up_notes: string | null;
   follow_up_done: boolean;
+  finalised: boolean;
+  finalised_at: string | null;
 };
 
 export type BranchOption = { id: string; name: string };

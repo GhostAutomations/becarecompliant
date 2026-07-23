@@ -47,19 +47,47 @@ export default async function CallPage({ params }: { params: Promise<{ id: strin
       <LogReadOnLoad logId={log.id} />
       <BackLink href="/on-call/log" label="Back to call log" />
       <div>
-        <h1 className="text-xl font-bold text-white">Shift #{log.ref_number}</h1>
-        <p className="text-sm text-white/60">
-          {shiftLabel(log.shift_date, log.slot)}
-          {log.branch_name ? ` · ${log.branch_name}` : ""}
-        </p>
+        <h1 className="text-xl font-bold text-white">Shift: {shiftLabel(log.shift_date, log.slot)}</h1>
+        {log.branch_name ? <p className="text-sm text-white/60">{log.branch_name}</p> : null}
       </div>
-      <LogForm
-        scope={scope}
-        branches={branches}
-        shiftChoices={choices}
-        defaultShift={logShift}
-        log={log}
-      />
+
+      {log.finalised ? (
+        <div className="glass-card space-y-4 p-5">
+          <span className="pill-neutral">Finalised{log.finalised_at ? ` · ${fmtRead(log.finalised_at)}` : ""}</span>
+          <div>
+            <p className="form-label">On Call Notes</p>
+            <p className="whitespace-pre-wrap text-sm text-white/85">{log.details}</p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <p className="form-label">Number of complaints</p>
+              <p className="text-sm text-white/85">{log.complaints_count}{log.complaints_count > 0 ? (log.complaints_logged ? " · logged" : " · not logged") : ""}</p>
+            </div>
+            <div>
+              <p className="form-label">Number of absences</p>
+              <p className="text-sm text-white/85">{log.absences_count}{log.absences_count > 0 ? (log.absences_logged ? " · logged" : " · not logged") : ""}</p>
+            </div>
+          </div>
+          <div>
+            <p className="form-label">Urgent follow up</p>
+            {log.follow_up_required ? (
+              <p className="text-sm text-white/85">
+                {log.follow_up_notes || "Needed"}{log.follow_up_done ? " · completed" : ""}
+              </p>
+            ) : (
+              <p className="text-sm text-white/50">Not needed</p>
+            )}
+          </div>
+        </div>
+      ) : (
+        <LogForm
+          scope={scope}
+          branches={branches}
+          shiftChoices={choices}
+          defaultShift={logShift}
+          log={log}
+        />
+      )}
       {reads.length > 0 ? (
         <p className="text-xs text-white/40">
           Read by: {reads.map((r) => `${r.name} (${fmtRead(r.read_at)})`).join(", ")}

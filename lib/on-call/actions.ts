@@ -295,6 +295,11 @@ export async function updateLog(_prev: ActionState, formData: FormData): Promise
   if (!details) return { error: "Add the on call notes." };
 
   const supabase = await createClient();
+  // A finalised shift is locked.
+  const { data: existing } = await supabase.from("on_call_logs").select("finalised").eq("id", id).maybeSingle();
+  if (existing?.finalised) return { error: "This shift has been finalised and can no longer be edited." };
+
+  const finalise = formData.get("finalise") === "yes";
   const { error } = await supabase
     .from("on_call_logs")
     .update({
@@ -302,13 +307,17 @@ export async function updateLog(_prev: ActionState, formData: FormData): Promise
       details,
       ...fields,
       follow_up_done: formData.get("follow_up_done") === "on",
+      finalised: finalise,
+      finalised_at: finalise ? new Date().toISOString() : null,
+      finalised_by: finalise ? g.userId : null,
       updated_by: g.userId,
     })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("finalised", false);
   if (error) return { error: error.message };
   revalidatePath(`/on-call/log/${id}`);
   revalidatePath("/on-call/log");
-  return { ok: "Saved." };
+  return { ok: finalise ? "Shift finalised." : "Saved." };
 }
 
 /** Autosave the in-progress "Log a call" form (per user, fire-and-forget from the

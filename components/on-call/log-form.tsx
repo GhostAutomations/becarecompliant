@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createLog, updateLog, saveLogDraft } from "@/lib/on-call/actions";
 import { IDLE_STATE } from "@/lib/forms";
@@ -31,6 +31,8 @@ export default function LogForm({
   const formRef = useRef<HTMLFormElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [state, formAction, pending] = useActionState(editing ? updateLog : createLog, IDLE_STATE);
+  const [confirming, setConfirming] = useState(false);
+  useEffect(() => { if (state.ok) setConfirming(false); }, [state.ok]);
 
   const dv = (key: string, fallback = "") => (editing ? fallback : d[key] ?? fallback);
   const shiftValue = editing ? `${log?.slot}|${log?.shift_date}` : d.shift || defaultShift;
@@ -123,14 +125,37 @@ export default function LogForm({
       {state.error ? <p className="form-error">{state.error}</p> : null}
       {state.ok ? <p className="rounded-xl border border-gold-400/40 bg-gold-400/15 px-3.5 py-2.5 text-sm text-gold-300">{state.ok}</p> : null}
 
-      <div className="flex items-center gap-3">
-        <button type="submit" className="btn-primary" disabled={pending}>
-          {pending ? "Saving…" : editing ? "Save" : "Log shift"}
-        </button>
-        <button type="button" className="btn-ghost" onClick={() => router.push("/on-call/log")} disabled={pending}>
-          {editing ? "Back to log" : "Cancel"}
-        </button>
-      </div>
+      {editing ? (
+        confirming ? (
+          <div className="space-y-3 rounded-xl border border-white/10 bg-white/5 p-4">
+            <p className="text-sm text-white/80">Have you finished this shift? Once finalised it can no longer be edited.</p>
+            <div className="flex flex-wrap items-center gap-3">
+              <button type="submit" name="finalise" value="yes" className="btn-primary" disabled={pending}>
+                {pending ? "Saving…" : "Yes, finalise"}
+              </button>
+              <button type="submit" name="finalise" value="no" className="btn-ghost" disabled={pending}>
+                No, just save
+              </button>
+              <button type="button" className="text-sm text-white/50 hover:text-white" onClick={() => setConfirming(false)} disabled={pending}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button type="button" className="btn-primary" onClick={() => setConfirming(true)} disabled={pending}>
+            Save
+          </button>
+        )
+      ) : (
+        <div className="flex items-center gap-3">
+          <button type="submit" className="btn-primary" disabled={pending}>
+            {pending ? "Saving…" : "Log shift"}
+          </button>
+          <button type="button" className="btn-ghost" onClick={() => router.push("/on-call/log")} disabled={pending}>
+            Cancel
+          </button>
+        </div>
+      )}
       {draftEnabled ? (
         <p className="text-xs text-white/40">This saves automatically as you type, and stays for up to 12 hours until you submit it, even if you log out.</p>
       ) : null}
