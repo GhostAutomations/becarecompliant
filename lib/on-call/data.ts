@@ -224,6 +224,20 @@ export async function getLogDraft(userId: string): Promise<Record<string, string
   return (data.data as Record<string, string> | null) ?? null;
 }
 
+/** Who has read a shift's log (first-read time), newest first. */
+export async function getLogReads(logId: string): Promise<Array<{ name: string; read_at: string }>> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("on_call_log_reads")
+    .select("reader_name, read_at")
+    .eq("log_id", logId)
+    .order("read_at", { ascending: false });
+  return ((data as Array<{ reader_name: string | null; read_at: string }> | null) ?? []).map((r) => ({
+    name: r.reader_name || "Someone",
+    read_at: r.read_at,
+  }));
+}
+
 export type UrgentFollowUp = {
   id: string;
   shift_date: string | null;

@@ -4,7 +4,8 @@ import { requireCompany } from "@/lib/auth/guards";
 import { featureEnabled } from "@/lib/billing/tier";
 import BackLink from "@/components/back-link";
 import LogForm from "@/components/on-call/log-form";
-import { getLog, getOnCallBranches, getRotaScope } from "@/lib/on-call/data";
+import LogReadOnLoad from "@/components/on-call/log-read-on-load";
+import { getLog, getOnCallBranches, getRotaScope, getLogReads } from "@/lib/on-call/data";
 import { shiftOptions, shiftLabel } from "@/lib/on-call/format";
 
 export const metadata: Metadata = { title: "On-call shift" };
@@ -25,10 +26,13 @@ export default async function CallPage({ params }: { params: Promise<{ id: strin
   const log = await getLog(id);
   if (!log || log.company_id !== companyId) redirect("/on-call/log");
 
-  const [scope, branches] = await Promise.all([
+  const [scope, branches, reads] = await Promise.all([
     getRotaScope(companyId),
     getOnCallBranches(companyId, profile.role, user.id),
+    getLogReads(id),
   ]);
+  const fmtRead = (iso: string) =>
+    new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
 
   const todayIso = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
   const choices = shiftOptions(todayIso);
@@ -40,6 +44,7 @@ export default async function CallPage({ params }: { params: Promise<{ id: strin
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
+      <LogReadOnLoad logId={log.id} />
       <BackLink href="/on-call/log" label="Back to call log" />
       <div>
         <h1 className="text-xl font-bold text-white">Shift #{log.ref_number}</h1>
@@ -55,6 +60,11 @@ export default async function CallPage({ params }: { params: Promise<{ id: strin
         defaultShift={logShift}
         log={log}
       />
+      {reads.length > 0 ? (
+        <p className="text-xs text-white/40">
+          Read by: {reads.map((r) => `${r.name} (${fmtRead(r.read_at)})`).join(", ")}
+        </p>
+      ) : null}
     </div>
   );
 }

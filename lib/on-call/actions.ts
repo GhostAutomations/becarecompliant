@@ -326,6 +326,19 @@ export async function saveLogDraft(data: Record<string, string>): Promise<void> 
     );
 }
 
+/** Record that the current user has read a shift's log (first read only). Called
+ *  on the drill-down open, so managers can see a shift was picked up. */
+export async function recordLogRead(logId: string): Promise<void> {
+  const g = await gate();
+  if ("error" in g) return;
+  const supabase = await createClient();
+  const { data: me } = await supabase.from("profiles").select("full_name, email").eq("id", g.userId).maybeSingle();
+  const reader_name = (me?.full_name as string | null) || (me?.email as string | null) || null;
+  await supabase
+    .from("on_call_log_reads")
+    .upsert({ log_id: logId, user_id: g.userId, reader_name }, { onConflict: "log_id,user_id", ignoreDuplicates: true });
+}
+
 /** Discard the caller's saved draft (used when they clear the form). */
 export async function clearLogDraft(): Promise<void> {
   const g = await gate();

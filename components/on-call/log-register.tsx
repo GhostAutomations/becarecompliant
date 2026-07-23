@@ -28,10 +28,8 @@ export default function LogRegister({ rows }: { rows: OnCallLog[] }) {
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-white/10 text-left text-xs uppercase tracking-wide text-white/45">
-            <th className="px-3 py-2">Ref</th>
             <th className="px-3 py-2">Shift</th>
             {hasBranch ? <th className="px-3 py-2">Branch</th> : null}
-            <th className="px-3 py-2">Notes</th>
             <th className="px-3 py-2">Complaints</th>
             <th className="px-3 py-2">Absences</th>
             <th className="px-3 py-2">Urgent</th>
@@ -41,11 +39,9 @@ export default function LogRegister({ rows }: { rows: OnCallLog[] }) {
           {rows.map((r) => (
             <tr key={r.id} className="border-b border-white/5 hover:bg-white/[0.04]">
               <td className="px-3 py-2">
-                <Link href={`/on-call/log/${r.id}`} className="font-medium text-gold-300">#{r.ref_number}</Link>
+                <Link href={`/on-call/log/${r.id}`} className="font-medium text-gold-300">{shiftLabel(r.shift_date, r.slot)}</Link>
               </td>
-              <td className="px-3 py-2 text-white/80">{shiftLabel(r.shift_date, r.slot)}</td>
               {hasBranch ? <td className="px-3 py-2 text-white/70">{r.branch_name ?? "—"}</td> : null}
-              <td className="max-w-xs truncate px-3 py-2 text-white/70">{r.details}</td>
               <td className="px-3 py-2 text-white/80">{loggedPill(r.complaints_count, r.complaints_logged)}</td>
               <td className="px-3 py-2 text-white/80">{loggedPill(r.absences_count, r.absences_logged)}</td>
               <td className="px-3 py-2">
