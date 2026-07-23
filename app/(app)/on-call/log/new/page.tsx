@@ -4,9 +4,8 @@ import { requireCompany } from "@/lib/auth/guards";
 import { featureEnabled } from "@/lib/billing/tier";
 import BackLink from "@/components/back-link";
 import LogForm from "@/components/on-call/log-form";
-import { getOnCallBranches, getCompanyPeopleOptions, getLogDraft } from "@/lib/on-call/data";
-import { listServiceUsersLite } from "@/lib/complaints/data";
-import { toLocalInput } from "@/lib/on-call/format";
+import { getOnCallBranches, getRotaScope, getLogDraft } from "@/lib/on-call/data";
+import { shiftOptions } from "@/lib/on-call/format";
 
 export const metadata: Metadata = { title: "Log a call" };
 
@@ -22,23 +21,25 @@ export default async function NewCallPage() {
   if (!ONCALL_ROLES.includes(profile.role)) redirect("/dashboard");
 
   const companyId = profile.company_id;
-  const [branches, people, serviceUsers, draft] = await Promise.all([
+  const [scope, branches, draft] = await Promise.all([
+    getRotaScope(companyId),
     getOnCallBranches(companyId, profile.role, user.id),
-    getCompanyPeopleOptions(companyId),
-    listServiceUsersLite(companyId),
     getLogDraft(user.id),
   ]);
+
+  const todayIso = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
+  const hour = Number(new Intl.DateTimeFormat("en-GB", { hour: "2-digit", hour12: false, timeZone: "Europe/London" }).format(new Date()));
+  const defaultShift = `${hour < 12 ? "am" : "pm"}|${todayIso}`;
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <BackLink href="/on-call/log" label="Back to call log" />
       <h1 className="text-xl font-bold text-white">Log a call</h1>
       <LogForm
+        scope={scope}
         branches={branches}
-        people={people}
-        serviceUsers={serviceUsers}
-        currentUserId={user.id}
-        nowLocal={toLocalInput(new Date().toISOString())}
+        shiftChoices={shiftOptions(todayIso)}
+        defaultShift={defaultShift}
         draft={draft}
       />
     </div>

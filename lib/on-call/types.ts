@@ -44,6 +44,8 @@ export type OnCallLog = {
   ref_number: number;
   shift_id: string | null;
   occurred_at: string;
+  shift_date: string | null;
+  slot: "am" | "pm" | null;
   handler_profile_id: string | null;
   handler_person_name: string | null;
   handler_name: string | null;
@@ -55,6 +57,10 @@ export type OnCallLog = {
   details: string;
   action_taken: string | null;
   outcome: string | null;
+  complaints_count: number;
+  complaints_logged: boolean;
+  absences_count: number;
+  absences_logged: boolean;
   follow_up_required: boolean;
   follow_up_notes: string | null;
   follow_up_done: boolean;

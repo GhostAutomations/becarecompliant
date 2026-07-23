@@ -24,8 +24,6 @@ const ONCALL_ROLES = [
   "manager", "supervisor", "on_call", "platform_admin",
 ];
 
-const CALLER_RELATIONSHIPS = ["service_user", "relative", "staff", "professional", "public", "other"];
-
 function trimOrNull(v: FormDataEntryValue | null): string | null {
   const s = String(v ?? "").trim();
   return s === "" ? null : s;
@@ -214,21 +212,39 @@ export async function setRotaScope(_prev: ActionState, formData: FormData): Prom
 }
 
 // ===========================================================================
-// Call log
+// Call log (per shift)
 // ===========================================================================
-function logFields(formData: FormData) {
-  const rel = trimOrNull(formData.get("caller_relationship"));
-  const handler_profile_id = trimOrNull(formData.get("handler_profile_id"));
+function intOrZero(v: FormDataEntryValue | null): number {
+  const n = parseInt(String(v ?? "").trim(), 10);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+/** Parse the "Shift" select value `${slot}|${date}` into shift_date + slot. */
+function parseShift(v: FormDataEntryValue | null): { shift_date: string | null; slot: "am" | "pm" | null } {
+  const [slot, date] = String(v ?? "").split("|");
+  if ((slot === "am" || slot === "pm") && /^\d{4}-\d{2}-\d{2}$/.test(date ?? "")) return { shift_date: date, slot };
+  return { shift_date: null, slot: null };
+}
+
+/** Fields shared by create + update. The handler is always the logged-in user;
+ *  the legacy caller/category columns are nulled. */
+function commonLogFields(formData: FormData, userId: string) {
+  const { shift_date, slot } = parseShift(formData.get("shift"));
   return {
-    occurred_at: toInstant(formData.get("occurred_at")) ?? new Date().toISOString(),
-    handler_profile_id,
-    handler_name: handler_profile_id ? null : trimOrNull(formData.get("handler_name")),
-    caller_name: trimOrNull(formData.get("caller_name")),
-    caller_relationship: rel && CALLER_RELATIONSHIPS.includes(rel) ? rel : null,
-    service_user_id: trimOrNull(formData.get("service_user_id")),
-    category: trimOrNull(formData.get("category")),
-    action_taken: trimOrNull(formData.get("action_taken")),
-    outcome: trimOrNull(formData.get("outcome")),
+    shift_date,
+    slot,
+    handler_profile_id: userId,
+    handler_name: null,
+    caller_name: null,
+    caller_relationship: null,
+    service_user_id: null,
+    category: null,
+    action_taken: null,
+    outcome: null,
+    complaints_count: intOrZero(formData.get("complaints_count")),
+    complaints_logged: formData.get("complaints_logged") === "yes",
+    absences_count: intOrZero(formData.get("absences_count")),
+    absences_logged: formData.get("absences_logged") === "yes",
     follow_up_required: formData.get("follow_up_required") === "on",
     follow_up_notes: trimOrNull(formData.get("follow_up_notes")),
   };
@@ -238,22 +254,18 @@ export async function createLog(_prev: ActionState, formData: FormData): Promise
   const g = await gate();
   if ("error" in g) return g;
 
-  const branch_id = String(formData.get("branch_id") ?? "").trim();
+  const scope = String(formData.get("scope") ?? "branch") === "company" ? "company" : "branch";
+  const branch_id = scope === "company" ? null : trimOrNull(formData.get("branch_id"));
   const details = String(formData.get("details") ?? "").trim();
-  if (!branch_id) return { error: "Choose a branch." };
-  if (!details) return { error: "Describe what the call was about." };
+  const fields = commonLogFields(formData, g.userId);
+  if (scope === "branch" && !branch_id) return { error: "Choose a branch." };
+  if (!fields.shift_date || !fields.slot) return { error: "Choose the shift." };
+  if (!details) return { error: "Add the on call notes." };
 
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("on_call_logs")
-    .insert({
-      company_id: g.companyId,
-      branch_id,
-      shift_id: trimOrNull(formData.get("shift_id")),
-      details,
-      ...logFields(formData),
-      created_by: g.userId,
-    })
+    .insert({ company_id: g.companyId, branch_id, details, ...fields, created_by: g.userId })
     .select("id")
     .single();
   if (error) return { error: error.message };
@@ -264,7 +276,7 @@ export async function createLog(_prev: ActionState, formData: FormData): Promise
   await writeAudit({
     companyId: g.companyId, actorId: g.userId, actorEmail: g.email, actorRole: g.role,
     action: "on_call.call_logged", entityType: "on_call_log", entityId: data.id,
-    summary: "Logged an on-call call", metadata: { branch_id },
+    summary: "Logged an on-call shift", metadata: { shift: `${fields.slot}:${fields.shift_date}` },
   });
   redirect(`/on-call/log/${data.id}`);
 }
@@ -273,16 +285,22 @@ export async function updateLog(_prev: ActionState, formData: FormData): Promise
   const g = await gate();
   if ("error" in g) return g;
   const id = String(formData.get("id") ?? "").trim();
+  const scope = String(formData.get("scope") ?? "branch") === "company" ? "company" : "branch";
+  const branch_id = scope === "company" ? null : trimOrNull(formData.get("branch_id"));
   const details = String(formData.get("details") ?? "").trim();
+  const fields = commonLogFields(formData, g.userId);
   if (!id) return { error: "Missing call." };
-  if (!details) return { error: "Describe what the call was about." };
+  if (scope === "branch" && !branch_id) return { error: "Choose a branch." };
+  if (!fields.shift_date || !fields.slot) return { error: "Choose the shift." };
+  if (!details) return { error: "Add the on call notes." };
 
   const supabase = await createClient();
   const { error } = await supabase
     .from("on_call_logs")
     .update({
+      branch_id,
       details,
-      ...logFields(formData),
+      ...fields,
       follow_up_done: formData.get("follow_up_done") === "on",
       updated_by: g.userId,
     })
@@ -290,7 +308,7 @@ export async function updateLog(_prev: ActionState, formData: FormData): Promise
   if (error) return { error: error.message };
   revalidatePath(`/on-call/log/${id}`);
   revalidatePath("/on-call/log");
-  return { ok: "Call saved." };
+  return { ok: "Saved." };
 }
 
 /** Autosave the in-progress "Log a call" form (per user, fire-and-forget from the

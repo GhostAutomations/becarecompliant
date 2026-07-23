@@ -6,6 +6,8 @@ import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import { getComplaintCounts } from "@/lib/complaints/data";
+import { getUrgentFollowUps } from "@/lib/on-call/data";
+import { shiftLabel } from "@/lib/on-call/format";
 import { featureEnabled } from "@/lib/billing/tier";
 import {
   getComplianceBuckets,
@@ -149,6 +151,10 @@ export default async function DashboardPage() {
     ? await getComplaintCounts(companyId)
     : { open: 0, inProgress: 0, closed: 0, overdue: 0, avgDaysToClose: null as number | null };
 
+  // On Call urgent follow-ups (Managers and above, when the department is enabled).
+  const canSeeOnCall = isManagerPlus && (await featureEnabled(companyId, "on_call"));
+  const onCallUrgent = canSeeOnCall ? await getUrgentFollowUps(companyId) : [];
+
   const holidayPending = isManagerPlus ? await getHolidayPendingCount(companyId) : 0;
   const absence = isManagerPlus
     ? await getAbsenceMeetingSummary(companyId)
@@ -217,6 +223,25 @@ export default async function DashboardPage() {
               value={complaintCounts.avgDaysToClose ?? "—"}
               sub="Average days from raised to closed"
             />
+          </div>
+        </section>
+      ) : null}
+
+      {canSeeOnCall && onCallUrgent.length > 0 ? (
+        <section aria-label="On Call urgent follow-ups" className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">On Call: urgent follow-ups</h2>
+          <div className="grid gap-4 sm:grid-cols-3">
+            {onCallUrgent.map((u) => (
+              <Link
+                key={u.id}
+                href={`/on-call/log/${u.id}`}
+                className="glass-card block border-l-2 border-amber-400/70 p-4 transition hover:bg-white/[0.07]"
+              >
+                <span className="pill-amber"><span className="pill-dot" /> Urgent</span>
+                <p className="mt-2 text-base font-semibold text-white">{shiftLabel(u.shift_date, u.slot)}</p>
+                {u.branch_name ? <p className="text-xs text-white/55">{u.branch_name}</p> : null}
+              </Link>
+            ))}
           </div>
         </section>
       ) : null}

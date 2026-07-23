@@ -64,6 +64,32 @@ export function dayHeading(iso: string): { dow: string; dom: string } {
   };
 }
 
+/** A civil date (YYYY-MM-DD) as DD/MM/YYYY. */
+export function ukDate(iso: string): string {
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+/** A shift label, e.g. "AM: 23/07/2026". */
+export function shiftLabel(dateIso: string | null, slot: "am" | "pm" | null): string {
+  if (!dateIso || !slot) return "—";
+  return `${slot.toUpperCase()}: ${ukDate(dateIso)}`;
+}
+
+/** Shift options for the "Shift" dropdown: AM/PM for yesterday, today, tomorrow.
+ *  Value is `${slot}|${date}`. Newest shift first. */
+export function shiftOptions(todayIso: string): Array<{ value: string; label: string }> {
+  const [y, m, d] = todayIso.split("-").map(Number);
+  const out: Array<{ value: string; label: string }> = [];
+  for (const off of [1, 0, -1]) {
+    const date = new Date(Date.UTC(y, m - 1, d + off)).toISOString().slice(0, 10);
+    for (const slot of ["pm", "am"] as const) {
+      out.push({ value: `${slot}|${date}`, label: shiftLabel(date, slot) });
+    }
+  }
+  return out;
+}
+
 /** Start/end UTC instants for a date + AM/PM slot (AM 00:00-12:00, PM 12:00-24:00). */
 export function slotInstants(dateIso: string, slot: "am" | "pm"): { startsAt: string; endsAt: string } {
   if (slot === "am") return { startsAt: `${dateIso}T00:00:00Z`, endsAt: `${dateIso}T12:00:00Z` };

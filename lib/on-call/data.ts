@@ -157,10 +157,12 @@ export async function getShift(id: string): Promise<OnCallShift | null> {
 }
 
 type LogRow = {
-  id: string; company_id: string; branch_id: string; ref_number: number; shift_id: string | null;
-  occurred_at: string; handler_profile_id: string | null; handler_name: string | null;
+  id: string; company_id: string; branch_id: string | null; ref_number: number; shift_id: string | null;
+  occurred_at: string; shift_date: string | null; slot: "am" | "pm" | null;
+  handler_profile_id: string | null; handler_name: string | null;
   caller_name: string | null; caller_relationship: string | null; service_user_id: string | null;
   category: string | null; details: string; action_taken: string | null; outcome: string | null;
+  complaints_count: number; complaints_logged: boolean; absences_count: number; absences_logged: boolean;
   follow_up_required: boolean; follow_up_notes: string | null; follow_up_done: boolean;
   branches: { name: string } | { name: string }[] | null;
   profiles: { full_name: string | null; email: string | null } | { full_name: string | null; email: string | null }[] | null;
@@ -175,17 +177,19 @@ function toLog(r: LogRow): OnCallLog {
   return {
     id: r.id, company_id: r.company_id, branch_id: r.branch_id, branch_name: branch?.name ?? null,
     ref_number: r.ref_number, shift_id: r.shift_id,
-    occurred_at: r.occurred_at,
+    occurred_at: r.occurred_at, shift_date: r.shift_date, slot: r.slot,
     handler_profile_id: r.handler_profile_id, handler_person_name: handlerName, handler_name: r.handler_name,
     caller_name: r.caller_name, caller_relationship: r.caller_relationship,
     service_user_id: r.service_user_id, service_user_name: su?.full_name ?? null,
     category: r.category, details: r.details, action_taken: r.action_taken, outcome: r.outcome,
+    complaints_count: r.complaints_count, complaints_logged: r.complaints_logged,
+    absences_count: r.absences_count, absences_logged: r.absences_logged,
     follow_up_required: r.follow_up_required, follow_up_notes: r.follow_up_notes, follow_up_done: r.follow_up_done,
   };
 }
 
 const LOG_SELECT =
-  "id, company_id, branch_id, ref_number, shift_id, occurred_at, handler_profile_id, handler_name, caller_name, caller_relationship, service_user_id, category, details, action_taken, outcome, follow_up_required, follow_up_notes, follow_up_done, branches(name), profiles:handler_profile_id(full_name, email), service_users:service_user_id(full_name)";
+  "id, company_id, branch_id, ref_number, shift_id, occurred_at, shift_date, slot, handler_profile_id, handler_name, caller_name, caller_relationship, service_user_id, category, details, action_taken, outcome, complaints_count, complaints_logged, absences_count, absences_logged, follow_up_required, follow_up_notes, follow_up_done, branches(name), profiles:handler_profile_id(full_name, email), service_users:service_user_id(full_name)";
 
 /** The call log, newest call first. RLS scopes rows to the caller. */
 export async function listCallLog(companyId: string): Promise<OnCallLog[]> {
@@ -218,6 +222,32 @@ export async function getLogDraft(userId: string): Promise<Record<string, string
   const ageMs = Date.now() - new Date(data.updated_at as string).getTime();
   if (ageMs > 12 * 3600 * 1000) return null;
   return (data.data as Record<string, string> | null) ?? null;
+}
+
+export type UrgentFollowUp = {
+  id: string;
+  shift_date: string | null;
+  slot: "am" | "pm" | null;
+  branch_name: string | null;
+};
+
+/** Open urgent follow-ups for the manager+ dashboard card: shift + date, each
+ *  linking to its log. RLS scopes to the caller. */
+export async function getUrgentFollowUps(companyId: string): Promise<UrgentFollowUp[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("on_call_logs")
+    .select("id, shift_date, slot, branches(name)")
+    .eq("company_id", companyId)
+    .eq("follow_up_required", true)
+    .eq("follow_up_done", false)
+    .order("shift_date", { ascending: false });
+  return ((data as Array<{ id: string; shift_date: string | null; slot: "am" | "pm" | null; branches: { name: string } | { name: string }[] | null }> | null) ?? []).map((r) => ({
+    id: r.id,
+    shift_date: r.shift_date,
+    slot: r.slot,
+    branch_name: relOne(r.branches)?.name ?? null,
+  }));
 }
 
 /** Count of open follow-ups (required, not done) for the header / dashboard. */
