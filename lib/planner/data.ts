@@ -324,11 +324,15 @@ export async function getPlannerRecordForm(
       .in("role", CONDUCTOR_ROLES),
     supabase
       .from("check_instances")
-      .select("id, due_date, check_definitions(name, key)")
+      // !inner + the definition active filter so a check whose DEFINITION was turned
+      // off (e.g. Annual Appraisal under the four-supervisions cycle) is not bookable,
+      // even though its instance row is still active.
+      .select("id, due_date, check_definitions!inner(name, key, active)")
       .eq("company_id", companyId)
       .eq("record_type", recordType)
       .eq(instColumn, recordId)
-      .eq("active", true),
+      .eq("active", true)
+      .eq("check_definitions.active", true),
   ]);
 
   const branches = (branchesRes.data ?? []).map((b) => ({ id: b.id as string, name: b.name as string }));
@@ -378,9 +382,11 @@ export async function getPlannerFormData(companyId: string): Promise<PlannerForm
       .is("archived_at", null),
     supabase
       .from("check_instances")
-      .select("id, record_type, person_id, service_user_id, due_date, active, check_definitions(name, key)")
+      // !inner + definition active filter: exclude checks whose definition is turned off.
+      .select("id, record_type, person_id, service_user_id, due_date, active, check_definitions!inner(name, key, active)")
       .eq("company_id", companyId)
-      .eq("active", true),
+      .eq("active", true)
+      .eq("check_definitions.active", true),
   ]);
 
   const branches = (branchesRes.data ?? []).map((b) => ({ id: b.id as string, name: b.name as string }));
