@@ -8,10 +8,6 @@ import { dayHeading } from "@/lib/on-call/format";
 import type { BranchOption, PersonOption, RotaCell, RotaScope, RotaWeek } from "@/lib/on-call/types";
 
 type Cells = Record<string, RotaCell>;
-
-function shortDate(iso: string): string {
-  return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
-}
 const SLOTS: Array<{ key: "am" | "pm"; label: string }> = [
   { key: "am", label: "AM" },
   { key: "pm", label: "PM" },
@@ -92,10 +88,7 @@ export default function RotaGrid({
 
       {weeks.map((week) => (
         <section key={week.label}>
-          <h2 className="mb-2 text-sm font-semibold text-white/80">
-            {week.label}
-            <span className="ml-2 font-normal text-white/45">{shortDate(week.days[0])} – {shortDate(week.days[6])}</span>
-          </h2>
+          <h2 className="mb-2 text-sm font-semibold text-white/80">{week.label}</h2>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] border-separate border-spacing-1 text-sm">
               <thead>
