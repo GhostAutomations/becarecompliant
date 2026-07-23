@@ -1,27 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import { fmtDateTime } from "@/lib/on-call/format";
 import { relationshipLabel, type OnCallLog } from "@/lib/on-call/types";
 
 export default function LogRegister({ rows }: { rows: OnCallLog[] }) {
-  const [onlyFollowUps, setOnlyFollowUps] = useState(false);
-  const shown = onlyFollowUps ? rows.filter((r) => r.follow_up_required && !r.follow_up_done) : rows;
+  const shown = rows;
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <label className="flex items-center gap-2 text-sm text-white/70">
-          <input type="checkbox" checked={onlyFollowUps} onChange={(e) => setOnlyFollowUps(e.target.checked)} />
-          Open follow-ups only
-        </label>
-        <a href="/api/on-call/export" className="btn-ghost text-sm">Export CSV</a>
-      </div>
-
       {shown.length === 0 ? (
         <div className="glass-card p-8 text-center text-sm text-white/50">
-          {onlyFollowUps ? "No open follow-ups." : "No calls logged yet."}
+          No calls logged yet.
         </div>
       ) : (
         <div className="overflow-x-auto">
