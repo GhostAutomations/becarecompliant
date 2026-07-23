@@ -150,6 +150,9 @@ export default async function PersonPage({
     supCount,
     cycleMode,
   );
+  // Sequential: only the next-due supervision (the first one not yet completed)
+  // offers a Complete button, mirroring the Service User reviews.
+  const dueSupN = slots.find((s) => !s.comp)?.n ?? null;
 
   const statusByDef = new Map<string, CheckStatus>(statuses.map((s) => [s.definition_id, s]));
   const supStatus = statuses.find((s) => s.check_key === "supervision") ?? null;
@@ -260,7 +263,7 @@ export default async function PersonPage({
               {slots.map((s) => (
                 <div key={s.n} className="flex flex-col rounded-xl border border-white/10 p-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-white/70">Sup {s.n}</span>
+                    <span className="text-xs font-semibold text-white/70">{s.n}</span>
                     <span className={`rag-cell ${slotPill(s.rag)}`}>
                       {s.comp ? "Done" : s.due ? formatDisplayDate(s.due) : "—"}
                     </span>
@@ -269,7 +272,7 @@ export default async function PersonPage({
                     <div className="flex justify-between"><dt>Due</dt><dd className="text-white/80">{formatDisplayDate(s.due) || "—"}</dd></div>
                     <div className="flex justify-between"><dt>Completed</dt><dd className="text-white/80">{formatDisplayDate(s.comp) || "Not yet"}</dd></div>
                   </dl>
-                  {supStatus && supFormId && canComplete ? (
+                  {supStatus && supFormId && canComplete && s.n === dueSupN ? (
                     <Link
                       href={`/people/${person.id}/checks/${supStatus.instance_id}/complete?sup=${s.n}`}
                       className="btn-primary mt-3 w-full justify-center text-xs"
