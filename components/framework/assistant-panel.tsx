@@ -50,7 +50,10 @@ export default function AssistantPanel({ requirements }: { requirements: Array<{
   return (
     <div className="glass-card space-y-4 p-5">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold text-white">Readiness assistant</h2>
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-white">
+          Readiness assistant
+          <span className="rounded-full bg-gold-400/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gold-300">AI</span>
+        </h2>
         <button type="button" onClick={draft} disabled={pending} className="btn-outline text-xs">
           {pending && mode === "draft" ? "Drafting…" : "Draft inspection narrative"}
         </button>
