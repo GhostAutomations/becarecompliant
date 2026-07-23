@@ -317,7 +317,9 @@ export async function updateLog(_prev: ActionState, formData: FormData): Promise
   if (error) return { error: error.message };
   revalidatePath(`/on-call/log/${id}`);
   revalidatePath("/on-call/log");
-  return { ok: finalise ? "Shift finalised." : "Saved." };
+  // Finalising locks the shift: navigate so the page re-renders read-only.
+  if (finalise) redirect(`/on-call/log/${id}`);
+  return { ok: "Saved." };
 }
 
 /** Autosave the in-progress "Log a call" form (per user, fire-and-forget from the
