@@ -21,7 +21,7 @@ import type { BranchLite } from "@/lib/people/data";
 import { recordAbsence, recordAbsenceMeeting } from "@/lib/absence/actions";
 
 /** The card shows the office NAME, not the full address (Phil, 2026-07-12):
- *  "Cardiff Branch Office", "Thistle Care Wales Office" or "Teams". The full
+ *  "Cardiff Branch Office", "Acme Care Company Office" or "Teams". The full
  *  address still prints in the letters and the calendar entry. */
 function locationLabel(location: string, offices: MeetingOffice[]): string {
   if (location === "Microsoft Teams") return "Teams";

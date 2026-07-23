@@ -69,7 +69,7 @@ export function isFormalComplaint(concernType: string | null, formality: string 
 }
 
 /** Fallback complaint reference prefix from the company name initials (skipping legal
- *  suffixes), e.g. "Thistle Care Wales" -> "TCW". Used when no prefix is configured. */
+ *  suffixes), e.g. "Acme Care Company" -> "ACC". Used when no prefix is configured. */
 export function deriveComplaintPrefix(companyName: string | null | undefined): string {
   const skip = new Set(["ltd", "limited", "llp", "plc", "cic", "co", "company", "the"]);
   const initials = (companyName ?? "")
