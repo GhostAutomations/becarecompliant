@@ -10,7 +10,7 @@
 export type OnCallShift = {
   id: string;
   company_id: string;
-  branch_id: string;
+  branch_id: string | null;
   branch_name: string | null;
   on_call_profile_id: string | null;
   on_call_person_name: string | null; // resolved from profile, else on_call_name
@@ -18,8 +18,23 @@ export type OnCallShift = {
   phone: string | null;
   starts_at: string;
   ends_at: string;
+  shift_date: string | null;
+  slot: "am" | "pm" | null;
   notes: string | null;
 };
+
+export type RotaScope = "branch" | "company";
+export type RotaSlot = "am" | "pm";
+
+/** One filled cell of the rota grid. */
+export type RotaCell = {
+  id: string;
+  name: string | null;
+  phone: string | null;
+  profileId: string | null;
+};
+
+export type RotaWeek = { label: string; days: string[] };
 
 export type OnCallLog = {
   id: string;

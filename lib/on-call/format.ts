@@ -35,3 +35,39 @@ export function toLocalInput(iso: string | null): string {
   if (!iso) return "";
   return new Date(iso).toISOString().slice(0, 16);
 }
+
+/** The three rota weeks (Current / +1 / +2), each Monday->Sunday, from a
+ *  YYYY-MM-DD "today". Pure date maths in UTC so it round-trips the wall-clock. */
+export function threeWeekGrid(todayIso: string): { label: string; days: string[] }[] {
+  const [y, m, d] = todayIso.split("-").map(Number);
+  const base = new Date(Date.UTC(y, m - 1, d));
+  const dow = base.getUTCDay(); // 0 Sun .. 6 Sat
+  const monday = new Date(base);
+  monday.setUTCDate(base.getUTCDate() + (dow === 0 ? -6 : 1 - dow));
+  const labels = ["Current", "+1", "+2"];
+  return labels.map((label, w) => ({
+    label,
+    days: Array.from({ length: 7 }, (_, i) => {
+      const dd = new Date(monday);
+      dd.setUTCDate(monday.getUTCDate() + w * 7 + i);
+      return dd.toISOString().slice(0, 10);
+    }),
+  }));
+}
+
+/** A short day heading for a rota cell, e.g. "Mon 28". */
+export function dayHeading(iso: string): { dow: string; dom: string } {
+  const d = new Date(`${iso}T00:00:00Z`);
+  return {
+    dow: d.toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" }),
+    dom: String(d.getUTCDate()),
+  };
+}
+
+/** Start/end UTC instants for a date + AM/PM slot (AM 00:00-12:00, PM 12:00-24:00). */
+export function slotInstants(dateIso: string, slot: "am" | "pm"): { startsAt: string; endsAt: string } {
+  if (slot === "am") return { startsAt: `${dateIso}T00:00:00Z`, endsAt: `${dateIso}T12:00:00Z` };
+  const [y, m, d] = dateIso.split("-").map(Number);
+  const next = new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
+  return { startsAt: `${dateIso}T12:00:00Z`, endsAt: `${next}T00:00:00Z` };
+}

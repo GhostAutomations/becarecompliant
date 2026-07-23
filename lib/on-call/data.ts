@@ -7,7 +7,7 @@ import "server-only";
  */
 
 import { createClient } from "@/lib/supabase/server";
-import type { BranchOption, OnCallLog, OnCallShift, PersonOption } from "./types";
+import type { BranchOption, OnCallLog, OnCallShift, PersonOption, RotaCell, RotaScope } from "./types";
 
 /** Normalise a Supabase to-one embedded relation (typed as an array) to one row. */
 function relOne<T>(v: T[] | T | null | undefined): T | null {
@@ -62,9 +62,9 @@ export async function getCompanyPeopleOptions(companyId: string): Promise<Person
 }
 
 type ShiftRow = {
-  id: string; company_id: string; branch_id: string;
+  id: string; company_id: string; branch_id: string | null;
   on_call_profile_id: string | null; on_call_name: string | null; phone: string | null;
-  starts_at: string; ends_at: string; notes: string | null;
+  starts_at: string; ends_at: string; shift_date: string | null; slot: "am" | "pm" | null; notes: string | null;
   branches: { name: string } | { name: string }[] | null;
   profiles: { full_name: string | null; email: string | null } | { full_name: string | null; email: string | null }[] | null;
 };
@@ -79,12 +79,49 @@ function toShift(r: ShiftRow): OnCallShift {
     on_call_profile_id: r.on_call_profile_id,
     on_call_person_name: profName || r.on_call_name || null,
     on_call_name: r.on_call_name,
-    phone: r.phone, starts_at: r.starts_at, ends_at: r.ends_at, notes: r.notes,
+    phone: r.phone, starts_at: r.starts_at, ends_at: r.ends_at,
+    shift_date: r.shift_date, slot: r.slot, notes: r.notes,
   };
 }
 
 const SHIFT_SELECT =
-  "id, company_id, branch_id, on_call_profile_id, on_call_name, phone, starts_at, ends_at, notes, branches(name), profiles:on_call_profile_id(full_name, email)";
+  "id, company_id, branch_id, on_call_profile_id, on_call_name, phone, starts_at, ends_at, shift_date, slot, notes, branches(name), profiles:on_call_profile_id(full_name, email)";
+
+/** How this company runs its on-call rota: one grid per branch, or company-wide. */
+export async function getRotaScope(companyId: string): Promise<RotaScope> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("companies").select("on_call_rota_scope").eq("id", companyId).maybeSingle();
+  return ((data?.on_call_rota_scope as RotaScope | null) ?? "branch");
+}
+
+/** The filled rota cells for a 3-week window, keyed `${shift_date}|${slot}`.
+ *  scope "company" reads the branch-less rota; "branch" reads one branch. */
+export async function getRotaGrid(
+  companyId: string,
+  scope: RotaScope,
+  branchId: string | null,
+  firstDate: string,
+  lastDate: string,
+): Promise<Map<string, RotaCell>> {
+  const supabase = await createClient();
+  let q = supabase
+    .from("on_call_shifts")
+    .select(SHIFT_SELECT)
+    .eq("company_id", companyId)
+    .gte("shift_date", firstDate)
+    .lte("shift_date", lastDate);
+  q = scope === "company" ? q.is("branch_id", null) : q.eq("branch_id", branchId ?? "");
+  const { data } = await q;
+  const map = new Map<string, RotaCell>();
+  for (const raw of (data as ShiftRow[] | null) ?? []) {
+    const s = toShift(raw);
+    if (!s.shift_date || !s.slot) continue;
+    map.set(`${s.shift_date}|${s.slot}`, {
+      id: s.id, name: s.on_call_person_name, phone: s.phone, profileId: s.on_call_profile_id,
+    });
+  }
+  return map;
+}
 
 /** Shifts ending today or in the future, soonest first (the rota looks forward). */
 export async function getRota(companyId: string): Promise<OnCallShift[]> {

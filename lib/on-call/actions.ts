@@ -16,6 +16,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { requireFeature } from "@/lib/billing/tier";
+import { slotInstants } from "@/lib/on-call/format";
 import type { ActionState } from "@/lib/forms";
 
 const ONCALL_ROLES = [
@@ -135,6 +136,81 @@ export async function deleteShift(_prev: ActionState, formData: FormData): Promi
   if (error) return { error: error.message };
   revalidatePath("/on-call");
   return { ok: "Shift removed." };
+}
+
+// ===========================================================================
+// Rota grid (AM / PM cells over 3 weeks)
+// ===========================================================================
+const SCOPE_ADMIN_ROLES = ["company_admin", "registered_individual", "registered_manager", "platform_admin"];
+
+/** Assign (or reassign) one rota cell: a date + AM/PM slot, for a branch or the
+ *  whole company. Replaces whatever was in that cell. */
+export async function assignSlot(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const g = await gate();
+  if ("error" in g) return g;
+
+  const scope = String(formData.get("scope") ?? "branch") === "company" ? "company" : "branch";
+  const branch_id = scope === "company" ? null : (trimOrNull(formData.get("branch_id")));
+  const shift_date = String(formData.get("shift_date") ?? "").trim();
+  const slot = String(formData.get("slot") ?? "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(shift_date)) return { error: "Missing date." };
+  if (slot !== "am" && slot !== "pm") return { error: "Missing slot." };
+  if (scope === "branch" && !branch_id) return { error: "Choose a branch." };
+
+  const on_call_profile_id = trimOrNull(formData.get("on_call_profile_id"));
+  const on_call_name = on_call_profile_id ? null : trimOrNull(formData.get("on_call_name"));
+  if (!on_call_profile_id && !on_call_name) return { error: "Choose who is on call." };
+
+  const { startsAt, endsAt } = slotInstants(shift_date, slot);
+  const supabase = await createClient();
+
+  // Clear the existing cell first (delete-then-insert keeps the unique cell simple).
+  let del = supabase.from("on_call_shifts").delete()
+    .eq("company_id", g.companyId).eq("shift_date", shift_date).eq("slot", slot);
+  del = scope === "company" ? del.is("branch_id", null) : del.eq("branch_id", branch_id!);
+  await del;
+
+  const { error } = await supabase.from("on_call_shifts").insert({
+    company_id: g.companyId,
+    branch_id,
+    shift_date,
+    slot,
+    starts_at: startsAt,
+    ends_at: endsAt,
+    on_call_profile_id,
+    on_call_name,
+    phone: trimOrNull(formData.get("phone")),
+    created_by: g.userId,
+  });
+  if (error) return { error: error.message };
+  revalidatePath("/on-call");
+  return { ok: "Saved." };
+}
+
+/** Empty one rota cell. */
+export async function clearSlot(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const g = await gate();
+  if ("error" in g) return g;
+  const id = trimOrNull(formData.get("id"));
+  if (!id) return { error: "Missing cell." };
+  const supabase = await createClient();
+  const { error } = await supabase.from("on_call_shifts").delete().eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/on-call");
+  return { ok: "Cleared." };
+}
+
+/** Switch how the company runs its rota (Admin only). */
+export async function setRotaScope(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const g = await gate();
+  if ("error" in g) return g;
+  if (!SCOPE_ADMIN_ROLES.includes(g.role)) return { error: "Only an Admin can change the rota scope." };
+  const scope = String(formData.get("scope") ?? "") === "company" ? "company" : "branch";
+  const supabase = await createClient();
+  const { error } = await supabase.from("companies").update({ on_call_rota_scope: scope }).eq("id", g.companyId);
+  if (error) return { error: error.message };
+  revalidatePath("/on-call");
+  return { ok: "Rota scope updated." };
 }
 
 // ===========================================================================
