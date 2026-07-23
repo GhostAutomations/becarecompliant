@@ -14,7 +14,8 @@ export type Profile = {
     | "company_admin"
     | "manager"
     | "supervisor"
-    | "team_member";
+    | "team_member"
+    | "on_call";
   status: "invited" | "active" | "disabled";
   /** Set when a platform admin is operating inside a tenant via manage-as. The
    *  profile is shadowed to that company with a company_admin role for scoping;
