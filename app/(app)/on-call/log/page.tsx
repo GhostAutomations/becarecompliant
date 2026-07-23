@@ -3,7 +3,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import { featureEnabled } from "@/lib/billing/tier";
-import BackLink from "@/components/back-link";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import LogRegister from "@/components/on-call/log-register";
 import { listCallLog } from "@/lib/on-call/data";
@@ -26,7 +25,6 @@ export default async function CallLogPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-4">
       <RealtimeRefresh tables={["on_call_logs"]} channel="on-call-log-live" />
-      <BackLink href="/on-call" label="Back to On Call" />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-white">Call log</h1>

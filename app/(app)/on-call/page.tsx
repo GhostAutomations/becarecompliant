@@ -10,7 +10,6 @@ import {
   getRotaGrid,
   getOnCallBranches,
   getCompanyPeopleOptions,
-  getOpenFollowUpCount,
 } from "@/lib/on-call/data";
 
 export const metadata: Metadata = { title: "On Call" };
@@ -50,10 +49,9 @@ export default async function OnCallPage({
   const first = weeks[0].days[0];
   const last = weeks[2].days[6];
 
-  const [cells, people, openFollowUps] = await Promise.all([
+  const [cells, people] = await Promise.all([
     getRotaGrid(companyId, scope, selectedBranchId, first, last),
     getCompanyPeopleOptions(companyId),
-    getOpenFollowUpCount(companyId),
   ]);
 
   return (
@@ -70,7 +68,6 @@ export default async function OnCallPage({
         people={people}
         todayIso={todayIso}
         currentSlot={currentSlot}
-        openFollowUps={openFollowUps}
       />
     </div>
   );

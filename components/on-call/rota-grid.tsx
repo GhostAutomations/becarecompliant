@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useState } from "react";
 import { assignSlot, clearSlot, setRotaScope } from "@/lib/on-call/actions";
@@ -29,7 +28,6 @@ export default function RotaGrid({
   people,
   todayIso,
   currentSlot,
-  openFollowUps,
 }: {
   scope: RotaScope;
   canChangeScope: boolean;
@@ -41,7 +39,6 @@ export default function RotaGrid({
   people: PersonOption[];
   todayIso: string;
   currentSlot: "am" | "pm";
-  openFollowUps: number;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState<{ date: string; slot: "am" | "pm" } | null>(null);
@@ -50,25 +47,15 @@ export default function RotaGrid({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-white">On Call</h1>
-          <p className="text-sm text-white/60">
-            On call now:{" "}
-            <span className="font-medium text-white">
-              {nowCell?.name ?? "no one assigned"}
-              {nowCell?.phone ? ` · ${nowCell.phone}` : ""}
-            </span>
-          </p>
-        </div>
-        <Link href="/on-call/log" className="btn-ghost text-sm">
-          Call log
-          {openFollowUps > 0 ? (
-            <span className="ml-2 rounded-full bg-amber-400/20 px-2 py-0.5 text-xs font-semibold text-amber-200">
-              {openFollowUps} to follow up
-            </span>
-          ) : null}
-        </Link>
+      <div>
+        <h1 className="text-xl font-bold text-white">Rota</h1>
+        <p className="text-sm text-white/60">
+          On call now:{" "}
+          <span className="font-medium text-white">
+            {nowCell?.name ?? "no one assigned"}
+            {nowCell?.phone ? ` · ${nowCell.phone}` : ""}
+          </span>
+        </p>
       </div>
 
       {/* Scope + branch controls */}
