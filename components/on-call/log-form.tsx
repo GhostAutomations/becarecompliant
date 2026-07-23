@@ -32,7 +32,9 @@ export default function LogForm({
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [state, formAction, pending] = useActionState(editing ? updateLog : createLog, IDLE_STATE);
   const [confirming, setConfirming] = useState(false);
+  const [saved, setSaved] = useState(false);
   useEffect(() => { if (state.ok) setConfirming(false); }, [state.ok]);
+  useEffect(() => { if (state.ok && !pending) setSaved(true); }, [state.ok, pending]);
 
   const dv = (key: string, fallback = "") => (editing ? fallback : d[key] ?? fallback);
   const shiftValue = editing ? `${log?.slot}|${log?.shift_date}` : d.shift || defaultShift;
@@ -40,6 +42,7 @@ export default function LogForm({
   const yesNo = (key: string, on: boolean) => (editing ? (on ? "yes" : "no") : d[key] ?? "no");
 
   function onChange() {
+    setSaved(false);
     if (!draftEnabled || !formRef.current) return;
     if (timer.current) clearTimeout(timer.current);
     const fd = new FormData(formRef.current);
@@ -123,7 +126,6 @@ export default function LogForm({
       </div>
 
       {state.error ? <p className="form-error">{state.error}</p> : null}
-      {state.ok ? <p className="rounded-xl border border-gold-400/40 bg-gold-400/15 px-3.5 py-2.5 text-sm text-gold-300">{state.ok}</p> : null}
 
       {editing ? (
         confirming ? (
@@ -142,8 +144,8 @@ export default function LogForm({
             </div>
           </div>
         ) : (
-          <button type="button" className="btn-primary" onClick={() => setConfirming(true)} disabled={pending}>
-            Save
+          <button type="button" className={saved ? "btn-saved" : "btn-primary"} onClick={() => setConfirming(true)} disabled={pending}>
+            {saved ? "Saved" : "Save"}
           </button>
         )
       ) : (
