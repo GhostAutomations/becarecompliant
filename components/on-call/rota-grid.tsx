@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState, useState, useTransition } from "react";
 import { assignCell, setRotaScope } from "@/lib/on-call/actions";
@@ -67,15 +68,18 @@ export default function RotaGrid({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-white">Rota</h1>
-        <p className="text-sm text-white/60">
-          On call now:{" "}
-          <span className="font-medium text-white">
-            {nowCell?.name ?? "no one assigned"}
-            {nowCell?.phone ? ` · ${nowCell.phone}` : ""}
-          </span>
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-white">Rota</h1>
+          <p className="text-sm text-white/60">
+            On call now:{" "}
+            <span className="font-medium text-white">
+              {nowCell?.name ?? "no one assigned"}
+              {nowCell?.phone ? ` · ${nowCell.phone}` : ""}
+            </span>
+          </p>
+        </div>
+        <Link href="/on-call/archive" className="btn-ghost text-sm">Archived</Link>
       </div>
 
       {/* Scope + branch controls */}

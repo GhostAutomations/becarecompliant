@@ -150,6 +150,55 @@ export async function getCurrentOnCall(companyId: string): Promise<OnCallShift[]
   return ((data as ShiftRow[] | null) ?? []).map(toShift);
 }
 
+export type ArchiveWeek = { mondayIso: string; days: string[]; cells: Record<string, RotaCell> };
+
+function mondayOf(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const base = new Date(Date.UTC(y, m - 1, d));
+  const dow = base.getUTCDay();
+  base.setUTCDate(base.getUTCDate() + (dow === 0 ? -6 : 1 - dow));
+  return base.toISOString().slice(0, 10);
+}
+
+/** Past rota weeks (before the current week's Monday), grouped Monday->Sunday,
+ *  most recent first, only weeks that have any assignment. Read-only history. */
+export async function getArchiveRota(
+  companyId: string,
+  scope: RotaScope,
+  branchId: string | null,
+  beforeMondayIso: string,
+): Promise<ArchiveWeek[]> {
+  const supabase = await createClient();
+  let q = supabase
+    .from("on_call_shifts")
+    .select(SHIFT_SELECT)
+    .eq("company_id", companyId)
+    .lt("shift_date", beforeMondayIso)
+    .order("shift_date", { ascending: false })
+    .limit(2000);
+  q = scope === "company" ? q.is("branch_id", null) : q.eq("branch_id", branchId ?? "");
+  const { data } = await q;
+
+  const byWeek = new Map<string, Record<string, RotaCell>>();
+  for (const raw of (data as ShiftRow[] | null) ?? []) {
+    const s = toShift(raw);
+    if (!s.shift_date || !s.slot) continue;
+    const wk = mondayOf(s.shift_date);
+    const cells = byWeek.get(wk) ?? {};
+    cells[`${s.shift_date}|${s.slot}`] = { id: s.id, name: s.on_call_person_name, phone: s.phone, profileId: s.on_call_profile_id };
+    byWeek.set(wk, cells);
+  }
+
+  return [...byWeek.keys()]
+    .sort((a, b) => (a < b ? 1 : -1))
+    .slice(0, 26)
+    .map((mondayIso) => {
+      const [y, m, d] = mondayIso.split("-").map(Number);
+      const days = Array.from({ length: 7 }, (_, i) => new Date(Date.UTC(y, m - 1, d + i)).toISOString().slice(0, 10));
+      return { mondayIso, days, cells: byWeek.get(mondayIso) ?? {} };
+    });
+}
+
 export async function getShift(id: string): Promise<OnCallShift | null> {
   const supabase = await createClient();
   const { data } = await supabase.from("on_call_shifts").select(SHIFT_SELECT).eq("id", id).maybeSingle();
