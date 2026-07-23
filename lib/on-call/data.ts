@@ -136,7 +136,8 @@ function toLog(r: LogRow): OnCallLog {
   const su = relOne(r.service_users);
   const handlerName = (prof ? prof.full_name || prof.email : null) || r.handler_name || null;
   return {
-    id: r.id, company_id: r.company_id, branch_id: r.branch_id, ref_number: r.ref_number, shift_id: r.shift_id,
+    id: r.id, company_id: r.company_id, branch_id: r.branch_id, branch_name: branch?.name ?? null,
+    ref_number: r.ref_number, shift_id: r.shift_id,
     occurred_at: r.occurred_at,
     handler_profile_id: r.handler_profile_id, handler_person_name: handlerName, handler_name: r.handler_name,
     caller_name: r.caller_name, caller_relationship: r.caller_relationship,
