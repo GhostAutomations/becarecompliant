@@ -44,7 +44,6 @@ export default function RotaGrid({
   currentSlot: "am" | "pm";
 }) {
   const router = useRouter();
-  const [editing, setEditing] = useState<{ date: string; slot: "am" | "pm" } | null>(null);
   const [pending, startTransition] = useTransition();
   // Optimistic overrides so a picked name shows instantly and stays put through
   // the background refresh (no blank flash). A key mapped to null means cleared.
@@ -60,7 +59,6 @@ export default function RotaGrid({
       ...prev,
       [key]: profileId ? { id: "optimistic", name: person?.name ?? null, phone: null, profileId } : null,
     }));
-    setEditing(null);
     startTransition(async () => {
       await assignCell(scope, selectedBranchId, date, slot, profileId);
       router.refresh();
@@ -126,45 +124,40 @@ export default function RotaGrid({
                     {week.days.map((d) => {
                       const cell = cellFor(`${d}|${s.key}`);
                       const isNow = d === todayIso && s.key === currentSlot;
-                      const isActive = editing?.date === d && editing?.slot === s.key;
                       const cellClasses = [
-                        "h-14 w-full overflow-hidden rounded-lg border px-2 text-left transition",
+                        "relative h-14 w-full overflow-hidden rounded-lg border px-2 transition",
                         cell ? "border-white/10 bg-white/[0.06]" : "border-dashed border-white/10 bg-transparent",
                         isNow ? "ring-1 ring-gold-400/70" : "",
+                        canManage ? "hover:border-gold-400/40 hover:bg-white/[0.09]" : "",
                       ].join(" ");
                       return (
                         <td key={d}>
-                          {isActive && canManage ? (
-                            <select
-                              autoFocus
-                              disabled={pending}
-                              defaultValue={cell?.profileId ?? ""}
-                              onChange={(e) => pick(d, s.key, e.target.value)}
-                              onBlur={() => setEditing(null)}
-                              className={`${cellClasses} cursor-pointer text-xs`}
-                            >
-                              <option value="">{cell ? "Clear" : "Choose…"}</option>
-                              {people.map((p) => (
-                                <option key={p.id} value={p.id}>{p.name}</option>
-                              ))}
-                            </select>
-                          ) : (
-                            <button
-                              type="button"
-                              disabled={!canManage}
-                              onClick={() => canManage && setEditing({ date: d, slot: s.key })}
-                              className={`${cellClasses} ${canManage ? "hover:border-gold-400/40 hover:bg-white/[0.09]" : "cursor-default"}`}
-                            >
+                          <div className={cellClasses}>
+                            <div className="pointer-events-none flex h-full flex-col justify-center">
                               {cell ? (
-                                <span className="flex h-full flex-col justify-center">
+                                <>
                                   <span className="block truncate text-xs font-medium leading-tight text-white">{firstName(cell.name)}</span>
                                   {surname(cell.name) ? <span className="block truncate text-xs leading-tight text-white/70">{surname(cell.name)}</span> : null}
-                                </span>
+                                </>
                               ) : (
                                 <span className="text-white/25">{canManage ? "+" : ""}</span>
                               )}
-                            </button>
-                          )}
+                            </div>
+                            {canManage ? (
+                              <select
+                                value={cell?.profileId ?? ""}
+                                disabled={pending}
+                                onChange={(e) => pick(d, s.key, e.target.value)}
+                                aria-label={`Assign ${s.label} ${d}`}
+                                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                              >
+                                <option value="">{cell ? "Clear" : "Choose…"}</option>
+                                {people.map((p) => (
+                                  <option key={p.id} value={p.id}>{p.name}</option>
+                                ))}
+                              </select>
+                            ) : null}
+                          </div>
                         </td>
                       );
                     })}
