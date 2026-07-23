@@ -306,7 +306,6 @@ export async function updateLog(_prev: ActionState, formData: FormData): Promise
       branch_id,
       details,
       ...fields,
-      follow_up_done: formData.get("follow_up_done") === "on",
       finalised: finalise,
       finalised_at: finalise ? new Date().toISOString() : null,
       finalised_by: finalise ? g.userId : null,
@@ -319,6 +318,35 @@ export async function updateLog(_prev: ActionState, formData: FormData): Promise
   revalidatePath("/on-call/log");
   // Finalising locks the shift: navigate so the page re-renders read-only.
   if (finalise) redirect(`/on-call/log/${id}`);
+  return { ok: "Saved." };
+}
+
+/** Resolve an urgent follow-up: record the action notes and (optionally) mark it
+ *  completed. Works even after the shift is finalised (the follow-up is a manager
+ *  task done later); it only touches the follow-up fields, not the locked shift.
+ *  Once completed it drops off the manager dashboard. */
+export async function resolveFollowUp(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const g = await gate();
+  if ("error" in g) return g;
+  const id = String(formData.get("log_id") ?? "").trim();
+  if (!id) return { error: "Missing shift." };
+  const done = formData.get("follow_up_done") === "on";
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("on_call_logs")
+    .update({
+      follow_up_action: trimOrNull(formData.get("follow_up_action")),
+      follow_up_done: done,
+      follow_up_done_at: done ? new Date().toISOString() : null,
+      follow_up_done_by: done ? g.userId : null,
+      updated_by: g.userId,
+    })
+    .eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard");
+  revalidatePath("/on-call/log");
+  revalidatePath(`/on-call/log/${id}`);
+  if (done) redirect(`/on-call/log/${id}`);
   return { ok: "Saved." };
 }
 

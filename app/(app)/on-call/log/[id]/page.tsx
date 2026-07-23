@@ -3,9 +3,11 @@ import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import { featureEnabled } from "@/lib/billing/tier";
 import BackLink from "@/components/back-link";
+import ActionForm from "@/components/action-form";
 import LogForm from "@/components/on-call/log-form";
 import LogReadOnLoad from "@/components/on-call/log-read-on-load";
 import { getLog, getOnCallBranches, getRotaScope, getLogReads } from "@/lib/on-call/data";
+import { resolveFollowUp } from "@/lib/on-call/actions";
 import { shiftOptions, shiftLabel } from "@/lib/on-call/format";
 
 export const metadata: Metadata = { title: "On-call shift" };
@@ -88,6 +90,38 @@ export default async function CallPage({ params }: { params: Promise<{ id: strin
           log={log}
         />
       )}
+      {log.follow_up_required ? (
+        <div className="glass-card space-y-3 p-5">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold text-white">Urgent follow up</h2>
+            {log.follow_up_done ? (
+              <span className="rounded-full bg-emerald-400/15 px-2 py-0.5 text-xs font-semibold text-emerald-200">Completed</span>
+            ) : (
+              <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-xs font-semibold text-amber-200">Open</span>
+            )}
+          </div>
+          {log.follow_up_notes ? <p className="text-sm text-white/70">{log.follow_up_notes}</p> : null}
+
+          {log.follow_up_done ? (
+            <div>
+              <p className="form-label">Action notes</p>
+              <p className="whitespace-pre-wrap text-sm text-white/85">{log.follow_up_action || "No notes recorded."}</p>
+            </div>
+          ) : (
+            <ActionForm action={resolveFollowUp} hidden={{ log_id: log.id }} buttonClassName="btn-primary text-sm" className="space-y-3">
+              <div>
+                <label htmlFor="follow_up_action" className="form-label">Action notes</label>
+                <textarea id="follow_up_action" name="follow_up_action" rows={3} defaultValue={log.follow_up_action ?? ""} placeholder="What was done to follow this up" />
+              </div>
+              <label className="flex items-center gap-2 text-sm text-white/80">
+                <input type="checkbox" name="follow_up_done" />
+                Mark follow up as completed
+              </label>
+            </ActionForm>
+          )}
+        </div>
+      ) : null}
+
       {reads.length > 0 ? (
         <p className="text-xs text-white/40">
           Read by: {reads.map((r) => `${r.name} (${fmtRead(r.read_at)})`).join(", ")}

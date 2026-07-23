@@ -118,12 +118,6 @@ export default function LogForm({
             Needs Urgent Follow Up
           </label>
           <textarea name="follow_up_notes" rows={2} defaultValue={editing ? (log?.follow_up_notes ?? "") : dv("follow_up_notes")} placeholder="What needs following up" className="mt-3" />
-          {editing ? (
-            <label className="mt-3 flex items-center gap-2 text-sm text-white/80">
-              <input type="checkbox" name="follow_up_done" defaultChecked={log.follow_up_done} />
-              Follow up completed
-            </label>
-          ) : null}
         </div>
       </div>
 
