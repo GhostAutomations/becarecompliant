@@ -206,7 +206,7 @@ export default async function ServiceUserPage({
                   return (
                     <div key={s.n} className="flex flex-col rounded-xl border border-white/10 p-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-white/70">Review {s.n}</span>
+                        <span className="text-xs font-semibold text-white/70">{s.n}</span>
                         <span className={`rag-cell ${slotCls}`}>
                           {s.comp ? "Done" : s.due ? formatDisplayDate(s.due) : "—"}
                         </span>
