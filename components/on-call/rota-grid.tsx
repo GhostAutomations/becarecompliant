@@ -196,7 +196,7 @@ function CellEditor({
   }, [assignState.ok, clearState.ok, onClose]);
 
   return (
-    <div className="glass-card space-y-4 p-5">
+    <div className="glass-card w-full max-w-md space-y-4 p-5">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-white">
           {h.dow} {h.dom} · {slot.toUpperCase()}
