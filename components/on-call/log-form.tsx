@@ -30,6 +30,7 @@ export default function LogForm({
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const finaliseRef = useRef<HTMLInputElement>(null);
   const [state, formAction, pending] = useActionState(editing ? updateLog : createLog, IDLE_STATE);
   const [confirming, setConfirming] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -57,6 +58,7 @@ export default function LogForm({
   return (
     <form ref={formRef} action={formAction} onChange={onChange} className="space-y-5">
       {editing ? <input type="hidden" name="id" value={log.id} /> : null}
+      {editing ? <input type="hidden" name="finalise" ref={finaliseRef} defaultValue="no" /> : null}
       <input type="hidden" name="scope" value={scope} />
 
       <div className="grid gap-5 sm:grid-cols-2">
@@ -132,10 +134,10 @@ export default function LogForm({
           <div className="space-y-3 rounded-xl border border-white/10 bg-white/5 p-4">
             <p className="text-sm text-white/80">Have you finished this shift? Once finalised it can no longer be edited.</p>
             <div className="flex flex-wrap items-center gap-3">
-              <button type="submit" name="finalise" value="yes" className="btn-primary" disabled={pending}>
+              <button type="submit" onClick={() => { if (finaliseRef.current) finaliseRef.current.value = "yes"; }} className="btn-primary" disabled={pending}>
                 {pending ? "Saving…" : "Yes, finalise"}
               </button>
-              <button type="submit" name="finalise" value="no" className="btn-ghost" disabled={pending}>
+              <button type="submit" onClick={() => { if (finaliseRef.current) finaliseRef.current.value = "no"; }} className="btn-ghost" disabled={pending}>
                 No, just save
               </button>
               <button type="button" className="text-sm text-white/50 hover:text-white" onClick={() => setConfirming(false)} disabled={pending}>
