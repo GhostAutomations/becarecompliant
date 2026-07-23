@@ -293,6 +293,7 @@ export default function ServiceUserRegister({
                         <th>{col("review_status", "Review Status")}</th>
                       </>
                     )}
+                    <th>{col("audit", "Audit")}</th>
                     {shownColumns.map((c) => (
                       <th key={c.id}>{c.name}</th>
                     ))}
@@ -421,6 +422,15 @@ export default function ServiceUserRegister({
                             <td><span className={toneClass(reviewStatusTone(rs))}>{REVIEW_STATUS_LABELS[rs]}</span></td>
                           </>
                         )}
+                        <td>
+                          <ExtraCheckCell
+                            status={row.statusByKey["audit"]}
+                            recordId={su.id}
+                            basePath="/service-users"
+                            fromQuery={fromQuery}
+                            editable={canManage}
+                          />
+                        </td>
                         {shownColumns.map((c) => (
                           <td key={c.id}>
                             <ExtraCheckCell

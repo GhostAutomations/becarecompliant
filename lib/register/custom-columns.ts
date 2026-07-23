@@ -12,8 +12,8 @@
 /** Check keys that already have their own fixed columns in each register matrix, so
  *  they must NOT also appear as an extra/custom column. */
 export const CURATED_CHECK_KEYS: Record<string, string[]> = {
-  people: ["supervision", "appraisal", "spot_check", "competency", "manual_handling"],
-  service_users: ["setup", "care_plan_review"],
+  people: ["supervision", "appraisal", "spot_check", "competency", "manual_handling", "audit"],
+  service_users: ["setup", "care_plan_review", "audit"],
 };
 
 export function isCuratedCheckKey(population: string, key: string): boolean {

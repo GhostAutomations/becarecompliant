@@ -180,6 +180,7 @@ export default function RegisterMatrix({
                   <th>{col("aa_comp", "Annual Appraisal Done")}</th>
                 </>
               )}
+              <th>{col("audit", "Audit")}</th>
               {extraColumns.map((c) => (
                 <th key={c.id}>{c.name}</th>
               ))}
@@ -308,6 +309,15 @@ export default function RegisterMatrix({
                       <td>{aaSlot.comp ? <RagDate date={aaSlot.comp} rag={aaSlot.compRag} /> : <RagDate date={null} rag="none" />}</td>
                     </>
                   )}
+                  <td>
+                    <ExtraCheckCell
+                      status={row.statusByKey["audit"]}
+                      recordId={row.person.id}
+                      basePath="/people"
+                      fromQuery={fromQuery}
+                      editable={editable}
+                    />
+                  </td>
                   {extraColumns.map((c) => (
                     <td key={c.id}>
                       <ExtraCheckCell
