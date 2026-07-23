@@ -185,6 +185,37 @@ export async function assignSlot(_prev: ActionState, formData: FormData): Promis
   return { ok: "Saved." };
 }
 
+/** One-click rota assignment: pick a person for a cell (empty profileId clears it).
+ *  Called directly from the grid dropdown's onChange, so it saves instantly. */
+export async function assignCell(
+  scope: "branch" | "company",
+  branchId: string | null,
+  shiftDate: string,
+  slot: "am" | "pm",
+  profileId: string,
+): Promise<void> {
+  const g = await gate();
+  if ("error" in g) return;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(shiftDate) || (slot !== "am" && slot !== "pm")) return;
+  const branch_id = scope === "company" ? null : (branchId || null);
+  if (scope === "branch" && !branch_id) return;
+
+  const supabase = await createClient();
+  let del = supabase.from("on_call_shifts").delete()
+    .eq("company_id", g.companyId).eq("shift_date", shiftDate).eq("slot", slot);
+  del = scope === "company" ? del.is("branch_id", null) : del.eq("branch_id", branch_id!);
+  await del;
+
+  if (profileId) {
+    const { startsAt, endsAt } = slotInstants(shiftDate, slot);
+    await supabase.from("on_call_shifts").insert({
+      company_id: g.companyId, branch_id, shift_date: shiftDate, slot,
+      starts_at: startsAt, ends_at: endsAt, on_call_profile_id: profileId, created_by: g.userId,
+    });
+  }
+  revalidatePath("/on-call");
+}
+
 /** Empty one rota cell. */
 export async function clearSlot(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const g = await gate();
