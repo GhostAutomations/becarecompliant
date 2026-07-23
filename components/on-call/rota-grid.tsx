@@ -203,8 +203,8 @@ function CellEditor({
   }, [assignState.ok, clearState.ok, onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-    <div className="glass-card w-full max-w-md space-y-4 p-5" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <div className="glass-card w-full max-w-md space-y-4 p-5">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-white">
           {h.dow} {h.dom} · {slot.toUpperCase()}
