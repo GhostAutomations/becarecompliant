@@ -180,6 +180,7 @@ export function todayIso(): string {
 /** Human recurrence summary, e.g. "Every 3 months" / "Right to work expiry". */
 export function recurrenceLabel(def: CheckDefinition): string {
   if (def.anchor === "expiry") return "On document expiry";
+  if (def.schedule_mode === "ad_hoc") return "Ad hoc";
   if (!def.recurring) return "One off";
   if (def.schedule_mode === "after_sup3") return "After Supervision 3";
   if (!def.frequency || !def.interval) return "Not scheduled";

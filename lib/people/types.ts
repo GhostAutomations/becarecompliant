@@ -54,8 +54,9 @@ export type CheckDefinition = {
   reporting_interval_days: number | null;
   active: boolean;
   sort_order: number;
-  /** 'interval' (own days) or 'after_sup3' (first due aligned to Supervision 3). */
-  schedule_mode: "interval" | "after_sup3";
+  /** 'interval' (own days), 'after_sup3' (first due aligned to Supervision 3), or
+   *  'ad_hoc' (non-recurring, completed on demand, no due date, e.g. Mentoring). */
+  schedule_mode: "interval" | "after_sup3" | "ad_hoc";
 };
 
 /** One check applied to one Record, with its computed RAG (from person_check_status). */
