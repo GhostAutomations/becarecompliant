@@ -205,6 +205,21 @@ export async function getLog(id: string): Promise<OnCallLog | null> {
   return data ? toLog(data as LogRow) : null;
 }
 
+/** The caller's in-progress "Log a call" draft, if saved within the last 12 hours.
+ *  Restored when they reopen the form; cleared on submit. */
+export async function getLogDraft(userId: string): Promise<Record<string, string> | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("on_call_log_drafts")
+    .select("data, updated_at")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!data) return null;
+  const ageMs = Date.now() - new Date(data.updated_at as string).getTime();
+  if (ageMs > 12 * 3600 * 1000) return null;
+  return (data.data as Record<string, string> | null) ?? null;
+}
+
 /** Count of open follow-ups (required, not done) for the header / dashboard. */
 export async function getOpenFollowUpCount(companyId: string): Promise<number> {
   const supabase = await createClient();

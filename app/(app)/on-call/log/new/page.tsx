@@ -4,7 +4,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import { featureEnabled } from "@/lib/billing/tier";
 import BackLink from "@/components/back-link";
 import LogForm from "@/components/on-call/log-form";
-import { getOnCallBranches, getCompanyPeopleOptions } from "@/lib/on-call/data";
+import { getOnCallBranches, getCompanyPeopleOptions, getLogDraft } from "@/lib/on-call/data";
 import { listServiceUsersLite } from "@/lib/complaints/data";
 import { toLocalInput } from "@/lib/on-call/format";
 
@@ -22,10 +22,11 @@ export default async function NewCallPage() {
   if (!ONCALL_ROLES.includes(profile.role)) redirect("/dashboard");
 
   const companyId = profile.company_id;
-  const [branches, people, serviceUsers] = await Promise.all([
+  const [branches, people, serviceUsers, draft] = await Promise.all([
     getOnCallBranches(companyId, profile.role, user.id),
     getCompanyPeopleOptions(companyId),
     listServiceUsersLite(companyId),
+    getLogDraft(user.id),
   ]);
 
   return (
@@ -38,6 +39,7 @@ export default async function NewCallPage() {
         serviceUsers={serviceUsers}
         currentUserId={user.id}
         nowLocal={toLocalInput(new Date().toISOString())}
+        draft={draft}
       />
     </div>
   );

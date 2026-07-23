@@ -258,6 +258,9 @@ export async function createLog(_prev: ActionState, formData: FormData): Promise
     .single();
   if (error) return { error: error.message };
 
+  // The call is filed: discard the in-progress draft.
+  await supabase.from("on_call_log_drafts").delete().eq("user_id", g.userId);
+
   await writeAudit({
     companyId: g.companyId, actorId: g.userId, actorEmail: g.email, actorRole: g.role,
     action: "on_call.call_logged", entityType: "on_call_log", entityId: data.id,
@@ -288,6 +291,29 @@ export async function updateLog(_prev: ActionState, formData: FormData): Promise
   revalidatePath(`/on-call/log/${id}`);
   revalidatePath("/on-call/log");
   return { ok: "Call saved." };
+}
+
+/** Autosave the in-progress "Log a call" form (per user, fire-and-forget from the
+ *  client). Kept for up to 12 hours; survives logout. Silent on any problem so it
+ *  never interrupts typing. */
+export async function saveLogDraft(data: Record<string, string>): Promise<void> {
+  const g = await gate();
+  if ("error" in g) return;
+  const supabase = await createClient();
+  await supabase
+    .from("on_call_log_drafts")
+    .upsert(
+      { user_id: g.userId, company_id: g.companyId, data, updated_at: new Date().toISOString() },
+      { onConflict: "user_id" },
+    );
+}
+
+/** Discard the caller's saved draft (used when they clear the form). */
+export async function clearLogDraft(): Promise<void> {
+  const g = await gate();
+  if ("error" in g) return;
+  const supabase = await createClient();
+  await supabase.from("on_call_log_drafts").delete().eq("user_id", g.userId);
 }
 
 /** Quick toggle from the register / drill-down: mark a follow-up done or reopen it. */
