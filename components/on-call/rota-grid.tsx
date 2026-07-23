@@ -46,13 +46,23 @@ export default function RotaGrid({
   const router = useRouter();
   const [editing, setEditing] = useState<{ date: string; slot: "am" | "pm" } | null>(null);
   const [pending, startTransition] = useTransition();
+  // Optimistic overrides so a picked name shows instantly and stays put through
+  // the background refresh (no blank flash). A key mapped to null means cleared.
+  const [overrides, setOverrides] = useState<Record<string, RotaCell | null>>({});
 
-  const nowCell = cells[`${todayIso}|${currentSlot}`];
+  const cellFor = (key: string): RotaCell | null => (key in overrides ? overrides[key] : cells[key] ?? null);
+  const nowCell = cellFor(`${todayIso}|${currentSlot}`);
 
   function pick(date: string, slot: "am" | "pm", profileId: string) {
+    const key = `${date}|${slot}`;
+    const person = people.find((p) => p.id === profileId);
+    setOverrides((prev) => ({
+      ...prev,
+      [key]: profileId ? { id: "optimistic", name: person?.name ?? null, phone: null, profileId } : null,
+    }));
+    setEditing(null);
     startTransition(async () => {
       await assignCell(scope, selectedBranchId, date, slot, profileId);
-      setEditing(null);
       router.refresh();
     });
   }
@@ -114,7 +124,7 @@ export default function RotaGrid({
                   <tr key={s.key}>
                     <th className="pr-1 text-right align-middle text-xs font-semibold text-white/45">{s.label}</th>
                     {week.days.map((d) => {
-                      const cell = cells[`${d}|${s.key}`];
+                      const cell = cellFor(`${d}|${s.key}`);
                       const isNow = d === todayIso && s.key === currentSlot;
                       const isActive = editing?.date === d && editing?.slot === s.key;
                       const cellClasses = [
