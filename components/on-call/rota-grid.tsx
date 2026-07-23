@@ -13,6 +13,13 @@ const SLOTS: Array<{ key: "am" | "pm"; label: string }> = [
   { key: "pm", label: "PM" },
 ];
 
+function firstName(name: string | null): string {
+  return (name ?? "Assigned").trim().split(/\s+/)[0] || "Assigned";
+}
+function surname(name: string | null): string {
+  return (name ?? "").trim().split(/\s+/).slice(1).join(" ");
+}
+
 export default function RotaGrid({
   scope,
   canChangeScope,
@@ -128,10 +135,10 @@ export default function RotaGrid({
                             ].join(" ")}
                           >
                             {cell ? (
-                              <>
-                                <span className="block truncate text-xs font-medium text-white">{cell.name ?? "Assigned"}</span>
-                                {cell.phone ? <span className="block truncate text-[10px] text-white/50">{cell.phone}</span> : null}
-                              </>
+                              <span className="flex h-full flex-col justify-center">
+                                <span className="block truncate text-sm font-medium leading-tight text-white">{firstName(cell.name)}</span>
+                                {surname(cell.name) ? <span className="block truncate text-sm leading-tight text-white/75">{surname(cell.name)}</span> : null}
+                              </span>
                             ) : (
                               <span className="text-white/25">{canManage ? "+" : ""}</span>
                             )}
