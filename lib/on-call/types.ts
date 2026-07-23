@@ -39,7 +39,7 @@ export type RotaWeek = { label: string; days: string[] };
 export type OnCallLog = {
   id: string;
   company_id: string;
-  branch_id: string;
+  branch_id: string | null;
   branch_name: string | null;
   ref_number: number;
   shift_id: string | null;
