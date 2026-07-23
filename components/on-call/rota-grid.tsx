@@ -189,7 +189,6 @@ function CellEditor({
 }) {
   const [assignState, assign, assigning] = useActionState(assignSlot, IDLE_STATE);
   const [clearState, clear, clearing] = useActionState(clearSlot, IDLE_STATE);
-  const [usePerson, setUsePerson] = useState(!current || !!current.profileId);
   const h = dayHeading(date);
 
   useEffect(() => {
@@ -211,27 +210,14 @@ function CellEditor({
         <input type="hidden" name="shift_date" value={date} />
         <input type="hidden" name="slot" value={slot} />
 
-        <div className="flex gap-4 text-sm text-white/70">
-          <label className="flex items-center gap-2">
-            <input type="radio" name="_who" checked={usePerson} onChange={() => setUsePerson(true)} /> A team member
-          </label>
-          <label className="flex items-center gap-2">
-            <input type="radio" name="_who" checked={!usePerson} onChange={() => setUsePerson(false)} /> Someone else
-          </label>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          {usePerson ? (
-            <select name="on_call_profile_id" defaultValue={current?.profileId ?? ""}>
-              <option value="">Please choose</option>
-              {people.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
-          ) : (
-            <input name="on_call_name" defaultValue={current?.profileId ? "" : current?.name ?? ""} placeholder="Name of the person on call" />
-          )}
-          <input name="phone" defaultValue={current?.phone ?? ""} placeholder="On-call phone" />
+        <div>
+          <label htmlFor="on_call_profile_id" className="form-label">On call</label>
+          <select id="on_call_profile_id" name="on_call_profile_id" required defaultValue={current?.profileId ?? ""}>
+            <option value="" disabled>Please choose</option>
+            {people.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
         </div>
 
         {assignState.error ? <p className="form-error">{assignState.error}</p> : null}
