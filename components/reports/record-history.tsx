@@ -35,16 +35,10 @@ export default function RecordHistory({
   const histBase = `/api/reports/audit?scope=record&type=${recordType}&record=${recordId}`;
 
   return (
-    <details className="group">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
-          History{entries.length > 0 ? ` (${entries.length})` : ""}
-        </h2>
-        <span className="text-xs text-white/45 group-open:hidden">Show</span>
-        <span className="hidden text-xs text-white/45 group-open:inline">Hide</span>
-      </summary>
+    <details className="glass-card section-card">
+      <summary>History{entries.length > 0 ? ` (${entries.length})` : ""}</summary>
 
-      <div className="mt-3 space-y-3">
+      <div className="space-y-3 border-t border-white/10 p-5">
         <div className="flex flex-wrap items-center justify-end gap-2">
           {entitled ? (
             <>
@@ -66,11 +60,11 @@ export default function RecordHistory({
         </div>
 
         {entries.length === 0 ? (
-          <div className="glass-card p-6 text-sm text-white/60">
+          <p className="text-sm text-white/60">
             No history yet. Changes to this record and its evidence appear here in order.
-          </div>
+          </p>
         ) : (
-          <ol className="glass-card divide-y divide-white/5">
+          <ol className="divide-y divide-white/5 rounded-xl border border-white/10">
             {entries.map((e, i) => (
               <li key={e.id ?? i} className="flex items-start justify-between gap-3 px-5 py-3">
                 <div className="min-w-0">
