@@ -331,15 +331,15 @@ export default async function ServiceUserPage({
         branchId={serviceUser.branch_id}
       />
 
-      {/* Evidence history */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Evidence history</h2>
+      {/* Evidence history (collapsed by default, matches the Manage record card). */}
+      <details className="glass-card section-card">
+        <summary>Evidence history{evidence.length ? ` (${evidence.length})` : ""}</summary>
         {evidence.length === 0 ? (
-          <div className="glass-card p-6 text-sm text-white/60">
+          <div className="border-t border-white/10 p-5 text-sm text-white/60">
             No evidence yet. Completing a check stores its form here as immutable inspection evidence.
           </div>
         ) : (
-          <div className="glass-card divide-y divide-white/5">
+          <div className="divide-y divide-white/5 border-t border-white/10">
             {evidence.map((e) => (
               <div key={e.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm">
                 <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
@@ -356,7 +356,7 @@ export default async function ServiceUserPage({
             ))}
           </div>
         )}
-      </section>
+      </details>
 
       {/* History timeline (Admins only). Oldest at top, newest at bottom. */}
       {canViewHistory ? (

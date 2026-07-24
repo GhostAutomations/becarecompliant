@@ -92,6 +92,7 @@ export async function getWhiteboardBoard(companyId: string, todayIso: string): P
   const booked: BoardBooked[] = [];
   const bookedInstanceIds = new Set<string>();
   for (const r of (bookedRows.data as Row[] | null) ?? []) {
+    if (!checkStillBookable(r)) continue;
     const v = toView(r);
     if (v.checkInstanceId) bookedInstanceIds.add(v.checkInstanceId);
     booked.push({
@@ -196,10 +197,23 @@ type Row = {
   person: { full_name: string | null } | null;
   service_user: { full_name: string | null } | null;
   branch: { name: string | null } | null;
+  // The check this booking is against (null for ad-hoc/title-only bookings), carried
+  // only so we can hide bookings whose check DEFINITION has since been turned off.
+  linked_check: { definition: { active: boolean }[] | { active: boolean } | null }[] | { definition: { active: boolean }[] | { active: boolean } | null } | null;
 };
 
 const SELECT =
-  "id, branch_id, population, subject_person_id, subject_service_user_id, check_instance_id, check_kind, title, conductor_profile_id, scheduled_date, start_time, duration_minutes, status, notes, conductor:profiles(full_name), person:people(full_name), service_user:service_users(full_name), branch:branches(name)";
+  "id, branch_id, population, subject_person_id, subject_service_user_id, check_instance_id, check_kind, title, conductor_profile_id, scheduled_date, start_time, duration_minutes, status, notes, conductor:profiles(full_name), person:people(full_name), service_user:service_users(full_name), branch:branches(name), linked_check:check_instances(definition:check_definitions(active))";
+
+/** A booking is shown only if it is ad-hoc (no linked check) or its check definition
+ *  is still active. Hides ghost bookings left behind when a check is turned off (e.g.
+ *  Annual Appraisal under the four-supervisions cycle). */
+function checkStillBookable(r: Row): boolean {
+  const inst = relOne(r.linked_check);
+  if (!inst) return true;
+  const def = relOne(inst.definition);
+  return !def || def.active !== false;
+}
 
 function toView(r: Row): PlannerBookingView {
   const subjectName = r.person?.full_name ?? r.service_user?.full_name ?? null;
@@ -233,7 +247,7 @@ export async function listMyBookings(userId: string): Promise<PlannerBookingView
     .eq("conductor_profile_id", userId)
     .order("scheduled_date", { ascending: true })
     .order("start_time", { ascending: true, nullsFirst: true });
-  return ((data as Row[] | null) ?? []).map(toView);
+  return ((data as Row[] | null) ?? []).filter(checkStillBookable).map(toView);
 }
 
 /** Every booking visible to the caller in a date range (the whiteboard). RLS
@@ -251,7 +265,7 @@ export async function listBoardBookings(
     .neq("status", "cancelled")
     .order("scheduled_date", { ascending: true })
     .order("start_time", { ascending: true, nullsFirst: true });
-  return ((data as Row[] | null) ?? []).map(toView);
+  return ((data as Row[] | null) ?? []).filter(checkStillBookable).map(toView);
 }
 
 /** Active, non-cancelled bookings for one record (shown on its record page). */
@@ -267,7 +281,7 @@ export async function listRecordBookings(
     .eq(column, recordId)
     .eq("status", "planned")
     .order("scheduled_date", { ascending: true });
-  return ((data as Row[] | null) ?? []).map(toView);
+  return ((data as Row[] | null) ?? []).filter(checkStillBookable).map(toView);
 }
 
 // ---------------------------------------------------------------------------
