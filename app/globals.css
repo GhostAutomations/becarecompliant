@@ -544,6 +544,7 @@
   padding: 0;
   background: transparent;
   border: 0;
+  text-align: left;
 }
 .theme-board .matrix-group {
   position: sticky;
@@ -591,5 +592,27 @@
 
 /* Primary button = Monday blue with white text; active nav = blue highlight. */
 .theme-board .btn-primary { color: #fff; }
-.theme-board .dock-link-active { background: rgba(0, 115, 234, 0.16); color: #4C93FF; }
+
+/* Sidebar becomes a flat Monday workspace panel. */
+.theme-board .sidebar-gradient {
+  background: #191D33;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+.theme-board .ws-heading {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: 700;
+  padding: 14px 10px 4px;
+}
+.theme-board .ws-company { padding: 0 8px 10px; }
+.theme-board .ws-company b { font-size: 14px; font-weight: 700; color: #fff; display: block; }
+.theme-board .ws-company span { font-size: 11px; color: rgba(255, 255, 255, 0.45); }
+.theme-board .dock-link { border-radius: 6px; }
+.theme-board .dock-link-active {
+  background: rgba(0, 115, 234, 0.16);
+  color: #7CB0FF;
+  box-shadow: inset 2px 0 0 #0073EA;
+}
 

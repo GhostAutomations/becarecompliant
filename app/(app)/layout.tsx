@@ -49,17 +49,20 @@ export default async function AppLayout({
   // dark theme (scoped .theme-board block in globals.css); everyone else stays classic.
   let readinessEnabled = false;
   let uiTheme = "classic";
+  let companyName = "";
   if (navCompanyId) {
     const supabase = await createClient();
     const { data: co } = await supabase
       .from("companies")
-      .select("framework_enabled, ui_theme")
+      .select("name, framework_enabled, ui_theme")
       .eq("id", navCompanyId)
       .maybeSingle();
     readinessEnabled = !!co?.framework_enabled;
     uiTheme = (co?.ui_theme as string | null) ?? "classic";
+    companyName = (co?.name as string | null) ?? "";
   }
   const themeClass = uiTheme === "board_dark" ? "theme-board" : "";
+  const board = uiTheme === "board_dark";
   const navEntries = navEntriesForRole(
     actingCompanyId ? "company_admin" : profile.role,
   )
@@ -92,10 +95,10 @@ export default async function AppLayout({
     <UiThemeProvider theme={uiTheme}>
     <div className={`app-bg flex h-dvh overflow-hidden ${themeClass}`}>
       {/* Gradient sidebar (desktop) */}
-      <aside className="sidebar-gradient hidden h-dvh w-44 shrink-0 flex-col px-3 py-4 md:flex">
+      <aside className={`sidebar-gradient hidden h-dvh ${board ? "w-60" : "w-44"} shrink-0 flex-col px-3 py-4 md:flex`}>
         <Link
           href={homeHref}
-          className="mb-8 flex items-center gap-2.5 px-2 pt-2"
+          className={`${board ? "mb-4" : "mb-8"} flex items-center gap-2.5 px-2 pt-2`}
         >
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gold-400/15 ring-1 ring-gold-400/40">
             <svg
@@ -120,6 +123,16 @@ export default async function AppLayout({
             <span className="text-gold-400">Compliant</span>
           </span>
         </Link>
+
+        {board && companyName ? (
+          <>
+            <div className="ws-company">
+              <b>{companyName}</b>
+              <span>Compliance workspace</span>
+            </div>
+            <div className="ws-heading">Departments</div>
+          </>
+        ) : null}
 
         <SidebarNav entries={navEntries} />
       </aside>
