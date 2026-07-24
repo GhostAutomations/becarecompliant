@@ -17,6 +17,13 @@ export default async function AppLayout({
   // Invited users must finish setup (set a password) before using the app.
   if (profile.status === "invited") redirect("/welcome");
   const displayName = profile.full_name || profile.email;
+  const initials = (profile.full_name || profile.email || "?")
+    .split(/[\s@.]+/)
+    .filter(Boolean)
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   // Manage-as: when the founder is acting inside a tenant, show that company's
   // nav and a persistent banner. profile stays the real platform admin here.
@@ -94,6 +101,35 @@ export default async function AppLayout({
   return (
     <UiThemeProvider theme={uiTheme}>
     <div className={`app-bg flex h-dvh overflow-hidden ${themeClass}`}>
+      {/* Monday-style icon rail (board theme only) */}
+      {board ? (
+        <div className="monday-rail hidden md:flex">
+          <div className="mr-logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={1.6} aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4" />
+            </svg>
+          </div>
+          <Link href="/dashboard" className="mr-ic" aria-label="Dashboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7}><rect x="3.5" y="3.5" width="7" height="7" rx="1"/><rect x="13.5" y="3.5" width="7" height="7" rx="1"/><rect x="3.5" y="13.5" width="7" height="7" rx="1"/><rect x="13.5" y="13.5" width="7" height="7" rx="1"/></svg>
+          </Link>
+          <Link href="/people" className="mr-ic" aria-label="People">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7}><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 11a3 3 0 1 0-1-5.8"/></svg>
+          </Link>
+          <Link href="/service-users" className="mr-ic" aria-label="Service Users">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7}><path d="M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10Z"/></svg>
+          </Link>
+          <Link href="/planner" className="mr-ic" aria-label="Planner">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7}><rect x="3.5" y="4.5" width="17" height="16" rx="2"/><path d="M3.5 9h17M8 3v3M16 3v3"/></svg>
+          </Link>
+          <Link href="/reports" className="mr-ic" aria-label="Reports">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7}><path d="M6 3h9l3 3v15H6zM14 3v4h4"/></svg>
+          </Link>
+          <div className="mr-sp" />
+          <div className="mr-av">{initials}</div>
+        </div>
+      ) : null}
+
       {/* Gradient sidebar (desktop) */}
       <aside className={`sidebar-gradient hidden h-dvh ${board ? "w-60" : "w-44"} shrink-0 flex-col px-3 py-4 md:flex`}>
         <Link
