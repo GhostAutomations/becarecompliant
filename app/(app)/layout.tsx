@@ -143,6 +143,17 @@ export default async function AppLayout({
           <span className="text-sm font-bold text-white md:hidden">
             Be Care <span className="text-gold-400">Compliant</span>
           </span>
+          {board ? (
+            <div className="hidden flex-1 justify-center md:flex">
+              <div className="board-search">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+                  <circle cx="11" cy="11" r="7" />
+                  <path strokeLinecap="round" d="m20 20-3.5-3.5" />
+                </svg>
+                Search for anything
+              </div>
+            </div>
+          ) : null}
           <div className="ml-auto flex items-center gap-3">
             <span className="hidden text-sm font-medium text-white/80 sm:block">
               {displayName}
