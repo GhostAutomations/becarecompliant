@@ -9,8 +9,9 @@
  * Styled only with canonical classes from globals.css.
  */
 
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 import Link from "next/link";
+import { useIsBoard } from "@/components/ui-theme";
 import {
   type RegisterRow,
   RTW_LIMIT_LABELS,
@@ -122,6 +123,7 @@ export default function RegisterMatrix({
   scope?: string;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
+  const board = useIsBoard();
   const col = (key: string, def: string) => columnLabels[key] || def;
   const fromQuery = `?from=${encodeURIComponent(returnTo)}`;
   // Archive is offered on the Status pill only when viewing Leavers (to clear them out).
@@ -133,6 +135,8 @@ export default function RegisterMatrix({
   const filtered = rows;
   // Four-supervisions mode: show a Sup 4 column pair and no Annual Appraisal columns.
   const fourSup = config.cycleMode === "four_supervisions";
+  // Total column count, for the Monday board's full-width branch group headers.
+  const totalCols = 24 + extraColumns.length;
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
@@ -145,7 +149,7 @@ export default function RegisterMatrix({
       <div className="flex min-h-0 flex-1 flex-col gap-1">
         <div className="flex min-h-0 flex-1 gap-1">
           <div ref={wrapRef} className="matrix-wrap min-h-0 flex-1">
-            <table className="matrix">
+            <table className={`matrix ${board ? "matrix-board" : ""}`}>
           <thead>
             <tr>
               <th className="col-carer">Carer</th>
@@ -187,7 +191,8 @@ export default function RegisterMatrix({
             </tr>
           </thead>
           <tbody>
-            {filtered.map((row) => {
+            {(() => {
+              const renderRow = (row: RegisterRow) => {
               const t = row.tracker;
               const mh = row.statusByKey["manual_handling"];
               const mc = row.statusByKey["competency"];
@@ -331,7 +336,32 @@ export default function RegisterMatrix({
                   ))}
                 </tr>
               );
-            })}
+              };
+              if (board) {
+                const map = new Map<string, RegisterRow[]>();
+                for (const row of filtered) {
+                  const b = row.person.branch_name || "Unassigned";
+                  if (!map.has(b)) map.set(b, []);
+                  map.get(b)!.push(row);
+                }
+                const out: ReactNode[] = [];
+                for (const [branch, grp] of map) {
+                  out.push(
+                    <tr key={"grp-" + branch} className="matrix-group-row">
+                      <td colSpan={totalCols}>
+                        <div className="matrix-group">
+                          {branch}
+                          <span className="matrix-group-count">{grp.length}</span>
+                        </div>
+                      </td>
+                    </tr>,
+                    ...grp.map(renderRow),
+                  );
+                }
+                return out;
+              }
+              return filtered.map(renderRow);
+            })()}
           </tbody>
             </table>
           </div>

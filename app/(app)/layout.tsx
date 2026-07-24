@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { readActingCompanyId } from "@/lib/founder/manage-as";
 import { ManageAsBanner } from "@/components/founder/manage-as-banner";
 import { SidebarNav, MobileDock } from "@/components/app-nav";
+import { UiThemeProvider } from "@/components/ui-theme";
 import ToastHost from "@/components/toast-host";
 import { ROLE_LABELS, navEntriesForRole } from "@/lib/nav";
 import { featureEnabled } from "@/lib/billing/tier";
@@ -88,6 +89,7 @@ export default async function AppLayout({
         : "/dashboard";
 
   return (
+    <UiThemeProvider theme={uiTheme}>
     <div className={`app-bg flex h-dvh overflow-hidden ${themeClass}`}>
       {/* Gradient sidebar (desktop) */}
       <aside className="sidebar-gradient hidden h-dvh w-44 shrink-0 flex-col px-3 py-4 md:flex">
@@ -155,5 +157,6 @@ export default async function AppLayout({
       <MobileDock entries={navEntries} />
       <ToastHost />
     </div>
+    </UiThemeProvider>
   );
 }

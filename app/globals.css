@@ -539,6 +539,51 @@
 .theme-board .matrix .col-carer { background: #14162B; }
 .theme-board .matrix tbody tr:hover td.col-carer { background: #1B1E36; }
 
+/* Monday grouped board: branch group header rows + full-bleed saturated cells. */
+.theme-board .matrix-group-row td {
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+.theme-board .matrix-group {
+  position: sticky;
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0 6px;
+  padding: 7px 13px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #7CB0FF;
+  border-left: 3px solid #0073EA;
+  background: #191D33;
+  border-radius: 0 6px 6px 0;
+}
+.theme-board .matrix-group-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+.theme-board .matrix-board td { padding: 0.25rem 0.4rem; }
+.theme-board .matrix-board .rag-cell {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  border-radius: 4px;
+  padding: 7px 6px;
+  min-height: 30px;
+  text-align: center;
+}
+.theme-board .matrix-board .rag-sub { display: block; }
+
 /* Status pills: brighter Monday tones on dark. */
 .theme-board .pill-green { background: rgba(0, 200, 117, 0.16); color: #43D99A; border-color: rgba(0, 200, 117, 0.3); }
 .theme-board .pill-amber { background: rgba(253, 171, 61, 0.16); color: #F5BD6A; border-color: rgba(253, 171, 61, 0.3); }
