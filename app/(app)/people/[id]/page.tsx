@@ -396,7 +396,7 @@ export default async function PersonPage({
       {/* Holiday & Absence history */}
       <section className="grid gap-4 lg:grid-cols-2">
         <div className="glass-card p-5">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white/60">Holiday</h2>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white">Holiday</h2>
           {holidays.length === 0 ? (
             <p className="text-sm text-white/50">No holiday requests.</p>
           ) : (
@@ -424,7 +424,7 @@ export default async function PersonPage({
         </div>
 
         <div className="glass-card p-5">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white/60">Absence</h2>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white">Absence</h2>
           {absences.length === 0 && meetings.length === 0 ? (
             <p className="text-sm text-white/50">No absences recorded.</p>
           ) : (

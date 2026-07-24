@@ -43,7 +43,7 @@ export default async function RecordPlanner({
   return (
     <section className="glass-card space-y-3 p-5">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-white/50">Planner</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-white">Planner</h2>
         <BookingForm data={form.data} currentUserId={user.id} preset={form.preset} buttonLabel="Book a task" />
       </div>
       {bookings.length === 0 ? (
