@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* Figtree loads for the per-company Monday theme (.theme-board); classic is unaffected. */
+@import url("https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap");
 
 /*
   Be Care Compliant design system.
@@ -478,3 +480,71 @@
     radial-gradient(55% 45% at 50% 0%, color-mix(in srgb, var(--color-gold-400) 16%, transparent), transparent 70%),
     radial-gradient(45% 40% at 50% 30%, color-mix(in srgb, var(--color-navy-700) 60%, transparent), transparent 75%);
 }
+
+/* =====================================================================
+   Per-company "Monday board" dark theme.
+   Applied only when the company's ui_theme = 'board_dark' (layout adds the
+   .theme-board class on the app shell). Everything below is a scoped override
+   of the shared tokens and canonical component classes, so the classic look is
+   untouched and reverting a company is just flipping the flag. These rules are
+   UNLAYERED, so they win over the @layer components defaults by cascade order.
+   ===================================================================== */
+.theme-board {
+  /* Accent: Monday blue instead of gold (buttons, focus rings, active nav, checkboxes). */
+  --color-gold-300: #4C93FF;
+  --color-gold-400: #0073EA;
+  --color-gold-500: #0060C4;
+  --color-gold-600: #0053A8;
+  /* Cooler, flatter dark surfaces than the classic navy gradient. */
+  --color-navy-950: #14162B;
+  --color-navy-900: #1B1E36;
+  --color-navy-800: #242848;
+  --color-navy-700: #2E3564;
+  --font-sans: "Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Flatter, solid dark cards instead of the frosted glass. */
+.theme-board .glass-card,
+.theme-board .app-tile,
+.theme-board .section-card,
+.theme-board .toast {
+  background: #1B1E36;
+  border-color: rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  box-shadow: 0 8px 22px -16px rgba(0, 0, 0, 0.7);
+  backdrop-filter: none;
+}
+.theme-board .glass-card-hover:hover,
+.theme-board .app-tile:hover {
+  background: #20233F;
+}
+.theme-board .topbar {
+  background: rgba(20, 22, 43, 0.7);
+}
+
+/* The register status cells become full Monday-style saturated blocks. */
+.theme-board .rag-cell {
+  border-radius: 6px;
+}
+.theme-board .rag-cell-green { background: #00C875; color: #fff; }
+.theme-board .rag-cell-amber { background: #FDAB3D; color: #fff; }
+.theme-board .rag-cell-red   { background: #E2445C; color: #fff; }
+.theme-board .rag-cell-none  { background: rgba(255, 255, 255, 0.06); color: rgba(255, 255, 255, 0.5); }
+.theme-board .rag-sub { opacity: 0.85; }
+
+/* Matrix chrome on the flatter dark. */
+.theme-board .matrix-wrap { background: rgba(20, 22, 43, 0.5); border-radius: 12px; }
+.theme-board .matrix th { background: #1B1E36; }
+.theme-board .matrix th.col-carer,
+.theme-board .matrix .col-carer { background: #14162B; }
+.theme-board .matrix tbody tr:hover td.col-carer { background: #1B1E36; }
+
+/* Status pills: brighter Monday tones on dark. */
+.theme-board .pill-green { background: rgba(0, 200, 117, 0.16); color: #43D99A; border-color: rgba(0, 200, 117, 0.3); }
+.theme-board .pill-amber { background: rgba(253, 171, 61, 0.16); color: #F5BD6A; border-color: rgba(253, 171, 61, 0.3); }
+.theme-board .pill-red   { background: rgba(226, 68, 92, 0.16);  color: #F18196; border-color: rgba(226, 68, 92, 0.3); }
+
+/* Primary button = Monday blue with white text; active nav = blue highlight. */
+.theme-board .btn-primary { color: #fff; }
+.theme-board .dock-link-active { background: rgba(0, 115, 234, 0.16); color: #4C93FF; }
+
