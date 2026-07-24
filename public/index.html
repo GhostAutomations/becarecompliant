@@ -197,6 +197,35 @@
   .scard{background:var(--sheet);border:1px solid var(--line);padding:18px}
   .scard .big{font-size:40px;font-weight:700;letter-spacing:-.02em}.scard .l{font-size:12px;color:var(--soft);margin-top:3px}
   .scard.g .big{color:var(--green)}
+
+  /* planner whiteboard: month calendar (mirrors the live app) */
+  .cal-top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+  .cal-nav{display:flex;align-items:center;gap:10px}
+  .cal-nav button{border:1px solid var(--line);background:var(--sheet);color:var(--ink-2);font-weight:600;font-size:12px;padding:6px 11px;border-radius:6px;cursor:pointer;font-family:inherit}
+  .cal-nav button:hover{background:var(--wash)}
+  .cal-nav .mo{min-width:150px;text-align:center;font-weight:700;font-size:14px;letter-spacing:-.01em}
+  .cal-branch{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--soft);font-weight:600}
+  .cal-branch select{background:var(--sheet);color:var(--ink-2);border:1px solid var(--line);border-radius:6px;padding:6px 9px;font-size:12.5px;font-weight:600;font-family:inherit;cursor:pointer}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .cal-dow{background:var(--wash);text-align:center;padding:7px 0;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--faint)}
+  .cal-cell{background:var(--sheet);min-height:96px;padding:6px;text-align:left;border:none;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;gap:3px;color:inherit}
+  .cal-cell.blank{background:var(--appbg);cursor:default}
+  .cal-cell:not(.blank):hover{background:var(--wash)}
+  .cal-cell .dn{font-size:11px;font-weight:700;color:var(--faint)}
+  .cal-cell.today{box-shadow:inset 0 0 0 1.5px var(--gold)}
+  .cal-cell.today .dn{color:var(--gold)}
+  .cal-appt{display:block;font-size:10px;line-height:1.3;background:rgba(245,158,11,.16);color:#F4C36B;border-radius:3px;padding:2px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+  .cal-appt .mono{font-family:"IBM Plex Mono",monospace}
+  .cal-more{font-size:10px;color:var(--soft);font-weight:600;padding-left:2px}
+  .cal-panel{margin-top:16px;background:var(--sheet);border:1px solid var(--line);padding:14px 16px}
+  .cal-panel .ph{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .cal-panel .ph h4{font-size:13.5px;font-weight:700}
+  .cal-panel .ph a{font-size:12px;color:var(--soft);font-weight:600;cursor:pointer}
+  .cal-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding-top:9px;margin-top:9px;border-top:1px solid var(--line-2);font-size:13px}
+  .cal-row:first-of-type{border-top:0;margin-top:0;padding-top:0}
+  .cal-row .t{font-weight:600}.cal-row .s{color:var(--faint);font-size:12px;margin-top:2px}
+  .cal-row .tm{font-family:"IBM Plex Mono",monospace;color:var(--soft);font-weight:600;white-space:nowrap}
+  .cal-empty{color:var(--faint);font-size:13px}
 </style>
 </head>
 <body>
@@ -469,24 +498,22 @@
           </table></div>
         </div>
         <div id="pl-whiteboard">
-        <div class="sec-t">Whiteboard · next 28 days, Caerphilly</div>
-        <div class="board2">
-          <div class="col"><div class="ch"><span>This week</span><span>3</span></div>
-            <div class="task a"><div class="t">Supervision 4 · Dylan Evans</div><div class="m">Fri 25 Jul · 10:00</div><div class="who">A. Ababpa</div></div>
-            <div class="task g"><div class="t">Audit · Rhys Jones</div><div class="m">Wed 30 Jul</div><div class="who">N. Pryce</div></div>
-            <div class="task g"><div class="t">Spot check · Carys Morgan</div><div class="m">Thu 31 Jul · 14:00</div><div class="who">A. Ababpa</div></div>
+          <div class="cal-top">
+            <div class="cal-nav">
+              <button id="calPrev">&lsaquo; Prev</button>
+              <span class="mo" id="calMonth">July 2026</span>
+              <button id="calNext">Next &rsaquo;</button>
+            </div>
+            <label class="cal-branch">Branch
+              <select id="calBranch">
+                <option value="">All branches</option>
+                <option value="Caerphilly">Caerphilly</option>
+                <option value="Cardiff">Cardiff</option>
+              </select>
+            </label>
           </div>
-          <div class="col"><div class="ch"><span>Week +1</span><span>2</span></div>
-            <div class="task g"><div class="t">Care plan review · A. Ford</div><div class="m">Mon 04 Aug</div><div class="who">N. Pryce</div></div>
-            <div class="task a"><div class="t">Supervision 4 · Nia Pryce</div><div class="m">Thu 14 Aug</div><div class="who">A. Ababpa</div></div>
-          </div>
-          <div class="col"><div class="ch"><span>Week +2</span><span>1</span></div>
-            <div class="task g"><div class="t">Med competency · S. Hughes</div><div class="m">Tue 19 Aug</div><div class="who">A. Ababpa</div></div>
-          </div>
-          <div class="col"><div class="ch"><span>Week +3</span><span>1</span></div>
-            <div class="task g"><div class="t">Manual handling · O. Reece</div><div class="m">Wed 27 Aug</div><div class="who">N. Pryce</div></div>
-          </div>
-        </div>
+          <div class="cal-grid" id="calGrid"></div>
+          <div id="calPanel"></div>
         </div>
       </div>
     </section>
@@ -652,6 +679,60 @@
   document.querySelectorAll('.plbtn').forEach(function(b){b.addEventListener('click',function(){document.querySelectorAll('.plbtn').forEach(function(x){x.classList.remove('on');});b.classList.add('on');var w=b.dataset.pl;document.getElementById('pl-whiteboard').style.display=(w==='whiteboard')?'':'none';document.getElementById('pl-myplanner').style.display=(w==='myplanner')?'':'none';});});
   var tb=document.getElementById('themeBtn'),tl=document.getElementById('themeLbl');
   if(tb&&tl){tb.addEventListener('click',function(){var d=document.body.classList.toggle('dark');tl.textContent=d?'Light':'Dark';});}
+  // ---- Planner whiteboard: working month calendar (mirrors the live app) ----
+  var calBookings=[
+    {date:'2026-07-25',time:'10:00',label:'Supervision 4',subject:'Dylan Evans',branch:'Caerphilly',who:'A. Ababpa'},
+    {date:'2026-07-28',time:'09:30',label:'Spot check',subject:'Seren Hughes',branch:'Caerphilly',who:'N. Pryce'},
+    {date:'2026-07-28',time:'11:00',label:'Med competency',subject:'Carys Morgan',branch:'Caerphilly',who:'A. Ababpa'},
+    {date:'2026-07-28',time:'14:00',label:'Manual handling',subject:'Rhys Jones',branch:'Caerphilly',who:'N. Pryce'},
+    {date:'2026-07-28',time:'15:30',label:'Audit',subject:'Owen Reece',branch:'Cardiff',who:'N. Pryce'},
+    {date:'2026-07-30',time:'',label:'Audit',subject:'Rhys Jones',branch:'Caerphilly',who:'N. Pryce'},
+    {date:'2026-07-31',time:'14:00',label:'Spot check',subject:'Carys Morgan',branch:'Caerphilly',who:'A. Ababpa'},
+    {date:'2026-08-04',time:'',label:'Care plan review',subject:'Amanda Ford',branch:'Caerphilly',who:'N. Pryce'},
+    {date:'2026-08-14',time:'10:00',label:'Supervision 4',subject:'Nia Pryce',branch:'Cardiff',who:'A. Ababpa'},
+    {date:'2026-08-19',time:'11:30',label:'Med competency',subject:'Seren Hughes',branch:'Caerphilly',who:'A. Ababpa'},
+    {date:'2026-08-27',time:'',label:'Manual handling',subject:'Owen Reece',branch:'Cardiff',who:'N. Pryce'}
+  ];
+  var calY=2026,calM=7,calSel=null,calBr='';
+  var TODAY='2026-07-25';
+  var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var DOW=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  function cpad(n){return (n<10?'0':'')+n;}
+  function calList(iso){return calBookings.filter(function(b){return b.date===iso && (!calBr||b.branch===calBr);});}
+  function renderPanel(){
+    var p=document.getElementById('calPanel');if(!p)return;
+    if(!calSel){p.innerHTML='';return;}
+    var title=new Date(calSel+'T00:00:00Z').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'});
+    var list=calList(calSel),h='<div class="cal-panel"><div class="ph"><h4>'+title+'</h4><a id="calClose">Close</a></div>';
+    if(!list.length){h+='<div class="cal-empty">Nothing booked.</div>';}
+    else{list.forEach(function(it){h+='<div class="cal-row"><div><div class="t">'+it.label+'</div><div class="s">'+it.subject+' · '+it.branch+' · '+it.who+'</div></div><div class="tm">'+(it.time||'—')+'</div></div>';});}
+    h+='</div>';p.innerHTML=h;
+    document.getElementById('calClose').addEventListener('click',function(){calSel=null;renderPanel();});
+  }
+  function renderCal(){
+    document.getElementById('calMonth').textContent=MONTHS[calM-1]+' '+calY;
+    var grid=document.getElementById('calGrid');grid.innerHTML='';
+    DOW.forEach(function(d){var c=document.createElement('div');c.className='cal-dow';c.textContent=d;grid.appendChild(c);});
+    var first=(new Date(Date.UTC(calY,calM-1,1)).getUTCDay()+6)%7;
+    var dim=new Date(Date.UTC(calY,calM,0)).getUTCDate();
+    for(var i=0;i<first;i++){var bl=document.createElement('div');bl.className='cal-cell blank';grid.appendChild(bl);}
+    for(var d=1;d<=dim;d++){
+      var iso=calY+'-'+cpad(calM)+'-'+cpad(d);
+      var cell=document.createElement('button');cell.type='button';cell.className='cal-cell'+(iso===TODAY?' today':'');
+      var items=calList(iso),html='<span class="dn">'+d+'</span>';
+      items.slice(0,3).forEach(function(it){html+='<span class="cal-appt">'+(it.time?'<span class="mono">'+it.time+'</span> ':'')+it.label+'</span>';});
+      if(items.length>3){html+='<span class="cal-more">+'+(items.length-3)+' more</span>';}
+      cell.innerHTML=html;
+      (function(iso){cell.addEventListener('click',function(){calSel=iso;renderPanel();});})(iso);
+      grid.appendChild(cell);
+    }
+    renderPanel();
+  }
+  document.getElementById('calPrev').addEventListener('click',function(){calM--;if(calM<1){calM=12;calY--;}calSel=null;renderCal();});
+  document.getElementById('calNext').addEventListener('click',function(){calM++;if(calM>12){calM=1;calY++;}calSel=null;renderCal();});
+  document.getElementById('calBranch').addEventListener('change',function(){calBr=this.value;calSel=null;renderCal();});
+  renderCal();
+
   go('people');
 </script>
 </body>
