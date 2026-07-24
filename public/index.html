@@ -1,0 +1,658 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Be Care Compliant — Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  /* Be Care Compliant demo — deep navy base + gold accent, crisp system.
+     Both palettes are navy+gold so the theme toggle never leaves the brand look. */
+  :root, body.dark{
+    --ink:#EEF2FC; --ink-2:#C7D2EC; --soft:#93A3CC; --faint:#5F6FA0; --white:#0d1d4b;
+    --appbg:#081231; --wash:#0b1a44; --sheet:#0d1d4b; --line:rgba(255,255,255,.09); --line-2:rgba(255,255,255,.05); --line-strong:rgba(255,255,255,.2); --gold:#F59E0B; --railbg:#050c22; --railtxt:#93A3CC;
+    --green:#22B37C; --amber:#EBA53E; --red:#EF6152; --slate:#7A86AD; --blue:#F59E0B; --purple:#B071E6;
+    --green-t:rgba(34,179,124,.15); --amber-t:rgba(235,165,62,.15); --red-t:rgba(239,97,82,.16); --blue-t:rgba(245,158,11,.15); --pavbg:#14306b; --pavtx:var(--gold); --pillbg:#14306b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--appbg);color:var(--ink);font-family:"Inter",system-ui,sans-serif;font-size:13px;line-height:1.45;-webkit-font-smoothing:antialiased}
+  .mono{font-family:"IBM Plex Mono",monospace}.num{font-variant-numeric:tabular-nums}
+  a{color:inherit;text-decoration:none;cursor:pointer}
+  .app{display:grid;grid-template-columns:56px 220px 1fr;height:100vh;overflow:hidden}
+
+  .rail{background:var(--railbg);display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 0}
+  .rlogo{width:32px;height:32px;background:var(--gold);display:grid;place-items:center;margin-bottom:10px}
+  .rlogo svg{width:18px;height:18px}
+  .ric{width:36px;height:36px;display:grid;place-items:center;color:var(--railtxt);cursor:pointer;border-radius:3px}
+  .ric:hover{background:rgba(255,255,255,.06);color:#fff}.ric.on{background:rgba(255,255,255,.1);color:#fff}
+  .ric svg{width:19px;height:19px;stroke:currentColor;stroke-width:1.7;fill:none}
+  .rail .sp{flex:1}.rav{width:30px;height:30px;background:#2A2E38;color:#fff;display:grid;place-items:center;font-weight:600;font-size:11px}
+
+  .ws{border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden;background:var(--wash)}
+  .ws-top{padding:15px 16px;border-bottom:1px solid var(--line)}
+  .ws-top b{font-size:13.5px;font-weight:700;letter-spacing:-.01em}.ws-top span{display:block;font-size:11px;color:var(--faint);margin-top:2px}
+  .ws-list{overflow:auto;padding:8px}
+  .sect{font-size:10px;letter-spacing:.14em;color:var(--faint);font-weight:600;padding:14px 8px 6px;text-transform:uppercase}
+  .wi{display:flex;align-items:center;gap:10px;padding:7px 10px;color:var(--ink-2);font-weight:500;font-size:13px;cursor:pointer;border-radius:6px}
+  .wi.parent{font-weight:600}
+  .wi.child{padding-left:24px;font-size:12.5px;color:var(--soft);font-weight:500}
+  .wi:hover{background:rgba(120,120,140,.12)}
+  .wi.on{background:var(--blue-t);color:var(--blue);font-weight:600}
+
+  .board{display:flex;flex-direction:column;overflow:hidden}
+  .btop{padding:14px 22px 0;background:var(--sheet);border-bottom:1px solid var(--line)}
+  .htop{display:flex;justify-content:space-between;align-items:center;gap:16px}
+  .crumbs{font-size:11px;color:var(--faint);font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px}
+  h1{font-size:20px;font-weight:700;letter-spacing:-.02em}
+  .rightbits{display:flex;align-items:center;gap:12px}
+  .toggle{display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:3px;padding:6px 10px;font-size:12px;font-weight:600;color:var(--soft);cursor:pointer;background:var(--sheet)}
+  .toggle svg{width:14px;height:14px;stroke:currentColor;stroke-width:1.8;fill:none}
+  .ready{display:flex;align-items:stretch;border:1px solid var(--line-strong);border-radius:8px;overflow:hidden}
+  .ready .b{padding:8px 14px;border-right:1px solid var(--line);text-align:center}
+  .ready .b:last-child{border-right:0}
+  .ready .b .v{font-weight:800;font-size:16px;line-height:1}
+  .ready .b .l{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin-top:3px;font-weight:600}
+  .ready .b.hero{background:var(--gold)}.ready .b.hero .v{color:#20180a}.ready .b.hero .l{color:#5a4818}
+  body.dark .ready .b.hero{background:var(--gold)}body.dark .ready .b.hero .v{color:#20180a}body.dark .ready .b.hero .l{color:#5a4818}
+  .ready .b.red .v{color:var(--red)}.ready .b.amber .v{color:var(--amber)}
+  .tabs{display:flex;gap:0;margin-top:12px}
+  .tabs a{padding:10px 16px;font-size:12.5px;font-weight:600;color:var(--faint);border-bottom:2px solid transparent;margin-bottom:-1px}
+  .tabs a.on{color:var(--blue);border-color:var(--blue)}
+  body.dark .tabs a.on{border-color:var(--gold);color:#fff}
+
+  .toolbar{display:flex;align-items:center;gap:8px;padding:12px 22px;background:var(--wash);border-bottom:1px solid var(--line)}
+  .newbtn{background:var(--gold);color:#20180a;font-weight:700;font-size:12.5px;padding:8px 14px;display:flex;align-items:center;gap:7px;border-radius:6px;border:none;cursor:pointer;font-family:inherit}
+  body.dark .newbtn{background:var(--gold);color:#20180a}
+  .newbtn svg{width:14px;height:14px;stroke:currentColor;stroke-width:2.4;fill:none}
+  .tool{display:flex;align-items:center;gap:6px;color:var(--ink-2);font-weight:600;font-size:12.5px;padding:7px 11px;border:1px solid var(--line);background:var(--sheet);cursor:pointer;border-radius:6px;font-family:inherit}
+  .tool svg{width:14px;height:14px;stroke:currentColor;stroke-width:1.9;fill:none}
+  .tool.on{background:var(--gold);color:#20180a;border-color:var(--gold)}
+  body.dark .tool.on{background:var(--gold);color:#20180a;border-color:var(--gold)}
+  .spacer{flex:1}
+  .key{display:flex;gap:14px;font-size:11.5px;color:var(--soft);font-weight:500}
+  .key i{width:9px;height:9px;display:inline-block;margin-right:6px;vertical-align:0;border-radius:2px}
+
+  .scroll{overflow:auto;padding:18px 22px 40px}
+  .grp{background:var(--sheet);border:1px solid var(--line);border-left:3px solid var(--blue);border-radius:8px;overflow:hidden;margin-bottom:18px;box-shadow:0 4px 12px -8px rgba(50,51,56,.15)}
+  .grp-head{display:flex;align-items:center;gap:10px;padding:11px 16px;background:var(--wash);border-bottom:1px solid var(--line)}
+  .grp-head .tick{width:0;height:0;border-left:7px solid var(--blue);border-top:5px solid transparent;border-bottom:5px solid transparent}
+  .grp-head h2{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--blue)}
+  .grp-head .n{font-size:11px;color:var(--faint);font-weight:500}
+  .grp-head .sum{margin-left:auto;display:flex;gap:14px;font-size:11.5px;font-weight:600}
+  .grp-head .sum .g{color:var(--green)}.grp-head .sum .a{color:var(--amber)}.grp-head .sum .r{color:var(--red)}
+  .gscroll{overflow-x:auto}
+
+  table{width:max-content;min-width:100%;border-collapse:collapse}
+  thead th{font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);font-weight:700;text-align:center;padding:9px 8px;border-bottom:1px solid var(--line);background:var(--sheet);white-space:nowrap;min-width:82px}
+  thead th.l{text-align:left;padding-left:16px;min-width:190px;position:sticky;left:0;z-index:3}
+  tbody td{border-bottom:1px solid var(--line-2);border-right:1px solid var(--line-2);padding:0;height:44px;text-align:center;min-width:82px}
+  tbody td.name{text-align:left;padding:0 14px 0 16px;min-width:190px;position:sticky;left:0;z-index:2;background:var(--sheet)}
+  tbody td:last-child{border-right:0}
+  tbody tr:last-child td{border-bottom:0}
+  tbody tr.rec{cursor:pointer}
+  tbody tr.rec:hover td{background:var(--wash)}
+  .person{display:flex;align-items:center;gap:10px}
+  .pav{width:28px;height:28px;background:var(--pavbg);color:var(--pavtx);display:grid;place-items:center;font-weight:600;font-size:10.5px;border-radius:3px}
+  .person b{font-weight:600;font-size:13px}.person small{display:block;color:var(--faint);font-size:11px}
+  /* crisp status cell: light tint + 2px colour top keyline + mono date */
+  .st{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+  .st .v{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:12px;letter-spacing:-.01em}
+  .st .l{font-size:9px;letter-spacing:.05em;text-transform:uppercase;font-weight:600;opacity:.7}
+  .st.g{background:var(--green-t);color:var(--green);box-shadow:inset 0 2px 0 var(--green)}
+  .st.a{background:var(--amber-t);color:var(--amber);box-shadow:inset 0 2px 0 var(--amber)}
+  .st.r{background:var(--red-t);color:var(--red);box-shadow:inset 0 2px 0 var(--red)}
+  .st.n{background:transparent;color:var(--faint)}
+  .plain{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:12px;color:var(--ink-2)}
+  .plain.mut{color:var(--faint)}
+  .pill{font-size:11px;font-weight:600;padding:3px 9px;border-radius:3px;background:var(--pillbg);color:var(--soft);white-space:nowrap}
+  .pill.ok{color:var(--green)}.pill.warn{color:var(--amber)}.pill.bad{color:var(--red)}.pill.info{color:var(--blue)}
+  .addrow td{height:40px;text-align:left;padding-left:16px;color:var(--faint);font-weight:600;font-size:12.5px;position:sticky;left:0}
+  .foot{padding:12px 22px;color:var(--faint);font-size:11.5px;border-top:1px solid var(--line);background:var(--wash)}
+
+  .dash{display:grid;grid-template-columns:1.4fr 1fr;gap:16px}
+  .card{background:var(--sheet);border:1px solid var(--line)}
+  .card .ch{padding:12px 16px;border-bottom:1px solid var(--line);font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--soft)}
+  .attn{display:grid;grid-template-columns:4px 1fr auto;gap:12px;padding:13px 16px;border-bottom:1px solid var(--line-2);align-items:center;cursor:pointer}
+  .attn:last-child{border-bottom:0}.attn:hover{background:var(--wash)}
+  .attn .bar{align-self:stretch;border-radius:1px}
+  .attn.r .bar{background:var(--red)}.attn.a .bar{background:var(--amber)}
+  .attn .w{font-weight:600}.attn .s{color:var(--faint);font-size:12px;margin-top:2px}
+  .attn .due{text-align:right;font-family:"IBM Plex Mono",monospace;font-weight:600}
+  .attn .due small{display:block;color:var(--faint);font-size:10px;font-family:"Inter";letter-spacing:.05em;text-transform:uppercase}
+  .attn .due.r{color:var(--red)}.attn .due.a{color:var(--amber)}
+  .theme-row{display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-bottom:1px solid var(--line-2);font-size:13px}
+  .theme-row:last-child{border-bottom:0}.theme-row span{color:var(--soft)}.theme-row b{font-family:"IBM Plex Mono",monospace}
+  .theme-row .tr{display:flex;align-items:center;gap:12px}.theme-row .track{width:120px;height:5px;background:var(--line);border-radius:99px;overflow:hidden}.theme-row .track i{display:block;height:100%;background:var(--green)}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+  .kpi{background:var(--sheet);border:1px solid var(--line);padding:14px 16px}
+  .kpi .n{font-size:30px;font-weight:700;letter-spacing:-.02em}.kpi .l{font-size:11px;color:var(--soft);margin-top:2px;font-weight:500}
+  .kpi.r .n{color:var(--red)}.kpi.a .n{color:var(--amber)}.kpi.g .n{color:var(--green)}
+
+  .rec-head{background:var(--sheet);border:1px solid var(--line);padding:18px 20px;display:flex;align-items:center;gap:16px;margin-bottom:16px}
+  .rec-head .big{width:52px;height:52px;background:var(--pavbg);color:var(--pavtx);display:grid;place-items:center;font-weight:700;font-size:16px;border-radius:4px}
+  .rec-head h2{font-size:20px;font-weight:700;letter-spacing:-.02em}
+  .rec-head .meta{color:var(--faint);font-size:12.5px;margin-top:3px}
+  .rec-head .st-pill{margin-left:auto;font-weight:700;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:#fff;padding:7px 13px}
+  .sec-t{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);margin:6px 0 10px}
+  .sups{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+  .sup{background:var(--sheet);border:1px solid var(--line);border-top:2px solid var(--slate);padding:13px 14px;text-align:center}
+  .sup.g{border-top-color:var(--green)}.sup .no{font-size:22px;font-weight:700}.sup .lb{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);margin-top:2px}
+  .sup .dt{font-family:"IBM Plex Mono",monospace;font-weight:600;margin-top:8px;font-size:12px}.sup.g .dt{color:var(--green)}.sup .cta{margin-top:9px;font-size:11px;font-weight:700;color:var(--gold)}
+  .checks{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+  .chk{background:var(--sheet);border:1px solid var(--line);border-top:2px solid var(--slate);padding:13px 14px}
+  .chk.g{border-top-color:var(--green)}.chk.a{border-top-color:var(--amber)}.chk.r{border-top-color:var(--red)}
+  .chk .nm{font-weight:600;font-size:13px}.chk .rc{font-size:10.5px;color:var(--faint);text-transform:uppercase;letter-spacing:.05em;margin-top:1px}
+  .chk .dd{display:flex;justify-content:space-between;margin-top:10px;font-size:12px}
+  .chk .dd .lab{color:var(--faint)}.chk .dd .val{font-family:"IBM Plex Mono",monospace;font-weight:600}
+  .chk .val.g{color:var(--green)}.chk .val.a{color:var(--amber)}.chk .val.r{color:var(--red)}
+  .chk .cta{margin-top:11px;width:100%;text-align:center;border:1px solid var(--line);padding:7px;font-weight:600;font-size:12px;border-radius:3px;background:var(--wash);cursor:pointer}
+  .chk .cta.pri{background:var(--gold);color:#20180a;border-color:var(--gold)}
+  body.dark .chk .cta.pri{background:var(--gold);color:#20180a;border-color:var(--gold)}
+  details.tile{background:var(--sheet);border:1px solid var(--line);margin-bottom:12px}
+  details.tile>summary{list-style:none;cursor:pointer;padding:12px 16px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);display:flex;justify-content:space-between}
+  details.tile>summary::-webkit-details-marker{display:none}
+  details.tile>summary::after{content:"+";color:var(--faint)}details.tile[open]>summary::after{content:"\2013"}
+  .ev{display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-top:1px solid var(--line-2);font-size:13px}
+  .ev .d{font-family:"IBM Plex Mono",monospace;color:var(--soft);width:80px}.ev .who{color:var(--faint)}
+  .ev .viewb{border:1px solid var(--line);border-radius:3px;padding:4px 10px;font-size:11px;font-weight:600}
+  .backlink{display:inline-flex;align-items:center;gap:6px;color:var(--soft);font-weight:600;font-size:12.5px;margin-bottom:12px}
+  .view{display:none}.view.active{display:block}
+
+  /* planner board */
+  .board2{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .col{background:var(--sheet);border:1px solid var(--line)}
+  .col .ch{padding:10px 12px;border-bottom:1px solid var(--line);font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--soft);display:flex;justify-content:space-between}
+  .task{padding:10px 12px;border-bottom:1px solid var(--line-2)}
+  .task:last-child{border-bottom:0}
+  .task .t{font-weight:600;font-size:12.5px}.task .m{color:var(--faint);font-size:11px;margin-top:2px;font-family:"IBM Plex Mono",monospace}
+  .task .who{display:inline-block;margin-top:7px;font-size:10.5px;font-weight:600;color:var(--soft);background:var(--wash);padding:2px 7px;border-radius:3px}
+  .task.g{border-left:2px solid var(--green)}.task.a{border-left:2px solid var(--amber)}
+
+  /* on call rota */
+  .rota{background:var(--sheet);border:1px solid var(--line);overflow-x:auto}
+  .rota table{min-width:760px}
+  .rota td, .rota th{border:1px solid var(--line-2);height:40px}
+  .rota .day{font-weight:600;background:var(--wash);text-align:left;padding-left:12px;min-width:130px}
+  .rota .slot{font-weight:600;font-size:12px}
+  .rota .slot.filled{background:var(--green-t);color:var(--green)}
+  .rota .slot.empty{color:var(--faint)}
+
+  /* invoice / list rows */
+  .lrow td{height:46px}
+  .amt{font-family:"IBM Plex Mono",monospace;font-weight:600}
+  .repcards{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:18px}
+  .repcard{background:var(--sheet);border:1px solid var(--line);padding:16px 18px}
+  .repcard h3{font-size:14px;font-weight:700}.repcard p{color:var(--faint);font-size:12px;margin:5px 0 12px}
+  .repcard .row{display:flex;gap:8px}
+  .repcard .b{border:1px solid var(--line);border-radius:3px;padding:6px 11px;font-size:12px;font-weight:600}
+  .repcard .b.pri{background:var(--gold);color:#20180a;border-color:var(--gold)}
+  body.dark .repcard .b.pri{background:var(--gold);color:#20180a;border-color:var(--gold)}
+  .ocards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .ocard{background:var(--sheet);border:1px solid var(--line);border-top:2px solid var(--blue);padding:15px 16px}
+  .ocard .st2{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--blue)}
+  .ocard.done{border-top-color:var(--green)}.ocard.done .st2{color:var(--green)}
+  .ocard h3{font-size:14px;font-weight:600;margin:6px 0}.ocard p{color:var(--faint);font-size:12px}
+  .ocard .mt{margin-top:10px;font-size:11px;color:var(--soft);font-family:"IBM Plex Mono",monospace}
+  .scoreband{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px}
+  .scard{background:var(--sheet);border:1px solid var(--line);padding:18px}
+  .scard .big{font-size:40px;font-weight:700;letter-spacing:-.02em}.scard .l{font-size:12px;color:var(--soft);margin-top:3px}
+  .scard.g .big{color:var(--green)}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="rail">
+    <div class="rlogo"><svg viewBox="0 0 24 24" fill="none"><path d="M12 2.5 4 6v6c0 4.4 3.2 7.6 8 9.5 4.8-1.9 8-5.1 8-9.5V6l-8-3.5Z" stroke="#111" stroke-width="1.6"/><path d="m8.6 12 2.3 2.3 4.5-4.6" stroke="#111" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <div class="ric" data-go="dashboard" title="Dashboard"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1"/><rect x="13.5" y="3.5" width="7" height="7" rx="1"/><rect x="3.5" y="13.5" width="7" height="7" rx="1"/><rect x="13.5" y="13.5" width="7" height="7" rx="1"/></svg></div>
+    <div class="ric on" data-go="people" title="People"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 11a3 3 0 1 0-1-5.8"/></svg></div>
+    <div class="ric" data-go="su" title="Service Users"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10Z"/></svg></div>
+    <div class="ric" data-go="planner" title="Planner"><svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="16" rx="1"/><path d="M3.5 9h17M8 3v3M16 3v3"/></svg></div>
+    <div class="ric" data-go="reports" title="Reports"><svg viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6zM14 3v4h4"/></svg></div>
+    <div class="sp"></div><div class="rav">AA</div>
+  </div>
+
+  <div class="ws">
+    <div class="ws-top"><b>Acme Care Company</b><span>Caerphilly &amp; Cardiff</span></div>
+    <div class="ws-list">
+      <div class="wi parent" data-go="dashboard">Dashboard</div>
+      <div class="sect">Departments</div>
+      <div class="wi parent" data-go="people">People</div>
+      <div class="wi child" data-grp="people" data-go="people">Compliance</div>
+      <div class="wi child" data-grp="people" data-go="training">Training</div>
+      <div class="wi child" data-grp="people" data-go="holidays">Holiday</div>
+      <div class="wi child" data-grp="people" data-go="absence">Absence</div>
+      <div class="wi parent" data-go="su">Service Users</div>
+      <div class="wi child" data-grp="su" data-go="outcomes">Outcomes</div>
+      <div class="wi child" data-grp="su" data-go="satisfaction">Satisfaction</div>
+      <div class="wi parent" data-go="complaints">Complaints</div>
+      <div class="wi child" data-grp="complaints" data-go="complaints">Open</div>
+      <div class="wi child" data-grp="complaints" data-go="complaints">Closed</div>
+      <div class="wi parent" data-go="oncall">On Call</div>
+      <div class="wi child" data-grp="oncall" data-go="oncall">Rota</div>
+      <div class="wi child" data-grp="oncall" data-go="oncall">Call log</div>
+      <div class="wi parent" data-go="planner">Planner</div>
+      <div class="wi child" data-grp="planner" data-go="planner">My Planner</div>
+      <div class="wi child" data-grp="planner" data-go="planner">Whiteboard</div>
+      <div class="wi parent" data-go="invoicing">Invoicing</div>
+      <div class="wi child" data-grp="invoicing" data-go="invoicing">Invoices</div>
+      <div class="wi child" data-grp="invoicing" data-go="invoicing">Private Clients</div>
+      <div class="wi parent" data-go="readiness">Readiness</div>
+      <div class="wi parent" data-go="reports">Reports</div>
+      <div class="wi parent" data-go="settings">Settings</div>
+    </div>
+  </div>
+
+  <div class="board">
+    <div class="btop">
+      <div class="htop">
+        <div><div class="crumbs" id="crumb">Registers / People</div><h1 id="ptitle">People register</h1></div>
+        <div class="rightbits">
+          <div class="ready">
+            <div class="b hero"><div class="v num">96%</div><div class="l">CIW ready</div></div>
+            <div class="b red"><div class="v num">1</div><div class="l">Overdue</div></div>
+            <div class="b amber"><div class="v num">2</div><div class="l">Due 14d</div></div>
+            <div class="b"><div class="v num">312</div><div class="l">Compliant</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="tabs" id="tabs"><a class="on">Register</a><a>Dashboard</a><a>Timeline</a><a>Evidence</a></div>
+    </div>
+
+    <!-- PEOPLE -->
+    <section class="view active" id="view-people">
+      <div class="toolbar">
+        <button class="newbtn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> Add a Person</button>
+        <button class="tool"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg> Search</button>
+        <button class="tool"><svg viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></svg> Group: Branch</button>
+        <button class="tool"><svg viewBox="0 0 24 24"><path d="M3 5h18l-7 8v5l-4 2v-7z"/></svg> Filter</button>
+        <span class="spacer"></span>
+        <div class="key"><span><i style="background:var(--green)"></i>Compliant</span><span><i style="background:var(--amber)"></i>Due soon</span><span><i style="background:var(--red)"></i>Overdue</span></div>
+      </div>
+      <div class="scroll">
+        <div class="grp">
+          <div class="grp-head"><span class="tick"></span><h2>Caerphilly</h2><span class="n">41 records</span><span class="sum"><span class="g">38 compliant</span><span class="a">2 due</span><span class="r">1 overdue</span></span></div>
+          <div class="gscroll"><table>
+            <thead><tr><th class="l">Carer</th><th>Status</th><th>Start date</th><th>Manual Handling</th><th>Med Competency</th><th>DBS</th><th>Enhanced DBS</th><th>RTW Expiry</th><th>RTW Limits</th><th>Probation Due</th><th>Probation Actual</th><th>Probation Status</th><th>Prob. Ext.</th><th>Spot Check Due</th><th>Recent Spot Check</th><th>Sup 1 Due</th><th>Sup 1 Done</th><th>Sup 2 Due</th><th>Sup 2 Done</th><th>Sup 3 Due</th><th>Sup 3 Done</th><th>Sup 4 Due</th><th>Sup 4 Done</th><th>Audit</th></tr></thead>
+            <tbody>
+              <tr class="rec" data-name="Carys Morgan" data-role="Senior Care Worker" data-status="g">
+                <td class="name"><div class="person"><div class="pav">CM</div><div><b>Carys Morgan</b><small>Senior Care Worker</small></div></div></td>
+                <td><span class="pill">Active</span></td><td><div class="plain">04 Mar 22</div></td><td><div class="st g"><span class="v">05 Jan</span><span class="l">next due</span></div></td><td><div class="st g"><span class="v">12 Sep</span><span class="l">next due</span></div></td><td><div class="st g"><span class="v">Jun 27</span><span class="l">valid</span></div></td><td><div class="st g"><span class="v">Jun 27</span><span class="l">valid</span></div></td><td><div class="plain mut">—</div></td><td><div class="plain">None</div></td><td><div class="plain mut">04 Jun 22</div></td><td><div class="plain mut">30 May 22</div></td><td><span class="pill ok">Passed</span></td><td><div class="plain mut">—</div></td><td><div class="st g"><span class="v">08 Nov</span><span class="l">next due</span></div></td><td><div class="plain mut">08 Aug</div></td><td><div class="plain mut">10 Jan</div></td><td><div class="plain mut">09 Jan</div></td><td><div class="plain mut">10 Apr</div></td><td><div class="plain mut">08 Apr</div></td><td><div class="plain mut">10 Jul</div></td><td><div class="plain mut">07 Jul</div></td><td><div class="st g"><span class="v">09 Oct</span><span class="l">next due</span></div></td><td><div class="plain mut">—</div></td><td><div class="st g"><span class="v">03 Aug</span><span class="l">next due</span></div></td>
+              </tr>
+              <tr class="rec" data-name="Dylan Evans" data-role="Care Worker" data-status="a">
+                <td class="name"><div class="person"><div class="pav">DE</div><div><b>Dylan Evans</b><small>Care Worker</small></div></div></td>
+                <td><span class="pill">Active</span></td><td><div class="plain">18 Aug 24</div></td><td><div class="st g"><span class="v">17 Jan</span><span class="l">next due</span></div></td><td><div class="st g"><span class="v">20 Oct</span><span class="l">next due</span></div></td><td><div class="st g"><span class="v">Mar 28</span><span class="l">valid</span></div></td><td><div class="st g"><span class="v">Mar 28</span><span class="l">valid</span></div></td><td><div class="st g"><span class="v">Sep 26</span><span class="l">valid</span></div></td><td><div class="plain">20h / week</div></td><td><div class="plain mut">18 Nov 24</div></td><td><div class="plain mut">—</div></td><td><span class="pill">In progress</span></td><td><div class="plain mut">—</div></td><td><div class="st g"><span class="v">03 Dec</span><span class="l">next due</span></div></td><td><div class="plain mut">02 Sep</div></td><td><div class="plain mut">18 Nov</div></td><td><div class="plain mut">16 Nov</div></td><td><div class="plain mut">18 Feb</div></td><td><div class="plain mut">17 Feb</div></td><td><div class="plain mut">18 May</div></td><td><div class="plain mut">16 May</div></td><td><div class="st a"><span class="v">11 Aug</span><span class="l">due 18d</span></div></td><td><div class="plain mut">—</div></td><td><div class="st g"><span class="v">03 Aug</span><span class="l">next due</span></div></td>
+              </tr>
+              <tr class="rec" data-name="Ffion Williams" data-role="Team Leader" data-status="r">
+                <td class="name"><div class="person"><div class="pav">FW</div><div><b>Ffion Williams</b><small>Team Leader</small></div></div></td>
+                <td><span class="pill">Active</span></td><td><div class="plain">02 Jan 21</div></td><td><div class="st g"><span class="v">22 Feb</span><span class="l">next due</span></div></td><td><div class="st g"><span class="v">11 Nov</span><span class="l">next due</span></div></td><td><div class="st r"><span class="v">12 Jul</span><span class="l">expired</span></div></td><td><div class="st r"><span class="v">12 Jul</span><span class="l">expired</span></div></td><td><div class="plain mut">—</div></td><td><div class="plain">None</div></td><td><div class="plain mut">02 Apr 21</div></td><td><div class="plain mut">28 Mar 21</div></td><td><span class="pill ok">Passed</span></td><td><div class="plain mut">—</div></td><td><div class="st n"><span class="v">—</span><span class="l">not set</span></div></td><td><div class="plain mut">—</div></td><td><div class="plain mut">02 Apr</div></td><td><div class="plain mut">01 Apr</div></td><td><div class="plain mut">02 Jul</div></td><td><div class="plain mut">30 Jun</div></td><td><div class="plain mut">02 Oct</div></td><td><div class="plain mut">30 Sep</div></td><td><div class="st g"><span class="v">28 Sep</span><span class="l">next due</span></div></td><td><div class="plain mut">—</div></td><td><div class="st g"><span class="v">03 Aug</span><span class="l">next due</span></div></td>
+              </tr>
+              <tr class="rec" data-name="Rhys Jones" data-role="Care Worker" data-status="a">
+                <td class="name"><div class="person"><div class="pav">RJ</div><div><b>Rhys Jones</b><small>Care Worker</small></div></div></td>
+                <td><span class="pill">Active</span></td><td><div class="plain">05 May 23</div></td><td><div class="st g"><span class="v">30 Jan</span><span class="l">next due</span></div></td><td><div class="st g"><span class="v">24 Sep</span><span class="l">next due</span></div></td><td><div class="st g"><span class="v">Aug 27</span><span class="l">valid</span></div></td><td><div class="st g"><span class="v">Aug 27</span><span class="l">valid</span></div></td><td><div class="plain mut">—</div></td><td><div class="plain">None</div></td><td><div class="plain mut">05 Aug 23</div></td><td><div class="plain mut">01 Aug 23</div></td><td><span class="pill ok">Passed</span></td><td><div class="plain mut">—</div></td><td><div class="st g"><span class="v">12 Oct</span><span class="l">next due</span></div></td><td><div class="plain mut">12 Jul</div></td><td><div class="plain mut">05 Aug</div></td><td><div class="plain mut">04 Aug</div></td><td><div class="plain mut">05 Nov</div></td><td><div class="plain mut">03 Nov</div></td><td><div class="plain mut">05 Feb</div></td><td><div class="plain mut">04 Feb</div></td><td><div class="st g"><span class="v">19 Nov</span><span class="l">next due</span></div></td><td><div class="plain mut">—</div></td><td><div class="st a"><span class="v">30 Jul</span><span class="l">due 6d</span></div></td>
+              </tr>
+              <tr class="rec" data-name="Seren Hughes" data-role="Senior Care Worker" data-status="g">
+                <td class="name"><div class="person"><div class="pav">SH</div><div><b>Seren Hughes</b><small>Senior Care Worker</small></div></div></td>
+                <td><span class="pill">Active</span></td><td><div class="plain">11 Sep 21</div></td><td><div class="st g"><span class="v">09 Mar</span><span class="l">next due</span></div></td><td><div class="st g"><span class="v">18 Oct</span><span class="l">next due</span></div></td><td><div class="st g"><span class="v">Jan 28</span><span class="l">valid</span></div></td><td><div class="st g"><span class="v">Jan 28</span><span class="l">valid</span></div></td><td><div class="plain mut">—</div></td><td><div class="plain">None</div></td><td><div class="plain mut">11 Dec 21</div></td><td><div class="plain mut">05 Dec 21</div></td><td><span class="pill ok">Passed</span></td><td><div class="plain mut">—</div></td><td><div class="st g"><span class="v">15 Nov</span><span class="l">next due</span></div></td><td><div class="plain mut">15 Aug</div></td><td><div class="plain mut">11 Dec</div></td><td><div class="plain mut">10 Dec</div></td><td><div class="plain mut">11 Mar</div></td><td><div class="plain mut">09 Mar</div></td><td><div class="plain mut">11 Jun</div></td><td><div class="plain mut">09 Jun</div></td><td><div class="st g"><span class="v">02 Dec</span><span class="l">next due</span></div></td><td><div class="plain mut">—</div></td><td><div class="st g"><span class="v">03 Aug</span><span class="l">next due</span></div></td>
+              </tr>
+              <tr class="addrow"><td colspan="24">+ Add a Person to Caerphilly</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PERSON RECORD -->
+    <section class="view" id="view-person">
+      <div class="scroll">
+        <a class="backlink" data-go="people"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 5l-7 7 7 7"/></svg> Back to People register</a>
+        <div class="rec-head"><div class="big" id="recAv">FW</div><div><h2 id="recName">Ffion Williams</h2><div class="meta" id="recMeta">Team Leader · Caerphilly · Started 2 Jan 2021</div></div><div class="st-pill" id="recPill" style="background:var(--red)">Overdue</div></div>
+        <div class="sec-t">Supervision · four supervision cycle</div>
+        <div class="sups">
+          <div class="sup g"><div class="no">1</div><div class="lb">Done</div><div class="dt">01 Apr</div></div>
+          <div class="sup g"><div class="no">2</div><div class="lb">Done</div><div class="dt">30 Jun</div></div>
+          <div class="sup g"><div class="no">3</div><div class="lb">Done</div><div class="dt">30 Sep</div></div>
+          <div class="sup g"><div class="no">4</div><div class="lb">Next due</div><div class="dt">28 Sep</div><div class="cta">Complete</div></div>
+        </div>
+        <div class="sec-t">Checks</div>
+        <div class="checks">
+          <div class="chk r"><div class="nm">DBS</div><div class="rc">Renewal</div><div class="dd"><span class="lab">Expired</span><span class="val r">12 Jul</span></div><button class="cta pri">Record renewal</button></div>
+          <div class="chk n"><div class="nm">Spot check</div><div class="rc">Ad hoc</div><div class="dd"><span class="lab">Status</span><span class="val">Not set</span></div><button class="cta">Complete</button></div>
+          <div class="chk g"><div class="nm">Med competency</div><div class="rc">Yearly</div><div class="dd"><span class="lab">Next due</span><span class="val g">11 Nov</span></div><button class="cta">Complete</button></div>
+          <div class="chk g"><div class="nm">Manual handling</div><div class="rc">Yearly</div><div class="dd"><span class="lab">Next due</span><span class="val g">22 Feb</span></div><button class="cta">Complete</button></div>
+          <div class="chk g"><div class="nm">Audit</div><div class="rc">Monthly</div><div class="dd"><span class="lab">Next due</span><span class="val g">03 Aug</span></div><button class="cta">Complete</button></div>
+          <div class="chk n"><div class="nm">Mentoring</div><div class="rc">Ad hoc</div><div class="dd"><span class="lab">Last done</span><span class="val">02 Jun</span></div><button class="cta">Complete</button></div>
+        </div>
+        <details class="tile" open><summary>Evidence history (6)</summary>
+          <div class="ev"><span class="d">18 Jul 26</span><span>Individual Plan Review</span><span class="who">Akram Ababpa</span><span class="viewb">View</span></div>
+          <div class="ev"><span class="d">21 Jun 26</span><span>Supervision 3</span><span class="who">Nia Pryce</span><span class="viewb">View</span></div>
+          <div class="ev"><span class="d">02 Jun 26</span><span>Mentoring Support Record</span><span class="who">Nia Pryce</span><span class="viewb">View</span></div>
+        </details>
+        <details class="tile"><summary>History (11)</summary>
+          <div class="ev"><span class="d">18 Jul 26</span><span>Completed Individual Plan Review</span><span class="who">Akram Ababpa</span><span></span></div>
+          <div class="ev"><span class="d">12 Jul 26</span><span>DBS marked expired</span><span class="who">System</span><span></span></div>
+        </details>
+      </div>
+    </section>
+
+    <!-- SERVICE USERS -->
+    <section class="view" id="view-su">
+      <div class="toolbar"><button class="newbtn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> Add a Service User</button><button class="tool"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg> Search</button><button class="tool"><svg viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></svg> Group: Branch</button><span class="spacer"></span><div class="key"><span><i style="background:var(--green)"></i>Compliant</span><span><i style="background:var(--amber)"></i>Due soon</span><span><i style="background:var(--red)"></i>Overdue</span></div></div>
+      <div class="scroll">
+        <div class="grp">
+          <div class="grp-head"><span class="tick"></span><h2>Caerphilly</h2><span class="n">15 records</span><span class="sum"><span class="g">14 compliant</span><span class="r">1 overdue</span></span></div>
+          <div class="gscroll"><table>
+            <thead><tr><th class="l">Service User</th><th>SSID</th><th>Status</th><th>Package start</th><th>Setup Due</th><th>Setup Done</th><th>Review 1 Due</th><th>Review 1 Done</th><th>Review 2 Due</th><th>Review 2 Done</th><th>Planned Review</th><th>Review Status</th><th>Audit</th></tr></thead>
+            <tbody>
+              <tr class="rec"><td class="name"><div class="person"><div class="pav">AB</div><div><b>Aimee Burnell</b><small>Service User</small></div></div></td><td><div class="plain">9519551</div></td><td><span class="pill ok">Active</span></td><td><div class="plain">12 Jan 25</div></td><td><div class="plain mut">27 Jan</div></td><td><div class="plain mut">18 Jul</div></td><td><div class="plain mut">17 Apr</div></td><td><div class="plain mut">15 Apr</div></td><td><div class="st g"><span class="v">25 Sep</span><span class="l">next due</span></div></td><td><div class="plain mut">—</div></td><td><div class="plain mut">—</div></td><td><span class="pill ok">On track</span></td><td><div class="st g"><span class="v">03 Aug</span><span class="l">next due</span></div></td></tr>
+              <tr class="rec"><td class="name"><div class="person"><div class="pav">AF</div><div><b>Amanda Ford</b><small>Service User</small></div></div></td><td><div class="plain">9518824</div></td><td><span class="pill ok">Active</span></td><td><div class="plain">03 Mar 25</div></td><td><div class="plain mut">18 Mar</div></td><td><div class="plain mut">10 Apr</div></td><td><div class="st a"><span class="v">02 Aug</span><span class="l">due 9d</span></div></td><td><div class="plain mut">—</div></td><td><div class="plain mut">—</div></td><td><div class="plain mut">—</div></td><td><div class="plain">31 Jul</div></td><td><span class="pill warn">Booked</span></td><td><div class="st g"><span class="v">03 Aug</span><span class="l">next due</span></div></td></tr>
+              <tr class="rec"><td class="name"><div class="person"><div class="pav">AP</div><div><b>Andrew Price</b><small>Service User</small></div></div></td><td><div class="plain">9517003</div></td><td><span class="pill ok">Active</span></td><td><div class="plain">22 Nov 24</div></td><td><div class="plain mut">07 Dec</div></td><td><div class="plain mut">05 Feb</div></td><td><div class="st r"><span class="v">14 Jul</span><span class="l">overdue</span></div></td><td><div class="plain mut">—</div></td><td><div class="plain mut">—</div></td><td><div class="plain mut">—</div></td><td><div class="plain mut">—</div></td><td><span class="pill bad">Overdue</span></td><td><div class="st g"><span class="v">03 Aug</span><span class="l">next due</span></div></td></tr>
+              <tr class="addrow"><td colspan="13">+ Add a Service User to Caerphilly</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TRAINING -->
+    <section class="view" id="view-training">
+      <div class="toolbar"><button class="newbtn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> Record training</button><button class="tool">Upload certificate</button><span class="spacer"></span><div class="key"><span><i style="background:var(--green)"></i>In date</span><span><i style="background:var(--amber)"></i>Expiring</span><span><i style="background:var(--red)"></i>Expired</span></div></div>
+      <div class="scroll">
+        <div class="grp">
+          <div class="grp-head"><span class="tick"></span><h2>Training matrix · Caerphilly</h2><span class="n">mandatory courses</span></div>
+          <div class="gscroll"><table>
+            <thead><tr><th class="l">Team member</th><th>Safeguarding</th><th>Moving &amp; Handling</th><th>Medication</th><th>Infection Control</th><th>First Aid</th><th>Food Hygiene</th></tr></thead>
+            <tbody>
+              <tr class="rec"><td class="name"><div class="person"><div class="pav">CM</div><div><b>Carys Morgan</b><small>Senior Care Worker</small></div></div></td><td><div class="st g"><span class="v">Mar 27</span><span class="l">in date</span></div></td><td><div class="st g"><span class="v">Jan 27</span><span class="l">in date</span></div></td><td><div class="st g"><span class="v">Sep 26</span><span class="l">in date</span></div></td><td><div class="st g"><span class="v">Nov 26</span><span class="l">in date</span></div></td><td><div class="st g"><span class="v">Feb 27</span><span class="l">in date</span></div></td><td><div class="st g"><span class="v">Aug 26</span><span class="l">in date</span></div></td></tr>
+              <tr class="rec"><td class="name"><div class="person"><div class="pav">DE</div><div><b>Dylan Evans</b><small>Care Worker</small></div></div></td><td><div class="st g"><span class="v">Feb 27</span><span class="l">in date</span></div></td><td><div class="st a"><span class="v">Aug 26</span><span class="l">expiring</span></div></td><td><div class="st g"><span class="v">Oct 26</span><span class="l">in date</span></div></td><td><div class="st g"><span class="v">Dec 26</span><span class="l">in date</span></div></td><td><div class="st g"><span class="v">Jan 27</span><span class="l">in date</span></div></td><td><div class="st g"><span class="v">Sep 26</span><span class="l">in date</span></div></td></tr>
+              <tr class="rec"><td class="name"><div class="person"><div class="pav">FW</div><div><b>Ffion Williams</b><small>Team Leader</small></div></div></td><td><div class="st r"><span class="v">May 26</span><span class="l">expired</span></div></td><td><div class="st g"><span class="v">Apr 27</span><span class="l">in date</span></div></td><td><div class="st g"><span class="v">Jun 27</span><span class="l">in date</span></div></td><td><div class="st g"><span class="v">Mar 27</span><span class="l">in date</span></div></td><td><div class="st g"><span class="v">Nov 26</span><span class="l">in date</span></div></td><td><div class="st g"><span class="v">Oct 26</span><span class="l">in date</span></div></td></tr>
+              <tr class="addrow"><td colspan="7">+ Record a course</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HOLIDAYS -->
+    <section class="view" id="view-holidays">
+      <div class="toolbar"><button class="newbtn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> Request holiday</button><span class="spacer"></span></div>
+      <div class="scroll">
+        <div class="grp"><div class="grp-head"><span class="tick"></span><h2>Holiday requests</h2><span class="n">3 pending</span></div>
+          <table>
+            <thead><tr><th class="l">Team member</th><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Remaining</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr class="rec lrow"><td class="name"><div class="person"><div class="pav">DE</div><div><b>Dylan Evans</b></div></div></td><td><div class="plain">Annual leave</div></td><td><div class="plain">04 Aug</div></td><td><div class="plain">08 Aug</div></td><td><div class="plain">5</div></td><td><div class="plain">12</div></td><td><span class="pill warn">Pending</span></td></tr>
+              <tr class="rec lrow"><td class="name"><div class="person"><div class="pav">SH</div><div><b>Seren Hughes</b></div></div></td><td><div class="plain">Annual leave</div></td><td><div class="plain">18 Aug</div></td><td><div class="plain">22 Aug</div></td><td><div class="plain">5</div></td><td><div class="plain">7</div></td><td><span class="pill ok">Approved</span></td></tr>
+              <tr class="rec lrow"><td class="name"><div class="person"><div class="pav">RJ</div><div><b>Rhys Jones</b></div></div></td><td><div class="plain">Unpaid</div></td><td><div class="plain">01 Sep</div></td><td><div class="plain">05 Sep</div></td><td><div class="plain">5</div></td><td><div class="plain">3</div></td><td><span class="pill bad">Denied</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ABSENCE -->
+    <section class="view" id="view-absence">
+      <div class="toolbar"><button class="newbtn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> Record absence</button><span class="spacer"></span></div>
+      <div class="scroll">
+        <div class="grp"><div class="grp-head"><span class="tick"></span><h2>Absence log</h2><span class="n">Bradford factor tracked</span></div>
+          <table>
+            <thead><tr><th class="l">Team member</th><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Bradford</th><th>Stage</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr class="rec lrow"><td class="name"><div class="person"><div class="pav">RJ</div><div><b>Rhys Jones</b></div></div></td><td><div class="plain">Sickness</div></td><td><div class="plain">10 Jul</div></td><td><div class="plain">12 Jul</div></td><td><div class="plain">3</div></td><td><div class="plain">27</div></td><td><span class="pill warn">Stage 1</span></td><td><span class="pill ok">Returned</span></td></tr>
+              <tr class="rec lrow"><td class="name"><div class="person"><div class="pav">DE</div><div><b>Dylan Evans</b></div></div></td><td><div class="plain">Sickness</div></td><td><div class="plain">22 Jul</div></td><td><div class="plain">—</div></td><td><div class="plain">2</div></td><td><div class="plain">8</div></td><td><span class="pill">None</span></td><td><span class="pill warn">Open</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- OUTCOMES -->
+    <section class="view" id="view-outcomes">
+      <div class="toolbar"><button class="newbtn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> Add outcome</button><span class="spacer"></span><div class="key"><span><i style="background:var(--blue)"></i>Active</span><span><i style="background:var(--green)"></i>Achieved</span></div></div>
+      <div class="scroll">
+        <div class="sec-t">Aimee Burnell · personal outcomes</div>
+        <div class="ocards">
+          <div class="ocard"><div class="st2">Active</div><h3>Walk to the local shop unaided</h3><p>Building confidence and mobility with daily short walks.</p><div class="mt">Next review · 12 Sep</div></div>
+          <div class="ocard done"><div class="st2">Achieved</div><h3>Prepare a hot meal safely</h3><p>Now cooking lunch independently with prompts only.</p><div class="mt">Achieved · 04 Jun</div></div>
+          <div class="ocard"><div class="st2">Active</div><h3>Reconnect with the art group</h3><p>Attending Thursday sessions, transport arranged.</p><div class="mt">Next review · 20 Aug</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SATISFACTION -->
+    <section class="view" id="view-satisfaction">
+      <div class="scroll">
+        <div class="scoreband">
+          <div class="scard g"><div class="big num">92%</div><div class="l">Overall satisfaction (PQS User Experience)</div></div>
+          <div class="scard"><div class="big num">18</div><div class="l">Feedback responses, last 6 months</div></div>
+          <div class="scard"><div class="big num">4.6</div><div class="l">Average rating out of 5</div></div>
+        </div>
+        <div class="card"><div class="ch">Drawn from plan review feedback</div>
+          <div class="theme-row"><span>Treated with dignity and respect</span><div class="tr"><div class="track"><i style="width:96%"></i></div><b>96%</b></div></div>
+          <div class="theme-row"><span>Happy with the care received</span><div class="tr"><div class="track"><i style="width:91%"></i></div><b>91%</b></div></div>
+          <div class="theme-row"><span>Involved in decisions about care</span><div class="tr"><div class="track"><i style="width:89%"></i></div><b>89%</b></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- COMPLAINTS -->
+    <section class="view" id="view-complaints">
+      <div class="toolbar"><button class="newbtn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> Log a complaint</button><button class="tool">Filter: Open</button><span class="spacer"></span></div>
+      <div class="scroll">
+        <div class="grp"><div class="grp-head"><span class="tick"></span><h2>Complaints</h2><span class="n">3 open · avg 4.2 days to close</span></div>
+          <table>
+            <thead><tr><th class="l">Complaint</th><th>Service User</th><th>Branch</th><th>Received</th><th>Owner</th><th>Stage</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr class="rec lrow"><td class="name"><div class="person"><div class="pav">C</div><div><b>Late call, morning visit</b><small>Ref CMP-0142</small></div></div></td><td><div class="plain">Andrew Price</div></td><td><div class="plain">Caerphilly</div></td><td><div class="plain">21 Jul</div></td><td><div class="plain">A. Ababpa</div></td><td><span class="pill warn">Investigation</span></td><td><span class="pill warn">In progress</span></td></tr>
+              <tr class="rec lrow"><td class="name"><div class="person"><div class="pav">C</div><div><b>Medication concern</b><small>Ref CMP-0141</small></div></div></td><td><div class="plain">Ann Bell</div></td><td><div class="plain">Cardiff</div></td><td><div class="plain">19 Jul</div></td><td><div class="plain">N. Pryce</div></td><td><span class="pill info">Response</span></td><td><span class="pill warn">In progress</span></td></tr>
+              <tr class="rec lrow"><td class="name"><div class="person"><div class="pav">C</div><div><b>Carer punctuality</b><small>Ref CMP-0140</small></div></div></td><td><div class="plain">—</div></td><td><div class="plain">Caerphilly</div></td><td><div class="plain">14 Jul</div></td><td><div class="plain">A. Ababpa</div></td><td><span class="pill">Logged</span></td><td><span class="pill bad">Open</span></td></tr>
+              <tr class="rec lrow"><td class="name"><div class="person"><div class="pav">C</div><div><b>Billing query</b><small>Ref CMP-0138</small></div></div></td><td><div class="plain">Amanda Ford</div></td><td><div class="plain">Caerphilly</div></td><td><div class="plain">02 Jul</div></td><td><div class="plain">A. Ababpa</div></td><td><span class="pill ok">Resolved</span></td><td><span class="pill ok">Closed</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- PLANNER -->
+    <section class="view" id="view-planner">
+      <div class="toolbar"><button class="newbtn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> Book a task</button><button class="tool plbtn" data-pl="myplanner">My Planner</button><button class="tool plbtn on" data-pl="whiteboard">Whiteboard</button><span class="spacer"></span></div>
+      <div class="scroll">
+        <div id="pl-myplanner" style="display:none">
+          <div class="sec-t">My Planner · Akram Ababpa · upcoming</div>
+          <div class="grp"><table>
+            <thead><tr><th class="l">Task</th><th>Subject</th><th>Date</th><th>Time</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr class="lrow"><td class="name"><div class="plain" style="padding-left:0">Supervision 4</div></td><td><div class="plain">Dylan Evans</div></td><td><div class="plain">25 Jul</div></td><td><div class="plain">10:00</div></td><td><span class="pill warn">Planned</span></td></tr>
+              <tr class="lrow"><td class="name"><div class="plain" style="padding-left:0">Spot check</div></td><td><div class="plain">Carys Morgan</div></td><td><div class="plain">31 Jul</div></td><td><div class="plain">14:00</div></td><td><span class="pill warn">Planned</span></td></tr>
+              <tr class="lrow"><td class="name"><div class="plain" style="padding-left:0">Med competency</div></td><td><div class="plain">Seren Hughes</div></td><td><div class="plain">19 Aug</div></td><td><div class="plain">11:30</div></td><td><span class="pill warn">Planned</span></td></tr>
+              <tr class="lrow"><td class="name"><div class="plain" style="padding-left:0">Supervision 3</div></td><td><div class="plain">Rhys Jones</div></td><td><div class="plain">17 Jul</div></td><td><div class="plain">09:00</div></td><td><span class="pill ok">Completed</span></td></tr>
+            </tbody>
+          </table></div>
+        </div>
+        <div id="pl-whiteboard">
+        <div class="sec-t">Whiteboard · next 28 days, Caerphilly</div>
+        <div class="board2">
+          <div class="col"><div class="ch"><span>This week</span><span>3</span></div>
+            <div class="task a"><div class="t">Supervision 4 · Dylan Evans</div><div class="m">Fri 25 Jul · 10:00</div><div class="who">A. Ababpa</div></div>
+            <div class="task g"><div class="t">Audit · Rhys Jones</div><div class="m">Wed 30 Jul</div><div class="who">N. Pryce</div></div>
+            <div class="task g"><div class="t">Spot check · Carys Morgan</div><div class="m">Thu 31 Jul · 14:00</div><div class="who">A. Ababpa</div></div>
+          </div>
+          <div class="col"><div class="ch"><span>Week +1</span><span>2</span></div>
+            <div class="task g"><div class="t">Care plan review · A. Ford</div><div class="m">Mon 04 Aug</div><div class="who">N. Pryce</div></div>
+            <div class="task a"><div class="t">Supervision 4 · Nia Pryce</div><div class="m">Thu 14 Aug</div><div class="who">A. Ababpa</div></div>
+          </div>
+          <div class="col"><div class="ch"><span>Week +2</span><span>1</span></div>
+            <div class="task g"><div class="t">Med competency · S. Hughes</div><div class="m">Tue 19 Aug</div><div class="who">A. Ababpa</div></div>
+          </div>
+          <div class="col"><div class="ch"><span>Week +3</span><span>1</span></div>
+            <div class="task g"><div class="t">Manual handling · O. Reece</div><div class="m">Wed 27 Aug</div><div class="who">N. Pryce</div></div>
+          </div>
+        </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ON CALL -->
+    <section class="view" id="view-oncall">
+      <div class="toolbar"><button class="newbtn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> Log a call</button><button class="tool">Rota</button><button class="tool">Call log</button><button class="tool">Archived</button><span class="spacer"></span></div>
+      <div class="scroll">
+        <div class="sec-t">Rota · current week</div>
+        <div class="rota"><table>
+          <thead><tr><th class="day">Day</th><th>AM (08:00–17:00)</th><th>PM (17:00–08:00)</th></tr></thead>
+          <tbody>
+            <tr><td class="day">Mon 21 Jul</td><td class="slot filled">Nia Pryce</td><td class="slot filled">Akram Ababpa</td></tr>
+            <tr><td class="day">Tue 22 Jul</td><td class="slot filled">Nia Pryce</td><td class="slot filled">Owen Reece</td></tr>
+            <tr><td class="day">Wed 23 Jul</td><td class="slot filled">Carys Morgan</td><td class="slot filled">Akram Ababpa</td></tr>
+            <tr><td class="day">Thu 24 Jul</td><td class="slot filled">Carys Morgan</td><td class="slot empty">+ assign</td></tr>
+            <tr><td class="day">Fri 25 Jul</td><td class="slot filled">Seren Hughes</td><td class="slot filled">Nia Pryce</td></tr>
+            <tr><td class="day">Sat 26 Jul</td><td class="slot filled">Owen Reece</td><td class="slot filled">Owen Reece</td></tr>
+            <tr><td class="day">Sun 27 Jul</td><td class="slot empty">+ assign</td><td class="slot filled">Akram Ababpa</td></tr>
+          </tbody>
+        </table></div>
+        <div class="sec-t" style="margin-top:20px">Recent call log</div>
+        <div class="grp"><table>
+          <thead><tr><th class="l">Shift</th><th>On call</th><th>Notes</th><th>Complaints</th><th>Absences</th><th>Follow up</th></tr></thead>
+          <tbody>
+            <tr class="rec lrow"><td class="name"><div class="plain" style="padding-left:0">PM · 23 Jul 26</div></td><td><div class="plain">Akram Ababpa</div></td><td><div class="plain mut">2 calls handled</div></td><td><div class="plain">1</div></td><td><div class="plain">0</div></td><td><span class="pill bad">Urgent</span></td></tr>
+            <tr class="rec lrow"><td class="name"><div class="plain" style="padding-left:0">AM · 23 Jul 26</div></td><td><div class="plain">Carys Morgan</div></td><td><div class="plain mut">Quiet shift</div></td><td><div class="plain">0</div></td><td><div class="plain">1</div></td><td><span class="pill ok">None</span></td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </section>
+
+    <!-- INVOICING -->
+    <section class="view" id="view-invoicing">
+      <div class="toolbar"><button class="newbtn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> New invoice</button><button class="tool">Private clients</button><button class="tool">Settings</button><span class="spacer"></span><div class="key"><span><i style="background:var(--green)"></i>Paid</span><span><i style="background:var(--amber)"></i>Sent</span><span><i style="background:var(--red)"></i>Overdue</span></div></div>
+      <div class="scroll">
+        <div class="grp"><div class="grp-head"><span class="tick"></span><h2>Invoices</h2><span class="n">July 2026</span></div>
+          <table>
+            <thead><tr><th class="l">Invoice</th><th>Client</th><th>Period</th><th>Amount</th><th>Due</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr class="rec lrow"><td class="name"><div class="plain" style="padding-left:0">INV-2026-0142</div></td><td><div class="plain">Aimee Burnell</div></td><td><div class="plain">Jul 2026</div></td><td><div class="amt">£ 984.00</div></td><td><div class="plain">14 Aug</div></td><td><span class="pill warn">Sent</span></td></tr>
+              <tr class="rec lrow"><td class="name"><div class="plain" style="padding-left:0">INV-2026-0141</div></td><td><div class="plain">R. Hopkins (private)</div></td><td><div class="plain">Jul 2026</div></td><td><div class="amt">£ 1,240.00</div></td><td><div class="plain">10 Aug</div></td><td><span class="pill warn">Sent</span></td></tr>
+              <tr class="rec lrow"><td class="name"><div class="plain" style="padding-left:0">INV-2026-0138</div></td><td><div class="plain">Amanda Ford</div></td><td><div class="plain">Jun 2026</div></td><td><div class="amt">£ 912.00</div></td><td><div class="plain">10 Jul</div></td><td><span class="pill bad">Overdue</span></td></tr>
+              <tr class="rec lrow"><td class="name"><div class="plain" style="padding-left:0">INV-2026-0131</div></td><td><div class="plain">Andrew Price</div></td><td><div class="plain">Jun 2026</div></td><td><div class="amt">£ 1,050.00</div></td><td><div class="plain">05 Jul</div></td><td><span class="pill ok">Paid</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- REPORTS -->
+    <section class="view" id="view-reports">
+      <div class="scroll">
+        <div class="sec-t">Reports</div>
+        <div class="repcards">
+          <div class="repcard"><h3>Company compliance report</h3><p>Full RAG position across People and Service Users, both branches, for an inspector or LA officer.</p><div class="row"><button class="b pri">PDF</button><button class="b">CSV</button></div></div>
+          <div class="repcard"><h3>On-time completion (PQS)</h3><p>Percentage of checks completed on or before the due date, graded against the reporting deadline.</p><div class="row"><button class="b pri">PDF</button><button class="b">CSV</button></div></div>
+          <div class="repcard"><h3>Provider Quality System return</h3><p>Cardiff Council PQS: outcomes, satisfaction, safeguarding and mandatory training.</p><div class="row"><button class="b pri">PDF</button><button class="b">CSV</button></div></div>
+          <div class="repcard"><h3>Evidence pack, per record</h3><p>Every completed form for a Person or Service User, bundled with author and timestamp.</p><div class="row"><button class="b pri">PDF</button><button class="b">CSV</button></div></div>
+        </div>
+        <div class="sec-t">Recent evidence</div>
+        <div class="grp">
+          <div class="ev" style="border-top:0"><span class="d">18 Jul 26</span><span>Individual Plan Review · Aimee Burnell</span><span class="who">Akram Ababpa</span><span class="viewb">View</span></div>
+          <div class="ev"><span class="d">18 Jul 26</span><span>Audit · Carys Morgan</span><span class="who">Nia Pryce</span><span class="viewb">View</span></div>
+          <div class="ev"><span class="d">17 Jul 26</span><span>Supervision 3 · Rhys Jones</span><span class="who">A. Ababpa</span><span class="viewb">View</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DASHBOARD -->
+    <section class="view" id="view-dashboard">
+      <div class="scroll">
+        <div class="kpis">
+          <div class="kpi r"><div class="n num">1</div><div class="l">Overdue check</div></div>
+          <div class="kpi a"><div class="n num">2</div><div class="l">Due within 14 days</div></div>
+          <div class="kpi g"><div class="n num">312</div><div class="l">Checks compliant</div></div>
+          <div class="kpi"><div class="n num">65</div><div class="l">Records, 2 branches</div></div>
+        </div>
+        <div class="dash">
+          <div class="card"><div class="ch">Needs your attention</div>
+            <div class="attn r" data-go="su"><div class="bar"></div><div><div class="w">Medication audit, Cardiff</div><div class="s">Monthly MAR check, owned by Nia Pryce</div></div><div class="due r">21 Jul<small>overdue 3d</small></div></div>
+            <div class="attn a" data-go="people"><div class="bar"></div><div><div class="w">Dylan Evans, supervision 4</div><div class="s">Caerphilly</div></div><div class="due a">11 Aug<small>due 18d</small></div></div>
+            <div class="attn a" data-go="people"><div class="bar"></div><div><div class="w">Rhys Jones, audit</div><div class="s">Monthly audit</div></div><div class="due a">30 Jul<small>due 6d</small></div></div>
+          </div>
+          <div class="card"><div class="ch">Inspection readiness · CIW themes</div>
+            <div class="theme-row"><span>Well-being</span><div class="tr"><div class="track"><i style="width:100%"></i></div><b>100%</b></div></div>
+            <div class="theme-row"><span>Care &amp; support</span><div class="tr"><div class="track"><i style="width:94%"></i></div><b>94%</b></div></div>
+            <div class="theme-row"><span>Leadership &amp; management</span><div class="tr"><div class="track"><i style="width:97%"></i></div><b>97%</b></div></div>
+            <div class="theme-row"><span>Environment</span><div class="tr"><div class="track"><i style="width:92%"></i></div><b>92%</b></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- READINESS -->
+    <section class="view" id="view-readiness">
+      <div class="scroll">
+        <div class="scoreband">
+          <div class="scard g"><div class="big num">96%</div><div class="l">Inspection readiness, weighted</div></div>
+          <div class="scard"><div class="big num">1</div><div class="l">Overdue check to clear</div></div>
+          <div class="scard"><div class="big num">312</div><div class="l">Compliant checks of 315</div></div>
+        </div>
+        <div class="card"><div class="ch">CIW themes · how each is evidenced</div>
+          <div class="theme-row"><span>Well-being · outcomes, satisfaction, care plans</span><div class="tr"><div class="track"><i style="width:100%"></i></div><b>100%</b></div></div>
+          <div class="theme-row"><span>Care &amp; support · reviews, medication, risk</span><div class="tr"><div class="track"><i style="width:94%"></i></div><b>94%</b></div></div>
+          <div class="theme-row"><span>Leadership &amp; management · supervisions, audits</span><div class="tr"><div class="track"><i style="width:97%"></i></div><b>97%</b></div></div>
+          <div class="theme-row"><span>Environment · spot checks, infection control</span><div class="tr"><div class="track"><i style="width:92%"></i></div><b>92%</b></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="view" id="view-settings">
+      <div class="scroll">
+        <div class="sec-t">Company settings</div>
+        <div class="repcards">
+          <div class="repcard"><h3>Branding</h3><p>Company name, logo and the colours used across the app and evidence PDFs.</p><div class="row"><button class="b pri">Edit</button></div></div>
+          <div class="repcard"><h3>Users &amp; permissions</h3><p>Invite staff, set roles, manage seats and single-session login.</p><div class="row"><button class="b pri">Manage</button></div></div>
+          <div class="repcard"><h3>Check configuration</h3><p>Recurrence, amber thresholds and the form behind each compliance check.</p><div class="row"><button class="b pri">Configure</button></div></div>
+          <div class="repcard"><h3>Billing</h3><p>Plan tier, seat usage and cost, payment method and past invoices.</p><div class="row"><button class="b pri">View</button></div></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="foot">Design demo · monday style. Static prototype, illustrative data, not the live app. Use the workspace nav to move around, click People rows, and flip the Dark switch.</div>
+  </div>
+</div>
+
+<script>
+  var views=['people','person','su','training','holidays','absence','outcomes','satisfaction','complaints','planner','oncall','invoicing','reports','dashboard','readiness','settings'];
+  var titles={
+    people:['Registers / People','People register',['Register','Dashboard','Timeline','Evidence']],
+    person:['Registers / People / Record','Person record',['Overview','Checks','Evidence','History']],
+    su:['Registers / Service Users','Service Users register',['Register','Dashboard','Timeline','Evidence']],
+    training:['Registers / People / Training','Training matrix',['Matrix','Certificates','Reporting']],
+    holidays:['Registers / People / Holidays','Holidays',['Requests','Calendar','Allowances']],
+    absence:['Registers / People / Absence','Absence',['Log','Bradford','Return to work']],
+    outcomes:['Service Users / Outcomes','Personal outcomes',['Active','Achieved','Register']],
+    satisfaction:['Service Users / Satisfaction','Satisfaction',['Summary','Responses']],
+    complaints:['Registers / Complaints','Complaints',['Open','In progress','Closed']],
+    planner:['Operations / Planner','Planner',['Whiteboard','My Planner','Calendar']],
+    oncall:['Operations / On Call','On Call',['Rota','Call log','Archived']],
+    invoicing:['Operations / Invoicing','Invoicing',['Invoices','Private clients','Settings']],
+    reports:['Operations / Reports','Reports & Evidence',['Reports','Evidence','Audit log']],
+    dashboard:['Overview / Dashboard','Company dashboard',['Overview','Attention','Readiness']],
+    readiness:['Overview / Inspection readiness','Inspection readiness',['Summary','CIW themes','CQC']],
+    settings:['Departments / Settings','Settings',['Company','Users','Check config','Billing']]
+  };
+  function go(v){
+    views.forEach(function(x){var el=document.getElementById('view-'+x); if(el) el.classList.toggle('active',x===v);});
+    var navKey=(v==='person')?'people':v;
+    var groupOf={people:'people',training:'people',holidays:'people',absence:'people',person:'people',su:'su',outcomes:'su',satisfaction:'su',complaints:'complaints',oncall:'oncall',planner:'planner',invoicing:'invoicing'};
+    var ag=groupOf[v]||'';
+    document.querySelectorAll('.ric[data-go]').forEach(function(r){r.classList.toggle('on',r.dataset.go===navKey);});
+    document.querySelectorAll('.wi[data-go]').forEach(function(r){r.classList.toggle('on', r.dataset.go===navKey || (r.classList.contains('parent') && ag && r.dataset.go===ag));});
+    document.querySelectorAll('.wi.child').forEach(function(c){c.style.display=(c.dataset.grp===ag)?'flex':'none';});
+    var t=titles[v]||titles.people;document.getElementById('crumb').textContent=t[0];document.getElementById('ptitle').textContent=t[1];
+    var tabs=document.getElementById('tabs');tabs.innerHTML='';t[2].forEach(function(lbl,i){var a=document.createElement('a');a.textContent=lbl;if(i===0)a.className='on';tabs.appendChild(a);});
+    var sc=document.querySelector('#view-'+v+' .scroll');if(sc)sc.scrollTop=0;
+  }
+  document.querySelectorAll('[data-go]').forEach(function(el){el.addEventListener('click',function(e){e.stopPropagation();go(el.dataset.go);});});
+  document.querySelectorAll('#view-people tr.rec').forEach(function(row){row.addEventListener('click',function(){var nm=row.dataset.name,role=row.dataset.role,st=row.dataset.status;if(nm){document.getElementById('recName').textContent=nm;document.getElementById('recAv').textContent=nm.split(' ').map(function(w){return w[0];}).join('').slice(0,2);if(role)document.getElementById('recMeta').textContent=role+' · Caerphilly · Started 2 Jan 2021';var pill=document.getElementById('recPill');if(st==='g'){pill.textContent='Compliant';pill.style.background='var(--green)';}else if(st==='a'){pill.textContent='Due soon';pill.style.background='var(--amber)';}else{pill.textContent='Overdue';pill.style.background='var(--red)';}}go('person');});});
+  document.querySelectorAll('.plbtn').forEach(function(b){b.addEventListener('click',function(){document.querySelectorAll('.plbtn').forEach(function(x){x.classList.remove('on');});b.classList.add('on');var w=b.dataset.pl;document.getElementById('pl-whiteboard').style.display=(w==='whiteboard')?'':'none';document.getElementById('pl-myplanner').style.display=(w==='myplanner')?'':'none';});});
+  var tb=document.getElementById('themeBtn'),tl=document.getElementById('themeLbl');
+  if(tb&&tl){tb.addEventListener('click',function(){var d=document.body.classList.toggle('dark');tl.textContent=d?'Light':'Dark';});}
+  go('people');
+</script>
+</body>
+</html>

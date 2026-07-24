@@ -1,9 +1,5 @@
 {
-  "regions": ["lhr1"],
-  "crons": [
-    { "path": "/api/cron/daily-digest", "schedule": "0 6 * * *" },
-    { "path": "/api/cron/daily-digest", "schedule": "0 7 * * *" },
-    { "path": "/api/cron/invoicing", "schedule": "0 7 * * *" },
-    { "path": "/api/cron/stripe-usage", "schedule": "0 3 1 * *" }
-  ]
+  "buildCommand": "",
+  "installCommand": "",
+  "outputDirectory": "public"
 }
