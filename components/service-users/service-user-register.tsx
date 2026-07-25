@@ -183,6 +183,18 @@ export default function ServiceUserRegister({
     return list;
   }, [rows, branchId, meta, search, worstFirst]);
 
+  // Inspection-readiness rollup for the crisp navy strip.
+  const readiness = useMemo(() => {
+    const c: Record<string, number> = { red: 0, amber: 0, green: 0, none: 0 };
+    for (const r of filtered) {
+      const rg = r.rollup?.rag ?? "none";
+      c[rg] = (c[rg] ?? 0) + 1;
+    }
+    const total = filtered.length || 1;
+    const compliant = c.green + c.none;
+    return { overdue: c.red, dueSoon: c.amber, compliant, pct: Math.round((compliant / total) * 100) };
+  }, [filtered]);
+
   return (
     <div className="flex h-full min-h-0 flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -229,6 +241,15 @@ export default function ServiceUserRegister({
             <option value="cancelled">Cancelled</option>
           </select>
         </label>
+
+        {navy ? (
+          <div className="navy-ready ml-auto">
+            <div className="nr hero"><b>{readiness.pct}%</b><span>Ready</span></div>
+            <div className="nr red"><b>{readiness.overdue}</b><span>Overdue</span></div>
+            <div className="nr amber"><b>{readiness.dueSoon}</b><span>Due soon</span></div>
+            <div className="nr"><b>{readiness.compliant}</b><span>Compliant</span></div>
+          </div>
+        ) : null}
 
         {CUSTOM_COLUMNS_ENABLED && isAdmin ? (
           <div className="ml-auto">

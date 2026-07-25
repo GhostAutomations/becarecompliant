@@ -641,3 +641,32 @@
   color: #f38a7c;
   font-weight: 600;
 }
+/* Inspection-readiness chips strip (navy theme). */
+.navy-ready {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.navy-ready .nr {
+  padding: 5px 14px;
+  text-align: center;
+  border-right: 1px solid rgba(255, 255, 255, 0.09);
+}
+.navy-ready .nr:last-child { border-right: 0; }
+.navy-ready .nr b { display: block; font-weight: 800; font-size: 15px; line-height: 1; }
+.navy-ready .nr span {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 3px;
+  font-weight: 600;
+}
+.navy-ready .nr.hero { background: var(--color-gold-400); }
+.navy-ready .nr.hero b { color: #20180a; }
+.navy-ready .nr.hero span { color: #5a4818; }
+.navy-ready .nr.red b { color: #f38a7c; }
+.navy-ready .nr.amber b { color: #f0b65e; }

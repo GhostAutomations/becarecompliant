@@ -150,6 +150,17 @@ export default function RegisterMatrix({
   }, [navy, branches, branchId]);
   const oneBranch = navy && branches.length > 1;
   const filtered = oneBranch && branchId ? rows.filter((r) => r.person.branch_id === branchId) : rows;
+  // Inspection-readiness rollup for the crisp navy strip.
+  const readiness = useMemo(() => {
+    const c: Record<string, number> = { red: 0, amber: 0, green: 0, none: 0 };
+    for (const r of filtered) {
+      const rg = r.rollup?.rag ?? "none";
+      c[rg] = (c[rg] ?? 0) + 1;
+    }
+    const total = filtered.length || 1;
+    const compliant = c.green + c.none;
+    return { overdue: c.red, dueSoon: c.amber, compliant, pct: Math.round((compliant / total) * 100) };
+  }, [filtered]);
   // Four-supervisions mode: show a Sup 4 column pair and no Annual Appraisal columns.
   const fourSup = config.cycleMode === "four_supervisions";
 
@@ -170,9 +181,19 @@ export default function RegisterMatrix({
             ))}
           </div>
         ) : null}
-        <span className="ml-auto text-xs text-white/50">
-          {filtered.length} {filtered.length === 1 ? "record" : "records"}
-        </span>
+        <div className="ml-auto flex flex-wrap items-center gap-3">
+          {navy ? (
+            <div className="navy-ready">
+              <div className="nr hero"><b>{readiness.pct}%</b><span>Ready</span></div>
+              <div className="nr red"><b>{readiness.overdue}</b><span>Overdue</span></div>
+              <div className="nr amber"><b>{readiness.dueSoon}</b><span>Due soon</span></div>
+              <div className="nr"><b>{readiness.compliant}</b><span>Compliant</span></div>
+            </div>
+          ) : null}
+          <span className="text-xs text-white/50">
+            {filtered.length} {filtered.length === 1 ? "record" : "records"}
+          </span>
+        </div>
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col gap-1">
