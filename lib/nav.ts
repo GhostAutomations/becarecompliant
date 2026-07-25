@@ -90,6 +90,7 @@ export const NAV_ENTRIES: NavEntry[] = [
     icon: "serviceUsers",
     group: "Departments",
     children: [
+      { href: "/service-users", label: "Compliance", icon: "compliance" },
       {
         href: "/service-users/outcomes",
         label: "Outcomes",
