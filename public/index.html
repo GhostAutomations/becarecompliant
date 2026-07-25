@@ -235,8 +235,13 @@
     <div class="ric" data-go="dashboard" title="Dashboard"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1"/><rect x="13.5" y="3.5" width="7" height="7" rx="1"/><rect x="3.5" y="13.5" width="7" height="7" rx="1"/><rect x="13.5" y="13.5" width="7" height="7" rx="1"/></svg></div>
     <div class="ric on" data-go="people" title="People"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 11a3 3 0 1 0-1-5.8"/></svg></div>
     <div class="ric" data-go="su" title="Service Users"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10Z"/></svg></div>
+    <div class="ric" data-go="complaints" title="Complaints"><svg viewBox="0 0 24 24"><path d="M20 4H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h4v4l5-4h7a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1Z"/><path d="M12 8v3M12 14h.01"/></svg></div>
+    <div class="ric" data-go="oncall" title="On Call"><svg viewBox="0 0 24 24"><path d="M5 3h4l2 5-2.5 1.5a11 11 0 0 0 5 5L16 12l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 5a2 2 0 0 1 2-2Z"/></svg></div>
     <div class="ric" data-go="planner" title="Planner"><svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="16" rx="1"/><path d="M3.5 9h17M8 3v3M16 3v3"/></svg></div>
+    <div class="ric" data-go="invoicing" title="Invoicing"><svg viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6z"/><path d="M9 11h6M9 15h4"/></svg></div>
+    <div class="ric" data-go="readiness" title="Readiness"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg></div>
     <div class="ric" data-go="reports" title="Reports"><svg viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6zM14 3v4h4"/></svg></div>
+    <div class="ric" data-go="settings" title="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 14a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V20a2 2 0 1 1-4 0a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H4a2 2 0 1 1 0-4a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H10a1.6 1.6 0 0 0 1-1.5V4a2 2 0 1 1 4 0a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V10a1.6 1.6 0 0 0 1.5 1H20a2 2 0 1 1 0 4Z"/></svg></div>
     <div class="sp"></div><div class="rav">AA</div>
   </div>
 
@@ -667,7 +672,7 @@
     var navKey=(v==='person')?'people':v;
     var groupOf={people:'people',training:'people',holidays:'people',absence:'people',person:'people',su:'su',outcomes:'su',satisfaction:'su',complaints:'complaints',oncall:'oncall',planner:'planner',invoicing:'invoicing'};
     var ag=groupOf[v]||'';
-    document.querySelectorAll('.ric[data-go]').forEach(function(r){r.classList.toggle('on',r.dataset.go===navKey);});
+    document.querySelectorAll('.ric[data-go]').forEach(function(r){r.classList.toggle('on', r.dataset.go===navKey || (ag && r.dataset.go===ag));});
     document.querySelectorAll('.wi[data-go]').forEach(function(r){r.classList.toggle('on', r.dataset.go===navKey || (r.classList.contains('parent') && ag && r.dataset.go===ag));});
     document.querySelectorAll('.wi.child').forEach(function(c){c.style.display=(c.dataset.grp===ag)?'flex':'none';});
     var t=titles[v]||titles.people;document.getElementById('crumb').textContent=t[0];document.getElementById('ptitle').textContent=t[1];
