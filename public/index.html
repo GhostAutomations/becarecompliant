@@ -20,10 +20,10 @@
   a{color:inherit;text-decoration:none;cursor:pointer}
   .app{display:grid;grid-template-columns:56px 220px 1fr;height:100vh;overflow:hidden}
 
-  .rail{background:var(--appbg);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 0}
+  .rail{background:var(--appbg);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 0;position:relative}
   .rlogo{width:32px;height:32px;background:var(--gold);display:grid;place-items:center;margin-bottom:10px}
   .rlogo svg{width:18px;height:18px}
-  .ric{width:36px;height:36px;display:grid;place-items:center;color:var(--railtxt);cursor:pointer;border-radius:3px}
+  .ric{width:36px;height:36px;display:grid;place-items:center;color:var(--railtxt);cursor:pointer;border-radius:3px;position:absolute;left:50%;transform:translateX(-50%)}
   .ric:hover{background:rgba(255,255,255,.06);color:#fff}.ric.on{background:rgba(255,255,255,.1);color:#fff}
   .ric svg{width:19px;height:19px;stroke:currentColor;stroke-width:1.7;fill:none}
   .rail .sp{flex:1}.rav{width:30px;height:30px;background:#2A2E38;color:#fff;display:grid;place-items:center;font-weight:600;font-size:11px}
@@ -678,7 +678,23 @@
     var t=titles[v]||titles.people;document.getElementById('crumb').textContent=t[0];document.getElementById('ptitle').textContent=t[1];
     var tabs=document.getElementById('tabs');tabs.innerHTML='';t[2].forEach(function(lbl,i){var a=document.createElement('a');a.textContent=lbl;if(i===0)a.className='on';tabs.appendChild(a);});
     var sc=document.querySelector('#view-'+v+' .scroll');if(sc)sc.scrollTop=0;
+    alignRail();
   }
+  // Line each rail icon up with the vertical centre of its department row in the nav.
+  function alignRail(){
+    var rail=document.querySelector('.rail');if(!rail)return;
+    var railTop=rail.getBoundingClientRect().top;
+    document.querySelectorAll('.ric[data-go]').forEach(function(ic){
+      var wi=document.querySelector('.wi.parent[data-go="'+ic.dataset.go+'"]');
+      if(!wi){ic.style.display='none';return;}
+      ic.style.display='';
+      var r=wi.getBoundingClientRect();
+      ic.style.top=(r.top-railTop+r.height/2-ic.offsetHeight/2)+'px';
+    });
+  }
+  window.addEventListener('resize',alignRail);
+  window.addEventListener('load',function(){alignRail();setTimeout(alignRail,60);});
+  var wsList=document.querySelector('.ws-list');if(wsList)wsList.addEventListener('scroll',alignRail);
   document.querySelectorAll('[data-go]').forEach(function(el){el.addEventListener('click',function(e){e.stopPropagation();go(el.dataset.go);});});
   document.querySelectorAll('#view-people tr.rec').forEach(function(row){row.addEventListener('click',function(){var nm=row.dataset.name,role=row.dataset.role,st=row.dataset.status;if(nm){document.getElementById('recName').textContent=nm;document.getElementById('recAv').textContent=nm.split(' ').map(function(w){return w[0];}).join('').slice(0,2);if(role)document.getElementById('recMeta').textContent=role+' · Caerphilly · Started 2 Jan 2021';var pill=document.getElementById('recPill');if(st==='g'){pill.textContent='Compliant';pill.style.background='var(--green)';}else if(st==='a'){pill.textContent='Due soon';pill.style.background='var(--amber)';}else{pill.textContent='Overdue';pill.style.background='var(--red)';}}go('person');});});
   document.querySelectorAll('.plbtn').forEach(function(b){b.addEventListener('click',function(){document.querySelectorAll('.plbtn').forEach(function(x){x.classList.remove('on');});b.classList.add('on');var w=b.dataset.pl;document.getElementById('pl-whiteboard').style.display=(w==='whiteboard')?'':'none';document.getElementById('pl-myplanner').style.display=(w==='myplanner')?'':'none';});});
