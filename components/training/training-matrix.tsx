@@ -117,11 +117,11 @@ export default function TrainingMatrix({
                   </td>
                   {courses.map((c) => {
                     const cell = p.cells[c.id];
-                    // Acme navy theme: show one-off "Done / Not done" as a tick / cross.
+                    // Show one-off "Done / Not done" as a green tick / red cross.
                     const glyph =
-                      navy && cell.label === "Done"
+                      cell.label === "Done"
                         ? "✓"
-                        : navy && cell.label === "Not done"
+                        : cell.label === "Not done"
                           ? "✕"
                           : null;
                     const inner = (
