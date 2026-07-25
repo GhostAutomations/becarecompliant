@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { readActingCompanyId } from "@/lib/founder/manage-as";
 import { ManageAsBanner } from "@/components/founder/manage-as-banner";
 import { SidebarNav, MobileDock } from "@/components/app-nav";
+import NavyNav from "@/components/navy-nav";
 import ToastHost from "@/components/toast-host";
 import { ROLE_LABELS, navEntriesForRole } from "@/lib/nav";
 import { featureEnabled } from "@/lib/billing/tier";
@@ -46,18 +47,29 @@ export default async function AppLayout({
   // Inspection Readiness is a per-company beta flag (hidden unless switched on).
   let readinessEnabled = false;
   let uiTheme = "classic";
+  let companyName = "";
   if (navCompanyId) {
     const supabase = await createClient();
     const { data: co } = await supabase
       .from("companies")
-      .select("framework_enabled, ui_theme")
+      .select("name, framework_enabled, ui_theme")
       .eq("id", navCompanyId)
       .maybeSingle();
-    readinessEnabled = !!co?.framework_enabled;
-    uiTheme = ((co as { ui_theme?: string | null } | null)?.ui_theme) ?? "classic";
+    const c = co as { name?: string | null; framework_enabled?: boolean | null; ui_theme?: string | null } | null;
+    readinessEnabled = !!c?.framework_enabled;
+    uiTheme = c?.ui_theme ?? "classic";
+    companyName = c?.name ?? "";
   }
   // Acme-only crisp navy theme, driven by a per-company flag; everyone else stays classic.
   const themeClass = uiTheme === "navy" ? "theme-navy" : "";
+  const navy = uiTheme === "navy";
+  const initials = (profile.full_name || profile.email || "?")
+    .split(/[\s@.]+/)
+    .filter(Boolean)
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
   const navEntries = navEntriesForRole(
     actingCompanyId ? "company_admin" : profile.role,
   )
@@ -88,8 +100,20 @@ export default async function AppLayout({
 
   return (
     <div className={`app-bg flex h-dvh overflow-hidden ${themeClass}`}>
-      {/* Gradient sidebar (desktop) */}
-      <aside className="sidebar-gradient hidden h-dvh w-44 shrink-0 flex-col px-3 py-4 md:flex">
+      {/* Acme-only: far-left icon rail + collapsible drawer (mirrors the demo). */}
+      {navy ? (
+        <NavyNav
+          entries={navEntries}
+          companyName={companyName}
+          initials={initials}
+          homeHref={homeHref}
+        />
+      ) : null}
+
+      {/* Gradient sidebar (desktop) — hidden for the navy theme. */}
+      <aside
+        className={`sidebar-gradient hidden h-dvh w-44 shrink-0 flex-col px-3 py-4 ${navy ? "" : "md:flex"}`}
+      >
         <Link
           href={homeHref}
           className="mb-8 flex items-center gap-2.5 px-2 pt-2"

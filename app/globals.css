@@ -520,3 +520,97 @@
 .theme-navy .rag-cell-amber { background: rgba(235, 165, 62, 0.16); color: #f0b65e; }
 .theme-navy .rag-cell-red { background: rgba(239, 97, 82, 0.16); color: #f38a7c; }
 .theme-navy .rag-cell-none { background: transparent; color: rgba(255, 255, 255, 0.35); }
+
+/* Navy shell: far-left icon rail + collapsible drawer (rendered only for Acme). */
+.navy-rail {
+  width: 56px;
+  background: var(--color-navy-950);
+  border-right: 1px solid rgba(255, 255, 255, 0.09);
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 0;
+  position: relative;
+  z-index: 60;
+}
+.navy-logo {
+  width: 32px;
+  height: 32px;
+  background: var(--color-gold-400);
+  display: grid;
+  place-items: center;
+  border-radius: 2px;
+  margin-bottom: 10px;
+}
+.navy-logo svg { width: 18px; height: 18px; }
+.navy-ric {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  color: #93a3cc;
+  cursor: pointer;
+  border-radius: 3px;
+  background: transparent;
+  border: none;
+}
+.navy-ric:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
+.navy-ric.on { color: var(--color-gold-400); }
+.navy-ric svg { width: 19px; height: 19px; }
+.navy-sp { flex: 1; }
+.navy-brand {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #93a3cc;
+  white-space: nowrap;
+  margin-bottom: 14px;
+}
+.navy-av {
+  width: 30px;
+  height: 30px;
+  background: #2a2e38;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 11px;
+  border-radius: 3px;
+}
+.navy-drawer {
+  position: fixed;
+  left: 56px;
+  top: 0;
+  bottom: 0;
+  width: 184px;
+  z-index: 50;
+  background: var(--color-navy-950);
+  border-right: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 2px 0 18px rgba(0, 0, 0, 0.5);
+  transform: translateX(calc(-100% - 62px));
+  transition: transform 0.18s ease;
+  overflow: auto;
+  padding: 14px 8px;
+}
+.navy-drawer.open { transform: translateX(0); }
+.navy-wi {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  color: #c7d2ec;
+  font-weight: 500;
+  font-size: 13px;
+  border-radius: 6px;
+  text-decoration: none;
+}
+.navy-wi.parent { font-weight: 600; }
+.navy-wi.child { padding-left: 22px; font-size: 12px; color: #93a3cc; }
+.navy-wi:hover { background: rgba(120, 120, 140, 0.12); }
+.navy-wi.on { color: var(--color-gold-400); }
+/* Compact matrix rows for the navy theme, like the demo. */
+.theme-navy .matrix td { padding-top: 2px; padding-bottom: 2px; }
+.theme-navy .matrix th { padding-top: 5px; padding-bottom: 5px; }
