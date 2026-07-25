@@ -37,7 +37,6 @@ export default function LogForm({
   const [saved, setSaved] = useState(false);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  useEffect(() => { if (state.ok) setConfirming(false); }, [state.ok]);
   // Flash the green "Saved" briefly, then revert (never a stuck green box).
   useEffect(() => {
     if (state.ok && !pending) {
@@ -46,9 +45,21 @@ export default function LogForm({
       return () => clearTimeout(t);
     }
   }, [state.ok, pending]);
+  // One-click flow (per Phil): Save both saves the shift AND immediately offers
+  // to finalise it, so nobody has to hunt for a second button. A finalise submit
+  // returns redirectTo (the page re-renders read-only), so the popup only opens
+  // after a plain save.
+  useEffect(() => {
+    if (editing && state.ok && !pending && !state.redirectTo) setConfirming(true);
+  }, [editing, state, pending]);
   // After createLog / finalise, the action returns redirectTo and we navigate here
   // (the action must not call redirect() itself — see lib/forms).
-  useEffect(() => { if (state.redirectTo) router.replace(state.redirectTo); }, [state.redirectTo, router]);
+  useEffect(() => {
+    if (state.redirectTo) {
+      setConfirming(false);
+      router.replace(state.redirectTo);
+    }
+  }, [state.redirectTo, router]);
 
   const dv = (key: string, fallback = "") => (editing ? fallback : d[key] ?? fallback);
   const shiftValue = editing ? `${log?.slot}|${log?.shift_date}` : d.shift || defaultShift;
@@ -138,6 +149,7 @@ export default function LogForm({
 
       {editing ? (
         <div className="flex items-center gap-3">
+          {/* One button: Save saves, then the finalise popup opens on success. */}
           <button
             type="submit"
             className={saved ? "btn-saved" : "btn-primary"}
@@ -145,9 +157,6 @@ export default function LogForm({
             disabled={pending}
           >
             {saved ? "Saved" : pending ? "Saving…" : "Save"}
-          </button>
-          <button type="button" className="btn-ghost" onClick={() => setConfirming(true)} disabled={pending}>
-            Finalise shift
           </button>
         </div>
       ) : (
@@ -168,8 +177,10 @@ export default function LogForm({
               onClick={() => { if (!pending) setConfirming(false); }}
             >
               <div className="glass-card w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
-                <h3 className="text-base font-semibold text-white">Finish this shift?</h3>
-                <p className="mt-2 text-sm text-white/70">Once finalised it can no longer be edited.</p>
+                <h3 className="text-base font-semibold text-white">Shift saved. Finalise it now?</h3>
+                <p className="mt-2 text-sm text-white/70">
+                  Once finalised it can no longer be edited. Choose Not yet to keep it open, it stays saved and you can finalise later.
+                </p>
                 <div className="mt-5 flex flex-wrap items-center gap-3">
                   <button
                     type="submit"
@@ -178,10 +189,10 @@ export default function LogForm({
                     className="btn-primary"
                     disabled={pending}
                   >
-                    {pending ? "Saving…" : "Yes, finalise"}
+                    {pending ? "Finalising…" : "Yes, finalise"}
                   </button>
                   <button type="button" className="btn-ghost" onClick={() => setConfirming(false)} disabled={pending}>
-                    Cancel
+                    Not yet
                   </button>
                 </div>
               </div>
