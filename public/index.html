@@ -676,7 +676,7 @@
     var groupOf={people:'people',training:'people',holidays:'people',absence:'people',person:'people',su:'su',outcomes:'su',satisfaction:'su',complaints:'complaints',oncall:'oncall',planner:'planner',invoicing:'invoicing'};
     var ag=groupOf[v]||'';
     document.querySelectorAll('.ric[data-go]').forEach(function(r){r.classList.toggle('on', r.dataset.go===navKey || (ag && r.dataset.go===ag));});
-    document.querySelectorAll('.wi[data-go]').forEach(function(r){r.classList.toggle('on', r.dataset.go===navKey || (r.classList.contains('parent') && ag && r.dataset.go===ag));});
+    document.querySelectorAll('.wi[data-go]').forEach(function(r){var on=r.classList.contains('child')?(r===activeWi):(r.dataset.go===navKey||(ag&&r.dataset.go===ag));r.classList.toggle('on',on);});
     document.querySelectorAll('.wi.child').forEach(function(c){c.style.display=(c.dataset.grp===ag)?'flex':'none';});
     var t=titles[v]||titles.people;document.getElementById('crumb').textContent=t[0];document.getElementById('ptitle').textContent=t[1];
     var tabs=document.getElementById('tabs');tabs.innerHTML='';t[2].forEach(function(lbl,i){var a=document.createElement('a');a.textContent=lbl;if(i===0)a.className='on';tabs.appendChild(a);});
@@ -684,12 +684,12 @@
   }
   // Collapsible sidebar: opens when a rail icon is clicked, stays open while hovering the rail
   // or the panel, and closes on a department/sub-department click or when the pointer leaves both.
-  var appEl=document.querySelector('.app'),railEl=document.querySelector('.rail'),wsEl=document.querySelector('.ws');
+  var appEl=document.querySelector('.app'),railEl=document.querySelector('.rail'),wsEl=document.querySelector('.ws'),activeWi=null;
   function openNav(){appEl.classList.add('nav-open');}
   function closeNav(){appEl.classList.remove('nav-open');}
   railEl.addEventListener('mouseleave',function(e){if(!wsEl.contains(e.relatedTarget))closeNav();});
   wsEl.addEventListener('mouseleave',function(e){if(!railEl.contains(e.relatedTarget))closeNav();});
-  document.querySelectorAll('[data-go]').forEach(function(el){el.addEventListener('click',function(e){e.stopPropagation();go(el.dataset.go);if(el.classList.contains('ric')){openNav();}else{closeNav();}});});
+  document.querySelectorAll('[data-go]').forEach(function(el){el.addEventListener('click',function(e){e.stopPropagation();activeWi=el.classList.contains('child')?el:null;go(el.dataset.go);if(el.classList.contains('ric')){openNav();}else{closeNav();}});});
   document.querySelectorAll('#view-people tr.rec').forEach(function(row){row.addEventListener('click',function(){var nm=row.dataset.name,role=row.dataset.role,st=row.dataset.status;if(nm){document.getElementById('recName').textContent=nm;document.getElementById('recAv').textContent=nm.split(' ').map(function(w){return w[0];}).join('').slice(0,2);if(role)document.getElementById('recMeta').textContent=role+' · Caerphilly · Started 2 Jan 2021';var pill=document.getElementById('recPill');if(st==='g'){pill.textContent='Compliant';pill.style.background='var(--green)';}else if(st==='a'){pill.textContent='Due soon';pill.style.background='var(--amber)';}else{pill.textContent='Overdue';pill.style.background='var(--red)';}}go('person');});});
   document.querySelectorAll('.plbtn').forEach(function(b){b.addEventListener('click',function(){document.querySelectorAll('.plbtn').forEach(function(x){x.classList.remove('on');});b.classList.add('on');var w=b.dataset.pl;document.getElementById('pl-whiteboard').style.display=(w==='whiteboard')?'':'none';document.getElementById('pl-myplanner').style.display=(w==='myplanner')?'':'none';});});
   var tb=document.getElementById('themeBtn'),tl=document.getElementById('themeLbl');
