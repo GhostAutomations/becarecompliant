@@ -18,7 +18,7 @@
   body{background:var(--appbg);color:var(--ink);font-family:"Inter",system-ui,sans-serif;font-size:13px;line-height:1.45;-webkit-font-smoothing:antialiased}
   .mono{font-family:"IBM Plex Mono",monospace}.num{font-variant-numeric:tabular-nums}
   a{color:inherit;text-decoration:none;cursor:pointer}
-  .app{display:grid;grid-template-columns:56px 220px 1fr;height:100vh;overflow:hidden}
+  .app{display:grid;grid-template-columns:56px 178px 1fr;height:100vh;overflow:hidden}
 
   .rail{background:var(--appbg);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 0;position:relative}
   .rlogo{width:32px;height:32px;background:var(--gold);display:grid;place-items:center;margin-bottom:10px}
@@ -27,11 +27,12 @@
   .ric:hover{background:rgba(255,255,255,.06);color:#fff}.ric.on{background:rgba(255,255,255,.1);color:#fff}
   .ric svg{width:19px;height:19px;stroke:currentColor;stroke-width:1.7;fill:none}
   .rail .sp{flex:1}.rav{width:30px;height:30px;background:#2A2E38;color:#fff;display:grid;place-items:center;font-weight:600;font-size:11px}
+  .rail-brand{writing-mode:vertical-rl;transform:rotate(180deg);font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);white-space:nowrap;margin-bottom:14px}
 
   .ws{border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden;background:var(--appbg)}
   .ws-top{padding:15px 16px;border-bottom:1px solid var(--line)}
   .ws-top b{font-size:13.5px;font-weight:700;letter-spacing:-.01em}.ws-top span{display:block;font-size:11px;color:var(--faint);margin-top:2px}
-  .ws-list{overflow:auto;padding:8px}
+  .ws-list{overflow:auto;padding:42px 8px 8px}
   .sect{font-size:10px;letter-spacing:.14em;color:var(--faint);font-weight:600;padding:14px 8px 6px;text-transform:uppercase}
   .wi{display:flex;align-items:center;gap:10px;padding:7px 10px;color:var(--ink-2);font-weight:500;font-size:13px;cursor:pointer;border-radius:6px}
   .wi.parent{font-weight:600}
@@ -242,11 +243,10 @@
     <div class="ric" data-go="readiness" title="Readiness"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg></div>
     <div class="ric" data-go="reports" title="Reports"><svg viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6zM14 3v4h4"/></svg></div>
     <div class="ric" data-go="settings" title="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 14a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V20a2 2 0 1 1-4 0a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H4a2 2 0 1 1 0-4a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H10a1.6 1.6 0 0 0 1-1.5V4a2 2 0 1 1 4 0a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V10a1.6 1.6 0 0 0 1.5 1H20a2 2 0 1 1 0 4Z"/></svg></div>
-    <div class="sp"></div><div class="rav">AA</div>
+    <div class="sp"></div><div class="rail-brand">Acme Care Company</div><div class="rav">AA</div>
   </div>
 
   <div class="ws">
-    <div class="ws-top"><b>Acme Care Company</b><span>Caerphilly &amp; Cardiff</span></div>
     <div class="ws-list">
       <div class="wi parent" data-go="dashboard">Dashboard</div>
       <div class="sect">Departments</div>
