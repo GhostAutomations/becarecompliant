@@ -61,11 +61,12 @@ export function todayIso(): string {
   return formatCivilDate(todayInLondon());
 }
 
-/** A complaint only needs a formal investigation + response (25 working day deadline
- *  and the investigation/response forms) when it is a Complaint AND Formal. Everything
- *  else is acknowledged and logged, but has no response deadline. */
-export function isFormalComplaint(concernType: string | null, formality: string | null): boolean {
-  return concernType === "Complaint" && formality === "Formal";
+/** A case needs the formal investigation + response flow (the response deadline and
+ *  the investigation/response forms) whenever its Type is Formal, whatever the
+ *  Complaint/Concern category. Phil's rule (2026-07-25): the Type field decides,
+ *  full stop. Informal cases are acknowledged and logged with no response deadline. */
+export function isFormalComplaint(formality: string | null): boolean {
+  return formality === "Formal";
 }
 
 /** Fallback complaint reference prefix from the company name initials (skipping legal

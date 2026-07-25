@@ -239,9 +239,9 @@ export default async function ComplaintPage({
     );
 
   const rag = responseRag(complaint.status, complaint.response_due, config.amber_days);
-  // Only a formal complaint (Complaint + Formal) needs the investigation/response
-  // forms; everything else is acknowledged and logged.
-  const isFormal = isFormalComplaint(complaint.concern_type, complaint.formality);
+  // The Type field decides (Phil's rule): any case marked Formal gets the
+  // investigation/response forms; Informal is acknowledged and logged only.
+  const isFormal = isFormalComplaint(complaint.formality);
 
   // Closed pill colour: green if closed before the response due date, amber if on it,
   // red if after (dates are civil YYYY-MM-DD strings, so string compare is chronological).
@@ -370,7 +370,7 @@ export default async function ComplaintPage({
         <p className="text-xs text-white/50">
           {isFormal
             ? "Acknowledge the complainant with an initial response, then complete the investigation and response forms."
-            : "Acknowledge the complainant with an initial response. This is not a formal complaint, so a formal investigation and response are not required."}
+            : "Acknowledge the complainant with an initial response. This case is informal, so a formal investigation and response are not required."}
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <InitialResponseButton

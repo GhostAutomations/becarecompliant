@@ -79,7 +79,7 @@ export async function createComplaint(_prev: ActionState, formData: FormData): P
   const config = await getComplaintsConfig(companyId);
   const intake = intakeFields(formData);
   // All complaints are acknowledged; only formal complaints get a response deadline.
-  const formal = isFormalComplaint(intake.concern_type, intake.formality);
+  const formal = isFormalComplaint(intake.formality);
 
   const supabase = await createClient();
   const { data: complaint, error } = await supabase
@@ -133,7 +133,7 @@ export async function updateComplaint(_prev: ActionState, formData: FormData): P
 
   const supabase = await createClient();
   const intake = intakeFields(formData);
-  const formal = isFormalComplaint(intake.concern_type, intake.formality);
+  const formal = isFormalComplaint(intake.formality);
 
   // Response deadline only exists for formal complaints. If it becomes formal without
   // one, derive it from the raised date; if it stops being formal, clear it.
