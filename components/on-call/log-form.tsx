@@ -127,9 +127,19 @@ export default function LogForm({
       {state.error ? <p className="form-error">{state.error}</p> : null}
 
       {editing ? (
-        <button type="button" className={saved ? "btn-saved" : "btn-primary"} onClick={() => setConfirming(true)} disabled={pending}>
-          {saved ? "Saved" : "Save"}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="submit"
+            className={saved ? "btn-saved" : "btn-primary"}
+            onClick={() => { if (finaliseRef.current) finaliseRef.current.value = "no"; }}
+            disabled={pending}
+          >
+            {saved ? "Saved" : pending ? "Saving…" : "Save"}
+          </button>
+          <button type="button" className="btn-ghost" onClick={() => setConfirming(true)} disabled={pending}>
+            Finalise shift
+          </button>
+        </div>
       ) : (
         <div className="flex items-center gap-3">
           <button type="submit" className="btn-primary" disabled={pending}>
@@ -153,10 +163,7 @@ export default function LogForm({
               <button type="submit" onClick={() => { if (finaliseRef.current) finaliseRef.current.value = "yes"; }} className="btn-primary" disabled={pending}>
                 {pending ? "Saving…" : "Yes, finalise"}
               </button>
-              <button type="submit" onClick={() => { if (finaliseRef.current) finaliseRef.current.value = "no"; }} className="btn-ghost" disabled={pending}>
-                No, just save
-              </button>
-              <button type="button" className="ml-auto text-sm text-white/50 hover:text-white" onClick={() => setConfirming(false)} disabled={pending}>
+              <button type="button" className="btn-ghost" onClick={() => setConfirming(false)} disabled={pending}>
                 Cancel
               </button>
             </div>
