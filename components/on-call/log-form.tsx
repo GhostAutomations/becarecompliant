@@ -127,26 +127,9 @@ export default function LogForm({
       {state.error ? <p className="form-error">{state.error}</p> : null}
 
       {editing ? (
-        confirming ? (
-          <div className="space-y-3 rounded-xl border border-white/10 bg-white/5 p-4">
-            <p className="text-sm text-white/80">Have you finished this shift? Once finalised it can no longer be edited.</p>
-            <div className="flex flex-wrap items-center gap-3">
-              <button type="submit" onClick={() => { if (finaliseRef.current) finaliseRef.current.value = "yes"; }} className="btn-primary" disabled={pending}>
-                {pending ? "Saving…" : "Yes, finalise"}
-              </button>
-              <button type="submit" onClick={() => { if (finaliseRef.current) finaliseRef.current.value = "no"; }} className="btn-ghost" disabled={pending}>
-                No, just save
-              </button>
-              <button type="button" className="text-sm text-white/50 hover:text-white" onClick={() => setConfirming(false)} disabled={pending}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button type="button" className={saved ? "btn-saved" : "btn-primary"} onClick={() => setConfirming(true)} disabled={pending}>
-            {saved ? "Saved" : "Save"}
-          </button>
-        )
+        <button type="button" className={saved ? "btn-saved" : "btn-primary"} onClick={() => setConfirming(true)} disabled={pending}>
+          {saved ? "Saved" : "Save"}
+        </button>
       ) : (
         <div className="flex items-center gap-3">
           <button type="submit" className="btn-primary" disabled={pending}>
@@ -157,6 +140,29 @@ export default function LogForm({
           </button>
         </div>
       )}
+
+      {confirming ? (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4"
+          onClick={() => { if (!pending) setConfirming(false); }}
+        >
+          <div className="glass-card w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-semibold text-white">Finish this shift?</h3>
+            <p className="mt-2 text-sm text-white/70">Once finalised it can no longer be edited.</p>
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <button type="submit" onClick={() => { if (finaliseRef.current) finaliseRef.current.value = "yes"; }} className="btn-primary" disabled={pending}>
+                {pending ? "Saving…" : "Yes, finalise"}
+              </button>
+              <button type="submit" onClick={() => { if (finaliseRef.current) finaliseRef.current.value = "no"; }} className="btn-ghost" disabled={pending}>
+                No, just save
+              </button>
+              <button type="button" className="ml-auto text-sm text-white/50 hover:text-white" onClick={() => setConfirming(false)} disabled={pending}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {draftEnabled ? (
         <p className="text-xs text-white/40">This saves automatically as you type, and stays for up to 12 hours until you submit it, even if you log out.</p>
       ) : null}
