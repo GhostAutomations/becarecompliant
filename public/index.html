@@ -110,6 +110,19 @@
   .plain.mut{color:var(--faint)}
   .pill{font-size:11px;font-weight:600;padding:3px 9px;border-radius:3px;background:var(--pillbg);color:var(--soft);white-space:nowrap}
   .pill.ok{color:var(--green)}.pill.warn{color:var(--amber)}.pill.bad{color:var(--red)}.pill.info{color:var(--blue)}
+  /* real-app RAG pills (green/amber/red/neutral) */
+  .pill-green{background:rgba(0,200,117,.16);color:#43D99A;border:1px solid rgba(0,200,117,.3)}
+  .pill-amber{background:rgba(253,171,61,.16);color:#F5BD6A;border:1px solid rgba(253,171,61,.3)}
+  .pill-red{background:rgba(226,68,92,.16);color:#F18196;border:1px solid rgba(226,68,92,.3)}
+  .pill-neutral{background:rgba(255,255,255,.06);color:var(--soft);border:1px solid rgba(255,255,255,.14)}
+  /* real-app RAG date cell: flat tinted pill with the date, no sub-label */
+  .rag{display:inline-block;font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:12px;padding:3px 8px;border-radius:5px;white-space:nowrap}
+  .rag-green{background:rgba(34,179,124,.16);color:#43D99A}
+  .rag-amber{background:rgba(235,165,62,.16);color:#F0B65E}
+  .rag-red{background:rgba(239,97,82,.16);color:#F38A7C}
+  .rag-none{color:var(--faint);background:transparent}
+  .plainc{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:12px;color:var(--ink-2)}
+  .plainc.mut{color:var(--faint)}
   .addrow td{height:40px;text-align:left;padding-left:16px;color:var(--faint);font-weight:600;font-size:12.5px;position:sticky;left:0}
   .foot{padding:12px 22px;color:var(--faint);font-size:11.5px;border-top:1px solid var(--line);background:var(--wash)}
 
@@ -282,7 +295,7 @@
   <div class="board">
     <div class="btop">
       <div class="htop">
-        <div><div class="crumbs" id="crumb">Registers / People</div><h1 id="ptitle">People register</h1></div>
+        <div><div class="crumbs" id="crumb">Registers / People</div><h1 id="ptitle">People matrix</h1></div>
         <div class="rightbits">
           <div class="ready">
             <div class="b hero"><div class="v num">96%</div><div class="l">CIW ready</div></div>
@@ -341,7 +354,7 @@
     <!-- PERSON RECORD -->
     <section class="view" id="view-person">
       <div class="scroll">
-        <a class="backlink" data-go="people"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 5l-7 7 7 7"/></svg> Back to People register</a>
+        <a class="backlink" data-go="people"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 5l-7 7 7 7"/></svg> Back to People matrix</a>
         <div class="rec-head"><div class="big" id="recAv">FW</div><div><h2 id="recName">Ffion Williams</h2><div class="meta" id="recMeta">Team Leader · Caerphilly · Started 2 Jan 2021</div></div><div class="st-pill" id="recPill" style="background:var(--red)">Overdue</div></div>
         <div class="sec-t">Supervision · four supervision cycle</div>
         <div class="sups">
@@ -653,9 +666,9 @@
 <script>
   var views=['people','person','su','training','holidays','absence','outcomes','satisfaction','complaints','planner','oncall','invoicing','reports','dashboard','readiness','settings'];
   var titles={
-    people:['Registers / People','People register',['Register','Dashboard','Timeline','Evidence']],
+    people:['Registers / People','People matrix',['Matrix','Dashboard','Timeline','Evidence']],
     person:['Registers / People / Record','Person record',['Overview','Checks','Evidence','History']],
-    su:['Registers / Service Users','Service Users register',['Register','Dashboard','Timeline','Evidence']],
+    su:['Registers / Service Users','Service Users matrix',['Matrix','Dashboard','Timeline','Evidence']],
     training:['Registers / People / Training','Training matrix',['Matrix','Certificates','Reporting']],
     holidays:['Registers / People / Holidays','Holidays',['Requests','Calendar','Allowances']],
     absence:['Registers / People / Absence','Absence',['Log','Bradford','Return to work']],
@@ -697,6 +710,71 @@
   railEl.addEventListener('mouseleave',function(e){if(!wsEl.contains(e.relatedTarget))closeNav();});
   wsEl.addEventListener('mouseleave',function(e){if(!railEl.contains(e.relatedTarget))closeNav();});
   document.querySelectorAll('[data-go]').forEach(function(el){el.addEventListener('click',function(e){e.stopPropagation();if(el.classList.contains('ric')){openDrawerFor(el.dataset.go);}else{activeWi=el.classList.contains('child')?el:null;go(el.dataset.go);closeNav();}});});
+  // ---- Matrices rebuilt to mirror the live app: real columns, RAG date cells, RAG pills ----
+  function ragc(d,r){return d?('<span class="rag rag-'+r+'">'+d+'</span>'):'<span class="rag rag-none">—</span>';}
+  function pillc(l,t){return '<span class="pill pill-'+t+'">'+l+'</span>';}
+  function plc(d){return '<span class="plainc'+(d&&d!=='—'?'':' mut')+'">'+(d||'—')+'</span>';}
+  function ini(n){return n.split(' ').map(function(w){return w[0];}).join('').slice(0,2);}
+  function nameCell(n,role){return '<td class="name"><div class="person"><div class="pav">'+ini(n)+'</div><div><b>'+n+'</b><small>'+role+'</small></div></div></td>';}
+  function groupTable(cols,rows,rowFn,branch,recs,g,a,rr,addLabel){
+    var sum='<span class="g">'+g+' compliant</span>'+(a?'<span class="a">'+a+' due</span>':'')+(rr?'<span class="r">'+rr+' overdue</span>':'');
+    var head='<thead><tr><th class="l">'+cols[0]+'</th>'+cols.slice(1).map(function(h){return '<th>'+h+'</th>';}).join('')+'</tr></thead>';
+    var body='<tbody>'+rows.map(rowFn).join('')+'<tr class="addrow"><td colspan="'+cols.length+'">+ '+addLabel+' '+branch+'</td></tr></tbody>';
+    return '<div class="grp"><div class="grp-head"><span class="tick"></span><h2>'+branch+'</h2><span class="n">'+recs+' records</span><span class="sum">'+sum+'</span></div><div class="gscroll"><table>'+head+body+'</table></div></div>';
+  }
+  var PEOPLE_COLS=['Carer','Status','Start date','Manual Handling','Medication Competency','DBS','Enhanced DBS','RTW Expiry','RTW Limits','Probation End Due','Probation End Actual','Probation Status','Probation Extension','Spot Check Due','Recent Spot Check','Supervision 1 Due','Supervision 1 Done','Supervision 2 Due','Supervision 2 Done','Supervision 3 Due','Supervision 3 Done','Supervision 4 Due','Supervision 4 Done','Audit'];
+  function personRow(p){
+    var c=nameCell(p.n,p.r)+'<td>'+pillc(p.st[0],p.st[1])+'</td><td>'+plc(p.sd)+'</td>'
+      +'<td>'+ragc(p.mh[0],p.mh[1])+'</td><td>'+ragc(p.cm[0],p.cm[1])+'</td>'
+      +'<td>'+ragc(p.db[0],p.db[1])+'</td><td>'+ragc(p.ed[0],p.ed[1])+'</td>'
+      +'<td>'+(p.re?ragc(p.re[0],p.re[1]):plc('—'))+'</td><td>'+pillc(p.rl[0],p.rl[1])+'</td>'
+      +'<td>'+plc(p.pd)+'</td><td>'+plc(p.pa)+'</td><td>'+(p.ps?pillc(p.ps[0],p.ps[1]):pillc('Not set','neutral'))+'</td><td>'+plc(p.pe)+'</td>'
+      +'<td>'+ragc(p.sc[0],p.sc[1])+'</td><td>'+plc(p.sr)+'</td>';
+    [p.s1,p.s2,p.s3,p.s4].forEach(function(s){c+='<td>'+ragc(s[0],s[1])+'</td><td>'+plc(s[2])+'</td>';});
+    c+='<td>'+ragc(p.au[0],p.au[1])+'</td>';
+    return '<tr class="rec" data-name="'+p.n+'" data-role="'+p.r+'" data-status="'+p.rr+'">'+c+'</tr>';
+  }
+  var NONE=['None','green'];
+  var PEOPLE_CAER=[
+    {n:'Carys Morgan',r:'Senior Care Worker',rr:'g',st:['Active','green'],sd:'04 Mar 22',mh:['05 Jan','green'],cm:['12 Sep','green'],db:['Jun 27','green'],ed:['Jun 27','green'],re:null,rl:NONE,pd:'04 Jun 22',pa:'30 May 22',ps:['Passed','green'],pe:'',sc:['08 Nov','green'],sr:'08 Aug',s1:['10 Jan','green','09 Jan'],s2:['10 Apr','green','08 Apr'],s3:['10 Jul','green','07 Jul'],s4:['09 Oct','green',''],au:['03 Aug','green']},
+    {n:'Dylan Evans',r:'Care Worker',rr:'a',st:['Active','green'],sd:'18 Aug 24',mh:['17 Jan','green'],cm:['20 Oct','green'],db:['Mar 28','green'],ed:['Mar 28','green'],re:['Sep 26','green'],rl:['20hrs 2nd Job','amber'],pd:'18 Nov 24',pa:'',ps:['Due','amber'],pe:'',sc:['03 Dec','green'],sr:'02 Sep',s1:['18 Nov','green','16 Nov'],s2:['18 Feb','green','17 Feb'],s3:['18 May','green','16 May'],s4:['11 Aug','amber',''],au:['03 Aug','green']},
+    {n:'Ffion Williams',r:'Team Leader',rr:'r',st:['Active','green'],sd:'02 Jan 21',mh:['22 Feb','green'],cm:['11 Nov','green'],db:['12 Jul','red'],ed:['12 Jul','red'],re:null,rl:NONE,pd:'02 Apr 21',pa:'28 Mar 21',ps:['Passed','green'],pe:'',sc:['',''],sr:'',s1:['02 Apr','green','01 Apr'],s2:['02 Jul','green','30 Jun'],s3:['02 Oct','green','30 Sep'],s4:['28 Sep','green',''],au:['03 Aug','green']},
+    {n:'Rhys Jones',r:'Care Worker',rr:'a',st:['Active','green'],sd:'05 May 23',mh:['30 Jan','green'],cm:['24 Sep','green'],db:['Aug 27','green'],ed:['Aug 27','green'],re:null,rl:NONE,pd:'05 Aug 23',pa:'01 Aug 23',ps:['Passed','green'],pe:'',sc:['12 Oct','green'],sr:'12 Jul',s1:['05 Aug','green','04 Aug'],s2:['05 Nov','green','03 Nov'],s3:['05 Feb','green','04 Feb'],s4:['19 Nov','green',''],au:['30 Jul','amber']},
+    {n:'Seren Hughes',r:'Senior Care Worker',rr:'g',st:['Active','green'],sd:'11 Sep 21',mh:['09 Mar','green'],cm:['18 Oct','green'],db:['Jan 28','green'],ed:['Jan 28','green'],re:null,rl:NONE,pd:'11 Dec 21',pa:'05 Dec 21',ps:['Passed','green'],pe:'',sc:['15 Nov','green'],sr:'15 Aug',s1:['11 Dec','green','10 Dec'],s2:['11 Mar','green','09 Mar'],s3:['11 Jun','green','09 Jun'],s4:['02 Dec','green',''],au:['03 Aug','green']},
+    {n:'Ioan Davies',r:'Care Worker',rr:'a',st:['Active','green'],sd:'20 Feb 25',mh:['12 Aug','amber'],cm:['05 Nov','green'],db:['May 28','green'],ed:['May 28','green'],re:null,rl:NONE,pd:'20 May 25',pa:'',ps:['Due','amber'],pe:'',sc:['14 Nov','green'],sr:'',s1:['20 May','green','19 May'],s2:['20 Aug','amber',''],s3:['',''],s4:['',''],au:['03 Aug','green']}
+  ];
+  var PEOPLE_CARD=[
+    {n:'Owen Reece',r:'Care Worker',rr:'g',st:['Active','green'],sd:'03 Oct 22',mh:['02 Feb','green'],cm:['02 Nov','green'],db:['May 28','green'],ed:['May 28','green'],re:null,rl:NONE,pd:'03 Jan 23',pa:'28 Dec 22',ps:['Passed','green'],pe:'',sc:['07 Dec','green'],sr:'07 Sep',s1:['03 Jan','green','02 Jan'],s2:['03 Apr','green','01 Apr'],s3:['03 Jul','green','01 Jul'],s4:['03 Oct','green',''],au:['03 Aug','green']},
+    {n:'Nia Pryce',r:'Senior Care Worker',rr:'a',st:['Active','green'],sd:'14 Aug 21',mh:['21 Feb','green'],cm:['15 Oct','green'],db:['Jul 28','green'],ed:['Jul 28','green'],re:null,rl:NONE,pd:'14 Nov 21',pa:'09 Nov 21',ps:['Passed','green'],pe:'',sc:['09 Dec','green'],sr:'09 Sep',s1:['14 Nov','green','12 Nov'],s2:['14 Feb','green','13 Feb'],s3:['14 May','green','12 May'],s4:['14 Aug','amber',''],au:['03 Aug','green']},
+    {n:'Megan Lloyd',r:'Care Worker',rr:'a',st:['Active','green'],sd:'09 Jan 23',mh:['15 Oct','green'],cm:['21 Feb','green'],db:['Jul 26','amber'],ed:['Jul 26','amber'],re:null,rl:NONE,pd:'09 Apr 23',pa:'04 Apr 23',ps:['Passed','green'],pe:'',sc:['09 Dec','green'],sr:'09 Sep',s1:['09 Apr','green','07 Apr'],s2:['09 Jul','green','07 Jul'],s3:['09 Oct','green','07 Oct'],s4:['09 Jan','green',''],au:['03 Aug','green']}
+  ];
+  var SU_COLS=['Service User','SSID','Status','Package Start Date','Setup Due','Setup Completed','Review 1 Due','Review 1 Done','Review 2 Due','Review 2 Done','Review 3 Due','Review 3 Done','Review 4 Due','Review 4 Done','Planned Review Date','Review Status','Audit'];
+  function suRow(s){
+    var c=nameCell(s.n,'Service User')+'<td>'+plc(s.id)+'</td><td>'+pillc(s.st[0],s.st[1])+'</td><td>'+plc(s.ps)+'</td>'
+      +'<td>'+plc(s.su)+'</td><td>'+plc(s.sc)+'</td>';
+    [s.r1,s.r2,s.r3,s.r4].forEach(function(r){c+='<td>'+ragc(r[0],r[1])+'</td><td>'+plc(r[2])+'</td>';});
+    c+='<td>'+plc(s.pr)+'</td><td>'+pillc(s.rs[0],s.rs[1])+'</td><td>'+ragc(s.au[0],s.au[1])+'</td>';
+    return '<tr class="rec">'+c+'</tr>';
+  }
+  var NR=['',''];
+  var SU_CAER=[
+    {n:'Aimee Burnell',id:'9519551',st:['Active','green'],ps:'12 Jan 25',su:'27 Jan',sc:'18 Jul',r1:['17 Apr','green','15 Apr'],r2:['25 Sep','green',''],r3:NR,r4:NR,pr:'',rs:['Awaiting Review','neutral'],au:['03 Aug','green']},
+    {n:'Amanda Ford',id:'9518824',st:['Active','green'],ps:'03 Mar 25',su:'18 Mar',sc:'10 Apr',r1:['02 Aug','amber',''],r2:NR,r3:NR,r4:NR,pr:'31 Jul',rs:['Booked In','green'],au:['03 Aug','green']},
+    {n:'Andrew Price',id:'9517003',st:['Active','green'],ps:'22 Nov 24',su:'07 Dec',sc:'05 Feb',r1:['14 Jul','red',''],r2:NR,r3:NR,r4:NR,pr:'',rs:['Overdue','red'],au:['03 Aug','green']},
+    {n:'Bethan Rees',id:'9520114',st:['Hospital','amber'],ps:'05 Apr 25',su:'20 Apr',sc:'12 May',r1:['19 Sep','green',''],r2:NR,r3:NR,r4:NR,pr:'',rs:['Awaiting Review','neutral'],au:['03 Aug','green']}
+  ];
+  var SU_CARD=[
+    {n:'Ceri Hughes',id:'9516882',st:['Active','green'],ps:'14 Feb 25',su:'01 Mar',sc:'20 Mar',r1:['29 Aug','green',''],r2:NR,r3:NR,r4:NR,pr:'26 Aug',rs:['Booked In','green'],au:['03 Aug','green']},
+    {n:'Gareth Wynne',id:'9515230',st:['Respite','amber'],ps:'30 Nov 24',su:'15 Dec',sc:'08 Jan',r1:['11 Aug','amber',''],r2:NR,r3:NR,r4:NR,pr:'',rs:['Awaiting Review','neutral'],au:['03 Aug','green']},
+    {n:'Lowri Bevan',id:'9514771',st:['Active','green'],ps:'08 Jan 25',su:'23 Jan',sc:'14 Feb',r1:['03 Jul','red',''],r2:NR,r3:NR,r4:NR,pr:'',rs:['Overdue','red'],au:['03 Aug','green']}
+  ];
+  function renderMatrices(){
+    var pe=document.querySelector('#view-people .scroll');
+    if(pe)pe.innerHTML=groupTable(PEOPLE_COLS,PEOPLE_CAER,personRow,'Caerphilly',41,38,2,1,'Add a Person to')+groupTable(PEOPLE_COLS,PEOPLE_CARD,personRow,'Cardiff1',24,23,1,0,'Add a Person to');
+    var su=document.querySelector('#view-su .scroll');
+    if(su)su.innerHTML=groupTable(SU_COLS,SU_CAER,suRow,'Caerphilly',15,13,1,1,'Add a Service User to')+groupTable(SU_COLS,SU_CARD,suRow,'Cardiff1',9,9,0,0,'Add a Service User to');
+  }
+  renderMatrices();
   document.querySelectorAll('#view-people tr.rec').forEach(function(row){row.addEventListener('click',function(){var nm=row.dataset.name,role=row.dataset.role,st=row.dataset.status;if(nm){document.getElementById('recName').textContent=nm;document.getElementById('recAv').textContent=nm.split(' ').map(function(w){return w[0];}).join('').slice(0,2);if(role)document.getElementById('recMeta').textContent=role+' · Caerphilly · Started 2 Jan 2021';var pill=document.getElementById('recPill');if(st==='g'){pill.textContent='Compliant';pill.style.background='var(--green)';}else if(st==='a'){pill.textContent='Due soon';pill.style.background='var(--amber)';}else{pill.textContent='Overdue';pill.style.background='var(--red)';}}go('person');});});
   document.querySelectorAll('.plbtn').forEach(function(b){b.addEventListener('click',function(){document.querySelectorAll('.plbtn').forEach(function(x){x.classList.remove('on');});b.classList.add('on');var w=b.dataset.pl;document.getElementById('pl-whiteboard').style.display=(w==='whiteboard')?'':'none';document.getElementById('pl-myplanner').style.display=(w==='myplanner')?'':'none';});});
   var tb=document.getElementById('themeBtn'),tl=document.getElementById('themeLbl');
