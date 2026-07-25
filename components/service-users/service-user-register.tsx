@@ -85,7 +85,7 @@ function RagDate({ date, rag }: { date: string | null; rag: string }) {
 }
 
 const VIEW_META: Record<string, { title: string; match: (r: ServiceUserRow) => boolean }> = {
-  main: { title: "Service Users", match: (r) => r.service_user.service_status === "active" && !r.service_user.archived_at },
+  main: { title: "Compliance", match: (r) => r.service_user.service_status === "active" && !r.service_user.archived_at },
   hospital: { title: "Hospital", match: (r) => r.service_user.service_status === "hospital" && !r.service_user.archived_at },
   respite: { title: "Respite", match: (r) => r.service_user.service_status === "respite" && !r.service_user.archived_at },
   cancelled: { title: "Cancelled", match: (r) => r.service_user.service_status === "cancelled" && !r.service_user.archived_at },
