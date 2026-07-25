@@ -416,19 +416,22 @@
 
   /* A RAG status cell: a compact due date chip coloured by status. */
   .rag-cell {
-    @apply inline-flex flex-col gap-0.5 rounded-lg px-2 py-1 text-xs font-semibold leading-tight;
+    @apply inline-flex flex-col items-center gap-0.5 rounded-full px-2.5 py-1 text-xs font-semibold leading-tight;
   }
 
   .rag-cell-green {
-    @apply bg-rag-green-soft text-rag-green-deep;
+    background: rgba(0, 200, 117, 0.16);
+    color: #43d99a;
   }
 
   .rag-cell-amber {
-    @apply bg-rag-amber-soft text-rag-amber-deep;
+    background: rgba(253, 171, 61, 0.16);
+    color: #f5bd6a;
   }
 
   .rag-cell-red {
-    @apply bg-rag-red-soft text-rag-red-deep;
+    background: rgba(226, 68, 92, 0.16);
+    color: #f18196;
   }
 
   .rag-cell-none {
