@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   TrainingCourse,
   TrainingPerson,
@@ -38,6 +38,10 @@ export default function TrainingMatrix({
 }) {
   const [branch, setBranch] = useState<string>("all");
   const [selected, setSelected] = useState<Selected | null>(null);
+  const [navy, setNavy] = useState(false);
+  useEffect(() => {
+    setNavy(typeof document !== "undefined" && !!document.querySelector(".theme-navy"));
+  }, []);
   const wrapRef = useRef<HTMLDivElement>(null);
 
   const shown = useMemo(
@@ -109,9 +113,20 @@ export default function TrainingMatrix({
                   </td>
                   {courses.map((c) => {
                     const cell = p.cells[c.id];
+                    // Acme navy theme: show one-off "Done / Not done" as a tick / cross.
+                    const glyph =
+                      navy && cell.label === "Done"
+                        ? "✓"
+                        : navy && cell.label === "Not done"
+                          ? "✕"
+                          : null;
                     const inner = (
                       <span className={`rag-cell ${ragClass(cell.rag)}`}>
-                        {cell.label}
+                        {glyph ? (
+                          <span style={{ fontWeight: 700, fontSize: "14px", lineHeight: 1 }}>{glyph}</span>
+                        ) : (
+                          cell.label
+                        )}
                         {cell.sub ? <span className="rag-sub">{cell.sub}</span> : null}
                       </span>
                     );
