@@ -11,7 +11,6 @@
  */
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
@@ -378,7 +377,8 @@ export async function resolveFollowUp(_prev: ActionState, formData: FormData): P
   revalidatePath("/dashboard");
   revalidatePath("/on-call/log");
   revalidatePath(`/on-call/log/${id}`);
-  if (done) redirect(`/on-call/log/${id}`);
+  // revalidatePath above re-renders the page into its completed state; no
+  // redirect() here (forbidden in useActionState actions, see lib/forms).
   return { ok: "Saved." };
 }
 

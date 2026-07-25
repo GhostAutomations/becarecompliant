@@ -6,15 +6,18 @@
  * One client wrapper that turns any ActionState server action into a compliant
  * save button, so every mutation across the app follows the same rules without a
  * bespoke component each time: instant "Saving" on press, inputs disabled while
- * pending, "Saved" on success reverting to the label when edited again, and a
- * visible inline error when the action refuses (the actions themselves check the
- * update count, so an RLS no-op surfaces here rather than passing silently).
+ * pending, a brief green "Saved" flash (about 2 seconds) that then reverts to
+ * the normal label (never a stuck green box), client-side navigation when the
+ * action returns redirectTo (never redirect() inside the action, see lib/forms),
+ * and a visible inline error when the action refuses (the actions themselves
+ * check the update count, so an RLS no-op surfaces here rather than silently).
  *
  * The server action is passed in as a prop (server actions are valid props to a
  * client component), keeping the page a server component.
  */
 
 import { useActionState, useEffect, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { IDLE_STATE, type ActionState } from "@/lib/forms";
 
 type ServerAction = (prev: ActionState, formData: FormData) => Promise<ActionState>;
@@ -48,13 +51,23 @@ export default function ActionForm({
 }) {
   const [state, formAction, pending] = useActionState(action, IDLE_STATE);
   const [saved, setSaved] = useState(false);
+  const router = useRouter();
 
-  // On success the button turns green and reads Saved/Sent, and STAYS that way
-  // until the section is edited again (onChange below resets it). Per Phil: this
-  // is a persistent confirmation, not a brief flash.
+  // On success the button flashes green Saved/Sent for about 2 seconds, then
+  // reverts to the normal label. Never a stuck green box (standing save rule).
   useEffect(() => {
-    if (state.ok && !pending) setSaved(true);
+    if (state.ok && !pending) {
+      setSaved(true);
+      const t = setTimeout(() => setSaved(false), 2000);
+      return () => clearTimeout(t);
+    }
   }, [state, pending]);
+
+  // Actions return { redirectTo } instead of calling redirect() (see lib/forms);
+  // the navigation happens client-side here.
+  useEffect(() => {
+    if (state.redirectTo) router.replace(state.redirectTo);
+  }, [state.redirectTo, router]);
 
   const showSaved = saved && !pending;
   const btnLabel = pending ? savingLabel : showSaved ? savedLabel : label;
