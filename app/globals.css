@@ -234,15 +234,21 @@
   }
 
   .pill-green {
-    @apply border-rag-green/20 bg-rag-green-soft text-rag-green-deep;
+    border-color: transparent;
+    background: rgba(0, 200, 117, 0.16);
+    color: #43d99a;
   }
 
   .pill-amber {
-    @apply border-rag-amber/20 bg-rag-amber-soft text-rag-amber-deep;
+    border-color: transparent;
+    background: rgba(253, 171, 61, 0.16);
+    color: #f5bd6a;
   }
 
   .pill-red {
-    @apply border-rag-red/20 bg-rag-red-soft text-rag-red-deep;
+    border-color: transparent;
+    background: rgba(226, 68, 92, 0.16);
+    color: #f18196;
   }
 
   .pill-neutral {
