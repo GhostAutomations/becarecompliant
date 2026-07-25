@@ -553,6 +553,9 @@
   border-radius: 3px;
   background: transparent;
   border: none;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
 }
 .navy-ric:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
 .navy-ric.on { color: var(--color-gold-400); }
@@ -629,4 +632,12 @@
   background: var(--color-gold-400);
   color: #20180a;
   border-color: var(--color-gold-400);
+}
+/* Training: a person with any expired course gets a red name cell (navy theme). */
+.theme-navy .matrix td.col-carer.training-expired {
+  background: rgba(239, 97, 82, 0.2);
+}
+.theme-navy .matrix td.col-carer.training-expired div {
+  color: #f38a7c;
+  font-weight: 600;
 }

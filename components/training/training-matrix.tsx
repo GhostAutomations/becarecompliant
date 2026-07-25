@@ -106,9 +106,13 @@ export default function TrainingMatrix({
               </tr>
             </thead>
             <tbody>
-              {shown.map((p) => (
+              {shown.map((p) => {
+                // Navy theme: if any course is expired, flag the name cell instead of
+                // adding an "Expired" line to the date cell (which made rows uneven).
+                const hasExpired = navy && courses.some((c) => p.cells[c.id]?.sub === "Expired");
+                return (
                 <tr key={p.id}>
-                  <td className="col-carer">
+                  <td className={`col-carer ${hasExpired ? "training-expired" : ""}`}>
                     <div className="font-medium text-white/90">{p.full_name}</div>
                   </td>
                   {courses.map((c) => {
@@ -127,7 +131,7 @@ export default function TrainingMatrix({
                         ) : (
                           cell.label
                         )}
-                        {cell.sub ? <span className="rag-sub">{cell.sub}</span> : null}
+                        {cell.sub && !navy ? <span className="rag-sub">{cell.sub}</span> : null}
                       </span>
                     );
                     return (
@@ -150,7 +154,8 @@ export default function TrainingMatrix({
                     );
                   })}
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
               </table>
             </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { NavEntry } from "@/lib/nav";
@@ -49,10 +49,40 @@ export default function NavyNav({
     setOpen(true);
   };
 
+  // Line each rail icon up with the vertical centre of its department row in the
+  // drawer, so the two columns match even when a department's sub-items expand.
+  const railRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const rail = railRef.current;
+    if (!rail) return;
+    const align = () => {
+      const railTop = rail.getBoundingClientRect().top;
+      rail.querySelectorAll<HTMLElement>(".navy-ric[data-href]").forEach((ic) => {
+        const href = ic.getAttribute("data-href");
+        const wi = href
+          ? document.querySelector<HTMLElement>(
+              `.navy-wi.parent[data-href="${CSS.escape(href)}"]`,
+            )
+          : null;
+        if (!wi) return;
+        const r = wi.getBoundingClientRect();
+        ic.style.top = `${r.top - railTop + r.height / 2 - ic.offsetHeight / 2}px`;
+      });
+    };
+    align();
+    const t = setTimeout(align, 60);
+    window.addEventListener("resize", align);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("resize", align);
+    };
+  }, [open, focus, pathname]);
+
   return (
     <>
       {/* Icon rail (desktop). Mobile keeps the existing bottom dock. */}
       <div
+        ref={railRef}
         className="navy-rail hidden shrink-0 md:flex"
         onMouseEnter={cancelClose}
         onMouseLeave={scheduleClose}
@@ -77,6 +107,7 @@ export default function NavyNav({
           <button
             key={e.href}
             type="button"
+            data-href={e.href}
             title={e.label}
             aria-label={e.label}
             className={`navy-ric ${inSection(e) ? "on" : ""}`}
@@ -100,13 +131,14 @@ export default function NavyNav({
         <nav className="flex flex-col gap-1">
           {entries.map((entry) => {
             const children = entry.children ?? [];
-            const showKids = entry.href === focus && children.length > 0;
+            const showKids = open && entry.href === focus && children.length > 0;
             const activeChild = children.find((c) => isActive(c.href) && c.href !== entry.href);
             const parentOn = isActive(entry.href) && !activeChild;
             return (
               <div key={entry.href}>
                 <Link
                   href={entry.href}
+                  data-href={entry.href}
                   className={`navy-wi parent ${parentOn ? "on" : ""}`}
                   onClick={() => setOpen(false)}
                 >
