@@ -715,7 +715,7 @@
   function pillc(l,t){return '<span class="pill pill-'+t+'">'+l+'</span>';}
   function plc(d){return '<span class="plainc'+(d&&d!=='—'?'':' mut')+'">'+(d||'—')+'</span>';}
   function ini(n){return n.split(' ').map(function(w){return w[0];}).join('').slice(0,2);}
-  function nameCell(n,role){return '<td class="name"><div class="person"><div class="pav">'+ini(n)+'</div><div><b>'+n+'</b><small>'+role+'</small></div></div></td>';}
+  function nameCell(n,role){return '<td class="name"><div class="person"><div class="pav">'+ini(n)+'</div><div><b>'+n+'</b></div></div></td>';}
   function groupTable(cols,rows,rowFn,branch,recs,g,a,rr,addLabel){
     var sum='<span class="g">'+g+' compliant</span>'+(a?'<span class="a">'+a+' due</span>':'')+(rr?'<span class="r">'+rr+' overdue</span>':'');
     var head='<thead><tr><th class="l">'+cols[0]+'</th>'+cols.slice(1).map(function(h){return '<th>'+h+'</th>';}).join('')+'</tr></thead>';
