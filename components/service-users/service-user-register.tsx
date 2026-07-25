@@ -14,7 +14,7 @@
  * the record drill-down.
  */
 
-import { Fragment, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { NavIcon } from "@/components/nav-icon";
@@ -129,6 +129,10 @@ export default function ServiceUserRegister({
   );
   const [search, setSearch] = useState("");
   const [worstFirst, setWorstFirst] = useState(false);
+  const [navy, setNavy] = useState(false);
+  useEffect(() => {
+    setNavy(typeof document !== "undefined" && !!document.querySelector(".theme-navy"));
+  }, []);
   const wrapRef = useRef<HTMLDivElement>(null);
   const meta = VIEW_META[view];
   const col = (key: string, def: string) => columnLabels[key] || def;
@@ -190,14 +194,29 @@ export default function ServiceUserRegister({
 
       <div className="flex flex-wrap items-center gap-4">
         {branchOptions.length >= 1 ? (
-          <label className="flex items-center gap-2 text-sm font-bold text-white">
-            Branches
-            <select className="inline-cell" value={branchId} onChange={(e) => changeBranch(e.target.value)}>
+          navy ? (
+            <div className="flex flex-wrap gap-1.5">
               {branchOptions.map((b) => (
-                <option key={b.id} value={b.id}>{b.name}</option>
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => changeBranch(b.id)}
+                  className={`navy-branchbtn ${b.id === branchId ? "on" : ""}`}
+                >
+                  {b.name}
+                </button>
               ))}
-            </select>
-          </label>
+            </div>
+          ) : (
+            <label className="flex items-center gap-2 text-sm font-bold text-white">
+              Branches
+              <select className="inline-cell" value={branchId} onChange={(e) => changeBranch(e.target.value)}>
+                {branchOptions.map((b) => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+            </label>
+          )
         ) : null}
 
         <label className="flex items-center gap-2 text-sm font-bold text-white">
