@@ -22,7 +22,7 @@
   .app{display:grid;grid-template-columns:56px 1fr;height:100vh;overflow:hidden;background:var(--appbg);position:relative}
   .board{background:var(--appbg)}
 
-  .rail{background:var(--appbg);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 0;position:relative}
+  .rail{background:var(--appbg);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 0;position:relative;z-index:60}
   .rlogo{width:32px;height:32px;background:var(--gold);display:grid;place-items:center;margin-bottom:10px}
   .rlogo svg{width:18px;height:18px}
   .ric{width:36px;height:36px;display:grid;place-items:center;color:var(--railtxt);cursor:pointer;border-radius:3px}
@@ -31,7 +31,7 @@
   .rail .sp{flex:1}.rav{width:30px;height:30px;background:#2A2E38;color:#fff;display:grid;place-items:center;font-weight:600;font-size:11px}
   .rail-brand{writing-mode:vertical-rl;transform:rotate(180deg);font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);white-space:nowrap;margin-bottom:14px}
 
-  .ws{position:fixed;left:56px;top:0;bottom:0;width:184px;z-index:50;border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden;background:var(--appbg);box-shadow:2px 0 18px rgba(0,0,0,.5);transform:translateX(-112%);transition:transform .18s ease;pointer-events:none}
+  .ws{position:fixed;left:56px;top:0;bottom:0;width:184px;z-index:50;border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden;background:var(--appbg);box-shadow:2px 0 18px rgba(0,0,0,.5);transform:translateX(calc(-100% - 62px));transition:transform .18s ease;pointer-events:none}
   .app.nav-open .ws{transform:translateX(0);pointer-events:auto}
   .ws-top{padding:15px 16px;border-bottom:1px solid var(--line)}
   .ws-top b{font-size:13.5px;font-weight:700;letter-spacing:-.01em}.ws-top span{display:block;font-size:11px;color:var(--faint);margin-top:2px}
