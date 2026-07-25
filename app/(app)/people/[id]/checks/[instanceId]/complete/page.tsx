@@ -17,7 +17,7 @@ import {
 import { supervisionSlots, annotateSupervisionOptions } from "@/lib/people/logic";
 import { todayInLondon, formatCivilDate } from "@/lib/recurrence";
 import { recordFormPresets } from "@/lib/forms/record-presets";
-import { isFormSchema, removeField, type Answers, type FormSchema } from "@/lib/form-schema";
+import { fieldToNameSelect, findField, isFormSchema, removeField, type Answers, type FormSchema } from "@/lib/form-schema";
 import type { CheckDefinition } from "@/lib/people/types";
 
 export const metadata: Metadata = { title: "Complete check" };
@@ -105,6 +105,15 @@ export default async function CompleteCheckPage({
     today: formatCivilDate(todayInLondon()),
   });
   presetAnswers = { ...recordPresets, ...(presetAnswers ?? {}) };
+
+  // Audit (and any form with an auditor_name field): the Auditor Full Name is a
+  // dropdown of the company's active users, preselected to whoever is signed in
+  // and changeable to any other user (Phil, 2026-07-25).
+  if (findField(schema, "auditor_name")) {
+    const { data: userRows } = await supabase.rpc("get_company_user_names");
+    const names = ((userRows ?? []) as { display_name: string }[]).map((u) => u.display_name);
+    schema = fieldToNameSelect(schema, "auditor_name", names, profile.full_name || profile.email || null);
+  }
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">

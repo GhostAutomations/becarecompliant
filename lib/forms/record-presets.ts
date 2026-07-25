@@ -41,6 +41,7 @@ const AUTHOR_KEYS = new Set([
   "reviewer",
   "reviewer_name",
   "supervisor_name",
+  "auditor_name",
 ]);
 
 export function recordFormPresets(

@@ -184,6 +184,41 @@ export function removeField(schema: FormSchema, key: string): FormSchema {
   };
 }
 
+/** Return a copy of the schema with the named field turned into a single_select
+ *  offering the given names as choices. The preset/current value is always included
+ *  (deduped, kept first) so the default can never be an invalid option. Render-side
+ *  only: the STORED form version keeps the original field type, and a selected name
+ *  is still just a string, so server validation of the stored version is unchanged
+ *  (same pattern as annotateSupervisionOptions / removeField).
+ *  First use: the Audit form's Auditor Full Name as a dropdown of active users. */
+export function fieldToNameSelect(
+  schema: FormSchema,
+  key: string,
+  names: string[],
+  ensureFirst?: string | null,
+): FormSchema {
+  const list = [...new Set([...(ensureFirst ? [ensureFirst] : []), ...names])]
+    .map((n) => n.trim())
+    .filter((n) => n !== "");
+  if (list.length === 0) return schema;
+  return {
+    ...schema,
+    sections: schema.sections.map((s) => ({
+      ...s,
+      fields: s.fields.map((f) =>
+        f.key === key
+          ? {
+              ...f,
+              type: "single_select" as const,
+              options: list.map((n) => ({ value: n, label: n })),
+              placeholder: undefined,
+            }
+          : f,
+      ),
+    })),
+  };
+}
+
 /**
  * Narrow an unknown value (e.g. jsonb from the database) to a FormSchema.
  * Cheap structural guard: enough to fail fast on a malformed schema before the
