@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { createLog, updateLog, saveLogDraft } from "@/lib/on-call/actions";
 import { IDLE_STATE } from "@/lib/forms";
@@ -34,8 +35,17 @@ export default function LogForm({
   const [state, formAction, pending] = useActionState(editing ? updateLog : createLog, IDLE_STATE);
   const [confirming, setConfirming] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   useEffect(() => { if (state.ok) setConfirming(false); }, [state.ok]);
-  useEffect(() => { if (state.ok && !pending) setSaved(true); }, [state.ok, pending]);
+  // Flash the green "Saved" briefly, then revert (never a stuck green box).
+  useEffect(() => {
+    if (state.ok && !pending) {
+      setSaved(true);
+      const t = setTimeout(() => setSaved(false), 2000);
+      return () => clearTimeout(t);
+    }
+  }, [state.ok, pending]);
   // After createLog / finalise, the action returns redirectTo and we navigate here
   // (the action must not call redirect() itself — see lib/forms).
   useEffect(() => { if (state.redirectTo) router.replace(state.redirectTo); }, [state.redirectTo, router]);
@@ -59,7 +69,7 @@ export default function LogForm({
   }
 
   return (
-    <form ref={formRef} action={formAction} onChange={onChange} className="space-y-5">
+    <form id="oncall-log-form" ref={formRef} action={formAction} onChange={onChange} className="space-y-5">
       {editing ? <input type="hidden" name="id" value={log.id} /> : null}
       {editing ? <input type="hidden" name="finalise" ref={finaliseRef} defaultValue="no" /> : null}
       <input type="hidden" name="scope" value={scope} />
@@ -151,25 +161,34 @@ export default function LogForm({
         </div>
       )}
 
-      {confirming ? (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4"
-          onClick={() => { if (!pending) setConfirming(false); }}
-        >
-          <div className="glass-card w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-base font-semibold text-white">Finish this shift?</h3>
-            <p className="mt-2 text-sm text-white/70">Once finalised it can no longer be edited.</p>
-            <div className="mt-5 flex flex-wrap items-center gap-3">
-              <button type="submit" onClick={() => { if (finaliseRef.current) finaliseRef.current.value = "yes"; }} className="btn-primary" disabled={pending}>
-                {pending ? "Saving…" : "Yes, finalise"}
-              </button>
-              <button type="button" className="btn-ghost" onClick={() => setConfirming(false)} disabled={pending}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      {mounted && confirming
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4"
+              onClick={() => { if (!pending) setConfirming(false); }}
+            >
+              <div className="glass-card w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+                <h3 className="text-base font-semibold text-white">Finish this shift?</h3>
+                <p className="mt-2 text-sm text-white/70">Once finalised it can no longer be edited.</p>
+                <div className="mt-5 flex flex-wrap items-center gap-3">
+                  <button
+                    type="submit"
+                    form="oncall-log-form"
+                    onClick={() => { if (finaliseRef.current) finaliseRef.current.value = "yes"; }}
+                    className="btn-primary"
+                    disabled={pending}
+                  >
+                    {pending ? "Saving…" : "Yes, finalise"}
+                  </button>
+                  <button type="button" className="btn-ghost" onClick={() => setConfirming(false)} disabled={pending}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
       {draftEnabled ? (
         <p className="text-xs text-white/40">This saves automatically as you type, and stays for up to 12 hours until you submit it, even if you log out.</p>
       ) : null}
