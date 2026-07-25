@@ -36,6 +36,9 @@ export default function LogForm({
   const [saved, setSaved] = useState(false);
   useEffect(() => { if (state.ok) setConfirming(false); }, [state.ok]);
   useEffect(() => { if (state.ok && !pending) setSaved(true); }, [state.ok, pending]);
+  // After createLog / finalise, the action returns redirectTo and we navigate here
+  // (the action must not call redirect() itself — see lib/forms).
+  useEffect(() => { if (state.redirectTo) router.replace(state.redirectTo); }, [state.redirectTo, router]);
 
   const dv = (key: string, fallback = "") => (editing ? fallback : d[key] ?? fallback);
   const shiftValue = editing ? `${log?.slot}|${log?.shift_date}` : d.shift || defaultShift;

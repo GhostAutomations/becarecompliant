@@ -309,7 +309,8 @@ export async function createLog(_prev: ActionState, formData: FormData): Promise
     action: "on_call.call_logged", entityType: "on_call_log", entityId: data.id,
     summary: "Logged an on-call shift", metadata: { shift: `${fields.slot}:${fields.shift_date}` },
   });
-  redirect(`/on-call/log/${data.id}`);
+  // Navigate client-side (never redirect() from a Server Action here, per lib/forms).
+  return { ok: "Shift logged.", redirectTo: `/on-call/log/${data.id}` };
 }
 
 export async function updateLog(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -348,7 +349,7 @@ export async function updateLog(_prev: ActionState, formData: FormData): Promise
   revalidatePath(`/on-call/log/${id}`);
   revalidatePath("/on-call/log");
   // Finalising locks the shift: navigate so the page re-renders read-only.
-  if (finalise) redirect(`/on-call/log/${id}`);
+  if (finalise) return { ok: "Shift finalised.", redirectTo: `/on-call/log/${id}` };
   return { ok: "Saved." };
 }
 
