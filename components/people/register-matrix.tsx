@@ -9,7 +9,7 @@
  * Styled only with canonical classes from globals.css.
  */
 
-import { useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   type RegisterRow,
@@ -130,13 +130,46 @@ export default function RegisterMatrix({
       ? [...WORKING_STATUS_OPTIONS, { value: "archive", label: "Archive" }]
       : WORKING_STATUS_OPTIONS;
 
-  const filtered = rows;
+  // Acme "navy" theme only: show one branch at a time with a switcher.
+  const [navy, setNavy] = useState(false);
+  useEffect(() => {
+    setNavy(typeof document !== "undefined" && !!document.querySelector(".theme-navy"));
+  }, []);
+  const branches = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const r of rows) {
+      if (r.person.branch_id) m.set(r.person.branch_id, r.person.branch_name ?? "Branch");
+    }
+    return Array.from(m, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [rows]);
+  const [branchId, setBranchId] = useState<string>("");
+  useEffect(() => {
+    if (navy && branches.length && !branches.some((b) => b.id === branchId)) {
+      setBranchId(branches[0].id);
+    }
+  }, [navy, branches, branchId]);
+  const oneBranch = navy && branches.length > 1;
+  const filtered = oneBranch && branchId ? rows.filter((r) => r.person.branch_id === branchId) : rows;
   // Four-supervisions mode: show a Sup 4 column pair and no Annual Appraisal columns.
   const fourSup = config.cycleMode === "four_supervisions";
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
+        {oneBranch ? (
+          <div className="flex flex-wrap gap-1.5">
+            {branches.map((b) => (
+              <button
+                key={b.id}
+                type="button"
+                onClick={() => setBranchId(b.id)}
+                className={`navy-branchbtn ${b.id === branchId ? "on" : ""}`}
+              >
+                {b.name}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <span className="ml-auto text-xs text-white/50">
           {filtered.length} {filtered.length === 1 ? "record" : "records"}
         </span>

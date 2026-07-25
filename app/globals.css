@@ -614,3 +614,19 @@
 /* Compact matrix rows for the navy theme, like the demo. */
 .theme-navy .matrix td { padding-top: 2px; padding-bottom: 2px; }
 .theme-navy .matrix th { padding-top: 5px; padding-bottom: 5px; }
+/* One-branch-at-a-time switcher (navy theme). */
+.navy-branchbtn {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: var(--color-navy-900);
+  color: #93a3cc;
+  font-weight: 600;
+  font-size: 12.5px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.navy-branchbtn.on {
+  background: var(--color-gold-400);
+  color: #20180a;
+  border-color: var(--color-gold-400);
+}
