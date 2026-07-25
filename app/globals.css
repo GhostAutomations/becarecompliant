@@ -596,7 +596,7 @@
   transform: translateX(calc(-100% - 62px));
   transition: transform 0.18s ease;
   overflow: auto;
-  padding: 14px 8px;
+  padding: 54px 8px 8px;
 }
 .navy-drawer.open { transform: translateX(0); }
 .navy-wi {
