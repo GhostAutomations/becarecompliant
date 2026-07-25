@@ -650,3 +650,12 @@
   color: #f38a7c;
   font-weight: 600;
 }
+
+/* RAG shading for status pills and date cells. Unlayered so it reliably beats
+   the @layer components defaults, across the whole app. */
+.pill-green { background: rgba(0, 200, 117, 0.16); color: #43d99a; border-color: transparent; }
+.pill-amber { background: rgba(253, 171, 61, 0.16); color: #f5bd6a; border-color: transparent; }
+.pill-red { background: rgba(226, 68, 92, 0.16); color: #f18196; border-color: transparent; }
+.rag-cell-green { background: rgba(0, 200, 117, 0.16); color: #43d99a; }
+.rag-cell-amber { background: rgba(253, 171, 61, 0.16); color: #f5bd6a; }
+.rag-cell-red { background: rgba(226, 68, 92, 0.16); color: #f18196; }
