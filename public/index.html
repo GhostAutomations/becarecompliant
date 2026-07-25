@@ -89,14 +89,17 @@
   table{width:max-content;min-width:100%;border-collapse:collapse}
   thead th{font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);font-weight:700;text-align:center;padding:9px 8px;border-bottom:1px solid var(--line);background:var(--sheet);white-space:nowrap;min-width:82px}
   thead th.l{text-align:left;padding-left:16px;min-width:190px;position:sticky;left:0;z-index:3}
-  tbody td{border-bottom:1px solid var(--line-2);border-right:1px solid var(--line-2);padding:0;height:44px;text-align:center;min-width:82px}
+  tbody td{border-bottom:1px solid var(--line-2);border-right:1px solid var(--line-2);padding:0 4px;height:33px;text-align:center;min-width:82px}
+  .branchbar{display:flex;gap:6px;margin-bottom:14px}
+  .brbtn{border:1px solid var(--line);background:var(--sheet);color:var(--soft);font-weight:600;font-size:12.5px;padding:6px 14px;border-radius:6px;cursor:pointer;font-family:inherit}
+  .brbtn.on{background:var(--gold);color:#20180a;border-color:var(--gold)}
   tbody td.name{text-align:left;padding:0 14px 0 16px;min-width:190px;position:sticky;left:0;z-index:2;background:var(--sheet)}
   tbody td:last-child{border-right:0}
   tbody tr:last-child td{border-bottom:0}
   tbody tr.rec{cursor:pointer}
   tbody tr.rec:hover td{background:var(--wash)}
-  .person{display:flex;align-items:center;gap:10px}
-  .pav{width:28px;height:28px;background:var(--pavbg);color:var(--pavtx);display:grid;place-items:center;font-weight:600;font-size:10.5px;border-radius:3px}
+  .person{display:flex;align-items:center;gap:8px}
+  .pav{width:22px;height:22px;background:var(--pavbg);color:var(--pavtx);display:grid;place-items:center;font-weight:600;font-size:9.5px;border-radius:3px;flex-shrink:0}
   .person b{font-weight:600;font-size:13px}.person small{display:block;color:var(--faint);font-size:11px}
   /* crisp status cell: light tint + 2px colour top keyline + mono date */
   .st{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
@@ -768,14 +771,20 @@
     {n:'Gareth Wynne',id:'9515230',st:['Respite','amber'],ps:'30 Nov 24',su:'15 Dec',sc:'08 Jan',r1:['11 Aug','amber',''],r2:NR,r3:NR,r4:NR,pr:'',rs:['Awaiting Review','neutral'],au:['03 Aug','green']},
     {n:'Lowri Bevan',id:'9514771',st:['Active','green'],ps:'08 Jan 25',su:'23 Jan',sc:'14 Feb',r1:['03 Jul','red',''],r2:NR,r3:NR,r4:NR,pr:'',rs:['Overdue','red'],au:['03 Aug','green']}
   ];
+  var PEOPLE_BR=[{name:'Caerphilly',rows:PEOPLE_CAER,recs:41,g:38,a:2,r:1},{name:'Cardiff1',rows:PEOPLE_CARD,recs:24,g:23,a:1,r:0}];
+  var SU_BR=[{name:'Caerphilly',rows:SU_CAER,recs:15,g:13,a:1,r:1},{name:'Cardiff1',rows:SU_CARD,recs:9,g:9,a:0,r:0}];
+  var pBranch='Caerphilly',sBranch='Caerphilly';
+  function branchBar(kind,brs,sel){return '<div class="branchbar">'+brs.map(function(b){return '<button class="brbtn'+(b.name===sel?' on':'')+'" data-mx="'+kind+'" data-br="'+b.name+'">'+b.name+'</button>';}).join('')+'</div>';}
+  function findBr(brs,name){for(var i=0;i<brs.length;i++)if(brs[i].name===name)return brs[i];return brs[0];}
   function renderMatrices(){
     var pe=document.querySelector('#view-people .scroll');
-    if(pe)pe.innerHTML=groupTable(PEOPLE_COLS,PEOPLE_CAER,personRow,'Caerphilly',41,38,2,1,'Add a Person to')+groupTable(PEOPLE_COLS,PEOPLE_CARD,personRow,'Cardiff1',24,23,1,0,'Add a Person to');
+    if(pe){var b=findBr(PEOPLE_BR,pBranch);pe.innerHTML=branchBar('people',PEOPLE_BR,pBranch)+groupTable(PEOPLE_COLS,b.rows,personRow,b.name,b.recs,b.g,b.a,b.r,'Add a Person to');}
     var su=document.querySelector('#view-su .scroll');
-    if(su)su.innerHTML=groupTable(SU_COLS,SU_CAER,suRow,'Caerphilly',15,13,1,1,'Add a Service User to')+groupTable(SU_COLS,SU_CARD,suRow,'Cardiff1',9,9,0,0,'Add a Service User to');
+    if(su){var b2=findBr(SU_BR,sBranch);su.innerHTML=branchBar('su',SU_BR,sBranch)+groupTable(SU_COLS,b2.rows,suRow,b2.name,b2.recs,b2.g,b2.a,b2.r,'Add a Service User to');}
   }
+  document.addEventListener('click',function(e){var t=e.target;while(t&&t!==document&&!(t.classList&&t.classList.contains('brbtn')))t=t.parentNode;if(t&&t.classList&&t.classList.contains('brbtn')){if(t.dataset.mx==='people')pBranch=t.dataset.br;else sBranch=t.dataset.br;renderMatrices();}});
   renderMatrices();
-  document.querySelectorAll('#view-people tr.rec').forEach(function(row){row.addEventListener('click',function(){var nm=row.dataset.name,role=row.dataset.role,st=row.dataset.status;if(nm){document.getElementById('recName').textContent=nm;document.getElementById('recAv').textContent=nm.split(' ').map(function(w){return w[0];}).join('').slice(0,2);if(role)document.getElementById('recMeta').textContent=role+' · Caerphilly · Started 2 Jan 2021';var pill=document.getElementById('recPill');if(st==='g'){pill.textContent='Compliant';pill.style.background='var(--green)';}else if(st==='a'){pill.textContent='Due soon';pill.style.background='var(--amber)';}else{pill.textContent='Overdue';pill.style.background='var(--red)';}}go('person');});});
+  document.getElementById('view-people').addEventListener('click',function(e){var row=e.target.closest?e.target.closest('tr.rec'):null;if(!row)return;var nm=row.dataset.name,role=row.dataset.role,st=row.dataset.status;if(!nm)return;document.getElementById('recName').textContent=nm;document.getElementById('recAv').textContent=nm.split(' ').map(function(w){return w[0];}).join('').slice(0,2);if(role)document.getElementById('recMeta').textContent=role+' · '+pBranch+' · Started 2 Jan 2021';var pill=document.getElementById('recPill');if(st==='g'){pill.textContent='Compliant';pill.style.background='var(--green)';}else if(st==='a'){pill.textContent='Due soon';pill.style.background='var(--amber)';}else{pill.textContent='Overdue';pill.style.background='var(--red)';}go('person');});
   document.querySelectorAll('.plbtn').forEach(function(b){b.addEventListener('click',function(){document.querySelectorAll('.plbtn').forEach(function(x){x.classList.remove('on');});b.classList.add('on');var w=b.dataset.pl;document.getElementById('pl-whiteboard').style.display=(w==='whiteboard')?'':'none';document.getElementById('pl-myplanner').style.display=(w==='myplanner')?'':'none';});});
   var tb=document.getElementById('themeBtn'),tl=document.getElementById('themeLbl');
   if(tb&&tl){tb.addEventListener('click',function(){var d=document.body.classList.toggle('dark');tl.textContent=d?'Light':'Dark';});}
