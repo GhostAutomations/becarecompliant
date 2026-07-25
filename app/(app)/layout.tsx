@@ -60,8 +60,8 @@ export default async function AppLayout({
     uiTheme = c?.ui_theme ?? "classic";
     companyName = c?.name ?? "";
   }
-  // Acme-only crisp navy theme, driven by a per-company flag; everyone else stays classic.
-  const themeClass = uiTheme === "navy" ? "theme-navy" : "";
+  // Acme keeps the rail + collapsible drawer (below); the crisp "navy" surface
+  // theme was reverted, so we no longer apply the .theme-navy class.
   const navy = uiTheme === "navy";
   const initials = (profile.full_name || profile.email || "?")
     .split(/[\s@.]+/)
@@ -99,7 +99,7 @@ export default async function AppLayout({
         : "/dashboard";
 
   return (
-    <div className={`app-bg flex h-dvh overflow-hidden ${themeClass}`}>
+    <div className="app-bg flex h-dvh overflow-hidden">
       {/* Acme-only: far-left icon rail + collapsible drawer (mirrors the demo). */}
       {navy ? (
         <NavyNav
