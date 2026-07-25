@@ -45,15 +45,19 @@ export default async function AppLayout({
     : [true, true, true, true, true];
   // Inspection Readiness is a per-company beta flag (hidden unless switched on).
   let readinessEnabled = false;
+  let uiTheme = "classic";
   if (navCompanyId) {
     const supabase = await createClient();
     const { data: co } = await supabase
       .from("companies")
-      .select("framework_enabled")
+      .select("framework_enabled, ui_theme")
       .eq("id", navCompanyId)
       .maybeSingle();
     readinessEnabled = !!co?.framework_enabled;
+    uiTheme = ((co as { ui_theme?: string | null } | null)?.ui_theme) ?? "classic";
   }
+  // Acme-only crisp navy theme, driven by a per-company flag; everyone else stays classic.
+  const themeClass = uiTheme === "navy" ? "theme-navy" : "";
   const navEntries = navEntriesForRole(
     actingCompanyId ? "company_admin" : profile.role,
   )
@@ -83,7 +87,7 @@ export default async function AppLayout({
         : "/dashboard";
 
   return (
-    <div className="app-bg flex h-dvh overflow-hidden">
+    <div className={`app-bg flex h-dvh overflow-hidden ${themeClass}`}>
       {/* Gradient sidebar (desktop) */}
       <aside className="sidebar-gradient hidden h-dvh w-44 shrink-0 flex-col px-3 py-4 md:flex">
         <Link

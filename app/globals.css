@@ -478,3 +478,45 @@
     radial-gradient(55% 45% at 50% 0%, color-mix(in srgb, var(--color-gold-400) 16%, transparent), transparent 70%),
     radial-gradient(45% 40% at 50% 30%, color-mix(in srgb, var(--color-navy-700) 60%, transparent), transparent 75%);
 }
+
+/* ------------------------------------------------------------------ *
+ * Acme-only "navy crisp" theme (ui_theme = 'navy').
+ * Flattens the glassy surfaces to the demo's crisp flat look, removes
+ * the pill borders, and swaps the RAG cells to the demo's dark tints.
+ * Unlayered so it overrides the @layer component defaults. Scoped to
+ * .theme-navy (set on the app shell) so only Acme is affected.
+ * ------------------------------------------------------------------ */
+.theme-navy.app-bg { background: var(--color-navy-950); }
+.theme-navy .glass-card,
+.theme-navy .app-tile,
+.theme-navy .section-card,
+.theme-navy .toast {
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: var(--color-navy-900);
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.theme-navy .glass-card-hover:hover,
+.theme-navy .app-tile:hover {
+  transform: none;
+  background: #122a5f;
+  box-shadow: none;
+}
+.theme-navy .topbar {
+  background: var(--color-navy-950);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.theme-navy .sidebar-gradient { background: var(--color-navy-950); }
+/* Flat status pills (dark tint, no border) like the demo. */
+.theme-navy .pill-green { background: rgba(0, 200, 117, 0.16); color: #43d99a; border-color: transparent; }
+.theme-navy .pill-amber { background: rgba(253, 171, 61, 0.16); color: #f5bd6a; border-color: transparent; }
+.theme-navy .pill-red { background: rgba(226, 68, 92, 0.16); color: #f18196; border-color: transparent; }
+.theme-navy .pill-neutral { background: rgba(255, 255, 255, 0.06); color: rgba(255, 255, 255, 0.72); border-color: transparent; }
+/* RAG date cells: dark tint + bright text, not pastel light fills. */
+.theme-navy .rag-cell-green { background: rgba(34, 179, 124, 0.16); color: #43d99a; }
+.theme-navy .rag-cell-amber { background: rgba(235, 165, 62, 0.16); color: #f0b65e; }
+.theme-navy .rag-cell-red { background: rgba(239, 97, 82, 0.16); color: #f38a7c; }
+.theme-navy .rag-cell-none { background: transparent; color: rgba(255, 255, 255, 0.35); }
