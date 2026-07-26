@@ -7,14 +7,35 @@ import BackLink from "@/components/back-link";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import { InviteForm } from "@/components/settings/invite-form";
 import TeamMemberControls from "@/components/settings/team-member-controls";
+import CollapsibleSection from "@/components/settings/collapsible-section";
 import ActionForm from "@/components/action-form";
 import { resendInviteAction, revokeInviteAction } from "../actions";
 
 export const metadata: Metadata = { title: "Users and invites" };
 
 function roleRank(role: string): number {
-  return ["company_admin", "manager", "supervisor", "team_member"].indexOf(role);
+  return [
+    "company_admin",
+    "registered_individual",
+    "registered_manager",
+    "manager",
+    "supervisor",
+    "on_call",
+    "team_member",
+    "staff",
+  ].indexOf(role);
 }
+
+/**
+ * Two kinds of login, kept apart (Phil, 2026-07-26). ACTIVE users run the
+ * service: they open records, complete checks and make decisions, and they are
+ * the ones you pay a seat for. PASSIVE users are the workforce: a Team Member
+ * login only reaches their own area, and it is free.
+ *
+ * Note the word "active" here is about what the login DOES, not the account
+ * status pill on each row, which is why both headings carry a subtitle.
+ */
+const PASSIVE_ROLES = ["staff", "team_member"];
 
 export default async function UsersPage() {
   const { user, profile } = await requireCompanyAdmin();
@@ -68,7 +89,62 @@ export default async function UsersPage() {
       roleRank(a.role) - roleRank(b.role) ||
       (a.full_name || a.email).localeCompare(b.full_name || b.email),
   );
+  const activeUsers = userList.filter((u) => !PASSIVE_ROLES.includes(u.role));
+  const passiveUsers = userList.filter((u) => PASSIVE_ROLES.includes(u.role));
   const pending = invites ?? [];
+
+  /** One user row. Shared by both groups so they can never drift apart. */
+  function renderUser(u: { id: string; full_name: string; email: string; role: string; status: string }) {
+    const isSelf = u.id === user.id;
+    const isAdmin = u.role === "company_admin";
+    const canManage = !isSelf && !isAdmin;
+    const primaryId = primaryByUser.get(u.id) ?? null;
+    const additionalIds = additionalByUser.get(u.id) ?? [];
+    const branchSummary = [
+      primaryId ? branchName.get(primaryId) : null,
+      ...additionalIds.map((id) => branchName.get(id)),
+    ].filter(Boolean);
+    return (
+      <div key={u.id} className="glass-card p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium text-white">
+              {u.full_name || u.email}
+              {isSelf ? <span className="text-white/40"> (you)</span> : null}
+            </p>
+            <p className="text-xs text-white/50">
+              {u.email} ·{" "}
+              {isAdmin
+                ? "all branches"
+                : branchSummary.length > 0
+                  ? branchSummary.join(", ")
+                  : "no branch"}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="pill-neutral">{ROLE_LABELS[u.role] ?? u.role}</span>
+            <span className={u.status === "active" ? "pill-green" : "pill-red"}>
+              {u.status}
+            </span>
+          </div>
+        </div>
+
+        {canManage ? (
+          <TeamMemberControls
+            userId={u.id}
+            userLabel={u.full_name || u.email}
+            role={u.role}
+            status={u.status}
+            primaryBranchId={primaryId}
+            additionalBranchIds={additionalIds}
+            branches={activeBranches
+              .filter((b) => b.kind === "branch")
+              .map((b) => ({ id: b.id, name: b.name }))}
+          />
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
@@ -139,72 +215,34 @@ export default async function UsersPage() {
         )}
       </section>
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-white/80">
-          Team ({userList.length})
-        </h2>
-        {userList.length === 0 ? (
+      <CollapsibleSection
+        title="Active users"
+        subtitle="Admins, Managers and Supervisors: the people who run the service"
+        count={activeUsers.length}
+      >
+        {activeUsers.length === 0 ? (
           <div className="glass-card px-5 py-8 text-center text-sm text-white/50">
-            No users yet. Invite your first team member above.
+            No users yet. Invite your first Admin or Manager above.
           </div>
         ) : (
-          userList.map((u) => {
-            const isSelf = u.id === user.id;
-            const isAdmin = u.role === "company_admin";
-            const canManage = !isSelf && !isAdmin;
-            const primaryId = primaryByUser.get(u.id) ?? null;
-            const additionalIds = additionalByUser.get(u.id) ?? [];
-            const branchSummary = [
-              primaryId ? branchName.get(primaryId) : null,
-              ...additionalIds.map((id) => branchName.get(id)),
-            ].filter(Boolean);
-            return (
-              <div key={u.id} className="glass-card p-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-white">
-                      {u.full_name || u.email}
-                      {isSelf ? (
-                        <span className="text-white/40"> (you)</span>
-                      ) : null}
-                    </p>
-                    <p className="text-xs text-white/50">
-                      {u.email} ·{" "}
-                      {isAdmin
-                        ? "all branches"
-                        : branchSummary.length > 0
-                          ? branchSummary.join(", ")
-                          : "no branch"}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="pill-neutral">
-                      {ROLE_LABELS[u.role] ?? u.role}
-                    </span>
-                    <span
-                      className={u.status === "active" ? "pill-green" : "pill-red"}
-                    >
-                      {u.status}
-                    </span>
-                  </div>
-                </div>
-
-                {canManage ? (
-                  <TeamMemberControls
-                    userId={u.id}
-                    userLabel={u.full_name || u.email}
-                    role={u.role}
-                    status={u.status}
-                    primaryBranchId={primaryId}
-                    additionalBranchIds={additionalIds}
-                    branches={activeBranches.filter((b) => b.kind === "branch").map((b) => ({ id: b.id, name: b.name }))}
-                  />
-                ) : null}
-              </div>
-            );
-          })
+          activeUsers.map(renderUser)
         )}
-      </section>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title="Passive users"
+        subtitle="Team Members: their own area only, and free of charge"
+        count={passiveUsers.length}
+      >
+        {passiveUsers.length === 0 ? (
+          <div className="glass-card px-5 py-8 text-center text-sm text-white/50">
+            No Team Member logins yet. They are created automatically when a person is
+            added with an email address.
+          </div>
+        ) : (
+          passiveUsers.map(renderUser)
+        )}
+      </CollapsibleSection>
     </div>
   );
 }
