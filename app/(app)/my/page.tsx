@@ -6,7 +6,9 @@ import RealtimeRefresh from "@/components/realtime-refresh";
 import { getCompanyFormByKey } from "@/lib/people/data";
 import { isFormSchema, type FormSchema } from "@/lib/form-schema";
 import { getMyRecord, getMyHolidays, getMySubmissions } from "@/lib/staff/data";
+import { listAssignmentsForPerson, getPublishedSchemas } from "@/lib/assignments/data";
 import MyHolidays from "@/components/staff/my-holidays";
+import AssignedToMe from "@/components/staff/assigned-to-me";
 
 /**
  * A Team Member's own area, and the only page a staff login has.
@@ -43,6 +45,22 @@ export default async function MyAreaPage() {
   ]);
 
   const holidays = record ? await getMyHolidays(record.id) : [];
+  const assignments = record ? await listAssignmentsForPerson(record.id) : [];
+
+  // Only the assigned FORMS need a schema to render; policies are a document plus
+  // a tick, so they need nothing here.
+  const formIds = [
+    ...new Set(
+      assignments
+        .filter((a) => a.status === "assigned" && a.form_id)
+        .map((a) => a.form_id as string),
+    ),
+  ];
+  const published = await getPublishedSchemas(formIds);
+  const schemas: Record<string, FormSchema> = {};
+  for (const [formId, v] of Object.entries(published)) {
+    if (isFormSchema(v.schema)) schemas[formId] = v.schema as FormSchema;
+  }
   const requestSchema: FormSchema | null =
     requestForm && isFormSchema(requestForm.schema) ? (requestForm.schema as FormSchema) : null;
 
@@ -80,15 +98,11 @@ export default async function MyAreaPage() {
         </>
       )}
 
-      {/* Assignments land here next: forms and policies a Manager has given them. */}
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
           Assigned to me
         </h2>
-        <div className="glass-card p-5 text-sm text-white/60">
-          Nothing is assigned to you at the moment. When your manager assigns a form or a
-          policy, it will appear here for you to complete or confirm you have read.
-        </div>
+        <AssignedToMe assignments={assignments} schemas={schemas} />
       </section>
 
       <section className="space-y-3">

@@ -86,6 +86,12 @@ export const NAV_ENTRIES: NavEntry[] = [
         icon: "absence",
         roles: ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager", "supervisor", "on_call"],
       },
+      {
+        href: "/people/assignments",
+        label: "Assignments",
+        icon: "submissions",
+        roles: ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"],
+      },
       // Public form submissions queue. Hidden while PUBLIC_FORMS_ENABLED is false
       // (lib/public-forms/flag.ts): nothing arrives, so it would be a dead link.
       ...(PUBLIC_FORMS_ENABLED
