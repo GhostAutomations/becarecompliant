@@ -301,6 +301,8 @@ ITEM 3 (import templates) BUILT 2026-07-14, no migration. Scope agreed by popup 
   - The policy title, version, signer name and date are stamped by the SERVER, never asked of the signer, so a signature can never name the wrong document.
   - Phil also chose "nothing more for now" for the staff area: no training, no check dates, no absence record.
 
+- NEW VOCABULARY, CONFIRMED: **BRIEFINGS** (Phil, 2026-07-26). "Assignments" was the wrong name and the wrong place: it is now its OWN top-level department, out of People, called **Briefings**. Chosen by popup over Issued, Read and Sign, and Handbook. Ruled out before asking: **Sign Off** (collides with the supervision sign-off chain) and anything with **board** (breaks the standing terminology rule). A briefing = something you send the team and expect back, a policy to read and sign or a form to complete, so one word covers both and reads naturally from both sides: a Manager sends one out, a Team Member sees "My briefings". Taking one back is **Withdraw**, not Cancel. Route /briefings, own nav icon, Manager and above; the old /people/assignments route is removed. The DB table stays `assignments` (internal, invisible to customers).
+
 ## Phase 11 — Final Testing
 
 Anything not tested at build time is logged here immediately with enough detail to test cold.

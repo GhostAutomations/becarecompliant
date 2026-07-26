@@ -11,6 +11,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import type {
   AssignmentRow,
+  BriefingPerson,
   CompanyPolicy,
   PolicyConfig,
   PolicyVersion,
@@ -171,4 +172,33 @@ export async function listPolicyVersions(policyId: string): Promise<PolicyVersio
     .eq("policy_id", policyId)
     .order("version", { ascending: false });
   return (data ?? []) as PolicyVersion[];
+}
+
+/**
+ * Who a briefing can go to: everyone on the register who is still employed.
+ *
+ * RLS scopes it, so a Branch Manager's "everyone" is their branch, which is why
+ * the counts in the panel are safe to show. The branch id comes back too, because
+ * the audience is chosen by branch and names are not unique enough to trust.
+ */
+export async function listBriefingAudience(companyId: string): Promise<BriefingPerson[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("people")
+    .select("id, full_name, branch_id, branches:branch_id(name)")
+    .eq("company_id", companyId)
+    .neq("employment_status", "leaver")
+    .is("archived_at", null)
+    .order("full_name");
+  return ((data ?? []) as Array<{
+    id: string;
+    full_name: string;
+    branch_id: string | null;
+    branches: { name: string } | { name: string }[] | null;
+  }>).map((p) => ({
+    id: p.id,
+    full_name: p.full_name,
+    branch_id: p.branch_id,
+    branch_name: (Array.isArray(p.branches) ? (p.branches[0] ?? null) : p.branches)?.name ?? null,
+  }));
 }

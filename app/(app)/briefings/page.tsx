@@ -9,9 +9,9 @@ import { cancelAssignment } from "@/lib/assignments/actions";
 import {
   listAssignments,
   listAssignableForms,
+  listBriefingAudience,
   listPolicies,
 } from "@/lib/assignments/data";
-import { listLinkablePeople } from "@/lib/public-forms/data";
 
 /**
  * Briefings, a department of its own (Phil, 2026-07-26, promoted out of People
@@ -52,7 +52,7 @@ export default async function BriefingsPage() {
     listAssignments(profile.company_id),
     listAssignableForms(profile.company_id),
     listPolicies(profile.company_id),
-    listLinkablePeople(profile.company_id),
+    listBriefingAudience(profile.company_id),
   ]);
 
   const today = new Date().toISOString().slice(0, 10);

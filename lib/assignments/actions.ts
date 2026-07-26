@@ -26,7 +26,7 @@ import { getCompanyFormByKey } from "@/lib/people/data";
 import type { Answers } from "@/lib/form-schema";
 import type { ActionState } from "@/lib/forms";
 import { uploadPolicyDocument } from "@/lib/assignments/storage";
-import { POLICY_ACK_FORM_KEY } from "@/lib/assignments/types";
+import { POLICY_ACK_FORM_KEY, type BriefingScope } from "@/lib/assignments/types";
 import { getPolicyConfig } from "@/lib/assignments/data";
 import {
   DRAWN_KEY,
@@ -187,13 +187,45 @@ export async function assignItems(
   const target = String(formData.get("target") ?? "");
   const [kind, id] = target.split(":");
   if ((kind !== "form" && kind !== "policy") || !id) {
-    return { error: "Choose what to assign." };
+    return { error: "Choose what you are sending." };
   }
-  const personIds = formData.getAll("person_ids").map(String).filter(Boolean);
-  if (personIds.length === 0) return { error: "Choose at least one person." };
   const dueDate = isoOrNull(formData.get("due_date"));
 
   const supabase = await createClient();
+
+  // The audience. "Everyone" and "a whole branch" are resolved HERE, not in the
+  // browser, so the list cannot be tampered with and RLS still decides who is
+  // reachable: a Branch Manager's "everyone" is their own branch, by definition.
+  const scopeRaw = String(formData.get("scope") ?? "people");
+  const scope: BriefingScope =
+    scopeRaw === "company" || scopeRaw === "branch" ? scopeRaw : "people";
+  const branchId = String(formData.get("branch_id") ?? "");
+  let personIds: string[];
+
+  if (scope === "company" || scope === "branch") {
+    if (scope === "branch" && !branchId) return { error: "Choose a branch." };
+    let q = supabase
+      .from("people")
+      .select("id")
+      .eq("company_id", companyId)
+      .neq("employment_status", "leaver")
+      .is("archived_at", null);
+    if (scope === "branch") q = q.eq("branch_id", branchId);
+    const { data: audience, error: audienceError } = await q;
+    if (audienceError) return { error: audienceError.message };
+    personIds = ((audience ?? []) as Array<{ id: string }>).map((r) => r.id);
+    if (personIds.length === 0) {
+      return {
+        error:
+          scope === "branch"
+            ? "Nobody on the register is in that branch."
+            : "There is nobody on your register to send this to.",
+      };
+    }
+  } else {
+    personIds = formData.getAll("person_ids").map(String).filter(Boolean);
+    if (personIds.length === 0) return { error: "Choose at least one person." };
+  }
 
   // A policy assignment names the version being signed.
   let policyVersion: number | null = null;
@@ -223,7 +255,7 @@ export async function assignItems(
   const fresh = personIds.filter((personId) => !alreadyHave.has(personId));
 
   if (fresh.length === 0) {
-    return { ok: "They all had this already." };
+    return { ok: "Everyone chosen had this already, so nothing was sent again." };
   }
 
   const { data, error } = await supabase
@@ -252,16 +284,24 @@ export async function assignItems(
     action: "assignment.created",
     entityType: "assignment",
     entityId: null,
-    summary: `Assigned a ${kind} to ${personIds.length} ${personIds.length === 1 ? "person" : "people"}`,
-    metadata: { kind, target_id: id, people: personIds.length, created, due_date: dueDate },
+    summary: `Sent a briefing (${kind}) to ${personIds.length} ${personIds.length === 1 ? "person" : "people"}`,
+    metadata: {
+      kind,
+      target_id: id,
+      scope,
+      branch_id: scope === "branch" ? branchId : null,
+      people: personIds.length,
+      created,
+      due_date: dueDate,
+    },
   });
 
   revalidatePath("/briefings");
   return {
     ok:
       created === personIds.length
-        ? `Assigned to ${created} ${created === 1 ? "person" : "people"}.`
-        : `Assigned. ${personIds.length - created} already had it.`,
+        ? `Sent to ${created} ${created === 1 ? "person" : "people"}.`
+        : `Sent to ${created}. ${personIds.length - created} had it already.`,
   };
 }
 

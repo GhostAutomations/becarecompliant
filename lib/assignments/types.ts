@@ -46,5 +46,20 @@ export type AssignmentRow = {
   policy_id: string | null;
 };
 
+/**
+ * Somebody a briefing can be sent to. Carries the branch so the panel can offer
+ * "everyone in a branch", which Phil needs because a local authority can require
+ * different documents per branch (2026-07-26).
+ */
+export type BriefingPerson = {
+  id: string;
+  full_name: string;
+  branch_id: string | null;
+  branch_name: string | null;
+};
+
+/** How a Manager chose the audience. Resolved on the server, never trusted from the browser. */
+export type BriefingScope = "company" | "branch" | "people";
+
 /** The form key whose completion records a policy acknowledgement. */
 export const POLICY_ACK_FORM_KEY = "policy_acknowledgement";
