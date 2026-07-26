@@ -3,8 +3,9 @@
 /**
  * Be Care Compliant — what a Team Member has been asked to do.
  *
- * A policy: open the document (short-lived signed URL, and the open is audited),
- * then SIGN it. Phil, 2026-07-26: "think docusign / adobe", so this is a
+ * A policy: ONE button opens the document and the signature together, side by
+ * side (Phil, 2026-07-26: "clicking 2 seperate buttons to read and sign a
+ * document is clunky"). Phil, same day: "think docusign / adobe", so this is a
  * signature, not a tick. Whether they draw it or type their name is the company's
  * setting, applied by filtering the acknowledgement form's render, and the
  * signature is stored as real Evidence with the policy version it was given for.
@@ -16,9 +17,10 @@
 
 import Link from "next/link";
 import FormEvidenceDialog from "@/components/forms/form-evidence-dialog";
+import ReadAndSign from "@/components/staff/read-and-sign";
 import type { FormSchema } from "@/lib/form-schema";
 import type { AssignmentRow, PolicyConfig } from "@/lib/assignments/types";
-import { acknowledgePolicy, completeAssignedForm } from "@/lib/assignments/actions";
+import { completeAssignedForm } from "@/lib/assignments/actions";
 import { signingSchema, type SignatureMode } from "@/lib/assignments/signing";
 
 function fmtDue(iso: string | null): string {
@@ -84,23 +86,16 @@ export default function AssignedToMe({
 
                 {a.kind === "policy" && a.policy_id ? (
                   <div className="flex flex-wrap items-center gap-2">
-                    <a
-                      href={`/api/policies/${a.policy_id}/file`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn-outline px-3 py-2 text-xs"
-                    >
-                      Read the policy
-                    </a>
                     {signSchema ? (
-                      <FormEvidenceDialog
-                        title={`Sign ${a.title}`}
+                      // ONE button, one panel: the document and the signature together
+                      // (Phil, 2026-07-26: two buttons was clunky).
+                      <ReadAndSign
+                        assignmentId={a.id}
+                        policyId={a.policy_id}
+                        title={a.title}
+                        version={a.policy_version}
                         schema={signSchema}
-                        action={acknowledgePolicy}
-                        extraFields={{ assignment_id: a.id }}
-                        triggerLabel="Sign it"
-                        triggerClassName="btn-primary px-3 py-2 text-sm"
-                        submitLabel="Sign"
+                        mode={policyConfig.signature_mode as SignatureMode}
                       />
                     ) : (
                       <p className="text-xs text-amber-300">

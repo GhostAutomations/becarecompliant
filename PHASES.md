@@ -410,6 +410,24 @@ Logged from Phase 8 (Reporting, exports & audit trail, 2026-07-13). FULLY BUILT,
 - Founder cross company audit console (/founder/audit) and company audit log filters (actor, area, dates) live.
 - Delete user dialog (F5): styled dialog replaces window.confirm; a human click may be needed since automation cannot drive a native dialog (this is why it was replaced).
 
+Logged from Briefings (Team Member logins increment 2, 2026-07-26).
+
+TESTED LIVE 2026-07-26, PASSED END TO END, verified in the database rather than by screenshot: Phil uploaded "Test Policy" (Mobile Phones and Social Media) through Settings > Policies, sent it as a briefing to Charlotte test, and she READ AND SIGNED it from her own Team Member login at 23:22 London. Confirmed in SQL: assignment completed, evidence frozen with the policy title and version 1 stamped by the server, a DRAWN signature stored as a PNG evidence file (kind 'signature'), author Charlotte test. So the whole DocuSign-style path (upload, send, open the document by signed URL, sign on screen, Evidence, certificate) works on real data with a real person on a real device.
+
+NOTHING IS SIGNED ON PAPER OR IN ANOTHER APP (Phil checked explicitly: "are we issuing a pdf that they need an app for to sign it becasue that is not what i want"). The uploaded PDF is reading material; the signature is captured in our own UI and the certificate is ours. Every email about a briefing says so in words, and policy documents must NOT carry signature or tick-box lines on the page.
+
+BRIEFING EMAILS were MISSING and are now built (same day, after Phil reported "briefing emails not sending"): briefing_sent on send, briefing_chase per person per day for anything due today or late, briefing_outstanding to Managers and Admins for OVERDUE only. All three claim a notification_log dedupe key first, ride the existing 07:00 daily-digest cron for the two chases, and respect emailDigestEnabled. Two gotchas fixed in the same pass: Resend rate limits REQUESTS not recipients, so a whole-company send now goes through ONE /emails/batch call (sendEmailBatch, falls back to one at a time); and isSendableAddress blocks RFC 2606 demo domains, because 18 of Acme's 41 people are @example.com and bulk-bouncing them would damage the sending domain. The send panel counts with the same function so the count on screen matches what actually sends.
+
+AUDIENCE: "Who is it for?" is now Everyone / A whole branch / Chosen people, and Everyone and A whole branch are resolved SERVER SIDE from the register (never from hidden inputs), so RLS still decides reach and a Branch Manager's "everyone" is their branch. Branch-level issuing exists because local authorities differ.
+
+Cold items still to test on the deployed build:
+- briefing_sent live: re-send the test policy to Charlotte (her first one is completed, so a re-send creates a fresh briefing) and confirm the email arrives with a working "Open my briefings" button.
+- briefing_chase live: send one WITH a due date of today or earlier, then use the Vercel Run button on the daily-digest cron (or ?force=1 with the secret) and confirm exactly one email per person, and that a second Run sends nothing (dedupe).
+- briefing_outstanding live: same run, with something overdue, and confirm a Manager only sees their own branch's people and an Admin sees all. A Manager with no branch must get nothing.
+- Demo-address guard: send to Everyone on Acme and confirm the result line reports the 18 example.com people as not emailed, notification_log has no rows for them, and only real addresses receive. Note "AA AA" carries testytesy@gmtest.com, which is not a reserved domain and WILL bounce: clear it or delete that person before a whole-company send.
+- Certificate PDF from the signature Charlotte has already given (open it from her completed briefing) and the audit row policy.certificate_downloaded.
+- The 'ask' reassign mode still behaves as 'never' until its confirm step is built.
+
 ## Phase 12 — Marketing & Launch
 
 Marketing site on becarecompliant.com, onboarding collateral, subscription agreement (no data selling clause), launch.
