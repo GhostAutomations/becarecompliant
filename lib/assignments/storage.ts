@@ -42,6 +42,27 @@ export async function uploadPolicyDocument(
   return { ok: true, path };
 }
 
+/**
+ * Store a policy document we generated ourselves (a written policy rendered to
+ * PDF). Same bucket, same path shape and same privacy as an uploaded file, so
+ * nothing downstream can tell the difference.
+ */
+export async function storePolicyBytes(
+  companyId: string,
+  policyKey: string,
+  fileName: string,
+  bytes: Buffer,
+): Promise<{ ok: true; path: string } | { ok: false; error: string }> {
+  const path = policyPath(companyId, policyKey, fileName);
+  const supabase = createServiceClient();
+  const { error } = await supabase.storage.from(EVIDENCE_BUCKET).upload(path, bytes, {
+    contentType: "application/pdf",
+    upsert: true,
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, path };
+}
+
 /** Sign a policy download AND audit it. The only sanctioned way to serve one. */
 export async function signPolicyDocument(input: {
   companyId: string;

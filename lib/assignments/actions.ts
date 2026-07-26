@@ -25,7 +25,9 @@ import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
 import { getCompanyFormByKey } from "@/lib/people/data";
 import type { Answers } from "@/lib/form-schema";
 import type { ActionState } from "@/lib/forms";
-import { uploadPolicyDocument } from "@/lib/assignments/storage";
+import { storePolicyBytes, uploadPolicyDocument } from "@/lib/assignments/storage";
+import { parsePolicyText, policyPlainText } from "@/lib/policies/text";
+import { renderPolicyPdf } from "@/lib/policies/pdf";
 import { POLICY_ACK_FORM_KEY, type BriefingScope } from "@/lib/assignments/types";
 import { getPolicyConfig } from "@/lib/assignments/data";
 import { notifyBriefingSent } from "@/lib/notifications/briefings";
@@ -554,6 +556,236 @@ export async function updatePolicyConfig(
  * evidenced by the version 1 wording. What happens to the people who signed the
  * old one is the company's choice (policy_config.reassign_on_new_version).
  */
+/**
+ * A policy WRITTEN OR PASTED into Be Care Compliant rather than uploaded.
+ *
+ * Phil, 2026-07-26: "what about if people want to copy and paste their policy".
+ * Most care policies live in Word, and making a registered manager export a PDF
+ * before they can issue anything is a tax on the busiest person in the building.
+ *
+ * The text is kept AND frozen into a real PDF here and now, so a signature still
+ * names a reproducible document. The reader gets the text as a proper web page,
+ * which is far kinder on a phone than a PDF; the PDF is the record.
+ */
+export async function createWrittenPolicy(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requireCompanyAdmin();
+  if (!profile.company_id) return { error: "No company context." };
+  const companyId = profile.company_id;
+
+  const title = String(formData.get("title") ?? "").trim();
+  if (!title) return { error: "Give the policy a title." };
+  const summary = String(formData.get("summary") ?? "").trim() || null;
+  const body = String(formData.get("body") ?? "").trim();
+  if (body.length < 40) {
+    return { error: "Paste the policy wording in, or upload it as a document instead." };
+  }
+  if (body.length > 400_000) {
+    return { error: "That is longer than we can store as text. Please upload it as a document." };
+  }
+
+  const supabase = await createClient();
+  const { data: company } = await supabase
+    .from("companies")
+    .select("name")
+    .eq("id", companyId)
+    .maybeSingle();
+
+  const { data: policy, error } = await supabase
+    .from("company_policies")
+    .insert({
+      company_id: companyId,
+      title,
+      summary,
+      source: "text",
+      body,
+      storage_path: "pending",
+      file_name: `${title.replace(/[^a-zA-Z0-9 _-]+/g, "").trim() || "policy"}.pdf`,
+      mime_type: "application/pdf",
+      bytes: 0,
+      created_by: user.id,
+    })
+    .select("id, file_name")
+    .single();
+  if (error || !policy) return { error: error?.message ?? "The policy could not be saved." };
+
+  const stored = await freezeWrittenVersion({
+    companyId,
+    companyName: (company?.name as string | null) ?? "Your company",
+    policyId: policy.id as string,
+    policyKey: policy.id as string,
+    fileName: policy.file_name as string,
+    title,
+    version: 1,
+    body,
+    actorId: user.id,
+  });
+  if (!stored.ok) {
+    await supabase.from("company_policies").delete().eq("id", policy.id);
+    return { error: stored.error };
+  }
+
+  await writeAudit({
+    companyId,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "policy.written",
+    entityType: "policy",
+    entityId: policy.id as string,
+    summary: `Wrote the policy "${title}"`,
+    metadata: { characters: body.length },
+  });
+
+  revalidatePath("/settings/policies");
+  return { ok: "Policy saved." };
+}
+
+/** Edit the wording of a written policy. Every edit is a NEW VERSION, never an
+ *  overwrite: the wording somebody already signed can never change under them. */
+export async function updateWrittenPolicy(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requireCompanyAdmin();
+  if (!profile.company_id) return { error: "No company context." };
+  const companyId = profile.company_id;
+  const policyId = String(formData.get("policy_id") ?? "");
+  const body = String(formData.get("body") ?? "").trim();
+  if (!policyId) return { error: "Missing policy." };
+  if (body.length < 40) return { error: "The wording looks too short to save." };
+
+  const supabase = await createClient();
+  const [{ data: policy }, { data: company }] = await Promise.all([
+    supabase
+      .from("company_policies")
+      .select("id, title, version, source, body, file_name")
+      .eq("id", policyId)
+      .eq("company_id", companyId)
+      .maybeSingle(),
+    supabase.from("companies").select("name").eq("id", companyId).maybeSingle(),
+  ]);
+  if (!policy) return { error: "That policy could not be found." };
+  if (policy.source !== "text") {
+    return { error: "That policy is an uploaded document. Upload a new version instead." };
+  }
+  if ((policy.body as string | null)?.trim() === body) {
+    return { ok: "Nothing had changed, so no new version was created." };
+  }
+
+  const nextVersion = ((policy.version as number | null) ?? 1) + 1;
+  const stored = await freezeWrittenVersion({
+    companyId,
+    companyName: (company?.name as string | null) ?? "Your company",
+    policyId,
+    policyKey: `${policyId}/v${nextVersion}`,
+    fileName: policy.file_name as string,
+    title: policy.title as string,
+    version: nextVersion,
+    body,
+    actorId: user.id,
+  });
+  if (!stored.ok) return { error: stored.error };
+
+  // Who has to sign it again is the company's rule, not ours. Same rule as an
+  // uploaded version, so a written policy behaves identically.
+  const config = await getPolicyConfig(companyId);
+  let reassigned = 0;
+  if ((config.reassign_on_new_version as ReassignMode) === "always") {
+    reassigned = await reassignPolicy(policyId, companyId, nextVersion, user.id);
+  }
+
+  await writeAudit({
+    companyId,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "policy.version_added",
+    entityType: "policy",
+    entityId: policyId,
+    summary: `Edited "${policy.title}" to version ${nextVersion}`,
+    metadata: { version: nextVersion, source: "text", reassigned },
+  });
+
+  revalidatePath("/settings/policies");
+  revalidatePath("/briefings");
+  return {
+    ok:
+      reassigned > 0
+        ? `Version ${nextVersion} saved. ${reassigned} ${reassigned === 1 ? "person needs" : "people need"} to sign it.`
+        : `Version ${nextVersion} saved.`,
+  };
+}
+
+/**
+ * Freeze one version of a written policy: render the PDF, store it, record the
+ * version row (text AND file), and point the policy at it. Shared by create and
+ * edit so the two can never drift.
+ */
+async function freezeWrittenVersion(opts: {
+  companyId: string;
+  companyName: string;
+  policyId: string;
+  /** Path key: the policy id for v1, id/vN afterwards, so nothing is overwritten. */
+  policyKey: string;
+  fileName: string;
+  title: string;
+  version: number;
+  body: string;
+  actorId: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const blocks = parsePolicyText(opts.body);
+  if (policyPlainText(blocks).length === 0) {
+    return { ok: false, error: "There was no readable wording to save." };
+  }
+
+  let pdf: Buffer;
+  try {
+    pdf = await renderPolicyPdf({
+      companyName: opts.companyName,
+      title: opts.title,
+      version: opts.version,
+      blocks,
+      savedAt: new Date(),
+    });
+  } catch (e) {
+    return { ok: false, error: `The policy PDF could not be produced: ${(e as Error).message}` };
+  }
+
+  const stored = await storePolicyBytes(opts.companyId, opts.policyKey, opts.fileName, pdf);
+  if (!stored.ok) return { ok: false, error: `The policy could not be stored: ${stored.error}` };
+
+  const supabase = await createClient();
+  const { error: verErr } = await supabase.from("company_policy_versions").insert({
+    policy_id: opts.policyId,
+    version: opts.version,
+    storage_path: stored.path,
+    file_name: opts.fileName,
+    mime_type: "application/pdf",
+    bytes: pdf.length,
+    body: opts.body,
+    created_by: opts.actorId,
+  });
+  if (verErr) return { ok: false, error: `The version could not be recorded: ${verErr.message}` };
+
+  const { error: polErr } = await supabase
+    .from("company_policies")
+    .update({
+      version: opts.version,
+      body: opts.body,
+      storage_path: stored.path,
+      file_name: opts.fileName,
+      mime_type: "application/pdf",
+      bytes: pdf.length,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", opts.policyId);
+  if (polErr) return { ok: false, error: polErr.message };
+  return { ok: true };
+}
+
 export async function uploadPolicyVersion(
   _prev: ActionState,
   formData: FormData,

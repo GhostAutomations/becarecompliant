@@ -1,4 +1,3 @@
-
 "use client";
 
 /**
@@ -30,6 +29,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import FormRenderer from "@/components/forms/form-renderer";
 import PolicyReader from "@/components/staff/policy-reader";
+import PolicyText from "@/components/staff/policy-text";
 import type { Answers, FormSchema } from "@/lib/form-schema";
 import { validateAnswers, type FieldError } from "@/lib/form-validate";
 import { IDLE_STATE, type ActionState } from "@/lib/forms";
@@ -43,11 +43,14 @@ export default function ReadAndSign({
   version,
   schema,
   mode,
+  writtenBody,
 }: {
   assignmentId: string;
   policyId: string;
   title: string;
   version: number | null;
+  /** Set when the policy was written or pasted in: read it as a page, not a PDF. */
+  writtenBody?: string | null;
   /** Already filtered by signingSchema to this company's signing method. */
   schema: FormSchema;
   mode: SignatureMode;
@@ -134,7 +137,7 @@ export default function ReadAndSign({
                     rel="noopener noreferrer"
                     className="underline decoration-white/30 underline-offset-2"
                   >
-                    Open in a new tab
+                    {writtenBody ? "Open as a PDF" : "Open in a new tab"}
                   </a>
                 </p>
               </div>
@@ -150,11 +153,15 @@ export default function ReadAndSign({
 
             {/* The document */}
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-              <PolicyReader
-                url={docUrl}
-                onReachedEnd={() => setReadToEnd(true)}
-                onFailed={() => setRenderFailed(true)}
-              />
+              {writtenBody ? (
+                <PolicyText body={writtenBody} onReachedEnd={() => setReadToEnd(true)} />
+              ) : (
+                <PolicyReader
+                  url={docUrl}
+                  onReachedEnd={() => setReadToEnd(true)}
+                  onFailed={() => setRenderFailed(true)}
+                />
+              )}
             </div>
 
             {/* The one bar that never scrolls away */}

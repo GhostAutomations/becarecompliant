@@ -11,7 +11,13 @@ export type CompanyPolicy = {
   version: number;
   status: "active" | "archived";
   created_at: string;
+  /** upload = a document they gave us; text = written or pasted in (0136). */
+  source: PolicySource;
+  /** The current wording, for a written policy. */
+  body: string | null;
 };
+
+export type PolicySource = "upload" | "text";
 
 /** Every version of a policy is kept, so the exact wording signed can be produced. */
 export type PolicyVersion = {
@@ -44,6 +50,9 @@ export type AssignmentRow = {
   title: string;
   form_id: string | null;
   policy_id: string | null;
+  /** For a policy: how it was created, and its wording when it was written in. */
+  policy_source: PolicySource | null;
+  policy_body: string | null;
 };
 
 /**

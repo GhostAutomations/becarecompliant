@@ -32,15 +32,17 @@ type RawAssignment = {
   policy_version: number | null;
   people: { full_name: string } | { full_name: string }[] | null;
   forms: { name: string } | { name: string }[] | null;
-  company_policies: { title: string } | { title: string }[] | null;
+  company_policies: PolicyJoin | PolicyJoin[] | null;
 };
+
+type PolicyJoin = { title: string; source: string | null; body: string | null };
 
 function one<T>(v: T | T[] | null): T | null {
   return Array.isArray(v) ? (v[0] ?? null) : v;
 }
 
 const SELECT =
-  "id, kind, status, due_date, assigned_at, completed_at, evidence_id, person_id, form_id, policy_id, policy_version, people:person_id(full_name), forms:form_id(name), company_policies:policy_id(title)";
+  "id, kind, status, due_date, assigned_at, completed_at, evidence_id, person_id, form_id, policy_id, policy_version, people:person_id(full_name), forms:form_id(name), company_policies:policy_id(title, source, body)";
 
 function shape(r: RawAssignment): AssignmentRow {
   return {
@@ -60,6 +62,8 @@ function shape(r: RawAssignment): AssignmentRow {
         : (one(r.forms)?.name ?? "Form"),
     form_id: r.form_id,
     policy_id: r.policy_id,
+    policy_source: (one(r.company_policies)?.source as "upload" | "text" | null) ?? null,
+    policy_body: one(r.company_policies)?.body ?? null,
   };
 }
 
@@ -98,7 +102,7 @@ export async function listPolicies(
   const supabase = await createClient();
   let q = supabase
     .from("company_policies")
-    .select("id, title, summary, file_name, version, status, created_at")
+    .select("id, title, summary, file_name, version, status, created_at, source, body")
     .eq("company_id", companyId)
     .order("title");
   if (!includeArchived) q = q.eq("status", "active");

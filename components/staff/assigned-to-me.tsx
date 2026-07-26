@@ -94,6 +94,7 @@ export default function AssignedToMe({
                         policyId={a.policy_id}
                         title={a.title}
                         version={a.policy_version}
+                        writtenBody={a.policy_source === "text" ? a.policy_body : null}
                         schema={signSchema}
                         mode={policyConfig.signature_mode as SignatureMode}
                       />
