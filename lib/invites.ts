@@ -14,7 +14,9 @@ export type InviteRole =
   | "manager"
   | "supervisor"
   | "on_call"
-  | "team_member";
+  | "team_member"
+  /** Carer self-service login, shown as "Team Member". Free seat (0131). */
+  | "staff";
 
 export type Actor = {
   id: string;
