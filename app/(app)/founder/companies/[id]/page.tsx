@@ -16,7 +16,7 @@ import SupervisionCycleToggle from "@/components/founder/supervision-cycle-toggl
 import FounderColumnNamesForm from "@/components/founder/founder-column-names-form";
 import { REGISTER_COLUMNS } from "@/lib/people/logic";
 import { SU_REGISTER_COLUMNS } from "@/lib/service-users/types";
-import { computeSeatUsage, includedSeatsForTier, formatPence } from "@/lib/billing/seats";
+import { computeSeatUsage, includedSeatsForTier, formatPence, isBillableSeat } from "@/lib/billing/seats";
 import { TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
 import {
   billingStatusPill,
@@ -108,7 +108,10 @@ export default async function FounderCompanyPage({
     listFounderAudit({ companyId: id, limit: 12 }),
   ]);
 
-  const activeUsers = (profiles ?? []).filter((p) => p.status === "active").length;
+  // Staff (Team Member) logins are free, so they are not seats.
+  const activeUsers = (profiles ?? []).filter(
+    (p) => p.status === "active" && isBillableSeat(p.role),
+  ).length;
   const seats = computeSeatUsage(activeUsers, includedSeatsForTier(company.tier));
   const isSub = isSubscriptionTier(company.tier);
   const monthlyTotalPence = isSub

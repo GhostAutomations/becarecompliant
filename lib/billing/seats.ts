@@ -1,5 +1,21 @@
 import { createClient } from "@/lib/supabase/server";
 
+/**
+ * Roles that do NOT consume a paid seat.
+ *
+ * 'staff' is the Team Member self-service login (migration 0131). Phil's rule,
+ * 2026-07-26: staff logins are free, because a 60 carer agency would otherwise
+ * read as 54 extra seats at £5 = £270 a month on top of the plan, which breaks
+ * the pricing model. Every seat count in the app AND the quantity pushed to
+ * Stripe must go through this list, or the invoice and the screen disagree.
+ */
+export const NON_BILLABLE_ROLES = ["platform_admin", "staff"];
+
+/** Does this user consume a paid seat? */
+export function isBillableSeat(role: string): boolean {
+  return !NON_BILLABLE_ROLES.includes(role);
+}
+
 /** Default included users (Business). Two-tier model (Phil, 2026-07-19): Business
  *  includes 4 users, Pro includes 6; legacy/premium tiers match Pro or above. */
 export const INCLUDED_SEATS = 4;

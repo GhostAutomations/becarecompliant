@@ -4,7 +4,7 @@ import { requirePlatformAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import BackLink from "@/components/back-link";
 import { CompanyStatusButton } from "@/components/founder/company-status-button";
-import { computeSeatUsage, includedSeatsForTier, formatPence } from "@/lib/billing/seats";
+import { computeSeatUsage, includedSeatsForTier, formatPence, isBillableSeat } from "@/lib/billing/seats";
 import { TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
 import {
   billingStatusPill,
@@ -35,7 +35,7 @@ export default async function FounderCompaniesPage() {
 
   const activeUsers = new Map<string, number>();
   for (const p of profiles ?? []) {
-    if (p.company_id && p.status === "active" && p.role !== "platform_admin") {
+    if (p.company_id && p.status === "active" && isBillableSeat(p.role)) {
       activeUsers.set(p.company_id, (activeUsers.get(p.company_id) ?? 0) + 1);
     }
   }

@@ -2,7 +2,7 @@ import "server-only";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe/client";
 import { seatPriceId, isSubscriptionTier } from "@/lib/stripe/config";
-import { includedSeatsForTier } from "@/lib/billing/seats";
+import { includedSeatsForTier, NON_BILLABLE_ROLES } from "@/lib/billing/seats";
 
 /**
  * Exact seat sync to Stripe. Product rule: 4 users included, then £5/extra/mo.
@@ -30,12 +30,15 @@ export type CompanyBillingRow = {
 /** Live active-seat count for a company (service role; bypasses the guarded RPC). */
 export async function getActiveSeatCount(companyId: string): Promise<number> {
   const supabase = createServiceClient();
+  // Staff (Team Member) logins are free, so they must never reach the Stripe
+  // quantity. This has to match company_active_user_count and every founder
+  // screen, or the invoice says one thing and the app says another.
   const { count, error } = await supabase
     .from("profiles")
     .select("id", { count: "exact", head: true })
     .eq("company_id", companyId)
     .eq("status", "active")
-    .neq("role", "platform_admin");
+    .not("role", "in", `(${NON_BILLABLE_ROLES.join(",")})`);
   if (error) {
     console.error("[billing] seat count failed:", error.message);
     return 0;
