@@ -93,7 +93,12 @@ export default async function UsersPage() {
   const passiveUsers = userList.filter((u) => PASSIVE_ROLES.includes(u.role));
   const pending = invites ?? [];
 
-  /** One user row. Shared by both groups so they can never drift apart. */
+  /**
+   * One user, on ONE LINE (Phil, 2026-07-26): name, email and branches on the
+   * left, and every control inline on the right. A user who cannot be managed
+   * from here (you, and other Admins) shows their role and status as pills
+   * instead, so the line still reads the same way.
+   */
   function renderUser(u: { id: string; full_name: string; email: string; role: string; status: string }) {
     const isSelf = u.id === user.id;
     const isAdmin = u.role === "company_admin";
@@ -105,28 +110,22 @@ export default async function UsersPage() {
       ...additionalIds.map((id) => branchName.get(id)),
     ].filter(Boolean);
     return (
-      <div key={u.id} className="glass-card p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-white">
-              {u.full_name || u.email}
-              {isSelf ? <span className="text-white/40"> (you)</span> : null}
-            </p>
-            <p className="text-xs text-white/50">
-              {u.email} ·{" "}
+      <div key={u.id} className="glass-card flex flex-wrap items-center gap-3 px-4 py-2.5">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-white">
+            {u.full_name || u.email}
+            {isSelf ? <span className="text-white/40"> (you)</span> : null}
+            <span className="text-xs font-normal text-white/45">
+              {" · "}
+              {u.email}
+              {" · "}
               {isAdmin
                 ? "all branches"
                 : branchSummary.length > 0
                   ? branchSummary.join(", ")
                   : "no branch"}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="pill-neutral">{ROLE_LABELS[u.role] ?? u.role}</span>
-            <span className={u.status === "active" ? "pill-green" : "pill-red"}>
-              {u.status}
             </span>
-          </div>
+          </p>
         </div>
 
         {canManage ? (
@@ -141,7 +140,12 @@ export default async function UsersPage() {
               .filter((b) => b.kind === "branch")
               .map((b) => ({ id: b.id, name: b.name }))}
           />
-        ) : null}
+        ) : (
+          <div className="flex items-center gap-2">
+            <span className="pill-neutral">{ROLE_LABELS[u.role] ?? u.role}</span>
+            <span className={u.status === "active" ? "pill-green" : "pill-red"}>{u.status}</span>
+          </div>
+        )}
       </div>
     );
   }

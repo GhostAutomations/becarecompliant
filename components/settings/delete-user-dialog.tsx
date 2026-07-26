@@ -69,19 +69,20 @@ function DeleteDialog({
 export default function DeleteUserDialog({
   userId,
   userLabel,
+  /** Compact callers (the one line user row) pass their own trigger styling. */
+  triggerClassName = "btn-outline h-[42px] border-rag-red/40 text-xs text-rag-red-soft hover:bg-rag-red/10",
+  triggerLabel = "Delete user",
 }: {
   userId: string;
   userLabel: string;
+  triggerClassName?: string;
+  triggerLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="btn-outline h-[42px] border-rag-red/40 text-xs text-rag-red-soft hover:bg-rag-red/10"
-      >
-        Delete user
+      <button type="button" onClick={() => setOpen(true)} className={triggerClassName}>
+        {triggerLabel}
       </button>
       {open ? (
         <DeleteDialog key={userId + Date.now()} userId={userId} userLabel={userLabel} onClose={() => setOpen(false)} />
