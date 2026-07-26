@@ -8,7 +8,8 @@ export type Role =
   | "manager"
   | "supervisor"
   | "team_member"
-  | "on_call";
+  | "on_call"
+  | "staff";
 
 /** Senior roles that see every branch and everything a Branch Manager can, but not
  *  Settings or Billing (Company Admin only). Kept in one place so app-side gating
@@ -237,6 +238,11 @@ export function navEntriesForRole(role: string): NavEntry[] {
       },
     ];
   }
+  // A Team Member (staff) login has exactly one destination: their own area.
+  // Everything else is closed to them by RLS as well as by this nav.
+  if (role === "staff") {
+    return [{ href: "/my", label: "My area", icon: "people" as const, group: "Departments" }];
+  }
   const allowed = (entry: NavEntry) =>
     !entry.roles || entry.roles.includes(role as Role);
   return NAV_ENTRIES.filter(allowed).map((entry) =>
@@ -247,6 +253,11 @@ export function navEntriesForRole(role: string): NavEntry[] {
 }
 
 export const ROLE_LABELS: Record<string, string> = {
+  // NOTE the two names that read alike, on purpose. 'team_member' is the OLD
+  // read-only role, shown as "Viewer" since the roles overhaul. 'staff' is the
+  // NEW self-service role for carers, shown as "Team Member", which is what Phil
+  // calls them. Renaming the old key would mean rewriting five live RLS policies
+  // including people_select, which is not worth it for a label.
   platform_admin: "Founder",
   company_admin: "Admin",
   registered_individual: "Registered Individual",
@@ -255,4 +266,5 @@ export const ROLE_LABELS: Record<string, string> = {
   supervisor: "Supervisor",
   team_member: "Viewer",
   on_call: "On Call",
+  staff: "Team Member",
 };

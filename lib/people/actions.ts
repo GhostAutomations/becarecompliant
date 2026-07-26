@@ -16,6 +16,7 @@ import { redirect } from "next/navigation";
 import { requireCompany, requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
+import { inviteStaffForPerson } from "@/lib/staff/invite";
 import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
 import { type Answers, type FormSchema, firstDateFieldKey, isFormSchema } from "@/lib/form-schema";
 import type { ActionState } from "@/lib/forms";
@@ -114,6 +115,20 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
     );
   }
 
+  // Their Team Member login goes out automatically as soon as an email is on the
+  // record (Phil, 2026-07-26). Best effort: a failed invite must never undo the
+  // Person being added, so the outcome is audited rather than surfaced as an error.
+  let inviteOutcome: Record<string, unknown> = { attempted: false };
+  if (trimOrNull(formData.get("work_email"))) {
+    const invited = await inviteStaffForPerson(person.id, {
+      id: user.id,
+      name: profile.full_name,
+      email: profile.email,
+      role: profile.role,
+    });
+    inviteOutcome = { attempted: true, ...invited };
+  }
+
   await writeAudit({
     companyId,
     actorId: user.id,
@@ -123,7 +138,11 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
     entityType: "person",
     entityId: person.id,
     summary: `Added ${full_name} to the People register`,
-    metadata: { branch_id, checks_applied: applyErr ? 0 : (applied ?? 0) },
+    metadata: {
+      branch_id,
+      checks_applied: applyErr ? 0 : (applied ?? 0),
+      staff_invite: inviteOutcome,
+    },
   });
 
   redirect(`/people/${person.id}`);

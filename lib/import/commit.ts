@@ -24,13 +24,20 @@ import {
 } from "@/lib/people/logic";
 import { initialDueDate as suInitialDue } from "@/lib/service-users/logic";
 import type { ParsedRow } from "./parse";
+import { inviteStaffForPerson } from "@/lib/staff/invite";
+import type { Actor } from "@/lib/invites";
 
 export type ImportFlags = {
   skipped: string[];
   errored: Array<{ name: string; errors: string[] }>;
 };
 
-export type CommitResult = { created: number } & ImportFlags;
+export type CommitResult = { created: number } & ImportFlags & {
+  /** Team Member logins invited during this import (People only). */
+  invited?: number;
+  /** People we could not invite, so a Manager can follow them up. */
+  inviteFailed?: Array<{ name: string; error: string }>;
+};
 
 /** Seed a record's migrated check dates. The newest date advances the check (with a
  *  recurrence-calculated next due, evidence null = migrated); all dates are kept as
@@ -66,6 +73,8 @@ export async function commitPeople(
   companyId: string,
   userId: string,
   rows: ParsedRow[],
+  /** Who is running the import, so their Team Member invites are attributed. */
+  inviter?: Actor,
 ): Promise<CommitResult> {
   const supabase = await createClient();
   const defs = await listPeopleCheckDefinitions(companyId);
@@ -73,6 +82,8 @@ export async function commitPeople(
   const supInterval = defs.find((d) => d.key === "supervision")?.interval ?? 90;
 
   let created = 0;
+  let invited = 0;
+  const inviteFailed: Array<{ name: string; error: string }> = [];
   const flags: ImportFlags = { skipped: [], errored: [] };
 
   for (const row of rows) {
@@ -126,8 +137,17 @@ export async function commitPeople(
 
     await seedRowChecks(supabase, "person", person.id, row, defById, supInterval);
     created += 1;
+
+    // Their Team Member login goes out as the import completes (Phil, 2026-07-26).
+    // Best effort per row: an invite that fails is reported, never a reason to
+    // reject a record that imported cleanly.
+    if (inviter && row.fields.work_email) {
+      const res = await inviteStaffForPerson(person.id, inviter);
+      if (res.ok && !res.skipped) invited += 1;
+      else if (!res.ok) inviteFailed.push({ name: label, error: res.error ?? "unknown" });
+    }
   }
-  return { created, ...flags };
+  return { created, ...flags, invited, inviteFailed };
 }
 
 export async function commitServiceUsers(

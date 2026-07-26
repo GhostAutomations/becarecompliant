@@ -122,6 +122,8 @@ export default async function DashboardPage() {
   if (profile.role === "team_member") redirect("/people");
   // The On Call role has no dashboard; their home is the On Call rota.
   if (profile.role === "on_call") redirect("/on-call");
+  // A Team Member (staff) login has one destination: their own area.
+  if (profile.role === "staff") redirect("/my");
   const supabase = await createClient();
   const companyId = profile.company_id;
 

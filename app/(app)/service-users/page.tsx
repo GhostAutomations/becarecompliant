@@ -22,6 +22,8 @@ export default async function ServiceUsersPage({
   searchParams: Promise<{ branch?: string; view?: string }>;
 }) {
   const { user, profile } = await requireCompany();
+  // A Team Member (staff) login has one destination: their own area.
+  if (profile.role === "staff") redirect("/my");
   if (profile.role === "on_call") redirect("/on-call");
 
   if (!profile.company_id) {

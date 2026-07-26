@@ -59,7 +59,12 @@ export async function commitImportAction(
 
   const result: CommitResult =
     pop === "people"
-      ? await commitPeople(profile.company_id, user.id, res.rows)
+      ? await commitPeople(profile.company_id, user.id, res.rows, {
+          id: user.id,
+          name: profile.full_name,
+          email: profile.email,
+          role: profile.role,
+        })
       : await commitServiceUsers(profile.company_id, user.id, res.rows);
   const flags: ImportFlags = {
     skipped: result.skipped,
@@ -80,6 +85,8 @@ export async function commitImportAction(
       created: result.created,
       skipped: flags.skipped.length,
       errors: flags.errored.length,
+      invited: result.invited ?? 0,
+      invite_failed: result.inviteFailed?.length ?? 0,
     },
   });
 
@@ -113,6 +120,10 @@ export async function commitImportAction(
   }
 
   const parts = [`Created ${result.created}`];
+  if (result.invited) parts.push(`invited ${result.invited} to their own login`);
+  if (result.inviteFailed?.length) {
+    parts.push(`${result.inviteFailed.length} could not be invited`);
+  }
   if (flags.skipped.length) parts.push(`skipped ${flags.skipped.length} existing`);
   if (flags.errored.length) parts.push(`${flags.errored.length} could not be added`);
   return { ok: true, message: `${parts.join(", ")}.`, flags, emailNote };

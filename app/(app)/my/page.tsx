@@ -1,0 +1,120 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { requireCompany } from "@/lib/auth/guards";
+import RealtimeRefresh from "@/components/realtime-refresh";
+import { getCompanyFormByKey } from "@/lib/people/data";
+import { isFormSchema, type FormSchema } from "@/lib/form-schema";
+import { getMyRecord, getMyHolidays, getMySubmissions } from "@/lib/staff/data";
+import MyHolidays from "@/components/staff/my-holidays";
+
+/**
+ * A Team Member's own area, and the only page a staff login has.
+ *
+ * Phil's scope, 2026-07-26: their holidays (which they can change or withdraw
+ * while pending), the forms they have submitted, and the forms and policies
+ * assigned to them. Assignments are the next increment, so this page carries the
+ * first two and says plainly that nothing is assigned yet.
+ *
+ * Anyone with a login can open it: a Manager seeing their own holidays here is
+ * useful, not a leak. What a staff login CANNOT reach is everything else, which
+ * the RLS policies enforce rather than this page.
+ */
+
+export const metadata: Metadata = { title: "My area" };
+
+function formatWhen(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "Europe/London",
+  });
+}
+
+export default async function MyAreaPage() {
+  const { profile } = await requireCompany();
+  if (!profile.company_id) redirect("/founder");
+
+  const [record, submissions, requestForm] = await Promise.all([
+    getMyRecord(),
+    getMySubmissions(),
+    getCompanyFormByKey(profile.company_id, "holiday_requests"),
+  ]);
+
+  const holidays = record ? await getMyHolidays(record.id) : [];
+  const requestSchema: FormSchema | null =
+    requestForm && isFormSchema(requestForm.schema) ? (requestForm.schema as FormSchema) : null;
+
+  return (
+    <div className="mx-auto max-w-3xl space-y-8">
+      <RealtimeRefresh tables={["holiday_requests"]} channel="my-holidays" />
+
+      <div>
+        <h1 className="page-title">
+          {record?.full_name ? `Hello, ${record.full_name.split(" ")[0]}` : "My area"}
+        </h1>
+        <p className="page-subtitle">
+          Your holidays, anything assigned to you, and the forms you have sent in.
+        </p>
+      </div>
+
+      {!record ? (
+        <div className="glass-card p-5">
+          <p className="text-sm text-white/70">
+            Your login is not linked to your staff record yet, so your holidays cannot be
+            shown. Please ask your manager to check the email address on your record.
+          </p>
+        </div>
+      ) : (
+        <>
+          <section className="glass-card p-5">
+            <p className="text-lg font-semibold text-white">{record.full_name}</p>
+            <p className="text-sm text-white/60">
+              {record.job_title ?? "Team Member"}
+              {record.branch_name ? ` · ${record.branch_name}` : ""}
+            </p>
+          </section>
+
+          <MyHolidays holidays={holidays} requestSchema={requestSchema} />
+        </>
+      )}
+
+      {/* Assignments land here next: forms and policies a Manager has given them. */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
+          Assigned to me
+        </h2>
+        <div className="glass-card p-5 text-sm text-white/60">
+          Nothing is assigned to you at the moment. When your manager assigns a form or a
+          policy, it will appear here for you to complete or confirm you have read.
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
+          Forms I have sent in
+        </h2>
+        {submissions.length === 0 ? (
+          <div className="glass-card p-5 text-sm text-white/60">
+            You have not sent in any forms yet.
+          </div>
+        ) : (
+          <div className="glass-card divide-y divide-white/10">
+            {submissions.map((s) => (
+              <div key={s.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
+                <div>
+                  <p className="text-sm font-semibold text-white">{s.form_name}</p>
+                  <p className="text-xs text-white/45">Sent {formatWhen(s.submitted_at)}</p>
+                </div>
+                <Link href={`/evidence/${s.id}`} className="btn-outline px-3 py-2 text-xs">
+                  View
+                </Link>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}

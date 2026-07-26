@@ -16,6 +16,8 @@ export default async function PeoplePage({
   searchParams: Promise<{ branch?: string; view?: string }>;
 }) {
   const { profile } = await requireCompany();
+  // A Team Member (staff) login has one destination: their own area.
+  if (profile.role === "staff") redirect("/my");
   // The On Call role has no People compliance department; send them home.
   if (profile.role === "on_call") redirect("/on-call");
 
