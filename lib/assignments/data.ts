@@ -35,14 +35,19 @@ type RawAssignment = {
   company_policies: PolicyJoin | PolicyJoin[] | null;
 };
 
-type PolicyJoin = { title: string; source: string | null; body: string | null };
+type PolicyJoin = {
+  title: string;
+  source: string | null;
+  body: string | null;
+  signature_mode: string | null;
+};
 
 function one<T>(v: T | T[] | null): T | null {
   return Array.isArray(v) ? (v[0] ?? null) : v;
 }
 
 const SELECT =
-  "id, kind, status, due_date, assigned_at, completed_at, evidence_id, person_id, form_id, policy_id, policy_version, people:person_id(full_name), forms:form_id(name), company_policies:policy_id(title, source, body)";
+  "id, kind, status, due_date, assigned_at, completed_at, evidence_id, person_id, form_id, policy_id, policy_version, people:person_id(full_name), forms:form_id(name), company_policies:policy_id(title, source, body, signature_mode)";
 
 function shape(r: RawAssignment): AssignmentRow {
   return {
@@ -64,6 +69,8 @@ function shape(r: RawAssignment): AssignmentRow {
     policy_id: r.policy_id,
     policy_source: (one(r.company_policies)?.source as "upload" | "text" | null) ?? null,
     policy_body: one(r.company_policies)?.body ?? null,
+    policy_signature_mode:
+      (one(r.company_policies)?.signature_mode as "draw" | "type" | "either" | null) ?? null,
   };
 }
 
@@ -102,12 +109,23 @@ export async function listPolicies(
   const supabase = await createClient();
   let q = supabase
     .from("company_policies")
-    .select("id, title, summary, file_name, version, status, created_at, source, body")
+    .select(
+      "id, title, summary, file_name, version, status, created_at, source, body, signature_mode, reassign_on_new_version",
+    )
     .eq("company_id", companyId)
     .order("title");
   if (!includeArchived) q = q.eq("status", "active");
   const { data } = await q;
-  return (data ?? []) as CompanyPolicy[];
+  // The columns are nullable in the database (null = follow the company default),
+  // but the screen has to show a real answer, so resolve it here rather than
+  // letting a label render as undefined.
+  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+    ...(row as unknown as CompanyPolicy),
+    source: (row.source as CompanyPolicy["source"] | null) ?? "upload",
+    signature_mode: (row.signature_mode as CompanyPolicy["signature_mode"] | null) ?? "either",
+    reassign_on_new_version:
+      (row.reassign_on_new_version as CompanyPolicy["reassign_on_new_version"] | null) ?? "always",
+  }));
 }
 
 /** Forms a Manager can hand out. The acknowledgement form is machinery, not a
@@ -208,4 +226,34 @@ export async function listBriefingAudience(companyId: string): Promise<BriefingP
     branch_name: (Array.isArray(p.branches) ? (p.branches[0] ?? null) : p.branches)?.name ?? null,
     has_email: isSendableAddress(p.work_email),
   }));
+}
+
+/**
+ * The signing rules that actually apply to one policy (0137).
+ *
+ * A policy carries its own; a policy created before 0137, or one left unset,
+ * falls back to the company's remembered default. Every place that decides how a
+ * signature is captured must go through this, so the rule is never read from two
+ * sources that can disagree.
+ */
+export async function getEffectivePolicyRules(
+  companyId: string,
+  policyId: string,
+): Promise<PolicyConfig> {
+  const supabase = await createClient();
+  const [{ data: policy }, defaults] = await Promise.all([
+    supabase
+      .from("company_policies")
+      .select("signature_mode, reassign_on_new_version")
+      .eq("id", policyId)
+      .maybeSingle(),
+    getPolicyConfig(companyId),
+  ]);
+  return {
+    signature_mode:
+      (policy?.signature_mode as PolicyConfig["signature_mode"] | null) ?? defaults.signature_mode,
+    reassign_on_new_version:
+      (policy?.reassign_on_new_version as PolicyConfig["reassign_on_new_version"] | null) ??
+      defaults.reassign_on_new_version,
+  };
 }

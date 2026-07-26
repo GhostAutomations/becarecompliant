@@ -29,7 +29,7 @@ import { storePolicyBytes, uploadPolicyDocument } from "@/lib/assignments/storag
 import { parsePolicyText, policyPlainText } from "@/lib/policies/text";
 import { renderPolicyPdf } from "@/lib/policies/pdf";
 import { POLICY_ACK_FORM_KEY, type BriefingScope } from "@/lib/assignments/types";
-import { getPolicyConfig } from "@/lib/assignments/data";
+import { getEffectivePolicyRules } from "@/lib/assignments/data";
 import { notifyBriefingSent } from "@/lib/notifications/briefings";
 import {
   DRAWN_KEY,
@@ -60,6 +60,84 @@ async function collectFiles(formData: FormData): Promise<EvidenceFileInput[]> {
   return files;
 }
 
+/**
+ * The two signing rules, read off an Add/Edit policy form (0137).
+ *
+ * Phil, 2026-07-26: these belong to the policy, not the company, because a
+ * safeguarding policy and a dress code do not deserve the same ceremony. The
+ * company row is still written, but only as the REMEMBERED DEFAULT for the next
+ * policy somebody adds.
+ */
+function signingRulesFrom(formData: FormData): {
+  signature_mode: SignatureMode;
+  reassign_on_new_version: ReassignMode;
+} {
+  const sig = String(formData.get("signature_mode") ?? "");
+  const re = String(formData.get("reassign_on_new_version") ?? "");
+  return {
+    signature_mode: (["draw", "type", "either"].includes(sig) ? sig : "either") as SignatureMode,
+    reassign_on_new_version: (["always", "ask", "never"].includes(re)
+      ? re
+      : "always") as ReassignMode,
+  };
+}
+
+/** Remember what they chose, so the next policy starts from it. */
+async function rememberSigningDefaults(
+  companyId: string,
+  rules: { signature_mode: SignatureMode; reassign_on_new_version: ReassignMode },
+): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("policy_config").upsert(
+    {
+      company_id: companyId,
+      signature_mode: rules.signature_mode,
+      reassign_on_new_version: rules.reassign_on_new_version,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "company_id" },
+  );
+  if (error) console.error("[policy] could not remember the signing defaults:", error.message);
+}
+
+/** Change how one policy is signed, after it was added. */
+export async function updatePolicySigning(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requireCompanyAdmin();
+  if (!profile.company_id) return { error: "No company context." };
+  const policyId = String(formData.get("policy_id") ?? "");
+  if (!policyId) return { error: "Missing policy." };
+  const rules = signingRulesFrom(formData);
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("company_policies")
+    .update({ ...rules, updated_at: new Date().toISOString() })
+    .eq("id", policyId)
+    .eq("company_id", profile.company_id)
+    .select("id, title");
+  if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "That policy could not be found." };
+
+  await rememberSigningDefaults(profile.company_id, rules);
+  await writeAudit({
+    companyId: profile.company_id,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "policy.signing_changed",
+    entityType: "policy",
+    entityId: policyId,
+    summary: `Changed how "${data[0].title}" is signed`,
+    metadata: rules,
+  });
+
+  revalidatePath("/settings/policies");
+  return { ok: "Saved." };
+}
+
 /** Add a policy document to the company library. */
 export async function uploadPolicy(
   _prev: ActionState,
@@ -86,6 +164,7 @@ export async function uploadPolicy(
     };
   }
 
+  const rules = signingRulesFrom(formData);
   const supabase = await createClient();
 
   // Insert first so the row id names the storage path, then attach the file.
@@ -95,6 +174,8 @@ export async function uploadPolicy(
       company_id: companyId,
       title,
       summary,
+      signature_mode: rules.signature_mode,
+      reassign_on_new_version: rules.reassign_on_new_version,
       storage_path: "pending",
       file_name: file.name,
       mime_type: file.type || null,
@@ -139,6 +220,7 @@ export async function uploadPolicy(
     metadata: { file_name: file.name, bytes: file.size },
   });
 
+  await rememberSigningDefaults(companyId, rules);
   revalidatePath("/settings/policies");
   return { ok: "Policy added." };
 }
@@ -424,8 +506,12 @@ export async function acknowledgePolicy(
     ? assignment.people[0]
     : assignment.people) as { full_name: string; branch_id: string | null } | null;
 
-  const config = await getPolicyConfig(assignment.company_id as string);
-  const signed = signatureGiven(answers, config.signature_mode as SignatureMode);
+  // The rule that applies is THIS policy's, not the company's (0137).
+  const rules = await getEffectivePolicyRules(
+    assignment.company_id as string,
+    assignment.policy_id as string,
+  );
+  const signed = signatureGiven(answers, rules.signature_mode as SignatureMode);
   if (!signed.ok) return { error: signed.error };
   if (answers["confirmed"] !== true) {
     return { error: "Tick the box to confirm you have read it." };
@@ -506,49 +592,6 @@ export async function acknowledgePolicy(
 }
 
 /** Change how this company signs policies. */
-export async function updatePolicyConfig(
-  _prev: ActionState,
-  formData: FormData,
-): Promise<ActionState> {
-  const { user, profile } = await requireCompanyAdmin();
-  if (!profile.company_id) return { error: "No company context." };
-
-  const mode = String(formData.get("signature_mode") ?? "");
-  const reassign = String(formData.get("reassign_on_new_version") ?? "");
-  if (!["draw", "type", "either"].includes(mode)) return { error: "Choose a signing method." };
-  if (!["always", "ask", "never"].includes(reassign)) {
-    return { error: "Choose what happens on a new version." };
-  }
-
-  const supabase = await createClient();
-  const { error } = await supabase.from("policy_config").upsert(
-    {
-      company_id: profile.company_id,
-      signature_mode: mode,
-      reassign_on_new_version: reassign,
-      updated_by: user.id,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "company_id" },
-  );
-  if (error) return { error: error.message };
-
-  await writeAudit({
-    companyId: profile.company_id,
-    actorId: user.id,
-    actorEmail: profile.email,
-    actorRole: profile.role,
-    action: "policy.settings_changed",
-    entityType: "policy",
-    entityId: null,
-    summary: "Changed how policies are signed",
-    metadata: { signature_mode: mode, reassign_on_new_version: reassign },
-  });
-
-  revalidatePath("/settings/policies");
-  return { ok: "Saved." };
-}
-
 /**
  * Upload a NEW VERSION of an existing policy.
  *
@@ -586,6 +629,7 @@ export async function createWrittenPolicy(
     return { error: "That is longer than we can store as text. Please upload it as a document." };
   }
 
+  const writtenRules = signingRulesFrom(formData);
   const supabase = await createClient();
   const { data: company } = await supabase
     .from("companies")
@@ -601,6 +645,8 @@ export async function createWrittenPolicy(
       summary,
       source: "text",
       body,
+      signature_mode: writtenRules.signature_mode,
+      reassign_on_new_version: writtenRules.reassign_on_new_version,
       storage_path: "pending",
       file_name: `${title.replace(/[^a-zA-Z0-9 _-]+/g, "").trim() || "policy"}.pdf`,
       mime_type: "application/pdf",
@@ -639,6 +685,7 @@ export async function createWrittenPolicy(
     metadata: { characters: body.length },
   });
 
+  await rememberSigningDefaults(companyId, writtenRules);
   revalidatePath("/settings/policies");
   return { ok: "Policy saved." };
 }
@@ -689,11 +736,11 @@ export async function updateWrittenPolicy(
   });
   if (!stored.ok) return { error: stored.error };
 
-  // Who has to sign it again is the company's rule, not ours. Same rule as an
-  // uploaded version, so a written policy behaves identically.
-  const config = await getPolicyConfig(companyId);
+  // Who has to sign it again is THIS policy's rule (0137). Same for an uploaded
+  // version, so a written policy behaves identically.
+  const rules = await getEffectivePolicyRules(companyId, policyId);
   let reassigned = 0;
-  if ((config.reassign_on_new_version as ReassignMode) === "always") {
+  if ((rules.reassign_on_new_version as ReassignMode) === "always") {
     reassigned = await reassignPolicy(policyId, companyId, nextVersion, user.id);
   }
 
@@ -840,10 +887,10 @@ export async function uploadPolicyVersion(
     })
     .eq("id", policyId);
 
-  // Who has to sign it again is the company's rule, not ours.
-  const config = await getPolicyConfig(companyId);
+  // Who has to sign it again is THIS policy's rule (0137).
+  const rules = await getEffectivePolicyRules(companyId, policyId);
   let reassigned = 0;
-  if ((config.reassign_on_new_version as ReassignMode) === "always") {
+  if ((rules.reassign_on_new_version as ReassignMode) === "always") {
     reassigned = await reassignPolicy(policyId, companyId, nextVersion, user.id);
   }
 

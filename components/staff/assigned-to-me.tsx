@@ -50,9 +50,11 @@ export default function AssignedToMe({
   const open = assignments.filter((a) => a.status === "assigned");
   const signed = assignments.filter((a) => a.status === "completed" && a.kind === "policy");
 
-  const signSchema = ackSchema
-    ? signingSchema(ackSchema, policyConfig.signature_mode as SignatureMode)
-    : null;
+  // Per policy now (0137): two briefings on the same screen can legitimately want
+  // different signing methods, so the schema is filtered per row rather than once.
+  const modeFor = (a: AssignmentRow): SignatureMode =>
+    (a.policy_signature_mode as SignatureMode | null) ??
+    (policyConfig.signature_mode as SignatureMode);
 
   return (
     <div className="space-y-6">
@@ -86,7 +88,7 @@ export default function AssignedToMe({
 
                 {a.kind === "policy" && a.policy_id ? (
                   <div className="flex flex-wrap items-center gap-2">
-                    {signSchema ? (
+                    {ackSchema ? (
                       // ONE button, one panel: the document and the signature together
                       // (Phil, 2026-07-26: two buttons was clunky).
                       <ReadAndSign
@@ -95,8 +97,8 @@ export default function AssignedToMe({
                         title={a.title}
                         version={a.policy_version}
                         writtenBody={a.policy_source === "text" ? a.policy_body : null}
-                        schema={signSchema}
-                        mode={policyConfig.signature_mode as SignatureMode}
+                        schema={signingSchema(ackSchema, modeFor(a))}
+                        mode={modeFor(a)}
                       />
                     ) : (
                       <p className="text-xs text-amber-300">

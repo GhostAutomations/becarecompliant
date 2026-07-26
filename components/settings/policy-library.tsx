@@ -17,10 +17,68 @@ import {
   createWrittenPolicy,
   updateWrittenPolicy,
   uploadPolicyVersion,
-  updatePolicyConfig,
+  updatePolicySigning,
 } from "@/lib/assignments/actions";
 import type { CompanyPolicy, PolicyConfig } from "@/lib/assignments/types";
 import { REASSIGN_MODE_LABELS, SIGNATURE_MODE_LABELS } from "@/lib/assignments/signing";
+
+/**
+ * How ONE policy is signed. Phil, 2026-07-26: "how signing works is a generic
+ * tile, it should be per policy... however, it should remember that last
+ * settings". So these two live on the policy, and the company row is only the
+ * remembered starting point for the next one you add.
+ *
+ * It matters beyond tidiness: a safeguarding policy can demand a drawn signature
+ * and make everyone re-sign every version, while a dress code can take a typed
+ * name and never chase anyone. One company switch forced the strictest policy's
+ * rules onto all of them.
+ */
+function SigningFields({
+  idPrefix,
+  signatureMode,
+  reassign,
+}: {
+  idPrefix: string;
+  signatureMode: PolicyConfig["signature_mode"];
+  reassign: PolicyConfig["reassign_on_new_version"];
+}) {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      <div>
+        <label htmlFor={`${idPrefix}-signature_mode`} className="form-label">
+          How they sign this one
+        </label>
+        <select
+          id={`${idPrefix}-signature_mode`}
+          name="signature_mode"
+          defaultValue={signatureMode}
+        >
+          {Object.entries(SIGNATURE_MODE_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label htmlFor={`${idPrefix}-reassign`} className="form-label">
+          When there is a new version
+        </label>
+        <select
+          id={`${idPrefix}-reassign`}
+          name="reassign_on_new_version"
+          defaultValue={reassign}
+        >
+          {Object.entries(REASSIGN_MODE_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+}
 
 export default function PolicyLibrary({
   policies,
@@ -36,52 +94,10 @@ export default function PolicyLibrary({
   const [how, setHow] = useState<"upload" | "text">("upload");
   const [versioning, setVersioning] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
+  const [signingFor, setSigningFor] = useState<string | null>(null);
 
   return (
     <div className="space-y-5">
-      {/* How this company signs. Both of these are the company's call, not ours. */}
-      <div className="glass-card p-5">
-        <h2 className="text-base font-semibold text-white">How signing works</h2>
-        <p className="mt-1 text-sm text-white/60">
-          Your team signs a policy rather than just ticking it, and the signature is stored
-          with the version they signed.
-        </p>
-        <div className="mt-4">
-          <ActionForm action={updatePolicyConfig} label="Save">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label htmlFor="signature_mode" className="form-label">
-                  How they sign
-                </label>
-                <select
-                  id="signature_mode"
-                  name="signature_mode"
-                  defaultValue={config.signature_mode}
-                >
-                  {Object.entries(SIGNATURE_MODE_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="reassign_on_new_version" className="form-label">
-                  When you upload a new version
-                </label>
-                <select
-                  id="reassign_on_new_version"
-                  name="reassign_on_new_version"
-                  defaultValue={config.reassign_on_new_version}
-                >
-                  {Object.entries(REASSIGN_MODE_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </ActionForm>
-        </div>
-      </div>
-
       {adding ? (
         <div className="glass-card space-y-4 p-5">
           <div className="flex items-center justify-between">
@@ -136,6 +152,20 @@ export default function PolicyLibrary({
                     version you want on record. A PDF reads best on a phone.
                   </p>
                 </div>
+                <div className="border-t border-white/10 pt-4">
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-white/50">
+                    How this policy is signed
+                  </p>
+                  <SigningFields
+                    idPrefix="upload"
+                    signatureMode={config.signature_mode}
+                    reassign={config.reassign_on_new_version}
+                  />
+                  <p className="form-hint">
+                    Set per policy, and remembered as the starting point for the next one you
+                    add.
+                  </p>
+                </div>
               </div>
             </ActionForm>
           ) : (
@@ -162,6 +192,20 @@ export default function PolicyLibrary({
                     the exact wording they signed.
                   </p>
                 </div>
+                <div className="border-t border-white/10 pt-4">
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-white/50">
+                    How this policy is signed
+                  </p>
+                  <SigningFields
+                    idPrefix="written"
+                    signatureMode={config.signature_mode}
+                    reassign={config.reassign_on_new_version}
+                  />
+                  <p className="form-hint">
+                    Set per policy, and remembered as the starting point for the next one you
+                    add.
+                  </p>
+                </div>
               </div>
             </ActionForm>
           )}
@@ -184,6 +228,7 @@ export default function PolicyLibrary({
                 <p className="truncate text-sm font-semibold text-white">{p.title}</p>
                 <p className="truncate text-xs text-white/45">
                   {p.source === "text" ? "Written in Be Care Compliant" : p.file_name}
+                  {` · ${SIGNATURE_MODE_LABELS[p.signature_mode]}`}
                   {p.summary ? ` · ${p.summary}` : ""}
                 </p>
               </div>
@@ -214,6 +259,13 @@ export default function PolicyLibrary({
                     New version
                   </button>
                 )}
+                <button
+                  type="button"
+                  className="btn-ghost px-3 py-2 text-xs"
+                  onClick={() => setSigningFor(signingFor === p.id ? null : p.id)}
+                >
+                  Signing
+                </button>
                 <ActionForm
                   action={archivePolicy}
                   hidden={{ policy_id: p.id }}
@@ -224,6 +276,28 @@ export default function PolicyLibrary({
                   confirm="Archive this policy? It can no longer be assigned, and signatures already given are kept."
                 />
               </div>
+
+              {signingFor === p.id ? (
+                <div className="w-full border-t border-white/10 pt-3">
+                  <ActionForm
+                    action={updatePolicySigning}
+                    hidden={{ policy_id: p.id }}
+                    label="Save"
+                    savedLabel="Saved"
+                    buttonClassName="btn-primary px-3 py-2 text-xs"
+                  >
+                    <SigningFields
+                      idPrefix={`sign-${p.id}`}
+                      signatureMode={p.signature_mode}
+                      reassign={p.reassign_on_new_version}
+                    />
+                    <p className="form-hint">
+                      Applies to this policy only. Signatures already given keep the rule that
+                      was in force when they signed.
+                    </p>
+                  </ActionForm>
+                </div>
+              ) : null}
 
               {editing === p.id ? (
                 <div className="w-full border-t border-white/10 pt-3">
@@ -241,9 +315,9 @@ export default function PolicyLibrary({
                     <p className="form-hint">
                       Editing creates version {p.version + 1}. Version {p.version} is kept exactly
                       as it reads now, so signatures already given stay evidenced.
-                      {config.reassign_on_new_version === "always"
+                      {p.reassign_on_new_version === "always"
                         ? " Everyone who has signed it before will be asked to sign the new version."
-                        : config.reassign_on_new_version === "ask"
+                        : p.reassign_on_new_version === "ask"
                           ? " You will be asked who needs to sign it again."
                           : " Nobody will be asked to sign again, you assign it yourself."}
                     </p>
@@ -272,9 +346,9 @@ export default function PolicyLibrary({
                     />
                     <p className="form-hint">
                       Version {p.version} is kept, so signatures against it stay evidenced.
-                      {config.reassign_on_new_version === "always"
+                      {p.reassign_on_new_version === "always"
                         ? " Everyone who has signed it before will be asked to sign this version."
-                        : config.reassign_on_new_version === "ask"
+                        : p.reassign_on_new_version === "ask"
                           ? " You will be asked who needs to sign it again."
                           : " Nobody will be asked to sign again, you assign it yourself."}
                     </p>

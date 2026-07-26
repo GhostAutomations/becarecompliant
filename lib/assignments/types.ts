@@ -15,6 +15,9 @@ export type CompanyPolicy = {
   source: PolicySource;
   /** The current wording, for a written policy. */
   body: string | null;
+  /** How THIS policy is signed, and who re-signs a new version (0137). */
+  signature_mode: PolicyConfig["signature_mode"];
+  reassign_on_new_version: PolicyConfig["reassign_on_new_version"];
 };
 
 export type PolicySource = "upload" | "text";
@@ -28,7 +31,10 @@ export type PolicyVersion = {
   created_at: string;
 };
 
-/** The company's own signing rules (migration 0135). */
+/**
+ * The REMEMBERED DEFAULTS for the next policy added (0135, redefined by 0137).
+ * The live rule for a given policy lives on the policy itself.
+ */
 export type PolicyConfig = {
   signature_mode: "draw" | "type" | "either";
   reassign_on_new_version: "always" | "ask" | "never";
@@ -53,6 +59,8 @@ export type AssignmentRow = {
   /** For a policy: how it was created, and its wording when it was written in. */
   policy_source: PolicySource | null;
   policy_body: string | null;
+  /** How this particular policy must be signed (0137). */
+  policy_signature_mode: PolicyConfig["signature_mode"] | null;
 };
 
 /**
