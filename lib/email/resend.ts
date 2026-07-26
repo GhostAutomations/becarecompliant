@@ -31,6 +31,94 @@ export type EmailAttachment = {
   contentId?: string;
 };
 
+/**
+ * Reserved and demo domains we must NEVER email.
+ *
+ * Phil's register still carries seeded demo people on @example.com. A whole
+ * company briefing would have posted 18 emails straight into the void, and
+ * bounces at that rate damage the sending domain's reputation for the real
+ * customers. RFC 2606 reserves these names precisely so software can refuse them.
+ */
+const UNSENDABLE_DOMAINS = new Set([
+  "example.com",
+  "example.org",
+  "example.net",
+  "example.edu",
+  "test.com",
+  "localhost",
+]);
+const UNSENDABLE_SUFFIXES = [".test", ".invalid", ".example", ".localhost", ".local"];
+
+/** True when an address is real enough to send to. Used before every bulk send. */
+export function isSendableAddress(email: string | null | undefined): boolean {
+  if (!email) return false;
+  const trimmed = email.trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(trimmed)) return false;
+  const domain = trimmed.split("@")[1] ?? "";
+  if (UNSENDABLE_DOMAINS.has(domain)) return false;
+  return !UNSENDABLE_SUFFIXES.some((suffix) => domain.endsWith(suffix));
+}
+
+export type BatchMessage = { to: string; subject: string; html: string };
+
+/**
+ * Send many transactional emails in one call (Resend's /emails/batch, up to 100
+ * per request).
+ *
+ * Why this exists: sending a briefing to a whole company is one Manager click and
+ * dozens of emails, and Resend rate limits REQUESTS, not recipients. One batch
+ * call for 41 people stays inside the limit; 41 separate calls would not. Results
+ * come back index aligned with the input, so each notification_log row can be
+ * settled correctly. If the batch endpoint itself fails, this falls back to
+ * sending them one at a time rather than losing the lot.
+ */
+export async function sendEmailBatch(messages: BatchMessage[]): Promise<SendResult[]> {
+  if (messages.length === 0) return [];
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM;
+  if (!apiKey || !from) {
+    return messages.map(() => ({
+      sent: false,
+      skippedReason: "RESEND_API_KEY / RESEND_FROM not configured",
+    }));
+  }
+
+  const out: SendResult[] = [];
+  const CHUNK = 100;
+  for (let i = 0; i < messages.length; i += CHUNK) {
+    const chunk = messages.slice(i, i + CHUNK);
+    let ok = false;
+    let error = "";
+    try {
+      const res = await fetch("https://api.resend.com/emails/batch", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(
+          chunk.map((m) => ({ from, to: [m.to], subject: m.subject, html: m.html })),
+        ),
+      });
+      if (res.ok) ok = true;
+      else error = `Resend ${res.status}: ${(await res.text()).slice(0, 240)}`;
+    } catch (e) {
+      error = (e as Error).message;
+    }
+
+    if (ok) {
+      for (const _ of chunk) out.push({ sent: true });
+      continue;
+    }
+    // Fall back to one at a time, so one bad address cannot silence the rest.
+    console.error("[email] batch failed, falling back:", error);
+    for (const m of chunk) {
+      out.push(await sendEmail(m));
+    }
+  }
+  return out;
+}
+
 export async function sendEmail(opts: {
   to: string;
   subject: string;

@@ -56,6 +56,8 @@ export type BriefingPerson = {
   full_name: string;
   branch_id: string | null;
   branch_name: string | null;
+  /** Whether they can be emailed about it. No email = they only see it when they log in. */
+  has_email: boolean;
 };
 
 /** How a Manager chose the audience. Resolved on the server, never trusted from the browser. */

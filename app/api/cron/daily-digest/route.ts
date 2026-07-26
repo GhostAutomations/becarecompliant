@@ -31,6 +31,13 @@ import {
   isLondonSendHour,
 } from "@/lib/notifications/digest";
 import { claimNotification, settleNotification } from "@/lib/notifications/log";
+import {
+  getOutstandingBriefings,
+  managerOutstandingHtml,
+  managerOutstandingSubject,
+  overdueForRecipient,
+  sendBriefingChases,
+} from "@/lib/notifications/briefings";
 import { sendSms, twilioConfigured } from "@/lib/sms/twilio";
 import { tierHasFeature } from "@/lib/billing/tier";
 import type { Tier } from "@/lib/stripe/config";
@@ -98,6 +105,8 @@ export async function GET(request: NextRequest) {
     digestsSent: 0,
     reportsSent: 0,
     smsSent: 0,
+    briefingChases: 0,
+    briefingManagerEmails: 0,
     skipped: 0,
     failures: [] as string[],
     emailConfigured: resendConfigured(),
@@ -240,6 +249,72 @@ export async function GET(request: NextRequest) {
               result.error ?? result.skippedReason,
             );
           }
+        }
+      }
+
+      // 1c. Briefings (Phil, 2026-07-26). Two separate things, and neither is a
+      // daily extra in a company that is up to date:
+      //   the Team Member gets ONE email listing what of theirs is due today or
+      //   late, and the Manager or Admin only hears when something is actually
+      //   overdue. Both are per-day dedupe keys, so the twice-scheduled cron and
+      //   any retry cannot repeat them.
+      if (company.settings.emailDigestEnabled) {
+        try {
+          const outstanding = await getOutstandingBriefings(company.id);
+          if (outstanding.length > 0) {
+            const chased = await sendBriefingChases({
+              companyId: company.id,
+              companyName: company.name,
+              outstanding,
+              today,
+            });
+            summary.briefingChases += chased.sent;
+            summary.skipped += chased.skipped;
+            if (chased.failed > 0) {
+              summary.failures.push(`briefing chases ${company.name}: ${chased.failed} failed`);
+            }
+
+            for (const recipient of recipients) {
+              if (recipient.role === "supervisor") continue;
+              const overdue = overdueForRecipient(outstanding, recipient, today);
+              if (overdue.length === 0) continue;
+              const subject = managerOutstandingSubject(overdue.length);
+              const logId = await claimNotification({
+                companyId: company.id,
+                recipientProfileId: recipient.profileId,
+                channel: "email",
+                kind: "briefing_outstanding",
+                dedupeKey: `briefing_outstanding:${recipient.profileId}:${today}`,
+                toAddress: recipient.email,
+                subject,
+                metadata: { overdue: overdue.length },
+              });
+              if (!logId) {
+                summary.skipped += 1;
+                continue;
+              }
+              const result = await sendEmail({
+                to: recipient.email,
+                subject,
+                html: managerOutstandingHtml({
+                  recipientName: recipient.fullName,
+                  companyName: company.name,
+                  items: overdue,
+                  today,
+                }),
+              });
+              if (result.sent) summary.briefingManagerEmails += 1;
+              else if (result.skippedReason) summary.skipped += 1;
+              else summary.failures.push(`briefings ${recipient.email}: ${result.error}`);
+              await settleNotification(
+                logId,
+                result.sent ? "sent" : result.skippedReason ? "skipped" : "failed",
+                result.error ?? result.skippedReason,
+              );
+            }
+          }
+        } catch (e) {
+          summary.failures.push(`briefings ${company.name}: ${(e as Error).message}`);
         }
       }
 

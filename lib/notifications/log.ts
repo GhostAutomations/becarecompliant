@@ -88,3 +88,29 @@ export async function settleNotification(
     console.error("[notify] settle skipped:", (e as Error).message, logId);
   }
 }
+
+/**
+ * Settle a batch of claimed rows in one update. Used by the briefing emails,
+ * where one Resend batch call covers a whole company.
+ */
+export async function settleNotifications(
+  logIds: string[],
+  status: "sent" | "failed" | "skipped",
+  error?: string,
+): Promise<void> {
+  if (logIds.length === 0) return;
+  try {
+    const supabase = createServiceClient();
+    const { error: dbError } = await supabase
+      .from("notification_log")
+      .update({
+        status,
+        error: error ?? null,
+        sent_at: status === "sent" ? new Date().toISOString() : null,
+      })
+      .in("id", logIds);
+    if (dbError) console.error("[notify] bulk settle failed:", dbError.message);
+  } catch (e) {
+    console.error("[notify] bulk settle skipped:", (e as Error).message);
+  }
+}

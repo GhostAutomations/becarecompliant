@@ -9,6 +9,7 @@ import "server-only";
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { isSendableAddress } from "@/lib/email/resend";
 import type {
   AssignmentRow,
   BriefingPerson,
@@ -185,7 +186,7 @@ export async function listBriefingAudience(companyId: string): Promise<BriefingP
   const supabase = await createClient();
   const { data } = await supabase
     .from("people")
-    .select("id, full_name, branch_id, branches:branch_id(name)")
+    .select("id, full_name, branch_id, work_email, branches:branch_id(name)")
     .eq("company_id", companyId)
     .neq("employment_status", "leaver")
     .is("archived_at", null)
@@ -194,11 +195,13 @@ export async function listBriefingAudience(companyId: string): Promise<BriefingP
     id: string;
     full_name: string;
     branch_id: string | null;
+    work_email: string | null;
     branches: { name: string } | { name: string }[] | null;
   }>).map((p) => ({
     id: p.id,
     full_name: p.full_name,
     branch_id: p.branch_id,
     branch_name: (Array.isArray(p.branches) ? (p.branches[0] ?? null) : p.branches)?.name ?? null,
+    has_email: isSendableAddress(p.work_email),
   }));
 }

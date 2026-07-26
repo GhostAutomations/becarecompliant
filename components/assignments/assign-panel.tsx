@@ -54,8 +54,20 @@ export default function AssignPanel({
   }, [people]);
 
   const noBranch = people.filter((p) => !p.branch_id).length;
-  const branchCount = branchId ? people.filter((p) => p.branch_id === branchId).length : 0;
+  const inBranch = branchId ? people.filter((p) => p.branch_id === branchId) : [];
+  const branchCount = inBranch.length;
   const allPicked = people.length > 0 && picked.length === people.length;
+
+  // Who will actually get an email. Everyone else only sees it when they log in,
+  // which a Manager needs to know BEFORE they send, not afterwards.
+  const emailable = (list: BriefingPerson[]) => list.filter((p) => p.has_email).length;
+  function silentNote(list: BriefingPerson[]): string {
+    const silent = list.length - emailable(list);
+    if (silent === 0) return " Everyone will get an email.";
+    return ` ${emailable(list)} will get an email. ${silent} ${
+      silent === 1 ? "has" : "have"
+    } no email address, so they will only see it when they log in.`;
+  }
 
   function toggle(id: string) {
     setPicked((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -162,9 +174,8 @@ export default function AssignPanel({
             <p className="form-hint">
               Goes to all {people.length} {plural(people.length)} on your register. Leavers and
               archived records are never included.
-              {noBranch > 0
-                ? ` That includes ${noBranch} with no branch set.`
-                : ""}
+              {noBranch > 0 ? ` That includes ${noBranch} with no branch set.` : ""}
+              {silentNote(people)}
             </p>
           )}
 
@@ -191,7 +202,7 @@ export default function AssignPanel({
               </select>
               <p className="form-hint">
                 {branchId
-                  ? `Goes to all ${branchCount} ${plural(branchCount)} in that branch.`
+                  ? `Goes to all ${branchCount} ${plural(branchCount)} in that branch.${silentNote(inBranch)}`
                   : "Useful when one local authority asks for a document the others do not."}
               </p>
             </div>
@@ -235,6 +246,9 @@ export default function AssignPanel({
               </div>
               <p className="form-hint">
                 {picked.length} selected. Anyone who already has this open is skipped.
+                {picked.length > 0
+                  ? silentNote(people.filter((p) => picked.includes(p.id)))
+                  : ""}
               </p>
             </div>
           )}

@@ -28,6 +28,7 @@ import type { ActionState } from "@/lib/forms";
 import { uploadPolicyDocument } from "@/lib/assignments/storage";
 import { POLICY_ACK_FORM_KEY, type BriefingScope } from "@/lib/assignments/types";
 import { getPolicyConfig } from "@/lib/assignments/data";
+import { notifyBriefingSent } from "@/lib/notifications/briefings";
 import {
   DRAWN_KEY,
   TYPED_KEY,
@@ -272,10 +273,32 @@ export async function assignItems(
         assigned_by: user.id,
       })),
     )
-    .select("id");
+    .select("id, person_id");
   if (error) return { error: error.message };
 
   const created = data?.length ?? 0;
+
+  // Tell them. Phil, 2026-07-26: a briefing used to appear silently, which meant
+  // it was only ever seen by somebody who happened to log in. Best effort: a
+  // failed email never undoes the briefing, it is reported back instead.
+  const title =
+    kind === "policy"
+      ? ((
+          await supabase.from("company_policies").select("title").eq("id", id).maybeSingle()
+        ).data?.title as string | undefined) ?? "a policy"
+      : ((await supabase.from("forms").select("name").eq("id", id).maybeSingle()).data?.name as
+          | string
+          | undefined) ?? "a form";
+  const emailOutcome = await notifyBriefingSent({
+    companyId,
+    kind,
+    title,
+    dueDate: dueDate,
+    assignments: ((data ?? []) as Array<{ id: string; person_id: string }>).map((r) => ({
+      id: r.id,
+      personId: r.person_id,
+    })),
+  });
   await writeAudit({
     companyId,
     actorId: user.id,
@@ -293,16 +316,27 @@ export async function assignItems(
       people: personIds.length,
       created,
       due_date: dueDate,
+      emailed: emailOutcome.emailed,
+      no_email: emailOutcome.noEmail,
+      email_failed: emailOutcome.failed,
     },
   });
 
   revalidatePath("/briefings");
-  return {
-    ok:
-      created === personIds.length
-        ? `Sent to ${created} ${created === 1 ? "person" : "people"}.`
-        : `Sent to ${created}. ${personIds.length - created} had it already.`,
-  };
+
+  const parts = [
+    created === personIds.length
+      ? `Sent to ${created} ${created === 1 ? "person" : "people"}.`
+      : `Sent to ${created}. ${personIds.length - created} had it already.`,
+  ];
+  if (emailOutcome.emailed > 0) parts.push(`${emailOutcome.emailed} emailed.`);
+  if (emailOutcome.noEmail > 0) {
+    parts.push(
+      `${emailOutcome.noEmail} ${emailOutcome.noEmail === 1 ? "has" : "have"} no email address, so ${emailOutcome.noEmail === 1 ? "they" : "they"} will only see it when they log in.`,
+    );
+  }
+  if (emailOutcome.failed > 0) parts.push(`${emailOutcome.failed} could not be emailed.`);
+  return { ok: parts.join(" ") };
 }
 
 /** Take an assignment back. */
