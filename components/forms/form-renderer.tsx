@@ -651,6 +651,31 @@ function SignaturePad({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
 
+  /**
+   * The pad is WHITE PAPER with DARK INK, even though the app is dark.
+   *
+   * Phil, 2026-07-26: "why is the signature colour white, that is what it is
+   * saving as." Exactly: the stroke was white on a transparent PNG, which looked
+   * right in a dark dialog and then vanished on the certificate, which is white
+   * paper. A signature has to survive wherever it is shown, so the canvas is
+   * filled opaque white and signed in ink. It also reads as paper, which is what
+   * DocuSign and Adobe put in front of you.
+   */
+  const paper = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  };
+
+  useEffect(() => {
+    // Start as blank paper. Only do it when there is nothing to preserve.
+    if (!dataUrl) paper();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const point = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current!;
     const rect = canvas.getBoundingClientRect();
@@ -675,7 +700,7 @@ function SignaturePad({
   const move = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!drawing.current || disabled) return;
     const ctx = canvasRef.current!.getContext("2d")!;
-    ctx.strokeStyle = "#ffffff";
+    ctx.strokeStyle = "#0d1d4b";
     ctx.lineWidth = 2.6;
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
@@ -694,6 +719,7 @@ function SignaturePad({
   const clear = () => {
     const canvas = canvasRef.current!;
     canvas.getContext("2d")!.clearRect(0, 0, canvas.width, canvas.height);
+    paper();
     onChange("");
   };
 
@@ -703,7 +729,7 @@ function SignaturePad({
         ref={canvasRef}
         width={480}
         height={160}
-        className="w-full touch-none rounded-xl border border-white/20 bg-white/10 backdrop-blur"
+        className="w-full touch-none rounded-xl border border-white/20 bg-white"
         onPointerDown={start}
         onPointerMove={move}
         onPointerUp={end}
@@ -714,7 +740,7 @@ function SignaturePad({
           Clear signature
         </button>
         <span className="text-xs text-white/50">
-          {dataUrl ? "Signature captured" : "Sign in the box above"}
+          {dataUrl ? "Signature captured" : "Sign in the white box above"}
         </span>
       </div>
     </div>

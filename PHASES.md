@@ -428,6 +428,23 @@ Cold items still to test on the deployed build:
 - Certificate PDF from the signature Charlotte has already given (open it from her completed briefing) and the audit row policy.certificate_downloaded.
 - The 'ask' reassign mode still behaves as 'never' until its confirm step is built.
 
+Logged from mobile policy signing (2026-07-26, same day as Briefings). NEW DEPENDENCY: `pdfjs-dist@4.10.38` (first front end dependency added since stripe; Phil approved by popup).
+
+WHY: Phil, "rember, mot peple will us their phone to log into the tm portal", and "how do docusign do it and adobe". Two buttons (Read the policy / Sign it) and a PDF in an iframe are both wrong on a phone: iOS Safari renders only the first page inside a page, and the document was never in front of them while they signed. DocuSign and Adobe render the pages themselves, fill the screen with the document, and keep ONE sticky bar at the bottom whose label is the state. We now do the same: full screen reader (components/staff/policy-reader.tsx, a canvas per page), sticky bar, and a signing sheet over the document. The tick and signature still go through the shared FormRenderer, validator and acknowledgePolicy action, so the Evidence is unchanged.
+
+PHIL'S RULING: the Sign bar stays LOCKED until an IntersectionObserver sees the LAST page ("how do you know they read it" deserves better than a tick box). A one page policy unlocks immediately, and a document pdf.js cannot render unlocks too, so nobody is ever trapped.
+
+THREE THINGS FIXED IN THE SAME PASS:
+- SIGNATURE PAD BUG, app-wide: the canvas is a fixed 480x160 internally but stretches to its container, and the pointer handler used raw CSS pixels, so on every phone the ink landed up and left of the finger. point() now scales by canvas.width/rect.width. Affected EVERY signature field, not just policies. Charlotte's 2026-07-26 signature predates the fix and may look skewed.
+- app/api/policies/[id]/file is now a PROXY, not a redirect: it streams the bytes from our own origin, so pdf.js never makes a cross-origin fetch at the mercy of bucket CORS and the signed URL never reaches the browser. Still audited as policy.opened.
+- pdf.js LEGACY build on purpose (modern needs Promise.withResolvers, absent on iOS 16), worker bundled with new URL(..., import.meta.url) rather than a CDN, dynamic import inside useEffect so it never evaluates during SSR or the build.
+
+Cold items:
+- ON A REAL IPHONE (the only test that matters here): the pages render, pinch zoom works, the bar unlocks only at the last page, the signature lands under the finger, and the finished certificate shows a clean signature.
+- Multi page and larger policies (the current test document is one page, which unlocks instantly, so the scroll gate is NOT yet proven).
+- An old Android and an iPad.
+- A non PDF policy (.doc/.docx are accepted at upload): pdf.js cannot render those, so confirm the failure path unlocks the bar and the new-tab link works. Consider rejecting anything but PDF at upload.
+
 ## Phase 12 — Marketing & Launch
 
 Marketing site on becarecompliant.com, onboarding collateral, subscription agreement (no data selling clause), launch.
