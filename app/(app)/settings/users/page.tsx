@@ -204,7 +204,8 @@ export default async function UsersPage() {
         )}
       </section>
 
-      <div className="space-y-3 sm:max-w-3xl">
+      {/* Two dropdowns side by side, each half the width of the tiles above. */}
+      <div className="grid gap-4 sm:grid-cols-2">
         <UserDropdown
           title="Active users"
           subtitle="Admins, Managers and Supervisors: the people who run the service"
