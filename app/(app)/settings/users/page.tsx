@@ -6,7 +6,7 @@ import { ROLE_LABELS } from "@/lib/nav";
 import BackLink from "@/components/back-link";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import { InviteForm } from "@/components/settings/invite-form";
-import TeamMemberControls from "@/components/settings/team-member-controls";
+import UserRow from "@/components/settings/user-row";
 import CollapsibleSection from "@/components/settings/collapsible-section";
 import ActionForm from "@/components/action-form";
 import { resendInviteAction, revokeInviteAction } from "../actions";
@@ -94,59 +94,43 @@ export default async function UsersPage() {
   const pending = invites ?? [];
 
   /**
-   * One user, on ONE LINE (Phil, 2026-07-26): name, email and branches on the
-   * left, and every control inline on the right. A user who cannot be managed
-   * from here (you, and other Admins) shows their role and status as pills
-   * instead, so the line still reads the same way.
+   * One user in the list: NAME and EMAIL only (Phil, 2026-07-26). Clicking it
+   * opens a popup with everything you can do to them, so a screen with sixty
+   * Team Member logins on it still reads as a list of people.
    */
   function renderUser(u: { id: string; full_name: string; email: string; role: string; status: string }) {
     const isSelf = u.id === user.id;
     const isAdmin = u.role === "company_admin";
-    const canManage = !isSelf && !isAdmin;
     const primaryId = primaryByUser.get(u.id) ?? null;
     const additionalIds = additionalByUser.get(u.id) ?? [];
-    const branchSummary = [
+    const branchNames = [
       primaryId ? branchName.get(primaryId) : null,
       ...additionalIds.map((id) => branchName.get(id)),
     ].filter(Boolean);
     return (
-      <div key={u.id} className="glass-card flex flex-wrap items-center gap-3 px-4 py-2.5">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-white">
-            {u.full_name || u.email}
-            {isSelf ? <span className="text-white/40"> (you)</span> : null}
-            <span className="text-xs font-normal text-white/45">
-              {" · "}
-              {u.email}
-              {" · "}
-              {isAdmin
-                ? "all branches"
-                : branchSummary.length > 0
-                  ? branchSummary.join(", ")
-                  : "no branch"}
-            </span>
-          </p>
-        </div>
-
-        {canManage ? (
-          <TeamMemberControls
-            userId={u.id}
-            userLabel={u.full_name || u.email}
-            role={u.role}
-            status={u.status}
-            primaryBranchId={primaryId}
-            additionalBranchIds={additionalIds}
-            branches={activeBranches
-              .filter((b) => b.kind === "branch")
-              .map((b) => ({ id: b.id, name: b.name }))}
-          />
-        ) : (
-          <div className="flex items-center gap-2">
-            <span className="pill-neutral">{ROLE_LABELS[u.role] ?? u.role}</span>
-            <span className={u.status === "active" ? "pill-green" : "pill-red"}>{u.status}</span>
-          </div>
-        )}
-      </div>
+      <UserRow
+        key={u.id}
+        userId={u.id}
+        fullName={u.full_name}
+        email={u.email}
+        role={u.role}
+        roleLabel={ROLE_LABELS[u.role] ?? u.role}
+        status={u.status}
+        isSelf={isSelf}
+        canManage={!isSelf && !isAdmin}
+        primaryBranchId={primaryId}
+        additionalBranchIds={additionalIds}
+        branchSummary={
+          isAdmin
+            ? "All branches"
+            : branchNames.length > 0
+              ? branchNames.join(", ")
+              : "No branch"
+        }
+        branches={activeBranches
+          .filter((b) => b.kind === "branch")
+          .map((b) => ({ id: b.id, name: b.name }))}
+      />
     );
   }
 
