@@ -30,6 +30,7 @@ export type NavEntry = {
     | "founder"
     | "holiday"
     | "absence"
+    | "submissions"
     | "training"
     | "compliance"
     | "outcomes"
@@ -81,6 +82,12 @@ export const NAV_ENTRIES: NavEntry[] = [
         label: "Absence",
         icon: "absence",
         roles: ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager", "supervisor", "on_call"],
+      },
+      {
+        href: "/people/submissions",
+        label: "Submissions",
+        icon: "submissions",
+        roles: ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"],
       },
     ],
   },

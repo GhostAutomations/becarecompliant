@@ -108,26 +108,47 @@ export async function notifyHolidayDecided(opts: {
   startDate: string;
   endDate: string;
   note?: string | null;
+  /** A request sent through a public form has no account behind it, so there is
+   *  no profile to email. The address the person gave on the form is used
+   *  instead, so they still hear the outcome. */
+  fallbackEmail?: string | null;
+  fallbackName?: string | null;
 }): Promise<Outcome> {
   const outcomes: Outcome = {};
   try {
-    if (!opts.requestedBy) return { requester: "skipped_no_requester" };
+    if (!opts.requestedBy && !opts.fallbackEmail) {
+      return { requester: "skipped_no_requester" };
+    }
     const supabase = createServiceClient();
-    const [{ data: requester }, { data: company }] = await Promise.all([
-      supabase.from("profiles").select("id, full_name, email").eq("id", opts.requestedBy).maybeSingle(),
-      supabase.from("companies").select("name").eq("id", opts.companyId).maybeSingle(),
-    ]);
-    if (!requester?.email) return { requester: "skipped_no_email" };
+    const { data: company } = await supabase
+      .from("companies")
+      .select("name")
+      .eq("id", opts.companyId)
+      .maybeSingle();
+
+    let requester: { id: string; full_name: string; email: string } | null = null;
+    if (opts.requestedBy) {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .eq("id", opts.requestedBy)
+        .maybeSingle();
+      requester = (data as { id: string; full_name: string; email: string } | null) ?? null;
+    }
+
+    const toAddress = requester?.email ?? opts.fallbackEmail ?? null;
+    const toName = requester?.full_name ?? opts.fallbackName ?? "";
+    if (!toAddress) return { requester: "skipped_no_email" };
 
     const approved = opts.status === "approved";
     const logId = await claimNotification({
       companyId: opts.companyId,
       branchId: opts.branchId,
-      recipientProfileId: requester.id,
+      recipientProfileId: requester?.id ?? null,
       channel: "email",
       kind: "holiday_decision",
       dedupeKey: `holiday_decision:${opts.requestId}`,
-      toAddress: requester.email,
+      toAddress,
       subject: approved ? "Your holiday request is approved" : "Your holiday request was declined",
     });
     if (!logId) return { requester: "already_sent" };
@@ -137,18 +158,19 @@ export async function notifyHolidayDecided(opts: {
         ? `<p style="margin:12px 0 0 0;">Reason given: ${escapeHtml(opts.note)}</p>`
         : "";
     const result = await sendEmail({
-      to: requester.email,
+      to: toAddress,
       subject: approved ? "Your holiday request is approved" : "Your holiday request was declined",
       html: noticeEmailHtml({
         preheader: approved ? "Your holiday is booked." : "Your holiday request was declined.",
         heading: approved ? "Holiday approved" : "Holiday declined",
-        bodyHtml: `<p style="margin:0;">${escapeHtml(requester.full_name || "Hello")}, your holiday request from
+        bodyHtml: `<p style="margin:0;">${escapeHtml(toName || "Hello")}, your holiday request from
           <strong style="color:#ffffff;">${escapeHtml(formatDateUk(opts.startDate))}</strong> to
           <strong style="color:#ffffff;">${escapeHtml(formatDateUk(opts.endDate))}</strong>
           at ${escapeHtml(company?.name ?? "your company")} has been
           <strong style="color:${approved ? "#86efac" : "#fca5a5"};">${approved ? "approved" : "declined"}</strong>.</p>${noteHtml}`,
-        ctaLabel: "View your holidays",
-        ctaUrl: `${siteUrl()}/people/holiday`,
+        // No account, no CTA: a public form submitter has nowhere to log in to.
+        ctaLabel: requester ? "View your holidays" : undefined,
+        ctaUrl: requester ? `${siteUrl()}/people/holiday` : undefined,
       }),
     });
     outcomes.requester = result.sent

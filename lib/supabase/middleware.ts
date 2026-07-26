@@ -14,6 +14,7 @@ export const PUBLIC_PATHS = [
   "/api/webhooks",
   "/api/cron",
   "/meeting-response",
+  "/f", // public (no account) forms: /f/<company-slug>/<form-key>
 ];
 
 export function isPublicPath(pathname: string): boolean {

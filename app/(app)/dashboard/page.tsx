@@ -9,6 +9,7 @@ import { getComplaintCounts } from "@/lib/complaints/data";
 import { getUrgentFollowUps } from "@/lib/on-call/data";
 import { shiftLabel } from "@/lib/on-call/format";
 import { featureEnabled } from "@/lib/billing/tier";
+import { getUnmatchedSubmissionCount } from "@/lib/public-forms/data";
 import {
   getComplianceBuckets,
   getHolidayPendingCount,
@@ -156,6 +157,10 @@ export default async function DashboardPage() {
   const onCallUrgent = canSeeOnCall ? await getUrgentFollowUps(companyId) : [];
 
   const holidayPending = isManagerPlus ? await getHolidayPendingCount(companyId) : 0;
+  // Public form submissions we could not match to a record, waiting to be linked.
+  const unmatchedSubmissions = isManagerPlus
+    ? await getUnmatchedSubmissionCount(companyId)
+    : 0;
   const absence = isManagerPlus
     ? await getAbsenceMeetingSummary(companyId)
     : { toBook: [] as AbsenceMeetingLine[], next7: [] as AbsenceMeetingSoon[] };
@@ -255,6 +260,17 @@ export default async function DashboardPage() {
               pill={<span className="pill-amber"><span className="pill-dot" /> Pending requests</span>}
               value={holidayPending}
               sub="Holiday requests awaiting a decision"
+            />
+            <MetricCard
+              href="/people/submissions"
+              pill={
+                <span className={unmatchedSubmissions > 0 ? "pill-amber" : "pill-neutral"}>
+                  {unmatchedSubmissions > 0 ? <span className="pill-dot" /> : null} Submissions to
+                  link
+                </span>
+              }
+              value={unmatchedSubmissions}
+              sub="Public form submissions we could not match to a record"
             />
           </div>
         </section>

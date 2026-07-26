@@ -297,6 +297,21 @@ export async function decideHoliday(
     return { error: `Evidence was saved, but the decision could not be recorded: ${decErr.message}` };
   }
 
+  // A request that arrived through a public form has no account behind it, so
+  // there is no profile to email. Fall back to the address the person gave on
+  // the form, so they still hear the outcome.
+  let fallbackEmail: string | null = null;
+  let fallbackName: string | null = null;
+  if (!request.requested_by) {
+    const { data: submission } = await supabase
+      .from("public_form_submissions")
+      .select("submitted_email, submitted_name")
+      .eq("holiday_request_id", requestId)
+      .maybeSingle();
+    fallbackEmail = (submission?.submitted_email as string | null) ?? null;
+    fallbackName = (submission?.submitted_name as string | null) ?? null;
+  }
+
   // Phase 6: tell the requester the outcome. Best-effort, idempotent, silently
   // skipped when Resend is not configured.
   const requesterEmail = await notifyHolidayDecided({
@@ -304,6 +319,8 @@ export async function decideHoliday(
     branchId: (request.branch_id as string | null) ?? null,
     requestId,
     requestedBy: (request.requested_by as string | null) ?? null,
+    fallbackEmail,
+    fallbackName,
     status,
     startDate: request.start_date as string,
     endDate: request.end_date as string,

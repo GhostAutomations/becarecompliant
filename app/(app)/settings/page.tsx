@@ -154,6 +154,13 @@ export default async function SettingsPage() {
             right to work and more.
           </p>
         </Link>
+        <Link href="/settings/public-forms" className="app-tile">
+          <h2 className="text-base font-semibold text-white">Public forms</h2>
+          <p className="text-sm text-white/60">
+            Create a short link your team can use to send a form with no account, such as
+            a holiday request, and publish it wherever they will see it.
+          </p>
+        </Link>
         <Link href="/settings/service-users" className="app-tile">
           <h2 className="text-base font-semibold text-white">Service User checks</h2>
           <p className="text-sm text-white/60">
