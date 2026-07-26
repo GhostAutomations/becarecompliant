@@ -6,8 +6,8 @@ import { ROLE_LABELS } from "@/lib/nav";
 import BackLink from "@/components/back-link";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import { InviteForm } from "@/components/settings/invite-form";
-import UserRow from "@/components/settings/user-row";
-import CollapsibleSection from "@/components/settings/collapsible-section";
+import UserDropdown from "@/components/settings/user-dropdown";
+import type { UserListItem } from "@/components/settings/user-popup";
 import ActionForm from "@/components/action-form";
 import { resendInviteAction, revokeInviteAction } from "../actions";
 
@@ -93,12 +93,21 @@ export default async function UsersPage() {
   const passiveUsers = userList.filter((u) => PASSIVE_ROLES.includes(u.role));
   const pending = invites ?? [];
 
+  const branchOptions = activeBranches
+    .filter((b) => b.kind === "branch")
+    .map((b) => ({ id: b.id, name: b.name }));
+
   /**
-   * One user in the list: NAME and EMAIL only (Phil, 2026-07-26). Clicking it
-   * opens a popup with everything you can do to them, so a screen with sixty
-   * Team Member logins on it still reads as a list of people.
+   * One user as plain data for the dropdown. The list itself is a real dropdown
+   * panel of names (Phil, 2026-07-26), so nothing is rendered down the page.
    */
-  function renderUser(u: { id: string; full_name: string; email: string; role: string; status: string }) {
+  function toItem(u: {
+    id: string;
+    full_name: string;
+    email: string;
+    role: string;
+    status: string;
+  }): UserListItem {
     const isSelf = u.id === user.id;
     const isAdmin = u.role === "company_admin";
     const primaryId = primaryByUser.get(u.id) ?? null;
@@ -106,32 +115,24 @@ export default async function UsersPage() {
     const branchNames = [
       primaryId ? branchName.get(primaryId) : null,
       ...additionalIds.map((id) => branchName.get(id)),
-    ].filter(Boolean);
-    return (
-      <UserRow
-        key={u.id}
-        userId={u.id}
-        fullName={u.full_name}
-        email={u.email}
-        role={u.role}
-        roleLabel={ROLE_LABELS[u.role] ?? u.role}
-        status={u.status}
-        isSelf={isSelf}
-        canManage={!isSelf && !isAdmin}
-        primaryBranchId={primaryId}
-        additionalBranchIds={additionalIds}
-        branchSummary={
-          isAdmin
-            ? "All branches"
-            : branchNames.length > 0
-              ? branchNames.join(", ")
-              : "No branch"
-        }
-        branches={activeBranches
-          .filter((b) => b.kind === "branch")
-          .map((b) => ({ id: b.id, name: b.name }))}
-      />
-    );
+    ].filter(Boolean) as string[];
+    return {
+      id: u.id,
+      fullName: u.full_name,
+      email: u.email,
+      role: u.role,
+      roleLabel: ROLE_LABELS[u.role] ?? u.role,
+      status: u.status,
+      isSelf,
+      canManage: !isSelf && !isAdmin,
+      primaryBranchId: primaryId,
+      additionalBranchIds: additionalIds,
+      branchSummary: isAdmin
+        ? "All branches"
+        : branchNames.length > 0
+          ? branchNames.join(", ")
+          : "No branch",
+    };
   }
 
   return (
@@ -203,34 +204,22 @@ export default async function UsersPage() {
         )}
       </section>
 
-      <CollapsibleSection
-        title="Active users"
-        subtitle="Admins, Managers and Supervisors: the people who run the service"
-        count={activeUsers.length}
-      >
-        {activeUsers.length === 0 ? (
-          <div className="glass-card px-5 py-8 text-center text-sm text-white/50">
-            No users yet. Invite your first Admin or Manager above.
-          </div>
-        ) : (
-          activeUsers.map(renderUser)
-        )}
-      </CollapsibleSection>
-
-      <CollapsibleSection
-        title="Passive users"
-        subtitle="Team Members: their own area only, and free of charge"
-        count={passiveUsers.length}
-      >
-        {passiveUsers.length === 0 ? (
-          <div className="glass-card px-5 py-8 text-center text-sm text-white/50">
-            No Team Member logins yet. They are created automatically when a person is
-            added with an email address.
-          </div>
-        ) : (
-          passiveUsers.map(renderUser)
-        )}
-      </CollapsibleSection>
+      <div className="flex flex-wrap items-start gap-4">
+        <UserDropdown
+          title="Active users"
+          subtitle="Admins, Managers and Supervisors: the people who run the service"
+          users={activeUsers.map(toItem)}
+          branches={branchOptions}
+          emptyText="No Admins or Managers yet. Invite one above."
+        />
+        <UserDropdown
+          title="Passive users"
+          subtitle="Team Members: their own area only, and free of charge"
+          users={passiveUsers.map(toItem)}
+          branches={branchOptions}
+          emptyText="No Team Member logins yet. They are created when a person is added with an email."
+        />
+      </div>
     </div>
   );
 }
