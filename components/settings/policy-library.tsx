@@ -11,14 +11,70 @@
 
 import { useState } from "react";
 import ActionForm from "@/components/action-form";
-import { uploadPolicy, archivePolicy } from "@/lib/assignments/actions";
-import type { CompanyPolicy } from "@/lib/assignments/types";
+import {
+  uploadPolicy,
+  archivePolicy,
+  uploadPolicyVersion,
+  updatePolicyConfig,
+} from "@/lib/assignments/actions";
+import type { CompanyPolicy, PolicyConfig } from "@/lib/assignments/types";
+import { REASSIGN_MODE_LABELS, SIGNATURE_MODE_LABELS } from "@/lib/assignments/signing";
 
-export default function PolicyLibrary({ policies }: { policies: CompanyPolicy[] }) {
+export default function PolicyLibrary({
+  policies,
+  config,
+}: {
+  policies: CompanyPolicy[];
+  config: PolicyConfig;
+}) {
   const [adding, setAdding] = useState(false);
+  const [versioning, setVersioning] = useState<string | null>(null);
 
   return (
     <div className="space-y-5">
+      {/* How this company signs. Both of these are the company's call, not ours. */}
+      <div className="glass-card p-5">
+        <h2 className="text-base font-semibold text-white">How signing works</h2>
+        <p className="mt-1 text-sm text-white/60">
+          Your team signs a policy rather than just ticking it, and the signature is stored
+          with the version they signed.
+        </p>
+        <div className="mt-4">
+          <ActionForm action={updatePolicyConfig} label="Save">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="signature_mode" className="form-label">
+                  How they sign
+                </label>
+                <select
+                  id="signature_mode"
+                  name="signature_mode"
+                  defaultValue={config.signature_mode}
+                >
+                  {Object.entries(SIGNATURE_MODE_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="reassign_on_new_version" className="form-label">
+                  When you upload a new version
+                </label>
+                <select
+                  id="reassign_on_new_version"
+                  name="reassign_on_new_version"
+                  defaultValue={config.reassign_on_new_version}
+                >
+                  {Object.entries(REASSIGN_MODE_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </ActionForm>
+        </div>
+      </div>
+
       {adding ? (
         <div className="glass-card space-y-4 p-5">
           <div className="flex items-center justify-between">
@@ -75,7 +131,8 @@ export default function PolicyLibrary({ policies }: { policies: CompanyPolicy[] 
                   {p.summary ? ` · ${p.summary}` : ""}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="pill-neutral">v{p.version}</span>
                 <a
                   href={`/api/policies/${p.id}/file`}
                   target="_blank"
@@ -84,6 +141,13 @@ export default function PolicyLibrary({ policies }: { policies: CompanyPolicy[] 
                 >
                   Open
                 </a>
+                <button
+                  type="button"
+                  className="btn-ghost px-3 py-2 text-xs"
+                  onClick={() => setVersioning(versioning === p.id ? null : p.id)}
+                >
+                  New version
+                </button>
                 <ActionForm
                   action={archivePolicy}
                   hidden={{ policy_id: p.id }}
@@ -91,9 +155,40 @@ export default function PolicyLibrary({ policies }: { policies: CompanyPolicy[] 
                   savedLabel="Archived"
                   buttonClassName="btn-ghost px-3 py-2 text-xs"
                   className=""
-                  confirm="Archive this policy? It can no longer be assigned, and confirmations already given are kept."
+                  confirm="Archive this policy? It can no longer be assigned, and signatures already given are kept."
                 />
               </div>
+
+              {versioning === p.id ? (
+                <div className="w-full border-t border-white/10 pt-3">
+                  <ActionForm
+                    action={uploadPolicyVersion}
+                    hidden={{ policy_id: p.id }}
+                    label={`Upload version ${p.version + 1}`}
+                    savedLabel="Uploaded"
+                    buttonClassName="btn-primary px-3 py-2 text-xs"
+                  >
+                    <label htmlFor={`ver-${p.id}`} className="form-label">
+                      The new document
+                    </label>
+                    <input
+                      id={`ver-${p.id}`}
+                      name="document"
+                      type="file"
+                      required
+                      accept=".pdf,.doc,.docx"
+                    />
+                    <p className="form-hint">
+                      Version {p.version} is kept, so signatures against it stay evidenced.
+                      {config.reassign_on_new_version === "always"
+                        ? " Everyone who has signed it before will be asked to sign this version."
+                        : config.reassign_on_new_version === "ask"
+                          ? " You will be asked who needs to sign it again."
+                          : " Nobody will be asked to sign again, you assign it yourself."}
+                    </p>
+                  </ActionForm>
+                </div>
+              ) : null}
             </div>
           ))}
         </div>

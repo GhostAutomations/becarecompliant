@@ -13,8 +13,25 @@ export type CompanyPolicy = {
   created_at: string;
 };
 
+/** Every version of a policy is kept, so the exact wording signed can be produced. */
+export type PolicyVersion = {
+  id: string;
+  policy_id: string;
+  version: number;
+  file_name: string;
+  created_at: string;
+};
+
+/** The company's own signing rules (migration 0135). */
+export type PolicyConfig = {
+  signature_mode: "draw" | "type" | "either";
+  reassign_on_new_version: "always" | "ask" | "never";
+};
+
 export type AssignmentRow = {
   id: string;
+  /** For a policy, the version this assignment is for. */
+  policy_version: number | null;
   kind: AssignmentKind;
   status: AssignmentStatus;
   due_date: string | null;

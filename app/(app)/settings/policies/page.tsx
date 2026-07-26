@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import PolicyLibrary from "@/components/settings/policy-library";
-import { listPolicies } from "@/lib/assignments/data";
+import { listPolicies, getPolicyConfig } from "@/lib/assignments/data";
 
 /**
  * Settings > Policies. The company's policy documents, uploaded once and then
@@ -18,7 +18,10 @@ export default async function PoliciesSettingsPage() {
   const { profile } = await requireCompanyAdmin();
   if (!profile.company_id) redirect("/founder");
 
-  const policies = await listPolicies(profile.company_id, true);
+  const [policies, config] = await Promise.all([
+    listPolicies(profile.company_id, true),
+    getPolicyConfig(profile.company_id),
+  ]);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -27,12 +30,12 @@ export default async function PoliciesSettingsPage() {
         <h1 className="page-title">Policies</h1>
         <p className="page-subtitle">
           Upload your policies once, then assign them in People, Assignments. Your team
-          reads the document and confirms, and the confirmation is stored as Evidence with
-          the date.
+          reads the document and signs it, and the signature is stored as Evidence with the
+          version they signed and a certificate you can hand to an inspector.
         </p>
       </div>
 
-      <PolicyLibrary policies={policies.filter((p) => p.status === "active")} />
+      <PolicyLibrary policies={policies.filter((p) => p.status === "active")} config={config} />
 
       {policies.some((p) => p.status === "archived") && (
         <section className="space-y-2">

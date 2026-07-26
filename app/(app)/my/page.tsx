@@ -6,7 +6,12 @@ import RealtimeRefresh from "@/components/realtime-refresh";
 import { getCompanyFormByKey } from "@/lib/people/data";
 import { isFormSchema, type FormSchema } from "@/lib/form-schema";
 import { getMyRecord, getMyHolidays, getMySubmissions } from "@/lib/staff/data";
-import { listAssignmentsForPerson, getPublishedSchemas } from "@/lib/assignments/data";
+import {
+  listAssignmentsForPerson,
+  getPublishedSchemas,
+  getPolicyConfig,
+} from "@/lib/assignments/data";
+import { POLICY_ACK_FORM_KEY } from "@/lib/assignments/types";
 import MyHolidays from "@/components/staff/my-holidays";
 import AssignedToMe from "@/components/staff/assigned-to-me";
 
@@ -38,10 +43,12 @@ export default async function MyAreaPage() {
   const { profile } = await requireCompany();
   if (!profile.company_id) redirect("/founder");
 
-  const [record, submissions, requestForm] = await Promise.all([
+  const [record, submissions, requestForm, ackForm, policyConfig] = await Promise.all([
     getMyRecord(),
     getMySubmissions(),
     getCompanyFormByKey(profile.company_id, "holiday_requests"),
+    getCompanyFormByKey(profile.company_id, POLICY_ACK_FORM_KEY),
+    getPolicyConfig(profile.company_id),
   ]);
 
   const holidays = record ? await getMyHolidays(record.id) : [];
@@ -63,6 +70,8 @@ export default async function MyAreaPage() {
   }
   const requestSchema: FormSchema | null =
     requestForm && isFormSchema(requestForm.schema) ? (requestForm.schema as FormSchema) : null;
+  const ackSchema: FormSchema | null =
+    ackForm && isFormSchema(ackForm.schema) ? (ackForm.schema as FormSchema) : null;
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
@@ -102,7 +111,12 @@ export default async function MyAreaPage() {
         <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
           Assigned to me
         </h2>
-        <AssignedToMe assignments={assignments} schemas={schemas} />
+        <AssignedToMe
+          assignments={assignments}
+          schemas={schemas}
+          ackSchema={ackSchema}
+          policyConfig={policyConfig}
+        />
       </section>
 
       <section className="space-y-3">

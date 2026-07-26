@@ -9,7 +9,12 @@ import "server-only";
  */
 
 import { createClient } from "@/lib/supabase/server";
-import type { AssignmentRow, CompanyPolicy } from "@/lib/assignments/types";
+import type {
+  AssignmentRow,
+  CompanyPolicy,
+  PolicyConfig,
+  PolicyVersion,
+} from "@/lib/assignments/types";
 
 type RawAssignment = {
   id: string;
@@ -22,6 +27,7 @@ type RawAssignment = {
   person_id: string;
   form_id: string | null;
   policy_id: string | null;
+  policy_version: number | null;
   people: { full_name: string } | { full_name: string }[] | null;
   forms: { name: string } | { name: string }[] | null;
   company_policies: { title: string } | { title: string }[] | null;
@@ -32,11 +38,12 @@ function one<T>(v: T | T[] | null): T | null {
 }
 
 const SELECT =
-  "id, kind, status, due_date, assigned_at, completed_at, evidence_id, person_id, form_id, policy_id, people:person_id(full_name), forms:form_id(name), company_policies:policy_id(title)";
+  "id, kind, status, due_date, assigned_at, completed_at, evidence_id, person_id, form_id, policy_id, policy_version, people:person_id(full_name), forms:form_id(name), company_policies:policy_id(title)";
 
 function shape(r: RawAssignment): AssignmentRow {
   return {
     id: r.id,
+    policy_version: r.policy_version,
     kind: r.kind,
     status: r.status,
     due_date: r.due_date,
@@ -134,4 +141,34 @@ export async function getPublishedSchemas(
     out[row.form_id] = { versionId: row.id, schema: row.schema };
   }
   return out;
+}
+
+/**
+ * The company's signing rules. Defaults matter here: a company that has never
+ * opened the settings gets "draw or type" and "everyone signs the new version",
+ * which is the behaviour a care inspector would expect by default.
+ */
+export async function getPolicyConfig(companyId: string): Promise<PolicyConfig> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("policy_config")
+    .select("signature_mode, reassign_on_new_version")
+    .eq("company_id", companyId)
+    .maybeSingle();
+  return {
+    signature_mode: (data?.signature_mode as PolicyConfig["signature_mode"]) ?? "either",
+    reassign_on_new_version:
+      (data?.reassign_on_new_version as PolicyConfig["reassign_on_new_version"]) ?? "always",
+  };
+}
+
+/** Every version of one policy, newest first. */
+export async function listPolicyVersions(policyId: string): Promise<PolicyVersion[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("company_policy_versions")
+    .select("id, policy_id, version, file_name, created_at")
+    .eq("policy_id", policyId)
+    .order("version", { ascending: false });
+  return (data ?? []) as PolicyVersion[];
 }
