@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { publicFormDef } from "@/lib/public-forms/config";
 import { resolvePublicForm } from "@/lib/public-forms/data";
+import { publicRenderSchema } from "@/lib/public-forms/render";
 import PublicForm from "@/components/public-forms/public-form";
 
 /**
@@ -49,7 +50,7 @@ export default async function PublicFormPage({
               <PublicForm
                 linkCode={code}
                 formKey={resolved.formKey}
-                schema={resolved.schema}
+                schema={publicRenderSchema(resolved.schema)}
                 intro={def.publicIntro}
               />
             </div>
