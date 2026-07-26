@@ -654,7 +654,13 @@ function SignaturePad({
   const point = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current!;
     const rect = canvas.getBoundingClientRect();
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    // The canvas is a fixed 480x160 internally but stretches to its container, so
+    // CSS pixels must be scaled to canvas pixels. Without this the ink appears
+    // away from the finger on any screen that is not exactly 480 wide, which is
+    // every phone (found 2026-07-26 while making signing mobile first).
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
   };
 
   const start = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -670,7 +676,8 @@ function SignaturePad({
     if (!drawing.current || disabled) return;
     const ctx = canvasRef.current!.getContext("2d")!;
     ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2.6;
+    ctx.lineJoin = "round";
     ctx.lineCap = "round";
     const p = point(e);
     ctx.lineTo(p.x, p.y);

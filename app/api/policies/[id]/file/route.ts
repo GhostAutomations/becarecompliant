@@ -35,5 +35,22 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
     actor: { id: profile.id, email: profile.email, role: profile.role },
   });
   if (!signed.ok) return NextResponse.json({ error: signed.error }, { status: 500 });
-  return NextResponse.redirect(signed.url);
+
+  // Stream it back from OUR origin rather than redirecting the browser to the
+  // signed URL. Two reasons, both practical: the reader renders the pages with
+  // pdf.js, which would otherwise be a cross-origin fetch at the mercy of the
+  // bucket's CORS, and the signed URL never reaches the browser at all, so it
+  // cannot be copied out of the address bar and shared while it lives.
+  const upstream = await fetch(signed.url);
+  if (!upstream.ok || !upstream.body) {
+    return NextResponse.json({ error: "The document could not be read." }, { status: 502 });
+  }
+  return new Response(upstream.body, {
+    status: 200,
+    headers: {
+      "Content-Type": upstream.headers.get("content-type") ?? "application/pdf",
+      "Content-Disposition": "inline",
+      "Cache-Control": "private, no-store",
+    },
+  });
 }

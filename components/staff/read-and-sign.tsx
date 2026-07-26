@@ -1,24 +1,27 @@
+
 "use client";
 
 /**
- * Be Care Compliant — read a policy and sign it, in ONE step.
+ * Be Care Compliant — read a policy and sign it, the way DocuSign and Adobe do it
+ * on a phone.
  *
- * Phil, 2026-07-26: "clicking 2 seperate buttons to read and sign a document is
- * clunky". It was: "Read the policy" opened a tab, then "Sign it" opened a
- * separate dialog, so the document was never in front of them while they signed,
- * which is exactly backwards for something you are attesting to.
+ * Phil, 2026-07-26: two buttons was clunky, and "mot peple will us their phone".
+ * So this is not a dialog beside a form. It is the pattern those products use:
  *
- * Now one button opens one panel: the document on the left, the confirmation and
- * the signature on the right, side by side on a laptop and stacked on a phone.
+ *   1. The document fills the screen. Nothing beside it, nothing competing.
+ *   2. One STICKY BAR at the bottom that never scrolls away, and its label is the
+ *      state: "Keep reading" -> "Sign it". It says what is missing rather than
+ *      being mysteriously grey.
+ *   3. Signing happens in a SHEET over the document, so the thing being signed is
+ *      never more than one tap away.
  *
- * The document is shown in an iframe pointed at the audited signed-URL route. If
- * a browser refuses to display a PDF inline (iOS Safari is the usual culprit)
- * the "Open it in a new tab" link is always there, so the flow can never dead
- * end. The Sign button stays disabled until they have actually signed, so the
- * only way to finish is to do the thing the certificate will claim they did.
+ * Phil's ruling, same day: the Sign bar stays locked until they reach the LAST
+ * PAGE. DocuSign does not gate like this, but a care policy is not a contract you
+ * already negotiated, and an inspector asking "how do you know they read it"
+ * deserves a better answer than a tick box.
  *
- * Validation and submission go through the SAME shared FormRenderer, validator
- * and Server Action as every other form, so nothing about the Evidence differs.
+ * The tick and the signature use the SAME shared FormRenderer, validator and
+ * Server Action as every other form in the app, so the Evidence is identical.
  */
 
 import { useEffect, useState } from "react";
@@ -26,6 +29,7 @@ import { useActionState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import FormRenderer from "@/components/forms/form-renderer";
+import PolicyReader from "@/components/staff/policy-reader";
 import type { Answers, FormSchema } from "@/lib/form-schema";
 import { validateAnswers, type FieldError } from "@/lib/form-validate";
 import { IDLE_STATE, type ActionState } from "@/lib/forms";
@@ -51,20 +55,32 @@ export default function ReadAndSign({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const [sheet, setSheet] = useState(false);
+  const [readToEnd, setReadToEnd] = useState(false);
+  const [renderFailed, setRenderFailed] = useState(false);
 
   const [state, formAction, pending] = useActionState(acknowledgePolicy, IDLE_STATE);
   const [answers, setAnswers] = useState<Answers>({});
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => setMounted(true), []);
+  useEffect(() => setSubmitting(false), [state]);
+
+  // The document is behind the sheet, so the page underneath must not scroll.
   useEffect(() => {
-    setSubmitting(false);
-  }, [state]);
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [open]);
 
   useEffect(() => {
     if (state.ok && open) {
       setOpen(false);
+      setSheet(false);
       router.refresh();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -73,6 +89,9 @@ export default function ReadAndSign({
   const docUrl = `/api/policies/${policyId}/file`;
   const signed = signatureGiven(answers, mode).ok;
   const busy = submitting || pending;
+  // A document we could not render cannot be scroll-tracked, so the gate would
+  // trap them. Opening it in a new tab is still audited, so the proof survives.
+  const canSign = readToEnd || renderFailed;
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -102,83 +121,96 @@ export default function ReadAndSign({
       {open &&
         mounted &&
         createPortal(
-          <div className="fixed inset-0 z-[200] flex items-start justify-center bg-black/60 p-3 backdrop-blur-sm sm:items-center sm:p-4">
-            <div className="flex max-h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-navy-900 shadow-2xl">
-              <div className="flex items-start justify-between gap-3 border-b border-white/10 p-4 sm:p-5">
-                <div className="min-w-0">
-                  <h2 className="truncate text-lg font-semibold text-white">{title}</h2>
-                  <p className="text-xs text-white/50">
-                    Read it, then sign at the {version ? `bottom. Version ${version}` : "bottom"}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className="btn-ghost shrink-0 px-3 py-1.5 text-sm"
-                  onClick={() => setOpen(false)}
-                  disabled={busy}
-                >
-                  Close
-                </button>
+          <div className="fixed inset-0 z-[200] flex flex-col bg-navy-900">
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3 border-b border-white/10 px-4 py-3">
+              <div className="min-w-0">
+                <h2 className="truncate text-base font-semibold text-white">{title}</h2>
+                <p className="text-xs text-white/50">
+                  {version ? `Version ${version} · ` : ""}
+                  <a
+                    href={docUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline decoration-white/30 underline-offset-2"
+                  >
+                    Open in a new tab
+                  </a>
+                </p>
               </div>
+              <button
+                type="button"
+                className="btn-ghost shrink-0 px-3 py-1.5 text-sm"
+                onClick={() => setOpen(false)}
+                disabled={busy}
+              >
+                Close
+              </button>
+            </div>
 
-              <div className="grid min-h-0 flex-1 gap-0 overflow-y-auto lg:grid-cols-[1.5fr_1fr] lg:overflow-hidden">
-                {/* The document itself. */}
-                <div className="flex min-h-0 flex-col border-b border-white/10 lg:border-b-0 lg:border-r">
-                  <iframe
-                    src={docUrl}
-                    title={title}
-                    className="h-[45vh] w-full bg-white lg:h-auto lg:flex-1"
-                  />
-                  <div className="flex items-center justify-between gap-2 px-4 py-2">
-                    <span className="text-xs text-white/40">
-                      Cannot see it on your phone?
-                    </span>
-                    <a
-                      href={docUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn-ghost px-3 py-1.5 text-xs"
-                    >
-                      Open it in a new tab
-                    </a>
-                  </div>
-                </div>
+            {/* The document */}
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+              <PolicyReader
+                url={docUrl}
+                onReachedEnd={() => setReadToEnd(true)}
+                onFailed={() => setRenderFailed(true)}
+              />
+            </div>
 
-                {/* The confirmation and the signature. */}
-                <form onSubmit={onSubmit} className="min-h-0 space-y-5 overflow-y-auto p-4 sm:p-5">
-                  <FormRenderer schema={schema} errors={errors} onChange={setAnswers} />
+            {/* The one bar that never scrolls away */}
+            <div className="border-t border-white/10 bg-navy-900/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
+              <button
+                type="button"
+                className={canSign ? "btn-primary w-full py-3" : "btn-outline w-full py-3 opacity-60"}
+                onClick={() => canSign && setSheet(true)}
+                disabled={!canSign}
+              >
+                {canSign ? "Sign it" : "Keep reading to the end to sign"}
+              </button>
+            </div>
 
-                  {state.error ? <p className="form-error">{state.error}</p> : null}
-
-                  <div className="flex flex-wrap items-center gap-3">
-                    <button type="submit" className="btn-primary" disabled={busy || !signed}>
-                      {busy ? "Signing…" : "Sign it"}
-                    </button>
+            {/* The signing sheet, over the document */}
+            {sheet && (
+              <div className="absolute inset-0 z-10 flex items-end bg-black/60 backdrop-blur-sm sm:items-center sm:justify-center">
+                <form
+                  onSubmit={onSubmit}
+                  className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl border border-white/10 bg-navy-900 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:max-w-lg sm:rounded-2xl sm:p-6"
+                >
+                  <div className="mb-4 flex items-center justify-between">
+                    <h3 className="text-base font-semibold text-white">Sign this policy</h3>
                     <button
                       type="button"
-                      className="btn-ghost px-3 py-2 text-sm"
-                      onClick={() => setOpen(false)}
+                      className="btn-ghost px-3 py-1.5 text-xs"
+                      onClick={() => setSheet(false)}
                       disabled={busy}
                     >
-                      Cancel
+                      Back to the document
                     </button>
                   </div>
-                  {!signed ? (
-                    <p className="form-hint">
-                      {mode === "type"
+
+                  <FormRenderer schema={schema} errors={errors} onChange={setAnswers} />
+
+                  {state.error ? <p className="form-error mt-3">{state.error}</p> : null}
+
+                  <button
+                    type="submit"
+                    className="btn-primary mt-5 w-full py-3"
+                    disabled={busy || !signed}
+                  >
+                    {busy ? "Signing…" : "Sign it"}
+                  </button>
+                  <p className="form-hint mt-2 text-center">
+                    {signed
+                      ? "Nothing to print or post. Your signature is kept with this version."
+                      : mode === "type"
                         ? "Type your full name above to sign."
                         : mode === "draw"
-                          ? "Sign in the box above to finish."
-                          : "Sign in the box, or type your full name, to finish."}
-                    </p>
-                  ) : null}
-                  <p className="form-hint">
-                    Nothing to print or post. Your signature is kept with the version of
-                    this document you have just read.
+                          ? "Sign in the box above with your finger."
+                          : "Sign with your finger, or type your full name."}
                   </p>
                 </form>
               </div>
-            </div>
+            )}
           </div>,
           document.body,
         )}
