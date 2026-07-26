@@ -15,7 +15,10 @@ export type Profile = {
     | "manager"
     | "supervisor"
     | "team_member"
-    | "on_call";
+    | "on_call"
+    /** Carer self-service login, shown as "Team Member" (migration 0131). NOT the
+     *  same as 'team_member', which is the older read-only Viewer role. */
+    | "staff";
   status: "invited" | "active" | "disabled";
   /** Set when a platform admin is operating inside a tenant via manage-as. The
    *  profile is shadowed to that company with a company_admin role for scoping;
