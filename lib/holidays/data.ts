@@ -20,9 +20,13 @@ export type HolidayRequestRow = {
   end_date: string;
   hours: number | null;
   note: string | null;
-  status: "pending" | "approved" | "declined";
+  status: "pending" | "approved" | "declined" | "cancelled";
   decided_at: string | null;
   decision_note: string | null;
+  /** Set when a holiday was cancelled or withdrawn (migration 0130). */
+  cancelled_at: string | null;
+  cancelled_by: string | null;
+  cancel_reason: string | null;
   created_at: string;
 };
 

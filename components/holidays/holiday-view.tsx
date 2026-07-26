@@ -2,13 +2,20 @@
 
 /**
  * Be Care Compliant — Holiday view (People sub-section).
- * Top: a request strip (pending requests; Managers and above Approve or Decline
- * in one click, a decline asks for a reason). Below: a month calendar of approved
- * holidays for the branch. Anyone can submit their own request (Holiday Form ->
- * Evidence), and staff with no account submit through the public form link.
  *
- * Approving is a DECISION, not a form: the old Holiday Response form was deleted
- * in migration 0129. Do not reintroduce a form to click yes or no.
+ * Pending requests to decide, the holidays already booked, a month calendar for
+ * the branch, and the history of anything declined or cancelled.
+ *
+ * Standing rules baked in here:
+ *  - Approving is a DECISION, not a form. The Holiday Response form was deleted
+ *    in migration 0129: Approve is one click, Decline asks for a reason. Never
+ *    reintroduce a form for the yes or no.
+ *  - Plans change, so a Manager can cancel a pending or approved holiday and can
+ *    correct its dates, and the person who submitted it in the app can withdraw
+ *    their own while it is still pending (migration 0130 enforces all of that).
+ *  - Clashes WARN, they never block: the Manager knows their rota and their cover.
+ *  - Most requests now arrive through the public form link, so a submitter may
+ *    have no account at all.
  */
 
 import { useMemo, useState } from "react";
@@ -18,7 +25,13 @@ import type { FormSchema } from "@/lib/form-schema";
 import type { HolidayRequestRow } from "@/lib/holidays/data";
 import type { BranchLite } from "@/lib/people/data";
 import type { PersonLite } from "@/lib/absence/data";
-import { requestHoliday, decideHoliday, bookHolidayForPerson } from "@/lib/holidays/actions";
+import {
+  requestHoliday,
+  decideHoliday,
+  bookHolidayForPerson,
+  cancelHoliday,
+  amendHoliday,
+} from "@/lib/holidays/actions";
 
 const HOLIDAY_HIDE_FOR_PERSON = [
   "name",
@@ -39,65 +52,171 @@ function fmt(dateIso: string): string {
   const [y, m, d] = dateIso.split("-");
   return `${d} ${MONTHS[Number(m) - 1]?.slice(0, 3)} ${y}`;
 }
+function todayIso(): string {
+  const n = new Date();
+  return iso(n.getFullYear(), n.getMonth(), n.getDate());
+}
+
+/** Two date ranges touch (inclusive at both ends). */
+function overlaps(aStart: string, aEnd: string, bStart: string, bEnd: string): boolean {
+  return aStart <= bEnd && bStart <= aEnd;
+}
 
 /**
- * Approve in one click. Decline reveals a required reason, which is emailed to
- * the person with the outcome. Both go through the shared ActionForm, so the
- * button behaves like every other save in the app.
+ * The actions on one holiday: approve, decline, edit the dates, cancel, or
+ * withdraw your own. Each destructive or fiddly one opens its own small panel
+ * rather than firing on a single click.
  */
-function DecideControls({ requestId }: { requestId: string }) {
-  const [declining, setDeclining] = useState(false);
+function RequestActions({
+  request,
+  canManage,
+  canWithdraw,
+}: {
+  request: HolidayRequestRow;
+  /** Branch Manager and above: decide, amend, cancel. */
+  canManage: boolean;
+  /** This user submitted it and it is still pending. */
+  canWithdraw: boolean;
+}) {
+  const [mode, setMode] = useState<"none" | "decline" | "dates" | "cancel">("none");
+  const pending = request.status === "pending";
 
-  if (!declining) {
+  if (mode === "decline") {
     return (
-      <div className="flex items-center gap-2">
+      <div className="w-full max-w-sm space-y-2">
         <ActionForm
           action={decideHoliday}
-          hidden={{ request_id: requestId, decision: "approved" }}
-          label="Approve"
-          savedLabel="Approved"
+          hidden={{ request_id: request.id, decision: "declined" }}
+          label="Decline request"
+          savedLabel="Declined"
           buttonClassName="btn-primary px-3 py-1.5 text-xs"
-          className=""
-        />
-        <button
-          type="button"
-          className="btn-outline px-3 py-1.5 text-xs"
-          onClick={() => setDeclining(true)}
         >
-          Decline
+          <label htmlFor={`decline-${request.id}`} className="form-label">
+            Reason for declining
+          </label>
+          <textarea
+            id={`decline-${request.id}`}
+            name="decline_reason"
+            rows={2}
+            required
+            maxLength={2000}
+            placeholder="The person will see this"
+          />
+        </ActionForm>
+        <button type="button" className="btn-ghost px-2 py-1 text-xs" onClick={() => setMode("none")}>
+          Cancel
+        </button>
+      </div>
+    );
+  }
+
+  if (mode === "dates") {
+    return (
+      <div className="w-full max-w-sm space-y-2">
+        <ActionForm
+          action={amendHoliday}
+          hidden={{ request_id: request.id }}
+          label="Save dates"
+          savedLabel="Saved"
+          buttonClassName="btn-primary px-3 py-1.5 text-xs"
+        >
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label htmlFor={`start-${request.id}`} className="form-label">From</label>
+              <input
+                id={`start-${request.id}`}
+                name="start_date"
+                type="date"
+                required
+                defaultValue={request.start_date}
+              />
+            </div>
+            <div>
+              <label htmlFor={`end-${request.id}`} className="form-label">To</label>
+              <input
+                id={`end-${request.id}`}
+                name="end_date"
+                type="date"
+                required
+                defaultValue={request.end_date}
+              />
+            </div>
+          </div>
+        </ActionForm>
+        <button type="button" className="btn-ghost px-2 py-1 text-xs" onClick={() => setMode("none")}>
+          Cancel
+        </button>
+      </div>
+    );
+  }
+
+  if (mode === "cancel") {
+    return (
+      <div className="w-full max-w-sm space-y-2">
+        <ActionForm
+          action={cancelHoliday}
+          hidden={{ request_id: request.id }}
+          label={canManage ? "Cancel this holiday" : "Withdraw my request"}
+          savedLabel={canManage ? "Cancelled" : "Withdrawn"}
+          buttonClassName="btn-primary px-3 py-1.5 text-xs"
+        >
+          <label htmlFor={`cancel-${request.id}`} className="form-label">
+            Reason {canManage ? "(the person will see this)" : "(optional)"}
+          </label>
+          <textarea
+            id={`cancel-${request.id}`}
+            name="cancel_reason"
+            rows={2}
+            maxLength={2000}
+            required={canManage}
+          />
+        </ActionForm>
+        <button type="button" className="btn-ghost px-2 py-1 text-xs" onClick={() => setMode("none")}>
+          Keep it
         </button>
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-sm space-y-2">
-      <ActionForm
-        action={decideHoliday}
-        hidden={{ request_id: requestId, decision: "declined" }}
-        label="Decline request"
-        savedLabel="Declined"
-        buttonClassName="btn-primary px-3 py-1.5 text-xs"
-      >
-        <label htmlFor={`decline-${requestId}`} className="form-label">
-          Reason for declining
-        </label>
-        <textarea
-          id={`decline-${requestId}`}
-          name="decline_reason"
-          rows={2}
-          required
-          maxLength={2000}
-          placeholder="The person will see this"
-        />
-      </ActionForm>
-      <button
-        type="button"
-        className="btn-ghost px-2 py-1 text-xs"
-        onClick={() => setDeclining(false)}
-      >
-        Cancel
-      </button>
+    <div className="flex flex-wrap items-center gap-2">
+      {canManage && pending ? (
+        <>
+          <ActionForm
+            action={decideHoliday}
+            hidden={{ request_id: request.id, decision: "approved" }}
+            label="Approve"
+            savedLabel="Approved"
+            buttonClassName="btn-primary px-3 py-1.5 text-xs"
+            className=""
+          />
+          <button
+            type="button"
+            className="btn-outline px-3 py-1.5 text-xs"
+            onClick={() => setMode("decline")}
+          >
+            Decline
+          </button>
+        </>
+      ) : null}
+      {canManage ? (
+        <button
+          type="button"
+          className="btn-outline px-3 py-1.5 text-xs"
+          onClick={() => setMode("dates")}
+        >
+          Edit dates
+        </button>
+      ) : null}
+      {canManage || canWithdraw ? (
+        <button
+          type="button"
+          className="btn-ghost px-3 py-1.5 text-xs"
+          onClick={() => setMode("cancel")}
+        >
+          {canManage ? "Cancel" : "Withdraw"}
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -109,33 +228,59 @@ export default function HolidayView({
   requestSchema,
   canApprove,
   canBookForPerson,
+  currentUserId,
 }: {
   requests: HolidayRequestRow[];
   branches: BranchLite[];
   people: PersonLite[];
   requestSchema: FormSchema | null;
-  /** Branch Manager and above: can approve/decline pending requests. */
+  /** Branch Manager and above: can approve, decline, amend and cancel. */
   canApprove: boolean;
   /** Branch Manager and above + Supervisor: can book a holiday for a person (a
    *  Supervisor's booking is created pending until approved). */
   canBookForPerson: boolean;
+  /** So someone can withdraw their own pending request. */
+  currentUserId: string;
 }) {
   const now = new Date();
   const [branch, setBranch] = useState("");
   const [pickPerson, setPickPerson] = useState("");
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth()); // 0-based
+  const [showHistory, setShowHistory] = useState(false);
 
   const visiblePeople = branch ? people.filter((p) => p.branch_id === branch) : people;
+  const today = todayIso();
 
   const scoped = useMemo(
     () => (branch ? requests.filter((r) => r.branch_id === branch) : requests),
     [requests, branch],
   );
   const pending = scoped.filter((r) => r.status === "pending");
-  const approved = scoped.filter((r) => r.status === "approved");
+  // Booked holidays that have not finished yet: the ones a Manager might still
+  // need to move or cancel. Past ones stay in the calendar and on the record.
+  const upcoming = scoped
+    .filter((r) => r.status === "approved" && r.end_date >= today)
+    .sort((a, b) => a.start_date.localeCompare(b.start_date));
+  const history = scoped
+    .filter((r) => r.status === "declined" || r.status === "cancelled")
+    .sort((a, b) => b.start_date.localeCompare(a.start_date));
   // Calendar shows approved (green) AND pending (amber, awaiting approval).
   const onCalendar = scoped.filter((r) => r.status === "approved" || r.status === "pending");
+
+  /**
+   * Who else in the same branch is off across these dates. Worked out here from
+   * the requests the page already holds, so there is no extra round trip, and it
+   * respects RLS for free: a Manager only ever sees their own branches.
+   */
+  const clashesFor = (r: HolidayRequestRow) =>
+    requests.filter(
+      (other) =>
+        other.id !== r.id &&
+        other.branch_id === r.branch_id &&
+        (other.status === "approved" || other.status === "pending") &&
+        overlaps(r.start_date, r.end_date, other.start_date, other.end_date),
+    );
 
   // Month grid (Monday-first).
   const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7; // 0=Mon
@@ -159,6 +304,22 @@ export default function HolidayView({
     setMonth(m);
     setYear(y);
   }
+
+  const clashLine = (r: HolidayRequestRow) => {
+    const clashes = clashesFor(r);
+    if (clashes.length === 0) return null;
+    return (
+      <p className="mt-1 text-xs text-amber-300">
+        {clashes.length === 1 ? "1 other person is" : `${clashes.length} others are`} off in this
+        branch over these dates:{" "}
+        {clashes
+          .slice(0, 3)
+          .map((c) => `${c.requester_name ?? "Someone"} (${fmt(c.start_date)} to ${fmt(c.end_date)})`)
+          .join(", ")}
+        {clashes.length > 3 ? `, and ${clashes.length - 3} more` : ""}.
+      </p>
+    );
+  };
 
   return (
     <div className="mt-1 space-y-5">
@@ -266,9 +427,14 @@ export default function HolidayView({
                     {fmt(r.start_date)} to {fmt(r.end_date)}
                     {r.note ? ` · ${r.note}` : ""}
                   </p>
+                  {clashLine(r)}
                 </div>
-                {canApprove ? (
-                  <DecideControls requestId={r.id} />
+                {canApprove || r.requested_by === currentUserId ? (
+                  <RequestActions
+                    request={r}
+                    canManage={canApprove}
+                    canWithdraw={r.requested_by === currentUserId}
+                  />
                 ) : (
                   <span className="pill pill-amber">Pending</span>
                 )}
@@ -277,6 +443,33 @@ export default function HolidayView({
           </ul>
         )}
       </div>
+
+      {/* Booked holidays still to come: the ones a Manager may need to move. */}
+      {canApprove && upcoming.length > 0 && (
+        <div className="glass-card p-4">
+          <h2 className="mb-3 text-sm font-semibold text-white/80">
+            Booked, still to come ({upcoming.length})
+          </h2>
+          <ul className="space-y-2">
+            {upcoming.map((r) => (
+              <li
+                key={r.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white/5 p-3"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-white">
+                    {r.requester_name ?? "Someone"}
+                  </p>
+                  <p className="text-xs text-white/60">
+                    {fmt(r.start_date)} to {fmt(r.end_date)}
+                  </p>
+                </div>
+                <RequestActions request={r} canManage canWithdraw={false} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Calendar */}
       <div className="glass-card p-4">
@@ -348,6 +541,48 @@ export default function HolidayView({
           <p className="mt-3 text-xs text-white/50">No holidays to show yet.</p>
         )}
       </div>
+
+      {/* Declined and cancelled: they leave the calendar, but the decision and the
+          reason stay readable. */}
+      {history.length > 0 && (
+        <div className="glass-card p-4">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between text-left"
+            onClick={() => setShowHistory((v) => !v)}
+          >
+            <h2 className="text-sm font-semibold text-white/80">
+              Declined and cancelled ({history.length})
+            </h2>
+            <span className="text-xs text-white/50">{showHistory ? "Hide" : "Show"}</span>
+          </button>
+          {showHistory && (
+            <ul className="mt-3 space-y-2">
+              {history.map((r) => (
+                <li key={r.id} className="rounded-xl bg-white/5 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-medium text-white">
+                      {r.requester_name ?? "Someone"}
+                    </p>
+                    <span className={r.status === "declined" ? "pill pill-red" : "pill pill-neutral"}>
+                      {r.status === "declined" ? "Declined" : "Cancelled"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-white/60">
+                    {fmt(r.start_date)} to {fmt(r.end_date)}
+                  </p>
+                  {r.status === "declined" && r.decision_note ? (
+                    <p className="mt-1 text-xs text-white/50">Reason: {r.decision_note}</p>
+                  ) : null}
+                  {r.status === "cancelled" && r.cancel_reason ? (
+                    <p className="mt-1 text-xs text-white/50">Reason: {r.cancel_reason}</p>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 }

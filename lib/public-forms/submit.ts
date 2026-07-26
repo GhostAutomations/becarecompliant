@@ -29,6 +29,7 @@ import { writeAudit } from "@/lib/audit";
 import { isBinaryField, type Answers, type FormSchema } from "@/lib/form-schema";
 import { cleanAnswers, validateAnswers } from "@/lib/form-validate";
 import { publicFormDef } from "@/lib/public-forms/config";
+import { PUBLIC_FORMS_ENABLED } from "@/lib/public-forms/flag";
 import { resolvePublicForm } from "@/lib/public-forms/data";
 import { notifyHolidayRequested } from "@/lib/notifications/holiday";
 import type { PublicSubmitState } from "@/lib/public-forms/types";
@@ -101,6 +102,8 @@ export async function submitPublicForm(
   const fullName = String(formData.get("identity_name") ?? "").trim();
   const email = String(formData.get("identity_email") ?? "").trim();
   const honeypot = String(formData.get("company_website") ?? "").trim();
+
+  if (!PUBLIC_FORMS_ENABLED) return { error: "This form is not available." };
 
   const def = publicFormDef(formKey);
   if (!def) return { error: "This form is not available." };

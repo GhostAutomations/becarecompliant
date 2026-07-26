@@ -12,7 +12,7 @@ import HolidayView from "@/components/holidays/holiday-view";
 export const metadata: Metadata = { title: "Holiday" };
 
 export default async function HolidayPage() {
-  const { profile } = await requireCompany();
+  const { user, profile } = await requireCompany();
   if (profile.role === "on_call") redirect("/on-call");
 
   if (!profile.company_id) {
@@ -53,6 +53,7 @@ export default async function HolidayPage() {
         branches={branches}
         people={people}
         requestSchema={requestSchema}
+        currentUserId={user.id}
         canApprove={canApprove}
         canBookForPerson={canBookForPerson}
       />

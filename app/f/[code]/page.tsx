@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { publicFormDef } from "@/lib/public-forms/config";
 import { resolvePublicForm } from "@/lib/public-forms/data";
+import { PUBLIC_FORMS_ENABLED } from "@/lib/public-forms/flag";
 import { publicRenderSchema } from "@/lib/public-forms/render";
 import PublicForm from "@/components/public-forms/public-form";
 
@@ -24,7 +25,9 @@ export default async function PublicFormPage({
   params: Promise<{ code: string }>;
 }) {
   const { code } = await params;
-  const resolved = await resolvePublicForm(code);
+  // Hidden for now (see lib/public-forms/flag.ts): every code reads as not
+  // available, so no write path is left open on an unused feature.
+  const resolved = PUBLIC_FORMS_ENABLED ? await resolvePublicForm(code) : null;
   const def = resolved ? publicFormDef(resolved.formKey) : undefined;
 
   return (

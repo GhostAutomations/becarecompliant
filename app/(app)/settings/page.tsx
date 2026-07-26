@@ -5,6 +5,7 @@ import { requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { getSeatUsage, formatPence } from "@/lib/billing/seats";
 import { featureEnabled } from "@/lib/billing/tier";
+import { PUBLIC_FORMS_ENABLED } from "@/lib/public-forms/flag";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -154,13 +155,15 @@ export default async function SettingsPage() {
             right to work and more.
           </p>
         </Link>
-        <Link href="/settings/public-forms" className="app-tile">
-          <h2 className="text-base font-semibold text-white">Public forms</h2>
-          <p className="text-sm text-white/60">
-            Create a short link your team can use to send a form with no account, such as
-            a holiday request, and publish it wherever they will see it.
-          </p>
-        </Link>
+        {PUBLIC_FORMS_ENABLED && (
+          <Link href="/settings/public-forms" className="app-tile">
+            <h2 className="text-base font-semibold text-white">Public forms</h2>
+            <p className="text-sm text-white/60">
+              Create a short link your team can use to send a form with no account, such as
+              a holiday request, and publish it wherever they will see it.
+            </p>
+          </Link>
+        )}
         <Link href="/settings/service-users" className="app-tile">
           <h2 className="text-base font-semibold text-white">Service User checks</h2>
           <p className="text-sm text-white/60">

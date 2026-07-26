@@ -7,6 +7,7 @@ import CopyLink from "@/components/public-forms/copy-link";
 import { siteUrl } from "@/lib/site";
 import { PUBLIC_FORM_DEFS, publicFormPath } from "@/lib/public-forms/config";
 import { listPublicFormLinks } from "@/lib/public-forms/data";
+import { PUBLIC_FORMS_ENABLED } from "@/lib/public-forms/flag";
 import {
   createPublicLink,
   regeneratePublicLinkCode,
@@ -23,6 +24,7 @@ export const metadata: Metadata = { title: "Public forms" };
 
 export default async function PublicFormsSettingsPage() {
   const { profile } = await requireCompanyAdmin();
+  if (!PUBLIC_FORMS_ENABLED) redirect("/settings");
   if (!profile.company_id) redirect("/founder");
 
   const links = await listPublicFormLinks(profile.company_id);

@@ -188,3 +188,99 @@ export async function notifyHolidayDecided(opts: {
   }
   return outcomes;
 }
+
+/**
+ * Tell the person their holiday changed after it was decided: cancelled, or its
+ * dates corrected. Same rules as the decision email, so a public form submitter
+ * with no account still hears about it at the address they gave, without a CTA
+ * button they cannot use.
+ */
+export async function notifyHolidayChanged(opts: {
+  companyId: string;
+  branchId: string | null;
+  requestId: string;
+  requestedBy: string | null;
+  kind: "cancelled" | "amended";
+  startDate: string;
+  endDate: string;
+  /** Cancellation reason, or the dates it was moved from. */
+  note?: string | null;
+  fallbackEmail?: string | null;
+  fallbackName?: string | null;
+}): Promise<Outcome> {
+  const outcomes: Outcome = {};
+  try {
+    if (!opts.requestedBy && !opts.fallbackEmail) {
+      return { requester: "skipped_no_requester" };
+    }
+    const supabase = createServiceClient();
+    const { data: company } = await supabase
+      .from("companies")
+      .select("name")
+      .eq("id", opts.companyId)
+      .maybeSingle();
+
+    let requester: { id: string; full_name: string; email: string } | null = null;
+    if (opts.requestedBy) {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .eq("id", opts.requestedBy)
+        .maybeSingle();
+      requester = (data as { id: string; full_name: string; email: string } | null) ?? null;
+    }
+
+    const toAddress = requester?.email ?? opts.fallbackEmail ?? null;
+    const toName = requester?.full_name ?? opts.fallbackName ?? "";
+    if (!toAddress) return { requester: "skipped_no_email" };
+
+    const cancelled = opts.kind === "cancelled";
+    const subject = cancelled ? "Your holiday has been cancelled" : "Your holiday dates have changed";
+    // The dedupe key carries the kind AND the dates, so a second genuine change
+    // still sends while an accidental double submit does not.
+    const logId = await claimNotification({
+      companyId: opts.companyId,
+      branchId: opts.branchId,
+      recipientProfileId: requester?.id ?? null,
+      channel: "email",
+      kind: cancelled ? "holiday_cancelled" : "holiday_amended",
+      dedupeKey: `holiday_${opts.kind}:${opts.requestId}:${opts.startDate}:${opts.endDate}`,
+      toAddress,
+      subject,
+    });
+    if (!logId) return { requester: "already_sent" };
+
+    const noteHtml = opts.note
+      ? `<p style="margin:12px 0 0 0;">${escapeHtml(opts.note)}</p>`
+      : "";
+    const result = await sendEmail({
+      to: toAddress,
+      subject,
+      html: noticeEmailHtml({
+        preheader: cancelled ? "Your holiday has been cancelled." : "Your holiday dates have changed.",
+        heading: cancelled ? "Holiday cancelled" : "Holiday dates changed",
+        bodyHtml: `<p style="margin:0;">${escapeHtml(toName || "Hello")}, your holiday at
+          ${escapeHtml(company?.name ?? "your company")} ${cancelled ? "has been cancelled" : "now runs"}
+          ${cancelled ? "" : `from <strong style="color:#ffffff;">${escapeHtml(formatDateUk(opts.startDate))}</strong> to
+          <strong style="color:#ffffff;">${escapeHtml(formatDateUk(opts.endDate))}</strong>`}.
+          ${cancelled ? `It was booked from <strong style="color:#ffffff;">${escapeHtml(formatDateUk(opts.startDate))}</strong> to <strong style="color:#ffffff;">${escapeHtml(formatDateUk(opts.endDate))}</strong>.` : ""}
+          Please speak to your manager if this is not what you expected.</p>${noteHtml}`,
+        ctaLabel: requester ? "View your holidays" : undefined,
+        ctaUrl: requester ? `${siteUrl()}/people/holiday` : undefined,
+      }),
+    });
+    outcomes.requester = result.sent
+      ? "sent"
+      : result.skippedReason
+        ? "skipped_no_email_config"
+        : `failed: ${result.error}`;
+    await settleNotification(
+      logId,
+      result.sent ? "sent" : result.skippedReason ? "skipped" : "failed",
+      result.error ?? result.skippedReason,
+    );
+  } catch (e) {
+    outcomes.error = (e as Error).message;
+  }
+  return outcomes;
+}

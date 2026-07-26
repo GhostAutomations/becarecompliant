@@ -18,7 +18,11 @@ import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
 import type { Answers } from "@/lib/form-schema";
 import type { ActionState } from "@/lib/forms";
 import { getCompanyFormByKey } from "@/lib/people/data";
-import { notifyHolidayRequested, notifyHolidayDecided } from "@/lib/notifications/holiday";
+import {
+  notifyHolidayRequested,
+  notifyHolidayDecided,
+  notifyHolidayChanged,
+} from "@/lib/notifications/holiday";
 
 function isoOrNull(v: unknown): string | null {
   return typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
@@ -331,4 +335,169 @@ export async function decideHoliday(
 
   revalidatePath("/people/holiday");
   return { ok: status === "approved" ? "Holiday approved." : "Holiday declined." };
+}
+
+/**
+ * Look up who to tell about a change to a request. A request that came through a
+ * public form has no account behind it, so fall back to the address the person
+ * gave on the form.
+ */
+async function requestRecipient(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  requestId: string,
+  requestedBy: string | null,
+): Promise<{ fallbackEmail: string | null; fallbackName: string | null }> {
+  if (requestedBy) return { fallbackEmail: null, fallbackName: null };
+  const { data } = await supabase
+    .from("public_form_submissions")
+    .select("submitted_email, submitted_name")
+    .eq("holiday_request_id", requestId)
+    .maybeSingle();
+  return {
+    fallbackEmail: (data?.submitted_email as string | null) ?? null,
+    fallbackName: (data?.submitted_name as string | null) ?? null,
+  };
+}
+
+/**
+ * Cancel a holiday, or withdraw your own pending request.
+ *
+ * A Branch Manager and above can cancel any holiday in their branch, pending or
+ * approved. The person who submitted it in the app can withdraw their own while
+ * it is still pending; once it is approved the rota depends on it, so a Manager
+ * handles it. The database enforces both rules (cancel_holiday_request).
+ */
+export async function cancelHoliday(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+  const requestId = String(formData.get("request_id") ?? "");
+  if (!requestId) return { error: "Missing holiday." };
+  const reason = String(formData.get("cancel_reason") ?? "").trim() || null;
+
+  const supabase = await createClient();
+  const { data: request } = await supabase
+    .from("holiday_requests")
+    .select("company_id, branch_id, requested_by, requester_name, start_date, end_date, status")
+    .eq("id", requestId)
+    .maybeSingle();
+  if (!request) return { error: "That holiday could not be found." };
+  const wasApproved = request.status === "approved";
+
+  const { error } = await supabase.rpc("cancel_holiday_request", {
+    p_id: requestId,
+    p_reason: reason,
+  });
+  if (error) return { error: error.message };
+
+  // Only chase the person when there was something to undo. Withdrawing your own
+  // pending request needs no email to yourself.
+  const selfWithdrawal = request.requested_by === user.id;
+  if (!selfWithdrawal) {
+    const { fallbackEmail, fallbackName } = await requestRecipient(
+      supabase,
+      requestId,
+      (request.requested_by as string | null) ?? null,
+    );
+    await notifyHolidayChanged({
+      companyId: request.company_id as string,
+      branchId: (request.branch_id as string | null) ?? null,
+      requestId,
+      requestedBy: (request.requested_by as string | null) ?? null,
+      kind: "cancelled",
+      startDate: request.start_date as string,
+      endDate: request.end_date as string,
+      note: reason ? `Reason given: ${reason}` : null,
+      fallbackEmail,
+      fallbackName,
+    });
+  }
+
+  await writeAudit({
+    companyId: request.company_id as string,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: selfWithdrawal ? "holiday.withdrawn" : "holiday.cancelled",
+    entityType: "holiday_request",
+    entityId: requestId,
+    summary: selfWithdrawal
+      ? "Withdrew their own holiday request"
+      : `Cancelled ${wasApproved ? "an approved" : "a pending"} holiday for ${request.requester_name ?? "a team member"}`,
+    metadata: { reason, was_approved: wasApproved },
+  });
+
+  revalidatePath("/people/holiday");
+  return { ok: selfWithdrawal ? "Request withdrawn." : "Holiday cancelled." };
+}
+
+/** Correct the dates on a pending or approved holiday (Branch Manager and above). */
+export async function amendHoliday(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+  const requestId = String(formData.get("request_id") ?? "");
+  if (!requestId) return { error: "Missing holiday." };
+  const startDate = isoOrNull(formData.get("start_date"));
+  const endDate = isoOrNull(formData.get("end_date"));
+  if (!startDate || !endDate) return { error: "Enter both dates." };
+  if (endDate < startDate) return { error: "The end date cannot be before the start date." };
+
+  const supabase = await createClient();
+  const { data: request } = await supabase
+    .from("holiday_requests")
+    .select("company_id, branch_id, requested_by, start_date, end_date")
+    .eq("id", requestId)
+    .maybeSingle();
+  if (!request) return { error: "That holiday could not be found." };
+
+  const wasStart = request.start_date as string;
+  const wasEnd = request.end_date as string;
+  if (wasStart === startDate && wasEnd === endDate) {
+    return { ok: "No change." };
+  }
+
+  const { error } = await supabase.rpc("amend_holiday_request", {
+    p_id: requestId,
+    p_start_date: startDate,
+    p_end_date: endDate,
+  });
+  if (error) return { error: error.message };
+
+  const { fallbackEmail, fallbackName } = await requestRecipient(
+    supabase,
+    requestId,
+    (request.requested_by as string | null) ?? null,
+  );
+  await notifyHolidayChanged({
+    companyId: request.company_id as string,
+    branchId: (request.branch_id as string | null) ?? null,
+    requestId,
+    requestedBy: (request.requested_by as string | null) ?? null,
+    kind: "amended",
+    startDate,
+    endDate,
+    note: `It was previously booked from ${wasStart} to ${wasEnd}.`,
+    fallbackEmail,
+    fallbackName,
+  });
+
+  await writeAudit({
+    companyId: request.company_id as string,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "holiday.amended",
+    entityType: "holiday_request",
+    entityId: requestId,
+    summary: `Changed a holiday from ${wasStart} to ${wasEnd}, now ${startDate} to ${endDate}`,
+    metadata: { was_start: wasStart, was_end: wasEnd, start_date: startDate, end_date: endDate },
+  });
+
+  revalidatePath("/people/holiday");
+  return { ok: "Dates updated." };
 }

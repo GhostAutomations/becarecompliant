@@ -8,6 +8,7 @@ import RealtimeRefresh from "@/components/realtime-refresh";
 import { publicFormDef } from "@/lib/public-forms/config";
 import { listPublicSubmissions, listLinkablePeople } from "@/lib/public-forms/data";
 import { linkSubmission, discardSubmission } from "@/lib/public-forms/actions";
+import { PUBLIC_FORMS_ENABLED } from "@/lib/public-forms/flag";
 
 /**
  * People > Submissions. Everything sent through a public form, newest first.
@@ -51,6 +52,7 @@ function formatWhen(iso: string): string {
 
 export default async function SubmissionsPage() {
   const { profile } = await requireCompany();
+  if (!PUBLIC_FORMS_ENABLED) redirect("/people");
   if (!profile.company_id) redirect("/people");
   if (!MANAGER_PLUS.includes(profile.role)) redirect("/people");
 
