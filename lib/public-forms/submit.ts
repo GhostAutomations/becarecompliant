@@ -96,7 +96,7 @@ export async function submitPublicForm(
   _prev: PublicSubmitState,
   formData: FormData,
 ): Promise<PublicSubmitState> {
-  const slug = String(formData.get("company_slug") ?? "");
+  const code = String(formData.get("link_code") ?? "");
   const formKey = String(formData.get("form_key") ?? "");
   const fullName = String(formData.get("identity_name") ?? "").trim();
   const email = String(formData.get("identity_email") ?? "").trim();
@@ -114,8 +114,10 @@ export async function submitPublicForm(
     return { error: "Enter the personal email your employer holds for you." };
   }
 
-  const resolved = await resolvePublicForm(slug, formKey);
-  if (!resolved) return { error: "This form is not currently accepting submissions." };
+  const resolved = await resolvePublicForm(code);
+  if (!resolved || resolved.formKey !== formKey) {
+    return { error: "This form is not currently accepting submissions." };
+  }
 
   let answers: Answers;
   try {

@@ -14,6 +14,8 @@ export type PublicSubmissionStatus = "matched" | "unmatched" | "linked" | "disca
 export type PublicFormLink = {
   id: string;
   form_key: string;
+  /** The six character code in the published URL, /f/<code>. */
+  code: string;
   enabled: boolean;
   created_at: string;
 };

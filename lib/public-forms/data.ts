@@ -16,7 +16,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { isFormSchema, type FormSchema } from "@/lib/form-schema";
-import { publicFormDef } from "@/lib/public-forms/config";
+import { isLinkCode, publicFormDef } from "@/lib/public-forms/config";
 import type { PublicFormLink, PublicSubmission } from "@/lib/public-forms/types";
 
 export type ResolvedPublicForm = {
@@ -28,40 +28,36 @@ export type ResolvedPublicForm = {
 };
 
 /**
- * Resolve a public link to the form it publishes. Returns null for anything that
- * is not a live, enabled, publishable form: unknown company slug, no link, link
- * switched off, form missing, no published version, or a form key that is not in
- * the publishable catalogue.
+ * Resolve a short link code to the form it publishes. Returns null for anything
+ * that is not live: unknown code, link switched off, disabled company, form
+ * missing, no published version, or a form key that is not in the publishable
+ * catalogue. Every failure looks the same to the caller.
  */
-export async function resolvePublicForm(
-  companySlug: string,
-  formKey: string,
-): Promise<ResolvedPublicForm | null> {
-  if (!publicFormDef(formKey)) return null;
-  if (!/^[a-z0-9-]{1,64}$/i.test(companySlug)) return null;
+export async function resolvePublicForm(code: string): Promise<ResolvedPublicForm | null> {
+  if (!isLinkCode(code)) return null;
 
   const supabase = createServiceClient();
+
+  const { data: link } = await supabase
+    .from("public_form_links")
+    .select("company_id, form_key, enabled")
+    .ilike("code", code)
+    .maybeSingle();
+  if (!link || !link.enabled) return null;
+  if (!publicFormDef(link.form_key as string)) return null;
 
   const { data: company } = await supabase
     .from("companies")
     .select("id, name, status")
-    .eq("slug", companySlug)
+    .eq("id", link.company_id)
     .maybeSingle();
   if (!company || company.status === "disabled") return null;
-
-  const { data: link } = await supabase
-    .from("public_form_links")
-    .select("enabled")
-    .eq("company_id", company.id)
-    .eq("form_key", formKey)
-    .maybeSingle();
-  if (!link || !link.enabled) return null;
 
   const { data: form } = await supabase
     .from("forms")
     .select("id")
     .eq("company_id", company.id)
-    .eq("key", formKey)
+    .eq("key", link.form_key)
     .maybeSingle();
   if (!form) return null;
 
@@ -78,7 +74,7 @@ export async function resolvePublicForm(
   return {
     companyId: company.id as string,
     companyName: company.name as string,
-    formKey,
+    formKey: link.form_key as string,
     formVersionId: version.id as string,
     schema: version.schema as FormSchema,
   };
@@ -89,7 +85,7 @@ export async function listPublicFormLinks(companyId: string): Promise<PublicForm
   const supabase = await createClient();
   const { data } = await supabase
     .from("public_form_links")
-    .select("id, form_key, enabled, created_at")
+    .select("id, form_key, code, enabled, created_at")
     .eq("company_id", companyId);
   return (data ?? []) as PublicFormLink[];
 }

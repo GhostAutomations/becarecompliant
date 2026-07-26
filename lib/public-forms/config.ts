@@ -43,7 +43,22 @@ export function publicFormDef(key: string): PublicFormDef | undefined {
   return PUBLIC_FORM_DEFS.find((d) => d.key === key);
 }
 
-/** The published path for a company's public form, e.g. /f/acme/holiday_requests. */
-export function publicFormPath(companySlug: string, formKey: string): string {
-  return `/f/${companySlug}/${formKey}`;
+/**
+ * The published path for a link, e.g. /f/k3m9qa. One short segment: the whole
+ * URL has to fit on a poster, and the company name stays out of it.
+ */
+export function publicFormPath(code: string): string {
+  return `/f/${code}`;
+}
+
+/**
+ * Characters a link code can contain. No 0/O/1/l/I, so nobody mistypes a code
+ * they are reading off a screen or a printed sheet.
+ */
+export const LINK_CODE_ALPHABET = "23456789abcdefghjkmnpqrstuvwxyz";
+export const LINK_CODE_LENGTH = 6;
+
+/** Is this a plausible link code? Cheap guard before any lookup. */
+export function isLinkCode(value: string): boolean {
+  return new RegExp(`^[${LINK_CODE_ALPHABET}]{${LINK_CODE_LENGTH}}$`, "i").test(value);
 }

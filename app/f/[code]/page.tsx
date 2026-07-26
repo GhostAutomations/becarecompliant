@@ -7,10 +7,11 @@ import PublicForm from "@/components/public-forms/public-form";
  * PUBLIC page: a team member fills in one of their company's published forms
  * with no account and no login (in middleware PUBLIC_PATHS).
  *
- * The page is WRITE ONLY. It renders the company's name and the form itself and
- * nothing else: no staff list, no records, no previous submissions. An unknown
- * slug, a form that was never published, or a link switched off all show the
- * same neutral message.
+ * The URL is one short code, /f/<code>, so it fits on a poster and gives away
+ * nothing about which company it belongs to until it is opened. The page is
+ * WRITE ONLY: it renders the company's name and the form and nothing else, no
+ * staff list, no records, no previous submissions. An unknown code, a withdrawn
+ * link and a form that was never published all show the same neutral message.
  */
 
 export const metadata: Metadata = { title: "Form" };
@@ -19,11 +20,11 @@ export const dynamic = "force-dynamic";
 export default async function PublicFormPage({
   params,
 }: {
-  params: Promise<{ slug: string; formKey: string }>;
+  params: Promise<{ code: string }>;
 }) {
-  const { slug, formKey } = await params;
-  const def = publicFormDef(formKey);
-  const resolved = def ? await resolvePublicForm(slug, formKey) : null;
+  const { code } = await params;
+  const resolved = await resolvePublicForm(code);
+  const def = resolved ? publicFormDef(resolved.formKey) : undefined;
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-navy-950 via-navy-900 to-navy-800 p-4">
@@ -46,8 +47,8 @@ export default async function PublicFormPage({
             <p className="mt-1 text-sm text-white/60">{resolved.companyName}</p>
             <div className="mt-6">
               <PublicForm
-                companySlug={slug}
-                formKey={formKey}
+                linkCode={code}
+                formKey={resolved.formKey}
                 schema={resolved.schema}
                 intro={def.publicIntro}
               />
