@@ -204,7 +204,7 @@ export default async function UsersPage() {
         )}
       </section>
 
-      <div className="flex flex-wrap items-start gap-4">
+      <div className="space-y-3 sm:max-w-3xl">
         <UserDropdown
           title="Active users"
           subtitle="Admins, Managers and Supervisors: the people who run the service"

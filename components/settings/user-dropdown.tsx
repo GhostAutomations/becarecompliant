@@ -8,7 +8,8 @@
  * views menu: a field-styled button that opens a FLOATING PANEL, and the names
  * live inside that panel. Nothing is laid out down the page.
  *
- * Picking a name closes the menu and opens that person's popup.
+ * Picking a name closes the menu and opens that person's popup. The width comes
+ * from the page, so the two dropdowns stack and match each other.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -48,7 +49,7 @@ export default function UserDropdown({
   }, [open]);
 
   return (
-    <div ref={wrapRef} className="relative sm:max-w-sm">
+    <div ref={wrapRef} className="relative w-full">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
