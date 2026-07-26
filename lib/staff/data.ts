@@ -101,3 +101,28 @@ export async function getMySubmissions(): Promise<MySubmission[]> {
     };
   });
 }
+
+export type PersonLoginStatus = {
+  has_email: boolean;
+  has_login: boolean;
+  login_status: string | null;
+  login_role: string | null;
+  invited_at: string | null;
+  invite_status: string | null;
+};
+
+/**
+ * Whether this Person has a Team Member login yet, for their record. Goes through
+ * person_login_status (migration 0134) because profiles and invites are readable
+ * by Company Admins only, and a Branch Manager needs to see this too.
+ */
+export async function getPersonLoginStatus(
+  personId: string,
+): Promise<PersonLoginStatus | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("person_login_status", {
+    p_person_id: personId,
+  });
+  if (error || !data) return null;
+  return data as PersonLoginStatus;
+}

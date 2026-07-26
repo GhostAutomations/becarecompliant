@@ -14,9 +14,7 @@ export type InviteRole =
   | "manager"
   | "supervisor"
   | "on_call"
-  | "team_member"
-  /** Carer self-service login, shown as "Team Member". Free seat (0131). */
-  | "staff";
+  | "team_member";
 
 export type Actor = {
   id: string;
@@ -320,4 +318,81 @@ export async function revokeInvite(
   });
 
   return { ok: true, emailSent: false };
+}
+
+/**
+ * Re-send a pending invite by EMAIL, using the service client.
+ *
+ * resendInvite() above reads the invites table through RLS, which is Company
+ * Admin only. A Branch Manager can create a staff invite (policy invites_insert,
+ * migration 0131), so they must be able to re-send one too: the caller has
+ * already been authorised against the PERSON, and this only ever re-sends to the
+ * address already on the invite, never to a new one.
+ */
+export async function resendStaffInviteByEmail(
+  companyId: string,
+  email: string,
+  actor: Actor,
+): Promise<InviteOutcome> {
+  let admin: ServiceClient;
+  try {
+    admin = createServiceClient();
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  }
+
+  const address = email.trim().toLowerCase();
+  const { data: invite } = await admin
+    .from("invites")
+    .select("id, full_name, role, status, resend_count")
+    .eq("company_id", companyId)
+    .eq("email", address)
+    .eq("status", "pending")
+    .order("created_at", { ascending: false })
+    .maybeSingle();
+  if (!invite) return { ok: false, error: "There is no pending invite for that address." };
+
+  const { data: company } = await admin
+    .from("companies")
+    .select("name")
+    .eq("id", companyId)
+    .maybeSingle();
+
+  const link = await generateConfirmUrl(admin, address, invite.full_name as string);
+  if (link.error || !link.url) {
+    return { ok: false, error: link.error ?? "Could not regenerate the link." };
+  }
+
+  const send = await sendEmail({
+    to: address,
+    subject: inviteSubject((company?.name as string | null) ?? "your company"),
+    html: inviteEmailHtml({
+      companyName: (company?.name as string | null) ?? "your company",
+      inviterName: actor.name || "Your manager",
+      roleLabel: ROLE_LABELS[invite.role as string] ?? (invite.role as string),
+      actionUrl: link.url,
+    }),
+  });
+
+  await admin
+    .from("invites")
+    .update({
+      last_sent_at: new Date().toISOString(),
+      resend_count: ((invite.resend_count as number | null) ?? 0) + 1,
+    })
+    .eq("id", invite.id);
+
+  await writeAudit({
+    companyId,
+    actorId: actor.id,
+    actorEmail: actor.email,
+    actorRole: actor.role,
+    action: "invite.resent",
+    entityType: "invite",
+    entityId: invite.id as string,
+    summary: `Resent the Team Member invite to ${address}`,
+    metadata: { email: address, email_sent: send.sent },
+  });
+
+  return { ok: true, emailSent: send.sent, emailNote: send.skippedReason ?? send.error };
 }

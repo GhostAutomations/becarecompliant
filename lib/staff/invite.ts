@@ -23,7 +23,11 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
-import { createAndSendInvite, type Actor } from "@/lib/invites";
+import {
+  createAndSendInvite,
+  resendStaffInviteByEmail,
+  type Actor,
+} from "@/lib/invites";
 
 export type StaffInviteOutcome = {
   ok: boolean;
@@ -108,4 +112,35 @@ async function linkPersonToLogin(
     // on their own record until it is set. Never break the caller.
     console.error("[staff] could not link person to login:", (e as Error).message);
   }
+}
+
+/**
+ * Invite this Person, or re-send the invite they never opened. Used by the button
+ * on the Person record, for the people who were added before staff logins
+ * existed, or imported without an email, or who lost the email.
+ */
+export async function inviteOrResendForPerson(
+  personId: string,
+  inviter: Actor,
+): Promise<StaffInviteOutcome> {
+  const first = await inviteStaffForPerson(personId, inviter);
+  if (first.skipped !== "already_invited") return first;
+
+  // An invite is already waiting: send it again rather than doing nothing.
+  const supabase = await createClient();
+  const { data: person } = await supabase
+    .from("people")
+    .select("company_id, work_email")
+    .eq("id", personId)
+    .maybeSingle();
+  if (!person?.work_email) return { ok: false, skipped: "no_email" };
+
+  const resent = await resendStaffInviteByEmail(
+    person.company_id as string,
+    person.work_email as string,
+    inviter,
+  );
+  return resent.ok
+    ? { ok: true, emailSent: resent.emailSent }
+    : { ok: false, error: resent.error };
 }

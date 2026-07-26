@@ -23,6 +23,9 @@ import {
   listPersonEvidence,
 } from "@/lib/people/data";
 import { listPersonHolidays } from "@/lib/holidays/data";
+import { getPersonLoginStatus } from "@/lib/staff/data";
+import { invitePersonLogin } from "@/lib/staff/actions";
+import { listAssignmentsForPerson } from "@/lib/assignments/data";
 import { listPersonAbsences, listPersonMeetings } from "@/lib/absence/data";
 import {
   applyMissingChecks,
@@ -116,6 +119,13 @@ export default async function PersonPage({
     listPersonHolidays(id),
     listPersonAbsences(id),
     listPersonMeetings(id),
+  ]);
+
+  // Their own login, and anything assigned to them. Both are Manager-and-above
+  // information, so they are only fetched for someone who can manage the record.
+  const [login, personAssignments] = await Promise.all([
+    canManage ? getPersonLoginStatus(id) : Promise.resolve(null),
+    canManage ? listAssignmentsForPerson(id) : Promise.resolve([]),
   ]);
 
   // The history timeline uses the record_audit_trail RPC (guarded by
@@ -392,6 +402,97 @@ export default async function PersonPage({
           </section>
         </>
       )}
+
+      {/* Their Team Member login, and what has been assigned to them. */}
+      {canManage ? (
+        <section className="grid gap-4 lg:grid-cols-2">
+          <div className="glass-card p-5">
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white">
+              Team Member login
+            </h2>
+            {!login?.has_email ? (
+              <p className="text-sm text-white/50">
+                No personal email on this record, so they cannot be given a login. Add one
+                above and the invite goes out automatically.
+              </p>
+            ) : login.has_login && login.login_status === "active" ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="pill-green">Active</span>
+                <span className="text-sm text-white/60">
+                  They can sign in and see their own area.
+                </span>
+              </div>
+            ) : login.invite_status === "pending" || login.login_status === "invited" ? (
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="pill-amber">Invited</span>
+                  {login.invited_at ? (
+                    <span className="text-sm text-white/60">
+                      Sent {formatDisplayDate(String(login.invited_at).slice(0, 10))}, not
+                      opened yet.
+                    </span>
+                  ) : null}
+                </div>
+                <ActionForm
+                  action={invitePersonLogin}
+                  hidden={{ person_id: id }}
+                  label="Send it again"
+                  savedLabel="Sent"
+                  buttonClassName="btn-outline px-3 py-2 text-xs"
+                  className=""
+                />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="pill-neutral">No login</span>
+                  <span className="text-sm text-white/60">
+                    They cannot see their holidays or anything assigned to them.
+                  </span>
+                </div>
+                <ActionForm
+                  action={invitePersonLogin}
+                  hidden={{ person_id: id }}
+                  label="Invite them"
+                  savedLabel="Invited"
+                  className=""
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="glass-card p-5">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-white">
+                Assigned to them
+              </h2>
+              <Link href="/people/assignments" className="text-xs text-white/50 hover:text-white">
+                Assign
+              </Link>
+            </div>
+            {personAssignments.length === 0 ? (
+              <p className="text-sm text-white/50">Nothing assigned.</p>
+            ) : (
+              <ul className="space-y-2">
+                {personAssignments.slice(0, 8).map((a) => (
+                  <li key={a.id} className="flex items-center justify-between gap-2 text-sm">
+                    <span className="min-w-0 truncate text-white/80">{a.title}</span>
+                    {a.status === "completed" ? (
+                      <span className="pill-green shrink-0">Done</span>
+                    ) : a.due_date && a.due_date < new Date().toISOString().slice(0, 10) ? (
+                      <span className="pill-red shrink-0">Overdue</span>
+                    ) : (
+                      <span className="pill-neutral shrink-0">
+                        {a.due_date ? formatDisplayDate(a.due_date) : "No date"}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
+      ) : null}
 
       {/* Holiday & Absence history */}
       <section className="grid gap-4 lg:grid-cols-2">
