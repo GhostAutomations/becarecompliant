@@ -256,7 +256,7 @@ export async function assignItems(
     metadata: { kind, target_id: id, people: personIds.length, created, due_date: dueDate },
   });
 
-  revalidatePath("/people/assignments");
+  revalidatePath("/briefings");
   return {
     ok:
       created === personIds.length
@@ -298,7 +298,7 @@ export async function cancelAssignment(
     summary: "Cancelled an assignment",
   });
 
-  revalidatePath("/people/assignments");
+  revalidatePath("/briefings");
   return { ok: "Cancelled." };
 }
 
@@ -554,7 +554,7 @@ export async function uploadPolicyVersion(
   });
 
   revalidatePath("/settings/policies");
-  revalidatePath("/people/assignments");
+  revalidatePath("/briefings");
   return {
     ok:
       reassigned > 0

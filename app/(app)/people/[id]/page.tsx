@@ -464,14 +464,14 @@ export default async function PersonPage({
           <div className="glass-card p-5">
             <div className="mb-3 flex items-center justify-between gap-3">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-white">
-                Assigned to them
+                Briefings
               </h2>
-              <Link href="/people/assignments" className="text-xs text-white/50 hover:text-white">
-                Assign
+              <Link href="/briefings" className="text-xs text-white/50 hover:text-white">
+                Send one
               </Link>
             </div>
             {personAssignments.length === 0 ? (
-              <p className="text-sm text-white/50">Nothing assigned.</p>
+              <p className="text-sm text-white/50">Nothing sent to them.</p>
             ) : (
               <ul className="space-y-2">
                 {personAssignments.slice(0, 8).map((a) => (

@@ -82,7 +82,7 @@ export default async function MyAreaPage() {
           {record?.full_name ? `Hello, ${record.full_name.split(" ")[0]}` : "My area"}
         </h1>
         <p className="page-subtitle">
-          Your holidays, anything assigned to you, and the forms you have sent in.
+          Your holidays, your briefings to read and sign, and the forms you have sent in.
         </p>
       </div>
 
@@ -109,7 +109,7 @@ export default async function MyAreaPage() {
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
-          Assigned to me
+          My briefings
         </h2>
         <AssignedToMe
           assignments={assignments}

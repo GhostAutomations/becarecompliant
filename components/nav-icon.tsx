@@ -152,6 +152,14 @@ export function NavIcon({
           <path d="M9.5 15.5h5" />
         </svg>
       );
+    case "briefings":
+      return (
+        <svg {...common}>
+          <path d="M6 3.5h8.5L18.5 7v13.5H6z" />
+          <path d="M14 3.5V7h4.5" />
+          <path d="M9 12.5h6M9 16h3.5" />
+        </svg>
+      );
     case "readiness":
       return (
         <svg {...common}>

@@ -29,7 +29,7 @@ export default async function PoliciesSettingsPage() {
       <div>
         <h1 className="page-title">Policies</h1>
         <p className="page-subtitle">
-          Upload your policies once, then assign them in People, Assignments. Your team
+          Upload your policies once, then send them out from Briefings. Your team
           reads the document and signs it, and the signature is stored as Evidence with the
           version they signed and a certificate you can hand to an inspector.
         </p>

@@ -56,8 +56,8 @@ export default function AssignedToMe({
     <div className="space-y-6">
       {open.length === 0 ? (
         <div className="glass-card p-5 text-sm text-white/60">
-          Nothing is assigned to you at the moment. When your manager assigns a form or a
-          policy, it will appear here.
+          Nothing to do at the moment. When your manager sends you a policy to sign or a
+          form to complete, it will appear here.
         </div>
       ) : (
         <ul className="space-y-3">

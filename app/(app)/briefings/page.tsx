@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
-import BackLink from "@/components/back-link";
 import ActionForm from "@/components/action-form";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import AssignPanel from "@/components/assignments/assign-panel";
@@ -15,12 +14,15 @@ import {
 import { listLinkablePeople } from "@/lib/public-forms/data";
 
 /**
- * People > Assignments. What the team has been given to do, and the place to
- * give them more. Managers and above only: a Team Member sees their own list in
- * their own area instead.
+ * Briefings, a department of its own (Phil, 2026-07-26, promoted out of People
+ * and renamed from "Assignments").
+ *
+ * A briefing is something you send the team and expect back: a policy to read and
+ * sign, or a form to complete. This is the Manager's side of it. A Team Member
+ * sees their own briefings in their own area.
  */
 
-export const metadata: Metadata = { title: "Assignments" };
+export const metadata: Metadata = { title: "Briefings" };
 
 const MANAGER_PLUS = [
   "company_admin",
@@ -40,11 +42,11 @@ function fmtDate(iso: string | null): string {
   });
 }
 
-export default async function AssignmentsPage() {
+export default async function BriefingsPage() {
   const { profile } = await requireCompany();
-  if (!profile.company_id) redirect("/people");
+  if (!profile.company_id) redirect("/dashboard");
   if (profile.role === "staff") redirect("/my");
-  if (!MANAGER_PLUS.includes(profile.role)) redirect("/people");
+  if (!MANAGER_PLUS.includes(profile.role)) redirect("/dashboard");
 
   const [assignments, forms, policies, people] = await Promise.all([
     listAssignments(profile.company_id),
@@ -60,12 +62,12 @@ export default async function AssignmentsPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <RealtimeRefresh tables={["assignments"]} channel="assignments" />
-      <BackLink href="/people" label="Back to People" />
       <div>
-        <h1 className="page-title">Assignments</h1>
+        <h1 className="page-title">Briefings</h1>
         <p className="page-subtitle">
-          Forms and policies your team has been asked to complete. They see these when they
-          log in, and completing one files the Evidence against their record.
+          Policies to read and sign, and forms to complete, sent out to your team. They see
+          these when they log in, and what comes back is filed as Evidence against their
+          record.
         </p>
       </div>
 
@@ -73,8 +75,8 @@ export default async function AssignmentsPage() {
 
       {policies.length === 0 && (
         <p className="text-xs text-amber-300">
-          You have no policies uploaded yet. Add them in Settings, Policies to assign them
-          for reading.
+          You have no policies uploaded yet. Add them in Settings, Policies before you can
+          send one out.
         </p>
       )}
 
@@ -104,11 +106,11 @@ export default async function AssignmentsPage() {
                     <ActionForm
                       action={cancelAssignment}
                       hidden={{ assignment_id: a.id }}
-                      label="Cancel"
-                      savedLabel="Cancelled"
+                      label="Withdraw"
+                      savedLabel="Withdrawn"
                       buttonClassName="btn-ghost px-3 py-2 text-xs"
                       className=""
-                      confirm="Cancel this assignment? It disappears from their list."
+                      confirm="Withdraw this briefing? It disappears from their list."
                     />
                   </div>
                 </div>
