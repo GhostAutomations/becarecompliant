@@ -241,7 +241,15 @@ export async function bookHolidayForPerson(
   return { ok: canApproveOwn ? "Holiday booked." : "Holiday booked, pending approval." };
 }
 
-/** Approve or decline a holiday request (Manager/Admin) via the Holiday Response form. */
+/**
+ * Approve or decline a holiday request (Branch Manager and above).
+ *
+ * This is a DECISION, not a form. The old Holiday Response form (inherited from
+ * the Monday board) made a Manager complete a form to click yes or no; it was
+ * deleted from every company and from the founder library in migration 0129.
+ * The outcome, who decided it, when, and any reason for declining all live on
+ * the holiday_requests row, and the requester is emailed either way.
+ */
 export async function decideHoliday(
   _prev: ActionState,
   formData: FormData,
@@ -251,17 +259,15 @@ export async function decideHoliday(
   const requestId = String(formData.get("request_id") ?? "");
   if (!requestId) return { error: "Missing request." };
 
-  let answers: Answers;
-  try {
-    answers = JSON.parse(String(formData.get("answers") ?? "{}")) as Answers;
-  } catch {
-    return { error: "Could not read the form answers." };
-  }
-
-  const approval = String(answers["approval"] ?? "").toLowerCase();
+  const decision = String(formData.get("decision") ?? "").toLowerCase();
   const status =
-    approval.includes("approve") ? "approved" : approval.includes("decline") ? "declined" : null;
+    decision === "approved" ? "approved" : decision === "declined" ? "declined" : null;
   if (!status) return { error: "Choose whether to approve or decline the request." };
+
+  const note = String(formData.get("decline_reason") ?? "").trim() || null;
+  if (status === "declined" && !note) {
+    return { error: "Give a reason for declining, so the person knows why." };
+  }
 
   const supabase = await createClient();
   const { data: request } = await supabase
@@ -271,30 +277,14 @@ export async function decideHoliday(
     .maybeSingle();
   if (!request) return { error: "That request could not be found." };
 
-  const form = await getCompanyFormByKey(request.company_id as string, "holiday_response");
-  if (!form) {
-    return { error: "The Holiday Response form is not available for your company yet." };
-  }
-
-  const result = await submitEvidence({
-    formVersionId: form.versionId,
-    branchId: (request.branch_id as string | null) ?? null,
-    answers,
-    files: await collectFiles(formData),
-    recordType: request.person_id ? "person" : null,
-    recordId: (request.person_id as string | null) ?? null,
-  });
-  if (!result.ok) return { error: result.error };
-
-  const note = typeof answers["decline_reason"] === "string" ? (answers["decline_reason"] as string) : null;
   const { error: decErr } = await supabase.rpc("decide_holiday_request", {
     p_id: requestId,
     p_status: status,
-    p_evidence_id: result.evidenceId,
+    p_evidence_id: null,
     p_note: note,
   });
   if (decErr) {
-    return { error: `Evidence was saved, but the decision could not be recorded: ${decErr.message}` };
+    return { error: `The decision could not be recorded: ${decErr.message}` };
   }
 
   // A request that arrived through a public form has no account behind it, so
@@ -336,9 +326,9 @@ export async function decideHoliday(
     entityType: "holiday_request",
     entityId: requestId,
     summary: `Holiday request ${status}`,
-    metadata: { evidence_id: result.evidenceId, status, requester_email: requesterEmail },
+    metadata: { status, note, requester_email: requesterEmail },
   });
 
   revalidatePath("/people/holiday");
-  return { ok: "Decision saved." };
+  return { ok: status === "approved" ? "Holiday approved." : "Holiday declined." };
 }

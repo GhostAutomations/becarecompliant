@@ -34,18 +34,15 @@ export default async function HolidayPage() {
     profile.role,
   );
   const canBookForPerson = canApprove || profile.role === "supervisor";
-  const [branches, requests, people, requestForm, responseForm] = await Promise.all([
+  const [branches, requests, people, requestForm] = await Promise.all([
     listBranches(companyId),
     listHolidayRequests(companyId, null),
     canBookForPerson ? listActivePeople(companyId) : Promise.resolve([]),
     getCompanyFormByKey(companyId, "holiday_requests"),
-    getCompanyFormByKey(companyId, "holiday_response"),
   ]);
 
   const requestSchema: FormSchema | null =
     requestForm && isFormSchema(requestForm.schema) ? (requestForm.schema as FormSchema) : null;
-  const responseSchema: FormSchema | null =
-    responseForm && isFormSchema(responseForm.schema) ? (responseForm.schema as FormSchema) : null;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -56,7 +53,6 @@ export default async function HolidayPage() {
         branches={branches}
         people={people}
         requestSchema={requestSchema}
-        responseSchema={responseSchema}
         canApprove={canApprove}
         canBookForPerson={canBookForPerson}
       />

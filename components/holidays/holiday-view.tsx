@@ -2,12 +2,17 @@
 
 /**
  * Be Care Compliant — Holiday view (People sub-section).
- * Top: a request strip (pending requests; Managers/Admins approve or decline via
- * the Holiday Response form). Below: a month calendar of approved holidays for
- * the branch. Anyone can submit their own request (Holiday Form -> Evidence).
+ * Top: a request strip (pending requests; Managers and above Approve or Decline
+ * in one click, a decline asks for a reason). Below: a month calendar of approved
+ * holidays for the branch. Anyone can submit their own request (Holiday Form ->
+ * Evidence), and staff with no account submit through the public form link.
+ *
+ * Approving is a DECISION, not a form: the old Holiday Response form was deleted
+ * in migration 0129. Do not reintroduce a form to click yes or no.
  */
 
 import { useMemo, useState } from "react";
+import ActionForm from "@/components/action-form";
 import FormEvidenceDialog from "@/components/forms/form-evidence-dialog";
 import type { FormSchema } from "@/lib/form-schema";
 import type { HolidayRequestRow } from "@/lib/holidays/data";
@@ -35,12 +40,73 @@ function fmt(dateIso: string): string {
   return `${d} ${MONTHS[Number(m) - 1]?.slice(0, 3)} ${y}`;
 }
 
+/**
+ * Approve in one click. Decline reveals a required reason, which is emailed to
+ * the person with the outcome. Both go through the shared ActionForm, so the
+ * button behaves like every other save in the app.
+ */
+function DecideControls({ requestId }: { requestId: string }) {
+  const [declining, setDeclining] = useState(false);
+
+  if (!declining) {
+    return (
+      <div className="flex items-center gap-2">
+        <ActionForm
+          action={decideHoliday}
+          hidden={{ request_id: requestId, decision: "approved" }}
+          label="Approve"
+          savedLabel="Approved"
+          buttonClassName="btn-primary px-3 py-1.5 text-xs"
+          className=""
+        />
+        <button
+          type="button"
+          className="btn-outline px-3 py-1.5 text-xs"
+          onClick={() => setDeclining(true)}
+        >
+          Decline
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full max-w-sm space-y-2">
+      <ActionForm
+        action={decideHoliday}
+        hidden={{ request_id: requestId, decision: "declined" }}
+        label="Decline request"
+        savedLabel="Declined"
+        buttonClassName="btn-primary px-3 py-1.5 text-xs"
+      >
+        <label htmlFor={`decline-${requestId}`} className="form-label">
+          Reason for declining
+        </label>
+        <textarea
+          id={`decline-${requestId}`}
+          name="decline_reason"
+          rows={2}
+          required
+          maxLength={2000}
+          placeholder="The person will see this"
+        />
+      </ActionForm>
+      <button
+        type="button"
+        className="btn-ghost px-2 py-1 text-xs"
+        onClick={() => setDeclining(false)}
+      >
+        Cancel
+      </button>
+    </div>
+  );
+}
+
 export default function HolidayView({
   requests,
   branches,
   people,
   requestSchema,
-  responseSchema,
   canApprove,
   canBookForPerson,
 }: {
@@ -48,7 +114,6 @@ export default function HolidayView({
   branches: BranchLite[];
   people: PersonLite[];
   requestSchema: FormSchema | null;
-  responseSchema: FormSchema | null;
   /** Branch Manager and above: can approve/decline pending requests. */
   canApprove: boolean;
   /** Branch Manager and above + Supervisor: can book a holiday for a person (a
@@ -202,16 +267,8 @@ export default function HolidayView({
                     {r.note ? ` · ${r.note}` : ""}
                   </p>
                 </div>
-                {canApprove && responseSchema ? (
-                  <FormEvidenceDialog
-                    title={`Review holiday — ${r.requester_name ?? ""}`}
-                    schema={responseSchema}
-                    action={decideHoliday}
-                    extraFields={{ request_id: r.id }}
-                    triggerLabel="Review"
-                    triggerClassName="btn-outline px-3 py-1.5 text-xs"
-                    submitLabel="Save decision"
-                  />
+                {canApprove ? (
+                  <DecideControls requestId={r.id} />
                 ) : (
                   <span className="pill pill-amber">Pending</span>
                 )}
