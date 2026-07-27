@@ -186,9 +186,15 @@ export default async function AppLayout({
             <span className="hidden text-sm font-medium text-white/80 sm:block">
               {displayName}
             </span>
-            <span className="pill-neutral">
-              {ROLE_LABELS[profile.role] ?? profile.role}
-            </span>
+            {/* No role badge for a Team Member (Phil, 2026-07-27): a role pill is
+                for people who hold several, and telling a carer what they are
+                adds nothing to a screen whose whole job is "here is what you
+                need to do". */}
+            {isStaff ? null : (
+              <span className="pill-neutral">
+                {ROLE_LABELS[profile.role] ?? profile.role}
+              </span>
+            )}
             <form action="/auth/signout" method="post">
               <button type="submit" className="btn-ghost px-3 py-2 text-xs">
                 Sign out
