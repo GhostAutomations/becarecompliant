@@ -317,7 +317,43 @@ ITEM 3 (import templates) BUILT 2026-07-14, no migration. Scope agreed by popup 
 
 - REVIEWED COLD BEFORE PUSH by a subagent reading every changed file for missing exports, dangling symbols after the extraction, the "use server" async-only rule, circular imports, server-only in a client component, status union typing, SupabaseClient assignability and JSX/entity errors. No compile or lint errors found. NOT built on Phil's machine and NOT tested live yet — see Final Testing.
 
+- EDITABLE FORMAL LETTER TEMPLATES (2026-07-27, migrations 0139 + 0140). Until now the absence meeting invitation went out under the care company's name with wording hard coded in bookAbsenceMeeting, so a provider could not use the wording their own HR adviser approved even though the letter is a formal step in a capability process naming the stage and the right to be accompanied. Phil chose by popup: EVERY letter absence sends, built as a general letters system so probation and disciplinary letters can be added later without rework. New `company_letter_templates` + `company_letter_template_versions` (wording kept forever, because a letter already sent went out under the wording live at the time and a process can be challenged months later). Read = any company member (the sender runs as the Manager booking the meeting), write = Company Admin only. 0140 adds the ONE legitimate delete policy: putting a letter back to the standard wording removes the row so it reads from the packaged default again and later improvements reach them; the version history stays undeletable.
+  - lib/letters/letters.ts is PURE (definitions, placeholder palette, merge + render) so the client editor can import it. Bodies are PLAIN TEXT with {{placeholders}}, escaped and rendered to HTML at send time: an Admin never authors raw HTML, which would break the email shell and open an injection path into mail we send for them. Unknown tokens are left exactly as typed so a mistake shows in the preview rather than vanishing from a legal letter. Functional parts (Accept / I cannot attend buttons, the calendar attachment, the Teams note) stay system rendered around the wording.
+  - Four letters seeded from the CURRENT wording, so nothing changed until an Admin edits: absence_meeting_invite_employee, absence_meeting_invite_conductor, absence_meeting_rearranged (a paragraph inside the other two, so no subject of its own), absence_meeting_cancelled. Settings > Letters with a per letter collapsible editor, clickable placeholder chips that insert at the cursor, and a live preview with example values using the SAME merge the sender uses.
+  - Wired into lib/absence/actions.ts: sendMeetingLetters now takes the Supabase client and reads the company wording for both invitations and the rearranged note; the cancellation notice renders its body AND its subject from the company wording (the subject is used for the dedupe claim too). Fixed during review: the conductor's copy passes recipient_name as the CONDUCTOR, not the employee.
+
+- ABSENCE MEETING OUTCOME (2026-07-27, migration 0141). The Absence Management Meeting Records form recorded details, attendance review, discussion and minutes but NO OUTCOME, which is the worst possible gap in an absence file: at appeal the question is always what was decided, what they were asked to improve, by when, and whether they were told they could appeal. Version 5 adds an Outcome section: outcome of the meeting (required), warning issued, warning live until (only shown when a warning was given), improvement targets, review date, and "Outcome and right of appeal explained to the employee". Master template updated so new companies get it; Acme's copy published as version 5. Phil chose it ON the existing form (one form, one Evidence record) and deliberately NOT driving the absence stage, because the stage is already auto derived and overriding it from here would fight that logic.
+
+- AI RETURN TO WORK (2026-07-27, migrations 0142 + 0143). Phil's standing rule is that a Return to Work happens after EVERY absence at EVERY stage, so the SYSTEM raises it rather than relying on a manager remembering. rtw_due_date + rtw_evidence_id live on absence_events (exactly one per absence, no new table), and a TRIGGER sets the due date to return-or-end date plus 3 the moment an absence gets one, so it fires for the bulk importer and any future write path too, not just today's action. Existing ended absences were backfilled. Outstanding = due date set, evidence null, with a partial index matching that filter.
+  - New `return_to_work` master form seeded to every company: "Prepared for you" (AI drafted summary + questions, editable), the absence, the conversation (fit to return, ongoing symptoms, work related, adjustments, shown only when relevant), support and next steps (support agreed, referral, trigger point reached, follow up), and confirmation ending with the employee's signature.
+  - AI drafting goes through the existing runAi, so it spends one AI credit and runAi refunds it if the call fails. The system prompt forbids diagnosing, speculating about a medical cause, or suggesting an outcome or disciplinary action: it prepares the manager, it does not decide. Nothing is stored until the manager completes the form, so a draft they dislike costs a credit and leaves no trace on the employee's file.
+  - components/forms/form-evidence-dialog.tsx gained a REUSABLE `aiDraft` prop (action, label, hint) that merges the returned values into the answers and remounts the renderer on them, so any future AI assisted form gets this for free. ActionState gained an optional `data` for handing values back to a form; presentational only, never trusted on the way back in.
+  - Surfaced as a Return to Work section on the Absence page, branch filtered, overdue first and red, with Record opening the form and "Draft it for me" filling the prepared section.
+
+- REVIEWED COLD BEFORE PUSH by a subagent reading every changed file for missing exports, the "use server" async-only rule, server-only imports in client components, hook order, the 11 way Promise.all destructuring on the absence page, and regex damage from the python heredocs. No compile errors. It also established that this project has NO ESLint configured at all, so `next build` skips linting entirely and tsc is the only gate: unused imports will NOT fail a build here, which is worth knowing. Two defects it raised were fixed rather than logged. NOT built on Phil's machine and NOT tested live.
+
 ## Phase 11 — Final Testing
+
+LETTERS (added 2026-07-27, not run live):
+- Settings > Letters: edit the absence meeting invitation, save, book a meeting, and confirm the EMPLOYEE's email carries the new wording with the placeholders filled and the Accept / I cannot attend buttons still working.
+- Confirm the conductor's chairing copy is addressed to the conductor and still reads unambiguously as "you are chairing this", not "you are invited".
+- Rearrange a meeting and confirm the rearranged paragraph appears at the top of both letters.
+- Cancel a booking and confirm the cancellation email uses the company wording for BOTH the subject and the body.
+- Use the standard wording button, then confirm the letter reverts to the packaged default and the history still shows what they had.
+- Type a deliberate typo placeholder such as {{employee}} and confirm it appears verbatim in the preview rather than disappearing.
+
+ABSENCE MEETING OUTCOME (added 2026-07-27):
+- Record a meeting and confirm the new Outcome section appears, the outcome is required, and "Warning remains live until" only shows once a warning is selected.
+- Confirm old Evidence recorded before this change still opens against its own older version.
+
+RETURN TO WORK (added 2026-07-27):
+- Give an open absence an end date and confirm a Return to Work appears on the Absence page due 3 days later.
+- Press "Draft it for me" and confirm the summary and questions fill in, one AI credit is spent, and the wording never diagnoses or suggests an outcome.
+- Confirm a failed AI call refunds the credit (unset the key or force an error).
+- Complete it and confirm Evidence is stored against the PERSON, the entry leaves the outstanding list, and it cannot be recorded twice.
+- Confirm a Branch Manager sees only their own branch's outstanding Return to Work interviews.
+- Confirm the bulk importer path also raises one, since the trigger rather than the action sets the due date.
+
 
 RECURRING INVOICING (added 2026-07-27, none of this has been run live):
 - Open /invoicing/schedules, click the AAAA AAAAAAA tile, confirm it opens the new record instead of doing nothing.
