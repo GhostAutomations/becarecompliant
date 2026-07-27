@@ -445,6 +445,29 @@ Cold items:
 - An old Android and an iPad.
 - A non PDF policy (.doc/.docx are accepted at upload): pdf.js cannot render those, so confirm the failure path unlocks the bar and the new-tab link works. Consider rejecting anything but PDF at upload.
 
+Logged from the policy signing round (2026-07-27, overnight continuation of Briefings). NEW DEPENDENCY: `pdf-lib@1.17.1` (Phil approved by popup), alongside pdfjs-dist from the night before.
+
+THE CERTIFICATE IS GONE, REPLACED BY THE SIGNED COPY. Phil: "instead of a certificate showing them they signed something, why dont we just generate the pdf of the document they signed, with the date, time and signature?" Correct, and better evidence: a certificate that merely NAMES a document leaves an inspector holding two files and taking your word they belong together. `/api/assignments/[id]/certificate` now streams the ORIGINAL DOCUMENT with one signature page appended (name, date and time in London, version, drawn or typed signature, reference), built with pdf-lib and rendered on demand from frozen Evidence. It fetches the file for the VERSION THEY SIGNED out of company_policy_versions, so a later edit can never rewrite what a past signature shows. lib/assignments/certificate.tsx was deleted (moved to _to_delete beside the repo, because device_bash cannot rm on the mounted iCloud folder). Buttons now read "Signed copy".
+
+POLICIES CAN BE WRITTEN OR PASTED (0136) and SIGNING RULES ARE PER POLICY (0137) — see the memory files; both are live and deployed.
+
+READ GATE, FIXED TWICE IN ONE NIGHT, and worth remembering as a pattern:
+- v1 watched a sentinel at the foot of the document with an IntersectionObserver. Wrong twice: the panel keeps React state when closed and reopened, so one unlock lasted the whole session, and with pdf.js the pages render progressively so "the bottom" arrived while later pages were still blank.
+- v2 measured the panel's own scrollTop, but measured it on the first frame, when the content had not laid out and scrollHeight == clientHeight, so it concluded "nothing to scroll" and unlocked instantly. Phil spotted it as "i cant see a % bar" — the bar only rendered while locked, so its ABSENCE was the symptom.
+- v3 (live, verified by Phil): ignore a container under 40px, require the layout to settle (600ms) AND the document to be fully rendered before trusting a short measurement, reset on every open, and ALWAYS show the progress bar (amber filling, green when unlocked). Replayed through eight states in a scratch script before shipping.
+LESSON: a gate that can only be observed by its own absence is untestable. Show the state.
+
+SENTENCE CASE HEADINGS: the paste parser only treated a line as a heading if half its words were capitalised, so "1. Purpose" became a heading and "2. Who it applies to" did not. Care policies head sections in sentence case; the test is now length plus the absence of sentence punctuation. Checked against the real pasted policy (11 cases).
+
+TM PORTAL: "Policies I have signed" and "Forms I have sent in" are now matching COLLAPSED sections (components/staff/my-section.tsx), same heading, count, chevron and glass rows. What is still to do stays open.
+
+Cold items:
+- The signed copy on a REAL signature: open one and confirm the appended page shows the drawn signature in dark ink (signatures given before the ink fix are white on transparent and will look blank).
+- The signed copy for a WRITTEN policy (the appended page goes onto our generated PDF) and for a .doc/.docx upload (pdf-lib cannot parse it, so it falls back to a standalone signature page — another reason to restrict uploads to PDF).
+- Multi page scroll gate on a real phone, and the same on an older Android.
+- Editing a written policy to v2 and confirming the reassign rule, plus that the v1 signed copy still shows v1 wording.
+- briefing_chase and briefing_outstanding on the 07:00 cron (still only briefing_sent has been proven live).
+
 ## Phase 12 — Marketing & Launch
 
 Marketing site on becarecompliant.com, onboarding collateral, subscription agreement (no data selling clause), launch.

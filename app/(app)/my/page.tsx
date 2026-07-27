@@ -127,7 +127,9 @@ export default async function MyAreaPage() {
           </div>
         ) : (
           <div className="glass-card divide-y divide-white/10">
-            {submissions.map((s) => (
+            {[...submissions]
+              .sort((a, b) => b.submitted_at.localeCompare(a.submitted_at))
+              .map((s) => (
               <div key={s.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
                 <div>
                   <p className="text-sm font-semibold text-white">{s.form_name}</p>

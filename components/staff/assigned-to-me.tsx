@@ -61,7 +61,11 @@ export default function AssignedToMe({
 }) {
   const today = new Date().toISOString().slice(0, 10);
   const open = assignments.filter((a) => a.status === "assigned");
-  const signed = assignments.filter((a) => a.status === "completed" && a.kind === "policy");
+  // Newest at the top (Phil, 2026-07-27): a history list is read from the most
+  // recent thing they did, and the query orders for the open list, not this one.
+  const signed = assignments
+    .filter((a) => a.status === "completed" && a.kind === "policy")
+    .sort((a, b) => (b.completed_at ?? "").localeCompare(a.completed_at ?? ""));
 
   // Per policy now (0137): two briefings on the same screen can legitimately want
   // different signing methods, so the schema is filtered per row rather than once.

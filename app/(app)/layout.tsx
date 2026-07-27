@@ -63,6 +63,18 @@ export default async function AppLayout({
   // Acme keeps the rail + collapsible drawer (below); the crisp "navy" surface
   // theme was reverted, so we no longer apply the .theme-navy class.
   const navy = uiTheme === "navy";
+  /**
+   * A Team Member's portal belongs to their EMPLOYER, not to us.
+   *
+   * Phil, 2026-07-27: "the portal is branded as becarecompliant, i think we need
+   * to have the companies name in there. mayve their name on the left, ours on
+   * the right." Right: a carer signing a policy is dealing with their employer,
+   * and a screen that shouts our name at them reads like a third party asking for
+   * a signature. So for staff the company's name leads and ours is a quiet
+   * credit. Everyone who runs the service still sees the product they bought.
+   */
+  const isStaff = profile.role === "staff";
+  const employerName = companyName || "Your company";
   const initials = (profile.full_name || profile.email || "?")
     .split(/[\s@.]+/)
     .filter(Boolean)
@@ -135,23 +147,42 @@ export default async function AppLayout({
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4" />
             </svg>
           </span>
-          <span className="text-sm font-bold leading-tight text-white">
-            Be Care
-            <br />
-            <span className="text-gold-400">Compliant</span>
-          </span>
+          {isStaff ? (
+            <span className="text-sm font-bold leading-tight text-white">{employerName}</span>
+          ) : (
+            <span className="text-sm font-bold leading-tight text-white">
+              Be Care
+              <br />
+              <span className="text-gold-400">Compliant</span>
+            </span>
+          )}
         </Link>
 
         <SidebarNav entries={navEntries} />
+
+        {isStaff ? (
+          <p className="mt-auto px-2 pb-1 text-[11px] leading-tight text-white/35">
+            Powered by Be Care <span className="text-gold-400/70">Compliant</span>
+          </p>
+        ) : null}
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Frosted topbar */}
         <header className="topbar flex shrink-0 items-center justify-between gap-3 px-4 py-3 md:px-8">
-          <span className="text-sm font-bold text-white md:hidden">
-            Be Care <span className="text-gold-400">Compliant</span>
-          </span>
+          {isStaff ? (
+            <span className="min-w-0 truncate text-sm font-bold text-white">{employerName}</span>
+          ) : (
+            <span className="text-sm font-bold text-white md:hidden">
+              Be Care <span className="text-gold-400">Compliant</span>
+            </span>
+          )}
           <div className="ml-auto flex items-center gap-3">
+            {isStaff ? (
+              <span className="whitespace-nowrap text-[11px] leading-tight text-white/40">
+                Be Care <span className="text-gold-400/70">Compliant</span>
+              </span>
+            ) : null}
             <span className="hidden text-sm font-medium text-white/80 sm:block">
               {displayName}
             </span>
