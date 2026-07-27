@@ -468,6 +468,29 @@ Cold items:
 - Editing a written policy to v2 and confirming the reassign rule, plus that the v1 signed copy still shows v1 wording.
 - briefing_chase and briefing_outstanding on the 07:00 cron (still only briefing_sent has been proven live).
 
+Logged from the Briefings follow-ons (2026-07-27, migration 0138). Phil confirmed the deploy green.
+
+PASSED LIVE, verified in the database not just on screen:
+- Grouped Completed list + the live "who has signed" report.
+- The daily chases: notification_log shows briefing_chase to the Team Member and briefing_outstanding to both Admins, all status 'sent', fired by the 07:00 cron at 06:02 UTC on 2026-07-27. briefing_sent had already passed the night before.
+
+BUILT THIS ROUND (all four of the outstanding Briefings items):
+1. NO INVITE MAY GO TO A DEMO ADDRESS. isSendableAddress now guards createAndSendInvite and resendStaffInviteByEmail, i.e. the single door every invite passes through, rather than the four callers. A demo row is a SKIP, not a failure: inviteStaffForPerson returns skipped:'demo_email' and the importer reports "N had a demo address so were not emailed". This was the only item that could embarrass us in front of a real customer: importing a spreadsheet with sample rows still in it would have posted dozens of bouncing invitations on day one.
+2. POLICIES ARE PDF ONLY. Accept attributes narrowed and a server-side pdfOnly() check on both upload paths. A Word file cannot be rendered by the phone reader nor stamped by pdf-lib, so accepting one produced a policy nobody could read and a "signed copy" that was only a signature page.
+3. "ASK ME EACH TIME" IS REAL. It behaved exactly like 'never' because the asking half was never built. Saving a version under that mode now reports how many people hold the old wording, and reassignPolicyToEveryone (a proper confirmed action, also available under 'never') does what 'always' does automatically. The three REASSIGN_MODE_LABELS were rewritten, because the old wording promised behaviour the code did not have.
+4. STANDING POLICIES FOR NEW STARTERS (0138): company_policies.assign_to_new_starters, a tickbox per policy, honoured by BOTH "add a person" and the importer through lib/assignments/new-starters.ts (service-role, deduplicated, best effort). DEFAULT FALSE and false for every existing policy, because it silently sends documents to people. Closes the gap that quietly ruins a compliance record: policies reaching whoever existed the day they were sent, with every later hire invisibly exempt.
+
+BUILD REVIEW CAUGHT TWO OF MY OWN BUGS before the push (a subagent read every changed file): a stray `assign_to_new_starters: newStarterFlag(formData)` inside rememberSigningDefaults, where formData is not in scope AND policy_config has no such column (red build, plus it would have silently stopped the remembered defaults saving); and the same flag never being persisted by uploadPolicy, so the tickbox was decorative on the upload path. Worth repeating the method: review the diff for compile errors before spending a deploy.
+
+MOVED TO FINAL TESTING (Phil, 2026-07-27, "add the rest to the final testing phase") — everything below is Briefings and still cold:
+- Send to Everyone on Acme: exactly 3 real emails, 18 example.com people skipped and reported. Clear testytesy@gmtest.com off "AA AA" first: not a reserved domain, so the guard will not catch it and it WILL bounce.
+- A whole-branch send, and that a Branch Manager's "Everyone" resolves to their branch only.
+- A written policy edited to version 2: reassignment behaviour, and that the v1 signed copy still shows v1 wording.
+- Withdraw, and re-sending something somebody already holds open (skip, never duplicate).
+- Permissions: a Supervisor sees no Briefings at all; a Team Member sees only their own.
+- The pdf.js reader on an older Android and on an iPad.
+- The four items built this round: a demo-address import, a rejected .docx upload, the ask-me-each-time flow end to end, and a new starter (added AND imported) receiving a policy ticked for new starters.
+
 ## Phase 12 — Marketing & Launch
 
 Marketing site on becarecompliant.com, onboarding collateral, subscription agreement (no data selling clause), launch.
