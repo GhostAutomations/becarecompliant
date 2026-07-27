@@ -293,6 +293,112 @@ export async function listSchedules(companyId: string): Promise<ScheduleRow[]> {
   }));
 }
 
+export type ScheduleLineRow = {
+  description: string;
+  service: string | null;
+  unit_label: string | null;
+  handed: string | null;
+  quantity: number;
+  unit_price_pence: number;
+  period_start: string | null;
+  period_end: string | null;
+  position: number;
+};
+
+export type ScheduleDetail = {
+  id: string;
+  service_user_id: string | null;
+  client_name: string;
+  frequency: string;
+  interval_count: number;
+  day_of_week: number | null;
+  day_of_month: number | null;
+  next_run_date: string;
+  active: boolean;
+  /** True when the invoice this schedule came from was built from the care plan
+   *  (its lines carry week dates), so each run re-reads the plan rather than
+   *  replaying frozen quantities. */
+  carePlanBilled: boolean;
+  carePlanRows: number;
+  lines: ScheduleLineRow[];
+  drafted: Array<{
+    id: string;
+    number: string | null;
+    issue_date: string;
+    due_date: string | null;
+    total_pence: number;
+    status: InvoiceStatus;
+  }>;
+};
+
+/** One recurring invoice with everything its record page shows. */
+export async function getSchedule(companyId: string, id: string): Promise<ScheduleDetail | null> {
+  const supabase = await createClient();
+  const { data: sc } = await supabase
+    .from("invoice_schedules")
+    .select(
+      "id, service_user_id, frequency, interval_count, day_of_week, day_of_month, next_run_date, active, service_users(full_name)",
+    )
+    .eq("id", id)
+    .eq("company_id", companyId)
+    .maybeSingle();
+  if (!sc) return null;
+  const row = sc as unknown as {
+    id: string;
+    service_user_id: string | null;
+    frequency: string;
+    interval_count: number;
+    day_of_week: number | null;
+    day_of_month: number | null;
+    next_run_date: string;
+    active: boolean;
+    service_users: { full_name: string } | null;
+  };
+
+  const [{ data: lines }, { data: plan }, { data: drafted }] = await Promise.all([
+    supabase
+      .from("invoice_schedule_lines")
+      .select("description, service, unit_label, handed, quantity, unit_price_pence, period_start, period_end, position")
+      .eq("schedule_id", id)
+      .order("position", { ascending: true }),
+    supabase
+      .from("care_plan_entries")
+      .select("id")
+      .eq("service_user_id", row.service_user_id)
+      .is("effective_to", null),
+    supabase
+      .from("invoices")
+      .select("id, number, issue_date, due_date, total_pence, status")
+      .eq("schedule_id", id)
+      .order("issue_date", { ascending: false })
+      .limit(10),
+  ]);
+
+  const lineRows = (lines as ScheduleLineRow[] | null) ?? [];
+  return {
+    id: row.id,
+    service_user_id: row.service_user_id,
+    client_name: row.service_users?.full_name ?? "Unknown client",
+    frequency: row.frequency,
+    interval_count: row.interval_count,
+    day_of_week: row.day_of_week,
+    day_of_month: row.day_of_month,
+    next_run_date: row.next_run_date,
+    active: row.active,
+    carePlanBilled: lineRows.some((l) => l.period_start !== null),
+    carePlanRows: ((plan as Array<{ id: string }> | null) ?? []).length,
+    lines: lineRows,
+    drafted: ((drafted as Array<{
+      id: string;
+      number: string | null;
+      issue_date: string;
+      due_date: string | null;
+      total_pence: number;
+      status: InvoiceStatus;
+    }> | null) ?? []),
+  };
+}
+
 export type InvoiceSummary = {
   outstandingPence: number; // sent + unpaid (incl overdue)
   overdueCount: number;

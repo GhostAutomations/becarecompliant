@@ -183,6 +183,34 @@ export function advanceRunDate(
   return target.toISOString().slice(0, 10);
 }
 
+/** The period a recurring run bills FOR. Phil chose IN ARREARS (2026-07-27): a run
+ *  on a given date bills the cadence that has just finished, so you invoice care
+ *  actually delivered. A 4 weekly schedule running Mon 17 Aug bills the 28 days
+ *  ending Sun 16 Aug; a monthly schedule bills the month just gone. */
+export function billingPeriodFor(
+  runDateIso: string,
+  frequency: string,
+  interval: number,
+): { from: string; to: string } {
+  const n = Math.max(1, interval);
+  const [y, m, d] = runDateIso.split("-").map(Number);
+  const endDt = new Date(Date.UTC(y, m - 1, d));
+  endDt.setUTCDate(endDt.getUTCDate() - 1);
+  const to = endDt.toISOString().slice(0, 10);
+
+  if (frequency === "weekly") {
+    const startDt = new Date(Date.UTC(y, m - 1, d));
+    startDt.setUTCDate(startDt.getUTCDate() - 7 * n);
+    return { from: startDt.toISOString().slice(0, 10), to };
+  }
+  const startDt = new Date(Date.UTC(y, m - 1 - n, 1));
+  const lastOfStart = new Date(
+    Date.UTC(startDt.getUTCFullYear(), startDt.getUTCMonth() + 1, 0),
+  ).getUTCDate();
+  startDt.setUTCDate(Math.min(d, lastOfStart));
+  return { from: startDt.toISOString().slice(0, 10), to };
+}
+
 /** Compute line and invoice totals from raw lines. VAT only applies when the
  *  company has VAT enabled; each line carries its own rate (usually the same). */
 export function computeTotals(

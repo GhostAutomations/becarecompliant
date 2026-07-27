@@ -17,8 +17,11 @@ import { noticeEmailHtml, escapeHtml } from "@/lib/email/templates";
 import { claimNotification, settleNotification } from "@/lib/notifications/log";
 import { getRecipients } from "@/lib/notifications/data";
 import { siteUrl } from "@/lib/site";
-import { formatMoney, computeTotals } from "./types";
+import { formatMoney, billingPeriodFor } from "./types";
 import { londonToday } from "./data";
+import { buildCarePlanLines, rateLookup, type PlanEntryRow } from "./care-plan-billing";
+import { lineAmountPence } from "@/lib/service-users/care-plan-consts";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 const MANAGER_PLUS = new Set([
   "company_admin",
@@ -70,6 +73,212 @@ function weekStartIso(iso: string): string {
   return dt.toISOString().slice(0, 10);
 }
 
+export type ScheduleRunRow = {
+  id: string;
+  company_id: string;
+  branch_id: string;
+  service_user_id: string | null;
+  frequency: string;
+  interval_count: number;
+  next_run_date: string;
+  day_of_week: number | null;
+  day_of_month: number | null;
+};
+
+export const SCHEDULE_RUN_COLUMNS =
+  "id, company_id, branch_id, service_user_id, frequency, interval_count, next_run_date, day_of_week, day_of_month";
+
+type DraftLine = {
+  description: string;
+  service: string | null;
+  unit_label: string | null;
+  handed: string | null;
+  quantity: number;
+  unit_price_pence: number;
+  line_total_pence: number;
+  vat_rate: number;
+  period_start: string | null;
+  period_end: string | null;
+};
+
+export type DraftResult = {
+  invoiceId: string;
+  from: string;
+  to: string;
+  lineCount: number;
+  totalPence: number;
+  source: "care_plan" | "fixed_lines";
+};
+
+/**
+ * Draft ONE invoice from a schedule, for the cadence period ENDING the day before
+ * `runDate` (arrears, Phil 2026-07-27). Shared by the daily cron and the manual
+ * "Draft it now" button, so what the button proves is what the cron does.
+ *
+ * Lines come from the care plan whenever the schedule was built from one and the
+ * plan still covers the period, so a changed care plan is billed correctly instead
+ * of replaying quantities frozen when the schedule was created. Otherwise the
+ * schedule's own lines are replayed. EITHER WAY amounts use lineAmountPence, the
+ * same exact maths as the builder (never quantity x a rounded unit price).
+ *
+ * This function does NOT claim or advance the schedule; the caller decides that.
+ */
+export async function draftFromSchedule(
+  supabase: SupabaseClient,
+  sc: ScheduleRunRow,
+  runDate: string,
+): Promise<{ result?: DraftResult; error?: string }> {
+  const { from, to } = billingPeriodFor(runDate, sc.frequency, sc.interval_count);
+
+  const [{ data: su }, { data: cfg }, { data: lines }, { data: plan }] = await Promise.all([
+    supabase
+      .from("service_users")
+      .select(
+        "full_name, invoice_to, invoice_contact_name, invoice_address, invoice_phone, invoice_email, invoice_delivery",
+      )
+      .eq("id", sc.service_user_id)
+      .maybeSingle(),
+    supabase.from("invoicing_config").select("*").eq("company_id", sc.company_id).maybeSingle(),
+    supabase
+      .from("invoice_schedule_lines")
+      .select("description, service, unit_label, handed, quantity, unit_price_pence, vat_rate, position, period_start, period_end")
+      .eq("schedule_id", sc.id)
+      .order("position", { ascending: true }),
+    supabase
+      .from("care_plan_entries")
+      .select("day_of_week, service, unit, handed, quantity, effective_from, effective_to")
+      .eq("service_user_id", sc.service_user_id)
+      .order("position", { ascending: true }),
+  ]);
+
+  if (!su) return { error: "the client could not be read" };
+
+  const config = (cfg ?? {}) as Record<string, unknown>;
+  const vatEnabled = Boolean(config.vat_enabled);
+  const terms = Number(config.default_payment_terms_days ?? 14);
+  const rateFor = rateLookup(config);
+
+  const scheduleLines = (lines as Array<{
+    description: string; service: string | null; unit_label: string | null; handed: string | null;
+    quantity: number; unit_price_pence: number; vat_rate: number; position: number;
+    period_start: string | null; period_end: string | null;
+  }> | null) ?? [];
+
+  // A schedule is care-plan billed when the invoice it came from carried week dates.
+  const carePlanBilled = scheduleLines.some((l) => l.period_start !== null);
+  const planRows = (plan as PlanEntryRow[] | null) ?? [];
+
+  let draftLines: DraftLine[] = [];
+  let source: DraftResult["source"] = "fixed_lines";
+
+  if (carePlanBilled && planRows.length > 0) {
+    const derived = buildCarePlanLines(planRows, config, from, to);
+    if (derived.length > 0) {
+      source = "care_plan";
+      draftLines = derived.map((l) => ({
+        description: l.description,
+        service: l.service,
+        unit_label: l.unit,
+        handed: l.handed,
+        quantity: l.quantity,
+        unit_price_pence: l.unit_price_pence,
+        line_total_pence: l.line_total_pence,
+        vat_rate: vatEnabled ? 20 : 0,
+        period_start: l.period_start,
+        period_end: l.period_end,
+      }));
+    }
+  }
+
+  // Fall back to the schedule's own lines, but priced with the exact maths so a
+  // recurring invoice and a hand built one for the same care agree to the penny.
+  if (draftLines.length === 0) {
+    if (scheduleLines.length === 0) return { error: "the schedule has no lines" };
+    draftLines = scheduleLines.map((l) => {
+      const handed = l.handed === "double" ? "double" : "single";
+      const exact =
+        l.service && l.unit_label
+          ? lineAmountPence(rateFor(l.service), l.unit_label, handed, Number(l.quantity))
+          : Math.round(Number(l.quantity) * l.unit_price_pence);
+      return {
+        description: l.description,
+        service: l.service,
+        unit_label: l.unit_label,
+        handed: l.handed,
+        quantity: Number(l.quantity),
+        unit_price_pence: l.unit_price_pence,
+        line_total_pence: exact,
+        vat_rate: vatEnabled ? l.vat_rate || 20 : 0,
+        period_start: null,
+        period_end: null,
+      };
+    });
+  }
+
+  let subtotal = 0;
+  let vat = 0;
+  for (const l of draftLines) {
+    subtotal += l.line_total_pence;
+    if (vatEnabled) vat += Math.round((l.line_total_pence * (l.vat_rate || 0)) / 100);
+  }
+  const total = subtotal + vat;
+
+  const issued = londonToday();
+  const invoiceTo = su.invoice_to ?? "service_user";
+  const billName = su.invoice_contact_name || (invoiceTo === "service_user" ? su.full_name : null);
+
+  const { data: inv } = await supabase
+    .from("invoices")
+    .insert({
+      company_id: sc.company_id,
+      branch_id: sc.branch_id,
+      service_user_id: sc.service_user_id,
+      schedule_id: sc.id,
+      status: "draft",
+      issue_date: issued,
+      due_date: addDaysIso(issued, terms),
+      subtotal_pence: subtotal,
+      vat_pence: vat,
+      total_pence: total,
+      vat_applied: vatEnabled,
+      invoice_to: invoiceTo,
+      bill_to_name: billName,
+      bill_to_address: su.invoice_address,
+      bill_to_email: su.invoice_email,
+      bill_to_phone: su.invoice_phone,
+      delivery_method: su.invoice_delivery,
+    })
+    .select("id")
+    .single();
+  if (!inv) return { error: "the invoice could not be created" };
+
+  const { error: lineErr } = await supabase.from("invoice_lines").insert(
+    draftLines.map((l, i) => ({
+      invoice_id: inv.id,
+      company_id: sc.company_id,
+      description: l.description,
+      service: l.service,
+      unit_label: l.unit_label,
+      handed: l.handed,
+      quantity: l.quantity,
+      unit_price_pence: l.unit_price_pence,
+      line_total_pence: l.line_total_pence,
+      vat_rate: l.vat_rate,
+      period_start: l.period_start,
+      period_end: l.period_end,
+      position: i,
+    })),
+  );
+  if (lineErr) {
+    await supabase.from("invoices").delete().eq("id", inv.id);
+    return { error: "the invoice lines could not be saved" };
+  }
+
+  return {
+    result: { invoiceId: inv.id, from, to, lineCount: draftLines.length, totalPence: total, source },
+  };
+}
+
 export async function runRecurringInvoices(): Promise<{ drafted: number; failures: string[] }> {
   const supabase = createServiceClient();
   const today = londonToday();
@@ -77,14 +286,10 @@ export async function runRecurringInvoices(): Promise<{ drafted: number; failure
 
   const { data: due } = await supabase
     .from("invoice_schedules")
-    .select("id, company_id, branch_id, service_user_id, frequency, interval_count, next_run_date, day_of_week, day_of_month")
+    .select(SCHEDULE_RUN_COLUMNS)
     .eq("active", true)
     .lte("next_run_date", today);
-  const schedules = (due as Array<{
-    id: string; company_id: string; branch_id: string; service_user_id: string | null;
-    frequency: string; interval_count: number; next_run_date: string;
-    day_of_week: number | null; day_of_month: number | null;
-  }> | null) ?? [];
+  const schedules = (due as ScheduleRunRow[] | null) ?? [];
 
   for (const sc of schedules) {
     try {
@@ -99,71 +304,12 @@ export async function runRecurringInvoices(): Promise<{ drafted: number; failure
         .select("id");
       if (!claimed || claimed.length === 0) continue;
 
-      const [{ data: su }, { data: cfg }, { data: lines }] = await Promise.all([
-        supabase.from("service_users").select("full_name, invoice_to, invoice_contact_name, invoice_address, invoice_phone, invoice_email, invoice_delivery").eq("id", sc.service_user_id).maybeSingle(),
-        supabase.from("invoicing_config").select("vat_enabled, default_payment_terms_days").eq("company_id", sc.company_id).maybeSingle(),
-        supabase.from("invoice_schedule_lines").select("description, service, unit_label, handed, quantity, unit_price_pence, vat_rate, position").eq("schedule_id", sc.id).order("position", { ascending: true }),
-      ]);
-      const scheduleLines = (lines as Array<{ description: string; service: string | null; unit_label: string | null; handed: string | null; quantity: number; unit_price_pence: number; vat_rate: number; position: number }> | null) ?? [];
-      if (!su || scheduleLines.length === 0) continue;
-
-      const vatEnabled = Boolean(cfg?.vat_enabled);
-      const terms = Number(cfg?.default_payment_terms_days ?? 14);
-      const withRates = scheduleLines.map((l) => ({
-        description: l.description,
-        service: l.service,
-        unit_label: l.unit_label,
-        handed: l.handed,
-        quantity: Number(l.quantity),
-        unit_price_pence: l.unit_price_pence,
-        vat_rate: vatEnabled ? l.vat_rate || 20 : 0,
-      }));
-      const totals = computeTotals(withRates, vatEnabled);
-      const invoiceTo = su.invoice_to ?? "service_user";
-      const billName = su.invoice_contact_name || (invoiceTo === "service_user" ? su.full_name : null);
-
-      const { data: inv } = await supabase
-        .from("invoices")
-        .insert({
-          company_id: sc.company_id,
-          branch_id: sc.branch_id,
-          service_user_id: sc.service_user_id,
-          schedule_id: sc.id,
-          status: "draft",
-          issue_date: today,
-          due_date: addDaysIso(today, terms),
-          subtotal_pence: totals.subtotalPence,
-          vat_pence: totals.vatPence,
-          total_pence: totals.totalPence,
-          vat_applied: vatEnabled,
-          invoice_to: invoiceTo,
-          bill_to_name: billName,
-          bill_to_address: su.invoice_address,
-          bill_to_email: su.invoice_email,
-          bill_to_phone: su.invoice_phone,
-          delivery_method: su.invoice_delivery,
-        })
-        .select("id")
-        .single();
-      if (!inv) {
-        out.failures.push(`schedule ${sc.id}: invoice insert failed`);
+      // Bill the cadence that ended the day before the date this run was due for.
+      const { result, error } = await draftFromSchedule(supabase, sc, sc.next_run_date);
+      if (error || !result) {
+        out.failures.push(`schedule ${sc.id}: ${error ?? "no invoice drafted"}`);
         continue;
       }
-      await supabase.from("invoice_lines").insert(
-        withRates.map((l, i) => ({
-          invoice_id: inv.id,
-          company_id: sc.company_id,
-          description: l.description,
-          service: l.service,
-          unit_label: l.unit_label,
-          handed: l.handed,
-          quantity: l.quantity,
-          unit_price_pence: l.unit_price_pence,
-          line_total_pence: Math.round(l.quantity * l.unit_price_pence),
-          vat_rate: l.vat_rate,
-          position: i,
-        })),
-      );
       out.drafted += 1;
     } catch (e) {
       out.failures.push(`schedule ${sc.id}: ${(e as Error).message}`);

@@ -32,7 +32,13 @@ export type Recipient = {
   fullName: string;
   email: string;
   phone: string | null;
+  /** Registered Individual and Registered Manager are company wide, exactly like a
+   *  Company Admin, so they are NORMALISED to company_admin here and every
+   *  role check downstream treats them correctly without a change (fixed
+   *  2026-07-27: they were receiving no digest, chaser or holiday email at all). */
   role: "company_admin" | "manager" | "supervisor";
+  /** The role actually on the profile, before the normalisation above. */
+  trueRole: string;
   /** Branches a manager covers (empty for admins: they cover the company). */
   branchIds: string[];
   /** Supervisor caseload record ids. */
@@ -102,7 +108,7 @@ export async function getRecipients(companyId: string): Promise<Recipient[]> {
     .select("id, full_name, email, phone, role")
     .eq("company_id", companyId)
     .eq("status", "active")
-    .in("role", ["company_admin", "manager", "supervisor"]);
+    .in("role", ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor"]);
   if (error) throw new Error(error.message);
   if (!profiles || profiles.length === 0) return [];
 
@@ -127,7 +133,10 @@ export async function getRecipients(companyId: string): Promise<Recipient[]> {
       fullName: p.full_name || p.email,
       email: p.email,
       phone: (p.phone as string | null) || null,
-      role: p.role as Recipient["role"],
+      role: (p.role === "registered_individual" || p.role === "registered_manager"
+        ? "company_admin"
+        : p.role) as Recipient["role"],
+      trueRole: p.role as string,
       branchIds: branchByUser.get(p.id) ?? [],
       personIds: peopleByUser.get(p.id) ?? [],
       serviceUserIds: susByUser.get(p.id) ?? [],

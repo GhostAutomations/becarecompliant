@@ -33,11 +33,13 @@ export async function notifyHolidayRequested(opts: {
         .select("id, full_name, email, role")
         .eq("company_id", opts.companyId)
         .eq("status", "active")
-        .in("role", ["company_admin", "manager"]),
+        .in("role", ["company_admin", "registered_individual", "registered_manager", "manager"]),
       supabase.from("companies").select("name").eq("id", opts.companyId).maybeSingle(),
     ]);
 
-    // Managers only for the request's branch; Admins always.
+    // Branch Managers only for the request's branch; company wide roles always.
+    // Registered Individual and Registered Manager are company wide like an Admin.
+    const companyWide = new Set(["company_admin", "registered_individual", "registered_manager"]);
     let approvers = admins ?? [];
     if (opts.branchId) {
       const managerIds = approvers.filter((a) => a.role === "manager").map((a) => a.id);
@@ -48,7 +50,7 @@ export async function notifyHolidayRequested(opts: {
           .eq("branch_id", opts.branchId)
           .in("user_id", managerIds);
         const inBranch = new Set((branchRows ?? []).map((r) => r.user_id));
-        approvers = approvers.filter((a) => a.role === "company_admin" || inBranch.has(a.id));
+        approvers = approvers.filter((a) => companyWide.has(a.role as string) || inBranch.has(a.id));
       }
     }
 

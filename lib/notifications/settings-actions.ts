@@ -99,7 +99,11 @@ export async function saveUserPhone(
   if (!target || target.company_id !== profile.company_id) {
     return { error: "That user is not in your company." };
   }
-  if (!["company_admin", "manager"].includes(target.role as string)) {
+  if (
+    !["company_admin", "registered_individual", "registered_manager", "manager"].includes(
+      target.role as string,
+    )
+  ) {
     return { error: "SMS numbers are only held for Managers and Admins." };
   }
 

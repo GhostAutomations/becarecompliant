@@ -16,13 +16,14 @@ import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { requireFeature } from "@/lib/billing/tier";
 import type { ActionState } from "@/lib/forms";
-import { INVOICING_ROLES, INVOICE_SERVICES, advanceRunDate } from "./types";
+import { INVOICING_ROLES, advanceRunDate } from "./types";
 import { londonToday, getInvoice, getInvoicingConfig, getCompanyName } from "./data";
 import { getCompanyLogoDataUrl } from "./logo";
 import { renderInvoicePdf } from "./pdf";
 import { sendEmail, type EmailAttachment } from "@/lib/email/resend";
 import { companyInvoiceEmailHtml } from "@/lib/email/templates";
-import { unitPricePence, lineAmountPence, type ServiceRate } from "@/lib/service-users/care-plan-consts";
+import { buildCarePlanLines, type BuilderLine, type PlanEntryRow } from "./care-plan-billing";
+import { draftFromSchedule, SCHEDULE_RUN_COLUMNS, type ScheduleRunRow } from "./cron";
 
 type LineInput = {
   description: string;
@@ -113,36 +114,9 @@ async function guard(companyId: string | null, role: string): Promise<string | n
   return null;
 }
 
-type BuilderLine = {
-  service: string;
-  unit: string;
-  handed: string;
-  quantity: number;
-  unit_price_pence: number;
-  line_total_pence: number;
-  description: string;
-  period_start: string;
-  period_end: string;
-};
-
-const HANDED_SUFFIX: Record<string, string> = { single: "Single Handed", double: "Double Handed" };
-
-function addDaysUtc(iso: string, days: number): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  const dt = new Date(Date.UTC(y, m - 1, d));
-  dt.setUTCDate(dt.getUTCDate() + days);
-  return dt.toISOString().slice(0, 10);
-}
-
-type PlanEntry = { day_of_week: number; service: string; unit: string; handed: string; quantity: number };
-type PlanVersion = { from: string; to: string | null; entries: PlanEntry[] };
-
-/** Expand a service user's care plan over a date range into invoice lines, BROKEN
- *  DOWN BY WEEK and by CARE PLAN VERSION. The period is split into 7 day windows
- *  from the start date; within a week, if a care plan change takes effect mid-week
- *  the week is further split at the change date (e.g. change on Thursday bills
- *  Mon..Wed on the old plan and Thu..Sun on the new plan), each segment its own
- *  dated line group. Amounts are billed at the exact rate. */
+/** Expand a service user's care plan over a date range into invoice lines. The
+ *  maths lives in ./care-plan-billing so the recurring cron expands a care plan
+ *  identically (it has no user session, so it cannot call this). */
 export async function carePlanLinesForPeriod(
   serviceUserId: string,
   from: string,
@@ -164,106 +138,11 @@ export async function carePlanLinesForPeriod(
       .order("position", { ascending: true }),
     supabase.from("invoicing_config").select("*").eq("company_id", profile.company_id!).maybeSingle(),
   ]);
-  const all = (entries as Array<PlanEntry & { effective_from: string; effective_to: string | null }> | null) ?? [];
-  if (all.length === 0) return { lines: [] };
 
-  const config = (cfg ?? {}) as Record<string, number>;
-  const rateFor = (label: string): ServiceRate | undefined => {
-    const svc = INVOICE_SERVICES.find((s) => s.label === label);
-    if (!svc) return undefined;
-    return {
-      label,
-      hourly_pence: Number(config[`rate_${svc.key}_pence`] ?? 0),
-      fixed_pence: Number(config[`rate_${svc.key}_fixed_pence`] ?? 0),
-    };
-  };
+  const rows = (entries as PlanEntryRow[] | null) ?? [];
+  if (rows.length === 0) return { lines: [] };
 
-  // Group entries into versions by effective range; find the version live on a day.
-  const vmap = new Map<string, PlanVersion>();
-  for (const e of all) {
-    const key = `${e.effective_from}|${e.effective_to ?? ""}`;
-    let v = vmap.get(key);
-    if (!v) { v = { from: e.effective_from, to: e.effective_to, entries: [] }; vmap.set(key, v); }
-    v.entries.push({ day_of_week: e.day_of_week, service: e.service, unit: e.unit, handed: e.handed, quantity: e.quantity });
-  }
-  const versions = [...vmap.values()];
-  const versionForDay = (iso: string): PlanVersion | undefined =>
-    versions.find((v) => v.from <= iso && (v.to === null || v.to >= iso));
-  const versionKey = (iso: string): string => {
-    const v = versionForDay(iso);
-    return v ? `${v.from}|${v.to ?? ""}` : "none";
-  };
-
-  /** Bill one contiguous same-version segment [sStart, sEnd] as a dated line group. */
-  function billSegment(sStart: string, sEnd: string, out: BuilderLine[]) {
-    const v = versionForDay(sStart);
-    if (!v) return;
-    const counts = [0, 0, 0, 0, 0, 0, 0];
-    let d = new Date(`${sStart}T00:00:00Z`);
-    const de = new Date(`${sEnd}T00:00:00Z`);
-    let g = 0;
-    while (d <= de && g < 8) {
-      counts[(d.getUTCDay() + 6) % 7] += 1;
-      d.setUTCDate(d.getUTCDate() + 1);
-      g += 1;
-    }
-    const merged = new Map<string, BuilderLine>();
-    for (const e of v.entries) {
-      const occ = counts[e.day_of_week] ?? 0;
-      const qty = occ * Number(e.quantity);
-      if (qty <= 0) continue;
-      const handed = e.handed === "double" ? "double" : "single";
-      const key = `${e.service}|${e.unit}|${handed}`;
-      const existing = merged.get(key);
-      if (existing) {
-        existing.quantity += qty;
-        existing.line_total_pence = lineAmountPence(rateFor(e.service), e.unit, handed, existing.quantity);
-      } else {
-        merged.set(key, {
-          service: e.service,
-          unit: e.unit,
-          handed,
-          quantity: qty,
-          unit_price_pence: unitPricePence(rateFor(e.service), e.unit, handed),
-          line_total_pence: lineAmountPence(rateFor(e.service), e.unit, handed, qty),
-          description: `${e.service} - ${e.unit} (${HANDED_SUFFIX[handed]})`,
-          period_start: sStart,
-          period_end: sEnd,
-        });
-      }
-    }
-    out.push(...merged.values());
-  }
-
-  const out: BuilderLine[] = [];
-  let weekStart = from;
-  let weekGuard = 0;
-  while (weekStart <= to && weekGuard < 60) {
-    weekGuard += 1;
-    const rawEnd = addDaysUtc(weekStart, 6);
-    const weekEnd = rawEnd > to ? to : rawEnd;
-
-    // Split the week into contiguous same-version segments, bill each separately.
-    let segStart = weekStart;
-    let curKey = versionKey(weekStart);
-    let day = weekStart;
-    let g = 0;
-    while (g < 8) {
-      const isLast = day === weekEnd;
-      const nextDay = addDaysUtc(day, 1);
-      const nextKey = isLast ? null : versionKey(nextDay);
-      if (isLast || nextKey !== curKey) {
-        billSegment(segStart, day, out);
-        if (isLast) break;
-        segStart = nextDay;
-        curKey = nextKey!;
-      }
-      day = nextDay;
-      g += 1;
-    }
-    weekStart = addDaysUtc(weekStart, 7);
-  }
-  return { lines: out };
+  return { lines: buildCarePlanLines(rows, (cfg ?? {}) as Record<string, unknown>, from, to) };
 }
 
 export async function createInvoice(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -650,6 +529,85 @@ export async function markInvoicePaid(_prev: ActionState, formData: FormData): P
   revalidatePath(`/invoicing/${id}`);
   revalidatePath("/invoicing");
   return { ok: "Marked paid" };
+}
+
+/** Edit a recurring invoice: cadence, the day it lands on, and when it next runs.
+ *  Phil, 2026-07-27: "if its clickable it could be editable". */
+export async function updateSchedule(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { profile } = await requireCompany();
+  const err = await guard(profile.company_id, profile.role);
+  if (err) return { error: err };
+  const id = trimOrNull(formData.get("schedule_id"));
+  if (!id) return { error: "Missing schedule." };
+
+  const frequency = formData.get("frequency") === "weekly" ? "weekly" : "monthly";
+  const interval = Math.max(1, Number(formData.get("interval_count") ?? 1) || 1);
+  const dowRaw = intOrNull(formData.get("day_of_week"));
+  const domRaw = intOrNull(formData.get("day_of_month"));
+  const day_of_week = frequency === "weekly" && dowRaw != null && dowRaw >= 0 && dowRaw <= 6 ? dowRaw : null;
+  const day_of_month = frequency === "monthly" && domRaw != null && domRaw >= 1 && domRaw <= 28 ? domRaw : null;
+  const next_run_date = isoDateOr(formData.get("next_run_date"), null);
+  if (!next_run_date) return { error: "Give the date it next runs as a real date." };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("invoice_schedules")
+    .update({
+      frequency,
+      interval_count: interval,
+      day_of_week,
+      day_of_month,
+      next_run_date,
+      updated_by: profile.id,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .eq("company_id", profile.company_id!)
+    .select("id");
+  if (error || !data || data.length === 0) return { error: "Could not save this recurring invoice." };
+
+  revalidatePath("/invoicing/schedules");
+  revalidatePath(`/invoicing/schedules/${id}`);
+  return { ok: "Saved" };
+}
+
+/** Draft this schedule's next invoice right now, without waiting for the cron.
+ *  Runs the SAME code path the cron runs, so what this proves is what happens
+ *  automatically. It bills the cadence ending yesterday (arrears) and DELIBERATELY
+ *  leaves next_run_date alone, so testing never shifts a live client's billing date. */
+export async function draftScheduleNow(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { profile } = await requireCompany();
+  const err = await guard(profile.company_id, profile.role);
+  if (err) return { error: err };
+  const id = trimOrNull(formData.get("schedule_id"));
+  if (!id) return { error: "Missing schedule." };
+
+  const supabase = await createClient();
+  const { data: sc } = await supabase
+    .from("invoice_schedules")
+    .select(SCHEDULE_RUN_COLUMNS)
+    .eq("id", id)
+    .eq("company_id", profile.company_id!)
+    .maybeSingle();
+  if (!sc) return { error: "Could not find this recurring invoice." };
+
+  const { result, error } = await draftFromSchedule(supabase, sc as unknown as ScheduleRunRow, londonToday());
+  if (error || !result) return { error: `Nothing drafted: ${error ?? "no lines to bill"}.` };
+
+  await writeAudit({
+    companyId: profile.company_id!,
+    actorId: profile.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "invoicing.schedule_drafted_manually",
+    entityType: "invoice",
+    entityId: result.invoiceId,
+    summary: `Drafted ${result.from} to ${result.to} from a recurring invoice`,
+    metadata: { schedule_id: id, source: result.source, lines: result.lineCount },
+  });
+  revalidatePath("/invoicing");
+  revalidatePath(`/invoicing/schedules/${id}`);
+  return { ok: "Drafted", redirectTo: `/invoicing/${result.invoiceId}` };
 }
 
 export async function cancelSchedule(_prev: ActionState, formData: FormData): Promise<ActionState> {
