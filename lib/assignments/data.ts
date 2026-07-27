@@ -110,7 +110,7 @@ export async function listPolicies(
   let q = supabase
     .from("company_policies")
     .select(
-      "id, title, summary, file_name, version, status, created_at, source, body, signature_mode, reassign_on_new_version",
+      "id, title, summary, file_name, version, status, created_at, source, body, signature_mode, reassign_on_new_version, assign_to_new_starters",
     )
     .eq("company_id", companyId)
     .order("title");
@@ -125,6 +125,7 @@ export async function listPolicies(
     signature_mode: (row.signature_mode as CompanyPolicy["signature_mode"] | null) ?? "either",
     reassign_on_new_version:
       (row.reassign_on_new_version as CompanyPolicy["reassign_on_new_version"] | null) ?? "always",
+    assign_to_new_starters: row.assign_to_new_starters === true,
   }));
 }
 

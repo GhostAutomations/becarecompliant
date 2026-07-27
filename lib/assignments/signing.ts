@@ -23,8 +23,11 @@ export const SIGNATURE_MODE_LABELS: Record<SignatureMode, string> = {
 
 export const REASSIGN_MODE_LABELS: Record<ReassignMode, string> = {
   always: "Everyone signs the new version automatically",
-  ask: "Ask me each time I upload a version",
-  never: "Never reassign, I will do it myself",
+  // Honest since 2026-07-27: this used to behave exactly like "never" because the
+  // asking half was never built. Now a new version tells you how many people hold
+  // the old one and leaves the "Ask everyone to sign it" button ready.
+  ask: "Tell me who holds the old version, I decide",
+  never: "Nobody is asked again unless I say so",
 };
 
 export const DRAWN_KEY = "signature";

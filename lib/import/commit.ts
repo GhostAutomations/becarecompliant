@@ -25,6 +25,7 @@ import {
 import { initialDueDate as suInitialDue } from "@/lib/service-users/logic";
 import type { ParsedRow } from "./parse";
 import { inviteStaffForPerson } from "@/lib/staff/invite";
+import { assignStandingPolicies } from "@/lib/assignments/new-starters";
 import type { Actor } from "@/lib/invites";
 
 export type ImportFlags = {
@@ -35,6 +36,10 @@ export type ImportFlags = {
 export type CommitResult = { created: number } & ImportFlags & {
   /** Team Member logins invited during this import (People only). */
   invited?: number;
+  /** Rows with a demo or test address, deliberately not emailed. */
+  notInvited?: number;
+  /** Standing policies handed to the imported people. */
+  policiesGiven?: number;
   /** People we could not invite, so a Manager can follow them up. */
   inviteFailed?: Array<{ name: string; error: string }>;
 };
@@ -83,6 +88,11 @@ export async function commitPeople(
 
   let created = 0;
   let invited = 0;
+  // Rows carrying a demo or sample address (example.com and friends). Counted and
+  // reported, never emailed: a spreadsheet with sample rows left in it must not
+  // fire dozens of bouncing invitations on a customer's first day.
+  let notInvited = 0;
+  let policiesGiven = 0;
   const inviteFailed: Array<{ name: string; error: string }> = [];
   const flags: ImportFlags = { skipped: [], errored: [] };
 
@@ -141,13 +151,20 @@ export async function commitPeople(
     // Their Team Member login goes out as the import completes (Phil, 2026-07-26).
     // Best effort per row: an invite that fails is reported, never a reason to
     // reject a record that imported cleanly.
+    // Same standing policy set as "add a person": an imported carer is a new
+    // starter too, and importing is exactly when this is forgotten.
+    if (inviter) {
+      policiesGiven += await assignStandingPolicies(companyId, person.id, userId);
+    }
+
     if (inviter && row.fields.work_email) {
       const res = await inviteStaffForPerson(person.id, inviter);
       if (res.ok && !res.skipped) invited += 1;
+      else if (res.skipped === "demo_email") notInvited += 1;
       else if (!res.ok) inviteFailed.push({ name: label, error: res.error ?? "unknown" });
     }
   }
-  return { created, ...flags, invited, inviteFailed };
+  return { created, ...flags, invited, notInvited, policiesGiven, inviteFailed };
 }
 
 export async function commitServiceUsers(

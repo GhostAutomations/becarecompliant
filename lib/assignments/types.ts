@@ -18,6 +18,8 @@ export type CompanyPolicy = {
   /** How THIS policy is signed, and who re-signs a new version (0137). */
   signature_mode: PolicyConfig["signature_mode"];
   reassign_on_new_version: PolicyConfig["reassign_on_new_version"];
+  /** Given to every new starter automatically (0138). */
+  assign_to_new_starters: boolean;
 };
 
 export type PolicySource = "upload" | "text";

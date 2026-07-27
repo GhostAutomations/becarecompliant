@@ -17,6 +17,7 @@ import { requireCompany, requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { inviteStaffForPerson } from "@/lib/staff/invite";
+import { assignStandingPolicies } from "@/lib/assignments/new-starters";
 import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
 import { type Answers, type FormSchema, firstDateFieldKey, isFormSchema } from "@/lib/form-schema";
 import type { ActionState } from "@/lib/forms";
@@ -129,6 +130,10 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
     inviteOutcome = { attempted: true, ...invited };
   }
 
+  // The standing policy set, so a new starter is not silently exempt from what
+  // everyone else has signed (Phil, 2026-07-27). Best effort, like the invite.
+  const standingPolicies = await assignStandingPolicies(companyId, person.id, user.id);
+
   await writeAudit({
     companyId,
     actorId: user.id,
@@ -142,6 +147,7 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
       branch_id,
       checks_applied: applyErr ? 0 : (applied ?? 0),
       staff_invite: inviteOutcome,
+      standing_policies: standingPolicies,
     },
   });
 

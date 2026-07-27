@@ -23,6 +23,7 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
+import { isSendableAddress } from "@/lib/email/resend";
 import {
   createAndSendInvite,
   resendStaffInviteByEmail,
@@ -53,6 +54,9 @@ export async function inviteStaffForPerson(
 
   const email = String(person.work_email ?? "").trim().toLowerCase();
   if (!email) return { ok: false, skipped: "no_email" };
+  // A seeded or sample address is not a failure to report to a Manager, it is a
+  // row we deliberately leave alone (Phil, 2026-07-27).
+  if (!isSendableAddress(email)) return { ok: false, skipped: "demo_email" };
   if (person.profile_id) return { ok: true, skipped: "already_has_login" };
 
   const { data: company } = await supabase

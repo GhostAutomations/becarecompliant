@@ -86,6 +86,7 @@ export async function commitImportAction(
       skipped: flags.skipped.length,
       errors: flags.errored.length,
       invited: result.invited ?? 0,
+      not_invited: result.notInvited ?? 0,
       invite_failed: result.inviteFailed?.length ?? 0,
     },
   });
@@ -121,6 +122,14 @@ export async function commitImportAction(
 
   const parts = [`Created ${result.created}`];
   if (result.invited) parts.push(`invited ${result.invited} to their own login`);
+  if (result.policiesGiven) {
+    parts.push(`sent ${result.policiesGiven} policies to sign`);
+  }
+  if (result.notInvited) {
+    parts.push(
+      `${result.notInvited} had a demo address (example.com and similar) so were not emailed`,
+    );
+  }
   if (result.inviteFailed?.length) {
     parts.push(`${result.inviteFailed.length} could not be invited`);
   }

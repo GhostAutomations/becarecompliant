@@ -68,6 +68,10 @@ async function collectFiles(formData: FormData): Promise<EvidenceFileInput[]> {
  * company row is still written, but only as the REMEMBERED DEFAULT for the next
  * policy somebody adds.
  */
+function newStarterFlag(formData: FormData): boolean {
+  return formData.get("assign_to_new_starters") === "on";
+}
+
 function signingRulesFrom(formData: FormData): {
   signature_mode: SignatureMode;
   reassign_on_new_version: ReassignMode;
@@ -114,7 +118,11 @@ export async function updatePolicySigning(
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("company_policies")
-    .update({ ...rules, updated_at: new Date().toISOString() })
+    .update({
+      ...rules,
+      assign_to_new_starters: newStarterFlag(formData),
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", policyId)
     .eq("company_id", profile.company_id)
     .select("id, title");
@@ -136,6 +144,21 @@ export async function updatePolicySigning(
 
   revalidatePath("/settings/policies");
   return { ok: "Saved." };
+}
+
+/**
+ * PDF only, since 2026-07-27.
+ *
+ * Not fussiness: a Word file cannot be rendered by the reader on a phone and
+ * cannot have a signature page appended to it, so accepting one produces a
+ * policy nobody can read properly and a signed copy that is only a signature.
+ * Refused at the door, with the two ways out named.
+ */
+function pdfOnly(file: File): string | null {
+  const name = file.name.toLowerCase();
+  const looksPdf = name.endsWith(".pdf") || file.type === "application/pdf";
+  if (looksPdf) return null;
+  return "Policies have to be PDFs, so your team can read them on a phone and sign a copy. Save it as a PDF, or paste the wording in instead.";
 }
 
 /** Add a policy document to the company library. */
@@ -163,6 +186,8 @@ export async function uploadPolicy(
         "That document is over 3MB. Please upload a smaller file, or ask us to raise the limit.",
     };
   }
+  const wrongType = pdfOnly(file);
+  if (wrongType) return { error: wrongType };
 
   const rules = signingRulesFrom(formData);
   const supabase = await createClient();
@@ -176,6 +201,7 @@ export async function uploadPolicy(
       summary,
       signature_mode: rules.signature_mode,
       reassign_on_new_version: rules.reassign_on_new_version,
+      assign_to_new_starters: newStarterFlag(formData),
       storage_path: "pending",
       file_name: file.name,
       mime_type: file.type || null,
@@ -647,6 +673,7 @@ export async function createWrittenPolicy(
       body,
       signature_mode: writtenRules.signature_mode,
       reassign_on_new_version: writtenRules.reassign_on_new_version,
+      assign_to_new_starters: newStarterFlag(formData),
       storage_path: "pending",
       file_name: `${title.replace(/[^a-zA-Z0-9 _-]+/g, "").trim() || "policy"}.pdf`,
       mime_type: "application/pdf",
@@ -758,12 +785,21 @@ export async function updateWrittenPolicy(
 
   revalidatePath("/settings/policies");
   revalidatePath("/briefings");
-  return {
-    ok:
-      reassigned > 0
-        ? `Version ${nextVersion} saved. ${reassigned} ${reassigned === 1 ? "person needs" : "people need"} to sign it.`
-        : `Version ${nextVersion} saved.`,
-  };
+  if (reassigned > 0) {
+    return {
+      ok: `Version ${nextVersion} saved. ${reassigned} ${reassigned === 1 ? "person needs" : "people need"} to sign it.`,
+    };
+  }
+  if ((rules.reassign_on_new_version as ReassignMode) === "ask") {
+    const waiting = await policyAudienceCount(policyId);
+    return {
+      ok:
+        waiting > 0
+          ? `Version ${nextVersion} saved. ${waiting} ${waiting === 1 ? "person has" : "people have"} the old version: use "Ask everyone to sign it" when you are ready.`
+          : `Version ${nextVersion} saved.`,
+    };
+  }
+  return { ok: `Version ${nextVersion} saved.` };
 }
 
 /**
@@ -850,6 +886,8 @@ export async function uploadPolicyVersion(
   if (file.size > 3 * 1024 * 1024) {
     return { error: "That document is over 3MB. Please upload a smaller file." };
   }
+  const wrongVersionType = pdfOnly(file);
+  if (wrongVersionType) return { error: wrongVersionType };
 
   const supabase = await createClient();
   const { data: policy } = await supabase
@@ -908,12 +946,21 @@ export async function uploadPolicyVersion(
 
   revalidatePath("/settings/policies");
   revalidatePath("/briefings");
-  return {
-    ok:
-      reassigned > 0
-        ? `Version ${nextVersion} saved. ${reassigned} ${reassigned === 1 ? "person needs" : "people need"} to sign it.`
-        : `Version ${nextVersion} saved.`,
-  };
+  if (reassigned > 0) {
+    return {
+      ok: `Version ${nextVersion} saved. ${reassigned} ${reassigned === 1 ? "person needs" : "people need"} to sign it.`,
+    };
+  }
+  if ((rules.reassign_on_new_version as ReassignMode) === "ask") {
+    const waiting = await policyAudienceCount(policyId);
+    return {
+      ok:
+        waiting > 0
+          ? `Version ${nextVersion} saved. ${waiting} ${waiting === 1 ? "person has" : "people have"} the old version: use "Ask everyone to sign it" when you are ready.`
+          : `Version ${nextVersion} saved.`,
+    };
+  }
+  return { ok: `Version ${nextVersion} saved.` };
 }
 
 /** Ask everyone who has ever been given this policy to sign the new version. */
@@ -958,6 +1005,70 @@ async function reassignPolicy(
     )
     .select("id");
   return created?.length ?? 0;
+}
+
+/**
+ * Ask everyone to sign the current version, on purpose.
+ *
+ * This is the missing half of the "ask me each time" setting (Phil, 2026-07-27:
+ * that option "is currently a lie" — it behaved as never, because nothing ever
+ * asked). Saving a version under that setting now says how many people are
+ * affected and leaves this button; pressing it does what 'always' would have done
+ * automatically. It is also useful under 'never', for the one policy you decide
+ * everybody should re-sign after all.
+ */
+export async function reassignPolicyToEveryone(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requireCompanyAdmin();
+  if (!profile.company_id) return { error: "No company context." };
+  const policyId = String(formData.get("policy_id") ?? "");
+  if (!policyId) return { error: "Missing policy." };
+
+  const supabase = await createClient();
+  const { data: policy } = await supabase
+    .from("company_policies")
+    .select("id, title, version")
+    .eq("id", policyId)
+    .eq("company_id", profile.company_id)
+    .maybeSingle();
+  if (!policy) return { error: "That policy could not be found." };
+
+  const version = (policy.version as number | null) ?? 1;
+  const reassigned = await reassignPolicy(policyId, profile.company_id, version, user.id);
+  if (reassigned === 0) {
+    return { ok: "Nobody has ever been given this policy, so there was nobody to ask." };
+  }
+
+  await writeAudit({
+    companyId: profile.company_id,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "policy.reassigned",
+    entityType: "policy",
+    entityId: policyId,
+    summary: `Asked ${reassigned} to sign version ${version} of "${policy.title}"`,
+    metadata: { version, reassigned },
+  });
+
+  revalidatePath("/settings/policies");
+  revalidatePath("/briefings");
+  return {
+    ok: `Sent to ${reassigned} ${reassigned === 1 ? "person" : "people"} to sign version ${version}.`,
+  };
+}
+
+/** How many people would be asked, so "ask me" can state the cost up front. */
+async function policyAudienceCount(policyId: string): Promise<number> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("assignments")
+    .select("person_id")
+    .eq("policy_id", policyId)
+    .neq("status", "cancelled");
+  return new Set(((data ?? []) as Array<{ person_id: string }>).map((r) => r.person_id)).size;
 }
 
 /** A Team Member completes a form that was assigned to them. */

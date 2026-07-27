@@ -1,7 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
-import { sendEmail } from "@/lib/email/resend";
+import { isSendableAddress, sendEmail } from "@/lib/email/resend";
 import { inviteEmailHtml, inviteSubject } from "@/lib/email/templates";
 import { writeAudit } from "@/lib/audit";
 import { siteUrl } from "@/lib/site";
@@ -99,6 +99,24 @@ export async function createAndSendInvite(
   const email = p.email.trim().toLowerCase();
   if (!EMAIL_RE.test(email)) {
     return { ok: false, error: "Enter a valid email address." };
+  }
+  /**
+   * Never invite a demo or reserved address.
+   *
+   * Phil, 2026-07-27: the briefing emails already refuse these, but the INVITE
+   * path did not, and that is the one that runs on the first day of a real
+   * onboarding — import a spreadsheet with sample rows still in it and we would
+   * post dozens of invitations into the void. Bounces at that rate damage the
+   * sending domain for every customer, and this happens before anybody is
+   * watching the outcome closely. Refused here, at the single door every invite
+   * goes through, rather than in each of the four callers.
+   */
+  if (!isSendableAddress(email)) {
+    return {
+      ok: false,
+      error:
+        "That looks like a demo or test address (example.com and similar), so no invitation was sent. Add their real email to invite them.",
+    };
   }
 
   let admin: ServiceClient;
@@ -344,6 +362,9 @@ export async function resendStaffInviteByEmail(
   }
 
   const address = email.trim().toLowerCase();
+  if (!isSendableAddress(address)) {
+    return { ok: false, error: "That is a demo or test address, so nothing was sent." };
+  }
   const { data: invite } = await admin
     .from("invites")
     .select("id, full_name, role, status, resend_count")

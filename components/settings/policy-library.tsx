@@ -18,6 +18,7 @@ import {
   updateWrittenPolicy,
   uploadPolicyVersion,
   updatePolicySigning,
+  reassignPolicyToEveryone,
 } from "@/lib/assignments/actions";
 import type { CompanyPolicy, PolicyConfig } from "@/lib/assignments/types";
 import { REASSIGN_MODE_LABELS, SIGNATURE_MODE_LABELS } from "@/lib/assignments/signing";
@@ -37,12 +38,15 @@ function SigningFields({
   idPrefix,
   signatureMode,
   reassign,
+  newStarters = false,
 }: {
   idPrefix: string;
   signatureMode: PolicyConfig["signature_mode"];
   reassign: PolicyConfig["reassign_on_new_version"];
+  newStarters?: boolean;
 }) {
   return (
+    <>
     <div className="grid gap-4 sm:grid-cols-2">
       <div>
         <label htmlFor={`${idPrefix}-signature_mode`} className="form-label">
@@ -77,6 +81,23 @@ function SigningFields({
         </select>
       </div>
     </div>
+
+    <label className="mt-3 flex items-start gap-2.5 text-sm text-white/90">
+      <input
+        type="checkbox"
+        name="assign_to_new_starters"
+        defaultChecked={newStarters}
+        className="mt-0.5"
+      />
+      <span>
+        Send it to new starters automatically
+        <span className="block text-xs text-white/45">
+          Anyone added or imported from now on gets it to sign on day one, so nobody joins
+          without it.
+        </span>
+      </span>
+    </label>
+    </>
   );
 }
 
@@ -146,10 +167,11 @@ export default function PolicyLibrary({
                 </div>
                 <div>
                   <label htmlFor="policy-doc" className="form-label">Document *</label>
-                  <input id="policy-doc" name="document" type="file" required accept=".pdf,.doc,.docx" />
+                  <input id="policy-doc" name="document" type="file" required accept="application/pdf,.pdf" />
                   <p className="form-hint">
-                    PDF or Word, up to 3MB. Your team opens this to read it, so upload the
-                    version you want on record. A PDF reads best on a phone.
+                    PDF, up to 3MB. Your team reads it on their phone and their signature
+                    is added to a copy of it, so it has to be a PDF. Save a Word file as a
+                    PDF first, or paste the wording in instead.
                   </p>
                 </div>
                 <div className="border-t border-white/10 pt-4">
@@ -229,6 +251,7 @@ export default function PolicyLibrary({
                 <p className="truncate text-xs text-white/45">
                   {p.source === "text" ? "Written in Be Care Compliant" : p.file_name}
                   {` · ${SIGNATURE_MODE_LABELS[p.signature_mode]}`}
+                  {p.assign_to_new_starters ? " · New starters get it" : ""}
                   {p.summary ? ` · ${p.summary}` : ""}
                 </p>
               </div>
@@ -259,6 +282,16 @@ export default function PolicyLibrary({
                     New version
                   </button>
                 )}
+                <ActionForm
+                  action={reassignPolicyToEveryone}
+                  hidden={{ policy_id: p.id }}
+                  label={`Ask everyone to sign v${p.version}`}
+                  savingLabel="Sending…"
+                  savedLabel="Sent"
+                  buttonClassName="btn-ghost px-3 py-2 text-xs"
+                  className=""
+                  confirm={`Ask everyone who has ever had "${p.title}" to sign version ${p.version}? Anyone still holding an older version is asked again.`}
+                />
                 <a
                   href={`/api/briefings/report?policy=${p.id}`}
                   target="_blank"
@@ -298,6 +331,7 @@ export default function PolicyLibrary({
                       idPrefix={`sign-${p.id}`}
                       signatureMode={p.signature_mode}
                       reassign={p.reassign_on_new_version}
+                      newStarters={p.assign_to_new_starters}
                     />
                     <p className="form-hint">
                       Applies to this policy only. Signatures already given keep the rule that
@@ -350,7 +384,7 @@ export default function PolicyLibrary({
                       name="document"
                       type="file"
                       required
-                      accept=".pdf,.doc,.docx"
+                      accept="application/pdf,.pdf"
                     />
                     <p className="form-hint">
                       Version {p.version} is kept, so signatures against it stay evidenced.
