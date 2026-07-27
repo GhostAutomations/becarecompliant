@@ -33,6 +33,8 @@ export default function ActionForm({
   className = "space-y-2",
   inline = false,
   confirm,
+  onDone,
+  onDoneDelayMs = 1200,
 }: {
   action: ServerAction;
   hidden?: Record<string, string>;
@@ -48,6 +50,11 @@ export default function ActionForm({
   inline?: boolean;
   /** Optional confirmation prompt shown before submit. */
   confirm?: string;
+  /** Called after the success flash, e.g. to close the panel that contained the
+   *  form (Phil, 2026-07-27: "once the button changes to sent, give it a second
+   *  then close the send a briefing tile"). */
+  onDone?: () => void;
+  onDoneDelayMs?: number;
 }) {
   const [state, formAction, pending] = useActionState(action, IDLE_STATE);
   const [saved, setSaved] = useState(false);
@@ -59,8 +66,14 @@ export default function ActionForm({
     if (state.ok && !pending) {
       setSaved(true);
       const t = setTimeout(() => setSaved(false), 2000);
-      return () => clearTimeout(t);
+      // Long enough to read the confirmation, short enough not to feel stuck.
+      const done = onDone ? setTimeout(() => onDone(), onDoneDelayMs) : undefined;
+      return () => {
+        clearTimeout(t);
+        if (done) clearTimeout(done);
+      };
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, pending]);
 
   // Actions return { redirectTo } instead of calling redirect() (see lib/forms);

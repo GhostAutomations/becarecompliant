@@ -28,9 +28,34 @@ function fmtDateTime(iso: string): string {
   }).format(new Date(iso));
 }
 
-export default async function EvidenceViewPage({ params }: { params: Promise<{ id: string }> }) {
+/**
+ * Where "Back" goes.
+ *
+ * Phil, 2026-07-27: opening Evidence from Briefings and pressing Back dropped him
+ * in the People department. The page cannot guess where somebody came from, so
+ * the link that sent them here says: ?from=briefings, ?from=my. Without it we
+ * fall back to the record the Evidence belongs to, which is right when you opened
+ * it from a record.
+ *
+ * This matters most for a Team Member: their own submissions used to send them
+ * "Back to person", a page their role cannot open.
+ */
+const BACK_TARGETS: Record<string, { href: string; label: string }> = {
+  briefings: { href: "/briefings", label: "Back to Briefings" },
+  my: { href: "/my", label: "Back to my area" },
+};
+
+export default async function EvidenceViewPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string }>;
+}) {
   const { profile } = await requireCompany();
   const { id } = await params;
+  const { from } = await searchParams;
+  const cameFrom = from ? BACK_TARGETS[from] : undefined;
 
   const result = await getEvidenceView(id, { id: profile.id, email: profile.email, role: profile.role });
 
@@ -44,14 +69,16 @@ export default async function EvidenceViewPage({ params }: { params: Promise<{ i
   }
 
   const ev = result.data;
-  const backHref =
-    ev.recordType === "person"
+  const backHref = cameFrom
+    ? cameFrom.href
+    : ev.recordType === "person"
       ? `/people/${ev.recordId}`
       : ev.recordType === "complaint"
         ? `/complaints/${ev.recordId}`
         : `/service-users/${ev.recordId}`;
-  const backLabel =
-    ev.recordType === "person"
+  const backLabel = cameFrom
+    ? cameFrom.label
+    : ev.recordType === "person"
       ? "Back to person"
       : ev.recordType === "complaint"
         ? "Back to complaint"

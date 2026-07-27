@@ -104,7 +104,16 @@ export default function AssignPanel({
         </button>
       </div>
 
-      <ActionForm action={assignItems} label="Send" savedLabel="Sent">
+      <ActionForm
+        action={assignItems}
+        label="Send"
+        savingLabel="Sending…"
+        savedLabel="Sent"
+        onDone={() => {
+          setOpen(false);
+          setPicked([]);
+        }}
+      >
         <input type="hidden" name="scope" value={scope} />
 
         <div className="grid gap-4 sm:grid-cols-2">

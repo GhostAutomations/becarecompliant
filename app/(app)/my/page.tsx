@@ -135,7 +135,7 @@ export default async function MyAreaPage() {
                   <p className="text-sm font-semibold text-white">{s.form_name}</p>
                   <p className="text-xs text-white/45">Sent {formatWhen(s.submitted_at)}</p>
                 </div>
-                <Link href={`/evidence/${s.id}`} className="btn-outline px-3 py-2 text-xs">
+                <Link href={`/evidence/${s.id}?from=my`} className="btn-outline px-3 py-2 text-xs">
                   View
                 </Link>
               </div>

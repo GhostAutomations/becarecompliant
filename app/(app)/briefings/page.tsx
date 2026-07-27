@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import ActionForm from "@/components/action-form";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import AssignPanel from "@/components/assignments/assign-panel";
+import CompletedBriefings from "@/components/briefings/completed-briefings";
 import { cancelAssignment } from "@/lib/assignments/actions";
 import {
   listAssignments,
@@ -120,38 +120,7 @@ export default async function BriefingsPage() {
         )}
       </section>
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
-          Completed ({done.length})
-        </h2>
-        {done.length === 0 ? (
-          <div className="glass-card p-5 text-sm text-white/60">Nothing completed yet.</div>
-        ) : (
-          <div className="glass-card divide-y divide-white/10">
-            {done.slice(0, 50).map((a) => (
-              <div key={a.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-white">{a.title}</p>
-                  <p className="text-xs text-white/50">
-                    {a.person_name ?? "Someone"}
-                    {a.completed_at
-                      ? ` · ${new Date(a.completed_at).toLocaleDateString("en-GB", { timeZone: "Europe/London" })}`
-                      : ""}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="pill pill-green">Done</span>
-                  {a.evidence_id ? (
-                    <Link href={`/evidence/${a.evidence_id}`} className="btn-outline px-3 py-2 text-xs">
-                      Evidence
-                    </Link>
-                  ) : null}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
+      <CompletedBriefings completed={done} />
     </div>
   );
 }

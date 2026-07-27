@@ -259,6 +259,14 @@ export default function PolicyLibrary({
                     New version
                   </button>
                 )}
+                <a
+                  href={`/api/briefings/report?policy=${p.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-ghost px-3 py-2 text-xs"
+                >
+                  Who has signed
+                </a>
                 <button
                   type="button"
                   className="btn-ghost px-3 py-2 text-xs"
