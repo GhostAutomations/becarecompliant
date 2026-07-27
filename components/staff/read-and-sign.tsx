@@ -23,7 +23,7 @@
  * Server Action as every other form in the app, so the Evidence is identical.
  */
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useActionState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
@@ -61,6 +61,11 @@ export default function ReadAndSign({
   const [sheet, setSheet] = useState(false);
   const [readToEnd, setReadToEnd] = useState(false);
   const [renderFailed, setRenderFailed] = useState(false);
+  const [progress, setProgress] = useState(0);
+  // For a PDF the pages arrive one by one, so "the bottom" means nothing until
+  // they are all drawn. Written text is ready as soon as it is on the screen.
+  const [docReady, setDocReady] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const [state, formAction, pending] = useActionState(acknowledgePolicy, IDLE_STATE);
   const [answers, setAnswers] = useState<Answers>({});
@@ -69,6 +74,61 @@ export default function ReadAndSign({
 
   useEffect(() => setMounted(true), []);
   useEffect(() => setSubmitting(false), [state]);
+
+  /**
+   * Have they actually got to the end?
+   *
+   * Phil, 2026-07-27: the bar unlocked before he had scrolled. The old version
+   * watched a marker at the foot of the document with an IntersectionObserver,
+   * which was too clever and wrong twice over: the panel keeps its state when you
+   * close and reopen it, so one unlock lasted forever, and with a PDF the pages
+   * render progressively, so the "bottom" arrived while page three of five was
+   * still blank.
+   *
+   * This measures the scroll position of the panel itself, which cannot lie, and
+   * only counts once the document is fully rendered. A document shorter than the
+   * screen unlocks immediately, because there is nothing to scroll.
+   */
+  const measure = useCallback(() => {
+    const node = scrollRef.current;
+    if (!node) return;
+    const { scrollTop, clientHeight, scrollHeight } = node;
+    const scrollable = Math.max(0, scrollHeight - clientHeight);
+    if (scrollable <= 8) {
+      setProgress(1);
+      if (docReady) setReadToEnd(true);
+      return;
+    }
+    const ratio = Math.min(1, (scrollTop + clientHeight) / scrollHeight);
+    setProgress(ratio);
+    if (docReady && scrollTop + clientHeight >= scrollHeight - 24) setReadToEnd(true);
+  }, [docReady]);
+
+  // Re-measure when the content grows (pages rendering) or the window changes.
+  useEffect(() => {
+    if (!open) return;
+    const node = scrollRef.current;
+    if (!node) return;
+    measure();
+    const observer = new ResizeObserver(() => measure());
+    observer.observe(node);
+    if (node.firstElementChild) observer.observe(node.firstElementChild);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [open, measure]);
+
+  // Every opening starts fresh: reopening a policy is not evidence of reading it.
+  useEffect(() => {
+    if (!open) return;
+    setReadToEnd(false);
+    setProgress(0);
+    setRenderFailed(false);
+    setDocReady(!!writtenBody);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   // The document is behind the sheet, so the page underneath must not scroll.
   useEffect(() => {
@@ -152,27 +212,46 @@ export default function ReadAndSign({
             </div>
 
             {/* The document */}
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <div
+              ref={scrollRef}
+              onScroll={measure}
+              className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+            >
               {writtenBody ? (
-                <PolicyText body={writtenBody} onReachedEnd={() => setReadToEnd(true)} />
+                <PolicyText body={writtenBody} />
               ) : (
                 <PolicyReader
                   url={docUrl}
-                  onReachedEnd={() => setReadToEnd(true)}
-                  onFailed={() => setRenderFailed(true)}
+                  onRendered={() => setDocReady(true)}
+                  onFailed={() => {
+                    setRenderFailed(true);
+                    setDocReady(true);
+                  }}
                 />
               )}
             </div>
 
             {/* The one bar that never scrolls away */}
             <div className="border-t border-white/10 bg-navy-900/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
+              {!canSign && (
+                <div className="mb-2 h-1 w-full overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="h-full rounded-full bg-amber-400/70 transition-all"
+                    style={{ width: `${Math.round(progress * 100)}%` }}
+                  />
+                </div>
+              )}
               <button
                 type="button"
                 className={canSign ? "btn-primary w-full py-3" : "btn-outline w-full py-3 opacity-60"}
                 onClick={() => canSign && setSheet(true)}
                 disabled={!canSign}
               >
-                {canSign ? "Sign it" : "Keep reading to the end to sign"}
+                {canSign
+                  ? "Sign it"
+                  : docReady
+                    ? `Keep reading to the end to sign · ${Math.round(progress * 100)}%`
+                    : "Opening the document…"}
               </button>
             </div>
 

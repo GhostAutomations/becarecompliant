@@ -13,7 +13,6 @@
  * with the text.
  */
 
-import { useEffect, useRef } from "react";
 import { parsePolicyText, policyPlainText, readingMinutes, type PolicyBlock } from "@/lib/policies/text";
 
 function Spans({ block }: { block: PolicyBlock }) {
@@ -32,32 +31,9 @@ function Spans({ block }: { block: PolicyBlock }) {
   );
 }
 
-export default function PolicyText({
-  body,
-  onReachedEnd,
-}: {
-  body: string;
-  onReachedEnd: () => void;
-}) {
-  const endRef = useRef<HTMLDivElement>(null);
-  const cb = useRef(onReachedEnd);
-  cb.current = onReachedEnd;
-
+export default function PolicyText({ body }: { body: string }) {
   const blocks = parsePolicyText(body);
   const minutes = readingMinutes(policyPlainText(blocks));
-
-  useEffect(() => {
-    const node = endRef.current;
-    if (!node) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) cb.current();
-      },
-      { threshold: 1 },
-    );
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 pb-6 pt-4">
@@ -106,10 +82,9 @@ export default function PolicyText({
         })}
       </article>
 
-      {/* The end marker: the Sign bar unlocks when this comes into view. */}
-      <div ref={endRef} className="pt-8 text-center text-xs text-white/35">
-        End of the policy
-      </div>
+      {/* A visible full stop. The Sign bar is unlocked by the scroll position of
+          the panel itself, not by this, so it cannot be fooled. */}
+      <div className="pt-8 text-center text-xs text-white/35">End of the policy</div>
     </div>
   );
 }

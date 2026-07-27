@@ -23,17 +23,18 @@ import { useEffect, useRef, useState } from "react";
 
 export default function PolicyReader({
   url,
-  onReachedEnd,
+  onRendered,
   onFailed,
 }: {
   url: string;
-  onReachedEnd: () => void;
+  /** Every page is drawn. Until this fires, "the bottom" is not the end. */
+  onRendered: () => void;
   onFailed: () => void;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
-  const endRef = useRef(onReachedEnd);
+  const doneRef = useRef(onRendered);
   const failRef = useRef(onFailed);
-  endRef.current = onReachedEnd;
+  doneRef.current = onRendered;
   failRef.current = onFailed;
 
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
@@ -90,14 +91,13 @@ export default function PolicyReader({
         }
         setStatus("ready");
 
-        // Which page are they on, and have they reached the last one?
+        // Which page are they on? Presentational only: the Sign bar is gated by
+        // the panel's scroll position, not by this.
         observer = new IntersectionObserver(
           (entries) => {
             for (const entry of entries) {
-              const n = Number((entry.target as HTMLElement).dataset.page ?? 0);
               if (entry.isIntersecting) {
-                setCurrent(n);
-                if (n === doc.numPages) endRef.current();
+                setCurrent(Number((entry.target as HTMLElement).dataset.page ?? 0));
               }
             }
           },
@@ -105,9 +105,9 @@ export default function PolicyReader({
         );
         host.querySelectorAll("canvas").forEach((c) => observer?.observe(c));
 
-        // A one page policy is fully on screen already: do not ask them to scroll
-        // to something that has no scroll.
-        if (doc.numPages === 1) endRef.current();
+        // Every page is on the screen now, so the document has a real height and
+        // "scrolled to the bottom" finally means something.
+        doneRef.current();
       } catch (e) {
         if (cancelled) return;
         console.error("[policy] render failed:", (e as Error).message);
