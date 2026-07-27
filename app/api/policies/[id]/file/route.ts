@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { signPolicyDocument } from "@/lib/assignments/storage";
+import { renderWrittenPolicy } from "@/lib/policies/render";
+import { writeAudit } from "@/lib/audit";
 
 /**
  * Signed download for a company policy.
@@ -21,11 +23,39 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   const supabase = await createClient();
   const { data: policy } = await supabase
     .from("company_policies")
-    .select("id, company_id, storage_path")
+    .select("id, company_id, storage_path, source, version")
     .eq("id", id)
     .maybeSingle();
   if (!policy || policy.company_id !== profile.company_id || !policy.storage_path) {
     return NextResponse.json({ error: "Policy not found." }, { status: 404 });
+  }
+
+  // A WRITTEN policy is drawn from its frozen wording every time, never served
+  // from the file saved on the day it was written (Phil, 2026-07-27: the saved
+  // PDF still had the old formatting after the parser was fixed). The words are
+  // the record; the layout is a render.
+  if (policy.source === "text") {
+    const rendered = await renderWrittenPolicy(policy.id as string, policy.version as number);
+    if (!rendered.ok) return NextResponse.json({ error: rendered.error }, { status: 500 });
+    await writeAudit({
+      companyId: policy.company_id as string,
+      actorId: profile.id,
+      actorEmail: profile.email,
+      actorRole: profile.role,
+      action: "policy.opened",
+      entityType: "policy",
+      entityId: policy.id as string,
+      summary: "Opened a company policy",
+      metadata: { source: "text", version: policy.version },
+    });
+    return new Response(new Uint8Array(rendered.pdf), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": "inline",
+        "Cache-Control": "private, no-store",
+      },
+    });
   }
 
   const signed = await signPolicyDocument({

@@ -5,6 +5,7 @@ import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
 import { EVIDENCE_BUCKET } from "@/lib/evidence/storage";
 import { appendSignaturePage } from "@/lib/assignments/signed-copy";
+import { renderWrittenPolicy } from "@/lib/policies/render";
 
 /**
  * The SIGNED COPY of a policy: the document they read, with a signature page
@@ -35,7 +36,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   const { data: assignment } = await supabase
     .from("assignments")
     .select(
-      "id, company_id, kind, status, evidence_id, policy_id, policy_version, company_policies:policy_id(title, file_name, storage_path), people:person_id(full_name)",
+      "id, company_id, kind, status, evidence_id, policy_id, policy_version, company_policies:policy_id(title, file_name, storage_path, source), people:person_id(full_name)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -57,7 +58,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   const policy = (Array.isArray(assignment.company_policies)
     ? assignment.company_policies[0]
     : assignment.company_policies) as
-    | { title: string; file_name: string; storage_path: string }
+    | { title: string; file_name: string; storage_path: string; source: string | null }
     | null;
   const person = (Array.isArray(assignment.people)
     ? assignment.people[0]
@@ -66,23 +67,29 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   const admin = createServiceClient();
   const signedVersion = Number(answers["policy_version"] ?? assignment.policy_version ?? 1);
 
-  // The document AS SIGNED. company_policy_versions holds every version's file,
-  // so an edit made afterwards cannot change what this download shows.
-  let documentPath: string | null = policy?.storage_path ?? null;
-  if (assignment.policy_id) {
-    const { data: version } = await admin
-      .from("company_policy_versions")
-      .select("storage_path")
-      .eq("policy_id", assignment.policy_id)
-      .eq("version", signedVersion)
-      .maybeSingle();
-    if (version?.storage_path) documentPath = version.storage_path as string;
-  }
-
+  // The document AS SIGNED.
+  //  - written policy: drawn from the WORDING frozen at that version, so a later
+  //    layout fix reaches old copies while the words stay exactly as signed;
+  //  - uploaded document: the file stored for that version, byte for byte.
   let original: Buffer | null = null;
-  if (documentPath) {
-    const dl = await admin.storage.from(EVIDENCE_BUCKET).download(documentPath);
-    if (dl.data) original = Buffer.from(await dl.data.arrayBuffer());
+  if (policy?.source === "text" && assignment.policy_id) {
+    const rendered = await renderWrittenPolicy(assignment.policy_id as string, signedVersion);
+    if (rendered.ok) original = rendered.pdf;
+  } else {
+    let documentPath: string | null = policy?.storage_path ?? null;
+    if (assignment.policy_id) {
+      const { data: version } = await admin
+        .from("company_policy_versions")
+        .select("storage_path")
+        .eq("policy_id", assignment.policy_id)
+        .eq("version", signedVersion)
+        .maybeSingle();
+      if (version?.storage_path) documentPath = version.storage_path as string;
+    }
+    if (documentPath) {
+      const dl = await admin.storage.from(EVIDENCE_BUCKET).download(documentPath);
+      if (dl.data) original = Buffer.from(await dl.data.arrayBuffer());
+    }
   }
 
   // The drawn signature lives in the private bucket as a PNG.
