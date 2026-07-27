@@ -89,9 +89,6 @@ export default function ActionForm({
     <form
       action={formAction}
       onChange={() => setSaved(false)}
-      onSubmit={(e) => {
-        if (confirm && !window.confirm(confirm)) e.preventDefault();
-      }}
       className={inline ? "flex items-end gap-2" : className}
     >
       {hidden
@@ -102,6 +99,12 @@ export default function ActionForm({
         <button
           type="submit"
           disabled={pending}
+          onClick={(e) => {
+            // One confirmation, on the click. Doing this on the form's submit event
+            // could prompt twice for a single press (Phil, 2026-07-27); cancelling
+            // the click stops the submit before it starts.
+            if (confirm && !window.confirm(confirm)) e.preventDefault();
+          }}
           className={showSaved ? "btn-saved text-xs" : buttonClassName}
         >
           {btnLabel}
