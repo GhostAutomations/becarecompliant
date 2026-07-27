@@ -65,6 +65,11 @@ export default function ReadAndSign({
   // For a PDF the pages arrive one by one, so "the bottom" means nothing until
   // they are all drawn. Written text is ready as soon as it is on the screen.
   const [docReady, setDocReady] = useState(false);
+  // Has the layout stopped moving? Measuring straight away is how the gate broke
+  // twice: on the first frame the content has not laid out, so the panel looks
+  // like it has nothing to scroll (Phil, 2026-07-27: "i cant see a % bar", i.e.
+  // it had already unlocked).
+  const [settled, setSettled] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const [state, formAction, pending] = useActionState(acknowledgePolicy, IDLE_STATE);
@@ -93,16 +98,32 @@ export default function ReadAndSign({
     const node = scrollRef.current;
     if (!node) return;
     const { scrollTop, clientHeight, scrollHeight } = node;
-    const scrollable = Math.max(0, scrollHeight - clientHeight);
+    // A container with no height yet tells us nothing. Never conclude anything
+    // from it, or the panel unlocks before it has drawn a single word.
+    if (clientHeight < 40 || scrollHeight < 40) return;
+
+    const scrollable = scrollHeight - clientHeight;
     if (scrollable <= 8) {
+      // Genuinely shorter than the screen: nothing to scroll, so nothing to gate.
+      // Only trusted once the layout has settled AND the document is rendered.
       setProgress(1);
-      if (docReady) setReadToEnd(true);
+      if (docReady && settled) setReadToEnd(true);
       return;
     }
-    const ratio = Math.min(1, (scrollTop + clientHeight) / scrollHeight);
-    setProgress(ratio);
+    setProgress(Math.min(1, (scrollTop + clientHeight) / scrollHeight));
     if (docReady && scrollTop + clientHeight >= scrollHeight - 24) setReadToEnd(true);
-  }, [docReady]);
+  }, [docReady, settled]);
+
+  // Give the layout (and pdf.js) a moment before believing a short measurement.
+  useEffect(() => {
+    if (!open) {
+      setSettled(false);
+      return;
+    }
+    setSettled(false);
+    const timer = setTimeout(() => setSettled(true), 600);
+    return () => clearTimeout(timer);
+  }, [open, docReady]);
 
   // Re-measure when the content grows (pages rendering) or the window changes.
   useEffect(() => {
@@ -233,14 +254,14 @@ export default function ReadAndSign({
 
             {/* The one bar that never scrolls away */}
             <div className="border-t border-white/10 bg-navy-900/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
-              {!canSign && (
-                <div className="mb-2 h-1 w-full overflow-hidden rounded-full bg-white/10">
-                  <div
-                    className="h-full rounded-full bg-amber-400/70 transition-all"
-                    style={{ width: `${Math.round(progress * 100)}%` }}
-                  />
-                </div>
-              )}
+              <div className="mb-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    canSign ? "bg-emerald-400/80" : "bg-amber-400/80"
+                  }`}
+                  style={{ width: `${Math.max(2, Math.round((canSign ? 1 : progress) * 100))}%` }}
+                />
+              </div>
               <button
                 type="button"
                 className={canSign ? "btn-primary w-full py-3" : "btn-outline w-full py-3 opacity-60"}
