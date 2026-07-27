@@ -16,7 +16,7 @@
  * client component), keeping the page a server component.
  */
 
-import { useActionState, useEffect, useState, type ReactNode } from "react";
+import { useActionState, useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { IDLE_STATE, type ActionState } from "@/lib/forms";
 
@@ -58,6 +58,7 @@ export default function ActionForm({
 }) {
   const [state, formAction, pending] = useActionState(action, IDLE_STATE);
   const [saved, setSaved] = useState(false);
+  const formRef = useRef<HTMLFormElement | null>(null);
   const router = useRouter();
 
   // On success the button flashes green Saved/Sent for about 2 seconds, then
@@ -82,11 +83,24 @@ export default function ActionForm({
     if (state.redirectTo) router.replace(state.redirectTo);
   }, [state.redirectTo, router]);
 
+  // A confirming button is NOT a submit button.
+  //
+  // First attempt confirmed on the form's submit event; that prompted twice for one
+  // press. Second attempt confirmed on the click and blocked it with preventDefault;
+  // that still prompted twice, but only when you pressed Cancel (Phil, 2026-07-27).
+  // The reason: the click is replayed once the blocking dialog closes. On OK the
+  // button is already disabled by `pending`, so the replay is swallowed; on Cancel
+  // nothing has changed, so the replayed click asks again.
+  //
+  // So a confirming button no longer submits by default at all. It asks, and on OK it
+  // submits the form ON PURPOSE. There is no default path left to replay, and Cancel
+  // does nothing whatsoever.
   const showSaved = saved && !pending;
   const btnLabel = pending ? savingLabel : showSaved ? savedLabel : label;
 
   return (
     <form
+      ref={formRef}
       action={formAction}
       onChange={() => setSaved(false)}
       className={inline ? "flex items-end gap-2" : className}
@@ -97,14 +111,15 @@ export default function ActionForm({
       {inline ? <div className="flex-1">{children}</div> : children}
       <div className={inline ? "flex items-center gap-2" : "flex items-center gap-2"}>
         <button
-          type="submit"
+          type={confirm ? "button" : "submit"}
           disabled={pending}
-          onClick={(e) => {
-            // One confirmation, on the click. Doing this on the form's submit event
-            // could prompt twice for a single press (Phil, 2026-07-27); cancelling
-            // the click stops the submit before it starts.
-            if (confirm && !window.confirm(confirm)) e.preventDefault();
-          }}
+          onClick={
+            confirm
+              ? () => {
+                  if (window.confirm(confirm)) formRef.current?.requestSubmit();
+                }
+              : undefined
+          }
           className={showSaved ? "btn-saved text-xs" : buttonClassName}
         >
           {btnLabel}

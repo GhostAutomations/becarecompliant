@@ -182,6 +182,7 @@ export const NAV_ENTRIES: NavEntry[] = [
     children: [
       { href: "/invoicing", label: "Invoices", icon: "invoicing" },
       { href: "/invoicing/clients", label: "Private Clients", icon: "people" },
+      { href: "/invoicing/schedules", label: "Recurring", icon: "planner" },
     ],
   },
   {
