@@ -64,7 +64,7 @@ export function signatureGiven(
   return { ok: false, error: "Sign in the box, or type your full name." };
 }
 
-/** How the signature reads on the certificate. */
+/** How the signature reads on the signed copy. */
 export function signatureLabel(answers: Answers): "drawn" | "typed" | "none" {
   const drawn = typeof answers[DRAWN_KEY] === "string" ? (answers[DRAWN_KEY] as string).trim() : "";
   const typed = typeof answers[TYPED_KEY] === "string" ? (answers[TYPED_KEY] as string).trim() : "";

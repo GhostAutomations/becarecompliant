@@ -9,7 +9,8 @@
  * signature, not a tick. Whether they draw it or type their name is the company's
  * setting, applied by filtering the acknowledgement form's render, and the
  * signature is stored as real Evidence with the policy version it was given for.
- * A certificate PDF is available afterwards.
+ * Afterwards they can download the SIGNED COPY: the document itself with a
+ * signature page on the end (Phil, 2026-07-27), not a certificate about it.
  *
  * A form: complete it in the same slide-over the rest of the app uses, so the
  * staff and the internal experience never drift apart.
@@ -147,7 +148,7 @@ export default function AssignedToMe({
                   target="_blank"
                   className="btn-outline px-3 py-1.5 text-xs"
                 >
-                  Certificate
+                  Signed copy
                 </Link>
               </li>
             ))}

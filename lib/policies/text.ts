@@ -45,15 +45,26 @@ function inlines(raw: string): Inline[] {
   return out.length > 0 ? out : [{ text: raw, bold: false }];
 }
 
+/**
+ * Is this line a section heading rather than a sentence?
+ *
+ * Fixed 2026-07-27 after Phil pasted a real policy: "1. Purpose" was treated as a
+ * heading but "2. Who it applies to" was not, because the old test wanted half
+ * the words capitalised. Care policies head their sections in SENTENCE case all
+ * the time ("Who it applies to", "If something goes wrong"), so the real signals
+ * are length and the absence of sentence punctuation, not capital letters.
+ */
 function looksLikeHeading(line: string): boolean {
   const t = line.trim();
-  if (t.length === 0 || t.length > 70) return false;
-  if (/[.:;,]$/.test(t)) return false;
-  // "3. Confidentiality" or "Confidentiality" but not a sentence.
+  if (t.length === 0 || t.length > 60) return false;
+  // A heading does not end in sentence punctuation, and never contains a full
+  // stop mid-line (that is two sentences, i.e. prose).
+  if (/[.:;,!?]$/.test(t)) return false;
+  if (/\.\s/.test(t)) return false;
   const words = t.split(/\s+/);
   if (words.length > 9) return false;
-  const capitalised = words.filter((w) => /^[A-Z0-9]/.test(w)).length;
-  return capitalised >= Math.max(1, Math.ceil(words.length / 2));
+  // It has to start like a heading: a capital or a clause number.
+  return /^[A-Z0-9]/.test(t);
 }
 
 export function parsePolicyText(input: string): PolicyBlock[] {

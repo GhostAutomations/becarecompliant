@@ -468,7 +468,7 @@ export async function cancelAssignment(
  * private bucket with kind 'signature', so the frozen answers hold a reference
  * rather than a base64 blob. The policy TITLE and VERSION are stamped by the
  * server, never asked of the signer, so a signature can never name the wrong
- * wording. A certificate PDF is rendered on demand from this Evidence.
+ * wording. The signed copy of the document is rendered on demand from it.
  */
 export async function acknowledgePolicy(
   _prev: ActionState,
@@ -588,7 +588,7 @@ export async function acknowledgePolicy(
   });
 
   revalidatePath("/my");
-  return { ok: "Signed, thank you. Your certificate is on your record." };
+  return { ok: "Signed, thank you. A signed copy is on your record." };
 }
 
 /** Change how this company signs policies. */
