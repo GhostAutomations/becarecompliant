@@ -19,10 +19,22 @@
 import Link from "next/link";
 import FormEvidenceDialog from "@/components/forms/form-evidence-dialog";
 import ReadAndSign from "@/components/staff/read-and-sign";
+import MySection from "@/components/staff/my-section";
 import type { FormSchema } from "@/lib/form-schema";
 import type { AssignmentRow, PolicyConfig } from "@/lib/assignments/types";
 import { completeAssignedForm } from "@/lib/assignments/actions";
 import { signingSchema, type SignatureMode } from "@/lib/assignments/signing";
+
+function fmtSigned(iso: string): string {
+  return new Date(iso).toLocaleString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/London",
+  });
+}
 
 function fmtDue(iso: string | null): string {
   if (!iso) return "";
@@ -129,32 +141,36 @@ export default function AssignedToMe({
         </ul>
       )}
 
-      {signed.length > 0 && (
-        <div className="glass-card p-5">
-          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-white/50">
-            Policies I have signed
-          </h3>
-          <ul className="space-y-2">
+      {/* Signed history: same rows as "Forms I have sent in", and folded away, so
+          what is still to do owns the screen (Phil, 2026-07-27). */}
+      <MySection title="Policies I have signed" count={signed.length}>
+        {signed.length === 0 ? (
+          <div className="glass-card p-5 text-sm text-white/60">
+            You have not signed any policies yet.
+          </div>
+        ) : (
+          <div className="glass-card divide-y divide-white/10">
             {signed.map((a) => (
-              <li key={a.id} className="flex flex-wrap items-center justify-between gap-2">
-                <span className="min-w-0 text-sm text-white/80">
-                  {a.title}
-                  {a.policy_version ? (
-                    <span className="text-white/40"> · version {a.policy_version}</span>
-                  ) : null}
-                </span>
+              <div key={a.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-white">{a.title}</p>
+                  <p className="text-xs text-white/45">
+                    {a.policy_version ? `Version ${a.policy_version}` : "Signed"}
+                    {a.completed_at ? ` · Signed ${fmtSigned(a.completed_at)}` : ""}
+                  </p>
+                </div>
                 <Link
                   href={`/api/assignments/${a.id}/certificate`}
                   target="_blank"
-                  className="btn-outline px-3 py-1.5 text-xs"
+                  className="btn-outline px-3 py-2 text-xs"
                 >
                   Signed copy
                 </Link>
-              </li>
+              </div>
             ))}
-          </ul>
-        </div>
-      )}
+          </div>
+        )}
+      </MySection>
     </div>
   );
 }

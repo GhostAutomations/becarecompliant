@@ -14,6 +14,7 @@ import {
 import { POLICY_ACK_FORM_KEY } from "@/lib/assignments/types";
 import MyHolidays from "@/components/staff/my-holidays";
 import AssignedToMe from "@/components/staff/assigned-to-me";
+import MySection from "@/components/staff/my-section";
 
 /**
  * A Team Member's own area, and the only page a staff login has.
@@ -119,10 +120,7 @@ export default async function MyAreaPage() {
         />
       </section>
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
-          Forms I have sent in
-        </h2>
+      <MySection title="Forms I have sent in" count={submissions.length}>
         {submissions.length === 0 ? (
           <div className="glass-card p-5 text-sm text-white/60">
             You have not sent in any forms yet.
@@ -142,7 +140,7 @@ export default async function MyAreaPage() {
             ))}
           </div>
         )}
-      </section>
+      </MySection>
     </div>
   );
 }
