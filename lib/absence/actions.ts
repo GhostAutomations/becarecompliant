@@ -17,7 +17,9 @@ import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { sendCalendarInvite } from "@/lib/notifications/invites";
 import { sendEmail } from "@/lib/email/resend";
-import { escapeHtml, noticeEmailHtml } from "@/lib/email/templates";
+import { noticeEmailHtml } from "@/lib/email/templates";
+import { letterWordingFor } from "@/lib/letters/data";
+import { renderLetterHtml, renderLetterSubject } from "@/lib/letters/letters";
 import { claimNotification, settleNotification } from "@/lib/notifications/log";
 import { londonToUtc } from "@/lib/email/ics";
 import { siteUrl } from "@/lib/site";
@@ -480,6 +482,7 @@ export async function bookAbsenceMeeting(
     .from("companies").select("name").eq("id", person.company_id as string).maybeSingle();
 
   const inviteOutcomes = await sendMeetingLetters({
+    supabase,
     meetingId: meeting.id as string,
     responseToken: meeting.response_token as string,
     companyId: person.company_id as string,
@@ -571,6 +574,7 @@ async function resolveMeetingLocation(
  *  carry the slot, so a rearranged meeting sends fresh letters while the same
  *  slot can never double-send. Not exported: internal to this file. */
 async function sendMeetingLetters(args: {
+  supabase: { from: (t: string) => any };
   meetingId: string;
   responseToken: string;
   companyId: string;
@@ -589,13 +593,42 @@ async function sendMeetingLetters(args: {
   const outcomes: Record<string, string> = {};
   const stageLabel = `Stage ${args.stage} absence management meeting`;
   const slot = `${args.meetingDate}:${args.timeHHMM}`;
-  const employeeName = escapeHtml(args.employee.name);
-  const locationSentence =
+
+  // The WORDING of these letters belongs to the company (Settings > Letters). We read
+  // their version and fall back to the packaged default, so a letter can never fail to
+  // send because wording is missing. Everything functional (the response buttons, the
+  // calendar attachment, the Teams note) is still added by us, around their words.
+  const displayDate = /^\d{4}-\d{2}-\d{2}$/.test(args.meetingDate)
+    ? args.meetingDate.split("-").reverse().join("/")
+    : args.meetingDate;
+  const values: Record<string, string> = {
+    recipient_name: args.employee.name,
+    employee_name: args.employee.name,
+    company_name: args.companyName,
+    stage: String(args.stage),
+    stage_label: stageLabel,
+    conductor_name: args.conductor.name,
+    meeting_date: displayDate,
+    meeting_time: args.timeHHMM,
+    meeting_when: `${displayDate} at ${args.timeHHMM}`,
+    location: args.locationKind === "teams" ? "Microsoft Teams" : args.location,
+    duration: `${args.duration} minutes`,
+  };
+
+  const [employeeLetter, conductorLetter, rearrangedLetter] = await Promise.all([
+    letterWordingFor(args.supabase, args.companyId, "absence_meeting_invite_employee"),
+    letterWordingFor(args.supabase, args.companyId, "absence_meeting_invite_conductor"),
+    letterWordingFor(args.supabase, args.companyId, "absence_meeting_rearranged"),
+  ]);
+
+  const teamsNote =
     args.locationKind === "teams"
-      ? `held over <strong style="color:#ffffff;">Microsoft Teams</strong>. A Teams invite will follow shortly`
-      : `held at <strong style="color:#ffffff;">${escapeHtml(args.location)}</strong>`;
+      ? `<p style="margin:0 0 10px 0;">A Teams invite will follow shortly.</p>`
+      : "";
   const rearrangedNote = args.rearranged
-    ? `<p style="margin:0 0 10px 0;color:#fcd34d;">This meeting has been rearranged. This invitation replaces the earlier one, please update your calendar.</p>`
+    ? `<p style="margin:0 0 10px 0;color:#fcd34d;">${renderLetterHtml(rearrangedLetter.body, values)
+        .replace(/<\/?p[^>]*>/g, "")
+        .trim()}</p>`
     : "";
 
   const sends: {
@@ -615,13 +648,12 @@ async function sendMeetingLetters(args: {
       profileId: args.employee.profileId,
       name: args.employee.name,
       email: args.employee.email,
-      eventTitle: stageLabel,
+      eventTitle: renderLetterSubject(employeeLetter.subject, values) || stageLabel,
       hideCta: true, // employees have no app account: no Open button
       detailHtml: `
         ${rearrangedNote}
-        <p style="margin:0 0 10px 0;">This is your formal invitation to a <strong style="color:#ffffff;">${stageLabel}</strong> under the absence procedure at ${escapeHtml(args.companyName)}.</p>
-        <p style="margin:0 0 10px 0;">The purpose of the meeting is to review your absence record, discuss any support you may need, and consider the next steps under the procedure. The meeting will be conducted by ${escapeHtml(args.conductor.name)} and ${locationSentence}.</p>
-        <p style="margin:0 0 14px 0;">You have the right to be accompanied by a colleague or a trade union representative. Please let us know in advance if you will be accompanied.</p>
+        ${renderLetterHtml(employeeLetter.body, values)}
+        ${teamsNote}
         <table role="presentation" cellpadding="0" cellspacing="0"><tr>
           <td style="border-radius:12px;background:#f59e0b;">
             <a href="${respondBase}?intent=accept" style="display:inline-block;padding:11px 20px;font-size:13px;font-weight:700;color:#081231;text-decoration:none;border-radius:12px;">Accept the invitation</a>
@@ -644,12 +676,14 @@ async function sendMeetingLetters(args: {
       profileId: args.conductor.id,
       name: args.conductor.name,
       email: args.conductor.email,
-      eventTitle: `Absence meeting with ${args.employee.name} (Stage ${args.stage})`,
+      eventTitle:
+        renderLetterSubject(conductorLetter.subject, values) ||
+        `Absence meeting with ${args.employee.name} (Stage ${args.stage})`,
       hideCta: false,
       detailHtml: `
         ${rearrangedNote}
-        <p style="margin:0 0 10px 0;">You are chairing this meeting: a <strong style="color:#ffffff;">${stageLabel}</strong> for <strong style="color:#ffffff;">${employeeName}</strong>, ${locationSentence}. This is about ${employeeName}'s absence record, not your own.</p>
-        <p style="margin:0;">Their absence record is on the Absence page. Once the meeting has taken place, record it there so the Evidence attaches to this booking. You will be emailed when ${employeeName} accepts or declines.</p>`,
+        ${renderLetterHtml(conductorLetter.body, { ...values, recipient_name: args.conductor.name })}
+        ${teamsNote}`,
     });
   } else {
     outcomes.conductor = "skipped_no_email";
@@ -778,6 +812,7 @@ export async function rearrangeAbsenceMeeting(
     .from("companies").select("name").eq("id", profile.company_id).maybeSingle();
 
   const inviteOutcomes = await sendMeetingLetters({
+    supabase,
     meetingId,
     responseToken: meeting.response_token as string,
     companyId: profile.company_id,
@@ -910,6 +945,30 @@ export async function cancelAbsenceMeetingBooking(
     }
   }
 
+  // Cancellation wording is the company's too (Settings > Letters).
+  const cancelLetter = await letterWordingFor(
+    supabase,
+    profile.company_id,
+    "absence_meeting_cancelled",
+  );
+  const cancelValues = (recipientName: string): Record<string, string> => ({
+    recipient_name: recipientName,
+    employee_name: (person?.full_name as string) ?? "",
+    company_name: company?.name ?? "your company",
+    stage: meeting.stage ? String(meeting.stage) : "",
+    stage_label: stageLabel,
+    conductor_name: "",
+    meeting_date: String(meeting.meeting_date ?? ""),
+    meeting_time: meeting.meeting_time ? String(meeting.meeting_time).slice(0, 5) : "",
+    meeting_when: when,
+    location: "",
+    duration: "",
+  });
+
+  const cancelSubject = (recipientName: string): string =>
+    renderLetterSubject(cancelLetter.subject, cancelValues(recipientName)) ||
+    `Cancelled: ${stageLabel}`;
+
   const noticeOutcomes: Record<string, string> = {};
   for (const notice of notices) {
     const logId = await claimNotification({
@@ -920,16 +979,16 @@ export async function cancelAbsenceMeetingBooking(
       kind: "meeting_cancelled",
       dedupeKey: `meeting_cancelled:${meetingId}:${notice.email}`,
       toAddress: notice.email,
-      subject: `Cancelled: ${stageLabel}`,
+      subject: cancelSubject(notice.name),
     });
     if (!logId) continue;
     const result = await sendEmail({
       to: notice.email,
-      subject: `Cancelled: ${stageLabel}`,
+      subject: cancelSubject(notice.name),
       html: noticeEmailHtml({
         preheader: `The ${stageLabel.toLowerCase()} on ${when} is cancelled.`,
         heading: "Meeting cancelled",
-        bodyHtml: `<p style="margin:0;">${escapeHtml(notice.name)}, the <strong style="color:#ffffff;">${stageLabel}</strong> booked for <strong style="color:#ffffff;">${escapeHtml(when)}</strong> at ${escapeHtml(company?.name ?? "your company")} has been cancelled. Please remove it from your calendar. If it is rearranged you will receive a new invitation.</p>`,
+        bodyHtml: renderLetterHtml(cancelLetter.body, cancelValues(notice.name)),
         ctaLabel: notice.hasAccount ? "Open Be Care Compliant" : undefined,
         ctaUrl: notice.hasAccount ? siteUrl() : undefined,
       }),

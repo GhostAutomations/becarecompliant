@@ -35,6 +35,7 @@ export default function FormEvidenceDialog({
   submitLabel = "Complete and save evidence",
   presetAnswers,
   hideFields,
+  aiDraft,
 }: {
   title: string;
   schema: FormSchema;
@@ -46,6 +47,10 @@ export default function FormEvidenceDialog({
   presetAnswers?: Answers;
   /** Field keys to hide (e.g. name/email when the person is already chosen). */
   hideFields?: string[];
+  /** Optional AI assist. The action returns { data } of field key to text, which is
+   *  merged into the answers for the user to EDIT before saving. Nothing is stored by
+   *  drafting, so a draft they dislike costs a credit and leaves no record. */
+  aiDraft?: { action: Action; label: string; hint?: string; extraFields?: Record<string, string> };
 }) {
   // Drop hidden fields from what we render and validate. The server still
   // validates against the full published version, so only omit optional fields.
@@ -68,6 +73,21 @@ export default function FormEvidenceDialog({
   const [files, setFiles] = useState<Record<string, File | null>>({});
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  // Bumped when an AI draft lands, to remount the renderer on the new defaults.
+  const [formKey, setFormKey] = useState(0);
+  const [draftDefaults, setDraftDefaults] = useState<Answers | undefined>(undefined);
+  const [draftState, draftAction, draftPending] = useActionState(
+    aiDraft?.action ?? (async () => IDLE_STATE),
+    IDLE_STATE,
+  );
+
+  useEffect(() => {
+    if (!draftState.data) return;
+    const merged = { ...answers, ...draftState.data } as Answers;
+    setAnswers(merged);
+    setDraftDefaults(merged);
+    setFormKey((k) => k + 1);
+  }, [draftState]);
 
   useEffect(() => {
     setSubmitting(false);
@@ -124,9 +144,33 @@ export default function FormEvidenceDialog({
             </div>
 
             <form onSubmit={onSubmit} className="space-y-6">
+              {aiDraft ? (
+                <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-sm text-white/70">{aiDraft.hint}</p>
+                    <button
+                      type="button"
+                      className="btn-outline px-3 py-1.5 text-xs"
+                      disabled={busy || draftPending}
+                      onClick={() => {
+                        const fd = new FormData();
+                        for (const [k, v] of Object.entries(aiDraft.extraFields ?? extraFields ?? {})) {
+                          fd.set(k, v);
+                        }
+                        draftAction(fd);
+                      }}
+                    >
+                      {draftPending ? "Drafting…" : aiDraft.label}
+                    </button>
+                  </div>
+                  {draftState.error ? <p className="form-error">{draftState.error}</p> : null}
+                </div>
+              ) : null}
+
               <FormRenderer
+                key={formKey}
                 schema={effectiveSchema}
-                defaultValue={presetAnswers}
+                defaultValue={draftDefaults ?? presetAnswers}
                 errors={errors}
                 onChange={setAnswers}
                 onFileSelect={(key, file) =>

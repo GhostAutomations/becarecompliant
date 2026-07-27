@@ -7,6 +7,14 @@
  * during the previous render") in the router's searchParams useMemo. Client-side
  * navigation avoids that transition entirely.
  */
-export type ActionState = { ok?: string; error?: string; redirectTo?: string };
+export type ActionState = {
+  ok?: string;
+  error?: string;
+  redirectTo?: string;
+  /** Optional values an action wants to hand back to the form it was called from,
+   *  e.g. an AI draft the user then edits before saving. Presentational only: never
+   *  put anything the server must trust on the way back in here. */
+  data?: Record<string, string>;
+};
 
 export const IDLE_STATE: ActionState = {};

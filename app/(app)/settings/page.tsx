@@ -141,6 +141,13 @@ export default async function SettingsPage() {
             </p>
           </Link>
         )}
+        <Link href="/settings/letters" className="app-tile">
+          <h2 className="text-base font-semibold text-white">Letters</h2>
+          <p className="text-sm text-white/60">
+            The wording of the formal letters we send for you, including the absence
+            meeting invitation and the right to be accompanied.
+          </p>
+        </Link>
         <Link href="/settings/notifications" className="app-tile">
           <h2 className="text-base font-semibold text-white">Notifications</h2>
           <p className="text-sm text-white/60">

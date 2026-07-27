@@ -19,6 +19,8 @@ import type { AbsenceMethod, StageThreshold } from "@/lib/absence/logic";
 import type { AbsencePersonRow, PersonLite, AbsenceEventRow, OpenBookingRow, ConductorLite, MeetingOffice } from "@/lib/absence/data";
 import type { BranchLite } from "@/lib/people/data";
 import { recordAbsence, recordAbsenceMeeting } from "@/lib/absence/actions";
+import { draftReturnToWork, recordReturnToWork } from "@/lib/absence/rtw-actions";
+import type { OutstandingRtw } from "@/lib/absence/rtw";
 
 /** The card shows the office NAME, not the full address (Phil, 2026-07-12):
  *  "Cardiff Branch Office", "Acme Care Company Office" or "Teams". The full
@@ -54,6 +56,8 @@ export default function AbsenceView({
   events,
   absenceSchema,
   meetingSchema,
+  rtwSchema,
+  outstandingRtw,
   openBookings,
   conductors,
   offices,
@@ -69,6 +73,8 @@ export default function AbsenceView({
   events: AbsenceEventRow[];
   absenceSchema: FormSchema | null;
   meetingSchema: FormSchema | null;
+  rtwSchema: FormSchema | null;
+  outstandingRtw: OutstandingRtw[];
   openBookings: OpenBookingRow[];
   conductors: ConductorLite[];
   offices: MeetingOffice[];
@@ -193,6 +199,23 @@ export default function AbsenceView({
   const branchName = (id: string | null) =>
     branches.find((b) => b.id === id)?.name ?? "";
 
+  /** Outstanding Return to Work interviews, respecting the branch filter and with
+   *  overdue ones first. Branch is matched by name, which is what the reader returns. */
+  const visibleRtw = useMemo(() => {
+    const wanted = branch ? branches.find((b) => b.id === branch)?.name ?? "" : "";
+    const list = wanted ? outstandingRtw.filter((r) => r.branchName === wanted) : outstandingRtw;
+    return [...list].sort(
+      (a, b) => Number(b.overdue) - Number(a.overdue) || a.dueDate.localeCompare(b.dueDate),
+    );
+  }, [outstandingRtw, branch, branches]);
+
+  /** dd/mm/yyyy, the format used everywhere the app shows a date to a manager. */
+  const fmtDay = (iso: string | null): string => {
+    if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "";
+    const [y, m, d] = iso.split("-");
+    return `${d}/${m}/${y}`;
+  };
+
   return (
     <div className="mt-1 space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -226,6 +249,63 @@ export default function AbsenceView({
           </div>
         )}
       </div>
+
+      {/* Return to Work. Raised automatically when an absence ends, because a Return
+          to Work happens after EVERY absence at every stage, so it must not depend on
+          anyone remembering. Overdue ones sort to the top and read red. */}
+      {canManage && rtwSchema && visibleRtw.length > 0 ? (
+        <div className="glass-card p-4">
+          <div className="mb-3 flex items-baseline justify-between gap-3">
+            <h2 className="text-base font-semibold text-white">Return to Work</h2>
+            <span className="text-xs text-white/50">
+              {visibleRtw.filter((r) => r.overdue).length} overdue of {visibleRtw.length}
+            </span>
+          </div>
+          <div className="space-y-2">
+            {visibleRtw.map((r) => (
+              <div
+                key={r.absenceEventId}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 p-3"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-white">{r.personName}</p>
+                  <p className="text-xs text-white/50">
+                    Off {fmtDay(r.startDate)}
+                    {r.endDate ? ` to ${fmtDay(r.endDate)}` : ""}
+                    {r.days !== null ? ` · ${r.days} day${r.days === 1 ? "" : "s"}` : ""}
+                    {r.reason ? ` · ${r.reason}` : ""}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className={r.overdue ? "pill-red" : "pill-amber"}>
+                    {r.overdue ? "Overdue" : "Due"} {fmtDay(r.dueDate)}
+                  </span>
+                  <FormEvidenceDialog
+                    title={`Return to Work — ${r.personName}`}
+                    schema={rtwSchema}
+                    action={recordReturnToWork}
+                    extraFields={{ absence_event_id: r.absenceEventId }}
+                    triggerLabel="Record"
+                    triggerClassName="btn-outline px-3 py-1.5 text-xs"
+                    submitLabel="Save the interview"
+                    presetAnswers={{
+                      absence_dates: `${fmtDay(r.startDate)}${r.endDate ? ` to ${fmtDay(r.endDate)}` : ""}`,
+                      days_lost: r.days !== null ? String(r.days) : "",
+                      reason_given: r.reason ?? "",
+                    }}
+                    aiDraft={{
+                      action: draftReturnToWork,
+                      label: "Draft it for me",
+                      hint: "Fill the summary and suggested questions from the absence record. You can change every word before saving, and nothing is stored until you do.",
+                      extraFields: { absence_event_id: r.absenceEventId },
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {/* Record a new absence (person picker, then the form). */}
       {canManage && (

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { requireCompany } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
+import { listOutstandingRtw } from "@/lib/absence/rtw";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import { listBranches, getCompanyFormByKey } from "@/lib/people/data";
 import { listAbsenceRegister, listActivePeople, listAbsenceEvents, listOpenBookings, listMeetingConductors, listMeetingOffices } from "@/lib/absence/data";
@@ -26,14 +27,27 @@ export default async function AbsencePage() {
   }
 
   const companyId = profile.company_id;
-  const [branches, { config, rows }, people, events, absenceForm, meetingForm, openBookings, conductors, offices] =
-    await Promise.all([
+  const [
+    branches,
+    { config, rows },
+    people,
+    events,
+    absenceForm,
+    meetingForm,
+    rtwForm,
+    outstandingRtw,
+    openBookings,
+    conductors,
+    offices,
+  ] = await Promise.all([
       listBranches(companyId),
       listAbsenceRegister(companyId, null),
       listActivePeople(companyId),
       listAbsenceEvents(companyId, null),
       getCompanyFormByKey(companyId, "absence_back_office"),
       getCompanyFormByKey(companyId, "absence_management_meeting"),
+      getCompanyFormByKey(companyId, "return_to_work"),
+      listOutstandingRtw(companyId),
       listOpenBookings(companyId),
       listMeetingConductors(companyId),
       listMeetingOffices(companyId),
@@ -43,6 +57,8 @@ export default async function AbsencePage() {
     absenceForm && isFormSchema(absenceForm.schema) ? (absenceForm.schema as FormSchema) : null;
   const meetingSchema: FormSchema | null =
     meetingForm && isFormSchema(meetingForm.schema) ? (meetingForm.schema as FormSchema) : null;
+  const rtwSchema: FormSchema | null =
+    rtwForm && isFormSchema(rtwForm.schema) ? (rtwForm.schema as FormSchema) : null;
 
   const canManage = ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor", "on_call", "platform_admin"].includes(
     profile.role,
@@ -64,6 +80,8 @@ export default async function AbsencePage() {
         events={events}
         absenceSchema={absenceSchema}
         meetingSchema={meetingSchema}
+        rtwSchema={rtwSchema}
+        outstandingRtw={outstandingRtw}
         openBookings={openBookings}
         conductors={conductors}
         offices={offices}
