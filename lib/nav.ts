@@ -181,8 +181,8 @@ export const NAV_ENTRIES: NavEntry[] = [
     roles: ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"],
     children: [
       { href: "/invoicing", label: "Invoices", icon: "invoicing" },
-      { href: "/invoicing/clients", label: "Private Clients", icon: "people" },
       { href: "/invoicing/schedules", label: "Recurring", icon: "planner" },
+      { href: "/invoicing/clients", label: "Private Clients", icon: "people" },
     ],
   },
   {
