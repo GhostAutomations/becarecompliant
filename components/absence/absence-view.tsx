@@ -58,6 +58,7 @@ export default function AbsenceView({
   absenceSchema,
   meetingSchema,
   rtwSchema,
+  currentUserName,
   outstandingRtw,
   openBookings,
   conductors,
@@ -75,6 +76,10 @@ export default function AbsenceView({
   absenceSchema: FormSchema | null;
   meetingSchema: FormSchema | null;
   rtwSchema: FormSchema | null;
+  /** Who is filling this in, as the SAME string migration 0144 bakes into the
+   *  conducted_by options (trimmed full name, falling back to email). It must match an
+   *  option exactly or the server rejects the answer on save. */
+  currentUserName: string;
   outstandingRtw: OutstandingRtw[];
   openBookings: OpenBookingRow[];
   conductors: ConductorLite[];
@@ -215,6 +220,23 @@ export default function AbsenceView({
     );
   }, [outstandingRtw, branch, branches]);
 
+  /** Preset "Interview conducted by" with whoever is filling it in, but ONLY when they
+   *  are actually one of the baked options. The bake (migration 0144) excludes platform
+   *  admins, so a founder or a manage-as session is not in the list, and presetting a
+   *  value the schema does not offer fails the server validation on save. Better to
+   *  leave it unchosen than to hand them an answer that cannot be saved. */
+  const conductedByDefault = useMemo(() => {
+    if (!rtwSchema || !currentUserName) return "";
+    for (const section of rtwSchema.sections) {
+      for (const field of section.fields) {
+        if (field.key !== "conducted_by") continue;
+        const allowed = (field.options ?? []).map((o) => o.value);
+        return allowed.includes(currentUserName) ? currentUserName : "";
+      }
+    }
+    return "";
+  }, [rtwSchema, currentUserName]);
+
   /** dd/mm/yyyy, the format used everywhere the app shows a date to a manager. */
   const fmtDay = (iso: string | null): string => {
     if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "";
@@ -306,6 +328,9 @@ export default function AbsenceView({
                       // hide BOTH signature fields until someone clicked it. false makes
                       // the employee signature the visible default, which is the norm.
                       completed_over_phone: false,
+                      // Phil: "a drop down filled with the person logged in but
+                      // changeable". Usually you are the one holding the interview.
+                      conducted_by: conductedByDefault,
                     }}
                     aiDraft={{
                       action: draftReturnToWork,

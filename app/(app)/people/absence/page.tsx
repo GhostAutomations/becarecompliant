@@ -81,6 +81,7 @@ export default async function AbsencePage() {
         absenceSchema={absenceSchema}
         meetingSchema={meetingSchema}
         rtwSchema={rtwSchema}
+        currentUserName={(profile.full_name ?? "").trim() || profile.email}
         outstandingRtw={outstandingRtw}
         openBookings={openBookings}
         conductors={conductors}
