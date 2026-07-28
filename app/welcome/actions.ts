@@ -7,6 +7,7 @@ import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
 import { decodeSessionId } from "@/lib/auth/jwt";
 import { syncSeatQuantity } from "@/lib/billing/stripe-sync";
+import { rebakeFormFieldOptions } from "@/lib/forms/rebake-options";
 import type { ActionState } from "@/lib/forms";
 
 /** Invitee sets their password and their account activates. */
@@ -72,6 +73,11 @@ export async function completeInvite(
     entityId: user.id,
     summary: "Accepted invite and set password",
   });
+
+  // They are now an active user with a name, so any Form dropdown that offers the
+  // company's staff (Return to Work's "Interview conducted by") is out of date.
+  // Best-effort: a stale dropdown must never stop someone activating their account.
+  await rebakeFormFieldOptions(profile.company_id);
 
   // A new active user may cross the 4 included seats: push the seat quantity to
   // Stripe (best-effort, never blocks activation; no-op if unbilled/Diamond/Black).

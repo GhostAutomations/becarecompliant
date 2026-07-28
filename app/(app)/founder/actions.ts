@@ -15,6 +15,7 @@ import {
 } from "@/lib/founder/manage-as";
 import { writeAudit } from "@/lib/audit";
 import { importCompanyTemplates, importSummary } from "@/lib/templates/import";
+import { rebakeFormFieldOptions } from "@/lib/forms/rebake-options";
 import { REGISTER_COLUMNS } from "@/lib/people/logic";
 import { SU_REGISTER_COLUMNS } from "@/lib/service-users/types";
 import type { ActionState } from "@/lib/forms";
@@ -122,6 +123,11 @@ export async function createCompany(
   // company creation.
   await supabase.rpc("seed_company_job_titles", { cid: company.id });
 
+  // The seeded Forms carry the generic template options, so bake this company's own
+  // Office and first Branch into every branch field straight away (best-effort, see
+  // rebake-options.ts).
+  await rebakeFormFieldOptions(company.id);
+
   await writeAudit({
     companyId: company.id,
     actorId: user.id,
@@ -204,6 +210,10 @@ export async function founderImportTemplates(
   if (!companyId) return { error: "Missing company." };
 
   const result = await importCompanyTemplates(companyId);
+
+  // Imported copies arrive with the master template's generic options, so bake this
+  // company's branches and staff into them (best-effort, see rebake-options.ts).
+  await rebakeFormFieldOptions(companyId);
 
   await writeAudit({
     companyId,
@@ -437,6 +447,9 @@ export async function founderSetUserStatus(
     summary: `Founder set user status to ${status}`,
     metadata: { status },
   });
+  // Enabling/disabling changes who the company's Form staff dropdowns should offer
+  // (best-effort, see rebake-options.ts).
+  await rebakeFormFieldOptions(target.company_id);
   // Active seat count changed: sync to Stripe (no-op if unbilled/Diamond/Black).
   await syncSeatQuantity(target.company_id);
   revalidatePath(`/founder/companies/${target.company_id}`);

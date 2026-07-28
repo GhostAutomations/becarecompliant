@@ -4,8 +4,10 @@
  * Return to Work: drafting one with AI, and recording it as Evidence.
  *
  * The draft is a convenience, never a substitute for the conversation. It fills the
- * "Prepared for you" section (a summary of the absence and questions worth asking) from
- * the absence record, and the manager edits everything before completing. Nothing is
+ * "Prepared for you" section (a summary of the absence, and anything worth raising that
+ * is specific to THIS absence) from the absence record, and the manager edits everything
+ * before completing. The standard Return to Work questions are real fields on the form
+ * itself (migration 0145), so the draft adds to them and never replaces them. Nothing is
  * stored until they complete the form, so a draft they dislike costs one AI credit and
  * leaves no trace on the employee's file.
  */
@@ -21,32 +23,45 @@ import { getRtwContext } from "./rtw";
 import type { Answers } from "@/lib/form-schema";
 import type { ActionState } from "@/lib/forms";
 
+// The form now asks the standard Return to Work questions as real fields of its own
+// (doctor seen, fit note, medication, appointments, anything at work making it worse,
+// what support would help), so the draft must ADD to them rather than replace them:
+// a second list of the same questions in a text box is noise the manager has to read
+// past. ALSO ASK is therefore whatever is specific to THIS absence and nothing else.
 const RTW_SYSTEM = [
   "You are helping a UK care sector manager prepare for a Return to Work interview.",
   "Return to Work interviews are held after every absence. Your job is to prepare, not to decide.",
   "Write in plain British English. No dashes. Never diagnose, never speculate about a medical cause,",
   "and never suggest disciplinary action or an outcome: that is the manager's judgement after talking",
   "to the person. Be warm and practical. Assume the employee may be anxious about returning.",
+  "The form already asks, as its own questions: whether they have seen a doctor, whether a fit note",
+  "was provided, whether any medication is likely to affect their work or their driving, any",
+  "outstanding medical appointments, whether anything at work is making it worse, what support would",
+  "help, whether they are fit to return, and whether the absence was work related.",
+  "Never repeat any of those. Your job is only what is specific to THIS absence.",
   "Reply as exactly two sections, using these headings on their own lines and nothing else:",
   "SUMMARY",
-  "QUESTIONS",
+  "ALSO ASK",
   "Under SUMMARY write two or three sentences of factual context from the record.",
-  "Under QUESTIONS write four to six short questions, one per line, no numbering or bullets.",
+  "Under ALSO ASK write at most three short points the manager should raise because of this",
+  "particular record, for example a pattern of short absences or an absence that followed an",
+  "earlier one. One per line, no numbering or bullets. If nothing stands out, write",
+  "Nothing specific to raise beyond the standard questions.",
 ].join(" ");
 
-function splitDraft(text: string): { summary: string; questions: string } {
-  const qIndex = text.search(/^\s*QUESTIONS\s*$/im);
-  const sIndex = text.search(/^\s*SUMMARY\s*$/im);
-  if (qIndex === -1) return { summary: text.trim(), questions: "" };
+const ALSO_ASK_RE = /^\s*ALSO[ _]?ASK\s*:?\s*$/im;
+const SUMMARY_RE = /^\s*SUMMARY\s*:?\s*$/im;
+
+function splitDraft(text: string): { summary: string; alsoAsk: string } {
+  const qIndex = text.search(ALSO_ASK_RE);
+  const sIndex = text.search(SUMMARY_RE);
+  if (qIndex === -1) return { summary: text.trim(), alsoAsk: "" };
   const summary = text
     .slice(sIndex === -1 ? 0 : sIndex, qIndex)
-    .replace(/^\s*SUMMARY\s*$/im, "")
+    .replace(SUMMARY_RE, "")
     .trim();
-  const questions = text
-    .slice(qIndex)
-    .replace(/^\s*QUESTIONS\s*$/im, "")
-    .trim();
-  return { summary, questions };
+  const alsoAsk = text.slice(qIndex).replace(ALSO_ASK_RE, "").trim();
+  return { summary, alsoAsk };
 }
 
 /** Draft the Prepared for you section. Costs one AI credit; the credit is refunded by
@@ -88,11 +103,12 @@ export async function draftReturnToWork(
   });
   if ("error" in result) return { error: result.error };
 
-  const { summary, questions } = splitDraft(result.ok);
+  const { summary, alsoAsk } = splitDraft(result.ok);
   return {
     ok: "Drafted",
-    // The page reads these back into the form fields for the manager to edit.
-    data: { absence_summary: summary, suggested_questions: questions },
+    // The page reads these back into the form fields for the manager to edit. The keys
+    // MUST match the Return to Work schema (migration 0145).
+    data: { absence_summary: summary, extra_questions: alsoAsk },
   } as ActionState;
 }
 

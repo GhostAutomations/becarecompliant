@@ -15,6 +15,7 @@ import AbsenceDetailDialog from "@/components/absence/absence-detail-dialog";
 import BookMeetingDialog from "@/components/absence/book-meeting-dialog";
 import CancelRearrangeDialog from "@/components/absence/cancel-rearrange-dialog";
 import type { FormSchema } from "@/lib/form-schema";
+import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import type { AbsenceMethod, StageThreshold } from "@/lib/absence/logic";
 import type { AbsencePersonRow, PersonLite, AbsenceEventRow, OpenBookingRow, ConductorLite, MeetingOffice } from "@/lib/absence/data";
 import type { BranchLite } from "@/lib/people/data";
@@ -199,6 +200,11 @@ export default function AbsenceView({
   const branchName = (id: string | null) =>
     branches.find((b) => b.id === id)?.name ?? "";
 
+  /** Today in Europe/London, for the Return to Work interview date. Computed from the
+   *  shared recurrence helpers so there is one definition of "today" in the app, and
+   *  identical on the server and the client because the timezone is explicit. */
+  const londonToday = formatCivilDate(todayInLondon());
+
   /** Outstanding Return to Work interviews, respecting the branch filter and with
    *  overdue ones first. Branch is matched by name, which is what the reader returns. */
   const visibleRtw = useMemo(() => {
@@ -292,11 +298,19 @@ export default function AbsenceView({
                       absence_dates: `${fmtDay(r.startDate)}${r.endDate ? ` to ${fmtDay(r.endDate)}` : ""}`,
                       days_lost: r.days !== null ? String(r.days) : "",
                       reason_given: r.reason ?? "",
+                      // Almost every Return to Work is recorded on the day it happens,
+                      // so fill it in. Still editable.
+                      interview_date: londonToday,
+                      // MUST be preset. isFieldVisible returns false when the
+                      // controlling answer is undefined, so an untouched checkbox would
+                      // hide BOTH signature fields until someone clicked it. false makes
+                      // the employee signature the visible default, which is the norm.
+                      completed_over_phone: false,
                     }}
                     aiDraft={{
                       action: draftReturnToWork,
                       label: "Draft it for me",
-                      hint: "Fill the summary and suggested questions from the absence record. You can change every word before saving, and nothing is stored until you do.",
+                      hint: "Fill the summary, and anything worth asking about this particular absence, from the record. You can change every word before saving, and nothing is stored until you do.",
                       extraFields: { absence_event_id: r.absenceEventId },
                     }}
                   />

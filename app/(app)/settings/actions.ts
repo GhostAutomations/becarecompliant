@@ -7,6 +7,7 @@ import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
 import { syncSeatQuantity } from "@/lib/billing/stripe-sync";
 import { uploadCompanyLogo } from "@/lib/invoicing/logo";
+import { rebakeFormFieldOptions } from "@/lib/forms/rebake-options";
 import {
   createAndSendInvite,
   resendInvite,
@@ -206,6 +207,9 @@ export async function setUserStatus(
     summary: `Set user status to ${status}`,
     metadata: { status },
   });
+  // Enabling/disabling a user changes who should appear in the Form dropdowns that
+  // offer the company's staff, so re-bake them (best-effort, see rebake-options.ts).
+  await rebakeFormFieldOptions(ctx.companyId);
   // Enabling/disabling a user changes the active seat count: sync to Stripe
   // (best-effort, no-op if unbilled/Diamond/Black).
   await syncSeatQuantity(ctx.companyId);
@@ -322,6 +326,9 @@ export async function deleteUser(
     entityId: userId,
     summary: `Deleted user ${target.email}`,
   });
+  // They must stop being offered as an option on any Form that lists the company's
+  // staff (best-effort, see rebake-options.ts).
+  await rebakeFormFieldOptions(ctx.companyId);
   // Removing a user drops the active seat count: sync down to Stripe.
   await syncSeatQuantity(ctx.companyId);
   revalidatePath("/settings/users");
@@ -401,6 +408,10 @@ export async function renameBranch(
     summary: `Updated branch ${name}`,
     metadata: { name, address: address || null },
   });
+  // Every Form field keyed branch or region carries a baked copy of the branch names
+  // (migration 0076), so a rename leaves them offering the old one until we re-bake
+  // (best-effort, see rebake-options.ts).
+  await rebakeFormFieldOptions(ctx.companyId);
   revalidatePath("/settings/branches");
   return { ok: "Saved." };
 }
