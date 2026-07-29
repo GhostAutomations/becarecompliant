@@ -131,7 +131,7 @@ export default async function Home() {
       {/* pt-28 put 112px of nothing between a sticky 80px header and the first word on the
           page, so the hero opened with a gap rather than a claim. Halved. Generous top space
           is a premium signal only while something is above the fold to be generous about. */}
-      <section className="relative overflow-hidden px-4 pb-16 pt-10 text-center sm:pt-14">
+      <section className="relative overflow-hidden px-4 pb-16 pt-6 text-center sm:pt-10">
         <div className="hero-glow" aria-hidden />
         <div className="relative z-10 mx-auto max-w-6xl">
           {/* THE POSITION LEADS, THE PROMISE FOLLOWS.
@@ -142,10 +142,7 @@ export default async function Home() {
               purpose built tool, Vanta with automate compliance. The hook is not lost, it now
               opens the supporting line where it still does its work, and the pill carries the
               regulators, which is the trust signal a registered manager scans for. */}
-          <span className="reveal is-visible inline-block rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/70">
-            Built for CQC in England and CIW in Wales
-          </span>
-          <h1 className="mx-auto mt-6 max-w-4xl text-4xl font-bold leading-[1.08] tracking-tight sm:text-6xl sm:leading-[1.05]">
+          <h1 className="mx-auto max-w-4xl text-4xl font-bold leading-[1.08] tracking-tight sm:text-6xl sm:leading-[1.05]">
             The operating system for
             {/* block, not a <br>: "care compliance." takes its own line at every width, and the
                 break survives a copy and paste or a screen reader without an empty element. */}

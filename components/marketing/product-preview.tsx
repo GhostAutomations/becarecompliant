@@ -1,167 +1,138 @@
 /**
- * The hero product preview: a stylised slice of the real application.
+ * The hero visual: what you hand the inspector, on top of what you watch every day.
  *
- * WHY IT LOOKS LIKE THIS. The first version was a four by four table of names and status
- * pills. It had three problems. It read as a SPREADSHEET on a site whose central argument is
- * that spreadsheets are the enemy. It showed only the People register, so the two register
- * model, which is the thing no general tool does, was invisible. And it showed one screen
- * while the headline claims an operating system.
+ * WHY IT LOOKS LIKE THIS. Two independent reviews, one marketing and one sales, were run on the
+ * previous version and reached the same verdict from different directions.
  *
- * So the matrix stayed, and the application was put around it: company level figures at the
- * top, both registers as tabs, and the branch the matrix belongs to. Status now visibly rolls
- * up from a single check on one carer, to a branch, to the company, which is exactly what a
- * spreadsheet cannot do and what the word platform has to earn.
+ *  - A red, amber, green table sells AWARENESS, and this buyer already has awareness. She has it
+ *    at eleven o'clock on a Sunday night. What she does not have is PROOF. Her fear is not
+ *    missing a supervision, it is standing in front of an inspector unable to show she did not.
+ *    So the exported evidence, the OUTPUT, is now the thing in front.
+ *  - Three big figures across the top was the first thing the eye hit and the least defensible
+ *    pixel on the page. Worse, "Overdue 2" is a picture of the buyer failing, shown to the exact
+ *    person who would be answering for it. Demoted to one quiet line.
+ *  - The faux browser chrome said "mockup", which to a sceptic means "not real yet". Gone.
+ *  - The People and Service Users TABS hid half the product. The two registers are the thing no
+ *    general purpose tool does, and behind a tab nobody can click, that was invisible. The rows
+ *    now MIX both registers in one list sorted worst first, which is the whole pitch in one
+ *    design decision: no wall chart does that, and no HR system does that.
+ *  - Job titles under every name read as an HR product. They now appear once, on the evidence
+ *    document, where they add realism instead of noise.
+ *  - Status is in WORDS as well as colour. Words survive colour blindness, a small screen, and a
+ *    sceptic.
  *
- * EVERYTHING HERE EXISTS IN THE PRODUCT. Overdue and Due in 14 days are real dashboard cards.
- * The registers, the branch scope and the red, amber, green cells are real. Nothing is a
- * number we cannot produce, which is the same rule the Security section on the homepage
- * follows.
+ * ONE RED, NOT TWO. Marketing wanted the flinch of an overdue row at the top. Sales warned that a
+ * wall of red reads as an accusation aimed at the manager reading it. One overdue, one due soon,
+ * the rest ordinary and done.
  *
- * Decorative, static and aria-hidden: the names and dates are invented, so a screen reader
- * reading them out as though they were real records would be worse than silence. The copy
- * around it already says what the product does.
+ * THE DETAIL IS THE CREDIBILITY. Fakes are always too tidy. UK date format, a named author, a
+ * form version, a page number out of an odd total, and the vocabulary of the job spelled the way
+ * the sector spells it. Everything shown is something the product genuinely produces.
+ *
+ * Decorative and aria-hidden: the names are invented, and a screen reader reading them out as
+ * real records would be worse than silence. The copy around it says what the product does.
  */
 
-type Tone = "green" | "amber" | "red" | "none";
-type Cell = { label: string; tone: Tone };
+type Tone = "green" | "amber" | "red";
+type Row = { name: string; register: string; check: string; status: string; tone: Tone };
 
-function pillClass(tone: Tone) {
-  if (tone === "green") return "pill-green";
-  if (tone === "amber") return "pill-amber";
-  if (tone === "red") return "pill-red";
-  return "pill-neutral";
-}
-
-/** Company level, the top of the rollup. */
-const STATS: Array<{ label: string; value: string; tone: Tone }> = [
-  { label: "Overdue", value: "2", tone: "red" },
-  { label: "Due in 14 days", value: "5", tone: "amber" },
-  { label: "On the registers", value: "62", tone: "none" },
-];
-
-const COLS = ["Supervision", "Spot check", "DBS", "Training"];
-
-const ROWS: Array<{ name: string; role: string; cells: Cell[] }> = [
+const ROWS: Row[] = [
+  {
+    name: "Margaret Hughes",
+    register: "Person supported",
+    check: "Care plan review",
+    status: "14 days overdue",
+    tone: "red",
+  },
   {
     name: "Aled Price",
-    role: "Care Assistant",
-    cells: [
-      { label: "12 Sep", tone: "green" },
-      { label: "03 Oct", tone: "green" },
-      { label: "Due soon", tone: "amber" },
-      { label: "Valid", tone: "green" },
-    ],
+    register: "Staff",
+    check: "DBS renewal",
+    status: "Due in 6 days",
+    tone: "amber",
   },
   {
     name: "Bethan Hughes",
-    role: "Senior Carer",
-    cells: [
-      { label: "28 Aug", tone: "green" },
-      { label: "Due soon", tone: "amber" },
-      { label: "Valid", tone: "green" },
-      { label: "Overdue", tone: "red" },
-    ],
+    register: "Staff",
+    check: "Supervision",
+    status: "Done 28/08/2026",
+    tone: "green",
+  },
+  {
+    name: "Thomas Reed",
+    register: "Person supported",
+    check: "Risk assessment",
+    status: "Done 01/09/2026",
+    tone: "green",
   },
   {
     name: "Carys Evans",
-    role: "Care Coordinator",
-    cells: [
-      { label: "01 Sep", tone: "green" },
-      { label: "15 Sep", tone: "green" },
-      { label: "Valid", tone: "green" },
-      { label: "Valid", tone: "green" },
-    ],
+    register: "Staff",
+    check: "Moving and handling",
+    status: "Valid to 03/10/2026",
+    tone: "green",
   },
   {
     name: "Dylan Morgan",
-    role: "Care Assistant",
-    cells: [
-      { label: "Overdue", tone: "red" },
-      { label: "20 Sep", tone: "green" },
-      { label: "Due soon", tone: "amber" },
-      { label: "Valid", tone: "green" },
-    ],
+    register: "Staff",
+    check: "Spot check",
+    status: "Done 20/09/2026",
+    tone: "green",
   },
 ];
 
+function pillClass(tone: Tone) {
+  return tone === "green" ? "pill-green" : tone === "amber" ? "pill-amber" : "pill-red";
+}
+
 export default function ProductPreview() {
   return (
-    <div
-      aria-hidden
-      className="glass-card overflow-hidden p-0 text-left shadow-2xl shadow-black/40"
-    >
-      {/* Faux window bar */}
-      <div className="flex items-center gap-2 border-b border-white/10 bg-white/[0.04] px-4 py-2.5">
-        <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
-        <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
-        <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
-        <span className="ml-2 text-xs text-white/55">Sunrise Home Care</span>
-      </div>
-
-      {/* Company level. The top of the rollup. */}
-      <div className="grid grid-cols-3 divide-x divide-white/10 border-b border-white/10">
-        {STATS.map((s) => (
-          <div key={s.label} className="px-4 py-3">
-            <p className="text-[10px] uppercase tracking-wide text-white/55">{s.label}</p>
-            <p
-              className={`mt-0.5 text-xl font-bold ${
-                // NOT text-rag-red / text-rag-amber: those theme colours (#dc2626, #b45309)
-                // are the LIGHT theme pill inks and go muddy on navy. These are the same
-                // shades every other dark surface in the app uses for status text.
-                s.tone === "red"
-                  ? "text-red-300"
-                  : s.tone === "amber"
-                    ? "text-amber-300"
-                    : "text-white"
-              }`}
-            >
-              {s.value}
-            </p>
-          </div>
-        ))}
-      </div>
-
-      {/* Both registers, and the branch this view is scoped to. */}
-      <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-2">
-        <div className="flex items-center gap-1">
-          <span className="rounded-lg bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-white">
-            People
-          </span>
-          <span className="rounded-lg px-2.5 py-1 text-[11px] text-white/55">Service Users</span>
+    <div aria-hidden className="relative text-left">
+      {/* The register. Both populations in one list, worst first. */}
+      <div className="glass-card overflow-hidden p-0 shadow-2xl shadow-black/40">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-white/10 px-4 py-3">
+          <p className="text-sm font-semibold text-white">Sunnybank House</p>
+          <p className="text-[11px] text-white/60">
+            2 overdue · 5 due in 14 days · 62 on the registers
+          </p>
         </div>
-        <span className="whitespace-nowrap text-[11px] text-white/55">North branch</span>
+
+        <ul className="divide-y divide-white/5">
+          {ROWS.map((r) => (
+            <li
+              key={r.name}
+              className="flex items-center justify-between gap-3 px-4 py-2.5 sm:py-3"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-white">{r.name}</p>
+                <p className="truncate text-[11px] text-white/60">
+                  {r.register} · {r.check}
+                </p>
+              </div>
+              <span className={`${pillClass(r.tone)} shrink-0 text-[11px]`}>
+                <span className="pill-dot" /> {r.status}
+              </span>
+            </li>
+          ))}
+        </ul>
       </div>
 
-      <div className="overflow-x-auto p-4">
-        <table className="w-full border-separate border-spacing-y-1.5 text-sm">
-          <thead>
-            <tr className="text-[11px] uppercase tracking-wide text-white/55">
-              <th className="px-2 py-1 text-left font-medium">Carer</th>
-              {COLS.map((c) => (
-                <th key={c} className="px-2 py-1 text-center font-medium">{c}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {ROWS.map((r) => (
-              <tr key={r.name}>
-                <td className="whitespace-nowrap px-2 py-1.5">
-                  <div className="font-semibold text-white">{r.name}</div>
-                  {/* The job title was in the data all along and never rendered. It costs one
-                      line and makes the mock read as a staff record rather than a row. */}
-                  <div className="text-[11px] text-white/55">{r.role}</div>
-                </td>
-                {r.cells.map((cell, i) => (
-                  <td key={i} className="px-2 py-1.5 text-center">
-                    <span className={`${pillClass(cell.tone)} text-[11px]`}>
-                      <span className="pill-dot" /> {cell.label}
-                    </span>
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* The output. What actually ends the conversation with an inspector.
+          Stacked underneath on a phone, overlapping the register on anything wider. */}
+      <div className="mt-4 sm:absolute sm:bottom-4 sm:right-4 sm:mt-0 sm:w-[19rem]">
+        <div className="rounded-xl bg-white p-4 shadow-2xl shadow-black/50 ring-1 ring-black/10">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-navy-800">
+            Supervision evidence · 12 months
+          </p>
+          <p className="mt-2 text-sm font-bold text-navy-950">Aled Price</p>
+          <p className="text-[11px] text-navy-800">Senior Care Assistant</p>
+          <div className="mt-3 space-y-1 border-t border-black/10 pt-3 text-[11px] text-navy-900">
+            <p>Completed 14/03/2026 by Ceri Jones</p>
+            <p>Form version 4, created 14/03/2026, not edited since</p>
+            <p className="font-semibold">Next supervision due 12/09/2026</p>
+          </div>
+          <p className="mt-3 text-[10px] text-navy-800/70">Page 3 of 47</p>
+        </div>
       </div>
     </div>
   );
