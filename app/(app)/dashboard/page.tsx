@@ -170,6 +170,12 @@ function MissingTile({ label, needs, icon, className = "" }: { label: string; ne
   );
 }
 
+/**
+ * A panel. Pass linkLabel={null} with an href and the WHOLE card becomes the link, with no
+ * separate link in the corner (Phil, 2026-07-29). Only use that form when nothing inside the
+ * panel is itself a link, because an anchor inside an anchor is invalid HTML and the browser
+ * silently unnests it.
+ */
 function Panel({
   title,
   href,
@@ -179,15 +185,16 @@ function Panel({
 }: {
   title: string;
   href?: string;
-  linkLabel?: string;
+  linkLabel?: string | null;
   children: ReactNode;
   className?: string;
 }) {
-  return (
-    <section className={`glass-card flex h-full flex-col p-4 ${className}`} aria-label={title}>
+  const wholeCard = Boolean(href) && linkLabel === null;
+  const body = (
+    <>
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">{title}</h2>
-        {href ? (
+        {href && !wholeCard ? (
           <Link
             href={href}
             className="shrink-0 text-xs text-gold-300 underline underline-offset-4 hover:text-gold-400"
@@ -197,6 +204,24 @@ function Panel({
         ) : null}
       </div>
       <div className="mt-4">{children}</div>
+    </>
+  );
+
+  if (wholeCard && href) {
+    return (
+      <Link
+        href={href}
+        aria-label={`${title}. Open the full report.`}
+        className={`glass-card flex h-full flex-col p-4 transition hover:border-white/20 hover:bg-white/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-300 ${className}`}
+      >
+        {body}
+      </Link>
+    );
+  }
+
+  return (
+    <section className={`glass-card flex h-full flex-col p-4 ${className}`} aria-label={title}>
+      {body}
     </section>
   );
 }
@@ -495,7 +520,7 @@ export default async function DashboardPage() {
           <Panel
             title="PQS report"
             href="/reports/view/on-time"
-            linkLabel="View full report"
+            linkLabel={null}
             className="lg:col-span-5"
           >
             <ul className="space-y-2.5">
@@ -526,7 +551,8 @@ export default async function DashboardPage() {
               ))}
             </ul>
             <p className="mt-3 border-t border-white/10 pt-2.5 text-[11px] text-white/50">
-              Rate, then the PQS band it scores. Last six months.
+              Rate, then the PQS band it scores. Last six months. Open this tile for the full
+              report.
             </p>
           </Panel>
         ) : (

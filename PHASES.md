@@ -1268,3 +1268,15 @@ TWO THINGS DELIBERATELY NOT FIXED HERE, both now on the list:
 ## Phase 12 — Marketing & Launch
 
 Marketing site on becarecompliant.com, onboarding collateral, subscription agreement (no data selling clause), launch.
+
+### 2026-07-29 PQS panel: stable order, whole tile is the link
+
+- The PQS lines changed places between page loads. Cause: `check_definitions` was read with no
+  ORDER BY, so Postgres returned the starred rows in whatever order it liked, and those rows are
+  concatenated ahead of the fixed appended measures. Fixed at both ends: the query now orders by
+  name then id, and `getPqsMeasures` sorts the whole list into the Cardiff return order
+  (Quality Compliance Q1 to Q3, Safeguarding Q1, User Experience Q1 and Q2, Supplier Performance
+  Q2) with an unrecognised measure sorting to the end by name.
+- The "View full report" link is gone from the panel corner. The whole tile is now the link to
+  `/reports/view/on-time`. `Panel` takes `linkLabel={null}` for this. Only safe on a panel with
+  no links inside it, because an anchor inside an anchor is invalid HTML.

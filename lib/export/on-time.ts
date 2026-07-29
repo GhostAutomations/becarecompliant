@@ -157,7 +157,9 @@ async function computeOnTime(input: OnTimeInput) {
     .eq("active", true)
     .eq("recurring", true)
     .not("form_id", "is", null)
-    .gt("interval", 0);
+    .gt("interval", 0)
+    .order("name", { ascending: true })
+    .order("id", { ascending: true });
   const defs = (defsRaw as unknown as DefRow[] | null)?.filter((d) => d.form_id) ?? [];
   if (defs.length === 0) {
     // No recurring checks: nothing to score. Returns the same shape as the full path so the
@@ -397,6 +399,30 @@ export async function buildOnTimeReport(
  * measures (training, safeguarding, SCW registration, satisfaction, personal outcomes). Same
  * numbers as the report, because it is the same computation.
  */
+const PQS_RETURN_ORDER = [
+  "Quality Compliance Q1",
+  "Quality Compliance Q2",
+  "Quality Compliance Q3",
+  "Safeguarding Q1",
+  "User Experience Q1",
+  "User Experience Q2",
+  "Supplier Performance Q2",
+];
+
+/**
+ * Where a measure sits in the Cardiff return.
+ *
+ * WHY THIS EXISTS. The measures are assembled from two sources: starred rows from the on time
+ * cycles, and the appended measures. The cycle rows arrive in whatever order Postgres hands
+ * back, so without this the PQS lines changed places between page loads and the manager could
+ * never learn the shape of the panel. Anything unrecognised sorts to the end by name, so a new
+ * measure appears in a stable place instead of floating.
+ */
+function pqsOrderIndex(star: string): number {
+  const i = PQS_RETURN_ORDER.findIndex((prefix) => star.startsWith(prefix));
+  return i === -1 ? PQS_RETURN_ORDER.length : i;
+}
+
 export async function getPqsMeasures(input: OnTimeInput): Promise<PqsMeasure[]> {
   const { stats, pqsStars, extraMeasures } = await computeOnTime(input);
   const starred: PqsMeasure[] = stats
@@ -409,7 +435,12 @@ export async function getPqsMeasures(input: OnTimeInput): Promise<PqsMeasure[]> 
       band: s.band,
       star: pqsStars[s.checkKey],
     }));
-  return [...starred, ...extraMeasures];
+  return [...starred, ...extraMeasures].sort((a, b) => {
+    const d = pqsOrderIndex(a.star) - pqsOrderIndex(b.star);
+    if (d !== 0) return d;
+    const n = a.name.localeCompare(b.name);
+    return n !== 0 ? n : a.register.localeCompare(b.register);
+  });
 }
 
 function bandCell(band: number | null) {
