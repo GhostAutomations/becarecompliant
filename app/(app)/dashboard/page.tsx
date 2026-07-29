@@ -68,17 +68,17 @@ const ICONS: Record<string, ReactNode> = {
 };
 
 const ICON_TONES: Record<string, string> = {
-  indigo: "bg-indigo-500/15 text-indigo-300",
-  orange: "bg-orange-500/15 text-orange-300",
-  blue: "bg-sky-500/15 text-sky-300",
-  green: "bg-emerald-500/15 text-emerald-300",
-  red: "bg-red-500/15 text-red-300",
+  indigo: "bg-indigo-500/20 text-indigo-200",
+  orange: "bg-orange-500/20 text-orange-200",
+  blue: "bg-sky-500/20 text-sky-200",
+  green: "bg-emerald-500/20 text-emerald-200",
+  red: "bg-red-500/20 text-red-200",
 };
 
 function TileIcon({ name, tone }: { name: string; tone: string }) {
   return (
     <span
-      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${ICON_TONES[tone] ?? ICON_TONES.indigo}`}
+      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${ICON_TONES[tone] ?? ICON_TONES.indigo}`}
     >
       <svg
         viewBox="0 0 24 24"
@@ -87,7 +87,7 @@ function TileIcon({ name, tone }: { name: string; tone: string }) {
         strokeWidth="1.8"
         strokeLinecap="round"
         strokeLinejoin="round"
-        className="h-4.5 w-4.5"
+        className="h-5 w-5"
         aria-hidden
       >
         {ICONS[name]}
@@ -133,11 +133,11 @@ function Tile({
     </div>
   );
   return href ? (
-    <Link href={href} className="glass-card glass-card-hover block p-3.5">
+    <Link href={href} className="glass-card glass-card-hover block h-full p-4">
       {inner}
     </Link>
   ) : (
-    <div className="glass-card p-3.5">{inner}</div>
+    <div className="glass-card h-full p-4">{inner}</div>
   );
 }
 
@@ -150,17 +150,17 @@ function Tile({
  */
 function MissingTile({ label, needs, icon }: { label: string; needs: string; icon?: string }) {
   return (
-    <div className="rounded-2xl border border-red-400/40 bg-red-500/10 p-3.5">
+    <div className="h-full rounded-2xl border border-red-400/25 bg-red-500/[0.07] p-4">
       <div className="flex items-start gap-3">
         {icon ? <TileIcon name={icon} tone="red" /> : null}
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <p className="text-xs uppercase tracking-wide text-red-200/80">{label}</p>
-            <span className="shrink-0 rounded-full border border-red-400/40 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-red-200">
+            <span className="shrink-0 rounded-full border border-red-400/30 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-red-200/80">
               No data
             </span>
           </div>
-          <p className="mt-1 text-2xl font-bold text-red-300/60">&mdash;</p>
+          <p className="mt-1 text-2xl font-bold text-red-200/40">&mdash;</p>
           <p className="mt-0.5 text-[11px] text-red-200/70">{needs}</p>
         </div>
       </div>
@@ -182,7 +182,7 @@ function Panel({
   className?: string;
 }) {
   return (
-    <section className={`glass-card p-4 ${className}`} aria-label={title}>
+    <section className={`glass-card flex h-full flex-col p-4 ${className}`} aria-label={title}>
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">{title}</h2>
         {href ? (
@@ -203,11 +203,11 @@ function MissingPanel({ title, needs }: { title: string; needs: string }) {
   return (
     <section
       aria-label={title}
-      className="rounded-2xl border border-red-400/40 bg-red-500/10 p-5"
+      className="h-full rounded-2xl border border-red-400/25 bg-red-500/[0.07] p-4"
     >
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-red-200/80">{title}</h2>
-        <span className="shrink-0 rounded-full border border-red-400/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-200">
+        <span className="shrink-0 rounded-full border border-red-400/30 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-200/80">
           No data
         </span>
       </div>
@@ -223,19 +223,25 @@ function ScoreDial({ score }: { score: number | null }) {
   const stroke =
     score == null ? "#94a3b8" : score >= 85 ? "#43d99a" : score >= 50 ? "#f5bd6a" : "#f18196";
   return (
-    <svg viewBox="0 0 140 140" className="h-28 w-28 shrink-0" aria-hidden>
-      <circle cx="70" cy="70" r={r} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="12" />
+    <svg viewBox="0 0 140 140" className="h-32 w-32 shrink-0" aria-hidden>
+      <circle cx="70" cy="70" r={r} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="11" />
       <circle
         cx="70"
         cy="70"
         r={r}
         fill="none"
         stroke={stroke}
-        strokeWidth="12"
+        strokeWidth="11"
         strokeLinecap="round"
         strokeDasharray={`${(pct / 100) * c} ${c}`}
         transform="rotate(-90 70 70)"
       />
+      {/* The shield sits inside the ring, as in the design. It carries the score's colour, so
+          the whole mark reads as one object rather than a ring with a logo dropped in it. */}
+      <g transform="translate(70 70)" stroke={stroke} fill="none" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.9">
+        <path d="M0 -22 L16 -16 V-2 C16 10 0 20 0 20 C0 20 -16 10 -16 -2 V-16 Z" />
+        <path d="M-7 -3 L-2 2 L7 -7" />
+      </g>
     </svg>
   );
 }
@@ -350,16 +356,21 @@ export default async function DashboardPage() {
 
       {/* Row one: the score, and the six figures beside it. */}
       <div className="grid gap-4 lg:grid-cols-12">
-        <div className="glass-card flex items-center gap-4 p-5 lg:col-span-4 lg:row-span-2">
+        <div className="glass-card flex flex-col justify-center gap-4 p-5 sm:flex-row sm:items-center lg:col-span-4 lg:row-span-2">
           {score.enabled ? (
             <>
               <ScoreDial score={score.score} />
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="text-xs uppercase tracking-wide text-white/50">Compliance score</p>
-                <p className="mt-1 text-4xl font-bold text-white">
+                <p className="mt-1 text-5xl font-bold leading-none text-white">
                   {score.score == null ? "Not scored" : `${score.score}%`}
                 </p>
-                <p className="text-sm font-semibold text-white/80">{score.label}</p>
+                <p className="mt-2 text-sm font-semibold text-emerald-300">{score.label}</p>
+                <p className="text-xs text-white/55">
+                  {score.score != null && score.score >= 85
+                    ? "Inspection ready"
+                    : "Evidence still to gather"}
+                </p>
                 {score.score != null && score.delta != null && score.deltaFrom ? (
                   <p
                     className={`mt-1 text-xs ${
@@ -378,9 +389,10 @@ export default async function DashboardPage() {
                 ) : null}
                 <Link
                   href="/readiness"
-                  className="mt-3 inline-block text-xs font-semibold text-gold-300 underline underline-offset-4 hover:text-gold-400"
+                  className="mt-4 flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-gold-300 transition hover:bg-white/[0.08]"
                 >
                   View score breakdown
+                  <span aria-hidden>&rsaquo;</span>
                 </Link>
               </div>
             </>
