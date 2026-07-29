@@ -9,7 +9,7 @@ export default function SiteFooter() {
             <p className="text-sm font-bold text-white">
               Be Care <span className="text-gold-400">Compliant</span>
             </p>
-            <p className="mt-1 text-xs text-white/50">
+            <p className="mt-1 text-xs text-white/60">
               Compliance software for UK care providers, built for CQC and CIW.
             </p>
           </div>
@@ -20,7 +20,7 @@ export default function SiteFooter() {
             <Link href="/login" className="hover:text-white">Sign in</Link>
           </nav>
         </div>
-        <p className="mt-8 text-xs text-white/40">
+        <p className="mt-8 text-xs text-white/60">
           &copy; {new Date().getFullYear()} Be Care Compliant. All rights reserved.
         </p>
       </div>

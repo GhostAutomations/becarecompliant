@@ -96,7 +96,11 @@ const SPOTS: Spot[] = [
     eyebrow: "One clear picture",
     title: "Red, amber, green, from one carer to the whole company",
     body: "Status rolls up from every check to the record, the branch and the company, so you always know if you are inspection ready.",
-    bullets: ["Spot the exact overdue item in two clicks", "See every branch at a glance", "No more hunting through tabs and files"],
+    bullets: [
+      "Land on the exact overdue Check in two clicks",
+      "See every branch at a glance",
+      "No hunting through tabs, folders and inboxes",
+    ],
     visual: <RollupVisual />,
   },
   {

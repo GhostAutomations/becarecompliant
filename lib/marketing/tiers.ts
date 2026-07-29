@@ -24,7 +24,7 @@ export const PRICING_TIERS: PricingTier[] = [
     name: "Business",
     price: "£49",
     cadence: "per month",
-    tagline: "For a single care service getting inspection ready.",
+    tagline: "One care service, one branch, the compliance you cannot afford to miss.",
     features: [
       "People and Service User registers",
       "Recurring compliance checks with red, amber, green status",
@@ -37,7 +37,7 @@ export const PRICING_TIERS: PricingTier[] = [
       "Email reminders and the daily compliance digest",
       "Basic reporting: the compliance register",
       "AI access, 25 credits a month",
-      "One branch and four users included",
+      "One branch and four users included, plus free carer logins",
     ],
   },
   {
@@ -45,7 +45,7 @@ export const PRICING_TIERS: PricingTier[] = [
     name: "Pro",
     price: "£69",
     cadence: "per month",
-    tagline: "For growing providers who want every report and more room.",
+    tagline: "Every report, Complaints and a second branch, for providers with more to prove.",
     featured: true,
     inherits: "Everything in Business, plus:",
     features: [
@@ -56,10 +56,10 @@ export const PRICING_TIERS: PricingTier[] = [
       "The form builder to create and version your own forms",
       "Priority support",
       "AI access, 50 credits a month",
-      "Two branches and six users included",
+      "Two branches and six users included, plus free carer logins",
     ],
   },
 ];
 
 export const PRICING_FOOTNOTE =
-  "Extra users are £5 each per month and extra branches £7.50 each per month. AI credits carry over until used; top up 100 credits for £10. All prices exclude VAT.";
+  "All prices exclude VAT. Carer logins are free and never count towards your included users. A user is someone who signs in to run compliance, and extra users are £5 each per month. Extra branches are £7.50 each per month. AI credits carry over until used, and 100 more cost £10.";

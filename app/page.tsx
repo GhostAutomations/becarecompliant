@@ -12,41 +12,46 @@ import Outcomes from "@/components/marketing/outcomes";
 import SocialProof from "@/components/marketing/social-proof";
 import Reveal from "@/components/marketing/reveal";
 
-const TRUST = ["CQC in England", "CIW in Wales", "Local authority monitoring", "UK data, kept private"];
+const TRUST = [
+  "CQC in England",
+  "CIW in Wales",
+  "Local authority PQS returns",
+  "Audit trail on every record",
+];
 
 const EDGES: Array<{ title: string; body: string }> = [
   {
-    title: "Built for care, not adapted for it",
-    body: "This is not a spreadsheet or a generic board bent into shape. Every screen speaks the language of CQC and CIW, from supervisions to care plan reviews.",
+    title: "It already speaks CQC and CIW",
+    body: "Supervisions, spot checks, DBS, mandatory training and care plan reviews are built in and named the way your regulator names them. There is no blank grid to design first.",
   },
   {
-    title: "Compliance that maintains itself",
-    body: "Other tools remind you to update a date. Be Care Compliant does it for you: complete the form and the next due date, the evidence and the status all update in one step.",
+    title: "The calendar keeps itself",
+    body: "A spreadsheet waits for you to update it. Here you complete the Form and the Check closes, the Evidence is stored and the next due date is set, all in one step.",
   },
   {
-    title: "Ready for inspection, not just organised",
-    body: "A tidy board still leaves you scrambling on the day. Here the evidence is timestamped, versioned and one click from a report you can hand straight to an inspector.",
+    title: "Evidence, not just a tidy list",
+    body: "Every completed Form is timestamped, attributed and version stamped. When an inspector asks to see your work you export it rather than assemble it.",
   },
 ];
 
 export const metadata: Metadata = {
   title: "Be Care Compliant | CQC and CIW compliance software for care providers",
   description:
-    "The purpose built compliance platform for UK care providers. Track staff and service user compliance, stay inspection ready for CQC and CIW, and hand inspectors the evidence in one click.",
+    "Compliance software for UK care providers. Track every supervision, spot check, DBS and care plan review, see what is overdue at a glance, and export the evidence for CQC, CIW and your local authority. From £49 a month plus VAT.",
 };
 
 const FEATURES: Array<{ title: string; body: string }> = [
   {
-    title: "People and Service Users, kept apart",
-    body: "Two clear registers, your staff team and the people you care for, each with their own checks, due dates and evidence.",
+    title: "Two Registers, kept apart",
+    body: "Your staff sit in the People Register, the people you support sit in the Service User Register. Each has its own Checks, due dates and Evidence, so nothing gets mixed up.",
   },
   {
-    title: "Reminders that chase for you",
-    body: "A daily digest and reminders keep nothing slipping through, so supervisions, reviews and renewals are done on time, not discovered late.",
+    title: "Reminders that do the chasing",
+    body: "A daily digest tells you what is due and what has slipped. Supervisions, reviews and renewals get done on time instead of being found late.",
   },
   {
-    title: "Your forms, your way",
-    body: "Start from a curated library of care templates, then build and version your own forms with the built in form builder.",
+    title: "Your own Forms when you need them",
+    body: "Start from the care template library, then build and version your own Forms with the form builder on Pro.",
   },
 ];
 
@@ -70,20 +75,24 @@ const STEPS: Array<{ n: string; title: string; body: string }> = [
 
 const FAQS: Array<{ q: string; a: string }> = [
   {
-    q: "Is this built for CQC and CIW?",
-    a: "Yes. Be Care Compliant is built for UK care providers under CQC in England and CIW in Wales, and for local authority contract monitoring.",
+    q: "Do all our carers need a paid account?",
+    a: "No. Carers get a free login to see their own Record, however many of them you have. You only pay for the people who manage compliance, so managers, admins and supervisors. Business includes four of those users, Pro includes six, and extra users are £5 each per month.",
   },
   {
-    q: "Do we have to move off our spreadsheets?",
-    a: "You can bring existing records in with a bulk import, including historic completed dates, so you start with an accurate picture from day one.",
+    q: "Is this built for CQC and CIW?",
+    a: "Yes. Be Care Compliant is built for UK care providers regulated by CQC in England and CIW in Wales, and for local authority contract monitoring including the Provider Quality System return.",
+  },
+  {
+    q: "Do we have to retype everything from our spreadsheets?",
+    a: "No. You can bulk import your existing records, including the dates checks were last completed, so day one shows a true picture rather than a blank grid.",
   },
   {
     q: "How does the free trial work?",
-    a: "Tell us about your service and we set up a 14 day trial for you with your logins. No card is needed to start.",
+    a: "Tell us about your service and we set the 14 day trial up for you and send your logins, usually the same working day. No card is needed and nothing starts billing on its own.",
   },
   {
-    q: "Is our data safe?",
-    a: "Service user information is treated as the most sensitive data in the platform, with strict tenant and role separation, audit logging and files served only over short lived secure links.",
+    q: "How is our data looked after?",
+    a: "Service user information is treated as the most sensitive data in the platform. Each company is separated from every other, access is limited by role, every view and change is written to an audit trail, and files are served only over short lived secure links.",
   },
 ];
 
@@ -99,21 +108,26 @@ export default async function Home() {
         <div className="hero-glow" aria-hidden />
         <div className="relative z-10 mx-auto max-w-6xl">
           <span className="reveal is-visible inline-block rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/70">
-            Compliance software for UK care providers
+            Compliance software for UK care providers, CQC and CIW
           </span>
-          <h1 className="mx-auto mt-6 max-w-3xl text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl">
-            Inspection ready,{" "}
-            <span className="bg-gradient-to-r from-gold-300 to-gold-400 bg-clip-text text-transparent">every day.</span>
+          <h1 className="mx-auto mt-6 max-w-4xl text-4xl font-bold leading-[1.08] tracking-tight sm:text-6xl sm:leading-[1.05]">
+            See every check that is overdue{" "}
+            <span className="bg-gradient-to-r from-gold-300 to-gold-400 bg-clip-text text-transparent">
+              before your inspector does.
+            </span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-white/75">
-            The compliance platform built for UK care providers. Track every check, stay ready for CQC and CIW,
-            and hand inspectors the evidence in one click. No spreadsheets, no wall charts, no last minute scramble.
+            Be Care Compliant tracks every supervision, spot check, DBS, training course and care plan review, for
+            your staff and for the people you support. One red, amber, green picture of the whole service, and the
+            evidence ready to export the day an inspector asks for it.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Link href="/start-trial" className="btn-primary">Start your 14 day free trial</Link>
             <Link href="/pricing" className="btn-outline">See pricing</Link>
           </div>
-          <p className="mt-4 text-xs text-white/45">No card needed. Set up for you, ready to use.</p>
+          <p className="mt-4 text-xs text-white/60">
+            From £49 a month plus VAT. No card needed, and we set the trial up for you.
+          </p>
 
           <Reveal className="mx-auto mt-12 max-w-4xl" delay={80}>
             <ProductPreview />
@@ -130,31 +144,24 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Problem */}
+      {/* Built for care, not adapted for it */}
       <section className="border-y border-white/10 bg-white/[0.03]">
-        <div className="mx-auto max-w-4xl px-4 py-14 text-center">
-          <h2 className="text-2xl font-semibold sm:text-3xl">Compliance should not live in a spreadsheet</h2>
-          <p className="mx-auto mt-4 max-w-2xl text-white/70">
-            Care services face constant inspection pressure, yet most track it in spreadsheets, wall charts or
-            tools that were never built for care. Things slip, evidence is scattered, and inspection day means a
-            scramble. There is a calmer way to run your whole compliance calendar.
-          </p>
-        </div>
-      </section>
-
-      {/* Why we are different */}
-      <section className="mx-auto max-w-6xl px-4 py-20">
-        <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-2xl font-semibold sm:text-3xl">Built for care, better by design</h2>
-          <p className="mt-3 text-white/75">Three things a spreadsheet or a general purpose tool will never do for you.</p>
-        </div>
-        <div className="mt-12 grid gap-5 md:grid-cols-3">
-          {EDGES.map((e) => (
-            <div key={e.title} className="glass-card p-6">
-              <h3 className="text-base font-semibold text-white">{e.title}</h3>
-              <p className="mt-2 text-sm text-white/75">{e.body}</p>
-            </div>
-          ))}
+        <div className="mx-auto max-w-6xl px-4 py-20">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-2xl font-semibold sm:text-3xl">Built for care, not bent into shape</h2>
+            <p className="mt-3 text-white/75">
+              Most services still run compliance on a spreadsheet, a wall chart or a tool that was never meant for
+              care. Three things those will not do for you.
+            </p>
+          </div>
+          <div className="mt-12 grid gap-5 md:grid-cols-3">
+            {EDGES.map((e) => (
+              <div key={e.title} className="glass-card p-6">
+                <h3 className="text-base font-semibold text-white">{e.title}</h3>
+                <p className="mt-2 text-sm text-white/75">{e.body}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -209,9 +216,9 @@ export default async function Home() {
       {/* Comparison */}
       <section className="mx-auto max-w-5xl px-4 py-20">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-2xl font-semibold sm:text-3xl">Why care teams choose us</h2>
+          <h2 className="text-2xl font-semibold sm:text-3xl">Compared with how most services do it today</h2>
           <p className="mt-3 text-white/75">
-            The same job, done properly. See how a purpose built platform compares with how most services track compliance today.
+            A spreadsheet or a wall chart can hold the dates. It cannot chase them, roll them up or prove them.
           </p>
         </div>
         <div className="mt-12">
@@ -226,9 +233,9 @@ export default async function Home() {
             <span className="text-xs font-semibold uppercase tracking-wide text-gold-300">Built for CQC and CIW</span>
             <h2 className="mt-3 text-2xl font-semibold sm:text-3xl">Regulator ready reports, in one click</h2>
             <p className="mt-4 text-white/75">
-              Be Care Compliant does not just store your records, it speaks the regulator's language. The Provider
-              Quality System return is built in: your on time completion rates, the starred PQS measures and
-              the PQS score, worked out for you and ready to export.
+              The Provider Quality System return is built in. Your on time completion rates, the starred PQS
+              measures and the PQS score are worked out for you and ready to export, so you know where you stand
+              before you submit rather than after.
             </p>
             <ul className="mt-6 space-y-2.5 text-sm text-white/80">
               {[
@@ -255,8 +262,11 @@ export default async function Home() {
       {/* Pricing */}
       <section id="pricing" className="mx-auto max-w-6xl px-4 py-20">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-2xl font-semibold sm:text-3xl">Simple, per service pricing</h2>
-          <p className="mt-3 text-white/70">Every plan starts with a 14 day free trial.</p>
+          <h2 className="text-2xl font-semibold sm:text-3xl">£49 or £69 a month, per care service</h2>
+          <p className="mt-3 text-white/75">
+            Two plans, both with a 14 day free trial. Carer logins are free, so you only pay for the people who
+            manage compliance. Prices exclude VAT.
+          </p>
         </div>
         <div className="mt-12">
           <PricingTable />
@@ -280,9 +290,10 @@ export default async function Home() {
 
       {/* Final CTA */}
       <section className="mx-auto max-w-4xl px-4 py-20 text-center">
-        <h2 className="text-2xl font-semibold sm:text-3xl">See your service go green</h2>
-        <p className="mx-auto mt-4 max-w-xl text-white/70">
-          Start a free trial and run your whole compliance calendar in one place, ready for your next inspection.
+        <h2 className="text-2xl font-semibold sm:text-3xl">Find out what is overdue in your service</h2>
+        <p className="mx-auto mt-4 max-w-xl text-white/75">
+          Start a free trial, bring your existing records in and see the whole compliance picture in one place,
+          well before your next inspection.
         </p>
         <div className="mt-8">
           <Link href="/start-trial" className="btn-primary">Start your 14 day free trial</Link>

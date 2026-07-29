@@ -25,12 +25,24 @@ const ROWS: Row[] = [
   { label: "Priority support", business: "no", pro: "yes" },
   { label: "AI credits included each month", business: "25", pro: "50" },
   { label: "Branches included", business: "1", pro: "2" },
-  { label: "Users included", business: "4", pro: "6" },
+  { label: "Users included (carer logins are free)", business: "4", pro: "6" },
 ];
 
 function Mark({ v }: { v: Val }) {
-  if (v === "yes") return <span className="text-xl font-bold text-gold-400" aria-label="Included">&#10003;</span>;
-  if (v === "no") return <span className="text-lg font-bold text-red-400" aria-label="Not included">&#10005;</span>;
+  if (v === "yes") {
+    return (
+      <span role="img" aria-label="Included" className="text-xl font-bold text-gold-400">
+        &#10003;
+      </span>
+    );
+  }
+  if (v === "no") {
+    return (
+      <span role="img" aria-label="Not included" className="text-lg font-bold text-red-400">
+        &#10005;
+      </span>
+    );
+  }
   return <span className="font-semibold text-white">{v}</span>;
 }
 
@@ -42,23 +54,27 @@ export default function PricingTable() {
         <table className="w-full min-w-[560px] border-collapse text-sm">
           <thead>
             <tr>
-              <th className="px-3 py-4 text-left align-bottom" />
-              <th className="px-3 py-4 text-center align-bottom">
+              <th scope="col" className="px-3 py-4 text-left align-bottom">
+                <span className="sr-only">What is included</span>
+              </th>
+              <th scope="col" className="px-3 py-4 text-center align-bottom">
                 <div className="text-base font-bold text-white">{biz.name}</div>
                 <div className="mt-1 text-2xl font-bold text-white">{biz.price}</div>
-                <div className="text-xs text-white/55">{biz.cadence}</div>
+                <div className="text-xs text-white/60">{biz.cadence}, plus VAT</div>
               </th>
-              <th className="rounded-t-xl bg-gold-400/[0.06] px-3 py-4 text-center align-bottom">
+              <th scope="col" className="rounded-t-xl bg-gold-400/[0.06] px-3 py-4 text-center align-bottom">
                 <div className="text-base font-bold text-gold-400">{pro.name}</div>
                 <div className="mt-1 text-2xl font-bold text-white">{pro.price}</div>
-                <div className="text-xs text-white/55">{pro.cadence}</div>
+                <div className="text-xs text-white/60">{pro.cadence}, plus VAT</div>
               </th>
             </tr>
           </thead>
           <tbody>
             {ROWS.map((r) => (
               <tr key={r.label} className="border-t border-white/10">
-                <td className="px-3 py-3 text-left text-white/80">{r.label}</td>
+                <th scope="row" className="px-3 py-3 text-left font-normal text-white/80">
+                  {r.label}
+                </th>
                 <td className="px-3 py-3 text-center">
                   <Mark v={r.business} />
                 </td>
@@ -79,7 +95,7 @@ export default function PricingTable() {
           </tbody>
         </table>
       </div>
-      <p className="mt-6 text-center text-xs text-white/50">{PRICING_FOOTNOTE}</p>
+      <p className="mx-auto mt-6 max-w-2xl text-center text-xs text-white/60">{PRICING_FOOTNOTE}</p>
     </div>
   );
 }
