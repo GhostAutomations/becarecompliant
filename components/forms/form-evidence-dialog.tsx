@@ -224,7 +224,7 @@ export default function FormEvidenceDialog({
                         for (const [k, v] of Object.entries(aiDraft.extraFields ?? extraFields ?? {})) {
                           fd.set(k, v);
                         }
-                        draftAction(fd);
+                        setTimeout(() => draftAction(fd), 0);
                       }}
                     >
                       {draftPending || drafting ? (
