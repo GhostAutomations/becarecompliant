@@ -1316,3 +1316,19 @@ Marketing site on becarecompliant.com, onboarding collateral, subscription agree
 - Compliance calendar shows three lines per day column instead of four, then "+N more", and the
   footnote is one shorter line at 10px. Both changes are height, not width: the tile still sits in
   the four columns under On call.
+
+### 2026-07-29 Compliance calendar becomes the Planner
+
+- The tile is now called **Planner** and shows THIS user's planner: the tasks they are booked to
+  conduct, read through `listMyBookings`, the same rows the Planner page reads. It is no longer a
+  company wide feed of everything falling due.
+- `getComplianceCalendar` and the `CalendarDay` type are deleted. `getPlannerWeek(userId)`
+  replaces them: five working day columns, always five, planned bookings only, sorted by start
+  time with untimed bookings after.
+- A booking that really falls on a Saturday or Sunday shows on the next working day carrying its
+  real day as a hint ("Sat 09:00"), so nothing is hidden and no date is misstated.
+- Each day column scrolls (`max-h-[88px]`) rather than truncating to "+N more", so a busy day is
+  never hiding work you cannot reach. Recent activity beside it already scrolls the same way.
+- Gated properly: the tile is drawn only for a role that has a planner and only when the Planner
+  feature is on. `PLANNER_ROLES` now lives in `lib/planner/data.ts` and the Planner page guards on
+  the same constant, so the page and the tile cannot drift apart on who has a planner.

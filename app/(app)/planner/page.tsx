@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { featureEnabled } from "@/lib/billing/tier";
-import { listMyBookings, getPlannerFormData } from "@/lib/planner/data";
+import { listMyBookings, getPlannerFormData, PLANNER_ROLES } from "@/lib/planner/data";
 import { listAccessibleBranchTypes } from "@/lib/service-users/data";
 import BookingForm from "@/components/planner/booking-form";
 import PlannerViewToggle from "@/components/planner/view-toggle";
@@ -12,15 +12,6 @@ import WhiteboardCalendar from "@/components/planner/whiteboard-calendar";
 
 export const metadata: Metadata = { title: "My Planner" };
 
-const ALLOWED = [
-  "platform_admin",
-  "company_admin",
-  "registered_individual",
-  "registered_manager",
-  "manager",
-  "supervisor",
-];
-
 export default async function PlannerPage({
   searchParams,
 }: {
@@ -28,7 +19,7 @@ export default async function PlannerPage({
 }) {
   const { user, profile } = await requireCompany();
   if (!profile.company_id) redirect("/founder");
-  if (!ALLOWED.includes(profile.role)) redirect("/dashboard");
+  if (!PLANNER_ROLES.includes(profile.role)) redirect("/dashboard");
   if (!(await featureEnabled(profile.company_id, "planner"))) redirect("/dashboard");
 
   const [bookings, formData, branchTypes] = await Promise.all([

@@ -16,6 +16,7 @@ import {
   listOpenBookings,
   listActivePeople,
 } from "@/lib/absence/data";
+import { listMyBookings } from "@/lib/planner/data";
 
 /** Today in Europe/London as an ISO yyyy-mm-dd string (dates compare lexically). */
 function londonTodayIso(): string {
@@ -373,7 +374,16 @@ export async function getExpiringSoon(companyId: string): Promise<ExpiringLine[]
   return lines.sort((a, b) => b.count - a.count).slice(0, 5);
 }
 
-export type CalendarDay = { iso: string; items: { name: string; count: number }[] };
+export type PlannerItem = {
+  /** HH:MM, or null for a booking with no start time. */
+  time: string | null;
+  label: string;
+  subject: string | null;
+  /** Set only when the booking is really on a weekend and is being shown on the next working
+   *  day, e.g. "Sat". Never invent a date the booking does not have. */
+  dayHint: string | null;
+};
+export type PlannerDay = { iso: string; items: PlannerItem[] };
 
 /** Saturday or Sunday. Bank holidays are not modelled, the same convention the Complaints
  *  response deadlines use, so the two parts of the app never disagree about a working day. */
@@ -382,19 +392,27 @@ function isWeekendIso(iso: string): boolean {
   return dow === 0 || dow === 6;
 }
 
+function shortDayIso(iso: string): string {
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", {
+    weekday: "short",
+    timeZone: "UTC",
+  });
+}
+
 /**
- * The next five WORKING days, starting with today (or Monday when today is a weekend).
+ * THIS USER'S planner, as the next five WORKING day columns.
  *
- * Phil, 2026-07-29: one column per day, not a box per day that has something in it. That means
- * the list is always five entries long even when a day is empty, because a column that vanishes
- * when nothing is due makes the week impossible to read at a glance.
+ * Phil, 2026-07-29: the tile is the Planner and it shows their planner, nothing else. So it reads
+ * the same bookings the Planner page reads (`listMyBookings`, the tasks this user conducts), not
+ * every check falling due across the company.
  *
- * Anything falling on a Saturday or Sunday inside the span is carried onto the following working
- * day rather than dropped: nobody is going to action it at the weekend, and hiding it would
- * understate Monday.
+ * The list is always five entries long even when a day is empty, because a column that vanishes
+ * when nothing is booked makes the week impossible to read at a glance. A booking that really
+ * falls on a Saturday or Sunday is shown on the following working day carrying its real day as a
+ * hint, so nothing is hidden and no date is misstated.
  */
-export async function getComplianceCalendar(companyId: string): Promise<CalendarDay[]> {
-  const rows = await bothRegisters(companyId);
+export async function getPlannerWeek(userId: string): Promise<PlannerDay[]> {
+  const bookings = await listMyBookings(userId);
   const today = londonTodayIso();
 
   const days: string[] = [];
@@ -405,29 +423,36 @@ export async function getComplianceCalendar(companyId: string): Promise<Calendar
   }
   const last = days[days.length - 1];
 
-  /** The column a due date belongs in: its own day, or the next working day for a weekend. */
+  /** The column a booking belongs in: its own day, or the next working day for a weekend. */
   function columnFor(iso: string): string | null {
     let d = iso;
     while (isWeekendIso(d)) d = addDaysIso(d, 1);
     return days.includes(d) ? d : null;
   }
 
-  const byDay = new Map<string, Map<string, number>>(days.map((d) => [d, new Map<string, number>()]));
-  for (const r of rows) {
-    if (!r.due_date || !r.check_name) continue;
-    if (r.due_date < today || r.due_date > last) continue;
-    const col = columnFor(r.due_date);
+  const byDay = new Map<string, PlannerItem[]>(days.map((d) => [d, [] as PlannerItem[]]));
+  for (const b of bookings) {
+    if (b.status !== "planned") continue;
+    if (b.scheduledDate < today || b.scheduledDate > last) continue;
+    const col = columnFor(b.scheduledDate);
     if (!col) continue;
-    const counts = byDay.get(col);
-    if (!counts) continue;
-    counts.set(r.check_name, (counts.get(r.check_name) ?? 0) + 1);
+    byDay.get(col)?.push({
+      time: b.startTime,
+      label: b.label,
+      subject: b.subjectName,
+      dayHint: col === b.scheduledDate ? null : shortDayIso(b.scheduledDate),
+    });
   }
 
   return days.map((iso) => ({
     iso,
-    items: [...(byDay.get(iso) ?? new Map<string, number>()).entries()]
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
+    items: (byDay.get(iso) ?? []).sort((a, b) => {
+      // Timed bookings first, in time order; untimed ones after, by label.
+      if (a.time && b.time && a.time !== b.time) return a.time < b.time ? -1 : 1;
+      if (a.time && !b.time) return -1;
+      if (!a.time && b.time) return 1;
+      return a.label.localeCompare(b.label);
+    }),
   }));
 }
 

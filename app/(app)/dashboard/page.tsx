@@ -8,13 +8,14 @@ import RealtimeRefresh from "@/components/realtime-refresh";
 import { getUrgentFollowUps } from "@/lib/on-call/data";
 import { shiftLabel } from "@/lib/on-call/format";
 import { featureEnabled } from "@/lib/billing/tier";
+import { PLANNER_ROLES } from "@/lib/planner/data";
 import {
   getComplianceBuckets,
   getComplianceScore,
   getTrainingCompletion,
   getAuditsCompleted,
   getExpiringSoon,
-  getComplianceCalendar,
+  getPlannerWeek,
   getRecentActivity,
   getPqsSummary,
   type ComplianceScore,
@@ -306,7 +307,7 @@ function fmtWhen(iso: string): string {
 /* ------------------------------------------------------------------ page */
 
 export default async function DashboardPage() {
-  const { profile } = await requireCompany();
+  const { user, profile } = await requireCompany();
   if (!profile.company_id) redirect("/founder");
   if (profile.role === "team_member") redirect("/people");
   if (profile.role === "on_call") redirect("/on-call");
@@ -330,9 +331,13 @@ export default async function DashboardPage() {
   const companyWide = MANAGER_PLUS_ROLES.includes(profile.role);
   const canSeeOnCall = companyWide && (await featureEnabled(companyId, "on_call"));
   const canSeePqs = await featureEnabled(companyId, "outcomes_satisfaction");
+  // The Planner tile shows THIS user's planner, so it is drawn only for someone who has one:
+  // the same roles the Planner page allows, and only when the feature is on.
+  const canSeePlanner =
+    PLANNER_ROLES.includes(profile.role) && (await featureEnabled(companyId, "planner"));
 
   const { people, serviceUsers } = await getComplianceBuckets(companyId);
-  const [score, trainingPct, auditsPct, expiring, calendar, activity, onCallUrgent] =
+  const [score, trainingPct, auditsPct, expiring, plannerWeek, activity, onCallUrgent] =
     await Promise.all([
       companyWide
         ? getComplianceScore(companyId, { companyWide: true })
@@ -340,7 +345,7 @@ export default async function DashboardPage() {
       companyWide ? getTrainingCompletion(companyId) : Promise.resolve(null),
       getAuditsCompleted(companyId),
       getExpiringSoon(companyId),
-      getComplianceCalendar(companyId),
+      canSeePlanner ? getPlannerWeek(user.id) : Promise.resolve([]),
       getRecentActivity(companyId),
       canSeeOnCall ? getUrgentFollowUps(companyId) : Promise.resolve([]),
     ]);
@@ -623,61 +628,75 @@ export default async function DashboardPage() {
         </Panel>
       </div>
 
-      {/* Row three sits UNDER row two, column for column (Phil, 2026-07-29): the calendar takes
+      {/* Row three sits UNDER row two, column for column (Phil, 2026-07-29): the Planner takes
           the four columns On call occupies, starting at column six, and Recent activity takes the
           three Expiring soon occupies, which puts it bottom right. The first five columns, under
           the PQS report, are deliberately empty. */}
       <div className="grid gap-4 lg:grid-cols-12">
-        {/* Five WORKING day columns, not a box per day (Phil, 2026-07-29). Every column is
-            always drawn, empty or not, so the week keeps its shape. */}
+        {/* THE PLANNER (Phil, 2026-07-29): this user's own booked tasks, the same rows the
+            Planner page reads, as five WORKING day columns. Every column is always drawn, empty
+            or not, so the week keeps its shape. */}
         <Panel
-          title="Compliance calendar"
-          href="/planner"
-          linkLabel="View calendar"
+          title="Planner"
+          href={canSeePlanner ? "/planner" : undefined}
+          linkLabel="View planner"
           className="lg:col-span-4 lg:col-start-6"
         >
-          <div className="grid grid-cols-5 divide-x divide-white/10">
-            {calendar.map((d) => {
-              const { day, date } = fmtDay(d.iso);
-              const isToday = day === "Today";
-              return (
-                <div key={d.iso} className="min-w-0 px-2 first:pl-0 last:pr-0">
-                  <p
-                    className={`truncate text-[11px] font-semibold uppercase tracking-wide ${
-                      isToday ? "text-gold-300" : "text-white/60"
-                    }`}
-                  >
-                    {day}
-                  </p>
-                  <p className="truncate text-[11px] tabular-nums text-white/45">{date}</p>
-                  <ul className="mt-2 space-y-1">
-                    {d.items.length === 0 ? (
-                      <li className="text-[11px] text-white/30">Clear</li>
-                    ) : (
-                      d.items.slice(0, 3).map((it) => (
-                        <li
-                          key={it.name}
-                          title={`${it.count} ${it.name}`}
-                          className="truncate text-[11px] text-white/65"
-                        >
-                          <span className="tabular-nums font-semibold text-white/90">{it.count}</span>{" "}
-                          {it.name}
-                        </li>
-                      ))
-                    )}
-                    {d.items.length > 3 ? (
-                      <li className="text-[11px] text-white/40">+{d.items.length - 3} more</li>
-                    ) : null}
-                  </ul>
-                </div>
-              );
-            })}
-          </div>
-          <p className="mt-2 border-t border-white/10 pt-2 text-[10px] text-white/45">
-            Working days only. Weekend work shows on the next working day.
-          </p>
+          {!canSeePlanner ? (
+            <p className="text-sm text-white/55">
+              The Planner is not switched on for you, so there is nothing booked to show.
+            </p>
+          ) : (
+            <>
+              <div className="grid grid-cols-5 divide-x divide-white/10">
+                {plannerWeek.map((d) => {
+                  const { day, date } = fmtDay(d.iso);
+                  const isToday = day === "Today";
+                  return (
+                    <div key={d.iso} className="min-w-0 px-2 first:pl-0 last:pr-0">
+                      <p
+                        className={`truncate text-[11px] font-semibold uppercase tracking-wide ${
+                          isToday ? "text-gold-300" : "text-white/60"
+                        }`}
+                      >
+                        {day}
+                      </p>
+                      <p className="truncate text-[11px] tabular-nums text-white/45">{date}</p>
+                      {/* Every booking is here. The column scrolls when there are more than a
+                          couple, so a busy day is never truncated to a "+N more" you cannot
+                          open. */}
+                      <ul className="mt-2 max-h-[88px] space-y-1.5 overflow-y-auto pr-0.5">
+                        {d.items.length === 0 ? (
+                          <li className="text-[11px] text-white/30">Clear</li>
+                        ) : (
+                          d.items.map((it, i) => (
+                            <li
+                              key={`${d.iso}-${i}`}
+                              title={[it.dayHint, it.time ?? "No time set", it.label, it.subject]
+                                .filter(Boolean)
+                                .join(" ")}
+                            >
+                              <span className="block truncate text-[10px] tabular-nums text-gold-300/85">
+                                {it.dayHint ? `${it.dayHint} ` : ""}
+                                {it.time ?? "No time"}
+                              </span>
+                              <span className="block truncate text-[11px] text-white/70">
+                                {it.label}
+                              </span>
+                            </li>
+                          ))
+                        )}
+                      </ul>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="mt-2 border-t border-white/10 pt-2 text-[10px] text-white/45">
+                Your booked tasks. Weekend bookings show on the next working day.
+              </p>
+            </>
+          )}
         </Panel>
-
         <Panel title="Recent activity" href="/reports" linkLabel="View all" className="lg:col-span-3">
           {activity.length === 0 ? (
             <p className="text-sm text-white/55">Nothing has happened yet today.</p>

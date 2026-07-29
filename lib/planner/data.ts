@@ -238,6 +238,20 @@ function toView(r: Row): PlannerBookingView {
   };
 }
 
+/**
+ * The roles that have a planner. One source of truth: the Planner page guards on this, and the
+ * dashboard Planner tile shows nothing to anyone outside it, so the two can never disagree about
+ * who has a planner.
+ */
+export const PLANNER_ROLES = [
+  "platform_admin",
+  "company_admin",
+  "registered_individual",
+  "registered_manager",
+  "manager",
+  "supervisor",
+];
+
 /** Bookings the given user conducts (their personal planner). */
 export async function listMyBookings(userId: string): Promise<PlannerBookingView[]> {
   const supabase = await createClient();
