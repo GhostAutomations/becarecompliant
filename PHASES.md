@@ -1371,3 +1371,51 @@ Marketing site on becarecompliant.com, onboarding collateral, subscription agree
 - Each line carries the PQS SCORE (the band Cardiff awards: 0, 2, 5, 7 or 10) to the RIGHT of the
   rate, in navy (Phil, 2026-07-30). The measure name takes the slack so both number columns pin to
   the right edge and read as columns down the tile, rather than drifting with the label length.
+
+### 2026-07-30 PQS cycles now roll forward (a real scoring defect, fixed)
+
+WHAT WAS WRONG. `computeOnTime` took ONE due date per anchor. A record that had never had the
+check done therefore owed exactly one cycle, at start date plus the interval, and if that single
+date fell outside the six month window the record vanished from the measure entirely.
+
+PROVEN AGAINST LIVE DATA (Acme Care Company, project bgrtcvyjuwopunpnudeu, 30 Jul 2026):
+
+- Caerphilly: 13 of 14 staff had NEVER been supervised. 11 started before Nov 2025, so their one
+  due date fell outside the window and was dropped. Nothing counted, so the tile read "n/a,
+  nothing was due" for the branch doing the least.
+- Newport1: 6 never supervised, 4 started recently enough for their one date to land in the
+  window, so it read 0%.
+- Net effect: the branch doing NOTHING scored better than the branch doing a little, and the
+  company figure (Supervision 45.2%) was measured only over records whose single due date
+  happened to land in the window. An understatement of non compliance, in the company's favour.
+
+THE FIX.
+
+- The cycle now rolls forward an interval at a time until the check is done or until today.
+- Anchors are SORTED. `[start, ...completions]` was not necessarily ascending: a record can carry
+  a start date later than evidence already on file (live example, a Caerphilly person with start
+  01/08/2026 and supervisions on 19/07/2026), and the walk assumed order.
+- The walk is extracted to `lib/export/on-time-cycles.ts`, pure, no runtime imports, with fifteen
+  unit tests in `on-time-cycles.test.ts`. It could not be tested inside on-time.ts because that
+  module is server-only and talks to Supabase. 49 tests pass.
+- A runaway backstop of 50,000 cycles per gap exists so a future bug in the step function cannot
+  hang a page. It is unreachable in practice by design: see defect 2 below.
+- One computation, so the dashboard tiles, the report and the PDF all move together.
+
+THREE DEFECTS IN THE FIRST CUT OF THE FIX, caught by review before it shipped:
+
+1. Sorting `[start, ...completions]` together let the START DATE act as the settlement of the
+   cycle before it, crediting an on time completion and printing a completion date no evidence
+   supports. Anchors are now built by `buildAnchors`: the origin, then completions only.
+2. The 400 cycle cap kept the OLDEST 400 and dropped the recent ones, which recreated the very
+   bug being fixed for any long running short interval check (a weekly check anchored in 2015
+   stopped generating in 2022 and vanished from a 2026 window). Cycles before the window start
+   are now discarded as they are generated, and the cap is a runaway backstop only.
+3. A cycle due TODAY was counted as late. It has until the end of the day. Back to a strict
+   comparison, as the code it replaced had.
+
+Also deduped: two evidence rows on the same day used to raise the same due date twice, one of
+them credited on time.
+
+EXPECT THE NUMBERS TO GET WORSE. That is the point: Caerphilly Supervision goes from n/a to 0%
+with a real denominator, and the company figure drops.

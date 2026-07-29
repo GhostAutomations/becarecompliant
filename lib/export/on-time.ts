@@ -11,17 +11,20 @@ import "server-only";
  * cycles whose due date fell in the period and whether each was met on time.
  *
  * Method, per cycle (auditable, matches the PQS wording):
- *   anchors = [record start date, ...completion dates sorted]
- *   for each anchor a_k: due_k = a_k + interval; the cycle is satisfied by the
- *   NEXT completion a_(k+1). On time if a_(k+1) exists and is on or before due_k.
- *   A cycle with no later completion and due_k in the past is overdue (not on
- *   time). Open cycles still in the future are not yet resolved and are excluded.
+ *   anchors = [record start date, ...completion dates], SORTED ascending
+ *   for each gap between anchor a_k and the next completion a_(k+1), the check falls due at
+ *   a_k + interval and KEEPS falling due every interval until it is done. Every one of those
+ *   due dates counts. Only the last of them is the cycle the completion discharges, so it is
+ *   on time when a_(k+1) is on or before it; the ones before it were never done at all. An
+ *   open gap counts every due date already past; the cycle currently running is excluded
+ *   because it is not late yet. The walk is pure and unit tested in on-time-cycles.ts.
  *
  * Reads through the caller's RLS client (branch scoped for managers). Active
  * records only. No dashes in copy.
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { dueDatesInGap, cycleOnTime, buildAnchors } from "./on-time-cycles";
 import {
   type CivilDate,
   type Frequency,
@@ -274,25 +277,34 @@ async function computeOnTime(input: OnTimeInput) {
     const recs = records.filter((r) => r.population === def.population);
     for (const rec of recs) {
       if (!rec.start) continue; // no anchor to start cycles from
-      const comps = completionsByKey.get(`${def.form_id}|${rec.id}`) ?? [];
-      const anchors: CivilDate[] = [parseCivilDate(rec.start), ...comps];
+      const comps = completionsByKey.get(`${def.form_id}|${rec.id}`) ?? []; // ascending, ordered by the query
+      // The origin, then every completion, ascending and deduped. A start date must NEVER act
+      // as the settlement of a cycle: see buildAnchors, which is unit tested.
+      const anchors: CivilDate[] = buildAnchors(parseCivilDate(rec.start), comps);
+
       for (let k = 0; k < anchors.length; k++) {
-        const due = dueFrom(anchors[k]);
         const next = k + 1 < anchors.length ? anchors[k + 1] : null;
-        const overduePast = next === null && compareCivil(due, today) < 0;
-        if (next === null && !overduePast) continue; // open cycle, not yet due
-        if (!inWindow(due)) continue;
-        const onTime = next !== null && compareCivil(next, due) <= 0;
-        stat.dueInPeriod += 1;
-        if (onTime) stat.onTime += 1;
-        cycles.push({
-          checkName: def.name,
-          recordName: rec.name,
-          branchName: rec.branch,
-          dueDate: formatCivilDate(due),
-          completedOn: next ? formatCivilDate(next) : null,
-          onTime,
-        });
+
+        // EVERY cycle that came due in this gap, not just the first. The walk itself is pure
+        // and unit tested in on-time-cycles.ts, which explains why this changed.
+        const dues = dueDatesInGap({ anchor: anchors[k], next, today, from: fromC, step: dueFrom });
+
+        for (let i = 0; i < dues.length; i++) {
+          const d = dues[i];
+          if (!inWindow(d)) continue;
+          const { settled, onTime } = cycleOnTime(dues, i, next);
+          stat.dueInPeriod += 1;
+          if (onTime) stat.onTime += 1;
+          cycles.push({
+            checkName: def.name,
+            recordName: rec.name,
+            branchName: rec.branch,
+            dueDate: formatCivilDate(d),
+            // `settled` already implies next is set; the extra check is for the type checker.
+            completedOn: settled && next ? formatCivilDate(next) : null,
+            onTime,
+          });
+        }
       }
     }
     stat.ratePct = stat.dueInPeriod === 0 ? null : Math.round((stat.onTime / stat.dueInPeriod) * 1000) / 10;
