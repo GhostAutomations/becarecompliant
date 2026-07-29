@@ -16,6 +16,7 @@ import "server-only";
 import {
   Document,
   Font,
+  Image,
   Page,
   StyleSheet,
   Text,
@@ -23,6 +24,7 @@ import {
   renderToBuffer,
 } from "@react-pdf/renderer";
 import {
+  type AnswerValue,
   type Answers,
   type FormSchema,
   isPresentational,
@@ -75,6 +77,11 @@ const styles = StyleSheet.create({
   fieldLabel: { width: "42%", color: MUTED, paddingRight: 8 },
   fieldValue: { width: "58%", color: INK },
   subHeading: { fontSize: 10, fontWeight: 700, color: NAVY_SOFT, marginTop: 6, marginBottom: 2 },
+  // Width only, so @react-pdf keeps the captured aspect ratio and the ink is never
+  // squashed or stretched. The pad is a 480x160 canvas, so 180pt wide lands at 60pt
+  // tall. No background colour, no tint: the image is drawn exactly as it was signed.
+  signatureImage: { width: 180, marginTop: 2, marginBottom: 2 },
+  signatureCaption: { fontSize: 8, color: MUTED },
   footer: { position: "absolute", bottom: 28, left: 44, right: 44, flexDirection: "row", justifyContent: "space-between", borderTopWidth: 0.5, borderTopColor: "#dfe4f0", paddingTop: 6 },
   footerText: { fontSize: 8, color: MUTED },
 });
@@ -89,6 +96,30 @@ function formatWhen(d: Date): string {
     hour: "2-digit",
     minute: "2-digit",
   }).format(d);
+}
+
+/**
+ * A drawn signature held in the answer, ready to draw on the page.
+ *
+ * Phil, 2026-07-29: the PDF printed the words "Signature captured" where the person
+ * had actually signed, so an inspector saw a claim instead of the signature. The
+ * shared renderer captures a drawn signature as a PNG data URL held in the ANSWER
+ * (components/forms/form-renderer.tsx), not as a stored file, so the PDF has the
+ * image in hand and can simply draw it.
+ *
+ * Deliberately strict, and it mirrors the on screen Evidence page one for one: only a
+ * png or jpeg data URL is drawn. Anything else (missing, a stored file path, a pasted
+ * string, an svg) returns null and the row falls back to the shared formatter, exactly
+ * as before. A truncated or corrupt data URL is safe too: @react-pdf swallows an image
+ * it cannot decode with a console warning and lays the node out at zero size, so one
+ * bad signature can never fail the whole record's PDF.
+ */
+function drawnSignature(value: AnswerValue | undefined): string | null {
+  if (typeof value !== "string") return null;
+  const v = value.trim();
+  return v.startsWith("data:image/png;base64,") || v.startsWith("data:image/jpeg;base64,")
+    ? v
+    : null;
 }
 
 /**
@@ -138,20 +169,33 @@ export function EvidenceEntry({ schema, answers, meta }: { schema: FormSchema; a
         return (
           <View key={section.id} style={styles.section} wrap={false}>
             <Text style={styles.sectionTitle}>{section.title}</Text>
-            {visible.map((field) =>
-              isPresentational(field.type) ? (
-                <Text key={field.key} style={styles.subHeading}>
-                  {field.label}
-                </Text>
-              ) : (
+            {visible.map((field) => {
+              if (isPresentational(field.type)) {
+                return (
+                  <Text key={field.key} style={styles.subHeading}>
+                    {field.label}
+                  </Text>
+                );
+              }
+              const value = answers[field.key];
+              // Only a signature gets the image treatment. Every other field type still
+              // goes through the shared formatter, so the PDF and the Evidence page can
+              // never drift apart.
+              const signature = field.type === "signature" ? drawnSignature(value) : null;
+              return (
                 <View key={field.key} style={styles.fieldRow}>
                   <Text style={styles.fieldLabel}>{field.label}</Text>
-                  <Text style={styles.fieldValue}>
-                    {formatAnswerForDisplay(field, answers[field.key])}
-                  </Text>
+                  {signature ? (
+                    <View style={styles.fieldValue}>
+                      <Image src={signature} style={styles.signatureImage} />
+                      <Text style={styles.signatureCaption}>Signature captured</Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.fieldValue}>{formatAnswerForDisplay(field, value)}</Text>
+                  )}
                 </View>
-              ),
-            )}
+              );
+            })}
           </View>
         );
       })}
