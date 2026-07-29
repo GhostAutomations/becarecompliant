@@ -723,54 +723,76 @@ PUBLIC MARKETING PAGES (added 2026-07-29, not run live):
 - Confirm the success panel shows the action's message plus the new line about a person reading every request.
 - Read every marketing page once looking for a dash of any kind in customer facing copy, and for the words "item" or "board".
 
-SELF SERVE AUTO PROVISIONING AND THE 14 DAY TRIAL (item 4c, DESIGN AGREED with Phil 2026-07-29, no code yet):
+TRIAL PROVISIONING, FOUNDER APPROVED (item 4c, DESIGN AGREED with Phil 2026-07-29, migration 0152 APPLIED, no application code yet):
 
-Decisions taken, and they are the answer to the four questions Phil raised:
-- WHO CAN CREATE A TENANT. A stranger can, but only after proving the email address. The
-  public form writes a pending signup_intent and sends one verification link. The tenant is
-  created when that link is clicked, never on form submit. The whole public route sits behind
-  PUBLIC_SIGNUP_ENABLED, which is also the kill switch. The founder one click Provision button
-  is built first and proves the same engine with Phil as the only caller.
-- WHAT HAPPENS WHEN A TRIAL LAPSES. A hard lock in ONE place. Amber banner from three days
-  left. On expiry the Company Admin is sent to Settings > Billing with a Subscribe button and
-  everyone else to a plain Trial ended page. The gate shows its state, per the standing rule.
-  Data is kept for 60 days. Subscribing clears the lock automatically through the existing
-  Stripe webhook, because the gate reads the live subscription status first.
-- WHAT STOPS UNLIMITED COMPANIES. One live trial per verified email address, held on
-  companies.trial_owner_email with a partial unique index, clearable by Phil to grant another.
-  Plus a case insensitive company name and slug collision check that routes a genuine near
-  match to Phil as a normal lead rather than a dead end. Phil deliberately did NOT take IP rate
-  limiting or a global daily cap: the residual risk is signup_intent rows and Resend sends, not
-  seeded tenants, and the flag is the kill switch if it is ever abused.
-- HOW IT MEETS THE FOUNDER PATH. Both paths run the SAME provision_company engine, and a self
-  serve signup still writes a trial_requests row with source self_serve and status provisioned,
-  linked to the new company. The 0151 screen stays the single view of every lead however it
-  arrived, and its waiting count still keys on status new only.
+THE DECISION. A stranger never creates a tenant. Somebody requests a trial exactly as they do
+today, the request lands on the 0151 trial requests screen carrying flags for anything already
+seen, and the founder presses Provision once. The system then does the lot: company, Office and
+first Branch, all five seed catalogues, the Company Admin invite, and the 14 day clock started at
+the press rather than at the request, so a Friday night enquiry does not lose two days.
 
-Engineering notes that cost real reading to find:
-- The five seed RPCs (forms, People checks, Service User checks, training, job titles) are all
-  security definer and start with a guard requiring is_platform_admin() or is_company_admin().
-  A service role client carries no user JWT, so those guards THROW for a public action. The fix
-  is to add "or auth.role() = 'service_role'" to each guard: anon and authenticated still fail
-  it, and the service key never reaches a browser. Do NOT be tempted by "or auth.uid() is null",
-  which is true for anon as well and would let anybody re seed any tenant.
-- provision_company does the company row, both branches and all five seeds in ONE transaction,
-  so a failed seed rolls the lot back. Today's founder createCompany can leave a half seeded
-  company behind and only mentions it in a note. The founder path moves onto the engine too.
-- The lapse gate cannot live only in app/(app)/layout.tsx. API routes do not pass through a
-  layout, so the tenant routes (evidence, reports, briefings, invoicing, import, assignments,
-  training, policies, on call) need a matching assertCompanyActive() or they are a hole. Crons
-  and the Stripe webhook stay open by design.
-- signup_intents uses a partial unique index on the pending rows, so the action must select,
-  filter and insert. ON CONFLICT cannot use a partial unique index (42P10), a lesson already
-  paid for on this project.
-- BLOCKER FOUND WHILE PLANNING. Stripe still holds the pre tier change prices, confirmed by
-  Phil. Pro would charge £99 while the public pricing page promises £69, and TIER_BASE_PENCE
-  agrees with Stripe at 9900, so Settings > Billing tells a Pro customer £99 and the founder MRR
-  figures are inflated by £30 per Pro company. Stripe Prices are immutable, so this is a new
-  £69 recurring GBP Price on the Pro product plus a STRIPE_PRICE_PRO change in Vercel, then
-  TIER_BASE_PENCE.pro to 6900. This MUST land before the flag is flipped or the first self serve
-  customer is overcharged against a public promise.
+Phil rejected an earlier draft of mine that would have let a verified stranger provision
+themselves. His version is better and it deleted a whole layer of work: NO pending signup table,
+NO hashed verification token, NO public provisioning route, and NO service role surface at all.
+The Company Admin invite email IS the proof the address is real, because a fake one never accepts.
+It also means the five seed_company_* functions are untouched: an earlier draft would have had to
+loosen the is_platform_admin() guard on all five, which is exactly the sort of change that goes
+wrong quietly.
+
+It also means the marketing copy stops being a problem. The homepage FAQ already says we set the
+trial up for you, usually the same working day, and under this design that stays TRUE.
+
+THE RULES, as agreed:
+- One trial per email address, for ever, until Phil clears the field.
+- One trial per COMPANY domain. NOT per personal domain. gmail, outlook, icloud, btinternet and
+  the rest fall back to the one per address rule, because otherwise the first applicant on gmail
+  would block every applicant on gmail afterwards, and small UK providers use personal addresses
+  constantly. Enforced by writing NULL into trial_owner_domain for a personal provider, so the
+  partial unique index simply does not constrain it.
+- Same email or same company domain BLOCKS the Provision button, with a Provision anyway override
+  that asks for a reason and writes it to the audit log. A similar company name or a repeated
+  phone number WARNS only: only a person can tell a genuine second service in a group from
+  somebody having another go.
+- Company name matching is a normalised key, no new extension. Sunrise Care Ltd, sunrise care and
+  Sunrise Care Services Limited all key to "sunrise".
+- The no touch public route is dropped. Revisit later with an auto approve switch that provisions
+  only the requests where NO flag fired.
+
+MIGRATION 0152, APPLIED 2026-07-29 to bgrtcvyjuwopunpnudeu:
+- public.company_name_key(text), immutable, the ONE definition of a comparable company name, used
+  by a stored generated name_key column on BOTH companies and trial_requests. TypeScript must
+  never re-implement it, it compares keys the database produced. This is the Evidence page versus
+  Evidence PDF lesson applied before it could bite.
+- companies: trial_started_at, trial_ends_at, trial_owner_email, trial_owner_domain,
+  provisioned_by (founder or trial_request), name_key, plus partial unique indexes on the email
+  and the domain. Verified after applying: Acme has trial_ends_at NULL, so no company that
+  existed before 0152 can ever be caught by the trial gate.
+- trial_requests: company_id linking a request to what it became, name_key, and indexes on
+  name_key, lower(email) and phone for the flag lookups.
+- public.provision_company(...) returns jsonb. SECURITY DEFINER, guarded on its first line by
+  is_platform_admin(), execute revoked from public and anon. Does company, both branches and all
+  five seeds in ONE transaction, so a seed failure rolls the whole company back and Phil simply
+  presses again. Today's createCompany can leave a half seeded company behind for ever and only
+  mentions it in a note. It re-checks the duplicate rules itself, because a screen check is for
+  the founder to READ and must never be the thing that actually holds.
+- WARNING for any future caller: the two trial indexes are PARTIAL, and a partial unique index
+  cannot be used by ON CONFLICT (42P10). Select, filter, insert.
+
+STILL TO BUILD for 4c: the Seen before panel and the Provision button on the trial requests
+screen; the trial lapse gate (banner from three days left, then Company Admin to Settings >
+Billing and everyone else to a Trial ended page, plus a matching guard on the tenant API routes,
+which bypass layouts entirely); and the Pro price fix below.
+
+BLOCKER, CONFIRMED BY PHIL 2026-07-29. Stripe pricing was never changed when the tiers changed.
+Stripe still holds Business £49, Pro £99, Enterprise £199 while the public pricing page promises
+Pro at £69. So today a Company Admin pressing Subscribe on Pro is charged £99 against a public
+promise of £69. That is the actual charge, not a display bug, and nobody has hit it only because
+nobody has subscribed. TIER_BASE_PENCE agrees with Stripe at 9900, so Settings > Billing also
+tells a Pro customer £99 and the founder MRR figures are inflated by £30 per Pro company. Stripe
+Prices are immutable: this needs a NEW £69 recurring GBP Price on the Pro product, STRIPE_PRICE_PRO
+repointed in Vercel, the £5 seat, £7.50 branch and £10 AI top up prices confirmed at the same
+time, then TIER_BASE_PENCE.pro to 6900. MUST land before any trial is provisioned that could
+convert.
 
 ## Phase 12 — Marketing & Launch
 
