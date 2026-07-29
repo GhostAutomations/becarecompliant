@@ -46,7 +46,8 @@ export async function runAi(opts: {
   }
 
   const json = (await res.json()) as {
-    content?: Array<{ text?: string }>;
+    content?: Array<{ type?: string; text?: string }>;
+    stop_reason?: string;
     usage?: { input_tokens?: number; output_tokens?: number };
   };
   await recordUsage({
@@ -61,6 +62,18 @@ export async function runAi(opts: {
   });
 
   const text = (json.content?.map((b) => b.text ?? "").join("") ?? "").trim();
-  if (!text) return { error: "The AI returned an empty response. Try again." };
+  if (!text) {
+    // An empty reply is not the caller's fault and must not cost them a credit: we
+    // only deduct for work actually done. Report WHY, because "empty response" alone
+    // is undiagnosable — stop_reason tells us whether it ran out of tokens, and the
+    // block types tell us whether the text simply arrived in a shape we do not read.
+    await refundAiCredit(opts.companyId);
+    const stop = json.stop_reason ?? "unknown";
+    const kinds = (json.content ?? []).map((b) => b.type ?? "?").join(", ") || "none";
+    console.error("[ai] empty response", { feature: opts.feature, stop, kinds });
+    return {
+      error: `The AI returned nothing (${stop}${kinds === "none" ? "" : `, blocks: ${kinds}`}). Your credit has been returned. Try again.`,
+    };
+  }
   return { ok: text };
 }

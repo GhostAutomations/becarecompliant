@@ -130,7 +130,7 @@ export async function draftReturnToWork(
     feature: "return_to_work",
     prompt,
     system: RTW_SYSTEM,
-    maxTokens: 900,
+    maxTokens: 1600,
   });
   if ("error" in result) return { error: result.error };
 
