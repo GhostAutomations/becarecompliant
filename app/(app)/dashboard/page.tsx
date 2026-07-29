@@ -244,12 +244,20 @@ function ScoreTile({ name, measures }: { name: string; measures: PqsMeasure[] })
       </p>
       <ul className="mt-2 space-y-1">
         {measures.map((m) => (
-          <li key={`${m.name}-${m.register}`} className="flex items-baseline justify-between gap-2">
+          <li key={`${m.name}-${m.register}`} className="flex items-baseline justify-between gap-1.5">
             <span className="min-w-0 truncate text-[11px] text-slate-600" title={m.star}>
               {m.name}
             </span>
+            {/* The PQS score itself (the band Cardiff awards: 0, 2, 5, 7 or 10) sits to the LEFT
+                of the rate, in navy, so the score reads first and the rate explains it. */}
             <span
-              className={`shrink-0 text-[11px] font-semibold tabular-nums ${
+              className="w-5 shrink-0 text-right text-[11px] font-bold tabular-nums text-navy-900"
+              title="PQS score"
+            >
+              {m.band == null ? "" : m.band}
+            </span>
+            <span
+              className={`w-11 shrink-0 text-right text-[11px] font-semibold tabular-nums ${
                 m.rate == null
                   ? "text-slate-400"
                   : m.rate >= 85

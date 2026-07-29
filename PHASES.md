@@ -1368,3 +1368,6 @@ Marketing site on becarecompliant.com, onboarding collateral, subscription agree
 - The bar list under them is GONE. It printed the same seven measures as the Company tile, so the
   panel was saying everything twice. The white tiles are the report now.
 - One footnote line remains, because the panel is a whole card link and needs to say so.
+- Each line now carries the PQS SCORE (the band Cardiff awards: 0, 2, 5, 7 or 10) to the left of
+  the rate, in navy so the score reads first and the coloured rate explains it. Both columns are
+  fixed width so the numbers line up down the tile.
