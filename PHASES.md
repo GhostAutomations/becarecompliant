@@ -966,6 +966,29 @@ point at, and if there is a real live account the whole BCC product and price se
 created there too. Worth knowing either way: if the account is not verified, BCC cannot take
 real money yet at all.
 
+MARKETING COPY AGAINST THE NEW TRIAL (checked 2026-07-29):
+
+Read the homepage, pricing and start trial pages against what the product now actually does.
+Clean on the standing rules: no dash of any kind anywhere in customer facing copy, and no use
+of "item" or "board". The "we set the trial up for you, usually the same working day" promise
+stays TRUE under founder approved provisioning, so it did not need rewriting after all.
+
+ONE REAL GAP, NOW FIXED. Nothing on the site said what happens when a trial ENDS, and as of
+today it ends in a hard lock. A customer losing access on day fifteen having read only "nothing
+starts billing on its own" would have been entitled to feel misled. The homepage FAQ and the
+pricing page now say the account PAUSES rather than charging, that nothing is deleted, and that
+adding a card puts it back. It is also the better sales line: no surprise charge.
+
+- Read the homepage FAQ answer and the pricing "VAT and the trial" card and confirm both now
+  describe the pause, and that neither contains a dash.
+- Confirm the wording matches what the app actually does: a warning bar from three days out, a
+  Trial ended page after that, and access restored by the webhook the moment a card is added.
+
+STILL OPEN, NOT A COPY BUG. The pricing footnote promises "extra branches are £7.50 each per
+month". EXTRA_BRANCH_PENCE exists but is used for DISPLAY ONLY on Settings > Billing: there is
+no Stripe price for a branch and nothing ever charges for one. Undercharging rather than
+overcharging, so nobody is harmed, but it is money not collected and the copy implies it is.
+
 ## Phase 12 — Marketing & Launch
 
 Marketing site on becarecompliant.com, onboarding collateral, subscription agreement (no data selling clause), launch.

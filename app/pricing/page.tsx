@@ -27,7 +27,7 @@ const EXPLAINERS: Array<{ term: string; body: string }> = [
   },
   {
     term: "VAT and the trial",
-    body: "All prices exclude VAT. Both plans start with a 14 day free trial, no card is needed to begin, and you can change plan as you grow.",
+    body: "All prices exclude VAT. Both plans start with a 14 day free trial and no card is needed to begin. If a trial runs out your account pauses rather than charging you, nothing is deleted, and adding a card puts it all back. You can change plan as you grow.",
   },
 ];
 

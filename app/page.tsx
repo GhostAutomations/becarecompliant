@@ -88,7 +88,7 @@ const FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: "How does the free trial work?",
-    a: "Tell us about your service and we set the 14 day trial up for you and send your logins, usually the same working day. No card is needed and nothing starts billing on its own.",
+    a: "Tell us about your service and we set the 14 day trial up for you and send your logins, usually the same working day. No card is needed and nothing starts billing on its own. We remind you inside the app three days before it ends, and if it does run out your account pauses rather than charging you. Nothing is deleted, and adding a card puts everything back exactly as you left it.",
   },
   {
     q: "How is our data looked after?",
