@@ -654,7 +654,7 @@ export default async function DashboardPage() {
                     {d.items.length === 0 ? (
                       <li className="text-[11px] text-white/30">Clear</li>
                     ) : (
-                      d.items.slice(0, 4).map((it) => (
+                      d.items.slice(0, 3).map((it) => (
                         <li
                           key={it.name}
                           title={`${it.count} ${it.name}`}
@@ -665,16 +665,16 @@ export default async function DashboardPage() {
                         </li>
                       ))
                     )}
-                    {d.items.length > 4 ? (
-                      <li className="text-[11px] text-white/40">+{d.items.length - 4} more</li>
+                    {d.items.length > 3 ? (
+                      <li className="text-[11px] text-white/40">+{d.items.length - 3} more</li>
                     ) : null}
                   </ul>
                 </div>
               );
             })}
           </div>
-          <p className="mt-3 border-t border-white/10 pt-2.5 text-[11px] text-white/50">
-            Working days only. Anything due at the weekend shows on the following working day.
+          <p className="mt-2 border-t border-white/10 pt-2 text-[10px] text-white/45">
+            Working days only. Weekend work shows on the next working day.
           </p>
         </Panel>
 
@@ -682,17 +682,19 @@ export default async function DashboardPage() {
           {activity.length === 0 ? (
             <p className="text-sm text-white/55">Nothing has happened yet today.</p>
           ) : (
-            <ul className="space-y-2">
-              {activity.map((a, i) => (
-                <li
-                  key={`${a.when}-${i}`}
-                  className="flex items-start justify-between gap-3 border-b border-white/5 pb-2 last:border-0 last:pb-0"
-                >
-                  <span className="min-w-0 text-sm text-white/80">{a.summary}</span>
-                  <span className="shrink-0 text-[11px] text-white/45">{fmtWhen(a.when)}</span>
-                </li>
-              ))}
-            </ul>
+            <div className="max-h-[124px] overflow-y-auto pr-1">
+              <ul className="space-y-2">
+                {activity.map((a, i) => (
+                  <li
+                    key={`${a.when}-${i}`}
+                    className="flex items-start justify-between gap-3 border-b border-white/5 pb-2 last:border-0 last:pb-0"
+                  >
+                    <span className="min-w-0 text-[13px] leading-snug text-white/80">{a.summary}</span>
+                    <span className="shrink-0 text-[11px] text-white/45">{fmtWhen(a.when)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </Panel>
       </div>

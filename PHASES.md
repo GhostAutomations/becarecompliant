@@ -1307,3 +1307,12 @@ Marketing site on becarecompliant.com, onboarding collateral, subscription agree
   occupies, so it sits directly under it. Recent activity is `lg:col-span-3`, the same three
   Expiring soon occupies, which puts it bottom right. The five columns under the PQS report are
   intentionally empty.
+
+### 2026-07-29 Bottom row fits on the screen
+
+- Recent activity is a bounded scroll area (`max-h-[124px]`), so the newest lines are always on
+  screen and the older ones are a scroll away instead of off the bottom of the page. Line size
+  dropped to 13px with tighter leading, since these summaries often wrap.
+- Compliance calendar shows three lines per day column instead of four, then "+N more", and the
+  footnote is one shorter line at 10px. Both changes are height, not width: the tile still sits in
+  the four columns under On call.
