@@ -227,11 +227,23 @@ export default function FormEvidenceDialog({
                         draftAction(fd);
                       }}
                     >
-                      {draftPending || drafting ? "Drafting…" : aiDraft.label}
+                      {draftPending || drafting ? (
+                        <>
+                          <span
+                            aria-hidden
+                            className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"
+                          />
+                          Drafting…
+                        </>
+                      ) : (
+                        aiDraft.label
+                      )}
                     </button>
                   </div>
                   {draftPending || drafting ? (
-                    <p className="form-hint">Drafting. This takes a few seconds.</p>
+                    <p className="mt-2 animate-pulse text-sm text-white/70">
+                      Writing questions for this absence. This takes a few seconds.
+                    </p>
                   ) : null}
                   {draftState.error ? <p className="form-error">{draftState.error}</p> : null}
                 </div>
