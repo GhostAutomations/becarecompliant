@@ -122,18 +122,32 @@ function Tile({
         : tone === "green"
           ? "text-emerald-300"
           : "text-white";
+  /**
+   * The arrow on the right is not decoration. Tiles whose figure is short (a number, a
+   * percentage) left a band of empty space down the right hand side, while the red tiles
+   * filled because their explanation wraps. The arrow closes that gap AND says the tile is a
+   * link, which every plumbed one is.
+   */
   const inner = (
-    <div className="flex items-start gap-3">
+    <div className="flex h-full items-start gap-3">
       {icon ? <TileIcon name={icon} tone={iconTone} /> : null}
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="text-xs uppercase tracking-wide text-white/50">{label}</p>
         <p className={`mt-1 text-2xl font-bold tabular-nums ${valueClass}`}>{value}</p>
         {sub ? <p className="mt-0.5 text-[11px] text-white/55">{sub}</p> : null}
       </div>
+      {href ? (
+        <span
+          aria-hidden
+          className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/10 text-white/40 transition group-hover:border-white/25 group-hover:text-white/70"
+        >
+          &rarr;
+        </span>
+      ) : null}
     </div>
   );
   return href ? (
-    <Link href={href} className="glass-card glass-card-hover block h-full p-4">
+    <Link href={href} className="glass-card glass-card-hover group block h-full p-4">
       {inner}
     </Link>
   ) : (
