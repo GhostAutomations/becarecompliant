@@ -440,27 +440,25 @@ export async function getRecentActivity(companyId: string): Promise<ActivityLine
  * full report for those.
  * =========================================================================== */
 
-import { getSatisfaction } from "@/lib/service-users/satisfaction";
-import { getOutcomesRegister } from "@/lib/service-users/data";
+import { getPqsMeasures, defaultOnTimeWindow, type PqsMeasure } from "@/lib/export/on-time";
 
-export type PqsSummary = {
-  satisfactionPct: number | null;
-  satisfactionReviews: number;
-  outcomesPct: number | null;
-  outcomesTotal: number;
-};
-
-export async function getPqsSummary(companyId: string): Promise<PqsSummary> {
-  const [sat, outcomes] = await Promise.all([
-    getSatisfaction(companyId),
-    getOutcomesRegister(companyId),
-  ]);
-  const total = outcomes.rows.reduce((n, r) => n + r.total, 0);
-  const achieving = outcomes.rows.reduce((n, r) => n + r.achievingOrProgressing, 0);
-  return {
-    satisfactionPct: sat.pct,
-    satisfactionReviews: sat.reviewCount,
-    outcomesPct: total > 0 ? Math.round((achieving / total) * 100) : null,
-    outcomesTotal: total,
-  };
+/**
+ * Every measure Cardiff scores, from the SAME computation the PQS report renders. Not a
+ * cheaper approximation: an earlier version showed two figures it could reach without the
+ * engine, which is how a dashboard and a report end up quoting different numbers.
+ *
+ * COST: this runs the on time engine on dashboard load. It is the honest version and it is
+ * slow. The follow up is a cached daily figure, the same fix the training percentage needs.
+ */
+export async function getPqsSummary(
+  companyId: string,
+  companyName: string,
+): Promise<PqsMeasure[]> {
+  return getPqsMeasures({
+    companyId,
+    companyName,
+    branchId: null,
+    branchName: null,
+    window: defaultOnTimeWindow(),
+  });
 }

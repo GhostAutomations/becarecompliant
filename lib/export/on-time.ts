@@ -124,13 +124,24 @@ function tsToCivil(ts: string): CivilDate {
   return civilDateInLondon(new Date(ts));
 }
 
-export async function buildOnTimeReport(input: {
+export type OnTimeInput = {
   companyId: string;
   companyName: string;
   branchId: string | null;
   branchName: string | null;
   window: OnTimeWindow;
-}): Promise<{ doc: ReportDoc; csv: string; base: string }> {
+};
+
+/**
+ * The PQS engine, split out from the renderer (2026-07-29).
+ *
+ * WHY. The dashboard needs the PQS measures as numbers, and the report needs them as a
+ * document. Before this split the only way to get them was to render the whole report, so the
+ * dashboard showed two figures it could reach cheaply instead of the real set. That is the same
+ * mistake as the Evidence page and the Evidence PDF: two surfaces, two code paths, and numbers
+ * that drift. Now there is ONE computation and two presentations of it.
+ */
+async function computeOnTime(input: OnTimeInput) {
   const supabase = await createClient();
   const win = input.window;
   const today = todayInLondon();
@@ -149,7 +160,16 @@ export async function buildOnTimeReport(input: {
     .gt("interval", 0);
   const defs = (defsRaw as unknown as DefRow[] | null)?.filter((d) => d.form_id) ?? [];
   if (defs.length === 0) {
-    return emptyReport(input, "No recurring checks are configured for this company.");
+    // No recurring checks: nothing to score. Returns the same shape as the full path so the
+    // renderer and the dashboard both get an empty set rather than a different type.
+    return {
+      win,
+      stats: [] as OnTimeStat[],
+      cycles: [] as OnTimeCycle[],
+      pqsStars: {} as Record<string, string>,
+      extraMeasures: [] as PqsMeasure[],
+      empty: "No recurring checks are configured for this company.",
+    };
   }
 
   // 2. Active records (branch scoped by RLS + the optional branch filter).
@@ -359,7 +379,37 @@ export async function buildOnTimeReport(input: {
     },
   ];
 
-  return renderOnTimeDoc(input, win, stats, cycles, pqsStars, extraMeasures);
+  return { win, stats, cycles, pqsStars, extraMeasures };
+}
+
+export async function buildOnTimeReport(
+  input: OnTimeInput,
+): Promise<{ doc: ReportDoc; csv: string; base: string }> {
+  const r = await computeOnTime(input);
+  if ("empty" in r && r.empty) return emptyReport(input, r.empty);
+  return renderOnTimeDoc(input, r.win, r.stats, r.cycles, r.pqsStars, r.extraMeasures);
+}
+
+/**
+ * Every measure Cardiff actually scores, as a flat list, for the dashboard.
+ *
+ * Two of them are on time completion rates from the cycles above; the rest are the appended
+ * measures (training, safeguarding, SCW registration, satisfaction, personal outcomes). Same
+ * numbers as the report, because it is the same computation.
+ */
+export async function getPqsMeasures(input: OnTimeInput): Promise<PqsMeasure[]> {
+  const { stats, pqsStars, extraMeasures } = await computeOnTime(input);
+  const starred: PqsMeasure[] = stats
+    .filter((s) => pqsStars[s.checkKey])
+    .map((s) => ({
+      name: s.checkName,
+      register: s.population === "people" ? "People" : "Service Users",
+      gradedAt: s.gradedAt,
+      rate: s.ratePct,
+      band: s.band,
+      star: pqsStars[s.checkKey],
+    }));
+  return [...starred, ...extraMeasures];
 }
 
 function bandCell(band: number | null) {

@@ -312,7 +312,12 @@ export default async function DashboardPage() {
       getRecentActivity(companyId),
       canSeeOnCall ? getUrgentFollowUps(companyId) : Promise.resolve([]),
     ]);
-  const pqs = canSeePqs ? await getPqsSummary(companyId) : null;
+  const { data: coRow } = await supabase
+    .from("companies")
+    .select("name")
+    .eq("id", companyId)
+    .maybeSingle();
+  const pqs = canSeePqs ? await getPqsSummary(companyId, coRow?.name ?? "Company") : null;
 
   const overdue = people.overdue + serviceUsers.overdue;
   const due14 = people.due14 + serviceUsers.due14;
@@ -441,57 +446,56 @@ export default async function DashboardPage() {
             different numbers. The on time completion measures are deliberately not recomputed
             here: that logic lives in the report builder, and a second copy of it is exactly how
             the Evidence page and the Evidence PDF came to disagree. */}
-        {pqs ? (
-          <Panel title="PQS report" href="/reports" linkLabel="View full report" className="lg:col-span-5">
-            <ul className="space-y-3">
-              <li className="flex items-center gap-3">
-                <span className="w-52 shrink-0 text-sm text-white/80">Satisfaction</span>
-                <span className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
-                  <span
-                    className={`block h-full rounded-full ${
-                      (pqs.satisfactionPct ?? 0) >= 85
-                        ? "bg-emerald-400"
-                        : (pqs.satisfactionPct ?? 0) >= 50
-                          ? "bg-amber-400"
-                          : "bg-red-400"
-                    }`}
-                    style={{ width: `${pqs.satisfactionPct ?? 0}%` }}
-                  />
-                </span>
-                <span className="w-12 shrink-0 text-right text-sm tabular-nums text-white/70">
-                  {pqs.satisfactionPct == null ? "n/a" : `${pqs.satisfactionPct}%`}
-                </span>
-              </li>
-              <li className="flex items-center gap-3">
-                <span className="w-52 shrink-0 text-sm text-white/80">Personal outcomes</span>
-                <span className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
-                  <span
-                    className={`block h-full rounded-full ${
-                      (pqs.outcomesPct ?? 0) >= 85
-                        ? "bg-emerald-400"
-                        : (pqs.outcomesPct ?? 0) >= 50
-                          ? "bg-amber-400"
-                          : "bg-red-400"
-                    }`}
-                    style={{ width: `${pqs.outcomesPct ?? 0}%` }}
-                  />
-                </span>
-                <span className="w-12 shrink-0 text-right text-sm tabular-nums text-white/70">
-                  {pqs.outcomesPct == null ? "n/a" : `${pqs.outcomesPct}%`}
-                </span>
-              </li>
+        {/* THE PQS REPORT. Every measure Cardiff scores, from the SAME computation the report
+            renders (lib/export/on-time getPqsMeasures), so the dashboard and the report can
+            never disagree. The link goes to the report itself, not the reports index. */}
+        {pqs && pqs.length > 0 ? (
+          <Panel
+            title="PQS report"
+            href="/reports/view/on-time"
+            linkLabel="View full report"
+            className="lg:col-span-5"
+          >
+            <ul className="space-y-2.5">
+              {pqs.map((m) => (
+                <li key={`${m.name}-${m.register}`} className="flex items-center gap-3">
+                  <span className="w-48 shrink-0 truncate text-sm text-white/80" title={m.star}>
+                    {m.name}
+                  </span>
+                  <span className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
+                    <span
+                      className={`block h-full rounded-full ${
+                        (m.rate ?? 0) >= 85
+                          ? "bg-emerald-400"
+                          : (m.rate ?? 0) >= 50
+                            ? "bg-amber-400"
+                            : "bg-red-400"
+                      }`}
+                      style={{ width: `${m.rate ?? 0}%` }}
+                    />
+                  </span>
+                  <span className="w-14 shrink-0 text-right text-sm tabular-nums text-white/70">
+                    {m.rate == null ? "n/a" : `${m.rate}%`}
+                  </span>
+                  <span className="w-8 shrink-0 text-right text-[11px] tabular-nums text-gold-300">
+                    {m.band == null ? "" : m.band}
+                  </span>
+                </li>
+              ))}
             </ul>
-            <p className="mt-4 border-t border-white/10 pt-3 text-[11px] text-white/55">
-              User Experience Q2 from {pqs.satisfactionReviews} plan{" "}
-              {pqs.satisfactionReviews === 1 ? "review" : "reviews"}, Supplier Performance Q2 across{" "}
-              {pqs.outcomesTotal} outcomes. On time completion measures are in the full report.
+            <p className="mt-3 border-t border-white/10 pt-2.5 text-[11px] text-white/50">
+              Rate, then the PQS band it scores. Last six months.
             </p>
           </Panel>
         ) : (
           <div className="lg:col-span-5">
             <MissingPanel
               title="PQS report"
-              needs="Personal outcomes and satisfaction are Pro features and are not switched on for this company."
+              needs={
+                canSeePqs
+                  ? "No recurring checks are configured yet, so there is nothing to score."
+                  : "Personal outcomes and satisfaction are Pro features and are not switched on for this company."
+              }
             />
           </div>
         )}
