@@ -105,6 +105,7 @@ function Tile({
   tone = "none",
   icon,
   iconTone = "indigo",
+  className = "",
 }: {
   href?: string;
   label: string;
@@ -113,6 +114,7 @@ function Tile({
   tone?: "red" | "amber" | "green" | "none";
   icon?: string;
   iconTone?: string;
+  className?: string;
 }) {
   const valueClass =
     tone === "red"
@@ -122,12 +124,6 @@ function Tile({
         : tone === "green"
           ? "text-emerald-300"
           : "text-white";
-  /**
-   * The arrow on the right is not decoration. Tiles whose figure is short (a number, a
-   * percentage) left a band of empty space down the right hand side, while the red tiles
-   * filled because their explanation wraps. The arrow closes that gap AND says the tile is a
-   * link, which every plumbed one is.
-   */
   const inner = (
     <div className="flex h-full items-start gap-3">
       {icon ? <TileIcon name={icon} tone={iconTone} /> : null}
@@ -136,22 +132,14 @@ function Tile({
         <p className={`mt-1 text-2xl font-bold tabular-nums ${valueClass}`}>{value}</p>
         {sub ? <p className="mt-0.5 text-[11px] text-white/55">{sub}</p> : null}
       </div>
-      {href ? (
-        <span
-          aria-hidden
-          className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/10 text-white/40 transition group-hover:border-white/25 group-hover:text-white/70"
-        >
-          &rarr;
-        </span>
-      ) : null}
     </div>
   );
   return href ? (
-    <Link href={href} className="glass-card glass-card-hover group block h-full p-4">
+    <Link href={href} className={`glass-card glass-card-hover block h-full p-4 ${className}`}>
       {inner}
     </Link>
   ) : (
-    <div className="glass-card h-full p-4">{inner}</div>
+    <div className={`glass-card h-full p-4 ${className}`}>{inner}</div>
   );
 }
 
@@ -162,9 +150,9 @@ function Tile({
  * is a question every time the screen is opened. It says what is missing rather than showing
  * a zero, because a zero would be a wrong number rather than an absent one.
  */
-function MissingTile({ label, needs, icon }: { label: string; needs: string; icon?: string }) {
+function MissingTile({ label, needs, icon, className = "" }: { label: string; needs: string; icon?: string; className?: string }) {
   return (
-    <div className="h-full rounded-2xl border border-red-400/25 bg-red-500/[0.07] p-4">
+    <div className={`h-full rounded-2xl border border-red-400/25 bg-red-500/[0.07] p-4 ${className}`}>
       <div className="flex items-start gap-3">
         {icon ? <TileIcon name={icon} tone="red" /> : null}
         <div className="min-w-0 flex-1">
@@ -427,10 +415,14 @@ export default async function DashboardPage() {
           )}
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:col-span-10 xl:grid-cols-4">
+        {/* Ten columns, not four equal ones. A tile holding a number and four words does
+              not need the same width as one holding a sentence, and forcing them equal is what
+              left the dead band down the side of Open actions and Audits completed. */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:col-span-10 xl:grid-cols-10">
           <Tile
             href="/people"
             label="Open actions"
+            className="xl:col-span-2"
             icon="actions"
             iconTone="indigo"
             value={overdue}
@@ -438,34 +430,40 @@ export default async function DashboardPage() {
             sub={`${people.overdue} people, ${serviceUsers.overdue} service users`}
           />
           <MissingTile label="Upcoming inspections"
+            className="xl:col-span-3"
             needs="Nothing records a scheduled inspection yet"
             icon="calendar" />
           <Tile
             href="/people/training"
             label="Training completion"
+            className="xl:col-span-2"
             icon="training"
             iconTone="blue"
             value={trainingPct == null ? "n/a" : `${Math.round(trainingPct)}%`}
             sub="of mandatory training is in date"
           />
           <MissingTile label="Policies up to date"
+            className="xl:col-span-3"
             needs="Needs signing coverage, not a policy count"
             icon="policy" />
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:col-span-10 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:col-span-10 xl:grid-cols-10">
           <Tile
             href="/people"
             label="Audits completed"
+            className="xl:col-span-2"
             icon="audit"
             iconTone="indigo"
             value={auditsPct == null ? "n/a" : `${auditsPct}%`}
             sub="audit checks currently in date"
           />
           <MissingTile label="Incidents (open)"
+            className="xl:col-span-3"
             needs="No incidents feature exists yet"
             icon="shield" />
           <MissingTile label="Risk level"
+            className="xl:col-span-3"
             needs="No risk model exists yet"
             icon="risk" />
           {/* Eight tiles in an eight slot grid. Seven left a hole on the right, and stretching
@@ -473,6 +471,7 @@ export default async function DashboardPage() {
           <Tile
             href="/people"
             label="Due in 14 days"
+            className="xl:col-span-2"
             value={due14}
             tone={due14 > 0 ? "amber" : "green"}
             sub="checks falling due across both registers"
