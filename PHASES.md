@@ -1093,6 +1093,61 @@ the same depth.
 - STILL OPEN, OPTIONAL: a skip link. The main landmark gives screen reader users the jump, but
   nothing yet links to #content.
 
+POSITIONING AND SECURITY ON THE HOMEPAGE (BUILT 2026-07-29, not yet run live):
+
+Phil brought a Lead Product Designer brief. Four parts of it were adopted; the rest was NOT,
+and the reasons are worth keeping because they will come back:
+- The brief made the homepage's one job "book demos". Rejected for now. Demo led selling costs
+  a hundred pounds or more of founder time per demo and the product is £49 to £69 a month, so
+  it takes most of a year to pay back one demo. Vanta is demo led because Vanta is ten thousand
+  a year; Stripe, Linear and Notion, the brief's other reference points, are all self serve.
+  The founder approved trial we built today is already a qualified lead.
+- The brief claimed FOUR regulators including Care Inspectorate Scotland and RQIA Northern
+  Ireland. The product is CQC and CIW only. Putting all four on the site would have been the
+  third public claim in one day that the code does not keep.
+- The brief made "Compliance Score" the flagship. The app ALREADY scores, through Inspection
+  Readiness and the PQS score, so that is two scores with no stated relationship. Also risky:
+  a provider showing 98 percent who is then rated Requires Improvement will hold that number
+  against us.
+- The brief specifies a LIGHT theme (#F8FAFC background, white cards) and slightly wrong hexes
+  (#0D1B4C against the real #0D1D4B, #F5A623 against the real #F59E0B). That is a rebuild of
+  every screen including the app, not a polish, and two nearly identical hexes are worse than
+  two obviously different ones.
+
+WHAT WAS ADOPTED:
+- THE POSITION NOW LEADS. The h1 is "The operating system for care compliance." The old h1,
+  "see every check that is overdue before your inspector does", was the specific hook and it is
+  NOT lost: it now opens the supporting paragraph, where it still does its work. The eyebrow
+  pill carries the regulators, which is what a registered manager scans for. This is the
+  pattern every reference point uses: the position in the h1, the promise underneath.
+- CONFIDENCE RATHER THAN SOFTWARE, in two headings. "Everything a registered manager needs"
+  became "Know where you stand, every day". "Find out what is overdue in your service" became
+  "Walk into your next inspection knowing". The buyer is not shopping for features, they are
+  trying not to be the person who got a Requires Improvement.
+- A SECURITY SECTION, immediately before pricing, because it is the last objection a compliance
+  buyer raises before they look at the number. Four cards: separation enforced in the database
+  rather than by a filter in the software, an audit trail with no way to edit or delete,
+  held in the UK with role limited access, and files served only by links that expire in five
+  minutes. Every line was corroborated against the code before it was written, and it links to
+  the privacy notice for the detail.
+- The tone rules needed nothing: the existing copy already avoids the clichés the brief warns
+  about.
+
+Verified before commit: the repo's own TypeScript ran clean (tsc --noEmit, exit 0) and the JSX
+was walked to confirm the new section sits inside main, between the social proof band and
+pricing.
+
+- Load the homepage and read the hero out loud. Confirm the position reads as a claim rather
+  than a slogan, and that the overdue checks hook still lands in the paragraph underneath.
+- Confirm the eyebrow pill now names CQC and CIW and nothing else. Scotland and Northern
+  Ireland must not appear anywhere until the frameworks exist.
+- Scroll to the Security section and check every one of the four claims is one you would be
+  happy to defend in front of a customer's governance meeting. If any of them ever stops being
+  true in the code, that card comes off the page the same day.
+- Confirm the privacy notice link from that section works.
+- Read the two reworded headings and decide whether they sound like you. They are the one
+  judgement call in this batch.
+
 ## Phase 12 — Marketing & Launch
 
 Marketing site on becarecompliant.com, onboarding collateral, subscription agreement (no data selling clause), launch.
