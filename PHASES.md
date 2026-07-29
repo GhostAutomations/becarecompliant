@@ -915,6 +915,57 @@ exactly like one that never had a trial. Everyone in the company sees the same a
   including Acme, is completely unaffected throughout.
 - Confirm a Black or Diamond company is never locked even if a trial date is somehow set.
 
+THE PRICE GUARD, AND THE £69 PRO PRICE (BUILT 2026-07-29, Stripe price created, env var NOT yet switched):
+
+THE BUG. The pricing page said Pro was £69. TIER_BASE_PENCE said 9900. Stripe held a £99
+price created on 13 July. Phil confirmed Stripe was never touched when the tiers were re-cut,
+so the first customer ever to press Subscribe would have been charged £30 a month more than
+the website promised them, and the trial lapse gate makes Subscribe the way OUT of a lapsed
+trial, which is the worst possible moment to overcharge somebody.
+
+WHAT WAS DONE. A new £69.00 GBP monthly price was created on the Be Care Compliant Pro
+product in Stripe (sandbox "Test Bill 2", acct_1TfLB1RhL0XqZmTg):
+  product prod_UsGyAdP70lgEFP
+  NEW price price_1TyYNLRhL0XqZmTgSwyF3uqm   £69.00 per month, GBP, flat rate
+  OLD price price_1TsWQoRhL0XqZmTgJcqpbPAg   £99.00 per month, still the default, 0 subs
+TIER_BASE_PENCE.pro is now 6900. STRIPE_PRICE_PRO in Vercel STILL POINTS AT THE £99 PRICE
+until Phil changes it, which is why the guard below matters right now rather than in theory.
+
+THREE PLACES HOLD A PRICE AND NONE OF THEM COULD SEE EACH OTHER. Now two of them are tested
+and the third is checked at runtime:
+- lib/billing/price-consistency.test.ts fails the build if the public pricing page and the
+  code disagree on any plan price, the £5 seat, the £7.50 branch or the £10 AI top up. It
+  caught the Pro bug the moment it was written.
+- lib/billing/price-check.ts asks STRIPE what each configured price actually is. It powers a
+  new Billing prices panel on the founder health screen, and checkoutPriceProblem() refuses
+  a sale outright when Stripe disagrees with the app, rather than charging an amount the
+  customer was never shown. It fails CLOSED on a proven mismatch and OPEN on a failure to
+  read, so a Stripe outage cannot stand between a customer and their account.
+- AI_TOPUP_PENCE is now a constant rather than a number in a comment, and
+  STRIPE_PRICE_AI_TOPUP was missing from .env.example entirely.
+
+- Open Founder > Health BEFORE changing the env var. Confirm the new Billing prices panel
+  shows Pro as WRONG, naming £99 against £69, and that the header pill is red.
+- Press Subscribe as a Pro company and confirm you are REFUSED with the plain English
+  message, that nothing is charged, and that no Stripe Checkout page opens.
+- Change STRIPE_PRICE_PRO in Vercel to price_1TyYNLRhL0XqZmTgSwyF3uqm and redeploy. Confirm
+  the health panel turns green for Pro and that Subscribe then opens Checkout showing £69.
+- Confirm a company INSIDE its included users can subscribe even if the seat price is ever
+  wrong, since no seat line goes on their invoice. Then confirm a company with extra users
+  IS refused while the seat price is wrong.
+- Confirm Enterprise reads "Not sold" in neutral rather than red, because it is not on the
+  pricing page. A panel that is permanently red is a panel nobody reads.
+- ONLY AFTER the env var is switched, archive the £99 price in Stripe. Archiving it before
+  would break Checkout, and the health panel would then say the price is archived.
+
+STRIPE IS A SANDBOX. The dashboard says Sandbox, the account is "Test Bill 2" with an
+"Exit sandbox" button and a "Verify your business" banner, and one account holds the products
+for all three businesses (Join Care Now, Carer Academy, Be Care Compliant). So the £69 price
+exists in the SANDBOX only. Before launch, confirm which account and mode the production keys
+point at, and if there is a real live account the whole BCC product and price set has to be
+created there too. Worth knowing either way: if the account is not verified, BCC cannot take
+real money yet at all.
+
 ## Phase 12 — Marketing & Launch
 
 Marketing site on becarecompliant.com, onboarding collateral, subscription agreement (no data selling clause), launch.

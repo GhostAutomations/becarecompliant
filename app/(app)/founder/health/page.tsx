@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import BackLink from "@/components/back-link";
 import { resendConfigured } from "@/lib/email/resend";
 import { twilioConfigured } from "@/lib/sms/twilio";
+import { checkStripePrices } from "@/lib/billing/price-check";
 
 export const metadata: Metadata = { title: "Health" };
 
@@ -47,6 +48,16 @@ export default async function FounderHealthPage() {
     ]);
 
   const companyName = new Map((companies ?? []).map((c) => [c.id, c.name]));
+
+  /**
+   * What Stripe will actually charge, read back from Stripe itself.
+   *
+   * A price lives in three places: the marketing page, TIER_BASE_PENCE, and a Stripe object
+   * created by hand in a dashboard. A unit test keeps the first two honest with each other.
+   * Only this can see the third, and the third is the one that takes the money.
+   */
+  const priceChecks = await checkStripePrices();
+  const priceProblems = (priceChecks ?? []).filter((p) => !p.ok).length;
 
   // Environment dependencies. These reads are server-only (this is not a client
   // component and process.env is never serialised to the browser).
@@ -132,6 +143,60 @@ export default async function FounderHealthPage() {
         <p className="mt-3 text-xs text-white/40">
           A missing dependency means that feature silently no ops. Env changes take
           effect only after a redeploy.
+        </p>
+      </section>
+
+      <section aria-label="Billing prices" className="glass-card p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-white/80">Billing prices</h2>
+          {priceChecks === null ? (
+            <span className="pill pill-neutral">Stripe not configured</span>
+          ) : (
+            <span className={`pill ${priceProblems === 0 ? "pill-green" : "pill-red"}`}>
+              {priceProblems === 0
+                ? "Stripe agrees"
+                : `${priceProblems} ${priceProblems === 1 ? "price is" : "prices are"} wrong`}
+            </span>
+          )}
+        </div>
+        {priceChecks === null ? (
+          <p className="text-xs text-white/40">
+            Set STRIPE_SECRET_KEY and the prices can be checked against Stripe here.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {priceChecks.map((p) => (
+              <div
+                key={p.env}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm"
+              >
+                <div className="min-w-0">
+                  <p className="text-white/90">{p.label}</p>
+                  <p className="text-xs text-white/40">
+                    {p.env} · app says £{(p.expectedPence / 100).toFixed(2)}
+                    {p.actualPence !== null
+                      ? ` · Stripe says £${(p.actualPence / 100).toFixed(2)} ${p.cadence ?? ""}`
+                      : ""}
+                  </p>
+                  {p.ok && !p.notSetUp ? null : (
+                    <p className={`mt-1 text-xs ${p.ok ? "text-white/40" : "text-red-300"}`}>
+                      {p.note}
+                    </p>
+                  )}
+                </div>
+                <span
+                  className={`pill ${p.ok ? (p.notSetUp ? "pill-neutral" : "pill-green") : "pill-red"}`}
+                >
+                  {p.ok ? (p.notSetUp ? "Not sold" : "Matches") : "Wrong"}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+        <p className="mt-3 text-xs text-white/40">
+          A price shown as Wrong here cannot be sold: Checkout refuses rather than charging an
+          amount the customer was never shown. Stripe prices cannot be edited, so a change
+          means creating a new price and repointing the environment variable.
         </p>
       </section>
 

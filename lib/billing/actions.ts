@@ -32,6 +32,7 @@ import {
   getActiveSeatCount,
   extraSeats,
 } from "@/lib/billing/stripe-sync";
+import { checkoutPriceProblem } from "@/lib/billing/price-check";
 
 export async function startCheckout(
   _prev: ActionState,
@@ -75,6 +76,16 @@ export async function startCheckout(
     return { error: "You already have an active subscription. Use Manage billing to change your card or plan." };
   }
 
+  // Seats are counted BEFORE the price check, because the check only looks at the seat
+  // price when a seat line is actually going on this invoice.
+  const active = await getActiveSeatCount(profile.company_id);
+  const extra = extraSeats(active, tier);
+
+  // Nobody is charged an amount that disagrees with what we showed them. See
+  // lib/billing/price-check.ts: this refuses the sale rather than trusting the dashboard.
+  const priceProblem = await checkoutPriceProblem(tier, { includeSeat: extra > 0 });
+  if (priceProblem) return { error: priceProblem };
+
   const stripe = getStripe()!;
   const customerId = await ensureCustomer(profile.company_id, {
     name: company?.name ?? undefined,
@@ -83,9 +94,6 @@ export async function startCheckout(
   if (!customerId) {
     return { error: "Could not create your billing account. Please try again." };
   }
-
-  const active = await getActiveSeatCount(profile.company_id);
-  const extra = extraSeats(active, tier);
 
   const lineItems: { price: string; quantity: number }[] = [
     { price: tierBasePriceId(tier as SubscriptionTier)!, quantity: 1 },

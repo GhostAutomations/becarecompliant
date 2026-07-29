@@ -37,7 +37,13 @@ export const TIER_LABELS: Record<Tier, string> = {
 /** Expected base price per subscription tier, in pence, for display + display-side reconciliation. */
 export const TIER_BASE_PENCE: Record<SubscriptionTier, number> = {
   business: 4900,
-  pro: 9900,
+  // £69, not the original £99. The two public tiers were re-cut and the pricing page was
+  // rewritten, but this constant and the Stripe Price were both left on the old number, so
+  // for days the website promised £69 while the app said £99 and Stripe would have charged
+  // £99. Nothing caught it because a marketing file and a config file have no way of
+  // comparing notes; lib/billing/price-consistency.test.ts now makes them, and
+  // checkoutPriceProblem() refuses a sale outright if Stripe disagrees with this number.
+  pro: 6900,
   enterprise: 19900,
 };
 
@@ -66,6 +72,10 @@ export function seatPriceId(): string | null {
  *  (£10 + VAT, one time) is created in the dashboard and supplied via env; each unit
  *  purchased grants AI_TOPUP_CREDITS credits, which carry over until used. */
 export const AI_TOPUP_CREDITS = 100;
+/** What one top-up bundle costs, in pence, excluding VAT. It was only ever a comment
+ *  until now, which is exactly how the Pro base price drifted to £30 out from the public
+ *  pricing page without anything noticing. A number in code can be checked; prose cannot. */
+export const AI_TOPUP_PENCE = 1000;
 export function aiTopupPriceId(): string | null {
   return process.env.STRIPE_PRICE_AI_TOPUP ?? null;
 }
