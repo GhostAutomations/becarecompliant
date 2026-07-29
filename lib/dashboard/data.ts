@@ -424,3 +424,43 @@ export async function getRecentActivity(companyId: string): Promise<ActivityLine
     when: r.created_at,
   }));
 }
+
+
+/* ===========================================================================
+ * The PQS summary.
+ *
+ * Phil, 2026-07-29: the dashboard panel is the PQS report, not Inspection Readiness.
+ *
+ * It shows the two PQS measures that can be read WITHOUT re-running the whole report engine:
+ * satisfaction (User Experience Q2) and personal outcomes (Supplier Performance Q2). Both are
+ * read from the SAME functions the real report uses, so the dashboard and the report can never
+ * quote different numbers. The on time completion measures are deliberately NOT recomputed
+ * here: that logic lives inside buildOnTimeReport, and a second copy of it on the dashboard is
+ * exactly how the Evidence page and the Evidence PDF came to disagree. The panel links to the
+ * full report for those.
+ * =========================================================================== */
+
+import { getSatisfaction } from "@/lib/service-users/satisfaction";
+import { getOutcomesRegister } from "@/lib/service-users/data";
+
+export type PqsSummary = {
+  satisfactionPct: number | null;
+  satisfactionReviews: number;
+  outcomesPct: number | null;
+  outcomesTotal: number;
+};
+
+export async function getPqsSummary(companyId: string): Promise<PqsSummary> {
+  const [sat, outcomes] = await Promise.all([
+    getSatisfaction(companyId),
+    getOutcomesRegister(companyId),
+  ]);
+  const total = outcomes.rows.reduce((n, r) => n + r.total, 0);
+  const achieving = outcomes.rows.reduce((n, r) => n + r.achievingOrProgressing, 0);
+  return {
+    satisfactionPct: sat.pct,
+    satisfactionReviews: sat.reviewCount,
+    outcomesPct: total > 0 ? Math.round((achieving / total) * 100) : null,
+    outcomesTotal: total,
+  };
+}

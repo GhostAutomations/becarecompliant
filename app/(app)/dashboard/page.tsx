@@ -16,6 +16,7 @@ import {
   getExpiringSoon,
   getComplianceCalendar,
   getRecentActivity,
+  getPqsSummary,
   type ComplianceScore,
 } from "@/lib/dashboard/data";
 
@@ -50,6 +51,51 @@ const MANAGER_PLUS_ROLES = [
 
 /* ------------------------------------------------------------------ tiles */
 
+/**
+ * The icon tiles from Phil's design. Plain inline paths, no icon library added: one dependency
+ * for seven glyphs is not worth it, and these render at any size without a client component.
+ */
+const ICONS: Record<string, ReactNode> = {
+  actions: (
+    <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2m-6 9 2 2 4-4" />
+  ),
+  calendar: <path d="M8 2v4m8-4v4M3 10h18M5 6h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z" />,
+  training: <path d="M22 9 12 5 2 9l10 4 10-4Zm-4 3v5c0 1.5-2.7 3-6 3s-6-1.5-6-3v-5" />,
+  policy: <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Zm0 0v6h6M9 15h6M9 11h3" />,
+  audit: <path d="m21 21-4.3-4.3M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z" />,
+  shield: <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />,
+  risk: <path d="M3 3v18h18M7 15v3m5-8v8m5-12v12" />,
+};
+
+const ICON_TONES: Record<string, string> = {
+  indigo: "bg-indigo-500/15 text-indigo-300",
+  orange: "bg-orange-500/15 text-orange-300",
+  blue: "bg-sky-500/15 text-sky-300",
+  green: "bg-emerald-500/15 text-emerald-300",
+  red: "bg-red-500/15 text-red-300",
+};
+
+function TileIcon({ name, tone }: { name: string; tone: string }) {
+  return (
+    <span
+      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${ICON_TONES[tone] ?? ICON_TONES.indigo}`}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="h-4.5 w-4.5"
+        aria-hidden
+      >
+        {ICONS[name]}
+      </svg>
+    </span>
+  );
+}
+
 /** A tile with real data behind it. Colour carries meaning: red overdue, amber due soon. */
 function Tile({
   href,
@@ -57,12 +103,16 @@ function Tile({
   value,
   sub,
   tone = "none",
+  icon,
+  iconTone = "indigo",
 }: {
   href?: string;
   label: string;
   value: ReactNode;
   sub?: ReactNode;
   tone?: "red" | "amber" | "green" | "none";
+  icon?: string;
+  iconTone?: string;
 }) {
   const valueClass =
     tone === "red"
@@ -73,18 +123,21 @@ function Tile({
           ? "text-emerald-300"
           : "text-white";
   const inner = (
-    <>
-      <p className="text-xs uppercase tracking-wide text-white/50">{label}</p>
-      <p className={`mt-2 text-3xl font-bold tabular-nums ${valueClass}`}>{value}</p>
-      {sub ? <p className="mt-1 text-xs text-white/55">{sub}</p> : null}
-    </>
+    <div className="flex items-start gap-3">
+      {icon ? <TileIcon name={icon} tone={iconTone} /> : null}
+      <div className="min-w-0">
+        <p className="text-xs uppercase tracking-wide text-white/50">{label}</p>
+        <p className={`mt-1 text-2xl font-bold tabular-nums ${valueClass}`}>{value}</p>
+        {sub ? <p className="mt-0.5 text-[11px] text-white/55">{sub}</p> : null}
+      </div>
+    </div>
   );
   return href ? (
-    <Link href={href} className="glass-card glass-card-hover flex flex-col justify-between p-4">
+    <Link href={href} className="glass-card glass-card-hover block p-3.5">
       {inner}
     </Link>
   ) : (
-    <div className="glass-card flex flex-col justify-between p-4">{inner}</div>
+    <div className="glass-card p-3.5">{inner}</div>
   );
 }
 
@@ -95,17 +148,22 @@ function Tile({
  * is a question every time the screen is opened. It says what is missing rather than showing
  * a zero, because a zero would be a wrong number rather than an absent one.
  */
-function MissingTile({ label, needs }: { label: string; needs: string }) {
+function MissingTile({ label, needs, icon }: { label: string; needs: string; icon?: string }) {
   return (
-    <div className="flex flex-col justify-between rounded-2xl border border-red-400/40 bg-red-500/10 p-4">
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-xs uppercase tracking-wide text-red-200/80">{label}</p>
-        <span className="shrink-0 rounded-full border border-red-400/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-200">
-          No data
-        </span>
+    <div className="rounded-2xl border border-red-400/40 bg-red-500/10 p-3.5">
+      <div className="flex items-start gap-3">
+        {icon ? <TileIcon name={icon} tone="red" /> : null}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-xs uppercase tracking-wide text-red-200/80">{label}</p>
+            <span className="shrink-0 rounded-full border border-red-400/40 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-red-200">
+              No data
+            </span>
+          </div>
+          <p className="mt-1 text-2xl font-bold text-red-300/60">&mdash;</p>
+          <p className="mt-0.5 text-[11px] text-red-200/70">{needs}</p>
+        </div>
       </div>
-      <p className="mt-2 text-3xl font-bold text-red-300/60">&mdash;</p>
-      <p className="mt-1 text-xs text-red-200/70">{needs}</p>
     </div>
   );
 }
@@ -124,7 +182,7 @@ function Panel({
   className?: string;
 }) {
   return (
-    <section className={`glass-card p-5 ${className}`} aria-label={title}>
+    <section className={`glass-card p-4 ${className}`} aria-label={title}>
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">{title}</h2>
         {href ? (
@@ -239,6 +297,7 @@ export default async function DashboardPage() {
 
   const companyWide = MANAGER_PLUS_ROLES.includes(profile.role);
   const canSeeOnCall = companyWide && (await featureEnabled(companyId, "on_call"));
+  const canSeePqs = await featureEnabled(companyId, "outcomes_satisfaction");
 
   const { people, serviceUsers } = await getComplianceBuckets(companyId);
   const [score, trainingPct, auditsPct, expiring, calendar, activity, onCallUrgent] =
@@ -253,6 +312,7 @@ export default async function DashboardPage() {
       getRecentActivity(companyId),
       canSeeOnCall ? getUrgentFollowUps(companyId) : Promise.resolve([]),
     ]);
+  const pqs = canSeePqs ? await getPqsSummary(companyId) : null;
 
   const overdue = people.overdue + serviceUsers.overdue;
   const due14 = people.due14 + serviceUsers.due14;
@@ -261,7 +321,7 @@ export default async function DashboardPage() {
   const scored = score.enabled ? score.requirements.filter((r) => r.score != null).length : 0;
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5">
+    <div className="w-full space-y-4">
       <RealtimeRefresh />
       <RealtimeRefresh
         tables={["service_users", "check_instances", "service_user_trackers"]}
@@ -334,69 +394,106 @@ export default async function DashboardPage() {
           <Tile
             href="/people"
             label="Open actions"
+            icon="actions"
+            iconTone="indigo"
             value={overdue}
             tone={overdue > 0 ? "red" : "green"}
             sub={`${people.overdue} people, ${serviceUsers.overdue} service users`}
           />
-          <MissingTile label="Upcoming inspections" needs="Nothing records a scheduled inspection yet" />
+          <MissingTile label="Upcoming inspections"
+            needs="Nothing records a scheduled inspection yet"
+            icon="calendar" />
           <Tile
             href="/people/training"
             label="Training completion"
+            icon="training"
+            iconTone="blue"
             value={trainingPct == null ? "n/a" : `${Math.round(trainingPct)}%`}
             sub="of mandatory training is in date"
           />
-          <MissingTile label="Policies up to date" needs="Needs signing coverage, not a policy count" />
+          <MissingTile label="Policies up to date"
+            needs="Needs signing coverage, not a policy count"
+            icon="policy" />
         </div>
 
         <div className="grid gap-4 sm:grid-cols-3 lg:col-span-8">
           <Tile
             href="/people"
             label="Audits completed"
+            icon="audit"
+            iconTone="indigo"
             value={auditsPct == null ? "n/a" : `${auditsPct}%`}
             sub="audit checks currently in date"
           />
-          <MissingTile label="Incidents (open)" needs="No incidents feature exists yet" />
-          <MissingTile label="Risk level" needs="No risk model exists yet" />
+          <MissingTile label="Incidents (open)"
+            needs="No incidents feature exists yet"
+            icon="shield" />
+          <MissingTile label="Risk level"
+            needs="No risk model exists yet"
+            icon="risk" />
         </div>
       </div>
 
       {/* Row two: readiness, on call, insights. */}
       <div className="grid gap-4 lg:grid-cols-12">
-        {score.enabled ? (
-          <Panel title="Inspection readiness" href="/readiness" linkLabel="View full report" className="lg:col-span-5">
-            <ul className="space-y-2.5">
-              {score.requirements.map((req) => (
-                <li key={req.code} className="flex items-center gap-3">
-                  <span className="w-44 shrink-0 truncate text-sm text-white/80">{req.title}</span>
-                  <span className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
-                    <span
-                      className={`block h-full rounded-full ${
-                        req.status === "red"
-                          ? "bg-red-400"
-                          : req.status === "amber"
-                            ? "bg-amber-400"
-                            : "bg-emerald-400"
-                      }`}
-                      style={{ width: `${req.score ?? 0}%` }}
-                    />
-                  </span>
-                  <span className="w-12 shrink-0 text-right text-sm tabular-nums text-white/70">
-                    {req.score == null ? "n/a" : `${req.score}%`}
-                  </span>
-                </li>
-              ))}
+        {/* THE PQS REPORT, not Inspection Readiness (Phil, 2026-07-29). Both figures are read
+            from the SAME functions the real PQS report uses, so the two can never quote
+            different numbers. The on time completion measures are deliberately not recomputed
+            here: that logic lives in the report builder, and a second copy of it is exactly how
+            the Evidence page and the Evidence PDF came to disagree. */}
+        {pqs ? (
+          <Panel title="PQS report" href="/reports" linkLabel="View full report" className="lg:col-span-5">
+            <ul className="space-y-3">
+              <li className="flex items-center gap-3">
+                <span className="w-52 shrink-0 text-sm text-white/80">Satisfaction</span>
+                <span className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
+                  <span
+                    className={`block h-full rounded-full ${
+                      (pqs.satisfactionPct ?? 0) >= 85
+                        ? "bg-emerald-400"
+                        : (pqs.satisfactionPct ?? 0) >= 50
+                          ? "bg-amber-400"
+                          : "bg-red-400"
+                    }`}
+                    style={{ width: `${pqs.satisfactionPct ?? 0}%` }}
+                  />
+                </span>
+                <span className="w-12 shrink-0 text-right text-sm tabular-nums text-white/70">
+                  {pqs.satisfactionPct == null ? "n/a" : `${pqs.satisfactionPct}%`}
+                </span>
+              </li>
+              <li className="flex items-center gap-3">
+                <span className="w-52 shrink-0 text-sm text-white/80">Personal outcomes</span>
+                <span className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
+                  <span
+                    className={`block h-full rounded-full ${
+                      (pqs.outcomesPct ?? 0) >= 85
+                        ? "bg-emerald-400"
+                        : (pqs.outcomesPct ?? 0) >= 50
+                          ? "bg-amber-400"
+                          : "bg-red-400"
+                    }`}
+                    style={{ width: `${pqs.outcomesPct ?? 0}%` }}
+                  />
+                </span>
+                <span className="w-12 shrink-0 text-right text-sm tabular-nums text-white/70">
+                  {pqs.outcomesPct == null ? "n/a" : `${pqs.outcomesPct}%`}
+                </span>
+              </li>
             </ul>
-            {scored > 0 ? (
-              <p className="mt-4 border-t border-white/10 pt-3 text-xs text-white/60">
-                {healthy} of {scored} areas healthy
-              </p>
-            ) : null}
+            <p className="mt-4 border-t border-white/10 pt-3 text-[11px] text-white/55">
+              User Experience Q2 from {pqs.satisfactionReviews} plan{" "}
+              {pqs.satisfactionReviews === 1 ? "review" : "reviews"}, Supplier Performance Q2 across{" "}
+              {pqs.outcomesTotal} outcomes. On time completion measures are in the full report.
+            </p>
           </Panel>
         ) : (
-          <MissingPanel
-            title="Inspection readiness"
-            needs="Inspection Readiness is not switched on for this company."
-          />
+          <div className="lg:col-span-5">
+            <MissingPanel
+              title="PQS report"
+              needs="Personal outcomes and satisfaction are Pro features and are not switched on for this company."
+            />
+          </div>
         )}
 
         <Panel title="On call: urgent follow ups" href="/on-call" className="lg:col-span-4">
