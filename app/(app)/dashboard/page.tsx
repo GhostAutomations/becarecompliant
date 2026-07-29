@@ -203,7 +203,7 @@ function Panel({
           </Link>
         ) : null}
       </div>
-      <div className="mt-4">{children}</div>
+      <div className="mt-4 min-h-0 flex-1">{children}</div>
     </>
   );
 
@@ -510,7 +510,9 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* Row two: PQS report, on call, expiring soon. */}
+      {/* Rows two and three are ONE grid (Phil, 2026-07-29) so the PQS report can span both:
+          it takes the five columns on the left for the full height, On call and Expiring soon
+          sit beside it on the top row, the Planner and Recent activity on the bottom row. */}
       <div className="grid gap-4 lg:grid-cols-12">
         {/* THE PQS REPORT, not Inspection Readiness (Phil, 2026-07-29). Both figures are read
             from the SAME functions the real PQS report uses, so the two can never quote
@@ -525,15 +527,18 @@ export default async function DashboardPage() {
             title="PQS report"
             href="/reports/view/on-time"
             linkLabel={null}
-            className="lg:col-span-5"
+            className="lg:col-span-5 lg:row-span-2"
           >
-            <ul className="space-y-2.5">
+            {/* The panel is two rows tall, so the measures spread down it rather than sitting in
+                a block with a pool of dead space underneath. */}
+            <div className="flex h-full flex-col">
+              <ul className="flex flex-1 flex-col justify-between gap-3">
               {pqs.map((m) => (
                 <li key={`${m.name}-${m.register}`} className="flex items-center gap-3">
                   <span className="w-48 shrink-0 truncate text-sm text-white/80" title={m.star}>
                     {m.name}
                   </span>
-                  <span className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
+                  <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-white/10">
                     <span
                       className={`block h-full rounded-full ${
                         (m.rate ?? 0) >= 85
@@ -553,14 +558,15 @@ export default async function DashboardPage() {
                   </span>
                 </li>
               ))}
-            </ul>
-            <p className="mt-3 border-t border-white/10 pt-2.5 text-[11px] text-white/50">
-              Rate, then the PQS band it scores. Last six months. Open this tile for the full
-              report.
-            </p>
+              </ul>
+              <p className="mt-4 shrink-0 border-t border-white/10 pt-2.5 text-[11px] text-white/50">
+                Rate, then the PQS band it scores. Last six months. Open this tile for the full
+                report.
+              </p>
+            </div>
           </Panel>
         ) : (
-          <div className="lg:col-span-5">
+          <div className="lg:col-span-5 lg:row-span-2">
             <MissingPanel
               title="PQS report"
               needs={
@@ -626,13 +632,7 @@ export default async function DashboardPage() {
             </ul>
           )}
         </Panel>
-      </div>
 
-      {/* Row three sits UNDER row two, column for column (Phil, 2026-07-29): the Planner takes
-          the four columns On call occupies, starting at column six, and Recent activity takes the
-          three Expiring soon occupies, which puts it bottom right. The first five columns, under
-          the PQS report, are deliberately empty. */}
-      <div className="grid gap-4 lg:grid-cols-12">
         {/* THE PLANNER (Phil, 2026-07-29): this user's own booked tasks, the same rows the
             Planner page reads, as five WORKING day columns. Every column is always drawn, empty
             or not, so the week keeps its shape. */}

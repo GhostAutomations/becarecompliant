@@ -1332,3 +1332,14 @@ Marketing site on becarecompliant.com, onboarding collateral, subscription agree
 - Gated properly: the tile is drawn only for a role that has a planner and only when the Planner
   feature is on. `PLANNER_ROLES` now lives in `lib/planner/data.ts` and the Planner page guards on
   the same constant, so the page and the tile cannot drift apart on who has a planner.
+
+### 2026-07-29 PQS report fills the left hand column
+
+- Rows two and three are now ONE twelve column grid. The PQS report is `lg:col-span-5
+  lg:row-span-2`, so it runs the full height of both rows down the left. On call and Expiring soon
+  sit beside it on the top row, the Planner and Recent activity on the bottom row. Nothing else
+  changed width or position.
+- `Panel`'s body is `flex-1 min-h-0` so a tall panel can spread its content. The PQS measures are
+  a flex column with `justify-between`, which distributes the seven rows down the card instead of
+  leaving a pool of dead space under them. Bars went from 8px to 10px now there is room.
+- The no data state spans both rows too, so an empty PQS panel leaves the same shape.
