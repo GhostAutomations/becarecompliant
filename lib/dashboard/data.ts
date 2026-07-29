@@ -373,26 +373,62 @@ export async function getExpiringSoon(companyId: string): Promise<ExpiringLine[]
   return lines.sort((a, b) => b.count - a.count).slice(0, 5);
 }
 
-export type CalendarDay = { iso: string; items: string[] };
+export type CalendarDay = { iso: string; items: { name: string; count: number }[] };
 
-/** The next five days that actually have something due, with what is due on each. */
+/** Saturday or Sunday. Bank holidays are not modelled, the same convention the Complaints
+ *  response deadlines use, so the two parts of the app never disagree about a working day. */
+function isWeekendIso(iso: string): boolean {
+  const dow = new Date(`${iso}T00:00:00Z`).getUTCDay();
+  return dow === 0 || dow === 6;
+}
+
+/**
+ * The next five WORKING days, starting with today (or Monday when today is a weekend).
+ *
+ * Phil, 2026-07-29: one column per day, not a box per day that has something in it. That means
+ * the list is always five entries long even when a day is empty, because a column that vanishes
+ * when nothing is due makes the week impossible to read at a glance.
+ *
+ * Anything falling on a Saturday or Sunday inside the span is carried onto the following working
+ * day rather than dropped: nobody is going to action it at the weekend, and hiding it would
+ * understate Monday.
+ */
 export async function getComplianceCalendar(companyId: string): Promise<CalendarDay[]> {
   const rows = await bothRegisters(companyId);
   const today = londonTodayIso();
-  const horizon = addDaysIso(today, 60);
 
-  const byDay = new Map<string, string[]>();
+  const days: string[] = [];
+  let cursor = today;
+  while (days.length < 5) {
+    if (!isWeekendIso(cursor)) days.push(cursor);
+    cursor = addDaysIso(cursor, 1);
+  }
+  const last = days[days.length - 1];
+
+  /** The column a due date belongs in: its own day, or the next working day for a weekend. */
+  function columnFor(iso: string): string | null {
+    let d = iso;
+    while (isWeekendIso(d)) d = addDaysIso(d, 1);
+    return days.includes(d) ? d : null;
+  }
+
+  const byDay = new Map<string, Map<string, number>>(days.map((d) => [d, new Map<string, number>()]));
   for (const r of rows) {
     if (!r.due_date || !r.check_name) continue;
-    if (r.due_date < today || r.due_date > horizon) continue;
-    const list = byDay.get(r.due_date) ?? [];
-    if (!list.includes(r.check_name)) list.push(r.check_name);
-    byDay.set(r.due_date, list);
+    if (r.due_date < today || r.due_date > last) continue;
+    const col = columnFor(r.due_date);
+    if (!col) continue;
+    const counts = byDay.get(col);
+    if (!counts) continue;
+    counts.set(r.check_name, (counts.get(r.check_name) ?? 0) + 1);
   }
-  return [...byDay.entries()]
-    .sort((a, b) => (a[0] < b[0] ? -1 : 1))
-    .slice(0, 5)
-    .map(([iso, items]) => ({ iso, items }));
+
+  return days.map((iso) => ({
+    iso,
+    items: [...(byDay.get(iso) ?? new Map<string, number>()).entries()]
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
+  }));
 }
 
 /**
