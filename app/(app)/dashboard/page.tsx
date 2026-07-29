@@ -9,6 +9,8 @@ import { getUrgentFollowUps } from "@/lib/on-call/data";
 import { shiftLabel } from "@/lib/on-call/format";
 import { featureEnabled } from "@/lib/billing/tier";
 import { PLANNER_ROLES } from "@/lib/planner/data";
+import { listAccessibleBranchTypes } from "@/lib/service-users/data";
+import type { PqsMeasure } from "@/lib/export/on-time";
 import {
   getComplianceBuckets,
   getComplianceScore,
@@ -18,6 +20,7 @@ import {
   getPlannerWeek,
   getRecentActivity,
   getPqsSummary,
+  getPqsScopes,
   type ComplianceScore,
 } from "@/lib/dashboard/data";
 
@@ -226,6 +229,45 @@ function Panel({
   );
 }
 
+/**
+ * A white PQS score tile: one scope (the company, or a branch) with every measure it scores.
+ *
+ * White on purpose (Phil, 2026-07-29) so the scores lift off the navy. That means the LIGHT
+ * theme rag inks: `rag-red` and `rag-amber` are #dc2626 and #b45309, drawn for white surfaces.
+ * The dark surface variants used elsewhere on this page would be unreadable here.
+ */
+function ScoreTile({ name, measures }: { name: string; measures: PqsMeasure[] }) {
+  return (
+    <div className="w-[196px] shrink-0 rounded-xl bg-white p-3 shadow-lg shadow-black/20">
+      <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-navy-900" title={name}>
+        {name}
+      </p>
+      <ul className="mt-2 space-y-1">
+        {measures.map((m) => (
+          <li key={`${m.name}-${m.register}`} className="flex items-baseline justify-between gap-2">
+            <span className="min-w-0 truncate text-[11px] text-slate-600" title={m.star}>
+              {m.name}
+            </span>
+            <span
+              className={`shrink-0 text-[11px] font-semibold tabular-nums ${
+                m.rate == null
+                  ? "text-slate-400"
+                  : m.rate >= 85
+                    ? "text-rag-green"
+                    : m.rate >= 50
+                      ? "text-rag-amber"
+                      : "text-rag-red"
+              }`}
+            >
+              {m.rate == null ? "n/a" : `${m.rate}%`}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function MissingPanel({ title, needs }: { title: string; needs: string }) {
   return (
     <section
@@ -355,6 +397,20 @@ export default async function DashboardPage() {
     .eq("id", companyId)
     .maybeSingle();
   const pqs = canSeePqs ? await getPqsSummary(companyId, coRow?.name ?? "Company") : null;
+  // The white score tiles: the company and every branch this user can see. Only computed when
+  // there are measures to show, since each extra branch is a full run of the PQS engine.
+  const pqsScopes =
+    pqs && pqs.length > 0
+      ? await getPqsScopes(
+          companyId,
+          coRow?.name ?? "Company",
+          pqs,
+          (await listAccessibleBranchTypes(companyId, profile.role, user.id)).map((b) => ({
+            id: b.id,
+            name: b.name,
+          })),
+        )
+      : [];
 
   const overdue = people.overdue + serviceUsers.overdue;
   const due14 = people.due14 + serviceUsers.due14;
@@ -532,6 +588,13 @@ export default async function DashboardPage() {
             {/* The panel is two rows tall, so the measures spread down it rather than sitting in
                 a block with a pool of dead space underneath. */}
             <div className="flex h-full flex-col">
+              {/* The white score tiles. One per scope, and the strip scrolls sideways rather than
+                  squeezing the tiles when a company has several branches. */}
+              <div className="-mx-1 mb-4 flex shrink-0 gap-3 overflow-x-auto px-1 pb-1">
+                {pqsScopes.map((sc) => (
+                  <ScoreTile key={sc.key} name={sc.name} measures={sc.measures} />
+                ))}
+              </div>
               <ul className="flex flex-1 flex-col justify-between gap-3">
               {pqs.map((m) => (
                 <li key={`${m.name}-${m.register}`} className="flex items-center gap-3">

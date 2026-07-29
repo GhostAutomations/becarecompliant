@@ -1343,3 +1343,19 @@ Marketing site on becarecompliant.com, onboarding collateral, subscription agree
   a flex column with `justify-between`, which distributes the seven rows down the card instead of
   leaving a pool of dead space under them. Bars went from 8px to 10px now there is room.
 - The no data state spans both rows too, so an empty PQS panel leaves the same shape.
+
+### 2026-07-29 White PQS score tiles
+
+- A strip of white tiles sits at the top of the PQS panel, above the measure list. Each tile is
+  one scope and lists every measure that scope scores, with the rate coloured by the same
+  thresholds as the bars below (85 green, 50 amber, under 50 red).
+- One branch shows ONE tile carrying the branch name, because the branch figures and the company
+  figures are the same numbers. Two branches shows three tiles: Company, then each branch. The
+  strip scrolls sideways rather than squeezing, so four or more branches simply scroll.
+- White is deliberate, so the tiles lift off the navy. That forces the LIGHT theme rag inks
+  (`rag-green`, `rag-amber`, `rag-red`): the dark surface variants used everywhere else on this
+  page would be unreadable on white.
+- COST: each branch scope is a full run of the PQS engine. They run in parallel, and the company
+  measures the panel already computed are passed in rather than recomputed, so a single branch
+  company costs nothing extra. A company with several branches will feel this on dashboard load
+  and is the first candidate for caching.

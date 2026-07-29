@@ -511,6 +511,51 @@ import { getPqsMeasures, defaultOnTimeWindow, type PqsMeasure } from "@/lib/expo
  * COST: this runs the on time engine on dashboard load. It is the honest version and it is
  * slow. The follow up is a cached daily figure, the same fix the training percentage needs.
  */
+export type PqsScope = { key: string; name: string; measures: PqsMeasure[] };
+
+/**
+ * The PQS measures for the company AND for each branch, as the white score tiles.
+ *
+ * Phil, 2026-07-29:
+ *   one branch      one tile, carrying the BRANCH name. The branch figures and the company
+ *                   figures are the same numbers, and two tiles saying the same thing is noise.
+ *   two branches    three tiles: Company, then one per branch. Same shape upwards.
+ *   more than four  the strip scrolls.
+ *
+ * COST. Each branch scope is a full run of the PQS engine, so they run in parallel and the
+ * company measures are passed in rather than computed twice: the panel below has already worked
+ * them out. A single branch company therefore costs nothing extra at all.
+ */
+export async function getPqsScopes(
+  companyId: string,
+  companyName: string,
+  companyMeasures: PqsMeasure[],
+  branches: { id: string; name: string }[],
+): Promise<PqsScope[]> {
+  if (branches.length === 0) {
+    return [{ key: "company", name: companyName, measures: companyMeasures }];
+  }
+  if (branches.length === 1) {
+    return [{ key: branches[0].id, name: branches[0].name, measures: companyMeasures }];
+  }
+  const win = defaultOnTimeWindow();
+  const perBranch = await Promise.all(
+    branches.map((b) =>
+      getPqsMeasures({
+        companyId,
+        companyName,
+        branchId: b.id,
+        branchName: b.name,
+        window: win,
+      }),
+    ),
+  );
+  return [
+    { key: "company", name: "Company", measures: companyMeasures },
+    ...branches.map((b, i) => ({ key: b.id, name: b.name, measures: perBranch[i] })),
+  ];
+}
+
 export async function getPqsSummary(
   companyId: string,
   companyName: string,
