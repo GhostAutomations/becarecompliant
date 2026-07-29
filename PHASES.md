@@ -723,6 +723,55 @@ PUBLIC MARKETING PAGES (added 2026-07-29, not run live):
 - Confirm the success panel shows the action's message plus the new line about a person reading every request.
 - Read every marketing page once looking for a dash of any kind in customer facing copy, and for the words "item" or "board".
 
+SELF SERVE AUTO PROVISIONING AND THE 14 DAY TRIAL (item 4c, DESIGN AGREED with Phil 2026-07-29, no code yet):
+
+Decisions taken, and they are the answer to the four questions Phil raised:
+- WHO CAN CREATE A TENANT. A stranger can, but only after proving the email address. The
+  public form writes a pending signup_intent and sends one verification link. The tenant is
+  created when that link is clicked, never on form submit. The whole public route sits behind
+  PUBLIC_SIGNUP_ENABLED, which is also the kill switch. The founder one click Provision button
+  is built first and proves the same engine with Phil as the only caller.
+- WHAT HAPPENS WHEN A TRIAL LAPSES. A hard lock in ONE place. Amber banner from three days
+  left. On expiry the Company Admin is sent to Settings > Billing with a Subscribe button and
+  everyone else to a plain Trial ended page. The gate shows its state, per the standing rule.
+  Data is kept for 60 days. Subscribing clears the lock automatically through the existing
+  Stripe webhook, because the gate reads the live subscription status first.
+- WHAT STOPS UNLIMITED COMPANIES. One live trial per verified email address, held on
+  companies.trial_owner_email with a partial unique index, clearable by Phil to grant another.
+  Plus a case insensitive company name and slug collision check that routes a genuine near
+  match to Phil as a normal lead rather than a dead end. Phil deliberately did NOT take IP rate
+  limiting or a global daily cap: the residual risk is signup_intent rows and Resend sends, not
+  seeded tenants, and the flag is the kill switch if it is ever abused.
+- HOW IT MEETS THE FOUNDER PATH. Both paths run the SAME provision_company engine, and a self
+  serve signup still writes a trial_requests row with source self_serve and status provisioned,
+  linked to the new company. The 0151 screen stays the single view of every lead however it
+  arrived, and its waiting count still keys on status new only.
+
+Engineering notes that cost real reading to find:
+- The five seed RPCs (forms, People checks, Service User checks, training, job titles) are all
+  security definer and start with a guard requiring is_platform_admin() or is_company_admin().
+  A service role client carries no user JWT, so those guards THROW for a public action. The fix
+  is to add "or auth.role() = 'service_role'" to each guard: anon and authenticated still fail
+  it, and the service key never reaches a browser. Do NOT be tempted by "or auth.uid() is null",
+  which is true for anon as well and would let anybody re seed any tenant.
+- provision_company does the company row, both branches and all five seeds in ONE transaction,
+  so a failed seed rolls the lot back. Today's founder createCompany can leave a half seeded
+  company behind and only mentions it in a note. The founder path moves onto the engine too.
+- The lapse gate cannot live only in app/(app)/layout.tsx. API routes do not pass through a
+  layout, so the tenant routes (evidence, reports, briefings, invoicing, import, assignments,
+  training, policies, on call) need a matching assertCompanyActive() or they are a hole. Crons
+  and the Stripe webhook stay open by design.
+- signup_intents uses a partial unique index on the pending rows, so the action must select,
+  filter and insert. ON CONFLICT cannot use a partial unique index (42P10), a lesson already
+  paid for on this project.
+- BLOCKER FOUND WHILE PLANNING. Stripe still holds the pre tier change prices, confirmed by
+  Phil. Pro would charge £99 while the public pricing page promises £69, and TIER_BASE_PENCE
+  agrees with Stripe at 9900, so Settings > Billing tells a Pro customer £99 and the founder MRR
+  figures are inflated by £30 per Pro company. Stripe Prices are immutable, so this is a new
+  £69 recurring GBP Price on the Pro product plus a STRIPE_PRICE_PRO change in Vercel, then
+  TIER_BASE_PENCE.pro to 6900. This MUST land before the flag is flipped or the first self serve
+  customer is overcharged against a public promise.
+
 ## Phase 12 — Marketing & Launch
 
 Marketing site on becarecompliant.com, onboarding collateral, subscription agreement (no data selling clause), launch.
