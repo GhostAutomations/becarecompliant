@@ -867,6 +867,54 @@ with execute on authenticated and service_role only, no anon and no PUBLIC.
 - Confirm the existing Status and Notes form on each request still saves exactly as before, with
   the button flashing green for about two seconds and reverting, never staying green.
 
+THE TRIAL LAPSE GATE (BUILT 2026-07-29, no migration, none of it run live):
+
+What was built: lib/billing/trial.ts (pure, with lib/billing/trial.test.ts, 8 tests, all
+passing along with the other 21), lib/billing/trial-gate.ts (the database half, deduped per
+request with React cache), the lock inside requireCompany, an amber warning bar in the app
+layout from three days out, and /trial-ended.
+
+THE LOCK IS ONE LINE IN ONE FUNCTION, and that is the point. Every page, every server action
+and all nineteen tenant export routes reach their company through requireCompany, so none of
+them had to remember anything and a new route gates itself. Two callers opt out with
+allowLapsed: the Trial ended page (or it would loop) and the two billing actions (or the way
+out of a lapsed trial would be behind the lock it exists to clear). The founder is checked
+BEFORE the lock, so managing as a lapsed company still works, which is exactly when he needs
+it most.
+
+THE GATE READS ONE COLUMN, companies.trial_ends_at, and never company_billing. company_billing
+RLS admits only a Company Admin and the founder, so a gate that read the subscription would
+have locked a MANAGER out of a company his Admin could use perfectly well. Instead the Stripe
+webhook clears trial_ends_at the moment a subscription goes active, so a paying company reads
+exactly like one that never had a trial. Everyone in the company sees the same answer.
+
+- Set a THROWAWAY company's trial_ends_at to yesterday in SQL. Never Acme, and never a company
+  you are signed into as the founder without checking first.
+- Sign in as that company's Company Admin. Confirm you land on Trial ended, that it names the
+  company and the date, that it says nothing has been deleted, and that Add a card and carry on
+  opens Stripe checkout.
+- Confirm every other route bounces there too: type /dashboard, /people, /service-users,
+  /reports and /settings straight into the address bar.
+- Confirm the export routes are closed as well, since they bypass the layout: /api/reports/register
+  and /api/evidence/<id>/pdf.
+- Sign in as a Manager, a Supervisor, a Viewer and a Team Member of the same company. Confirm
+  each one sees Trial ended with the "ask your administrator" wording and NO Subscribe button.
+- THE MANAGER CHECK THAT MATTERS. Subscribe the company for real in Stripe test mode. Confirm
+  the Admin gets straight back in, THEN confirm the MANAGER does too. If the Manager is still
+  locked out while the Admin is not, the gate is reading the subscription instead of the column.
+- Confirm companies.trial_ends_at is NULL after the webhook, and that trial_started_at and
+  trial_owner_email are still there, so the history of the trial survives.
+- Set trial_ends_at to two days out. Confirm the amber bar appears on every page reading
+  "2 days left", that an Admin sees the Add a card link and a Team Member does not, and that
+  the app still works normally.
+- Set it to four days out and confirm the bar is GONE. The warning starts at three days, and
+  a bar that is always there is a bar nobody reads.
+- Set it to a few hours out and confirm it reads "1 day left", never "0 days left".
+- Confirm the founder can still Manage as the lapsed company and move around inside it.
+- Confirm a company with trial_ends_at NULL, which is every company that existed before 0152
+  including Acme, is completely unaffected throughout.
+- Confirm a Black or Diamond company is never locked even if a trial date is somehow set.
+
 ## Phase 12 — Marketing & Launch
 
 Marketing site on becarecompliant.com, onboarding collateral, subscription agreement (no data selling clause), launch.

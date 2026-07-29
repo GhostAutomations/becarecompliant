@@ -9,6 +9,8 @@ import NavyNav from "@/components/navy-nav";
 import ToastHost from "@/components/toast-host";
 import { ROLE_LABELS, navEntriesForRole } from "@/lib/nav";
 import { featureEnabled } from "@/lib/billing/tier";
+import { getCompanyTrialState } from "@/lib/billing/trial-gate";
+import { trialDaysLabel } from "@/lib/billing/trial";
 
 export default async function AppLayout({
   children,
@@ -60,6 +62,17 @@ export default async function AppLayout({
     uiTheme = c?.ui_theme ?? "classic";
     companyName = c?.name ?? "";
   }
+  /**
+   * The trial warning bar, from three days out and no earlier (lib/billing/trial.ts).
+   *
+   * It never has to say the trial is over: by then requireCompany has already sent them to
+   * /trial-ended, so the only states this layout ever paints are "ending soon" and nothing
+   * at all. The read is deduped per request by React cache(), so it costs one small query
+   * however many guards ran.
+   */
+  const trial = navCompanyId ? await getCompanyTrialState(navCompanyId) : null;
+  const canBill = profile.role === "company_admin" || profile.role === "platform_admin";
+
   // Acme keeps the rail + collapsible drawer (below); the crisp "navy" surface
   // theme was reverted, so we no longer apply the .theme-navy class.
   const navy = uiTheme === "navy";
@@ -205,6 +218,26 @@ export default async function AppLayout({
 
         {actingCompanyName ? (
           <ManageAsBanner companyName={actingCompanyName} />
+        ) : null}
+
+        {trial?.status === "ending_soon" ? (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-amber-400/30 bg-amber-400/10 px-4 py-2 text-sm md:px-8">
+            <span className="font-semibold text-amber-200">
+              {trialDaysLabel(trial.daysLeft)}
+            </span>
+            <span className="text-amber-100/80">
+              Your free trial is nearly over. Add a card and everything carries on exactly as
+              it is.
+            </span>
+            {canBill ? (
+              <Link
+                href="/settings/billing"
+                className="font-medium text-amber-200 underline decoration-amber-200/40 hover:text-white"
+              >
+                Add a card
+              </Link>
+            ) : null}
+          </div>
         ) : null}
 
         <main className="min-h-0 flex-1 overflow-y-auto px-4 pb-24 pt-6 md:px-8 md:pb-8">

@@ -121,6 +121,20 @@ async function applySubscription(companyId: string, sub: Stripe.Subscription) {
     current_period_end: periodEnd(sub),
     cancel_at_period_end: sub.cancel_at_period_end ?? false,
   });
+
+  /**
+   * A paying company is not on a trial clock any more, so the clock is cleared here.
+   *
+   * This is what lets the trial gate read ONE column that every member of the company can
+   * see. Deciding the lock from the subscription instead would mean reading company_billing,
+   * whose RLS admits only a Company Admin and the founder, so a Manager would see no row,
+   * fall back to the trial date, and be locked out of a company his Admin can use perfectly
+   * well. trial_started_at and trial_owner_email stay, so the history of the trial survives.
+   */
+  if (["active", "trialing", "past_due"].includes(sub.status)) {
+    const supabase = createServiceClient();
+    await supabase.from("companies").update({ trial_ends_at: null }).eq("id", companyId);
+  }
 }
 
 async function handleEvent(

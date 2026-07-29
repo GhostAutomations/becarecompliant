@@ -3,6 +3,7 @@ import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { decodeSessionId } from "@/lib/auth/jwt";
 import { readActingCompanyId } from "@/lib/founder/manage-as";
+import { isCompanyLapsed } from "@/lib/billing/trial-gate";
 
 export type Profile = {
   id: string;
@@ -115,9 +116,28 @@ export async function requireProfile(): Promise<{
   return { user, profile: profile as Profile };
 }
 
+export type CompanyGuardOptions = {
+  /**
+   * Let a company through whose 14 day trial has run out.
+   *
+   * Set by exactly two callers: the Trial ended page itself, and the billing actions that
+   * open Stripe Checkout or the Customer Portal. Everything else gets the default, which is
+   * why the lock cannot be missed: every page, every server action and all nineteen export
+   * routes reach their tenant through this one function, so none of them had to remember
+   * anything. Adding a new route gates itself.
+   */
+  allowLapsed?: boolean;
+};
+
 /** Requires an active member of a company (platform admin also passes). When
- *  the founder is managing as a company, the profile is shadowed to it. */
-export async function requireCompany(): Promise<{
+ *  the founder is managing as a company, the profile is shadowed to it.
+ *
+ *  THE TRIAL LOCK LIVES HERE, and the founder is checked BEFORE it on purpose: managing as
+ *  a company whose trial has lapsed is exactly when he most needs to get in, to look at it
+ *  or to put it right. */
+export async function requireCompany(
+  options: CompanyGuardOptions = {},
+): Promise<{
   user: User;
   profile: Profile;
 }> {
@@ -126,15 +146,22 @@ export async function requireCompany(): Promise<{
     return { user, profile: await applyManageAs(profile) };
   }
   if (!profile.company_id) redirect("/login?reason=no-access");
+  if (!options.allowLapsed && (await isCompanyLapsed(profile.company_id))) {
+    // No query string on this redirect: redirecting a Server Action to a URL carrying one
+    // trips the Next 15 router bug this codebase has already paid for (see lib/forms).
+    redirect("/trial-ended");
+  }
   return { user, profile };
 }
 
 /** Requires a Company Admin of their company (platform admin also passes). */
-export async function requireCompanyAdmin(): Promise<{
+export async function requireCompanyAdmin(
+  options: CompanyGuardOptions = {},
+): Promise<{
   user: User;
   profile: Profile;
 }> {
-  const { user, profile } = await requireCompany();
+  const { user, profile } = await requireCompany(options);
   if (profile.role === "platform_admin" || profile.role === "company_admin") {
     return { user, profile };
   }

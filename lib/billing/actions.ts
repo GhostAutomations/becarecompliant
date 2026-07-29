@@ -37,7 +37,9 @@ export async function startCheckout(
   _prev: ActionState,
   _formData: FormData,
 ): Promise<ActionState> {
-  const { profile } = await requireCompanyAdmin();
+  // allowLapsed: this is the way OUT of a lapsed trial. Gating it behind the same lock it
+  // exists to clear would leave a customer with no route back to their own records.
+  const { profile } = await requireCompanyAdmin({ allowLapsed: true });
   if (!profile.company_id) return { error: "No company on your account." };
 
   if (!stripeConfigured()) {
@@ -196,7 +198,9 @@ export async function openBillingPortal(
   _prev: ActionState,
   _formData: FormData,
 ): Promise<ActionState> {
-  const { profile } = await requireCompanyAdmin();
+  // allowLapsed for the same reason as startCheckout: a lapsed company must still be able
+  // to reach its card, its invoices and its own cancellation.
+  const { profile } = await requireCompanyAdmin({ allowLapsed: true });
   if (!profile.company_id) return { error: "No company on your account." };
 
   if (!stripeConfigured()) {
