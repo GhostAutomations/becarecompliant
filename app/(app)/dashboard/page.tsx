@@ -356,48 +356,51 @@ export default async function DashboardPage() {
 
       {/* Row one: the score, and the six figures beside it. */}
       <div className="grid gap-4 lg:grid-cols-12">
-        <div className="glass-card flex flex-col justify-center gap-4 p-5 sm:flex-row-reverse sm:items-center lg:col-span-3 lg:row-span-2">
+        {/* The dial sits BESIDE the percentage, and the breakdown row runs full width beneath
+            both, so there is no dead column under the ring. */}
+        <div className="glass-card flex flex-col justify-center gap-4 p-5 lg:col-span-3 lg:row-span-2">
           {score.enabled ? (
             <>
-              <ScoreDial score={score.score} />
-              <div className="min-w-0 flex-1">
-                <p className="text-xs uppercase tracking-wide text-white/50">Compliance score</p>
-                <p className="mt-1 text-4xl font-bold leading-none text-white">
-                  {score.score == null ? "Not scored" : `${score.score}%`}
-                </p>
-                <p className="mt-2 text-sm font-semibold text-emerald-300">{score.label}</p>
-                <p className="text-xs text-white/55">
-                  {score.score != null && score.score >= 85
-                    ? "Inspection ready"
-                    : "Evidence still to gather"}
-                </p>
-                {/* Never "since yesterday": snapshots are written when the readiness report is
-                    opened, so the line names the day it actually measures from. */}
-                {score.score != null && score.delta != null && score.deltaFrom ? (
-                  <p
-                    className={`mt-1 text-xs ${
-                      score.delta > 0
-                        ? "text-emerald-300"
-                        : score.delta < 0
-                          ? "text-amber-300"
-                          : "text-white/45"
-                    }`}
-                  >
-                    {score.delta === 0
-                      ? "No change"
-                      : `${score.delta > 0 ? "Up" : "Down"} ${Math.abs(score.delta)}`}{" "}
-                    since {fmtShortDate(score.deltaFrom)}
+              <div className="flex flex-row-reverse items-center gap-4">
+                <ScoreDial score={score.score} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs uppercase tracking-wide text-white/50">Compliance score</p>
+                  <p className="mt-1 text-4xl font-bold leading-none text-white">
+                    {score.score == null ? "Not scored" : `${score.score}%`}
                   </p>
-                ) : null}
-                <Link
-                  href="/readiness"
-                  className="mt-4 flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-gold-300 transition hover:bg-white/[0.08]"
-                >
-                  View score breakdown
-                  <span aria-hidden>&rsaquo;</span>
-                </Link>
-
+                  <p className="mt-2 text-sm font-semibold text-emerald-300">{score.label}</p>
+                  <p className="text-xs text-white/55">
+                    {score.score != null && score.score >= 85
+                      ? "Inspection ready"
+                      : "Evidence still to gather"}
+                  </p>
+                  {/* Never "since yesterday": snapshots are written when the readiness report is
+                      opened, so the line names the day it actually measures from. */}
+                  {score.score != null && score.delta != null && score.deltaFrom ? (
+                    <p
+                      className={`mt-1 text-xs ${
+                        score.delta > 0
+                          ? "text-emerald-300"
+                          : score.delta < 0
+                            ? "text-amber-300"
+                            : "text-white/45"
+                      }`}
+                    >
+                      {score.delta === 0
+                        ? "No change"
+                        : `${score.delta > 0 ? "Up" : "Down"} ${Math.abs(score.delta)}`}{" "}
+                      since {fmtShortDate(score.deltaFrom)}
+                    </p>
+                  ) : null}
+                </div>
               </div>
+              <Link
+                href="/readiness"
+                className="flex w-full items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-gold-300 transition hover:bg-white/[0.08]"
+              >
+                View score breakdown
+                <span aria-hidden>&rsaquo;</span>
+              </Link>
             </>
           ) : (
             <div>
