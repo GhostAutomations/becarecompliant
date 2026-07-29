@@ -794,6 +794,79 @@ repointed in Vercel, the £5 seat, £7.50 branch and £10 AI top up prices confi
 time, then TIER_BASE_PENCE.pro to 6900. MUST land before any trial is provisioned that could
 convert.
 
+PROVISION FROM A TRIAL REQUEST (BUILT 2026-07-29, migrations 0152 and 0153, none of it run live):
+
+What was built: lib/founder/trial-matching.ts (personal email provider list, trial domain,
+phone normalisation, match types), a Seen before panel and a Provision form on
+/founder/trial-requests, and provisionFromTrialRequest in the founder actions. The page
+comment that used to say "IT PROVISIONS NOTHING" has been rewritten, because it now does.
+
+0153 fixed TWO defects in 0152, both caught by reviewing the diff before building, both in
+the same two lines of provision_company:
+- The override could never have worked. 0152 skipped its own duplicate checks when a reason
+  was supplied, but the two partial unique indexes are unconditional and the insert still
+  claimed the email and the domain, so Provision anyway would have hit 23505 and rolled the
+  whole company back with a constraint name on screen. An override now does not RE-CLAIM the
+  keys: the first company keeps ownership, so a third attempt is still blocked. The index is
+  not weakened.
+- Typing 0 in the trial days box voided the one trial per address rule. Ownership was only
+  written "when v_days > 0", so a 0 day provision recorded nothing and the same address could
+  take a full trial on a second company later with no block and no flag. Ownership records
+  WHO the company was granted to, not whether a clock is running, so it no longer depends on
+  the days. Only trial_started_at and trial_ends_at do.
+Verified after applying 0153: provision_company is still owner postgres, security definer,
+with execute on authenticated and service_role only, no anon and no PUBLIC.
+
+- Open Founder > Trial requests. Confirm the page still lists every request exactly as it did,
+  and that a request with nothing matching shows NO Seen before panel at all. A flag on that
+  screen has to mean something, so silence is the correct state for a clean request.
+- Submit a fresh trial request from the website with a company email such as ann@sunrisecare.co.uk.
+  Confirm it appears with no flags, then press Provision with the tier left as it came in.
+- Confirm the button says Provisioning, and that you land on the new company's founder page.
+- On that company confirm: the Office and the first Branch both exist, the starter Forms are
+  there, the People checks and Service User checks are configured, the training courses are
+  there, and the tier is what you chose.
+- Check the company row carries a trial: trial_ends_at is 14 days out, trial_owner_email is the
+  applicant and trial_owner_domain is sunrisecare.co.uk.
+- Confirm the applicant received a Company Admin invitation, and that accepting it lands them in
+  their own company with nothing of Acme's visible.
+- Go back to Trial requests. Confirm the request now reads Provisioned as <company> with the
+  trial end date, that the Provision form has GONE from that request, and that the founder
+  console waiting count has dropped.
+- THE ONE PER ADDRESS RULE. Submit a second request from the same address for a different
+  company name. Confirm the panel shows a red Blocks row naming the company that already holds
+  it, that Open it goes to that company, and that the button now reads Provision anyway with a
+  reason box that will not submit empty.
+- Press it with a reason. Confirm you are asked to confirm first, ONCE, and that pressing Cancel
+  does nothing at all and does not ask again.
+- Confirm the second company IS created, and that it has trial_owner_email and
+  trial_owner_domain NULL while the first company still holds both. Then submit a THIRD request
+  from the same address and confirm it is still blocked, naming the first company.
+- Check the founder Audit console shows company.created against the new company AND
+  trial_request.provisioned with no company against it, and that the override reason appears in
+  the second one.
+- THE ONE PER DOMAIN RULE. Submit a request from a DIFFERENT person at sunrisecare.co.uk and
+  confirm it is blocked with the domain reason, naming the company.
+- THE GMAIL CASE, THE ONE THAT MATTERS MOST. Provision a company from a gmail.com address.
+  Confirm the company row has trial_owner_domain NULL. Then submit a request from a COMPLETELY
+  DIFFERENT gmail.com address and confirm it is NOT blocked and shows no domain flag. If a
+  second gmail applicant is ever blocked, the feature is wrong.
+- Confirm a repeat of the same gmail address IS still blocked, since the address rule still
+  applies.
+- THE NAME LOOKALIKE. Submit a request called "Sunrise Care Services Limited". Confirm it shows
+  an amber Check row saying the name looks like an existing company, and that it does NOT block.
+- THE PHONE LOOKALIKE. Submit two requests with the same number typed differently, once as
+  07700 900123 and once as +44 7700 900123, and confirm the second flags the first.
+- Try a slug that is already taken and confirm you are told so in plain words and NO company is
+  created. Try a company name made only of stripped words, such as "Care Ltd", and confirm it
+  still provisions and does not flag every other company.
+- THE ROLLBACK. If a provision ever fails part way, confirm NO company row is left behind:
+  0152 does the company, both branches and all five seeds in one transaction.
+- THE PERMISSION CHECK. As a Company Admin, a Manager and a Team Member, confirm
+  /founder/trial-requests is still refused by the same guard as every other founder page.
+- Confirm the existing Status and Notes form on each request still saves exactly as before, with
+  the button flashing green for about two seconds and reverting, never staying green.
+
 ## Phase 12 — Marketing & Launch
 
 Marketing site on becarecompliant.com, onboarding collateral, subscription agreement (no data selling clause), launch.

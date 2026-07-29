@@ -4,7 +4,9 @@ Every save/submit/send button in Be Care Compliant behaves the same way:
 
 1. On press: shows `Saving…` (or `Working…`) and disables while pending.
 2. On success: the button turns **green** and reads **Saved** (or **Sent**), keeping the **exact same button shape**.
-3. It **stays green until that section is edited again**, then reverts to the normal gold button. It is a persistent confirmation, not a timed flash.
+3. The green lasts about **two seconds**, then the button goes back to its normal gold label. A brief flash, never a stuck green box. Editing the section reverts it straight away too.
+
+Use `savingLabel` when the verb is not saving: `savingLabel="Sending…"`, `"Drafting…"`, `"Provisioning…"`, with a matching `savedLabel`.
 
 There is no separate green "Saved" text label. The button itself is the confirmation.
 

@@ -23,6 +23,7 @@ import {
   isTrialRequestStatus,
   trialRequestStatusLabel,
 } from "@/lib/founder/trial-requests";
+import { trialDomainFor } from "@/lib/founder/trial-matching";
 
 /** The founder acting as themselves, for audit attribution on tenant writes. */
 async function founderActor(): Promise<{ actor: Actor }> {
@@ -761,4 +762,185 @@ export async function setTrialRequestStatus(
   revalidatePath("/founder/trial-requests");
   revalidatePath("/founder");
   return { ok: "Saved" };
+}
+
+
+/**
+ * Founder: provision a whole tenant from a trial request, in ONE press.
+ *
+ * This is how a trial starts. The applicant never creates anything: they ask, the request
+ * lands on this screen carrying flags for anything already seen, and the founder decides.
+ * That is why there is no public route anywhere in this feature and no service role
+ * client: the caller is the signed in platform admin, so the five seed functions are
+ * satisfied by their existing guard and did not have to be loosened.
+ *
+ * ATOMIC. Everything goes through provision_company() (migration 0152), which creates the
+ * company, both branches and all five seed catalogues inside ONE transaction. If a seed
+ * throws, the company never existed and the founder simply presses again. createCompany,
+ * which does the same work statement by statement, can leave a half seeded company behind
+ * for ever and only mentions it in a note.
+ *
+ * THE DUPLICATE RULES ARE ENFORCED IN THE FUNCTION, NOT HERE. The panel on the screen is
+ * for the founder to READ. The rule that actually holds lives in provision_company, so two
+ * tabs, a double press or any future caller cannot slip past a rendered page. An override
+ * is only possible when a reason has been typed, and that reason is written to the audit
+ * log below.
+ *
+ * The 14 day clock starts at THIS press, not when the request arrived, so somebody who
+ * asked on Friday night does not lose two days of their trial waiting for a reply.
+ */
+export async function provisionFromTrialRequest(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requirePlatformAdmin();
+
+  const requestId = String(formData.get("request_id") ?? "").trim();
+  const tier = String(formData.get("tier") ?? "business").trim();
+  const slugInput = String(formData.get("slug") ?? "").trim();
+  const branchName = String(formData.get("branch_name") ?? "").trim() || "Main Branch";
+  const daysRaw = Number(String(formData.get("trial_days") ?? "14").trim());
+  const overrideReason = String(formData.get("override_reason") ?? "").trim().slice(0, 500);
+
+  if (!requestId) return { error: "Missing trial request." };
+  if (!VALID_TIERS.includes(tier)) return { error: "Choose a valid tier." };
+  const trialDays = Number.isFinite(daysRaw)
+    ? Math.min(90, Math.max(0, Math.trunc(daysRaw)))
+    : 14;
+
+  const supabase = await createClient();
+  const { data: request } = await supabase
+    .from("trial_requests")
+    .select("id, company_name, contact_name, email, company_id")
+    .eq("id", requestId)
+    .maybeSingle();
+  if (!request) return { error: "That trial request no longer exists." };
+  if (request.company_id) {
+    return {
+      error:
+        "That request has already been provisioned. Open the company from the request rather than creating a second one.",
+    };
+  }
+
+  const name = String(request.company_name ?? "").trim();
+  const slug = slugInput ? slugify(slugInput) : slugify(name);
+  if (!slug) {
+    return { error: "Could not derive a slug from that company name. Enter one manually." };
+  }
+
+  const ownerEmail = String(request.email ?? "").trim().toLowerCase();
+  // Null for a personal provider, which is exactly how gmail and the rest escape the one
+  // per domain rule: a partial unique index cannot constrain a NULL.
+  const ownerDomain = trialDomainFor(ownerEmail);
+
+  const { data: result, error } = await supabase.rpc("provision_company", {
+    p_name: name,
+    p_slug: slug,
+    p_tier: tier,
+    p_branch_name: branchName,
+    p_trial_days: trialDays,
+    p_owner_email: ownerEmail,
+    p_owner_domain: ownerDomain,
+    p_request_id: requestId,
+    p_override_reason: overrideReason || null,
+  });
+  // provision_company raises plain English for every refusal it makes, so the founder
+  // reads why rather than a constraint name.
+  if (error) return { error: error.message };
+
+  const outcome = (result ?? {}) as {
+    company_id?: string;
+    forms_seeded?: number;
+    people_checks_seeded?: number;
+    su_checks_seeded?: number;
+    training_seeded?: number;
+  };
+  const companyId = outcome.company_id;
+  if (!companyId) {
+    return { error: "The company was not created, so nothing has changed. Try again." };
+  }
+
+  // The seeded Forms carry the generic template options, so bake this company's own Office
+  // and first Branch into every branch field straight away (best effort, see
+  // rebake-options.ts). Outside the transaction on purpose: it must never undo a company.
+  await rebakeFormFieldOptions(companyId);
+
+  const invite = await createAndSendInvite({
+    companyId,
+    companyName: name,
+    branchId: null,
+    email: ownerEmail,
+    fullName: String(request.contact_name ?? "").trim(),
+    role: "company_admin",
+    inviter: {
+      id: user.id,
+      name: profile.full_name || profile.email,
+      email: profile.email,
+      role: "platform_admin",
+    },
+  });
+
+  await writeAudit({
+    companyId,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: "platform_admin",
+    action: "company.created",
+    entityType: "company",
+    entityId: companyId,
+    summary: `Provisioned ${name} on the ${tier} tier from a trial request, with a ${trialDays} day trial`,
+    metadata: {
+      tier,
+      slug,
+      branch_name: branchName,
+      trial_days: trialDays,
+      from_trial_request: requestId,
+      forms_seeded: outcome.forms_seeded ?? 0,
+      checks_seeded: outcome.people_checks_seeded ?? 0,
+      su_checks_seeded: outcome.su_checks_seeded ?? 0,
+      training_seeded: outcome.training_seeded ?? 0,
+      admin_invited: invite.ok,
+      override_reason: overrideReason || null,
+    },
+  });
+
+  // companyId null ON PURPOSE, exactly as setTrialRequestStatus does: the lead itself is
+  // platform level and does not belong in the new company's own audit trail.
+  await writeAudit({
+    companyId: null,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: "platform_admin",
+    action: "trial_request.provisioned",
+    entityType: "trial_request",
+    entityId: requestId,
+    summary: overrideReason
+      ? `Provisioned ${name} from a trial request, overriding a duplicate warning: ${overrideReason}`
+      : `Provisioned ${name} from a trial request`,
+    metadata: {
+      company_id: companyId,
+      tier,
+      trial_days: trialDays,
+      override_reason: overrideReason || null,
+    },
+  });
+
+  revalidatePath("/founder/trial-requests");
+  revalidatePath("/founder/companies");
+  revalidatePath("/founder");
+
+  // The company exists either way, so an invite failure is reported rather than hidden:
+  // the founder has to go and invite them from the company screen.
+  if (!invite.ok) {
+    return {
+      error: `${name} was created and the trial has started, but the Admin invite could not be sent: ${invite.error} Invite them from the company screen.`,
+    };
+  }
+  if (!invite.emailSent) {
+    return {
+      error: `${name} was created and the trial has started, and the Admin invite was recorded, but the email was not sent (${invite.emailNote ?? "email not configured"}).`,
+    };
+  }
+
+  return { redirectTo: `/founder/companies/${companyId}` };
 }
