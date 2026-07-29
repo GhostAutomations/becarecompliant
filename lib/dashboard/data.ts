@@ -318,3 +318,109 @@ export async function getTrainingCompletion(companyId: string): Promise<number |
   const matrix = await getTrainingMatrix(companyId, null);
   return matrix.summary.mandatoryCompliancePct;
 }
+
+
+/* ===========================================================================
+ * The rest of the Mission Control tiles.
+ *
+ * Phil, 2026-07-29: build every tile in the mockup, plumb in the ones that have real data,
+ * and make the ones that do not RED so the gap is visible rather than quietly missing. These
+ * are the plumbed ones. The red ones need features that do not exist yet: scheduled
+ * inspections, an incidents department, a risk model, policy signing coverage, and the AI
+ * insight run.
+ * =========================================================================== */
+
+type StatusRow = { check_name: string | null; due_date: string | null; rag: string | null };
+
+async function bothRegisters(companyId: string): Promise<StatusRow[]> {
+  const supabase = await createClient();
+  const [people, su] = await Promise.all([
+    supabase
+      .from("person_check_status")
+      .select("check_name, due_date, rag")
+      .eq("company_id", companyId),
+    supabase
+      .from("service_user_check_status")
+      .select("check_name, due_date, rag")
+      .eq("company_id", companyId),
+  ]);
+  return [
+    ...(((people.data as StatusRow[] | null) ?? [])),
+    ...(((su.data as StatusRow[] | null) ?? [])),
+  ];
+}
+
+export type ExpiringLine = { label: string; count: number; window: string };
+
+/** What runs out soonest, grouped by the name of the check, in a 7 then 30 day window. */
+export async function getExpiringSoon(companyId: string): Promise<ExpiringLine[]> {
+  const rows = await bothRegisters(companyId);
+  const today = londonTodayIso();
+  const in7 = addDaysIso(today, 7);
+  const in30 = addDaysIso(today, 30);
+
+  const within7 = new Map<string, number>();
+  const within30 = new Map<string, number>();
+  for (const r of rows) {
+    if (!r.due_date || !r.check_name || r.due_date < today) continue;
+    if (r.due_date <= in7) within7.set(r.check_name, (within7.get(r.check_name) ?? 0) + 1);
+    else if (r.due_date <= in30) within30.set(r.check_name, (within30.get(r.check_name) ?? 0) + 1);
+  }
+  const lines: ExpiringLine[] = [
+    ...[...within7.entries()].map(([label, count]) => ({ label, count, window: "Within 7 days" })),
+    ...[...within30.entries()].map(([label, count]) => ({ label, count, window: "Within 30 days" })),
+  ];
+  return lines.sort((a, b) => b.count - a.count).slice(0, 5);
+}
+
+export type CalendarDay = { iso: string; items: string[] };
+
+/** The next five days that actually have something due, with what is due on each. */
+export async function getComplianceCalendar(companyId: string): Promise<CalendarDay[]> {
+  const rows = await bothRegisters(companyId);
+  const today = londonTodayIso();
+  const horizon = addDaysIso(today, 60);
+
+  const byDay = new Map<string, string[]>();
+  for (const r of rows) {
+    if (!r.due_date || !r.check_name) continue;
+    if (r.due_date < today || r.due_date > horizon) continue;
+    const list = byDay.get(r.due_date) ?? [];
+    if (!list.includes(r.check_name)) list.push(r.check_name);
+    byDay.set(r.due_date, list);
+  }
+  return [...byDay.entries()]
+    .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+    .slice(0, 5)
+    .map(([iso, items]) => ({ iso, items }));
+}
+
+/**
+ * Audit checks that are in date, as a percentage. The company's Audit check is a real check
+ * like any other, so this counts green over everything named as an audit rather than inventing
+ * a separate audit engine.
+ */
+export async function getAuditsCompleted(companyId: string): Promise<number | null> {
+  const rows = await bothRegisters(companyId);
+  const audits = rows.filter((r) => (r.check_name ?? "").toLowerCase().includes("audit"));
+  if (audits.length === 0) return null;
+  const green = audits.filter((r) => r.rag === "green").length;
+  return Math.round((green / audits.length) * 100);
+}
+
+export type ActivityLine = { summary: string; when: string };
+
+/** The audit log, which already records every action, newest first. */
+export async function getRecentActivity(companyId: string): Promise<ActivityLine[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("audit_log")
+    .select("summary, created_at")
+    .eq("company_id", companyId)
+    .order("created_at", { ascending: false })
+    .limit(6);
+  return (((data as Array<{ summary: string; created_at: string }> | null) ?? [])).map((r) => ({
+    summary: r.summary,
+    when: r.created_at,
+  }));
+}

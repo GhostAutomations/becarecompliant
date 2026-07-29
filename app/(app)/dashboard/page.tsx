@@ -5,29 +5,41 @@ import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import RealtimeRefresh from "@/components/realtime-refresh";
-import { getComplaintCounts } from "@/lib/complaints/data";
 import { getUrgentFollowUps } from "@/lib/on-call/data";
 import { shiftLabel } from "@/lib/on-call/format";
 import { featureEnabled } from "@/lib/billing/tier";
-import { getUnmatchedSubmissionCount } from "@/lib/public-forms/data";
-import { PUBLIC_FORMS_ENABLED } from "@/lib/public-forms/flag";
 import {
   getComplianceBuckets,
-  getHolidayPendingCount,
-  getAbsenceMeetingSummary,
   getComplianceScore,
   getTrainingCompletion,
+  getAuditsCompleted,
+  getExpiringSoon,
+  getComplianceCalendar,
+  getRecentActivity,
   type ComplianceScore,
-  type DueBuckets,
-  type AbsenceMeetingLine,
-  type AbsenceMeetingSoon,
 } from "@/lib/dashboard/data";
+
+/**
+ * The dashboard, rebuilt to Phil's Mission Control design (2026-07-29).
+ *
+ * THE RULE HE SET: every tile in the design gets built. The ones that have real data behind
+ * them are plumbed in. The ones that do not are drawn in RED, so the gap is visible on the
+ * screen instead of quietly missing from it. A red tile is a to do list item you can see.
+ *
+ * RED TODAY, and what each one needs:
+ *   Upcoming inspections  nothing in the product records a scheduled inspection
+ *   Incidents             there is no incidents feature; Complaints is adjacent, not the same
+ *   Risk level            no risk model exists, and a number here would be invented
+ *   Policies up to date   needs signing coverage per policy, not just a count of policies
+ *   AI insights           the AI layer exists but is not wired to run for the dashboard
+ *   Date range            the tiles are all live figures; nothing is filtered by period yet
+ *
+ * The old Complaints, Holidays and Absence strips were REMOVED on instruction, since they are
+ * not in the design. Every one of them still has its own department in the navigation.
+ */
 
 export const metadata: Metadata = { title: "Dashboard" };
 
-// Complaints, Holidays and Absence dashboard surfaces are "Managers and above":
-// Company Admin, both Registered roles and Branch Manager (plus Founder via
-// manage-as). Supervisors and Viewers do not see them.
 const MANAGER_PLUS_ROLES = [
   "company_admin",
   "registered_individual",
@@ -36,39 +48,21 @@ const MANAGER_PLUS_ROLES = [
   "platform_admin",
 ];
 
-/**
- * The compliance score.
- *
- * It is Inspection Readiness wearing a better face, NOT a second number (Phil, 2026-07-29).
- * The dial is coloured by the score band because a score IS a statement about compliance, so
- * green here means compliant rather than decorating the brand. Gold stays for the action.
- *
- * The wording never predicts an inspection outcome. "Strong" is a statement about how much of
- * the evidence is in place, and every point of it is traceable through View score breakdown.
- */
-/** "12 Jul", London. The delta names the day it is measured from, never "yesterday". */
-function fmtShortDate(iso: string): string {
-  return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    timeZone: "Europe/London",
-  });
-}
+/* ------------------------------------------------------------------ tiles */
 
-/** One figure in the top block. Colour carries meaning here (red overdue, amber due soon), so
- *  gold stays for actions and is not spent on decoration. */
-function StatTile({
+/** A tile with real data behind it. Colour carries meaning: red overdue, amber due soon. */
+function Tile({
   href,
   label,
   value,
   sub,
-  tone,
+  tone = "none",
 }: {
-  href: string;
+  href?: string;
   label: string;
   value: ReactNode;
-  sub: string;
-  tone: "red" | "amber" | "green" | "none";
+  sub?: ReactNode;
+  tone?: "red" | "amber" | "green" | "none";
 }) {
   const valueClass =
     tone === "red"
@@ -78,15 +72,89 @@ function StatTile({
         : tone === "green"
           ? "text-emerald-300"
           : "text-white";
-  return (
-    <Link
-      href={href}
-      className="glass-card glass-card-hover flex flex-col justify-between p-4 transition"
-    >
+  const inner = (
+    <>
       <p className="text-xs uppercase tracking-wide text-white/50">{label}</p>
       <p className={`mt-2 text-3xl font-bold tabular-nums ${valueClass}`}>{value}</p>
-      <p className="mt-1 text-xs text-white/55">{sub}</p>
+      {sub ? <p className="mt-1 text-xs text-white/55">{sub}</p> : null}
+    </>
+  );
+  return href ? (
+    <Link href={href} className="glass-card glass-card-hover flex flex-col justify-between p-4">
+      {inner}
     </Link>
+  ) : (
+    <div className="glass-card flex flex-col justify-between p-4">{inner}</div>
+  );
+}
+
+/**
+ * A tile in the design that has NOTHING behind it yet.
+ *
+ * Deliberately loud. A greyed out placeholder gets ignored and then quietly ships; a red one
+ * is a question every time the screen is opened. It says what is missing rather than showing
+ * a zero, because a zero would be a wrong number rather than an absent one.
+ */
+function MissingTile({ label, needs }: { label: string; needs: string }) {
+  return (
+    <div className="flex flex-col justify-between rounded-2xl border border-red-400/40 bg-red-500/10 p-4">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-xs uppercase tracking-wide text-red-200/80">{label}</p>
+        <span className="shrink-0 rounded-full border border-red-400/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-200">
+          No data
+        </span>
+      </div>
+      <p className="mt-2 text-3xl font-bold text-red-300/60">&mdash;</p>
+      <p className="mt-1 text-xs text-red-200/70">{needs}</p>
+    </div>
+  );
+}
+
+function Panel({
+  title,
+  href,
+  linkLabel = "View all",
+  children,
+  className = "",
+}: {
+  title: string;
+  href?: string;
+  linkLabel?: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={`glass-card p-5 ${className}`} aria-label={title}>
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">{title}</h2>
+        {href ? (
+          <Link
+            href={href}
+            className="shrink-0 text-xs text-gold-300 underline underline-offset-4 hover:text-gold-400"
+          >
+            {linkLabel}
+          </Link>
+        ) : null}
+      </div>
+      <div className="mt-4">{children}</div>
+    </section>
+  );
+}
+
+function MissingPanel({ title, needs }: { title: string; needs: string }) {
+  return (
+    <section
+      aria-label={title}
+      className="rounded-2xl border border-red-400/40 bg-red-500/10 p-5"
+    >
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-red-200/80">{title}</h2>
+        <span className="shrink-0 rounded-full border border-red-400/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-200">
+          No data
+        </span>
+      </div>
+      <p className="mt-4 text-sm text-red-200/70">{needs}</p>
+    </section>
   );
 }
 
@@ -97,7 +165,7 @@ function ScoreDial({ score }: { score: number | null }) {
   const stroke =
     score == null ? "#94a3b8" : score >= 85 ? "#43d99a" : score >= 50 ? "#f5bd6a" : "#f18196";
   return (
-    <svg viewBox="0 0 140 140" className="h-32 w-32 shrink-0" aria-hidden>
+    <svg viewBox="0 0 140 140" className="h-28 w-28 shrink-0" aria-hidden>
       <circle cx="70" cy="70" r={r} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="12" />
       <circle
         cx="70"
@@ -114,105 +182,51 @@ function ScoreDial({ score }: { score: number | null }) {
   );
 }
 
-/** A single clickable metric card. */
-function MetricCard({
-  href,
-  pill,
-  value,
-  sub,
-}: {
-  href: string;
-  pill: ReactNode;
-  value: ReactNode;
-  sub: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="glass-card block p-4 transition hover:bg-white/[0.07] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/30"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <span>{pill}</span>
-        <span className="text-2xl font-bold leading-none text-white">{value}</span>
-      </div>
-      <p className="mt-2 text-xs text-white/50">{sub}</p>
-    </Link>
-  );
-}
-
-/** A card listing up to 5 people (name + stage) with a "+N more" overflow. */
-function MeetingListCard({
-  href,
-  title,
-  lines,
-  emptyText,
-}: {
-  href: string;
-  title: string;
-  lines: Array<{ name: string; stage: string; when?: string }>;
-  emptyText: string;
-}) {
-  const shown = lines.slice(0, 5);
-  const extra = lines.length - shown.length;
-  return (
-    <Link
-      href={href}
-      className="glass-card block p-5 transition hover:bg-white/[0.07] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/30"
-    >
-      <div className="flex items-baseline justify-between">
-        <span className="text-sm font-semibold text-white/80">{title}</span>
-        <span className="text-2xl font-bold text-white">{lines.length}</span>
-      </div>
-      {shown.length === 0 ? (
-        <p className="mt-3 text-xs text-white/50">{emptyText}</p>
-      ) : (
-        <ul className="mt-3 space-y-1.5">
-          {shown.map((l, i) => (
-            <li key={i} className="flex items-center justify-between gap-3 text-sm">
-              <span className="truncate text-white/85">{l.name}</span>
-              <span className="shrink-0 text-xs text-white/55">
-                {l.when ? `${l.stage} · ${l.when}` : l.stage}
-              </span>
-            </li>
-          ))}
-          {extra > 0 ? (
-            <li className="pt-1 text-xs text-white/45">+{extra} more</li>
-          ) : null}
-        </ul>
-      )}
-    </Link>
-  );
-}
-
-function formatMeetingDate(iso: string): string {
+/** "12 Jul", London. The score movement names the day it is measured from, never "yesterday". */
+function fmtShortDate(iso: string): string {
   return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", {
-    weekday: "short",
     day: "numeric",
     month: "short",
     timeZone: "Europe/London",
   });
 }
 
+function fmtDay(iso: string): { day: string; date: string } {
+  const d = new Date(`${iso}T00:00:00Z`);
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
+  return {
+    day:
+      iso === today
+        ? "Today"
+        : d.toLocaleDateString("en-GB", { weekday: "short", timeZone: "Europe/London" }),
+    date: d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", timeZone: "Europe/London" }),
+  };
+}
+
+function fmtWhen(iso: string): string {
+  return new Date(iso).toLocaleString("en-GB", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/London",
+  });
+}
+
+/* ------------------------------------------------------------------ page */
+
 export default async function DashboardPage() {
-  // requireCompany so that a founder managing as a company sees that company's
-  // dashboard (shadow profile). A real founder with no company has no compliance
-  // dashboard of their own: send them to the Founder console, their home.
   const { profile } = await requireCompany();
   if (!profile.company_id) redirect("/founder");
-  // A Viewer (read-only) has no dashboard; their home is the People register.
   if (profile.role === "team_member") redirect("/people");
-  // The On Call role has no dashboard; their home is the On Call rota.
   if (profile.role === "on_call") redirect("/on-call");
-  // A Team Member (staff) login has one destination: their own area.
   if (profile.role === "staff") redirect("/my");
+
   const supabase = await createClient();
   const companyId = profile.company_id;
 
-  // Greeting: a founder managing-as sees a support-session label with the company
-  // name, not their own email; a normal company user is greeted by first name.
   let heading = `Welcome, ${(profile.full_name || profile.email).split(" ")[0]}`;
-  let subtitle =
-    "Your compliance overview. One glance: are we inspection ready across your team and the people you care for?";
+  let subtitle = "Here is what is happening with your compliance today.";
   if (profile.actingAsCompanyId) {
     const { data: co } = await supabase
       .from("companies")
@@ -220,175 +234,138 @@ export default async function DashboardPage() {
       .eq("id", profile.actingAsCompanyId)
       .maybeSingle();
     heading = `Support session: ${co?.name ?? "this company"}`;
-    subtitle =
-      "You are managing this company for support. Its compliance overview is below.";
+    subtitle = "You are managing this company for support. Its compliance overview is below.";
   }
 
-  // Complaints is a Pro feature and Managers-and-above only.
-  const canSeeComplaints =
-    MANAGER_PLUS_ROLES.includes(profile.role) && (await featureEnabled(companyId, "complaints"));
-  const isManagerPlus = MANAGER_PLUS_ROLES.includes(profile.role);
-
-  // Everyone with a dashboard sees the People + Service User due buckets.
-  const { people, serviceUsers } = await getComplianceBuckets(companyId);
-
-  /**
-   * A SUPERVISOR MUST NOT SEE THIS. Readiness is computed through RLS, so a Supervisor's
-   * figure would cover only their caseload while being presented as the company's, and both
-   * links would send them to /readiness, which bounces them straight back here. The training
-   * read is gated with it so it is not paid for and then thrown away.
-   */
   const companyWide = MANAGER_PLUS_ROLES.includes(profile.role);
-  const [score, trainingPct] = companyWide
-    ? await Promise.all([
-        getComplianceScore(companyId, { companyWide: true }),
-        getTrainingCompletion(companyId),
-      ])
-    : [{ enabled: false } as ComplianceScore, null];
+  const canSeeOnCall = companyWide && (await featureEnabled(companyId, "on_call"));
 
-  const complaintCounts = canSeeComplaints
-    ? await getComplaintCounts(companyId)
-    : { open: 0, inProgress: 0, closed: 0, overdue: 0, avgDaysToClose: null as number | null };
+  const { people, serviceUsers } = await getComplianceBuckets(companyId);
+  const [score, trainingPct, auditsPct, expiring, calendar, activity, onCallUrgent] =
+    await Promise.all([
+      companyWide
+        ? getComplianceScore(companyId, { companyWide: true })
+        : Promise.resolve({ enabled: false } as ComplianceScore),
+      companyWide ? getTrainingCompletion(companyId) : Promise.resolve(null),
+      getAuditsCompleted(companyId),
+      getExpiringSoon(companyId),
+      getComplianceCalendar(companyId),
+      getRecentActivity(companyId),
+      canSeeOnCall ? getUrgentFollowUps(companyId) : Promise.resolve([]),
+    ]);
 
-  // On Call urgent follow-ups (Managers and above, when the department is enabled).
-  const canSeeOnCall = isManagerPlus && (await featureEnabled(companyId, "on_call"));
-  const onCallUrgent = canSeeOnCall ? await getUrgentFollowUps(companyId) : [];
-
-  const holidayPending = isManagerPlus ? await getHolidayPendingCount(companyId) : 0;
-  // Public form submissions we could not match to a record, waiting to be linked.
-  const unmatchedSubmissions =
-    isManagerPlus && PUBLIC_FORMS_ENABLED ? await getUnmatchedSubmissionCount(companyId) : 0;
-  const absence = isManagerPlus
-    ? await getAbsenceMeetingSummary(companyId)
-    : { toBook: [] as AbsenceMeetingLine[], next7: [] as AbsenceMeetingSoon[] };
-
-  const complianceStrip = (label: string, href: string, b: DueBuckets, noun: string) => (
-    <section aria-label={`${label} compliance status`} className="space-y-3">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">{label}</h2>
-      <div className="grid gap-4 sm:grid-cols-3">
-        <MetricCard
-          href={href}
-          pill={<span className="pill-red"><span className="pill-dot" /> Overdue</span>}
-          value={b.overdue}
-          sub={`${noun} with an overdue check`}
-        />
-        <MetricCard
-          href={href}
-          pill={<span className="pill-amber"><span className="pill-dot" /> Due in 14 days</span>}
-          value={b.due14}
-          sub={`${noun} with a check due within 14 days`}
-        />
-        <MetricCard
-          href={href}
-          pill={<span className="pill-neutral">Due in 30 days</span>}
-          value={b.due30}
-          sub={`${noun} with a check due within 30 days`}
-        />
-      </div>
-    </section>
-  );
+  const overdue = people.overdue + serviceUsers.overdue;
+  const due14 = people.due14 + serviceUsers.due14;
+  const healthy =
+    score.enabled ? score.requirements.filter((r) => r.status === "green").length : 0;
+  const scored = score.enabled ? score.requirements.filter((r) => r.score != null).length : 0;
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6">
+    <div className="mx-auto max-w-7xl space-y-5">
       <RealtimeRefresh />
       <RealtimeRefresh
         tables={["service_users", "check_instances", "service_user_trackers"]}
         channel="service-users-live"
       />
-      <div>
-        <h1 className="page-title">{heading}</h1>
-        <p className="page-subtitle">{subtitle}</p>
+
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="page-title">{heading}</h1>
+          <p className="page-subtitle">{subtitle}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="rounded-xl border border-red-400/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+            Date range not wired
+          </span>
+          <Link href="/reports" className="btn-outline text-xs">
+            Export report
+          </Link>
+        </div>
       </div>
 
-      {score.enabled ? (
-        <section aria-label="Compliance score" className="grid gap-4 lg:grid-cols-12">
-          <div className="glass-card flex items-center gap-5 p-5 lg:col-span-4">
-            <ScoreDial score={score.score} />
-            <div className="min-w-0">
-              <p className="text-xs uppercase tracking-wide text-white/50">Compliance score</p>
-              <p className="mt-1 text-4xl font-bold text-white">
-                {score.score == null ? "Not scored" : `${score.score}%`}
-              </p>
-              <p className="text-sm font-semibold text-white/80">{score.label}</p>
-              {/* NEVER "since yesterday". Snapshots are written when somebody opens the
-                  readiness report, so the last one can be days old, and the comparison is only
-                  drawn at all when every requirement was captured on the same recent day. */}
-              {score.score != null && score.delta != null && score.deltaFrom ? (
-                <p
-                  className={`mt-1 text-xs ${
-                    score.delta > 0
-                      ? "text-emerald-300"
-                      : score.delta < 0
-                        ? "text-amber-300"
-                        : "text-white/45"
-                  }`}
-                >
-                  {score.delta === 0
-                    ? "No change"
-                    : `${score.delta > 0 ? "Up" : "Down"} ${Math.abs(score.delta)}`}{" "}
-                  since {fmtShortDate(score.deltaFrom)}
+      {/* Row one: the score, and the six figures beside it. */}
+      <div className="grid gap-4 lg:grid-cols-12">
+        <div className="glass-card flex items-center gap-4 p-5 lg:col-span-4 lg:row-span-2">
+          {score.enabled ? (
+            <>
+              <ScoreDial score={score.score} />
+              <div className="min-w-0">
+                <p className="text-xs uppercase tracking-wide text-white/50">Compliance score</p>
+                <p className="mt-1 text-4xl font-bold text-white">
+                  {score.score == null ? "Not scored" : `${score.score}%`}
                 </p>
-              ) : null}
-              <Link
-                href="/readiness"
-                className="mt-3 inline-block text-xs font-semibold text-gold-300 underline underline-offset-4 hover:text-gold-400"
-              >
-                View score breakdown
-              </Link>
+                <p className="text-sm font-semibold text-white/80">{score.label}</p>
+                {score.score != null && score.delta != null && score.deltaFrom ? (
+                  <p
+                    className={`mt-1 text-xs ${
+                      score.delta > 0
+                        ? "text-emerald-300"
+                        : score.delta < 0
+                          ? "text-amber-300"
+                          : "text-white/45"
+                    }`}
+                  >
+                    {score.delta === 0
+                      ? "No change"
+                      : `${score.delta > 0 ? "Up" : "Down"} ${Math.abs(score.delta)}`}{" "}
+                    since {fmtShortDate(score.deltaFrom)}
+                  </p>
+                ) : null}
+                <Link
+                  href="/readiness"
+                  className="mt-3 inline-block text-xs font-semibold text-gold-300 underline underline-offset-4 hover:text-gold-400"
+                >
+                  View score breakdown
+                </Link>
+              </div>
+            </>
+          ) : (
+            <div>
+              <p className="text-xs uppercase tracking-wide text-white/50">Compliance score</p>
+              <p className="mt-2 text-sm text-white/60">
+                Inspection Readiness is not switched on for this company, so there is no score to
+                show. Every other figure on this page is live.
+              </p>
             </div>
-          </div>
+          )}
+        </div>
 
-          {/* The four figures that answer "what needs doing", in the same block as the score
-              rather than as three separate stacked strips further down the page. */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:col-span-8 xl:grid-cols-4">
-            <StatTile
-              href="/people"
-              label="People overdue"
-              value={people.overdue}
-              tone={people.overdue > 0 ? "red" : "green"}
-              sub="staff with a check past its date"
-            />
-            <StatTile
-              href="/service-users"
-              label="Service users overdue"
-              value={serviceUsers.overdue}
-              tone={serviceUsers.overdue > 0 ? "red" : "green"}
-              sub="people you support with a check past its date"
-            />
-            <StatTile
-              href="/people"
-              label="Due in 14 days"
-              value={people.due14 + serviceUsers.due14}
-              tone={people.due14 + serviceUsers.due14 > 0 ? "amber" : "green"}
-              sub="across both registers"
-            />
-            <StatTile
-              href="/people/training"
-              label="Mandatory training"
-              value={trainingPct == null ? "n/a" : `${Math.round(trainingPct)}%`}
-              tone="none"
-              sub="of mandatory training is in date"
-            />
-          </div>
-        </section>
-      ) : null}
+        <div className="grid gap-4 sm:grid-cols-2 lg:col-span-8 xl:grid-cols-4">
+          <Tile
+            href="/people"
+            label="Open actions"
+            value={overdue}
+            tone={overdue > 0 ? "red" : "green"}
+            sub={`${people.overdue} people, ${serviceUsers.overdue} service users`}
+          />
+          <MissingTile label="Upcoming inspections" needs="Nothing records a scheduled inspection yet" />
+          <Tile
+            href="/people/training"
+            label="Training completion"
+            value={trainingPct == null ? "n/a" : `${Math.round(trainingPct)}%`}
+            sub="of mandatory training is in date"
+          />
+          <MissingTile label="Policies up to date" needs="Needs signing coverage, not a policy count" />
+        </div>
 
-      {score.enabled ? (
-        <section aria-label="Inspection readiness">
-          <div className="glass-card p-5">
-            <div className="flex items-baseline justify-between gap-3">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
-                Inspection readiness
-              </h2>
-              <Link
-                href="/readiness"
-                className="text-xs text-gold-300 underline underline-offset-4 hover:text-gold-400"
-              >
-                View full report
-              </Link>
-            </div>
-            <ul className="mt-4 space-y-2.5">
-              {score.requirements.slice(0, 6).map((req) => (
+        <div className="grid gap-4 sm:grid-cols-3 lg:col-span-8">
+          <Tile
+            href="/people"
+            label="Audits completed"
+            value={auditsPct == null ? "n/a" : `${auditsPct}%`}
+            sub="audit checks currently in date"
+          />
+          <MissingTile label="Incidents (open)" needs="No incidents feature exists yet" />
+          <MissingTile label="Risk level" needs="No risk model exists yet" />
+        </div>
+      </div>
+
+      {/* Row two: readiness, on call, insights. */}
+      <div className="grid gap-4 lg:grid-cols-12">
+        {score.enabled ? (
+          <Panel title="Inspection readiness" href="/readiness" linkLabel="View full report" className="lg:col-span-5">
+            <ul className="space-y-2.5">
+              {score.requirements.map((req) => (
                 <li key={req.code} className="flex items-center gap-3">
                   <span className="w-44 shrink-0 truncate text-sm text-white/80">{req.title}</span>
                   <span className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
@@ -409,114 +386,123 @@ export default async function DashboardPage() {
                 </li>
               ))}
             </ul>
-          </div>
-        </section>
-      ) : null}
+            {scored > 0 ? (
+              <p className="mt-4 border-t border-white/10 pt-3 text-xs text-white/60">
+                {healthy} of {scored} areas healthy
+              </p>
+            ) : null}
+          </Panel>
+        ) : (
+          <MissingPanel
+            title="Inspection readiness"
+            needs="Inspection Readiness is not switched on for this company."
+          />
+        )}
 
-      {/* When there is no score (readiness off, or a role that must not see it) the two
-          registers keep their own strips, so the dashboard is never empty for them. */}
-      {score.enabled ? null : (
-        <>
-          {complianceStrip("People", "/people", people, "People")}
-          {complianceStrip("Service Users", "/service-users", serviceUsers, "Service users")}
-        </>
-      )}
+        <Panel title="On call: urgent follow ups" href="/on-call" className="lg:col-span-4">
+          {!canSeeOnCall ? (
+            <p className="text-sm text-white/55">On Call is not switched on for this company.</p>
+          ) : onCallUrgent.length === 0 ? (
+            <p className="text-sm text-white/55">Nothing urgent. Every call has been followed up.</p>
+          ) : (
+            <ul className="space-y-2">
+              {onCallUrgent.map((u) => (
+                <li key={u.id}>
+                  <Link
+                    href={`/on-call/log/${u.id}`}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-white/10 px-3 py-2 transition hover:bg-white/[0.06]"
+                  >
+                    <span className="pill-amber shrink-0">
+                      <span className="pill-dot" /> Urgent
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-sm text-white/80">
+                      {shiftLabel(u.shift_date, u.slot)}
+                    </span>
+                    {u.branch_name ? (
+                      <span className="shrink-0 text-xs text-white/45">{u.branch_name}</span>
+                    ) : null}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
 
-      {canSeeComplaints ? (
-        <section aria-label="Complaints status" className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Complaints</h2>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <MetricCard
-              href="/complaints"
-              pill={<span className="pill-neutral">Open</span>}
-              value={complaintCounts.open + complaintCounts.inProgress}
-              sub="Complaints still being handled"
-            />
-            <MetricCard
-              href="/complaints"
-              pill={<span className="pill-red"><span className="pill-dot" /> Overdue</span>}
-              value={complaintCounts.overdue}
-              sub="Past their response deadline"
-            />
-            <MetricCard
-              href="/complaints"
-              pill={<span className="pill-neutral">Avg days to close</span>}
-              value={complaintCounts.avgDaysToClose ?? "—"}
-              sub="Average days from raised to closed"
-            />
-          </div>
-        </section>
-      ) : null}
+        <div className="lg:col-span-3">
+          <MissingPanel
+            title="AI compliance insights"
+            needs="The AI layer exists for the readiness report but is not wired to run here yet."
+          />
+        </div>
+      </div>
 
-      {canSeeOnCall && onCallUrgent.length > 0 ? (
-        <section aria-label="On Call urgent follow-ups" className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">On Call: urgent follow-ups</h2>
-          <div className="grid gap-4 sm:grid-cols-3">
-            {onCallUrgent.map((u) => (
-              <Link
-                key={u.id}
-                href={`/on-call/log/${u.id}`}
-                className="glass-card block border-l-2 border-amber-400/70 p-4 transition hover:bg-white/[0.07]"
-              >
-                <span className="pill-amber"><span className="pill-dot" /> Urgent</span>
-                <p className="mt-2 text-base font-semibold text-white">{shiftLabel(u.shift_date, u.slot)}</p>
-                {u.branch_name ? <p className="text-xs text-white/55">{u.branch_name}</p> : null}
-              </Link>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {isManagerPlus ? (
-        <section aria-label="Holidays" className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Holidays</h2>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <MetricCard
-              href="/people/holiday"
-              pill={<span className="pill-amber"><span className="pill-dot" /> Pending requests</span>}
-              value={holidayPending}
-              sub="Holiday requests awaiting a decision"
-            />
-            {PUBLIC_FORMS_ENABLED && (
-              <MetricCard
-                href="/people/submissions"
-                pill={
-                  <span className={unmatchedSubmissions > 0 ? "pill-amber" : "pill-neutral"}>
-                    {unmatchedSubmissions > 0 ? <span className="pill-dot" /> : null} Submissions to
-                    link
+      {/* Row three: expiring, calendar, activity. */}
+      <div className="grid gap-4 lg:grid-cols-12">
+        <Panel title="Expiring soon" href="/people" className="lg:col-span-3">
+          {expiring.length === 0 ? (
+            <p className="text-sm text-white/55">Nothing runs out in the next 30 days.</p>
+          ) : (
+            <ul className="space-y-2">
+              {expiring.map((e) => (
+                <li
+                  key={`${e.label}-${e.window}`}
+                  className="flex items-center justify-between gap-3 border-b border-white/5 pb-2 last:border-0 last:pb-0"
+                >
+                  <span className="min-w-0 truncate text-sm text-white/80">
+                    {e.count} {e.label}
                   </span>
-                }
-                value={unmatchedSubmissions}
-                sub="Public form submissions we could not match to a record"
-              />
-            )}
-          </div>
-        </section>
-      ) : null}
+                  <span
+                    className={`shrink-0 text-[11px] ${
+                      e.window === "Within 7 days" ? "text-amber-300" : "text-white/50"
+                    }`}
+                  >
+                    {e.window}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
 
-      {isManagerPlus ? (
-        <section aria-label="Absence" className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Absence</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <MeetingListCard
-              href="/people/absence"
-              title="Meetings to book"
-              lines={absence.toBook}
-              emptyText="No absence meetings need booking."
-            />
-            <MeetingListCard
-              href="/people/absence"
-              title="Meetings in the next 7 days"
-              lines={absence.next7.map((m) => ({
-                name: m.name,
-                stage: m.stage,
-                when: formatMeetingDate(m.date),
-              }))}
-              emptyText="No meetings scheduled in the next 7 days."
-            />
-          </div>
-        </section>
-      ) : null}
+        <Panel title="Compliance calendar" href="/planner" linkLabel="View calendar" className="lg:col-span-5">
+          {calendar.length === 0 ? (
+            <p className="text-sm text-white/55">Nothing is due in the next 60 days.</p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-5">
+              {calendar.map((d) => {
+                const { day, date } = fmtDay(d.iso);
+                return (
+                  <div key={d.iso} className="rounded-xl border border-white/10 p-3">
+                    <p className="text-[11px] font-semibold text-gold-300">{day}</p>
+                    <p className="text-xs text-white/70">{date}</p>
+                    <p className="mt-2 line-clamp-3 text-[11px] text-white/60">
+                      {d.items.join(", ")}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Panel>
+
+        <Panel title="Recent activity" href="/reports" linkLabel="View all" className="lg:col-span-4">
+          {activity.length === 0 ? (
+            <p className="text-sm text-white/55">Nothing has happened yet today.</p>
+          ) : (
+            <ul className="space-y-2">
+              {activity.map((a, i) => (
+                <li
+                  key={`${a.when}-${i}`}
+                  className="flex items-start justify-between gap-3 border-b border-white/5 pb-2 last:border-0 last:pb-0"
+                >
+                  <span className="min-w-0 text-sm text-white/80">{a.summary}</span>
+                  <span className="shrink-0 text-[11px] text-white/45">{fmtWhen(a.when)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+      </div>
     </div>
   );
 }
