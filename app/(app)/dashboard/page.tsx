@@ -245,16 +245,10 @@ function ScoreTile({ name, measures }: { name: string; measures: PqsMeasure[] })
       <ul className="mt-2 space-y-1">
         {measures.map((m) => (
           <li key={`${m.name}-${m.register}`} className="flex items-baseline justify-between gap-1.5">
-            <span className="min-w-0 truncate text-[11px] text-slate-600" title={m.star}>
+            {/* The name takes the slack, so both number columns pin to the right edge and read
+                as columns down the tile instead of drifting with the length of each label. */}
+            <span className="min-w-0 flex-1 truncate text-[11px] text-slate-600" title={m.star}>
               {m.name}
-            </span>
-            {/* The PQS score itself (the band Cardiff awards: 0, 2, 5, 7 or 10) sits to the LEFT
-                of the rate, in navy, so the score reads first and the rate explains it. */}
-            <span
-              className="w-5 shrink-0 text-right text-[11px] font-bold tabular-nums text-navy-900"
-              title="PQS score"
-            >
-              {m.band == null ? "" : m.band}
             </span>
             <span
               className={`w-11 shrink-0 text-right text-[11px] font-semibold tabular-nums ${
@@ -268,6 +262,14 @@ function ScoreTile({ name, measures }: { name: string; measures: PqsMeasure[] })
               }`}
             >
               {m.rate == null ? "n/a" : `${m.rate}%`}
+            </span>
+            {/* The PQS score (the band Cardiff awards: 0, 2, 5, 7 or 10) sits to the RIGHT of the
+                rate, in navy (Phil, 2026-07-30). */}
+            <span
+              className="w-5 shrink-0 text-right text-[11px] font-bold tabular-nums text-navy-900"
+              title="PQS score"
+            >
+              {m.band == null ? "" : m.band}
             </span>
           </li>
         ))}
