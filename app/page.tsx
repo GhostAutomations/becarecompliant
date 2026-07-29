@@ -140,8 +140,10 @@ export default async function Home() {
             Built for CQC in England and CIW in Wales
           </span>
           <h1 className="mx-auto mt-6 max-w-4xl text-4xl font-bold leading-[1.08] tracking-tight sm:text-6xl sm:leading-[1.05]">
-            The operating system for{" "}
-            <span className="bg-gradient-to-r from-gold-300 to-gold-400 bg-clip-text text-transparent">
+            The operating system for
+            {/* block, not a <br>: "care compliance." takes its own line at every width, and the
+                break survives a copy and paste or a screen reader without an empty element. */}
+            <span className="block bg-gradient-to-r from-gold-300 to-gold-400 bg-clip-text text-transparent">
               care compliance.
             </span>
           </h1>
