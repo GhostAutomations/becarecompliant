@@ -2,6 +2,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { isSendableAddress, sendEmail } from "@/lib/email/resend";
+import { isEmailDomainAllowed, inviteDomainRefusal } from "@/lib/invite-domains";
 import { inviteEmailHtml, inviteSubject } from "@/lib/email/templates";
 import { writeAudit } from "@/lib/audit";
 import { siteUrl } from "@/lib/site";
@@ -33,6 +34,14 @@ export type InviteParams = {
   fullName: string;
   role: InviteRole;
   inviter: Actor;
+  /**
+   * The company's optional invite email domain allowlist (0149), passed ONLY by
+   * the manual invite an Admin types on Settings > Users. Leave it unset and no
+   * allowlist check happens at all, which is why the automatic Team Member
+   * (staff) invite in lib/staff/invite.ts and the Founder invite path are
+   * untouched by the feature. An empty array means the same as unset: off.
+   */
+  enforceEmailDomains?: readonly string[];
 };
 
 export type InviteOutcome =
@@ -117,6 +126,26 @@ export async function createAndSendInvite(
       error:
         "That looks like a demo or test address (example.com and similar), so no invitation was sent. Add their real email to invite them.",
     };
+  }
+
+  /**
+   * The company's own allowlist, checked at the same door and only when the
+   * caller opts in (Phil, 2026-07-29, migration 0149).
+   *
+   * It exists to stop an Admin typing a personal or mistyped address into an
+   * account holding staff and Service User records. It deliberately does NOT
+   * cover the automatic Team Member invite: "companies wont give work email
+   * address out to employee at carer level", so a carer's address is personal
+   * by design and enforcing there would lock a company's care workforce out the
+   * moment the feature was switched on. That path simply never sets this field.
+   *
+   * Off unless a domain has been added, so a provider running entirely on gmail
+   * or icloud addresses is unaffected. Matching is case insensitive on the part
+   * after the @ and includes subdomains.
+   */
+  const allowedDomains = p.enforceEmailDomains ?? [];
+  if (allowedDomains.length > 0 && !isEmailDomainAllowed(email, allowedDomains)) {
+    return { ok: false, error: inviteDomainRefusal(allowedDomains) };
   }
 
   let admin: ServiceClient;

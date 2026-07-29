@@ -9,7 +9,13 @@ import { InviteForm } from "@/components/settings/invite-form";
 import UserDropdown from "@/components/settings/user-dropdown";
 import type { UserListItem } from "@/components/settings/user-popup";
 import ActionForm from "@/components/action-form";
-import { resendInviteAction, revokeInviteAction } from "../actions";
+import {
+  addInviteDomain,
+  removeInviteDomain,
+  resendInviteAction,
+  revokeInviteAction,
+} from "../actions";
+import { listInviteDomains, readInviteDomains } from "@/lib/invite-domains";
 
 export const metadata: Metadata = { title: "Users and invites" };
 
@@ -43,7 +49,7 @@ export default async function UsersPage() {
   const companyId = profile.company_id;
 
   const supabase = await createClient();
-  const [{ data: branches }, { data: users }, { data: invites }] =
+  const [{ data: branches }, { data: users }, { data: invites }, { data: company }] =
     await Promise.all([
       supabase
         .from("branches")
@@ -61,7 +67,18 @@ export default async function UsersPage() {
         .eq("company_id", companyId)
         .eq("status", "pending")
         .order("created_at", { ascending: false }),
+      supabase
+        .from("companies")
+        .select("invite_email_domains")
+        .eq("id", companyId)
+        .maybeSingle(),
     ]);
+
+  /**
+   * The optional invite email domain allowlist (0149). Empty means off, which is
+   * how every company starts and how most small providers will stay.
+   */
+  const inviteDomains = readInviteDomains(company?.invite_email_domains).sort();
 
   const branchList = branches ?? [];
   const activeBranches = branchList.filter((b) => b.status === "active");
@@ -150,8 +167,88 @@ export default async function UsersPage() {
       </div>
 
       <section className="glass-card p-6">
-        <h2 className="mb-4 text-base font-semibold text-white">Invite a person</h2>
-        <InviteForm branches={activeBranches} />
+        <h2 className="text-base font-semibold text-white">Invite a person</h2>
+        {inviteDomains.length > 0 ? (
+          <p className="mt-1 text-xs text-white/50">
+            Invites sent from this screen can only go to {listInviteDomains(inviteDomains)}.
+            Team Member logins are not affected.
+          </p>
+        ) : null}
+        <div className="mt-4">
+          <InviteForm branches={activeBranches} />
+        </div>
+      </section>
+
+      {/* The allowlist sits on this screen because this screen is where it takes
+          effect, and nowhere else. See lib/invite-domains.ts and migration 0149. */}
+      <section className="glass-card p-6">
+        <h2 className="text-base font-semibold text-white">Allowed email domains</h2>
+        <p className="mt-2 text-sm text-white/60">
+          Optional. Leave this empty and any email address can be invited, which is
+          how it works today. Add one or more domains and the invite form above will
+          only send to an address ending in one of them, so a personal address or a
+          typo is refused before the invitation goes out.
+        </p>
+        <p className="mt-2 text-sm text-white/60">
+          It applies only to the invites you send from this screen. It is never
+          applied to Team Member logins, which are created automatically when you
+          add or import a person and keep using the email address on their Record,
+          so switching this on cannot lock your care staff out. Subdomains count, so
+          an address at mail.sunrisecare.co.uk is accepted when sunrisecare.co.uk is
+          on the list.
+        </p>
+
+        <div className="mt-4 space-y-2">
+          {inviteDomains.length === 0 ? (
+            <p className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/50">
+              No domains set, so any email address can be invited.
+            </p>
+          ) : (
+            inviteDomains.map((domain) => (
+              <div
+                key={domain}
+                className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5"
+              >
+                <span className="truncate text-sm text-white">@{domain}</span>
+                <ActionForm
+                  action={removeInviteDomain}
+                  hidden={{ domain }}
+                  label="Remove"
+                  savedLabel="Removed"
+                  buttonClassName="btn-ghost px-3 py-1.5 text-xs"
+                  className=""
+                />
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Keyed on the current list so a successful add remounts the form and
+            clears the box, rather than leaving the domain sitting in it. */}
+        <div className="mt-4 max-w-sm">
+          <ActionForm
+            key={inviteDomains.join(",")}
+            action={addInviteDomain}
+            label="Add"
+            savedLabel="Added"
+            buttonClassName="btn-primary text-xs"
+          >
+            <div>
+              <label htmlFor="invite_domain" className="form-label">
+                Add a domain
+              </label>
+              <input
+                id="invite_domain"
+                name="domain"
+                placeholder="sunrisecare.co.uk"
+                autoComplete="off"
+              />
+              <p className="mt-1 text-xs text-white/45">
+                Type it with or without the @. Capital letters do not matter.
+              </p>
+            </div>
+          </ActionForm>
+        </div>
       </section>
 
       <section className="space-y-3">

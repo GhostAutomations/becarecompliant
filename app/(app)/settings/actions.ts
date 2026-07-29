@@ -15,6 +15,11 @@ import {
   type Actor,
   type InviteRole,
 } from "@/lib/invites";
+import {
+  INVITE_DOMAIN_LIMIT,
+  normaliseInviteDomain,
+  readInviteDomains,
+} from "@/lib/invite-domains";
 import type { ActionState } from "@/lib/forms";
 
 const INVITABLE_ROLES: InviteRole[] = [
@@ -109,10 +114,17 @@ export async function inviteUser(
 
   const { data: company } = await supabase
     .from("companies")
-    .select("name")
+    .select("name, invite_email_domains")
     .eq("id", ctx.companyId)
     .maybeSingle();
 
+  /**
+   * THE ONE PLACE the invite email domain allowlist is enforced (0149): the
+   * invite an Admin types by hand on this screen. It is passed in rather than
+   * read inside createAndSendInvite so that the automatic Team Member invite
+   * (lib/staff/invite.ts) and the Founder invite path cannot pick it up by
+   * accident. An empty list means the feature is off.
+   */
   const outcome = await createAndSendInvite({
     companyId: ctx.companyId,
     companyName: company?.name ?? "your company",
@@ -121,6 +133,7 @@ export async function inviteUser(
     fullName,
     role,
     inviter: ctx.actor,
+    enforceEmailDomains: readInviteDomains(company?.invite_email_domains),
   });
 
   if (!outcome.ok) return { error: outcome.error };
@@ -163,6 +176,126 @@ export async function revokeInviteAction(
   revalidatePath("/settings/users");
   if (!outcome.ok) return { error: outcome.error };
   return { ok: "Invite revoked." };
+}
+
+/**
+ * INVITE EMAIL DOMAIN ALLOWLIST (Phil, 2026-07-29, migration 0149).
+ *
+ * Read the company's list, whatever the row holds, alongside the admin check.
+ * Kept private to this file: nothing else writes it, and a "use server" file may
+ * only EXPORT async functions, so this stays unexported.
+ */
+async function readCompanyInviteDomains(companyId: string): Promise<string[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("companies")
+    .select("invite_email_domains")
+    .eq("id", companyId)
+    .maybeSingle();
+  return readInviteDomains(data?.invite_email_domains);
+}
+
+/** Write the list back, surfacing an RLS no-op rather than pretending it saved. */
+async function saveCompanyInviteDomains(
+  companyId: string,
+  domains: string[],
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("companies")
+    .update({ invite_email_domains: domains })
+    .eq("id", companyId)
+    .select("id");
+  if (error) return { ok: false, error: "Could not save that. Please try again." };
+  if (!data || data.length === 0) {
+    return { ok: false, error: "Only an Admin can change the allowed email domains." };
+  }
+  return { ok: true };
+}
+
+/**
+ * Admin adds a domain to the allowlist used by the invite form on Settings >
+ * Users. Accepts "sunrisecare.co.uk" or "@sunrisecare.co.uk", stores it
+ * normalised. Adding the first domain is what switches the feature on.
+ */
+export async function addInviteDomain(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const ctx = await adminContext();
+  if (!ctx.ok) return { error: ctx.error };
+
+  const parsed = normaliseInviteDomain(String(formData.get("domain") ?? ""));
+  if (!parsed.ok) return { error: parsed.error };
+
+  const current = await readCompanyInviteDomains(ctx.companyId);
+  if (current.includes(parsed.domain)) {
+    return { error: `${parsed.domain} is already on the list.` };
+  }
+  if (current.length >= INVITE_DOMAIN_LIMIT) {
+    return {
+      error: `You can hold up to ${INVITE_DOMAIN_LIMIT} domains. Remove one before adding another.`,
+    };
+  }
+
+  const next = [...current, parsed.domain].sort();
+  const saved = await saveCompanyInviteDomains(ctx.companyId, next);
+  if (!saved.ok) return { error: saved.error };
+
+  await writeAudit({
+    companyId: ctx.companyId,
+    actorId: ctx.actor.id,
+    actorEmail: ctx.actor.email,
+    actorRole: ctx.actor.role,
+    action: "company.invite_domains_updated",
+    entityType: "company",
+    entityId: ctx.companyId,
+    summary: `Added ${parsed.domain} to the allowed invite email domains`,
+    metadata: { added: parsed.domain, domains: next },
+  });
+
+  revalidatePath("/settings/users");
+  return { ok: `${parsed.domain} added.` };
+}
+
+/**
+ * Admin removes a domain. Removing the last one turns the feature off again and
+ * every address is accepted, which is the state a company starts in.
+ */
+export async function removeInviteDomain(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const ctx = await adminContext();
+  if (!ctx.ok) return { error: ctx.error };
+
+  const domain = String(formData.get("domain") ?? "").trim().toLowerCase();
+  if (!domain) return { error: "Missing domain." };
+
+  const current = await readCompanyInviteDomains(ctx.companyId);
+  if (!current.includes(domain)) return { error: "That domain is not on the list." };
+
+  const next = current.filter((d) => d !== domain);
+  const saved = await saveCompanyInviteDomains(ctx.companyId, next);
+  if (!saved.ok) return { error: saved.error };
+
+  await writeAudit({
+    companyId: ctx.companyId,
+    actorId: ctx.actor.id,
+    actorEmail: ctx.actor.email,
+    actorRole: ctx.actor.role,
+    action: "company.invite_domains_updated",
+    entityType: "company",
+    entityId: ctx.companyId,
+    summary:
+      next.length === 0
+        ? `Removed ${domain}, so any email address can be invited again`
+        : `Removed ${domain} from the allowed invite email domains`,
+    metadata: { removed: domain, domains: next },
+  });
+
+  revalidatePath("/settings/users");
+  return { ok: `${domain} removed.` };
 }
 
 /** Enable or disable an existing user in the admin's company. */
