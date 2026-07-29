@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { getSessionUser } from "@/lib/auth/guards";
 import SiteHeader from "@/components/marketing/site-header";
 import SiteFooter from "@/components/marketing/site-footer";
 import TrialRequestForm from "@/components/marketing/trial-request-form";
 
 export const metadata: Metadata = {
-  title: "Start your free trial | Be Care Compliant",
+  // No brand suffix here: the root layout template adds it to every child segment.
+  title: "Request your free trial",
   description:
     "Request a 14 day free trial of Be Care Compliant. Three details, no card, and we set the trial up for you and send your logins, usually the same working day.",
 };
@@ -32,9 +34,13 @@ export default async function StartTrialPage({
 
       <section className="mx-auto max-w-2xl px-4 pb-20 pt-16">
         <div className="text-center">
-          <h1 className="text-3xl font-bold sm:text-4xl">Start your 14 day free trial</h1>
+          {/* "Request", not "Start". The button at the bottom of this page sends a request,
+              and setup is founder led on purpose, so the heading now matches what pressing it
+              actually does. The buttons that bring people HERE still say Start free trial:
+              that is the invitation, this is the transaction. */}
+          <h1 className="text-3xl font-bold sm:text-4xl">Request your 14 day free trial</h1>
           <p className="mx-auto mt-4 max-w-xl text-white/75">
-            Three details is all we need. We set the trial up for you and send your logins, usually the same working
+            Three details are all we need. We set the trial up for you and send your logins, usually the same working
             day. No card, and nothing goes live until you have your logins.
           </p>
         </div>
@@ -56,7 +62,11 @@ export default async function StartTrialPage({
 
         <p className="mx-auto mt-6 max-w-xl text-center text-xs text-white/60">
           We use these details only to set your trial up and to contact you about it. We do not sell them on and we
-          do not need any information about the people you support in order to get you started.
+          do not need any information about the people you support in order to get you started.{" "}
+          <Link href="/privacy" className="text-gold-300 underline underline-offset-4 hover:text-gold-400">
+            Read the privacy notice
+          </Link>
+          .
         </p>
       </section>
 

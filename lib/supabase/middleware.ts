@@ -9,6 +9,7 @@ export const PUBLIC_PATHS = [
   "/", // marketing homepage
   "/pricing",
   "/start-trial",
+  "/privacy",
   "/login",
   "/auth",
   "/api/webhooks",

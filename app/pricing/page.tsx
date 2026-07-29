@@ -6,7 +6,10 @@ import SiteFooter from "@/components/marketing/site-footer";
 import PricingTable from "@/components/marketing/pricing-table";
 
 export const metadata: Metadata = {
-  title: "Pricing | Be Care Compliant",
+  // The root layout template already appends the brand ("%s · Be Care Compliant"), and a
+  // template applies to CHILD segments only, which is why the homepage escaped this and
+  // these two pages read "Pricing | Be Care Compliant · Be Care Compliant" in the tab.
+  title: "Pricing",
   description:
     "Pricing for Be Care Compliant. Business £49 a month and Pro £69 a month, both plus VAT, per care service, both with a 14 day free trial. Carer logins are free.",
 };
