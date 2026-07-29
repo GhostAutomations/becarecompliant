@@ -439,7 +439,7 @@ export default async function DashboardPage() {
             icon="policy" />
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-3 lg:col-span-10">
+        <div className="grid gap-4 sm:grid-cols-2 lg:col-span-10 xl:grid-cols-4">
           <Tile
             href="/people"
             label="Audits completed"
