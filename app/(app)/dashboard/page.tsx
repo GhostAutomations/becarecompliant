@@ -633,25 +633,49 @@ export default async function DashboardPage() {
           )}
         </Panel>
 
+        {/* Five WORKING day columns, not a box per day (Phil, 2026-07-29). Every column is
+            always drawn, empty or not, so the week keeps its shape. */}
         <Panel title="Compliance calendar" href="/planner" linkLabel="View calendar" className="lg:col-span-5">
-          {calendar.length === 0 ? (
-            <p className="text-sm text-white/55">Nothing is due in the next 60 days.</p>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-5">
-              {calendar.map((d) => {
-                const { day, date } = fmtDay(d.iso);
-                return (
-                  <div key={d.iso} className="rounded-xl border border-white/10 p-3">
-                    <p className="text-[11px] font-semibold text-gold-300">{day}</p>
-                    <p className="text-xs text-white/70">{date}</p>
-                    <p className="mt-2 line-clamp-3 text-[11px] text-white/60">
-                      {d.items.join(", ")}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          <div className="grid grid-cols-5 divide-x divide-white/10">
+            {calendar.map((d) => {
+              const { day, date } = fmtDay(d.iso);
+              const isToday = day === "Today";
+              return (
+                <div key={d.iso} className="min-w-0 px-2 first:pl-0 last:pr-0">
+                  <p
+                    className={`truncate text-[11px] font-semibold uppercase tracking-wide ${
+                      isToday ? "text-gold-300" : "text-white/60"
+                    }`}
+                  >
+                    {day}
+                  </p>
+                  <p className="truncate text-[11px] tabular-nums text-white/45">{date}</p>
+                  <ul className="mt-2 space-y-1">
+                    {d.items.length === 0 ? (
+                      <li className="text-[11px] text-white/30">Clear</li>
+                    ) : (
+                      d.items.slice(0, 4).map((it) => (
+                        <li
+                          key={it.name}
+                          title={`${it.count} ${it.name}`}
+                          className="truncate text-[11px] text-white/65"
+                        >
+                          <span className="tabular-nums font-semibold text-white/90">{it.count}</span>{" "}
+                          {it.name}
+                        </li>
+                      ))
+                    )}
+                    {d.items.length > 4 ? (
+                      <li className="text-[11px] text-white/40">+{d.items.length - 4} more</li>
+                    ) : null}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
+          <p className="mt-3 border-t border-white/10 pt-2.5 text-[11px] text-white/50">
+            Working days only. Anything due at the weekend shows on the following working day.
+          </p>
         </Panel>
 
         <Panel title="Recent activity" href="/reports" linkLabel="View all" className="lg:col-span-4">

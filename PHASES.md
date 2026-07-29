@@ -1280,3 +1280,15 @@ Marketing site on becarecompliant.com, onboarding collateral, subscription agree
 - The "View full report" link is gone from the panel corner. The whole tile is now the link to
   `/reports/view/on-time`. `Panel` takes `linkLabel={null}` for this. Only safe on a panel with
   no links inside it, because an anchor inside an anchor is invalid HTML.
+
+### 2026-07-29 Compliance calendar: five working day columns
+
+- Was "the next five dates that happen to have something due", drawn as five bordered boxes. Now
+  it is the next five WORKING days starting today (Monday when today is a weekend), one column
+  each, divided by hairlines instead of boxed. Empty days still draw their column and read
+  "Clear", so the week keeps its shape.
+- Weekend due dates are carried onto the following working day rather than dropped. Bank holidays
+  are not modelled, matching `addBusinessOrCalendarDays` in Complaints. The panel footer says so.
+- `CalendarDay.items` is now `{ name, count }[]` instead of a list of names, so a column can say
+  "3 Supervision" rather than repeating the name. Sorted by count then name. Four lines per
+  column, then "+N more".
