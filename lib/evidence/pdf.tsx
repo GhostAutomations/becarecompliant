@@ -15,6 +15,7 @@ import "server-only";
 
 import {
   Document,
+  Font,
   Page,
   StyleSheet,
   Text,
@@ -26,8 +27,18 @@ import {
   type FormSchema,
   isPresentational,
 } from "@/lib/form-schema";
-import { isFieldVisible } from "@/lib/form-validate";
+import { shouldShowInEvidence } from "@/lib/form-validate";
 import { formatAnswerForDisplay } from "@/lib/form-format";
+
+/**
+ * Never break a word in half.
+ *
+ * Phil, 2026-07-29: a long field label printed as "conversa tion". @react-pdf/renderer
+ * hyphenates by default, and with no hyphen drawn it reads as a typo in a compliance
+ * document. Returning the word whole tells it to wrap between words instead. Registered
+ * once, at module level, so every evidence PDF this module renders behaves the same.
+ */
+Font.registerHyphenationCallback((word) => [word]);
 
 export type EvidencePdfMeta = {
   companyName: string;
@@ -119,7 +130,10 @@ export function EvidenceEntry({ schema, answers, meta }: { schema: FormSchema; a
       </View>
 
       {schema.sections.map((section) => {
-        const visible = section.fields.filter((f) => isFieldVisible(f, answers));
+        // shouldShowInEvidence, not plain visibility: a conditional field nobody was
+        // asked is left out, but anything actually answered is always printed. The on
+        // screen Evidence page filters with the same function.
+        const visible = section.fields.filter((f) => shouldShowInEvidence(f, answers));
         if (visible.length === 0) return null;
         return (
           <View key={section.id} style={styles.section} wrap={false}>

@@ -335,12 +335,14 @@ export default function AbsenceView({
                     aiDraft={{
                       action: draftReturnToWork,
                       label: "Draft it for me",
-                      hint: "Write the summary, and a set of questions for this particular absence, from the record. The questions become boxes you fill in as you talk. You can change every word before saving, and nothing is stored until you do.",
+                      hint: "Write the summary, and the whole set of questions for this particular absence, from the record. They cover fitness to return, adjustments, anything at work that played a part and what support would help, in words written for this absence. The questions become boxes you fill in as you talk. You can change every word before saving, and nothing is stored until you do.",
                       extraFields: { absence_event_id: r.absenceEventId },
                       // Phil: not every absence is the same, so the questions are
                       // written per absence by the AI rather than fixed in the schema.
-                      // They land in the tailored_questions long_text as readable text,
-                      // which keeps Evidence valid against the stored version (0147).
+                      // v4 (0148) does the same for the conversation questions that were
+                      // still fixed in v3. They land in the tailored_questions long_text
+                      // as readable text, which keeps Evidence valid against the stored
+                      // version.
                       questions: { dataKey: "ai_questions", answerKey: "tailored_questions" },
                     }}
                   />

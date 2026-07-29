@@ -39,6 +39,19 @@ export function isFieldVisible(field: FormField, answers: Answers): boolean {
   return field.visibleWhen.in.includes(String(controlling));
 }
 
+/**
+ * Should this field appear in the stored Evidence (on screen and in the PDF)?
+ *
+ * Normally that is exactly "is it visible", so a conditional field nobody was asked
+ * is not printed as unanswered. The second half matters more: if an answer WAS
+ * stored for a field, it is shown whatever the conditions now say. An answer that
+ * exists must never be invisible in a compliance record, and the on screen view and
+ * the PDF must never disagree about what is in it, so both call this one function.
+ */
+export function shouldShowInEvidence(field: FormField, answers: Answers): boolean {
+  return isFieldVisible(field, answers) || !isEmpty(answers[field.key]);
+}
+
 /** Treat empty string / null / empty array / empty address as "no answer". */
 function isEmpty(value: AnswerValue | undefined): boolean {
   if (value == null) return true;

@@ -2,19 +2,33 @@ import type { Metadata } from "next";
 import { requireCompany } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import { getEvidenceView } from "@/lib/evidence/on-demand";
-import { isBinaryField, isPresentational } from "@/lib/form-schema";
+import { isBinaryField, isPresentational, type AnswerValue } from "@/lib/form-schema";
+import { shouldShowInEvidence } from "@/lib/form-validate";
+import { formatAnswerForDisplay } from "@/lib/form-format";
 
 export const metadata: Metadata = { title: "Evidence" };
 
-function displayAnswer(value: unknown): string {
-  if (value == null || value === "") return "Not answered";
-  if (Array.isArray(value)) return value.length ? value.join(", ") : "Not answered";
-  if (typeof value === "boolean") return value ? "Yes" : "No";
-  if (typeof value === "object") {
-    const parts = Object.values(value as Record<string, unknown>).filter(Boolean).map(String);
-    return parts.length ? parts.join(", ") : "Not answered";
-  }
-  return String(value);
+/**
+ * A drawn signature, if the answer holds one.
+ *
+ * Phil, 2026-07-29: he ticked "Completed over the phone", signed, and the PDF said
+ * "Signature captured" while this page said "Not provided" for the same record. A
+ * record that says a signature is missing on screen and present in the PDF is worse
+ * than either being wrong alone.
+ *
+ * The cause: the shared renderer captures a drawn signature as a PNG data URL held in
+ * the ANSWER (components/forms/form-renderer.tsx), and only the policy signing path
+ * turns it into a stored file. This page assumed every signature and upload was a file
+ * row, looked it up by field key, found nothing and printed "Not provided". So the page
+ * now reads the answer as well, through the same formatter the PDF uses, and draws the
+ * signature when it is there. Generic: any signature field on any Form.
+ */
+function drawnSignature(value: AnswerValue | undefined): string | null {
+  if (typeof value !== "string") return null;
+  const v = value.trim();
+  return v.startsWith("data:image/png;base64,") || v.startsWith("data:image/jpeg;base64,")
+    ? v
+    : null;
 }
 
 function fmtDateTime(iso: string): string {
@@ -118,7 +132,12 @@ export default async function EvidenceViewPage({
       </div>
 
       {ev.schema.sections.map((section) => {
-        const answerable = section.fields.filter((f) => !isPresentational(f.type));
+        // Same rule as the PDF (shouldShowInEvidence): a conditional field nobody was
+        // asked is left out, but anything actually answered is always shown, so the two
+        // renderings of one immutable record can never disagree.
+        const answerable = section.fields.filter(
+          (f) => !isPresentational(f.type) && shouldShowInEvidence(f, ev.answers),
+        );
         if (answerable.length === 0) return null;
         return (
           <div key={section.id} className="glass-card p-5">
@@ -126,32 +145,43 @@ export default async function EvidenceViewPage({
               <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white/60">{section.title}</h2>
             ) : null}
             <dl className="space-y-3">
-              {answerable.map((field) => (
-                <div key={field.key} className="border-t border-white/5 pt-3 first:border-t-0 first:pt-0">
-                  <dt className="text-xs text-white/45">{field.label}</dt>
-                  {/* whitespace-pre-line: a long_text answer can hold real line breaks (the AI
-                      drafted Return to Work questions are stored as Q and A blocks, migration
-                      0147), and without this they collapse into one run on paragraph. */}
-                  <dd className="mt-0.5 whitespace-pre-line text-sm text-white/90">
-                    {isBinaryField(field.type) ? (
-                      ev.files[field.key] ? (
+              {answerable.map((field) => {
+                const value = ev.answers[field.key];
+                const file = ev.files[field.key];
+                const signature = field.type === "signature" ? drawnSignature(value) : null;
+                return (
+                  <div key={field.key} className="border-t border-white/5 pt-3 first:border-t-0 first:pt-0">
+                    <dt className="text-xs text-white/45">{field.label}</dt>
+                    {/* whitespace-pre-line: a long_text answer can hold real line breaks (the AI
+                        drafted Return to Work questions are stored as Q and A blocks, migration
+                        0147), and without this they collapse into one run on paragraph. */}
+                    <dd className="mt-0.5 whitespace-pre-line text-sm text-white/90">
+                      {isBinaryField(field.type) && file ? (
                         <a
                           href={`/api/evidence/${ev.id}/file?key=${encodeURIComponent(field.key)}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-gold-300 underline"
                         >
-                          {ev.files[field.key].kind === "signature" ? "View signature" : ev.files[field.key].fileName}
+                          {file.kind === "signature" ? "View signature" : file.fileName}
                         </a>
+                      ) : signature ? (
+                        <>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={signature}
+                            alt="Signature captured"
+                            className="mt-1 h-16 w-auto rounded-lg bg-white p-1"
+                          />
+                          <span className="mt-1 block text-xs text-white/50">Signature captured</span>
+                        </>
                       ) : (
-                        "Not provided"
-                      )
-                    ) : (
-                      displayAnswer(ev.answers[field.key])
-                    )}
-                  </dd>
-                </div>
-              ))}
+                        formatAnswerForDisplay(field, value)
+                      )}
+                    </dd>
+                  </div>
+                );
+              })}
             </dl>
           </div>
         );

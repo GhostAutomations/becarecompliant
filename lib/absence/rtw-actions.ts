@@ -16,6 +16,13 @@
  * cannot be schema fields: Evidence pins a form_version id and the server validates
  * every answer against that stored schema, so a key invented this morning would be
  * dropped, and a version per absence would wreck the audit trail.
+ *
+ * ALL OF THEM, NOT JUST THE HEALTH ONES (v4, migration 0148). Phil: "'The conversation'
+ * tile ... needs to also be ai and relevent to the absence." The fixed core v3 left
+ * behind (fit to return, ongoing symptoms, work related, adjustments, support agreed) is
+ * gone from the form, so the prompt below now REQUIRES the drafted set to cover that
+ * ground. Referral and follow up date stay as real fields: they record what the manager
+ * did, not what they asked.
  */
 
 import { revalidatePath } from "next/cache";
@@ -29,29 +36,38 @@ import { getRtwContext } from "./rtw";
 import type { Answers } from "@/lib/form-schema";
 import { stripJsonFence, toAiQuestions, type ActionState, type AiQuestion } from "@/lib/forms";
 
-// v3: the model writes the questions. The guardrails below are unchanged from v1 and
-// v2 and must stay that way: never diagnose, never speculate about a medical cause,
-// never suggest an outcome or disciplinary action. What changed is only the OUTPUT
-// FORMAT, from two prose headings to strict JSON we can render as real controls.
+// v4: the model writes ALL of the questions. The guardrails below are unchanged from
+// v1, v2 and v3 and must stay that way: never diagnose, never speculate about a medical
+// cause, never suggest an outcome or disciplinary action.
+//
+// What changed in v4 (migration 0148) is the SCOPE. v3 told the model that fitness to
+// return, work relatedness, adjustments and support were fixed fields and to never ask
+// about them. Phil: "'The conversation' tile ... needs to also be ai and relevent to the
+// absence." Those fields are gone, so the instruction is inverted: the drafted set MUST
+// now cover that ground, in words written for this particular absence, and the cap rises
+// to 8 (AI_QUESTION_LIMIT). Everything else, the strict JSON output and the prose
+// fallback below, is untouched.
 const RTW_SYSTEM = [
   "You are helping a UK care sector manager prepare for a Return to Work interview.",
   "Return to Work interviews are held after every absence. Your job is to prepare, not to decide.",
   "Write in plain British English. No dashes. Never diagnose, never speculate about a medical cause,",
   "and never suggest disciplinary action or an outcome: that is the manager's judgement after talking",
   "to the person. Be warm and practical. Assume the employee may be anxious about returning.",
-  "The form already asks whether they are fit to return to their normal duties, whether the absence",
-  "was work related, what adjustments are needed and what support has been agreed.",
-  "Never ask any of those four again.",
   "Reply with STRICT JSON and nothing else: no markdown, no code fence, no words before or after it.",
   "The JSON is one object with exactly two keys.",
   '"summary": two or three sentences of factual context taken from the record.',
-  '"questions": an array of 4 to 6 objects, each with "question" (one short question the manager',
+  '"questions": an array of 5 to 8 objects, each with "question" (one short question the manager',
   'should ask, written to be read aloud), "type" (exactly one of "text", "yes_no" or "choice") and,',
   'only when the type is "choice", "options" (an array of 2 to 4 short answers to choose from).',
-  "Tailor every question to THIS absence: the reason given, how long it lasted, and the pattern of",
-  "their other absences on record. A back injury, a stomach bug and a run of single days do not",
-  "deserve the same questions. Ask about a fit note, medication, appointments, a phased return or a",
-  "pattern of absence only where this record makes it relevant.",
+  "The questions are the whole conversation, so the set MUST cover all four of these, each in at",
+  "least one question and worded for this particular absence: whether they feel fit to return to",
+  "their normal duties, whether any adjustments would help them come back, whether anything at work",
+  "caused the absence or made it worse, and what support would help them now.",
+  "Then use the remaining questions on what THIS absence calls for: the reason given, how long it",
+  "lasted, and the pattern of their other absences on record. A back injury, a stomach bug and a run",
+  "of single days do not deserve the same questions. Ask about a fit note, medication, appointments,",
+  "a phased return or a pattern of absence only where this record makes it relevant.",
+  "Ask one thing per question and never ask the same thing twice in different words.",
 ].join(" ");
 
 // KEPT AS THE FALLBACK. If the model ignores the JSON instruction (or returns JSON we
@@ -146,7 +162,7 @@ export async function draftReturnToWork(
   }
   // Nothing usable came back as JSON. Fall back to the prose reading rather than
   // erroring: a draft the manager has to tidy up beats no draft at all, and both keys
-  // below are real fields of the v3 schema (migration 0147).
+  // below are real fields of the schema (0147, still there in v4 / 0148).
   const prose = splitDraft(result.ok);
   return {
     ok: "Drafted",

@@ -45,8 +45,12 @@ export type AiQuestion = {
   options?: string[];
 };
 
-/** Most questions we ever want to put in front of someone in one sitting. */
-export const AI_QUESTION_LIMIT = 6;
+/** Most questions we ever want to put in front of someone in one sitting.
+ *  Raised from 6 to 8 for Return to Work v4 (migration 0148): the drafted set now has
+ *  to cover the ground the fixed "The conversation" fields used to, on top of whatever
+ *  this particular record calls for. It stops at 8 on purpose. A manager will not work
+ *  through twenty, and a set nobody finishes is worse than a shorter one they do. */
+export const AI_QUESTION_LIMIT = 8;
 const AI_OPTION_LIMIT = 6;
 
 /** Models like to wrap JSON in a markdown fence however firmly you ask them not to. */
