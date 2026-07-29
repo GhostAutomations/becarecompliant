@@ -1300,3 +1300,10 @@ Marketing site on becarecompliant.com, onboarding collateral, subscription agree
 - Row two is now PQS report (5), On call (4), Expiring soon (3). Row three is Compliance calendar
   (5) and Recent activity (4), so it runs 9 of 12 wide with the last three columns empty. That is
   deliberate: nothing else was resized.
+
+### 2026-07-29 Bottom row lines up with the row above it
+
+- Compliance calendar is now `lg:col-span-4 lg:col-start-6`, the same four columns On call
+  occupies, so it sits directly under it. Recent activity is `lg:col-span-3`, the same three
+  Expiring soon occupies, which puts it bottom right. The five columns under the PQS report are
+  intentionally empty.

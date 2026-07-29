@@ -623,11 +623,19 @@ export default async function DashboardPage() {
         </Panel>
       </div>
 
-      {/* Row three: calendar, activity. */}
+      {/* Row three sits UNDER row two, column for column (Phil, 2026-07-29): the calendar takes
+          the four columns On call occupies, starting at column six, and Recent activity takes the
+          three Expiring soon occupies, which puts it bottom right. The first five columns, under
+          the PQS report, are deliberately empty. */}
       <div className="grid gap-4 lg:grid-cols-12">
         {/* Five WORKING day columns, not a box per day (Phil, 2026-07-29). Every column is
             always drawn, empty or not, so the week keeps its shape. */}
-        <Panel title="Compliance calendar" href="/planner" linkLabel="View calendar" className="lg:col-span-5">
+        <Panel
+          title="Compliance calendar"
+          href="/planner"
+          linkLabel="View calendar"
+          className="lg:col-span-4 lg:col-start-6"
+        >
           <div className="grid grid-cols-5 divide-x divide-white/10">
             {calendar.map((d) => {
               const { day, date } = fmtDay(d.iso);
@@ -670,7 +678,7 @@ export default async function DashboardPage() {
           </p>
         </Panel>
 
-        <Panel title="Recent activity" href="/reports" linkLabel="View all" className="lg:col-span-4">
+        <Panel title="Recent activity" href="/reports" linkLabel="View all" className="lg:col-span-3">
           {activity.length === 0 ? (
             <p className="text-sm text-white/55">Nothing has happened yet today.</p>
           ) : (
