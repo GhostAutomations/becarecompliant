@@ -1419,3 +1419,9 @@ them credited on time.
 
 EXPECT THE NUMBERS TO GET WORSE. That is the point: Caerphilly Supervision goes from n/a to 0%
 with a real denominator, and the company figure drops.
+
+### 2026-07-30 Score and rate share one ink
+
+- The PQS score on a white tile now carries the SAME rag colour as the rate beside it, instead of
+  navy (Phil). The rag decision is made once per line and used by both numbers, so they can never
+  contradict each other.

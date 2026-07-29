@@ -243,36 +243,39 @@ function ScoreTile({ name, measures }: { name: string; measures: PqsMeasure[] })
         {name}
       </p>
       <ul className="mt-2 space-y-1">
-        {measures.map((m) => (
+        {measures.map((m) => {
+          // ONE rag decision per line, shared by the rate and the score, so the two numbers can
+          // never contradict each other.
+          const ink =
+            m.rate == null
+              ? "text-slate-400"
+              : m.rate >= 85
+                ? "text-rag-green"
+                : m.rate >= 50
+                  ? "text-rag-amber"
+                  : "text-rag-red";
+          return (
           <li key={`${m.name}-${m.register}`} className="flex items-baseline justify-between gap-1.5">
             {/* The name takes the slack, so both number columns pin to the right edge and read
                 as columns down the tile instead of drifting with the length of each label. */}
             <span className="min-w-0 flex-1 truncate text-[11px] text-slate-600" title={m.star}>
               {m.name}
             </span>
-            <span
-              className={`w-11 shrink-0 text-right text-[11px] font-semibold tabular-nums ${
-                m.rate == null
-                  ? "text-slate-400"
-                  : m.rate >= 85
-                    ? "text-rag-green"
-                    : m.rate >= 50
-                      ? "text-rag-amber"
-                      : "text-rag-red"
-              }`}
-            >
+            <span className={`w-11 shrink-0 text-right text-[11px] font-semibold tabular-nums ${ink}`}>
               {m.rate == null ? "n/a" : `${m.rate}%`}
             </span>
             {/* The PQS score (the band Cardiff awards: 0, 2, 5, 7 or 10) sits to the RIGHT of the
-                rate, in navy (Phil, 2026-07-30). */}
+                rate and carries the SAME ink as it (Phil, 2026-07-30), so a line reads as one
+                judgement rather than two. */}
             <span
-              className="w-5 shrink-0 text-right text-[11px] font-bold tabular-nums text-navy-900"
+              className={`w-5 shrink-0 text-right text-[11px] font-bold tabular-nums ${ink}`}
               title="PQS score"
             >
               {m.band == null ? "" : m.band}
             </span>
           </li>
-        ))}
+          );
+        })}
       </ul>
     </div>
   );
