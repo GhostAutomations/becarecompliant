@@ -454,6 +454,17 @@ export default async function DashboardPage() {
           <MissingTile label="Risk level"
             needs="No risk model exists yet"
             icon="risk" />
+          {/* Eight tiles in an eight slot grid. Seven left a hole on the right, and stretching
+              three tiles to fill it made them a third wider than the other four. */}
+          <Tile
+            href="/people"
+            label="Due in 14 days"
+            value={due14}
+            tone={due14 > 0 ? "amber" : "green"}
+            sub="checks falling due across both registers"
+            icon="calendar"
+            iconTone="orange"
+          />
         </div>
       </div>
 
