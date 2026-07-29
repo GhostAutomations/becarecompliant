@@ -1359,3 +1359,12 @@ Marketing site on becarecompliant.com, onboarding collateral, subscription agree
   measures the panel already computed are passed in rather than recomputed, so a single branch
   company costs nothing extra. A company with several branches will feel this on dashboard load
   and is the first candidate for caching.
+
+### 2026-07-29 Score tiles go two by two and the bar list is deleted
+
+- The white tiles are a two column grid, so four scopes read two on top and two underneath rather
+  than a sideways scroll. More than four and the grid scrolls vertically inside the panel; the
+  tiles never shrink.
+- The bar list under them is GONE. It printed the same seven measures as the Company tile, so the
+  panel was saying everything twice. The white tiles are the report now.
+- One footnote line remains, because the panel is a whole card link and needs to say so.

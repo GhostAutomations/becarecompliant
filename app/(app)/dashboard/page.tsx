@@ -238,7 +238,7 @@ function Panel({
  */
 function ScoreTile({ name, measures }: { name: string; measures: PqsMeasure[] }) {
   return (
-    <div className="w-[196px] shrink-0 rounded-xl bg-white p-3 shadow-lg shadow-black/20">
+    <div className="rounded-xl bg-white p-3 shadow-lg shadow-black/20">
       <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-navy-900" title={name}>
         {name}
       </p>
@@ -585,46 +585,19 @@ export default async function DashboardPage() {
             linkLabel={null}
             className="lg:col-span-5 lg:row-span-2"
           >
-            {/* The panel is two rows tall, so the measures spread down it rather than sitting in
-                a block with a pool of dead space underneath. */}
+            {/* Two by two (Phil, 2026-07-29). The white tiles ARE the report now: the bar list
+                that used to sit under them said the same thing twice, so it is gone. More than
+                four scopes and the grid scrolls rather than shrinking the tiles. */}
             <div className="flex h-full flex-col">
-              {/* The white score tiles. One per scope, and the strip scrolls sideways rather than
-                  squeezing the tiles when a company has several branches. */}
-              <div className="-mx-1 mb-4 flex shrink-0 gap-3 overflow-x-auto px-1 pb-1">
-                {pqsScopes.map((sc) => (
-                  <ScoreTile key={sc.key} name={sc.name} measures={sc.measures} />
-                ))}
+              <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+                <div className="grid grid-cols-2 gap-3">
+                  {pqsScopes.map((sc) => (
+                    <ScoreTile key={sc.key} name={sc.name} measures={sc.measures} />
+                  ))}
+                </div>
               </div>
-              <ul className="flex flex-1 flex-col justify-between gap-3">
-              {pqs.map((m) => (
-                <li key={`${m.name}-${m.register}`} className="flex items-center gap-3">
-                  <span className="w-48 shrink-0 truncate text-sm text-white/80" title={m.star}>
-                    {m.name}
-                  </span>
-                  <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-white/10">
-                    <span
-                      className={`block h-full rounded-full ${
-                        (m.rate ?? 0) >= 85
-                          ? "bg-emerald-400"
-                          : (m.rate ?? 0) >= 50
-                            ? "bg-amber-400"
-                            : "bg-red-400"
-                      }`}
-                      style={{ width: `${m.rate ?? 0}%` }}
-                    />
-                  </span>
-                  <span className="w-14 shrink-0 text-right text-sm tabular-nums text-white/70">
-                    {m.rate == null ? "n/a" : `${m.rate}%`}
-                  </span>
-                  <span className="w-8 shrink-0 text-right text-[11px] tabular-nums text-gold-300">
-                    {m.band == null ? "" : m.band}
-                  </span>
-                </li>
-              ))}
-              </ul>
-              <p className="mt-4 shrink-0 border-t border-white/10 pt-2.5 text-[11px] text-white/50">
-                Rate, then the PQS band it scores. Last six months. Open this tile for the full
-                report.
+              <p className="mt-3 shrink-0 border-t border-white/10 pt-2.5 text-[11px] text-white/50">
+                Completion rate over the last six months. Open this tile for the full report.
               </p>
             </div>
           </Panel>
