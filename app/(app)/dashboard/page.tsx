@@ -55,6 +55,41 @@ function fmtShortDate(iso: string): string {
   });
 }
 
+/** One figure in the top block. Colour carries meaning here (red overdue, amber due soon), so
+ *  gold stays for actions and is not spent on decoration. */
+function StatTile({
+  href,
+  label,
+  value,
+  sub,
+  tone,
+}: {
+  href: string;
+  label: string;
+  value: ReactNode;
+  sub: string;
+  tone: "red" | "amber" | "green" | "none";
+}) {
+  const valueClass =
+    tone === "red"
+      ? "text-red-300"
+      : tone === "amber"
+        ? "text-amber-300"
+        : tone === "green"
+          ? "text-emerald-300"
+          : "text-white";
+  return (
+    <Link
+      href={href}
+      className="glass-card glass-card-hover flex flex-col justify-between p-4 transition"
+    >
+      <p className="text-xs uppercase tracking-wide text-white/50">{label}</p>
+      <p className={`mt-2 text-3xl font-bold tabular-nums ${valueClass}`}>{value}</p>
+      <p className="mt-1 text-xs text-white/55">{sub}</p>
+    </Link>
+  );
+}
+
 function ScoreDial({ score }: { score: number | null }) {
   const pct = score ?? 0;
   const r = 54;
@@ -254,7 +289,7 @@ export default async function DashboardPage() {
   );
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8">
+    <div className="mx-auto max-w-7xl space-y-6">
       <RealtimeRefresh />
       <RealtimeRefresh
         tables={["service_users", "check_instances", "service_user_trackers"]}
@@ -266,8 +301,8 @@ export default async function DashboardPage() {
       </div>
 
       {score.enabled ? (
-        <section aria-label="Compliance score" className="grid gap-4 lg:grid-cols-3">
-          <div className="glass-card flex items-center gap-5 p-5 lg:col-span-1">
+        <section aria-label="Compliance score" className="grid gap-4 lg:grid-cols-12">
+          <div className="glass-card flex items-center gap-5 p-5 lg:col-span-4">
             <ScoreDial score={score.score} />
             <div className="min-w-0">
               <p className="text-xs uppercase tracking-wide text-white/50">Compliance score</p>
@@ -303,7 +338,44 @@ export default async function DashboardPage() {
             </div>
           </div>
 
-          <div className="glass-card p-5 lg:col-span-2">
+          {/* The four figures that answer "what needs doing", in the same block as the score
+              rather than as three separate stacked strips further down the page. */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:col-span-8 xl:grid-cols-4">
+            <StatTile
+              href="/people"
+              label="People overdue"
+              value={people.overdue}
+              tone={people.overdue > 0 ? "red" : "green"}
+              sub="staff with a check past its date"
+            />
+            <StatTile
+              href="/service-users"
+              label="Service users overdue"
+              value={serviceUsers.overdue}
+              tone={serviceUsers.overdue > 0 ? "red" : "green"}
+              sub="people you support with a check past its date"
+            />
+            <StatTile
+              href="/people"
+              label="Due in 14 days"
+              value={people.due14 + serviceUsers.due14}
+              tone={people.due14 + serviceUsers.due14 > 0 ? "amber" : "green"}
+              sub="across both registers"
+            />
+            <StatTile
+              href="/people/training"
+              label="Mandatory training"
+              value={trainingPct == null ? "n/a" : `${Math.round(trainingPct)}%`}
+              tone="none"
+              sub="of mandatory training is in date"
+            />
+          </div>
+        </section>
+      ) : null}
+
+      {score.enabled ? (
+        <section aria-label="Inspection readiness">
+          <div className="glass-card p-5">
             <div className="flex items-baseline justify-between gap-3">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
                 Inspection readiness
@@ -318,7 +390,7 @@ export default async function DashboardPage() {
             <ul className="mt-4 space-y-2.5">
               {score.requirements.slice(0, 6).map((req) => (
                 <li key={req.code} className="flex items-center gap-3">
-                  <span className="w-40 shrink-0 truncate text-sm text-white/80">{req.keyArea}</span>
+                  <span className="w-44 shrink-0 truncate text-sm text-white/80">{req.title}</span>
                   <span className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
                     <span
                       className={`block h-full rounded-full ${
@@ -341,17 +413,14 @@ export default async function DashboardPage() {
         </section>
       ) : null}
 
-      {trainingPct != null ? (
-        <MetricCard
-          href="/people/training"
-          pill={<span className="pill-neutral">Mandatory training</span>}
-          value={`${Math.round(trainingPct)}%`}
-          sub="of mandatory training is in date across your team"
-        />
-      ) : null}
-
-      {complianceStrip("People", "/people", people, "People")}
-      {complianceStrip("Service Users", "/service-users", serviceUsers, "Service users")}
+      {/* When there is no score (readiness off, or a role that must not see it) the two
+          registers keep their own strips, so the dashboard is never empty for them. */}
+      {score.enabled ? null : (
+        <>
+          {complianceStrip("People", "/people", people, "People")}
+          {complianceStrip("Service Users", "/service-users", serviceUsers, "Service users")}
+        </>
+      )}
 
       {canSeeComplaints ? (
         <section aria-label="Complaints status" className="space-y-3">

@@ -1202,8 +1202,19 @@ Phil produced a Mission Control dashboard mockup. Three decisions were taken bef
 - GOLD STAYS THE ACCENT. Green means compliant, amber due soon, red overdue. The mockup led
   with green as a brand colour, which would have made green mean two different things.
 
-BUILT: the score dial with its trend, the Inspection readiness bars, and a mandatory training
-percentage card. The existing sections are untouched underneath until Phil has seen this land.
+BUILT: the top of the screen as ONE block. Score dial on the left, four figures beside it
+(People overdue, Service users overdue, Due in 14 days, Mandatory training), then the Inspection
+readiness bars full width underneath. Page widened from max-w-5xl to max-w-7xl.
+
+FIRST ATTEMPT WAS WRONG AND PHIL WAS RIGHT TO SAY SO. It bolted a strip onto the old dashboard
+and left the old three card strips stacked underneath, so it read as two designs on one page.
+It also printed RAW DATABASE KEYS as the readiness labels (wellbeing, care_support) because it
+used req.keyArea instead of req.title, and it left a stranded full width training slab that
+appears in no mockup. All three fixed. Lesson: when the ask is a redesign, replacing the layout
+IS the job; an additive strip is not a smaller version of it, it is a different and worse thing.
+
+The two old register strips now appear ONLY when there is no score, so a company without
+readiness, or a role that must not see it, still gets a full dashboard.
 
 CORRECTION TO SOMETHING I TOLD PHIL: I said nothing in the product stores history, so trends
 were impossible. Wrong. framework_readiness_snapshots (0111) stores a score per requirement
