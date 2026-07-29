@@ -15,6 +15,9 @@ import {
   getComplianceBuckets,
   getHolidayPendingCount,
   getAbsenceMeetingSummary,
+  getComplianceScore,
+  getTrainingCompletion,
+  type ComplianceScore,
   type DueBuckets,
   type AbsenceMeetingLine,
   type AbsenceMeetingSoon,
@@ -32,6 +35,49 @@ const MANAGER_PLUS_ROLES = [
   "manager",
   "platform_admin",
 ];
+
+/**
+ * The compliance score.
+ *
+ * It is Inspection Readiness wearing a better face, NOT a second number (Phil, 2026-07-29).
+ * The dial is coloured by the score band because a score IS a statement about compliance, so
+ * green here means compliant rather than decorating the brand. Gold stays for the action.
+ *
+ * The wording never predicts an inspection outcome. "Strong" is a statement about how much of
+ * the evidence is in place, and every point of it is traceable through View score breakdown.
+ */
+/** "12 Jul", London. The delta names the day it is measured from, never "yesterday". */
+function fmtShortDate(iso: string): string {
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    timeZone: "Europe/London",
+  });
+}
+
+function ScoreDial({ score }: { score: number | null }) {
+  const pct = score ?? 0;
+  const r = 54;
+  const c = 2 * Math.PI * r;
+  const stroke =
+    score == null ? "#94a3b8" : score >= 85 ? "#43d99a" : score >= 50 ? "#f5bd6a" : "#f18196";
+  return (
+    <svg viewBox="0 0 140 140" className="h-32 w-32 shrink-0" aria-hidden>
+      <circle cx="70" cy="70" r={r} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="12" />
+      <circle
+        cx="70"
+        cy="70"
+        r={r}
+        fill="none"
+        stroke={stroke}
+        strokeWidth="12"
+        strokeLinecap="round"
+        strokeDasharray={`${(pct / 100) * c} ${c}`}
+        transform="rotate(-90 70 70)"
+      />
+    </svg>
+  );
+}
 
 /** A single clickable metric card. */
 function MetricCard({
@@ -151,6 +197,20 @@ export default async function DashboardPage() {
   // Everyone with a dashboard sees the People + Service User due buckets.
   const { people, serviceUsers } = await getComplianceBuckets(companyId);
 
+  /**
+   * A SUPERVISOR MUST NOT SEE THIS. Readiness is computed through RLS, so a Supervisor's
+   * figure would cover only their caseload while being presented as the company's, and both
+   * links would send them to /readiness, which bounces them straight back here. The training
+   * read is gated with it so it is not paid for and then thrown away.
+   */
+  const companyWide = MANAGER_PLUS_ROLES.includes(profile.role);
+  const [score, trainingPct] = companyWide
+    ? await Promise.all([
+        getComplianceScore(companyId, { companyWide: true }),
+        getTrainingCompletion(companyId),
+      ])
+    : [{ enabled: false } as ComplianceScore, null];
+
   const complaintCounts = canSeeComplaints
     ? await getComplaintCounts(companyId)
     : { open: 0, inProgress: 0, closed: 0, overdue: 0, avgDaysToClose: null as number | null };
@@ -204,6 +264,91 @@ export default async function DashboardPage() {
         <h1 className="page-title">{heading}</h1>
         <p className="page-subtitle">{subtitle}</p>
       </div>
+
+      {score.enabled ? (
+        <section aria-label="Compliance score" className="grid gap-4 lg:grid-cols-3">
+          <div className="glass-card flex items-center gap-5 p-5 lg:col-span-1">
+            <ScoreDial score={score.score} />
+            <div className="min-w-0">
+              <p className="text-xs uppercase tracking-wide text-white/50">Compliance score</p>
+              <p className="mt-1 text-4xl font-bold text-white">
+                {score.score == null ? "Not scored" : `${score.score}%`}
+              </p>
+              <p className="text-sm font-semibold text-white/80">{score.label}</p>
+              {/* NEVER "since yesterday". Snapshots are written when somebody opens the
+                  readiness report, so the last one can be days old, and the comparison is only
+                  drawn at all when every requirement was captured on the same recent day. */}
+              {score.score != null && score.delta != null && score.deltaFrom ? (
+                <p
+                  className={`mt-1 text-xs ${
+                    score.delta > 0
+                      ? "text-emerald-300"
+                      : score.delta < 0
+                        ? "text-amber-300"
+                        : "text-white/45"
+                  }`}
+                >
+                  {score.delta === 0
+                    ? "No change"
+                    : `${score.delta > 0 ? "Up" : "Down"} ${Math.abs(score.delta)}`}{" "}
+                  since {fmtShortDate(score.deltaFrom)}
+                </p>
+              ) : null}
+              <Link
+                href="/readiness"
+                className="mt-3 inline-block text-xs font-semibold text-gold-300 underline underline-offset-4 hover:text-gold-400"
+              >
+                View score breakdown
+              </Link>
+            </div>
+          </div>
+
+          <div className="glass-card p-5 lg:col-span-2">
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
+                Inspection readiness
+              </h2>
+              <Link
+                href="/readiness"
+                className="text-xs text-gold-300 underline underline-offset-4 hover:text-gold-400"
+              >
+                View full report
+              </Link>
+            </div>
+            <ul className="mt-4 space-y-2.5">
+              {score.requirements.slice(0, 6).map((req) => (
+                <li key={req.code} className="flex items-center gap-3">
+                  <span className="w-40 shrink-0 truncate text-sm text-white/80">{req.keyArea}</span>
+                  <span className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
+                    <span
+                      className={`block h-full rounded-full ${
+                        req.status === "red"
+                          ? "bg-red-400"
+                          : req.status === "amber"
+                            ? "bg-amber-400"
+                            : "bg-emerald-400"
+                      }`}
+                      style={{ width: `${req.score ?? 0}%` }}
+                    />
+                  </span>
+                  <span className="w-12 shrink-0 text-right text-sm tabular-nums text-white/70">
+                    {req.score == null ? "n/a" : `${req.score}%`}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      ) : null}
+
+      {trainingPct != null ? (
+        <MetricCard
+          href="/people/training"
+          pill={<span className="pill-neutral">Mandatory training</span>}
+          value={`${Math.round(trainingPct)}%`}
+          sub="of mandatory training is in date across your team"
+        />
+      ) : null}
 
       {complianceStrip("People", "/people", people, "People")}
       {complianceStrip("Service Users", "/service-users", serviceUsers, "Service users")}

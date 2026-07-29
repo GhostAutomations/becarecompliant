@@ -1189,6 +1189,71 @@ Verified: the repo's own TypeScript ran clean, tsc --noEmit exit 0.
 - Confirm the trust row reads CQC in England, CIW in Wales, Live PQS scoring, Audit trail on
   every record.
 
+DASHBOARD REDESIGN, INCREMENT 1 (BUILT 2026-07-29, not yet run live):
+
+Phil produced a Mission Control dashboard mockup. Three decisions were taken before any code:
+- THE COMPLIANCE SCORE IS INSPECTION READINESS RENAMED, not a second number. One score, and
+  "View score breakdown" opens the readiness report where every point of it is attributed to
+  real checks. Two company wide percentages that can contradict each other is how a compliance
+  product loses an argument with a regulator.
+- ONLY WHAT IS ALREADY REAL gets built. The mockup's Upcoming inspections and Incidents tiles
+  have no data behind them at all (there is no incidents feature and nothing records a
+  scheduled inspection), and Risk level would be invented. They are NOT built.
+- GOLD STAYS THE ACCENT. Green means compliant, amber due soon, red overdue. The mockup led
+  with green as a brand colour, which would have made green mean two different things.
+
+BUILT: the score dial with its trend, the Inspection readiness bars, and a mandatory training
+percentage card. The existing sections are untouched underneath until Phil has seen this land.
+
+CORRECTION TO SOMETHING I TOLD PHIL: I said nothing in the product stores history, so trends
+were impossible. Wrong. framework_readiness_snapshots (0111) stores a score per requirement
+per day, so the score's movement is real. The other tiles' trends still are not.
+
+THE REVIEW FOUND SEVEN DEFECTS, and two would have put a wrong number on screen:
+1. THE REGULATOR DEFAULT WAS BACKWARDS. Everywhere else in the codebase defaults
+   (regulator ?? "ciw"); the dashboard defaulted to cqc. companies.regulator is nullable and
+   nothing in the app ever writes it, so the dashboard would have scored against a DIFFERENT
+   framework from the report its own link opens, and would never have matched a snapshot code,
+   silently killing the trend for ever. Fixed.
+2. THE DELTA COULD INVENT MOVEMENT. Readiness is computed through RLS, so a Branch Manager's
+   live score covers their branch, while the snapshot is written by whoever last opened the
+   readiness page, possibly company wide. Subtracting one from the other prints movement that
+   never happened. The delta is now drawn ONLY for company wide roles, only when every
+   requirement has a previous score, only when they all came from the SAME day, and only when
+   that day is within a week.
+3. "SINCE YESTERDAY" WAS A LIE. Snapshots are written when somebody OPENS the readiness page,
+   so the last one can be weeks old. The line now names the actual date it measures from.
+4. A SUPERVISOR WOULD HAVE SEEN A PARTIAL SCORE presented as the company's, with two links to
+   a page that bounces them straight back. Both new reads are now gated on a company wide role.
+5. Percentage rounding: the training figure is stored to one decimal and read "86.7%" next to a
+   whole number dial. Rounded.
+6. The "Measured from today" line could appear under "Not scored". Gone.
+7. Left as its own list item, see below.
+
+TWO THINGS DELIBERATELY NOT FIXED HERE, both now on the list:
+- TRAINING IS INVISIBLE TO THE REGISTERED ROLES. training_courses_select allows only
+  platform admin, is_company_admin (role = company_admin) and is_company_manager (role =
+  manager). Neither covers registered_individual or registered_manager, so a Registered
+  Manager sees NO training courses at all, on the dashboard AND on the Training page. That is
+  a pre-existing RLS gap, needs a migration, and is the same class as 0150.
+- getTrainingCompletion builds the ENTIRE training matrix to read one percentage: for a 60
+  person service that is up to 900 rows over the wire, thrown away. It also has no .range(),
+  so above PostgREST's 1000 row default the number would silently understate. Needs a counting
+  RPC.
+
+- Sign in as Acme's Company Admin and confirm the score dial shows, that the number matches the
+  one on /readiness EXACTLY, and that View score breakdown goes there.
+- Confirm the readiness bars match the same report, and that a requirement with nothing mapped
+  reads n/a rather than 0%.
+- Open /readiness, come back tomorrow, and confirm the delta names a real date rather than
+  saying yesterday.
+- Sign in as a SUPERVISOR and confirm there is no score, no bars and no training card.
+- Sign in as a Branch Manager and confirm they see a score with NO delta line.
+- Sign in as a company WITHOUT framework_enabled and confirm the whole section is absent and the
+  dashboard looks exactly as it did before.
+- Sign in as a Registered Manager and confirm the training card is missing, which is the RLS gap
+  above rather than a bug in this work.
+
 ## Phase 12 — Marketing & Launch
 
 Marketing site on becarecompliant.com, onboarding collateral, subscription agreement (no data selling clause), launch.

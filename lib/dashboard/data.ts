@@ -166,3 +166,155 @@ export async function getAbsenceMeetingSummary(
 
   return { toBook, next7 };
 }
+
+
+/* ===========================================================================
+ * THE COMPLIANCE SCORE
+ *
+ * Phil, 2026-07-29: the score on the new dashboard is Inspection Readiness wearing a better
+ * face, NOT a second number. That decision matters. Two company wide percentages that can
+ * disagree with each other is how a compliance product loses the argument with a regulator,
+ * and a score nobody can trace back to a check is a claim rather than evidence. So this reads
+ * the readiness engine, and "View score breakdown" goes to the readiness report where every
+ * point of it is attributed to real checks.
+ *
+ * It is gated on companies.framework_enabled, the same flag the readiness page enforces, so a
+ * company without it gets no dial and the dashboard shows its compliance summary instead.
+ * Never show a company a score the rest of the product will not explain to them.
+ *
+ * The trend is real. framework_readiness_snapshots (migration 0111) stores a score per
+ * requirement per day, so yesterday genuinely exists and the movement is measured rather than
+ * decorated.
+ * =========================================================================== */
+
+import {
+  getFrameworkReadiness,
+  overallScore,
+  type RequirementReadiness,
+} from "@/lib/framework/data";
+import { getTrainingMatrix } from "@/lib/training/data";
+
+export type ComplianceScore =
+  | { enabled: false }
+  | {
+      enabled: true;
+      score: number | null;
+      /** Whole points of movement since the comparison date, or null when it cannot be trusted. */
+      delta: number | null;
+      /** The date the delta is measured FROM. Never assume it was yesterday: see below. */
+      deltaFrom: string | null;
+      label: string;
+      requirements: RequirementReadiness[];
+    };
+
+/**
+ * Yesterday's score, with the date it was actually captured.
+ *
+ * Deliberately NOT lib/framework/data's getReadinessTrend, which returns scores without their
+ * dates. Snapshots are only written when somebody OPENS the readiness page, so in a company
+ * where that happens monthly the most recent one can be weeks old, and different requirements
+ * can come from different days. Printing "since yesterday" over that would be a lie told in
+ * small text. This returns the dates so the caller can refuse to draw a delta it cannot stand
+ * behind, and can name the real date when it can.
+ */
+async function previousScores(
+  companyId: string,
+): Promise<Map<string, { score: number; capturedOn: string }>> {
+  const supabase = await createClient();
+  const today = londonTodayIso();
+  const { data } = await supabase
+    .from("framework_readiness_snapshots")
+    .select("requirement_code, score, captured_on")
+    .eq("company_id", companyId)
+    .lt("captured_on", today)
+    .order("captured_on", { ascending: false });
+  const prev = new Map<string, { score: number; capturedOn: string }>();
+  for (const r of (data as Array<{ requirement_code: string; score: number | null; captured_on: string }> | null) ?? []) {
+    if (r.score == null) continue;
+    if (!prev.has(r.requirement_code)) {
+      prev.set(r.requirement_code, { score: r.score, capturedOn: r.captured_on });
+    }
+  }
+  return prev;
+}
+
+/** Wording for a score. Deliberately NOT a prediction of an inspection outcome. */
+export function scoreLabel(score: number | null): string {
+  if (score == null) return "Not scored yet";
+  if (score >= 90) return "Strong";
+  if (score >= 75) return "Good";
+  if (score >= 50) return "Needs attention";
+  return "At risk";
+}
+
+export async function getComplianceScore(
+  companyId: string,
+  opts: { companyWide: boolean },
+): Promise<ComplianceScore> {
+  const supabase = await createClient();
+  const { data: company } = await supabase
+    .from("companies")
+    .select("framework_enabled, regulator")
+    .eq("id", companyId)
+    .maybeSingle();
+  const co = company as { framework_enabled: boolean | null; regulator: string | null } | null;
+  if (!co?.framework_enabled) return { enabled: false };
+
+  // ?? "ciw", matching the readiness page, the snapshot writer and the readiness PDF. The
+  // column is nullable and nothing in the app ever writes it, so defaulting the other way
+  // would score the dashboard against a DIFFERENT framework from the report the score links
+  // to, and would never match a snapshot code, silently killing the delta for ever.
+  const regulator = (co.regulator ?? "ciw") as "cqc" | "ciw";
+  const [readiness, prev] = await Promise.all([
+    getFrameworkReadiness(companyId, regulator),
+    previousScores(companyId),
+  ]);
+
+  const score = overallScore(readiness.requirements);
+  const scored = readiness.requirements.filter((r) => r.score != null);
+
+  /**
+   * When a delta is allowed to appear at all. Every one of these is a way it could otherwise
+   * be wrong, and a wrong number under a compliance score is worse than no number.
+   *
+   *  1. Company wide callers only. Readiness is computed through RLS, so a Branch Manager's
+   *     live score covers their branch while the stored snapshot was written by whoever last
+   *     opened the readiness page, possibly company wide. Subtracting one from the other
+   *     invents movement that never happened.
+   *  2. Every requirement scored today must have a previous score, or the two averages are
+   *     taken over different sets.
+   *  3. Every previous score must come from the SAME day, because snapshots are written on
+   *     page load and different requirements can otherwise be weeks apart.
+   *  4. That day must be within the last week, or "since" is measuring something nobody
+   *     remembers doing.
+   */
+  const days = [...new Set(scored.map((r) => prev.get(r.code)?.capturedOn ?? ""))];
+  const havePrev = scored.length > 0 && scored.every((r) => prev.has(r.code));
+  const oneDay = days.length === 1 && days[0] !== "";
+  const recent = oneDay && days[0] >= addDaysIso(londonTodayIso(), -7);
+  const usable = opts.companyWide && havePrev && oneDay && recent;
+
+  const prevOverall = usable
+    ? Math.round(scored.reduce((sum, r) => sum + (prev.get(r.code)?.score ?? 0), 0) / scored.length)
+    : null;
+
+  return {
+    enabled: true,
+    score,
+    delta: score != null && prevOverall != null ? score - prevOverall : null,
+    deltaFrom: usable ? days[0] : null,
+    label: scoreLabel(score),
+    requirements: readiness.requirements,
+  };
+}
+
+/**
+ * Mandatory training completion, the figure the training matrix already computes as green or
+ * amber over every mandatory cell. Reusing it rather than counting again keeps the dashboard
+ * and the Training screen from ever disagreeing, which is the mistake the Evidence page and
+ * the Evidence PDF made.
+ */
+export async function getTrainingCompletion(companyId: string): Promise<number | null> {
+  const matrix = await getTrainingMatrix(companyId, null);
+  return matrix.summary.mandatoryCompliancePct;
+}
