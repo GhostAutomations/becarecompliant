@@ -418,7 +418,7 @@ export default async function DashboardPage() {
         {/* Ten columns, not four equal ones. A tile holding a number and four words does
               not need the same width as one holding a sentence, and forcing them equal is what
               left the dead band down the side of Open actions and Audits completed. */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:col-span-10 xl:grid-cols-10">
+          <div className="grid gap-4 sm:grid-cols-2 lg:col-span-10 xl:grid-cols-12">
           <Tile
             href="/people"
             label="Open actions"
@@ -436,19 +436,19 @@ export default async function DashboardPage() {
           <Tile
             href="/people/training"
             label="Training completion"
-            className="xl:col-span-2"
+            className="xl:col-span-3"
             icon="training"
             iconTone="blue"
             value={trainingPct == null ? "n/a" : `${Math.round(trainingPct)}%`}
             sub="of mandatory training is in date"
           />
           <MissingTile label="Policies up to date"
-            className="xl:col-span-3"
+            className="xl:col-span-4"
             needs="Needs signing coverage, not a policy count"
             icon="policy" />
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:col-span-10 xl:grid-cols-10">
+        <div className="grid gap-4 sm:grid-cols-2 lg:col-span-10 xl:grid-cols-12">
           <Tile
             href="/people"
             label="Audits completed"
@@ -471,7 +471,7 @@ export default async function DashboardPage() {
           <Tile
             href="/people"
             label="Due in 14 days"
-            className="xl:col-span-2"
+            className="xl:col-span-4"
             value={due14}
             tone={due14 > 0 ? "amber" : "green"}
             sub="checks falling due across both registers"
