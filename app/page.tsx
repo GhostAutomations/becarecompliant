@@ -15,7 +15,10 @@ import Reveal from "@/components/marketing/reveal";
 const TRUST = [
   "CQC in England",
   "CIW in Wales",
-  "Local authority PQS returns",
+  // "Live PQS scoring", not "Local authority PQS returns" (Phil, 2026-07-29). Stronger, and
+  // still true: the measures are scored from current data every time the report is opened,
+  // and Satisfaction feeds User Experience Q2 from the last six months of plan review answers.
+  "Live PQS scoring",
   "Audit trail on every record",
 ];
 
@@ -125,7 +128,10 @@ export default async function Home() {
       <main id="content">
 
       {/* Hero */}
-      <section className="relative overflow-hidden px-4 pb-16 pt-20 text-center sm:pt-28">
+      {/* pt-28 put 112px of nothing between a sticky 80px header and the first word on the
+          page, so the hero opened with a gap rather than a claim. Halved. Generous top space
+          is a premium signal only while something is above the fold to be generous about. */}
+      <section className="relative overflow-hidden px-4 pb-16 pt-10 text-center sm:pt-14">
         <div className="hero-glow" aria-hidden />
         <div className="relative z-10 mx-auto max-w-6xl">
           {/* THE POSITION LEADS, THE PROMISE FOLLOWS.

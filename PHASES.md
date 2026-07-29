@@ -1148,6 +1148,47 @@ pricing.
 - Read the two reworded headings and decide whether they sound like you. They are the one
   judgement call in this batch.
 
+THE HERO (BUILT 2026-07-29, not yet run live):
+
+- DEAD SPACE. The hero opened with pt-28, which is 112px of nothing under a sticky 80px header,
+  so the first thing on the page was a gap rather than a claim. Halved to pt-10 sm:pt-14.
+  Generous top space is a premium signal only while there is something above the fold to be
+  generous about.
+- "Local authority PQS returns" in the trust row became "LIVE PQS SCORING" (Phil). Stronger and
+  still true: the measures are scored from current data every time the report is opened, and
+  Satisfaction feeds User Experience Q2 from the last six months of plan review answers. The
+  only thing it gives up is the words "local authority", which were quietly explaining what PQS
+  is for, and sitting next to CQC and CIW it survives that.
+- THE PRODUCT PREVIEW WAS REBUILT. It was a four by four table of names and pills, and it had
+  three problems. It read as a SPREADSHEET on a site whose central argument is that spreadsheets
+  are the enemy. It showed only the People register, so the two register model, the thing no
+  general tool does, was invisible. And it showed one screen while the headline now claims an
+  operating system. The matrix stayed and the application was put around it: company level
+  figures across the top (Overdue, Due in 14 days, On the registers), both registers as tabs
+  with People active, and the branch the view is scoped to. Status now visibly rolls up from one
+  check on one carer, to a branch, to the company, which is the thing a spreadsheet cannot do.
+  The job titles were in the data all along and never rendered; they are now, which makes it
+  read as a staff record rather than a row.
+- EVERYTHING IN IT EXISTS IN THE PRODUCT. Overdue and Due in 14 days are real dashboard cards,
+  the registers, the branch scope and the RAG cells are real. Same rule as the Security section.
+- IT IS NOW aria-hidden. The names and dates are invented, so a screen reader reading them out
+  as though they were real records is worse than silence, and the copy around it already says
+  what the product does.
+- A TRAP AVOIDED, worth remembering: the stat figures were first written with text-rag-red and
+  text-rag-amber. Those theme colours are #dc2626 and #b45309, the LIGHT theme pill inks, and
+  they go muddy on navy. Dark surfaces in this app use text-red-300 and text-amber-300.
+
+Verified: the repo's own TypeScript ran clean, tsc --noEmit exit 0.
+
+- Load the homepage and confirm the gap under the top bar is gone without the hero feeling
+  cramped, at desktop and on a phone.
+- Confirm the h1 puts "care compliance." on its own line at every width.
+- Look at the preview and confirm it reads as an application rather than a spreadsheet, that
+  both register tabs are visible, and that the three figures across the top are legible against
+  the navy rather than muddy.
+- Confirm the trust row reads CQC in England, CIW in Wales, Live PQS scoring, Audit trail on
+  every record.
+
 ## Phase 12 — Marketing & Launch
 
 Marketing site on becarecompliant.com, onboarding collateral, subscription agreement (no data selling clause), launch.
