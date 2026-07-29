@@ -223,7 +223,7 @@ function ScoreDial({ score }: { score: number | null }) {
   const stroke =
     score == null ? "#94a3b8" : score >= 85 ? "#43d99a" : score >= 50 ? "#f5bd6a" : "#f18196";
   return (
-    <svg viewBox="0 0 140 140" className="h-24 w-24 shrink-0" aria-hidden>
+    <svg viewBox="0 0 140 140" className="h-20 w-20 shrink-0" aria-hidden>
       <circle cx="70" cy="70" r={r} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="11" />
       <circle
         cx="70"
@@ -358,14 +358,13 @@ export default async function DashboardPage() {
       <div className="grid gap-4 lg:grid-cols-12">
         {/* The dial sits BESIDE the percentage, and the breakdown row runs full width beneath
             both, so there is no dead column under the ring. */}
-        <div className="glass-card flex flex-col justify-center gap-4 p-5 lg:col-span-3 lg:row-span-2">
+        <div className="glass-card flex flex-col justify-center gap-4 p-5 lg:col-span-2 lg:row-span-2">
           {score.enabled ? (
             <>
-              <div className="flex flex-row-reverse items-center gap-4">
-                <ScoreDial score={score.score} />
-                <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-3">
+                <div className="min-w-0">
                   <p className="text-xs uppercase tracking-wide text-white/50">Compliance score</p>
-                  <p className="mt-1 text-4xl font-bold leading-none text-white">
+                  <p className="mt-1 text-3xl font-bold leading-none text-white">
                     {score.score == null ? "Not scored" : `${score.score}%`}
                   </p>
                   <p className="mt-2 text-sm font-semibold text-emerald-300">{score.label}</p>
@@ -393,12 +392,13 @@ export default async function DashboardPage() {
                     </p>
                   ) : null}
                 </div>
+                <ScoreDial score={score.score} />
               </div>
               <Link
                 href="/readiness"
                 className="flex w-full items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-gold-300 transition hover:bg-white/[0.08]"
               >
-                View score breakdown
+                Score breakdown
                 <span aria-hidden>&rsaquo;</span>
               </Link>
             </>
@@ -413,7 +413,7 @@ export default async function DashboardPage() {
           )}
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:col-span-9 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:col-span-10 xl:grid-cols-4">
           <Tile
             href="/people"
             label="Open actions"
@@ -439,7 +439,7 @@ export default async function DashboardPage() {
             icon="policy" />
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-3 lg:col-span-9">
+        <div className="grid gap-4 sm:grid-cols-3 lg:col-span-10">
           <Tile
             href="/people"
             label="Audits completed"
