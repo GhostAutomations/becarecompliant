@@ -111,6 +111,8 @@ export default async function PrivacyPage() {
     <div className="min-h-dvh bg-gradient-to-br from-navy-950 via-navy-900 to-navy-800 text-white">
       <SiteHeader authed={Boolean(user)} />
 
+      <main id="content">
+
       <section className="mx-auto max-w-3xl px-4 pb-20 pt-16">
         <h1 className="text-3xl font-bold sm:text-4xl">Privacy</h1>
         <p className="mt-4 text-white/75">
@@ -147,6 +149,8 @@ export default async function PrivacyPage() {
           .
         </p>
       </section>
+
+      </main>
 
       <SiteFooter />
     </div>

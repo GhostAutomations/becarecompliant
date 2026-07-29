@@ -1041,6 +1041,58 @@ analytics or advertising cookies anywhere in the dependencies or the root layout
   Open /start-trial with no query and confirm it is closed.
 - Confirm the honeypot still silently succeeds and writes no row.
 
+MARKETING PASS PART TWO (BUILT 2026-07-29, not yet run live). Item 4b is now COMPLETE except
+for one thing that needs Phil: a real quote for the social proof band.
+
+- THE TRUST ROW moved above the product preview. CQC, CIW, PQS returns and audit trail were
+  sitting under a tall screenshot, which pushed them clean off the first screen, and they are
+  the reason a registered manager keeps reading.
+- THE SPREADSHEET ARGUMENT IS NOW MADE ONCE. The "Built for care, not bent into shape" band
+  used to set up the same fight the comparison table then wins properly. Its intro now
+  describes what the product is and leaves the comparison to the table. The three cards were
+  KEPT rather than deleted: cutting a whole section is Phil's call, not mine, and the option
+  is still open.
+- THE REVEAL NO LONGER SHOWS GHOST TEXT. It waited until 12 percent of a section was already
+  8 percent inside the screen, then faded for six tenths of a second from fully transparent,
+  so normal scrolling caught whole sections unreadable. It now arms a fifth of a screen EARLY
+  (threshold 0, positive bottom rootMargin) and fades in 0.4s.
+- A "IF YOU EVER LEAVE" CARD on pricing. The one objection every compliance buyer has and
+  nobody was answering. It is true and provable now, so it belongs on the page. That section
+  now shows FIVE cards, not four, which changes an older test line.
+
+THE ACCESSIBILITY PASS, AND I WAS WRONG ABOUT THE HEADLINE FINDING. I had said the muted body
+text was around or under the AA threshold. It is not. Measured against the real palette
+(navy-950 #081231, navy-900 #0d1d4b, navy-800 #14306b), white at 55 percent scores 4.91 to
+6.08 and passes AA for normal text on all three, and white at 75 percent scores 7.75 to 10.55.
+Gold #f59e0b on navy is 5.87 to 7.55, and navy on the gold button is 8.57. The comparison table
+was also already fine: it carries role="img" with Yes and No labels plus proper column and row
+header scoping, so my point about colour carrying meaning alone was wrong too, and reduced
+motion was already handled in globals.css.
+
+What was actually wrong, and is now fixed:
+- The ONLY text failing AA was white/40 and white/45 inside the two decorative product mockups
+  (product-preview and pqs-report-preview), at 3.31 to 4.48. Raised to white/55.
+- NO MAIN LANDMARK on any marketing page, so a screen reader user had no way to jump past the
+  navigation. All four pages now wrap their content in <main id="content">.
+- NO VISIBLE FOCUS RING ON LINKS. Buttons and inputs had a gold ring; links fell back to
+  whatever the browser draws, which is easy to lose on this navy, and the marketing site is
+  navigated almost entirely by link. Added a:focus-visible with the same gold ring.
+
+Verified before commit: the repo's own TypeScript ran clean (tsc --noEmit, exit 0), and the JSX
+of all four pages was walked independently to confirm the inserted main tags open and close at
+the same depth.
+
+- Load each marketing page and confirm nothing has moved that should not have. The hero should
+  now read headline, subhead, buttons, price line, TRUST ROW, then the product preview.
+- Scroll the homepage at normal speed and confirm you never catch a section faded out.
+- Tab through the homepage with the keyboard and confirm every link shows a gold ring.
+- Confirm the pricing explainer section now shows five cards and reads correctly at desktop
+  and mobile widths, since five cards in a two column grid leaves the last one alone on its row.
+- STILL OPEN, NEEDS PHIL: the social proof band is still a placeholder. An empty testimonial
+  section reads worse than none. One real quote, even from your own service, or take it out.
+- STILL OPEN, OPTIONAL: a skip link. The main landmark gives screen reader users the jump, but
+  nothing yet links to #content.
+
 ## Phase 12 — Marketing & Launch
 
 Marketing site on becarecompliant.com, onboarding collateral, subscription agreement (no data selling clause), launch.

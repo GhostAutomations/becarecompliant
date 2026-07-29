@@ -31,7 +31,16 @@ export default function Reveal({
           }
         }
       },
-      { threshold: 0.12, rootMargin: "0px 0px -8% 0px" },
+      /**
+       * Arm the reveal BEFORE the section reaches the viewport, not after.
+       *
+       * It used to wait until 12 percent of the element was already 8 percent inside the
+       * screen, then fade for six tenths of a second from fully transparent. Scrolling at a
+       * normal speed you caught whole sections sitting at about a third opacity, unreadable.
+       * A positive bottom margin arms it a fifth of a screen early and a zero threshold fires
+       * on the first pixel, so by the time anyone is looking at it, it has arrived.
+       */
+      { threshold: 0, rootMargin: "0px 0px 20% 0px" },
     );
     io.observe(el);
     return () => io.disconnect();

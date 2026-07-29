@@ -32,6 +32,8 @@ export default async function StartTrialPage({
     <div className="min-h-dvh bg-gradient-to-br from-navy-950 via-navy-900 to-navy-800 text-white">
       <SiteHeader authed={Boolean(user)} />
 
+      <main id="content">
+
       <section className="mx-auto max-w-2xl px-4 pb-20 pt-16">
         <div className="text-center">
           {/* "Request", not "Start". The button at the bottom of this page sends a request,
@@ -69,6 +71,8 @@ export default async function StartTrialPage({
           .
         </p>
       </section>
+
+      </main>
 
       <SiteFooter />
     </div>

@@ -14,7 +14,9 @@ export const metadata: Metadata = {
     "Pricing for Be Care Compliant. Business £49 a month and Pro £69 a month, both plus VAT, per care service, both with a 14 day free trial. Carer logins are free.",
 };
 
-/** The four things a registered manager asks before they will read a price table. */
+/** The things a registered manager asks before they will read a price table. The last one
+ *  is the objection every compliance buyer has and nobody was answering: what happens to my
+ *  records if I stop paying. It is now a true and provable answer, so it belongs here. */
 const EXPLAINERS: Array<{ term: string; body: string }> = [
   {
     term: "What a plan covers",
@@ -29,6 +31,10 @@ const EXPLAINERS: Array<{ term: string; body: string }> = [
     body: "Your carers get their own free login to see their Record, however many carers you have. A 60 carer service does not pay for 60 users.",
   },
   {
+    term: "If you ever leave",
+    body: "Your records are yours. You can export them at any time while you are with us, as PDFs or CSVs. If a subscription ends your account pauses rather than being deleted, and we will export everything for you or delete it, whichever you ask for.",
+  },
+  {
     term: "VAT and the trial",
     body: "All prices exclude VAT. Both plans start with a 14 day free trial and no card is needed to begin. If a trial runs out your account pauses rather than charging you, nothing is deleted, and adding a card puts it all back. You can change plan as you grow.",
   },
@@ -40,6 +46,8 @@ export default async function PricingPage() {
   return (
     <div className="min-h-dvh bg-gradient-to-br from-navy-950 via-navy-900 to-navy-800 text-white">
       <SiteHeader authed={Boolean(user)} />
+
+      <main id="content">
 
       <section className="mx-auto max-w-6xl px-4 pb-8 pt-20 text-center">
         <h1 className="text-4xl font-bold sm:text-5xl">£49 or £69 a month, per care service</h1>
@@ -87,6 +95,8 @@ export default async function PricingPage() {
           </p>
         </div>
       </section>
+
+      </main>
 
       <SiteFooter />
     </div>

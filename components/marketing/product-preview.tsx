@@ -62,13 +62,13 @@ export default function ProductPreview() {
         <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
         <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
         <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
-        <span className="ml-2 text-xs text-white/45">People compliance, North branch</span>
+        <span className="ml-2 text-xs text-white/55">People compliance, North branch</span>
       </div>
 
       <div className="overflow-x-auto p-4">
         <table className="w-full border-separate border-spacing-y-1.5 text-sm">
           <thead>
-            <tr className="text-[11px] uppercase tracking-wide text-white/45">
+            <tr className="text-[11px] uppercase tracking-wide text-white/55">
               <th className="px-2 py-1 text-left font-medium">Carer</th>
               {COLS.map((c) => (
                 <th key={c} className="px-2 py-1 text-center font-medium">{c}</th>

@@ -103,6 +103,8 @@ export default async function Home() {
     <div className="min-h-dvh bg-gradient-to-br from-navy-950 via-navy-900 to-navy-800 text-white">
       <SiteHeader authed={Boolean(user)} />
 
+      <main id="content">
+
       {/* Hero */}
       <section className="relative overflow-hidden px-4 pb-16 pt-20 text-center sm:pt-28">
         <div className="hero-glow" aria-hidden />
@@ -129,11 +131,12 @@ export default async function Home() {
             From £49 a month plus VAT. No card needed, and we set the trial up for you.
           </p>
 
-          <Reveal className="mx-auto mt-12 max-w-4xl" delay={80}>
-            <ProductPreview />
-          </Reveal>
-
-          <ul className="mx-auto mt-8 flex max-w-3xl flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-white/55">
+          {/* The trust row sits ABOVE the product preview on purpose. It used to sit under a
+              tall screenshot, which pushed it clean off the first screen, and these four lines
+              are the reason a registered manager keeps reading. Lifted from white/55 to
+              white/70 at the same time: small text carrying real weight was sitting on the AA
+              contrast threshold. */}
+          <ul className="mx-auto mt-8 flex max-w-3xl flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-white/70">
             {TRUST.map((t) => (
               <li key={t} className="flex items-center gap-2">
                 <span aria-hidden className="text-gold-400">&#10003;</span>
@@ -141,6 +144,10 @@ export default async function Home() {
               </li>
             ))}
           </ul>
+
+          <Reveal className="mx-auto mt-10 max-w-4xl" delay={80}>
+            <ProductPreview />
+          </Reveal>
         </div>
       </section>
 
@@ -150,8 +157,8 @@ export default async function Home() {
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-2xl font-semibold sm:text-3xl">Built for care, not bent into shape</h2>
             <p className="mt-3 text-white/75">
-              Most services still run compliance on a spreadsheet, a wall chart or a tool that was never meant for
-              care. Three things those will not do for you.
+              Three things you get as standard when the software was written for care in the first place, rather
+              than adapted to it afterwards.
             </p>
           </div>
           <div className="mt-12 grid gap-5 md:grid-cols-3">
@@ -299,6 +306,8 @@ export default async function Home() {
           <Link href="/start-trial" className="btn-primary">Start your 14 day free trial</Link>
         </div>
       </section>
+
+      </main>
 
       <SiteFooter />
     </div>
