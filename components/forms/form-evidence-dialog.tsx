@@ -76,12 +76,20 @@ export default function FormEvidenceDialog({
   // Bumped when an AI draft lands, to remount the renderer on the new defaults.
   const [formKey, setFormKey] = useState(0);
   const [draftDefaults, setDraftDefaults] = useState<Answers | undefined>(undefined);
+  // Our OWN drafting flag, set the instant the button is pressed. Phil pressed Draft it
+  // for me three times because nothing appeared to happen, and each press spends an AI
+  // credit, so we cannot rely on the action's own pending flag reaching the button in
+  // time. This one is set synchronously in the click handler and cleared when a result
+  // arrives, so the label and the disabled state are never late.
+  const [drafting, setDrafting] = useState(false);
   const [draftState, draftAction, draftPending] = useActionState(
     aiDraft?.action ?? (async () => IDLE_STATE),
     IDLE_STATE,
   );
 
   useEffect(() => {
+    // Any result at all, success or error, ends the drafting state.
+    if (draftState.data || draftState.error || draftState.ok) setDrafting(false);
     if (!draftState.data) return;
     const merged = { ...answers, ...draftState.data } as Answers;
     setAnswers(merged);
@@ -151,8 +159,9 @@ export default function FormEvidenceDialog({
                     <button
                       type="button"
                       className="btn-outline px-3 py-1.5 text-xs"
-                      disabled={busy || draftPending}
+                      disabled={busy || draftPending || drafting}
                       onClick={() => {
+                        setDrafting(true);
                         const fd = new FormData();
                         for (const [k, v] of Object.entries(aiDraft.extraFields ?? extraFields ?? {})) {
                           fd.set(k, v);
@@ -160,9 +169,12 @@ export default function FormEvidenceDialog({
                         draftAction(fd);
                       }}
                     >
-                      {draftPending ? "Drafting…" : aiDraft.label}
+                      {draftPending || drafting ? "Drafting…" : aiDraft.label}
                     </button>
                   </div>
+                  {draftPending || drafting ? (
+                    <p className="form-hint">Drafting. This takes a few seconds.</p>
+                  ) : null}
                   {draftState.error ? <p className="form-error">{draftState.error}</p> : null}
                 </div>
               ) : null}

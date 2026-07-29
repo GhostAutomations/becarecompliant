@@ -377,7 +377,7 @@ export default function AbsenceView({
               hideFields={["name", "email"]}
             />
           ) : (
-            <button type="button" className="btn-primary px-3 py-2 text-sm opacity-50" disabled>
+            <button type="button" className="btn-outline px-3 py-2 text-sm" disabled>
               Record absence
             </button>
           )}
