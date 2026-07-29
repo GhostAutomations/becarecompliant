@@ -989,6 +989,58 @@ month". EXTRA_BRANCH_PENCE exists but is used for DISPLAY ONLY on Settings > Bil
 no Stripe price for a branch and nothing ever charges for one. Undercharging rather than
 overcharging, so nobody is harmed, but it is money not collected and the copy implies it is.
 
+MARKETING PASS PART ONE (BUILT AND PUSHED 2026-07-29, commit 9ced9d7, none of it seen live):
+
+Four of the eleven findings from the design and copy review, plus one thrown in:
+- A PRIVACY NOTICE at /privacy, linked from the footer and from under the trial form, with
+  /privacy added to PUBLIC_PATHS. Until now the site collected a name, an email and a phone
+  number from a stranger, promised "we use these details only to set your trial up", and gave
+  them nothing to check it against. For a product whose whole pitch is handling special
+  category health data properly, that was the weakest signal on the site.
+- The tab title said the brand TWICE on Pricing and Start trial. The root layout template is
+  "%s . Be Care Compliant" and a template applies to CHILD segments only, which is why the
+  homepage escaped it while both child pages also appended "| Be Care Compliant".
+- The start trial h1 now says REQUEST, matching the button, which sends a request. The nav and
+  homepage buttons still say Start free trial: that is the invitation, this is the transaction.
+- The trial form was promising three details and showing seven controls, four of them tagged
+  optional. The three required fields now stand alone and the rest sit inside a details
+  disclosure that opens itself when a plan arrived in the query string from the pricing page.
+- Every empty field gained a placeholder, because the filled input style made an empty required
+  box look already completed. "Work email" became "Email": personal addresses are accepted by
+  design and the old label put off exactly the smallest buyers.
+
+THE REVIEW FOUND ONE REAL DEFECT, and it was in the privacy notice rather than the code. The
+page claimed compliance evidence "is anonymised" after eight years. It is not.
+lib/evidence/retention.ts holds DEFAULT_RETENTION_MIN_YEARS, computeRetentionUntil,
+backfillRetentionForRecord and anonymiseEvidence, and NOTHING CALLS ANY OF THEM: evidence
+.retention_until is never populated and there is no retention cron in vercel.json. The sentence
+now says only what is true today. The gap itself is on the list as its own item.
+
+Everything else in the notice was corroborated against the code before it went out: five minute
+signed URLs on private buckets with every download audited, per company separation in RLS rather
+than an application filter, an audit_log with a select policy and no insert, update or delete
+policies, the eu-west-2 Supabase project with Vercel pinned to lhr1, the supplier list, and no
+analytics or advertising cookies anywhere in the dependencies or the root layout.
+
+- Load /privacy signed OUT, in a private window. This is the one that can fail: the page is new
+  and only reachable because /privacy was added to PUBLIC_PATHS. If it bounces to the login
+  screen, that is why.
+- Confirm the Privacy link appears in the footer of every marketing page, and under the trial
+  form, and that both reach the same page.
+- Read the whole notice once as if you were a registered manager checking us out. Two things are
+  NOT settled and must be before launch: there is no controller identity on it, because the
+  company is not incorporated, and the AI supplier is the one transfer that leaves the UK and
+  Europe. It has not been near a solicitor.
+- Check the tab titles on Pricing and Start trial read once, not twice.
+- Submit a real trial request from the rebuilt form with ONLY the three required fields, and
+  confirm it still arrives, still emails you, and still lands in trial_requests.
+- Submit another with every optional field filled from inside the disclosure, and confirm all of
+  it arrives. The fields are inside a closed details element, which still submits, but this is
+  the check that proves it.
+- Open /start-trial?tier=pro and confirm the disclosure is ALREADY OPEN with Pro preselected.
+  Open /start-trial with no query and confirm it is closed.
+- Confirm the honeypot still silently succeeds and writes no row.
+
 ## Phase 12 — Marketing & Launch
 
 Marketing site on becarecompliant.com, onboarding collateral, subscription agreement (no data selling clause), launch.

@@ -79,7 +79,12 @@ const SECTIONS: Section[] = [
   {
     heading: "How long we keep it",
     body: [
-      "Compliance evidence is kept for eight years, which reflects what a care provider is expected to be able to produce for a regulator, after which it is anonymised rather than left lying around.",
+      // Careful with this sentence. The first draft said evidence "is anonymised" after eight
+      // years, which the code does not do: lib/evidence/retention.ts holds the rule and the
+      // anonymise function, but nothing calls them, retention_until is never populated and
+      // there is no retention cron. A privacy notice that promises a process nobody runs is
+      // worse than one that stays quiet, so this now says only what is true today.
+      "Compliance evidence is kept for at least eight years from the end of a person's care, which reflects what a care provider is expected to be able to produce for a regulator. After that it can be anonymised, and we will anonymise it or delete it if you ask us to.",
       "If your company stops using Be Care Compliant, your records are not deleted the moment a subscription ends. Tell us and we will export them for you or delete them, whichever you ask for.",
     ],
   },
