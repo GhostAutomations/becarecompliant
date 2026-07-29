@@ -223,7 +223,7 @@ function ScoreDial({ score }: { score: number | null }) {
   const stroke =
     score == null ? "#94a3b8" : score >= 85 ? "#43d99a" : score >= 50 ? "#f5bd6a" : "#f18196";
   return (
-    <svg viewBox="0 0 140 140" className="h-32 w-32 shrink-0" aria-hidden>
+    <svg viewBox="0 0 140 140" className="h-24 w-24 shrink-0" aria-hidden>
       <circle cx="70" cy="70" r={r} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="11" />
       <circle
         cx="70"
@@ -356,13 +356,13 @@ export default async function DashboardPage() {
 
       {/* Row one: the score, and the six figures beside it. */}
       <div className="grid gap-4 lg:grid-cols-12">
-        <div className="glass-card flex flex-col justify-center gap-4 p-5 sm:flex-row sm:items-center lg:col-span-4 lg:row-span-2">
+        <div className="glass-card flex flex-col justify-center gap-4 p-5 sm:flex-row sm:items-center lg:col-span-3 lg:row-span-2">
           {score.enabled ? (
             <>
               <ScoreDial score={score.score} />
               <div className="min-w-0 flex-1">
                 <p className="text-xs uppercase tracking-wide text-white/50">Compliance score</p>
-                <p className="mt-1 text-5xl font-bold leading-none text-white">
+                <p className="mt-1 text-4xl font-bold leading-none text-white">
                   {score.score == null ? "Not scored" : `${score.score}%`}
                 </p>
                 <p className="mt-2 text-sm font-semibold text-emerald-300">{score.label}</p>
@@ -371,6 +371,8 @@ export default async function DashboardPage() {
                     ? "Inspection ready"
                     : "Evidence still to gather"}
                 </p>
+                {/* Never "since yesterday": snapshots are written when the readiness report is
+                    opened, so the line names the day it actually measures from. */}
                 {score.score != null && score.delta != null && score.deltaFrom ? (
                   <p
                     className={`mt-1 text-xs ${
@@ -387,13 +389,7 @@ export default async function DashboardPage() {
                     since {fmtShortDate(score.deltaFrom)}
                   </p>
                 ) : null}
-                <Link
-                  href="/readiness"
-                  className="mt-4 flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-gold-300 transition hover:bg-white/[0.08]"
-                >
-                  View score breakdown
-                  <span aria-hidden>&rsaquo;</span>
-                </Link>
+
               </div>
             </>
           ) : (
@@ -407,7 +403,7 @@ export default async function DashboardPage() {
           )}
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:col-span-8 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:col-span-9 xl:grid-cols-4">
           <Tile
             href="/people"
             label="Open actions"
@@ -433,7 +429,7 @@ export default async function DashboardPage() {
             icon="policy" />
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-3 lg:col-span-8">
+        <div className="grid gap-4 sm:grid-cols-3 lg:col-span-9">
           <Tile
             href="/people"
             label="Audits completed"
