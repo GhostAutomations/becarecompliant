@@ -21,7 +21,13 @@ import { useRouter } from "next/navigation";
 import FormRenderer from "@/components/forms/form-renderer";
 import type { Answers, FormSchema } from "@/lib/form-schema";
 import { validateAnswers, type FieldError } from "@/lib/form-validate";
-import { IDLE_STATE, type ActionState } from "@/lib/forms";
+import {
+  IDLE_STATE,
+  parseAiQuestions,
+  serialiseAiQuestions,
+  type ActionState,
+  type AiQuestion,
+} from "@/lib/forms";
 
 type Action = (prev: ActionState, formData: FormData) => Promise<ActionState>;
 
@@ -49,21 +55,23 @@ export default function FormEvidenceDialog({
   hideFields?: string[];
   /** Optional AI assist. The action returns { data } of field key to text, which is
    *  merged into the answers for the user to EDIT before saving. Nothing is stored by
-   *  drafting, so a draft they dislike costs a credit and leaves no record. */
-  aiDraft?: { action: Action; label: string; hint?: string; extraFields?: Record<string, string> };
+   *  drafting, so a draft they dislike costs a credit and leaves no record.
+   *
+   *  `questions` opts a form into AI DRAFTED QUESTIONS: the action may return, under
+   *  `dataKey`, a JSON array of questions written for this particular record. They are
+   *  rendered here as real labelled controls, and the whole set is written into the
+   *  ONE existing long_text field named by `answerKey` as readable text on save. They
+   *  cannot be schema fields, because the server validates every answer against the
+   *  stored published version (see lib/forms.ts). Any form can use this: give it a
+   *  long_text field to land in and return the payload. */
+  aiDraft?: {
+    action: Action;
+    label: string;
+    hint?: string;
+    extraFields?: Record<string, string>;
+    questions?: { dataKey: string; answerKey: string };
+  };
 }) {
-  // Drop hidden fields from what we render and validate. The server still
-  // validates against the full published version, so only omit optional fields.
-  const effectiveSchema: FormSchema =
-    hideFields && hideFields.length
-      ? {
-          ...schema,
-          sections: schema.sections.map((s) => ({
-            ...s,
-            fields: s.fields.filter((f) => !hideFields.includes(f.key)),
-          })),
-        }
-      : schema;
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -82,6 +90,27 @@ export default function FormEvidenceDialog({
   // time. This one is set synchronously in the click handler and cleared when a result
   // arrives, so the label and the disabled state are never late.
   const [drafting, setDrafting] = useState(false);
+  // AI drafted questions and the answers being typed into them, held by index.
+  const [aiQuestions, setAiQuestions] = useState<AiQuestion[]>([]);
+  const [aiAnswers, setAiAnswers] = useState<string[]>([]);
+
+  // Drop hidden fields from what we render and validate. The server still
+  // validates against the full published version, so only omit optional fields.
+  // Once AI drafted questions are on screen, the long_text they serialise into is
+  // hidden too: it is filled from those controls on save, and showing both would give
+  // the user two places to type the same thing and a box that fights back.
+  const hidden = new Set(hideFields ?? []);
+  if (aiQuestions.length > 0 && aiDraft?.questions) hidden.add(aiDraft.questions.answerKey);
+  const effectiveSchema: FormSchema =
+    hidden.size > 0
+      ? {
+          ...schema,
+          sections: schema.sections.map((s) => ({
+            ...s,
+            fields: s.fields.filter((f) => !hidden.has(f.key)),
+          })),
+        }
+      : schema;
   const [draftState, draftAction, draftPending] = useActionState(
     aiDraft?.action ?? (async () => IDLE_STATE),
     IDLE_STATE,
@@ -91,7 +120,15 @@ export default function FormEvidenceDialog({
     // Any result at all, success or error, ends the drafting state.
     if (draftState.data || draftState.error || draftState.ok) setDrafting(false);
     if (!draftState.data) return;
-    const merged = { ...answers, ...draftState.data } as Answers;
+    const incoming: Record<string, string> = { ...draftState.data };
+    // Pull the questions payload OUT before the rest is merged: it is not an answer to
+    // any field, and everything left in `incoming` is keyed by a real field key.
+    const dataKey = aiDraft?.questions?.dataKey;
+    const asked = dataKey ? parseAiQuestions(incoming[dataKey] ?? "") : [];
+    if (dataKey) delete incoming[dataKey];
+    setAiQuestions(asked);
+    setAiAnswers(asked.map(() => ""));
+    const merged = { ...answers, ...incoming } as Answers;
     setAnswers(merged);
     setDraftDefaults(merged);
     setFormKey((k) => k + 1);
@@ -110,9 +147,30 @@ export default function FormEvidenceDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
+  /** Record one answer to an AI drafted question. Held separately from `answers` and
+   *  folded in only when the form is submitted: FormRenderer owns the `answers` object
+   *  and reports the whole thing back on every keystroke, so a value written into it
+   *  from out here would be at the mercy of the next field the user touched. */
+  function setAiAnswer(index: number, value: string) {
+    setAiAnswers((prev) => {
+      const next = prev.slice();
+      next[index] = value;
+      return next;
+    });
+  }
+
+  /** The answers as they will be saved: what the form holds, plus the AI drafted
+   *  questions and their answers serialised into their one long_text field. */
+  function answersToSave(): Answers {
+    const key = aiDraft?.questions?.answerKey;
+    if (!key || aiQuestions.length === 0) return answers;
+    return { ...answers, [key]: serialiseAiQuestions(aiQuestions, aiAnswers) };
+  }
+
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const result = validateAnswers(effectiveSchema, answers);
+    const payload = answersToSave();
+    const result = validateAnswers(effectiveSchema, payload);
     if (!result.ok) {
       setErrors(result.errors);
       return;
@@ -120,7 +178,7 @@ export default function FormEvidenceDialog({
     setErrors([]);
     setSubmitting(true);
     const fd = new FormData();
-    fd.set("answers", JSON.stringify(answers));
+    fd.set("answers", JSON.stringify(payload));
     for (const [k, v] of Object.entries(extraFields ?? {})) fd.set(k, v);
     for (const [key, file] of Object.entries(files)) {
       if (file) fd.append(`file:${key}`, file);
@@ -177,6 +235,73 @@ export default function FormEvidenceDialog({
                   ) : null}
                   {draftState.error ? <p className="form-error">{draftState.error}</p> : null}
                 </div>
+              ) : null}
+
+              {/* AI drafted questions, written for THIS record. Rendered as real
+                  labelled controls so they are as clear to complete as fixed fields,
+                  then serialised into one long_text answer on save. */}
+              {aiDraft?.questions && aiQuestions.length > 0 ? (
+                <section className="section-card p-5">
+                  <div className="mb-4">
+                    <h3 className="text-base font-semibold text-white">Questions to ask</h3>
+                    <p className="page-subtitle mt-1">
+                      Written from this record, so they are not the same every time. Ask them in
+                      your own words and record what you are told. Your answers are saved with
+                      the form.
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-5">
+                    {aiQuestions.map((q, i) => (
+                      <div key={`ai-q-${i}`} className="flex flex-col gap-1.5">
+                        <label htmlFor={`ai-q-${i}`} className="form-label">
+                          {q.question}
+                        </label>
+                        {q.type === "yes_no" ? (
+                          <div className="mt-1 flex gap-2">
+                            {["Yes", "No"].map((opt) => (
+                              <button
+                                key={opt}
+                                type="button"
+                                disabled={busy}
+                                onClick={() => setAiAnswer(i, opt)}
+                                className={`rounded-xl px-4 py-2 text-sm font-medium ${
+                                  aiAnswers[i] === opt
+                                    ? "bg-gold-400/20 text-white"
+                                    : "bg-white/5 text-white/60"
+                                }`}
+                                aria-pressed={aiAnswers[i] === opt}
+                              >
+                                {opt}
+                              </button>
+                            ))}
+                          </div>
+                        ) : q.type === "choice" ? (
+                          <select
+                            id={`ai-q-${i}`}
+                            value={aiAnswers[i] ?? ""}
+                            disabled={busy}
+                            onChange={(e) => setAiAnswer(i, e.target.value)}
+                          >
+                            <option value="">Please choose</option>
+                            {(q.options ?? []).map((o) => (
+                              <option key={o} value={o}>
+                                {o}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <textarea
+                            id={`ai-q-${i}`}
+                            rows={2}
+                            value={aiAnswers[i] ?? ""}
+                            disabled={busy}
+                            onChange={(e) => setAiAnswer(i, e.target.value)}
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </section>
               ) : null}
 
               <FormRenderer

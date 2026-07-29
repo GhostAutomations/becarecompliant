@@ -129,7 +129,10 @@ export default async function EvidenceViewPage({
               {answerable.map((field) => (
                 <div key={field.key} className="border-t border-white/5 pt-3 first:border-t-0 first:pt-0">
                   <dt className="text-xs text-white/45">{field.label}</dt>
-                  <dd className="mt-0.5 text-sm text-white/90">
+                  {/* whitespace-pre-line: a long_text answer can hold real line breaks (the AI
+                      drafted Return to Work questions are stored as Q and A blocks, migration
+                      0147), and without this they collapse into one run on paragraph. */}
+                  <dd className="mt-0.5 whitespace-pre-line text-sm text-white/90">
                     {isBinaryField(field.type) ? (
                       ev.files[field.key] ? (
                         <a
