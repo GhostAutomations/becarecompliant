@@ -19,6 +19,10 @@ import { rebakeFormFieldOptions } from "@/lib/forms/rebake-options";
 import { REGISTER_COLUMNS } from "@/lib/people/logic";
 import { SU_REGISTER_COLUMNS } from "@/lib/service-users/types";
 import type { ActionState } from "@/lib/forms";
+import {
+  isTrialRequestStatus,
+  trialRequestStatusLabel,
+} from "@/lib/founder/trial-requests";
 
 /** The founder acting as themselves, for audit attribution on tenant writes. */
 async function founderActor(): Promise<{ actor: Actor }> {
@@ -664,4 +668,97 @@ export async function deleteTrainingTemplate(
 
   revalidatePath(TRAINING_TEMPLATES_PATH);
   return { ok: "Template deleted." };
+}
+
+
+/**
+ * Founder: move a trial request along, and keep a running note against it.
+ *
+ * A trial request is a LEAD, not a tenant. Nothing here provisions anything: setting
+ * the status to "provisioned" only records that the founder has already created the
+ * company by hand on /founder/new. That is deliberate (see migration 0151).
+ *
+ * Platform admin only twice over. requirePlatformAdmin guards the action, and the
+ * trial_requests RLS policy from 0086 admits nobody else for any command, so a
+ * non-admin's update matches no policy and changes zero rows. The returned row count
+ * is checked below precisely so that refusal surfaces as a visible error in the form
+ * rather than a false "Saved".
+ */
+export async function setTrialRequestStatus(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requirePlatformAdmin();
+  const requestId = String(formData.get("request_id") ?? "").trim();
+  const status = String(formData.get("status") ?? "").trim();
+  // Founder-typed, but bounded anyway so one paste cannot fill the column.
+  const notes = String(formData.get("notes") ?? "").trim().slice(0, 4000);
+
+  if (!requestId) return { error: "Missing trial request." };
+  if (!isTrialRequestStatus(status)) return { error: "Choose a valid status." };
+
+  const supabase = await createClient();
+
+  // Read what is there now so the audit entry records old and new, and so the note is
+  // only reported as changed when it actually changed.
+  const { data: before } = await supabase
+    .from("trial_requests")
+    .select("status, notes, company_name")
+    .eq("id", requestId)
+    .maybeSingle();
+
+  const previousStatus = (before?.status as string | null) ?? null;
+  const previousNotes = ((before?.notes as string | null) ?? "").trim();
+  const statusChanged = previousStatus !== status;
+  const notesChanged = previousNotes !== notes;
+
+  const patch: Record<string, unknown> = { notes: notes || null, status };
+  // Only stamp who and when when the status genuinely moved: editing a note must not
+  // rewrite the record of when the lead was last worked.
+  if (statusChanged) {
+    patch.status_changed_at = new Date().toISOString();
+    patch.status_changed_by = user.id;
+  }
+
+  const { data, error } = await supabase
+    .from("trial_requests")
+    .update(patch)
+    .eq("id", requestId)
+    .select("id");
+  if (error) return { error: error.message };
+  if (!data || data.length === 0) {
+    return {
+      error:
+        "No change was saved. The request may not exist or you may not have permission.",
+    };
+  }
+
+  if (statusChanged || notesChanged) {
+    // companyId is null ON PURPOSE. A trial request has no tenant yet: that is the
+    // whole point of the screen. audit_log.company_id is nullable and the founder
+    // audit console already reads platform-level rows (audit_log_select passes any
+    // row for a platform admin), so a null keeps this out of every company's own
+    // audit trail, which is exactly where it does not belong.
+    await writeAudit({
+      companyId: null,
+      actorId: user.id,
+      actorEmail: profile.email,
+      actorRole: "platform_admin",
+      action: statusChanged ? "trial_request.status_changed" : "trial_request.note_updated",
+      entityType: "trial_request",
+      entityId: requestId,
+      summary: statusChanged
+        ? `Set trial request from ${before?.company_name ?? "an unknown company"} to ${trialRequestStatusLabel(status)}`
+        : `Updated the note on the trial request from ${before?.company_name ?? "an unknown company"}`,
+      metadata: {
+        status,
+        previous_status: previousStatus,
+        note_changed: notesChanged,
+      },
+    });
+  }
+
+  revalidatePath("/founder/trial-requests");
+  revalidatePath("/founder");
+  return { ok: "Saved" };
 }

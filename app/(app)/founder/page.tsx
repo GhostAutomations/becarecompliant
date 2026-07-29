@@ -25,6 +25,7 @@ export default async function FounderPage() {
     { data: profiles },
     { data: billingRows },
     { data: usageRows },
+    { count: newTrialRequests },
   ] = await Promise.all([
     supabase
       .from("companies")
@@ -38,7 +39,15 @@ export default async function FounderPage() {
       .from("usage_monthly")
       .select("kind, month, event_count, units_sum")
       .eq("month", `${thisMonth}-01`),
+    // A lead nobody has touched yet. Counted here so a waiting request is visible
+    // on the console itself and not only in an email that can be missed.
+    supabase
+      .from("trial_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "new"),
   ]);
+
+  const waitingTrialRequests = newTrialRequests ?? 0;
 
   const billingByCompany = new Map<
     string,
@@ -213,6 +222,22 @@ export default async function FounderPage() {
         <Link href="/founder/health" className="app-tile">
           <h2 className="text-base font-semibold text-white">Platform health</h2>
           <p className="text-sm text-white/60">Dependencies, sends and webhooks.</p>
+        </Link>
+        <Link
+          href="/founder/trial-requests"
+          className="app-tile sm:col-span-2 lg:col-span-4"
+        >
+          <div className="flex items-start justify-between gap-2">
+            <h2 className="text-base font-semibold text-white">Trial requests</h2>
+            {waitingTrialRequests > 0 ? (
+              <span className="pill pill-amber">{waitingTrialRequests} new</span>
+            ) : null}
+          </div>
+          <p className="text-sm text-white/60">
+            {waitingTrialRequests > 0
+              ? `${waitingTrialRequests} ${waitingTrialRequests === 1 ? "request is" : "requests are"} waiting for a reply. Setup stays founder led, so nothing is provisioned automatically.`
+              : "Leads from the Start free trial form on the website. Nothing waiting."}
+          </p>
         </Link>
         <Link
           href="/founder/companies"
