@@ -32,7 +32,6 @@ import {
  *   Incidents             there is no incidents feature; Complaints is adjacent, not the same
  *   Risk level            no risk model exists, and a number here would be invented
  *   Policies up to date   needs signing coverage per policy, not just a count of policies
- *   AI insights           the AI layer exists but is not wired to run for the dashboard
  *   Date range            the tiles are all live figures; nothing is filtered by period yet
  *
  * The old Complaints, Holidays and Absence strips were REMOVED on instruction, since they are
@@ -506,7 +505,7 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* Row two: readiness, on call, insights. */}
+      {/* Row two: PQS report, on call, expiring soon. */}
       <div className="grid gap-4 lg:grid-cols-12">
         {/* THE PQS REPORT, not Inspection Readiness (Phil, 2026-07-29). Both figures are read
             from the SAME functions the real PQS report uses, so the two can never quote
@@ -597,16 +596,6 @@ export default async function DashboardPage() {
           )}
         </Panel>
 
-        <div className="lg:col-span-3">
-          <MissingPanel
-            title="AI compliance insights"
-            needs="The AI layer exists for the readiness report but is not wired to run here yet."
-          />
-        </div>
-      </div>
-
-      {/* Row three: expiring, calendar, activity. */}
-      <div className="grid gap-4 lg:grid-cols-12">
         <Panel title="Expiring soon" href="/people" className="lg:col-span-3">
           {expiring.length === 0 ? (
             <p className="text-sm text-white/55">Nothing runs out in the next 30 days.</p>
@@ -632,7 +621,10 @@ export default async function DashboardPage() {
             </ul>
           )}
         </Panel>
+      </div>
 
+      {/* Row three: calendar, activity. */}
+      <div className="grid gap-4 lg:grid-cols-12">
         {/* Five WORKING day columns, not a box per day (Phil, 2026-07-29). Every column is
             always drawn, empty or not, so the week keeps its shape. */}
         <Panel title="Compliance calendar" href="/planner" linkLabel="View calendar" className="lg:col-span-5">

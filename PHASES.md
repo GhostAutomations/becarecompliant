@@ -1292,3 +1292,11 @@ Marketing site on becarecompliant.com, onboarding collateral, subscription agree
 - `CalendarDay.items` is now `{ name, count }[]` instead of a list of names, so a column can say
   "3 Supervision" rather than repeating the name. Sorted by count then name. Four lines per
   column, then "+N more".
+
+### 2026-07-29 AI compliance insights removed
+
+- The red "AI compliance insights" tile is deleted. Expiring soon moved into that slot. Both were
+  `lg:col-span-3`, so it is a straight swap and no other tile changed shape or size.
+- Row two is now PQS report (5), On call (4), Expiring soon (3). Row three is Compliance calendar
+  (5) and Recent activity (4), so it runs 9 of 12 wide with the last three columns empty. That is
+  deliberate: nothing else was resized.
