@@ -760,11 +760,11 @@ export default async function DashboardPage() {
           ) : onCallUrgent.length === 0 ? (
             <p className="text-sm text-white/55">Nothing urgent. Every call has been followed up.</p>
           ) : (
-            /* FOUR (Phil, 2026-07-30). The two tile rows are taller now the numbers are, and the
-               gaps are tighter, so a fourth row fits inside the height instead of dictating it.
-               The "View all" link in the corner is the way to the rest. */
-            <ul className="space-y-2">
-              {onCallUrgent.slice(0, 4).map((u) => (
+            /* FIVE (Phil, 2026-07-30). The panel scrolls rather than growing, so a fifth row
+               cannot push the tile rows beside it out of shape. The "View all" link in the corner
+               is the way to the rest. */
+            <ul className="max-h-[196px] space-y-2 overflow-y-auto pr-1">
+              {onCallUrgent.slice(0, 5).map((u) => (
                 <li key={u.id}>
                   <Link
                     href={`/on-call/log/${u.id}`}
@@ -782,9 +782,9 @@ export default async function DashboardPage() {
                   </Link>
                 </li>
               ))}
-              {onCallUrgent.length > 4 ? (
+              {onCallUrgent.length > 5 ? (
                 <li className="pt-0.5 text-[11px] text-white/45">
-                  {onCallUrgent.length - 4} more waiting
+                  {onCallUrgent.length - 5} more waiting
                 </li>
               ) : null}
             </ul>
