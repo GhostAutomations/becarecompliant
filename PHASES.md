@@ -1471,3 +1471,16 @@ silently losing the metric.
 PERFORMANCE. `computeOnTime` is deduped per request with React cache() on primitive arguments, and
 companyName is deliberately not part of the key since the computation never reads it.
 `getTrainingMatrix` is cached the same way: a dashboard load asked for it three times over.
+
+### 2026-07-30 Incidents tile becomes Complaints
+
+- The red "Incidents (open)" tile is replaced by a live Complaints tile (Phil). There is no
+  incidents feature, and there was never going to be a number in that tile.
+- The figure is cases NOT closed (open plus in progress), which is what a manager acts on. Red
+  when any case is past its response date and the subtitle says how many, amber when there is
+  anything open, green when there is nothing. Links to the Complaints register.
+- Gated on the SAME role list the Complaints register admits, not just on the feature flag.
+  Complaints hold special category data, so RLS would hand a Supervisor an empty set, and an empty
+  set rendered as "0 complaints" is a lie by omission. Off the Pro tier it stays a red tile that
+  says so.
+- Uses the existing `getComplaintCounts`, so the tile and the register cannot disagree.

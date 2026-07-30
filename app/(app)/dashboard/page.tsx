@@ -9,6 +9,7 @@ import { getUrgentFollowUps } from "@/lib/on-call/data";
 import { shiftLabel } from "@/lib/on-call/format";
 import { featureEnabled } from "@/lib/billing/tier";
 import { PLANNER_ROLES } from "@/lib/planner/data";
+import { getComplaintCounts } from "@/lib/complaints/data";
 import { listAccessibleBranchTypes } from "@/lib/service-users/data";
 import type { PqsMeasure } from "@/lib/export/on-time";
 import {
@@ -33,7 +34,6 @@ import {
  *
  * RED TODAY, and what each one needs:
  *   Upcoming inspections  nothing in the product records a scheduled inspection
- *   Incidents             there is no incidents feature; Complaints is adjacent, not the same
  *   Risk level            no risk model exists, and a number here would be invented
  *   Policies up to date   needs signing coverage per policy, not just a count of policies
  *   Date range            the tiles are all live figures; nothing is filtered by period yet
@@ -69,6 +69,21 @@ const ICONS: Record<string, ReactNode> = {
   shield: <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />,
   risk: <path d="M3 3v18h18M7 15v3m5-8v8m5-12v12" />,
 };
+
+/**
+ * Who may see the Complaints tile. Identical to MANAGE_ROLES on the Complaints register, because
+ * complaints hold special category data and a role that cannot open the register must not be
+ * shown a count from it. RLS would hand a Supervisor an empty set, and an empty set rendered as
+ * "0 complaints" is a lie by omission.
+ */
+const COMPLAINTS_ROLES = [
+  "company_admin",
+  "registered_individual",
+  "registered_manager",
+  "manager",
+  "on_call",
+  "platform_admin",
+];
 
 const ICON_TONES: Record<string, string> = {
   indigo: "bg-indigo-500/20 text-indigo-200",
@@ -396,9 +411,14 @@ export default async function DashboardPage() {
   // the same roles the Planner page allows, and only when the feature is on.
   const canSeePlanner =
     PLANNER_ROLES.includes(profile.role) && (await featureEnabled(companyId, "planner"));
+  // Complaints hold special category data, so the tile is drawn for exactly the roles the
+  // Complaints register itself admits, and only when the feature is on. Anything less and a
+  // Supervisor would read a zero and take it to mean there are no complaints.
+  const canSeeComplaints =
+    COMPLAINTS_ROLES.includes(profile.role) && (await featureEnabled(companyId, "complaints"));
 
   const { people, serviceUsers } = await getComplianceBuckets(companyId);
-  const [score, trainingPct, auditsPct, expiring, plannerWeek, activity, onCallUrgent] =
+  const [score, trainingPct, auditsPct, expiring, plannerWeek, complaints, activity, onCallUrgent] =
     await Promise.all([
       companyWide
         ? getComplianceScore(companyId, { companyWide: true })
@@ -407,6 +427,9 @@ export default async function DashboardPage() {
       getAuditsCompleted(companyId),
       getExpiringSoon(companyId),
       canSeePlanner ? getPlannerWeek(user.id) : Promise.resolve([]),
+      canSeeComplaints
+        ? getComplaintCounts(companyId)
+        : Promise.resolve(null as Awaited<ReturnType<typeof getComplaintCounts>> | null),
       getRecentActivity(companyId),
       canSeeOnCall ? getUrgentFollowUps(companyId) : Promise.resolve([]),
     ]);
@@ -576,10 +599,35 @@ export default async function DashboardPage() {
             value={auditsPct == null ? "n/a" : `${auditsPct}%`}
             sub="audit checks currently in date"
           />
-          <MissingTile label="Incidents (open)"
-            className="xl:col-span-3"
-            needs="No incidents feature exists yet"
-            icon="shield" />
+          {/* Complaints, in place of the Incidents tile there is no feature for (Phil, 2026-07-30).
+              The figure is cases NOT closed, which is what a manager acts on. */}
+          {complaints ? (
+            <Tile
+              href="/complaints"
+              label="Complaints"
+              className="xl:col-span-3"
+              icon="shield"
+              iconTone="red"
+              value={complaints.open + complaints.inProgress}
+              tone={
+                complaints.overdue > 0
+                  ? "red"
+                  : complaints.open + complaints.inProgress > 0
+                    ? "amber"
+                    : "green"
+              }
+              sub={
+                complaints.overdue > 0
+                  ? `${complaints.overdue} past the response date`
+                  : "open and in progress"
+              }
+            />
+          ) : (
+            <MissingTile label="Complaints"
+              className="xl:col-span-3"
+              needs="Complaints is a Pro feature and is not switched on for this company"
+              icon="shield" />
+          )}
           <MissingTile label="Risk level"
             className="xl:col-span-3"
             needs="No risk model exists yet"
