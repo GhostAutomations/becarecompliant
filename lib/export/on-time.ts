@@ -519,7 +519,13 @@ function bandCell(band: number | null) {
 function rateCell(rate: number | null) {
   if (rate === null) return { text: "No cycles due", rag: "neutral" as const };
   const rag = rate >= 85 ? "green" : rate >= 50 ? "amber" : "red";
-  return { text: `${rate.toFixed(1)}%`, rag: rag as "green" | "amber" | "red" };
+  /*
+   * `${rate}%`, NOT toFixed(1) (2026-07-30). The dashboard tile prints 76% and this printed
+   * 76.0%; identical numbers that read as a mismatch the moment somebody clicks a tile and
+   * compares. The CSV already printed it this way, so the PDF was the odd one out of three.
+   * The value is already rounded to one decimal upstream, so nothing is lost.
+   */
+  return { text: `${rate}%`, rag: rag as "green" | "amber" | "red" };
 }
 
 function popLabel(p: "people" | "service_users"): string {
@@ -539,12 +545,13 @@ function renderOnTimeDoc(
 
   // Each summary row, tagged with its name and whether it is a starred PQS measure,
   // so the PQS scored (starred) items group at the top of the table.
-  type SummaryEntry = { name: string; starred: boolean; cells: ReportCell[] };
+  type SummaryEntry = { name: string; starred: boolean; star?: string; cells: ReportCell[] };
   const checkEntries: SummaryEntry[] = stats.map((s) => {
     const star = pqsStars[s.checkKey];
     return {
       name: s.checkName,
       starred: Boolean(star),
+      star,
       cells: [
         { text: s.checkName, strong: true, ...(star ? { star } : {}) },
         { text: popLabel(s.population) },
@@ -559,6 +566,7 @@ function renderOnTimeDoc(
   const measureEntries: SummaryEntry[] = extraMeasures.map((m) => ({
     name: m.name,
     starred: true,
+    star: m.star,
     cells: [
       { text: m.name, strong: true, star: m.star },
       { text: m.register },
@@ -570,12 +578,21 @@ function renderOnTimeDoc(
     ],
   }));
   const allEntries = [...checkEntries, ...measureEntries];
-  const byName = (a: SummaryEntry, b: SummaryEntry) => a.name.localeCompare(b.name);
-  // Only the items that actually count towards the PQS score (the starred measures),
-  // alphabetical. Operational checks that are not PQS scored are left out.
+  /*
+   * CARDIFF RETURN ORDER, not alphabetical (2026-07-30).
+   *
+   * The dashboard tiles list these seven measures in the order the return asks for them, and this
+   * table used to list them alphabetically. Same numbers, different sequence, which reads as a
+   * mismatch the moment somebody clicks a tile and compares the two lists line by line. One
+   * order, from one function, so they can be read side by side.
+   */
+  const byReturnOrder = (a: SummaryEntry, b: SummaryEntry) =>
+    pqsOrderIndex(a.star ?? "") - pqsOrderIndex(b.star ?? "") || a.name.localeCompare(b.name);
+  // Only the items that actually count towards the PQS score (the starred measures).
+  // Operational checks that are not PQS scored are left out.
   const summaryRows: ReportCell[][] = allEntries
     .filter((e) => e.starred)
-    .sort(byName)
+    .sort(byReturnOrder)
     .map((e) => e.cells);
 
   // Breakdown: only the PQS scored checks (the starred ones), cycles that were NOT on
@@ -640,31 +657,44 @@ function renderOnTimeDoc(
     ],
   };
 
+  // Same order as the table and the dashboard tiles.
+  const csvMeasures: Array<{ star: string; row: CsvCell[] }> = [
+    ...stats
+      .filter((s) => pqsStars[s.checkKey])
+      .map((s) => ({
+        star: pqsStars[s.checkKey],
+        row: [
+          "PQS + Summary",
+          s.checkName,
+          popLabel(s.population),
+          s.gradedAt,
+          s.dueInPeriod,
+          s.onTime,
+          s.ratePct === null ? "" : `${s.ratePct}%`,
+          s.band === null ? "" : s.band,
+          "",
+          "",
+        ] as CsvCell[],
+      })),
+    ...extraMeasures.map((m) => ({
+      star: m.star,
+      row: [
+        "PQS",
+        m.name,
+        m.register,
+        m.gradedAt,
+        "",
+        "",
+        m.rate === null ? "" : `${m.rate}%`,
+        m.band === null ? "" : m.band,
+        "",
+        "",
+      ] as CsvCell[],
+    })),
+  ].sort((a, b) => pqsOrderIndex(a.star) - pqsOrderIndex(b.star));
+
   const csvRows: CsvCell[][] = [
-    ...stats.filter((s) => pqsStars[s.checkKey]).map((s) => [
-      "PQS + Summary",
-      s.checkName,
-      popLabel(s.population),
-      s.gradedAt,
-      s.dueInPeriod,
-      s.onTime,
-      s.ratePct === null ? "" : `${s.ratePct}%`,
-      s.band === null ? "" : s.band,
-      "",
-      "",
-    ] as CsvCell[]),
-    ...extraMeasures.map((m) => [
-      "PQS",
-      m.name,
-      m.register,
-      m.gradedAt,
-      "",
-      "",
-      m.rate === null ? "" : `${m.rate}%`,
-      m.band === null ? "" : m.band,
-      "",
-      "",
-    ] as CsvCell[]),
+    ...csvMeasures.map((m) => m.row),
     ...sortedCycles.map((c) => [
       "Cycle",
       c.checkName,

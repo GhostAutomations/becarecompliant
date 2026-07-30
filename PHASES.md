@@ -1683,3 +1683,35 @@ DEFECTS CAUGHT BY REVIEW BEFORE SHIPPING:
   ends a company with no branches, the branch picker offers "All branches" on every report, and
   the PDF and CSV route no longer refuses "all". A download that refused what the screen had just
   rendered would be the worse surprise.
+
+### 2026-07-30 The PQS report reads the same as the tiles
+
+Phil: clicking a tile through to the report showed figures that did not look like the tile. Two
+presentation differences, both fixed; the numbers themselves were already the same computation.
+
+1. ORDER. The report table listed the seven measures alphabetically while the tiles list them in
+   the Cardiff return order. Same numbers, different sequence, which reads as a mismatch the
+   moment somebody compares line by line. Both now use the return order, from `pqsOrderIndex`.
+   The CSV follows it too.
+2. FORMAT. The report printed `76.0%` where the tile printed `76%`. The CSV already printed it
+   the tile's way, so the PDF was the odd one of three. The value is rounded to one decimal
+   upstream, so nothing is lost.
+
+A review agent then traced both paths end to end (window, branch scoping, RLS, rounding, row set,
+the cache wrapper) and confirmed they are now numerically equivalent for the same scope on the
+same day.
+
+STILL OPEN, found during that trace, none of them a tile versus report difference:
+
+- FOUR of the seven measures ignore the report's From/To. Mandatory training and Safeguarding are
+  a live "today" snapshot, SCW registration uses its own 6 month cutoff, and personal outcomes
+  take no window at all. Change the dates and three rows move while four stay put, under a
+  document whose Period line claims the whole table covers that range.
+- TWO banding rules over the same printed rate: `pqsBand` bands the exact fraction, `bandPct`
+  bands the already rounded rate. 84.96% prints as 85% and scores 5 as a cycle measure, 7 as an
+  extra measure.
+- The evidence read has no range and no unique tiebreak on its sort. Hosted Supabase caps REST
+  results at 1000, and ascending order means the cap drops the NEWEST completions, which would
+  read as never done.
+- The breakdown table filters cycles by check NAME while the summary filters by KEY, so a name
+  collision would leak rows into the breakdown.
