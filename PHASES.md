@@ -1623,3 +1623,19 @@ DEFECTS CAUGHT BY REVIEW BEFORE SHIPPING:
   the three can never name different periods. It is recomputed on every load, so it rolls forward
   daily on its own, and it is deliberately not the user's to change: it is the window Cardiff
   scores.
+
+### 2026-07-30 Dead space out of the tiles and the panels
+
+- Tile numbers up from 36px to 40px, the same size in all eight. 40 rather than 44 because the two
+  figure tiles (Absences, AI credits) share their column with the icon, and 44 pushed "133" into
+  it. Equal size across the eight is the rule these tiles are built on.
+- Captions now sit on the FLOOR of the tile (`mt-auto`, `items-end`), so the slack falls between
+  the number and the caption instead of forming a dead band underneath. The last line of a one
+  line and a two line caption land on the same baseline, which is what keeps the row reading
+  level.
+- The SMS caption was a sentence; the badge already says it is not wired, so it is "sent this
+  month".
+- Score card: `justify-between` rather than `justify-center`, so it fills its height instead of
+  leaving a band top and bottom, and the percentage is 44px.
+- On call: five, NOT scrollable. The fifth line goes in the space that was empty.
+- Recent activity: ten lines instead of six, at 11px with tighter spacing and no scroll.

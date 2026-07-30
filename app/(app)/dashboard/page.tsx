@@ -156,8 +156,16 @@ function Tile({
     <div className="flex h-full items-start gap-3">
       <div className="flex min-w-0 flex-1 flex-col">
         <p className="truncate text-xs uppercase tracking-wide text-white/50">{label}</p>
-        <p className={`mt-2 text-4xl font-bold leading-none tabular-nums ${valueClass}`}>{value}</p>
-        <div className="mt-2 min-h-[30px] text-[11px] leading-snug text-white/55">{sub}</div>
+        <p className={`mt-2 text-[40px] font-bold leading-none tabular-nums ${valueClass}`}>
+          {value}
+        </p>
+        {/* mt-auto: the caption sits on the FLOOR of the tile, so the slack lands between the
+            number and the caption rather than as a dead band underneath. items-end puts the last
+            line of a one line and a two line caption on the same baseline, which is what keeps
+            the eight tiles reading level. */}
+        <div className="mt-auto flex h-[30px] items-end text-[11px] leading-snug text-white/55">
+          {sub}
+        </div>
       </div>
       {/* Top RIGHT (Phil, 2026-07-30). Same element, same size, last in the row instead of
           first, so nothing about the tile's shape changes. */}
@@ -208,13 +216,15 @@ function SplitTile({
     <div className="flex h-full items-start gap-3">
       <div className="flex min-w-0 flex-1 flex-col">
         <p className="truncate text-xs uppercase tracking-wide text-white/50">{label}</p>
-        <div className="mt-2 flex items-start justify-between gap-2">
+        <div className="mt-2 flex flex-1 justify-between gap-1">
           {pairs.map((p) => (
-            <div key={p.caption} className="min-w-0 flex-1 text-center">
-              <p className={`text-4xl font-bold leading-none tabular-nums ${ink(p.tone)}`}>
+            <div key={p.caption} className="flex min-w-0 flex-1 flex-col text-center">
+              <p className={`text-[40px] font-bold leading-none tabular-nums ${ink(p.tone)}`}>
                 {p.value}
               </p>
-              <p className="mt-2 min-h-[30px] text-[11px] leading-snug text-white/55">{p.caption}</p>
+              <p className="mt-auto flex h-[30px] items-end justify-center text-[11px] leading-snug text-white/55">
+                {p.caption}
+              </p>
             </div>
           ))}
         </div>
@@ -260,7 +270,7 @@ function MissingTile({
   return (
     <div className={`h-full rounded-2xl border border-red-400/25 bg-red-500/[0.07] p-4 ${className}`}>
       <div className="flex items-start gap-3">
-        <div className="min-w-0 flex-1">
+        <div className="flex h-full min-w-0 flex-1 flex-col">
           <div className="flex items-start justify-between gap-2">
             <p className="truncate text-xs uppercase tracking-wide text-red-200/80">{label}</p>
             <span className="shrink-0 rounded-full border border-red-400/30 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-red-200/80">
@@ -269,13 +279,15 @@ function MissingTile({
           </div>
           {/* Same geometry as Tile, so a red tile sits in line with the live ones beside it. */}
           <p
-            className={`mt-2 text-4xl font-bold leading-none tabular-nums ${
+            className={`mt-2 text-[40px] font-bold leading-none tabular-nums ${
               value == null ? "text-red-200/40" : "text-red-200"
             }`}
           >
             {value == null ? <>&mdash;</> : value}
           </p>
-          <p className="mt-2 min-h-[30px] text-[11px] leading-snug text-red-200/70">{needs}</p>
+          <p className="mt-auto flex h-[30px] items-end text-[11px] leading-snug text-red-200/70">
+            {needs}
+          </p>
         </div>
         {/* Top right, matching Tile. The badge keeps its place beside the label. */}
         {icon ? <TileIcon name={icon} tone="red" /> : null}
@@ -626,13 +638,16 @@ export default async function DashboardPage() {
         {/* NO row span. It had one from when the tiles were two separate blocks; they are one
             block now, so spanning two rows made the score card taller than everything beside it,
             which is exactly the misalignment down the top of the page. One row, one height. */}
-        <div className="glass-card flex flex-col justify-center gap-3 p-5 lg:col-span-2">
+        {/* justify-between, not justify-center: the card is as tall as the tile block beside it,
+            and centring left a dead band top and bottom. Now the figure sits at the top and the
+            breakdown link on the floor. */}
+        <div className="glass-card flex flex-col justify-between gap-3 p-5 lg:col-span-2">
           {score.enabled ? (
             <>
               <div className="flex items-center gap-3">
                 <div className="min-w-0">
                   <p className="text-xs uppercase tracking-wide text-white/50">Compliance score</p>
-                  <p className="mt-1 text-3xl font-bold leading-none text-white">
+                  <p className="mt-1 text-[44px] font-bold leading-none text-white">
                     {score.score == null ? "Not scored" : `${score.score}%`}
                   </p>
                   <p className="mt-2 text-sm font-semibold text-emerald-300">{score.label}</p>
@@ -739,7 +754,7 @@ export default async function DashboardPage() {
               icon="policy"
               badge="Not wired"
               value={spend.sms.sent}
-              needs="sent this month. Sending is not wired up and nothing includes an allowance"
+              needs="sent this month"
             />
           ) : null}
           <Tile
@@ -764,10 +779,10 @@ export default async function DashboardPage() {
           ) : onCallUrgent.length === 0 ? (
             <p className="text-sm text-white/55">Nothing urgent. Every call has been followed up.</p>
           ) : (
-            /* FIVE (Phil, 2026-07-30). The panel scrolls rather than growing, so a fifth row
-               cannot push the tile rows beside it out of shape. The "View all" link in the corner
-               is the way to the rest. */
-            <ul className="max-h-[196px] space-y-2 overflow-y-auto pr-1">
+            /* FIVE, and NOT scrollable (Phil, 2026-07-30). The fifth row goes in the space that
+               was sitting empty at the bottom of the panel. The "View all" link in the corner is
+               the way to the rest. */
+            <ul className="space-y-2">
               {onCallUrgent.slice(0, 5).map((u) => (
                 <li key={u.id}>
                   <Link
@@ -1076,19 +1091,22 @@ export default async function DashboardPage() {
           {activity.length === 0 ? (
             <p className="text-sm text-white/55">Nothing has happened yet today.</p>
           ) : (
-            <div className="max-h-[124px] overflow-y-auto pr-1">
-              <ul className="space-y-2">
-                {activity.map((a, i) => (
-                  <li
-                    key={`${a.when}-${i}`}
-                    className="flex items-start justify-between gap-3 border-b border-white/5 pb-2 last:border-0 last:pb-0"
-                  >
-                    <span className="min-w-0 text-[13px] leading-snug text-white/80">{a.summary}</span>
-                    <span className="shrink-0 text-[11px] text-white/45">{fmtWhen(a.when)}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            /* TEN lines, smaller and tighter (Phil, 2026-07-30), filling the space that was
+               sitting empty under six. No scroll: the panel shows what it shows and the corner
+               link goes to the rest. */
+            <ul className="space-y-1">
+              {activity.map((a, i) => (
+                <li
+                  key={`${a.when}-${i}`}
+                  className="flex items-start justify-between gap-2 border-b border-white/5 pb-1 last:border-0 last:pb-0"
+                >
+                  <span className="min-w-0 text-[11px] leading-snug text-white/80">{a.summary}</span>
+                  <span className="shrink-0 text-[10px] leading-snug text-white/45">
+                    {fmtWhen(a.when)}
+                  </span>
+                </li>
+              ))}
+            </ul>
           )}
         </Panel>
       </div>

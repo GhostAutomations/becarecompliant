@@ -664,7 +664,8 @@ export async function getRecentActivity(companyId: string): Promise<ActivityLine
     .select("summary, created_at")
     .eq("company_id", companyId)
     .order("created_at", { ascending: false })
-    .limit(6);
+    // Ten: the panel is tall enough for ten compact lines, and six left a dead band under them.
+    .limit(10);
   return (((data as Array<{ summary: string; created_at: string }> | null) ?? [])).map((r) => ({
     summary: r.summary,
     when: r.created_at,
