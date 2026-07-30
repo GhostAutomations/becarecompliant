@@ -653,7 +653,7 @@ export default async function DashboardPage() {
             iconTone="blue"
             value={holidaysPending}
             tone={holidaysPending > 0 ? "amber" : "green"}
-            sub={holidaysPending === 1 ? "request waiting for a decision" : "requests waiting for a decision"}
+            sub="waiting approval"
           />
           <Tile
             href="/people/training"
@@ -664,34 +664,41 @@ export default async function DashboardPage() {
             value={trainingPct == null ? "n/a" : `${Math.round(trainingPct)}%`}
             sub="of mandatory training is in date"
           />
-          {/* Policies up to date and Due in 14 days are ONE tile now (Phil, 2026-07-30), showing
-              Due in 14 days. It takes the four column slot Policies held and runs down BOTH rows,
-              so the grid still adds to twelve and no other tile moved. The two tile rows had to
-              become one grid for a tile to span them at all. The 7 day split fills the extra
-              height rather than leaving one number floating in a tall box. */}
-          <Tile
-            href="/people"
-            label="Due in 14 days"
+        {/* On call and Due in 14 days swapped (Phil, 2026-07-30): the urgent follow ups
+              belong at the top of the screen, in the four column slot that runs down both tile
+              rows. */}
+          <Panel
+            title="On call: urgent follow ups"
+            href="/on-call"
             className="xl:col-span-4 xl:row-span-2"
-            value={dueSoon.total}
-            tone={dueSoon.total > 0 ? "amber" : "green"}
-            icon="calendar"
-            iconTone="orange"
-            sub={
-              <>
-                checks falling due across both registers
-                {dueSoon.total > 0 ? (
-                  <span className="mt-3 block text-white/70">
-                    <span className="font-semibold tabular-nums text-amber-300">{within7}</span>{" "}
-                    within 7 days
-                    <span className="mx-2 text-white/25">|</span>
-                    <span className="font-semibold tabular-nums">{dueSoon.total - within7}</span> in
-                    8 to 14 days
-                  </span>
-                ) : null}
-              </>
-            }
-          />
+          >
+          {!canSeeOnCall ? (
+            <p className="text-sm text-white/55">On Call is not switched on for this company.</p>
+          ) : onCallUrgent.length === 0 ? (
+            <p className="text-sm text-white/55">Nothing urgent. Every call has been followed up.</p>
+          ) : (
+            <ul className="space-y-2">
+              {onCallUrgent.map((u) => (
+                <li key={u.id}>
+                  <Link
+                    href={`/on-call/log/${u.id}`}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-white/10 px-3 py-2 transition hover:bg-white/[0.06]"
+                  >
+                    <span className="pill-amber shrink-0">
+                      <span className="pill-dot" /> Urgent
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-sm text-white/80">
+                      {shiftLabel(u.shift_date, u.slot)}
+                    </span>
+                    {u.branch_name ? (
+                      <span className="shrink-0 text-xs text-white/45">{u.branch_name}</span>
+                    ) : null}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
           <Tile
             href="/people"
             label="Audits completed"
@@ -809,34 +816,31 @@ export default async function DashboardPage() {
           </div>
         )}
 
-        <Panel title="On call: urgent follow ups" href="/on-call" className="lg:col-span-4">
-          {!canSeeOnCall ? (
-            <p className="text-sm text-white/55">On Call is not switched on for this company.</p>
-          ) : onCallUrgent.length === 0 ? (
-            <p className="text-sm text-white/55">Nothing urgent. Every call has been followed up.</p>
-          ) : (
-            <ul className="space-y-2">
-              {onCallUrgent.map((u) => (
-                <li key={u.id}>
-                  <Link
-                    href={`/on-call/log/${u.id}`}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-white/10 px-3 py-2 transition hover:bg-white/[0.06]"
-                  >
-                    <span className="pill-amber shrink-0">
-                      <span className="pill-dot" /> Urgent
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-sm text-white/80">
-                      {shiftLabel(u.shift_date, u.slot)}
-                    </span>
-                    {u.branch_name ? (
-                      <span className="shrink-0 text-xs text-white/45">{u.branch_name}</span>
-                    ) : null}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
+{/* Due in 14 days, swapped down here with On call (Phil, 2026-07-30), which puts the
+            headline directly beside its own breakdown. */}
+          <Tile
+            href="/people"
+            label="Due in 14 days"
+            className="lg:col-span-4"
+            value={dueSoon.total}
+            tone={dueSoon.total > 0 ? "amber" : "green"}
+            icon="calendar"
+            iconTone="orange"
+            sub={
+              <>
+                checks falling due across both registers
+                {dueSoon.total > 0 ? (
+                  <span className="mt-3 block text-white/70">
+                    <span className="font-semibold tabular-nums text-amber-300">{within7}</span>{" "}
+                    within 7 days
+                    <span className="mx-2 text-white/25">|</span>
+                    <span className="font-semibold tabular-nums">{dueSoon.total - within7}</span> in
+                    8 to 14 days
+                  </span>
+                ) : null}
+              </>
+            }
+          />
 
         {/* THE BREAKDOWN of the Due in 14 days tile, not a second opinion on it (Phil,
             2026-07-30). Same function, same window, so the lines add up to the headline. */}

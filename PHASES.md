@@ -1536,3 +1536,12 @@ companyName is deliberately not part of the key since the computation never read
   anywhere on the dashboard. The red tile was the reminder. Item to keep open, not something the
   screen will nag about now.
 - The red tile list at the top of the file is down to the date range picker alone.
+
+### 2026-07-30 On call and Due in 14 days swap places
+
+- On call: urgent follow ups moves up into the tile block, taking the four column slot that runs
+  down both tile rows. Urgent follow ups belong at the top of the screen.
+- Due in 14 days moves down into the panel grid at `lg:col-span-4`, which puts the headline
+  directly beside its own "by check" breakdown.
+- Widths are unchanged either side of the swap: both were four columns, and both keep their
+  content exactly as it was.
