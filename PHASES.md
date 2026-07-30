@@ -1484,3 +1484,17 @@ companyName is deliberately not part of the key since the computation never read
   set rendered as "0 complaints" is a lie by omission. Off the Pro tier it stays a red tile that
   says so.
 - Uses the existing `getComplaintCounts`, so the tile and the register cannot disagree.
+
+### 2026-07-30 Risk level becomes Absences, Upcoming inspections becomes Holiday
+
+- **Absences** replaces the red Risk level tile. The figure is meeting invites still to send plus
+  Return to Works still to complete: two lists, one job to a manager, so the headline is the total
+  and the subtitle splits it. Red when a Return to Work is past its due date. Links to the Absence
+  register.
+  - `invites` counts people whose absence has tripped a trigger and who do NOT already have a
+    meeting booked. An invite that has gone out is not outstanding work, even though the meeting
+    has not happened yet.
+- **Holiday** replaces the red Upcoming inspections tile, showing requests waiting for a decision.
+  Named Holiday, singular, to match the navigation. Links to `/people/holiday`.
+- Both read through RLS, so a Branch Manager sees their own branch's queue and nobody else's.
+- The red tile list at the top of the file is down to Policies up to date and the date range.

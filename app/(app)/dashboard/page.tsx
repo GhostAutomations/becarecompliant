@@ -22,6 +22,8 @@ import {
   getRecentActivity,
   getPqsSummary,
   getPqsScopes,
+  getAbsenceActions,
+  getPendingHolidayApprovals,
   type ComplianceScore,
 } from "@/lib/dashboard/data";
 
@@ -33,13 +35,13 @@ import {
  * screen instead of quietly missing from it. A red tile is a to do list item you can see.
  *
  * RED TODAY, and what each one needs:
- *   Upcoming inspections  nothing in the product records a scheduled inspection
- *   Risk level            no risk model exists, and a number here would be invented
  *   Policies up to date   needs signing coverage per policy, not just a count of policies
  *   Date range            the tiles are all live figures; nothing is filtered by period yet
  *
- * The old Complaints, Holidays and Absence strips were REMOVED on instruction, since they are
- * not in the design. Every one of them still has its own department in the navigation.
+ * The old Complaints, Holidays and Absence strips were REMOVED on instruction, since they are not
+ * in the design. All three came back on 30 Jul as single tiles carrying the one figure that is
+ * somebody's job right now, in the slots the tiles with no data behind them used to hold:
+ * Complaints for Incidents, Holiday for Upcoming inspections, Absences for Risk level.
  */
 
 export const metadata: Metadata = { title: "Dashboard" };
@@ -418,7 +420,18 @@ export default async function DashboardPage() {
     COMPLAINTS_ROLES.includes(profile.role) && (await featureEnabled(companyId, "complaints"));
 
   const { people, serviceUsers } = await getComplianceBuckets(companyId);
-  const [score, trainingPct, auditsPct, expiring, plannerWeek, complaints, activity, onCallUrgent] =
+  const [
+    score,
+    trainingPct,
+    auditsPct,
+    expiring,
+    plannerWeek,
+    complaints,
+    absenceActions,
+    holidaysPending,
+    activity,
+    onCallUrgent,
+  ] =
     await Promise.all([
       companyWide
         ? getComplianceScore(companyId, { companyWide: true })
@@ -430,6 +443,8 @@ export default async function DashboardPage() {
       canSeeComplaints
         ? getComplaintCounts(companyId)
         : Promise.resolve(null as Awaited<ReturnType<typeof getComplaintCounts>> | null),
+      getAbsenceActions(companyId),
+      getPendingHolidayApprovals(companyId),
       getRecentActivity(companyId),
       canSeeOnCall ? getUrgentFollowUps(companyId) : Promise.resolve([]),
     ]);
@@ -570,10 +585,18 @@ export default async function DashboardPage() {
             tone={overdue > 0 ? "red" : "green"}
             sub={`${people.overdue} people, ${serviceUsers.overdue} service users`}
           />
-          <MissingTile label="Upcoming inspections"
+          {/* Holidays, in place of the Upcoming inspections tile nothing feeds (Phil, 2026-07-30).
+              Pending requests are the only holiday figure that is somebody's job right now. */}
+          <Tile
+            href="/people/holiday"
+            label="Holiday"
             className="xl:col-span-3"
-            needs="Nothing records a scheduled inspection yet"
-            icon="calendar" />
+            icon="calendar"
+            iconTone="blue"
+            value={holidaysPending}
+            tone={holidaysPending > 0 ? "amber" : "green"}
+            sub={holidaysPending === 1 ? "request waiting for a decision" : "requests waiting for a decision"}
+          />
           <Tile
             href="/people/training"
             label="Training completion"
@@ -628,10 +651,35 @@ export default async function DashboardPage() {
               needs="Complaints is a Pro feature and is not switched on for this company"
               icon="shield" />
           )}
-          <MissingTile label="Risk level"
+          {/* Absences, in place of the Risk level tile there is no model for (Phil, 2026-07-30).
+              Meeting invites still to send plus Return to Works still to complete: two lists, one
+              job, so the headline is the total and the subtitle splits it. */}
+          <Tile
+            href="/people/absence"
+            label="Absences"
             className="xl:col-span-3"
-            needs="No risk model exists yet"
-            icon="risk" />
+            icon="risk"
+            iconTone="orange"
+            value={absenceActions.invites + absenceActions.rtw}
+            tone={
+              absenceActions.rtwOverdue > 0
+                ? "red"
+                : absenceActions.invites + absenceActions.rtw > 0
+                  ? "amber"
+                  : "green"
+            }
+            sub={
+              absenceActions.invites + absenceActions.rtw === 0
+                ? "nothing to send or complete"
+                : `${absenceActions.invites} meeting ${
+                    absenceActions.invites === 1 ? "invite" : "invites"
+                  } to send, ${absenceActions.rtw} return to ${
+                    absenceActions.rtw === 1 ? "work" : "works"
+                  } to complete${
+                    absenceActions.rtwOverdue > 0 ? ` (${absenceActions.rtwOverdue} overdue)` : ""
+                  }`
+            }
+          />
           {/* Eight tiles in an eight slot grid. Seven left a hole on the right, and stretching
               three tiles to fill it made them a third wider than the other four. */}
           <Tile

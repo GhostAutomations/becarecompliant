@@ -17,6 +17,7 @@ import {
   listActivePeople,
 } from "@/lib/absence/data";
 import { listMyBookings } from "@/lib/planner/data";
+import { listOutstandingRtw } from "@/lib/absence/rtw";
 
 /** Today in Europe/London as an ISO yyyy-mm-dd string (dates compare lexically). */
 function londonTodayIso(): string {
@@ -387,6 +388,53 @@ export async function getExpiringSoon(companyId: string): Promise<ExpiringLine[]
     ...[...within30.entries()].map(([label, count]) => ({ label, count, window: "Within 30 days" })),
   ];
   return lines.sort((a, b) => b.count - a.count).slice(0, 5);
+}
+
+/**
+ * Absence work waiting on somebody, for the dashboard tile.
+ *
+ * TWO different things, deliberately added together in the tile's headline figure because they
+ * are one job to a manager: people whose absence has tripped a trigger and still need a meeting
+ * invite sending, and Return to Works that have not been completed.
+ *
+ * `invites` deliberately excludes anybody who already has a meeting booked. An invite that has
+ * gone out is not outstanding work, even though the meeting has not happened yet.
+ */
+export type AbsenceActions = {
+  invites: number;
+  rtw: number;
+  /** Return to Works already past their due date. These are what make the tile red. */
+  rtwOverdue: number;
+};
+
+export async function getAbsenceActions(companyId: string): Promise<AbsenceActions> {
+  const [{ rows }, openBookings, rtw] = await Promise.all([
+    listAbsenceRegister(companyId, null),
+    listOpenBookings(companyId),
+    listOutstandingRtw(companyId),
+  ]);
+  const booked = new Set(openBookings.map((b) => b.person_id));
+  return {
+    invites: rows.filter((r) => r.status.meetingDue && !booked.has(r.personId)).length,
+    rtw: rtw.length,
+    rtwOverdue: rtw.filter((r) => r.overdue).length,
+  };
+}
+
+/**
+ * Holiday requests waiting on a decision.
+ *
+ * A head count, not the rows: RLS already scopes this to what the caller may approve, and a
+ * Branch Manager should see their own branch's queue and nobody else's.
+ */
+export async function getPendingHolidayApprovals(companyId: string): Promise<number> {
+  const supabase = await createClient();
+  const { count } = await supabase
+    .from("holiday_requests")
+    .select("id", { count: "exact", head: true })
+    .eq("company_id", companyId)
+    .eq("status", "pending");
+  return count ?? 0;
 }
 
 export type PlannerItem = {
