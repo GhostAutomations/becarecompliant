@@ -1610,3 +1610,16 @@ DEFECTS CAUGHT BY REVIEW BEFORE SHIPPING:
 - Gaps tightened from 4 to 3 throughout the page and between the page's blocks.
 - On call is back to FOUR: the tile rows are taller now the numbers are, and the gaps are tighter,
   so a fourth row fits inside the height instead of dictating it.
+
+### 2026-07-30 Header buttons and the PQS window dates
+
+- The red "Date range not wired" chip is gone. Every figure on the page is live and nothing was
+  ever going to filter by period, so the chip was a promise the screen had no plans to keep. It
+  comes off the red list at the top of the file too, which now holds SMS alone.
+- "Export report" is now "Reports", because the button opens the Reports page and exports nothing.
+- The PQS panel names the ACTUAL days instead of saying "the last six months", e.g. "Completion
+  rate 30 Jan 2026 to 30 Jul 2026". Same font, same colour, same line.
+- The window comes from `defaultOnTimeWindow`, the same function the report and the PDF use, so
+  the three can never name different periods. It is recomputed on every load, so it rolls forward
+  daily on its own, and it is deliberately not the user's to change: it is the window Cardiff
+  scores.
