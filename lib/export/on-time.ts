@@ -23,6 +23,7 @@ import "server-only";
  * records only. No dashes in copy.
  */
 
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { dueDatesInGap, cycleOnTime, buildAnchors } from "./on-time-cycles";
 import {
@@ -46,6 +47,9 @@ import { getOutcomesRegister } from "@/lib/service-users/data";
 export type OnTimeWindow = { from: string; to: string };
 
 export type OnTimeStat = {
+  /** The check definition's id. THE identity: `key` is unique per (company, population) only, so
+   *  a people Audit and a service user Audit share a key and would overwrite each other. */
+  checkId: string;
   checkKey: string;
   checkName: string;
   population: "people" | "service_users";
@@ -245,7 +249,7 @@ async function computeOnTime(input: OnTimeInput) {
   }
 
   // 4. Reconstruct cycles per definition per record and count.
-  const statByKey = new Map<string, OnTimeStat>();
+  const statById = new Map<string, OnTimeStat>();
   const cycles: OnTimeCycle[] = [];
   const inWindow = (d: CivilDate) => compareCivil(d, fromC) >= 0 && compareCivil(d, toC) <= 0;
 
@@ -265,6 +269,7 @@ async function computeOnTime(input: OnTimeInput) {
         : `${def.interval} ${def.frequency}${def.interval === 1 ? "" : "s"}`;
 
     const stat: OnTimeStat = {
+      checkId: def.id,
       checkKey: def.key,
       checkName: def.name,
       population: def.population,
@@ -309,10 +314,10 @@ async function computeOnTime(input: OnTimeInput) {
     }
     stat.ratePct = stat.dueInPeriod === 0 ? null : Math.round((stat.onTime / stat.dueInPeriod) * 1000) / 10;
     stat.band = pqsBand(stat.onTime, stat.dueInPeriod);
-    statByKey.set(def.key, stat);
+    statById.set(def.id, stat);
   }
 
-  const stats = Array.from(statByKey.values());
+  const stats = Array.from(statById.values());
 
   // PQS headline: the specific questions Cardiff scores, pulled together so the
   // manager reads one return. Supervision (Quality Q2) and care plan review (User
@@ -396,10 +401,57 @@ async function computeOnTime(input: OnTimeInput) {
   return { win, stats, cycles, pqsStars, extraMeasures };
 }
 
+/**
+ * ONE run of the engine per request, per scope.
+ *
+ * The dashboard now asks for these numbers twice: the PQS tiles want the measures, and the
+ * Compliance score wants the on time rate per check. React's cache() dedupes on the ARGUMENTS,
+ * which is why this takes primitives rather than the OnTimeInput object: two callers passing
+ * equal object literals would miss the cache and run the whole engine twice.
+ */
+const onTimeRun = cache(
+  async (
+    companyId: string,
+    branchId: string | null,
+    branchName: string | null,
+    from: string,
+    to: string,
+  ) =>
+    // companyName is deliberately NOT part of the key: the computation never reads it, it only
+    // titles the rendered document, so keying on it would buy two identical engine runs whenever
+    // two callers spell the company differently.
+    computeOnTime({ companyId, companyName: "", branchId, branchName, window: { from, to } }),
+);
+
+function runFor(input: OnTimeInput) {
+  return onTimeRun(
+    input.companyId,
+    input.branchId,
+    input.branchName,
+    input.window.from,
+    input.window.to,
+  );
+}
+
+/**
+ * The six month on time completion rate per check DEFINITION, for the Compliance score.
+ *
+ * Same computation as the PQS report, so a requirement's history and the PQS return can never
+ * disagree. A check with nothing due in the window maps to null, not to zero: nothing due is not
+ * a failure.
+ */
+export async function getOnTimeRatesByCheckId(
+  companyId: string,
+): Promise<Map<string, number | null>> {
+  const win = defaultOnTimeWindow();
+  const r = await runFor({ companyId, companyName: "", branchId: null, branchName: null, window: win });
+  return new Map(r.stats.map((s) => [s.checkId, s.ratePct]));
+}
+
 export async function buildOnTimeReport(
   input: OnTimeInput,
 ): Promise<{ doc: ReportDoc; csv: string; base: string }> {
-  const r = await computeOnTime(input);
+  const r = await runFor(input);
   if ("empty" in r && r.empty) return emptyReport(input, r.empty);
   return renderOnTimeDoc(input, r.win, r.stats, r.cycles, r.pqsStars, r.extraMeasures);
 }
@@ -436,7 +488,7 @@ function pqsOrderIndex(star: string): number {
 }
 
 export async function getPqsMeasures(input: OnTimeInput): Promise<PqsMeasure[]> {
-  const { stats, pqsStars, extraMeasures } = await computeOnTime(input);
+  const { stats, pqsStars, extraMeasures } = await runFor(input);
   const starred: PqsMeasure[] = stats
     .filter((s) => pqsStars[s.checkKey])
     .map((s) => ({
@@ -457,7 +509,10 @@ export async function getPqsMeasures(input: OnTimeInput): Promise<PqsMeasure[]> 
 
 function bandCell(band: number | null) {
   if (band === null) return { text: "N/A", rag: "neutral" as const };
-  const rag = band >= 10 ? "green" : band >= 5 ? "amber" : "red";
+  // 10 green, 7 amber, everything else red (Phil, 2026-07-30). The same rule the dashboard tiles
+  // use, because a band 5 reading amber in the PDF and red on screen is exactly the sort of
+  // disagreement this module exists to prevent.
+  const rag = band >= 10 ? "green" : band === 7 ? "amber" : "red";
   return { text: String(band), rag: rag as "green" | "amber" | "red" };
 }
 

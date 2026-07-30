@@ -205,6 +205,9 @@ export type ComplianceScore =
       /** The date the delta is measured FROM. Never assume it was yesterday: see below. */
       deltaFrom: string | null;
       label: string;
+      /** What the number is measured over, so the tile can say so instead of implying it covers
+       *  everything. `unscheduled` is checks with no due date, which are NOT scored. */
+      coverage: { scored: number; unscheduled: number };
       requirements: RequirementReadiness[];
     };
 
@@ -240,10 +243,18 @@ async function previousScores(
 }
 
 /** Wording for a score. Deliberately NOT a prediction of an inspection outcome. */
+/**
+ * The label under the score.
+ *
+ * Deliberately NOT a claim about being inspection ready (Phil, 2026-07-30). This number is an
+ * average of the requirements that have evidence mapped to them; it is a good early warning and
+ * it is not a verdict an inspector has given. "On top of it" is a description of the work, which
+ * is what the number actually measures.
+ */
 export function scoreLabel(score: number | null): string {
   if (score == null) return "Not scored yet";
-  if (score >= 90) return "Strong";
-  if (score >= 75) return "Good";
+  if (score >= 90) return "On top of it";
+  if (score >= 75) return "Mostly on track";
   if (score >= 50) return "Needs attention";
   return "At risk";
 }
@@ -305,6 +316,10 @@ export async function getComplianceScore(
     delta: score != null && prevOverall != null ? score - prevOverall : null,
     deltaFrom: usable ? days[0] : null,
     label: scoreLabel(score),
+    coverage: {
+      scored: readiness.requirements.reduce((n, r) => n + r.checks.total, 0),
+      unscheduled: readiness.requirements.reduce((n, r) => n + r.checks.unscheduled, 0),
+    },
     requirements: readiness.requirements,
   };
 }

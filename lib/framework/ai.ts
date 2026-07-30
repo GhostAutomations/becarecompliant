@@ -2,7 +2,7 @@
 
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
-import { getFrameworkReadiness } from "@/lib/framework/data";
+import { getFrameworkReadiness, type RequirementReadiness } from "@/lib/framework/data";
 import { runAi } from "@/lib/ai/anthropic";
 
 type Result = { ok: string } | { error: string };
@@ -33,11 +33,19 @@ async function resolve(): Promise<{ companyId: string; regulator: "cqc" | "ciw";
 
 /** Build a compact, grounded context: readiness per requirement plus a capped
  *  list of overdue items. RLS scopes everything to the caller. */
-async function buildContext(companyId: string, regulator: "cqc" | "ciw", name: string): Promise<string> {
+async function buildContext(
+  companyId: string,
+  regulator: "cqc" | "ciw",
+  name: string,
+  /** Readiness the caller has ALREADY computed. Readiness now runs the six month PQS engine, so
+   *  a caller that has it (the readiness pack PDF) must not make us compute it a second time.
+   *  React's cache() does not help here: a route handler sits outside the component tree. */
+  pre?: RequirementReadiness[],
+): Promise<string> {
   const supabase = await createClient();
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
 
-  const { requirements } = await getFrameworkReadiness(companyId, regulator);
+  const requirements = pre ?? (await getFrameworkReadiness(companyId, regulator)).requirements;
 
   // Map of check definition id -> requirement title, for labelling overdue items.
   const { data: mapRows } = await supabase
@@ -89,6 +97,7 @@ async function buildContext(companyId: string, regulator: "cqc" | "ciw", name: s
   const reqLines = requirements.map((r) => {
     const parts: string[] = [];
     if (r.checks.total > 0) parts.push(`checks ${r.checks.overdue} overdue, ${r.checks.dueSoon} due soon, ${r.checks.onTrack} on track`);
+    if (r.checks.unscheduled > 0) parts.push(`${r.checks.unscheduled} checks with no due date, not scored`);
     for (const m of r.metrics) parts.push(`${m.label} ${m.pct != null ? `${m.pct}%` : (m.note ?? "n/a")}`);
     return `- ${r.title} [${r.status}]: ${parts.length ? parts.join("; ") : "no evidence mapped"}`;
   });
@@ -106,10 +115,10 @@ const SYSTEM = (regulator: string) =>
   `You are an experienced UK care compliance adviser helping a provider prepare for a ${regulator === "ciw" ? "Care Inspectorate Wales (CIW)" : "Care Quality Commission (CQC)"} inspection. Use ONLY the data you are given. Never invent people, facts or figures. Use UK spelling and plain English. Be honest about weaknesses. Make clear this is a preparation aid based on the provider's own live data, not a regulatory rating or legal advice.`;
 
 /** Draft an inspection readiness narrative + prioritised gaps and actions. */
-export async function draftReadinessNarrative(): Promise<Result> {
+export async function draftReadinessNarrative(pre?: RequirementReadiness[]): Promise<Result> {
   const ctx = await resolve();
   if (!ctx) return { error: "Inspection Readiness is not enabled for this company." };
-  const context = await buildContext(ctx.companyId, ctx.regulator, ctx.name);
+  const context = await buildContext(ctx.companyId, ctx.regulator, ctx.name, pre);
   const prompt = `${context}\n\nWrite two sections in markdown:\n1. "Readiness summary": for each ${ctx.regulator === "ciw" ? "theme" : "key question"}, 2 to 4 sentences on what is strong and what needs attention.\n2. "Gaps and actions": a prioritised list, most urgent first, each action specific and tied to the data above (name the records/checks where relevant).`;
   return runAi({ companyId: ctx.companyId, feature: "framework_narrative", system: SYSTEM(ctx.regulator), prompt, maxTokens: 1800 });
 }

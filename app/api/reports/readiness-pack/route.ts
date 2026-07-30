@@ -33,11 +33,14 @@ export async function GET() {
   if (!company?.framework_enabled) return exportError("Inspection Readiness is not enabled for this company.", 403);
   const regulator = (company.regulator ?? "ciw") as "cqc" | "ciw";
 
-  const [{ requirements }, items, narrativeRes] = await Promise.all([
+  // Readiness FIRST, then the narrative with that same data. Readiness now runs the six month
+  // PQS engine, and a route handler is outside the React tree, so cache() would not have stopped
+  // the old Promise.all from running the whole thing twice.
+  const [{ requirements }, items] = await Promise.all([
     getFrameworkReadiness(profile.company_id, regulator),
     getFrameworkItems(profile.company_id, regulator),
-    draftReadinessNarrative(),
   ]);
+  const narrativeRes = await draftReadinessNarrative(requirements);
   const overall = overallScore(requirements);
   const today = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/London" }).format(new Date());
 
@@ -46,6 +49,9 @@ export async function GET() {
     blocks.push({ kind: "heading", text: `${r.title}  —  ${STATUS_TEXT[r.status]}` });
     const pairs = [
       { label: "Score", value: r.score != null ? `${r.score}%` : "Not mapped" },
+      ...(r.checks.unscheduled > 0
+        ? [{ label: "Not scheduled", value: `${r.checks.unscheduled} checks have no due date, so they are not in the score` }]
+        : []),
       ...(r.checks.total > 0
         ? [{ label: "Checks", value: `${r.checks.overdue} overdue, ${r.checks.dueSoon} due soon, ${r.checks.onTrack} on track` }]
         : []),

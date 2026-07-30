@@ -139,7 +139,9 @@ export default async function ReadinessPage() {
                       ) : delta === 0 ? <span className="text-white/40"> no change</span> : null}
                     </span>
                     {r.checks.total > 0 ? (
-                      <span>{r.checks.overdue} overdue · {r.checks.dueSoon} due soon · {r.checks.onTrack} on track</span>
+                      <span>
+                        {`${r.checks.overdue} overdue · ${r.checks.dueSoon} due soon · ${r.checks.onTrack} on track`}
+                      </span>
                     ) : null}
                   </div>
                   <div className="mt-1 h-2 overflow-hidden rounded-full bg-white/10">
@@ -149,6 +151,16 @@ export default async function ReadinessPage() {
               ) : (
                 <p className="mt-3 text-sm text-white/40">No evidence mapped to this area yet.</p>
               )}
+
+              {/* OUTSIDE the score block on purpose. Checks with no due date are not in the score,
+                  and a requirement whose only evidence is unscheduled scores nothing at all, so
+                  putting this line inside the score branch hid it in the one case it exists for. */}
+              {r.checks.unscheduled > 0 ? (
+                <p className="mt-2 text-xs text-amber-300">
+                  {r.checks.unscheduled} {r.checks.unscheduled === 1 ? "check has" : "checks have"} no
+                  due date, so {r.checks.unscheduled === 1 ? "it is" : "they are"} not in the score.
+                </p>
+              ) : null}
 
               {r.metrics.length > 0 ? (
                 <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm text-white/70">

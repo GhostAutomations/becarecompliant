@@ -1425,3 +1425,49 @@ with a real denominator, and the company figure drops.
 - The PQS score on a white tile now carries the SAME rag colour as the rate beside it, instead of
   navy (Phil). The rag decision is made once per line and used by both numbers, so they can never
   contradict each other.
+
+### 2026-07-30 The Compliance score now measures something
+
+Phil asked how the score could read 85% "Good" while the PQS return was dire. It could because it
+was measuring almost nothing. Five fixes, all five asked for.
+
+ROOT CAUSE, found in the schema. 0109 put UNIQUE (company_id, requirement_id, source_kind) on
+requirement_evidence_map. A mapped CHECK also carries source_kind = 'check', so a company could
+map exactly ONE check per requirement. Acme's Care and Support was evidenced by a single Risk
+Assessment and Leadership and Management by a single Annual Appraisal, both definitions long since
+switched OFF. Migration 0155 replaces that with a partial unique index over metric rows only.
+
+1. MAPPING (0154, 0155). `seed_requirement_map(company)` builds the default mapping by check key
+   for both regulators, is idempotent, backfills every existing company, and is called by
+   `provision_company` so a new company is never unmapped. Acme's Care and Support went from one
+   dead check to eight, Leadership and Management to five.
+2. TRAINING. Mandatory training was pushed into the score as a label with a NULL percentage, so a
+   company at 36% could not move its own number. It is a real signal now.
+3. UNSCHEDULED. The roll-up dropped every instance with no due date, and a dropped instance can
+   only flatter the score: Acme had 66 unscheduled under Care and Support and 117 under Leadership
+   and Management. They are counted, excluded from the score, and SHOWN on the dashboard, the
+   readiness page and the readiness pack. Instances of switched off definitions no longer count.
+4. HISTORY. Each requirement now takes the six month on time completion rate of its OWN mapped
+   checks as a further signal, from the SAME engine the PQS report runs, so the two surfaces
+   cannot disagree. Keyed by check definition id, not key: `key` is unique per (company,
+   population), so a people Audit and a service user Audit share one and would overwrite each
+   other.
+5. LABEL. "Good / Inspection ready" is a stronger claim than an average of mapped requirements can
+   carry. Now "Mostly on track" and "On top of it", with a line saying how many scheduled checks
+   the number is measured over and how many are not scheduled at all.
+
+SNAPSHOTS CLEARED (0156). The stored snapshots were produced by the old method, so the delta would
+have drawn "down 30 since 29 Jul", reporting a change of measurement as a collapse in performance.
+They rebuild from the next readiness page visit.
+
+DEFECTS CAUGHT BY REVIEW BEFORE SHIPPING: the check key collision above; the readiness pack PDF
+running the PQS engine twice (a route handler is outside the React tree, so cache() does not
+dedupe, the route now computes readiness once and hands it to the narrative); the unscheduled line
+being hidden inside the score branch, which concealed it in the one case it exists for; the PQS
+band colours disagreeing between the dashboard (10 green, 7 amber, else red) and the PDF (5 was
+amber), now the same rule in both; and a mapping row carrying both a check and a metric source
+silently losing the metric.
+
+PERFORMANCE. `computeOnTime` is deduped per request with React cache() on primitive arguments, and
+companyName is deliberately not part of the key since the computation never reads it.
+`getTrainingMatrix` is cached the same way: a dashboard load asked for it three times over.

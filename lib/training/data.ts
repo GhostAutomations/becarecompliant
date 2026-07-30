@@ -9,6 +9,7 @@ import "server-only";
  * archived). Admin / branch manager only (enforced again by RLS). No dashes in copy.
  */
 
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 
 export type TrainingCourse = {
@@ -139,7 +140,12 @@ export async function listAllCourses(companyId: string): Promise<TrainingCourse[
   return (data as TrainingCourse[] | null) ?? [];
 }
 
-export async function getTrainingMatrix(
+/**
+ * Wrapped in React cache(): a dashboard load now asks for this three times over (the training
+ * tile, the compliance score and the PQS engine), and it reads every person and every training
+ * record each time. Primitive arguments, so the cache actually hits.
+ */
+export const getTrainingMatrix = cache(async function getTrainingMatrix(
   companyId: string,
   branchId: string | null,
 ): Promise<TrainingMatrix> {
@@ -232,4 +238,4 @@ export async function getTrainingMatrix(
       red,
     },
   };
-}
+});

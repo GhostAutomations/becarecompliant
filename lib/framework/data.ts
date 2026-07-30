@@ -2,6 +2,8 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { getOutcomesRegister } from "@/lib/service-users/data";
 import { getSatisfaction } from "@/lib/service-users/satisfaction";
+import { getTrainingMatrix } from "@/lib/training/data";
+import { getOnTimeRatesByCheckId } from "@/lib/export/on-time";
 
 /**
  * Inspection readiness against a regulator's framework. Each requirement (CIW
@@ -27,7 +29,16 @@ export type RequirementReadiness = {
   description: string;
   status: Rag;
   score: number | null; // 0-100 readiness score, or null when nothing is mapped
-  checks: { overdue: number; dueSoon: number; onTrack: number; total: number };
+  checks: {
+    overdue: number;
+    dueSoon: number;
+    onTrack: number;
+    /** Instances that HAVE a due date. The score is measured over these. */
+    total: number;
+    /** Instances with NO due date. They cannot be overdue, so leaving them silently out of the
+     *  total could only ever flatter the score. Counted, and shown to the reader. */
+    unscheduled: number;
+  };
   metrics: ReadinessMetric[];
 };
 
@@ -76,14 +87,26 @@ export async function getFrameworkReadiness(
     supabase.rpc("get_framework_check_readiness", { p_company: companyId, p_regulator: regulator }),
   ]);
 
+
   type Req = { id: string; code: string; key_area: string; title: string; description: string };
   const requirements = (reqRes.data as Req[] | null) ?? [];
   const mapRows = (mapRes.data as Array<{ requirement_id: string; check_definition_id: string | null; source_kind: string | null }> | null) ?? [];
-  const checkRows = (checkRes.data as Array<{ requirement_id: string; overdue: number; due_soon: number; on_track: number; total: number }> | null) ?? [];
+  const checkRows = (checkRes.data as Array<{ requirement_id: string; overdue: number; due_soon: number; on_track: number; total: number; unscheduled: number }> | null) ?? [];
 
   const checksByReq = new Map(checkRows.map((c) => [c.requirement_id, c]));
   const sourcesByReq = new Map<string, Set<string>>();
+  // Checks by DEFINITION ID, so a requirement gets the on time rate of its OWN checks. Not by
+  // key: `key` is unique per (company, population), so a people Audit and a service user Audit
+  // share one.
+  const checkIdsByReq = new Map<string, Set<string>>();
   for (const m of mapRows) {
+    if (m.check_definition_id) {
+      const set = checkIdsByReq.get(m.requirement_id) ?? new Set<string>();
+      set.add(m.check_definition_id);
+      checkIdsByReq.set(m.requirement_id, set);
+    }
+    // NOT an else: the schema allows a row to carry a check AND a metric source, and dropping the
+    // metric in that case would lose it silently.
     if (!m.source_kind || m.source_kind === "check") continue;
     const set = sourcesByReq.get(m.requirement_id) ?? new Set<string>();
     set.add(m.source_kind);
@@ -93,14 +116,29 @@ export async function getFrameworkReadiness(
   // Only load the supplementary metrics if some requirement maps them.
   const needsOutcomes = [...sourcesByReq.values()].some((s) => s.has("outcomes"));
   const needsSatisfaction = [...sourcesByReq.values()].some((s) => s.has("satisfaction"));
-  const [outcomes, satisfaction] = await Promise.all([
+  const needsTraining = [...sourcesByReq.values()].some((s) => s.has("training"));
+  const [outcomes, satisfaction, training, onTimeById] = await Promise.all([
     needsOutcomes ? getOutcomesRegister(companyId) : Promise.resolve(null),
     needsSatisfaction ? getSatisfaction(companyId) : Promise.resolve(null),
+    // Mandatory training used to be pushed in as a LABEL with a null percentage, so a company at
+    // 36% compliance could not move its own score. It is a real number now.
+    needsTraining ? getTrainingMatrix(companyId, null) : Promise.resolve(null),
+    // Skipped entirely when nothing is mapped, so a company with no mapping does not pay for a
+    // six month engine run to learn that.
+    checkIdsByReq.size > 0
+      ? getOnTimeRatesByCheckId(companyId)
+      : Promise.resolve(new Map<string, number | null>()),
   ]);
 
   const out: RequirementReadiness[] = requirements.map((r) => {
-    const c = checksByReq.get(r.id) ?? { overdue: 0, due_soon: 0, on_track: 0, total: 0 };
-    const checks = { overdue: c.overdue, dueSoon: c.due_soon, onTrack: c.on_track, total: c.total };
+    const c = checksByReq.get(r.id) ?? { overdue: 0, due_soon: 0, on_track: 0, total: 0, unscheduled: 0 };
+    const checks = {
+      overdue: c.overdue,
+      dueSoon: c.due_soon,
+      onTrack: c.on_track,
+      total: c.total,
+      unscheduled: c.unscheduled ?? 0,
+    };
 
     const metrics: ReadinessMetric[] = [];
     const sources = sourcesByReq.get(r.id) ?? new Set<string>();
@@ -111,7 +149,33 @@ export async function getFrameworkReadiness(
       metrics.push({ label: "Customer satisfaction", pct: satisfaction.pct });
     }
     if (sources.has("training")) {
-      metrics.push({ label: "Mandatory training", pct: null, note: "Tracked in the Training department" });
+      metrics.push({
+        label: "Mandatory training",
+        pct: training?.summary.mandatoryCompliancePct ?? null,
+        note: "Tracked in the Training department",
+      });
+    }
+
+    /*
+     * History, not just today's board.
+     *
+     * "Nothing is overdue right now" and "the work was done by its due date over the last six
+     * months" are different questions, and a company that completes everything late clears the
+     * first while failing the second. This is the SAME computation the PQS report runs, averaged
+     * over the checks mapped to THIS requirement, so the two surfaces can never disagree.
+     * A check with nothing due in the window contributes nothing rather than a zero.
+     */
+    const rates = [...(checkIdsByReq.get(r.id) ?? [])]
+      .map((id) => onTimeById.get(id))
+      .filter((x): x is number => x != null);
+    const onTimePct = rates.length
+      ? Math.round(rates.reduce((a, b) => a + b, 0) / rates.length)
+      : null;
+    if (onTimePct != null) {
+      metrics.push({
+        label: "Completed by the due date, last six months",
+        pct: onTimePct,
+      });
     }
 
     // Status: worst of the check rollup and the metric statuses.

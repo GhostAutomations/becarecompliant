@@ -244,14 +244,20 @@ function ScoreTile({ name, measures }: { name: string; measures: PqsMeasure[] })
       </p>
       <ul className="mt-2 space-y-1">
         {measures.map((m) => {
-          // ONE rag decision per line, shared by the rate and the score, so the two numbers can
-          // never contradict each other.
+          /*
+           * ONE rag decision per line, shared by the rate and the score, so the two numbers can
+           * never contradict each other.
+           *
+           * Coloured by the PQS BAND, not the rate (Phil, 2026-07-30). Cardiff awards 10, 7, 5,
+           * 2 or 0, and only a 10 is full marks: 10 green, 7 amber, everything else red. A rate
+           * of 84% "feeling" amber is beside the point when the return scores it a 5.
+           */
           const ink =
-            m.rate == null
+            m.band == null
               ? "text-slate-400"
-              : m.rate >= 85
+              : m.band === 10
                 ? "text-rag-green"
-                : m.rate >= 50
+                : m.band === 7
                   ? "text-rag-amber"
                   : "text-rag-red";
           return (
@@ -468,11 +474,25 @@ export default async function DashboardPage() {
                     {score.score == null ? "Not scored" : `${score.score}%`}
                   </p>
                   <p className="mt-2 text-sm font-semibold text-emerald-300">{score.label}</p>
-                  <p className="text-xs text-white/55">
-                    {score.score != null && score.score >= 85
-                      ? "Inspection ready"
-                      : "Evidence still to gather"}
-                  </p>
+                  {/* What the number is measured OVER. "Inspection ready" used to sit here, which
+                      claimed a great deal more than an average of the mapped requirements can
+                      carry, and said nothing about the checks with no due date that the score
+                      cannot see. */}
+                  {score.score != null ? (
+                    <>
+                      <p className="text-xs text-white/55">
+                        Over {score.coverage.scored} scheduled{" "}
+                        {score.coverage.scored === 1 ? "check" : "checks"}
+                      </p>
+                      {score.coverage.unscheduled > 0 ? (
+                        <p className="text-xs text-amber-300">
+                          {score.coverage.unscheduled} not scheduled, so not scored
+                        </p>
+                      ) : null}
+                    </>
+                  ) : (
+                    <p className="text-xs text-white/55">Nothing is mapped to score yet</p>
+                  )}
                   {/* Never "since yesterday": snapshots are written when the readiness report is
                       opened, so the line names the day it actually measures from. */}
                   {score.score != null && score.delta != null && score.deltaFrom ? (
