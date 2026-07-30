@@ -35,12 +35,18 @@ export function buildReg73Doc(visit: Reg73VisitFull, branchName: string, company
 
   const blocks: ReportBlock[] = [];
   for (const section of REG73_SECTIONS) {
-    if (section.title === "Sign off") continue; // handled in the footer confirmation
     blocks.push({ kind: "heading", text: section.title });
     for (const field of section.fields) {
-      let value: string;
-      if (field.type === "date") value = fmtDate(val(field.key));
-      else value = val(field.key).trim() || "Not answered";
+      if (field.type === "signature") {
+        const sig = val(field.key);
+        if (sig.startsWith("data:image")) {
+          blocks.push({ kind: "image", dataUrl: sig, width: 220, height: 64, caption: field.label });
+        } else {
+          blocks.push({ kind: "paragraph", text: `${field.label}\nNot signed` });
+        }
+        continue;
+      }
+      const value = field.type === "date" ? fmtDate(val(field.key)) : val(field.key).trim() || "Not answered";
       blocks.push({ kind: "paragraph", text: `${field.label}\n${value}` });
     }
   }

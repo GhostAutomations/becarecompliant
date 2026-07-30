@@ -43,6 +43,15 @@ function Block({ block }: { block: ReportBlock }) {
   if (block.kind === "spacer") {
     return <div className="h-3" />;
   }
+  if (block.kind === "image") {
+    return (
+      <div className="mb-3">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={block.dataUrl} alt={block.caption ?? "Image"} className="h-20 rounded bg-white p-1" />
+        {block.caption ? <p className="mt-1 text-[11px] text-white/45">{block.caption}</p> : null}
+      </div>
+    );
+  }
   if (block.kind === "keyvalues") {
     return (
       <div className="grid gap-3 sm:grid-cols-3">

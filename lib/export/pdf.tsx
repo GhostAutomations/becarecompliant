@@ -20,6 +20,7 @@ import {
   StyleSheet,
   Text,
   View,
+  Image,
   renderToBuffer,
 } from "@react-pdf/renderer";
 
@@ -47,6 +48,7 @@ export type ReportBlock =
   | { kind: "paragraph"; text: string }
   | { kind: "keyvalues"; pairs: ReportMetaPair[] }
   | { kind: "table"; columns: ReportColumn[]; rows: ReportCell[][]; caption?: string; emptyText?: string }
+  | { kind: "image"; dataUrl: string; width?: number; height?: number; caption?: string }
   | { kind: "spacer" };
 
 export type ReportDoc = {
@@ -179,6 +181,13 @@ function ReportDocument({ doc }: { doc: ReportDoc }) {
           if (block.kind === "paragraph") return <Text key={i} style={styles.paragraph}>{block.text}</Text>;
           if (block.kind === "keyvalues")
             return <View key={i} style={styles.metaGrid}>{metaCells(block.pairs)}</View>;
+          if (block.kind === "image")
+            return (
+              <View key={i} style={{ marginBottom: 8 }} wrap={false}>
+                <Image src={block.dataUrl} style={{ width: block.width ?? 200, height: block.height ?? 74 }} />
+                {block.caption ? <Text style={{ fontSize: 8, color: MUTED, marginTop: 2 }}>{block.caption}</Text> : null}
+              </View>
+            );
           if (block.kind === "spacer") return <View key={i} style={{ height: 10 }} />;
           return <TableBlock key={i} {...block} />;
         })}
