@@ -7,7 +7,7 @@
 
 import type { Reg73Prefill } from "@/lib/reg73/prefill";
 
-export type Reg73FieldType = "yesno" | "text" | "date" | "signature";
+export type Reg73FieldType = "yesno" | "text" | "date" | "signature" | "checkbox";
 
 export type Reg73Field = {
   key: string;
@@ -95,7 +95,12 @@ export const REG73_SECTIONS: Reg73Section[] = [
   {
     title: "Sign off",
     fields: [
-      { key: "ri_signature", label: "Responsible Individual signature", type: "signature" },
+      {
+        key: "confirm_accurate",
+        label: "I confirm the information in this report is correct and that I will sign the printed version.",
+        type: "checkbox",
+      },
+      { key: "ri_signature", label: "Responsible Individual signature (optional, draw or upload)", type: "signature" },
     ],
   },
 ];

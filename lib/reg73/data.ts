@@ -36,6 +36,29 @@ export async function listReg73Visits(companyId: string, branchId: string): Prom
   return (data as Reg73VisitRow[] | null) ?? [];
 }
 
+export type Reg73VisitListItem = Reg73VisitRow & { branch_name: string };
+
+/** All visits the caller can see, optionally limited to given branches (managers). */
+export async function listReg73VisitsForBranches(
+  companyId: string,
+  branchIds: string[] | null,
+): Promise<Reg73VisitListItem[]> {
+  const supabase = await createClient();
+  let q = supabase
+    .from("reg73_visits")
+    .select("id, branch_id, reference, ri_name, start_date, end_date, status, submitted_at, updated_at, branches(name)")
+    .eq("company_id", companyId)
+    .order("updated_at", { ascending: false });
+  if (branchIds) q = q.in("branch_id", branchIds);
+  const { data } = await q;
+  return ((data as unknown as (Reg73VisitRow & { branches: { name: string } | { name: string }[] | null })[] | null) ?? []).map(
+    (r) => ({
+      ...r,
+      branch_name: Array.isArray(r.branches) ? r.branches[0]?.name ?? "" : r.branches?.name ?? "",
+    }),
+  );
+}
+
 export async function getReg73Visit(id: string): Promise<Reg73VisitFull | null> {
   const supabase = await createClient();
   const { data } = await supabase

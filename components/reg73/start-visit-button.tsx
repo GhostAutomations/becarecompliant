@@ -18,7 +18,7 @@ export default function StartVisitButton({ branchId }: { branchId: string }) {
     <form action={action}>
       <input type="hidden" name="branch_id" value={branchId} />
       <button type="submit" disabled={pending} className="btn-primary px-3 py-2 text-xs">
-        {pending ? "Preparing…" : "Start new visit"}
+        {pending ? "Preparing…" : "Run R73"}
       </button>
       {state.error ? <p className="form-error mt-1">{state.error}</p> : null}
     </form>

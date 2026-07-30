@@ -72,7 +72,7 @@ export default function ReportsPanel({ entitled, isAdmin }: { entitled: boolean;
           locked={proLocked}
         />
         <ReportCard
-          title="Regulation 73 (RI branch visit)"
+          title="Regulation 73"
           description="The Responsible Individual branch visit report, one per branch, pre-filled from the site with KPIs, complaints, training and satisfaction. AI drafts the narrative, you edit and sign."
           viewHref="/reports/reg73"
           locked={proLocked}

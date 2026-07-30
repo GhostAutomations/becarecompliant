@@ -46,7 +46,10 @@ export function buildReg73Doc(visit: Reg73VisitFull, branchName: string, company
         }
         continue;
       }
-      const value = field.type === "date" ? fmtDate(val(field.key)) : val(field.key).trim() || "Not answered";
+      let value: string;
+      if (field.type === "date") value = fmtDate(val(field.key));
+      else if (field.type === "checkbox") value = val(field.key) === "Yes" ? "Confirmed" : "Not confirmed";
+      else value = val(field.key).trim() || "Not answered";
       blocks.push({ kind: "paragraph", text: `${field.label}\n${value}` });
     }
   }

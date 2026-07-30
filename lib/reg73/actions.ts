@@ -26,6 +26,8 @@ function collect(formData: FormData): Record<string, string> {
     const v = formData.get(key);
     if (typeof v === "string") out[key] = v;
   }
+  const ai = formData.get("_ai_fields");
+  if (typeof ai === "string") out._ai_fields = ai;
   return out;
 }
 
@@ -118,6 +120,35 @@ async function persist(
   return null;
 }
 
+export async function deleteReg73Visits(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const g = await guard();
+  if ("error" in g) return { error: g.error };
+  const ids = String(formData.get("ids") ?? "").split(",").filter(Boolean);
+  if (ids.length === 0) return { error: "Select at least one report to delete." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("reg73_visits")
+    .delete()
+    .in("id", ids)
+    .eq("company_id", g.profile.company_id!);
+  if (error) return { error: error.message };
+
+  await writeAudit({
+    companyId: g.profile.company_id!,
+    actorId: g.profile.id,
+    actorEmail: g.profile.email,
+    actorRole: g.profile.role,
+    action: "reg73.deleted",
+    entityType: "reg73_visit",
+    entityId: null,
+    summary: `Deleted ${ids.length} Regulation 73 report(s)`,
+    metadata: { count: ids.length },
+  });
+  revalidatePath("/reports/reg73/reports");
+  return { ok: `${ids.length} report(s) deleted.` };
+}
+
 export async function saveReg73(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const id = String(formData.get("visit_id") ?? "");
   if (!id) return { error: "Missing visit." };
@@ -129,8 +160,8 @@ export async function submitReg73(_prev: ActionState, formData: FormData): Promi
   const id = String(formData.get("visit_id") ?? "");
   if (!id) return { error: "Missing visit." };
   const data = collect(formData);
-  if (!data.ri_signature || !data.ri_signature.startsWith("data:image")) {
-    return { error: "Please add the Responsible Individual signature before submitting." };
+  if (data.confirm_accurate !== "Yes") {
+    return { error: "Please tick the confirmation before submitting." };
   }
   const res = await persist(id, data, { status: "submitted", submitted_at: new Date().toISOString() });
   if (res) return res;
@@ -147,9 +178,14 @@ export async function submitReg73(_prev: ActionState, formData: FormData): Promi
     summary: "Submitted a Regulation 73 visit",
     metadata: {},
   });
-  return { redirectTo: `/reports/reg73/${id}` };
+  return { ok: "Submitted." };
 }
 
+/**
+ * Draft the narrative sections from the pulled data and RETURN them as JSON in `ok`
+ * (mirrors the complaints AI response pattern). The client sets them into the fields
+ * and marks them gold; nothing is saved until the RI saves the form.
+ */
 export async function aiDraftReg73(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const g = await guard();
   if ("error" in g) return { error: g.error };
@@ -157,13 +193,8 @@ export async function aiDraftReg73(_prev: ActionState, formData: FormData): Prom
   const id = String(formData.get("visit_id") ?? "");
   if (!id) return { error: "Missing visit." };
 
-  const current = collect(formData);
   const supabase = await createClient();
-  const { data: row } = await supabase
-    .from("reg73_visits")
-    .select("prefill")
-    .eq("id", id)
-    .maybeSingle();
+  const { data: row } = await supabase.from("reg73_visits").select("prefill").eq("id", id).maybeSingle();
   if (!row) return { error: "That visit could not be found." };
   const prefill = (row.prefill ?? {}) as Reg73Prefill;
 
@@ -177,21 +208,60 @@ export async function aiDraftReg73(_prev: ActionState, formData: FormData): Prom
   });
   if ("error" in result) return { error: result.error };
 
+  // Normalise to a JSON object of just the AI keys, so the client can trust the shape.
   let drafted: Record<string, string> = {};
   try {
     const match = result.ok.match(/\{[\s\S]*\}/);
-    drafted = JSON.parse(match ? match[0] : result.ok);
+    drafted = JSON.parse(match ? match[0] : result.ok) as Record<string, string>;
   } catch {
     drafted = { plan: result.ok.trim() };
   }
-
-  // Only fill AI fields the RI has left empty, so it never overwrites their edits.
-  const merged = { ...current };
+  const clean: Record<string, string> = {};
   for (const key of REG73_AI_FIELDS) {
-    const val = typeof drafted[key] === "string" ? drafted[key].trim() : "";
-    if (val && !(merged[key] ?? "").trim()) merged[key] = val;
+    if (typeof drafted[key] === "string" && drafted[key].trim()) clean[key] = drafted[key].trim();
   }
+  return { ok: JSON.stringify(clean) };
+}
 
-  const res = await persist(id, merged, {});
-  return res ?? { redirectTo: `/reports/reg73/${id}` };
+/**
+ * Re-pull the live figures from the site and refresh the data-derived boxes (KPI
+ * dashboard, previous actions status), leaving the RI's narrative untouched.
+ */
+export async function refreshReg73Data(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const g = await guard();
+  if ("error" in g) return { error: g.error };
+  const { profile } = g;
+  const id = String(formData.get("visit_id") ?? "");
+  if (!id) return { error: "Missing visit." };
+  const companyId = profile.company_id!;
+
+  const supabase = await createClient();
+  const { data: row } = await supabase
+    .from("reg73_visits")
+    .select("branch_id, data")
+    .eq("id", id)
+    .maybeSingle();
+  if (!row) return { error: "That visit could not be found." };
+
+  const [{ data: branch }, { data: company }] = await Promise.all([
+    supabase.from("branches").select("name").eq("id", row.branch_id as string).maybeSingle(),
+    supabase.from("companies").select("name").eq("id", companyId).maybeSingle(),
+  ]);
+  const branchName = (branch?.name as string) ?? "Branch";
+  const prefill = await getReg73Prefill({
+    companyId,
+    companyName: (company?.name as string) ?? "Company",
+    branchId: row.branch_id as string,
+    branchName,
+  });
+  const fresh = buildInitialData(prefill, (row.data as Record<string, string>)?.ri_name ?? profile.full_name ?? "");
+  const data = { ...(row.data as Record<string, string>), kpi_dashboard: fresh.kpi_dashboard, prev_actions_status: fresh.prev_actions_status };
+
+  const { error } = await supabase
+    .from("reg73_visits")
+    .update({ data, prefill, updated_by: profile.id, updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath(`/reports/reg73/${id}`);
+  return { ok: "Data refreshed from the site." };
 }

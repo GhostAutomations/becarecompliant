@@ -75,6 +75,25 @@ export default function SignaturePad({ name, defaultValue }: { name: string; def
     reset();
     setValue("");
   }
+  function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        reset();
+        // Fit the uploaded image within the pad, keeping its aspect ratio.
+        const scale = Math.min(W / img.width, H / img.height);
+        const w = img.width * scale;
+        const h = img.height * scale;
+        ctx().drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
+        setValue(canvasRef.current!.toDataURL("image/png"));
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  }
 
   return (
     <div>
@@ -93,9 +112,15 @@ export default function SignaturePad({ name, defaultValue }: { name: string; def
         onTouchMove={move}
         onTouchEnd={end}
       />
-      <button type="button" onClick={clear} className="mt-1 block text-xs text-white/50 hover:text-white/80">
-        Clear signature
-      </button>
+      <div className="mt-1 flex items-center gap-3 text-xs">
+        <button type="button" onClick={clear} className="text-white/50 hover:text-white/80">
+          Clear
+        </button>
+        <label className="cursor-pointer text-gold-300 hover:text-gold-400">
+          Upload a saved signature
+          <input type="file" accept="image/*" onChange={onUpload} className="hidden" />
+        </label>
+      </div>
     </div>
   );
 }
