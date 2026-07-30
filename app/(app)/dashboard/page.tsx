@@ -18,7 +18,7 @@ import {
   getComplianceScore,
   getTrainingCompletion,
   getAuditsCompleted,
-  getDueSoonByCheck,
+  getDueSoon,
   getPlannerWeek,
   getRecentActivity,
   getPqsSummary,
@@ -555,7 +555,7 @@ export default async function DashboardPage() {
         : Promise.resolve({ enabled: false } as ComplianceScore),
       companyWide ? getTrainingCompletion(companyId) : Promise.resolve(null),
       getAuditsCompleted(companyId),
-      getDueSoonByCheck(companyId),
+      getDueSoon(companyId),
       canSeePlanner ? getPlannerWeek(user.id) : Promise.resolve([]),
       canSeeComplaints
         ? getComplaintCounts(companyId)
@@ -600,10 +600,6 @@ export default async function DashboardPage() {
    * rather than a hole where two tiles they may not read would have been.
    */
   const spendCols = spend ? "xl:col-span-2" : "xl:col-span-3";
-  // From the SAME lines the breakdown panel lists, so the split cannot drift from the total.
-  const within7 = dueSoon.lines
-    .filter((l) => l.window === "Within 7 days")
-    .reduce((n, l) => n + l.count, 0);
   const healthy =
     score.enabled ? score.requirements.filter((r) => r.status === "green").length : 0;
   const scored = score.enabled ? score.requirements.filter((r) => r.score != null).length : 0;
@@ -961,67 +957,38 @@ export default async function DashboardPage() {
           </div>
         )}
 
-{/* Due in 14 days, swapped down here with On call (Phil, 2026-07-30), which puts the
-            headline directly beside its own breakdown. */}
-          <Tile
-            href="/people"
-            label="Due in 14 days"
-            className="lg:col-span-4"
-            value={dueSoon.total}
-            tone={dueSoon.total > 0 ? "amber" : "green"}
-            icon="calendar"
-            iconTone="orange"
-            sub={
-              <>
-                checks falling due across both registers
-                {dueSoon.total > 0 ? (
-                  <span className="mt-3 block text-white/70">
-                    <span className="font-semibold tabular-nums text-amber-300">{within7}</span>{" "}
-                    within 7 days
-                    <span className="mx-2 text-white/25">|</span>
-                    <span className="font-semibold tabular-nums">{dueSoon.total - within7}</span> in
-                    8 to 14 days
-                  </span>
-                ) : null}
-              </>
-            }
-          />
-
-        {/* THE BREAKDOWN of the Due in 14 days tile, not a second opinion on it (Phil,
-            2026-07-30). Same function, same window, so the lines add up to the headline. */}
-        <Panel title="Due in 14 days, by check" href="/people" className="lg:col-span-3">
-          {dueSoon.lines.length === 0 ? (
-            <p className="text-sm text-white/55">Nothing falls due in the next 14 days.</p>
-          ) : (
-            <>
-              <div className="max-h-[168px] overflow-y-auto pr-1">
-                <ul className="space-y-2">
-                  {dueSoon.lines.map((e) => (
-                    <li
-                      key={`${e.label}-${e.window}`}
-                      className="flex items-center justify-between gap-3 border-b border-white/5 pb-2 last:border-0 last:pb-0"
-                    >
-                      <span className="min-w-0 truncate text-sm text-white/80">
-                        {e.count} {e.label}
-                      </span>
-                      <span
-                        className={`shrink-0 text-[11px] ${
-                          e.window === "Within 7 days" ? "text-amber-300" : "text-white/50"
-                        }`}
-                      >
-                        {e.window}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <p className="mt-2 border-t border-white/10 pt-2 text-[10px] text-white/45">
-                Adds up to the {dueSoon.total} on the Due in 14 days tile. Overdue work is in Open
-                actions.
-              </p>
-            </>
-          )}
-        </Panel>
+{/* THREE windows in place of the Due in 14 days tile and its by check panel (Phil,
+            2026-07-30), which were two boxes answering the same question. NESTED: the 30 day
+            figure includes the 14, and the 14 includes the 7, which is what "due in 30 days"
+            means to a manager. The captions say so rather than leaving it to be worked out. */}
+        <Tile
+          href="/people"
+          label="Due in 7 days"
+          className="lg:col-span-2"
+          value={dueSoon.d7}
+          tone={dueSoon.d7 > 0 ? "amber" : "green"}
+          icon="calendar"
+          iconTone="orange"
+          sub="checks falling due"
+        />
+        <Tile
+          href="/people"
+          label="Due in 14 days"
+          className="lg:col-span-2"
+          value={dueSoon.d14}
+          icon="calendar"
+          iconTone="orange"
+          sub="includes the next 7 days"
+        />
+        <Tile
+          href="/people"
+          label="Due in 30 days"
+          className="lg:col-span-3"
+          value={dueSoon.d30}
+          icon="calendar"
+          iconTone="orange"
+          sub="includes the next 14 days"
+        />
 
         {/* THE PLANNER (Phil, 2026-07-29): this user's own booked tasks, the same rows the
             Planner page reads, as five WORKING day columns. Every column is always drawn, empty

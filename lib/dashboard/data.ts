@@ -513,50 +513,35 @@ export async function getSpendThisMonth(companyId: string): Promise<SpendThisMon
   };
 }
 
-export type DueSoonLine = { label: string; count: number; window: "Within 7 days" | "8 to 14 days" };
-export type DueSoon = { total: number; lines: DueSoonLine[] };
+export type DueSoon = { d7: number; d14: number; d30: number };
 
 /**
- * Checks falling due in the next 14 days, as a total AND broken down by check name.
+ * Checks falling due in the next 7, 14 and 30 days.
  *
- * ONE function feeding both the tile and the panel beside it (Phil, 2026-07-30). They used to be
- * two: a tile counting RECORDS over 14 days under a subtitle that said "checks", and an Expiring
- * soon panel counting CHECKS over 7 and 30 days. Two boxes, two windows, two different units, and
- * no way for a manager to reconcile them. Now the panel is literally the tile's breakdown, so the
- * lines add up to the headline.
+ * NESTED, not three separate bands: the 30 day figure includes the 14, and the 14 includes the 7.
+ * That is what "due in 30 days" means to a manager, and it matches getComplianceBuckets, which
+ * has nested its own windows since the start. Three exclusive bands would need three captions
+ * explaining themselves.
  *
- * Overdue work is deliberately absent: that is the Open actions tile, and counting it twice would
+ * Overdue work is deliberately absent. That is the Open actions tile, and counting it here would
  * make the day look worse than it is.
  */
-export async function getDueSoonByCheck(companyId: string): Promise<DueSoon> {
+export async function getDueSoon(companyId: string): Promise<DueSoon> {
   const rows = await bothRegisters(companyId);
   const today = londonTodayIso();
   const in7 = addDaysIso(today, 7);
   const in14 = addDaysIso(today, 14);
+  const in30 = addDaysIso(today, 30);
 
-  const within7 = new Map<string, number>();
-  const within14 = new Map<string, number>();
-  let total = 0;
+  const out: DueSoon = { d7: 0, d14: 0, d30: 0 };
   for (const r of rows) {
     if (!r.due_date || !r.check_name) continue;
-    if (r.due_date < today || r.due_date > in14) continue;
-    total += 1;
-    const bucket = r.due_date <= in7 ? within7 : within14;
-    bucket.set(r.check_name, (bucket.get(r.check_name) ?? 0) + 1);
+    if (r.due_date < today || r.due_date > in30) continue;
+    out.d30 += 1;
+    if (r.due_date <= in14) out.d14 += 1;
+    if (r.due_date <= in7) out.d7 += 1;
   }
-
-  const byCount = (a: DueSoonLine, b: DueSoonLine) =>
-    b.count - a.count || a.label.localeCompare(b.label);
-  const lines: DueSoonLine[] = [
-    // The soonest window first, whatever the counts: a manager needs this week before next.
-    ...[...within7.entries()]
-      .map(([label, count]) => ({ label, count, window: "Within 7 days" as const }))
-      .sort(byCount),
-    ...[...within14.entries()]
-      .map(([label, count]) => ({ label, count, window: "8 to 14 days" as const }))
-      .sort(byCount),
-  ];
-  return { total, lines };
+  return out;
 }
 
 export type PlannerItem = {

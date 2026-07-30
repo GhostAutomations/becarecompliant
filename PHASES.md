@@ -1639,3 +1639,15 @@ DEFECTS CAUGHT BY REVIEW BEFORE SHIPPING:
   leaving a band top and bottom, and the percentage is 44px.
 - On call: five, NOT scrollable. The fifth line goes in the space that was empty.
 - Recent activity: ten lines instead of six, at 11px with tighter spacing and no scroll.
+
+### 2026-07-30 Three due windows in place of two boxes saying the same thing
+
+- The Due in 14 days tile and its "by check" panel were two boxes answering the same question
+  again. Both are replaced by THREE tiles: Due in 7 days, Due in 14 days, Due in 30 days, filling
+  the same seven columns (2, 2, 3) beside the PQS report.
+- NESTED windows: 30 includes 14, 14 includes 7. That is what "due in 30 days" means to a manager,
+  and it matches getComplianceBuckets, which has nested its windows since the start. The captions
+  say so instead of leaving it to be worked out.
+- `getDueSoonByCheck` is replaced by `getDueSoon`, one pass over both registers returning the three
+  counts. Overdue work stays out of all three: that is the Open actions tile.
+- Nothing else on the dashboard touched.
