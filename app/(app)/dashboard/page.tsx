@@ -348,8 +348,7 @@ function ScoreTile({
 }: {
   name: string;
   measures: PqsMeasure[];
-  /** That scope's own PQS report. Absent for the company wide tile, which has no report page to
-   *  go to: the PQS report is always a single branch. */
+  /** That scope's own PQS report: a branch, or all branches for the company tile. */
   href?: string;
 }) {
   const body = (
@@ -405,7 +404,7 @@ function ScoreTile({
   return href ? (
     <Link
       href={href}
-      aria-label={`${name}. Open the PQS report for this branch.`}
+      aria-label={`${name}. Open the PQS report for this scope.`}
       className={`${skin} block transition hover:shadow-xl hover:ring-2 hover:ring-gold-300/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-300`}
     >
       {body}
@@ -922,7 +921,7 @@ export default async function DashboardPage() {
             the Evidence page and the Evidence PDF came to disagree. */}
         {/* THE PQS REPORT. Every measure Cardiff scores, from the SAME computation the report
             renders (lib/export/on-time getPqsMeasures), so the dashboard and the report can never
-            disagree. Each white tile opens the report for ITS OWN branch. */}
+            disagree. Each white tile opens the report at ITS OWN scope. */}
         {/* NOT a whole card link any more (Phil, 2026-07-30): each white tile is its own link to
             that branch's PQS report, and an anchor inside an anchor is invalid HTML that the
             browser silently unnests. */}
@@ -939,13 +938,13 @@ export default async function DashboardPage() {
                       key={sc.key}
                       name={sc.name}
                       measures={sc.measures}
-                      /* A link only where it will actually open. The report viewer admits
+                      /* A link only where it will actually open: the report viewer admits
                          MANAGER_PLUS_ROLES, so a Supervisor following one would be bounced
-                         straight back to this dashboard. The company wide tile never links: the
-                         PQS report is always a single branch. */
+                         straight back here. The company tile opens the SAME report across all
+                         branches, which is what its figures are. */
                       href={
-                        sc.branchId && canOpenReports
-                          ? `/reports/view/on-time?branch=${sc.branchId}`
+                        canOpenReports
+                          ? `/reports/view/on-time?branch=${sc.branchId ?? "all"}`
                           : undefined
                       }
                     />
@@ -958,11 +957,9 @@ export default async function DashboardPage() {
                   because it is the window Cardiff scores. */}
               <p className="mt-3 shrink-0 border-t border-white/10 pt-2.5 text-[11px] text-white/50">
                 Completion rate {fmtWindowDate(pqsWindow.from)} to {fmtWindowDate(pqsWindow.to)}.
-                {/* Only promises what is actually on the screen: a company with no branches, or a
-                    role the report viewer will not admit, has nothing to open. */}
-                {pqsScopes.some((sc) => sc.branchId) && canOpenReports
-                  ? " Open a branch for its full report."
-                  : null}
+                {/* Only promises what is actually on the screen: a role the report viewer will
+                    not admit has nothing to open. */}
+                {canOpenReports ? " Open a tile for its full report." : null}
               </p>
             </div>
           </Panel>

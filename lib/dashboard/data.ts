@@ -682,8 +682,8 @@ import { getPqsMeasures, defaultOnTimeWindow, type PqsMeasure } from "@/lib/expo
  * COST: this runs the on time engine on dashboard load. It is the honest version and it is
  * slow. The follow up is a cached daily figure, the same fix the training percentage needs.
  */
-/** `branchId` is null for the company wide scope, which has no report page of its own: the PQS
- *  report is always a single branch. */
+/** `branchId` is null for the company wide scope, which opens the PQS report across all
+ *  branches. */
 export type PqsScope = { key: string; name: string; branchId: string | null; measures: PqsMeasure[] };
 
 /**
@@ -697,7 +697,7 @@ export type PqsScope = { key: string; name: string; branchId: string | null; mea
  *
  * COST. Each branch scope is a full run of the PQS engine, so they run in parallel and the
  * company measures are passed in rather than computed twice: the panel below has already worked
- * them out. A single branch company therefore costs nothing extra at all.
+ * them out.
  */
 export async function getPqsScopes(
   companyId: string,

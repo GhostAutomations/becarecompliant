@@ -3,9 +3,10 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 /**
- * Branch picker that lives inside a report View. Changing it reloads the same
- * report for the chosen branch, keeping any date range. The PQS report is always a
- * single branch (local authority monitoring is per contract), so it hides "All".
+ * Branch picker that lives inside a report View. Changing it reloads the same report for the
+ * chosen branch, keeping any date range. "All branches" is offered on every report, the PQS one
+ * included (2026-07-30): a return you send Cardiff is per contract, but a manager still needs to
+ * see the roll up, and the dashboard's company wide figures had nowhere to open otherwise.
  */
 export default function ReportBranchSelect({
   branches,

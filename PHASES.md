@@ -1670,3 +1670,16 @@ DEFECTS CAUGHT BY REVIEW BEFORE SHIPPING:
      would have bounced straight back. Links are gated on the viewer's own role list.
   3. The footnote promised "Open a branch for its full report" even when nothing on the tile was
      a link. It only says it when something is.
+
+### 2026-07-30 The PQS report can be run across all branches
+
+- The company PQS tile now links to `/reports/view/on-time?branch=all` (Phil). To make that mean
+  something, the PQS report itself can now be run across all branches.
+- It used to force a single branch, on the reasoning that local authority monitoring is per
+  contract. That is still true of a return you SEND Cardiff, and it is one click away in the
+  branch picker. It also made the dashboard's company wide figures impossible to open: the tile
+  showing the whole company had nowhere to go.
+- Three places had to agree: the view no longer defaults to the first branch and no longer dead
+  ends a company with no branches, the branch picker offers "All branches" on every report, and
+  the PDF and CSV route no longer refuses "all". A download that refused what the screen had just
+  rendered would be the worse surprise.

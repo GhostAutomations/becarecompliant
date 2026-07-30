@@ -53,10 +53,17 @@ export default async function ReportViewPage({
   const branches = await listBranches(profile.company_id);
   const branchOptions = branches.map((b) => ({ id: b.id, name: b.name }));
 
-  // Branch is chosen inside the view. The PQS report is always a single branch, so
-  // it defaults to the first branch; the others default to all branches.
+  /*
+   * Branch is chosen inside the view, and EVERY report can be run across all branches, the PQS
+   * one included (Phil, 2026-07-30).
+   *
+   * It used to force a single branch, on the reasoning that local authority monitoring is per
+   * contract. That is still true of a return you send Cardiff, and it made the company figures on
+   * the dashboard impossible to open: the tile showing the whole company had nowhere to go. The
+   * per branch view is one click away in the picker, so nothing is lost by allowing the roll up.
+   */
   const branchParam = str(sp.branch);
-  const effectiveBranch = branchParam ?? (isOnTime ? branchOptions[0]?.id ?? null : null);
+  const effectiveBranch = branchParam === "all" ? null : branchParam;
   const branchValue = effectiveBranch ?? "all";
   const scope = await resolveReportScope(profile.company_id, effectiveBranch);
 
@@ -65,19 +72,6 @@ export default async function ReportViewPage({
   const win = isOnTime
     ? resolveOnTimeWindow(str(sp.from), str(sp.to))
     : resolveReportWindow(str(sp.from), str(sp.to));
-
-  // The PQS report needs a branch; only reachable with none when the company has no
-  // branches at all.
-  if (isOnTime && !scope.branchId) {
-    return (
-      <div className="mx-auto max-w-5xl space-y-5">
-        <BackLink href="/reports" label="Back to reports" />
-        <div className="glass-card p-6 text-sm text-white/70">
-          The PQS report is always for a single branch, and this company has no branches set up yet.
-        </div>
-      </div>
-    );
-  }
 
   const base = {
     companyId: profile.company_id,
@@ -125,7 +119,7 @@ export default async function ReportViewPage({
 
       {isTraining ? (
         <div className="glass-card flex flex-wrap items-end gap-3 p-4">
-          <ReportBranchSelect branches={branchOptions} value={branchValue} allowAll={!isOnTime} />
+          <ReportBranchSelect branches={branchOptions} value={branchValue} allowAll />
           <p className="pb-2 text-[11px] text-white/45">
             Live snapshot of training compliance. There is no date range: it always reflects today.
           </p>
@@ -146,7 +140,7 @@ export default async function ReportViewPage({
         <form method="get" action={selfPath} className="glass-card p-4">
           <input type="hidden" name="branch" value={branchValue} />
           <div className="flex flex-wrap items-end gap-3">
-            <ReportBranchSelect branches={branchOptions} value={branchValue} allowAll={!isOnTime} />
+            <ReportBranchSelect branches={branchOptions} value={branchValue} allowAll />
             <div>
               <label htmlFor="from" className="form-label">From</label>
               <input id="from" name="from" type="date" defaultValue={win.from ?? ""} />

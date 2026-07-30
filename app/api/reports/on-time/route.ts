@@ -17,10 +17,10 @@ export async function GET(req: NextRequest) {
 
   const params = req.nextUrl.searchParams;
   const format = params.get("format") === "csv" ? "csv" : "pdf";
+  // All branches is allowed here too (2026-07-30). The view offers it, and a download that
+  // refused what the screen had just rendered would be the worse surprise. A return sent to a
+  // local authority is still per contract: that is the branch option in the picker.
   const scope = await resolveReportScope(profile.company_id, params.get("branch"));
-  if (!scope.branchId) {
-    return exportError("The on time report must be run for a single branch, not all branches.", 400);
-  }
 
   const built = await buildOnTimeReport({
     companyId: profile.company_id,
