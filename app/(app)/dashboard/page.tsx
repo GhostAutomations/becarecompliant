@@ -816,7 +816,7 @@ export default async function DashboardPage() {
             icon="audit"
             iconTone="indigo"
             value={auditsPct == null ? "n/a" : `${auditsPct}%`}
-            sub="audit checks currently in date"
+            sub="audits in date"
           />
           {/* Complaints, in place of the Incidents tile there is no feature for (Phil, 2026-07-30).
               The figure is cases NOT closed, which is what a manager acts on. */}
