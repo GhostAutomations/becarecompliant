@@ -94,14 +94,7 @@ export const REG73_SECTIONS: Reg73Section[] = [
   },
   {
     title: "Sign off",
-    fields: [
-      {
-        key: "confirm_accurate",
-        label: "I confirm the information in this report is correct and that I will sign the printed version.",
-        type: "checkbox",
-      },
-      { key: "ri_signature", label: "Responsible Individual signature (optional, draw or upload)", type: "signature" },
-    ],
+    fields: [{ key: "ri_signature", label: "Responsible Individual signature", type: "signature" }],
   },
 ];
 

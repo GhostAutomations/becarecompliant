@@ -29,7 +29,7 @@ export default async function Reg73ListPage() {
             The Responsible Individual branch visit report, pre-filled from the site. One per branch.
           </p>
         </div>
-        <Link href="/reports/reg73/reports" className="btn-outline px-3 py-2 text-xs">
+        <Link href="/reports/reg73/reports" className="btn-primary px-3 py-2 text-xs">
           R73 Reports
         </Link>
       </div>

@@ -36,6 +36,21 @@ export async function listReg73Visits(companyId: string, branchId: string): Prom
   return (data as Reg73VisitRow[] | null) ?? [];
 }
 
+/** People eligible to undertake an RI branch visit: branch manager and above. */
+export async function listReg73Signatories(companyId: string): Promise<string[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("full_name, role, status")
+    .eq("company_id", companyId)
+    .in("role", ["manager", "registered_manager", "registered_individual", "company_admin"])
+    .order("full_name", { ascending: true });
+  const names = ((data as { full_name: string | null; status: string | null }[] | null) ?? [])
+    .filter((p) => p.full_name && p.status !== "disabled")
+    .map((p) => p.full_name as string);
+  return Array.from(new Set(names));
+}
+
 export type Reg73VisitListItem = Reg73VisitRow & { branch_name: string };
 
 /** All visits the caller can see, optionally limited to given branches (managers). */

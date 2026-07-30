@@ -28,6 +28,8 @@ function collect(formData: FormData): Record<string, string> {
   }
   const ai = formData.get("_ai_fields");
   if (typeof ai === "string") out._ai_fields = ai;
+  const method = formData.get("sign_method");
+  if (typeof method === "string") out.sign_method = method;
   return out;
 }
 
@@ -160,8 +162,10 @@ export async function submitReg73(_prev: ActionState, formData: FormData): Promi
   const id = String(formData.get("visit_id") ?? "");
   if (!id) return { error: "Missing visit." };
   const data = collect(formData);
-  if (data.confirm_accurate !== "Yes") {
-    return { error: "Please tick the confirmation before submitting." };
+  const method = data.sign_method;
+  if (!method) return { error: "Choose a signature option before submitting." };
+  if ((method === "draw" || method === "upload") && !(data.ri_signature ?? "").startsWith("data:image")) {
+    return { error: "Add your signature, or choose to sign the printed version." };
   }
   const res = await persist(id, data, { status: "submitted", submitted_at: new Date().toISOString() });
   if (res) return res;

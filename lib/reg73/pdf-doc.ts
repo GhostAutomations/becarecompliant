@@ -42,7 +42,8 @@ export function buildReg73Doc(visit: Reg73VisitFull, branchName: string, company
         if (sig.startsWith("data:image")) {
           blocks.push({ kind: "image", dataUrl: sig, width: 220, height: 64, caption: field.label });
         } else {
-          blocks.push({ kind: "paragraph", text: `${field.label}\nNot signed` });
+          const note = val("sign_method") === "printed" ? "To be signed on the printed version" : "Not signed";
+          blocks.push({ kind: "paragraph", text: `${field.label}\n${note}` });
         }
         continue;
       }

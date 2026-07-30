@@ -6,7 +6,7 @@ import { IDLE_STATE } from "@/lib/forms";
 import { REG73_SECTIONS, REG73_AI_FIELDS } from "@/lib/reg73/spec";
 import { saveReg73, submitReg73, aiDraftReg73, refreshReg73Data } from "@/lib/reg73/actions";
 import type { Reg73VisitFull } from "@/lib/reg73/data";
-import SignaturePad from "@/components/reg73/signature-pad";
+import Reg73Signature from "@/components/reg73/reg73-signature";
 
 function fmtDate(v: string): string {
   if (!v) return "Not answered";
@@ -17,16 +17,17 @@ function fmtDate(v: string): string {
 export default function Reg73Form({
   visit,
   canEdit,
+  signatories,
 }: {
   visit: Reg73VisitFull;
   branchName: string;
   canEdit: boolean;
+  signatories: string[];
 }) {
   const router = useRouter();
   const data = (visit.data ?? {}) as Record<string, string>;
   const val = (k: string) => (typeof data[k] === "string" ? data[k] : "");
 
-  // AI fields are controlled so AI can fill them and they can render in gold.
   const [aiValues, setAiValues] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {};
     for (const k of REG73_AI_FIELDS) init[k] = val(k);
@@ -84,6 +85,7 @@ export default function Reg73Form({
   }
 
   const error = submitState.error || saveState.error || refreshState.error || aiError;
+  const riOptions = Array.from(new Set([val("ri_name"), ...signatories].filter(Boolean)));
 
   // Read-only (submitted, or the viewer cannot edit).
   if (!canEdit || visit.status === "submitted") {
@@ -112,11 +114,11 @@ export default function Reg73Form({
                       val(f.key).startsWith("data:image") ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={val(f.key)} alt="Responsible Individual signature" className="mt-1 h-20 rounded bg-white p-1" />
+                      ) : val("sign_method") === "printed" ? (
+                        "To be signed on the printed version"
                       ) : (
                         "Not signed"
                       )
-                    ) : f.type === "checkbox" ? (
-                      val(f.key) === "Yes" ? "Confirmed" : "Not confirmed"
                     ) : f.type === "date" ? (
                       fmtDate(val(f.key))
                     ) : (
@@ -148,70 +150,84 @@ export default function Reg73Form({
         <button type="button" onClick={draftWithAi} disabled={busy} className="btn-outline px-3 py-2 text-xs">
           {drafting ? "Drafting…" : "Draft narrative with AI"}
         </button>
-        <button type="submit" formAction={submitAction} disabled={busy} className="btn-primary ml-auto px-4 py-2 text-xs">
-          {submitPending ? "Submitting…" : "Save and submit"}
-        </button>
         {saveState.ok ? <span className="w-full text-xs text-emerald-300">{saveState.ok}</span> : null}
         {refreshState.ok ? <span className="w-full text-xs text-emerald-300">{refreshState.ok}</span> : null}
         {error ? <span className="w-full text-xs text-red-300">{error}</span> : null}
       </div>
 
-      {REG73_SECTIONS.map((section) => (
-        <div key={section.title} className="glass-card space-y-4 p-5">
-          <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">{section.title}</h2>
-            {section.intro ? <p className="mt-1 text-xs text-white/45">{section.intro}</p> : null}
-          </div>
-          {section.fields.map((f) => {
-            const id = `f_${f.key}`;
-            const isAi = REG73_AI_FIELDS.includes(f.key);
-            const isGold = gold.has(f.key);
-            return (
-              <div key={f.key}>
-                <label htmlFor={id} className="form-label flex items-center gap-2">
-                  {f.label}
-                  {f.ai ? (
-                    <span className="rounded-full bg-gold-400/15 px-2 py-0.5 text-[10px] font-semibold text-gold-300">AI</span>
-                  ) : null}
-                </label>
-                {f.type === "yesno" ? (
-                  <select id={id} name={f.key} defaultValue={val(f.key)} className="mt-1 max-w-[8rem]">
-                    <option value="">Not answered</option>
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                  </select>
-                ) : f.type === "checkbox" ? (
-                  <label className="mt-1 flex items-center gap-2 text-sm text-white/80">
-                    <input type="checkbox" name={f.key} value="Yes" defaultChecked={val(f.key) === "Yes"} />
-                    Tick to confirm
-                  </label>
-                ) : f.type === "date" ? (
-                  <input id={id} name={f.key} type="date" defaultValue={val(f.key).slice(0, 10)} className="mt-1 max-w-[12rem]" />
-                ) : f.type === "signature" ? (
-                  <SignaturePad name={f.key} defaultValue={val(f.key)} />
-                ) : isAi ? (
-                  <textarea
-                    id={id}
-                    name={f.key}
-                    rows={3}
-                    value={aiValues[f.key] ?? ""}
-                    onChange={(e) => setAiValues((p) => ({ ...p, [f.key]: e.target.value }))}
-                    className={`mt-1 w-full ${isGold ? "text-gold-300" : ""}`}
-                  />
-                ) : (
-                  <textarea id={id} name={f.key} rows={3} defaultValue={val(f.key)} className="mt-1 w-full" />
-                )}
-                {f.hint ? <p className="form-hint">{f.hint}</p> : null}
+      {REG73_SECTIONS.map((section) => {
+        if (section.title === "Sign off") {
+          return (
+            <div key={section.title} className="glass-card space-y-4 p-5">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">{section.title}</h2>
+              <Reg73Signature defaultMethod={val("sign_method")} defaultSignature={val("ri_signature")} />
+              <div className="flex justify-end">
+                <button type="submit" formAction={submitAction} disabled={busy} className="btn-primary px-4 py-2 text-sm">
+                  {submitPending ? "Submitting…" : "Save and submit"}
+                </button>
               </div>
-            );
-          })}
-        </div>
-      ))}
+            </div>
+          );
+        }
+        return (
+          <div key={section.title} className="glass-card space-y-4 p-5">
+            <div>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">{section.title}</h2>
+              {section.intro ? <p className="mt-1 text-xs text-white/45">{section.intro}</p> : null}
+            </div>
+            {section.fields.map((f) => {
+              const id = `f_${f.key}`;
+              const isAi = REG73_AI_FIELDS.includes(f.key);
+              const isGold = gold.has(f.key);
+              return (
+                <div key={f.key}>
+                  <label htmlFor={id} className="form-label flex items-center gap-2">
+                    {f.label}
+                    {f.ai ? (
+                      <span className="rounded-full bg-gold-400/15 px-2 py-0.5 text-[10px] font-semibold text-gold-300">AI</span>
+                    ) : null}
+                  </label>
+                  {f.key === "ri_name" ? (
+                    <select id={id} name={f.key} defaultValue={val(f.key)} className="mt-1 max-w-xs">
+                      {riOptions.length === 0 ? <option value="">Not set</option> : null}
+                      {riOptions.map((n) => (
+                        <option key={n} value={n}>
+                          {n}
+                        </option>
+                      ))}
+                    </select>
+                  ) : f.type === "yesno" ? (
+                    <select id={id} name={f.key} defaultValue={val(f.key)} className="mt-1 max-w-[8rem]">
+                      <option value="">Not answered</option>
+                      <option value="Yes">Yes</option>
+                      <option value="No">No</option>
+                    </select>
+                  ) : f.type === "date" ? (
+                    <input id={id} name={f.key} type="date" defaultValue={val(f.key).slice(0, 10)} className="mt-1 max-w-[12rem]" />
+                  ) : isAi ? (
+                    <textarea
+                      id={id}
+                      name={f.key}
+                      rows={3}
+                      value={aiValues[f.key] ?? ""}
+                      onChange={(e) => setAiValues((p) => ({ ...p, [f.key]: e.target.value }))}
+                      className={`mt-1 w-full ${isGold ? "text-gold-300" : ""}`}
+                    />
+                  ) : (
+                    <textarea id={id} name={f.key} rows={3} defaultValue={val(f.key)} className="mt-1 w-full" />
+                  )}
+                  {f.hint ? <p className="form-hint">{f.hint}</p> : null}
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
 
       <p className="text-xs text-white/40">
         The KPI, previous actions and complaints boxes are pre-filled from the site. Refresh data
-        re-pulls them. Draft narrative with AI fills the tagged boxes in gold for you to edit. Tick
-        the confirmation and save and submit to lock the visit.
+        re-pulls them. Draft narrative with AI fills the tagged boxes in gold for you to edit. Choose
+        a signature option and save and submit to lock the visit.
       </p>
     </form>
   );

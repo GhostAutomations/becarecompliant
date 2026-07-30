@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import BackLink from "@/components/back-link";
-import { getReg73Visit } from "@/lib/reg73/data";
+import { getReg73Visit, listReg73Signatories } from "@/lib/reg73/data";
 import Reg73Form from "@/components/reg73/reg73-form";
 
 export const metadata: Metadata = { title: "Regulation 73 visit" };
@@ -21,7 +21,10 @@ export default async function Reg73VisitPage({ params }: { params: Promise<{ id:
   if (!visit || visit.company_id !== profile.company_id) redirect("/reports/reg73");
 
   const supabase = await createClient();
-  const { data: branch } = await supabase.from("branches").select("name").eq("id", visit.branch_id).maybeSingle();
+  const [{ data: branch }, signatories] = await Promise.all([
+    supabase.from("branches").select("name").eq("id", visit.branch_id).maybeSingle(),
+    listReg73Signatories(profile.company_id),
+  ]);
   const branchName = (branch?.name as string) ?? "Branch";
   const canEdit = EDIT_ROLES.includes(profile.role) && visit.status === "draft";
 
@@ -32,7 +35,7 @@ export default async function Reg73VisitPage({ params }: { params: Promise<{ id:
         <h1 className="page-title">Responsible Individual Branch Visit</h1>
         <p className="page-subtitle">{visit.reference ?? branchName}</p>
       </div>
-      <Reg73Form key={visit.updated_at} visit={visit} branchName={branchName} canEdit={canEdit} />
+      <Reg73Form key={visit.updated_at} visit={visit} branchName={branchName} canEdit={canEdit} signatories={signatories} />
     </div>
   );
 }
