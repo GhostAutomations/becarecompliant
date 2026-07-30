@@ -677,8 +677,11 @@ export default async function DashboardPage() {
           ) : onCallUrgent.length === 0 ? (
             <p className="text-sm text-white/55">Nothing urgent. Every call has been followed up.</p>
           ) : (
+            /* THREE at most (Phil, 2026-07-30). This panel is two tile rows tall, so a fourth
+               row pushed the whole grid taller and every tile beside it stretched with it. The
+               "View all" link in the corner is the way to the rest. */
             <ul className="space-y-2">
-              {onCallUrgent.map((u) => (
+              {onCallUrgent.slice(0, 3).map((u) => (
                 <li key={u.id}>
                   <Link
                     href={`/on-call/log/${u.id}`}
@@ -696,6 +699,11 @@ export default async function DashboardPage() {
                   </Link>
                 </li>
               ))}
+              {onCallUrgent.length > 3 ? (
+                <li className="pt-0.5 text-[11px] text-white/45">
+                  {onCallUrgent.length - 3} more waiting
+                </li>
+              ) : null}
             </ul>
           )}
         </Panel>

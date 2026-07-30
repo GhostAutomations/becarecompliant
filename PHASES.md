@@ -1545,3 +1545,10 @@ companyName is deliberately not part of the key since the computation never read
   directly beside its own "by check" breakdown.
 - Widths are unchanged either side of the swap: both were four columns, and both keep their
   content exactly as it was.
+
+### 2026-07-30 On call shows three, so the tiles keep their size
+
+- The panel is two tile rows tall. A fourth urgent row made it taller than those two rows, and
+  every tile beside it stretched to match, which is what changed the tile sizes after the swap.
+- Capped at three, with a quiet "N more waiting" line when there are others. The corner link is
+  the way to the rest.
