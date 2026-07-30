@@ -17,7 +17,7 @@ import {
   getComplianceScore,
   getTrainingCompletion,
   getAuditsCompleted,
-  getExpiringSoon,
+  getDueSoonByCheck,
   getPlannerWeek,
   getRecentActivity,
   getPqsSummary,
@@ -424,7 +424,7 @@ export default async function DashboardPage() {
     score,
     trainingPct,
     auditsPct,
-    expiring,
+    dueSoon,
     plannerWeek,
     complaints,
     absenceActions,
@@ -438,7 +438,7 @@ export default async function DashboardPage() {
         : Promise.resolve({ enabled: false } as ComplianceScore),
       companyWide ? getTrainingCompletion(companyId) : Promise.resolve(null),
       getAuditsCompleted(companyId),
-      getExpiringSoon(companyId),
+      getDueSoonByCheck(companyId),
       canSeePlanner ? getPlannerWeek(user.id) : Promise.resolve([]),
       canSeeComplaints
         ? getComplaintCounts(companyId)
@@ -470,7 +470,6 @@ export default async function DashboardPage() {
       : [];
 
   const overdue = people.overdue + serviceUsers.overdue;
-  const due14 = people.due14 + serviceUsers.due14;
   const healthy =
     score.enabled ? score.requirements.filter((r) => r.status === "green").length : 0;
   const scored = score.enabled ? score.requirements.filter((r) => r.score != null).length : 0;
@@ -686,8 +685,8 @@ export default async function DashboardPage() {
             href="/people"
             label="Due in 14 days"
             className="xl:col-span-4"
-            value={due14}
-            tone={due14 > 0 ? "amber" : "green"}
+            value={dueSoon.total}
+            tone={dueSoon.total > 0 ? "amber" : "green"}
             sub="checks falling due across both registers"
             icon="calendar"
             iconTone="orange"
@@ -772,29 +771,39 @@ export default async function DashboardPage() {
           )}
         </Panel>
 
-        <Panel title="Expiring soon" href="/people" className="lg:col-span-3">
-          {expiring.length === 0 ? (
-            <p className="text-sm text-white/55">Nothing runs out in the next 30 days.</p>
+        {/* THE BREAKDOWN of the Due in 14 days tile, not a second opinion on it (Phil,
+            2026-07-30). Same function, same window, so the lines add up to the headline. */}
+        <Panel title="Due in 14 days, by check" href="/people" className="lg:col-span-3">
+          {dueSoon.lines.length === 0 ? (
+            <p className="text-sm text-white/55">Nothing falls due in the next 14 days.</p>
           ) : (
-            <ul className="space-y-2">
-              {expiring.map((e) => (
-                <li
-                  key={`${e.label}-${e.window}`}
-                  className="flex items-center justify-between gap-3 border-b border-white/5 pb-2 last:border-0 last:pb-0"
-                >
-                  <span className="min-w-0 truncate text-sm text-white/80">
-                    {e.count} {e.label}
-                  </span>
-                  <span
-                    className={`shrink-0 text-[11px] ${
-                      e.window === "Within 7 days" ? "text-amber-300" : "text-white/50"
-                    }`}
-                  >
-                    {e.window}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <>
+              <div className="max-h-[168px] overflow-y-auto pr-1">
+                <ul className="space-y-2">
+                  {dueSoon.lines.map((e) => (
+                    <li
+                      key={`${e.label}-${e.window}`}
+                      className="flex items-center justify-between gap-3 border-b border-white/5 pb-2 last:border-0 last:pb-0"
+                    >
+                      <span className="min-w-0 truncate text-sm text-white/80">
+                        {e.count} {e.label}
+                      </span>
+                      <span
+                        className={`shrink-0 text-[11px] ${
+                          e.window === "Within 7 days" ? "text-amber-300" : "text-white/50"
+                        }`}
+                      >
+                        {e.window}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <p className="mt-2 border-t border-white/10 pt-2 text-[10px] text-white/45">
+                Adds up to the {dueSoon.total} on the Due in 14 days tile. Overdue work is in Open
+                actions.
+              </p>
+            </>
           )}
         </Panel>
 

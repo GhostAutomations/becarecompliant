@@ -1498,3 +1498,19 @@ companyName is deliberately not part of the key since the computation never read
   Named Holiday, singular, to match the navigation. Links to `/people/holiday`.
 - Both read through RLS, so a Branch Manager sees their own branch's queue and nobody else's.
 - The red tile list at the top of the file is down to Policies up to date and the date range.
+
+### 2026-07-30 Due in 14 days and Expiring soon become one thing
+
+- They were two boxes answering the same question differently: the tile counted RECORDS over 14
+  days under a subtitle that said "checks", and Expiring soon counted CHECKS over 7 and 30 days,
+  truncated to five lines. Two windows, two units, nothing a manager could reconcile.
+- `getExpiringSoon` is replaced by `getDueSoonByCheck`, which returns the total AND the breakdown
+  from one pass. The tile shows the total, the panel lists the lines, and the lines add up to the
+  headline. The panel is retitled "Due in 14 days, by check" so it reads as the breakdown it is.
+- Lines are split "Within 7 days" then "8 to 14 days", soonest window first whatever the counts,
+  because this week matters more than next. All lines are shown, scrolling rather than truncating,
+  since a truncated list cannot add up to the total.
+- The tile's old figure came from `getComplianceBuckets.due14`, which counts records. That is now
+  unused by the dashboard: the subtitle always claimed checks, and now it is telling the truth.
+- Overdue work stays out of both, because it is the Open actions tile and counting it twice would
+  make the day look worse than it is. The panel footnote says so.
