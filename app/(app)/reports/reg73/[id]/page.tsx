@@ -35,7 +35,7 @@ export default async function Reg73VisitPage({ params }: { params: Promise<{ id:
         <h1 className="page-title">Responsible Individual Branch Visit</h1>
         <p className="page-subtitle">{visit.reference ?? branchName}</p>
       </div>
-      <Reg73Form key={visit.updated_at} visit={visit} branchName={branchName} canEdit={canEdit} signatories={signatories} />
+      <Reg73Form visit={visit} branchName={branchName} canEdit={canEdit} signatories={signatories} />
     </div>
   );
 }

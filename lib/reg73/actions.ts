@@ -266,6 +266,7 @@ export async function refreshReg73Data(_prev: ActionState, formData: FormData): 
     .update({ data, prefill, updated_by: profile.id, updated_at: new Date().toISOString() })
     .eq("id", id);
   if (error) return { error: error.message };
-  revalidatePath(`/reports/reg73/${id}`);
-  return { ok: "Data refreshed from the site." };
+  // Return the refreshed boxes so the client updates them in place (the form is not
+  // remounted, so the Saved state and the RI's narrative survive a refresh).
+  return { ok: JSON.stringify({ kpi_dashboard: fresh.kpi_dashboard, prev_actions_status: fresh.prev_actions_status }) };
 }

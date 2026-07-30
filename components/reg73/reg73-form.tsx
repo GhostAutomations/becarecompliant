@@ -1,13 +1,16 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { IDLE_STATE } from "@/lib/forms";
 import { useSavedFlash } from "@/lib/use-saved-flash";
 import { REG73_SECTIONS, REG73_AI_FIELDS } from "@/lib/reg73/spec";
 import { saveReg73, submitReg73, aiDraftReg73, refreshReg73Data } from "@/lib/reg73/actions";
 import type { Reg73VisitFull } from "@/lib/reg73/data";
 import Reg73Signature from "@/components/reg73/reg73-signature";
+
+/** Data derived boxes, pre-filled from the site and re-pulled by Refresh data. Kept
+ *  in client state so a refresh updates them in place, with no remount. */
+const DATA_FIELDS = ["kpi_dashboard", "prev_actions_status"];
 
 function fmtDate(v: string): string {
   if (!v) return "Not answered";
@@ -25,7 +28,6 @@ export default function Reg73Form({
   canEdit: boolean;
   signatories: string[];
 }) {
-  const router = useRouter();
   const data = (visit.data ?? {}) as Record<string, string>;
   const val = (k: string) => (typeof data[k] === "string" ? data[k] : "");
 
@@ -34,45 +36,51 @@ export default function Reg73Form({
     for (const k of REG73_AI_FIELDS) init[k] = val(k);
     return init;
   });
+  const [dataValues, setDataValues] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {};
+    for (const k of DATA_FIELDS) init[k] = val(k);
+    return init;
+  });
   const [gold, setGold] = useState<Set<string>>(
     () => new Set((val("_ai_fields") || "").split(",").filter(Boolean)),
   );
   const [drafting, setDrafting] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [opError, setOpError] = useState<string | null>(null);
 
   const [saveState, saveAction, savePending] = useActionState(saveReg73, IDLE_STATE);
   const [submitState, submitAction, submitPending] = useActionState(submitReg73, IDLE_STATE);
-  const [refreshState, refreshAction, refreshPending] = useActionState(refreshReg73Data, IDLE_STATE);
   const [saved, flashSaved, resetSaved] = useSavedFlash();
-  const busy = savePending || submitPending || refreshPending || drafting;
+  const busy = savePending || submitPending || refreshing || drafting;
 
   useEffect(() => {
+    // After submit the visit becomes read only in place (the server action revalidates
+    // the route); move the scroll container that actually scrolls, <main>, to the top so
+    // the Download PDF button is in view. No router.refresh here: it would re-apply Next's
+    // scroll restoration and undo this.
     if (submitState.ok) {
-      // The app scrolls inside <main>, not the window, so move that container to the
-      // top to reveal the Download PDF button on the now read only visit.
-      document.querySelector("main")?.scrollTo({ top: 0 });
-      window.scrollTo({ top: 0 });
-      router.refresh();
+      requestAnimationFrame(() => {
+        const m = document.querySelector("main");
+        if (m) m.scrollTop = 0;
+        window.scrollTo(0, 0);
+      });
     }
-  }, [submitState.ok, router]);
+  }, [submitState.ok]);
   useEffect(() => {
-    if (refreshState.ok) router.refresh();
-  }, [refreshState.ok, router]);
-  useEffect(() => {
-    // The Save draft button turns green and reads "Saved" until the form is edited.
+    // Save draft: the button turns green and reads "Saved" until the form is edited.
     if (saveState.ok) flashSaved();
   }, [saveState, flashSaved]);
 
   async function draftWithAi() {
     setDrafting(true);
-    setAiError(null);
+    setOpError(null);
     resetSaved();
     const fd = new FormData();
     fd.set("visit_id", visit.id);
     const res = await aiDraftReg73(IDLE_STATE, fd);
     setDrafting(false);
     if (res.error || !res.ok) {
-      setAiError(res.error ?? "Could not draft.");
+      setOpError(res.error ?? "Could not draft.");
       return;
     }
     try {
@@ -90,11 +98,35 @@ export default function Reg73Form({
       });
       setGold(nextGold);
     } catch {
-      setAiError("Could not read the AI draft. Try again.");
+      setOpError("Could not read the AI draft. Try again.");
     }
   }
 
-  const error = submitState.error || saveState.error || refreshState.error || aiError;
+  async function refreshData() {
+    setRefreshing(true);
+    setOpError(null);
+    resetSaved();
+    const fd = new FormData();
+    fd.set("visit_id", visit.id);
+    const res = await refreshReg73Data(IDLE_STATE, fd);
+    setRefreshing(false);
+    if (res.error || !res.ok) {
+      setOpError(res.error ?? "Could not refresh the data.");
+      return;
+    }
+    try {
+      const fresh = JSON.parse(res.ok) as Record<string, string>;
+      setDataValues((prev) => {
+        const next = { ...prev };
+        for (const k of DATA_FIELDS) if (typeof fresh[k] === "string") next[k] = fresh[k];
+        return next;
+      });
+    } catch {
+      setOpError("Could not read the refreshed data. Try again.");
+    }
+  }
+
+  const error = submitState.error || saveState.error || opError;
   const riOptions = Array.from(new Set([val("ri_name"), ...signatories].filter(Boolean)));
 
   // Read-only (submitted, or the viewer cannot edit).
@@ -159,8 +191,8 @@ export default function Reg73Form({
         >
           {savePending ? "Saving…" : saved ? "Saved" : "Save draft"}
         </button>
-        <button type="submit" formAction={refreshAction} disabled={busy} className="btn-outline px-3 py-2 text-xs">
-          {refreshPending ? "Refreshing…" : "Refresh data"}
+        <button type="button" onClick={refreshData} disabled={busy} className="btn-outline px-3 py-2 text-xs">
+          {refreshing ? "Refreshing…" : "Refresh data"}
         </button>
         <button type="button" onClick={draftWithAi} disabled={busy} className="btn-outline px-3 py-2 text-xs">
           {drafting ? "Drafting…" : "Draft narrative with AI"}
@@ -191,6 +223,7 @@ export default function Reg73Form({
             {section.fields.map((f) => {
               const id = `f_${f.key}`;
               const isAi = REG73_AI_FIELDS.includes(f.key);
+              const isData = DATA_FIELDS.includes(f.key);
               const isGold = gold.has(f.key);
               return (
                 <div key={f.key}>
@@ -217,6 +250,15 @@ export default function Reg73Form({
                     </select>
                   ) : f.type === "date" ? (
                     <input id={id} name={f.key} type="date" defaultValue={val(f.key).slice(0, 10)} className="mt-1 max-w-[12rem]" />
+                  ) : isData ? (
+                    <textarea
+                      id={id}
+                      name={f.key}
+                      rows={3}
+                      value={dataValues[f.key] ?? ""}
+                      onChange={(e) => setDataValues((p) => ({ ...p, [f.key]: e.target.value }))}
+                      className="mt-1 w-full"
+                    />
                   ) : isAi ? (
                     <textarea
                       id={id}
