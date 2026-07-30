@@ -154,12 +154,14 @@ function Tile({
    */
   const inner = (
     <div className="flex h-full items-start gap-3">
-      {icon ? <TileIcon name={icon} tone={iconTone} /> : null}
       <div className="flex min-w-0 flex-1 flex-col">
         <p className="truncate text-xs uppercase tracking-wide text-white/50">{label}</p>
         <p className={`mt-2 text-4xl font-bold leading-none tabular-nums ${valueClass}`}>{value}</p>
         <div className="mt-2 min-h-[30px] text-[11px] leading-snug text-white/55">{sub}</div>
       </div>
+      {/* Top RIGHT (Phil, 2026-07-30). Same element, same size, last in the row instead of
+          first, so nothing about the tile's shape changes. */}
+      {icon ? <TileIcon name={icon} tone={iconTone} /> : null}
     </div>
   );
   return href ? (
@@ -204,7 +206,6 @@ function SplitTile({
   // starting at the same offset, so a split tile lines up with the single figure tiles beside it.
   const inner = (
     <div className="flex h-full items-start gap-3">
-      {icon ? <TileIcon name={icon} tone={iconTone} /> : null}
       <div className="flex min-w-0 flex-1 flex-col">
         <p className="truncate text-xs uppercase tracking-wide text-white/50">{label}</p>
         <div className="mt-2 flex items-start justify-between gap-2">
@@ -218,6 +219,8 @@ function SplitTile({
           ))}
         </div>
       </div>
+      {/* Top right, matching Tile. */}
+      {icon ? <TileIcon name={icon} tone={iconTone} /> : null}
     </div>
   );
   return href ? (
@@ -257,7 +260,6 @@ function MissingTile({
   return (
     <div className={`h-full rounded-2xl border border-red-400/25 bg-red-500/[0.07] p-4 ${className}`}>
       <div className="flex items-start gap-3">
-        {icon ? <TileIcon name={icon} tone="red" /> : null}
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <p className="truncate text-xs uppercase tracking-wide text-red-200/80">{label}</p>
@@ -275,6 +277,8 @@ function MissingTile({
           </p>
           <p className="mt-2 min-h-[30px] text-[11px] leading-snug text-red-200/70">{needs}</p>
         </div>
+        {/* Top right, matching Tile. The badge keeps its place beside the label. */}
+        {icon ? <TileIcon name={icon} tone="red" /> : null}
       </div>
     </div>
   );
