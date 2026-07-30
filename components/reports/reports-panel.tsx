@@ -77,6 +77,12 @@ export default function ReportsPanel({ entitled, isAdmin }: { entitled: boolean;
           viewHref="/reports/reg73"
           locked={proLocked}
         />
+        <ReportCard
+          title="Regulation 80"
+          description="The six monthly Quality of Care review, one per branch, pre-filled with staffing, turnover, complaints, audits, outcomes, supervisions and training. Covers the statutory review requirements. AI drafts the narrative, you edit and sign."
+          viewHref="/reports/reg80"
+          locked={proLocked}
+        />
 
         <div className="glass-card p-5">
           <div className="flex items-start justify-between gap-2">
