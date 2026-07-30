@@ -9,6 +9,7 @@ import { getUrgentFollowUps } from "@/lib/on-call/data";
 import { shiftLabel } from "@/lib/on-call/format";
 import { featureEnabled } from "@/lib/billing/tier";
 import { PLANNER_ROLES } from "@/lib/planner/data";
+import { defaultOnTimeWindow } from "@/lib/export/on-time";
 import { getComplaintCounts } from "@/lib/complaints/data";
 import { listAccessibleBranchTypes } from "@/lib/service-users/data";
 import type { PqsMeasure } from "@/lib/export/on-time";
@@ -37,7 +38,6 @@ import {
  *
  * RED TODAY, and what each one needs:
  *   SMS                   sending is not wired up, and no tier includes an SMS allowance
- *   Date range            the tiles are all live figures; nothing is filtered by period yet
  *
  * The old Complaints, Holidays and Absence strips were REMOVED on instruction, since they are not
  * in the design. All three came back on 30 Jul as single tiles carrying the one figure that is
@@ -145,13 +145,20 @@ function Tile({
         : tone === "green"
           ? "text-emerald-300"
           : "text-white";
+  /*
+   * FIXED GEOMETRY (Phil, 2026-07-30). Every tile on this row must put its number at the same
+   * height and its caption at the same height, whatever the length of either. So: the label is
+   * one line and truncates, the number has a fixed size and line height, and the caption sits in
+   * a block with a fixed minimum height. Anything left over falls at the BOTTOM of the tile,
+   * where it does not push the two things a manager actually compares out of line.
+   */
   const inner = (
     <div className="flex h-full items-start gap-3">
       {icon ? <TileIcon name={icon} tone={iconTone} /> : null}
-      <div className="min-w-0 flex-1">
-        <p className="text-xs uppercase tracking-wide text-white/50">{label}</p>
-        <p className={`mt-1 text-2xl font-bold tabular-nums ${valueClass}`}>{value}</p>
-        {sub ? <p className="mt-0.5 text-[11px] text-white/55">{sub}</p> : null}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <p className="truncate text-xs uppercase tracking-wide text-white/50">{label}</p>
+        <p className={`mt-2 text-4xl font-bold leading-none tabular-nums ${valueClass}`}>{value}</p>
+        <div className="mt-2 min-h-[30px] text-[11px] leading-snug text-white/55">{sub}</div>
       </div>
     </div>
   );
@@ -193,18 +200,20 @@ function SplitTile({
         : tone === "green"
           ? "text-emerald-300"
           : "text-white";
+  // The SAME geometry as Tile: label on one line, numbers at the same size and height, captions
+  // starting at the same offset, so a split tile lines up with the single figure tiles beside it.
   const inner = (
     <div className="flex h-full items-start gap-3">
       {icon ? <TileIcon name={icon} tone={iconTone} /> : null}
-      <div className="min-w-0 flex-1">
-        <p className="text-xs uppercase tracking-wide text-white/50">{label}</p>
-        <div className="mt-1 flex items-start justify-around gap-2">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <p className="truncate text-xs uppercase tracking-wide text-white/50">{label}</p>
+        <div className="mt-2 flex items-start justify-between gap-2">
           {pairs.map((p) => (
             <div key={p.caption} className="min-w-0 flex-1 text-center">
-              <p className={`text-2xl font-bold leading-none tabular-nums ${ink(p.tone)}`}>
+              <p className={`text-4xl font-bold leading-none tabular-nums ${ink(p.tone)}`}>
                 {p.value}
               </p>
-              <p className="mt-1 text-[11px] leading-snug text-white/55">{p.caption}</p>
+              <p className="mt-2 min-h-[30px] text-[11px] leading-snug text-white/55">{p.caption}</p>
             </div>
           ))}
         </div>
@@ -251,19 +260,20 @@ function MissingTile({
         {icon ? <TileIcon name={icon} tone="red" /> : null}
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <p className="text-xs uppercase tracking-wide text-red-200/80">{label}</p>
+            <p className="truncate text-xs uppercase tracking-wide text-red-200/80">{label}</p>
             <span className="shrink-0 rounded-full border border-red-400/30 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-red-200/80">
               {badge}
             </span>
           </div>
+          {/* Same geometry as Tile, so a red tile sits in line with the live ones beside it. */}
           <p
-            className={`mt-1 text-2xl font-bold tabular-nums ${
+            className={`mt-2 text-4xl font-bold leading-none tabular-nums ${
               value == null ? "text-red-200/40" : "text-red-200"
             }`}
           >
             {value == null ? <>&mdash;</> : value}
           </p>
-          <p className="mt-0.5 text-[11px] text-red-200/70">{needs}</p>
+          <p className="mt-2 min-h-[30px] text-[11px] leading-snug text-red-200/70">{needs}</p>
         </div>
       </div>
     </div>
@@ -452,6 +462,16 @@ function fmtDay(iso: string): { day: string; date: string } {
   };
 }
 
+/** 30 Jan 2026. Used for the PQS window, so the panel names the days it is actually measuring. */
+function fmtWindowDate(iso: string): string {
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 function fmtWhen(iso: string): string {
   return new Date(iso).toLocaleString("en-GB", {
     day: "numeric",
@@ -555,6 +575,7 @@ export default async function DashboardPage() {
         )
       : [];
 
+  const pqsWindow = defaultOnTimeWindow();
   const overdue = people.overdue + serviceUsers.overdue;
   /*
    * SMS and AI are Admin only, so the row has to work with and without them. With: four tiles
@@ -572,7 +593,7 @@ export default async function DashboardPage() {
   const scored = score.enabled ? score.requirements.filter((r) => r.score != null).length : 0;
 
   return (
-    <div className="w-full space-y-4">
+    <div className="w-full space-y-3">
       <RealtimeRefresh />
       <RealtimeRefresh
         tables={["service_users", "check_instances", "service_user_trackers"]}
@@ -585,20 +606,23 @@ export default async function DashboardPage() {
           <p className="page-subtitle">{subtitle}</p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="rounded-xl border border-red-400/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
-            Date range not wired
-          </span>
+          {/* The date range chip is gone (Phil, 2026-07-30): every figure on this page is live and
+              nothing was ever going to filter by period. "Reports" rather than "Export report",
+              because the button opens the Reports page, it does not export anything. */}
           <Link href="/reports" className="btn-outline text-xs">
-            Export report
+            Reports
           </Link>
         </div>
       </div>
 
-      {/* Row one: the score, and the six figures beside it. */}
-      <div className="grid gap-4 lg:grid-cols-12">
+      {/* Row one: the score, and the eight figures beside it. */}
+      <div className="grid gap-3 lg:grid-cols-12">
         {/* The dial sits BESIDE the percentage, and the breakdown row runs full width beneath
             both, so there is no dead column under the ring. */}
-        <div className="glass-card flex flex-col justify-center gap-4 p-5 lg:col-span-2 lg:row-span-2">
+        {/* NO row span. It had one from when the tiles were two separate blocks; they are one
+            block now, so spanning two rows made the score card taller than everything beside it,
+            which is exactly the misalignment down the top of the page. One row, one height. */}
+        <div className="glass-card flex flex-col justify-center gap-3 p-5 lg:col-span-2">
           {score.enabled ? (
             <>
               <div className="flex items-center gap-3">
@@ -670,7 +694,10 @@ export default async function DashboardPage() {
         {/* Ten columns, not four equal ones. A tile holding a number and four words does
               not need the same width as one holding a sentence, and forcing them equal is what
               left the dead band down the side of Open actions and Audits completed. */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:col-span-10 xl:grid-cols-12">
+          {/* grid-rows-2 and h-full: the two tile rows split the column evenly and fill it, so
+              the block ends exactly level with the score card beside it. Without it the rows size
+              to their content and the two columns finish at different heights. */}
+          <div className="grid h-full gap-3 sm:grid-cols-2 lg:col-span-10 xl:grid-cols-12 xl:grid-rows-2">
           <Tile
             href="/people"
             label="Open actions"
@@ -733,11 +760,11 @@ export default async function DashboardPage() {
           ) : onCallUrgent.length === 0 ? (
             <p className="text-sm text-white/55">Nothing urgent. Every call has been followed up.</p>
           ) : (
-            /* THREE at most (Phil, 2026-07-30). This panel is two tile rows tall, so a fourth
-               row pushed the whole grid taller and every tile beside it stretched with it. The
-               "View all" link in the corner is the way to the rest. */
+            /* FOUR (Phil, 2026-07-30). The two tile rows are taller now the numbers are, and the
+               gaps are tighter, so a fourth row fits inside the height instead of dictating it.
+               The "View all" link in the corner is the way to the rest. */
             <ul className="space-y-2">
-              {onCallUrgent.slice(0, 3).map((u) => (
+              {onCallUrgent.slice(0, 4).map((u) => (
                 <li key={u.id}>
                   <Link
                     href={`/on-call/log/${u.id}`}
@@ -755,9 +782,9 @@ export default async function DashboardPage() {
                   </Link>
                 </li>
               ))}
-              {onCallUrgent.length > 3 ? (
+              {onCallUrgent.length > 4 ? (
                 <li className="pt-0.5 text-[11px] text-white/45">
-                  {onCallUrgent.length - 3} more waiting
+                  {onCallUrgent.length - 4} more waiting
                 </li>
               ) : null}
             </ul>
@@ -865,7 +892,7 @@ export default async function DashboardPage() {
       {/* Rows two and three are ONE grid (Phil, 2026-07-29) so the PQS report can span both:
           it takes the five columns on the left for the full height, On call and Expiring soon
           sit beside it on the top row, the Planner and Recent activity on the bottom row. */}
-      <div className="grid gap-4 lg:grid-cols-12">
+      <div className="grid gap-3 lg:grid-cols-12">
         {/* THE PQS REPORT, not Inspection Readiness (Phil, 2026-07-29). Both figures are read
             from the SAME functions the real PQS report uses, so the two can never quote
             different numbers. The on time completion measures are deliberately not recomputed
@@ -892,8 +919,13 @@ export default async function DashboardPage() {
                   ))}
                 </div>
               </div>
+              {/* The ACTUAL days, not "the last six months". The window rolls: it is recomputed
+                  on every load from the same defaultOnTimeWindow the report and the PDF use, so
+                  the three always name the same period. Deliberately not the user's to change,
+                  because it is the window Cardiff scores. */}
               <p className="mt-3 shrink-0 border-t border-white/10 pt-2.5 text-[11px] text-white/50">
-                Completion rate over the last six months. Open this tile for the full report.
+                Completion rate {fmtWindowDate(pqsWindow.from)} to {fmtWindowDate(pqsWindow.to)}.
+                Open this tile for the full report.
               </p>
             </div>
           </Panel>

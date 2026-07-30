@@ -1593,3 +1593,20 @@ DEFECTS CAUGHT BY REVIEW BEFORE SHIPPING:
   work is unfinished, not red because the figure is missing.
 - Back on the red tile list at the top of the dashboard file, which is the standing to do list
   that screen carries.
+
+### 2026-07-30 Top row lines up, numbers get bigger, gaps tighten
+
+- THE MISALIGNMENT: the score card still carried `lg:row-span-2` from when the tiles were two
+  separate grid blocks. They are one block now, so the span made the score card a row taller than
+  everything beside it. One row each, both stretch, both finish level.
+- The tile block is `h-full` with `xl:grid-rows-2`, so the two tile rows split the column evenly
+  and fill it instead of sizing to whichever tile happened to have the longest caption.
+- FIXED GEOMETRY on all eight tiles: label on one line and truncating, number at a fixed size
+  (text-4xl, leading-none) and a caption block with a fixed minimum height. Every number sits at
+  the same height and every caption starts at the same height, whatever their length. Slack falls
+  at the bottom of the tile, where it does not push apart the two things a manager compares.
+  `SplitTile` and `MissingTile` use the same geometry, so a two figure tile and a red tile line up
+  with the live ones beside them.
+- Gaps tightened from 4 to 3 throughout the page and between the page's blocks.
+- On call is back to FOUR: the tile rows are taller now the numbers are, and the gaps are tighter,
+  so a fourth row fits inside the height instead of dictating it.
