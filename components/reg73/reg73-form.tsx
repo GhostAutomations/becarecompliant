@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { IDLE_STATE } from "@/lib/forms";
+import { useSavedFlash } from "@/lib/use-saved-flash";
 import { REG73_SECTIONS, REG73_AI_FIELDS } from "@/lib/reg73/spec";
 import { saveReg73, submitReg73, aiDraftReg73, refreshReg73Data } from "@/lib/reg73/actions";
 import type { Reg73VisitFull } from "@/lib/reg73/data";
@@ -42,10 +43,14 @@ export default function Reg73Form({
   const [saveState, saveAction, savePending] = useActionState(saveReg73, IDLE_STATE);
   const [submitState, submitAction, submitPending] = useActionState(submitReg73, IDLE_STATE);
   const [refreshState, refreshAction, refreshPending] = useActionState(refreshReg73Data, IDLE_STATE);
+  const [saved, flashSaved, resetSaved] = useSavedFlash();
   const busy = savePending || submitPending || refreshPending || drafting;
 
   useEffect(() => {
     if (submitState.ok) {
+      // The app scrolls inside <main>, not the window, so move that container to the
+      // top to reveal the Download PDF button on the now read only visit.
+      document.querySelector("main")?.scrollTo({ top: 0 });
       window.scrollTo({ top: 0 });
       router.refresh();
     }
@@ -53,10 +58,15 @@ export default function Reg73Form({
   useEffect(() => {
     if (refreshState.ok) router.refresh();
   }, [refreshState.ok, router]);
+  useEffect(() => {
+    // The Save draft button turns green and reads "Saved" until the form is edited.
+    if (saveState.ok) flashSaved();
+  }, [saveState, flashSaved]);
 
   async function draftWithAi() {
     setDrafting(true);
     setAiError(null);
+    resetSaved();
     const fd = new FormData();
     fd.set("visit_id", visit.id);
     const res = await aiDraftReg73(IDLE_STATE, fd);
@@ -136,13 +146,18 @@ export default function Reg73Form({
 
   // Editable draft.
   return (
-    <form className="space-y-4">
+    <form className="space-y-4" onChange={resetSaved}>
       <input type="hidden" name="visit_id" value={visit.id} />
       <input type="hidden" name="_ai_fields" value={[...gold].join(",")} />
 
       <div className="glass-card flex flex-wrap items-center gap-2 p-3">
-        <button type="submit" formAction={saveAction} disabled={busy} className="btn-outline px-3 py-2 text-xs">
-          {savePending ? "Saving…" : "Save draft"}
+        <button
+          type="submit"
+          formAction={saveAction}
+          disabled={busy}
+          className={saved && !savePending ? "btn-saved px-3 py-2 text-xs" : "btn-primary px-3 py-2 text-xs"}
+        >
+          {savePending ? "Saving…" : saved ? "Saved" : "Save draft"}
         </button>
         <button type="submit" formAction={refreshAction} disabled={busy} className="btn-outline px-3 py-2 text-xs">
           {refreshPending ? "Refreshing…" : "Refresh data"}
@@ -150,8 +165,6 @@ export default function Reg73Form({
         <button type="button" onClick={draftWithAi} disabled={busy} className="btn-outline px-3 py-2 text-xs">
           {drafting ? "Drafting…" : "Draft narrative with AI"}
         </button>
-        {saveState.ok ? <span className="w-full text-xs text-emerald-300">{saveState.ok}</span> : null}
-        {refreshState.ok ? <span className="w-full text-xs text-emerald-300">{refreshState.ok}</span> : null}
         {error ? <span className="w-full text-xs text-red-300">{error}</span> : null}
       </div>
 

@@ -21,7 +21,7 @@ export default function Reg73Signature({
   defaultSignature: string;
 }) {
   const hasSig = defaultSignature.startsWith("data:image");
-  const [method, setMethod] = useState(defaultMethod || (hasSig ? "draw" : "printed"));
+  const [method, setMethod] = useState(defaultMethod || "draw");
   const [uploaded, setUploaded] = useState(hasSig ? defaultSignature : "");
 
   function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
