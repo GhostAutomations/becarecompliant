@@ -1523,3 +1523,16 @@ companyName is deliberately not part of the key since the computation never read
   jobs and now read as two.
 - Each figure carries its own colour. Return to works goes red only when one is past its due date,
   not merely outstanding.
+
+### 2026-07-30 Policies up to date and Due in 14 days become one tile
+
+- The red "Policies up to date" tile is gone and Due in 14 days takes its slot, running down BOTH
+  tile rows in the same four columns (Phil). The two tile grids had to become one grid for
+  anything to span them; every other tile keeps its width and position, and both rows still add
+  to twelve.
+- The extra height carries the split: N within 7 days, N in 8 to 14 days, computed from the SAME
+  lines the breakdown panel lists, so the split cannot drift from the total.
+- NOTE FOR THE LIST: policy signing coverage is still not built, and it is no longer visible
+  anywhere on the dashboard. The red tile was the reminder. Item to keep open, not something the
+  screen will nag about now.
+- The red tile list at the top of the file is down to the date range picker alone.

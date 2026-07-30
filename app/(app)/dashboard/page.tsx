@@ -35,7 +35,6 @@ import {
  * screen instead of quietly missing from it. A red tile is a to do list item you can see.
  *
  * RED TODAY, and what each one needs:
- *   Policies up to date   needs signing coverage per policy, not just a count of policies
  *   Date range            the tiles are all live figures; nothing is filtered by period yet
  *
  * The old Complaints, Holidays and Absence strips were REMOVED on instruction, since they are not
@@ -526,6 +525,10 @@ export default async function DashboardPage() {
       : [];
 
   const overdue = people.overdue + serviceUsers.overdue;
+  // From the SAME lines the breakdown panel lists, so the split cannot drift from the total.
+  const within7 = dueSoon.lines
+    .filter((l) => l.window === "Within 7 days")
+    .reduce((n, l) => n + l.count, 0);
   const healthy =
     score.enabled ? score.requirements.filter((r) => r.status === "green").length : 0;
   const scored = score.enabled ? score.requirements.filter((r) => r.score != null).length : 0;
@@ -661,13 +664,34 @@ export default async function DashboardPage() {
             value={trainingPct == null ? "n/a" : `${Math.round(trainingPct)}%`}
             sub="of mandatory training is in date"
           />
-          <MissingTile label="Policies up to date"
-            className="xl:col-span-4"
-            needs="Needs signing coverage, not a policy count"
-            icon="policy" />
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2 lg:col-span-10 xl:grid-cols-12">
+          {/* Policies up to date and Due in 14 days are ONE tile now (Phil, 2026-07-30), showing
+              Due in 14 days. It takes the four column slot Policies held and runs down BOTH rows,
+              so the grid still adds to twelve and no other tile moved. The two tile rows had to
+              become one grid for a tile to span them at all. The 7 day split fills the extra
+              height rather than leaving one number floating in a tall box. */}
+          <Tile
+            href="/people"
+            label="Due in 14 days"
+            className="xl:col-span-4 xl:row-span-2"
+            value={dueSoon.total}
+            tone={dueSoon.total > 0 ? "amber" : "green"}
+            icon="calendar"
+            iconTone="orange"
+            sub={
+              <>
+                checks falling due across both registers
+                {dueSoon.total > 0 ? (
+                  <span className="mt-3 block text-white/70">
+                    <span className="font-semibold tabular-nums text-amber-300">{within7}</span>{" "}
+                    within 7 days
+                    <span className="mx-2 text-white/25">|</span>
+                    <span className="font-semibold tabular-nums">{dueSoon.total - within7}</span> in
+                    8 to 14 days
+                  </span>
+                ) : null}
+              </>
+            }
+          />
           <Tile
             href="/people"
             label="Audits completed"
@@ -733,18 +757,6 @@ export default async function DashboardPage() {
                       : "green",
               },
             ]}
-          />
-          {/* Eight tiles in an eight slot grid. Seven left a hole on the right, and stretching
-              three tiles to fill it made them a third wider than the other four. */}
-          <Tile
-            href="/people"
-            label="Due in 14 days"
-            className="xl:col-span-4"
-            value={dueSoon.total}
-            tone={dueSoon.total > 0 ? "amber" : "green"}
-            sub="checks falling due across both registers"
-            icon="calendar"
-            iconTone="orange"
           />
         </div>
       </div>
