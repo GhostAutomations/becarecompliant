@@ -45,8 +45,32 @@ export default function Reg73ReportsManager({
   function toggleAll() {
     setSelected(allSelected ? new Set() : new Set(reports.map((r) => r.id)));
   }
-  function downloadSelected() {
-    for (const id of selected) window.open(`/api/reports/reg73/${id}/pdf`, "_blank");
+  const [downloading, setDownloading] = useState(false);
+  function fileName(r: Reg73VisitListItem | undefined, id: string): string {
+    const base = (r?.reference ?? `reg73 ${r?.branch_name ?? id}`).replace(/[^\w %.-]+/g, "").trim().replace(/\s+/g, "-");
+    return `${base || "reg73"}.pdf`;
+  }
+  async function downloadSelected() {
+    setDownloading(true);
+    for (const id of selected) {
+      const r = reports.find((x) => x.id === id);
+      try {
+        const res = await fetch(`/api/reports/reg73/${id}/pdf`);
+        if (!res.ok) continue;
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName(r, id);
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      } catch {
+        // skip a file that failed and carry on with the rest
+      }
+    }
+    setDownloading(false);
   }
 
   if (reports.length === 0) {
@@ -60,10 +84,10 @@ export default function Reg73ReportsManager({
         <button
           type="button"
           onClick={downloadSelected}
-          disabled={selected.size === 0}
+          disabled={selected.size === 0 || downloading}
           className="btn-outline px-3 py-2 text-xs disabled:opacity-40"
         >
-          Download selected
+          {downloading ? "Downloading…" : "Download selected"}
         </button>
         {canDelete ? (
           <button
@@ -134,7 +158,7 @@ export default function Reg73ReportsManager({
                 </td>
                 <td className="px-3 py-2 text-white/60">{fmtDate(r.updated_at)}</td>
                 <td className="px-3 py-2">
-                  <a href={`/api/reports/reg73/${r.id}/pdf`} target="_blank" rel="noopener noreferrer" className="text-gold-300 underline">
+                  <a href={`/api/reports/reg73/${r.id}/pdf`} className="text-gold-300 underline">
                     PDF
                   </a>
                 </td>
