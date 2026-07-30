@@ -1651,3 +1651,22 @@ DEFECTS CAUGHT BY REVIEW BEFORE SHIPPING:
 - `getDueSoonByCheck` is replaced by `getDueSoon`, one pass over both registers returning the three
   counts. Overdue work stays out of all three: that is the Open actions tile.
 - Nothing else on the dashboard touched.
+
+### 2026-07-30 Each PQS tile opens its own branch report
+
+- The white tiles inside the PQS panel are individual links to `/reports/view/on-time?branch=<id>`
+  (Phil). The panel itself is no longer one big link, because an anchor inside an anchor is
+  invalid HTML that the browser silently unnests; the whole card form has been removed from
+  `Panel` entirely rather than left as a trap.
+- The COMPANY tile does not link. The PQS report is always a single branch by design, so there is
+  no company wide report page to send anyone to.
+- Caught by review, three defects:
+  1. The one branch case was showing COMPANY figures under a branch name, and would now have
+     opened a branch scoped report with different numbers. Service users can have no branch at
+     all, and people can sit on a branch row that is not an active `kind = 'branch'`. That scope
+     is computed branch scoped now, which costs a single branch company one extra engine run and
+     buys a tile that agrees with the report it opens.
+  2. A Supervisor reaches this dashboard but the report viewer does not admit them, so their link
+     would have bounced straight back. Links are gated on the viewer's own role list.
+  3. The footnote promised "Open a branch for its full report" even when nothing on the tile was
+     a link. It only says it when something is.

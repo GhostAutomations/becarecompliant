@@ -682,7 +682,9 @@ import { getPqsMeasures, defaultOnTimeWindow, type PqsMeasure } from "@/lib/expo
  * COST: this runs the on time engine on dashboard load. It is the honest version and it is
  * slow. The follow up is a cached daily figure, the same fix the training percentage needs.
  */
-export type PqsScope = { key: string; name: string; measures: PqsMeasure[] };
+/** `branchId` is null for the company wide scope, which has no report page of its own: the PQS
+ *  report is always a single branch. */
+export type PqsScope = { key: string; name: string; branchId: string | null; measures: PqsMeasure[] };
 
 /**
  * The PQS measures for the company AND for each branch, as the white score tiles.
@@ -704,12 +706,35 @@ export async function getPqsScopes(
   branches: { id: string; name: string }[],
 ): Promise<PqsScope[]> {
   if (branches.length === 0) {
-    return [{ key: "company", name: companyName, measures: companyMeasures }];
-  }
-  if (branches.length === 1) {
-    return [{ key: branches[0].id, name: branches[0].name, measures: companyMeasures }];
+    return [{ key: "company", name: companyName, branchId: null, measures: companyMeasures }];
   }
   const win = defaultOnTimeWindow();
+  if (branches.length === 1) {
+    /*
+     * BRANCH scoped, not the company figures reused under a branch name.
+     *
+     * They are usually identical and they are not always: a service user can have no branch at
+     * all (the column is nullable), and people can sit on a branch row that is not an active
+     * `kind = 'branch'`, which listAccessibleBranchTypes excludes. Since this tile now OPENS that
+     * branch's report, reusing the company numbers is exactly how a tile and the report it opens
+     * end up quoting different figures.
+     */
+    const b = branches[0];
+    return [
+      {
+        key: b.id,
+        name: b.name,
+        branchId: b.id,
+        measures: await getPqsMeasures({
+          companyId,
+          companyName,
+          branchId: b.id,
+          branchName: b.name,
+          window: win,
+        }),
+      },
+    ];
+  }
   const perBranch = await Promise.all(
     branches.map((b) =>
       getPqsMeasures({
@@ -722,8 +747,8 @@ export async function getPqsScopes(
     ),
   );
   return [
-    { key: "company", name: "Company", measures: companyMeasures },
-    ...branches.map((b, i) => ({ key: b.id, name: b.name, measures: perBranch[i] })),
+    { key: "company", name: "Company", branchId: null, measures: companyMeasures },
+    ...branches.map((b, i) => ({ key: b.id, name: b.name, branchId: b.id, measures: perBranch[i] })),
   ];
 }
 

@@ -297,10 +297,11 @@ function MissingTile({
 }
 
 /**
- * A panel. Pass linkLabel={null} with an href and the WHOLE card becomes the link, with no
- * separate link in the corner (Phil, 2026-07-29). Only use that form when nothing inside the
- * panel is itself a link, because an anchor inside an anchor is invalid HTML and the browser
- * silently unnests it.
+ * A panel: a title, an optional corner link, and a body that fills the card.
+ *
+ * The whole card link form is GONE (2026-07-30). It existed for the PQS panel, whose white tiles
+ * are now links in their own right, and keeping it would have invited an anchor inside an anchor:
+ * invalid HTML that the browser silently unnests.
  */
 function Panel({
   title,
@@ -311,16 +312,15 @@ function Panel({
 }: {
   title: string;
   href?: string;
-  linkLabel?: string | null;
+  linkLabel?: string;
   children: ReactNode;
   className?: string;
 }) {
-  const wholeCard = Boolean(href) && linkLabel === null;
-  const body = (
-    <>
+  return (
+    <section className={`glass-card flex h-full flex-col p-4 ${className}`} aria-label={title}>
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">{title}</h2>
-        {href && !wholeCard ? (
+        {href ? (
           <Link
             href={href}
             className="shrink-0 text-xs text-gold-300 underline underline-offset-4 hover:text-gold-400"
@@ -330,24 +330,6 @@ function Panel({
         ) : null}
       </div>
       <div className="mt-4 min-h-0 flex-1">{children}</div>
-    </>
-  );
-
-  if (wholeCard && href) {
-    return (
-      <Link
-        href={href}
-        aria-label={`${title}. Open the full report.`}
-        className={`glass-card flex h-full flex-col p-4 transition hover:border-white/20 hover:bg-white/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-300 ${className}`}
-      >
-        {body}
-      </Link>
-    );
-  }
-
-  return (
-    <section className={`glass-card flex h-full flex-col p-4 ${className}`} aria-label={title}>
-      {body}
     </section>
   );
 }
@@ -359,9 +341,19 @@ function Panel({
  * theme rag inks: `rag-red` and `rag-amber` are #dc2626 and #b45309, drawn for white surfaces.
  * The dark surface variants used elsewhere on this page would be unreadable here.
  */
-function ScoreTile({ name, measures }: { name: string; measures: PqsMeasure[] }) {
-  return (
-    <div className="rounded-xl bg-white p-3 shadow-lg shadow-black/20">
+function ScoreTile({
+  name,
+  measures,
+  href,
+}: {
+  name: string;
+  measures: PqsMeasure[];
+  /** That scope's own PQS report. Absent for the company wide tile, which has no report page to
+   *  go to: the PQS report is always a single branch. */
+  href?: string;
+}) {
+  const body = (
+    <>
       <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-navy-900" title={name}>
         {name}
       </p>
@@ -406,7 +398,20 @@ function ScoreTile({ name, measures }: { name: string; measures: PqsMeasure[] })
           );
         })}
       </ul>
-    </div>
+    </>
+  );
+
+  const skin = "rounded-xl bg-white p-3 shadow-lg shadow-black/20";
+  return href ? (
+    <Link
+      href={href}
+      aria-label={`${name}. Open the PQS report for this branch.`}
+      className={`${skin} block transition hover:shadow-xl hover:ring-2 hover:ring-gold-300/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-300`}
+    >
+      {body}
+    </Link>
+  ) : (
+    <div className={skin}>{body}</div>
   );
 }
 
@@ -523,6 +528,8 @@ export default async function DashboardPage() {
   }
 
   const companyWide = MANAGER_PLUS_ROLES.includes(profile.role);
+  // The report viewer admits exactly these roles, so nothing else is given a link into it.
+  const canOpenReports = MANAGER_PLUS_ROLES.includes(profile.role);
   const canSeeOnCall = companyWide && (await featureEnabled(companyId, "on_call"));
   const canSeePqs = await featureEnabled(companyId, "outcomes_satisfaction");
   // The Planner tile shows THIS user's planner, so it is drawn only for someone who has one:
@@ -914,15 +921,13 @@ export default async function DashboardPage() {
             here: that logic lives in the report builder, and a second copy of it is exactly how
             the Evidence page and the Evidence PDF came to disagree. */}
         {/* THE PQS REPORT. Every measure Cardiff scores, from the SAME computation the report
-            renders (lib/export/on-time getPqsMeasures), so the dashboard and the report can
-            never disagree. The link goes to the report itself, not the reports index. */}
+            renders (lib/export/on-time getPqsMeasures), so the dashboard and the report can never
+            disagree. Each white tile opens the report for ITS OWN branch. */}
+        {/* NOT a whole card link any more (Phil, 2026-07-30): each white tile is its own link to
+            that branch's PQS report, and an anchor inside an anchor is invalid HTML that the
+            browser silently unnests. */}
         {pqs && pqs.length > 0 ? (
-          <Panel
-            title="PQS report"
-            href="/reports/view/on-time"
-            linkLabel={null}
-            className="lg:col-span-5 lg:row-span-2"
-          >
+          <Panel title="PQS report" className="lg:col-span-5 lg:row-span-2">
             {/* Two by two (Phil, 2026-07-29). The white tiles ARE the report now: the bar list
                 that used to sit under them said the same thing twice, so it is gone. More than
                 four scopes and the grid scrolls rather than shrinking the tiles. */}
@@ -930,7 +935,20 @@ export default async function DashboardPage() {
               <div className="min-h-0 flex-1 overflow-y-auto pr-1">
                 <div className="grid grid-cols-2 gap-3">
                   {pqsScopes.map((sc) => (
-                    <ScoreTile key={sc.key} name={sc.name} measures={sc.measures} />
+                    <ScoreTile
+                      key={sc.key}
+                      name={sc.name}
+                      measures={sc.measures}
+                      /* A link only where it will actually open. The report viewer admits
+                         MANAGER_PLUS_ROLES, so a Supervisor following one would be bounced
+                         straight back to this dashboard. The company wide tile never links: the
+                         PQS report is always a single branch. */
+                      href={
+                        sc.branchId && canOpenReports
+                          ? `/reports/view/on-time?branch=${sc.branchId}`
+                          : undefined
+                      }
+                    />
                   ))}
                 </div>
               </div>
@@ -940,7 +958,11 @@ export default async function DashboardPage() {
                   because it is the window Cardiff scores. */}
               <p className="mt-3 shrink-0 border-t border-white/10 pt-2.5 text-[11px] text-white/50">
                 Completion rate {fmtWindowDate(pqsWindow.from)} to {fmtWindowDate(pqsWindow.to)}.
-                Open this tile for the full report.
+                {/* Only promises what is actually on the screen: a company with no branches, or a
+                    role the report viewer will not admit, has nothing to open. */}
+                {pqsScopes.some((sc) => sc.branchId) && canOpenReports
+                  ? " Open a branch for its full report."
+                  : null}
               </p>
             </div>
           </Panel>
