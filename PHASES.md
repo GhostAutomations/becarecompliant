@@ -1552,3 +1552,33 @@ companyName is deliberately not part of the key since the computation never read
   every tile beside it stretched to match, which is what changed the tile sizes after the swap.
 - Capped at three, with a quiet "N more waiting" line when there are others. The corner link is
   the way to the rest.
+
+### 2026-07-30 SMS and AI tiles fill the dead space
+
+- Holiday and Complaints were three columns carrying two columns of content. Both drop to two, and
+  an SMS tile and an AI credits tile take the space (Phil). Both rows still total twelve.
+- SMS: sent this month, with a segments line only when a message ran to more than one. NO
+  "remaining": nothing in the product includes an SMS allowance, so there is nothing to count down
+  from, and Phil chose used only rather than inventing a bundle. When bundles exist the tile has
+  room for it.
+- AI credits: used this month and left, as two figures. Used is ledger spends NET of refunds,
+  because runAi hands a credit back when a request fails.
+- ADMIN ONLY. `usage_events` and `ai_credit_ledger` are Admin only by RLS. When the caller is not
+  an Admin both tiles are skipped AND the four neighbouring tiles keep their original three
+  columns, so a Manager sees exactly the layout they saw before rather than a hole.
+
+DEFECTS CAUGHT BY REVIEW BEFORE SHIPPING:
+
+1. `company_ai_credits` is readable by any company MEMBER, not by Admins, so a founder in a manage
+   as session cannot read it at all. The tile would have shown a red "0 left" for a company with
+   credits. `remaining` is nullable now and renders n/a.
+2. The month boundary was `T00:00:00Z` off a London date. In British Summer Time that is 01:00
+   London, so the first hour of the month was excluded and the dashboard would have disagreed with
+   the Usage page. SMS now reads the `usage_monthly` view, which buckets in London, and the AI
+   ledger uses a real London midnight computed from the zone offset.
+3. The SMS cost line could never render: nothing writes `cost_pence` for an SMS. Replaced with
+   segments, which are real.
+4. A failed read was becoming zero spend. Any read error now returns null and the tiles disappear.
+5. "Running low" was a flat under 10, which means very different things on Business (25 a month)
+   and Black (1000). It is now a quarter of the tier's own grant, read from the same function that
+   issues it.

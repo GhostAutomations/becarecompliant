@@ -24,6 +24,7 @@ import {
   getPqsScopes,
   getAbsenceActions,
   getPendingHolidayApprovals,
+  getSpendThisMonth,
   type ComplianceScore,
 } from "@/lib/dashboard/data";
 
@@ -178,7 +179,7 @@ function SplitTile({
 }: {
   href?: string;
   label: string;
-  pairs: Array<{ value: number; caption: string; tone?: "red" | "amber" | "green" | "none" }>;
+  pairs: Array<{ value: ReactNode; caption: string; tone?: "red" | "amber" | "green" | "none" }>;
   icon?: string;
   iconTone?: string;
   className?: string;
@@ -484,6 +485,7 @@ export default async function DashboardPage() {
     complaints,
     absenceActions,
     holidaysPending,
+    spend,
     activity,
     onCallUrgent,
   ] =
@@ -500,6 +502,11 @@ export default async function DashboardPage() {
         : Promise.resolve(null as Awaited<ReturnType<typeof getComplaintCounts>> | null),
       getAbsenceActions(companyId),
       getPendingHolidayApprovals(companyId),
+      // Admin only: both sources are Admin only by RLS, and a Manager reading them would get
+      // zeros that look like "nothing spent" rather than "not your business".
+      profile.role === "company_admin" || profile.role === "platform_admin"
+        ? getSpendThisMonth(companyId)
+        : Promise.resolve(null as Awaited<ReturnType<typeof getSpendThisMonth>> | null),
       getRecentActivity(companyId),
       canSeeOnCall ? getUrgentFollowUps(companyId) : Promise.resolve([]),
     ]);
@@ -525,6 +532,13 @@ export default async function DashboardPage() {
       : [];
 
   const overdue = people.overdue + serviceUsers.overdue;
+  /*
+   * SMS and AI are Admin only, so the row has to work with and without them. With: four tiles
+   * narrow to two columns each to make room, and both rows still total twelve. Without: those
+   * four keep the three columns they had, and a Manager sees exactly the layout they saw before,
+   * rather than a hole where two tiles they may not read would have been.
+   */
+  const spendCols = spend ? "xl:col-span-2" : "xl:col-span-3";
   // From the SAME lines the breakdown panel lists, so the split cannot drift from the total.
   const within7 = dueSoon.lines
     .filter((l) => l.window === "Within 7 days")
@@ -648,17 +662,44 @@ export default async function DashboardPage() {
           <Tile
             href="/people/holiday"
             label="Holiday"
-            className="xl:col-span-3"
+            className={spendCols}
             icon="calendar"
             iconTone="blue"
             value={holidaysPending}
             tone={holidaysPending > 0 ? "amber" : "green"}
             sub="waiting approval"
           />
+          {/* SMS and AI, in the dead space Holiday and Complaints were carrying (Phil,
+              2026-07-30). No "remaining" for SMS: nothing in the product includes an SMS
+              allowance, so there is nothing to count down from and inventing one would be a
+              wrong number rather than an absent one. */}
+          {spend ? (
+            <Tile
+              href="/settings/usage"
+              label="SMS"
+              className="xl:col-span-2"
+              icon="policy"
+              iconTone="blue"
+              value={spend.sms.sent}
+              sub={
+                <>
+                  sent this month
+                  {/* Segments, not cost: nothing in the product writes a cost per SMS yet, and
+                      segments are what Twilio actually bills. Only shown when a message ran to
+                      more than one segment, otherwise it just repeats the number above. */}
+                  {spend.sms.segments > spend.sms.sent ? (
+                    <span className="mt-1 block text-white/45">
+                      {spend.sms.segments} segments
+                    </span>
+                  ) : null}
+                </>
+              }
+            />
+          ) : null}
           <Tile
             href="/people/training"
             label="Training completion"
-            className="xl:col-span-3"
+            className={spendCols}
             icon="training"
             iconTone="blue"
             value={trainingPct == null ? "n/a" : `${Math.round(trainingPct)}%`}
@@ -722,7 +763,7 @@ export default async function DashboardPage() {
             <Tile
               href="/complaints"
               label="Complaints"
-              className="xl:col-span-3"
+              className={spendCols}
               icon="shield"
               iconTone="red"
               value={complaints.open + complaints.inProgress}
@@ -741,17 +782,47 @@ export default async function DashboardPage() {
             />
           ) : (
             <MissingTile label="Complaints"
-              className="xl:col-span-3"
+              className={spendCols}
               needs="Complaints is a Pro feature and is not switched on for this company"
               icon="shield" />
           )}
+          {spend ? (
+            <SplitTile
+              href="/settings/billing"
+              label="AI credits"
+              className="xl:col-span-2"
+              icon="training"
+              iconTone="indigo"
+              pairs={[
+                { value: spend.ai.used, caption: "Used" },
+                {
+                  value: spend.ai.remaining ?? "n/a",
+                  caption: "Left",
+                  /*
+                   * Against the tier's OWN monthly grant, read from the function that issues it,
+                   * so "running low" means the same thing on Business (25 a month) as on Black
+                   * (1000). No grant known, no colour: a red zero on an unreadable balance is
+                   * exactly the wrong number this dashboard keeps trying not to print.
+                   */
+                  tone:
+                    spend.ai.remaining == null
+                      ? "none"
+                      : spend.ai.remaining === 0
+                        ? "red"
+                        : spend.ai.monthlyGrant && spend.ai.remaining < spend.ai.monthlyGrant * 0.25
+                          ? "amber"
+                          : "green",
+                },
+              ]}
+            />
+          ) : null}
           {/* Absences, in place of the Risk level tile there is no model for (Phil, 2026-07-30).
               TWO figures, each centred over its own caption: they are two separate jobs, and one
               combined headline hid which of them was waiting on you. */}
           <SplitTile
             href="/people/absence"
             label="Absences"
-            className="xl:col-span-3"
+            className={spendCols}
             icon="risk"
             iconTone="orange"
             pairs={[

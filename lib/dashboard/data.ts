@@ -414,6 +414,105 @@ export async function getPendingHolidayApprovals(companyId: string): Promise<num
   return count ?? 0;
 }
 
+/**
+ * SMS and AI spend for the CURRENT calendar month, London.
+ *
+ * VISIBILITY. `usage_events` and `ai_credit_ledger` are Admin only by RLS, so the dashboard only
+ * asks for this as a Company Admin: a Manager would read an empty set, and an empty set drawn as
+ * "0 sent" is a wrong number rather than an absent one. `company_ai_credits` is different again,
+ * readable by any company MEMBER, which means a founder in a manage as session cannot read it at
+ * all (they are not a member of the company they are acting for). That is why `remaining` is
+ * nullable and renders as n/a rather than a red zero.
+ *
+ * SMS has no included allowance anywhere in the product, so there is deliberately no "remaining"
+ * figure here (Phil, 2026-07-30). Sent and segments are real; a countdown would have to be
+ * invented. AI does have one: a monthly grant by tier plus top ups.
+ *
+ * Returns null if any read FAILS, so the tiles disappear instead of reporting a transient error
+ * as zero spend.
+ */
+export type SpendThisMonth = {
+  sms: { sent: number; segments: number };
+  /** `remaining` is null when the balance cannot be read, never 0 as a stand in. */
+  ai: { used: number; remaining: number | null; monthlyGrant: number | null };
+};
+
+/**
+ * Midnight in London on the first of this month, as a UTC instant.
+ *
+ * NOT `${month}-01T00:00:00Z`: in British Summer Time that is 01:00 London, so the first hour of
+ * the month would be excluded and the dashboard would disagree with the usage_monthly view, which
+ * buckets at `occurred_at at time zone 'Europe/London'`.
+ */
+function londonMonthStartUtcIso(): string {
+  const monthStart = `${londonTodayIso().slice(0, 7)}-01`;
+  const guess = new Date(`${monthStart}T00:00:00Z`);
+  const offsetLabel =
+    new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", timeZoneName: "longOffset" })
+      .formatToParts(guess)
+      .find((p) => p.type === "timeZoneName")?.value ?? "GMT";
+  const m = /GMT([+-])(\d{2}):(\d{2})/.exec(offsetLabel);
+  const minutes = m ? (m[1] === "-" ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3])) : 0;
+  return new Date(guess.getTime() - minutes * 60_000).toISOString();
+}
+
+export async function getSpendThisMonth(companyId: string): Promise<SpendThisMonth | null> {
+  const supabase = await createClient();
+  const monthStart = londonMonthStartUtcIso();
+  const month = `${londonTodayIso().slice(0, 7)}-01`;
+
+  const [usageRes, ledgerRes, balanceRes, companyRes] = await Promise.all([
+    // The VIEW, not the raw table: it buckets the month in London, so this figure and the one on
+    // the Usage page are the same figure.
+    supabase
+      .from("usage_monthly")
+      .select("event_count, units_sum")
+      .eq("company_id", companyId)
+      .eq("kind", "sms")
+      .eq("month", month)
+      .maybeSingle(),
+    // Spends net of refunds. A refunded credit was never used: runAi hands it back when the
+    // request fails, and counting it would overstate what the company got for its money.
+    supabase
+      .from("ai_credit_ledger")
+      .select("delta")
+      .eq("company_id", companyId)
+      .in("reason", ["spend", "refund"])
+      .gte("created_at", monthStart),
+    supabase.from("company_ai_credits").select("balance").eq("company_id", companyId).maybeSingle(),
+    supabase.from("companies").select("tier").eq("id", companyId).maybeSingle(),
+  ]);
+
+  // A failed read is not zero spend. Hide the tiles rather than publish a wrong number.
+  if (usageRes.error || ledgerRes.error) return null;
+
+  const usage = usageRes.data as { event_count: number; units_sum: number } | null;
+  const ledger = ((ledgerRes.data as Array<{ delta: number }> | null) ?? []);
+
+  // The tier's monthly allowance, read from the SAME function that grants it, so the tile's
+  // "running low" cannot drift from what a company actually gets.
+  let monthlyGrant: number | null = null;
+  const tier = (companyRes.data as { tier: string } | null)?.tier ?? null;
+  if (tier) {
+    const { data: grant } = await supabase.rpc("tier_monthly_ai_credits", { t: tier });
+    monthlyGrant = typeof grant === "number" ? grant : null;
+  }
+
+  return {
+    sms: {
+      sent: Number(usage?.event_count ?? 0),
+      segments: Number(usage?.units_sum ?? 0),
+    },
+    ai: {
+      used: Math.max(0, -ledger.reduce((n, r) => n + Number(r.delta ?? 0), 0)),
+      remaining: balanceRes.error
+        ? null
+        : ((balanceRes.data as { balance: number } | null)?.balance ?? null),
+      monthlyGrant,
+    },
+  };
+}
+
 export type DueSoonLine = { label: string; count: number; window: "Within 7 days" | "8 to 14 days" };
 export type DueSoon = { total: number; lines: DueSoonLine[] };
 
