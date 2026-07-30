@@ -164,6 +164,62 @@ function Tile({
 }
 
 /**
+ * A tile carrying TWO figures side by side, each centred over its own label.
+ *
+ * Absences is two separate jobs (invites to send, Return to Works to complete) and adding them
+ * into one headline hid which of the two was actually waiting on you.
+ */
+function SplitTile({
+  href,
+  label,
+  pairs,
+  icon,
+  iconTone = "indigo",
+  className = "",
+}: {
+  href?: string;
+  label: string;
+  pairs: Array<{ value: number; caption: string; tone?: "red" | "amber" | "green" | "none" }>;
+  icon?: string;
+  iconTone?: string;
+  className?: string;
+}) {
+  const ink = (tone?: string) =>
+    tone === "red"
+      ? "text-red-300"
+      : tone === "amber"
+        ? "text-amber-300"
+        : tone === "green"
+          ? "text-emerald-300"
+          : "text-white";
+  const inner = (
+    <div className="flex h-full items-start gap-3">
+      {icon ? <TileIcon name={icon} tone={iconTone} /> : null}
+      <div className="min-w-0 flex-1">
+        <p className="text-xs uppercase tracking-wide text-white/50">{label}</p>
+        <div className="mt-1 flex items-start justify-around gap-2">
+          {pairs.map((p) => (
+            <div key={p.caption} className="min-w-0 flex-1 text-center">
+              <p className={`text-2xl font-bold leading-none tabular-nums ${ink(p.tone)}`}>
+                {p.value}
+              </p>
+              <p className="mt-1 text-[11px] leading-snug text-white/55">{p.caption}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+  return href ? (
+    <Link href={href} className={`glass-card glass-card-hover block h-full p-4 ${className}`}>
+      {inner}
+    </Link>
+  ) : (
+    <div className={`glass-card h-full p-4 ${className}`}>{inner}</div>
+  );
+}
+
+/**
  * A tile in the design that has NOTHING behind it yet.
  *
  * Deliberately loud. A greyed out placeholder gets ignored and then quietly ships; a red one
@@ -651,33 +707,32 @@ export default async function DashboardPage() {
               icon="shield" />
           )}
           {/* Absences, in place of the Risk level tile there is no model for (Phil, 2026-07-30).
-              Meeting invites still to send plus Return to Works still to complete: two lists, one
-              job, so the headline is the total and the subtitle splits it. */}
-          <Tile
+              TWO figures, each centred over its own caption: they are two separate jobs, and one
+              combined headline hid which of them was waiting on you. */}
+          <SplitTile
             href="/people/absence"
             label="Absences"
             className="xl:col-span-3"
             icon="risk"
             iconTone="orange"
-            value={absenceActions.invites + absenceActions.rtw}
-            tone={
-              absenceActions.rtwOverdue > 0
-                ? "red"
-                : absenceActions.invites + absenceActions.rtw > 0
-                  ? "amber"
-                  : "green"
-            }
-            sub={
-              absenceActions.invites + absenceActions.rtw === 0
-                ? "nothing to send or complete"
-                : `${absenceActions.invites} meeting ${
-                    absenceActions.invites === 1 ? "invite" : "invites"
-                  } to send, ${absenceActions.rtw} return to ${
-                    absenceActions.rtw === 1 ? "work" : "works"
-                  } to complete${
-                    absenceActions.rtwOverdue > 0 ? ` (${absenceActions.rtwOverdue} overdue)` : ""
-                  }`
-            }
+            pairs={[
+              {
+                value: absenceActions.invites,
+                caption: "Invites to send",
+                tone: absenceActions.invites > 0 ? "amber" : "green",
+              },
+              {
+                value: absenceActions.rtw,
+                caption: "Return to works due",
+                // Red only when one is actually past its due date, not merely outstanding.
+                tone:
+                  absenceActions.rtwOverdue > 0
+                    ? "red"
+                    : absenceActions.rtw > 0
+                      ? "amber"
+                      : "green",
+              },
+            ]}
           />
           {/* Eight tiles in an eight slot grid. Seven left a hole on the right, and stretching
               three tiles to fill it made them a third wider than the other four. */}

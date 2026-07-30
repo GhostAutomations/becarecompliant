@@ -1514,3 +1514,12 @@ companyName is deliberately not part of the key since the computation never read
   unused by the dashboard: the subtitle always claimed checks, and now it is telling the truth.
 - Overdue work stays out of both, because it is the Open actions tile and counting it twice would
   make the day look worse than it is. The panel footnote says so.
+
+### 2026-07-30 Absences tile carries two figures
+
+- New `SplitTile`: two large numbers spaced apart, each centred over its own caption, "Invites to
+  send" and "Return to works due" (Phil).
+- One combined headline hid which of the two was actually waiting on you. They are two separate
+  jobs and now read as two.
+- Each figure carries its own colour. Return to works goes red only when one is past its due date,
+  not merely outstanding.
