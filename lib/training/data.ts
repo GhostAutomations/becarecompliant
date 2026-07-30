@@ -97,6 +97,31 @@ type PersonRow = {
 };
 
 /** Compute one cell's RAG from the course + the person's record (if any). */
+/**
+ * Read every row, a page at a time, and throw rather than return a short list.
+ *
+ * PostgREST caps a response at 1000 rows and says nothing about it. A training matrix missing its
+ * tail reports people as untrained who are not, so a partial read must fail loudly.
+ */
+async function readAllRows<T>(
+  query: { range: (from: number, to: number) => PromiseLike<{ data: unknown; error: unknown }> },
+  label: string,
+): Promise<T[]> {
+  const PAGE = 1000;
+  const out: T[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await query.range(from, from + PAGE - 1);
+    if (error) {
+      throw new Error(
+        `Training could not read ${label}: ${(error as { message?: string }).message ?? "unknown error"}`,
+      );
+    }
+    const rows = ((data as T[] | null) ?? []);
+    out.push(...rows);
+    if (rows.length < PAGE) return out;
+  }
+}
+
 function cellFor(
   course: TrainingCourse,
   rec: RecordRow | undefined,
@@ -148,9 +173,17 @@ export async function listAllCourses(companyId: string): Promise<TrainingCourse[
 export const getTrainingMatrix = cache(async function getTrainingMatrix(
   companyId: string,
   branchId: string | null,
+  /**
+   * The date to judge "in date" AT. Defaults to today, which is what every screen wants.
+   *
+   * The PQS report passes the END of its reporting period, because a report that says "1 Jan to
+   * 30 Jun" and then prints today's training position is telling you two different things under
+   * one heading (2026-07-30).
+   */
+  asOfIso?: string,
 ): Promise<TrainingMatrix> {
   const supabase = await createClient();
-  const todayIso = todayLondonIso();
+  const todayIso = asOfIso ?? todayLondonIso();
 
   const coursesQ = supabase
     .from("training_courses")
@@ -159,31 +192,51 @@ export const getTrainingMatrix = cache(async function getTrainingMatrix(
     .eq("active", true)
     .order("sort_order", { ascending: true });
 
+  // Ordered by id as well as name: LIMIT/OFFSET paging needs a TOTAL order, and two people can
+  // share a name.
   let peopleQ = supabase
     .from("people")
     .select("id, full_name, branch_id, branches(name)")
     .eq("company_id", companyId)
     .is("archived_at", null)
     .neq("employment_status", "leaver")
-    .order("full_name", { ascending: true });
+    .order("full_name", { ascending: true })
+    .order("id", { ascending: true });
   if (branchId) peopleQ = peopleQ.eq("branch_id", branchId);
 
-  const [{ data: coursesRaw }, { data: peopleRaw }] = await Promise.all([coursesQ, peopleQ]);
+  const [{ data: coursesRaw }, peopleRows] = await Promise.all([
+    coursesQ,
+    readAllRows<PersonRow>(peopleQ, "the People register"),
+  ]);
   const courses = (coursesRaw as CourseRow[] | null) ?? [];
-  const peopleRows = (peopleRaw as unknown as PersonRow[] | null) ?? [];
   const personIds = peopleRows.map((p) => p.id);
 
   const byPerson = new Map<string, Map<string, RecordRow>>();
   if (personIds.length > 0) {
-    const { data: recRaw } = await supabase
-      .from("person_training")
-      .select("id, person_id, course_id, status, completed_on, expiry_on, certificate_path")
-      .eq("company_id", companyId)
-      .in("person_id", personIds);
-    for (const r of (recRaw as RecordRow[] | null) ?? []) {
-      const m = byPerson.get(r.person_id) ?? new Map<string, RecordRow>();
-      m.set(r.course_id, r);
-      byPerson.set(r.person_id, m);
+    /*
+     * PAGED and CHUNKED. Training records are people TIMES courses, so 100 staff on 12 courses is
+     * already 1200 rows and PostgREST caps a response at 1000. Anything past the cut had no
+     * record, and no record renders as "not done", so mandatory training and safeguarding, two
+     * scored PQS measures, came out understated. This bites at a far smaller company than the
+     * people cap does.
+     */
+    const IDS_PER_REQUEST = 200;
+    for (let i = 0; i < personIds.length; i += IDS_PER_REQUEST) {
+      const chunk = personIds.slice(i, i + IDS_PER_REQUEST);
+      const recQ = supabase
+        .from("person_training")
+        .select("id, person_id, course_id, status, completed_on, expiry_on, certificate_path")
+        .eq("company_id", companyId)
+        .in("person_id", chunk)
+        .order("id", { ascending: true });
+      for (const r of await readAllRows<RecordRow>(recQ, "training records")) {
+        // A record completed AFTER the date being judged did not exist then. Ignoring the date
+        // would let training done last week count towards a period that closed in June.
+        if (asOfIso && r.completed_on && r.completed_on > asOfIso) continue;
+        const m = byPerson.get(r.person_id) ?? new Map<string, RecordRow>();
+        m.set(r.course_id, r);
+        byPerson.set(r.person_id, m);
+      }
     }
   }
 
@@ -223,8 +276,9 @@ export const getTrainingMatrix = cache(async function getTrainingMatrix(
     };
   });
 
+  // ROUNDED DOWN, never up (Phil, 2026-07-30). 84.96% is not 85%, and 85 is a PQS band boundary.
   const pct = (ok: number, total: number) =>
-    total === 0 ? null : Math.round((ok / total) * 1000) / 10;
+    total === 0 ? null : Math.floor((ok / total) * 1000) / 10;
 
   return {
     courses,

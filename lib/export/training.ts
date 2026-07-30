@@ -66,7 +66,8 @@ export async function buildTrainingReport(input: {
       total,
     };
   });
-  const pct = (ok: number, total: number) => (total === 0 ? null : Math.round((ok / total) * 1000) / 10);
+  // Rounded DOWN, never up (Phil, 2026-07-30), matching the training matrix this report prints.
+  const pct = (ok: number, total: number) => (total === 0 ? null : Math.floor((ok / total) * 1000) / 10);
 
   const mand = matrix.summary.mandatoryCompliancePct;
   const safe = matrix.summary.safeguardingPct;

@@ -765,7 +765,9 @@ export default async function DashboardPage() {
             className={spendCols}
             icon="training"
             iconTone="blue"
-            value={trainingPct == null ? "n/a" : `${Math.round(trainingPct)}%`}
+            // Math.floor, not Math.round: the figure arrives floored to one decimal, and rounding
+            // it back up here would undo that on the most looked at screen in the app.
+            value={trainingPct == null ? "n/a" : `${Math.floor(trainingPct)}%`}
             sub="of mandatory training is in date"
           />
         {/* On call and Due in 14 days swapped (Phil, 2026-07-30): the urgent follow ups

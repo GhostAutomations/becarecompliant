@@ -39,7 +39,8 @@ export default async function ServiceUserOutcomesPage({
 
   const inScope = outcomes.length;
   const ap = outcomes.filter((o) => isOutcomeAchievingOrProgressing(o.status)).length;
-  const pct = inScope > 0 ? Math.round((ap / inScope) * 100) : null;
+  // Rounded DOWN, never up (Phil, 2026-07-30), matching the outcomes register.
+  const pct = inScope > 0 ? Math.floor((ap / inScope) * 100) : null;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">

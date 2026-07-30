@@ -308,7 +308,7 @@ export async function getComplianceScore(
   const usable = opts.companyWide && havePrev && oneDay && recent;
 
   const prevOverall = usable
-    ? Math.round(scored.reduce((sum, r) => sum + (prev.get(r.code)?.score ?? 0), 0) / scored.length)
+    ? Math.floor(scored.reduce((sum, r) => sum + (prev.get(r.code)?.score ?? 0), 0) / scored.length)
     : null;
 
   return {
@@ -636,7 +636,8 @@ export async function getAuditsCompleted(companyId: string): Promise<number | nu
   const audits = rows.filter((r) => (r.check_name ?? "").toLowerCase().includes("audit"));
   if (audits.length === 0) return null;
   const green = audits.filter((r) => r.rag === "green").length;
-  return Math.round((green / audits.length) * 100);
+  // Rounded DOWN, never up (Phil, 2026-07-30).
+  return Math.floor((green / audits.length) * 100);
 }
 
 export type ActivityLine = { summary: string; when: string };

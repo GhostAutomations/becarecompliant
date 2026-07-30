@@ -169,7 +169,7 @@ export async function getFrameworkReadiness(
       .map((id) => onTimeById.get(id))
       .filter((x): x is number => x != null);
     const onTimePct = rates.length
-      ? Math.round(rates.reduce((a, b) => a + b, 0) / rates.length)
+      ? Math.floor(rates.reduce((a, b) => a + b, 0) / rates.length)
       : null;
     if (onTimePct != null) {
       metrics.push({
@@ -187,9 +187,10 @@ export async function getFrameworkReadiness(
 
     // Score: % of checks not overdue, averaged with any metric percentages.
     const signals: number[] = [];
-    if (checks.total > 0) signals.push(Math.round((100 * (checks.total - checks.overdue)) / checks.total));
+    // Every percentage on a compliance surface is rounded DOWN, never up (Phil, 2026-07-30).
+    if (checks.total > 0) signals.push(Math.floor((100 * (checks.total - checks.overdue)) / checks.total));
     for (const m of metrics) if (m.pct != null) signals.push(m.pct);
-    const score = signals.length ? Math.round(signals.reduce((a, b) => a + b, 0) / signals.length) : null;
+    const score = signals.length ? Math.floor(signals.reduce((a, b) => a + b, 0) / signals.length) : null;
 
     return {
       code: r.code,
@@ -209,7 +210,7 @@ export async function getFrameworkReadiness(
 /** Overall readiness score across the mapped requirements (0-100), or null. */
 export function overallScore(reqs: RequirementReadiness[]): number | null {
   const s = reqs.map((r) => r.score).filter((x): x is number => x != null);
-  return s.length ? Math.round(s.reduce((a, b) => a + b, 0) / s.length) : null;
+  return s.length ? Math.floor(s.reduce((a, b) => a + b, 0) / s.length) : null;
 }
 
 /** The exact overdue and due-soon items behind each requirement, for the

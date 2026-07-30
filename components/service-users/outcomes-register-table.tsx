@@ -23,7 +23,9 @@ export default function OutcomesRegisterTable({
 
   const totalInScope = shown.reduce((n, r) => n + r.total, 0);
   const totalAP = shown.reduce((n, r) => n + r.achievingOrProgressing, 0);
-  const pqsPct = totalInScope > 0 ? Math.round((totalAP / totalInScope) * 100) : null;
+  // Rounded DOWN, never up (Phil, 2026-07-30). This tile is captioned "for the PQS return", so
+  // rounding here where the register floors would put two different numbers on one screen.
+  const pqsPct = totalInScope > 0 ? Math.floor((totalAP / totalInScope) * 100) : null;
 
   return (
     <div className="space-y-6">

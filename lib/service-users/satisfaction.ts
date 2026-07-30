@@ -159,13 +159,14 @@ export async function getSatisfaction(
       latestAnswers: rec?.latestAnswers ?? {},
       positive,
       answered,
-      pct: answered > 0 ? Math.round((positive / answered) * 100) : null,
+      // Rounded DOWN, never up: 84.6% satisfaction is not 85%, and 85 is a PQS band boundary.
+      pct: answered > 0 ? Math.floor((positive / answered) * 100) : null,
     };
   });
 
   return {
     window,
-    pct: totalAnswered > 0 ? Math.round((totalPositive / totalAnswered) * 100) : null,
+    pct: totalAnswered > 0 ? Math.floor((totalPositive / totalAnswered) * 100) : null,
     positive: totalPositive,
     answered: totalAnswered,
     reviewCount,

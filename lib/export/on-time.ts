@@ -25,7 +25,7 @@ import "server-only";
 
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
-import { dueDatesInGap, cycleOnTime, buildAnchors } from "./on-time-cycles";
+import { dueDatesInGap, cycleOnTime, buildAnchors, floorPct } from "./on-time-cycles";
 import {
   type CivilDate,
   type Frequency,
@@ -61,6 +61,9 @@ export type OnTimeStat = {
 };
 
 export type OnTimeCycle = {
+  /** The definition's KEY. The breakdown filters on this, not on the name: two definitions can
+   *  share a name across the two registers. */
+  checkKey: string;
   checkName: string;
   recordName: string;
   branchName: string;
@@ -84,16 +87,12 @@ export function resolveOnTimeWindow(from: string | null, to: string | null): OnT
   };
 }
 
-/** PQS score band from a percentage. 100 = 10, 85 to 99.99 = 7, 70 to 84.99 = 5,
- *  50 to 69.99 = 2, under 50 = 0. */
+/** PQS score band from a percentage. 100 = 10, 85 to 99.9 = 7, 70 to 84.9 = 5,
+ *  50 to 69.9 = 2, under 50 = 0. */
 function pqsBand(onTime: number, total: number): number | null {
-  if (total === 0) return null;
-  if (onTime >= total) return 10; // exactly 100 percent
-  const pct = (onTime / total) * 100;
-  if (pct >= 85) return 7;
-  if (pct >= 70) return 5;
-  if (pct >= 50) return 2;
-  return 0;
+  // Banded from the rate that is PRINTED, not from the raw fraction. Two rules over one number
+  // meant 84.96% could print as 85% and score a 5 on one row and a 7 on another.
+  return bandPct(floorPct(onTime, total));
 }
 
 /** PQS band straight from a percentage (for training and SCW rates). */
@@ -129,6 +128,56 @@ type DefRow = {
 /** London civil date of an evidence timestamp. */
 function tsToCivil(ts: string): CivilDate {
   return civilDateInLondon(new Date(ts));
+}
+
+/** Supabase types a to-one embedded relation as an array in some shapes; normalise to one row. */
+function relName(v: { name: string } | { name: string }[] | null): string | null {
+  if (Array.isArray(v)) return v[0]?.name ?? null;
+  return v?.name ?? null;
+}
+
+type PersonRawShape = {
+  id: string;
+  full_name: string;
+  branch_id: string | null;
+  start_date: string | null;
+  scw_registration_number: string | null;
+  branches: { name: string } | { name: string }[] | null;
+};
+type SuRawShape = {
+  id: string;
+  full_name: string;
+  branch_id: string | null;
+  package_start_date: string | null;
+  branches: { name: string } | { name: string }[] | null;
+};
+
+/**
+ * Read a whole table's worth of rows, a page at a time.
+ *
+ * PostgREST caps a response at 1000 rows and says nothing about it. On a compliance return that
+ * is not a performance detail: it is people quietly missing from their own figures.
+ */
+async function readAll<T>(
+  query: {
+    range: (from: number, to: number) => PromiseLike<{ data: unknown; error: unknown }>;
+  },
+  label: string,
+): Promise<T[]> {
+  const PAGE = 1000;
+  const out: T[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await query.range(from, from + PAGE - 1);
+    /*
+     * A failed page is NOT the end of the data. Swallowing it would return a short register and
+     * report it as a complete one, which is the silently-missing-people bug wearing a different
+     * hat. On a compliance return, failing loudly beats a number that is quietly wrong.
+     */
+    if (error) throw new Error(`PQS report could not read ${label}: ${(error as { message?: string }).message ?? "unknown error"}`);
+    const rows = ((data as T[] | null) ?? []);
+    out.push(...rows);
+    if (rows.length < PAGE) return out;
+  }
 }
 
 export type OnTimeInput = {
@@ -182,46 +231,47 @@ async function computeOnTime(input: OnTimeInput) {
   }
 
   // 2. Active records (branch scoped by RLS + the optional branch filter).
+  // .order("id") is not cosmetic: LIMIT/OFFSET paging over an UNORDERED scan can hand back the
+  // same row twice and miss another, so a carer would be double counted or absent.
   let peopleQ = supabase
     .from("people")
     .select("id, full_name, branch_id, start_date, scw_registration_number, branches(name)")
     .eq("company_id", input.companyId)
     .is("archived_at", null)
-    .neq("employment_status", "leaver");
+    .neq("employment_status", "leaver")
+    .order("id", { ascending: true });
   let suQ = supabase
     .from("service_users")
     .select("id, full_name, branch_id, package_start_date, branches(name)")
     .eq("company_id", input.companyId)
     .is("archived_at", null)
-    .neq("service_status", "cancelled");
+    .neq("service_status", "cancelled")
+    .order("id", { ascending: true });
   if (input.branchId) {
     peopleQ = peopleQ.eq("branch_id", input.branchId);
     suQ = suQ.eq("branch_id", input.branchId);
   }
-  const [{ data: peopleRaw }, { data: suRaw }] = await Promise.all([peopleQ, suQ]);
+  // Both registers are read in FULL. PostgREST caps a response at 1000 rows, and a company past
+  // that would have had the rest of its people silently missing from its own compliance return.
+  const [peopleRaw, suRaw] = await Promise.all([
+    readAll<PersonRawShape>(peopleQ, "the People register"),
+    readAll<SuRawShape>(suQ, "the Service User register"),
+  ]);
 
   type Rec = { id: string; name: string; branch: string; start: string | null; population: "people" | "service_users" };
-  type PersonRaw = {
-    id: string;
-    full_name: string;
-    start_date: string | null;
-    scw_registration_number: string | null;
-    branches: { name: string } | null;
-  };
-  type SuRaw = { id: string; full_name: string; package_start_date: string | null; branches: { name: string } | null };
-  const staff = (peopleRaw as unknown as PersonRaw[] | null) ?? [];
+  const staff = peopleRaw;
   const records: Rec[] = [
     ...staff.map((p) => ({
       id: p.id,
       name: p.full_name,
-      branch: p.branches?.name ?? input.branchName ?? "",
+      branch: relName(p.branches) ?? input.branchName ?? "",
       start: p.start_date,
       population: "people" as const,
     })),
-    ...((suRaw as unknown as SuRaw[] | null) ?? []).map((s) => ({
+    ...suRaw.map((s) => ({
       id: s.id,
       name: s.full_name,
-      branch: s.branches?.name ?? input.branchName ?? "",
+      branch: relName(s.branches) ?? input.branchName ?? "",
       start: s.package_start_date,
       population: "service_users" as const,
     })),
@@ -233,19 +283,42 @@ async function computeOnTime(input: OnTimeInput) {
   const recordIds = records.map((r) => r.id);
   const completionsByKey = new Map<string, CivilDate[]>(); // key = formId|recordId
   if (recordIds.length > 0) {
-    const { data: evRaw } = await supabase
-      .from("evidence")
-      .select("form_id, record_id, submitted_at")
-      .eq("company_id", input.companyId)
-      .in("form_id", formIds)
-      .in("record_id", recordIds)
-      .order("submitted_at", { ascending: true });
-    for (const e of (evRaw as { form_id: string; record_id: string; submitted_at: string }[] | null) ?? []) {
-      const k = `${e.form_id}|${e.record_id}`;
-      const list = completionsByKey.get(k) ?? [];
-      list.push(tsToCivil(e.submitted_at));
-      completionsByKey.set(k, list);
+    /*
+     * PAGED, and sorted with a unique tiebreak (2026-07-30).
+     *
+     * This read had neither. PostgREST caps a response at 1000 rows, so a company with more
+     * completion history than that silently lost the rest, and because the sort was ascending it
+     * lost the NEWEST completions: every check would have read as though it had not been done for
+     * months. `submitted_at` alone is also not a stable sort, so two runs could keep different
+     * rows at the cut and produce two different numbers on the same day. Id is the tiebreak.
+     */
+    type EvRow = { id: string; form_id: string; record_id: string; submitted_at: string };
+    /*
+     * CHUNKED as well as paged. `.in("record_id", ids)` puts every id in the query string, and
+     * now that the register is no longer capped at 1000 that list can run to a few thousand
+     * UUIDs and blow the URL limit. A failed request would return no evidence at all, and every
+     * check would then read as never completed: 0% across the board.
+     */
+    const IDS_PER_REQUEST = 200;
+    for (let i = 0; i < recordIds.length; i += IDS_PER_REQUEST) {
+      const idChunk = recordIds.slice(i, i + IDS_PER_REQUEST);
+      const evQ = supabase
+        .from("evidence")
+        .select("id, form_id, record_id, submitted_at")
+        .eq("company_id", input.companyId)
+        .in("form_id", formIds)
+        .in("record_id", idChunk)
+        .order("submitted_at", { ascending: true })
+        .order("id", { ascending: true });
+      for (const e of await readAll<EvRow>(evQ, "evidence")) {
+        const k = `${e.form_id}|${e.record_id}`;
+        const list = completionsByKey.get(k) ?? [];
+        list.push(tsToCivil(e.submitted_at));
+        completionsByKey.set(k, list);
+      }
     }
+    // Chunking means the per record lists are built chunk by chunk. Each list only ever receives
+    // rows for its own record, and those arrive ordered, so nothing needs re sorting.
   }
 
   // 4. Reconstruct cycles per definition per record and count.
@@ -301,6 +374,7 @@ async function computeOnTime(input: OnTimeInput) {
           stat.dueInPeriod += 1;
           if (onTime) stat.onTime += 1;
           cycles.push({
+            checkKey: def.key,
             checkName: def.name,
             recordName: rec.name,
             branchName: rec.branch,
@@ -312,7 +386,7 @@ async function computeOnTime(input: OnTimeInput) {
         }
       }
     }
-    stat.ratePct = stat.dueInPeriod === 0 ? null : Math.round((stat.onTime / stat.dueInPeriod) * 1000) / 10;
+    stat.ratePct = floorPct(stat.onTime, stat.dueInPeriod);
     stat.band = pqsBand(stat.onTime, stat.dueInPeriod);
     statById.set(def.id, stat);
   }
@@ -323,16 +397,23 @@ async function computeOnTime(input: OnTimeInput) {
   // manager reads one return. Supervision (Quality Q2) and care plan review (User
   // Experience Q1) come from the on-time cycles above; mandatory + safeguarding
   // training from the Training department; SCW registration is worked out here.
-  const training = await getTrainingMatrix(input.companyId, input.branchId);
-  const cutoff = formatCivilDate(addMonths(today, -6));
+  /*
+   * Judged at the END of the reporting period, not at today (2026-07-30).
+   *
+   * These two measures used to ignore the window entirely: change the dates and three rows moved
+   * while four stood still, under a Period line claiming the whole table covered that range.
+   */
+  const asOf = parseCivilDate(win.to);
+  const training = await getTrainingMatrix(input.companyId, input.branchId, win.to);
+  const cutoff = formatCivilDate(addMonths(asOf, -6));
   let scwDenom = 0;
   let scwNum = 0;
   for (const p of staff) {
-    if (!p.start_date || p.start_date > cutoff) continue; // 6+ months in post only
+    if (!p.start_date || p.start_date > cutoff) continue; // 6+ months in post AT the period end
     scwDenom += 1;
     if (p.scw_registration_number && p.scw_registration_number.trim() !== "") scwNum += 1;
   }
-  const scwPct = scwDenom === 0 ? null : Math.round((scwNum / scwDenom) * 1000) / 10;
+  const scwPct = floorPct(scwNum, scwDenom);
 
   // Customer satisfaction: positive answers from the personal plan review feedback
   // questions across reviews completed in the same window (branch scoped to match).
@@ -346,7 +427,7 @@ async function computeOnTime(input: OnTimeInput) {
     : outcomesReg.rows;
   const outcomeInScope = outcomeRows.reduce((n, r) => n + r.total, 0);
   const outcomeAchieving = outcomeRows.reduce((n, r) => n + r.achievingOrProgressing, 0);
-  const outcomesPct = outcomeInScope > 0 ? Math.round((outcomeAchieving / outcomeInScope) * 100) : null;
+  const outcomesPct = floorPct(outcomeAchieving, outcomeInScope);
 
   // Two of the PQS measures are on-time checks already in the table, so we just
   // star those rows. The other three are not checks, so they are appended as their
@@ -367,7 +448,9 @@ async function computeOnTime(input: OnTimeInput) {
     {
       name: "Social Care Wales registration",
       register: "People",
-      gradedAt: "6 months in post",
+      // A registration number carries no date, so this reads as it stands today against the staff
+      // who had 6 months in post by the end of the period. Said on the row rather than implied.
+      gradedAt: "6 months in post, registered as at today",
       rate: scwPct,
       band: bandPct(scwPct),
       star: "Quality Compliance Q3: staff 6+ months in post registered with Social Care Wales.",
@@ -391,7 +474,10 @@ async function computeOnTime(input: OnTimeInput) {
     {
       name: "Personal outcomes",
       register: "Service Users",
-      gradedAt: "Achieved or progressing",
+      // Outcomes carry a current status and no history, so this row is a position as at today
+      // whatever period is asked for. The label says so rather than letting the Period line above
+      // speak for it.
+      gradedAt: "Achieved or progressing, as at today",
       rate: outcomesPct,
       band: bandPct(outcomesPct),
       star: "Supplier Performance Q2: percentage of service user personal outcomes achieved or progressing.",
@@ -597,9 +683,11 @@ function renderOnTimeDoc(
 
   // Breakdown: only the PQS scored checks (the starred ones), cycles that were NOT on
   // time first (the ones to action), then the rest.
-  const starredCheckNames = new Set(stats.filter((s) => pqsStars[s.checkKey]).map((s) => s.checkName));
+  // By KEY, not by name: a people Audit and a service user Audit share a name, so filtering on
+  // the name leaked one register's cycles into the other's breakdown.
+  const starredKeys = new Set(stats.filter((s) => pqsStars[s.checkKey]).map((s) => s.checkKey));
   const sortedCycles = [...cycles]
-    .filter((c) => starredCheckNames.has(c.checkName))
+    .filter((c) => starredKeys.has(c.checkKey))
     .sort(
       (a, b) => Number(a.onTime) - Number(b.onTime) || a.checkName.localeCompare(b.checkName) || a.dueDate.localeCompare(b.dueDate),
     );
@@ -623,7 +711,7 @@ function renderOnTimeDoc(
       { label: "Generated at", value: generatedAt() },
     ],
     footerNote:
-      "Every row is a Cardiff PQS scored measure: Mandatory training (Quality Q1), Supervision (Quality Q2), Social Care Wales registration (Quality Q3), Care plan reviews (User Experience Q1), Customer satisfaction (User Experience Q2), Personal outcomes (Supplier Performance Q2), Safeguarding training (Safeguarding Q1). PQS score band: 100 percent is 10, 85 to 99.99 is 7, 70 to 84.99 is 5, 50 to 69.99 is 2, under 50 is 0. On time means completed on or before the due date (last completion plus the deadline shown in Graded at). The SCW rate counts only staff 6+ months in post. Active records only.",
+      "Every row is a Cardiff PQS scored measure: Mandatory training (Quality Q1), Supervision (Quality Q2), Social Care Wales registration (Quality Q3), Care plan reviews (User Experience Q1), Customer satisfaction (User Experience Q2), Personal outcomes (Supplier Performance Q2), Safeguarding training (Safeguarding Q1). PQS score band: 100 percent is 10, 85 to 99.99 is 7, 70 to 84.99 is 5, 50 to 69.99 is 2, under 50 is 0. On time means completed on or before the due date (last completion plus the deadline shown in Graded at). The SCW rate counts only staff 6+ months in post at the end of the period, and their registration is read as it stands today. Training is judged at the end of the period. Personal outcomes carry no history, so that row is today's position. Every rate is rounded DOWN to one decimal, never up. Active records only, as the register stands today.",
     blocks: [
       { kind: "heading", text: "On time completion rates" },
       {

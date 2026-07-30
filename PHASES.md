@@ -1715,3 +1715,55 @@ STILL OPEN, found during that trace, none of them a tile versus report differenc
   read as never done.
 - The breakdown table filters cycles by check NAME while the summary filters by KEY, so a name
   collision would leak rows into the breakdown.
+
+### 2026-07-30 No rounding up, and the four open PQS defects fixed
+
+NO ROUNDING UP, anywhere a compliance percentage is shown (Phil). 84.96% is not 85%, and 85 is a
+PQS band boundary: rounding up hands a provider a 7 where it earned a 5. `floorPct` lives in
+on-time-cycles.ts with the other pure arithmetic and has its own tests. Applied to the on time
+rates, SCW registration, personal outcomes, customer satisfaction, the training matrix, audits in
+date, and every score in the readiness framework.
+
+1. THE WINDOW. Mandatory training and Safeguarding now judge "in date" AT THE END of the reporting
+   period rather than at today, and the SCW six months in post cutoff counts back from the period
+   end too. `getTrainingMatrix` takes an optional `asOf`, defaulting to today, so every other
+   screen is unchanged. Personal outcomes genuinely cannot be rewound (outcomes carry a current
+   status and no history), so that row now says "as at today" on its face rather than letting the
+   Period line speak for it.
+2. ONE BANDING RULE. `pqsBand` bands the rate that is PRINTED, via `floorPct`, exactly as
+   `bandPct` does. Two rules over one number meant 84.96% could print as 85% and score a 5 on one
+   row and a 7 on another.
+3. THE 1000 ROW CAP. The evidence read had no range and no unique tiebreak: PostgREST caps a
+   response at 1000 rows, and because the sort was ascending the cap dropped the NEWEST
+   completions, so a busy company's checks would have read as though nobody had done them for
+   months. It is paged now, ordered by submitted_at then id. The people and service user reads are
+   paged the same way: a company past 1000 records was silently missing from its own return.
+4. NAME VERSUS KEY. The breakdown table filtered cycles by check NAME while the summary filtered
+   by KEY, so a people Audit and a service user Audit leaked into each other. `OnTimeCycle` carries
+   `checkKey` now and the filter uses it.
+
+FURTHER DEFECTS CAUGHT BY A SECOND REVIEW, all fixed:
+
+- `readAll` paged with no ORDER BY. LIMIT/OFFSET over an unordered scan is not stable in Postgres,
+  so a page could repeat a row and miss another: a carer double counted or absent. Both register
+  reads order by id now.
+- The 1000 row cap was only fixed on one side of the same report. `getTrainingMatrix` read people
+  unpaged AND `person_training` unpaged, and training records are people TIMES courses, so 100
+  staff on 12 courses already exceeds it. Anything past the cut had no record, and no record reads
+  as "not done", so two scored PQS measures came out understated. Both are paged and chunked.
+- The dashboard training tile was rounding the floored figure back UP with Math.round.
+- Four more Math.round percentages on compliance surfaces: the training report export, the
+  outcomes register tile (captioned "for the PQS return"), the satisfaction register tile, and a
+  service user's own outcomes page. All floored.
+- Both pagers swallowed the query error, so a failed page read as "end of data" and returned a
+  short register as though it were complete. They throw now: on a compliance return, failing
+  loudly beats a number that is quietly wrong.
+- Uncapping the register made `.in("record_id", ids)` the new failure point, since every id goes
+  in the query string. It is chunked at 200 ids a request; without that, one over long URL would
+  have returned no evidence at all and every check would read as never completed.
+- `asOf` only reached the expiry comparison, so training completed AFTER the period end still
+  counted at the period end. Records completed after the date are ignored now. SCW registration
+  numbers carry no date and cannot be rewound, so that row and the report footer say what is
+  measured at the period end and what is read as it stands today.
+
+53 tests pass.

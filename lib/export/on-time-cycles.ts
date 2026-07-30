@@ -72,6 +72,18 @@ export function buildAnchors(start: CivilDate, completionsAsc: CivilDate[]): Civ
   return anchors;
 }
 
+/**
+ * A percentage to one decimal, ROUNDED DOWN. Never up (Phil, 2026-07-30).
+ *
+ * 84.96% is not 85%. On a compliance return, rounding up hands a provider marks it has not
+ * earned, and 85 is a PQS band boundary: it is the difference between a 5 and a 7. Down, always.
+ * Returns null when nothing was due, which is not the same as zero.
+ */
+export function floorPct(num: number, denom: number): number | null {
+  if (denom <= 0) return null;
+  return Math.floor((num / denom) * 1000) / 10;
+}
+
 export type Gap = {
   /** The last completion, or the record's start date when it has never been done. */
   anchor: CivilDate;

@@ -31,7 +31,8 @@ export default function SatisfactionRegisterTable({
   const positive = shown.reduce((n, r) => n + r.positive, 0);
   const answered = shown.reduce((n, r) => n + r.answered, 0);
   const reviewCount = shown.reduce((n, r) => n + r.reviewsInWindow, 0);
-  const pct = answered > 0 ? Math.round((positive / answered) * 100) : null;
+  // Rounded DOWN, never up (Phil, 2026-07-30), matching the value the register computes.
+  const pct = answered > 0 ? Math.floor((positive / answered) * 100) : null;
 
   return (
     <div className="space-y-6">

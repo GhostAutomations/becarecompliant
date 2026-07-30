@@ -361,7 +361,8 @@ export async function getOutcomesRegister(companyId: string): Promise<OutcomesRe
       total: rec.inScope,
       achieved: rec.achieved,
       achievingOrProgressing: rec.ap,
-      pct: rec.inScope > 0 ? Math.round((rec.ap / rec.inScope) * 100) : null,
+      // Rounded DOWN, never up (Phil, 2026-07-30): a compliance figure must not flatter.
+      pct: rec.inScope > 0 ? Math.floor((rec.ap / rec.inScope) * 100) : null,
       reviewRag: rec.rag as import("./outcome-consts").ReviewRag,
       reviewLabel: ragLabel[rec.rag],
       reviewDue: rec.dueIso,
@@ -372,7 +373,7 @@ export async function getOutcomesRegister(companyId: string): Promise<OutcomesRe
     rows,
     totalInScope,
     totalAchievingOrProgressing: totalAP,
-    pqsPct: totalInScope > 0 ? Math.round((totalAP / totalInScope) * 100) : null,
+    pqsPct: totalInScope > 0 ? Math.floor((totalAP / totalInScope) * 100) : null,
     reviewsOverdue,
   };
 }
