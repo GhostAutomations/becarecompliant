@@ -71,6 +71,12 @@ export default function ReportsPanel({ entitled, isAdmin }: { entitled: boolean;
           viewHref={viewHref("training")}
           locked={proLocked}
         />
+        <ReportCard
+          title="Regulation 73 (RI branch visit)"
+          description="The Responsible Individual branch visit report, one per branch, pre-filled from the site with KPIs, complaints, training and satisfaction. AI drafts the narrative, you edit and sign."
+          viewHref="/reports/reg73"
+          locked={proLocked}
+        />
 
         <div className="glass-card p-5">
           <div className="flex items-start justify-between gap-2">

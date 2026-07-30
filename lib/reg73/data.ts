@@ -1,0 +1,49 @@
+import "server-only";
+
+/**
+ * Be Care Compliant — Regulation 73 visit reads (RLS scoped).
+ */
+
+import { createClient } from "@/lib/supabase/server";
+
+export type Reg73VisitRow = {
+  id: string;
+  branch_id: string;
+  reference: string | null;
+  ri_name: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  status: "draft" | "submitted";
+  submitted_at: string | null;
+  updated_at: string;
+};
+
+export type Reg73VisitFull = Reg73VisitRow & {
+  company_id: string;
+  data: Record<string, unknown>;
+  prefill: Record<string, unknown>;
+  signature_path: string | null;
+};
+
+export async function listReg73Visits(companyId: string, branchId: string): Promise<Reg73VisitRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("reg73_visits")
+    .select("id, branch_id, reference, ri_name, start_date, end_date, status, submitted_at, updated_at")
+    .eq("company_id", companyId)
+    .eq("branch_id", branchId)
+    .order("updated_at", { ascending: false });
+  return (data as Reg73VisitRow[] | null) ?? [];
+}
+
+export async function getReg73Visit(id: string): Promise<Reg73VisitFull | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("reg73_visits")
+    .select(
+      "id, company_id, branch_id, reference, ri_name, start_date, end_date, status, submitted_at, updated_at, data, prefill, signature_path",
+    )
+    .eq("id", id)
+    .maybeSingle();
+  return (data as Reg73VisitFull | null) ?? null;
+}
