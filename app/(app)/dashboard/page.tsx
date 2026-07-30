@@ -961,34 +961,37 @@ export default async function DashboardPage() {
             2026-07-30), which were two boxes answering the same question. NESTED: the 30 day
             figure includes the 14, and the 14 includes the 7, which is what "due in 30 days"
             means to a manager. The captions say so rather than leaving it to be worked out. */}
-        <Tile
-          href="/people"
-          label="Due in 7 days"
-          className="lg:col-span-2"
-          value={dueSoon.d7}
-          tone={dueSoon.d7 > 0 ? "amber" : "green"}
-          icon="calendar"
-          iconTone="orange"
-          sub="checks falling due"
-        />
-        <Tile
-          href="/people"
-          label="Due in 14 days"
-          className="lg:col-span-2"
-          value={dueSoon.d14}
-          icon="calendar"
-          iconTone="orange"
-          sub="includes the next 7 days"
-        />
-        <Tile
-          href="/people"
-          label="Due in 30 days"
-          className="lg:col-span-3"
-          value={dueSoon.d30}
-          icon="calendar"
-          iconTone="orange"
-          sub="includes the next 14 days"
-        />
+        {/* A sub grid of THREE equal columns inside the seven this row has spare. Twelve columns
+            will not divide into three equal spans (2, 2, 3 was the closest), and widening the row
+            would mean moving the PQS report. This gives three identical tiles and touches nothing
+            else. */}
+        <div className="grid gap-3 sm:grid-cols-3 lg:col-span-7">
+          <Tile
+            href="/people"
+            label="Due in 7 days"
+            value={dueSoon.d7}
+            tone={dueSoon.d7 > 0 ? "amber" : "green"}
+            icon="calendar"
+            iconTone="orange"
+            sub="checks falling due"
+          />
+          <Tile
+            href="/people"
+            label="Due in 14 days"
+            value={dueSoon.d14}
+            icon="calendar"
+            iconTone="orange"
+            sub="includes the next 7 days"
+          />
+          <Tile
+            href="/people"
+            label="Due in 30 days"
+            value={dueSoon.d30}
+            icon="calendar"
+            iconTone="orange"
+            sub="includes the next 14 days"
+          />
+        </div>
 
         {/* THE PLANNER (Phil, 2026-07-29): this user's own booked tasks, the same rows the
             Planner page reads, as five WORKING day columns. Every column is always drawn, empty
