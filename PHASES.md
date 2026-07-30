@@ -1582,3 +1582,14 @@ DEFECTS CAUGHT BY REVIEW BEFORE SHIPPING:
 5. "Running low" was a flat under 10, which means very different things on Business (25 a month)
    and Black (1000). It is now a quarter of the tier's own grant, read from the same function that
    issues it.
+
+### 2026-07-30 SMS tile is red until sending is wired up
+
+- The SMS tile is a red MissingTile so it reads as a job still to do (Phil), not a finished
+  figure. Two things are outstanding: sending is not wired up, and no tier includes an SMS
+  allowance to count down from.
+- The number in it is REAL metering, so the corner badge says "Not wired" rather than "No data".
+  `MissingTile` now takes an optional `value` and `badge` for exactly this case: red because the
+  work is unfinished, not red because the figure is missing.
+- Back on the red tile list at the top of the dashboard file, which is the standing to do list
+  that screen carries.

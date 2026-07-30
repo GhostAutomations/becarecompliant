@@ -36,6 +36,7 @@ import {
  * screen instead of quietly missing from it. A red tile is a to do list item you can see.
  *
  * RED TODAY, and what each one needs:
+ *   SMS                   sending is not wired up, and no tier includes an SMS allowance
  *   Date range            the tiles are all live figures; nothing is filtered by period yet
  *
  * The old Complaints, Holidays and Absence strips were REMOVED on instruction, since they are not
@@ -226,7 +227,24 @@ function SplitTile({
  * is a question every time the screen is opened. It says what is missing rather than showing
  * a zero, because a zero would be a wrong number rather than an absent one.
  */
-function MissingTile({ label, needs, icon, className = "" }: { label: string; needs: string; icon?: string; className?: string }) {
+function MissingTile({
+  label,
+  needs,
+  icon,
+  className = "",
+  badge = "No data",
+  value,
+}: {
+  label: string;
+  needs: string;
+  icon?: string;
+  className?: string;
+  /** The pill in the corner. "No data" by default; SMS says "Not wired", because the number
+   *  underneath IS real, it is the sending that is unfinished. */
+  badge?: string;
+  /** A real figure, when the tile has one and is still red for a different reason. */
+  value?: ReactNode;
+}) {
   return (
     <div className={`h-full rounded-2xl border border-red-400/25 bg-red-500/[0.07] p-4 ${className}`}>
       <div className="flex items-start gap-3">
@@ -235,10 +253,16 @@ function MissingTile({ label, needs, icon, className = "" }: { label: string; ne
           <div className="flex items-start justify-between gap-2">
             <p className="text-xs uppercase tracking-wide text-red-200/80">{label}</p>
             <span className="shrink-0 rounded-full border border-red-400/30 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-red-200/80">
-              No data
+              {badge}
             </span>
           </div>
-          <p className="mt-1 text-2xl font-bold text-red-200/40">&mdash;</p>
+          <p
+            className={`mt-1 text-2xl font-bold tabular-nums ${
+              value == null ? "text-red-200/40" : "text-red-200"
+            }`}
+          >
+            {value == null ? <>&mdash;</> : value}
+          </p>
           <p className="mt-0.5 text-[11px] text-red-200/70">{needs}</p>
         </div>
       </div>
@@ -674,26 +698,17 @@ export default async function DashboardPage() {
               allowance, so there is nothing to count down from and inventing one would be a
               wrong number rather than an absent one. */}
           {spend ? (
-            <Tile
-              href="/settings/usage"
+            /* RED ON PURPOSE (Phil, 2026-07-30): SMS is not wired up yet and this tile is the
+               reminder to come back to it. The count underneath is real metering, so the badge
+               says "Not wired" rather than "No data". Turn it back into a normal Tile when
+               sending works and there is an allowance to count down from. */
+            <MissingTile
               label="SMS"
               className="xl:col-span-2"
               icon="policy"
-              iconTone="blue"
+              badge="Not wired"
               value={spend.sms.sent}
-              sub={
-                <>
-                  sent this month
-                  {/* Segments, not cost: nothing in the product writes a cost per SMS yet, and
-                      segments are what Twilio actually bills. Only shown when a message ran to
-                      more than one segment, otherwise it just repeats the number above. */}
-                  {spend.sms.segments > spend.sms.sent ? (
-                    <span className="mt-1 block text-white/45">
-                      {spend.sms.segments} segments
-                    </span>
-                  ) : null}
-                </>
-              }
+              needs="sent this month. Sending is not wired up and nothing includes an allowance"
             />
           ) : null}
           <Tile
