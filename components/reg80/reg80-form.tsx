@@ -216,7 +216,7 @@ export default function Reg80Form({
         <button type="button" onClick={draftWithAi} disabled={busy} className="btn-outline px-3 py-2 text-xs">
           {drafting ? "Drafting…" : "Draft narrative with AI"}
         </button>
-        {error ? <span className="w-full text-xs text-red-300">{error}</span> : null}
+        {error ? <span className="w-full text-xs font-semibold text-red-400">{error}</span> : null}
       </div>
 
       {offerRedraft ? (
@@ -254,7 +254,7 @@ export default function Reg80Form({
               <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">{section.title}</h2>
               <Reg73Signature defaultMethod={val("sign_method")} defaultSignature={val("ri_signature")} />
               <div className="flex flex-wrap items-center justify-end gap-3">
-                {submitState.error ? <span className="text-xs text-red-300">{submitState.error}</span> : null}
+                {submitState.error ? <span className="text-xs font-semibold text-red-400">{submitState.error}</span> : null}
                 <button type="submit" formAction={submitAction} disabled={busy} className="btn-primary px-4 py-2 text-sm">
                   {submitPending ? "Submitting…" : "Save and submit"}
                 </button>
