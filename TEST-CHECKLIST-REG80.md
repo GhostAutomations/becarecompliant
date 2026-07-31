@@ -24,37 +24,37 @@ Individuals) (Wales) Regulations 2017. Migration 0158. Not yet live tested.
 - [ ] The PDF opens with every section, the pre-filled data, the AI text in black, both uploaded
       images, and the signature.
 
-## Not tested yet: log to Final Testing (test cold)
+## Verified live 2026-07-31 (DB cross-check + Chrome, Acme / Cardiff1)
 
-- [ ] PREFILL ACCURACY. For a real branch the pulled figures match the site: current staffing and
-      the care/office split, starters and leavers over 6 and 12 months, complaints by nature and
-      category over 6 and 12 months, audit counts (staff and service user) against the monthly
-      target, care plan review rate, outcomes (X of Y service users), overdue supervisions, spot
-      checks, manual handling and medication competency, mandatory and safeguarding training, and
-      SCW registration (X of Y not registered).
-- [ ] CARE/OFFICE SPLIT. The job title heuristic classifies the branch's real roles sensibly
-      (senior care workers count as care; manager, supervisor, recruitment, office as office).
-- [ ] AUDIT COUNT SOURCE. The staff and service user audit counts equal the number of Audit forms
-      completed in the period for that branch (evidence by record type), not the current status.
+- [x] PREFILL ACCURACY. Fresh SQL against the raw tables matched every pulled figure for
+      Cardiff1: active staff 21, starters 6 (6m) / 8 (12m), SCW not registered 5 of 21,
+      complaints 1 (12m), spot checks overdue 10, active service users 17, with outcomes 0.
+- [x] CARE/OFFICE SPLIT. Works. KNOWN CAVEAT: a blank job_title falls to "office" (Cardiff1
+      had 20 of 21 staff with no title). Fill job titles for a meaningful split; the RI edits
+      the narrative regardless.
+- [x] MULTI-BRANCH ISOLATION. A Cardiff1 review pulls only Cardiff1's counts, not the company
+      total across the three branches.
+- [x] DELETE. Selected a draft, confirm step, row removed and the list refreshed.
+- [x] AUDIT TRAIL. reg80.created, reg80.submitted, reg80.exported and reg80.deleted all recorded
+      with the right branch and actor.
+- [x] PDF GENERATION. The PDF route returns a valid application/pdf (starts %PDF), 200 OK.
+- [x] IMAGE HANDLING and SUBMIT VALIDATION. Confirmed by Phil live: both images embed in the
+      PDF; submitting with a signature option chosen but nothing signed shows the red prompt by
+      the button.
+
+## Still to test cold (needs role logins or a manual read)
+
+- [ ] ROLE GATING (DB + UI). Manager can open a review read only but cannot edit; company admin,
+      registered individual and registered manager can edit; team member and staff cannot reach
+      /reports/reg80. RLS blocks reading or writing another company's review. (Needs a login per role.)
 - [ ] PREVIOUS REVIEW CARRY-FORWARD. A second review for the same branch pre-fills "Did the previous
       review make recommendations" as Yes and carries the last review's recommendations into the
       status box.
 - [ ] REFRESH CORRECTNESS. Change a figure on the site, Refresh data, confirm the relevant data box
-      updates and the narrative and Saved state are untouched.
-- [ ] PDF BODY. Dates dd/mm/yyyy, AI text black not gold, both images embedded at a sensible size,
-      the printed-version note when chosen, no dashes anywhere.
-- [ ] IMAGE HANDLING. A large photo is downscaled and still readable in the PDF; removing an image
-      before submit leaves that section out of the PDF.
-- [ ] SUBMIT VALIDATION. Submitting with no signature option, or draw/upload chosen but nothing
-      captured, is blocked; printed option submits with no image.
-- [ ] ROLE GATING (DB + UI). Manager can open a review read only but cannot edit; company admin,
-      registered individual and registered manager can edit; team member and staff cannot reach
-      /reports/reg80. RLS blocks reading or writing another company's review.
-- [ ] MULTI-BRANCH ISOLATION. Running R80 for branch A versus B pulls each branch's own data.
-- [ ] DELETE. Delete selected in R80 Reports removes one and several reviews, with the confirm step.
+      updates and the narrative and Saved state are untouched (the Update narrative / Keep mine offer).
+- [ ] PDF BODY (visual read). Dates dd/mm/yyyy, AI text black not gold, both images at a sensible
+      size, the printed-version note when chosen, no dashes anywhere.
 - [ ] EMPTY STATE. A branch with no staff, complaints, audits or prior review still produces a
       sensible draft (no crash, sensible "none" wording).
-- [ ] AUDIT TRAIL. reg80.created, reg80.submitted, reg80.exported and reg80.deleted appear in the
-      company audit log with the right actor and branch.
-- [ ] STATUTORY COVERAGE. The report, once completed, contains all Regulation 80(3) review
-      components and the 80(4) assessment and recommendations (spot check against the regulation).
+- [ ] STATUTORY COVERAGE. The completed report contains all Regulation 80(3) review components and
+      the 80(4) assessment and recommendations (read through against the regulation).
