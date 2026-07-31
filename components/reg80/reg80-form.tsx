@@ -44,12 +44,13 @@ export default function Reg80Form({
   const [drafting, setDrafting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [offerRedraft, setOfferRedraft] = useState(false);
+  const [imagesBusy, setImagesBusy] = useState(0);
   const [opError, setOpError] = useState<string | null>(null);
 
   const [saveState, saveAction, savePending] = useActionState(saveReg80, IDLE_STATE);
   const [submitState, submitAction, submitPending] = useActionState(submitReg80, IDLE_STATE);
   const [saved, flashSaved, resetSaved] = useSavedFlash();
-  const busy = savePending || submitPending || refreshing || drafting;
+  const busy = savePending || submitPending || refreshing || drafting || imagesBusy > 0;
 
   useEffect(() => {
     // After submit the review becomes read only in place (the server action revalidates
@@ -236,7 +237,7 @@ export default function Reg80Form({
             <button
               type="button"
               onClick={() => setOfferRedraft(false)}
-              className="btn-ghost px-3 py-2 text-xs"
+              className="btn-outline px-3 py-2 text-xs"
             >
               Keep mine
             </button>
@@ -295,7 +296,11 @@ export default function Reg80Form({
                   ) : f.type === "date" ? (
                     <input id={id} name={f.key} type="date" defaultValue={val(f.key).slice(0, 10)} className="mt-1 max-w-[12rem]" />
                   ) : f.type === "image" ? (
-                    <Reg80ImageInput name={f.key} defaultValue={val(f.key)} />
+                    <Reg80ImageInput
+                      name={f.key}
+                      defaultValue={val(f.key)}
+                      onBusyChange={(b) => setImagesBusy((n) => Math.max(0, n + (b ? 1 : -1)))}
+                    />
                   ) : isData ? (
                     <textarea
                       id={id}

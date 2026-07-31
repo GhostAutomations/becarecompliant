@@ -9,9 +9,10 @@ import { NavIcon } from "@/components/nav-icon";
 /**
  * Be Care Compliant — Acme-only "navy" shell: a far-left icon rail plus a
  * collapsible drawer, mirroring the design demo. The rail is the permanent nav;
- * clicking a rail icon opens the drawer on that department (without navigating),
- * it stays open while the pointer is over the rail or drawer, and it closes when
- * a department / sub-department is clicked or the pointer leaves both.
+ * moving the pointer over the rail opens the drawer, and hovering a rail icon
+ * focuses the drawer on that department (no click needed). It stays open while
+ * the pointer is over the rail or drawer, and closes when a department /
+ * sub-department is clicked or the pointer leaves both.
  */
 export default function NavyNav({
   entries,
@@ -84,7 +85,10 @@ export default function NavyNav({
       <div
         ref={railRef}
         className="navy-rail hidden shrink-0 md:flex"
-        onMouseEnter={cancelClose}
+        onMouseEnter={() => {
+          cancelClose();
+          setOpen(true);
+        }}
         onMouseLeave={scheduleClose}
       >
         <Link href={homeHref} className="navy-logo" aria-label="Home">
@@ -111,6 +115,7 @@ export default function NavyNav({
             title={e.label}
             aria-label={e.label}
             className={`navy-ric ${inSection(e) ? "on" : ""}`}
+            onMouseEnter={() => openOn(e.href)}
             onClick={() => openOn(e.href)}
           >
             <NavIcon icon={e.icon} className="h-5 w-5" />
