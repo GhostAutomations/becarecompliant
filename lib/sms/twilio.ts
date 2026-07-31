@@ -10,8 +10,8 @@ import { spendSmsCredit, refundSmsCredit, OUT_OF_SMS_CREDITS } from "@/lib/billi
  * set so callers surface "SMS not sent" instead of crashing.
  *
  * METERING IS NOT OPTIONAL: every successful send writes a usage_events row
- * (kind 'sms', units = message segments from Twilio's num_segments) so Diamond
- * tier billing and per-company usage visibility are exact from the first send.
+ * (kind 'sms', units = message segments from Twilio's num_segments) so per company usage
+ * visibility is exact from the first send.
  *
  * NEITHER IS THE ALLOWANCE (2026-07-31). A credit is claimed BEFORE Twilio is called and handed
  * back if the send fails, exactly as runAi does with AI credits. A company at zero stops sending

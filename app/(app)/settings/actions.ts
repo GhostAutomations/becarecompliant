@@ -344,7 +344,7 @@ export async function setUserStatus(
   // offer the company's staff, so re-bake them (best-effort, see rebake-options.ts).
   await rebakeFormFieldOptions(ctx.companyId);
   // Enabling/disabling a user changes the active seat count: sync to Stripe
-  // (best-effort, no-op if unbilled/Diamond/Black).
+  // (best-effort, no-op if unbilled or Black).
   await syncSeatQuantity(ctx.companyId);
   revalidatePath("/settings/users");
   return { ok: status === "disabled" ? "User disabled." : "User enabled." };

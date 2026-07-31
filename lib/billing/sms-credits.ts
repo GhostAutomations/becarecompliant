@@ -5,8 +5,8 @@ import { createServiceClient } from "@/lib/supabase/admin";
 /**
  * SMS credits: one text message costs one credit.
  *
- * Companies get a monthly grant by tier (Business 0, Pro 100, Enterprise 250, Diamond 500, Black
- * 2000) that carries over, plus top ups. Enforcement lives HERE and in the database, not in the
+ * Companies get a monthly grant by tier (Business 0, Pro 100, Black 2000) that carries over,
+ * plus top ups. Enforcement lives HERE and in the database, not in the
  * UI: `sendSms` claims a credit BEFORE it calls Twilio and hands it back if the send fails, so a
  * failed message never costs the customer anything and a company at zero simply stops sending.
  *

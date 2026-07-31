@@ -7,15 +7,9 @@ import { getSeatUsage, formatPence } from "@/lib/billing/seats";
 import { featureEnabled } from "@/lib/billing/tier";
 import { PUBLIC_FORMS_ENABLED } from "@/lib/public-forms/flag";
 
-export const metadata: Metadata = { title: "Settings" };
+import { TIER_LABELS, type Tier } from "@/lib/stripe/config";
 
-const TIER_LABELS: Record<string, string> = {
-  business: "Business",
-  pro: "Pro",
-  enterprise: "Enterprise",
-  diamond: "Diamond",
-  black: "Black",
-};
+export const metadata: Metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
   const { profile } = await requireCompanyAdmin();
@@ -47,7 +41,9 @@ export default async function SettingsPage() {
           {company?.name ?? "Your company"}
         </p>
         <p className="text-xs text-white/50">
-          {TIER_LABELS[company?.tier ?? ""] ?? company?.tier} tier ·{" "}
+          {/* The label map is keyed by the Tier union now, so an unrecognised value from the
+              database falls through to the raw string rather than failing to compile. */}
+          {TIER_LABELS[(company?.tier ?? "") as Tier] ?? company?.tier} tier ·{" "}
           {company?.status}
         </p>
       </section>

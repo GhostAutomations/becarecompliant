@@ -176,8 +176,6 @@ export default async function FounderCompanyPage({
           value={
             isSub ? (
               <span className={`pill ${bpill.cls}`}>{bpill.text}</span>
-            ) : company.tier === "diamond" ? (
-              "Usage only"
             ) : company.tier === "black" ? (
               "Free"
             ) : (
@@ -187,11 +185,9 @@ export default async function FounderCompanyPage({
           sub={
             isSub
               ? `${formatPence(monthlyTotalPence)}/mo`
-              : company.tier === "diamond"
-                ? "SMS + AI metered"
-                : company.tier === "black"
-                  ? "Founder granted"
-                  : undefined
+              : company.tier === "black"
+                ? "Founder granted"
+                : undefined
           }
         />
         <StatCard
@@ -244,11 +240,9 @@ export default async function FounderCompanyPage({
           </div>
         ) : (
           <p className="text-sm text-white/60">
-            {company.tier === "diamond"
-              ? "Diamond tier: no subscription. Billed on metered SMS and AI usage only (see below)."
-              : company.tier === "black"
-                ? "Black tier: free, founder granted. No Stripe subscription attached."
-                : "No subscription."}
+            {company.tier === "black"
+              ? "Black tier: free, founder granted. No Stripe subscription attached."
+              : "No subscription."}
           </p>
         )}
       </section>

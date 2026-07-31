@@ -84,8 +84,8 @@ type CompanyRow = {
   trial_ends_at: string | null;
 };
 
-/** Tiers a trial can start on. Black and Diamond are granted by hand, never from a lead. */
-const TRIAL_TIERS = ["business", "pro", "enterprise"] as const;
+/** Tiers a trial can start on. Black is granted by hand, never from a lead. */
+const TRIAL_TIERS = ["business", "pro"] as const;
 
 export default async function FounderTrialRequestsPage() {
   await requirePlatformAdmin();

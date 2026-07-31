@@ -38,7 +38,7 @@ async function founderActor(): Promise<{ actor: Actor }> {
   };
 }
 
-const VALID_TIERS = ["business", "pro", "enterprise", "diamond", "black"];
+const VALID_TIERS = ["business", "pro", "black"];
 
 function slugify(s: string): string {
   return s
@@ -455,7 +455,7 @@ export async function founderSetUserStatus(
   // Enabling/disabling changes who the company's Form staff dropdowns should offer
   // (best-effort, see rebake-options.ts).
   await rebakeFormFieldOptions(target.company_id);
-  // Active seat count changed: sync to Stripe (no-op if unbilled/Diamond/Black).
+  // Active seat count changed: sync to Stripe (no-op if unbilled or Black).
   await syncSeatQuantity(target.company_id);
   revalidatePath(`/founder/companies/${target.company_id}`);
   return { ok: status === "disabled" ? "User disabled." : "User enabled." };

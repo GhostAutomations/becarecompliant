@@ -357,7 +357,7 @@ function paragraphsToHtml(text: string): string {
 /** AI: draft an Initial Response (acknowledgement) for a complaint from its details.
  *  Email format when the complainant wants email, otherwise a formal letter to print
  *  on headed paper. Returns the draft as JSON in `ok` for the client to review. Metered
- *  AI usage; Enterprise tier (ai_features) gated. */
+ *  AI usage, paid for with AI credits. */
 export async function generateInitialResponse(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const { profile } = await requireCompany();
   const id = String(formData.get("complaint_id") ?? "");
@@ -585,7 +585,7 @@ export async function recordPostalResponse(_prev: ActionState, formData: FormDat
 
 /** AI: draft the FULL complaint response from the completed Complaint Investigation
  *  form. Returns the draft plus the investigation's file attachments so an emailed
- *  response can optionally include them. Metered AI; Enterprise (ai_features) gated. */
+ *  response can optionally include them. Metered AI, paid for with AI credits. */
 export async function generateComplaintResponse(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const { profile } = await requireCompany();
   const id = String(formData.get("complaint_id") ?? "");

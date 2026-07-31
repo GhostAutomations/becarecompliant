@@ -45,8 +45,8 @@ export default async function FounderUsagePage() {
         <BackLink href="/founder" label="Back to Founder console" />
         <h1 className="page-title mt-1">Usage</h1>
         <p className="page-subtitle">
-          Metered SMS and AI usage per company. Diamond tier billing reads from
-          these numbers.
+          Metered SMS and AI usage per company. This is what your Twilio and Anthropic accounts
+          are being charged for.
         </p>
       </div>
 

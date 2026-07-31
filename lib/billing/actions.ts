@@ -7,7 +7,7 @@
  *
  * Both return ActionState with redirectTo set to a Stripe-hosted URL; the client
  * button navigates there with window.location (external, not the Next router).
- * Company Admin only. Diamond (usage only) and Black (free) have no Checkout.
+ * Company Admin only. Black (free, founder granted) has no Checkout.
  */
 
 import { requireCompanyAdmin } from "@/lib/auth/guards";
@@ -59,9 +59,6 @@ export async function startCheckout(
 
   if (tier === "black") {
     return { error: "Your account is on the Black plan: everything is included, with nothing to pay." };
-  }
-  if (tier === "diamond") {
-    return { error: "Your account is on the Diamond plan: you are billed for usage only, so there is no subscription to set up." };
   }
   if (!isSubscriptionTier(tier)) {
     return { error: "Your plan does not use a subscription." };

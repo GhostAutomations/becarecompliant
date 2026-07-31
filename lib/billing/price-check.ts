@@ -58,12 +58,15 @@ type Target = {
   expectedPence: number;
   /** Subscription prices must recur monthly; the top-up must be one time. */
   recurring: boolean;
-  /** Is this something a customer can buy today? Taken from the public pricing page, so
-   *  the two cannot drift. A tier nobody is sold has no price id and that is FINE: it is
-   *  reported as Not set up rather than Wrong, because a health panel that is permanently
-   *  red is a health panel nobody reads, which is the exact failure this feature exists to
-   *  fix. Enterprise is the live example: it is a real tier a company can be put on by
-   *  hand, but it is not on the pricing page. */
+  /** Is this something a customer can buy today? Taken from the public pricing page, so the
+   *  two cannot drift. A tier nobody is sold has no price id and that is FINE: it is reported as
+   *  Not set up rather than Wrong, because a health panel that is permanently red is a health
+   *  panel nobody reads, which is the exact failure this feature exists to fix.
+   *
+   *  As of 31 Jul 2026 this is always true, because the only subscription tiers ARE the two on
+   *  the pricing page. It is kept because the day a tier is added to the code before the website
+   *  is the day this stops being true, and that is precisely when a permanently red panel would
+   *  do the damage. */
   onSale: boolean;
 };
 

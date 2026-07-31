@@ -83,13 +83,7 @@ export default async function FounderPage() {
 
   // Platform aggregates for the dashboard.
   const activeCompanies = list.filter((c) => c.status === "active");
-  const tierCounts = tallyBy(list, (c) => c.tier, [
-    "business",
-    "pro",
-    "enterprise",
-    "diamond",
-    "black",
-  ]);
+  const tierCounts = tallyBy(list, (c) => c.tier, ["business", "pro", "black"]);
   const statusCounts = tallyBy(list, (c) => c.status, [
     "active",
     "suspended",
@@ -213,7 +207,7 @@ export default async function FounderPage() {
         </Link>
         <Link href="/founder/revenue" className="app-tile">
           <h2 className="text-base font-semibold text-white">Revenue</h2>
-          <p className="text-sm text-white/60">MRR, billing and Diamond usage.</p>
+          <p className="text-sm text-white/60">MRR and billing.</p>
         </Link>
         <Link href="/founder/training-templates" className="app-tile">
           <h2 className="text-base font-semibold text-white">Training templates</h2>

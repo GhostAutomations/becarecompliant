@@ -7,7 +7,6 @@ import { StatCard } from "@/components/founder/stat-card";
 import { computeSeatUsage, includedSeatsForTier, formatPence, isBillableSeat } from "@/lib/billing/seats";
 import { TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
 import { billingStatusPill, tierLabel } from "@/lib/founder/format";
-import { londonMonthKey } from "@/lib/founder/stats";
 
 export const metadata: Metadata = { title: "Revenue" };
 
@@ -24,14 +23,8 @@ function fmtDate(iso: string | null): string {
 export default async function FounderRevenuePage() {
   await requirePlatformAdmin();
   const supabase = await createClient();
-  const thisMonth = londonMonthKey(new Date());
 
-  const [
-    { data: companies },
-    { data: profiles },
-    { data: billingRows },
-    { data: usageRows },
-  ] = await Promise.all([
+  const [{ data: companies }, { data: profiles }, { data: billingRows }] = await Promise.all([
     supabase
       .from("companies")
       .select("id, name, tier, status")
@@ -43,10 +36,6 @@ export default async function FounderRevenuePage() {
       .select(
         "company_id, subscription_status, billed_tier, seat_quantity, current_period_end, cancel_at_period_end",
       ),
-    supabase
-      .from("usage_monthly")
-      .select("company_id, kind, cost_pence_sum")
-      .eq("month", `${thisMonth}-01`),
   ]);
 
   const list = companies ?? [];
@@ -59,16 +48,6 @@ export default async function FounderRevenuePage() {
     if (p.company_id && p.status === "active" && isBillableSeat(p.role)) {
       activeUsers.set(p.company_id, (activeUsers.get(p.company_id) ?? 0) + 1);
     }
-  }
-
-  // This-month usage cost per company (our metered cost; Diamond invoice basis).
-  const usageCost = new Map<string, number>();
-  for (const u of usageRows ?? []) {
-    if (!u.company_id) continue;
-    usageCost.set(
-      u.company_id,
-      (usageCost.get(u.company_id) ?? 0) + (u.cost_pence_sum ?? 0),
-    );
   }
 
   type Row = {
@@ -85,7 +64,6 @@ export default async function FounderRevenuePage() {
   };
 
   const subs: Row[] = [];
-  const diamonds: Row[] = [];
   const blacks: Row[] = [];
   let mrrPence = 0;
   let pastDue = 0;
@@ -116,15 +94,11 @@ export default async function FounderRevenuePage() {
       }
       if (["past_due", "unpaid"].includes(st ?? "")) pastDue += 1;
       subs.push(row);
-    } else if (c.tier === "diamond") {
-      row.monthlyPence = usageCost.get(c.id) ?? 0;
-      diamonds.push(row);
     } else if (c.tier === "black") {
       blacks.push(row);
     }
   }
 
-  const diamondMtdPence = diamonds.reduce((s, r) => s + r.monthlyPence, 0);
   const activeSubs = subs.filter((r) =>
     ["active", "trialing", "past_due"].includes(r.billingStatus ?? ""),
   ).length;
@@ -135,8 +109,8 @@ export default async function FounderRevenuePage() {
         <BackLink href="/founder" label="Back to Founder console" />
         <h1 className="page-title mt-1">Revenue</h1>
         <p className="page-subtitle">
-          Committed monthly revenue, per company billing state, Diamond usage to
-          invoice and Black accounts. Read only oversight.
+          Committed monthly revenue, per company billing state, and free Black accounts. Read
+          only oversight.
         </p>
       </div>
 
@@ -152,11 +126,7 @@ export default async function FounderRevenuePage() {
           value={pastDue}
           sub={pastDue === 0 ? "All current" : "Needs attention"}
         />
-        <StatCard
-          label="Diamond usage, month"
-          value={formatPence(diamondMtdPence)}
-          sub={`${diamonds.length} Diamond accounts`}
-        />
+        <StatCard label="Free accounts" value={blacks.length} sub="Black, nothing to pay" />
       </section>
 
       <section aria-label="Subscriptions" className="glass-card p-5">
@@ -211,41 +181,6 @@ export default async function FounderRevenuePage() {
                 })}
               </tbody>
             </table>
-          </div>
-        )}
-      </section>
-
-      <section aria-label="Diamond" className="glass-card p-5">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-white/80">
-            Diamond, usage to invoice ({diamonds.length})
-          </h2>
-          <Link href="/founder/usage" className="text-xs text-gold-300 hover:underline">
-            Usage detail
-          </Link>
-        </div>
-        {diamonds.length === 0 ? (
-          <p className="text-sm text-white/60">No Diamond accounts.</p>
-        ) : (
-          <div className="space-y-2">
-            {diamonds.map((r) => (
-              <div
-                key={r.id}
-                className="flex items-center justify-between border-t border-white/10 pt-2 text-sm first:border-t-0 first:pt-0"
-              >
-                <Link href={`/founder/companies/${r.id}`} className="text-white/90 hover:text-gold-300">
-                  {r.name}
-                </Link>
-                <span className="text-white/80">
-                  {formatPence(r.monthlyPence)} this month
-                </span>
-              </div>
-            ))}
-            <p className="pt-2 text-xs text-white/40">
-              Shows our metered cost this month. The customer facing Diamond rate
-              is set in Stripe env and is not finalised: confirm before the first
-              live Diamond invoice.
-            </p>
           </div>
         )}
       </section>

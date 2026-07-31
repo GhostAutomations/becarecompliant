@@ -22,10 +22,6 @@ const TIER_BLURB: Record<string, string> = {
   business:
     "Core compliance: People and Service User registers, checks, forms, RAG status and email reminders.",
   pro: "Everything in Business, plus SMS reminders, reporting and inspector ready exports, and the form builder.",
-  enterprise:
-    "Everything in Pro, plus AI assistance, the integration layer and priority support.",
-  diamond:
-    "Everything included. You are billed for usage only: SMS and AI, with no monthly subscription.",
   black: "Everything included, with nothing to pay.",
 };
 
@@ -81,11 +77,11 @@ export default async function BillingPage() {
   const branches = await getBranchUsage(profile.company_id, tier);
   const aiCredits = await getAiCreditBalance(profile.company_id);
   const smsCredits = await getSmsCreditBalance(profile.company_id);
-  const AI_ALLOWANCE: Record<string, number> = { business: 25, pro: 50, enterprise: 50, diamond: 50, black: 1000 };
+  const AI_ALLOWANCE: Record<string, number> = { business: 25, pro: 50, black: 1000 };
   const aiMonthly = AI_ALLOWANCE[tier] ?? 25;
   // Mirrors tier_monthly_sms_credits in migration 0159. Business gets none: SMS escalation is a
   // Pro feature, and the zero allowance is the same rule expressed in the ledger.
-  const SMS_ALLOWANCE: Record<string, number> = { business: 0, pro: 100, enterprise: 250, diamond: 500, black: 2000 };
+  const SMS_ALLOWANCE: Record<string, number> = { business: 0, pro: 100, black: 2000 };
   const smsMonthly = SMS_ALLOWANCE[tier] ?? 0;
   const smsTopupReady = Boolean(smsTopupPriceId());
   const isSub = isSubscriptionTier(tier);
@@ -103,25 +99,6 @@ export default async function BillingPage() {
         year: "numeric",
       })
     : null;
-
-  // Diamond: show this month's metered usage.
-  let usageThisMonth: { sms: number; ai: number; costPence: number } | null = null;
-  if (tier === "diamond") {
-    const { data: usage } = await supabase
-      .from("usage_monthly")
-      .select("kind, month, units_sum, cost_pence_sum")
-      .eq("company_id", profile.company_id)
-      .order("month", { ascending: false })
-      .limit(2);
-    const rows = usage ?? [];
-    const month = rows[0]?.month ?? null;
-    const cur = month ? rows.filter((r) => r.month === month) : [];
-    usageThisMonth = {
-      sms: Number(cur.find((r) => r.kind === "sms")?.units_sum ?? 0),
-      ai: Number(cur.find((r) => r.kind === "ai")?.units_sum ?? 0),
-      costPence: cur.reduce((s, r) => s + Number(r.cost_pence_sum ?? 0), 0),
-    };
-  }
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -244,9 +221,7 @@ export default async function BillingPage() {
           </div>
         ) : (
           <p className="mt-3 text-sm text-white/60">
-            {tier === "diamond"
-              ? "Users are included. You are billed for usage only."
-              : "All users are included at no charge on the Black plan."}
+            All users are included at no charge on the Black plan.
           </p>
         )}
       </section>
@@ -270,26 +245,6 @@ export default async function BillingPage() {
           </p>
         )}
       </section>
-
-      {/* Diamond usage */}
-      {tier === "diamond" && usageThisMonth && (
-        <section className="glass-card p-5">
-          <h2 className="text-sm font-semibold text-white/80">Usage this month</h2>
-          <div className="mt-3 grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-2xl font-bold text-white">{usageThisMonth.sms}</p>
-              <p className="text-xs text-white/50">SMS segments</p>
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-white">{usageThisMonth.ai}</p>
-              <p className="text-xs text-white/50">AI tokens</p>
-            </div>
-          </div>
-          <p className="mt-3 text-sm text-white/60">
-            Metered usage is invoiced at the end of each calendar month.
-          </p>
-        </section>
-      )}
 
       {/* Payment method + actions */}
       {isSub && (
@@ -329,19 +284,12 @@ export default async function BillingPage() {
         </section>
       )}
 
-      {(tier === "diamond" || tier === "black") && (
+      {tier === "black" && (
         <section className="glass-card p-5">
           <h2 className="text-sm font-semibold text-white/80">Payment and invoices</h2>
           <p className="mt-2 text-sm text-white/70">
-            {tier === "black"
-              ? "There is nothing to pay on the Black plan."
-              : "You are billed for usage only. Manage your card and view invoices in the billing portal."}
+            There is nothing to pay on the Black plan.
           </p>
-          {tier === "diamond" && billing?.stripe_customer_id && (
-            <div className="mt-4">
-              <ManageBillingButton variant="primary" />
-            </div>
-          )}
         </section>
       )}
     </div>

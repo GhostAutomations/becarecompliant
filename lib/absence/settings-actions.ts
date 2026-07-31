@@ -11,7 +11,7 @@
  * AI is opt-in per Phil's choice. It degrades gracefully: if ANTHROPIC_API_KEY /
  * ANTHROPIC_MODEL are missing, or the policy is not a PDF, it surfaces a clear
  * message rather than failing silently. Formal per-company AI usage metering
- * (the Diamond tier meter) is a Phase 6 item; for now usage is written to audit.
+ * is a later item; for now usage is written to audit.
  */
 
 import { revalidatePath } from "next/cache";

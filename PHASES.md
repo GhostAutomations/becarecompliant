@@ -1827,3 +1827,44 @@ STILL TO DO, and both need Phil:
   identity, but it should be revoked as defence in depth.
 
 56 tests pass.
+
+### 2026-07-31 The tier list is Business, Pro and Black
+
+Phil, on being shown the SMS bundles: "those are not the real tiers anymore". He was right, and it
+was worth stopping for. The code carried FIVE tiers while the pricing page has been selling TWO,
+and the SMS allowance built earlier today was cut against the code's list, so three of its five
+bundles were for tiers nobody can buy.
+
+DECIDED: Business, Pro and Black. Enterprise and Diamond retired. Black stays because it is the
+free, founder granted account. The live company moves to Pro so nothing it can do today stops
+working. Business and Pro keep exactly what they include now, which is what the pricing page
+already says.
+
+MIGRATION 0161, in the only order that works: backfill `companies.tier` AND
+`company_billing.billed_tier` off the retired values, THEN narrow the CHECK. Adding the constraint
+first fails on the live row. `billed_tier` matters as much as `tier`: left behind it silently
+stops seat syncing to Stripe for ever. Both allowance functions are rewritten to three tiers, and
+`provision_company` gets back the tier whitelist it lost in 0154 along with a `business` default in
+place of `'starter'`, which was not a tier at all and raised a raw constraint violation.
+
+CODE: the `Tier` union, `SUBSCRIPTION_TIERS`, labels, prices, the base price switch, feature gates,
+seats and branches, the founder console pickers and tallies, the customer Billing page, and the
+duplicate label map in Settings which now imports the real one. `diamondRatePence` and the
+Diamond usage cron are gone, with its schedule out of vercel.json and its env vars out of
+.env.example.
+
+THE THREE ENTERPRISE ONLY FEATURES WERE NEVER USED. `ai_features`, `integration_layer` and
+`priority_support` are not referenced by a single call site: AI moved to the credit engine in 0087,
+the integration layer was never built, and priority support is a sales promise rather than code.
+Deleted from the Feature union.
+
+DELIBERATELY LEFT: `"diamond"` stays in `NEVER_TRIALED`. If a row anywhere still carried it,
+removing it would put a free account on an expired trial and lock it out of everything but
+Billing. Failing open there is the safe direction; every other retired tier path fails closed.
+
+CAUGHT BY REVIEW: a `usage_monthly` query on the founder revenue page that existed only to price
+Diamond invoices and was still being fetched and thrown away on every load; an allowance test whose
+regex was not scoped to the function it named, so an AI number could have satisfied an SMS
+assertion; and the price health check comment describing a case its own code can no longer produce.
+
+56 tests pass.

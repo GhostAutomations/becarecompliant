@@ -80,7 +80,7 @@ export async function completeInvite(
   await rebakeFormFieldOptions(profile.company_id);
 
   // A new active user may cross the 4 included seats: push the seat quantity to
-  // Stripe (best-effort, never blocks activation; no-op if unbilled/Diamond/Black).
+  // Stripe (best-effort, never blocks activation; no-op if unbilled or Black).
   if (profile.company_id) {
     await syncSeatQuantity(profile.company_id);
   }

@@ -19,7 +19,7 @@ test("no trial date means never locked", () => {
   assert.equal(trialState({ trialEndsAt: null }, NOW).daysLeft, null);
 });
 
-test("black and diamond are never on a clock, even with a date set", () => {
+test("black, and retired diamond, are never on a clock even with a date set", () => {
   assert.equal(trialState({ trialEndsAt: at(-10 * DAY), tier: "black" }, NOW).status, "none");
   assert.equal(trialState({ trialEndsAt: at(-10 * DAY), tier: "diamond" }, NOW).status, "none");
   assert.equal(trialState({ trialEndsAt: at(-10 * DAY), tier: "BLACK" }, NOW).status, "none");

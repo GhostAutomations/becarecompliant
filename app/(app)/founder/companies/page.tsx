@@ -162,11 +162,9 @@ export default async function FounderCompaniesPage() {
                     <span>
                       Billing:{" "}
                       <span className="text-white/90">
-                        {company.tier === "diamond"
-                          ? "usage only"
-                          : company.tier === "black"
-                            ? "free, founder granted"
-                            : "not a subscription"}
+                        {company.tier === "black"
+                          ? "free, founder granted"
+                          : "not a subscription"}
                       </span>
                     </span>
                   )}

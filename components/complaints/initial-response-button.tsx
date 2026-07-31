@@ -2,7 +2,7 @@
 
 /**
  * Be Care Compliant — "Initial Response" for a complaint. AI drafts an
- * acknowledgement from the complaint details (Enterprise, metered). For an email
+ * acknowledgement from the complaint details (paid for with AI credits). For an email
  * complainant it is reviewed then sent via Resend on approval; for a postal
  * complainant it is a letter to copy onto headed paper. Either way it records the
  * response and stamps the complaint as acknowledged today.

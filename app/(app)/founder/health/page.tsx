@@ -90,7 +90,7 @@ export default async function FounderHealthPage() {
     {
       label: "Cron secret",
       ok: Boolean(process.env.CRON_SECRET),
-      detail: "CRON_SECRET (digest + usage crons fail closed without it)",
+      detail: "CRON_SECRET (the digest and invoicing crons fail closed without it)",
     },
     {
       label: "Supabase service role",

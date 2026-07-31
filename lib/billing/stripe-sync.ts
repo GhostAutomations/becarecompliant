@@ -104,7 +104,7 @@ export async function ensureCustomer(
 /**
  * Push the current extra-seat count onto the company's live subscription.
  * No-op (returns a reason) when: Stripe unset, no subscription, tier is not a
- * subscription tier (Diamond/Black), or the quantity already matches. Never
+ * subscription tier (Black), or the quantity already matches. Never
  * throws.
  */
 export async function syncSeatQuantity(

@@ -22,12 +22,10 @@ export const INCLUDED_SEATS = 4;
 /** Then £5 per extra user per month. Stored in pence to avoid float drift. */
 export const EXTRA_SEAT_PENCE = 500;
 
-/** Included users by tier. Business 4, Pro 6, legacy/premium at least 6. */
+/** Included users by tier. Business 4, Pro 6, Black unlimited. */
 export function includedSeatsForTier(tier: string): number {
   switch (tier) {
     case "pro":
-    case "enterprise":
-    case "diamond":
       return 6;
     case "black":
       return 9999;
@@ -42,8 +40,6 @@ export const EXTRA_BRANCH_PENCE = 750;
 export function includedBranchesForTier(tier: string): number {
   switch (tier) {
     case "pro":
-    case "enterprise":
-    case "diamond":
       return 2;
     case "black":
       return 9999;

@@ -33,8 +33,6 @@ export function CreateCompanyForm() {
           <select id="tier" name="tier" defaultValue="business">
             <option value="business">Business</option>
             <option value="pro">Pro</option>
-            <option value="enterprise">Enterprise</option>
-            <option value="diamond">Diamond (usage only)</option>
             <option value="black">Black (free, founder granted)</option>
           </select>
         </div>

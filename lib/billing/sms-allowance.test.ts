@@ -11,8 +11,10 @@ import { readFileSync } from "node:fs";
  * another. A test can check it; prose cannot.
  */
 
+// 0161 is the LIVE definition of the allowance: 0159 created it against five tiers, and the
+// tier list was cut to three on 31 Jul. Reading the newest one is the point of this test.
 const migration = readFileSync(
-  new URL("../../supabase/migrations/0159_sms_credits.sql", import.meta.url),
+  new URL("../../supabase/migrations/0161_three_tiers_business_pro_black.sql", import.meta.url),
   "utf8",
 );
 const billingPage = readFileSync(
@@ -21,19 +23,23 @@ const billingPage = readFileSync(
 );
 const stripeConfig = readFileSync(new URL("../stripe/config.ts", import.meta.url), "utf8");
 
-/** The bundle each tier gets every month, as agreed on 2026-07-31. */
+/** The bundle each tier gets every month. Three tiers: the two you sell, plus free Black. */
 const BUNDLES: Array<[string, number]> = [
   ["business", 0],
   ["pro", 100],
-  ["enterprise", 250],
-  ["diamond", 500],
   ["black", 2000],
 ];
 
 test("the database grants the agreed bundle for every tier", () => {
+  // Scoped to the SMS function's own body. The migration also defines the AI allowance, and an
+  // unscoped match could be satisfied by an AI number while claiming to have checked SMS.
+  const body = migration.match(
+    /create or replace function public\.tier_monthly_sms_credits[\s\S]*?\$\$;/,
+  );
+  assert.ok(body, "tier_monthly_sms_credits is not defined in the migration this test reads");
   for (const [tier, texts] of BUNDLES) {
     assert.match(
-      migration,
+      body![0],
       new RegExp(`when '${tier}' then ${texts}\\b`),
       `tier_monthly_sms_credits no longer grants ${tier} ${texts} texts`,
     );

@@ -2,7 +2,7 @@ import "server-only";
 import { createServiceClient } from "@/lib/supabase/admin";
 
 /**
- * Per-company usage metering (Diamond tier depends on this). One row per
+ * Per-company usage metering. One row per
  * metered event: an SMS send (units = message segments) or an AI call
  * (units = total tokens, with input/output split in metadata).
  *

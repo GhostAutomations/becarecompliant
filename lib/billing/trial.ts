@@ -41,6 +41,14 @@ export type TrialState = {
 };
 
 /** Tiers that are granted by hand and are never on a trial clock. */
+/**
+ * Tiers that are never on a trial clock.
+ *
+ * "black" is the live one: a free, founder granted account has nothing to convert to. "diamond"
+ * is retired (31 Jul 2026) and is kept here deliberately, not tidied away: if a row anywhere
+ * still carried it, dropping it from this list would put a free account on an expired trial and
+ * lock it out of everything but Billing.
+ */
 const NEVER_TRIALED = ["black", "diamond"];
 
 export function trialState(

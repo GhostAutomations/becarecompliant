@@ -4,10 +4,8 @@ import "server-only";
  * Billing configuration for Be Care Compliant.
  *
  * Fixed product rules (not up for debate): every SUBSCRIPTION tier includes 4
- * users, then £5 per extra user per month. Diamond has no subscription and pays
- * usage only (SMS + AI). Black is free, founder-granted, and has NO Stripe
- * objects. Prices agreed with Phil 2026-07-12: Business £49, Pro £99,
- * Enterprise £199 per month (base), all GBP, monthly only, no trials.
+ * users, then £5 per extra user per month. Black is free, founder granted, and has NO Stripe
+ * objects. Prices: Business £49, Pro £69 per month (base), all GBP, monthly only, no trials.
  *
  * Stripe Price IDs are created in the Stripe dashboard (test mode first) and
  * supplied via env, so the numbers live in Stripe, not hard-coded here. This
@@ -15,10 +13,17 @@ import "server-only";
  * Price ID shared by every subscription tier.
  */
 
-export type Tier = "business" | "pro" | "enterprise" | "diamond" | "black";
+/**
+ * THREE tiers (Phil, 2026-07-31): the two you sell, plus Black.
+ *
+ * Enterprise and Diamond are retired. The pricing page had been selling two plans for a while
+ * whilst the code still carried five, which is how an SMS allowance came to be cut against tiers
+ * nobody could buy. Black is the free, founder granted account: never sold, everything on.
+ */
+export type Tier = "business" | "pro" | "black";
 
 /** Tiers that carry a Stripe subscription (base price + per-seat price). */
-export const SUBSCRIPTION_TIERS = ["business", "pro", "enterprise"] as const;
+export const SUBSCRIPTION_TIERS = ["business", "pro"] as const;
 export type SubscriptionTier = (typeof SUBSCRIPTION_TIERS)[number];
 
 export function isSubscriptionTier(tier: string): tier is SubscriptionTier {
@@ -29,8 +34,6 @@ export function isSubscriptionTier(tier: string): tier is SubscriptionTier {
 export const TIER_LABELS: Record<Tier, string> = {
   business: "Business",
   pro: "Pro",
-  enterprise: "Enterprise",
-  diamond: "Diamond",
   black: "Black",
 };
 
@@ -44,7 +47,6 @@ export const TIER_BASE_PENCE: Record<SubscriptionTier, number> = {
   // comparing notes; lib/billing/price-consistency.test.ts now makes them, and
   // checkoutPriceProblem() refuses a sale outright if Stripe disagrees with this number.
   pro: 6900,
-  enterprise: 19900,
 };
 
 /** The Stripe Price ID for each subscription tier's flat monthly base fee. */
@@ -54,8 +56,6 @@ export function tierBasePriceId(tier: SubscriptionTier): string | null {
       return process.env.STRIPE_PRICE_BUSINESS ?? null;
     case "pro":
       return process.env.STRIPE_PRICE_PRO ?? null;
-    case "enterprise":
-      return process.env.STRIPE_PRICE_ENTERPRISE ?? null;
   }
 }
 
@@ -84,7 +84,7 @@ export function aiTopupPriceId(): string | null {
  * SMS top up: a one time payment for a bundle of texts, the same shape as the AI top up.
  *
  * 250 texts for £20 excluding VAT, which is 8p a text against a UK send cost of about 4p. The
- * monthly allowance by tier is Business 0, Pro 100, Enterprise 250, Diamond 500, Black 2000
+ * monthly allowance by tier is Business 0, Pro 100, Black 2000
  * (tier_monthly_sms_credits in migration 0159); this is what a company buys when it runs out.
  *
  * The Stripe Price is created in the dashboard and supplied via env. These constants must match
@@ -106,22 +106,3 @@ export function tierPricingReady(tier: SubscriptionTier): boolean {
   return Boolean(tierBasePriceId(tier) && seatPriceId());
 }
 
-/**
- * Diamond usage rate per unit, in pence, from env. SMS unit = one message
- * segment; AI unit = one token. When a rate is set the monthly cron bills
- * units × rate; when it is unset it falls back to the metered cost_pence already
- * recorded on each usage_event (a pass-through of our own cost).
- *
- * NOTE (open decision, flag to Phil before the first live Diamond invoice): the
- * customer-facing per-unit price / markup is not finalised. These envs let us
- * set it without a code change once agreed.
- */
-export function diamondRatePence(kind: "sms" | "ai"): number | null {
-  const raw =
-    kind === "sms"
-      ? process.env.STRIPE_DIAMOND_SMS_PENCE
-      : process.env.STRIPE_DIAMOND_AI_PENCE;
-  if (!raw) return null;
-  const n = Number(raw);
-  return Number.isFinite(n) && n >= 0 ? n : null;
-}

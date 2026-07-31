@@ -17,7 +17,7 @@ import type { Tier } from "@/lib/stripe/config";
  *     Service User personal outcomes + satisfaction tracking (PQS).
  *   - AI is on every tier now, metered by credits (see lib/billing/ai-credits.ts),
  *     so it is NOT gated here. ai_features remains only for legacy references.
- *   - Enterprise/Diamond/Black are legacy/premium and get everything.
+ *   - Black is the free, founder granted account and gets everything.
  */
 
 export type Feature =
@@ -28,34 +28,26 @@ export type Feature =
   | "invoicing"
   | "outcomes_satisfaction"
   | "planner"
-  | "on_call"
-  | "ai_features"
-  | "integration_layer"
-  | "priority_support";
+  | "on_call";
 
 /** The minimum ordered subscription tier that unlocks each feature. */
 const PRO_FEATURES: Feature[] = ["sms_reminders", "reporting_exports", "form_builder", "complaints", "invoicing", "outcomes_satisfaction", "planner", "on_call"];
-const ENTERPRISE_FEATURES: Feature[] = [
-  "ai_features",
-  "integration_layer",
-  "priority_support",
-];
-
 /** Pure: does this tier include this feature? Safe to unit-test without a DB. */
 export function tierHasFeature(tier: Tier, feature: Feature): boolean {
-  // Premium/partner tiers get everything.
-  if (tier === "diamond" || tier === "black") return true;
-  if (tier === "enterprise") {
-    return PRO_FEATURES.includes(feature) || ENTERPRISE_FEATURES.includes(feature);
-  }
+  // Black is the free founder granted account and gets everything.
+  if (tier === "black") return true;
   if (tier === "pro") return PRO_FEATURES.includes(feature);
-  // business (and any unknown tier) = core only.
+  // business, and any unknown tier, is core only. Failing CLOSED on an unknown tier is
+  // deliberate: a company row with a value nobody recognises should not unlock anything.
   return false;
 }
 
 /** The lowest tier that unlocks a feature, for upgrade messaging. */
-export function featureMinTier(feature: Feature): Tier {
-  return ENTERPRISE_FEATURES.includes(feature) ? "enterprise" : "pro";
+export function featureMinTier(_feature: Feature): Tier {
+  // Every gated feature is a Pro feature now. The three Enterprise only features (ai_features,
+  // integration_layer, priority_support) were never referenced anywhere: AI moved to the credit
+  // engine, the integration layer was never built, and priority support is a promise, not code.
+  return "pro";
 }
 
 /** Read a company's tier. Defaults to "business" (least privilege) if unknown. */
