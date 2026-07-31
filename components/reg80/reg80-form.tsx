@@ -272,7 +272,7 @@ export default function Reg80Form({
               const isGold = gold.has(f.key);
               return (
                 <div key={f.key}>
-                  <label htmlFor={id} className="form-label flex items-center gap-2">
+                  <label htmlFor={f.type === "image" ? undefined : id} className="form-label flex items-center gap-2">
                     {f.label}
                     {f.ai ? (
                       <span className="rounded-full bg-gold-400/15 px-2 py-0.5 text-[10px] font-semibold text-gold-300">AI</span>

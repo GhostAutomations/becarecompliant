@@ -87,11 +87,18 @@ export default function Reg80ImageInput({
   return (
     <div className="mt-1">
       <input type="hidden" name={name} value={value} />
+      {/* The file input is a standalone element the button clicks by ref, rather than a
+          label wrapped input: one unambiguous trigger per field, no label association to
+          collide with a neighbouring field. */}
+      <input ref={inputRef} type="file" accept="image/*" onChange={onFile} className="hidden" />
       <div className="flex items-center gap-3">
-        <label className="btn-outline inline-block cursor-pointer px-3 py-2 text-xs">
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="btn-outline px-3 py-2 text-xs"
+        >
           {value ? "Replace image" : "Choose image"}
-          <input ref={inputRef} type="file" accept="image/*" onChange={onFile} className="hidden" />
-        </label>
+        </button>
         {busy ? <span className="text-xs text-white/60">Processing…</span> : null}
         {value && !busy ? (
           <button type="button" onClick={clear} className="text-xs text-white/50 hover:text-white/80">

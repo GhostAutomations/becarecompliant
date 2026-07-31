@@ -42,7 +42,7 @@ export default function NavyNav({
   };
   const scheduleClose = () => {
     cancelClose();
-    timer.current = setTimeout(() => setOpen(false), 140);
+    timer.current = setTimeout(() => setOpen(false), 60);
   };
   const openOn = (href: string) => {
     cancelClose();
