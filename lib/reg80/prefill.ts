@@ -18,7 +18,7 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { getPqsMeasures, defaultOnTimeWindow } from "@/lib/export/on-time";
-import { addMonths, todayInLondon, formatCivilDate } from "@/lib/recurrence";
+import { todayInLondon, formatCivilDate } from "@/lib/recurrence";
 
 const AUDIT_TARGET_PER_MONTH = 5; // the branch target the report grades audits against
 const PERIOD_MONTHS = 6;
@@ -69,6 +69,19 @@ export type Reg80Prefill = {
 
 const pct = (v: number | null | undefined): number | null => (v == null ? null : v);
 
+/** Shift a YYYY-MM-DD date by whole months, handling month and year boundaries. */
+function shiftMonths(dateStr: string, n: number): string {
+  const [y, m, d] = dateStr.slice(0, 10).split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1 + n, d)).toISOString().slice(0, 10);
+}
+
+/** Whole months between two YYYY-MM-DD dates, at least 1 (for the audit average). */
+function monthsBetween(start: string, end: string): number {
+  const [ay, am] = start.slice(0, 10).split("-").map(Number);
+  const [by, bm] = end.slice(0, 10).split("-").map(Number);
+  return Math.max(1, by * 12 + bm - (ay * 12 + am));
+}
+
 /** Rough split of a job title into care facing versus office, for the turnover table.
  *  The RI edits the narrative, so this only needs to be a sensible starting point. */
 function classifyRole(title: string): "care" | "office" {
@@ -102,11 +115,15 @@ export async function getReg80Prefill(input: {
   companyName: string;
   branchId: string;
   branchName: string;
+  /** The review period drives every windowed figure. Defaults to the last 6 months. */
+  period?: { start: string; end: string };
 }): Promise<Reg80Prefill> {
   const supabase = await createClient();
   const today = formatCivilDate(todayInLondon());
-  const sixMonthsAgo = formatCivilDate(addMonths(todayInLondon(), -PERIOD_MONTHS));
-  const twelveMonthsAgo = formatCivilDate(addMonths(todayInLondon(), -12));
+  const periodEnd = input.period?.end || today;
+  const periodStart = input.period?.start || shiftMonths(periodEnd, -PERIOD_MONTHS);
+  const twelveMonthsAgo = shiftMonths(periodEnd, -12);
+  const auditEnd = `${periodEnd}T23:59:59`;
 
   const [measures, peopleRes, statusRes, complaintsRes, auditDefsRes, suRes, outcomeRes, prevRes] =
     await Promise.all([
@@ -132,7 +149,8 @@ export async function getReg80Prefill(input: {
         .select("formality, concern_type, date_raised, created_at")
         .eq("company_id", input.companyId)
         .eq("branch_id", input.branchId)
-        .gte("date_raised", twelveMonthsAgo),
+        .gte("date_raised", twelveMonthsAgo)
+        .lte("date_raised", periodEnd),
       supabase
         .from("check_definitions")
         .select("form_id")
@@ -188,9 +206,10 @@ export async function getReg80Prefill(input: {
     .sort((a, b) => b.count - a.count);
   const activeSplit = splitBy(active, () => true);
 
-  const startedSince = (cut: string) => (p: PersonRow) => !!p.start_date && p.start_date >= cut;
-  const leftSince = (cut: string) => (p: PersonRow) =>
-    p.employment_status === "leaver" && !!p.leaver_date && p.leaver_date >= cut;
+  const startedIn = (lo: string) => (p: PersonRow) =>
+    !!p.start_date && p.start_date >= lo && p.start_date <= periodEnd;
+  const leftIn = (lo: string) => (p: PersonRow) =>
+    p.employment_status === "leaver" && !!p.leaver_date && p.leaver_date >= lo && p.leaver_date <= periodEnd;
 
   const scwActive = active.length;
   const scwWithout = active.filter((p) => !(p.scw_registration_number ?? "").trim()).length;
@@ -213,7 +232,7 @@ export async function getReg80Prefill(input: {
   type Cx = { formality: string | null; concern_type: string | null; date_raised: string | null; created_at: string };
   const cx = (complaintsRes.data as Cx[] | null) ?? [];
   const dateOf = (c: Cx) => c.date_raised ?? c.created_at.slice(0, 10);
-  const cx6 = cx.filter((c) => dateOf(c) >= sixMonthsAgo);
+  const cx6 = cx.filter((c) => dateOf(c) >= periodStart && dateOf(c) <= periodEnd);
   const tally = (rows: Cx[], key: (c: Cx) => string) => {
     const m = new Map<string, number>();
     for (const c of rows) {
@@ -238,7 +257,8 @@ export async function getReg80Prefill(input: {
       .eq("company_id", input.companyId)
       .eq("branch_id", input.branchId)
       .in("form_id", auditFormIds)
-      .gte("submitted_at", sixMonthsAgo);
+      .gte("submitted_at", periodStart)
+      .lte("submitted_at", auditEnd);
     for (const e of (ev as { record_type: string }[] | null) ?? []) {
       if (e.record_type === "person") auditPeople += 1;
       else if (e.record_type === "service_user") auditServiceUsers += 1;
@@ -257,14 +277,14 @@ export async function getReg80Prefill(input: {
     branchId: input.branchId,
     branchName: input.branchName,
     generatedAt: today,
-    periodStart: sixMonthsAgo,
-    periodEnd: today,
+    periodStart,
+    periodEnd,
     staffing: { total: active.length, care: activeSplit.care, office: activeSplit.office, roles },
     turnover: {
-      starters6: splitBy(notArchived, startedSince(sixMonthsAgo)),
-      starters12: splitBy(notArchived, startedSince(twelveMonthsAgo)),
-      leavers6: splitBy(notArchived, leftSince(sixMonthsAgo)),
-      leavers12: splitBy(notArchived, leftSince(twelveMonthsAgo)),
+      starters6: splitBy(notArchived, startedIn(periodStart)),
+      starters12: splitBy(notArchived, startedIn(twelveMonthsAgo)),
+      leavers6: splitBy(notArchived, leftIn(periodStart)),
+      leavers12: splitBy(notArchived, leftIn(twelveMonthsAgo)),
     },
     complaints: {
       total6: cx6.length,
@@ -276,7 +296,7 @@ export async function getReg80Prefill(input: {
     audits: {
       people6: auditPeople,
       serviceUsers6: auditServiceUsers,
-      monthsInPeriod: PERIOD_MONTHS,
+      monthsInPeriod: monthsBetween(periodStart, periodEnd),
       targetPerMonth: AUDIT_TARGET_PER_MONTH,
     },
     outcomes: { totalServiceUsers: suIds.size, withOutcomes: outcomeSuIds.size },

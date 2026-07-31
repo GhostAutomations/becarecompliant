@@ -183,9 +183,14 @@ function ReportDocument({ doc }: { doc: ReportDoc }) {
             return <View key={i} style={styles.metaGrid}>{metaCells(block.pairs)}</View>;
           if (block.kind === "image")
             return (
-              <View key={i} style={{ marginBottom: 8 }} wrap={false}>
-                <Image src={block.dataUrl} style={{ width: block.width ?? 200, height: block.height ?? 74 }} />
-                {block.caption ? <Text style={{ fontSize: 8, color: MUTED, marginTop: 2 }}>{block.caption}</Text> : null}
+              <View key={i} style={{ marginBottom: 10 }} wrap={false}>
+                {/* Only pin height when a fixed size is given (signatures). For content
+                    images pass width alone so the aspect ratio is preserved. */}
+                <Image
+                  src={block.dataUrl}
+                  style={block.height ? { width: block.width ?? 200, height: block.height } : { width: block.width ?? 200 }}
+                />
+                {block.caption ? <Text style={{ fontSize: 8, color: MUTED, marginTop: 3 }}>{block.caption}</Text> : null}
               </View>
             );
           if (block.kind === "spacer") return <View key={i} style={{ height: 10 }} />;

@@ -66,12 +66,6 @@ export default function ReportsPanel({ entitled, isAdmin }: { entitled: boolean;
           locked={proLocked}
         />
         <ReportCard
-          title="Training compliance report"
-          description="Mandatory training and safeguarding compliance rates with PQS score bands, plus the list of expired or missing mandatory training to action."
-          viewHref={viewHref("training")}
-          locked={proLocked}
-        />
-        <ReportCard
           title="Regulation 73"
           description="The Responsible Individual branch visit report, one per branch, pre-filled from the site with KPIs, complaints, training and satisfaction. AI drafts the narrative, you edit and sign."
           viewHref="/reports/reg73"
@@ -81,6 +75,12 @@ export default function ReportsPanel({ entitled, isAdmin }: { entitled: boolean;
           title="Regulation 80"
           description="The six monthly Quality of Care review, one per branch, pre-filled with staffing, turnover, complaints, audits, outcomes, supervisions and training. Covers the statutory review requirements. AI drafts the narrative, you edit and sign."
           viewHref="/reports/reg80"
+          locked={proLocked}
+        />
+        <ReportCard
+          title="Training compliance report"
+          description="Mandatory training and safeguarding compliance rates with PQS score bands, plus the list of expired or missing mandatory training to action."
+          viewHref={viewHref("training")}
           locked={proLocked}
         />
 

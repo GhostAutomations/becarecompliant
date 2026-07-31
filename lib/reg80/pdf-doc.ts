@@ -51,9 +51,11 @@ export function buildReg80Doc(review: Reg80ReviewFull, branchName: string, compa
       if (field.type === "image") {
         const img = val(field.key);
         if (img.startsWith("data:image")) {
-          blocks.push({ kind: "image", dataUrl: img, width: 460, caption: field.label });
+          // Label above (like the other fields), then the image at a readable width with
+          // its aspect ratio preserved. An empty optional image is omitted entirely.
+          blocks.push({ kind: "paragraph", text: field.label });
+          blocks.push({ kind: "image", dataUrl: img, width: 380 });
         }
-        // An empty optional image is simply omitted.
         continue;
       }
       let value: string;

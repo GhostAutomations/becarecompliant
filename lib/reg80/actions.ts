@@ -217,6 +217,12 @@ export async function refreshReg80Data(_prev: ActionState, formData: FormData): 
   if (!id) return { error: "Missing review." };
   const companyId = profile.company_id!;
 
+  // The review period the RI currently has in the form drives every figure, so a
+  // changed date range re-pulls the numbers for that range.
+  const ps = String(formData.get("period_start") ?? "").slice(0, 10);
+  const pe = String(formData.get("period_end") ?? "").slice(0, 10);
+  const period = ps && pe ? { start: ps, end: pe } : undefined;
+
   const supabase = await createClient();
   const { data: row } = await supabase
     .from("reg80_reviews")
@@ -235,18 +241,26 @@ export async function refreshReg80Data(_prev: ActionState, formData: FormData): 
     companyName: (company?.name as string) ?? "Company",
     branchId: row.branch_id as string,
     branchName,
+    period,
   });
   const oldData = (row.data as Record<string, string>) ?? {};
   const fresh = buildInitialData(prefill, oldData.ri_name ?? profile.full_name ?? "");
 
   const refreshed: Record<string, string> = {};
   for (const key of REG80_DATA_FIELDS) if (typeof fresh[key] === "string") refreshed[key] = fresh[key];
-  const data = { ...oldData, ...refreshed };
+  const data = { ...oldData, ...refreshed, ...(ps ? { period_start: ps } : {}), ...(pe ? { period_end: pe } : {}) };
 
-  const { error } = await supabase
-    .from("reg80_reviews")
-    .update({ data, prefill, updated_by: profile.id, updated_at: new Date().toISOString() })
-    .eq("id", id);
+  const patch: Record<string, unknown> = {
+    data,
+    prefill,
+    updated_by: profile.id,
+    updated_at: new Date().toISOString(),
+  };
+  if (period) {
+    patch.period_start = period.start;
+    patch.period_end = period.end;
+  }
+  const { error } = await supabase.from("reg80_reviews").update(patch).eq("id", id);
   if (error) return { error: error.message };
   return { ok: JSON.stringify(refreshed) };
 }

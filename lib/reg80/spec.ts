@@ -87,7 +87,7 @@ export const REG80_SECTIONS: Reg80Section[] = [
       { key: "su_feedback", label: "Summary of service user feedback", type: "text", ai: true },
       { key: "su_feedback_positive", label: "Positive feedback (comments)", type: "text" },
       { key: "su_feedback_negative", label: "Areas identified for review or improvement (comments)", type: "text" },
-      { key: "su_survey_image", label: "Survey ratings or chart (optional image)", type: "image" },
+      { key: "su_survey_image", label: "Survey ratings or chart", type: "image", hint: "Optional. Upload a screenshot or chart to embed in the report." },
       { key: "su_feedback_actions", label: "Action needed and measures", type: "text" },
     ],
   },
@@ -173,7 +173,7 @@ export const REG80_SECTIONS: Reg80Section[] = [
     intro: "Call duration monitoring. The platform does not hold call data, so this is recorded by the branch.",
     fields: [
       { key: "call_durations_note", label: "Call duration commentary", type: "text" },
-      { key: "call_durations_image", label: "Call duration table (optional image)", type: "image" },
+      { key: "call_durations_image", label: "Call duration table", type: "image", hint: "Optional. Upload a screenshot or table to embed in the report." },
       { key: "call_durations_actions", label: "Action needed and measures", type: "text" },
     ],
   },

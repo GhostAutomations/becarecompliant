@@ -43,6 +43,7 @@ export default function Reg80Form({
   );
   const [drafting, setDrafting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [offerRedraft, setOfferRedraft] = useState(false);
   const [opError, setOpError] = useState<string | null>(null);
 
   const [saveState, saveAction, savePending] = useActionState(saveReg80, IDLE_STATE);
@@ -70,6 +71,7 @@ export default function Reg80Form({
     setDrafting(true);
     setOpError(null);
     resetSaved();
+    setOfferRedraft(false);
     const fd = new FormData();
     fd.set("review_id", review.id);
     const res = await aiDraftReg80(IDLE_STATE, fd);
@@ -103,6 +105,11 @@ export default function Reg80Form({
     resetSaved();
     const fd = new FormData();
     fd.set("review_id", review.id);
+    // Pass the period the RI currently has in the form, so refresh refigures for those dates.
+    const ps = (document.getElementById("f_period_start") as HTMLInputElement | null)?.value ?? "";
+    const pe = (document.getElementById("f_period_end") as HTMLInputElement | null)?.value ?? "";
+    if (ps) fd.set("period_start", ps);
+    if (pe) fd.set("period_end", pe);
     const res = await refreshReg80Data(IDLE_STATE, fd);
     setRefreshing(false);
     if (res.error || !res.ok) {
@@ -116,6 +123,7 @@ export default function Reg80Form({
         for (const k of REG80_DATA_FIELDS) if (typeof fresh[k] === "string") next[k] = fresh[k];
         return next;
       });
+      setOfferRedraft(true);
     } catch {
       setOpError("Could not read the refreshed data. Try again.");
     }
@@ -180,7 +188,13 @@ export default function Reg80Form({
 
   // Editable draft.
   return (
-    <form className="space-y-4" onChange={resetSaved}>
+    <form
+      className="space-y-4"
+      onChange={() => {
+        resetSaved();
+        setOfferRedraft(false);
+      }}
+    >
       <input type="hidden" name="review_id" value={review.id} />
       <input type="hidden" name="_ai_fields" value={[...gold].join(",")} />
 
@@ -201,6 +215,34 @@ export default function Reg80Form({
         </button>
         {error ? <span className="w-full text-xs text-red-300">{error}</span> : null}
       </div>
+
+      {offerRedraft ? (
+        <div className="glass-card flex flex-wrap items-center gap-3 border border-gold-400/30 p-3">
+          <span className="text-sm text-white/80">
+            The figures have been refreshed. Update the narrative from the new figures?
+          </span>
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              onClick={async () => {
+                setOfferRedraft(false);
+                await draftWithAi();
+              }}
+              disabled={busy}
+              className="btn-primary px-3 py-2 text-xs"
+            >
+              Update narrative
+            </button>
+            <button
+              type="button"
+              onClick={() => setOfferRedraft(false)}
+              className="btn-ghost px-3 py-2 text-xs"
+            >
+              Keep mine
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {REG80_SECTIONS.map((section) => {
         if (section.title === "Sign off") {
@@ -284,10 +326,11 @@ export default function Reg80Form({
       })}
 
       <p className="text-xs text-white/40">
-        The data boxes are pre-filled from the site. Refresh data re-pulls them. Draft narrative with
-        AI fills the tagged boxes in gold for you to edit. The incidents, safeguarding and
-        whistleblowing boxes are for you to complete. Choose a signature option and save and submit to
-        lock the review.
+        The data boxes are pre-filled from the site for the review period above. Change the period and
+        Refresh data to re-pull every figure for those dates, then choose whether to update the
+        narrative to match. Draft narrative with AI fills the tagged boxes in gold for you to edit. The
+        incidents, safeguarding and whistleblowing boxes are for you to complete. Choose a signature
+        option and save and submit to lock the review.
       </p>
     </form>
   );
