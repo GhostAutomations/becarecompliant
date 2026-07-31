@@ -30,7 +30,7 @@ import {
   londonDateIso,
   isLondonSendHour,
 } from "@/lib/notifications/digest";
-import { claimNotification, settleNotification } from "@/lib/notifications/log";
+import { claimNotification, settleNotification, releaseNotification } from "@/lib/notifications/log";
 import {
   getOutstandingBriefings,
   managerOutstandingHtml,
@@ -39,6 +39,7 @@ import {
   sendBriefingChases,
 } from "@/lib/notifications/briefings";
 import { sendSms, twilioConfigured } from "@/lib/sms/twilio";
+import { OUT_OF_SMS_CREDITS } from "@/lib/billing/sms-credits";
 import { tierHasFeature } from "@/lib/billing/tier";
 import type { Tier } from "@/lib/stripe/config";
 import { siteUrl } from "@/lib/site";
@@ -79,14 +80,18 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Grant this month's AI credits to every active company (idempotent per calendar
+  // Grant this month's AI and SMS credits to every active company (idempotent per calendar
   // month, tier based). Runs before the send-hour gate so it happens once a day
   // regardless of whether the digest sends this invocation.
   try {
     const { createServiceClient } = await import("@/lib/supabase/admin");
-    await createServiceClient().rpc("grant_monthly_ai_credits");
+    const admin = createServiceClient();
+    await admin.rpc("grant_monthly_ai_credits");
+    // SMS credits BEFORE the sends below, so a company that rolls into a new month gets its
+    // allowance on the same run that would spend it.
+    await admin.rpc("grant_monthly_sms_credits");
   } catch (e) {
-    console.error("[cron] monthly AI credit grant failed:", (e as Error).message);
+    console.error("[cron] monthly credit grant failed:", (e as Error).message);
   }
 
   // Gate: sends from 07:00 London onwards (dedupe keys prevent repeats), so
@@ -105,6 +110,9 @@ export async function GET(request: NextRequest) {
     digestsSent: 0,
     reportsSent: 0,
     smsSent: 0,
+    /** Texts not sent because the company had no allowance left. Counted separately from
+     *  "skipped", because this one is a bill the customer needs to know about. */
+    smsOutOfCredits: 0,
     briefingChases: 0,
     briefingManagerEmails: 0,
     skipped: 0,
@@ -355,15 +363,29 @@ export async function GET(request: NextRequest) {
             body: `Be Care Compliant: ${smsClaims.length} compliance ${noun} ${company.settings.smsOverdueDays} or more days overdue at ${company.name}. Please sign in to review.`,
             metadata: { kind: "sms_overdue", recipient: recipient.profileId },
           });
+          const outOfCredits = result.skippedReason === OUT_OF_SMS_CREDITS;
           if (result.sent) summary.smsSent += 1;
-          else if (result.skippedReason) summary.skipped += 1;
+          else if (outOfCredits) {
+            summary.smsOutOfCredits += 1;
+            summary.skipped += 1;
+          } else if (result.skippedReason) summary.skipped += 1;
           else summary.failures.push(`sms ${recipient.phone}: ${result.error}`);
           for (const logId of smsClaims) {
-            await settleNotification(
-              logId,
-              result.sent ? "sent" : result.skippedReason ? "skipped" : "failed",
-              result.error ?? result.skippedReason,
-            );
+            /*
+             * NOTHING WAS SENT AND NOTHING WAS TRIED, so the claim goes back.
+             *
+             * The dedupe key has no run date in it, by design: a chaser goes out once for a given
+             * check and due date, not once a day. Settling these as "skipped" would leave the row
+             * in place and those checks could never be chased again, not after a top up and not
+             * after next month's allowance. Releasing lets tomorrow's run try again.
+             */
+            if (outOfCredits) await releaseNotification(logId);
+            else
+              await settleNotification(
+                logId,
+                result.sent ? "sent" : result.skippedReason ? "skipped" : "failed",
+                result.error ?? result.skippedReason,
+              );
           }
         }
       }

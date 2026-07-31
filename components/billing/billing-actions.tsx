@@ -10,7 +10,12 @@
 
 import { useActionState, useEffect } from "react";
 import { IDLE_STATE } from "@/lib/forms";
-import { startCheckout, openBillingPortal, startAiTopupCheckout } from "@/lib/billing/actions";
+import {
+  startCheckout,
+  openBillingPortal,
+  startAiTopupCheckout,
+  startSmsTopupCheckout,
+} from "@/lib/billing/actions";
 
 function useRedirect(redirectTo?: string) {
   useEffect(() => {
@@ -40,6 +45,22 @@ export function SubscribeButton({
 
 export function TopUpCreditsButton({ label = "Buy more credits" }: { label?: string }) {
   const [state, action, pending] = useActionState(startAiTopupCheckout, IDLE_STATE);
+  useRedirect(state.redirectTo);
+  const busy = pending || !!state.redirectTo;
+  return (
+    <form action={action}>
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="submit" className="btn btn-outline text-sm" disabled={busy}>
+          {busy ? "Opening secure checkout…" : label}
+        </button>
+        {state.error && <span className="text-sm text-red-300">{state.error}</span>}
+      </div>
+    </form>
+  );
+}
+
+export function TopUpSmsButton({ label = "Buy more SMS" }: { label?: string }) {
+  const [state, action, pending] = useActionState(startSmsTopupCheckout, IDLE_STATE);
   useRedirect(state.redirectTo);
   const busy = pending || !!state.redirectTo;
   return (

@@ -179,6 +179,35 @@ async function handleEvent(
         return companyId;
       }
 
+      // SMS top up (one time payment): grant texts = quantity x per unit. Same shape as the AI
+      // top up above, and like it the GRANT happens HERE on the webhook and nowhere else, so a
+      // customer who closes the tab mid checkout is never charged without getting the texts.
+      if (session.metadata?.kind === "sms_topup") {
+        if (session.payment_status !== "paid") return companyId;
+        const perUnit = Number(session.metadata?.credits_per_unit ?? 0) || 0;
+        const items = await stripe.checkout.sessions.listLineItems(session.id, { limit: 10 });
+        const qty = items.data.reduce((s, li) => s + (li.quantity ?? 0), 0);
+        const credits = perUnit * qty;
+        if (credits > 0) {
+          const supabase = createServiceClient();
+          await supabase.rpc("grant_sms_credits", {
+            cid: companyId,
+            amount: credits,
+            p_reason: "topup",
+            p_ref: session.id,
+          });
+          await writeAudit({
+            companyId,
+            action: "billing.sms_topup_purchased",
+            entityType: "company",
+            entityId: companyId,
+            summary: `Purchased ${credits} SMS`,
+            metadata: { credits, session: session.id },
+          });
+        }
+        return companyId;
+      }
+
       const subId =
         typeof session.subscription === "string"
           ? session.subscription

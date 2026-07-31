@@ -4,9 +4,16 @@ import { requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { getSeatUsage, getBranchUsage, formatPence } from "@/lib/billing/seats";
 import { getAiCreditBalance } from "@/lib/billing/ai-credits";
+import { getSmsCreditBalance } from "@/lib/billing/sms-credits";
+import { SMS_TOPUP_CREDITS, SMS_TOPUP_PENCE, smsTopupPriceId } from "@/lib/stripe/config";
 import { TIER_LABELS, TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
 import { stripeConfigured } from "@/lib/stripe/client";
-import { SubscribeButton, ManageBillingButton, TopUpCreditsButton } from "@/components/billing/billing-actions";
+import {
+  SubscribeButton,
+  ManageBillingButton,
+  TopUpCreditsButton,
+  TopUpSmsButton,
+} from "@/components/billing/billing-actions";
 import BackLink from "@/components/back-link";
 
 export const metadata: Metadata = { title: "Billing" };
@@ -73,8 +80,14 @@ export default async function BillingPage() {
   const tier = company?.tier ?? "business";
   const branches = await getBranchUsage(profile.company_id, tier);
   const aiCredits = await getAiCreditBalance(profile.company_id);
+  const smsCredits = await getSmsCreditBalance(profile.company_id);
   const AI_ALLOWANCE: Record<string, number> = { business: 25, pro: 50, enterprise: 50, diamond: 50, black: 1000 };
   const aiMonthly = AI_ALLOWANCE[tier] ?? 25;
+  // Mirrors tier_monthly_sms_credits in migration 0159. Business gets none: SMS escalation is a
+  // Pro feature, and the zero allowance is the same rule expressed in the ledger.
+  const SMS_ALLOWANCE: Record<string, number> = { business: 0, pro: 100, enterprise: 250, diamond: 500, black: 2000 };
+  const smsMonthly = SMS_ALLOWANCE[tier] ?? 0;
+  const smsTopupReady = Boolean(smsTopupPriceId());
   const isSub = isSubscriptionTier(tier);
   const basePence = isSub ? TIER_BASE_PENCE[tier as keyof typeof TIER_BASE_PENCE] : 0;
   const monthlyTotalPence = basePence + seats.extraCostPence;
@@ -160,6 +173,41 @@ export default async function BillingPage() {
         <div className="mt-4">
           <TopUpCreditsButton />
         </div>
+      </section>
+
+      {/* SMS allowance */}
+      <section className="glass-card p-5">
+        <h2 className="text-sm font-semibold text-white/80">SMS</h2>
+        <p className="mt-2 text-3xl font-bold text-white">
+          {smsCredits} <span className="text-base font-medium text-white/55">texts left</span>
+        </p>
+        {/* A Business company cannot SEND an SMS at all: escalation is a Pro feature and the
+            digest refuses it on tier before it ever reaches the sender. Offering them a top up
+            would be taking money for texts they can never use. */}
+        {smsMonthly > 0 ? (
+          <p className="mt-2 text-sm text-white/60">
+            One text is used each time we escalate an overdue check by SMS. Your plan includes{" "}
+            {smsMonthly} texts a month and any unused ones carry over. Top ups are{" "}
+            {SMS_TOPUP_CREDITS} texts for £{(SMS_TOPUP_PENCE / 100).toFixed(0)} plus VAT.{" "}
+            <span className="text-white/80">
+              When the balance reaches zero we stop sending texts, so you can never run up a bill
+              you have not bought.
+            </span>{" "}
+            Email escalation carries on either way.
+          </p>
+        ) : (
+          <p className="mt-2 text-sm text-white/60">
+            SMS escalation is available on the Pro plan and above, so this plan has no SMS
+            allowance and no texts are sent. Everything else escalates by email as normal.
+          </p>
+        )}
+        {/* No button when there is no Stripe price behind it either: a button that always errors
+            is worse than no button. */}
+        {smsMonthly > 0 && smsTopupReady ? (
+          <div className="mt-4">
+            <TopUpSmsButton />
+          </div>
+        ) : null}
       </section>
 
       {/* Seats and cost */}

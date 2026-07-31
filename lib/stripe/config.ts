@@ -81,6 +81,23 @@ export function aiTopupPriceId(): string | null {
 }
 
 /**
+ * SMS top up: a one time payment for a bundle of texts, the same shape as the AI top up.
+ *
+ * 250 texts for £20 excluding VAT, which is 8p a text against a UK send cost of about 4p. The
+ * monthly allowance by tier is Business 0, Pro 100, Enterprise 250, Diamond 500, Black 2000
+ * (tier_monthly_sms_credits in migration 0159); this is what a company buys when it runs out.
+ *
+ * The Stripe Price is created in the dashboard and supplied via env. These constants must match
+ * it: a number in code can be checked, and the last time a price lived only in prose the Pro tier
+ * drifted £30 out from the public page without anything noticing.
+ */
+export const SMS_TOPUP_CREDITS = 250;
+export const SMS_TOPUP_PENCE = 2000;
+export function smsTopupPriceId(): string | null {
+  return process.env.STRIPE_PRICE_SMS_TOPUP ?? null;
+}
+
+/**
  * Whether every price this tier needs is configured. The Checkout action uses
  * this to fail visibly ("billing not configured") rather than 500 on a missing
  * price id.

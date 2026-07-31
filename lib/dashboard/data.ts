@@ -424,16 +424,15 @@ export async function getPendingHolidayApprovals(companyId: string): Promise<num
  * all (they are not a member of the company they are acting for). That is why `remaining` is
  * nullable and renders as n/a rather than a red zero.
  *
- * SMS has no included allowance anywhere in the product, so there is deliberately no "remaining"
- * figure here (Phil, 2026-07-30). Sent and segments are real; a countdown would have to be
- * invented. AI does have one: a monthly grant by tier plus top ups.
+ * BOTH now have an allowance: a monthly grant by tier plus top ups. SMS got one on 2026-07-31,
+ * so the tile counts down instead of only counting up.
  *
  * Returns null if any read FAILS, so the tiles disappear instead of reporting a transient error
  * as zero spend.
  */
 export type SpendThisMonth = {
-  sms: { sent: number; segments: number };
   /** `remaining` is null when the balance cannot be read, never 0 as a stand in. */
+  sms: { sent: number; segments: number; remaining: number | null; monthlyGrant: number | null };
   ai: { used: number; remaining: number | null; monthlyGrant: number | null };
 };
 
@@ -461,7 +460,7 @@ export async function getSpendThisMonth(companyId: string): Promise<SpendThisMon
   const monthStart = londonMonthStartUtcIso();
   const month = `${londonTodayIso().slice(0, 7)}-01`;
 
-  const [usageRes, ledgerRes, balanceRes, companyRes] = await Promise.all([
+  const [usageRes, ledgerRes, balanceRes, companyRes, smsBalanceRes] = await Promise.all([
     // The VIEW, not the raw table: it buckets the month in London, so this figure and the one on
     // the Usage page are the same figure.
     supabase
@@ -481,6 +480,7 @@ export async function getSpendThisMonth(companyId: string): Promise<SpendThisMon
       .gte("created_at", monthStart),
     supabase.from("company_ai_credits").select("balance").eq("company_id", companyId).maybeSingle(),
     supabase.from("companies").select("tier").eq("id", companyId).maybeSingle(),
+    supabase.from("company_sms_credits").select("balance").eq("company_id", companyId).maybeSingle(),
   ]);
 
   // A failed read is not zero spend. Hide the tiles rather than publish a wrong number.
@@ -492,16 +492,25 @@ export async function getSpendThisMonth(companyId: string): Promise<SpendThisMon
   // The tier's monthly allowance, read from the SAME function that grants it, so the tile's
   // "running low" cannot drift from what a company actually gets.
   let monthlyGrant: number | null = null;
+  let smsMonthlyGrant: number | null = null;
   const tier = (companyRes.data as { tier: string } | null)?.tier ?? null;
   if (tier) {
-    const { data: grant } = await supabase.rpc("tier_monthly_ai_credits", { t: tier });
+    const [{ data: grant }, { data: smsGrant }] = await Promise.all([
+      supabase.rpc("tier_monthly_ai_credits", { t: tier }),
+      supabase.rpc("tier_monthly_sms_credits", { t: tier }),
+    ]);
     monthlyGrant = typeof grant === "number" ? grant : null;
+    smsMonthlyGrant = typeof smsGrant === "number" ? smsGrant : null;
   }
 
   return {
     sms: {
       sent: Number(usage?.event_count ?? 0),
       segments: Number(usage?.units_sum ?? 0),
+      remaining: smsBalanceRes.error
+        ? null
+        : ((smsBalanceRes.data as { balance: number } | null)?.balance ?? null),
+      monthlyGrant: smsMonthlyGrant,
     },
     ai: {
       used: Math.max(0, -ledger.reduce((n, r) => n + Number(r.delta ?? 0), 0)),

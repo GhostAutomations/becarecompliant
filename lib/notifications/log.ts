@@ -68,6 +68,25 @@ export async function claimNotification(
 }
 
 /** Record the outcome of a claimed send. Best-effort, like writeAudit. */
+/**
+ * Give a claim BACK, so the same notification can be claimed again on a later run.
+ *
+ * The dedupe key deliberately has no run date in it: a chaser must go out once for a given check
+ * and due date, not once a day. That is right when the send succeeded or genuinely failed, and
+ * wrong when we never tried. The SMS allowance made "never tried" a routine event: a company at
+ * zero would otherwise have those checks marked as chased for ever, so topping up or waiting for
+ * next month's allowance would never chase them.
+ */
+export async function releaseNotification(logId: string): Promise<void> {
+  try {
+    const supabase = createServiceClient();
+    const { error } = await supabase.from("notification_log").delete().eq("id", logId);
+    if (error) console.error("[notify] release failed:", error.message, logId);
+  } catch (e) {
+    console.error("[notify] release skipped:", (e as Error).message, logId);
+  }
+}
+
 export async function settleNotification(
   logId: string,
   status: "sent" | "failed" | "skipped",

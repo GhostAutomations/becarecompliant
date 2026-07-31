@@ -77,8 +77,10 @@ export default function NotificationSettings({
             <span className="text-sm text-white/80">
               <span className="font-semibold text-white">SMS escalation</span>
               <br />
-              A text to Managers and Admins when checks stay overdue. SMS is
-              chargeable usage and is metered per message.
+              A text to Managers and Admins when checks stay overdue. Each text uses one of your
+              monthly SMS allowance, and when that allowance runs out we STOP sending texts rather
+              than billing you for more. Your balance and top ups are in Billing. Email escalation
+              carries on either way.
               {!smsConfigured && (
                 <span className="block text-amber-300/90">
                   SMS sending is not configured on the server yet, so texts will be

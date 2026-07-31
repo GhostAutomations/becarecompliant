@@ -1767,3 +1767,63 @@ FURTHER DEFECTS CAUGHT BY A SECOND REVIEW, all fixed:
   measured at the period end and what is read as it stands today.
 
 53 tests pass.
+
+### 2026-07-31 SMS gets an allowance, and the tile goes live
+
+CORRECTION TO WHAT I TOLD PHIL: SMS sending was already built. `sendSms` posts to Twilio and
+meters every send, and the nightly digest escalates badly overdue checks by text, gated to Pro and
+above, opt in per company, deduped so nobody is chased twice. What was missing was the Twilio
+credentials in the environment, an allowance to count down from, and any SMS use beyond
+escalation.
+
+DECISIONS (Phil, 2026-07-31): monthly bundle by tier plus top ups, hard stop at zero, bundles
+Business 0, Pro 100, Enterprise 250, Diamond 500, Black 2000. UK SMS costs about 4p, so a Pro
+customer at full use is about £4 a month against a £69 plan.
+
+- Migration 0159 mirrors the AI credit engine: `company_sms_credits`, `sms_credit_ledger`,
+  `tier_monthly_sms_credits`, spend, grant and monthly grant, RLS the same shape (members see the
+  balance, admins see the ledger, all writes through SECURITY DEFINER functions).
+- `sendSms` claims a credit BEFORE calling Twilio and hands it back if the send fails. A company
+  at zero stops sending rather than running up a bill nobody agreed to. One credit per MESSAGE,
+  not per segment: segments are still metered for billing, but a customer should not lose three
+  credits because a branch name is long.
+- The nightly cron grants the month's SMS credits next to the AI ones, before the sends.
+- The dashboard tile is live: Sent and Left, amber under a quarter of the tier's own grant, red at
+  zero. The red tile list on that screen is down to Complaints on a tier that does not include it.
+- Billing shows the balance, what the tier includes, and that sending STOPS at zero. Notification
+  settings says the same. A Stripe top up is wired end to end (250 texts for £20 plus VAT, granted
+  by the webhook, never by the app).
+
+DEFECTS CAUGHT BY REVIEW, all fixed in 0160 and the same commit:
+
+1. SECURITY. `spend_sms_credit` was executable by ANON and its guard was inverted for exactly that
+   caller: `auth.uid() is not null and not is_company_member(cid)` skips the check for someone
+   with no identity, and Postgres grants EXECUTE to PUBLIC by default so the explicit grant took
+   nothing away. Anyone with the browser anon key and a company UUID could have drained a
+   company's allowance in a loop. Now service_role only, with a hard membership check.
+2. An out of credit send left the notification claims in place, and the dedupe key has no run date
+   in it, so those checks could never be chased again: not after a top up, not after next month's
+   grant. `releaseNotification` gives the claim back when nothing was tried.
+3. A transient database failure was reported to the customer as "you have used your allowance".
+   `spendSmsCredit` now distinguishes no_credits from error, and only the first stops us trying
+   again tomorrow.
+4. The catch all refunded a credit even if Twilio had already accepted the message. It only
+   refunds now when the text never got away.
+5. `refundSmsCredit` only caught exceptions, but the Supabase client returns `{ error }` rather
+   than throwing, so a refused refund vanished silently.
+6. Billing offered a top up to Business, who cannot send an SMS at all, and rendered the button
+   even with no Stripe price behind it. Both gated.
+7. A zero grant stamped the month, so a Business company upgrading to Pro mid month got nothing
+   until the 1st. Only a real grant stamps.
+8. `grant_sms_credits` was not idempotent on its ref, so a redelivered webhook granted a top up
+   twice. A partial unique index plus a check in the function makes a repeat a no op.
+
+STILL TO DO, and both need Phil:
+- TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_FROM in Vercel. Until they are set every send
+  is a silent skip and no credit is spent. The founder health page reports it live.
+- A Stripe Price for the SMS top up (250 texts, £20 + VAT, one time) and STRIPE_PRICE_SMS_TOPUP in
+  Vercel. `lib/billing/sms-allowance.test.ts` fails the build if the numbers stop agreeing.
+- `spend_ai_credit` is still executable by anon. It is SAFE, its guard fires for a caller with no
+  identity, but it should be revoked as defence in depth.
+
+56 tests pass.

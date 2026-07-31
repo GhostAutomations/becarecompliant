@@ -36,8 +36,10 @@ import {
  * them are plumbed in. The ones that do not are drawn in RED, so the gap is visible on the
  * screen instead of quietly missing from it. A red tile is a to do list item you can see.
  *
- * RED TODAY, and what each one needs:
- *   SMS                   sending is not wired up, and no tier includes an SMS allowance
+ * RED TODAY: only Complaints, and only when a company is not on a tier that includes it. Every
+ * other tile carries a live figure as of 31 Jul 2026. Keep it that way: a tile with no data
+ * behind it goes RED rather than showing a zero, because a zero is a wrong number and red is an
+ * absent one.
  *
  * The old Complaints, Holidays and Absence strips were REMOVED on instruction, since they are not
  * in the design. All three came back on 30 Jul as single tiles carrying the one figure that is
@@ -261,8 +263,8 @@ function MissingTile({
   needs: string;
   icon?: string;
   className?: string;
-  /** The pill in the corner. "No data" by default; SMS says "Not wired", because the number
-   *  underneath IS real, it is the sending that is unfinished. */
+  /** The pill in the corner. "No data" by default; pass something else when the tile is red for a
+   *  reason other than absent data, e.g. a feature that is not on this tier. */
   badge?: string;
   /** A real figure, when the tile has one and is still red for a different reason. */
   value?: ReactNode;
@@ -742,21 +744,37 @@ export default async function DashboardPage() {
             sub="waiting approval"
           />
           {/* SMS and AI, in the dead space Holiday and Complaints were carrying (Phil,
-              2026-07-30). No "remaining" for SMS: nothing in the product includes an SMS
-              allowance, so there is nothing to count down from and inventing one would be a
-              wrong number rather than an absent one. */}
+              2026-07-30). Both count down against a monthly allowance by tier; SMS got one on
+              31 Jul, which is what took this tile from red to live. */}
           {spend ? (
-            /* RED ON PURPOSE (Phil, 2026-07-30): SMS is not wired up yet and this tile is the
-               reminder to come back to it. The count underneath is real metering, so the badge
-               says "Not wired" rather than "No data". Turn it back into a normal Tile when
-               sending works and there is an allowance to count down from. */
-            <MissingTile
+            /* LIVE (2026-07-31). The tile was red while sending had no allowance to count down
+               from. It has one now, so it reads like AI credits: sent this month, and left. */
+            <SplitTile
+              href="/settings/billing"
               label="SMS"
               className="xl:col-span-2"
               icon="policy"
-              badge="Not wired"
-              value={spend.sms.sent}
-              needs="sent this month"
+              iconTone="blue"
+              pairs={[
+                { value: spend.sms.sent, caption: "Sent" },
+                {
+                  value: spend.sms.remaining ?? "n/a",
+                  caption: "Left",
+                  // Against the tier's OWN grant, so "running low" means the same on Pro (100 a
+                  // month) as on Black (2000). A tier with no allowance at all is not "running
+                  // low", it is simply not on the plan, so it stays uncoloured.
+                  tone:
+                    spend.sms.remaining == null ||
+                    (spend.sms.monthlyGrant === 0 && spend.sms.sent === 0)
+                      ? "none"
+                      : spend.sms.remaining === 0
+                        ? "red"
+                        : spend.sms.monthlyGrant &&
+                            spend.sms.remaining < spend.sms.monthlyGrant * 0.25
+                          ? "amber"
+                          : "green",
+                },
+              ]}
             />
           ) : null}
           <Tile
