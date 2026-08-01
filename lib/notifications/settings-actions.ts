@@ -113,6 +113,30 @@ export async function saveUserPhone(
     .eq("id", targetId);
   if (error) return { error: `The number could not be saved: ${error.message}` };
 
+  /*
+   * If this number has ALREADY replied STOP, claim that opt out for this company now.
+   *
+   * The block itself is keyed on the number and works either way, so this is not enforcement. It
+   * is what makes the block VISIBLE. Somebody can text STOP from a number we do not yet hold, in
+   * which case the row is written with no company against it and no Company Admin can see it.
+   * The moment an admin types that number against one of their people we can say whose it is,
+   * and the "this number replied STOP" warning appears on the Notifications page instead of the
+   * texts silently going nowhere every morning.
+   *
+   * Only rows with no company are claimed: a number already attributed to another company is not
+   * ours to relabel.
+   */
+  if (phone) {
+    const { error: optOutError } = await service
+      .from("sms_opt_outs")
+      .update({ company_id: profile.company_id, profile_id: targetId })
+      .eq("phone", phone)
+      .is("company_id", null);
+    if (optOutError) {
+      console.error("[notify] opt out attribution failed:", optOutError.message);
+    }
+  }
+
   await writeAudit({
     companyId: profile.company_id,
     actorId: user.id,

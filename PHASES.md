@@ -1868,3 +1868,67 @@ regex was not scoped to the function it named, so an AI number could have satisf
 assertion; and the price health check comment describing a case its own code can no longer produce.
 
 56 tests pass.
+
+
+## Inbound SMS: replies, and the STOP list (2026-08-01)
+
+Phil ruled out an alphanumeric Sender ID: "i dont want to go alphanumeric as people cant reply
+then". Right call, and it made the gap obvious. SMS was send only. `app/api/webhooks/` held Stripe
+and nothing else, so a manager who answered an overdue escalation text was talking to nobody: the
+reply reached Twilio and stopped there.
+
+MIGRATION 0162. `sms_inbound`, unique on Twilio's MessageSid, and `sms_opt_outs`, keyed on the
+PHONE NUMBER rather than the profile, because the obligation is attached to the handset and has to
+survive a leaver, an archived profile, or a number nobody has typed in yet. Select for Company
+Admins and the founder only, since a reply can name a Service User. No insert, update or delete
+policy anywhere: the webhook writes through the service role, and a Company Admin must not be able
+to un opt out somebody on their behalf. Only the holder of the phone can, by texting START.
+
+`lib/sms/inbound.ts` is the pure half, kept out of the route for the same reason
+`on-time-cycles.ts` is kept out of `on-time.ts`: signature checking and keyword matching decide
+whether a stranger can write to our database and whether a STOP is honoured, and both must be
+testable without a network. Twilio's documented algorithm, timing safe compare, candidate URLs so
+either host verifies. Keywords match the WHOLE message only, so "stop sending these to Dave, he
+has left" is a sentence for a human and not a silent cut off. YES is deliberately NOT an opt in
+word although Twilio treats it as one: our texts ask about overdue checks and YES is an ordinary
+answer to one.
+
+THE ORDERING TOOK THREE GOES, and the reason is worth keeping. Twilio does not retry an inbound
+message webhook on a plain number: a non 2xx is logged as error 11200 and the message is gone.
+There is no second delivery to lean on. First version filed the message then acted on the keyword,
+so any insert failure threw away a STOP. Second version acted first, which threw away the record
+instead and left a failed STOP invisible. The version that shipped files FIRST, using the unique
+MessageSid as the claim so duplicates cannot opt out, audit or meter twice, then acts on the
+keyword with three attempts and marks the filed row `keyword_applied`. A row sitting at false is a
+STOP we accepted and failed to carry out, it is visible, and a replay of that message retries it
+instead of skipping it as a duplicate. A failed instruction answers 500 and says NOTHING: Twilio
+ignores TwiML on a non 2xx anyway, and telling somebody "you will get no more texts" when the
+write failed is a lie told to the one person who must be able to trust it.
+
+ATTRIBUTION IS DECLINED WHERE IT WOULD BE A GUESS. The same mobile can sit against people in two
+companies. Filing under the wrong tenant would put one company's words on another company's
+screen, so the message goes in with no company, where only the founder sees it, and the sender is
+still answered.
+
+WE ONLY ANSWER NUMBERS WE HOLD. Every reply is an outbound message Phil pays for and the endpoint
+is reachable by anyone who has read one of our texts. Answering strangers turns one inbound text
+into one paid outbound text on demand. Unknown numbers are filed silently, and a STOP from one is
+still obeyed. Auto replies bypass the credit ledger on purpose, because an opt out confirmation
+must not be refused for want of allowance, but they are metered so the cost is not a surprise.
+
+`sendSms` checks the opt out list BEFORE it claims a credit, so a blocked send costs nothing. "We
+could not tell" is returned as an error, never as permission. The daily digest checks once per
+recipient, after it knows there is something to send and before it claims any `notification_log`
+row: claiming and settling those "skipped" would mark those checks as chased for ever, so a person
+who later texts START would never be chased for anything that fell due while they were out.
+`saveUserPhone` claims an unattributed opt out for the company when an admin types that number in,
+which is what makes the warning appear instead of the texts silently going nowhere every morning.
+
+CAUGHT BY REVIEW, over two rounds: the ordering above, twice; `create policy` with no
+`drop policy if exists`, so the file could not be replayed onto a fresh project; the wrong company
+attribution; the opt out upsert writing nulls back over an attribution a later save had claimed;
+the digest counting a skip every morning for somebody who had nothing due anyway; a duplicate
+delivery sending a second billable reply that nothing metered; and my own comment claiming Twilio
+honours TwiML on a 500, which it does not.
+
+65 tests pass.

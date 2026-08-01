@@ -21,11 +21,24 @@ export type EscalationUser = {
   email: string;
   role: string;
   phone: string | null;
+  /** True when this number has replied STOP. Only they can undo it, by replying START. */
+  optedOut: boolean;
+};
+
+/** One inbound text, already formatted on the server so the list cannot hydrate differently. */
+export type SmsReply = {
+  id: string;
+  fromNumber: string;
+  senderName: string | null;
+  body: string;
+  keyword: string | null;
+  receivedAt: string;
 };
 
 export default function NotificationSettings({
   initial,
   users,
+  replies,
   emailConfigured,
   smsConfigured,
 }: {
@@ -37,6 +50,7 @@ export default function NotificationSettings({
     smsOverdueDays: number;
   };
   users: EscalationUser[];
+  replies: SmsReply[];
   emailConfigured: boolean;
   smsConfigured: boolean;
 }) {
@@ -157,6 +171,37 @@ export default function NotificationSettings({
           </ul>
         )}
       </section>
+
+      <section className="glass-card p-5">
+        <h2 className="text-sm font-semibold text-white/80">Replies</h2>
+        <p className="mt-1 text-sm text-white/60">
+          Texts sent back to our number by your Managers and Admins, newest first. Anyone can
+          reply STOP to stop receiving texts and START to begin again, and we act on that the
+          moment it arrives.
+        </p>
+        {replies.length === 0 ? (
+          <p className="mt-4 text-sm text-white/50">No replies yet.</p>
+        ) : (
+          <ul className="mt-4 space-y-3">
+            {replies.map((r) => (
+              <li key={r.id} className="rounded-lg border border-white/10 bg-white/5 p-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <span className="text-sm font-semibold text-white">
+                    {r.senderName ?? r.fromNumber}
+                  </span>
+                  <span className="text-xs text-white/45">{r.receivedAt}</span>
+                </div>
+                <p className="mt-1 text-sm text-white/75">{r.body || "(no message)"}</p>
+                {r.keyword && (
+                  <span className="mt-2 inline-block rounded-full bg-white/10 px-2 py-0.5 text-[11px] uppercase tracking-wide text-white/60">
+                    {r.keyword}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }
@@ -193,6 +238,12 @@ function PhoneRow({ u }: { u: EscalationUser }) {
         </button>
         {state.error && <span className="text-xs text-red-300">{state.error}</span>}
       </form>
+      {u.optedOut && (
+        <p className="mt-1 text-xs text-amber-300/90">
+          This number replied STOP, so it receives no texts. Only they can undo that, by replying
+          START to our number.
+        </p>
+      )}
     </li>
   );
 }

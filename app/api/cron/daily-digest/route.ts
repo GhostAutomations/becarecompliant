@@ -39,6 +39,7 @@ import {
   sendBriefingChases,
 } from "@/lib/notifications/briefings";
 import { sendSms, twilioConfigured } from "@/lib/sms/twilio";
+import { isOptedOut } from "@/lib/sms/opt-out";
 import { OUT_OF_SMS_CREDITS } from "@/lib/billing/sms-credits";
 import { tierHasFeature } from "@/lib/billing/tier";
 import type { Tier } from "@/lib/stripe/config";
@@ -113,6 +114,9 @@ export async function GET(request: NextRequest) {
     /** Texts not sent because the company had no allowance left. Counted separately from
      *  "skipped", because this one is a bill the customer needs to know about. */
     smsOutOfCredits: 0,
+    /** Recipients skipped because their number has replied STOP. Counted on its own so a run
+     *  that looks quiet can be told apart from one that is silently ignoring people. */
+    smsOptedOut: 0,
     briefingChases: 0,
     briefingManagerEmails: 0,
     skipped: 0,
@@ -340,7 +344,35 @@ export async function GET(request: NextRequest) {
         // SMS reminders are a Pro-and-above feature (tier gating, server-side).
         if (!tierHasFeature(company.tier as Tier, "sms_reminders")) continue;
         if (!company.settings.smsEnabled || !recipient.phone) continue;
+
         const smsItems = smsEscalationItems(scoped, company.settings);
+        if (smsItems.length === 0) continue;
+
+        /*
+         * OPT OUT IS CHECKED AFTER we know there is something to send, and BEFORE any claim is
+         * made.
+         *
+         * sendSms refuses an opted out number anyway, so this is not the enforcement. It is here
+         * so that no notification_log rows are created for a send that is never going to happen.
+         * Claiming and then settling them "skipped" would mark those checks as chased for ever,
+         * and if the person later replies START they would never be chased again for the checks
+         * that fell due while they were opted out.
+         *
+         * After smsItems, not before, so that a clean company does not report a skip every
+         * morning for somebody who was never going to be texted, and so that the extra query
+         * only runs when it can change the outcome.
+         */
+        const recipientOptedOut = await isOptedOut(recipient.phone);
+        if (recipientOptedOut === null) {
+          summary.failures.push(`sms ${recipient.phone}: could not check the opt out list`);
+          continue;
+        }
+        if (recipientOptedOut) {
+          summary.smsOptedOut += 1;
+          summary.skipped += 1;
+          continue;
+        }
+
         const smsClaims: string[] = [];
         for (const item of smsItems) {
           const logId = await claimNotification({

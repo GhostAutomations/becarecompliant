@@ -1,6 +1,7 @@
 import "server-only";
 import { recordUsage } from "@/lib/notifications/usage";
 import { spendSmsCredit, refundSmsCredit, OUT_OF_SMS_CREDITS } from "@/lib/billing/sms-credits";
+import { isOptedOut, SMS_OPTED_OUT } from "@/lib/sms/opt-out";
 
 /**
  * Twilio SMS sender (REST API, no SDK dependency, mirroring lib/email/resend.ts).
@@ -17,6 +18,9 @@ import { spendSmsCredit, refundSmsCredit, OUT_OF_SMS_CREDITS } from "@/lib/billi
  * back if the send fails, exactly as runAi does with AI credits. A company at zero stops sending
  * rather than running up a bill nobody agreed to, and the caller is told which of the two it was:
  * `skippedReason` for "no allowance left", `error` for "Twilio said no".
+ *
+ * NOBODY WHO SAID STOP IS TEXTED AGAIN (2026-08-01). The opt out list is consulted before the
+ * allowance, so a blocked send never costs a credit either. See lib/sms/opt-out.ts.
  *
  * ONE CREDIT PER MESSAGE, not per segment. Segments are still metered into usage_events for
  * billing, but a customer should not lose three credits because a manager's branch name is long.
@@ -55,6 +59,22 @@ export async function sendSms(opts: {
       sent: false,
       skippedReason: "TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN / TWILIO_FROM not configured",
     };
+  }
+
+  /*
+   * OPT OUT COMES BEFORE EVERYTHING, including the allowance.
+   *
+   * A number that has replied STOP is never texted again until it replies START. Checking here,
+   * before a credit is claimed, means an opted out recipient costs the customer nothing as well
+   * as receiving nothing. "We could not tell" is reported as an error, never as permission: a
+   * database that did not answer is not the same as a person who never objected.
+   */
+  const optedOut = await isOptedOut(opts.to);
+  if (optedOut === null) {
+    return { sent: false, error: "Could not check the SMS opt out list" };
+  }
+  if (optedOut) {
+    return { sent: false, skippedReason: SMS_OPTED_OUT };
   }
 
   // The allowance is claimed FIRST, so two sends at the same moment cannot both take the last
