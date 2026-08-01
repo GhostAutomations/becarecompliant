@@ -76,8 +76,9 @@ export const UNIT_HOURS: Record<string, number | null> = {
 /** A service and its two rates (pence), keyed by the service label ("Care" etc). */
 export type ServiceRate = { label: string; hourly_pence: number; fixed_pence: number };
 
-/** Price of ONE unit of a service (rounded to the penny), for reference/display.
- *  Fixed rate for Fixed, else hourly x hours, doubled for double handed. */
+/** Price of ONE unit of a service, ROUNDED to the penny. Fixed rate for Fixed, else hourly x
+ *  hours, doubled for double handed. Kept for anywhere a whole penny figure is wanted; the
+ *  invoice itself prints unitPriceExactPence below, because £6.38 does not multiply out. */
 export function unitPricePence(
   rate: ServiceRate | undefined,
   unit: string,
@@ -85,6 +86,26 @@ export function unitPricePence(
 ): number {
   if (!rate) return 0;
   const base = unit === "Fixed" ? rate.fixed_pence : Math.round(rate.hourly_pence * (UNIT_HOURS[unit] ?? 0));
+  return handed === "double" ? base * 2 : base;
+}
+
+/**
+ * The UNROUNDED price of one unit, in pence, so an invoice can print a figure that multiplies
+ * out. A quarter hour of £25.50 an hour is 637.5 pence, not 638.
+ *
+ * WHY THIS EXISTS (2026-08-01). Phil asked why a line read 7 x 15m = £44.63 when the unit price
+ * beside it said £6.38, which multiplies to £44.66. The amount was right: 1.75 hours at £25.50
+ * is £44.625. The £6.38 was the lie, a display rounding of £6.375. Rather than charge the extra
+ * three pence to make a rounded figure true, we print the figure that is true. 30m and 1hr
+ * divide exactly, which is why this hid for so long.
+ */
+export function unitPriceExactPence(
+  rate: ServiceRate | undefined,
+  unit: string,
+  handed: string = "single",
+): number {
+  if (!rate) return 0;
+  const base = unit === "Fixed" ? rate.fixed_pence : rate.hourly_pence * (UNIT_HOURS[unit] ?? 0);
   return handed === "double" ? base * 2 : base;
 }
 
@@ -96,8 +117,5 @@ export function lineAmountPence(
   handed: string,
   quantity: number,
 ): number {
-  if (!rate) return 0;
-  const mult = handed === "double" ? 2 : 1;
-  const perUnit = unit === "Fixed" ? rate.fixed_pence : rate.hourly_pence * (UNIT_HOURS[unit] ?? 0);
-  return Math.round(quantity * perUnit * mult);
+  return Math.round(quantity * unitPriceExactPence(rate, unit, handed));
 }

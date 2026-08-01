@@ -199,6 +199,9 @@ export type InvoiceLine = {
   handed: string | null;
   quantity: number;
   unit_price_pence: number;
+  /** The unrounded unit price in pence, e.g. 637.5 for a quarter hour of a £25.50 rate. Null on
+   *  lines written before 2026-08-01, which print unit_price_pence instead (migration 0163). */
+  unit_price_exact: number | null;
   line_total_pence: number;
   period_start: string | null;
   period_end: string | null;
@@ -300,6 +303,8 @@ export type ScheduleLineRow = {
   handed: string | null;
   quantity: number;
   unit_price_pence: number;
+  /** Unrounded, in pence. Null on lines written before migration 0163. */
+  unit_price_exact: number | null;
   period_start: string | null;
   period_end: string | null;
   position: number;
@@ -358,7 +363,7 @@ export async function getSchedule(companyId: string, id: string): Promise<Schedu
   const [{ data: lines }, { data: plan }, { data: drafted }] = await Promise.all([
     supabase
       .from("invoice_schedule_lines")
-      .select("description, service, unit_label, handed, quantity, unit_price_pence, period_start, period_end, position")
+      .select("description, service, unit_label, handed, quantity, unit_price_pence, unit_price_exact, period_start, period_end, position")
       .eq("schedule_id", id)
       .order("position", { ascending: true }),
     supabase

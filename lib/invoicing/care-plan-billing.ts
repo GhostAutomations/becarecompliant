@@ -10,6 +10,7 @@
 import { INVOICE_SERVICES } from "./types";
 import {
   unitPricePence,
+  unitPriceExactPence,
   lineAmountPence,
   type ServiceRate,
 } from "@/lib/service-users/care-plan-consts";
@@ -20,6 +21,8 @@ export type BuilderLine = {
   handed: string;
   quantity: number;
   unit_price_pence: number;
+  /** The unrounded unit price in pence: what the invoice prints, so the line multiplies out. */
+  unit_price_exact: number;
   line_total_pence: number;
   description: string;
   period_start: string;
@@ -73,8 +76,9 @@ export function rateLookup(
  * by CARE PLAN VERSION. The period is split into 7 day windows from the start date;
  * within a week, if a care plan change takes effect mid-week the week is further
  * split at the change date (a change on Thursday bills Mon..Wed on the old plan and
- * Thu..Sun on the new plan), each segment its own dated line group. Amounts are
- * billed at the exact rate, rounded only at the end.
+ * Thu..Sun on the new plan), each segment its own dated line group. Amounts are billed at the
+ * exact rate, rounded only at the end, and each line carries the UNROUNDED unit price so the
+ * finished invoice can print a figure that multiplies out (Phil, 2026-08-01).
  */
 export function buildCarePlanLines(
   entries: PlanEntryRow[],
@@ -143,6 +147,7 @@ export function buildCarePlanLines(
           handed,
           quantity: qty,
           unit_price_pence: unitPricePence(rateFor(e.service), e.unit, handed),
+          unit_price_exact: unitPriceExactPence(rateFor(e.service), e.unit, handed),
           line_total_pence: lineAmountPence(rateFor(e.service), e.unit, handed, qty),
           description: `${e.service} - ${e.unit} (${HANDED_SUFFIX[handed]})`,
           period_start: sStart,

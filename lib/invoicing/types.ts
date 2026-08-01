@@ -119,6 +119,36 @@ export function formatMoney(pence: number): string {
   })}`;
 }
 
+/**
+ * A UNIT PRICE, printed at whatever precision it actually has.
+ *
+ * Ordinary money gets two decimals, always. A unit price is different: a quarter hour of a
+ * £25.50 hourly rate is £6.375, and printing it as £6.38 puts a figure on the invoice that does
+ * not multiply out (7 x £6.38 = £44.66, while the amount is £44.63). Phil asked about exactly
+ * that line on 2026-08-01. So a price with a fraction of a penny in it shows the fraction, and
+ * one without still shows the plain £12.75 a reader expects.
+ *
+ * FOUR DECIMALS, not three. An hourly rate is any whole number of pence, and an odd one quartered
+ * lands on a quarter penny: £22.75 an hour makes a 15m visit £5.6875. Printing that as £5.688
+ * puts the invoice a penny out on seven visits, which is the same fault this exists to remove,
+ * one order of magnitude down. Units are only ever quarters, halves, three quarters or whole
+ * hours, so four is exactly enough and never arbitrary.
+ *
+ * `exact` is null on lines written before migration 0163. WITHOUT a fallback those print an em
+ * dash, which is deliberate: they were raised when no document showed a unit price at all, and
+ * printing the rounded figure now would put the very contradiction Phil asked about onto an
+ * invoice a client already holds, the moment somebody pressed Resend. Internal screens pass the
+ * rounded figure as a fallback, because there a blank helps nobody.
+ */
+export function formatUnitPrice(exact: number | null, fallbackPence?: number): string {
+  const pence = exact ?? fallbackPence;
+  if (pence === undefined || pence === null) return "—";
+  return `£${(pence / 100).toLocaleString("en-GB", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 4,
+  })}`;
+}
+
 /** Parse a "12.50" pounds string into integer pence. Returns 0 for junk. */
 export function poundsToPence(input: string): number {
   const n = Number(String(input).replace(/[^0-9.\-]/g, ""));

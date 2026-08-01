@@ -29,6 +29,9 @@ type LineInput = {
   description: string;
   quantity: number;
   unit_price_pence: number;
+  /** The unrounded unit price in pence, which is what the invoice prints. Null when there is no
+   *  rate to derive it from, in which case the rounded figure is printed instead. */
+  unit_price_exact: number | null;
   line_total_pence: number;
   service: string | null;
   unit_label: string | null;
@@ -68,15 +71,23 @@ function parseLines(raw: FormDataEntryValue | null): LineInput[] {
       const o = r as Record<string, unknown>;
       const quantity = Math.max(0, Number(o.quantity ?? 0));
       const unit_price_pence = Math.round(Math.max(0, Number(o.unit_price_pence ?? 0)));
-      // Prefer the exact total the builder computed; fall back to qty x unit.
+      // The unrounded unit price, when the builder had a rate to work it out from. Kept to four
+      // decimals to match the column; anything finer than that is not a rate, it is noise.
+      const exact = Number(o.unit_price_exact);
+      const unit_price_exact =
+        Number.isFinite(exact) && exact >= 0 ? Math.round(exact * 10000) / 10000 : null;
+      // Prefer the exact total the builder computed; fall back to quantity times the price. The
+      // fallback uses the EXACT price when there is one, so a hand crafted request cannot store
+      // a line whose printed price and printed amount disagree.
       const provided = Number(o.line_total_pence);
       const line_total_pence = Number.isFinite(provided) && provided >= 0
         ? Math.round(provided)
-        : Math.round(quantity * unit_price_pence);
+        : Math.round(quantity * (unit_price_exact ?? unit_price_pence));
       return {
         description: String(o.description ?? "").trim(),
         quantity,
         unit_price_pence,
+        unit_price_exact,
         line_total_pence,
         service: o.service ? String(o.service) : null,
         unit_label: o.unit_label ? String(o.unit_label) : null,
@@ -225,6 +236,7 @@ export async function createInvoice(_prev: ActionState, formData: FormData): Pro
       handed: l.handed,
       quantity: l.quantity,
       unit_price_pence: l.unit_price_pence,
+      unit_price_exact: l.unit_price_exact,
       line_total_pence: l.line_total_pence,
       period_start: l.period_start,
       period_end: l.period_end,
@@ -273,6 +285,7 @@ export async function createInvoice(_prev: ActionState, formData: FormData): Pro
           handed: l.handed,
           quantity: l.quantity,
           unit_price_pence: l.unit_price_pence,
+          unit_price_exact: l.unit_price_exact,
           period_start: l.period_start,
           period_end: l.period_end,
           vat_rate: l.vat_rate,
@@ -338,6 +351,7 @@ export async function updateInvoice(_prev: ActionState, formData: FormData): Pro
       handed: l.handed,
       quantity: l.quantity,
       unit_price_pence: l.unit_price_pence,
+      unit_price_exact: l.unit_price_exact,
       line_total_pence: l.line_total_pence,
       period_start: l.period_start,
       period_end: l.period_end,

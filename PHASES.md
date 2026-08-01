@@ -1932,3 +1932,43 @@ delivery sending a second billable reply that nothing metered; and my own commen
 honours TwiML on a 500, which it does not.
 
 65 tests pass.
+
+
+## The invoice line that did not multiply out (2026-08-01)
+
+Phil, from the list: "verify the £44.63 on a drafted invoice". It is right. Seven quarter hour
+visits is 1.75 hours, and at £25.50 an hour that is £44.625, which rounds to £44.63.
+
+WHAT WAS ACTUALLY WRONG was next to it. `unit_price_pence` is an integer, so the only unit price
+the app could hold for a 15m visit was £6.38, a rounding of £6.375. Seven of those is £44.66.
+30m (£12.75) and 1hr (£25.50) divide exactly out of an hourly rate, which is why this hid.
+
+I FIRST OFFERED THE WRONG THREE OPTIONS, and Phil picked one of them: charge the extra three
+pence so the rounded figure became true. I built it, then the review found that NO CLIENT FACING
+DOCUMENT PRINTS A UNIT PRICE AT ALL. The PDF and the invoice page are Service, Unit, Handed, Qty,
+Amount. So the change would have taken money off care clients to fix a discrepancy none of them
+could see. I had reasoned about a document I had not read. Reverted, told Phil plainly, and he
+chose the right answer: keep the exact maths and PRINT the price, so the invoice explains itself.
+
+MIGRATION 0163: `unit_price_exact numeric(12,4)` on `invoice_lines` and `invoice_schedule_lines`.
+Nullable, NO BACKFILL. An invoice already raised must print what it printed the day it was sent.
+
+FOUR DECIMALS, not three. Caught by review: an hourly rate is any whole number of pence, and an
+odd one quartered lands on a QUARTER penny. £22.75 an hour makes a 15m visit £5.6875; printing
+£5.688 puts seven visits a penny out, which is the same fault one order of magnitude down. The
+test now uses an odd rate and asserts against the STRING the invoice prints, not the number
+behind it: comparing two helpers to each other only proves they agree, and a reader with a
+calculator has nothing but the string.
+
+AN OLD LINE PRINTS AN EM DASH, not its rounded price. Also from review. The PDF is rendered live
+on every download and every Resend, so falling back to £6.38 would have put "£6.38 x 7 = £44.63"
+onto an invoice a client already holds, which is the original complaint, reproduced, in writing.
+Our own schedule screen still shows the rounded figure, where a blank helps nobody.
+
+THE CRON FALLBACK now prefers the schedule's stored exact price over its rounded one, so a
+recurring invoice cannot quietly bill £44.66 where the hand built one billed £44.63, and it
+writes a NULL exact price rather than pretending a rounded integer is exact. `parseLines`
+derives a missing line total from the exact price too, so a hand crafted request cannot store a
+line whose printed price and printed amount disagree.
+
+75 tests pass.

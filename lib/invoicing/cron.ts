@@ -20,7 +20,7 @@ import { siteUrl } from "@/lib/site";
 import { formatMoney, billingPeriodFor } from "./types";
 import { londonToday } from "./data";
 import { buildCarePlanLines, rateLookup, type PlanEntryRow } from "./care-plan-billing";
-import { lineAmountPence } from "@/lib/service-users/care-plan-consts";
+import { lineAmountPence, unitPriceExactPence } from "@/lib/service-users/care-plan-consts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const MANAGER_PLUS = new Set([
@@ -95,6 +95,8 @@ type DraftLine = {
   handed: string | null;
   quantity: number;
   unit_price_pence: number;
+  /** The unrounded unit price in pence: what the invoice prints, so the line multiplies out. */
+  unit_price_exact: number | null;
   line_total_pence: number;
   vat_rate: number;
   period_start: string | null;
@@ -141,7 +143,7 @@ export async function draftFromSchedule(
     supabase.from("invoicing_config").select("*").eq("company_id", sc.company_id).maybeSingle(),
     supabase
       .from("invoice_schedule_lines")
-      .select("description, service, unit_label, handed, quantity, unit_price_pence, vat_rate, position, period_start, period_end")
+      .select("description, service, unit_label, handed, quantity, unit_price_pence, unit_price_exact, vat_rate, position, period_start, period_end")
       .eq("schedule_id", sc.id)
       .order("position", { ascending: true }),
     supabase
@@ -160,7 +162,8 @@ export async function draftFromSchedule(
 
   const scheduleLines = (lines as Array<{
     description: string; service: string | null; unit_label: string | null; handed: string | null;
-    quantity: number; unit_price_pence: number; vat_rate: number; position: number;
+    quantity: number; unit_price_pence: number; unit_price_exact: number | null;
+    vat_rate: number; position: number;
     period_start: string | null; period_end: string | null;
   }> | null) ?? [];
 
@@ -182,6 +185,7 @@ export async function draftFromSchedule(
         handed: l.handed,
         quantity: l.quantity,
         unit_price_pence: l.unit_price_pence,
+        unit_price_exact: l.unit_price_exact,
         line_total_pence: l.line_total_pence,
         vat_rate: vatEnabled ? 20 : 0,
         period_start: l.period_start,
@@ -190,23 +194,48 @@ export async function draftFromSchedule(
     }
   }
 
-  // Fall back to the schedule's own lines, but priced with the exact maths so a
-  // recurring invoice and a hand built one for the same care agree to the penny.
+  /*
+   * Fall back to the schedule's own lines, repriced at TODAY's rates.
+   *
+   * The unit price is recomputed alongside the total, not just the total. Repricing the amount
+   * while printing a price frozen when the schedule was created would put two figures on the
+   * invoice that disagree, and since 2026-08-01 the invoice prints the unit price.
+   *
+   * A rate that does not RESOLVE is different from a rate of zero. An unknown service label, an
+   * unknown unit, or a company with no invoicing_config row at all would price the whole line at
+   * nothing, so the stored price stands instead and the failure stays visible rather than
+   * drafting a tidy, internally consistent £0.00 invoice.
+   */
   if (draftLines.length === 0) {
     if (scheduleLines.length === 0) return { error: "the schedule has no lines" };
     draftLines = scheduleLines.map((l) => {
       const handed = l.handed === "double" ? "double" : "single";
-      const exact =
-        l.service && l.unit_label
-          ? lineAmountPence(rateFor(l.service), l.unit_label, handed, Number(l.quantity))
-          : Math.round(Number(l.quantity) * l.unit_price_pence);
+      const rate = l.service ? rateFor(l.service) : undefined;
+      const resolved =
+        Boolean(l.unit_label) &&
+        rate !== undefined &&
+        unitPriceExactPence(rate, l.unit_label as string, handed) > 0;
+      /*
+       * The price this line is billed at. Today's rate when we could look one up, otherwise the
+       * price the schedule was created with, taking its EXACT figure in preference to the
+       * rounded one. Reaching for the rounded integer here would charge a 7 x 15m line £44.66
+       * instead of £44.63, which is the very arithmetic this whole change refused to adopt.
+       */
+      const storedExact = l.unit_price_exact ?? null;
+      const unitExact = resolved
+        ? unitPriceExactPence(rate, l.unit_label as string, handed)
+        : storedExact ?? l.unit_price_pence;
+      const exact = Math.round(Number(l.quantity) * unitExact);
       return {
         description: l.description,
         service: l.service,
         unit_label: l.unit_label,
         handed: l.handed,
         quantity: Number(l.quantity),
-        unit_price_pence: l.unit_price_pence,
+        unit_price_pence: Math.round(unitExact),
+        // Null when all we had was a rounded integer, so the invoice prints an em dash rather
+        // than a figure it cannot stand behind.
+        unit_price_exact: resolved || storedExact !== null ? unitExact : null,
         line_total_pence: exact,
         vat_rate: vatEnabled ? l.vat_rate || 20 : 0,
         period_start: null,
@@ -262,6 +291,7 @@ export async function draftFromSchedule(
       handed: l.handed,
       quantity: l.quantity,
       unit_price_pence: l.unit_price_pence,
+      unit_price_exact: l.unit_price_exact,
       line_total_pence: l.line_total_pence,
       vat_rate: l.vat_rate,
       period_start: l.period_start,

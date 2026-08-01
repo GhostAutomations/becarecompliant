@@ -15,7 +15,7 @@ import {
   Image,
   renderToBuffer,
 } from "@react-pdf/renderer";
-import { formatMoney, displayStatus, STATUS_LABEL, type InvoicingConfig } from "./types";
+import { formatMoney, formatUnitPrice, displayStatus, STATUS_LABEL, type InvoicingConfig } from "./types";
 import type { InvoiceDetail } from "./data";
 
 const INK = "#0d1d4b";
@@ -126,11 +126,12 @@ function InvoiceDocument({
         </View>
 
         <View style={s.tHead}>
-          <Text style={[s.th, { width: "34%" }]}>Service</Text>
-          <Text style={[s.th, { width: "16%" }]}>Unit</Text>
-          <Text style={[s.th, { width: "20%" }]}>Handed</Text>
-          <Text style={[s.th, { width: "12%", textAlign: "right" }]}>Qty</Text>
-          <Text style={[s.th, { width: "18%", textAlign: "right" }]}>Amount</Text>
+          <Text style={[s.th, { width: "28%" }]}>Service</Text>
+          <Text style={[s.th, { width: "13%" }]}>Unit</Text>
+          <Text style={[s.th, { width: "18%" }]}>Handed</Text>
+          <Text style={[s.th, { width: "9%", textAlign: "right" }]}>Qty</Text>
+          <Text style={[s.th, { width: "15%", textAlign: "right" }]}>Unit price</Text>
+          <Text style={[s.th, { width: "17%", textAlign: "right" }]}>Amount</Text>
         </View>
         {inv.lines.map((l, i) => {
           const prev = inv.lines[i - 1];
@@ -145,11 +146,12 @@ function InvoiceDocument({
                 </Text>
               ) : null}
               <View style={s.tRow}>
-                <Text style={[s.td, { width: "34%" }]}>{l.service ?? l.description}</Text>
-                <Text style={[s.td, { width: "16%" }]}>{l.unit_label ?? "—"}</Text>
-                <Text style={[s.td, { width: "20%" }]}>{l.handed === "double" ? "Double handed" : l.handed === "single" ? "Single handed" : "—"}</Text>
-                <Text style={[s.td, { width: "12%", textAlign: "right" }]}>{l.quantity}</Text>
-                <Text style={[s.td, { width: "18%", textAlign: "right" }]}>{formatMoney(l.line_total_pence)}</Text>
+                <Text style={[s.td, { width: "28%" }]}>{l.service ?? l.description}</Text>
+                <Text style={[s.td, { width: "13%" }]}>{l.unit_label ?? "—"}</Text>
+                <Text style={[s.td, { width: "18%" }]}>{l.handed === "double" ? "Double handed" : l.handed === "single" ? "Single handed" : "—"}</Text>
+                <Text style={[s.td, { width: "9%", textAlign: "right" }]}>{l.quantity}</Text>
+                <Text style={[s.td, { width: "15%", textAlign: "right" }]}>{formatUnitPrice(l.unit_price_exact)}</Text>
+                <Text style={[s.td, { width: "17%", textAlign: "right" }]}>{formatMoney(l.line_total_pence)}</Text>
               </View>
             </View>
           );
