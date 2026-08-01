@@ -15,7 +15,7 @@ import {
   Image,
   renderToBuffer,
 } from "@react-pdf/renderer";
-import { formatMoney, formatUnitPrice, displayStatus, STATUS_LABEL, type InvoicingConfig } from "./types";
+import { formatMoney, formatUnitPrice, showsUnitPrice, displayStatus, STATUS_LABEL, type InvoicingConfig } from "./types";
 import type { InvoiceDetail } from "./data";
 
 const INK = "#0d1d4b";
@@ -85,6 +85,16 @@ function InvoiceDocument({
   today: string;
 }) {
   const ds = displayStatus(inv.status, inv.due_date, today);
+  /*
+   * The Unit price column is dropped entirely on an invoice raised before migration 0163, which
+   * has no printable unit price on any line. The remaining five columns then take the full width
+   * back, so such an invoice renders exactly as it always did rather than growing a column of em
+   * dashes. Both sets total 100%.
+   */
+  const showPrice = showsUnitPrice(inv.lines);
+  const w = showPrice
+    ? { service: "28%", unit: "13%", handed: "18%", qty: "9%", price: "15%", amount: "17%" }
+    : { service: "34%", unit: "16%", handed: "20%", qty: "12%", price: "0%", amount: "18%" };
   return (
     <Document title={inv.number ? `Invoice ${inv.number}` : "Draft invoice"} author={companyName}>
       <Page size="A4" style={s.page}>
@@ -126,12 +136,14 @@ function InvoiceDocument({
         </View>
 
         <View style={s.tHead}>
-          <Text style={[s.th, { width: "28%" }]}>Service</Text>
-          <Text style={[s.th, { width: "13%" }]}>Unit</Text>
-          <Text style={[s.th, { width: "18%" }]}>Handed</Text>
-          <Text style={[s.th, { width: "9%", textAlign: "right" }]}>Qty</Text>
-          <Text style={[s.th, { width: "15%", textAlign: "right" }]}>Unit price</Text>
-          <Text style={[s.th, { width: "17%", textAlign: "right" }]}>Amount</Text>
+          <Text style={[s.th, { width: w.service }]}>Service</Text>
+          <Text style={[s.th, { width: w.unit }]}>Unit</Text>
+          <Text style={[s.th, { width: w.handed }]}>Handed</Text>
+          <Text style={[s.th, { width: w.qty, textAlign: "right" }]}>Qty</Text>
+          {showPrice ? (
+            <Text style={[s.th, { width: w.price, textAlign: "right" }]}>Unit price</Text>
+          ) : null}
+          <Text style={[s.th, { width: w.amount, textAlign: "right" }]}>Amount</Text>
         </View>
         {inv.lines.map((l, i) => {
           const prev = inv.lines[i - 1];
@@ -146,12 +158,14 @@ function InvoiceDocument({
                 </Text>
               ) : null}
               <View style={s.tRow}>
-                <Text style={[s.td, { width: "28%" }]}>{l.service ?? l.description}</Text>
-                <Text style={[s.td, { width: "13%" }]}>{l.unit_label ?? "—"}</Text>
-                <Text style={[s.td, { width: "18%" }]}>{l.handed === "double" ? "Double handed" : l.handed === "single" ? "Single handed" : "—"}</Text>
-                <Text style={[s.td, { width: "9%", textAlign: "right" }]}>{l.quantity}</Text>
-                <Text style={[s.td, { width: "15%", textAlign: "right" }]}>{formatUnitPrice(l.unit_price_exact)}</Text>
-                <Text style={[s.td, { width: "17%", textAlign: "right" }]}>{formatMoney(l.line_total_pence)}</Text>
+                <Text style={[s.td, { width: w.service }]}>{l.service ?? l.description}</Text>
+                <Text style={[s.td, { width: w.unit }]}>{l.unit_label ?? "—"}</Text>
+                <Text style={[s.td, { width: w.handed }]}>{l.handed === "double" ? "Double handed" : l.handed === "single" ? "Single handed" : "—"}</Text>
+                <Text style={[s.td, { width: w.qty, textAlign: "right" }]}>{l.quantity}</Text>
+                {showPrice ? (
+                  <Text style={[s.td, { width: w.price, textAlign: "right" }]}>{formatUnitPrice(l.unit_price_exact)}</Text>
+                ) : null}
+                <Text style={[s.td, { width: w.amount, textAlign: "right" }]}>{formatMoney(l.line_total_pence)}</Text>
               </View>
             </View>
           );

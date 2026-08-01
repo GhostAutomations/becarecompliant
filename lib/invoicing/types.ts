@@ -140,6 +140,23 @@ export function formatMoney(pence: number): string {
  * invoice a client already holds, the moment somebody pressed Resend. Internal screens pass the
  * rounded figure as a fallback, because there a blank helps nobody.
  */
+/**
+ * Should this invoice show a Unit price column at all?
+ *
+ * Only when at least one line has a price worth printing. An invoice raised before migration
+ * 0163 has none, and a whole column of em dashes is worse than no column: it draws the eye to
+ * an absence and tells the reader nothing. Hiding it means such an invoice renders exactly as it
+ * always did, including a PDF regenerated months later by Resend.
+ *
+ * ONE helper, used by the page and the PDF, so the two cannot come to different conclusions
+ * about the same invoice.
+ */
+export function showsUnitPrice(lines: { unit_price_exact: number | null }[]): boolean {
+  // Loose equality on purpose: a row from a narrowed select has the property MISSING rather than
+  // null, and `undefined !== null` would switch the column back on and fill it with em dashes.
+  return lines.some((l) => l.unit_price_exact != null);
+}
+
 export function formatUnitPrice(exact: number | null, fallbackPence?: number): string {
   const pence = exact ?? fallbackPence;
   if (pence === undefined || pence === null) return "—";

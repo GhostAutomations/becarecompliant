@@ -233,9 +233,14 @@ export async function draftFromSchedule(
         handed: l.handed,
         quantity: Number(l.quantity),
         unit_price_pence: Math.round(unitExact),
-        // Null when all we had was a rounded integer, so the invoice prints an em dash rather
-        // than a figure it cannot stand behind.
-        unit_price_exact: resolved || storedExact !== null ? unitExact : null,
+        /*
+         * ALWAYS the figure the amount was worked out from, even when that was only a rounded
+         * integer from the schedule. It is not "exact" in the sense of coming from a rate, but
+         * it IS the price this line is charged at, so quantity times it gives the amount and the
+         * client can check it. Storing null here would drop the Unit price column off a brand
+         * new invoice, which is a worse document than one showing a plain £6.38 that is true.
+         */
+        unit_price_exact: unitExact,
         line_total_pence: exact,
         vat_rate: vatEnabled ? l.vat_rate || 20 : 0,
         period_start: null,

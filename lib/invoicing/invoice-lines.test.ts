@@ -6,7 +6,7 @@ import {
   lineAmountPence,
   type ServiceRate,
 } from "../service-users/care-plan-consts.ts";
-import { formatUnitPrice } from "./types.ts";
+import { formatUnitPrice, showsUnitPrice } from "./types.ts";
 
 /**
  * THE RULE, settled 2026-08-01. A line amount is quantity billed at the TRUE rate, rounded once
@@ -124,4 +124,16 @@ test("an old line prints an em dash on the invoice, and the rounded price on our
   assert.equal(formatUnitPrice(null), "—");
   assert.equal(formatUnitPrice(null, 638), "£6.38");
   assert.equal(formatUnitPrice(null, 7650), "£76.50");
+});
+
+test("the Unit price column appears only when a line has a price worth printing", () => {
+  // An invoice raised before migration 0163: no column at all, so it renders exactly as it did
+  // the day it was sent, including a PDF regenerated later by Resend.
+  assert.equal(showsUnitPrice([{ unit_price_exact: null }, { unit_price_exact: null }]), false);
+  assert.equal(showsUnitPrice([]), false);
+  // One priced line is enough. A mixed invoice shows the column, and the unpriced lines show an
+  // em dash: better a visible gap than a figure that argues with its own amount.
+  assert.equal(showsUnitPrice([{ unit_price_exact: null }, { unit_price_exact: 637.5 }]), true);
+  // Zero is a price, not an absence. A free line must not hide the column from the paid ones.
+  assert.equal(showsUnitPrice([{ unit_price_exact: 0 }]), true);
 });

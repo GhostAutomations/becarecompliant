@@ -1971,4 +1971,29 @@ writes a NULL exact price rather than pretending a rounded integer is exact. `pa
 derives a missing line total from the exact price too, so a hand crafted request cannot store a
 line whose printed price and printed amount disagree.
 
-75 tests pass.
+AND THEN THE COLUMN HID ITSELF. Deployed, Phil looked at a draft from 27 July and saw a Unit
+price column of nothing but em dashes, which is the designed behaviour and still looks wrong. A
+column of dashes is worse than no column: it draws the eye to an absence and says nothing. One
+helper, `showsUnitPrice`, now decides for the page and the PDF together, and the five remaining
+columns take the width back, so an invoice raised before 0163 renders exactly as it always did.
+A MIXED invoice still shows the column, with a dash on the lines that have no printable price.
+
+NO PDF OF A DRAFT (Phil, same session). A draft has no invoice number, so the document that
+button produced reads as an invoice and is not one. Hidden on the page, refused at the route with
+a redirect back to the invoice rather than a wall of bare text, and the filename no longer says
+"draft". Review then found the hole that mattered: `resendInvoiceEmail` had NO status guard, so a
+POST could have rendered a draft and ATTACHED IT TO A CLIENT EMAIL as Invoice-null.pdf, which is
+a worse way out of the building than the download just closed. The guard now sits inside
+`emailInvoiceOnSend`, covering both callers; `sendInvoice` numbers the invoice through the RPC
+before it gets there, so it is unaffected.
+
+Review also caught the cron storing a NULL exact price when all it had was a rounded integer.
+That integer IS the price the amount was worked out from, so the line multiplies out perfectly
+well, and storing null would have dropped the whole Unit price column off a BRAND NEW invoice.
+
+A new test file reads pdf-doc.tsx and the invoice page as TEXT and asserts both column sets total
+100%, that the header and the rows read the same widths in the same order, and that the week
+separator colSpan matches the number of headings. Those are the failures that do not throw and
+are not noticed until a client has the PDF.
+
+80 tests pass.

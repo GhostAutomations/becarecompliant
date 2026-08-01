@@ -438,6 +438,18 @@ async function emailInvoiceOnSend(
   try {
     const inv = await getInvoice(invoiceId);
     if (!inv) return null;
+    /*
+     * A DRAFT IS NEVER EMAILED, and the guard lives HERE rather than in the callers.
+     *
+     * Hiding the Resend button is not enforcement: a server action is a POST endpoint, and this
+     * one takes an invoice id. Without this, anyone who could reach it could have a draft
+     * rendered and attached to a client email as "Invoice-null.pdf", which is a worse way out of
+     * the building than the download we just closed. sendInvoice is unaffected: it numbers and
+     * marks the invoice sent through the RPC before it ever gets here.
+     */
+    if (inv.status === "draft") {
+      return "This invoice is still a draft, so nothing was emailed. Send it first.";
+    }
     if (inv.delivery_method !== "email") return "This client is set to receive invoices by post, so no email was sent.";
     if (!inv.bill_to_email) return "No email address on file for this client, so no email was sent.";
 

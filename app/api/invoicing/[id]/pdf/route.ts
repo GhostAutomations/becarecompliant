@@ -7,7 +7,7 @@ import { getCompanyLogoDataUrl } from "@/lib/invoicing/logo";
 import { renderInvoicePdf } from "@/lib/invoicing/pdf";
 
 /** Branded invoice PDF. Manager+ RLS lets the invoice load; Pro gates the export. */
-export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { profile } = await requireCompany();
   const { id } = await ctx.params;
   if (!profile.company_id) return new Response("No company", { status: 403 });
@@ -18,6 +18,19 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   const inv = await getInvoice(id);
   if (!inv || inv.company_id !== profile.company_id) {
     return new Response("Invoice not found", { status: 404 });
+  }
+  /*
+   * A DRAFT HAS NO PDF (Phil, 2026-08-01).
+   *
+   * It has no invoice number yet, so the document this would produce reads as an invoice, can be
+   * sent to a client, and is not one. The button is hidden on a draft; this is the same rule at
+   * the door, so the URL cannot just be typed. It is enforced here and not only in the page
+   * because a downloadable file is the thing that leaves the building.
+   */
+  if (inv.status === "draft") {
+    // A redirect rather than a wall of text: this link opens in its own tab, so a refused
+    // download otherwise leaves somebody on a bare page with no way back into the app.
+    return Response.redirect(new URL(`/invoicing/${inv.id}`, req.url), 303);
   }
   const [config, companyName, logo] = await Promise.all([
     getInvoicingConfig(profile.company_id),
@@ -35,10 +48,10 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
     action: "invoicing.invoice_downloaded",
     entityType: "invoice",
     entityId: inv.id,
-    summary: `Downloaded invoice ${inv.number ?? "(draft)"} as PDF`,
+    summary: `Downloaded invoice ${inv.number} as PDF`,
   });
 
-  const filename = `invoice-${(inv.number ?? "draft").replace(/[^a-zA-Z0-9_-]/g, "")}.pdf`;
+  const filename = `invoice-${(inv.number ?? "").replace(/[^a-zA-Z0-9_-]/g, "")}.pdf`;
   return new Response(new Uint8Array(buffer), {
     status: 200,
     headers: {
