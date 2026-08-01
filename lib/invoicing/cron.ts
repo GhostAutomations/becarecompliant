@@ -20,7 +20,7 @@ import { siteUrl } from "@/lib/site";
 import { formatMoney, billingPeriodFor } from "./types";
 import { londonToday } from "./data";
 import { buildCarePlanLines, rateLookup, type PlanEntryRow } from "./care-plan-billing";
-import { lineAmountPence, unitPriceExactPence } from "@/lib/service-users/care-plan-consts";
+import { unitPricePence } from "@/lib/service-users/care-plan-consts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const MANAGER_PLUS = new Set([
@@ -95,8 +95,6 @@ type DraftLine = {
   handed: string | null;
   quantity: number;
   unit_price_pence: number;
-  /** The unrounded unit price in pence: what the invoice prints, so the line multiplies out. */
-  unit_price_exact: number | null;
   line_total_pence: number;
   vat_rate: number;
   period_start: string | null;
@@ -120,8 +118,8 @@ export type DraftResult = {
  * Lines come from the care plan whenever the schedule was built from one and the
  * plan still covers the period, so a changed care plan is billed correctly instead
  * of replaying quantities frozen when the schedule was created. Otherwise the
- * schedule's own lines are replayed. EITHER WAY amounts use lineAmountPence, the
- * same exact maths as the builder (never quantity x a rounded unit price).
+ * schedule's own lines are replayed. EITHER WAY the amount is quantity times the price the
+ * invoice prints, the same rule the builder follows.
  *
  * This function does NOT claim or advance the schedule; the caller decides that.
  */
@@ -143,7 +141,7 @@ export async function draftFromSchedule(
     supabase.from("invoicing_config").select("*").eq("company_id", sc.company_id).maybeSingle(),
     supabase
       .from("invoice_schedule_lines")
-      .select("description, service, unit_label, handed, quantity, unit_price_pence, unit_price_exact, vat_rate, position, period_start, period_end")
+      .select("description, service, unit_label, handed, quantity, unit_price_pence, vat_rate, position, period_start, period_end")
       .eq("schedule_id", sc.id)
       .order("position", { ascending: true }),
     supabase
@@ -162,8 +160,7 @@ export async function draftFromSchedule(
 
   const scheduleLines = (lines as Array<{
     description: string; service: string | null; unit_label: string | null; handed: string | null;
-    quantity: number; unit_price_pence: number; unit_price_exact: number | null;
-    vat_rate: number; position: number;
+    quantity: number; unit_price_pence: number; vat_rate: number; position: number;
     period_start: string | null; period_end: string | null;
   }> | null) ?? [];
 
@@ -185,7 +182,6 @@ export async function draftFromSchedule(
         handed: l.handed,
         quantity: l.quantity,
         unit_price_pence: l.unit_price_pence,
-        unit_price_exact: l.unit_price_exact,
         line_total_pence: l.line_total_pence,
         vat_rate: vatEnabled ? 20 : 0,
         period_start: l.period_start,
@@ -211,37 +207,30 @@ export async function draftFromSchedule(
     draftLines = scheduleLines.map((l) => {
       const handed = l.handed === "double" ? "double" : "single";
       const rate = l.service ? rateFor(l.service) : undefined;
+      /*
+       * The price this line is billed at: today's rate when we could look one up, otherwise the
+       * price the schedule was created with. A rate that does not RESOLVE is not the same as a
+       * rate of zero: an unknown service label, an unknown unit, or a company with no
+       * invoicing_config row would otherwise price the whole line at nothing and draft a tidy,
+       * internally consistent £0.00 invoice.
+       */
       const resolved =
         Boolean(l.unit_label) &&
         rate !== undefined &&
-        unitPriceExactPence(rate, l.unit_label as string, handed) > 0;
-      /*
-       * The price this line is billed at. Today's rate when we could look one up, otherwise the
-       * price the schedule was created with, taking its EXACT figure in preference to the
-       * rounded one. Reaching for the rounded integer here would charge a 7 x 15m line £44.66
-       * instead of £44.63, which is the very arithmetic this whole change refused to adopt.
-       */
-      const storedExact = l.unit_price_exact ?? null;
-      const unitExact = resolved
-        ? unitPriceExactPence(rate, l.unit_label as string, handed)
-        : storedExact ?? l.unit_price_pence;
-      const exact = Math.round(Number(l.quantity) * unitExact);
+        unitPricePence(rate, l.unit_label as string, handed) > 0;
+      const unitPrice = resolved
+        ? unitPricePence(rate, l.unit_label as string, handed)
+        : l.unit_price_pence;
       return {
         description: l.description,
         service: l.service,
         unit_label: l.unit_label,
         handed: l.handed,
         quantity: Number(l.quantity),
-        unit_price_pence: Math.round(unitExact),
-        /*
-         * ALWAYS the figure the amount was worked out from, even when that was only a rounded
-         * integer from the schedule. It is not "exact" in the sense of coming from a rate, but
-         * it IS the price this line is charged at, so quantity times it gives the amount and the
-         * client can check it. Storing null here would drop the Unit price column off a brand
-         * new invoice, which is a worse document than one showing a plain £6.38 that is true.
-         */
-        unit_price_exact: unitExact,
-        line_total_pence: exact,
+        unit_price_pence: unitPrice,
+        // Quantity times the printed price, on both branches, so a recurring invoice multiplies
+        // out on the page exactly as a hand built one does.
+        line_total_pence: Math.round(Number(l.quantity) * unitPrice),
         vat_rate: vatEnabled ? l.vat_rate || 20 : 0,
         period_start: null,
         period_end: null,
@@ -296,7 +285,6 @@ export async function draftFromSchedule(
       handed: l.handed,
       quantity: l.quantity,
       unit_price_pence: l.unit_price_pence,
-      unit_price_exact: l.unit_price_exact,
       line_total_pence: l.line_total_pence,
       vat_rate: l.vat_rate,
       period_start: l.period_start,

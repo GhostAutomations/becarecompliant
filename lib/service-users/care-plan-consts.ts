@@ -76,9 +76,11 @@ export const UNIT_HOURS: Record<string, number | null> = {
 /** A service and its two rates (pence), keyed by the service label ("Care" etc). */
 export type ServiceRate = { label: string; hourly_pence: number; fixed_pence: number };
 
-/** Price of ONE unit of a service, ROUNDED to the penny. Fixed rate for Fixed, else hourly x
- *  hours, doubled for double handed. Kept for anywhere a whole penny figure is wanted; the
- *  invoice itself prints unitPriceExactPence below, because £6.38 does not multiply out. */
+/**
+ * Price of ONE unit of a service, rounded to the penny. THE price: what the invoice prints and
+ * what the line is charged at. Fixed rate for Fixed, else hourly x hours, doubled for double
+ * handed, the rounding happening BEFORE the doubling so the printed figure is the billed one.
+ */
 export function unitPricePence(
   rate: ServiceRate | undefined,
   unit: string,
@@ -90,32 +92,26 @@ export function unitPricePence(
 }
 
 /**
- * The UNROUNDED price of one unit, in pence, so an invoice can print a figure that multiplies
- * out. A quarter hour of £25.50 an hour is 637.5 pence, not 638.
+ * Line amount: QUANTITY x THE PRINTED UNIT PRICE.
  *
- * WHY THIS EXISTS (2026-08-01). Phil asked why a line read 7 x 15m = £44.63 when the unit price
- * beside it said £6.38, which multiplies to £44.66. The amount was right: 1.75 hours at £25.50
- * is £44.625. The £6.38 was the lie, a display rounding of £6.375. Rather than charge the extra
- * three pence to make a rounded figure true, we print the figure that is true. 30m and 1hr
- * divide exactly, which is why this hid for so long.
+ * PHIL'S CALL, 2026-08-01, arrived at the long way round. A quarter hour of £25.50 is £6.375.
+ * Billing at the true rate and rounding once at the end gave 7 x 15m = £44.63, which is
+ * arithmetically purer and which a client cannot check: the invoice now prints a rate, and
+ * 7 x £6.38 is £44.66. Printing £6.375 was tried and rejected as looking like a spreadsheet
+ * artefact on a care invoice. So the rate is rounded to the penny, the line is charged at the
+ * rounded rate, and every figure on the document is one a client can reproduce with a
+ * calculator. It costs a few pence a line on quarter hour visits, in the provider's favour.
+ * 30m (£12.75) and 1hr (£25.50) divide exactly and are untouched.
+ *
+ * ONE maths path, deliberately: this delegates to unitPricePence rather than repeating the
+ * arithmetic. A second copy is exactly how the recurring cron drifted away from the builder and
+ * billed £89.32 where the builder billed £89.25.
  */
-export function unitPriceExactPence(
-  rate: ServiceRate | undefined,
-  unit: string,
-  handed: string = "single",
-): number {
-  if (!rate) return 0;
-  const base = unit === "Fixed" ? rate.fixed_pence : rate.hourly_pence * (UNIT_HOURS[unit] ?? 0);
-  return handed === "double" ? base * 2 : base;
-}
-
-/** EXACT line amount: quantity billed at the true rate, rounded only at the end
- *  (so e.g. 56 x 15m of £25.50/hr = £357.00, not 56 x £6.38). */
 export function lineAmountPence(
   rate: ServiceRate | undefined,
   unit: string,
   handed: string,
   quantity: number,
 ): number {
-  return Math.round(quantity * unitPriceExactPence(rate, unit, handed));
+  return Math.round(quantity * unitPricePence(rate, unit, handed));
 }

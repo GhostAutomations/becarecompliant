@@ -22,16 +22,14 @@ import { getCompanyLogoDataUrl } from "./logo";
 import { renderInvoicePdf } from "./pdf";
 import { sendEmail, type EmailAttachment } from "@/lib/email/resend";
 import { companyInvoiceEmailHtml } from "@/lib/email/templates";
-import { buildCarePlanLines, type BuilderLine, type PlanEntryRow } from "./care-plan-billing";
+import { buildCarePlanLines, rateLookup, type BuilderLine, type PlanEntryRow } from "./care-plan-billing";
+import { unitPricePence } from "@/lib/service-users/care-plan-consts";
 import { draftFromSchedule, SCHEDULE_RUN_COLUMNS, type ScheduleRunRow } from "./cron";
 
 type LineInput = {
   description: string;
   quantity: number;
   unit_price_pence: number;
-  /** The unrounded unit price in pence, which is what the invoice prints. Null when there is no
-   *  rate to derive it from, in which case the rounded figure is printed instead. */
-  unit_price_exact: number | null;
   line_total_pence: number;
   service: string | null;
   unit_label: string | null;
@@ -69,25 +67,25 @@ function parseLines(raw: FormDataEntryValue | null): LineInput[] {
   return arr
     .map((r) => {
       const o = r as Record<string, unknown>;
-      const quantity = Math.max(0, Number(o.quantity ?? 0));
+      /*
+       * ROUNDED TO TWO PLACES FIRST, because invoice_lines.quantity is numeric(12,2). Deriving
+       * the amount from 1.005 and then letting Postgres store 1.01 puts the row permanently at
+       * odds with its own arithmetic: it would read back as a line that does not multiply out,
+       * print an em dash for ever, and bill against a quantity nobody typed.
+       */
+      const quantity = Math.round(Math.max(0, Number(o.quantity ?? 0)) * 100) / 100;
       const unit_price_pence = Math.round(Math.max(0, Number(o.unit_price_pence ?? 0)));
-      // The unrounded unit price, when the builder had a rate to work it out from. Kept to four
-      // decimals to match the column; anything finer than that is not a rate, it is noise.
-      const exact = Number(o.unit_price_exact);
-      const unit_price_exact =
-        Number.isFinite(exact) && exact >= 0 ? Math.round(exact * 10000) / 10000 : null;
-      // Prefer the exact total the builder computed; fall back to quantity times the price. The
-      // fallback uses the EXACT price when there is one, so a hand crafted request cannot store
-      // a line whose printed price and printed amount disagree.
-      const provided = Number(o.line_total_pence);
-      const line_total_pence = Number.isFinite(provided) && provided >= 0
-        ? Math.round(provided)
-        : Math.round(quantity * (unit_price_exact ?? unit_price_pence));
+      /*
+       * The amount is DERIVED, not trusted. Quantity times the printed unit price is the rule
+       * the whole invoice now rests on, so taking a total from the browser would be a way to
+       * store a line that does not multiply out. The builder computes exactly this figure, so
+       * nothing legitimate changes. The PRICE is re-derived too, by repriceLines below.
+       */
+      const line_total_pence = Math.round(quantity * unit_price_pence);
       return {
         description: String(o.description ?? "").trim(),
         quantity,
         unit_price_pence,
-        unit_price_exact,
         line_total_pence,
         service: o.service ? String(o.service) : null,
         unit_label: o.unit_label ? String(o.unit_label) : null,
@@ -97,6 +95,37 @@ function parseLines(raw: FormDataEntryValue | null): LineInput[] {
       };
     })
     .filter((l) => l.description !== "" && (l.quantity > 0 || l.unit_price_pence > 0));
+}
+
+/**
+ * Reprice the lines against the company's OWN rates, server side.
+ *
+ * The browser sends a unit price and until now we stored it. Two things were wrong with that. An
+ * admin can raise the Care rate while a manager has the builder open, and the manager's save
+ * would then bill the old rate silently. And a crafted request could name any price it liked
+ * against a real client. The server holds the service, the unit, the handed flag and the
+ * company's invoicing_config, so it can work the price out itself and does.
+ *
+ * A line with no service or unit has no rate to look up, so its submitted price stands: that is
+ * the free text line an Admin typed by hand, which is a legitimate thing to raise. Its amount is
+ * still derived from quantity, so it multiplies out either way.
+ */
+function repriceLines(
+  lines: LineInput[],
+  config: Record<string, unknown> | null | undefined,
+): LineInput[] {
+  const rateFor = rateLookup(config);
+  return lines.map((l) => {
+    if (!l.service || !l.unit_label) return l;
+    const handed = l.handed === "double" ? "double" : "single";
+    const price = unitPricePence(rateFor(l.service), l.unit_label, handed);
+    if (price <= 0) return l; // Unknown service or unit: do not silently zero a real line.
+    return {
+      ...l,
+      unit_price_pence: price,
+      line_total_pence: Math.round(l.quantity * price),
+    };
+  });
 }
 
 /** Totals from lines that already carry an exact line_total_pence. */
@@ -181,15 +210,16 @@ export async function createInvoice(_prev: ActionState, formData: FormData): Pro
 
   const { data: cfg } = await supabase
     .from("invoicing_config")
-    .select("vat_enabled, default_payment_terms_days")
+    .select("*")
     .eq("company_id", companyId)
     .maybeSingle();
   const vatEnabled = Boolean(cfg?.vat_enabled);
   const terms = Number(cfg?.default_payment_terms_days ?? 14);
   const vatRate = vatEnabled ? 20 : 0;
 
-  const withRates = lines.map((l) => ({ ...l, vat_rate: vatRate }));
-  const totals = totalsFromLines(lines, vatEnabled, vatRate);
+  const priced = repriceLines(lines, cfg);
+  const withRates = priced.map((l) => ({ ...l, vat_rate: vatRate }));
+  const totals = totalsFromLines(priced, vatEnabled, vatRate);
 
   const issue = isoDateOr(formData.get("issue_date"), londonToday())!;
   const due = isoDateOr(formData.get("due_date"), addDaysIso(issue, terms))!;
@@ -236,7 +266,6 @@ export async function createInvoice(_prev: ActionState, formData: FormData): Pro
       handed: l.handed,
       quantity: l.quantity,
       unit_price_pence: l.unit_price_pence,
-      unit_price_exact: l.unit_price_exact,
       line_total_pence: l.line_total_pence,
       period_start: l.period_start,
       period_end: l.period_end,
@@ -285,7 +314,6 @@ export async function createInvoice(_prev: ActionState, formData: FormData): Pro
           handed: l.handed,
           quantity: l.quantity,
           unit_price_pence: l.unit_price_pence,
-          unit_price_exact: l.unit_price_exact,
           period_start: l.period_start,
           period_end: l.period_end,
           vat_rate: l.vat_rate,
@@ -332,13 +360,14 @@ export async function updateInvoice(_prev: ActionState, formData: FormData): Pro
 
   const { data: cfg } = await supabase
     .from("invoicing_config")
-    .select("vat_enabled")
+    .select("*")
     .eq("company_id", companyId)
     .maybeSingle();
   const vatEnabled = Boolean(cfg?.vat_enabled);
   const vatRate = vatEnabled ? 20 : 0;
-  const withRates = lines.map((l) => ({ ...l, vat_rate: vatRate }));
-  const totals = totalsFromLines(lines, vatEnabled, vatRate);
+  const priced = repriceLines(lines, cfg);
+  const withRates = priced.map((l) => ({ ...l, vat_rate: vatRate }));
+  const totals = totalsFromLines(priced, vatEnabled, vatRate);
 
   await supabase.from("invoice_lines").delete().eq("invoice_id", id);
   const { error: lineErr } = await supabase.from("invoice_lines").insert(
@@ -351,7 +380,6 @@ export async function updateInvoice(_prev: ActionState, formData: FormData): Pro
       handed: l.handed,
       quantity: l.quantity,
       unit_price_pence: l.unit_price_pence,
-      unit_price_exact: l.unit_price_exact,
       line_total_pence: l.line_total_pence,
       period_start: l.period_start,
       period_end: l.period_end,

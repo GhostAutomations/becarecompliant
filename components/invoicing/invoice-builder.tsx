@@ -6,7 +6,7 @@ import { IDLE_STATE, type ActionState } from "@/lib/forms";
 import { useSavedFlash } from "@/lib/use-saved-flash";
 import { formatMoney } from "@/lib/invoicing/types";
 import { carePlanLinesForPeriod } from "@/lib/invoicing/invoice-actions";
-import { CARE_PLAN_UNITS, CARE_PLAN_DAYS, HANDED_OPTIONS, unitPricePence, unitPriceExactPence, lineAmountPence } from "@/lib/service-users/care-plan-consts";
+import { CARE_PLAN_UNITS, CARE_PLAN_DAYS, HANDED_OPTIONS, unitPricePence, lineAmountPence } from "@/lib/service-users/care-plan-consts";
 
 type ServerAction = (prev: ActionState, formData: FormData) => Promise<ActionState>;
 type Client = { id: string; name: string; invoice_to_label: string; invoice_delivery: string | null };
@@ -98,12 +98,10 @@ export default function InvoiceBuilder({
     () =>
       rows.map((r) => {
         const q = Math.max(0, Number(r.quantity) || 0);
-        // Exact: bill quantity at the true rate, rounding only the line total. The UNROUNDED
-        // unit price rides along, because that is the figure the invoice prints and it is the
-        // only one that multiplies out (£6.375 x 7 = £44.63, where £6.38 x 7 = £44.66).
+        // Quantity times the price the invoice prints, so what you see here is what the client
+        // can reproduce with a calculator.
         return {
           unit_price_pence: unitPricePence(rateFor(r.service), r.unit, r.handed),
-          unit_price_exact: unitPriceExactPence(rateFor(r.service), r.unit, r.handed),
           line_total: lineAmountPence(rateFor(r.service), r.unit, r.handed, q),
         };
       }),
@@ -125,7 +123,6 @@ export default function InvoiceBuilder({
           handed: r.handed,
           quantity: q,
           unit_price_pence: unitPricePence(rateFor(r.service), r.unit, r.handed),
-          unit_price_exact: unitPriceExactPence(rateFor(r.service), r.unit, r.handed),
           line_total_pence: lineAmountPence(rateFor(r.service), r.unit, r.handed, q),
           period_start: r.periodStart || null,
           period_end: r.periodEnd || null,

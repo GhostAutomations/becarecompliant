@@ -86,10 +86,10 @@ function InvoiceDocument({
 }) {
   const ds = displayStatus(inv.status, inv.due_date, today);
   /*
-   * The Unit price column is dropped entirely on an invoice raised before migration 0163, which
-   * has no printable unit price on any line. The remaining five columns then take the full width
-   * back, so such an invoice renders exactly as it always did rather than growing a column of em
-   * dashes. Both sets total 100%.
+   * The Unit price column is dropped entirely unless EVERY line multiplies out, which an invoice
+   * raised before 2026-08-01 does not. The remaining five columns then take the full width back,
+   * so a PDF regenerated years later is the document the client was actually sent. Both sets
+   * total 100%.
    */
   const showPrice = showsUnitPrice(inv.lines);
   const w = showPrice
@@ -163,7 +163,7 @@ function InvoiceDocument({
                 <Text style={[s.td, { width: w.handed }]}>{l.handed === "double" ? "Double handed" : l.handed === "single" ? "Single handed" : "—"}</Text>
                 <Text style={[s.td, { width: w.qty, textAlign: "right" }]}>{l.quantity}</Text>
                 {showPrice ? (
-                  <Text style={[s.td, { width: w.price, textAlign: "right" }]}>{formatUnitPrice(l.unit_price_exact)}</Text>
+                  <Text style={[s.td, { width: w.price, textAlign: "right" }]}>{formatUnitPrice(l)}</Text>
                 ) : null}
                 <Text style={[s.td, { width: w.amount, textAlign: "right" }]}>{formatMoney(l.line_total_pence)}</Text>
               </View>

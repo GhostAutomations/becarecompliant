@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { requireInvoicing } from "@/lib/invoicing/guard";
 import { getSchedule, londonToday } from "@/lib/invoicing/data";
 import { updateSchedule, draftScheduleNow, cancelSchedule } from "@/lib/invoicing/invoice-actions";
-import { formatMoney, formatUnitPrice, billingPeriodFor, displayStatus, STATUS_PILL, STATUS_LABEL } from "@/lib/invoicing/types";
+import { formatMoney, billingPeriodFor, displayStatus, STATUS_PILL, STATUS_LABEL } from "@/lib/invoicing/types";
 import { CARE_PLAN_DAYS } from "@/lib/service-users/care-plan-consts";
 import ActionForm from "@/components/action-form";
 import BackLink from "@/components/back-link";
@@ -158,7 +158,7 @@ export default async function SchedulePage({ params }: { params: Promise<{ id: s
               <div key={i} className="flex items-center justify-between gap-3 text-sm">
                 <span className="min-w-0 truncate text-white/80">{l.description}</span>
                 <span className="shrink-0 text-white/50">
-                  {l.quantity} x {formatUnitPrice(l.unit_price_exact, l.unit_price_pence)}
+                  {l.quantity} x {formatMoney(l.unit_price_pence)}
                 </span>
               </div>
             ))}

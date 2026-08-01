@@ -65,7 +65,8 @@ test("the week separator spans exactly the number of headings there are", () => 
   );
 });
 
-test("a row from a narrowed select does not switch the column back on", () => {
-  // The property is MISSING rather than null on such a row, and undefined !== null.
-  assert.equal(showsUnitPrice([{} as { unit_price_exact: number | null }]), false);
+test("an invoice of only pre 2026-08-01 lines shows no column at all", () => {
+  // 7 x £6.38 is £44.66, and that line was stored at £44.63, so it does not stand being
+  // multiplied out and the column goes with it.
+  assert.equal(showsUnitPrice([{ quantity: 7, unit_price_pence: 638, line_total_pence: 4463 }]), false);
 });

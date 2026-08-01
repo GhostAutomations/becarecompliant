@@ -1996,4 +1996,36 @@ A new test file reads pdf-doc.tsx and the invoice page as TEXT and asserts both 
 separator colSpan matches the number of headings. Those are the failures that do not throw and
 are not noticed until a client has the PDF.
 
-80 tests pass.
+THEN PHIL SAW £6.375 AND SAID NO TO THREE DECIMAL PLACES, which is right: it reads as a
+spreadsheet artefact, not as a price on a care invoice. Offered the hourly rate, rate plus hours,
+or dropping the column; he chose to round the unit rate up and, asked whether the amount should
+follow, chose to charge £44.66 so the line matches its own multiplication.
+
+SO THE RULE IS: a line is QUANTITY x THE PRINTED UNIT PRICE, both rounded to the penny. Seven
+quarter hours of £25.50 bill at 7 x £6.38 = £44.66, a few pence more than the exact £44.63, in
+the provider's favour, and every figure on the document is one a client can reproduce with a
+calculator. 30m (£12.75) and 1hr (£25.50) divide exactly and never moved at any point in this.
+
+MIGRATION 0164 DROPS unit_price_exact from both tables, one day after 0163 added it. Exactly one
+row carried a value, a draft, identical to its rounded price. WHAT REPLACED IT IS ARITHMETIC, not
+a flag: the invoice prints a unit price when round(quantity x unit_price_pence) equals
+line_total_pence. Decided from the row itself, so no invoice can print a price that argues with
+its own amount, whatever wrote it and whenever, and the old lines that DO hold are printed.
+
+EVERY, NOT SOME. Review caught the one that mattered: I hid the column when NO line multiplied
+out, so an invoice from before today containing a single 30m or 1hr line, which is the ordinary
+case, would have grown a half filled column it was never sent with. The PDF renders live on every
+Resend, so that document reaches a client who already holds a different one. All lines hold or
+the column does not appear.
+
+TWO MORE FROM REVIEW. `parseLines` derived the amount from an UNROUNDED quantity while the column
+is numeric(12,2), so 1.005 stored as 1.01 and read back as a line at odds with its own
+arithmetic. And the unit price was still whatever the browser sent: an admin raising a rate while
+a manager had the builder open would have billed the old rate silently, and a crafted request
+could name any price. `repriceLines` now works the price out server side from the company's own
+invoicing_config, leaving hand typed free text lines alone because they have no rate to look up.
+
+`computeTotals` is DELETED. A second, uncalled implementation of the line maths in a money module
+is exactly how the recurring cron came to bill £89.32 where the builder billed £89.25.
+
+78 tests pass.

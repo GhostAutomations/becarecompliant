@@ -36,8 +36,9 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
   ]);
   const today = londonToday();
   const ds = displayStatus(inv.status, inv.due_date, today);
-  // No Unit price column at all on an invoice raised before migration 0163: a column of em
-  // dashes is worse than no column. See showsUnitPrice.
+  // The Unit price column appears only when EVERY line multiplies out, which an invoice raised
+  // before 2026-08-01 does not. Such an invoice then renders exactly as it was sent. See
+  // showsUnitPrice.
   const showPrice = showsUnitPrice(inv.lines);
 
   return (
@@ -168,7 +169,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
                     <td className="py-2 pr-3 text-right text-white/70">{l.quantity}</td>
                     {showPrice ? (
                       <td className="py-2 pr-3 text-right text-white/70">
-                        {formatUnitPrice(l.unit_price_exact)}
+                        {formatUnitPrice(l)}
                       </td>
                     ) : null}
                     <td className="py-2 text-right text-white/90">{formatMoney(l.line_total_pence)}</td>

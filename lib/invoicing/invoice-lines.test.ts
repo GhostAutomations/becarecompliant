@@ -2,138 +2,126 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   unitPricePence,
-  unitPriceExactPence,
   lineAmountPence,
   type ServiceRate,
 } from "../service-users/care-plan-consts.ts";
-import { formatUnitPrice, showsUnitPrice } from "./types.ts";
+import { formatUnitPrice, lineAddsUp, showsUnitPrice } from "./types.ts";
 
 /**
- * THE RULE, settled 2026-08-01. A line amount is quantity billed at the TRUE rate, rounded once
- * at the end, and the invoice prints the UNROUNDED unit price so a client can multiply the two
- * printed figures and get the third.
+ * THE RULE, settled 2026-08-01 after three goes at it.
  *
- * Phil asked why a drafted line read 7 x 15m = £44.63. It is right: seven quarter hours is 1.75
- * hours, and at £25.50 an hour that is £44.625. What was wrong was that £6.375 had nowhere to be
- * shown, so the only unit price in the app was the rounded £6.38, which multiplies to £44.66.
- * Charging the extra three pence to make the rounded figure true was considered and rejected: it
- * takes money off a care client to tidy up a display.
+ * A line is charged at QUANTITY x THE PRINTED UNIT PRICE, both rounded to the penny, so a client
+ * with a calculator can reproduce every figure on the invoice.
+ *
+ * The two rejected answers are worth keeping written down. Billing at the exact hourly rate and
+ * rounding once at the end gave 7 x 15m = £44.63, which is arithmetically purer and which nobody
+ * reading the invoice can check, because 7 x £6.38 is £44.66. Printing £6.375 to make that true
+ * was built and then thrown out: three decimal places read as a spreadsheet artefact on a care
+ * invoice. What is left costs a few pence a line on quarter hour visits and reads properly.
  */
 
 /** Acme's live rate on 2026-08-01: care at £25.50 an hour. */
 const CARE: ServiceRate = { label: "Care", hourly_pence: 2550, fixed_pence: 0 };
-/** An ODD number of pence an hour. £25.50 quarters neatly onto a half penny, which hides a whole
- *  class of fault: quarter an odd rate and you land on a QUARTER penny. £22.75 is an ordinary
- *  care rate and its 15m visit is £5.6875. */
+/** An ODD number of pence an hour. £25.50 quarters onto a half penny, which hides a whole class
+ *  of fault; quarter an odd rate and you land on a quarter penny. */
 const ODD: ServiceRate = { label: "Care", hourly_pence: 2275, fixed_pence: 0 };
 const SLEEP: ServiceRate = { label: "Sleep", hourly_pence: 0, fixed_pence: 18500 };
 
-/** The pence a reader gets by multiplying the two figures PRINTED on the invoice. */
-function pencePrinted(rate: ServiceRate, unit: string, handed: string, qty: number): number {
-  const shown = formatUnitPrice(unitPriceExactPence(rate, unit, handed));
-  return qty * Number(shown.replace("£", "").replace(/,/g, "")) * 100;
-}
-
 test("the line Phil asked about", () => {
-  assert.equal(unitPriceExactPence(CARE, "15m", "single"), 637.5);
-  assert.equal(lineAmountPence(CARE, "15m", "single", 7), 4463);
-  assert.equal(formatUnitPrice(637.5), "£6.375");
+  assert.equal(unitPricePence(CARE, "15m", "single"), 638);
+  assert.equal(lineAmountPence(CARE, "15m", "single", 7), 4466);
 });
 
-test("the unit price AS PRINTED times the quantity gives the printed amount", () => {
-  /*
-   * The invariant the whole change exists to create, asserted against the STRING the invoice
-   * shows rather than against the number behind it. Testing the number only proves two helpers
-   * agree with each other; a reader with a calculator has nothing but the string.
-   *
-   * Rounding once at the end means the amount may sit half a penny off the raw product, which is
-   * what "rounded to the penny" means. What it may never be is a whole penny off.
-   */
+test("every line multiplies out, which is the whole point", () => {
   for (const rate of [CARE, ODD]) {
     for (const unit of ["15m", "30m", "45m", "1hr", "2hr", "3hr", "12hr"]) {
       for (const handed of ["single", "double"]) {
         for (const qty of [1, 3, 7, 14, 28, 56]) {
+          const price = unitPricePence(rate, unit, handed);
           const amount = lineAmountPence(rate, unit, handed, qty);
-          const reader = pencePrinted(rate, unit, handed, qty);
-          assert.ok(
-            Math.abs(amount - reader) <= 0.5,
-            `${rate.hourly_pence}p/hr, ${qty} x ${unit} ${handed}: amount ${amount} against a reader's ${reader}`,
-          );
+          assert.equal(amount, qty * price, `${qty} x ${unit} ${handed} at ${rate.hourly_pence}p/hr`);
+          assert.equal(lineAddsUp({ quantity: qty, unit_price_pence: price, line_total_pence: amount }), true);
         }
       }
     }
   }
 });
 
-test("an odd hourly rate needs the fourth decimal", () => {
-  // £22.75 an hour. A quarter of it is £5.6875, and printing £5.688 puts seven visits a penny
-  // out. Three decimals was the first attempt and this is what caught it.
-  assert.equal(unitPriceExactPence(ODD, "15m", "single"), 568.75);
-  assert.equal(formatUnitPrice(568.75), "£5.6875");
-  assert.equal(lineAmountPence(ODD, "15m", "single", 7), 3981);
-});
-
-test("the ROUNDED price is what would have been wrong, and by how much", () => {
-  // Kept as the regression: this is the arithmetic a client would have done.
-  assert.equal(unitPricePence(CARE, "15m", "single"), 638);
-  assert.equal(7 * unitPricePence(CARE, "15m", "single") - lineAmountPence(CARE, "15m", "single", 7), 3);
-});
-
-test("units that divide exactly are untouched and print plainly", () => {
+test("units that divide exactly are untouched by any of this", () => {
+  // These were right under every version of the rule and must never move.
   assert.equal(lineAmountPence(CARE, "30m", "single", 28), 35700);
   assert.equal(lineAmountPence(CARE, "1hr", "double", 14), 71400);
   assert.equal(lineAmountPence(CARE, "3hr", "single", 2), 15300);
-  assert.equal(formatUnitPrice(1275), "£12.75");
-  assert.equal(formatUnitPrice(2550), "£25.50");
 });
 
-test("double handed doubles the exact price, not the rounded one", () => {
-  assert.equal(unitPriceExactPence(CARE, "15m", "double"), 1275);
-  assert.equal(lineAmountPence(CARE, "15m", "double", 7), 8925);
+test("double handed rounds before it doubles, so the printed price is the billed price", () => {
+  assert.equal(unitPricePence(CARE, "15m", "double"), 1276);
+  assert.equal(lineAmountPence(CARE, "15m", "double", 7), 8932);
 });
 
 test("a Fixed service uses its flat fee and ignores the hourly rate", () => {
-  assert.equal(unitPriceExactPence(SLEEP, "Fixed", "single"), 18500);
+  assert.equal(unitPricePence(SLEEP, "Fixed", "single"), 18500);
   assert.equal(lineAmountPence(SLEEP, "Fixed", "single", 3), 55500);
   assert.equal(lineAmountPence(SLEEP, "Fixed", "double", 1), 37000);
 });
 
 test("no rate, or an unknown unit, means no charge and never a NaN on an invoice", () => {
-  assert.equal(unitPriceExactPence(undefined, "15m", "single"), 0);
+  assert.equal(unitPricePence(undefined, "15m", "single"), 0);
   assert.equal(lineAmountPence(undefined, "15m", "single", 7), 0);
-  assert.equal(unitPriceExactPence(CARE, "not a unit", "single"), 0);
+  assert.equal(unitPricePence(CARE, "not a unit", "single"), 0);
   assert.equal(lineAmountPence(CARE, "not a unit", "single", 7), 0);
 });
 
-test("a fractional quantity still multiplies out", () => {
-  // 45m of £25.50 is £19.125, which has no whole penny at all. Half a visit is not something the
-  // builder offers, but the quantity box takes decimals, so it is worth pinning.
-  assert.equal(unitPriceExactPence(CARE, "45m", "single"), 1912.5);
-  assert.equal(lineAmountPence(CARE, "45m", "single", 1.5), 2869);
-  assert.equal(formatUnitPrice(1912.5), "£19.125");
+test("a line written under the OLD rule is spotted from the row itself", () => {
+  // 7 x 15m as it was stored before 2026-08-01: charged at the exact rate, three pence adrift of
+  // its own printed price. No flag, no column, no migration: the arithmetic says so.
+  assert.equal(lineAddsUp({ quantity: 7, unit_price_pence: 638, line_total_pence: 4463 }), false);
+  assert.equal(formatUnitPrice({ quantity: 7, unit_price_pence: 638, line_total_pence: 4463 }), "—");
+  // The old 30m and 1hr lines DO hold, and are printed, because they were never wrong.
+  assert.equal(lineAddsUp({ quantity: 28, unit_price_pence: 1275, line_total_pence: 35700 }), true);
+  assert.equal(formatUnitPrice({ quantity: 28, unit_price_pence: 1275, line_total_pence: 35700 }), "£12.75");
 });
 
-test("an old line prints an em dash on the invoice, and the rounded price on our own screens", () => {
-  /*
-   * Every invoice raised before migration 0163 has no exact price. The client document must not
-   * print the rounded one: those invoices were sent when no unit price appeared at all, and a
-   * Resend re-renders the PDF live, so £6.38 against £44.63 would put the original complaint in
-   * front of a client who already has the invoice. Internal screens pass a fallback, where a
-   * blank would help nobody.
-   */
-  assert.equal(formatUnitPrice(null), "—");
-  assert.equal(formatUnitPrice(null, 638), "£6.38");
-  assert.equal(formatUnitPrice(null, 7650), "£76.50");
-});
-
-test("the Unit price column appears only when a line has a price worth printing", () => {
-  // An invoice raised before migration 0163: no column at all, so it renders exactly as it did
-  // the day it was sent, including a PDF regenerated later by Resend.
-  assert.equal(showsUnitPrice([{ unit_price_exact: null }, { unit_price_exact: null }]), false);
+test("the Unit price column appears only when EVERY line stands being multiplied out", () => {
+  // An invoice from before the change: no column at all, so it renders as it was sent.
+  assert.equal(showsUnitPrice([{ quantity: 7, unit_price_pence: 638, line_total_pence: 4463 }]), false);
   assert.equal(showsUnitPrice([]), false);
-  // One priced line is enough. A mixed invoice shows the column, and the unpriced lines show an
-  // em dash: better a visible gap than a figure that argues with its own amount.
-  assert.equal(showsUnitPrice([{ unit_price_exact: null }, { unit_price_exact: 637.5 }]), true);
-  // Zero is a price, not an absence. A free line must not hide the column from the paid ones.
-  assert.equal(showsUnitPrice([{ unit_price_exact: 0 }]), true);
+
+  /*
+   * THE ONE REVIEW CAUGHT. A pre 2026-08-01 invoice usually holds a mix: its 30m and 1hr lines
+   * divide exactly and hold, its 15m lines do not. Under a "some" rule that invoice grew a half
+   * filled column it was never sent with, and the PDF is rendered live on every Resend, so the
+   * client would receive a different document from the one they hold. Mixed means hidden.
+   */
+  assert.equal(
+    showsUnitPrice([
+      { quantity: 7, unit_price_pence: 638, line_total_pence: 4463 },
+      { quantity: 2, unit_price_pence: 7650, line_total_pence: 15300 },
+    ]),
+    false,
+  );
+  // All good, so the column shows.
+  assert.equal(
+    showsUnitPrice([
+      { quantity: 7, unit_price_pence: 638, line_total_pence: 4466 },
+      { quantity: 2, unit_price_pence: 7650, line_total_pence: 15300 },
+    ]),
+    true,
+  );
+  // A free line is a real line: zero times anything is zero, so it holds and prints £0.00.
+  assert.equal(formatUnitPrice({ quantity: 4, unit_price_pence: 0, line_total_pence: 0 }), "£0.00");
+});
+
+/*
+ * NOT TESTED HERE, and worth knowing: buildCarePlanLines, which produces most real invoices.
+ * It has runtime imports of "./types" and "@/lib/service-users/care-plan-consts", and this
+ * harness is `node --experimental-strip-types --test` with no path aliases and no extensionless
+ * resolution, so it cannot be loaded. What IS pinned is the arithmetic it delegates to, over
+ * every unit, both handed values and a range of quantities, above.
+ */
+
+test("a fractional quantity is charged at the printed price like any other", () => {
+  assert.equal(unitPricePence(CARE, "45m", "single"), 1913);
+  assert.equal(lineAmountPence(CARE, "45m", "single", 1.5), 2870);
+  assert.equal(lineAddsUp({ quantity: 1.5, unit_price_pence: 1913, line_total_pence: 2870 }), true);
 });

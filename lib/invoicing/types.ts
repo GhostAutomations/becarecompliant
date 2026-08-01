@@ -120,50 +120,57 @@ export function formatMoney(pence: number): string {
 }
 
 /**
- * A UNIT PRICE, printed at whatever precision it actually has.
+ * Does this line's own arithmetic hold? Quantity times the unit price, equal to the amount.
  *
- * Ordinary money gets two decimals, always. A unit price is different: a quarter hour of a
- * £25.50 hourly rate is £6.375, and printing it as £6.38 puts a figure on the invoice that does
- * not multiply out (7 x £6.38 = £44.66, while the amount is £44.63). Phil asked about exactly
- * that line on 2026-08-01. So a price with a fraction of a penny in it shows the fraction, and
- * one without still shows the plain £12.75 a reader expects.
+ * THE RULE THAT REPLACED A DATABASE COLUMN. Every line written from 2026-08-01 is charged at
+ * quantity x the printed unit price, so this is always true of them. Lines written before that
+ * were charged at the exact hourly rate and rounded once at the end, so a quarter hour line
+ * comes to £44.63 against a printed £6.38, three pence adrift.
  *
- * FOUR DECIMALS, not three. An hourly rate is any whole number of pence, and an odd one quartered
- * lands on a quarter penny: £22.75 an hour makes a 15m visit £5.6875. Printing that as £5.688
- * puts the invoice a penny out on seven visits, which is the same fault this exists to remove,
- * one order of magnitude down. Units are only ever quarters, halves, three quarters or whole
- * hours, so four is exactly enough and never arbitrary.
- *
- * `exact` is null on lines written before migration 0163. WITHOUT a fallback those print an em
- * dash, which is deliberate: they were raised when no document showed a unit price at all, and
- * printing the rounded figure now would put the very contradiction Phil asked about onto an
- * invoice a client already holds, the moment somebody pressed Resend. Internal screens pass the
- * rounded figure as a fallback, because there a blank helps nobody.
+ * Deciding it from the line ITSELF rather than from a flag means the invoice can never print a
+ * price that argues with its own amount, whatever wrote the row and whenever. It also correctly
+ * prints the old lines that DO hold: 30m and 1hr divide exactly out of an hourly rate and were
+ * never wrong.
  */
+export function lineAddsUp(line: {
+  quantity: number;
+  unit_price_pence: number;
+  line_total_pence: number;
+}): boolean {
+  return Math.round(line.quantity * line.unit_price_pence) === line.line_total_pence;
+}
+
 /**
  * Should this invoice show a Unit price column at all?
  *
- * Only when at least one line has a price worth printing. An invoice raised before migration
- * 0163 has none, and a whole column of em dashes is worse than no column: it draws the eye to
- * an absence and tells the reader nothing. Hiding it means such an invoice renders exactly as it
- * always did, including a PDF regenerated months later by Resend.
+ * EVERY line, not some. An invoice is one document: a table where half the rows carry a price
+ * and half carry an em dash invites the exact question this was meant to answer, and it reaches
+ * clients who already hold the invoice, because the PDF is rendered live on every download and
+ * every Resend. Caught by review, which found that an invoice from before 2026-08-01 containing
+ * a single 30m or 1hr line (the ordinary case, since those divide exactly out of an hourly rate)
+ * would have grown a half filled column it was never sent with.
+ *
+ * So: every line multiplies out and the column appears, or it does not and the invoice renders
+ * exactly as it always did. Anything raised from 2026-08-01 satisfies it by construction.
  *
  * ONE helper, used by the page and the PDF, so the two cannot come to different conclusions
  * about the same invoice.
  */
-export function showsUnitPrice(lines: { unit_price_exact: number | null }[]): boolean {
-  // Loose equality on purpose: a row from a narrowed select has the property MISSING rather than
-  // null, and `undefined !== null` would switch the column back on and fill it with em dashes.
-  return lines.some((l) => l.unit_price_exact != null);
+export function showsUnitPrice(
+  lines: { quantity: number; unit_price_pence: number; line_total_pence: number }[],
+): boolean {
+  return lines.length > 0 && lines.every(lineAddsUp);
 }
 
-export function formatUnitPrice(exact: number | null, fallbackPence?: number): string {
-  const pence = exact ?? fallbackPence;
-  if (pence === undefined || pence === null) return "—";
-  return `£${(pence / 100).toLocaleString("en-GB", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 4,
-  })}`;
+/** A unit price, or an em dash when this line's figures would not stand being multiplied out.
+ *  With the every rule above the dash is unreachable from the invoice table, and it stays as the
+ *  guard: nothing may print a price that argues with its own amount. */
+export function formatUnitPrice(line: {
+  quantity: number;
+  unit_price_pence: number;
+  line_total_pence: number;
+}): string {
+  return lineAddsUp(line) ? formatMoney(line.unit_price_pence) : "—";
 }
 
 /** Parse a "12.50" pounds string into integer pence. Returns 0 for junk. */
@@ -260,16 +267,3 @@ export function billingPeriodFor(
 
 /** Compute line and invoice totals from raw lines. VAT only applies when the
  *  company has VAT enabled; each line carries its own rate (usually the same). */
-export function computeTotals(
-  lines: { quantity: number; unit_price_pence: number; vat_rate: number }[],
-  vatEnabled: boolean,
-): { subtotalPence: number; vatPence: number; totalPence: number } {
-  let subtotal = 0;
-  let vat = 0;
-  for (const l of lines) {
-    const lineTotal = Math.round(l.quantity * l.unit_price_pence);
-    subtotal += lineTotal;
-    if (vatEnabled) vat += Math.round((lineTotal * (l.vat_rate || 0)) / 100);
-  }
-  return { subtotalPence: subtotal, vatPence: vat, totalPence: subtotal + vat };
-}
