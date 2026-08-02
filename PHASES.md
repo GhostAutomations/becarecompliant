@@ -2138,3 +2138,56 @@ on the day of a transfer. Proved by moving a real person between branches in a t
 counting the rows that followed, and putting them back.
 
 101 tests pass.
+
+
+## Training: several courses at once, and a training import (2026-08-01)
+
+TWO THINGS, both from Phil while testing.
+
+**"is it possible to have the course drop down still be a drop down but also multi select."** Yes,
+but not as a native `<select multiple>`: that needs cmd clicking to add a second choice, loses the
+lot on a stray click, cannot be searched, and shows a fixed height list rather than opening. With
+thirty three courses that is unusable on a trackpad. `CourseMultiSelect` reads as a dropdown when
+closed and opens a searchable checklist, submitting repeated `course_ids` hidden inputs so the
+form behaves exactly as a select would. Each course keeps ITS OWN renewal date, listed before you
+press anything, because a 12 month course and a 36 month one done the same morning do not fall due
+together.
+
+**"will the download template match column names if a company changes them?"** The right question.
+At the moment of download, yes: `buildColumnPlan` generates the template from that company's own
+live names and the parser shares it, so they cannot drift. The hazard is a file downloaded BEFORE
+a rename, and in the People importer the answer was that the whole column is skipped in SILENCE,
+because an unrecognised header simply reads as empty. The new training importer names both
+directions on the preview before a row is written, and `classifyHeaders` is pure so the answer is
+pinned by a test rather than by prose.
+
+THE TRAINING IMPORT is a column per course, one row per carer, matching the shape a care company's
+matrix already comes in. A recurring course's cell holds the RENEWAL date, because that is the
+date a registered manager keeps, and the completion is worked back from it; a one off takes
+"Completed" or a date. The heading states which, since getting it the wrong way round would put
+every certificate out by the length of its own renewal. It NEVER creates a carer: an import that
+quietly invents staff is worse than one that refuses.
+
+CAUGHT BY REVIEW, and four of these destroyed or lost data:
+  - A carer listed TWICE in one file put the same (person, course) pair in one upsert, which
+    Postgres refuses outright and which took the whole batch of 500 with it, reporting a raw
+    Postgres string. A repeated name in a spreadsheet is an everyday thing.
+  - TWO CARERS WITH THE SAME NAME in a branch silently attached one's certificates to the other.
+  - A one off column reading "Completed" carries no date, and writing that straight in NULLED a
+    completion somebody had entered by hand. The existing values are read first and stand where
+    the file has nothing to say.
+  - The register read was unpaged, so carer 1001 onwards was reported as "not on the register",
+    which invites an admin to add duplicates to "fix" it.
+  - "Import 40 records" for a file that writes 1,320, and a success message naming every carer
+    attempted rather than those actually written.
+  - The per row retry in the bulk save was bounded only by the batch size, so a failed batch was
+    500 sequential round trips and the platform kills the action part way, after partial writes.
+  - A course read whose error was discarded, so a database blip read as "those courses are not
+    yours".
+  - Enter in the course search box submitted the whole record training form.
+
+AND ONE I CAUGHT MYSELF, which is worth writing down because typechecking cannot: I imported
+`trainingRecordCount` as a VALUE from a server-only module into a client component. `tsc` passes
+happily and it throws in the browser. Type imports are erased; value imports are not.
+
+109 tests pass.

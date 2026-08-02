@@ -1,11 +1,17 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { validateImportAction, commitImportAction } from "@/lib/import/actions";
+import {
+  validateImportAction,
+  commitImportAction,
+  validateTrainingImportAction,
+  commitTrainingImportAction,
+} from "@/lib/import/actions";
 import type { CommitOutcome } from "@/lib/import/actions";
 import type { ValidateResult } from "@/lib/import/parse";
+import type { TrainingValidateResult } from "@/lib/import/training";
 
-type Pop = "people" | "service_users";
+type Pop = "people" | "service_users" | "training";
 
 const STATUS_PILL: Record<string, string> = {
   new: "pill-green",
@@ -17,7 +23,7 @@ export default function ImportUploader() {
   const [pop, setPop] = useState<Pop>("people");
   const [fileName, setFileName] = useState<string | null>(null);
   const [csvText, setCsvText] = useState<string>("");
-  const [result, setResult] = useState<ValidateResult | null>(null);
+  const [result, setResult] = useState<ValidateResult | TrainingValidateResult | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [flags, setFlags] = useState<CommitOutcome["flags"] | null>(null);
   const [emailNote, setEmailNote] = useState<string | null>(null);
@@ -42,7 +48,7 @@ export default function ImportUploader() {
     setCsvText(text);
     setFileName(file.name);
     startTransition(async () => {
-      const res = await validateImportAction(pop, text);
+      const res = pop === "training" ? await validateTrainingImportAction(text) : await validateImportAction(pop, text);
       setResult(res);
     });
   }
@@ -50,7 +56,8 @@ export default function ImportUploader() {
   function onCommit() {
     if (!csvText) return;
     startTransition(async () => {
-      const res = await commitImportAction(pop, csvText);
+      const res =
+        pop === "training" ? await commitTrainingImportAction(csvText) : await commitImportAction(pop, csvText);
       setMessage(res.message);
       setFlags(res.flags ?? null);
       setEmailNote(res.emailNote ?? null);
@@ -80,7 +87,7 @@ export default function ImportUploader() {
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="inline-flex overflow-hidden rounded-lg border border-white/15">
-          {(["people", "service_users"] as Pop[]).map((p) => (
+          {(["people", "service_users", "training"] as Pop[]).map((p) => (
             <button
               key={p}
               type="button"
@@ -94,7 +101,7 @@ export default function ImportUploader() {
                   : "text-white/60 hover:bg-white/5"
               }`}
             >
-              {p === "people" ? "People" : "Service Users"}
+              {p === "people" ? "People" : p === "service_users" ? "Service Users" : "Training"}
             </button>
           ))}
         </div>
@@ -161,11 +168,36 @@ export default function ImportUploader() {
         <div className="space-y-3">
           <div className="flex flex-wrap gap-2 text-xs">
             <span className="pill-green">{counts.new} to add</span>
-            <span className="pill-neutral">{counts.duplicate} already exist</span>
+            {result.population === "training" ? null : (
+              <span className="pill-neutral">{counts.duplicate} already exist</span>
+            )}
             <span className={counts.error > 0 ? "pill-red" : "pill-neutral"}>
               {counts.error} with errors
             </span>
           </div>
+
+          {/*
+            THE STALE TEMPLATE WARNING (Phil asked, 2026-08-01). A file downloaded before somebody
+            renamed a course carries the old heading, and matching by name alone would skip it in
+            silence. Both directions are named here, before anything is written.
+          */}
+          {result.population === "training" && (result.unknownColumns.length > 0 || result.missingColumns.length > 0) ? (
+            <div className="space-y-1 rounded-lg border border-amber-400/40 bg-amber-500/10 p-3 text-sm text-amber-100">
+              {result.missingColumns.length > 0 ? (
+                <p>
+                  <span className="font-semibold">Not in your file:</span>{" "}
+                  {result.missingColumns.join(", ")}. Nothing will be imported for these. If a
+                  course has been renamed since you downloaded the template, download it again.
+                </p>
+              ) : null}
+              {result.unknownColumns.length > 0 ? (
+                <p>
+                  <span className="font-semibold">Columns we do not recognise:</span>{" "}
+                  {result.unknownColumns.join(", ")}. These are ignored.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="max-h-96 overflow-auto rounded-lg border border-white/10">
             <table className="w-full text-left text-sm">
@@ -206,7 +238,11 @@ export default function ImportUploader() {
               disabled={!canCommit}
               className="btn-primary px-4 py-2 text-sm disabled:opacity-40"
             >
-              {pending ? "Importing…" : `Import ${counts.new} record${counts.new === 1 ? "" : "s"}`}
+              {pending
+                ? "Importing…"
+                : result.ok && result.population === "training"
+                  ? `Import ${result.rows.filter((r) => r.status === "new").reduce((n, r) => n + r.checks.length, 0)} training records for ${counts.new} ${counts.new === 1 ? "carer" : "carers"}`
+                  : `Import ${counts.new} record${counts.new === 1 ? "" : "s"}`}
             </button>
             {counts.error > 0 ? (
               <span className="text-xs text-white/50">

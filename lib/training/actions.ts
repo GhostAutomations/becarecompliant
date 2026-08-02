@@ -152,11 +152,12 @@ export async function saveTraining(_prev: ActionState, formData: FormData): Prom
 }
 
 /**
- * Record ONE course for MANY people, on one date.
+ * Record ONE OR MORE courses for MANY people, on one date.
  *
  * WHY (Phil, 2026-08-01). A care team does Moving and Handling together on a Tuesday morning.
  * Recording that was one dialog per carer, twenty times, each with two dates typed by hand. This
- * is the same save the cell dialog does, run across a list.
+ * is the same save the cell dialog does, run across a list. Several courses at once because an
+ * induction day covers half a dozen of them in one sitting (Phil, 2026-08-01).
  *
  * EVERY PERSON IS RESOLVED THROUGH RLS FIRST, so a branch Manager ticking a list can only ever
  * write to people she can already see, and the branch written on each row is read back from the
@@ -165,6 +166,13 @@ export async function saveTraining(_prev: ActionState, formData: FormData): Prom
  *
  * ONE audit row, not twenty. This is one action a person took.
  */
+/** "Fire Training" / "Fire Training and Food Safety" / "3 courses", for one audit line. */
+function courseWord(names: string[]): string {
+  if (names.length === 1) return names[0];
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.length} courses`;
+}
+
 export async function saveTrainingBulk(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const { profile } = await requireCompany();
   if (!profile.company_id) return { error: "No company context." };
@@ -172,8 +180,8 @@ export async function saveTrainingBulk(_prev: ActionState, formData: FormData): 
     return { error: "Only Admins and Managers can record training." };
   }
 
-  const courseId = String(formData.get("course_id") ?? "");
-  if (!courseId) return { error: "Choose a course." };
+  const courseIds = [...new Set(formData.getAll("course_ids").map((v) => String(v)).filter(Boolean))];
+  if (courseIds.length === 0) return { error: "Choose at least one course." };
 
   const completedRaw = String(formData.get("completed_on") ?? "").trim();
   if (!ISO_RE.test(completedRaw)) return { error: "Choose the date the training was completed." };
@@ -184,13 +192,16 @@ export async function saveTrainingBulk(_prev: ActionState, formData: FormData): 
 
   const supabase = await createClient();
 
-  const { data: course } = await supabase
+  const { data: courseRows, error: courseError } = await supabase
     .from("training_courses")
     .select("id, name, renewal_months")
-    .eq("id", courseId)
-    .eq("company_id", profile.company_id)
-    .maybeSingle();
-  if (!course) return { error: "Unknown course." };
+    .in("id", courseIds)
+    .eq("company_id", profile.company_id);
+  // "We could not read the courses" is not "those courses are not yours", and telling a manager
+  // the second when the first happened sends her looking in the wrong place.
+  if (courseError) return { error: `The courses could not be read: ${courseError.message}` };
+  const courses = (courseRows ?? []) as Array<{ id: string; name: string; renewal_months: number | null }>;
+  if (courses.length === 0) return { error: "None of those courses belong to your company." };
 
   /*
    * RLS decides the reach, and the ids are read back from the DATABASE, never trusted from the
@@ -220,19 +231,26 @@ export async function saveTrainingBulk(_prev: ActionState, formData: FormData): 
   }
   if (reachable.length === 0) return { error: "None of those carers are in your view." };
 
-  const expiry = deriveRenewalDate(completed, course.renewal_months as number | null);
+  /*
+   * EVERY COURSE GETS ITS OWN RENEWAL DATE. A team that spends a morning on three courses leaves
+   * with three different expiry dates, because a 12 month course and a 36 month one do not fall
+   * due together, and a one off course does not fall due at all.
+   */
   const now = new Date().toISOString();
-  const rows = reachable.map((p) => ({
-    company_id: p.company_id,
-    branch_id: p.branch_id,
-    person_id: p.id,
-    course_id: courseId,
-    status: "completed",
-    completed_on: completed,
-    expiry_on: expiry,
-    updated_by: profile.id,
-    updated_at: now,
-  }));
+  const rows = courses.flatMap((c) => {
+    const expiry = deriveRenewalDate(completed, c.renewal_months);
+    return reachable.map((p) => ({
+      company_id: p.company_id,
+      branch_id: p.branch_id,
+      person_id: p.id,
+      course_id: c.id,
+      status: "completed",
+      completed_on: completed,
+      expiry_on: expiry,
+      updated_by: profile.id,
+      updated_at: now,
+    }));
+  });
 
   /*
    * ONE STATEMENT FIRST, then one at a time if the database refuses.
@@ -245,18 +263,33 @@ export async function saveTrainingBulk(_prev: ActionState, formData: FormData): 
    * has always claimed to do.
    */
   let written = 0;
-  const { error } = await supabase.from("person_training").upsert(rows, { onConflict: "person_id,course_id" });
-  if (!error) {
-    written = rows.length;
-  } else {
-    for (const row of rows) {
+  let lastError = "";
+  // CHUNKED. Courses TIMES people: 33 courses across 42 carers is 1,386 rows in one statement.
+  const ROWS_PER_REQUEST = 500;
+  for (let i = 0; i < rows.length; i += ROWS_PER_REQUEST) {
+    const batch = rows.slice(i, i + ROWS_PER_REQUEST);
+    const { error } = await supabase
+      .from("person_training")
+      .upsert(batch, { onConflict: "person_id,course_id" });
+    if (!error) {
+      written += batch.length;
+      continue;
+    }
+    /*
+     * BOUNDED. The per row retry salvages what RLS allows, but a failed batch of 500 would be 500
+     * sequential round trips and the platform kills the action part way, after partial writes and
+     * with nothing said. Beyond the cap the failure is reported instead of chased.
+     */
+    lastError = error.message;
+    const RETRY_CAP = 100;
+    for (const row of batch.slice(0, RETRY_CAP)) {
       const { error: rowError } = await supabase
         .from("person_training")
         .upsert(row, { onConflict: "person_id,course_id" });
       if (!rowError) written += 1;
     }
-    if (written === 0) return { error: `Nothing could be recorded: ${error.message}` };
   }
+  if (written === 0) return { error: `Nothing could be recorded: ${lastError}` };
 
   await writeAudit({
     companyId: profile.company_id,
@@ -264,21 +297,28 @@ export async function saveTrainingBulk(_prev: ActionState, formData: FormData): 
     actorEmail: profile.email,
     actorRole: profile.role,
     action: "training.recorded_in_bulk",
-    // The subject of a bulk record is the COURSE, not one person, so the id says so.
+    // The subject of a bulk record is the COURSE, not one person, so the id says so. With several
+    // the first stands for the set and the metadata carries them all.
     entityType: "training_course",
-    entityId: courseId,
-    summary: `Recorded ${course.name} for ${written} ${written === 1 ? "person" : "people"}`,
-    metadata: { course_id: courseId, completed_on: completed, expiry_on: expiry, count: written },
+    entityId: courses[0].id,
+    summary: `Recorded ${courseWord(courses.map((c) => c.name))} for ${reachable.length} ${reachable.length === 1 ? "person" : "people"}`,
+    metadata: {
+      course_ids: courses.map((c) => c.id),
+      course_names: courses.map((c) => c.name),
+      completed_on: completed,
+      records_written: written,
+      people: reachable.length,
+    },
   });
 
   revalidatePath("/people/training");
-  const skipped = personIds.length - written;
-  return {
-    ok:
-      skipped > 0
-        ? `Recorded for ${written}. ${skipped} could not be, so they were left alone.`
-        : `Recorded for ${written} ${written === 1 ? "carer" : "carers"}.`,
-  };
+  const expected = courses.length * reachable.length;
+  const carers = `${reachable.length} ${reachable.length === 1 ? "carer" : "carers"}`;
+  const courseText = courses.length === 1 ? courses[0].name : `${courses.length} courses`;
+  if (written < expected) {
+    return { ok: `Recorded ${written} of ${expected}. The rest could not be, so they were left alone.` };
+  }
+  return { ok: `Recorded ${courseText} for ${carers}.` };
 }
 
 /** Create or update a training course in the company catalogue. Admins only. */

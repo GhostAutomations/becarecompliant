@@ -64,6 +64,20 @@ export function deriveRenewalDate(completedIso: string, renewalMonths: number | 
   return addMonthsIso(completedIso, renewalMonths);
 }
 
+/**
+ * The completion a renewal date implies. The inverse of deriveRenewalDate.
+ *
+ * WHY IT EXISTS. A care company's training matrix holds RENEWAL dates, not completion dates:
+ * that is what Phil's Training.xlsx carried and what the 518 imported records were built from.
+ * The import therefore reads a renewal date and works the completion back from it, so a row can
+ * be typed the way the company already keeps it.
+ */
+export function deriveCompletedDate(renewalIso: string, renewalMonths: number | null): string | null {
+  if (renewalMonths == null || !Number.isInteger(renewalMonths) || renewalMonths < 1) return null;
+  if (!ISO.test(renewalIso)) return null;
+  return addMonthsIso(renewalIso, -renewalMonths);
+}
+
 export type TrainingStatus = "valid" | "due_soon" | "expired" | "missing";
 
 /**
@@ -121,4 +135,45 @@ export function renewalPhrase(days: number): string {
   }
   if (days === 0) return "due today";
   return `due in ${days} ${days === 1 ? "day" : "days"}`;
+}
+
+/**
+ * The import column heading for a course. It STATES what the cell should hold.
+ *
+ * A recurring course asks for the renewal date, because that is the date a training matrix is
+ * normally kept in: it is what Phil's Training.xlsx held and what the first 518 records were
+ * built from. A one off cannot run out, so it asks for the opposite. Saying so in the heading is
+ * the difference between an unambiguous file and a year of certificates being a year out.
+ */
+export function trainingHeader(name: string, renewalMonths: number | null): string {
+  return renewalMonths == null ? `${name} (completed)` : `${name} renewal date`;
+}
+
+/** How an import header is compared: trimmed, case insensitive, inner spacing collapsed. A
+ *  manager retyping a heading in Excel should not lose a whole course. */
+export function normaliseHeader(h: string): string {
+  return h.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/**
+ * Compare the headings in an uploaded file with the ones we expect.
+ *
+ * THE QUESTION THIS ANSWERS (Phil, 2026-08-01): "will the download template match column names if
+ * a company changes them?" At the moment of download, yes, because the template is generated from
+ * that company's own live course names. The hazard is a file downloaded BEFORE a rename: the old
+ * heading no longer matches anything, and matching by name alone would skip that whole course in
+ * silence, which is what the People importer does to this day.
+ *
+ * Both directions come back so the preview can name them before a single row is written.
+ */
+export function classifyHeaders(
+  fileHeaders: string[],
+  expected: string[],
+): { unknown: string[]; missing: string[] } {
+  const expectedKeys = new Set(expected.map(normaliseHeader));
+  const fileKeys = new Set(fileHeaders.map(normaliseHeader).filter((h) => h !== ""));
+  return {
+    unknown: fileHeaders.filter((h) => h.trim() !== "" && !expectedKeys.has(normaliseHeader(h))),
+    missing: expected.filter((h) => !fileKeys.has(normaliseHeader(h))),
+  };
 }

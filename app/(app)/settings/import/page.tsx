@@ -19,9 +19,9 @@ export default async function ImportPage() {
       <div>
         <h1 className="page-title">Import records</h1>
         <p className="page-subtitle">
-          Bulk add existing staff and service users, with their compliance history,
-          when a company comes on board. Records added one at a time on the registers
-          are for new starters: this is for setting up a whole team at once.
+          Bulk add existing staff and service users with their compliance history, and load a
+          whole training matrix, when a company comes on board. Records added one at a time on
+          the registers are for new starters: this is for setting up a whole team at once.
         </p>
       </div>
 
@@ -47,7 +47,49 @@ export default async function ImportPage() {
           >
             Download Service Users template
           </a>
+          <a
+            href="/api/import/template?population=training"
+            className="btn-primary px-4 py-2 text-sm"
+          >
+            Download Training template
+          </a>
         </div>
+      </section>
+
+      <section className="glass-card space-y-3 p-6">
+        <h2 className="text-sm font-semibold text-white/80">The Training sheet</h2>
+        <p className="text-sm text-white/60">
+          A column for every course you have set up, one row per carer, which is the shape a
+          training matrix usually comes in already.
+        </p>
+        <ul className="space-y-2 text-sm text-white/70">
+          <li>
+            A recurring course asks for the <span className="text-white/90">renewal date</span>,
+            because that is the date a matrix is normally kept in. We work the completion back
+            from it and the course renewal.
+          </li>
+          <li>
+            A one off course takes <span className="text-white/90">Completed</span>, or the date
+            it was done if you have it.
+          </li>
+          <li>
+            Leave a course blank if it has never been done. A blank column is left alone, so an
+            import cannot wipe a date somebody has already entered.
+          </li>
+          <li>
+            A course that IS filled in replaces whatever was recorded for that carer on that
+            course.
+          </li>
+          <li>
+            The carer must already be on the register, matched on name within their branch.
+            Training will never create a person.
+          </li>
+          <li>
+            If a course is renamed after you download the template, the old column no longer
+            matches. The preview names any column it does not recognise before anything is saved,
+            so nothing goes missing quietly.
+          </li>
+        </ul>
       </section>
 
       <section className="glass-card space-y-3 p-6">

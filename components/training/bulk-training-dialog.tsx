@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import ActionForm from "@/components/action-form";
 import { saveTrainingBulk } from "@/lib/training/actions";
+import CourseMultiSelect from "@/components/training/course-multi-select";
 import { deriveRenewalDate } from "@/lib/training/renewal";
 import type { TrainingCourse } from "@/lib/training/data";
 
@@ -16,9 +17,12 @@ type PersonLite = { id: string; full_name: string; branch_name: string };
  * Before this, recording it was one dialog per carer, twenty times over, each with two dates
  * typed by hand.
  *
- * The renewal date is shown but never typed: it follows the course, so the manager sees what she
- * is about to commit to before she presses anything. The server works it out again from the same
- * function, so what is stored does not depend on the browser.
+ * SEVERAL COURSES AT ONCE (Phil, 2026-08-01), because an induction day covers half a dozen in
+ * one sitting. Each keeps its own renewal date, listed before you press anything, since a 12
+ * month course and a 36 month one done the same morning do not fall due together.
+ *
+ * The renewal dates are shown but never typed: they follow the course. The server works them out
+ * again from the same function, so what is stored does not depend on the browser.
  */
 export default function BulkTrainingDialog({
   courses,
@@ -30,13 +34,21 @@ export default function BulkTrainingDialog({
   onClose: () => void;
 }) {
   const router = useRouter();
-  const [courseId, setCourseId] = useState(courses[0]?.id ?? "");
+  const [chosenCourses, setChosenCourses] = useState<Set<string>>(new Set());
   const [completed, setCompleted] = useState("");
   const [query, setQuery] = useState("");
   const [picked, setPicked] = useState<Set<string>>(new Set());
 
-  const course = courses.find((c) => c.id === courseId);
-  const renewal = completed && course ? deriveRenewalDate(completed, course.renewal_months) : null;
+  /**
+   * What each chosen course renews on. Shown per course rather than as one date, because a 12
+   * month course and a 36 month one done on the same morning do not fall due together.
+   */
+  const renewals = courses
+    .filter((c) => chosenCourses.has(c.id))
+    .map((c) => ({
+      name: c.name,
+      on: completed ? deriveRenewalDate(completed, c.renewal_months) : null,
+    }));
 
   const listed = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -71,8 +83,8 @@ export default function BulkTrainingDialog({
       <div className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-2xl border border-white/10 bg-navy-900 p-6 shadow-2xl">
         <h2 className="text-lg font-semibold text-white">Record training</h2>
         <p className="mt-1 text-sm text-white/55">
-          One course, one date, everyone who attended. Anything already recorded for these carers
-          on this course is replaced.
+          One date, everyone who attended, and as many courses as the session covered. Anything
+          already recorded for these carers on these courses is replaced.
         </p>
 
         <ActionForm
@@ -88,24 +100,13 @@ export default function BulkTrainingDialog({
           }}
         >
           <div className="flex flex-wrap gap-4">
-            <div className="min-w-[14rem] flex-1">
-              <label htmlFor="bulk_course" className="form-label">
-                Course
-              </label>
-              <select
-                id="bulk_course"
-                name="course_id"
-                value={courseId}
-                onChange={(e) => setCourseId(e.target.value)}
-                className="mt-1 w-full"
-              >
-                {courses.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                    {c.renewal_months ? ` (every ${c.renewal_months} months)` : " (one off)"}
-                  </option>
-                ))}
-              </select>
+            <div className="min-w-[16rem] flex-1">
+              <span className="form-label">Courses</span>
+              <CourseMultiSelect
+                courses={courses}
+                selected={chosenCourses}
+                onChange={setChosenCourses}
+              />
             </div>
             <div>
               <label htmlFor="bulk_completed" className="form-label">
@@ -120,15 +121,21 @@ export default function BulkTrainingDialog({
                 className="mt-1 max-w-[10rem]"
                 required
               />
-              <p className="mt-1 text-xs text-white/40">
-                {course && course.renewal_months == null
-                  ? "One off course, no renewal."
-                  : renewal
-                    ? `Renews ${renewal.split("-").reverse().join("/")}`
-                    : "Renewal follows the course."}
-              </p>
             </div>
           </div>
+
+          {renewals.length > 0 ? (
+            <ul className="space-y-0.5 text-xs text-white/45">
+              {renewals.map((r) => (
+                <li key={r.name}>
+                  {r.name}:{" "}
+                  {r.on ? `renews ${r.on.split("-").reverse().join("/")}` : "one off, no renewal"}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-xs text-white/40">Choose the courses this session covered.</p>
+          )}
 
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex-1">
@@ -187,7 +194,10 @@ export default function BulkTrainingDialog({
           <p className="text-xs text-white/50">
             {picked.size === 0
               ? "Nobody ticked yet."
-              : `${picked.size} ${picked.size === 1 ? "carer" : "carers"} ticked.`}
+              : `${picked.size} ${picked.size === 1 ? "carer" : "carers"} ticked`}
+            {picked.size > 0 && chosenCourses.size > 0
+              ? `, ${picked.size * chosenCourses.size} records.`
+              : "."}
           </p>
         </ActionForm>
 

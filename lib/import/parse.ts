@@ -74,8 +74,9 @@ function pad(n: number): string {
   return String(n).padStart(2, "0");
 }
 
-/** "" -> null (blank), a valid date -> ISO, anything else -> "INVALID". */
-function toIso(raw: string): string | null | "INVALID" {
+/** "" -> null (blank), a valid date -> ISO, anything else -> "INVALID".
+ *  Exported so the training importer reads a date exactly as this one does. */
+export function toIso(raw: string): string | null | "INVALID" {
   const s = raw.trim();
   if (!s) return null;
   let m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s);

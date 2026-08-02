@@ -8,6 +8,11 @@ import { sendEmail, resendConfigured } from "@/lib/email/resend";
 import { validateImport, type ValidateResult } from "./parse";
 import { commitPeople, commitServiceUsers, type CommitResult, type ImportFlags } from "./commit";
 import { importSummaryEmail } from "./email";
+import {
+  validateTrainingImport,
+  commitTrainingImport,
+  type TrainingValidateResult,
+} from "./training";
 
 type Pop = "people" | "service_users";
 function normPop(p: string): Pop | null {
@@ -136,4 +141,52 @@ export async function commitImportAction(
   if (flags.skipped.length) parts.push(`skipped ${flags.skipped.length} existing`);
   if (flags.errored.length) parts.push(`${flags.errored.length} could not be added`);
   return { ok: true, message: `${parts.join(", ")}.`, flags, emailNote };
+}
+
+/**
+ * Training import, kept as its own pair rather than bent into the People one.
+ *
+ * The shapes genuinely differ: training never creates a carer, its cells hold renewal dates
+ * rather than completions, and its preview reports unrecognised columns. Forcing all that
+ * through validateImport would have made the working import harder to read for no gain.
+ */
+export async function validateTrainingImportAction(csvText: string): Promise<TrainingValidateResult> {
+  const { profile } = await requireCompanyAdmin();
+  if (!profile.company_id) return { ok: false, error: "No company context." };
+  return validateTrainingImport(profile.company_id, csvText);
+}
+
+export async function commitTrainingImportAction(csvText: string): Promise<CommitOutcome> {
+  const { user, profile } = await requireCompanyAdmin();
+  if (!profile.company_id) return { ok: false, message: "No company context." };
+
+  // Re-validated on the server: the preview the browser saw is not what authorises the write.
+  const res = await validateTrainingImport(profile.company_id, csvText);
+  if (!res.ok) return { ok: false, message: res.error };
+
+  const out = await commitTrainingImport(profile.company_id, res.rows, user.id);
+  if (out.written === 0) {
+    return {
+      ok: false,
+      message: out.failures[0] ?? "Nothing was imported. Check the rows marked with an error.",
+    };
+  }
+
+  await writeAudit({
+    companyId: profile.company_id,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "training.imported",
+    entityType: "training_course",
+    summary: `Imported ${out.written} training records for ${out.carers} carers`,
+    metadata: { records: out.written, carers: out.carers, failures: out.failures.length },
+  });
+
+  revalidatePath("/people/training");
+  const failed = out.failures.length > 0 ? " Some rows could not be written." : "";
+  return {
+    ok: true,
+    message: `Imported ${out.written} training records for ${out.carers} ${out.carers === 1 ? "carer" : "carers"}.${failed}`,
+  };
 }
