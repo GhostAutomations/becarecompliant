@@ -147,7 +147,9 @@ function cellFor(
    * only because nothing else in the app ever looked at training.
    */
   const status = trainingStatus({
-    completedOn: done ? rec!.completed_on : null,
+    // The RECORD is what makes it done, not the dates on it. A one off course imported from a
+    // spreadsheet is marked completed with no dates whatsoever.
+    recorded: Boolean(done),
     expiryOn: done ? rec!.expiry_on : null,
     amberDays: course.amber_days,
     oneOff,

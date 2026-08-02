@@ -98,8 +98,9 @@ export async function getTrainingAttention(companyId: string): Promise<Reporting
       if (!r.expiry_on) continue;
 
       const state = trainingStatus({
-        completedOn: r.status === "completed" ? r.completed_on : null,
-        expiryOn: r.status === "completed" ? r.expiry_on : null,
+        // The query already filters to status 'completed' and a non null expiry.
+        recorded: true,
+        expiryOn: r.expiry_on,
         amberDays: course.amber_days,
         oneOff: course.renewal_months == null,
         todayIso: today,

@@ -34,20 +34,20 @@ test("nothing recorded is MISSING, which is not the same as lapsed", () => {
   // Both are red on the matrix. The digest has to tell them apart to write a sentence a manager
   // can act on: "never recorded" and "expired last week" need different replies.
   assert.equal(
-    trainingStatus({ completedOn: null, expiryOn: null, amberDays: 30, oneOff: false, todayIso: "2026-08-01" }),
+    trainingStatus({ recorded: false, expiryOn: null, amberDays: 30, oneOff: false, todayIso: "2026-08-01" }),
     "missing",
   );
 });
 
 test("a renewal date in the past is expired, today is not", () => {
-  const base = { completedOn: "2024-07-31", amberDays: 30, oneOff: false, todayIso: "2026-08-01" };
+  const base = { recorded: true, amberDays: 30, oneOff: false, todayIso: "2026-08-01" };
   assert.equal(trainingStatus({ ...base, expiryOn: "2026-07-31" }), "expired");
   // Due TODAY is not expired: they have the day to do it.
   assert.equal(trainingStatus({ ...base, expiryOn: "2026-08-01" }), "due_soon");
 });
 
 test("the amber window is the course's own, and the boundary day counts as due soon", () => {
-  const base = { completedOn: "2024-08-01", oneOff: false, todayIso: "2026-08-01" };
+  const base = { recorded: true, oneOff: false, todayIso: "2026-08-01" };
   // Exactly thirty days out, with a thirty day window: on the list.
   assert.equal(trainingStatus({ ...base, expiryOn: "2026-08-31", amberDays: 30 }), "due_soon");
   // One day past the window: not yet.
@@ -61,22 +61,37 @@ test("the amber window is the course's own, and the boundary day counts as due s
 
 test("a one off course that has been done never expires", () => {
   assert.equal(
-    trainingStatus({ completedOn: "2019-01-01", expiryOn: null, amberDays: 30, oneOff: true, todayIso: "2026-08-01" }),
+    trainingStatus({ recorded: true, expiryOn: null, amberDays: 30, oneOff: true, todayIso: "2026-08-01" }),
     "valid",
   );
 });
 
-test("a renewal date on its own is enough to count as done", () => {
+test("A RECORD WITH NO DATES IS STILL A RECORD", () => {
   /*
-   * NOT what the callers pass, and that is the point of saying so here. Both cellFor and the
-   * digest gate on the row's status being 'completed' before handing the dates over, so a row
-   * that somehow carried a renewal date without that status reads as missing end to end. Every
-   * one of the 518 imported rows is 'completed' (checked 2026-08-01), so nothing is affected
-   * today. This pins the function's own rule for the day something writes a row that is not.
+   * THE REGRESSION THIS EXISTS TO STOP, found by testing the live page on 2026-08-01.
+   *
+   * The first version of trainingStatus worked "done" out from whether a date was present. Phil's
+   * spreadsheet import marks a one off course as completed with NO dates at all, because the cell
+   * simply said "Completed": 90 of the 518 rows. Every one of them went from a green tick to a
+   * red cross on the live matrix, and the headline compliance figure fell with them.
+   *
+   * A record's EXISTENCE and its DATES are two different facts, and only the caller knows the
+   * first. It is passed in now.
    */
   assert.equal(
-    trainingStatus({ completedOn: null, expiryOn: "2027-01-01", amberDays: 30, oneOff: false, todayIso: "2026-08-01" }),
+    trainingStatus({ recorded: true, expiryOn: null, amberDays: 30, oneOff: true, todayIso: "2026-08-01" }),
     "valid",
+  );
+  // Same for a recurring course somebody ticked without filling the date in: in date, and the
+  // matrix flags it amber separately so the date gets finished.
+  assert.equal(
+    trainingStatus({ recorded: true, expiryOn: null, amberDays: 30, oneOff: false, todayIso: "2026-08-01" }),
+    "valid",
+  );
+  // And no record is still missing, whatever dates are passed alongside it.
+  assert.equal(
+    trainingStatus({ recorded: false, expiryOn: "2027-01-01", amberDays: 30, oneOff: false, todayIso: "2026-08-01" }),
+    "missing",
   );
 });
 
@@ -90,7 +105,7 @@ test("a today that is not a date never invents a status or a countdown", () => {
   // Every function here takes today as an argument rather than reading a clock; rubbish in must
   // not silently become "expired" on a carer's record.
   assert.equal(
-    trainingStatus({ completedOn: "2024-01-01", expiryOn: "2020-01-01", amberDays: 30, oneOff: false, todayIso: "" }),
+    trainingStatus({ recorded: true, expiryOn: "2020-01-01", amberDays: 30, oneOff: false, todayIso: "" }),
     "valid",
   );
   assert.equal(daysUntilRenewal("2026-08-11", "not a date"), null);

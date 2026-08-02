@@ -72,22 +72,31 @@ export type TrainingStatus = "valid" | "due_soon" | "expired" | "missing";
  * The SAME rule the matrix colours by, the filter narrows by and the digest chases on, in ONE
  * place, so a carer cannot be amber on screen and absent from the email meant to chase it.
  *
- *   missing   nothing recorded at all. Both this and expired are red on the matrix, but the
- *             digest has to tell them apart to write a sentence a manager can act on.
+ *   missing   no record at all. Both this and expired are red on the matrix, but the digest has
+ *             to tell them apart to write a sentence a manager can act on. A record with no
+ *             dates is still a record: a one off course is often just ticked.
  *   expired   a renewal date in the past.
  *   due_soon  a renewal date within the course's own amber window, or today.
  *   valid     everything else, including a one off course that has been done.
  */
 export function trainingStatus(opts: {
-  completedOn: string | null;
+  /**
+   * Is there a completed record at all?
+   *
+   * PASSED IN, never inferred from the dates. The first version of this worked "done" out from
+   * whether a date was present, and it was wrong the moment it met real data: Phil's spreadsheet
+   * import marked one off courses as completed with NO dates at all, because the cell simply said
+   * "Completed". Ninety records went from green to red on the live matrix. A record's existence
+   * and its dates are two different facts and only the caller knows the first.
+   */
+  recorded: boolean;
   expiryOn: string | null;
   amberDays: number;
   /** One off courses have no renewal months and never expire once done. */
   oneOff: boolean;
   todayIso: string;
 }): TrainingStatus {
-  const done = Boolean(opts.completedOn) || Boolean(opts.expiryOn);
-  if (!done) return "missing";
+  if (!opts.recorded) return "missing";
   if (opts.oneOff || !opts.expiryOn || !ISO.test(opts.expiryOn)) return "valid";
   if (!ISO.test(opts.todayIso)) return "valid";
 
