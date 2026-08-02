@@ -47,6 +47,11 @@ export default function BulkTrainingDialog({
     .filter((c) => chosenCourses.has(c.id))
     .map((c) => ({
       name: c.name,
+      // oneOff is carried SEPARATELY from the date. Deriving "one off" from a null renewal date
+      // told a manager that a 24 month course was a one off whenever the completion box was still
+      // empty, which is the opposite of true and exactly the sort of thing she would believe.
+      oneOff: c.renewal_months == null,
+      months: c.renewal_months,
       on: completed ? deriveRenewalDate(completed, c.renewal_months) : null,
     }));
 
@@ -129,7 +134,11 @@ export default function BulkTrainingDialog({
               {renewals.map((r) => (
                 <li key={r.name}>
                   {r.name}:{" "}
-                  {r.on ? `renews ${r.on.split("-").reverse().join("/")}` : "one off, no renewal"}
+                  {r.oneOff
+                    ? "one off, no renewal"
+                    : r.on
+                      ? `renews ${r.on.split("-").reverse().join("/")}`
+                      : `renews every ${r.months} months, once you pick a date`}
                 </li>
               ))}
             </ul>
@@ -194,10 +203,9 @@ export default function BulkTrainingDialog({
           <p className="text-xs text-white/50">
             {picked.size === 0
               ? "Nobody ticked yet."
-              : `${picked.size} ${picked.size === 1 ? "carer" : "carers"} ticked`}
-            {picked.size > 0 && chosenCourses.size > 0
-              ? `, ${picked.size * chosenCourses.size} records.`
-              : "."}
+              : chosenCourses.size > 0
+                ? `${picked.size} ${picked.size === 1 ? "carer" : "carers"} ticked, ${picked.size * chosenCourses.size} records.`
+                : `${picked.size} ${picked.size === 1 ? "carer" : "carers"} ticked.`}
           </p>
         </ActionForm>
 
