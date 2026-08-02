@@ -1,11 +1,27 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { IDLE_STATE } from "@/lib/forms";
+import ActionForm from "@/components/action-form";
 import { saveTraining } from "@/lib/training/actions";
+import { deriveRenewalDate } from "@/lib/training/renewal";
 import type { TrainingCourse, TrainingCell } from "@/lib/training/data";
 
+/**
+ * Record one person's training on one course.
+ *
+ * TWO THINGS CHANGED ON 2026-08-01, both from Phil's review.
+ *
+ * The renewal date FOLLOWS the completion and the course's own renewal months as you pick the
+ * date, and stops following the moment somebody types one, because a certificate that says
+ * otherwise beats the rule. A date already stored that does not match the rule counts as typed,
+ * so opening a record can never quietly rewrite it. The server fills a BLANK the same way; it
+ * does not police a date it was given, deliberately, for the same reason.
+ *
+ * Clear no longer deletes on one press. It went through ActionForm's confirm, which exists
+ * precisely because a confirming button must not be a submit button: the old one wiped a carer's
+ * training history, and its certificate, with a single click and no question asked.
+ */
 export default function TrainingCellDialog({
   personId,
   personName,
@@ -20,16 +36,35 @@ export default function TrainingCellDialog({
   onClose: () => void;
 }) {
   const router = useRouter();
-  const [state, formAction, pending] = useActionState(saveTraining, IDLE_STATE);
   const isOneOff = course.renewal_months == null;
   const hasRecord = !!cell.recordId;
 
-  useEffect(() => {
-    if (state.ok) {
-      onClose();
-      router.refresh();
-    }
-  }, [state.ok, onClose, router]);
+  const [completed, setCompleted] = useState(cell.completedOn ?? "");
+  const [expiry, setExpiry] = useState(cell.expiryOn ?? "");
+  /*
+   * Set once the manager has typed a renewal date herself, and STARTED that way when the stored
+   * date is not the one the course rule would produce.
+   *
+   * Caught by review: deriving on mount silently replaced an override the moment the dialog
+   * opened. A course re-accredited early, its date typed by hand, then opened again just to
+   * attach a certificate, and Save quietly put it back to the rule. Worse, a record imported with
+   * a renewal date and no completion had the field BLANKED and could not be saved at all.
+   */
+  const [expiryEdited, setExpiryEdited] = useState(
+    () => (cell.expiryOn ?? "") !== (deriveRenewalDate(cell.completedOn ?? "", course.renewal_months) ?? ""),
+  );
+
+  /** Follow the course rule only while the manager is picking a completion date herself. */
+  const onCompletedChange = (value: string) => {
+    setCompleted(value);
+    if (isOneOff || expiryEdited) return;
+    setExpiry(deriveRenewalDate(value, course.renewal_months) ?? "");
+  };
+
+  const done = () => {
+    onClose();
+    router.refresh();
+  };
 
   return (
     <div
@@ -44,10 +79,14 @@ export default function TrainingCellDialog({
           {isOneOff ? " · one off course" : ` · renews every ${course.renewal_months} months`}
         </p>
 
-        <form action={formAction} className="mt-5 space-y-4">
-          <input type="hidden" name="person_id" value={personId} />
-          <input type="hidden" name="course_id" value={course.id} />
-
+        <ActionForm
+          action={saveTraining}
+          hidden={{ person_id: personId, course_id: course.id, intent: "save" }}
+          label="Save"
+          buttonClassName="btn-primary px-4 py-2 text-sm"
+          className="mt-5 space-y-4"
+          onDone={done}
+        >
           <div className="flex flex-wrap gap-4">
             <div>
               <label htmlFor="completed_on" className="form-label">
@@ -57,7 +96,8 @@ export default function TrainingCellDialog({
                 id="completed_on"
                 name="completed_on"
                 type="date"
-                defaultValue={cell.completedOn ?? ""}
+                value={completed}
+                onChange={(e) => onCompletedChange(e.target.value)}
                 className="max-w-[10rem]"
               />
             </div>
@@ -70,9 +110,18 @@ export default function TrainingCellDialog({
                   id="expiry_on"
                   name="expiry_on"
                   type="date"
-                  defaultValue={cell.expiryOn ?? ""}
+                  value={expiry}
+                  onChange={(e) => {
+                    setExpiryEdited(true);
+                    setExpiry(e.target.value);
+                  }}
                   className="max-w-[10rem]"
                 />
+                <p className="mt-1 text-xs text-white/40">
+                  {expiryEdited
+                    ? "Set by hand. Clear it to go back to the course renewal."
+                    : `Follows the completion date, ${course.renewal_months} months on.`}
+                </p>
               </div>
             )}
           </div>
@@ -93,29 +142,25 @@ export default function TrainingCellDialog({
               </a>
             ) : null}
           </div>
+        </ActionForm>
 
-          {state.error ? <p className="form-error">{state.error}</p> : null}
-
-          <div className="flex items-center gap-3 pt-1">
-            <button type="submit" name="intent" value="save" disabled={pending} className="btn-primary px-4 py-2 text-sm">
-              {pending ? "Saving…" : "Save"}
-            </button>
-            {hasRecord ? (
-              <button
-                type="submit"
-                name="intent"
-                value="clear"
-                disabled={pending}
-                className="btn-outline border-rag-red/40 px-3 py-2 text-xs text-rag-red-soft hover:bg-rag-red/10"
-              >
-                Clear
-              </button>
-            ) : null}
-            <button type="button" onClick={onClose} disabled={pending} className="btn-ghost ml-auto px-3 py-2 text-sm">
-              Cancel
-            </button>
-          </div>
-        </form>
+        <div className="mt-4 flex items-center gap-3 border-t border-white/10 pt-4">
+          {hasRecord ? (
+            <ActionForm
+              action={saveTraining}
+              hidden={{ person_id: personId, course_id: course.id, intent: "clear" }}
+              label="Clear"
+              savedLabel="Cleared"
+              buttonClassName="btn-outline border-rag-red/40 px-3 py-2 text-xs text-rag-red-soft hover:bg-rag-red/10"
+              className=""
+              confirm={`Clear ${course.name} for ${personName}? The dates and any certificate go with it, and this cannot be undone.`}
+              onDone={done}
+            />
+          ) : null}
+          <button type="button" onClick={onClose} className="btn-ghost ml-auto px-3 py-2 text-sm">
+            Cancel
+          </button>
+        </div>
       </div>
     </div>
   );

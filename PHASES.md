@@ -2029,3 +2029,112 @@ invoicing_config, leaving hand typed free text lines alone because they have no 
 is exactly how the recurring cron came to bill £89.32 where the builder billed £89.25.
 
 78 tests pass.
+
+
+## Training was invisible to the Registered roles (2026-08-01, list item 19)
+
+THE SAME OVERSIGHT AS 0150 AND 0081, for the third time, and worse than the list said. The app
+offers a Registered Individual and a Registered Manager the Training page: they are named in the
+nav entry, in the page's own ALLOWED list, and in saveTraining's role check. RLS then handed them
+nothing, because `training_courses_select` named `is_company_admin` and `is_company_manager` and
+neither covers a Registered role. No courses means no columns, so the matrix was empty, the page
+was blank, and `getTrainingCompletion` built the dashboard percentage from nothing. Each half was
+internally consistent; they disagreed with each other.
+
+THE HELPER ALREADY EXISTED. `is_company_wide(cid)` is company_admin plus both Registered roles,
+and it is what `is_branch_manager` reaches for internally. That is exactly why `person_training`
+happened to work for a Registered Manager and `training_courses` did not.
+
+MIGRATION 0165, three policies and one class of fault:
+  - `training_courses_select` now names `is_company_wide`. The live break.
+  - `person_training` select and write name it too. NOT broken today, because every row carries a
+    branch and is_branch_manager falls through to is_company_wide, but a person with no branch
+    would have been invisible to the roles that cover the whole company. Named explicitly rather
+    than left to a helper's internals.
+  - `check_definitions_update`, found in passing and not on the list. Identical shape: admin or
+    manager, so a Registered Manager could open a check definition and not save it.
+
+DELIBERATELY NOT CHANGED: `training_courses_write` stays Admins only, matching saveCourse's own
+guard. Whether a Registered Manager should add a course to the catalogue is a permissions decision
+for Phil, not a bug to fix quietly in a migration.
+
+NOTHING IN TYPESCRIPT NEEDED TOUCHING, which is the point: the app was right and the database was
+wrong. A new test reads the migration alongside the page, the nav and the actions and asserts the
+two halves name the same roles, with each assertion scoped to one `create policy` statement so it
+cannot be satisfied by a neighbour.
+
+WORTH KNOWING: there is no `registered_individual` or `registered_manager` profile anywhere in the
+database. List item 12 has never had one to test with, which is how this survived since 16 July.
+
+84 tests pass.
+
+
+## Training, six fixes from Phil's review (2026-08-01)
+
+He asked to review Training before pushing anything, so I walked the page, the dialog, the code
+and the database and listed thirteen things. He picked six.
+
+**1. NOTHING EVER CHASED A TRAINING EXPIRY.** The word "training" did not appear anywhere in
+lib/notifications. An expiry driven feature with no reminders: a carer's fire training lapsed and
+the first anyone knew was somebody opening the matrix. Now `getTrainingAttention` emits
+ReportingCheck rows that ride in the EXISTING People report, not a third email, because the two a
+day rule from 2026-07-22 stands. It inherits the branch scoping, the overdue split, the dedupe key
+and the template for free. Deliberately NOT added to `items`, which is what the SMS escalation
+reads: an expired certificate is worth an email, it is not worth spending a company's SMS
+allowance on a rule nobody agreed to. "Never recorded" is deliberately not chased either: a new
+company has 33 courses missing for 40 carers, and 1,320 rows on day one is not a reminder, it is a
+reason to switch reminders off.
+
+**2. THE RENEWAL DATE IS WORKED OUT.** The dialog said "renews every 24 months" and then made you
+type both dates by hand, 1,320 times over. `deriveRenewalDate` in a new pure module; the field
+follows the completion date and stops the moment somebody types one, because a certificate that
+says otherwise IS the date.
+
+**3. CLEAR ASKED NOTHING AND WAS A SUBMIT BUTTON**, so one misclick wiped a carer's history.
+Both Save and Clear now go through ActionForm, which is also where the two second green flash
+comes from.
+
+**5 and 6.** The page computed a compliance percentage and green/amber/red counts on every load
+and showed none of them; they are now a strip above the matrix, branch scoped and deliberately
+NOT moving as you search. Plus a name search and a status filter (expired, due soon, never
+recorded, needs a renewal date).
+
+**7. BULK RECORDING.** A team does Moving and Handling together on a Tuesday; recording it was
+twenty dialogs. One course, one date, tick the attendees.
+
+ONE RULE, SHARED. `lib/training/renewal.ts` is IMPORTLESS on purpose, because the test harness is
+`node --experimental-strip-types --test` with no path aliases and one runtime import makes a file
+untestable. It therefore repeats lib/recurrence.ts's month arithmetic, which is normally the thing
+to avoid, so the test imports BOTH and pins them across every month of six years.
+
+CAUGHT BY REVIEW, and these were the valuable half:
+  - The dialog DERIVED ON MOUNT, so opening a record just to attach a certificate silently
+    replaced a hand typed renewal date with the course rule, and blanked the field entirely on an
+    imported row that had a renewal date and no completion.
+  - Training rode a 30 day amber window into an email headed "the next 14 days". The matrix keeps
+    the longer window; the email keeps its word.
+  - A paging failure returned a short list, sending an email that looked complete.
+  - The bulk upsert was all or nothing: people_select is WIDER than person_training_write, so one
+    row RLS refused rolled back all twenty and showed a raw policy error. It now retries per row
+    and reports what was actually written.
+  - Clear flashed a green "Cleared" when RLS had matched nothing, and left the certificate
+    orphaned in the bucket for ever while the confirmation said it went with the record.
+  - The "needs a renewal date" filter matched on the displayed caption, so rewording it would have
+    silently emptied the filter.
+  - A comment claiming the server polices the renewal date, which it deliberately does not.
+
+STILL OPEN and worth knowing: `person_training.branch_id` is a snapshot, and unlike
+`check_instances` nothing re-syncs it when a carer moves branch, so the old branch's manager keeps
+the reminder and the new one gets none.
+
+AND THEN THE BRANCH MOVE (Phil: "if they swap branch the new manager should get the alerts and
+the old one stops"). MIGRATION 0166 extends the branch sync trigger that has existed since 0004
+to follow `person_training` as well as `check_instances` and `person_trackers`, plus a backfill so
+carers who ALREADY moved come back into line rather than only helping people who move from today.
+One trigger extended, not a second one added beside it, so a transfer stays one atomic statement.
+`updated_at` and `updated_by` are deliberately left alone: the carer moved, the training record
+did not, and stamping it would make the audit trail read as though somebody touched a certificate
+on the day of a transfer. Proved by moving a real person between branches in a transaction,
+counting the rows that followed, and putting them back.
+
+101 tests pass.

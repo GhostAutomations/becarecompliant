@@ -11,6 +11,7 @@ import "server-only";
 
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { trainingStatus, type TrainingStatus } from "@/lib/training/renewal";
 
 export type TrainingCourse = {
   id: string;
@@ -29,6 +30,14 @@ export type TrainingCell = {
   rag: Rag;
   label: string; // main line, e.g. "12/06/2027", "Done", "Not done"
   sub?: string; // small tag, e.g. "Expired", "Due soon"
+  /** The state this cell is in, from lib/training/renewal.ts. The SAME function the digest
+   *  chases on, so a carer cannot be amber on screen and absent from the email about it. */
+  status: TrainingStatus;
+  /** Completed, but with no renewal date on the record. In date, so `status` is valid and the
+   *  digest leaves it alone, yet amber on the matrix because somebody has to finish the job.
+   *  A FLAG rather than a match on the "No renewal date" caption: the filter used to compare the
+   *  displayed string, so rewording the caption would have silently emptied it. */
+  needsRenewalDate?: boolean;
   completedOn?: string | null; // ISO, for the edit panel
   expiryOn?: string | null; // ISO, for the edit panel
   recordId?: string | null; // person_training id, when a record exists
@@ -71,12 +80,6 @@ function todayLondonIso(): string {
     month: "2-digit",
     day: "2-digit",
   }).format(new Date());
-}
-
-function addDaysIso(iso: string, days: number): string {
-  const dt = new Date(`${iso}T00:00:00Z`);
-  dt.setUTCDate(dt.getUTCDate() + days);
-  return dt.toISOString().slice(0, 10);
 }
 
 type CourseRow = TrainingCourse;
@@ -134,24 +137,34 @@ function cellFor(
     hasCertificate: !!rec?.certificate_path,
   };
   const done = rec && rec.status === "completed";
+  const oneOff = course.renewal_months == null;
 
-  // One off course: done (green) or not done (red).
-  if (course.renewal_months == null) {
-    return done
-      ? { rag: "green", label: "Done", ...meta }
-      : { rag: "red", label: "Not done", ...meta };
-  }
+  /*
+   * ONE RULE, in lib/training/renewal.ts, shared with the daily digest.
+   *
+   * The colours below are derived from it rather than worked out again here. Until 2026-08-01
+   * the matrix decided amber and expired with its own date comparisons, which was survivable
+   * only because nothing else in the app ever looked at training.
+   */
+  const status = trainingStatus({
+    completedOn: done ? rec!.completed_on : null,
+    expiryOn: done ? rec!.expiry_on : null,
+    amberDays: course.amber_days,
+    oneOff,
+    todayIso,
+  });
 
-  // Recurring course: no record means it has never been done.
-  if (!done) return { rag: "red", label: "Not done", ...meta };
-  // Completed but no expiry recorded: valid, but flag it needs a date.
-  if (!rec!.expiry_on) return { rag: "amber", label: "Done", sub: "No renewal date", ...meta };
+  if (status === "missing") return { rag: "red", label: "Not done", status, ...meta };
+  // A one off course, once done, is done.
+  if (oneOff) return { rag: "green", label: "Done", status, ...meta };
+  // Completed but no renewal date recorded: in date, but somebody has to finish the job.
+  if (!rec!.expiry_on)
+    return { rag: "amber", label: "Done", sub: "No renewal date", status, needsRenewalDate: true, ...meta };
 
-  const amberIso = addDaysIso(todayIso, course.amber_days);
   const disp = fmtDMY(rec!.expiry_on);
-  if (rec!.expiry_on < todayIso) return { rag: "red", label: disp, sub: "Expired", ...meta };
-  if (rec!.expiry_on <= amberIso) return { rag: "amber", label: disp, sub: "Due soon", ...meta };
-  return { rag: "green", label: disp, ...meta };
+  if (status === "expired") return { rag: "red", label: disp, sub: "Expired", status, ...meta };
+  if (status === "due_soon") return { rag: "amber", label: disp, sub: "Due soon", status, ...meta };
+  return { rag: "green", label: disp, status, ...meta };
 }
 
 /** All courses for the company (active and inactive), for the config screen. */

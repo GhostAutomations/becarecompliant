@@ -40,6 +40,7 @@ import {
 } from "@/lib/notifications/briefings";
 import { sendSms, twilioConfigured } from "@/lib/sms/twilio";
 import { isOptedOut } from "@/lib/sms/opt-out";
+import { getTrainingAttention } from "@/lib/notifications/training";
 import { OUT_OF_SMS_CREDITS } from "@/lib/billing/sms-credits";
 import { tierHasFeature } from "@/lib/billing/tier";
 import type { Tier } from "@/lib/stripe/config";
@@ -117,6 +118,8 @@ export async function GET(request: NextRequest) {
     /** Recipients skipped because their number has replied STOP. Counted on its own so a run
      *  that looks quiet can be told apart from one that is silently ignoring people. */
     smsOptedOut: 0,
+    /** Training records expiring or expired, folded into the People report. */
+    trainingDue: 0,
     briefingChases: 0,
     briefingManagerEmails: 0,
     skipped: 0,
@@ -144,6 +147,30 @@ export async function GET(request: NextRequest) {
         getReportingData(company.id),
       ]);
       if (recipients.length === 0) continue;
+
+      /*
+       * Training is read on its own so a failure here costs the training half of the report and
+       * nothing else. It throws rather than returning a short list, because a partial reminder
+       * looks exactly like a complete one.
+       */
+      let trainingDue: Awaited<ReturnType<typeof getTrainingAttention>> = [];
+      try {
+        trainingDue = await getTrainingAttention(company.id);
+      } catch (e) {
+        summary.failures.push(`training ${company.name}: ${(e as Error).message}`);
+      }
+
+      /*
+       * TRAINING RIDES IN THE PEOPLE REPORT (Phil, 2026-08-01), not a third email: the two a day
+       * rule from 2026-07-22 stands. Folded in HERE, next to the compliance checks, so it
+       * inherits the branch scoping, the overdue split, the dedupe key and the template.
+       *
+       * Deliberately NOT added to `items`, which is what the chasers and the SMS escalation read.
+       * An expired certificate is worth an email; it is not worth quietly spending a company's
+       * SMS allowance on a rule nobody agreed to.
+       */
+      const peopleChecks = [...reporting.people, ...trainingDue];
+      summary.trainingDue += trainingDue.length;
 
       if (company.settings.emailDigestEnabled) {
         // 1a. Caseload digest: SUPERVISORS only. Admins and Managers get the two
@@ -209,7 +236,7 @@ export async function GET(request: NextRequest) {
           has: boolean;
           kind: string;
         }> = [
-          { key: "people", checks: reporting.people, has: reporting.hasPeople, kind: "people_report" },
+          { key: "people", checks: peopleChecks, has: reporting.hasPeople, kind: "people_report" },
           {
             key: "service_users",
             checks: reporting.serviceUsers,

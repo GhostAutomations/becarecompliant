@@ -65,3 +65,23 @@ export async function signTrainingCertificate(input: {
   });
   return { ok: true, url: data.signedUrl };
 }
+
+/**
+ * Remove a certificate file when its training record is cleared.
+ *
+ * WHY (review, 2026-08-01). Clear deleted the row and left the PDF in the private bucket for
+ * ever, orphaned and unreachable, while the confirmation told the manager the certificate went
+ * with it. In a compliance product that is an erasure claim the code did not honour.
+ *
+ * Best effort: a file that cannot be removed must not stop the record being cleared, because the
+ * record is the thing the manager asked to be rid of. The failure is logged, not swallowed.
+ */
+export async function deleteTrainingCertificate(path: string): Promise<void> {
+  try {
+    const supabase = createServiceClient();
+    const { error } = await supabase.storage.from(EVIDENCE_BUCKET).remove([path]);
+    if (error) console.error("[training] certificate not removed:", error.message, path);
+  } catch (e) {
+    console.error("[training] certificate removal failed:", (e as Error).message, path);
+  }
+}
