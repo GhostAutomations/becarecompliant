@@ -24,6 +24,12 @@ export type CommitOutcome = {
   message: string;
   flags?: ImportFlags;
   emailNote?: string;
+  /**
+   * Training only. The preview warns about a renamed or unrecognised course column, and the
+   * preview is cleared the moment Import succeeds. Carried through so the warning survives the
+   * import that it is warning about.
+   */
+  columnNotes?: { unknown: string[]; missing: string[] };
 };
 
 export async function validateImportAction(
@@ -165,10 +171,63 @@ export async function commitTrainingImportAction(csvText: string): Promise<Commi
   if (!res.ok) return { ok: false, message: res.error };
 
   const out = await commitTrainingImport(profile.company_id, res.rows, user.id);
+
+  /*
+   * The preview names every row it refused, and then the preview DISAPPEARS the moment Import is
+   * pressed. Without this, a manager sees "Imported 2 training records for 2 carers" and has no
+   * way to know five other carers were skipped for a stale column, a duplicate name or a branch
+   * that does not exist. People and Service Users already report this; Training now matches them.
+   */
+  const rejected = res.rows.filter((r) => r.status === "error");
+  const flags: ImportFlags = {
+    skipped: [],
+    errored: rejected.map((r) => ({ name: r.name || `Row ${r.row}`, errors: r.errors })),
+  };
+  /*
+   * A batch Postgres refused is a different failure from a row the preview refused, but the person
+   * reading the screen needs both. One line PER CARER, not one line per batch, so the panel names
+   * everybody who is missing. The driver message goes to the server log: "duplicate key value
+   * violates unique constraint" is not something a care manager can act on.
+   */
+  const writeFailed: ImportFlags["errored"] = [];
+  for (const f of out.failures) {
+    console.error("[import] training batch failed:", f.error);
+    for (const n of f.names) {
+      writeFailed.push({
+        name: n,
+        errors: ["Could not be saved. Nothing was changed for this carer, so you can upload again."],
+      });
+    }
+  }
+  flags.errored.push(...writeFailed);
+  const columnNotes = { unknown: res.unknownColumns, missing: res.missingColumns };
+  const notAdded = flags.errored.length;
+
   if (out.written === 0) {
+    // Audited even though nothing was written: an import where EVERY row was refused is the one
+    // an inspector most needs to see, and it would otherwise leave no trace at all.
+    await writeAudit({
+      companyId: profile.company_id,
+      actorId: user.id,
+      actorEmail: profile.email,
+      actorRole: profile.role,
+      action: "training.imported",
+      entityType: "training_course",
+      summary: `Training import added nothing, ${notAdded} ${notAdded === 1 ? "row" : "rows"} refused`,
+      metadata: { records: 0, carers: 0, failures: out.failures.length, rejected: notAdded },
+    });
+    /*
+     * Nothing was written, so the PREVIEW IS STILL ON SCREEN: it already names every refused row
+     * and every column we did not recognise. Repeating that here would print all of it twice. Only
+     * a batch the database refused is new information, because the preview passed those rows.
+     */
     return {
       ok: false,
-      message: out.failures[0] ?? "Nothing was imported. Check the rows marked with an error.",
+      message:
+        writeFailed.length > 0
+          ? "Nothing was saved. Please check the carers listed and upload again."
+          : "Nothing was imported. Check the rows below, fix them in the sheet and upload again.",
+      flags: { skipped: [], errored: writeFailed },
     };
   }
 
@@ -180,13 +239,23 @@ export async function commitTrainingImportAction(csvText: string): Promise<Commi
     action: "training.imported",
     entityType: "training_course",
     summary: `Imported ${out.written} training records for ${out.carers} carers`,
-    metadata: { records: out.written, carers: out.carers, failures: out.failures.length },
+    metadata: {
+      records: out.written,
+      carers: out.carers,
+      failures: out.failures.length,
+      // An import that skipped five rows must not read as a clean import on the Audit trail.
+      rejected: notAdded,
+    },
   });
 
   revalidatePath("/people/training");
-  const failed = out.failures.length > 0 ? " Some rows could not be written." : "";
+  // ONE number, and it is the number of lines the panel below shows, so counting them agrees.
+  const skipped =
+    notAdded > 0 ? ` ${notAdded} ${notAdded === 1 ? "row was" : "rows were"} not added.` : "";
   return {
     ok: true,
-    message: `Imported ${out.written} training records for ${out.carers} ${out.carers === 1 ? "carer" : "carers"}.${failed}`,
+    message: `Imported ${out.written} training records for ${out.carers} ${out.carers === 1 ? "carer" : "carers"}.${skipped}`,
+    flags,
+    columnNotes,
   };
 }

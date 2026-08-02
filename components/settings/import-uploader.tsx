@@ -27,6 +27,7 @@ export default function ImportUploader() {
   const [message, setMessage] = useState<string | null>(null);
   const [flags, setFlags] = useState<CommitOutcome["flags"] | null>(null);
   const [emailNote, setEmailNote] = useState<string | null>(null);
+  const [columnNotes, setColumnNotes] = useState<CommitOutcome["columnNotes"] | null>(null);
   const [pending, startTransition] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -35,6 +36,7 @@ export default function ImportUploader() {
     setMessage(null);
     setFlags(null);
     setEmailNote(null);
+    setColumnNotes(null);
     setCsvText("");
     setFileName(null);
     if (fileRef.current) fileRef.current.value = "";
@@ -43,7 +45,11 @@ export default function ImportUploader() {
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    // The result of the LAST import must not sit above the preview of the next sheet.
     setMessage(null);
+    setFlags(null);
+    setEmailNote(null);
+    setColumnNotes(null);
     const text = await file.text();
     setCsvText(text);
     setFileName(file.name);
@@ -61,6 +67,7 @@ export default function ImportUploader() {
       setMessage(res.message);
       setFlags(res.flags ?? null);
       setEmailNote(res.emailNote ?? null);
+      setColumnNotes(res.columnNotes ?? null);
       if (res.ok) {
         setResult(null);
         setCsvText("");
@@ -71,6 +78,9 @@ export default function ImportUploader() {
   }
 
   const hasFlags = Boolean(flags && (flags.skipped.length || flags.errored.length));
+  const hasColumnNotes = Boolean(
+    columnNotes && (columnNotes.unknown.length > 0 || columnNotes.missing.length > 0),
+  );
 
   const counts = result && result.ok ? result.counts : null;
   const canCommit = Boolean(counts && counts.new > 0 && !pending);
@@ -125,6 +135,29 @@ export default function ImportUploader() {
       {message ? (
         <div className="rounded-lg border border-white/15 bg-white/5 p-3 text-sm text-white/85">
           {message}
+        </div>
+      ) : null}
+
+      {/*
+        The same warning the preview gave, kept ALIVE through the import. A course renamed after
+        the template was downloaded no longer matches its column, and every row still reports a
+        clean "new", so without this the sheet imports and says so while a whole course is dropped.
+      */}
+      {hasColumnNotes && columnNotes ? (
+        <div className="space-y-1 rounded-lg border border-amber-400/40 bg-amber-500/10 p-3 text-sm text-amber-100">
+          {columnNotes.missing.length > 0 ? (
+            <p>
+              <span className="font-semibold">Not in your file:</span>{" "}
+              {columnNotes.missing.join(", ")}. Nothing was imported for these. If a course has
+              been renamed since you downloaded the template, download it again.
+            </p>
+          ) : null}
+          {columnNotes.unknown.length > 0 ? (
+            <p>
+              <span className="font-semibold">Columns we do not recognise:</span>{" "}
+              {columnNotes.unknown.join(", ")}. These were ignored.
+            </p>
+          ) : null}
         </div>
       ) : null}
 

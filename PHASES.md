@@ -2191,3 +2191,40 @@ AND ONE I CAUGHT MYSELF, which is worth writing down because typechecking cannot
 happily and it throws in the browser. Type imports are erased; value imports are not.
 
 109 tests pass.
+
+### Training import: what the screen says AFTER you press Import
+
+The import was tested live on Acme with two files. The clean one wrote 31 records for 5 carers,
+every renewal date correctly worked back to a completion, one off courses stored with the dates
+they deserve, the whole lot on the right branch with the right attribution. The deliberately
+broken one wrote 2 records and refused 5 rows: a stale `Fire Safety` column left over from a
+rename, a carer listed twice, a carer not on the register, a branch that does not exist and a date
+reading "next March".
+
+THE PREVIEW NAMED ALL FIVE. THEN IT VANISHED. Pressing Import cleared the preview and left one
+sentence: "Imported 2 training records for 2 carers." Nothing said five carers had been skipped,
+and the audit row read `records: 2, carers: 2, failures: 0`. A manager doing a 200 row sheet at
+4pm on a Friday sees a green message and assumes the lot went in. People and Service Users have
+always come back with a Needs attention panel; Training returned no flags at all.
+
+Fixed, and three rounds of review found more each time:
+  - Training now returns the same flags shape, so every refused row is named after the import, not
+    only before it, and the audit metadata carries a `rejected` count.
+  - THE STALE COLUMN WARNING DIED WITH THE PREVIEW. That is the exact case the import was built
+    for: a course renamed after the template was downloaded leaves every row reporting a clean
+    "new" while a whole course is dropped. The warning is now carried through the commit and
+    repeated, in the past tense, above the result.
+  - A batch Postgres refused surfaced as ONE anonymous line covering up to 500 carers, printing
+    the raw driver message. It now names every carer, one line each, and the driver message goes
+    to the server log where it belongs.
+  - The batches were sliced at 500 by index, so a carer could straddle two of them, have one
+    succeed and one fail, and be counted as imported AND listed as not added under a message
+    promising nothing had changed for them. Batches are now packed on carer boundaries.
+  - Failure names were deduped by NAME, so two carers with the same name in different branches
+    collapsed to one line and one of them went missing from the list of missing people.
+  - The number in the sentence and the number of lines in the panel disagreed. One number now.
+  - An import that wrote nothing at all left no audit trace whatsoever, which is the case an
+    inspector most wants to see, and it reprinted everything the still visible preview was already
+    showing.
+
+109 tests pass.

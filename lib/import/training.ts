@@ -279,7 +279,28 @@ export async function validateTrainingImport(
   return { ok: true, population: "training", rows, counts, unknownColumns, missingColumns };
 }
 
-export type TrainingCommitResult = { written: number; carers: number; failures: string[] };
+/**
+ * A failed batch NAMES its carers. Postgres refuses a whole 500 row upsert at a time, so a bare
+ * error string would leave up to 500 people missing from the register with nothing on screen
+ * saying who. The raw driver message is kept separately for the server log, never for the screen.
+ */
+type TrainingUpsertRow = {
+  company_id: string;
+  branch_id: string | null;
+  person_id: string;
+  course_id: string;
+  status: string;
+  completed_on: string | null;
+  expiry_on: string | null;
+  updated_by: string;
+  updated_at: string;
+};
+
+export type TrainingCommitResult = {
+  written: number;
+  carers: number;
+  failures: Array<{ names: string[]; error: string }>;
+};
 
 /**
  * How many person_training rows a validated file will write. The preview counts CARERS; the
@@ -338,7 +359,7 @@ export async function commitTrainingImport(
   }
 
   const now = new Date().toISOString();
-  const payload = good.flatMap((r) =>
+  const payload: TrainingUpsertRow[] = good.flatMap((r) =>
     r.checks.map((c) => {
       const renewal = renewalById.get(c.definitionId) ?? null;
       const dated = c.dates[0] ?? null;
@@ -365,17 +386,46 @@ export async function commitTrainingImport(
   );
 
   const supabase = createServiceClient();
-  const failures: string[] = [];
+  const nameByPerson = new Map(good.map((r) => [r.fields.person_id as string, r.name]));
+  const failures: TrainingCommitResult["failures"] = [];
   let written = 0;
   const carersWritten = new Set<string>();
   const PER_REQUEST = 500;
-  for (let i = 0; i < payload.length; i += PER_REQUEST) {
-    const batch = payload.slice(i, i + PER_REQUEST);
+
+  /*
+   * Batched on CARER boundaries, never through the middle of one. A carer whose courses straddled
+   * two batches could have the first fail and the second succeed, and would then be counted as
+   * imported AND listed as not added, under a message promising nothing was changed for them.
+   * A carer holds one row per course, a few dozen at most, so no batch runs far over the limit.
+   */
+  const byPerson = new Map<string, TrainingUpsertRow[]>();
+  for (const row of payload) {
+    const held = byPerson.get(row.person_id);
+    if (held) held.push(row);
+    else byPerson.set(row.person_id, [row]);
+  }
+  const batches: TrainingUpsertRow[][] = [];
+  let current: TrainingUpsertRow[] = [];
+  for (const personRows of byPerson.values()) {
+    if (current.length > 0 && current.length + personRows.length > PER_REQUEST) {
+      batches.push(current);
+      current = [];
+    }
+    current.push(...personRows);
+  }
+  if (current.length > 0) batches.push(current);
+
+  for (const batch of batches) {
     const { error } = await supabase
       .from("person_training")
       .upsert(batch, { onConflict: "person_id,course_id" });
     if (error) {
-      failures.push(error.message);
+      // Deduped by PERSON, not by name: two carers in different branches may share a full name,
+      // and collapsing them would hide one of them from the list of people who are missing.
+      const names = [...new Set(batch.map((row) => row.person_id))].map(
+        (id) => nameByPerson.get(id) ?? "A carer",
+      );
+      failures.push({ names, error: error.message });
       continue;
     }
     written += batch.length;
