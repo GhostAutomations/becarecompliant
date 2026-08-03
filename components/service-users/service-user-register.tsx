@@ -22,7 +22,7 @@ import { PillSelect, toneClass, type Tone } from "@/components/register/pill-sel
 import { HorizontalScrollbar } from "@/components/register/horizontal-scrollbar";
 import ColumnsPanel from "@/components/register/columns-panel";
 import ExtraCheckCell from "@/components/register/extra-check-cell";
-import type { RegisterCheckColumn } from "@/lib/register/custom-columns";
+import { cellText, MAX_REGISTER_COLUMNS, type RegisterCheckColumn } from "@/lib/register/custom-columns";
 import PlannedReviewCell from "./planned-review-cell";
 import { setServiceStatus } from "@/lib/service-users/actions";
 import { formatDisplayDate, reviewStatus, reviewSlots } from "@/lib/service-users/logic";
@@ -40,7 +40,6 @@ const RAG_ORDER: Record<string, number> = { red: 0, amber: 1, green: 2, none: 3 
 // Custom check register columns are parked as a later feature (Phil, 2026-07-16):
 // code + migrations stay, but the Columns panel and the extra columns are hidden.
 // Flip to true to bring it back.
-const CUSTOM_COLUMNS_ENABLED = false;
 
 function serviceStatusTone(v: string | null): Tone {
   if (v === "active") return "green";
@@ -97,6 +96,7 @@ export default function ServiceUserRegister({
   reviewers,
   columnLabels,
   checkColumns = [],
+  columnText = {},
   complexIntervalDays,
   canManage,
   isAdmin = false,
@@ -109,6 +109,8 @@ export default function ServiceUserRegister({
   columnLabels: Record<string, string>;
   /** All custom (non-curated) check columns for this register, including hidden. */
   checkColumns?: RegisterCheckColumn[];
+  /** Cell text keyed by evidence id, for columns pointed at a question on their form. */
+  columnText?: Record<string, string>;
   complexIntervalDays: number;
   canManage: boolean;
   /** Only a Company Admin can change which columns show + their order. */
@@ -136,7 +138,9 @@ export default function ServiceUserRegister({
   const wrapRef = useRef<HTMLDivElement>(null);
   const meta = VIEW_META[view];
   const col = (key: string, def: string) => columnLabels[key] || def;
-  const shownColumns = CUSTOM_COLUMNS_ENABLED ? checkColumns.filter((c) => c.show) : [];
+  // Capped on READ as well as on save: whatever the database says, the register never renders
+  // more than the limit an Admin was allowed to choose.
+  const shownColumns = checkColumns.filter((c) => c.show).slice(0, MAX_REGISTER_COLUMNS);
   const isComplex = branchOptions.find((b) => b.id === branchId)?.service_user_type === "complex";
   const statusOptions =
     view === "cancelled" ? [...SERVICE_STATUS_OPTIONS, { value: "archive", label: "Archive" }] : SERVICE_STATUS_OPTIONS;
@@ -230,7 +234,7 @@ export default function ServiceUserRegister({
           </select>
         </label>
 
-        {CUSTOM_COLUMNS_ENABLED && isAdmin ? (
+        {isAdmin ? (
           <div className="ml-auto">
             <ColumnsPanel population="service_users" columns={checkColumns} />
           </div>
@@ -458,6 +462,7 @@ export default function ServiceUserRegister({
                               basePath="/service-users"
                               fromQuery={fromQuery}
                               editable={canManage}
+                              text={cellText(c, row.statusByKey[c.key], columnText)}
                             />
                           </td>
                         ))}

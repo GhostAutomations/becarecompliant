@@ -10,7 +10,7 @@ import {
   listAccessibleBranchTypes,
   getComplexReviewInterval,
 } from "@/lib/service-users/data";
-import { listRegisterCheckColumns } from "@/lib/register/data";
+import { listRegisterCheckColumns, getRegisterColumnText } from "@/lib/register/data";
 
 export const metadata: Metadata = { title: "Service Users" };
 
@@ -51,6 +51,23 @@ export default async function ServiceUsersPage({
     getComplexReviewInterval(companyId),
     listRegisterCheckColumns(companyId, "service_users"),
   ]);
+
+  /*
+   * Cell text for any column pointed at a question on its form. Read AFTER the register, because
+   * it needs the evidence ids the register already resolved: no extra query per person.
+   */
+  const columnText = await getRegisterColumnText(
+    checkColumns,
+    register.rows
+      .flatMap((row) =>
+        Object.values(row.statusByKey).map((s) => ({
+          evidenceId: s.last_evidence_id ?? "",
+          definitionId: s.definition_id,
+        })),
+      )
+      .filter((r) => r.evidenceId),
+  );
+
   const canManage = MANAGE_ROLES.includes(profile.role);
   const isAdmin = profile.role === "company_admin" || profile.role === "platform_admin";
 
@@ -66,6 +83,7 @@ export default async function ServiceUsersPage({
         reviewers={reviewers}
         columnLabels={columnLabels}
         checkColumns={checkColumns}
+        columnText={columnText}
         complexIntervalDays={complexIntervalDays}
         canManage={canManage}
         isAdmin={isAdmin}

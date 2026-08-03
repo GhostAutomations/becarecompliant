@@ -4,7 +4,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import PeopleRegister from "@/components/people/people-register";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import { listBranches, listRegister, getColumnLabels, getSupervisionCycleMode } from "@/lib/people/data";
-import { listRegisterCheckColumns } from "@/lib/register/data";
+import { listRegisterCheckColumns, getRegisterColumnText } from "@/lib/register/data";
 
 export const metadata: Metadata = { title: "People" };
 
@@ -46,6 +46,23 @@ export default async function PeoplePage({
     getSupervisionCycleMode(companyId),
   ]);
   const { definitions, rows } = register;
+
+  /*
+   * Cell text for any column pointed at a question on its form. Read AFTER the register, because
+   * it needs the evidence ids the register already resolved: no extra query per person.
+   */
+  const columnText = await getRegisterColumnText(
+    checkColumns,
+    rows
+      .flatMap((row) =>
+        Object.values(row.statuses).map((s) => ({
+          evidenceId: s.last_evidence_id ?? "",
+          definitionId: s.definition_id,
+        })),
+      )
+      .filter((r) => r.evidenceId),
+  );
+
   const canManage = MANAGE_ROLES.includes(profile.role);
   const isAdmin = profile.role === "company_admin" || profile.role === "platform_admin";
 
@@ -67,6 +84,7 @@ export default async function PeoplePage({
         config={matrixConfig}
         columnLabels={columnLabels}
         checkColumns={checkColumns}
+        columnText={columnText}
         canManage={canManage}
         isAdmin={isAdmin}
         initialView={view ?? "main"}

@@ -2228,3 +2228,57 @@ Fixed, and three rounds of review found more each time:
     showing.
 
 109 tests pass.
+
+### Custom register columns (Additions item 6), 2026-08-03
+
+Parked since 17 July as "an Upgrade in a few months". Phil un-parked it: "lets build it but lets do
+it properly and needs to be simple for the end user." His three calls: the setting lives in the
+register's Columns panel rather than in Settings, every tier gets it, and at most six columns may
+be shown.
+
+THE WHOLE FEATURE IS ONE SENTENCE: the colour always comes from the check, and you choose what the
+text says. A column shows the check's next due date by default, or the latest answer to one
+question on that check's own form. Only date and choice questions are offerable; free text,
+numbers, signatures, uploads and multi selects are not, because none of them can be read at a
+glance in a matrix cell.
+
+`CUSTOM_COLUMNS_ENABLED` is deleted, and the Create custom check type form is un-hidden in both
+settings pages, since a custom check is what a custom column shows. Migrations 0167 (what a column
+displays) and 0168 (see below).
+
+THREE ROUNDS OF REVIEW, and the first one caught the thing that mattered:
+
+  - **Deleting the flag would have added columns nobody asked for, to every register, on deploy.**
+    `show_on_register` has defaulted to TRUE since 0074, harmless only while the feature was
+    hidden. On the live data that is a Mentoring column showing an em dash for all 42 carers,
+    because Mentoring is ad hoc and has no due date by design, and a column per check type
+    thereafter with no cap and no decision by anyone. 0168 flips the default to false and resets
+    every row. A column now appears because an Admin turned it on.
+  - **The cap counted the payload, not the register.** A panel opened before two check types
+    existed sends only the columns it knew about; the ones it omitted stay shown. Six became
+    seven, and a crafted call could walk it up one at a time. It now counts database state merged
+    with the payload, and both registers cap on READ as well.
+  - **Reading a form answer pulled the whole frozen schema per evidence row.** Several KB each; six
+    columns across a thousand records is hundreds of megabytes to look up one label. The wording
+    now comes from the column's own choices. Chunks went to 100 (200 uuids in `id=in.(...)` is
+    within a few hundred bytes of the 8 KB header buffer) and run six at a time rather than sixty
+    at once.
+  - **A cell that could not be read said "nothing recorded".** Migrated history has no evidence id,
+    RLS hides evidence from some viewers, and a failed page skipped silently. All three painted a
+    red column of em dashes that reads as "nobody has done this", so a manager would chase carers
+    who are perfectly in date. Those cases now fall back to the DUE DATE. An empty cell means one
+    thing only: the evidence was read and that question was blank.
+  - **A republished form locked the panel.** Point a column at a question, remove the question, and
+    every future save was refused naming a question no longer in any dropdown. A stale key is now
+    treated as "when it is next due".
+  - **The panel wiped itself every ten seconds.** Both registers mount RealtimeRefresh, which polls
+    and re-renders; the sync effect threw away a half finished reorder each time. Guarded by a
+    dirty ref, and because a dirty ref with no exit is worse than the bug, closing the panel now
+    DISCARDS: outside click, Escape, the toggle and a new Cancel button. None of them fire mid
+    save, so a failure can never be dropped into a panel that is no longer on screen.
+  - Ownership is validated before the cap, so a phantom id gets "no longer on this register"
+    instead of a false cap error. A partial write names what did not land instead of opening a red
+    box with the word "Saved". Amber days are bounded server side now the create form is exposed.
+    An answer whose question changed type can no longer render "[object Object]".
+
+130 tests pass.

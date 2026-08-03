@@ -69,12 +69,10 @@ export default async function SettingsServiceUsersPage() {
             separate from the care plan reviews above.
           </p>
           <OutcomesIntervalForm months={outcomesMonths} />
-          {/* Create custom check type: parked as a later feature (Phil, 2026-07-16), hidden. */}
-          {false && (
-            <div className="border-t border-white/10 pt-4">
-              <CreateCheckTypeForm population="service_users" forms={publishableForms} />
-            </div>
-          )}
+          {/* Live again 2026-08-03 (Item 6): a custom check is what a custom column shows. */}
+          <div className="border-t border-white/10 pt-4">
+            <CreateCheckTypeForm population="service_users" forms={publishableForms} />
+          </div>
         </div>
       </details>
 

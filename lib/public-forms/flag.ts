@@ -15,6 +15,6 @@
  *  - the public submit path refuses, so there is no unattended write path open
  *    on a feature nobody is using.
  *
- * Same pattern as CUSTOM_COLUMNS_ENABLED on the register columns.
+ * Same pattern the register columns used before they went live (Item 6, 2026-08-03).
  */
 export const PUBLIC_FORMS_ENABLED = false;

@@ -582,6 +582,12 @@ export async function createCheckType(input: {
   if (!Number.isInteger(input.interval) || input.interval < 1) {
     return { error: "The interval must be a whole number of at least 1." };
   }
+  // Bounded server side now the form is on screen again: min={0} in the browser is a suggestion,
+  // and a negative amber window would make a check amber before it was ever completed.
+  const amberDays = input.amberDays ?? null;
+  if (amberDays != null && (!Number.isInteger(amberDays) || amberDays < 0 || amberDays > 365)) {
+    return { error: "Amber days must be a whole number between 0 and 365." };
+  }
 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("create_check_definition_with_form", {
@@ -591,7 +597,7 @@ export async function createCheckType(input: {
     p_form_id: input.formId,
     p_frequency: input.frequency,
     p_interval: input.interval,
-    p_amber_days: input.amberDays ?? null,
+    p_amber_days: amberDays,
   });
   if (error) return { error: error.message };
 

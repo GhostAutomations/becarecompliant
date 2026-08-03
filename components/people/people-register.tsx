@@ -16,14 +16,13 @@ import RegisterMatrix from "./register-matrix";
 import ColumnsPanel from "@/components/register/columns-panel";
 import type { RegisterRow } from "@/lib/people/types";
 import type { BranchLite } from "@/lib/people/data";
-import type { RegisterCheckColumn } from "@/lib/register/custom-columns";
+import { MAX_REGISTER_COLUMNS, type RegisterCheckColumn } from "@/lib/register/custom-columns";
 
 type MatrixConfig = { supInterval: number; supAmber: number; rtwAmber: number; probationAmber: number; cycleMode: "appraisal" | "four_supervisions" };
 
 // Custom check register columns are parked as a later feature (Phil, 2026-07-16):
 // the code + migrations stay, but the Columns panel and the extra columns are hidden.
 // Flip to true to bring it back.
-const CUSTOM_COLUMNS_ENABLED = false;
 
 const VIEW_META: Record<
   string,
@@ -63,6 +62,7 @@ export default function PeopleRegister({
   config,
   columnLabels,
   checkColumns = [],
+  columnText = {},
   canManage,
   isAdmin = false,
   initialView,
@@ -74,6 +74,8 @@ export default function PeopleRegister({
   columnLabels: Record<string, string>;
   /** All custom (non-curated) check columns for this register, including hidden. */
   checkColumns?: RegisterCheckColumn[];
+  /** Cell text keyed by evidence id, for columns pointed at a question on their form. */
+  columnText?: Record<string, string>;
   canManage: boolean;
   /** Only a Company Admin can change which columns show + their order. */
   isAdmin?: boolean;
@@ -86,6 +88,9 @@ export default function PeopleRegister({
   const [search, setSearch] = useState("");
   const branchOptions = branches.filter((b) => b.kind === "branch" || b.kind === "team");
   const meta = VIEW_META[view];
+  // Capped on READ as well as on save: whatever the database says, the register never renders
+  // more than the limit an Admin was allowed to choose.
+  const shownColumns = checkColumns.filter((c) => c.show).slice(0, MAX_REGISTER_COLUMNS);
 
   const term = search.trim().toLowerCase();
   const filtered = rows.filter(
@@ -167,7 +172,7 @@ export default function PeopleRegister({
           aria-label="Search people"
         />
 
-        {CUSTOM_COLUMNS_ENABLED && isAdmin && view === "main" ? (
+        {isAdmin && view === "main" ? (
           <div className="ml-auto">
             <ColumnsPanel population="people" columns={checkColumns} />
           </div>
@@ -203,7 +208,8 @@ export default function PeopleRegister({
             config={config}
             editable={canManage}
             columnLabels={columnLabels}
-            extraColumns={CUSTOM_COLUMNS_ENABLED ? checkColumns.filter((c) => c.show) : []}
+            extraColumns={shownColumns}
+            columnText={columnText}
             scope={meta.scope}
             returnTo={urlFor(view, branchId)}
           />

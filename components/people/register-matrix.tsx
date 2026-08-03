@@ -23,7 +23,7 @@ import { PillSelect, toneClass, type Tone } from "@/components/register/pill-sel
 import { HorizontalScrollbar } from "@/components/register/horizontal-scrollbar";
 import { VerticalScrollbar } from "@/components/register/vertical-scrollbar";
 import ExtraCheckCell from "@/components/register/extra-check-cell";
-import type { RegisterCheckColumn } from "@/lib/register/custom-columns";
+import { cellText, type RegisterCheckColumn } from "@/lib/register/custom-columns";
 
 function workingTone(v: string | null): Tone {
   if (v === "active") return "green";
@@ -107,6 +107,7 @@ export default function RegisterMatrix({
   editable,
   columnLabels,
   extraColumns = [],
+  columnText = {},
   returnTo = "/people",
   scope = "active",
 }: {
@@ -116,6 +117,8 @@ export default function RegisterMatrix({
   columnLabels: Record<string, string>;
   /** Custom (non-curated) check columns to render at the right, already ordered + shown-only. */
   extraColumns?: RegisterCheckColumn[];
+  /** Cell text keyed by evidence id, for columns pointed at a question on their form. */
+  columnText?: Record<string, string>;
   /** Where "Back to People" should return (the current view's URL). */
   returnTo?: string;
   /** Which view this is; the Status pill offers Archive only in the Leavers view. */
@@ -359,6 +362,7 @@ export default function RegisterMatrix({
                         basePath="/people"
                         fromQuery={fromQuery}
                         editable={editable}
+                        text={cellText(c, row.statusByKey[c.key], columnText)}
                       />
                     </td>
                   ))}
