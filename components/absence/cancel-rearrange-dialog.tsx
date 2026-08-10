@@ -86,6 +86,12 @@ function CancelRearrangeForm({
     rearrangeAbsenceMeeting,
     IDLE_STATE,
   );
+  /*
+   * Cancelling asks first, IN THE APP. It used to call window.confirm, which cannot be styled,
+   * reads as a browser warning rather than as the product, and freezes browser automation dead so
+   * this path could never be driven or tested. Same reason delete-user-dialog stopped using it.
+   */
+  const [confirmCancel, setConfirmCancel] = useState(false);
   const [cancelState, cancelAction, cancelling] = useActionState(
     cancelAbsenceMeetingBooking,
     IDLE_STATE,
@@ -211,23 +217,42 @@ function CancelRearrangeForm({
         </form>
 
         <div className="mt-4 border-t border-white/10 pt-4">
-          <form
-            action={cancelAction}
-            onSubmit={(e) => {
-              if (!window.confirm("Cancel this meeting? The invitees will be emailed that it is off.")) {
-                e.preventDefault();
-              }
-            }}
-            className="flex items-center justify-between gap-2"
-          >
+          <form action={cancelAction} className="flex items-center justify-between gap-2">
             <input type="hidden" name="meeting_id" value={booking.id} />
-            <button type="submit" className="btn-outline text-xs" disabled={busy}>
-              {cancelling ? "Cancelling…" : "Cancel the meeting"}
-            </button>
+            {/* The asking button is NOT a submit button; only the confirmed one is. */}
+            {confirmCancel ? (
+              <div className="flex items-center gap-2">
+                <button type="submit" className="btn-outline text-xs" disabled={busy}>
+                  {cancelling ? "Cancelling…" : "Yes, cancel it"}
+                </button>
+                <button
+                  type="button"
+                  className="btn-ghost text-xs"
+                  disabled={busy}
+                  onClick={() => setConfirmCancel(false)}
+                >
+                  Keep the meeting
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="btn-outline text-xs"
+                disabled={busy}
+                onClick={() => setConfirmCancel(true)}
+              >
+                Cancel the meeting
+              </button>
+            )}
             <button type="button" className="btn-ghost text-xs" disabled={busy} onClick={onClose}>
               Close
             </button>
           </form>
+          {confirmCancel && !cancelling ? (
+            <p className="mt-2 text-xs text-amber-200">
+              Anyone who received a letter will be emailed that the meeting is off.
+            </p>
+          ) : null}
           {cancelState.error && <p className="form-error mt-2">{cancelState.error}</p>}
           {cancelState.ok && <p className="mt-2 text-sm text-emerald-300">{cancelState.ok}</p>}
         </div>

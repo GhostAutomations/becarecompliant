@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { requireFeature } from "@/lib/billing/tier";
 import type { ActionState } from "@/lib/forms";
+import { ukDate } from "@/lib/dates";
 
 function revalidatePlanner() {
   revalidatePath("/planner");
@@ -132,7 +133,7 @@ export async function createBooking(formData: FormData): Promise<ActionState> {
     action: "planner.booking_created",
     entityType: "planner_booking",
     entityId: inserted.id,
-    summary: `Booked ${checkKind || title || "a task"} for ${scheduledDate}`,
+    summary: `Booked ${checkKind || title || "a task"} for ${ukDate(scheduledDate)}`,
   });
 
   revalidatePlanner();
@@ -214,7 +215,7 @@ export async function rescheduleBooking(formData: FormData): Promise<ActionState
     action: "planner.booking_rescheduled",
     entityType: "planner_booking",
     entityId: bookingId,
-    summary: `Rescheduled a booking to ${scheduledDate}`,
+    summary: `Rescheduled a booking to ${ukDate(scheduledDate)}`,
   });
 
   revalidatePlanner();

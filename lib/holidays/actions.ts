@@ -18,6 +18,7 @@ import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
 import type { Answers } from "@/lib/form-schema";
 import type { ActionState } from "@/lib/forms";
 import { getCompanyFormByKey } from "@/lib/people/data";
+import { ukDate } from "@/lib/dates";
 import {
   notifyHolidayRequested,
   notifyHolidayDecided,
@@ -144,7 +145,7 @@ export async function requestHoliday(
     action: "holiday.requested",
     entityType: "holiday_request",
     entityId: personId,
-    summary: `Requested holiday ${startDate} to ${endDate}`,
+    summary: `Requested holiday ${ukDate(startDate)} to ${ukDate(endDate)}`,
     metadata: {
       evidence_id: result.evidenceId,
       start_date: startDate,
@@ -237,7 +238,7 @@ export async function bookHolidayForPerson(
     action: "holiday.booked",
     entityType: "holiday_request",
     entityId: personId,
-    summary: `Booked holiday for ${person.full_name} from ${startDate} to ${endDate}`,
+    summary: `Booked holiday for ${person.full_name} from ${ukDate(startDate)} to ${ukDate(endDate)}`,
     metadata: { evidence_id: result.evidenceId, start_date: startDate, end_date: endDate },
   });
 
@@ -481,7 +482,9 @@ export async function amendHoliday(
     kind: "amended",
     startDate,
     endDate,
-    note: `It was previously booked from ${wasStart} to ${wasEnd}.`,
+    // Rendered as a paragraph straight after dates the email has already formatted, so raw ISO
+    // here put two date formats in one sentence of one email.
+    note: `It was previously booked from ${ukDate(wasStart)} to ${ukDate(wasEnd)}.`,
     fallbackEmail,
     fallbackName,
   });
@@ -494,7 +497,7 @@ export async function amendHoliday(
     action: "holiday.amended",
     entityType: "holiday_request",
     entityId: requestId,
-    summary: `Changed a holiday from ${wasStart} to ${wasEnd}, now ${startDate} to ${endDate}`,
+    summary: `Changed a holiday from ${ukDate(wasStart)} to ${ukDate(wasEnd)}, now ${ukDate(startDate)} to ${ukDate(endDate)}`,
     metadata: { was_start: wasStart, was_end: wasEnd, start_date: startDate, end_date: endDate },
   });
 

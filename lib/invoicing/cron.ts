@@ -19,6 +19,8 @@ import { getRecipients } from "@/lib/notifications/data";
 import { siteUrl } from "@/lib/site";
 import { formatMoney, billingPeriodFor } from "./types";
 import { londonToday } from "./data";
+import { overdueForRecipient, type OverdueRow } from "./overdue-scope";
+import { ukDate } from "@/lib/dates";
 import { buildCarePlanLines, rateLookup, type PlanEntryRow } from "./care-plan-billing";
 import { unitPricePence } from "@/lib/service-users/care-plan-consts";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -341,8 +343,14 @@ export async function runRecurringInvoices(): Promise<{ drafted: number; failure
   return out;
 }
 
-export async function runOverdueReminders(): Promise<{ sent: number; skipped: number; failures: string[] }> {
-  const out = { sent: 0, skipped: 0, failures: [] as string[] };
+export async function runOverdueReminders(): Promise<{
+  sent: number;
+  skipped: number;
+  /** Recipients who had nothing overdue in their own branches, so were not emailed at all. */
+  outOfScope: number;
+  failures: string[];
+}> {
+  const out = { sent: 0, skipped: 0, outOfScope: 0, failures: [] as string[] };
   if (!resendConfigured()) return out;
   const supabase = createServiceClient();
   const today = londonToday();
@@ -359,25 +367,43 @@ export async function runOverdueReminders(): Promise<{ sent: number; skipped: nu
     try {
       const { data: overdue } = await supabase
         .from("invoices")
-        .select("id, number, due_date, total_pence, service_users(full_name)")
+        .select("id, number, branch_id, due_date, total_pence, service_users(full_name)")
         .eq("company_id", c.company_id)
         .eq("status", "sent")
         .lt("due_date", today)
         .order("due_date", { ascending: true });
-      const rows = (overdue as Array<{ id: string; number: string | null; due_date: string; total_pence: number; service_users: { full_name: string } | null }> | null) ?? [];
+      const rows = (overdue as OverdueRow[] | null) ?? [];
       if (rows.length === 0) continue;
 
       const companyName = c.companies?.name ?? "your company";
       const recipients = (await getRecipients(c.company_id)).filter((r) => MANAGER_PLUS.has(r.role));
-      const listHtml = rows
-        .map(
-          (r) =>
-            `<tr><td style="padding:4px 8px;color:#0d1d4b;">${escapeHtml(r.number ?? "Draft")}</td><td style="padding:4px 8px;color:#0d1d4b;">${escapeHtml(r.service_users?.full_name ?? "")}</td><td style="padding:4px 8px;color:#0d1d4b;">due ${escapeHtml(r.due_date)}</td><td style="padding:4px 8px;color:#0d1d4b;text-align:right;">${escapeHtml(formatMoney(r.total_pence))}</td></tr>`,
-        )
-        .join("");
 
       for (const recipient of recipients) {
-        const subject = `${rows.length} overdue invoice${rows.length === 1 ? "" : "s"} at ${companyName}`;
+        /*
+         * SCOPED PER RECIPIENT. This list names private clients and what they owe, and it used to
+         * go to every Manager in the company whatever branch the invoice belonged to. A Manager of
+         * Cardiff and Newport was emailed seven Caerphilly invoices, client names and amounts
+         * included. The register has enforced this through RLS all along; this path uses the
+         * service role, so RLS never applies and the scoping has to be done here.
+         */
+        const mine = overdueForRecipient(rows, recipient);
+        /*
+         * Nothing overdue in their branches means no email at all, not an empty table. COUNTED,
+         * because otherwise a future scoping regression that silences everybody would report
+         * {sent: 0, skipped: 0} and read as an all clear rather than as a fault.
+         */
+        if (mine.length === 0) {
+          out.outOfScope += 1;
+          continue;
+        }
+
+        const listHtml = mine
+          .map(
+            (r) =>
+              `<tr><td style="padding:4px 8px;color:#0d1d4b;">${escapeHtml(r.number ?? "Draft")}</td><td style="padding:4px 8px;color:#0d1d4b;">${escapeHtml(r.service_users?.full_name ?? "")}</td><td style="padding:4px 8px;color:#0d1d4b;">due ${escapeHtml(ukDate(r.due_date))}</td><td style="padding:4px 8px;color:#0d1d4b;text-align:right;">${escapeHtml(formatMoney(r.total_pence))}</td></tr>`,
+          )
+          .join("");
+        const subject = `${mine.length} overdue invoice${mine.length === 1 ? "" : "s"} at ${companyName}`;
         const logId = await claimNotification({
           companyId: c.company_id,
           recipientProfileId: recipient.profileId,
@@ -386,7 +412,7 @@ export async function runOverdueReminders(): Promise<{ sent: number; skipped: nu
           dedupeKey: `invoice_overdue:${c.company_id}:${recipient.profileId}:${week}`,
           toAddress: recipient.email,
           subject,
-          metadata: { overdue: rows.length },
+          metadata: { overdue: mine.length },
         });
         if (!logId) {
           out.skipped += 1;

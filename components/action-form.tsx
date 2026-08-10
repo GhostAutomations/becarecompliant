@@ -17,6 +17,7 @@
  */
 
 import { useActionState, useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { IDLE_STATE, type ActionState } from "@/lib/forms";
 
@@ -58,6 +59,21 @@ export default function ActionForm({
 }) {
   const [state, formAction, pending] = useActionState(action, IDLE_STATE);
   const [saved, setSaved] = useState(false);
+  const [asking, setAsking] = useState(false);
+  // Portalled, so mounted has to be tracked: document does not exist on the server render.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  // Escape closes it. window.confirm gave that for free and the first version of this dialog
+  // did not, so a keyboard user could not dismiss it at all.
+  useEffect(() => {
+    if (!asking) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setAsking(false);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [asking]);
   const formRef = useRef<HTMLFormElement | null>(null);
   const router = useRouter();
 
@@ -95,6 +111,13 @@ export default function ActionForm({
   // So a confirming button no longer submits by default at all. It asks, and on OK it
   // submits the form ON PURPOSE. There is no default path left to replay, and Cancel
   // does nothing whatsoever.
+  //
+  // 2026-08-10: the ASKING is now the app's own dialog, not window.confirm. A native
+  // confirm cannot be styled, reads as a browser warning rather than as the product, and
+  // freezes browser automation dead, so every confirming button in the app was untestable.
+  // delete-user-dialog.tsx replaced it for one button in Phase 8; this does it for all of
+  // them. The two press problem above cannot return: the dialog is ordinary React, so
+  // nothing is blocked and no click is ever replayed.
   const showSaved = saved && !pending;
   const btnLabel = pending ? savingLabel : showSaved ? savedLabel : label;
 
@@ -113,19 +136,72 @@ export default function ActionForm({
         <button
           type={confirm ? "button" : "submit"}
           disabled={pending}
-          onClick={
-            confirm
-              ? () => {
-                  if (window.confirm(confirm)) formRef.current?.requestSubmit();
-                }
-              : undefined
-          }
+          onClick={confirm ? () => setAsking(true) : undefined}
           className={showSaved ? "btn-saved text-xs" : buttonClassName}
         >
           {btnLabel}
         </button>
         {state.error ? <span className="text-xs text-red-300">{state.error}</span> : null}
       </div>
+
+      {/*
+        PORTALLED TO THE BODY. Rendered in place, the `fixed inset-0` scrim resolves against the
+        nearest ancestor with a backdrop-filter, and .glass-card has one, so on a long card the
+        dialog centres itself halfway down the CARD, often below the fold, and the button reads as
+        having done nothing. Several older dialogs in this app still render in place and get away
+        with it because of where they sit; this one cannot, because it appears anywhere.
+      */}
+      {confirm && asking && mounted
+        ? createPortal(
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Confirm"
+              className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+              onClick={() => setAsking(false)}
+            >
+              <div
+                className="w-full max-w-md rounded-2xl border border-white/10 bg-navy-900 p-6 shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h2 className="text-lg font-semibold text-white">Are you sure?</h2>
+                <p className="mt-2 text-sm text-white/70">{confirm}</p>
+                <div className="mt-5 flex items-center gap-3">
+                  {/* Confirming, then submitting on purpose. Still not a submit button. */}
+                  {/*
+                    Deliberately NOT autoFocus. A button fires its click on Enter KEYDOWN, so a
+                    held Enter on the trigger would auto repeat straight onto this one and confirm
+                    a destructive action nobody chose. Focus stays on the trigger, which is also
+                    where it should return to on dismiss.
+                  */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAsking(false);
+                      formRef.current?.requestSubmit();
+                    }}
+                    className="btn-primary px-4 py-2 text-sm"
+                  >
+                    Yes, continue
+                  </button>
+                  {/*
+                    "No, go back", never "Cancel". Half these prompts are ABOUT cancelling
+                    something, and "Cancel this recurring invoice? [Yes, continue] [Cancel]"
+                    leaves an admin genuinely unsure which button stops the thing.
+                  */}
+                  <button
+                    type="button"
+                    onClick={() => setAsking(false)}
+                    className="btn-ghost px-3 py-2 text-sm text-white/60"
+                  >
+                    No, go back
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </form>
   );
 }

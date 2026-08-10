@@ -361,11 +361,18 @@ export function overdueForRecipient(
   today: string,
 ): OutstandingBriefing[] {
   const overdue = outstanding.filter((b) => b.dueDate != null && b.dueDate < today);
-  if (recipient.role === "manager" && recipient.branchIds.length > 0) {
-    return overdue.filter((b) => b.branchId != null && recipient.branchIds.includes(b.branchId));
-  }
-  if (recipient.role === "manager") return [];
-  return overdue;
+  /*
+   * AN ALLOWLIST, not a denylist (2026-08-10, matching lib/invoicing/overdue-scope.ts).
+   *
+   * This used to end `return overdue`, so ANY role that was not "manager" got the whole company:
+   * every person's name and every overdue briefing title. The only thing stopping a supervisor
+   * seeing that was a `continue` in the cron route, which is safety living in another file. Add a
+   * role to getRecipients and the leak arrives with it.
+   */
+  if (recipient.role === "company_admin") return overdue;
+  if (recipient.role !== "manager") return [];
+  if (recipient.branchIds.length === 0) return [];
+  return overdue.filter((b) => b.branchId != null && recipient.branchIds.includes(b.branchId));
 }
 
 export function managerOutstandingSubject(count: number): string {

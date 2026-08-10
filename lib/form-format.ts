@@ -14,6 +14,7 @@ import {
   formatAddress,
   isAddressValue,
 } from "./form-schema";
+import { ukDate } from "./dates";
 
 /** Map an option value to its label, falling back to the raw value. */
 function optionLabel(field: FormField, value: string): string {
@@ -63,7 +64,14 @@ export function formatAnswerForDisplay(field: FormField, value: AnswerValue | un
     case "number":
       return value == null || value === "" ? "Not answered" : String(value);
 
+    /*
+     * A DATE reads as a date. It used to fall through with the text types and print the stored
+     * "2026-07-16" verbatim, on the evidence page AND in the PDF, because both render through
+     * this one function. That is the document handed to an inspector.
+     */
     case "date":
+      return value == null || String(value).trim() === "" ? "Not answered" : ukDate(String(value));
+
     case "short_text":
     case "long_text":
       return value == null || String(value).trim() === "" ? "Not answered" : String(value);

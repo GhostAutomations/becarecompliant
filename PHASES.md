@@ -2282,3 +2282,40 @@ THREE ROUNDS OF REVIEW, and the first one caught the thing that mattered:
     An answer whose question changed type can no longer render "[object Object]".
 
 130 tests pass.
+
+### The testing run of 2026-08-10, and the three fixes it produced
+
+Phil logged Chrome in and asked for items 8, 9, 13 and 14. All four passed. What matters is what
+testing found NEXT TO the thing being tested.
+
+**A Manager was emailed seven private client invoices from a branch he does not manage.**
+`runOverdueReminders` queried by company with no branch filter and sent that list, client names and
+amounts included, to every Manager and above. It runs on the SERVICE ROLE client, so the RLS the
+register relies on never applied. The scoping is now written out and unit tested in
+`lib/invoicing/overdue-scope.ts`, and the twin in `lib/notifications/briefings.ts` was fixed with
+it. BOTH were written as denylists ("if not a manager, show everything"), so the only thing
+stopping a supervisor seeing the lot was a `continue` in a cron route. Both are allowlists now:
+company_admin sees all, manager sees their branches, anything else sees NOTHING. Safety belongs in
+the function, not in a Set two files away.
+
+**Every date on every evidence page and every evidence PDF printed raw ISO.** An inspection record
+read "Date of Meeting: 2026-07-16". `case "date"` in `lib/form-format.ts` fell through with the
+text types, and one function renders both the page and the PDF. The same leak was in the audit
+summaries for absence, planner and holidays, in the meeting CANCELLATION letter a carer receives,
+and in the holiday amendment email, which put two date formats in one paragraph. There is now ONE
+helper, `lib/dates.ts`. It refuses to roll an impossible date forward: Date.UTC turns the 30th of
+February into the 2nd of March, and a real but WRONG date on a regulator's document is worse than
+visible nonsense.
+
+**`window.confirm` was still in ActionForm, so it was in every confirming button in the app.**
+Phase 8 replaced it for the delete user dialog only. It cannot be styled, reads as a browser
+warning rather than as the product, and freezes browser automation dead, which is why the training
+Clear button and the meeting cancel could never be driven or tested. Replaced with the app's own
+dialog. Two things review caught in it: it must be PORTALLED, because `.glass-card` has a
+backdrop-filter and a `fixed inset-0` scrim then resolves against the card rather than the
+viewport, so on a long card the dialog lands below the fold and the button reads as broken; and it
+must NOT autoFocus the confirm button, because a button fires its click on Enter keydown and a held
+Enter would auto repeat straight onto it and confirm a destructive action nobody chose.
+
+145 tests pass. No migrations.
+

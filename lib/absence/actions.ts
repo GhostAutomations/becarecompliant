@@ -19,6 +19,7 @@ import { sendCalendarInvite } from "@/lib/notifications/invites";
 import { sendEmail } from "@/lib/email/resend";
 import { noticeEmailHtml } from "@/lib/email/templates";
 import { letterWordingFor } from "@/lib/letters/data";
+import { ukDate } from "@/lib/dates";
 import { renderLetterHtml, renderLetterSubject } from "@/lib/letters/letters";
 import { claimNotification, settleNotification } from "@/lib/notifications/log";
 import { londonToUtc } from "@/lib/email/ics";
@@ -133,7 +134,7 @@ export async function recordAbsence(
     action: "absence.recorded",
     entityType: "person",
     entityId: personId,
-    summary: `Recorded an absence from ${startDate}${endDate ? ` to ${endDate}` : ""}`,
+    summary: `Recorded an absence from ${ukDate(startDate)}${endDate ? ` to ${ukDate(endDate)}` : ""}`,
     metadata: { evidence_id: result.evidenceId, start_date: startDate, end_date: endDate },
   });
 
@@ -182,7 +183,7 @@ export async function updateAbsenceEndDate(
     action: "absence.updated",
     entityType: "person",
     entityId: ev.person_id as string,
-    summary: `Updated an absence last date to ${endDate ?? "(cleared)"}`,
+    summary: `Updated an absence last date to ${endDate ? ukDate(endDate) : "(cleared)"}`,
     metadata: { absence_id: id, end_date: endDate },
   });
 
@@ -515,7 +516,7 @@ export async function bookAbsenceMeeting(
     action: "absence.meeting_booked",
     entityType: "person",
     entityId: personId,
-    summary: `Booked a Stage ${stage} absence meeting for ${meetingDate} at ${rawTime}`,
+    summary: `Booked a Stage ${stage} absence meeting for ${ukDate(meetingDate)} at ${rawTime}`,
     metadata: {
       meeting_id: meeting.id,
       stage,
@@ -845,7 +846,7 @@ export async function rearrangeAbsenceMeeting(
     action: "absence.meeting_rearranged",
     entityType: "person",
     entityId: meeting.person_id as string,
-    summary: `Rearranged the absence meeting to ${meetingDate} at ${rawTime}`,
+    summary: `Rearranged the absence meeting to ${ukDate(meetingDate)} at ${rawTime}`,
     metadata: {
       meeting_id: meetingId,
       meeting_date: meetingDate,
@@ -915,7 +916,9 @@ export async function cancelAbsenceMeetingBooking(
   const stageLabel = meeting.stage
     ? `Stage ${meeting.stage} absence management meeting`
     : "Absence management meeting";
-  const when = `${meeting.meeting_date ?? ""}${meeting.meeting_time ? ` at ${String(meeting.meeting_time).slice(0, 5)}` : ""}`;
+  // Reaches the carer's cancellation LETTER via {{meeting_when}}, the email preheader and the
+  // audit summary. It printed "2026-08-19" while their invitation a week earlier said 19/08/2026.
+  const when = `${ukDate(meeting.meeting_date as string | null)}${meeting.meeting_time ? ` at ${String(meeting.meeting_time).slice(0, 5)}` : ""}`;
 
   const notices: { profileId: string | null; name: string; email: string; hasAccount: boolean }[] = [];
   let employeeEmail = (person?.work_email as string | null) ?? null;

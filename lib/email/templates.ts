@@ -1,3 +1,4 @@
+import { ukDate } from "@/lib/dates";
 /**
  * Branded transactional email templates. Navy + gold, same family as the app.
  * HARD RULES:
@@ -84,16 +85,9 @@ function formatDuration(minutes: number): string {
   return `${minutes} minutes`;
 }
 
-/** 11 July 2026 style, en-GB, for email copy. */
-function formatDateUk(iso: string): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  });
-}
+/** 11 July 2026 style, en-GB, for email copy. The ONE date helper, so an impossible date cannot
+ *  roll forward in an email while it is refused everywhere else. */
+const formatDateUk = ukDate;
 
 export type DigestEmailItem = {
   recordName: string;
