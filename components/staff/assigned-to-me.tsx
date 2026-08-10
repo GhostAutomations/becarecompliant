@@ -21,6 +21,7 @@ import FormEvidenceDialog from "@/components/forms/form-evidence-dialog";
 import ReadAndSign from "@/components/staff/read-and-sign";
 import MySection from "@/components/staff/my-section";
 import type { FormSchema } from "@/lib/form-schema";
+import { briefingRenderSchema } from "@/lib/assignments/render";
 import type { AssignmentRow, PolicyConfig } from "@/lib/assignments/types";
 import { completeAssignedForm } from "@/lib/assignments/actions";
 import { signingSchema, type SignatureMode } from "@/lib/assignments/signing";
@@ -126,7 +127,8 @@ export default function AssignedToMe({
                 ) : schema ? (
                   <FormEvidenceDialog
                     title={a.title}
-                    schema={schema}
+                    /* The app already knows who they are, so it does not ask. See the module. */
+                    schema={briefingRenderSchema(schema)}
                     action={completeAssignedForm}
                     extraFields={{ assignment_id: a.id }}
                     triggerLabel="Complete this form"

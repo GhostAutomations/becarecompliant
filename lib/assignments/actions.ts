@@ -23,13 +23,14 @@ import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
 import { getCompanyFormByKey } from "@/lib/people/data";
-import type { Answers } from "@/lib/form-schema";
+import type { Answers, FormSchema } from "@/lib/form-schema";
 import type { ActionState } from "@/lib/forms";
 import { storePolicyBytes, uploadPolicyDocument } from "@/lib/assignments/storage";
 import { parsePolicyText, policyPlainText } from "@/lib/policies/text";
 import { renderPolicyPdf } from "@/lib/policies/pdf";
 import { POLICY_ACK_FORM_KEY, type BriefingScope } from "@/lib/assignments/types";
 import { getEffectivePolicyRules } from "@/lib/assignments/data";
+import { seedIdentityAnswers } from "@/lib/assignments/render";
 import { notifyBriefingSent } from "@/lib/notifications/briefings";
 import {
   DRAWN_KEY,
@@ -1091,7 +1092,7 @@ export async function completeAssignedForm(
   const supabase = await createClient();
   const { data: assignment } = await supabase
     .from("assignments")
-    .select("id, company_id, person_id, form_id, status, people:person_id(branch_id)")
+    .select("id, company_id, person_id, form_id, status, people:person_id(branch_id, full_name, work_email)")
     .eq("id", assignmentId)
     .maybeSingle();
   if (!assignment) return { error: "That assignment could not be found." };
@@ -1099,12 +1100,16 @@ export async function completeAssignedForm(
 
   const person = (Array.isArray(assignment.people)
     ? assignment.people[0]
-    : assignment.people) as { branch_id: string | null } | null;
+    : assignment.people) as {
+    branch_id: string | null;
+    full_name: string | null;
+    work_email: string | null;
+  } | null;
 
   // Pin the form's currently published version.
   const { data: version } = await supabase
     .from("form_versions")
-    .select("id")
+    .select("id, schema")
     .eq("form_id", assignment.form_id)
     .eq("status", "published")
     .order("version", { ascending: false })
@@ -1112,10 +1117,20 @@ export async function completeAssignedForm(
     .maybeSingle();
   if (!version) return { error: "That form is not published, so it cannot be completed." };
 
+  /*
+   * The identity questions were not SHOWN (briefingRenderSchema drops them, because the app knows
+   * who is logged in), so they are filled in here before the Evidence is written. Validation still
+   * runs against the stored form, exactly as it did before.
+   */
+  const seeded = seedIdentityAnswers(version.schema as FormSchema, answers, {
+    fullName: person?.full_name ?? null,
+    email: person?.work_email ?? null,
+  });
+
   const result = await submitEvidence({
     formVersionId: version.id as string,
     branchId: person?.branch_id ?? null,
-    answers,
+    answers: seeded,
     files: await collectFiles(formData),
     recordType: "person",
     recordId: assignment.person_id as string,
