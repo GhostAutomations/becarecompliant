@@ -13,6 +13,7 @@
 import { useState } from "react";
 import ActionForm from "@/components/action-form";
 import FormEvidenceDialog from "@/components/forms/form-evidence-dialog";
+import { briefingRenderSchema } from "@/lib/assignments/render";
 import type { FormSchema } from "@/lib/form-schema";
 import type { HolidayRequestRow } from "@/lib/holidays/data";
 import { requestHoliday, cancelHoliday, amendHoliday } from "@/lib/holidays/actions";
@@ -150,7 +151,8 @@ export default function MyHolidays({
         {requestSchema ? (
           <FormEvidenceDialog
             title="Request holiday"
-            schema={requestSchema}
+            /* The app already knows who they are, so it does not ask (see lib/assignments/render). */
+            schema={briefingRenderSchema(requestSchema)}
             action={requestHoliday}
             triggerLabel="Request holiday"
             submitLabel="Send request"

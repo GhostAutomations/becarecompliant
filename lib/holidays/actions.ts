@@ -15,9 +15,10 @@ import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
-import type { Answers } from "@/lib/form-schema";
+import type { Answers, FormSchema } from "@/lib/form-schema";
 import type { ActionState } from "@/lib/forms";
 import { getCompanyFormByKey } from "@/lib/people/data";
+import { seedIdentityAnswers } from "@/lib/assignments/render";
 import { ukDate } from "@/lib/dates";
 import {
   notifyHolidayRequested,
@@ -72,7 +73,7 @@ export async function requestHoliday(
   // Resolve the requester's own Person record + branch via people.profile_id.
   const { data: myPerson } = await supabase
     .from("people")
-    .select("id, branch_id")
+    .select("id, branch_id, full_name, work_email")
     .eq("company_id", companyId)
     .eq("profile_id", user.id)
     .maybeSingle();
@@ -96,10 +97,18 @@ export async function requestHoliday(
     };
   }
 
+  // The portal Holiday form no longer asks the carer their own name, email or area
+  // (briefingRenderSchema drops them). Seed name/email back so the Evidence still names
+  // them; branch is never seeded, and the request row carries the real branch_id anyway.
+  const seededAnswers = seedIdentityAnswers(form.schema as FormSchema, answers, {
+    fullName: (myPerson?.full_name as string | null) ?? profile.full_name ?? null,
+    email: (myPerson?.work_email as string | null) ?? profile.email ?? null,
+  });
+
   const result = await submitEvidence({
     formVersionId: form.versionId,
     branchId,
-    answers,
+    answers: seededAnswers,
     files: await collectFiles(formData),
     recordType: personId ? "person" : null,
     recordId: personId,
