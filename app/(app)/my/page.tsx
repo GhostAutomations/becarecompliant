@@ -138,7 +138,19 @@ export default async function MyAreaPage() {
 
           Recorded courses sort first: that is her actual training history, not empty rows. */}
       {training.length > 0 ? (
-        <MySection title="My training" count={training.length}>
+        <MySection
+          title="My training"
+          count={training.length}
+          /* OPEN ITSELF when something she has actually DONE has lapsed or is close to it
+             (Phil, 2026-08-11: "if there is outstanding or overdue, have it open as default").
+             Deliberately NOT counting "not recorded" here, and he agreed: Acme seeds 33
+             mandatory courses, so counting those would leave this open every single time and
+             undo the fold he had just asked for. A gap in the office's records is not the same
+             as a certificate she has let expire, and only the second is hers to act on. */
+          defaultOpen={training.some(
+            (t) => t.cell.status !== "missing" && (t.cell.rag === "red" || t.cell.rag === "amber"),
+          )}
+        >
           <p className="text-xs text-white/45">
             {(() => {
               const recorded = training.filter((t) => t.cell.status !== "missing");

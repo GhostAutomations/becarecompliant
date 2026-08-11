@@ -19,12 +19,17 @@ export default function MySection({
   title,
   count,
   children,
+  defaultOpen = false,
 }: {
   title: string;
   count: number;
   children: ReactNode;
+  /** Start open. Added 2026-08-11 for My training: folded is right for history, but a section
+   *  holding something that has actually LAPSED must not hide it behind a tap. Only the
+   *  initial state, so the fold still works normally once touched. */
+  defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
 
   return (
     <section className="space-y-3">
