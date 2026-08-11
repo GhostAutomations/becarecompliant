@@ -29,6 +29,7 @@ import {
   isFormSchema,
 } from "@/lib/form-schema";
 import { cleanAnswers, validateAnswers, type FieldError } from "@/lib/form-validate";
+import { describeValidationErrors } from "@/lib/forms/validation-message";
 import { evidenceFilePath, sha256Hex, uploadEvidenceObject } from "./storage";
 
 export type EvidenceFileInput = {
@@ -93,7 +94,12 @@ export async function submitEvidence(input: SubmitEvidenceInput): Promise<Submit
   // 2. Authoritative validation.
   const result = validateAnswers(schema, input.answers);
   if (!result.ok) {
-    return { ok: false, error: "Please correct the highlighted fields.", errors: result.errors };
+    // NAMES the offending answers rather than saying "the highlighted fields". Every
+    // caller of this function turns the failure into a single line of copy, and a page
+    // does not always render the field that failed (a hidden, pre-supplied answer, or a
+    // page built from a trimmed copy of the schema), so "highlighted" can point at
+    // nothing at all. See describeValidationErrors.
+    return { ok: false, error: describeValidationErrors(schema, result.errors), errors: result.errors };
   }
 
   // 3. Strip hidden/presentational answers.
