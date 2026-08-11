@@ -185,7 +185,34 @@ export async function listAllCourses(companyId: string): Promise<TrainingCourse[
  * tile, the compliance score and the PQS engine), and it reads every person and every training
  * record each time. Primitive arguments, so the cache actually hits.
  */
-export const getTrainingMatrix = cache(async function getTrainingMatrix(
+/**
+ * ONE CACHE KEY FOR ONE QUESTION (THE LIST item 20, 2026-08-11).
+ *
+ * The matrix is memoised per request, but React's cache() keys on the arguments, and the
+ * dashboard asked the SAME question two different ways: the training tile calls it with no
+ * as-of date, and the PQS engine calls it with defaultOnTimeWindow().to, which IS today. Two
+ * keys, so the whole register and every training record were read and scored TWICE on the
+ * most loaded screen in the app.
+ *
+ * Normalising here rather than at the call sites: a caller asking about today is asking the
+ * default question however it phrases it, and the next caller to pass an explicit date would
+ * otherwise reintroduce this quietly.
+ *
+ * Note what this deliberately does NOT do. Item 20 asked to stop the dashboard "building the
+ * entire matrix to read one number", and the obvious fix (compute the percentage in SQL)
+ * would put the training RAG rule in a SECOND place. The rule already burned us once when a
+ * status was inferred rather than read. One rule, built once per request, is the better trade.
+ */
+export function getTrainingMatrix(
+  companyId: string,
+  branchId: string | null,
+  asOfIso?: string,
+): Promise<TrainingMatrix> {
+  const normalised = asOfIso && asOfIso === todayLondonIso() ? undefined : asOfIso;
+  return getTrainingMatrixUncached(companyId, branchId, normalised);
+}
+
+const getTrainingMatrixUncached = cache(async function getTrainingMatrix(
   companyId: string,
   branchId: string | null,
   /**

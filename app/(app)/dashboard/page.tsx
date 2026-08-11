@@ -17,6 +17,7 @@ import {
   getComplianceBuckets,
   getComplianceScore,
   getTrainingCompletion,
+  getPolicyCoverage,
   getAuditsCompleted,
   getDueSoon,
   getPlannerWeek,
@@ -547,6 +548,7 @@ export default async function DashboardPage() {
   const [
     score,
     trainingPct,
+    policyCoverage,
     auditsPct,
     dueSoon,
     plannerWeek,
@@ -562,6 +564,9 @@ export default async function DashboardPage() {
         ? getComplianceScore(companyId, { companyWide: true })
         : Promise.resolve({ enabled: false } as ComplianceScore),
       companyWide ? getTrainingCompletion(companyId) : Promise.resolve(null),
+      // Company wide only, like training: policy coverage is a company obligation and a
+      // branch slice of it would answer a question nobody asked.
+      companyWide ? getPolicyCoverage(companyId) : Promise.resolve(null),
       getAuditsCompleted(companyId),
       getDueSoon(companyId),
       canSeePlanner ? getPlannerWeek(user.id) : Promise.resolve([]),
@@ -775,6 +780,21 @@ export default async function DashboardPage() {
                           : "green",
                 },
               ]}
+            />
+          ) : null}
+          {policyCoverage ? (
+            <Tile
+              href="/briefings/coverage"
+              label="Policies up to date"
+              className={spendCols}
+              icon="policy"
+              iconTone="blue"
+              value={policyCoverage.pct == null ? "n/a" : `${Math.floor(policyCoverage.pct)}%`}
+              sub={
+                policyCoverage.assigned === 0
+                  ? "no policy sent out yet"
+                  : `${policyCoverage.upToDate} of ${policyCoverage.assigned} on the current version`
+              }
             />
           ) : null}
           <Tile
