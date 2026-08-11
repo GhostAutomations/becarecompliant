@@ -269,7 +269,7 @@ export const ROLE_LABELS: Record<string, string> = {
   // including people_select, which is not worth it for a label.
   platform_admin: "Founder",
   company_admin: "Admin",
-  registered_individual: "Registered Individual",
+  registered_individual: "Responsible Individual",
   registered_manager: "Registered Manager",
   manager: "Branch Manager",
   supervisor: "Supervisor",

@@ -18,7 +18,7 @@ import {
 /** Roles that can be an SMS/notification recipient, with their display labels. */
 const ROLE_LABEL: Record<string, string> = {
   company_admin: "Admin",
-  registered_individual: "Registered Individual",
+  registered_individual: "Responsible Individual",
   registered_manager: "Registered Manager",
   manager: "Branch Manager",
   supervisor: "Supervisor",

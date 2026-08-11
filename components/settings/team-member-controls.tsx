@@ -97,7 +97,7 @@ export default function TeamMemberControls({
               value={roleValue}
               onChange={(e) => setRoleValue(e.target.value)}
             >
-              <option value="registered_individual">Registered Individual</option>
+              <option value="registered_individual">Responsible Individual</option>
               <option value="registered_manager">Registered Manager</option>
               <option value="manager">Branch Manager</option>
               <option value="supervisor">Supervisor</option>
