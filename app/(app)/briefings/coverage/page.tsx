@@ -57,7 +57,7 @@ export default async function PolicyCoveragePage() {
           <h2 className="text-sm font-semibold text-white/80">Behind</h2>
           <ul className="mt-3 space-y-3">
             {coverage.behind.map((row) => (
-              <li key={row.assignmentId} className="border-t border-white/5 pt-3 first:border-t-0 first:pt-0">
+              <li key={`${row.personId}-${row.policyId}`} className="border-t border-white/5 pt-3 first:border-t-0 first:pt-0">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <Link href={`/people/${row.personId}`} className="text-sm text-gold-300 underline">
                     {row.personName}

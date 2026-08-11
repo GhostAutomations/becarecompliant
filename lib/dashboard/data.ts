@@ -195,6 +195,10 @@ import {
   type RequirementReadiness,
 } from "@/lib/framework/data";
 import { getTrainingMatrix } from "@/lib/training/data";
+import {
+  summarisePolicyCoverage,
+  type PolicyCoverage as PolicyCoverageResult,
+} from "@/lib/assignments/policy-coverage";
 
 export type ComplianceScore =
   | { enabled: false }
@@ -778,42 +782,24 @@ export async function getPqsSummary(
 /* ===========================================================================
  * POLICY COVERAGE (THE LIST item 20).
  *
- * "Policies up to date" was in the dashboard mockup, was never built, and had quietly
- * dropped off the screen altogether. The gap it catches is real and Acme shows it today: the
- * Mobile Phones and Social Media Policy is on VERSION 2, six people were sent it and all six
- * completed it, but only FOUR signed version 2. Two signed the old wording and have never
- * seen the current one. Nothing in the product said so.
+ * "Policies up to date" was in the dashboard mockup, was never built, and had dropped off the
+ * screen altogether. The gap it catches is real: a policy moves to version 2 and the people
+ * who signed version 1 still show as completed everywhere else in the product.
  *
- * WHAT THE NUMBER MEANS (agreed with Phil, 2026-08-11): signed at the CURRENT version, out
- * of what has actually been sent out. Not everybody times every policy: this product lets a
- * policy go to the people it applies to, so measuring against the whole register would
- * report a false disaster for a company doing exactly what the product intends.
+ * WHAT THE NUMBER MEANS (agreed with Phil, 2026-08-11): signed at the CURRENT version, out of
+ * what has actually been sent out. Not everybody gets every policy: this product lets a policy
+ * go to the people it applies to, so measuring against the whole register would report a false
+ * disaster for a company doing exactly what the product intends.
  *
- * Excluded on purpose: archived policies (nobody has to be up to date on a withdrawn
- * policy), and leavers and archived people (a leaver who never signed cannot be chased and
- * should not drag a live figure down).
+ * The COUNTING RULE lives in lib/assignments/policy-coverage.ts, pure and unit tested, because
+ * the first version of it was wrong in a way that read perfectly plausibly. This function only
+ * fetches. Leavers and archived people are excluded here: a leaver cannot be chased and should
+ * not drag a live figure down.
  * =========================================================================== */
 
-export type PolicyBehind = {
-  assignmentId: string;
-  personId: string;
-  personName: string;
-  policyTitle: string;
-  currentVersion: number;
-  /** The version they DID sign, or null when they have never completed it. */
-  signedVersion: number | null;
-};
+export type { PolicyCoverage, PolicyBehind } from "@/lib/assignments/policy-coverage";
 
-export type PolicyCoverage = {
-  assigned: number;
-  upToDate: number;
-  /** Floored to one decimal, like every other percentage in the product. Null when nothing
-   *  has been assigned, because 0% would read as a failure rather than "nothing sent yet". */
-  pct: number | null;
-  behind: PolicyBehind[];
-};
-
-export async function getPolicyCoverage(companyId: string): Promise<PolicyCoverage> {
+export async function getPolicyCoverage(companyId: string): Promise<PolicyCoverageResult> {
   const supabase = await createClient();
 
   const [{ data: policies }, { data: rows }] = await Promise.all([
@@ -824,18 +810,12 @@ export async function getPolicyCoverage(companyId: string): Promise<PolicyCovera
       .eq("status", "active"),
     supabase
       .from("assignments")
-      .select("id, person_id, policy_id, policy_version, status, people(full_name, employment_status, archived_at)")
+      .select("person_id, policy_id, policy_version, status, people(full_name, employment_status, archived_at)")
       .eq("company_id", companyId)
       .eq("kind", "policy"),
   ]);
 
-  const active = new Map<string, { title: string; version: number }>();
-  for (const p of (policies as { id: string; title: string; version: number }[] | null) ?? []) {
-    active.set(p.id, { title: p.title, version: p.version });
-  }
-
   type Row = {
-    id: string;
     person_id: string;
     policy_id: string | null;
     policy_version: number | null;
@@ -843,46 +823,18 @@ export async function getPolicyCoverage(companyId: string): Promise<PolicyCovera
     people: { full_name: string; employment_status: string; archived_at: string | null } | null;
   };
 
-  let assigned = 0;
-  let upToDate = 0;
-  const behind: PolicyBehind[] = [];
+  const assignments = ((rows as unknown as Row[] | null) ?? [])
+    .filter((r) => r.policy_id && r.people && !r.people.archived_at && r.people.employment_status !== "leaver")
+    .map((r) => ({
+      personId: r.person_id,
+      personName: r.people!.full_name,
+      policyId: r.policy_id as string,
+      status: r.status,
+      policyVersion: r.policy_version,
+    }));
 
-  for (const row of (rows as unknown as Row[] | null) ?? []) {
-    const policy = row.policy_id ? active.get(row.policy_id) : undefined;
-    if (!policy) continue; // archived or deleted policy
-    const person = row.people;
-    if (!person || person.archived_at || person.employment_status === "leaver") continue;
-
-    assigned += 1;
-    const signedVersion = row.status === "completed" ? (row.policy_version ?? null) : null;
-    if (signedVersion !== null && signedVersion >= policy.version) {
-      upToDate += 1;
-      continue;
-    }
-    behind.push({
-      assignmentId: row.id,
-      personId: row.person_id,
-      personName: person.full_name,
-      policyTitle: policy.title,
-      currentVersion: policy.version,
-      signedVersion,
-    });
-  }
-
-  // Sorted so the people who signed an OLD version come first: they are the ones who look
-  // compliant on every other screen in the app and are not.
-  behind.sort((a, b) => {
-    if ((a.signedVersion === null) !== (b.signedVersion === null)) {
-      return a.signedVersion === null ? 1 : -1;
-    }
-    return a.personName.localeCompare(b.personName);
-  });
-
-  return {
-    assigned,
-    upToDate,
-    // Floored, never rounded up, like every other percentage here.
-    pct: assigned === 0 ? null : Math.floor((upToDate / assigned) * 1000) / 10,
-    behind,
-  };
+  return summarisePolicyCoverage(
+    assignments,
+    ((policies as { id: string; title: string; version: number }[] | null) ?? []),
+  );
 }
