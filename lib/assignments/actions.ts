@@ -33,6 +33,7 @@ import { getEffectivePolicyRules } from "@/lib/assignments/data";
 import { seedIdentityAnswers } from "@/lib/assignments/render";
 import { isBriefableFormKey } from "@/lib/assignments/briefable";
 import { notifyBriefingSent } from "@/lib/notifications/briefings";
+import { notifyHolidayRequested } from "@/lib/notifications/holiday";
 import {
   DRAWN_KEY,
   TYPED_KEY,
@@ -1112,7 +1113,7 @@ export async function completeAssignedForm(
   const supabase = await createClient();
   const { data: assignment } = await supabase
     .from("assignments")
-    .select("id, company_id, person_id, form_id, status, people:person_id(branch_id, full_name, work_email)")
+    .select("id, company_id, person_id, form_id, status, people:person_id(branch_id, full_name, work_email), forms:form_id(key)")
     .eq("id", assignmentId)
     .maybeSingle();
   if (!assignment) return { error: "That assignment could not be found." };
@@ -1125,6 +1126,22 @@ export async function completeAssignedForm(
     full_name: string | null;
     work_email: string | null;
   } | null;
+
+  // A briefing of the Holiday form must create a real, pending holiday request — not only
+  // file Evidence — so approvers are told and it shows in Holiday, exactly like an in-app
+  // request (lib/holidays/actions.ts requestHoliday). Any other briefed form just files
+  // Evidence as before.
+  const form = (Array.isArray(assignment.forms)
+    ? assignment.forms[0]
+    : assignment.forms) as { key: string | null } | null;
+  const formKey = form?.key ?? null;
+  const holidayStart =
+    formKey === "holiday_requests" ? isoOrNull(answers["start_date_of_holiday"]) : null;
+  const holidayEnd =
+    formKey === "holiday_requests" ? isoOrNull(answers["end_date_of_holiday"]) : null;
+  if (formKey === "holiday_requests" && (!holidayStart || !holidayEnd)) {
+    return { error: "Enter the start and end dates of your holiday." };
+  }
 
   // Pin the form's currently published version.
   const { data: version } = await supabase
@@ -1163,6 +1180,43 @@ export async function completeAssignedForm(
   });
   if (rpcErr) {
     return { error: `Your form was saved, but the task did not close: ${rpcErr.message}` };
+  }
+
+  // The briefing has closed; now log the holiday request it represents and tell the
+  // approvers. Placed AFTER the assignment closes so a failure here cannot leave a
+  // duplicate on a retry, and it is surfaced to the person rather than swallowed.
+  if (formKey === "holiday_requests" && holidayStart && holidayEnd) {
+    const requesterName = person?.full_name || profile.full_name || profile.email;
+    const { data: requestRow, error: insErr } = await supabase
+      .from("holiday_requests")
+      .insert({
+        company_id: assignment.company_id,
+        branch_id: person?.branch_id ?? null,
+        person_id: assignment.person_id,
+        requested_by: user.id,
+        requester_name: requesterName,
+        start_date: holidayStart,
+        end_date: holidayEnd,
+        note: typeof answers["note"] === "string" ? (answers["note"] as string) : null,
+        status: "pending",
+        request_evidence_id: result.evidenceId,
+      })
+      .select("id")
+      .single();
+    if (insErr || !requestRow) {
+      return {
+        error: `Your form was saved, but the holiday request could not be logged: ${insErr?.message ?? "no id returned"}. Please tell your manager.`,
+      };
+    }
+    await notifyHolidayRequested({
+      companyId: assignment.company_id as string,
+      branchId: person?.branch_id ?? null,
+      requestId: requestRow.id as string,
+      requesterName,
+      startDate: holidayStart,
+      endDate: holidayEnd,
+    });
+    revalidatePath("/people/holiday");
   }
 
   await writeAudit({
