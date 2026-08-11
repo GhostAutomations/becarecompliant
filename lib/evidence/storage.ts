@@ -33,6 +33,19 @@ function safeName(name: string): string {
   return name.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 80) || "file";
 }
 
+/**
+ * Where the on demand rendered PDF is cached (see lib/evidence/on-demand.ts).
+ *
+ * It lives HERE, next to the other path builders, because it is not just a rendering
+ * detail: it is a full copy of the evidence, personal data and all, sitting in the bucket.
+ * Anything that purges an evidence has to delete it too. Item 18 shipped without this and
+ * the anonymised record kept a complete PDF of itself in storage, found by looking at what
+ * was actually in the bucket rather than at what the code said it deleted.
+ */
+export function evidenceRenderPath(companyId: string, evidenceId: string): string {
+  return `${companyId}/${evidenceId}/render/evidence.pdf`;
+}
+
 export function evidenceFilePath(
   companyId: string,
   evidenceId: string,

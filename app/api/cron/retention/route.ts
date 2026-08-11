@@ -32,5 +32,14 @@ export async function GET(request: NextRequest) {
   }
 
   const retention = await runRetentionExpiry();
+  // A FAILED RUN MUST NOT LOOK LIKE A QUIET ONE. Found live 2026-08-11: the function raised
+  // "column reference evidence_id is ambiguous", this route swallowed it into a JSON field
+  // and answered 200, so Vercel showed a healthy cron and nothing was ever anonymised. For a
+  // job whose whole purpose is to run unattended, "nothing was due today" and "this has been
+  // broken for months" must never look the same from the outside.
+  if (retention.error) {
+    console.error("[cron/retention] run failed:", retention.error);
+    return NextResponse.json({ retention }, { status: 500 });
+  }
   return NextResponse.json({ retention });
 }

@@ -34,7 +34,7 @@ import { createClient } from "@/lib/supabase/server";
 import { addYearsIso } from "@/lib/dates";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
-import { deleteEvidenceObjects } from "./storage";
+import { deleteEvidenceObjects, evidenceRenderPath } from "./storage";
 
 export const DEFAULT_RETENTION_MIN_YEARS = 8;
 
@@ -100,6 +100,9 @@ export async function anonymiseEvidence(input: {
   const paths = [
     ...(ev?.pdf_path ? [ev.pdf_path] : []),
     ...((files ?? []).map((f) => f.storage_path).filter((p): p is string => !!p)),
+    // The cached RENDER of this evidence is a full PDF of it, personal data and all. Erasing
+    // the row and leaving that behind would be erasure in name only.
+    ...(ev?.company_id ? [evidenceRenderPath(ev.company_id, input.evidenceId)] : []),
   ];
 
   // 2. Anonymise the row(s) via the guarded RPC (runs with the caller's auth).
@@ -246,6 +249,14 @@ export async function runRetentionExpiry(options?: { limit?: number }): Promise<
     const entry = byEvidence.get(row.evidence_id) ?? { companyId: row.company_id, paths: [] };
     if (row.purged_path) entry.paths.push(row.purged_path);
     byEvidence.set(row.evidence_id, entry);
+  }
+
+  // Every anonymised evidence also gets its cached RENDER removed. That object is a whole
+  // PDF of the record and it is NOT in evidence_files, so nothing in the database points at
+  // it: it has to be named from the convention or it is left behind for ever. Removing a
+  // path that was never rendered is a harmless no-op.
+  for (const [evidenceId, entry] of byEvidence) {
+    entry.paths.push(evidenceRenderPath(entry.companyId, evidenceId));
   }
 
   const allPaths = [...byEvidence.values()].flatMap((v) => v.paths);

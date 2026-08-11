@@ -99,8 +99,12 @@ begin
   ),
   purged_files as (
     update public.evidence_files
+    -- TABLE QUALIFIED, and it matters: this function's OUT parameter is called evidence_id
+    -- and so is this column. Unqualified, PL/pgSQL cannot tell them apart and the whole
+    -- RETURN QUERY raises "column reference evidence_id is ambiguous" at RUNTIME, which no
+    -- amount of typechecking or unit testing would have caught. Found live 2026-08-11.
     set storage_path = null, file_name = null, purged_at = now()
-    where evidence_id = any(v_ids)
+    where public.evidence_files.evidence_id = any(v_ids)
     returning 1
   ),
   purged_evidence as (
@@ -113,7 +117,7 @@ begin
         anonymised_at = now()
         -- anonymised_by stays NULL: no person did this, the retention rule did. The audit
         -- row the caller writes names the process.
-    where id = any(v_ids)
+    where public.evidence.id = any(v_ids)
     returning 1
   )
   select eid, cid, path from collected;

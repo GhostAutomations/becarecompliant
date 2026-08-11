@@ -25,7 +25,7 @@ import { isFormSchema, type Answers, type FormSchema } from "@/lib/form-schema";
 import { renderEvidencePdf, type EvidencePdfMeta } from "@/lib/evidence/pdf";
 import { loadEvidenceAttachments } from "@/lib/evidence/images";
 import { drawableFormat } from "@/lib/evidence/image-format";
-import { EVIDENCE_BUCKET, signEvidenceDownload } from "@/lib/evidence/storage";
+import { EVIDENCE_BUCKET, evidenceRenderPath, signEvidenceDownload } from "@/lib/evidence/storage";
 import { writeAudit } from "@/lib/audit";
 
 export type EvidenceActor = { id: string; email: string; role: string };
@@ -152,12 +152,6 @@ type EvidenceRow = {
   form_versions: { version: number } | null;
   forms: { name: string } | null;
 };
-
-/** Render path kept separate from the canonical evidence.pdf so a legacy stored
- * PDF is never overwritten and the immutable row's pdf_path is never touched. */
-function evidenceRenderPath(companyId: string, evidenceId: string): string {
-  return `${companyId}/${evidenceId}/render/evidence.pdf`;
-}
 
 function shortRef(evidenceId: string): string {
   return evidenceId.slice(0, 8).toUpperCase();
