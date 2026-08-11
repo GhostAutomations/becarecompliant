@@ -83,7 +83,7 @@ function todayLondonIso(): string {
 }
 
 type CourseRow = TrainingCourse;
-type RecordRow = {
+export type RecordRow = {
   id: string;
   person_id: string;
   course_id: string;
@@ -125,7 +125,10 @@ async function readAllRows<T>(
   }
 }
 
-function cellFor(
+/** Exported so a Team Member's own view of their training on /my scores each course with the
+ *  SAME function as the register, the matrix and the chasing digest. A second copy of this
+ *  rule is how somebody ends up amber on their own screen and red in their manager's. */
+export function cellFor(
   course: TrainingCourse,
   rec: RecordRow | undefined,
   todayIso: string,

@@ -1,3 +1,4 @@
+import { cellFor, type RecordRow, type TrainingCell, type TrainingCourse } from "@/lib/training/data";
 import "server-only";
 
 /**
@@ -125,4 +126,47 @@ export async function getPersonLoginStatus(
   });
   if (error || !data) return null;
   return data as PersonLoginStatus;
+}
+
+/* ---------------------------------------------------------------------------
+ * A Team Member's own training (THE LIST item 26 leftover).
+ *
+ * The person being chased about their training was the only person who could not look it up.
+ * Read through their OWN RLS (migration 0173), and scored with cellFor, the same function the
+ * register and the chasing digest use, so they can never be amber here and red to their
+ * manager.
+ * ------------------------------------------------------------------------- */
+
+export type MyTrainingRow = {
+  courseId: string;
+  courseName: string;
+  mandatory: boolean;
+  cell: TrainingCell;
+};
+
+export async function getMyTraining(personId: string): Promise<MyTrainingRow[]> {
+  const supabase = await createClient();
+  const [{ data: courses }, { data: records }] = await Promise.all([
+    supabase
+      .from("training_courses")
+      .select("id, name, renewal_months, mandatory, is_safeguarding, amber_days, sort_order, active")
+      .eq("active", true)
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("person_training")
+      .select("id, person_id, course_id, status, completed_on, expiry_on, certificate_path")
+      .eq("person_id", personId),
+  ]);
+
+  const byCourse = new Map<string, RecordRow>();
+  for (const r of (records as RecordRow[] | null) ?? []) byCourse.set(r.course_id, r);
+
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+
+  return ((courses as TrainingCourse[] | null) ?? []).map((course) => ({
+    courseId: course.id,
+    courseName: course.name,
+    mandatory: course.mandatory,
+    cell: cellFor(course, byCourse.get(course.id), today),
+  }));
 }

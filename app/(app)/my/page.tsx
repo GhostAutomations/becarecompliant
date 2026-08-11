@@ -5,7 +5,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import { getCompanyFormByKey } from "@/lib/people/data";
 import { isFormSchema, type FormSchema } from "@/lib/form-schema";
-import { getMyRecord, getMyHolidays, getMySubmissions } from "@/lib/staff/data";
+import { getMyRecord, getMyHolidays, getMySubmissions, getMyTraining } from "@/lib/staff/data";
 import {
   listAssignmentsForPerson,
   getPublishedSchemas,
@@ -53,6 +53,9 @@ export default async function MyAreaPage() {
   ]);
 
   const holidays = record ? await getMyHolidays(record.id) : [];
+  // Item 26: the person being chased about their training was the only one who could not
+  // look it up. Read through their own RLS (0173) and scored with the register's own rule.
+  const training = record ? await getMyTraining(record.id) : [];
   const assignments = record ? await listAssignmentsForPerson(record.id) : [];
 
   // Only the assigned FORMS need a schema to render; policies are a document plus
@@ -119,6 +122,68 @@ export default async function MyAreaPage() {
           policyConfig={policyConfig}
         />
       </section>
+
+      {/* OPEN, not folded, and above the history sections. Everything else in here is
+          either something they still have to do or a record of what they have done; their
+          training is the one thing that quietly goes out of date while they do nothing, so
+          it is the one thing worth putting in front of them. Mandatory courses first: those
+          are the ones a manager will chase and an inspector will count. */}
+      {training.length > 0 ? (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
+            My training ({training.filter((t) => t.cell.rag === "red").length > 0
+              ? `${training.filter((t) => t.cell.rag === "red").length} needs attention`
+              : "all in date"})
+          </h2>
+          <div className="glass-card divide-y divide-white/10">
+            {[...training]
+              .sort((a, b) =>
+                a.mandatory === b.mandatory
+                  ? a.courseName.localeCompare(b.courseName)
+                  : a.mandatory
+                    ? -1
+                    : 1,
+              )
+              .map((t) => (
+                <div key={t.courseId} className="flex flex-wrap items-center justify-between gap-3 p-4">
+                  <div>
+                    <p className="text-sm font-semibold text-white">
+                      {t.courseName}
+                      {t.mandatory ? <span className="ml-2 text-xs text-white/40">Mandatory</span> : null}
+                    </p>
+                    <p className="text-xs text-white/45">
+                      {t.cell.label}
+                      {t.cell.sub ? ` · ${t.cell.sub}` : ""}
+                    </p>
+                  </div>
+                  <span
+                    className={
+                      t.cell.rag === "red"
+                        ? "pill-red"
+                        : t.cell.rag === "amber"
+                          ? "pill-amber"
+                          : t.cell.rag === "green"
+                            ? "pill-green"
+                            : "pill-neutral"
+                    }
+                  >
+                    {t.cell.rag === "none" ? null : <span className="pill-dot" />}
+                    {t.cell.rag === "red"
+                      ? "Out of date"
+                      : t.cell.rag === "amber"
+                        ? "Due soon"
+                        : t.cell.rag === "green"
+                          ? "In date"
+                          : "Not recorded"}
+                  </span>
+                </div>
+              ))}
+          </div>
+          <p className="text-xs text-white/40">
+            Training is recorded by your manager. If something here looks wrong, tell them.
+          </p>
+        </section>
+      ) : null}
 
       <MySection title="Forms I have sent in" count={submissions.length}>
         {submissions.length === 0 ? (
