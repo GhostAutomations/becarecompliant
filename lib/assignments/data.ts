@@ -10,6 +10,7 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { isSendableAddress } from "@/lib/email/resend";
+import { isBriefableFormKey } from "@/lib/assignments/briefable";
 import type {
   AssignmentRow,
   BriefingPerson,
@@ -143,7 +144,7 @@ export async function listAssignableForms(
     .eq("population", "people")
     .order("name");
   return ((data ?? []) as Array<{ id: string; name: string; key: string }>)
-    .filter((f) => f.key !== "policy_acknowledgement")
+    .filter((f) => isBriefableFormKey(f.key))
     .map((f) => ({ id: f.id, name: f.name }));
 }
 

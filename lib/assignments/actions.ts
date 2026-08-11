@@ -31,6 +31,7 @@ import { renderPolicyPdf } from "@/lib/policies/pdf";
 import { POLICY_ACK_FORM_KEY, type BriefingScope } from "@/lib/assignments/types";
 import { getEffectivePolicyRules } from "@/lib/assignments/data";
 import { seedIdentityAnswers } from "@/lib/assignments/render";
+import { isBriefableFormKey } from "@/lib/assignments/briefable";
 import { notifyBriefingSent } from "@/lib/notifications/briefings";
 import {
   DRAWN_KEY,
@@ -304,6 +305,25 @@ export async function assignItems(
   const dueDate = isoOrNull(formData.get("due_date"));
 
   const supabase = await createClient();
+
+  // A briefing may only ever carry a form a Team Member completes ABOUT THEMSELVES.
+  // Every other form is a manager-conducted compliance check, so the catalogue is an
+  // allowlist enforced HERE, in the write path — not only in the picker that lists
+  // forms — so a crafted request cannot brief a Supervision, Appraisal or Audit form
+  // onto somebody's own record. See lib/assignments/briefable.ts.
+  if (kind === "form") {
+    const { data: form } = await supabase
+      .from("forms")
+      .select("key, company_id")
+      .eq("id", id)
+      .maybeSingle();
+    if (!form || form.company_id !== companyId) {
+      return { error: "That form could not be found." };
+    }
+    if (!isBriefableFormKey(form.key as string)) {
+      return { error: "That form cannot be sent as a briefing." };
+    }
+  }
 
   // The audience. "Everyone" and "a whole branch" are resolved HERE, not in the
   // browser, so the list cannot be tampered with and RLS still decides who is
