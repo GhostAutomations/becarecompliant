@@ -3,7 +3,7 @@
 /**
  * Be Care Compliant — Settings > Notifications editor (Company Admin).
  * Channel switches (daily digest email, SMS escalation opt-in), the chaser
- * thresholds, and the SMS numbers for Managers and Admins. Centrally styled
+ * thresholds, and the SMS numbers for Managers, Admins and Registered roles. Centrally styled
  * controls only (globals.css), no inline control styling.
  */
 
@@ -14,6 +14,15 @@ import {
   saveNotificationSettings,
   saveUserPhone,
 } from "@/lib/notifications/settings-actions";
+
+/** Roles that can be an SMS/notification recipient, with their display labels. */
+const ROLE_LABEL: Record<string, string> = {
+  company_admin: "Admin",
+  registered_individual: "Registered Individual",
+  registered_manager: "Registered Manager",
+  manager: "Branch Manager",
+  supervisor: "Supervisor",
+};
 
 export type EscalationUser = {
   profileId: string;
@@ -82,7 +91,7 @@ export default function NotificationSettings({
             <span className="text-sm text-white/80">
               <span className="font-semibold text-white">Daily digest email</span>
               <br />
-              One 07:00 summary per Manager, Admin and Supervisor covering their
+              One 07:00 summary per Manager, Admin, Registered role and Supervisor covering their
               due soon and overdue checks. Overdue chasers ride on this channel.
             </span>
           </label>
@@ -91,7 +100,7 @@ export default function NotificationSettings({
             <span className="text-sm text-white/80">
               <span className="font-semibold text-white">SMS escalation</span>
               <br />
-              A text to Managers and Admins when checks stay overdue. Each text uses one of your
+              A text to Managers, Admins and Registered roles when checks stay overdue. Each text uses one of your
               monthly SMS allowance, and when that allowance runs out we STOP sending texts rather
               than billing you for more. Your balance and top ups are in Billing. Email escalation
               carries on either way.
@@ -155,13 +164,13 @@ export default function NotificationSettings({
       <section className="glass-card p-5">
         <h2 className="text-sm font-semibold text-white/80">SMS numbers</h2>
         <p className="mt-1 text-sm text-white/60">
-          Managers and Admins with a number here receive the SMS escalation. Enter
+          Managers, Admins and Registered roles with a number here receive the SMS escalation. Enter
           a UK mobile as you would dial it, for example 07700 900123: it is stored
           in international format (+44) for sending.
         </p>
         {users.length === 0 ? (
           <p className="mt-4 text-sm text-white/50">
-            No Managers or Admins yet. Invite them in Users and invites.
+            No recipients yet. Invite Managers, Admins or Registered roles in Users and invites.
           </p>
         ) : (
           <ul className="mt-4 space-y-3">
@@ -175,7 +184,7 @@ export default function NotificationSettings({
       <section className="glass-card p-5">
         <h2 className="text-sm font-semibold text-white/80">Replies</h2>
         <p className="mt-1 text-sm text-white/60">
-          Texts sent back to our number by your Managers and Admins, newest first. Anyone can
+          Texts sent back to our number by your Managers, Admins and Registered roles, newest first. Anyone can
           reply STOP to stop receiving texts and START to begin again, and we act on that the
           moment it arrives.
         </p>
@@ -219,7 +228,7 @@ function PhoneRow({ u }: { u: EscalationUser }) {
           <span className="font-semibold text-white">{u.fullName}</span>
           <br />
           <span className="text-xs text-white/50">
-            {u.role === "company_admin" ? "Admin" : "Manager"}
+            {ROLE_LABEL[u.role] ?? u.role}
           </span>
         </span>
         <input

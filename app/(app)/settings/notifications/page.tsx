@@ -34,7 +34,7 @@ export default async function NotificationSettingsPage() {
         .select("id, full_name, email, role, phone")
         .eq("company_id", profile.company_id)
         .eq("status", "active")
-        .in("role", ["company_admin", "manager"])
+        .in("role", ["company_admin", "registered_individual", "registered_manager", "manager"])
         .order("full_name"),
       supabase
         .from("sms_inbound")
