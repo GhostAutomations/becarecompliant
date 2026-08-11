@@ -2319,3 +2319,73 @@ Enter would auto repeat straight onto it and confirm a destructive action nobody
 
 145 tests pass. No migrations.
 
+
+---
+
+## Additions, 2026-08-11 (afternoon and evening): photo evidence, retention, policy coverage
+
+Items 15, 18, 20, 23 and the /my half of 26, plus one bug found beside item 15 and fixed on
+Phil's instruction. Migrations 0170 to 0173. Tests 184 to 212.
+
+**Item 15, photo evidence on the Evidence PDF.** Uploaded images live in the private bucket,
+not in the answers, so the inspector-facing PDF printed the file NAME and the photograph was
+invisible on the document being handed over. Now fetched at render time and drawn: on the PDF,
+in the inspection pack, and inline on the on-screen record (Phil chose to show it in both
+places so screen and paper match). PNG and JPEG only, with caps; a HEIC, a PDF or an oversized
+photo is NAMED and captioned "Attached to this evidence, not shown here" rather than silently
+dropped. Rows are read through the CALLER's RLS client and only the bytes with the service
+role, and the fetch never throws. **Live testing found a blank second page in it**: a fixed
+square image box wasted the space under a landscape photo and spilled the record past A4. The
+box is now measured from the picture's real pixel size, read out of the PNG or JPEG header.
+See [[bcc-photo-evidence-pdf]].
+
+**Found beside item 15: Supervision 4 could never be completed** (migration 0170). The record
+offers a four slot supervision cycle; the form's "Which supervision" only offered 1 to 3. The
+page hides that question and supplies the value from the button clicked, so the BROWSER passed
+its own check and the SERVER refused: "Please correct the highlighted fields" with **no
+highlighted field anywhere on the page**. 0170 adds the option following 0104's pattern. The
+more valuable half is general: `submitEvidence` now NAMES the answers it refused
+(`lib/forms/validation-message.ts`), so any page that hides or pre-supplies an answer can never
+again fail unexplainably. One change in the one function all 13 submission paths share.
+
+**Item 18, retention is actually enforced** (0171). The eight year rule had sat in
+`lib/evidence/retention.ts` since Phase 2 with NOTHING CALLING IT: every evidence row had
+retention_until null and nothing had ever been anonymised. `anonymise_evidence` could never
+have been used by a cron either, because it authorises with auth.uid() and demands an admin.
+Now: the clock starts when a Person is marked a leaver or a Service User discharged (and CLEARS
+when that is undone), a nightly cron anonymises what is past its date, a retention HOLD on the
+record protects an ongoing tribunal or investigation, Settings > Data retention shows the
+position, and an anonymised record says so on screen instead of reading as a badly completed
+check. **Four defects were found in it by live testing, all mine, none visible in the code**: an
+ambiguous column that meant the function had never worked; **a cron that returned 200 on a
+completely failed run**; the cached render PDF left in the bucket so an "anonymised" record kept
+a full copy of itself; and a clear that silently failed because it wrote null to a NOT NULL
+column. See [[bcc-retention]].
+
+**Item 20, policy coverage and one real performance fix.** "Policies up to date" is built and
+back on the dashboard, linking to `/briefings/coverage`, which names who is behind and puts
+anybody on an OLD VERSION first, because they show as completed on every other screen. **The
+first version of the metric counted assignment rows and was wrong**: a policy is re-sent on
+every republish, so one person holding five rows for one policy was reported as two people
+behind, twice, when she was fully up to date. The unit is one person and one policy, judged on
+the highest version they have signed; the rule is now a pure module with 10 unit tests. On the
+performance half, the backlog note was wrong: the training matrix is memoised and shared, so
+building it once is the design, and computing the percentage in SQL would have put the training
+RAG rule in a second place. The real waste was the dashboard asking for the matrix twice under
+two cache keys (no date, and today's date, which are the same question). Fixed there.
+
+**Item 23** (0172): `spend_ai_credit` was executable by PUBLIC and anon, safe only because of
+one internal guard line. anon and PUBLIC revoked; it now matches `spend_sms_credit`.
+
+**Item 26, the /my half** (0173): a Team Member could not see their own training, because the
+training policies only admitted company-wide roles and branch managers. The person being chased
+was the only person who could not look it up. Two narrow additive policies (own rows, read only;
+course list for company members) and a section on /my that scores each course with the
+register's own `cellFor`, so nobody can be amber on their own screen and red in their manager's.
+
+**The lesson of the day, five times over.** Every defect found today came from looking at the
+actual artefact rather than the code: the rendered PDF page, the HTTP status code, the storage
+bucket listing, the database rows after the screen said "Saved", and the names on a dashboard
+tile. Unit tests and typechecking passed throughout.
+
+212 tests pass. Migrations 0170, 0171, 0172, 0173.

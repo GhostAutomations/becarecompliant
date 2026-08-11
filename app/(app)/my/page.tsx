@@ -123,64 +123,93 @@ export default async function MyAreaPage() {
         />
       </section>
 
-      {/* OPEN, not folded, and above the history sections. Everything else in here is
-          either something they still have to do or a record of what they have done; their
-          training is the one thing that quietly goes out of date while they do nothing, so
-          it is the one thing worth putting in front of them. Mandatory courses first: those
-          are the ones a manager will chase and an inspector will count. */}
+      {/* OPEN, not folded, and above the history sections. Everything else in here is either
+          something they still have to do or a record of what they have done; their training is
+          the one thing that quietly goes out of date while they do nothing.
+
+          THE WORDING IS KEYED ON cell.status, NOT ON THE COLOUR, and that distinction was
+          found by actually logging in as a carer (2026-08-11). Acme seeds 33 mandatory
+          courses, Charlotte had one recorded, and the first version read "MY TRAINING (33
+          NEEDS ATTENTION)" with thirty three red "Out of date" rows. Every one of those was a
+          course NOBODY HAD EVER RECORDED against her, which is not the same thing as one she
+          let lapse, and telling a carer otherwise on their own screen is both wrong and
+          demoralising. The manager's register is right to show a gap as red, because there it
+          is the manager's gap; here it is a statement about her.
+
+          So: recorded courses first, because that is her actual training history, and the
+          not-recorded ones after it in a neutral pill with a line saying who logs them. */}
       {training.length > 0 ? (
         <section className="space-y-3">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
-            My training ({training.filter((t) => t.cell.rag === "red").length > 0
-              ? `${training.filter((t) => t.cell.rag === "red").length} needs attention`
-              : "all in date"})
+            My training
           </h2>
+          <p className="text-xs text-white/45">
+            {(() => {
+              const recorded = training.filter((t) => t.cell.status !== "missing");
+              const lapsed = recorded.filter((t) => t.cell.rag === "red").length;
+              const soon = recorded.filter((t) => t.cell.rag === "amber").length;
+              const missing = training.length - recorded.length;
+              const bits: string[] = [];
+              if (recorded.length > 0) bits.push(`${recorded.length - lapsed - soon} in date`);
+              if (soon > 0) bits.push(`${soon} due soon`);
+              if (lapsed > 0) bits.push(`${lapsed} out of date`);
+              if (missing > 0) bits.push(`${missing} not recorded yet`);
+              return bits.join(" · ");
+            })()}
+          </p>
           <div className="glass-card divide-y divide-white/10">
             {[...training]
-              .sort((a, b) =>
-                a.mandatory === b.mandatory
-                  ? a.courseName.localeCompare(b.courseName)
-                  : a.mandatory
-                    ? -1
-                    : 1,
-              )
-              .map((t) => (
-                <div key={t.courseId} className="flex flex-wrap items-center justify-between gap-3 p-4">
-                  <div>
-                    <p className="text-sm font-semibold text-white">
-                      {t.courseName}
-                      {t.mandatory ? <span className="ml-2 text-xs text-white/40">Mandatory</span> : null}
-                    </p>
-                    <p className="text-xs text-white/45">
-                      {t.cell.label}
-                      {t.cell.sub ? ` · ${t.cell.sub}` : ""}
-                    </p>
+              .sort((a, b) => {
+                // Recorded first: her real training history, not the empty rows.
+                const aMissing = a.cell.status === "missing";
+                const bMissing = b.cell.status === "missing";
+                if (aMissing !== bMissing) return aMissing ? 1 : -1;
+                if (a.mandatory !== b.mandatory) return a.mandatory ? -1 : 1;
+                return a.courseName.localeCompare(b.courseName);
+              })
+              .map((t) => {
+                const missing = t.cell.status === "missing";
+                return (
+                  <div key={t.courseId} className="flex flex-wrap items-center justify-between gap-3 p-4">
+                    <div>
+                      <p className={`text-sm font-semibold ${missing ? "text-white/70" : "text-white"}`}>
+                        {t.courseName}
+                        {t.mandatory ? <span className="ml-2 text-xs text-white/40">Mandatory</span> : null}
+                      </p>
+                      {missing ? null : (
+                        <p className="text-xs text-white/45">
+                          {t.cell.label}
+                          {t.cell.sub ? ` · ${t.cell.sub}` : ""}
+                        </p>
+                      )}
+                    </div>
+                    <span
+                      className={
+                        missing
+                          ? "pill-neutral"
+                          : t.cell.rag === "red"
+                            ? "pill-red"
+                            : t.cell.rag === "amber"
+                              ? "pill-amber"
+                              : "pill-green"
+                      }
+                    >
+                      {missing ? null : <span className="pill-dot" />}
+                      {missing
+                        ? "Not recorded"
+                        : t.cell.rag === "red"
+                          ? "Out of date"
+                          : t.cell.rag === "amber"
+                            ? "Due soon"
+                            : "In date"}
+                    </span>
                   </div>
-                  <span
-                    className={
-                      t.cell.rag === "red"
-                        ? "pill-red"
-                        : t.cell.rag === "amber"
-                          ? "pill-amber"
-                          : t.cell.rag === "green"
-                            ? "pill-green"
-                            : "pill-neutral"
-                    }
-                  >
-                    {t.cell.rag === "none" ? null : <span className="pill-dot" />}
-                    {t.cell.rag === "red"
-                      ? "Out of date"
-                      : t.cell.rag === "amber"
-                        ? "Due soon"
-                        : t.cell.rag === "green"
-                          ? "In date"
-                          : "Not recorded"}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
           </div>
           <p className="text-xs text-white/40">
-            Training is recorded by your manager. If something here looks wrong, tell them.
+            Your manager records training. Anything showing as not recorded has not been logged
+            against you yet, so if you have done it, tell them.
           </p>
         </section>
       ) : null}
