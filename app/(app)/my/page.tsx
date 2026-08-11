@@ -123,26 +123,22 @@ export default async function MyAreaPage() {
         />
       </section>
 
-      {/* OPEN, not folded, and above the history sections. Everything else in here is either
-          something they still have to do or a record of what they have done; their training is
-          the one thing that quietly goes out of date while they do nothing.
+      {/* COLLAPSIBLE, like "Policies I have signed" (Phil, 2026-08-11): thirty four rows on a
+          phone pushed everything else off the screen. Same MySection fold, so the three
+          history style sections look and behave alike.
 
           THE WORDING IS KEYED ON cell.status, NOT ON THE COLOUR, and that distinction was
-          found by actually logging in as a carer (2026-08-11). Acme seeds 33 mandatory
-          courses, Charlotte had one recorded, and the first version read "MY TRAINING (33
-          NEEDS ATTENTION)" with thirty three red "Out of date" rows. Every one of those was a
-          course NOBODY HAD EVER RECORDED against her, which is not the same thing as one she
-          let lapse, and telling a carer otherwise on their own screen is both wrong and
-          demoralising. The manager's register is right to show a gap as red, because there it
-          is the manager's gap; here it is a statement about her.
+          found by actually logging in as a carer. Acme seeds 33 mandatory courses, Charlotte
+          had one recorded, and the first version read "MY TRAINING (33 NEEDS ATTENTION)" with
+          thirty three red "Out of date" rows. Every one was a course NOBODY HAD EVER RECORDED
+          against her, which is not the same as one she let lapse, and telling a carer
+          otherwise on their own screen is both wrong and demoralising. The manager's register
+          is right to show a gap as red, because there it is the manager's gap; here it is a
+          statement about her.
 
-          So: recorded courses first, because that is her actual training history, and the
-          not-recorded ones after it in a neutral pill with a line saying who logs them. */}
+          Recorded courses sort first: that is her actual training history, not empty rows. */}
       {training.length > 0 ? (
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
-            My training
-          </h2>
+        <MySection title="My training" count={training.length}>
           <p className="text-xs text-white/45">
             {(() => {
               const recorded = training.filter((t) => t.cell.status !== "missing");
@@ -160,7 +156,6 @@ export default async function MyAreaPage() {
           <div className="glass-card divide-y divide-white/10">
             {[...training]
               .sort((a, b) => {
-                // Recorded first: her real training history, not the empty rows.
                 const aMissing = a.cell.status === "missing";
                 const bMissing = b.cell.status === "missing";
                 if (aMissing !== bMissing) return aMissing ? 1 : -1;
@@ -211,7 +206,7 @@ export default async function MyAreaPage() {
             Your manager records training. Anything showing as not recorded has not been logged
             against you yet, so if you have done it, tell them.
           </p>
-        </section>
+        </MySection>
       ) : null}
 
       <MySection title="Forms I have sent in" count={submissions.length}>
