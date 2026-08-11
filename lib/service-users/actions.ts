@@ -531,7 +531,11 @@ export async function setServiceStatus(
     entityType: "service_user",
     entityId: id,
     summary: `Set service status to ${status}`,
-    metadata: { status, retention_rows_updated: retention.updated },
+    metadata: {
+      status,
+      retention_rows_updated: retention.updated,
+      ...(retention.error ? { retention_error: retention.error } : {}),
+    },
   });
 
   revalidatePath(`/service-users/${id}`);

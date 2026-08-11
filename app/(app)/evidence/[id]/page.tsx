@@ -5,6 +5,7 @@ import { getEvidenceView } from "@/lib/evidence/on-demand";
 import { isBinaryField, isPresentational, type AnswerValue } from "@/lib/form-schema";
 import { shouldShowInEvidence } from "@/lib/form-validate";
 import { formatAnswerForDisplay } from "@/lib/form-format";
+import { ukDate } from "@/lib/dates";
 
 export const metadata: Metadata = { title: "Evidence" };
 
@@ -105,12 +106,37 @@ export default async function EvidenceViewPage({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="page-title">{ev.formName}</h1>
-          <p className="page-subtitle">Completed evidence, stored unchanged as your inspection record.</p>
+          <p className="page-subtitle">
+            {ev.anonymisedAt
+              ? "This record has been anonymised under the retention policy."
+              : "Completed evidence, stored unchanged as your inspection record."}
+          </p>
         </div>
-        <a href={`/api/evidence/${ev.id}/pdf`} className="btn-primary px-4 py-2 text-sm">
-          Download PDF
-        </a>
+        {/* No PDF for an anonymised record: it would render as a form with every answer
+            blank, which somebody could file as though it were the evidence. */}
+        {ev.anonymisedAt ? null : (
+          <a href={`/api/evidence/${ev.id}/pdf`} className="btn-primary px-4 py-2 text-sm">
+            Download PDF
+          </a>
+        )}
       </div>
+
+      {/* Said plainly and at the top. Without it, every answer reading "Not answered" looks
+          like a check that was completed badly rather than one whose personal detail was
+          deliberately removed years later. */}
+      {ev.anonymisedAt ? (
+        <div className="glass-card border border-amber-400/30 p-4">
+          <p className="text-sm text-amber-200">
+            The personal detail in this record was removed on {ukDate(ev.anonymisedAt.slice(0, 10))},
+            because it passed the retention period for evidence.
+          </p>
+          <p className="mt-1 text-sm text-white/60">
+            What is kept is the fact that this check was completed, when, by which form and on
+            which version of it. The answers, the author and any attached files are gone and
+            cannot be recovered.
+          </p>
+        </div>
+      ) : null}
 
       <div className="glass-card grid gap-3 p-5 sm:grid-cols-4">
         <div>
@@ -205,8 +231,9 @@ export default async function EvidenceViewPage({
       })}
 
       <p className="text-xs text-white/40">
-        This evidence is immutable. The PDF is generated from the same stored snapshot, so it always
-        matches what is shown here.
+        {ev.anonymisedAt
+          ? "The record of this check is kept as your inspection history. Its personal detail is not."
+          : "This evidence is immutable. The PDF is generated from the same stored snapshot, so it always matches what is shown here."}
       </p>
     </div>
   );

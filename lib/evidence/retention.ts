@@ -60,7 +60,7 @@ export async function backfillRetentionForRecord(input: {
   recordId: string;
   endOfCare: Date;
   minYears?: number;
-}): Promise<{ updated: number }> {
+}): Promise<{ updated: number; error?: string }> {
   const until = computeRetentionUntil(input.endOfCare, input.minYears ?? DEFAULT_RETENTION_MIN_YEARS);
   const supabase = createServiceClient();
   const { data, error } = await supabase
@@ -71,7 +71,7 @@ export async function backfillRetentionForRecord(input: {
     .eq("record_id", input.recordId)
     .is("retention_until", null)
     .select("id");
-  if (error) return { updated: 0 };
+  if (error) return { updated: 0, error: error.message };
   return { updated: data?.length ?? 0 };
 }
 
@@ -168,21 +168,29 @@ export async function applyRetentionForRecord(input: {
    *  and read back in another can slide a day, and this day decides when records go. */
   endOfCare: string | null;
   minYears?: number;
-}): Promise<{ updated: number }> {
+  // The error is RETURNED, not swallowed. A retention clock that silently fails to start, or
+  // silently fails to stop, is the exact failure this whole item exists to remove; the
+  // callers put it in the audit row so it is visible after the fact.
+}): Promise<{ updated: number; error?: string }> {
   const supabase = createServiceClient();
   const minYears = input.minYears ?? DEFAULT_RETENTION_MIN_YEARS;
 
   // Cleared, not left behind: see the note above about a leaver who returns.
   if (!input.endOfCare) {
+    // ONLY retention_until is cleared. retention_min_years is NOT NULL with a default of 8
+    // (it is the policy, not a fact about this record), and the first version of this tried
+    // to null it: every clear was rejected by the database, the error was swallowed here,
+    // and a returning employee's records silently kept counting down. Found live 2026-08-11
+    // by checking the rows after the screen said "Saved".
     const { data, error } = await supabase
       .from("evidence")
-      .update({ retention_until: null, retention_min_years: null })
+      .update({ retention_until: null })
       .eq("company_id", input.companyId)
       .eq("record_type", input.recordType)
       .eq("record_id", input.recordId)
       .is("anonymised_at", null)
       .select("id");
-    if (error) return { updated: 0 };
+    if (error) return { updated: 0, error: error.message };
     return { updated: data?.length ?? 0 };
   }
 

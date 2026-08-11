@@ -49,6 +49,11 @@ export type EvidenceView = {
   branchName: string | null;
   recordType: "person" | "service_user" | "complaint";
   recordId: string;
+  /** Set once the retention rule (or an erasure request) has emptied this record. The page
+   *  MUST say so: an anonymised record with every answer reading "Not answered" otherwise
+   *  looks like a check somebody filled in badly, which on a regulator's file is worse than
+   *  saying plainly that the detail was removed on purpose. */
+  anonymisedAt: string | null;
   schema: FormSchema;
   answers: Answers;
   /** Uploaded files / signatures, keyed by field key, for signed download links. */
@@ -58,6 +63,7 @@ export type EvidenceView = {
 type EvidenceViewRow = EvidenceRow & {
   record_type: "person" | "service_user";
   record_id: string;
+  anonymised_at: string | null;
 };
 
 /**
@@ -73,7 +79,7 @@ export async function getEvidenceView(
   const { data, error } = await supabase
     .from("evidence")
     .select(
-      "id, company_id, branch_id, record_type, record_id, schema_snapshot, answers, author_name, author_email, submitted_at, pdf_path, companies(name), branches(name), form_versions(version), forms(name)",
+      "id, company_id, branch_id, record_type, record_id, schema_snapshot, answers, author_name, author_email, submitted_at, pdf_path, anonymised_at, companies(name), branches(name), form_versions(version), forms(name)",
     )
     .eq("id", evidenceId)
     .maybeSingle<EvidenceViewRow>();
@@ -130,6 +136,7 @@ export async function getEvidenceView(
       branchName: data.branches?.name ?? null,
       recordType: data.record_type,
       recordId: data.record_id,
+      anonymisedAt: data.anonymised_at ?? null,
       schema: data.schema_snapshot as FormSchema,
       answers: (data.answers ?? {}) as Answers,
       files,
@@ -170,13 +177,22 @@ export async function evidenceSignedPdfUrl(input: {
   const { data, error } = await supabase
     .from("evidence")
     .select(
-      "id, company_id, branch_id, schema_snapshot, answers, author_name, author_email, submitted_at, pdf_path, companies(name), branches(name), form_versions(version), forms(name)",
+      "id, company_id, branch_id, schema_snapshot, answers, author_name, author_email, submitted_at, pdf_path, anonymised_at, companies(name), branches(name), form_versions(version), forms(name)",
     )
     .eq("id", input.evidenceId)
-    .maybeSingle<EvidenceRow>();
+    .maybeSingle<EvidenceRow & { anonymised_at: string | null }>();
 
   if (error) return { ok: false, error: error.message };
   if (!data) return { ok: false, error: "That evidence could not be found, or you cannot access it." };
+  // An anonymised record would render as a form with every answer blank. Handing that over
+  // as "the evidence PDF" invites somebody to file it as though it were the record.
+  if (data.anonymised_at) {
+    return {
+      ok: false,
+      error:
+        "The detail in this record was removed under the retention policy, so there is no document to produce.",
+    };
+  }
 
   // Legacy rows carry a stored PDF: sign it directly (still audited).
   if (data.pdf_path) {
