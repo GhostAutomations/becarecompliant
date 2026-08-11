@@ -11,9 +11,27 @@ import "server-only";
  * the IGA / NHS Records Management Code for adult social care records. The clock
  * starts when a record ends (a leaver or a discharged service user), which is
  * why retention_until is null until then and backfilled from Phase 3/4.
+ *
+ * ITEM 18, 2026-08-11: for a year this module held the rule and NOTHING CALLED ANY OF IT.
+ * Every evidence row had retention_until null and nothing had ever been anonymised, so
+ * evidence was kept for ever. It is wired up now:
+ *
+ *   setting the clock   applyRetentionForRecord, called the moment a Person is marked a
+ *                       leaver or a Service User is discharged (and it CLEARS the date
+ *                       again if that status is undone, so a returning employee's records
+ *                       do not keep counting down from a stale leaving date);
+ *   running the rule    runRetentionExpiry, called only by the daily retention cron, which
+ *                       anonymises what is genuinely past its date, skips anything on a
+ *                       retention hold, purges the storage objects and audits every row.
+ *
+ * Nothing here deletes an evidence ROW. Anonymising empties the answers, the author and the
+ * files and stamps anonymised_at: the fact that a check was completed, when, and against
+ * which form version survives, because that is the compliance history. The personal data
+ * inside it does not.
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { addYearsIso } from "@/lib/dates";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
 import { deleteEvidenceObjects } from "./storage";
@@ -124,4 +142,139 @@ export async function sarEvidenceForSubject(input: {
   });
   if (error) return { ok: false, error: error.message };
   return { ok: true, rows: data ?? [] };
+}
+
+/**
+ * Set or CLEAR retention_until for every evidence row on one record, called whenever that
+ * record's end of care changes.
+ *
+ * Both directions matter. A Person marked a leaver starts the eight year clock; the same
+ * Person put back to Active (they came back, or somebody clicked the wrong pill) must have
+ * the clock STOPPED, or their evidence would sit with a date derived from a leaving that no
+ * longer happened and would one day be anonymised while they still work there.
+ *
+ * Uses the service role: `evidence` has no end-user UPDATE policy, deliberately, because it
+ * is append only. Never throws, and returns the count so callers can log it.
+ */
+export async function applyRetentionForRecord(input: {
+  companyId: string;
+  recordType: "person" | "service_user";
+  recordId: string;
+  /** The end of care date (leaver / discharge) as ISO yyyy-mm-dd, or null when the record
+   *  is live again. A STRING, not a Date: a civil date turned into a Date in one timezone
+   *  and read back in another can slide a day, and this day decides when records go. */
+  endOfCare: string | null;
+  minYears?: number;
+}): Promise<{ updated: number }> {
+  const supabase = createServiceClient();
+  const minYears = input.minYears ?? DEFAULT_RETENTION_MIN_YEARS;
+
+  // Cleared, not left behind: see the note above about a leaver who returns.
+  if (!input.endOfCare) {
+    const { data, error } = await supabase
+      .from("evidence")
+      .update({ retention_until: null, retention_min_years: null })
+      .eq("company_id", input.companyId)
+      .eq("record_type", input.recordType)
+      .eq("record_id", input.recordId)
+      .is("anonymised_at", null)
+      .select("id");
+    if (error) return { updated: 0 };
+    return { updated: data?.length ?? 0 };
+  }
+
+  const until = addYearsIso(input.endOfCare, minYears);
+  // An unparseable end of care leaves the clock unset rather than guessing a date: no
+  // retention date at all is safe (nothing expires), a wrong one destroys records early.
+  if (!until) return { updated: 0 };
+  // Overwrites an existing date on purpose (unlike backfillRetentionForRecord, which only
+  // fills a null): if the leaving date is corrected, the clock must move with it.
+  const { data, error } = await supabase
+    .from("evidence")
+    .update({
+      retention_until: until,
+      retention_basis: "end_of_care",
+      retention_min_years: minYears,
+    })
+    .eq("company_id", input.companyId)
+    .eq("record_type", input.recordType)
+    .eq("record_id", input.recordId)
+    .is("anonymised_at", null)
+    .select("id");
+  if (error) return { updated: 0 };
+  return { updated: data?.length ?? 0 };
+}
+
+export type RetentionExpiryResult = {
+  anonymised: number;
+  objectsRemoved: number;
+  companies: number;
+  /** True when the run filled its batch, so more is probably waiting for tomorrow. */
+  batchFull?: boolean;
+  error?: string;
+};
+
+/**
+ * THE ONLY scheduled path that destroys personal data. Called by /api/cron/retention.
+ *
+ * The selection, the hold check and the anonymisation all happen inside
+ * expire_evidence_retention (migration 0171), in one statement, so nothing here can pick a
+ * different set of rows than the ones that get emptied. That function is service role only:
+ * a browser cannot reach it, whatever it sends.
+ *
+ * Order is deliberate: the database row is anonymised FIRST and the storage objects are
+ * removed after. If the object removal fails, the record is already anonymised and the file
+ * is orphaned in a private bucket, which is recoverable. The other order would leave a
+ * record claiming to hold evidence whose file had already gone.
+ */
+export async function runRetentionExpiry(options?: { limit?: number }): Promise<RetentionExpiryResult> {
+  const supabase = createServiceClient();
+  const { data, error } = await supabase.rpc("expire_evidence_retention", {
+    p_limit: options?.limit ?? 200,
+  });
+  if (error) {
+    return { anonymised: 0, objectsRemoved: 0, companies: 0, error: error.message };
+  }
+
+  const rows = (data ?? []) as {
+    evidence_id: string;
+    company_id: string;
+    purged_path: string | null;
+  }[];
+  const byEvidence = new Map<string, { companyId: string; paths: string[] }>();
+  for (const row of rows) {
+    const entry = byEvidence.get(row.evidence_id) ?? { companyId: row.company_id, paths: [] };
+    if (row.purged_path) entry.paths.push(row.purged_path);
+    byEvidence.set(row.evidence_id, entry);
+  }
+
+  const allPaths = [...byEvidence.values()].flatMap((v) => v.paths);
+  await deleteEvidenceObjects(allPaths);
+
+  const companies = new Set<string>();
+  for (const [evidenceId, entry] of byEvidence) {
+    companies.add(entry.companyId);
+    await writeAudit({
+      companyId: entry.companyId,
+      actorId: null,
+      actorEmail: null,
+      actorRole: "retention",
+      action: "evidence.anonymised",
+      entityType: "evidence",
+      entityId: evidenceId,
+      summary: "Anonymised by the retention rule (past its retention date)",
+      metadata: { objects_removed: entry.paths.length, reason: "retention_expiry" },
+    });
+  }
+
+  // NO SILENT CAPS. A full batch means there is probably more waiting, and tomorrow's run
+  // will take the next batch. Saying so is the difference between "nothing left to do" and
+  // "we stopped counting". Not treated as an error, because it is not one.
+  const limit = options?.limit ?? 200;
+  return {
+    anonymised: byEvidence.size,
+    objectsRemoved: allPaths.length,
+    companies: companies.size,
+    batchFull: byEvidence.size >= limit,
+  };
 }

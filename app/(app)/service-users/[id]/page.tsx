@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
+import { ukDate } from "@/lib/dates";
 import { writeAudit } from "@/lib/audit";
 import BackLink from "@/components/back-link";
 import ActionForm from "@/components/action-form";
@@ -29,6 +30,7 @@ import {
   unassignServiceUserSupervisor,
   applyMissingChecks,
   setServiceStatus,
+  setServiceUserRetentionHold,
   transferServiceUser,
 } from "@/lib/service-users/actions";
 import { formatDisplayDate, recurrenceLabel, reviewStatus, reviewSlots } from "@/lib/service-users/logic";
@@ -427,6 +429,63 @@ export default async function ServiceUserPage({
                 />
               ) : null}
             </div>
+
+            {/* RETENTION HOLD (item 18). Offered once a Service User is Cancelled, which is
+                when their eight year clock starts, and whenever a hold is already on so it
+                can always be lifted. Mirrors the People record one for one. */}
+            {serviceUser.service_status === "cancelled" || serviceUser.retention_hold ? (
+              <div className="border-t border-white/10 pt-4">
+                <h3 className="text-sm font-semibold text-white/80">Records retention</h3>
+                {serviceUser.retention_hold ? (
+                  <>
+                    <p className="mt-1 text-sm text-amber-200">
+                      On hold: these records will not be anonymised when their retention date
+                      passes.
+                    </p>
+                    <p className="mt-1 text-xs text-white/60">
+                      Reason: {serviceUser.retention_hold_reason || "Not recorded"}
+                      {serviceUser.retention_hold_set_at
+                        ? ` · held ${ukDate(serviceUser.retention_hold_set_at.slice(0, 10))}`
+                        : ""}
+                    </p>
+                    <div className="mt-3">
+                      <ActionForm
+                        action={setServiceUserRetentionHold}
+                        hidden={{ service_user_id: serviceUser.id, hold: "false" }}
+                        label="Lift the hold"
+                        buttonClassName="btn-ghost text-xs"
+                        className=""
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="mt-1 text-sm text-white/60">
+                      Evidence for a discharged Service User is kept for eight years from their
+                      discharge date and is then anonymised automatically. Hold it if these
+                      records must be kept longer, for example an ongoing investigation.
+                    </p>
+                    <ActionForm
+                      action={setServiceUserRetentionHold}
+                      hidden={{ service_user_id: serviceUser.id, hold: "true" }}
+                      inline
+                      label="Hold these records"
+                      buttonClassName="btn-outline text-xs"
+                    >
+                      <label htmlFor="su_retention_reason" className="form-label">Reason</label>
+                      <input
+                        id="su_retention_reason"
+                        name="reason"
+                        type="text"
+                        maxLength={500}
+                        placeholder="Why these records must be kept"
+                        required
+                      />
+                    </ActionForm>
+                  </>
+                )}
+              </div>
+            ) : null}
           </div>
         </details>
       ) : null}

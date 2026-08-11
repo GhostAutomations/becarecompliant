@@ -19,6 +19,7 @@ import { writeAudit } from "@/lib/audit";
 import { inviteStaffForPerson } from "@/lib/staff/invite";
 import { assignStandingPolicies } from "@/lib/assignments/new-starters";
 import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
+import { applyRetentionForRecord } from "@/lib/evidence/retention";
 import { type Answers, type FormSchema, firstDateFieldKey, isFormSchema } from "@/lib/form-schema";
 import type { ActionState } from "@/lib/forms";
 import type { CheckDefinition } from "./types";
@@ -285,6 +286,16 @@ export async function setEmploymentStatus(
   if (error) return { error: error.message };
   if (!data || data.length === 0) return { error: "No change was saved. You may not have permission." };
 
+  // ITEM 18: end of care is what starts the eight year retention clock, and this is the one
+  // place a Person's ends. Passing null when they are NOT a leaver clears the date again, so
+  // somebody put back to Active does not keep counting down from a leaving that was undone.
+  const retention = await applyRetentionForRecord({
+    companyId: profile.company_id ?? "",
+    recordType: "person",
+    recordId: personId,
+    endOfCare: leaver_date,
+  });
+
   await writeAudit({
     companyId: profile.company_id ?? "",
     actorId: user.id,
@@ -294,7 +305,7 @@ export async function setEmploymentStatus(
     entityType: "person",
     entityId: personId,
     summary: `Set working status to ${status}`,
-    metadata: { status },
+    metadata: { status, retention_rows_updated: retention.updated },
   });
 
   revalidatePath(`/people/${personId}`);
@@ -1064,4 +1075,62 @@ export async function removeJobTitle(formData: FormData): Promise<ActionState> {
 
   revalidatePath("/settings/people");
   return { ok: "Removed" };
+}
+
+/**
+ * Put a Person's records on, or take them off, a RETENTION HOLD (THE LIST item 18).
+ *
+ * A held record's evidence is never anonymised by the retention rule, whatever its date.
+ * It exists because an automatic expiry with no escape hatch will eventually destroy
+ * evidence somebody still needs: an ongoing employment tribunal, a safeguarding
+ * investigation, an insurance claim, a police request.
+ *
+ * ADMIN ONLY. Keeping personal data beyond its retention period is a data protection
+ * decision, not a day to day one, and the reason is recorded because "why is this still
+ * here" is the question asked years later, when nobody remembers.
+ */
+export async function setRetentionHold(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requireCompanyAdmin();
+  const personId = String(formData.get("person_id") ?? "");
+  const hold = String(formData.get("hold") ?? "") === "true";
+  const reason = String(formData.get("reason") ?? "").trim();
+  if (!personId) return { error: "Missing record." };
+  if (hold && reason === "") {
+    return { error: "Give a reason for holding these records." };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("people")
+    .update({
+      retention_hold: hold,
+      // The reason is cleared when the hold is lifted: a stale reason on a record that is
+      // no longer held reads as though it still is.
+      retention_hold_reason: hold ? reason.slice(0, 500) : null,
+      retention_hold_set_at: hold ? new Date().toISOString() : null,
+      retention_hold_set_by: hold ? user.id : null,
+    })
+    .eq("id", personId)
+    .select("id");
+  if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "No change was saved. You may not have permission." };
+
+  await writeAudit({
+    companyId: profile.company_id ?? "",
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: hold ? "person.retention_held" : "person.retention_hold_lifted",
+    entityType: "person",
+    entityId: personId,
+    summary: hold ? `Held records beyond retention: ${reason}` : "Lifted the retention hold",
+    metadata: { hold, reason: hold ? reason : null },
+  });
+
+  revalidatePath(`/people/${personId}`);
+  revalidatePath("/settings/retention");
+  return { ok: hold ? "Records held." : "Hold lifted." };
 }

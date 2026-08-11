@@ -35,6 +35,10 @@ export type ServiceUserRecord = {
   package_start_date: string | null;
   service_status: ServiceStatus;
   discharge_date: string | null;
+  /** Retention hold (item 18): see the People twin. */
+  retention_hold?: boolean | null;
+  retention_hold_reason?: string | null;
+  retention_hold_set_at?: string | null;
   archived_at: string | null;
   care_plan_path?: string | null;
   care_plan_uploaded_at?: string | null;

@@ -14,12 +14,13 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireCompany } from "@/lib/auth/guards";
+import { requireCompany, requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { sendCalendarInvite } from "@/lib/notifications/invites";
 import { escapeHtml } from "@/lib/email/templates";
 import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
+import { applyRetentionForRecord } from "@/lib/evidence/retention";
 import { type Answers, type FormSchema, firstDateFieldKey, isFormSchema } from "@/lib/form-schema";
 import type { ActionState } from "@/lib/forms";
 import type { CheckDefinition } from "@/lib/people/types";
@@ -512,6 +513,15 @@ export async function setServiceStatus(
   if (error) return { error: error.message };
   if (!data || data.length === 0) return { error: "No change was saved. You may not have permission." };
 
+  // ITEM 18: a discharge is a Service User's end of care, so it starts the eight year
+  // retention clock; any other status clears it again (see the People twin).
+  const retention = await applyRetentionForRecord({
+    companyId: profile.company_id ?? "",
+    recordType: "service_user",
+    recordId: id,
+    endOfCare: discharge_date,
+  });
+
   await writeAudit({
     companyId: profile.company_id ?? "",
     actorId: user.id,
@@ -521,7 +531,7 @@ export async function setServiceStatus(
     entityType: "service_user",
     entityId: id,
     summary: `Set service status to ${status}`,
-    metadata: { status },
+    metadata: { status, retention_rows_updated: retention.updated },
   });
 
   revalidatePath(`/service-users/${id}`);
@@ -1039,4 +1049,54 @@ export async function getCarePlanUrl(
     summary: "Viewed a care plan document",
   });
   return { url: res.url };
+}
+
+/**
+ * Put a Service User's records on, or take them off, a RETENTION HOLD (item 18).
+ * The People twin carries the full reasoning; kept as its own function rather than one
+ * generic helper because each population has its own RLS path and its own audit verbs.
+ * ADMIN ONLY, and the reason is required.
+ */
+export async function setServiceUserRetentionHold(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requireCompanyAdmin();
+  const id = String(formData.get("service_user_id") ?? "");
+  const hold = String(formData.get("hold") ?? "") === "true";
+  const reason = String(formData.get("reason") ?? "").trim();
+  if (!id) return { error: "Missing record." };
+  if (hold && reason === "") {
+    return { error: "Give a reason for holding these records." };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("service_users")
+    .update({
+      retention_hold: hold,
+      retention_hold_reason: hold ? reason.slice(0, 500) : null,
+      retention_hold_set_at: hold ? new Date().toISOString() : null,
+      retention_hold_set_by: hold ? user.id : null,
+    })
+    .eq("id", id)
+    .select("id");
+  if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "No change was saved. You may not have permission." };
+
+  await writeAudit({
+    companyId: profile.company_id ?? "",
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: hold ? "service_user.retention_held" : "service_user.retention_hold_lifted",
+    entityType: "service_user",
+    entityId: id,
+    summary: hold ? `Held records beyond retention: ${reason}` : "Lifted the retention hold",
+    metadata: { hold, reason: hold ? reason : null },
+  });
+
+  revalidatePath(`/service-users/${id}`);
+  revalidatePath("/settings/retention");
+  return { ok: hold ? "Records held." : "Hold lifted." };
 }

@@ -31,6 +31,12 @@ export type PersonRecord = {
   work_email: string | null;
   mobile: string | null;
   archived_at: string | null;
+  /** Retention hold (item 18): while true, this record's evidence is never anonymised by
+   *  the retention rule, whatever its date. For an ongoing tribunal, safeguarding
+   *  investigation or insurance claim. */
+  retention_hold?: boolean | null;
+  retention_hold_reason?: string | null;
+  retention_hold_set_at?: string | null;
 };
 
 /** A company's compliance requirement; drives one matrix column. */

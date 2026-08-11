@@ -80,11 +80,12 @@ const SECTIONS: Section[] = [
     heading: "How long we keep it",
     body: [
       // Careful with this sentence. The first draft said evidence "is anonymised" after eight
-      // years, which the code does not do: lib/evidence/retention.ts holds the rule and the
-      // anonymise function, but nothing calls them, retention_until is never populated and
-      // there is no retention cron. A privacy notice that promises a process nobody runs is
-      // worse than one that stays quiet, so this now says only what is true today.
-      "Compliance evidence is kept for at least eight years from the end of a person's care, which reflects what a care provider is expected to be able to produce for a regulator. After that it can be anonymised, and we will anonymise it or delete it if you ask us to.",
+      // years, which the code did not do, so it was re-worded to say only what was true.
+      // As of 2026-08-11 it IS true: a retention date is set the moment a person leaves or a
+      // service user is discharged, and /api/cron/retention anonymises what has passed its
+      // date every night (migration 0171). Before changing this sentence again, check that
+      // the cron is still in vercel.json and still running.
+      "Compliance evidence is kept for at least eight years from the end of a person's care, which reflects what a care provider is expected to be able to produce for a regulator. When that period is up we anonymise it automatically: the record that a check happened stays, and the personal detail inside it is removed. A care company can hold particular records back for longer where they have to, for example while a tribunal or an investigation is running.",
       "If your company stops using Be Care Compliant, your records are not deleted the moment a subscription ends. Tell us and we will export them for you or delete them, whichever you ask for.",
     ],
   },

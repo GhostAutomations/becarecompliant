@@ -114,6 +114,13 @@ export default async function SettingsPage() {
             deadlines.
           </p>
         </Link>
+        <Link href="/settings/retention" className="app-tile">
+          <h2 className="text-base font-semibold text-white">Data retention</h2>
+          <p className="text-sm text-white/60">
+            How long evidence is kept, what is due to be anonymised, and any records held
+            back for an investigation.
+          </p>
+        </Link>
         <Link href="/settings/forms" className="app-tile">
           <h2 className="text-base font-semibold text-white">Forms</h2>
           <p className="text-sm text-white/60">

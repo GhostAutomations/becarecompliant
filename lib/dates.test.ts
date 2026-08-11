@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 /** RELATIVE, EXTENSIONED: node --experimental-strip-types resolves neither aliases nor
  *  extensionless files, so the module under test stays importless and is reached this way. */
-import { ukDate } from "./dates.ts";
+import { addYearsIso, ukDate } from "./dates.ts";
 
 test("an ISO date reads as a British date on a document", () => {
   assert.equal(ukDate("2026-07-16"), "16 July 2026");
@@ -54,4 +54,41 @@ test("month and year boundaries survive the round trip guard", () => {
   assert.equal(ukDate("2026-03-01"), "1 March 2026");
   assert.equal(ukDate("2026-04-30"), "30 April 2026");
   assert.equal(ukDate("2026-12-31"), "31 December 2026");
+});
+
+// --- addYearsIso: the eight year retention clock (THE LIST item 18) -----------
+//
+// This function decides the day somebody's evidence is destroyed, so it is tested on the
+// awkward dates rather than the easy ones.
+
+test("eight years on from a leaving date", () => {
+  assert.equal(addYearsIso("2026-08-11", 8), "2034-08-11");
+  assert.equal(addYearsIso("2020-01-01", 8), "2028-01-01");
+});
+
+// 29 February has no anniversary in a non leap year. Clamping keeps it in February; rolling
+// forward would land the record in March, a month later than the anniversary anybody reading
+// the record would expect.
+test("29 February clamps to 28 February when the target year is not a leap year", () => {
+  assert.equal(addYearsIso("2024-02-29", 8), "2032-02-29"); // 2032 IS a leap year
+  assert.equal(addYearsIso("2024-02-29", 1), "2025-02-28");
+  assert.equal(addYearsIso("2024-02-29", 3), "2027-02-28");
+});
+
+test("month ends survive", () => {
+  assert.equal(addYearsIso("2026-01-31", 8), "2034-01-31");
+  assert.equal(addYearsIso("2026-12-31", 8), "2034-12-31");
+});
+
+// Better no retention date at all (nothing ever expires) than a wrong one (records destroyed
+// on a date nobody chose).
+test("anything that is not an ISO date returns null rather than a guess", () => {
+  assert.equal(addYearsIso("11/08/2026", 8), null);
+  assert.equal(addYearsIso("", 8), null);
+  assert.equal(addYearsIso("2026-13-01", 8), null);
+  assert.equal(addYearsIso("not a date", 8), null);
+});
+
+test("zero years is the same date, so a mis-set minimum cannot silently shift it", () => {
+  assert.equal(addYearsIso("2026-08-11", 0), "2026-08-11");
 });
