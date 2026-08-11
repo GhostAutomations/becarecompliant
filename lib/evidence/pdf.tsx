@@ -30,7 +30,7 @@ import {
   isBinaryField,
   isPresentational,
 } from "@/lib/form-schema";
-import type { EvidenceAttachments } from "@/lib/evidence/image-format";
+import { drawnImageBox, type EvidenceAttachments } from "@/lib/evidence/image-format";
 import { shouldShowInEvidence } from "@/lib/form-validate";
 import { formatAnswerForDisplay } from "@/lib/form-format";
 
@@ -84,11 +84,14 @@ const styles = StyleSheet.create({
   // tall. No background colour, no tint: the image is drawn exactly as it was signed.
   signatureImage: { width: 180, marginTop: 2, marginBottom: 2 },
   signatureCaption: { fontSize: 8, color: MUTED },
-  // A FIXED box with objectFit contain, not a free width. A width-only image keeps its
-  // aspect ratio but its height is then whatever the photo says, and a tall portrait
-  // passport shot can be taller than the page it is drawn on, which clips the record.
-  // A fixed box can never overflow, and contain still refuses to squash the picture.
-  attachmentImage: { width: 200, height: 200, objectFit: "contain", marginTop: 3, marginBottom: 1 },
+  // Width and height are set PER IMAGE (drawnImageBox) from the picture's real pixel
+  // size, never left free: a width-only image is as tall as the photo says, and a tall
+  // portrait passport shot can then be taller than the page it is drawn on, which clips
+  // the record. A measured box reserves no more room than the picture needs, which
+  // matters because the first version reserved a full square and the wasted space under
+  // a landscape photo was enough to spill a Supervision record onto a BLANK second page.
+  // objectFit contain stays as the belt and braces: the picture is never squashed.
+  attachmentImage: { objectFit: "contain", marginTop: 3, marginBottom: 1 },
   attachmentBlock: { marginBottom: 4 },
   footer: { position: "absolute", bottom: 28, left: 44, right: 44, flexDirection: "row", justifyContent: "space-between", borderTopWidth: 0.5, borderTopColor: "#dfe4f0", paddingTop: 6 },
   footerText: { fontSize: 8, color: MUTED },
@@ -228,7 +231,10 @@ export function EvidenceEntry({
                             <>
                               <Image
                                 src={{ data: file.drawable.data, format: file.drawable.format }}
-                                style={styles.attachmentImage}
+                                style={[
+                                  styles.attachmentImage,
+                                  drawnImageBox(file.drawable.pixelWidth, file.drawable.pixelHeight),
+                                ]}
                               />
                               <Text style={styles.signatureCaption}>
                                 {file.kind === "signature" ? "Signature captured" : file.fileName}

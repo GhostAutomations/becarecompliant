@@ -4,10 +4,14 @@ import assert from "node:assert/strict";
 /** RELATIVE, EXTENSIONED: node --experimental-strip-types resolves neither aliases nor
  *  extensionless files, so the module under test is reached this way. */
 import {
+  DRAWN_IMAGE_MAX_HEIGHT,
+  DRAWN_IMAGE_WIDTH,
   MAX_DRAWN_IMAGE_BYTES,
   MAX_DRAWN_IMAGES,
   MAX_DRAWN_TOTAL_BYTES,
   drawableFormat,
+  drawnImageBox,
+  imagePixelSize,
   planEvidenceAttachments,
   type AttachmentRow,
 } from "./image-format.ts";
@@ -139,4 +143,92 @@ test("an undrawable file does not consume the drawing budget", () => {
 test("bytes missing on the row does not block a draw", () => {
   const [plan] = planEvidenceAttachments([row({ bytes: null })]);
   assert.equal(plan.format, "jpg");
+});
+
+// --- reading a picture's shape -----------------------------------------------
+//
+// This is what stops a drawn photograph reserving more room than it needs. The first
+// version reserved a square whatever the picture's shape, and the wasted space under a
+// landscape photo pushed a real Supervision record onto a blank second page.
+
+function pngHeader(width: number, height: number): Buffer {
+  const b = Buffer.alloc(24);
+  b.writeUInt8(0x89, 0);
+  b.write("PNG", 1, "latin1");
+  b.writeUInt32BE(width, 16);
+  b.writeUInt32BE(height, 20);
+  return b;
+}
+
+function jpegHeader(width: number, height: number, marker = 0xc0): Buffer {
+  // SOI, then one APP0-style segment to be skipped, then the frame marker.
+  const b = Buffer.alloc(40, 0);
+  b.writeUInt16BE(0xffd8, 0);
+  b.writeUInt16BE(0xffe0, 2);
+  b.writeUInt16BE(10, 4); // segment length, skipped
+  const at = 14;
+  b.writeUInt8(0xff, at);
+  b.writeUInt8(marker, at + 1);
+  b.writeUInt16BE(11, at + 2); // frame length
+  b.writeUInt8(8, at + 4); // precision
+  b.writeUInt16BE(height, at + 5);
+  b.writeUInt16BE(width, at + 7);
+  return b;
+}
+
+test("a PNG's size is read from its header", () => {
+  assert.deepEqual(imagePixelSize(pngHeader(600, 400)), { width: 600, height: 400 });
+});
+
+test("a JPEG's size is read from the frame marker, past earlier segments", () => {
+  assert.deepEqual(imagePixelSize(jpegHeader(1024, 768)), { width: 1024, height: 768 });
+  // Progressive JPEGs (SOF2) are what a phone often produces.
+  assert.deepEqual(imagePixelSize(jpegHeader(300, 900, 0xc2)), { width: 300, height: 900 });
+});
+
+test("an unreadable file gives up quietly rather than throwing inside a render", () => {
+  assert.equal(imagePixelSize(Buffer.alloc(0)), null);
+  assert.equal(imagePixelSize(Buffer.from("not an image at all", "latin1")), null);
+  assert.equal(imagePixelSize(Buffer.from([0xff, 0xd8, 0xff])), null); // truncated JPEG
+  assert.equal(imagePixelSize(pngHeader(0, 0)), null);
+});
+
+// --- the box the picture is drawn in -----------------------------------------
+
+test("a landscape photo reserves only the height it needs", () => {
+  const box = drawnImageBox(600, 400);
+  assert.equal(box.width, DRAWN_IMAGE_WIDTH);
+  assert.equal(box.height, Math.round(DRAWN_IMAGE_WIDTH * (400 / 600)));
+  assert.ok(box.height < DRAWN_IMAGE_WIDTH, "a landscape box must be shorter than it is wide");
+});
+
+// A phone's ordinary portrait photo. It must fit at full width without being narrowed,
+// because that is the shape a manager photographing a passport actually produces.
+test("a 3 by 4 portrait photo keeps its shape at full width", () => {
+  const box = drawnImageBox(600, 800);
+  assert.equal(box.width, DRAWN_IMAGE_WIDTH);
+  assert.equal(box.height, Math.round(DRAWN_IMAGE_WIDTH * (800 / 600)));
+  assert.ok(box.height <= DRAWN_IMAGE_MAX_HEIGHT);
+});
+
+// The one that protects the page: nothing may ever be taller than the cap, or the
+// picture is clipped by the edge of the paper.
+test("a very tall picture is capped and narrowed, never clipped", () => {
+  const box = drawnImageBox(200, 4000);
+  assert.equal(box.height, DRAWN_IMAGE_MAX_HEIGHT);
+  assert.ok(box.width < DRAWN_IMAGE_WIDTH);
+  assert.ok(box.width >= 1);
+});
+
+test("an unknown size falls back to the safe square", () => {
+  assert.deepEqual(drawnImageBox(undefined, undefined), {
+    width: DRAWN_IMAGE_WIDTH,
+    height: DRAWN_IMAGE_WIDTH,
+  });
+  assert.deepEqual(drawnImageBox(0, 0), { width: DRAWN_IMAGE_WIDTH, height: DRAWN_IMAGE_WIDTH });
+});
+
+test("an extremely wide picture still gets a visible height", () => {
+  const box = drawnImageBox(8000, 20);
+  assert.ok(box.height >= 1);
 });

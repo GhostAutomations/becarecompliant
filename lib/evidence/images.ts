@@ -24,6 +24,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { EVIDENCE_BUCKET } from "./storage";
 import {
+  imagePixelSize,
   planEvidenceAttachments,
   type AttachmentRow,
   type EvidenceAttachment,
@@ -84,7 +85,19 @@ export async function loadEvidenceAttachments(evidenceId: string): Promise<Evide
           if (dlErr || !blob) return { ...named, reason: "fetch_failed" };
           const buffer = Buffer.from(await blob.arrayBuffer());
           if (buffer.length === 0) return { ...named, reason: "fetch_failed" };
-          return { ...named, drawable: { data: buffer, format: plan.format }, reason: null };
+          // Real pixel size, so the PDF reserves the picture's own shape rather than a
+          // square. Unknown is fine: the renderer falls back to a square box.
+          const size = imagePixelSize(buffer);
+          return {
+            ...named,
+            drawable: {
+              data: buffer,
+              format: plan.format,
+              pixelWidth: size?.width,
+              pixelHeight: size?.height,
+            },
+            reason: null,
+          };
         } catch {
           return { ...named, reason: "fetch_failed" };
         }
