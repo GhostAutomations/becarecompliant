@@ -34,8 +34,16 @@ export async function notifyHolidayRequested(opts: {
         .eq("company_id", opts.companyId)
         .eq("status", "active")
         .in("role", ["company_admin", "registered_individual", "registered_manager", "manager"]),
-      supabase.from("companies").select("name").eq("id", opts.companyId).maybeSingle(),
+      supabase.from("companies").select("name, holiday_request_emails_enabled").eq("id", opts.companyId).maybeSingle(),
     ]);
+
+    // Phil, 2026-08-11: a company can silence the "request submitted" approver email
+    // (companies.holiday_request_emails_enabled=false). The request, its approval flow
+    // and the decision email to the requester are unaffected — only this notice is held.
+    if (company?.holiday_request_emails_enabled === false) {
+      outcomes.disabled = "holiday_request_emails_disabled_for_company";
+      return outcomes;
+    }
 
     // Branch Managers only for the request's branch; company wide roles always.
     // Registered Individual and Registered Manager are company wide like an Admin.

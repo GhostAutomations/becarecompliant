@@ -27,8 +27,49 @@ export type HolidayRequestRow = {
   cancelled_at: string | null;
   cancelled_by: string | null;
   cancel_reason: string | null;
+  /** The Evidence this request was filed from (holiday form completion). */
+  request_evidence_id: string | null;
+  /** First date back at work, read from the linked Evidence answers (display only). */
+  return_to_work_date: string | null;
   created_at: string;
 };
+
+/** Field keys on the holiday form that hold the first date back at work. */
+const RETURN_DATE_KEYS = ["what_is_the_first_date_you_are_avail"];
+
+function pickReturnDate(answers: Record<string, unknown> | null | undefined): string | null {
+  if (!answers) return null;
+  for (const k of RETURN_DATE_KEYS) {
+    const v = answers[k];
+    if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+  }
+  // Fall back to any date-valued answer whose key mentions availability, so a
+  // company whose holiday form uses a different key still shows the return date.
+  for (const [k, v] of Object.entries(answers)) {
+    if (/avail/i.test(k) && typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+  }
+  return null;
+}
+
+/** Attach the first-date-back (from each request's linked Evidence) for display. */
+async function withReturnDates(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  rows: HolidayRequestRow[],
+): Promise<HolidayRequestRow[]> {
+  const ids = rows
+    .map((r) => r.request_evidence_id)
+    .filter((x): x is string => typeof x === "string" && x.length > 0);
+  if (ids.length === 0) return rows.map((r) => ({ ...r, return_to_work_date: null }));
+  const { data } = await supabase.from("evidence").select("id, answers").in("id", ids);
+  const byId = new Map<string, Record<string, unknown>>();
+  for (const e of (data ?? []) as Array<{ id: string; answers: Record<string, unknown> }>) {
+    byId.set(e.id, e.answers);
+  }
+  return rows.map((r) => ({
+    ...r,
+    return_to_work_date: r.request_evidence_id ? pickReturnDate(byId.get(r.request_evidence_id)) : null,
+  }));
+}
 
 export async function listHolidayRequests(
   companyId: string,
@@ -42,7 +83,7 @@ export async function listHolidayRequests(
     .order("start_date", { ascending: true });
   if (branchId) query = query.eq("branch_id", branchId);
   const { data } = await query;
-  return (data as HolidayRequestRow[] | null) ?? [];
+  return withReturnDates(supabase, (data as HolidayRequestRow[] | null) ?? []);
 }
 
 export async function listPersonHolidays(
@@ -54,5 +95,5 @@ export async function listPersonHolidays(
     .select("*")
     .eq("person_id", personId)
     .order("start_date", { ascending: false });
-  return (data as HolidayRequestRow[] | null) ?? [];
+  return withReturnDates(supabase, (data as HolidayRequestRow[] | null) ?? []);
 }

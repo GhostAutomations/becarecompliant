@@ -425,6 +425,7 @@ export default function HolidayView({
                   </p>
                   <p className="text-xs text-white/60">
                     {fmt(r.start_date)} to {fmt(r.end_date)}
+                    {r.return_to_work_date ? ` · Back at work ${fmt(r.return_to_work_date)}` : ""}
                     {r.note ? ` · ${r.note}` : ""}
                   </p>
                   {clashLine(r)}
