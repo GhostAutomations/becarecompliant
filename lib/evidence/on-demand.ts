@@ -11,7 +11,8 @@ import "server-only";
  * Flow, security enforced at every step:
  *   1. Read the evidence row through the CALLER's RLS client, so a user can only
  *      obtain a PDF for evidence they are allowed to see (record and role scoped).
- *   2. Render (or reuse a legacy stored PDF), upload to a render path in the
+ *   2. Render (or reuse a legacy stored PDF, which is left exactly as it was stored,
+ *      because immutable evidence is not regenerated), upload to a render path in the
  *      PRIVATE bucket with the service role, and hand back a 5 minute signed URL.
  *   3. signEvidenceDownload writes the evidence.downloaded audit row (GDPR read
  *      audit for special-category data). The immutable evidence row is never
@@ -22,12 +23,21 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { isFormSchema, type Answers, type FormSchema } from "@/lib/form-schema";
 import { renderEvidencePdf, type EvidencePdfMeta } from "@/lib/evidence/pdf";
+import { loadEvidenceAttachments } from "@/lib/evidence/images";
+import { drawableFormat } from "@/lib/evidence/image-format";
 import { EVIDENCE_BUCKET, signEvidenceDownload } from "@/lib/evidence/storage";
 import { writeAudit } from "@/lib/audit";
 
 export type EvidenceActor = { id: string; email: string; role: string };
 
-export type EvidenceFileRef = { fileName: string; kind: string };
+export type EvidenceFileRef = {
+  fileName: string;
+  kind: string;
+  /** True when the on screen record can preview it inline. Uses the SAME test the PDF
+   *  uses (lib/evidence/image-format.ts), so the screen and the paper agree on which
+   *  attachments are pictures and which are just files. */
+  previewable: boolean;
+};
 
 export type EvidenceView = {
   id: string;
@@ -77,11 +87,23 @@ export async function getEvidenceView(
   // the read-only view to offer signed download links.
   const { data: filesRaw } = await supabase
     .from("evidence_files")
-    .select("field_key, file_name, storage_path, kind")
+    .select("field_key, file_name, storage_path, kind, mime_type")
     .eq("evidence_id", data.id);
   const files: Record<string, EvidenceFileRef> = {};
-  for (const f of (filesRaw as { field_key: string; file_name: string | null; storage_path: string | null; kind: string }[] | null) ?? []) {
-    if (f.storage_path) files[f.field_key] = { fileName: f.file_name ?? "file", kind: f.kind };
+  for (const f of (filesRaw as {
+    field_key: string;
+    file_name: string | null;
+    storage_path: string | null;
+    kind: string;
+    mime_type: string | null;
+  }[] | null) ?? []) {
+    if (f.storage_path) {
+      files[f.field_key] = {
+        fileName: f.file_name ?? "file",
+        kind: f.kind,
+        previewable: drawableFormat(f.mime_type, f.file_name) !== null,
+      };
+    }
   }
 
   await writeAudit({
@@ -188,9 +210,19 @@ export async function evidenceSignedPdfUrl(input: {
     evidenceRef: shortRef(data.id),
   };
 
+  // Photographs and other uploads live in the private bucket, not in the answers, so
+  // they are fetched here and handed to the renderer. Never throws: a record whose
+  // attachments cannot be read still renders, printing what it printed before item 15.
+  const attachments = await loadEvidenceAttachments(data.id);
+
   let bytes: Buffer;
   try {
-    bytes = await renderEvidencePdf(data.schema_snapshot as FormSchema, data.answers ?? {}, meta);
+    bytes = await renderEvidencePdf(
+      data.schema_snapshot as FormSchema,
+      data.answers ?? {},
+      meta,
+      attachments,
+    );
   } catch (e) {
     return { ok: false, error: `The evidence PDF could not be generated: ${(e as Error).message}` };
   }
@@ -241,6 +273,12 @@ export async function renderEvidenceBytes(
     submittedAt: new Date(data.submitted_at),
     evidenceRef: shortRef(data.id),
   };
-  const bytes = await renderEvidencePdf(data.schema_snapshot as FormSchema, data.answers ?? {}, meta);
+  const attachments = await loadEvidenceAttachments(data.id);
+  const bytes = await renderEvidencePdf(
+    data.schema_snapshot as FormSchema,
+    data.answers ?? {},
+    meta,
+    attachments,
+  );
   return { ok: true, bytes, ref: shortRef(data.id) };
 }

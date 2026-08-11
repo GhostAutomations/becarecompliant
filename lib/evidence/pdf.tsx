@@ -27,8 +27,10 @@ import {
   type AnswerValue,
   type Answers,
   type FormSchema,
+  isBinaryField,
   isPresentational,
 } from "@/lib/form-schema";
+import type { EvidenceAttachments } from "@/lib/evidence/image-format";
 import { shouldShowInEvidence } from "@/lib/form-validate";
 import { formatAnswerForDisplay } from "@/lib/form-format";
 
@@ -82,6 +84,12 @@ const styles = StyleSheet.create({
   // tall. No background colour, no tint: the image is drawn exactly as it was signed.
   signatureImage: { width: 180, marginTop: 2, marginBottom: 2 },
   signatureCaption: { fontSize: 8, color: MUTED },
+  // A FIXED box with objectFit contain, not a free width. A width-only image keeps its
+  // aspect ratio but its height is then whatever the photo says, and a tall portrait
+  // passport shot can be taller than the page it is drawn on, which clips the record.
+  // A fixed box can never overflow, and contain still refuses to squash the picture.
+  attachmentImage: { width: 200, height: 200, objectFit: "contain", marginTop: 3, marginBottom: 1 },
+  attachmentBlock: { marginBottom: 4 },
   footer: { position: "absolute", bottom: 28, left: 44, right: 44, flexDirection: "row", justifyContent: "space-between", borderTopWidth: 0.5, borderTopColor: "#dfe4f0", paddingTop: 6 },
   footerText: { fontSize: 8, color: MUTED },
 });
@@ -127,7 +135,19 @@ function drawnSignature(value: AnswerValue | undefined): string | null {
  * Phase 8 Evidence pack can render many evidences into a single Document with the
  * exact same layout as a standalone evidence PDF (no divergence, one source).
  */
-export function EvidenceEntry({ schema, answers, meta }: { schema: FormSchema; answers: Answers; meta: EvidencePdfMeta }) {
+export function EvidenceEntry({
+  schema,
+  answers,
+  meta,
+  attachments,
+}: {
+  schema: FormSchema;
+  answers: Answers;
+  meta: EvidencePdfMeta;
+  /** Uploaded files fetched from the private bucket (lib/evidence/images.ts). Omitted
+   *  entirely, the document renders exactly as it did before item 15. */
+  attachments?: EvidenceAttachments;
+}) {
   const author = meta.authorName || meta.authorEmail || "Not recorded";
   return (
     <>
@@ -166,8 +186,15 @@ export function EvidenceEntry({ schema, answers, meta }: { schema: FormSchema; a
         // screen Evidence page filters with the same function.
         const visible = section.fields.filter((f) => shouldShowInEvidence(f, answers));
         if (visible.length === 0) return null;
+        // wrap={false} keeps a section whole on one page, which is right for text but
+        // wrong the moment a section carries photographs: a section taller than an A4
+        // page cannot be kept whole, and forcing it clips the evidence. So a section
+        // holding a drawn image is allowed to flow.
+        const hasDrawnImage = visible.some((f) =>
+          (attachments?.[f.key] ?? []).some((a) => a.drawable),
+        );
         return (
-          <View key={section.id} style={styles.section} wrap={false}>
+          <View key={section.id} style={styles.section} wrap={hasDrawnImage}>
             <Text style={styles.sectionTitle}>{section.title}</Text>
             {visible.map((field) => {
               if (isPresentational(field.type)) {
@@ -178,10 +205,13 @@ export function EvidenceEntry({ schema, answers, meta }: { schema: FormSchema; a
                 );
               }
               const value = answers[field.key];
-              // Only a signature gets the image treatment. Every other field type still
-              // goes through the shared formatter, so the PDF and the Evidence page can
-              // never drift apart.
+              // A signature held in the ANSWER wins, because that is the drawn ink itself.
               const signature = field.type === "signature" ? drawnSignature(value) : null;
+              // Otherwise an upload or a stored signature is drawn from the bucket. Every
+              // other field type still goes through the shared formatter, so the PDF and
+              // the Evidence page can never drift apart.
+              const files = attachments?.[field.key] ?? [];
+              const showFiles = !signature && isBinaryField(field.type) && files.length > 0;
               return (
                 <View key={field.key} style={styles.fieldRow}>
                   <Text style={styles.fieldLabel}>{field.label}</Text>
@@ -189,6 +219,35 @@ export function EvidenceEntry({ schema, answers, meta }: { schema: FormSchema; a
                     <View style={styles.fieldValue}>
                       <Image src={signature} style={styles.signatureImage} />
                       <Text style={styles.signatureCaption}>Signature captured</Text>
+                    </View>
+                  ) : showFiles ? (
+                    <View style={styles.fieldValue}>
+                      {files.map((file, i) => (
+                        <View key={`${field.key}-${i}`} style={styles.attachmentBlock}>
+                          {file.drawable ? (
+                            <>
+                              <Image
+                                src={{ data: file.drawable.data, format: file.drawable.format }}
+                                style={styles.attachmentImage}
+                              />
+                              <Text style={styles.signatureCaption}>
+                                {file.kind === "signature" ? "Signature captured" : file.fileName}
+                              </Text>
+                            </>
+                          ) : (
+                            <>
+                              <Text>{file.fileName}</Text>
+                              {/* Named and openly flagged. An inspector holding the paper can
+                                  tell "nothing was attached" from "something was attached that
+                                  this page cannot show" (HEIC from an iPhone, a PDF, a Word
+                                  document, or a photo too large to draw safely). */}
+                              <Text style={styles.signatureCaption}>
+                                Attached to this evidence, not shown here
+                              </Text>
+                            </>
+                          )}
+                        </View>
+                      ))}
                     </View>
                   ) : (
                     <Text style={styles.fieldValue}>{formatAnswerForDisplay(field, value)}</Text>
@@ -203,7 +262,17 @@ export function EvidenceEntry({ schema, answers, meta }: { schema: FormSchema; a
   );
 }
 
-function EvidenceDocument({ schema, answers, meta }: { schema: FormSchema; answers: Answers; meta: EvidencePdfMeta }) {
+function EvidenceDocument({
+  schema,
+  answers,
+  meta,
+  attachments,
+}: {
+  schema: FormSchema;
+  answers: Answers;
+  meta: EvidencePdfMeta;
+  attachments?: EvidenceAttachments;
+}) {
   return (
     <Document title={`${meta.formName} evidence`} author="Be Care Compliant">
       <Page size="A4" style={styles.page}>
@@ -215,7 +284,7 @@ function EvidenceDocument({ schema, answers, meta }: { schema: FormSchema; answe
           <Text style={styles.evidenceTag}>Evidence reference{"\n"}{meta.evidenceRef}</Text>
         </View>
 
-        <EvidenceEntry schema={schema} answers={answers} meta={meta} />
+        <EvidenceEntry schema={schema} answers={answers} meta={meta} attachments={attachments} />
 
         <View style={styles.footer} fixed>
           <Text style={styles.footerText}>
@@ -238,6 +307,9 @@ export async function renderEvidencePdf(
   schema: FormSchema,
   answers: Answers,
   meta: EvidencePdfMeta,
+  attachments?: EvidenceAttachments,
 ): Promise<Buffer> {
-  return renderToBuffer(<EvidenceDocument schema={schema} answers={answers} meta={meta} />);
+  return renderToBuffer(
+    <EvidenceDocument schema={schema} answers={answers} meta={meta} attachments={attachments} />,
+  );
 }

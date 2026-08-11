@@ -21,6 +21,8 @@ import { Document, Page, StyleSheet, Text, View, renderToBuffer } from "@react-p
 import { createClient } from "@/lib/supabase/server";
 import { isFormSchema, type Answers, type FormSchema } from "@/lib/form-schema";
 import { EvidenceEntry, type EvidencePdfMeta } from "@/lib/evidence/pdf";
+import { loadEvidenceAttachments } from "@/lib/evidence/images";
+import type { EvidenceAttachments } from "@/lib/evidence/image-format";
 import { buildCsv } from "@/lib/export/csv";
 import { fmtDate, fmtDateTime, generatedAt } from "@/lib/export/format";
 
@@ -74,7 +76,19 @@ function shortRef(id: string): string {
   return id.slice(0, 8).toUpperCase();
 }
 
-function PackDocument({ data }: { data: EvidencePackData }) {
+/** Uploaded files for every evidence in the pack, keyed by evidence id. */
+type PackAttachments = Record<string, EvidenceAttachments>;
+
+/**
+ * A pack can hold dozens of records, and each one is allowed its own image budget, so
+ * a whole pack needs a ceiling of its own or one export could pull hundreds of
+ * megabytes of photographs into a serverless render. Records past the ceiling print
+ * their attachments exactly as they printed before item 15 (the file name), which is
+ * a smaller document, never a wrong one.
+ */
+const MAX_PACK_DRAWN_BYTES = 40 * 1024 * 1024;
+
+function PackDocument({ data, attachments }: { data: EvidencePackData; attachments: PackAttachments }) {
   const when = generatedAt();
   const entries = data.evidence.filter((e) => isFormSchema(e.schema_snapshot));
   return (
@@ -165,7 +179,12 @@ function PackDocument({ data }: { data: EvidencePackData }) {
                 {shortRef(e.id)}
               </Text>
             </View>
-            <EvidenceEntry schema={e.schema_snapshot as FormSchema} answers={e.answers ?? {}} meta={meta} />
+            <EvidenceEntry
+              schema={e.schema_snapshot as FormSchema}
+              answers={e.answers ?? {}}
+              meta={meta}
+              attachments={attachments[e.id]}
+            />
             <View style={styles.footer} fixed>
               <Text style={styles.footerText}>Evidence pack for {data.recordName}.</Text>
               <Text
@@ -243,9 +262,25 @@ export async function getEvidencePackData(
   };
 }
 
-/** Render the pack PDF buffer. */
+/** Render the pack PDF buffer, fetching each record's uploaded photographs first. */
 export async function renderEvidencePackPdf(data: EvidencePackData): Promise<Buffer> {
-  return renderToBuffer(<PackDocument data={data} />);
+  const attachments: PackAttachments = {};
+  let drawnBytes = 0;
+
+  // Sequential on purpose: the running total is what decides whether the NEXT record's
+  // photographs are fetched at all, so nothing is downloaded once the pack is full.
+  for (const e of data.evidence) {
+    if (drawnBytes >= MAX_PACK_DRAWN_BYTES) break;
+    const loaded = await loadEvidenceAttachments(e.id);
+    const keys = Object.keys(loaded);
+    if (keys.length === 0) continue;
+    attachments[e.id] = loaded;
+    for (const key of keys) {
+      for (const file of loaded[key]) drawnBytes += file.drawable?.data.length ?? 0;
+    }
+  }
+
+  return renderToBuffer(<PackDocument data={data} attachments={attachments} />);
 }
 
 /** CSV index of the pack's evidence (same order as the PDF). */

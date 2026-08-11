@@ -157,14 +157,31 @@ export default async function EvidenceViewPage({
                         0147), and without this they collapse into one run on paragraph. */}
                     <dd className="mt-0.5 whitespace-pre-line text-sm text-white/90">
                       {isBinaryField(field.type) && file ? (
-                        <a
-                          href={`/api/evidence/${ev.id}/file?key=${encodeURIComponent(field.key)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-gold-300 underline"
-                        >
-                          {file.kind === "signature" ? "View signature" : file.fileName}
-                        </a>
+                        <>
+                          {/* Item 15: a photographed passport or DBS certificate used to be a
+                              link and nothing else, on screen AND on the PDF. The picture is
+                              now drawn in both places, gated by the SAME test
+                              (lib/evidence/image-format.ts drawableFormat), so the screen and
+                              the paper can never disagree about which attachments are pictures.
+                              The link stays underneath: it is still the way to open the full
+                              size original, and it is the only thing a HEIC or a PDF gets. */}
+                          {file.previewable ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img
+                              src={`/api/evidence/${ev.id}/file?key=${encodeURIComponent(field.key)}`}
+                              alt={file.kind === "signature" ? "Signature captured" : file.fileName}
+                              className="mb-1 max-h-64 w-auto rounded-lg bg-white p-1"
+                            />
+                          ) : null}
+                          <a
+                            href={`/api/evidence/${ev.id}/file?key=${encodeURIComponent(field.key)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-gold-300 underline"
+                          >
+                            {file.kind === "signature" ? "View signature" : file.fileName}
+                          </a>
+                        </>
                       ) : signature ? (
                         <>
                           {/* eslint-disable-next-line @next/next/no-img-element */}
