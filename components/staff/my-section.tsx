@@ -20,6 +20,7 @@ export default function MySection({
   count,
   children,
   defaultOpen = false,
+  variant = "section",
 }: {
   title: string;
   count: number;
@@ -28,23 +29,34 @@ export default function MySection({
    *  holding something that has actually LAPSED must not hide it behind a tap. Only the
    *  initial state, so the fold still works normally once touched. */
   defaultOpen?: boolean;
+  /** "sub" renders a quieter heading for a fold nested inside another one, so a section
+   *  within a section does not read as a second top level heading. Added 2026-08-12 for the
+   *  "not recorded yet" training rows. */
+  variant?: "section" | "sub";
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  const sub = variant === "sub";
 
   return (
-    <section className="space-y-3">
+    <section className={sub ? "space-y-2" : "space-y-3"}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         className="flex w-full items-center gap-2 text-left"
       >
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
+        <h2
+          className={
+            sub
+              ? "text-xs font-medium text-white/45"
+              : "text-sm font-semibold uppercase tracking-wide text-white/60"
+          }
+        >
           {title} ({count})
         </h2>
         <span
           aria-hidden
-          className={`text-white/40 transition-transform ${open ? "rotate-180" : ""}`}
+          className={`${sub ? "text-xs text-white/30" : "text-white/40"} transition-transform ${open ? "rotate-180" : ""}`}
         >
           ▾
         </span>

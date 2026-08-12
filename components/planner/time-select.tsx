@@ -1,41 +1,82 @@
 "use client";
 
-import { useState } from "react";
+/**
+ * Be Care Compliant — the booking time picker.
+ *
+ * The grid and the window live in lib/planner/booking-time.ts, which the SERVER ACTION also
+ * uses. Before 2026-08-12 this dropdown was the only thing stopping a nonsense time, and it
+ * was not stopping anything: the action wrote whatever it was posted, which is how
+ * "01:54 Care Plan Review" reached the dashboard. A dropdown is not a validator.
+ */
 
-/** Two dropdowns for a booking time: hours 08–20 and minutes 00/15/30/45.
- *  Blank until both are chosen. Submits the combined value (HH:MM) as a hidden
- *  `name` field; stays empty until an hour AND minute are selected. */
-const HOURS = Array.from({ length: 13 }, (_, i) => String(i + 8).padStart(2, "0")); // 08..20
-const MINUTES = ["00", "15", "30", "45"];
+import { useState } from "react";
+import {
+  bookingHours,
+  bookingMinutes,
+  isBookableTime,
+  BOOKING_LAST_HOUR,
+} from "@/lib/planner/booking-time";
+
+const HOURS = bookingHours();
 
 function initialParts(defaultValue?: string): [string, string] {
-  if (defaultValue && /^\d{1,2}:\d{2}$/.test(defaultValue)) {
-    const [h, m] = defaultValue.split(":");
-    const hn = Math.min(20, Math.max(8, parseInt(h, 10)));
-    const mn = parseInt(m, 10);
-    const nearest = [0, 15, 30, 45].reduce((a, b) => (Math.abs(b - mn) < Math.abs(a - mn) ? b : a), 0);
-    return [String(hn).padStart(2, "0"), String(nearest).padStart(2, "0")];
-  }
-  return ["", ""];
+  // A legacy value outside the grid (there are rows from before it existed) opens BLANK
+  // rather than being silently rounded to something nobody chose.
+  if (!defaultValue || !isBookableTime(defaultValue)) return ["", ""];
+  const [h, m] = defaultValue.split(":");
+  return [h.padStart(2, "0"), m];
 }
 
-export default function TimeSelect({ name = "start_time", defaultValue }: { name?: string; defaultValue?: string }) {
+export default function TimeSelect({
+  name = "start_time",
+  defaultValue,
+}: {
+  name?: string;
+  defaultValue?: string;
+}) {
   const [initHour, initMinute] = initialParts(defaultValue);
   const [hour, setHour] = useState(initHour);
   const [minute, setMinute] = useState(initMinute);
-  const value = hour && minute ? `${hour}:${minute}` : "";
+
+  const minutes = hour ? bookingMinutes(hour) : bookingMinutes("09");
+  // Moving to the last hour after picking, say, :45 would otherwise leave an impossible
+  // pair on screen that the server then refuses.
+  const effectiveMinute = minute && minutes.includes(minute) ? minute : "";
+  const value = hour && effectiveMinute ? `${hour}:${effectiveMinute}` : "";
+
   return (
     <div className="flex items-center gap-1">
-      <select className="w-full min-w-0" value={hour} onChange={(e) => setHour(e.target.value)} aria-label="Hour">
+      <select
+        className="w-full min-w-0"
+        value={hour}
+        onChange={(e) => {
+          const next = e.target.value;
+          setHour(next);
+          if (next && !bookingMinutes(next).includes(minute)) setMinute("");
+        }}
+        aria-label="Hour"
+      >
         <option value="" />
-        {HOURS.map((x) => <option key={x} value={x}>{x}</option>)}
+        {HOURS.map((x) => (
+          <option key={x} value={x}>{x}</option>
+        ))}
       </select>
       <span className="text-white/50">:</span>
-      <select className="w-full min-w-0" value={minute} onChange={(e) => setMinute(e.target.value)} aria-label="Minute">
+      <select
+        className="w-full min-w-0"
+        value={effectiveMinute}
+        onChange={(e) => setMinute(e.target.value)}
+        aria-label="Minute"
+      >
         <option value="" />
-        {MINUTES.map((x) => <option key={x} value={x}>{x}</option>)}
+        {minutes.map((x) => (
+          <option key={x} value={x}>{x}</option>
+        ))}
       </select>
       <input type="hidden" name={name} value={value} />
+      {hour === String(BOOKING_LAST_HOUR) ? (
+        <span className="sr-only">{BOOKING_LAST_HOUR}:00 is the last bookable time.</span>
+      ) : null}
     </div>
   );
 }

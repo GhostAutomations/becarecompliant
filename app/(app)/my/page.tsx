@@ -40,6 +40,51 @@ function formatWhen(iso: string): string {
   });
 }
 
+type TrainingRow = Awaited<ReturnType<typeof getMyTraining>>[number];
+
+/** ONE definition of a training row, used by both the recorded list and the folded
+ *  "not recorded yet" list. Two copies of this markup would drift the first time either
+ *  changed, and the difference between them is the whole point of the split. */
+function TrainingRowLine({ row }: { row: TrainingRow }) {
+  const missing = row.cell.status === "missing";
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 p-4">
+      <div>
+        <p className={`text-sm font-semibold ${missing ? "text-white/70" : "text-white"}`}>
+          {row.courseName}
+          {row.mandatory ? <span className="ml-2 text-xs text-white/40">Mandatory</span> : null}
+        </p>
+        {missing ? null : (
+          <p className="text-xs text-white/45">
+            {row.cell.label}
+            {row.cell.sub ? ` · ${row.cell.sub}` : ""}
+          </p>
+        )}
+      </div>
+      <span
+        className={
+          missing
+            ? "pill-neutral"
+            : row.cell.rag === "red"
+              ? "pill-red"
+              : row.cell.rag === "amber"
+                ? "pill-amber"
+                : "pill-green"
+        }
+      >
+        {missing ? null : <span className="pill-dot" />}
+        {missing
+          ? "Not recorded"
+          : row.cell.rag === "red"
+            ? "Out of date"
+            : row.cell.rag === "amber"
+              ? "Due soon"
+              : "In date"}
+      </span>
+    </div>
+  );
+}
+
 export default async function MyAreaPage() {
   const { profile } = await requireCompany();
   if (!profile.company_id) redirect("/founder");
@@ -193,55 +238,54 @@ export default async function MyAreaPage() {
               return bits.join(" · ");
             })()}
           </p>
-          <div className="glass-card divide-y divide-white/10">
-            {[...training]
+          {(() => {
+            /* SPLIT, NOT ONE LONG LIST (Phil, 2026-08-12: the "not recorded" rows still do
+               not fold separately on mobile).
+
+               Acme seeds 33 mandatory courses. Charlotte has one recorded, so the single
+               list was one real row followed by thirty three saying "Not recorded" — on a
+               phone, her actual training history was off the bottom of the screen before
+               she had scrolled. The two lists answer different questions: what she has
+               done, and what the office has never logged against her. Only the first is
+               about her, so only the first is open. */
+            const recorded = training
+              .filter((t) => t.cell.status !== "missing")
               .sort((a, b) => {
-                const aMissing = a.cell.status === "missing";
-                const bMissing = b.cell.status === "missing";
-                if (aMissing !== bMissing) return aMissing ? 1 : -1;
                 if (a.mandatory !== b.mandatory) return a.mandatory ? -1 : 1;
                 return a.courseName.localeCompare(b.courseName);
-              })
-              .map((t) => {
-                const missing = t.cell.status === "missing";
-                return (
-                  <div key={t.courseId} className="flex flex-wrap items-center justify-between gap-3 p-4">
-                    <div>
-                      <p className={`text-sm font-semibold ${missing ? "text-white/70" : "text-white"}`}>
-                        {t.courseName}
-                        {t.mandatory ? <span className="ml-2 text-xs text-white/40">Mandatory</span> : null}
-                      </p>
-                      {missing ? null : (
-                        <p className="text-xs text-white/45">
-                          {t.cell.label}
-                          {t.cell.sub ? ` · ${t.cell.sub}` : ""}
-                        </p>
-                      )}
-                    </div>
-                    <span
-                      className={
-                        missing
-                          ? "pill-neutral"
-                          : t.cell.rag === "red"
-                            ? "pill-red"
-                            : t.cell.rag === "amber"
-                              ? "pill-amber"
-                              : "pill-green"
-                      }
-                    >
-                      {missing ? null : <span className="pill-dot" />}
-                      {missing
-                        ? "Not recorded"
-                        : t.cell.rag === "red"
-                          ? "Out of date"
-                          : t.cell.rag === "amber"
-                            ? "Due soon"
-                            : "In date"}
-                    </span>
+              });
+            const notRecorded = training
+              .filter((t) => t.cell.status === "missing")
+              .sort((a, b) => {
+                if (a.mandatory !== b.mandatory) return a.mandatory ? -1 : 1;
+                return a.courseName.localeCompare(b.courseName);
+              });
+            return (
+              <div className="space-y-3">
+                {recorded.length > 0 ? (
+                  <div className="glass-card divide-y divide-white/10">
+                    {recorded.map((t) => (
+                      <TrainingRowLine key={t.courseId} row={t} />
+                    ))}
                   </div>
-                );
-              })}
-          </div>
+                ) : (
+                  <div className="glass-card p-4 text-xs text-white/55">
+                    Nothing has been recorded against you yet. That is a gap in the office
+                    records rather than anything you have missed.
+                  </div>
+                )}
+                {notRecorded.length > 0 ? (
+                  <MySection title="Not recorded yet" count={notRecorded.length} variant="sub">
+                    <div className="glass-card divide-y divide-white/10">
+                      {notRecorded.map((t) => (
+                        <TrainingRowLine key={t.courseId} row={t} />
+                      ))}
+                    </div>
+                  </MySection>
+                ) : null}
+              </div>
+            );
+          })()}
           <p className="text-xs text-white/40">
             Your manager records training. Anything showing as not recorded has not been logged
             against you yet, so if you have done it, tell them.

@@ -7,6 +7,7 @@ import { writeAudit } from "@/lib/audit";
 import { requireFeature } from "@/lib/billing/tier";
 import type { ActionState } from "@/lib/forms";
 import { ukDate } from "@/lib/dates";
+import { normaliseStartTime } from "@/lib/planner/booking-time";
 
 function revalidatePlanner() {
   revalidatePath("/planner");
@@ -39,7 +40,12 @@ export async function createBooking(formData: FormData): Promise<ActionState> {
   const title = String(formData.get("title") ?? "").trim();
   const conductorId = String(formData.get("conductor_id") ?? "").trim();
   const scheduledDate = String(formData.get("scheduled_date") ?? "").trim();
-  const startTime = String(formData.get("start_time") ?? "").trim();
+  /* VALIDATED SERVER SIDE, not just in the dropdown. The picker has always offered a
+     sensible grid and this action used to write whatever it was posted, which is how
+     "01:54 Care Plan Review" reached the dashboard. */
+  const startTimeResult = normaliseStartTime(formData.get("start_time"));
+  if (!startTimeResult.ok) return { error: startTimeResult.error };
+  const startTime = startTimeResult.value;
   const durationRaw = String(formData.get("duration_minutes") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim();
   let branchId = String(formData.get("branch_id") ?? "").trim();
@@ -116,7 +122,7 @@ export async function createBooking(formData: FormData): Promise<ActionState> {
       title: title || null,
       conductor_profile_id: conductorId,
       scheduled_date: scheduledDate,
-      start_time: startTime || null,
+      start_time: startTime,
       duration_minutes: duration,
       notes: notes || null,
       created_by: user.id,
@@ -186,7 +192,9 @@ export async function rescheduleBooking(formData: FormData): Promise<ActionState
   if (!profile.company_id) return { error: "No company context." };
   const bookingId = String(formData.get("booking_id") ?? "").trim();
   const scheduledDate = String(formData.get("scheduled_date") ?? "").trim();
-  const startTime = String(formData.get("start_time") ?? "").trim();
+  const startTimeResult = normaliseStartTime(formData.get("start_time"));
+  if (!startTimeResult.ok) return { error: startTimeResult.error };
+  const startTime = startTimeResult.value;
   const durationRaw = String(formData.get("duration_minutes") ?? "").trim();
   if (!bookingId || !scheduledDate) return { error: "Missing booking or date." };
   const existing = await loadBooking(bookingId, profile.company_id);
@@ -198,7 +206,7 @@ export async function rescheduleBooking(formData: FormData): Promise<ActionState
     .from("planner_bookings")
     .update({
       scheduled_date: scheduledDate,
-      start_time: startTime || null,
+      start_time: startTime,
       duration_minutes: duration,
       updated_by: user.id,
     })
