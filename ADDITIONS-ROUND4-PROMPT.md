@@ -16,7 +16,7 @@ Stack: Next.js 15 App Router, TypeScript, Tailwind v4, React 19, Supabase (Postg
 RLS, Storage, Realtime, Auth), Stripe, Resend, Twilio, Anthropic. Hosted on Vercel, repo
 on my Mac in iCloud, Supabase project ref `bgrtcvyjuwopunpnudeu` (eu-west-2). Test
 company is **Acme Care Company** (42 people, 4 branches, Pro tier). Migrations are
-applied up to **0168**. 153 unit tests pass.
+applied up to **0180**. 281 unit tests pass.
 
 ## Where we are
 
@@ -52,6 +52,32 @@ columns**.
 - **Briefings identity fields**: a logged in carer is no longer asked their own name,
   email or branch on a form the app already knows the answer to.
 
+### 2026-08-12, Phase 10v3
+
+Closed items 15, 16, 18, 20, 21, 23 and 26 of THE LIST, plus the Supervision 4 bug. Also
+closed items 8 and 9 below, which were built at 20:14 on 2026-08-10, SIX HOURS AFTER this
+brief was written at 14:30 — so a session pasting this went looking to build them again.
+That is the failure mode of this file: it is accurate the moment it is written and nowhere
+says when it stopped being.
+
+- **Photo evidence** on the Evidence PDF, sized from the image's own header so it cannot
+  spill onto a blank page.
+- **Retention enforced**: 0171, a nightly cron that returns 500 on a failed run, a hold
+  with a reason, a settings page, and the cached render PDF purged on anonymisation.
+- **Policy coverage** tile and page, counted per person and policy rather than per
+  assignment row.
+- **Incidents, Safeguarding and Whistleblowing** (0174 to 0178): two registers, a staff
+  "Raise a concern" route where anonymous means `created_by` is null, Reg 80 prefill and a
+  dashboard tile. Whistleblowing is the ONE table with no `is_platform_admin()` clause.
+- **Extra branches billed** end to end, and a founder screen to add one.
+- **Planner** (0179, 0180): booking times validated in the picker, the action AND a CHECK
+  constraint; double bookings refused on conductor, carer and service user by three
+  exclusion constraints. Both were previously guarded by a dropdown and nothing else.
+
+**Nine defects were found by looking at the artefact, not the code** — a rendered page, an
+HTTP status, a bucket listing, the rows after a green "Saved", a screenshot Phil sent. Every
+one had clean `tsc` and green tests. Two were in the fix for the previous one.
+
 ## What is left
 
 **Decisions only I can make**
@@ -71,26 +97,27 @@ columns**.
 
 **Real building**
 
-8. **A briefing of the Holiday form creates NO holiday request.** The carer fills it in,
-   sees it confirmed, and has asked nobody for anything. Decide: does it create a request,
-   or should that form simply not be sendable as a briefing?
-9. **Briefings offers every form**, including Supervision, Spot Check, Annual Appraisal
-   and Probation Review, so a carer can be sent their own supervision to fill in about
-   themselves. `lib/public-forms/config.ts` exists precisely to stop this; Briefings has
-   no catalogue.
-10. **Nothing enforces retention.** The eight year rule exists in `lib/evidence/retention.ts`
-    and nothing calls any of it. A GDPR point and a question a compliance buyer will ask.
-11. **Incidents, Safeguarding and Whistleblowing log** — Reg 80(3)(b) wants aggregated
-    counts and we hold none of it as structured data.
-12. **Extra branches are never charged.** £7.50 a month each, promised in the footnote,
-    billed by nothing.
-13. **`spend_ai_credit` is executable by anon.** Safe today because of its internal guard,
-    but `spend_sms_credit` had the same shape and it was a real hole.
-14. **Settings > Notifications lists only Admins and Managers**, so a number saved against
-    a Registered role can never be seen again and is never texted.
-15. Dashboard remainder: **Policies up to date**, and `getTrainingCompletion` still builds
-    the entire training matrix to read one number.
-16. **Photo evidence on the Evidence PDF** — images live in the bucket, not the answers.
+8. ~~A briefing of the Holiday form creates NO holiday request.~~ **DONE 2026-08-10.**
+   `submitAssignmentForm` files the Evidence, closes the assignment, THEN inserts the
+   holiday request and notifies the approvers. That order is deliberate: a retry cannot
+   duplicate the request, and a failure is surfaced rather than swallowed. Verified
+   2026-08-12: every holiday request in the database carries a `request_evidence_id`.
+9. ~~Briefings offers every form.~~ **DONE 2026-08-10.** `lib/assignments/briefable.ts` is
+   an allowlist of one key, enforced in the picker AND in the write path, so a crafted
+   request cannot brief a Supervision onto somebody's own record. 18 tests. Verified live
+   2026-08-12: the picker offers two policies and Holiday Requests, nothing else.
+10. ~~Nothing enforces retention.~~ **DONE 2026-08-12** (0171, cron, hold, settings page).
+11. ~~Incidents, Safeguarding and Whistleblowing log.~~ **DONE 2026-08-12** (0174 to 0178).
+12. **Extra branches: BUILT BUT UNSELLABLE.** The billing, the founder screen and the
+    nightly reconcile all exist. Nothing can be charged until Phil creates the £7.50
+    recurring GBP licensed price and sets `STRIPE_PRICE_BRANCH` in Vercel. Phil's call
+    2026-08-12: leave this until last.
+13. ~~`spend_ai_credit` is executable by anon.~~ **DONE 2026-08-12** (0172).
+14. ~~Settings > Notifications lists only Admins and Managers.~~ **DONE 2026-08-12.**
+15. Dashboard remainder: **Policies up to date DONE 2026-08-12.** The second half of this
+    entry was WRONG when written: `getTrainingCompletion` was checked and does not build
+    the matrix to read one number. Nothing to do.
+16. ~~Photo evidence on the Evidence PDF.~~ **DONE 2026-08-12.**
 
 **Testing, not building**
 
@@ -103,6 +130,17 @@ columns**.
     who is Caerphilly**, to see whether his Planner shows a carer he cannot otherwise see.
 20. **Briefings form completion and policy signing** as Charlotte test
     (wakeling13@icloud.com, staff, linked to her record).
+
+**Open questions from 2026-08-12, none blocking**
+
+- The Planner window is 06:00 to 22:00, so a 23:00 spot check on a night carer cannot be
+  planned. Right for the bug it fixed; worth deciding on its own terms.
+- "No time" renders amber on the dashboard next to grey "Clear" days, so an untimed
+  booking reads as a warning. Pre-existing.
+- The incident and whistleblowing CATEGORY LISTS were written by Claude, not by Phil.
+- Two whistleblowing audit rows created before the 2026-08-12 fix still carry the
+  disclosure category in their summary. Acme test data only, and rewriting an audit log
+  needs Phil to say so.
 
 ## How I want you to work — these are settled, do not relitigate them
 
