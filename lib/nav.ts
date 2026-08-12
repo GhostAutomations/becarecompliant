@@ -29,6 +29,7 @@ export type NavEntry = {
     | "serviceUsers"
     | "complaints"
     | "incidents"
+    | "whistleblowing"
     | "invoicing"
     | "settings"
     | "founder"
@@ -151,6 +152,16 @@ export const NAV_ENTRIES: NavEntry[] = [
       { href: "/incidents", label: "Open", icon: "incidents" },
       { href: "/incidents/closed", label: "Closed", icon: "incidents" },
     ],
+  },
+  {
+    href: "/whistleblowing",
+    label: "Whistleblowing",
+    icon: "whistleblowing",
+    group: "Departments",
+    // Company Admin and Responsible Individual ONLY. Hiding the entry is a courtesy, not
+    // the control: whistleblowing_disclosures refuses everyone else in RLS (0174/0175),
+    // because the commonest real disclosure is about a manager.
+    roles: ["platform_admin", "company_admin", "registered_individual"],
   },
   {
     href: "/briefings",

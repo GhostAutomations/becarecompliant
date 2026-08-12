@@ -58,6 +58,13 @@ export function NavIcon({
           <path d="M12 9.5v3.4M12 16.2h.01" />
         </svg>
       );
+    case "whistleblowing":
+      return (
+        <svg {...common}>
+          <path d="M4 13.5V9a1 1 0 011-1h3l7-3.5v15L8 16H5a1 1 0 01-1-1z" />
+          <path d="M18 9.5a4 4 0 010 5" />
+        </svg>
+      );
     case "invoicing":
       return (
         <svg {...common}>
