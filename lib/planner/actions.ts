@@ -8,7 +8,7 @@ import { requireFeature } from "@/lib/billing/tier";
 import type { ActionState } from "@/lib/forms";
 import { ukDate } from "@/lib/dates";
 import { normaliseStartTime } from "@/lib/planner/booking-time";
-import { bookingsOverlap, displayTime } from "@/lib/planner/overlap";
+import { bookingsOverlap, clashMessage, displayTime } from "@/lib/planner/overlap";
 
 function revalidatePlanner() {
   revalidatePath("/planner");
@@ -98,7 +98,7 @@ async function findClash(
         .eq("id", subject.conductorId)
         .maybeSingle();
       const name = (who?.full_name as string | null) || "That person";
-      return `${name} already has ${what} booked at ${when} that day.`;
+      return clashMessage({ name, what, when, bookedByAnother: false });
     }
 
     if (subject.personId && row.subject_person_id === subject.personId) {
@@ -108,7 +108,7 @@ async function findClash(
         .eq("id", subject.personId)
         .maybeSingle();
       const name = (who?.full_name as string | null) || "That person";
-      return `${name} is already booked for ${what} at ${when} that day, by somebody else.`;
+      return clashMessage({ name, what, when, bookedByAnother: true });
     }
 
     if (subject.serviceUserId && row.subject_service_user_id === subject.serviceUserId) {
@@ -118,7 +118,7 @@ async function findClash(
         .eq("id", subject.serviceUserId)
         .maybeSingle();
       const name = (who?.full_name as string | null) || "That service user";
-      return `${name} is already booked for ${what} at ${when} that day, by somebody else.`;
+      return clashMessage({ name, what, when, bookedByAnother: true });
     }
   }
 

@@ -66,3 +66,32 @@ export function displayTime(value: unknown): string {
   const minute = minutes % 60;
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
+
+/**
+ * The sentence somebody reads when their booking is refused.
+ *
+ * The check name goes in BRACKETS rather than into the sentence, because no article fits
+ * all of them. Live, the first version said "already has Audit booked at 10:00", and the
+ * obvious fix — an a/an rule on the first letter — gives "a Manual Handling" and "a
+ * Mentoring". Sidestepping the article entirely reads correctly for every check kind we
+ * have and every one somebody adds later.
+ */
+export function clashMessage(input: {
+  /** Who is already busy: the conductor, or the carer or service user being visited. */
+  name: string;
+  /** The check or title of the booking already in the way. */
+  what: string;
+  /** "HH:MM". */
+  when: string;
+  /** True when the clash is with a booking made by a different person, which the person
+   *  booking cannot see on their own Planner. */
+  bookedByAnother: boolean;
+}): string {
+  const name = input.name.trim() || "That person";
+  const what = input.what.trim() || "another task";
+  const when = input.when.trim();
+  const at = when ? ` at ${when}` : "";
+  return input.bookedByAnother
+    ? `Somebody else has already booked ${name}${at} that day (${what}).`
+    : `${name} is already booked${at} that day (${what}).`;
+}

@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import {
   bookingsOverlap,
   bookingWindow,
+  clashMessage,
   minutesFromMidnight,
   displayTime,
 } from "./overlap.ts";
@@ -70,4 +71,43 @@ test("displayTime trims the seconds Postgres returns", () => {
   assert.equal(displayTime("10:00:00"), "10:00");
   assert.equal(displayTime("9:05"), "09:05");
   assert.equal(displayTime(null), "");
+});
+
+test("the refusal names who is busy, when, and what is in the way", () => {
+  assert.equal(
+    clashMessage({ name: "Akram Abappa", what: "Audit", when: "10:00", bookedByAnother: false }),
+    "Akram Abappa is already booked at 10:00 that day (Audit).",
+  );
+});
+
+test("a clash made by somebody else says so, because it is invisible on your own Planner", () => {
+  assert.equal(
+    clashMessage({ name: "AA AA", what: "Audit", when: "10:00", bookedByAnother: true }),
+    "Somebody else has already booked AA AA at 10:00 that day (Audit).",
+  );
+});
+
+test("EVERY check kind reads correctly, which is why the name is in brackets", () => {
+  // The first live version said "already has Audit booked". The obvious fix, an a/an rule on
+  // the first letter, gives "a Manual Handling" and "a Mentoring". Brackets dodge it.
+  for (const kind of [
+    "Audit",
+    "Manual Handling",
+    "Medication Competency",
+    "Mentoring",
+    "Spot Check",
+    "Supervision",
+    "Care Plan Review",
+  ]) {
+    const line = clashMessage({ name: "Tim Mingle", what: kind, when: "09:15", bookedByAnother: false });
+    assert.equal(line, `Tim Mingle is already booked at 09:15 that day (${kind}).`);
+    assert.doesNotMatch(line, / an? [A-Z]/);
+  }
+});
+
+test("a booking with no check kind still produces a sentence", () => {
+  assert.equal(
+    clashMessage({ name: "", what: "  ", when: "", bookedByAnother: false }),
+    "That person is already booked that day (another task).",
+  );
 });
