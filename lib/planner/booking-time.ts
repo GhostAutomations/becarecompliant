@@ -45,6 +45,21 @@ export function bookingMinutes(hour: string): string[] {
   return Number(hour) === BOOKING_LAST_HOUR ? ["00"] : all;
 }
 
+/**
+ * Every bookable time, "06:00" through "22:00".
+ *
+ * The picker is ONE dropdown of these rather than an hour box and a minute box, so there is
+ * no pair that can disagree and nothing on screen that the server would refuse. Generated
+ * from the same constants the validator uses, so the list and the rule cannot drift.
+ */
+export function bookingTimes(): string[] {
+  const out: string[] = [];
+  for (const hour of bookingHours()) {
+    for (const minute of bookingMinutes(hour)) out.push(`${hour}:${minute}`);
+  }
+  return out;
+}
+
 export type StartTimeResult =
   | { ok: true; value: string | null }
   | { ok: false; error: string };

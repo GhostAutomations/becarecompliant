@@ -8,6 +8,7 @@ import {
   isBookableTime,
   bookingHours,
   bookingMinutes,
+  bookingTimes,
   BOOKING_FIRST_HOUR,
   BOOKING_LAST_HOUR,
 } from "./booking-time.ts";
@@ -97,4 +98,30 @@ test("the picker offers exactly the hours the rule accepts", () => {
 test("the last hour offers only the top of the hour, so 22:45 cannot be picked", () => {
   assert.deepEqual(bookingMinutes("22"), ["00"]);
   assert.deepEqual(bookingMinutes("21"), ["00", "15", "30", "45"]);
+});
+
+test("the dropdown offers every bookable time and nothing the server would refuse", () => {
+  const times = bookingTimes();
+  assert.equal(times[0], "06:00");
+  assert.equal(times[times.length - 1], "22:00");
+  // 16 hours of four quarters, plus 22:00 on its own.
+  assert.equal(times.length, 16 * 4 + 1);
+  for (const t of times) {
+    assert.equal(normaliseStartTime(t).ok, true, `${t} is offered but would be refused`);
+  }
+});
+
+test("22:45 cannot be assembled from the dropdown at all", () => {
+  // The point of one select rather than two: there is no pair to get wrong.
+  const times = bookingTimes();
+  assert.ok(!times.includes("22:15"));
+  assert.ok(!times.includes("22:45"));
+  assert.ok(!times.includes("05:45"));
+  assert.ok(times.includes("22:00"));
+  assert.ok(times.includes("06:00"));
+});
+
+test("no time is offered twice", () => {
+  const times = bookingTimes();
+  assert.equal(new Set(times).size, times.length);
 });

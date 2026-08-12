@@ -3,29 +3,24 @@
 /**
  * Be Care Compliant — the booking time picker.
  *
- * The grid and the window live in lib/planner/booking-time.ts, which the SERVER ACTION also
- * uses. Before 2026-08-12 this dropdown was the only thing stopping a nonsense time, and it
- * was not stopping anything: the action wrote whatever it was posted, which is how
- * "01:54 Care Plan Review" reached the dashboard. A dropdown is not a validator.
+ * ONE dropdown of whole times, not an hour box and a minute box.
+ *
+ * It was two boxes until 2026-08-12, when Phil sent a screenshot captioned "cant see the
+ * time": the Time field is one third of a three column row, and two selects sharing it,
+ * each with its own chevron and a colon between them, left about one character of room.
+ * "10:00" rendered as "1" and "0". Widening them would have been fiddling with the symptom.
+ *
+ * One select also deletes a whole class of bug rather than handling it: there is no longer
+ * an hour-and-minute pair that can disagree, so 22:45 cannot be assembled on screen and
+ * then refused on save. Every option in the list is a time the server and the database
+ * both accept, because the list is generated from the same rule they enforce
+ * (lib/planner/booking-time.ts).
  */
 
 import { useState } from "react";
-import {
-  bookingHours,
-  bookingMinutes,
-  isBookableTime,
-  BOOKING_LAST_HOUR,
-} from "@/lib/planner/booking-time";
+import { bookingTimes, isBookableTime } from "@/lib/planner/booking-time";
 
-const HOURS = bookingHours();
-
-function initialParts(defaultValue?: string): [string, string] {
-  // A legacy value outside the grid (there are rows from before it existed) opens BLANK
-  // rather than being silently rounded to something nobody chose.
-  if (!defaultValue || !isBookableTime(defaultValue)) return ["", ""];
-  const [h, m] = defaultValue.split(":");
-  return [h.padStart(2, "0"), m];
-}
+const TIMES = bookingTimes();
 
 export default function TimeSelect({
   name = "start_time",
@@ -34,49 +29,25 @@ export default function TimeSelect({
   name?: string;
   defaultValue?: string;
 }) {
-  const [initHour, initMinute] = initialParts(defaultValue);
-  const [hour, setHour] = useState(initHour);
-  const [minute, setMinute] = useState(initMinute);
-
-  const minutes = hour ? bookingMinutes(hour) : bookingMinutes("09");
-  // Moving to the last hour after picking, say, :45 would otherwise leave an impossible
-  // pair on screen that the server then refuses.
-  const effectiveMinute = minute && minutes.includes(minute) ? minute : "";
-  const value = hour && effectiveMinute ? `${hour}:${effectiveMinute}` : "";
+  // Postgres hands back "10:00:00"; the options are "10:00". A legacy value outside the
+  // grid opens as no time rather than being silently rounded to something nobody chose.
+  const initial =
+    defaultValue && isBookableTime(defaultValue) ? defaultValue.slice(0, 5) : "";
+  const [value, setValue] = useState(initial);
 
   return (
-    <div className="flex items-center gap-1">
-      <select
-        className="w-full min-w-0"
-        value={hour}
-        onChange={(e) => {
-          const next = e.target.value;
-          setHour(next);
-          if (next && !bookingMinutes(next).includes(minute)) setMinute("");
-        }}
-        aria-label="Hour"
-      >
-        <option value="" />
-        {HOURS.map((x) => (
-          <option key={x} value={x}>{x}</option>
-        ))}
-      </select>
-      <span className="text-white/50">:</span>
-      <select
-        className="w-full min-w-0"
-        value={effectiveMinute}
-        onChange={(e) => setMinute(e.target.value)}
-        aria-label="Minute"
-      >
-        <option value="" />
-        {minutes.map((x) => (
-          <option key={x} value={x}>{x}</option>
-        ))}
-      </select>
-      <input type="hidden" name={name} value={value} />
-      {hour === String(BOOKING_LAST_HOUR) ? (
-        <span className="sr-only">{BOOKING_LAST_HOUR}:00 is the last bookable time.</span>
-      ) : null}
-    </div>
+    <select
+      name={name}
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      className="w-full min-w-0"
+      aria-label="Time"
+    >
+      {/* Untimed is a real, common choice, so it says so rather than being a blank line. */}
+      <option value="">No time</option>
+      {TIMES.map((t) => (
+        <option key={t} value={t}>{t}</option>
+      ))}
+    </select>
   );
 }
