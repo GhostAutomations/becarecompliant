@@ -28,6 +28,7 @@ export type NavEntry = {
     | "people"
     | "serviceUsers"
     | "complaints"
+    | "incidents"
     | "invoicing"
     | "settings"
     | "founder"
@@ -136,6 +137,19 @@ export const NAV_ENTRIES: NavEntry[] = [
     children: [
       { href: "/complaints", label: "Open", icon: "complaints" },
       { href: "/complaints/closed", label: "Closed", icon: "complaints" },
+    ],
+  },
+  {
+    href: "/incidents",
+    label: "Incidents",
+    icon: "incidents",
+    group: "Departments",
+    // No On Call: an out of hours caller records the call in the Call log. An incident
+    // is written up by the branch, with the notifiable and safeguarding decisions on it.
+    roles: ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"],
+    children: [
+      { href: "/incidents", label: "Open", icon: "incidents" },
+      { href: "/incidents/closed", label: "Closed", icon: "incidents" },
     ],
   },
   {
