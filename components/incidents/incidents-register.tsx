@@ -183,7 +183,7 @@ export default function IncidentsRegister({
         </div>
       ) : (
         <div className="glass-card overflow-x-auto">
-          <table className="w-full min-w-[900px] text-sm">
+          <table className="w-full min-w-[820px] text-sm">
             <thead>
               <tr className="text-center text-xs uppercase tracking-wide text-white/40">
                 <th className="px-4 py-3 font-medium">When</th>
