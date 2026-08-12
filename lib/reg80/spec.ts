@@ -15,6 +15,12 @@
  */
 
 import type { Reg80Prefill } from "@/lib/reg80/prefill";
+import { ukDate } from "@/lib/dates";
+/* The incident, safeguarding and whistleblowing sentences live in their own module with no
+ * runtime imports, so they can be unit tested directly under `node --experimental-strip-types`
+ * (which resolves neither path aliases nor extensionless imports). They go into a document a
+ * regulator reads; see the note at the top of prose.ts for what they got wrong first time. */
+import { incidentLines, safeguardingLines, whistleblowingLines } from "./prose";
 
 export type Reg80FieldType = "yesno" | "text" | "date" | "signature" | "image";
 
@@ -288,47 +294,10 @@ export function buildInitialData(p: Reg80Prefill, riName: string): Record<string
     `By category (6 months): ${p.complaints.concern6.map((c) => `${c.type} ${c.count}`).join(", ") || "none"}.`,
   ];
 
-  const inc = p.incidents;
-  const incidentLines = inc.total === 0
-    ? [`No incidents were recorded for ${p.branchName} between ${p.periodStart} and ${p.periodEnd}.`]
-    : [
-        `${inc.total} incidents occurred at ${p.branchName} between ${p.periodStart} and ${p.periodEnd}.`,
-        inc.notifiable === 0
-          ? "None were notifiable to the regulator."
-          : `${inc.notifiable} were notifiable to the regulator, of which ${inc.notified} have a notification recorded` +
-            (inc.awaitingNotification > 0 ? ` and ${inc.awaitingNotification} do not.` : "."),
-        `By category: ${inc.byCategory.map((c) => `${c.category} ${c.count}`).join(", ")}.`,
-        `Status at today's date: ${inc.open} open, ${inc.underReview} under review, ${inc.closed} closed.`,
-      ];
-
-  const safeguardingLines = inc.total === 0
-    ? ["No incidents were recorded in the period, so no safeguarding matters arose from one."]
-    : inc.safeguarding === 0
-      ? [`None of the ${inc.total} incidents in the period were escalated to safeguarding.`]
-      : [
-          `${inc.safeguarding} of the ${inc.total} incidents in the period were escalated to safeguarding.`,
-          inc.awaitingReferral === 0
-            ? `All ${inc.referred} have a referral date recorded.`
-            : `${inc.referred} have a referral date recorded and ${inc.awaitingReferral} do not.`,
-        ];
-
-  /* ABSENT, NOT ZERO, when this person may not read the register. See the note in
-     prefill.ts: a blank box the RI fills in is recoverable, "no disclosures were received"
-     in a report to CIW is not. Returning nothing also means a Refresh by someone who cannot
-     read them leaves whatever the RI wrote alone. */
-  const wb = p.whistleblowing;
-  const whistleblowingLines = !wb.readable
-    ? null
-    : wb.total === 0
-      ? [`No whistleblowing disclosures were received between ${p.periodStart} and ${p.periodEnd}.`]
-      : [
-          `${wb.total} whistleblowing disclosures were received between ${p.periodStart} and ${p.periodEnd}.`,
-          `Recorded company wide: disclosures are not held against a branch, so this covers the whole company and not ${p.branchName} alone.`,
-          `${wb.anonymous} were made anonymously.`,
-          `By category: ${wb.byCategory.map((c) => `${c.category} ${c.count}`).join(", ")}.`,
-          `Status at today's date: ${wb.open} open, ${wb.underReview} under review, ${wb.closed} closed` +
-            (wb.medianDaysToClose === null ? "." : `, typically closed in ${wb.medianDaysToClose} days.`),
-        ];
+  const period = `between ${ukDate(p.periodStart)} and ${ukDate(p.periodEnd)}`;
+  const incidents = incidentLines(p.incidents, p.branchName, period);
+  const safeguarding = safeguardingLines(p.incidents);
+  const whistleblowing = whistleblowingLines(p.whistleblowing, p.branchName, period);
 
   const auditAvg = p.audits.monthsInPeriod
     ? ((p.audits.people6 + p.audits.serviceUsers6) / p.audits.monthsInPeriod).toFixed(1)
@@ -373,9 +342,9 @@ export function buildInitialData(p: Reg80Prefill, riName: string): Record<string
     prev_actions_status: prevStatus,
     staffing_levels: staffingLines.join("\n"),
     complaints_summary: complaintsLines.join("\n"),
-    incidents_summary: incidentLines.join("\n"),
-    safeguarding_summary: safeguardingLines.join("\n"),
-    ...(whistleblowingLines ? { whistleblowing_summary: whistleblowingLines.join("\n") } : {}),
+    incidents_summary: incidents.join("\n"),
+    safeguarding_summary: safeguarding.join("\n"),
+    ...(whistleblowing ? { whistleblowing_summary: whistleblowing.join("\n") } : {}),
     audits_summary: auditLines.join("\n"),
     care_plans_summary: carePlanLines.join("\n"),
     supervision_summary: supervisionLines.join("\n"),
