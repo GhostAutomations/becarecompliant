@@ -7,10 +7,11 @@ import {
   AI_TOPUP_PENCE,
   tierBasePriceId,
   seatPriceId,
+  branchPriceId,
   aiTopupPriceId,
   type SubscriptionTier,
 } from "@/lib/stripe/config";
-import { EXTRA_SEAT_PENCE } from "@/lib/billing/seats";
+import { EXTRA_SEAT_PENCE, EXTRA_BRANCH_PENCE } from "@/lib/billing/seats";
 import { PRICING_TIERS } from "@/lib/marketing/tiers";
 
 /**
@@ -86,6 +87,14 @@ function targets(): Target[] {
     env: "STRIPE_PRICE_SEAT",
     priceId: seatPriceId(),
     expectedPence: EXTRA_SEAT_PENCE,
+    recurring: true,
+    onSale: true,
+  });
+  list.push({
+    label: "Extra branch, per month",
+    env: "STRIPE_PRICE_BRANCH",
+    priceId: branchPriceId(),
+    expectedPence: EXTRA_BRANCH_PENCE,
     recurring: true,
     onSale: true,
   });
@@ -188,7 +197,7 @@ export async function checkStripePrices(): Promise<PriceCheck[] | null> {
  */
 export async function checkoutPriceProblem(
   tier: SubscriptionTier,
-  opts: { includeSeat?: boolean } = {},
+  opts: { includeSeat?: boolean; includeBranch?: boolean } = {},
 ): Promise<string | null> {
   const stripe = getStripe();
   if (!stripe) return null;
@@ -202,6 +211,14 @@ export async function checkoutPriceProblem(
   ];
   if (opts.includeSeat) {
     wanted.push({ id: seatPriceId(), expected: EXTRA_SEAT_PENCE, what: "the extra user price" });
+  }
+  // Gated on its OWN line appearing, not on the seat line: a company can be inside its user
+  // allowance and over its branch allowance, and vice versa. Same reasoning as the seat gate
+  // above, and the same guard: a branch price that disagrees with EXTRA_BRANCH_PENCE is how a
+  // customer gets billed something the pricing page never said, which is precisely how Pro
+  // came to be sold at £69 and charged at £99.
+  if (opts.includeBranch) {
+    wanted.push({ id: branchPriceId(), expected: EXTRA_BRANCH_PENCE, what: "the extra branch price" });
   }
 
   for (const w of wanted) {

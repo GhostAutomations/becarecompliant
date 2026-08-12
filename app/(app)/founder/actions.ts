@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { requirePlatformAdmin } from "@/lib/auth/guards";
+import { syncBranchQuantity } from "@/lib/billing/stripe-sync";
 import { createClient } from "@/lib/supabase/server";
 import { createAndSendInvite, resendInvite, revokeInvite, type Actor } from "@/lib/invites";
 import { syncSeatQuantity } from "@/lib/billing/stripe-sync";
@@ -943,4 +944,75 @@ export async function provisionFromTrialRequest(
   }
 
   return { redirectTo: `/founder/companies/${companyId}` };
+}
+
+/**
+ * Add an operational branch to a company (THE LIST item 16).
+ *
+ * WHY THIS EXISTS AT ALL. Until now nothing in the product created a branch. The only insert
+ * anywhere was the Office and first Branch seeded with a new company, and every extra branch
+ * on the test company was added by hand in SQL. So "branches are founder provisioned" meant
+ * "founder writes SQL", and the £7.50 a month the pricing page promises for an extra branch
+ * could never have been billed by any code path, because there was no path.
+ *
+ * Creating one here bills it immediately (syncBranchQuantity, prorated onto the next invoice
+ * exactly like an extra user). The nightly reconcile in the invoicing cron is the belt to this
+ * pair of braces: it catches a branch added any other way, including straight in SQL.
+ *
+ * Platform admin only, like every other founder action.
+ */
+export async function addBranch(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requirePlatformAdmin();
+  const companyId = String(formData.get("company_id") ?? "").trim();
+  const name = String(formData.get("name") ?? "").trim();
+  if (!companyId) return { error: "Missing company." };
+  if (!name) return { error: "Enter a branch name." };
+
+  const supabase = await createClient();
+
+  // Refuse a duplicate NAME rather than letting two "Cardiff1" branches exist: every register,
+  // every import and every report identifies a branch to a human by its name.
+  const { data: existing } = await supabase
+    .from("branches")
+    .select("id")
+    .eq("company_id", companyId)
+    .ilike("name", name)
+    .limit(1);
+  if (existing && existing.length > 0) {
+    return { error: `That company already has a branch called ${name}.` };
+  }
+
+  const { data: branch, error } = await supabase
+    .from("branches")
+    .insert({ company_id: companyId, name, kind: "branch" })
+    .select("id, name")
+    .single();
+  if (error) return { error: error.message };
+
+  // Bill it. Best effort by contract: a Stripe hiccup must never leave the founder unsure
+  // whether the branch was created, so the branch stands and the reconcile picks it up.
+  const billed = await syncBranchQuantity(companyId);
+
+  await writeAudit({
+    companyId,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "branch.created",
+    entityType: "branch",
+    entityId: branch.id as string,
+    summary: `Added the branch ${branch.name}`,
+    metadata: { billed: billed.synced, billing_reason: billed.reason ?? null, quantity: billed.quantity ?? null },
+  });
+
+  revalidatePath(`/founder/companies/${companyId}`);
+  revalidatePath("/settings/branches");
+  return {
+    ok: billed.synced && billed.quantity !== undefined && billed.quantity > 0
+      ? `Added ${branch.name}. Billing updated to ${billed.quantity} extra branch${billed.quantity === 1 ? "" : "es"}.`
+      : `Added ${branch.name}.`,
+  };
 }

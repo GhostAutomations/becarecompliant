@@ -20,6 +20,7 @@ import {
   isSubscriptionTier,
   tierBasePriceId,
   seatPriceId,
+  branchPriceId,
   tierPricingReady,
   aiTopupPriceId,
   AI_TOPUP_CREDITS,
@@ -33,6 +34,7 @@ import {
   getCompanyBilling,
   getActiveSeatCount,
   extraSeats,
+  extraBranches,
 } from "@/lib/billing/stripe-sync";
 import { checkoutPriceProblem } from "@/lib/billing/price-check";
 
@@ -82,7 +84,16 @@ export async function startCheckout(
 
   // Nobody is charged an amount that disagrees with what we showed them. See
   // lib/billing/price-check.ts: this refuses the sale rather than trusting the dashboard.
-  const priceProblem = await checkoutPriceProblem(tier, { includeSeat: extra > 0 });
+  // Same for branches (THE LIST item 16): a company can be inside its user allowance and over
+  // its branch allowance. extraBranches is 0 when no branch price is configured, so a
+  // deployment without STRIPE_PRICE_BRANCH simply sells what it sold before rather than
+  // failing: the founder health panel is what says the price is missing.
+  const extraBranch = branchPriceId() ? await extraBranches(profile.company_id, tier) : 0;
+
+  const priceProblem = await checkoutPriceProblem(tier, {
+    includeSeat: extra > 0,
+    includeBranch: extraBranch > 0,
+  });
   if (priceProblem) return { error: priceProblem };
 
   const stripe = getStripe()!;
@@ -100,6 +111,9 @@ export async function startCheckout(
   // Only add the per-seat line when there are extra seats; syncSeatQuantity adds
   // it later if a 5th user joins after subscribing. Checkout rejects quantity 0.
   if (extra > 0) lineItems.push({ price: seatPriceId()!, quantity: extra });
+  // Same rule for branches: only when there is one to charge for, and syncBranchQuantity adds
+  // the line later if a branch is provisioned after they subscribe.
+  if (extraBranch > 0) lineItems.push({ price: branchPriceId()!, quantity: extraBranch });
 
   const base = siteUrl();
   try {

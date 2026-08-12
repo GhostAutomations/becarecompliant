@@ -68,6 +68,21 @@ export function seatPriceId(): string | null {
   return process.env.STRIPE_PRICE_SEAT ?? null;
 }
 
+/**
+ * The per EXTRA BRANCH Price ID (£7.50/branch/month), the same shape as the seat price: one
+ * price shared by every subscription tier, whose QUANTITY carries the branches beyond the
+ * tier's allowance (Business 1, Pro 2). See lib/billing/seats.ts includedBranchesForTier and
+ * stripe-sync.ts syncBranchQuantity.
+ *
+ * THE LIST item 16: the pricing page has promised "£7.50 per extra branch per month" since
+ * launch and nothing has ever billed for it. EXTRA_BRANCH_PENCE existed only to be printed.
+ * Acme is the live example: Pro, two included, three operational branches, £7.50 a month shown
+ * and never collected.
+ */
+export function branchPriceId(): string | null {
+  return process.env.STRIPE_PRICE_BRANCH ?? null;
+}
+
 /** AI credit top-up: a one-time payment for a bundle of credits. The Stripe Price
  *  (£10 + VAT, one time) is created in the dashboard and supplied via env; each unit
  *  purchased grants AI_TOPUP_CREDITS credits, which carry over until used. */

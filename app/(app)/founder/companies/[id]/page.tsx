@@ -16,7 +16,16 @@ import SupervisionCycleToggle from "@/components/founder/supervision-cycle-toggl
 import FounderColumnNamesForm from "@/components/founder/founder-column-names-form";
 import { REGISTER_COLUMNS } from "@/lib/people/logic";
 import { SU_REGISTER_COLUMNS } from "@/lib/service-users/types";
-import { computeSeatUsage, includedSeatsForTier, formatPence, isBillableSeat } from "@/lib/billing/seats";
+import {
+  computeSeatUsage,
+  includedSeatsForTier,
+  includedBranchesForTier,
+  EXTRA_BRANCH_PENCE,
+  formatPence,
+  isBillableSeat,
+} from "@/lib/billing/seats";
+import ActionForm from "@/components/action-form";
+import { addBranch } from "@/app/(app)/founder/actions";
 import { TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
 import {
   billingStatusPill,
@@ -114,6 +123,7 @@ export default async function FounderCompanyPage({
   ).length;
   const seats = computeSeatUsage(activeUsers, includedSeatsForTier(company.tier));
   const isSub = isSubscriptionTier(company.tier);
+  const branchIncluded = includedBranchesForTier(company.tier ?? "business");
   const monthlyTotalPence = isSub
     ? TIER_BASE_PENCE[company.tier as keyof typeof TIER_BASE_PENCE] +
       seats.extraCostPence
@@ -205,6 +215,23 @@ export default async function FounderCompanyPage({
           value={(branches ?? []).length}
           sub={(branches ?? []).map((b) => b.name).join(", ") || "None"}
         />
+      </section>
+
+      {/* ADD A BRANCH (THE LIST item 16). Until now nothing in the product created one: every
+          extra branch on the test company was added by hand in SQL, which is why the £7.50 a
+          month the pricing page promises could never have been billed. Creating one here bills
+          it immediately, prorated onto the next invoice like an extra user. */}
+      <section aria-label="Branches" className="glass-card p-5">
+        <h2 className="mb-1 text-sm font-semibold text-white/80">Add a branch</h2>
+        <p className="mb-3 text-xs text-white/50">
+          {branchIncluded === 9999
+            ? "This tier includes unlimited branches."
+            : `This tier includes ${branchIncluded} branch${branchIncluded === 1 ? "" : "es"}. Beyond that, ${formatPence(EXTRA_BRANCH_PENCE)} per branch per month is added to their subscription. Tell the customer before you add one.`}
+        </p>
+        <ActionForm action={addBranch} hidden={{ company_id: company.id }} inline label="Add branch">
+          <label htmlFor="new_branch_name" className="form-label">Branch name</label>
+          <input id="new_branch_name" name="name" type="text" maxLength={80} required placeholder="e.g. Swansea" />
+        </ActionForm>
       </section>
 
       <section aria-label="Billing detail" className="glass-card p-5">

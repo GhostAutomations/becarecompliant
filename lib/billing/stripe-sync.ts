@@ -1,8 +1,8 @@
 import "server-only";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe/client";
-import { seatPriceId, isSubscriptionTier } from "@/lib/stripe/config";
-import { includedSeatsForTier, NON_BILLABLE_ROLES } from "@/lib/billing/seats";
+import { seatPriceId, branchPriceId, isSubscriptionTier } from "@/lib/stripe/config";
+import { includedSeatsForTier, includedBranchesForTier, NON_BILLABLE_ROLES } from "@/lib/billing/seats";
 
 /**
  * Exact seat sync to Stripe. Product rule: 4 users included, then £5/extra/mo.
@@ -162,4 +162,143 @@ export async function syncSeatQuantity(
     console.error("[billing] seat sync failed:", (e as Error).message);
     return { synced: false, reason: "error" };
   }
+}
+
+
+/* ===========================================================================
+ * EXTRA BRANCHES (THE LIST item 16).
+ *
+ * The pricing page has promised "£7.50 per extra branch per month" since launch and NOTHING
+ * HAS EVER BILLED FOR IT. EXTRA_BRANCH_PENCE existed only to be printed on a settings screen.
+ * Acme is the live example: Pro, two included, three operational branches, £7.50 a month shown
+ * to the customer and never collected.
+ *
+ * Deliberately the SAME SHAPE as seats rather than a second billing mechanism: one price on
+ * the subscription whose quantity is "beyond the allowance", pushed whenever the count
+ * changes, prorated onto the next invoice. Anyone who understands the seat model already
+ * understands this one, and there is one place to look when a bill is questioned.
+ *
+ * Branches are FOUNDER provisioned, so in practice this bills when Phil adds a branch for a
+ * customer. That is the moment the customer has to have been told; the code cannot know
+ * whether they were.
+ * =========================================================================== */
+
+/** Operational branches (kind = 'branch'); the office/team row is not a branch and is never
+ *  billed. Service role: this runs inside founder actions and cron paths. */
+export async function getBranchCount(companyId: string): Promise<number> {
+  const supabase = createServiceClient();
+  const { count, error } = await supabase
+    .from("branches")
+    .select("id", { count: "exact", head: true })
+    .eq("company_id", companyId)
+    .eq("kind", "branch");
+  if (error) {
+    console.error("[billing] branch count failed:", error.message);
+    return 0;
+  }
+  return count ?? 0;
+}
+
+/** Branches beyond the tier's allowance (Business 1, Pro 2). Never negative. */
+export function extraBranchesFor(branches: number, tier: string = "business"): number {
+  return Math.max(0, branches - includedBranchesForTier(tier));
+}
+
+/** Live extra-branch count for a company. */
+export async function extraBranches(companyId: string, tier: string): Promise<number> {
+  return extraBranchesFor(await getBranchCount(companyId), tier);
+}
+
+/**
+ * Push the extra-branch quantity to Stripe. Mirrors syncSeatQuantity exactly, including its
+ * best-effort contract: a Stripe hiccup is logged, never thrown, so provisioning a branch for
+ * a customer can never fail because billing was briefly unreachable.
+ */
+export async function syncBranchQuantity(
+  companyId: string,
+): Promise<{ synced: boolean; reason?: string; quantity?: number }> {
+  try {
+    const stripe = getStripe();
+    if (!stripe) return { synced: false, reason: "stripe_unconfigured" };
+
+    const billing = await getCompanyBilling(companyId);
+    if (!billing?.stripe_subscription_id) {
+      return { synced: false, reason: "no_subscription" };
+    }
+    if (billing.billed_tier && !isSubscriptionTier(billing.billed_tier)) {
+      return { synced: false, reason: "not_subscription_tier" };
+    }
+
+    const price = branchPriceId();
+    if (!price) return { synced: false, reason: "no_branch_price" };
+
+    const quantity = await extraBranches(companyId, billing.billed_tier ?? "business");
+
+    const subscription = await stripe.subscriptions.retrieve(billing.stripe_subscription_id);
+    const item = subscription.items.data.find((i) => i.price?.id === price);
+
+    if (!item) {
+      // Nothing to add when there is nothing to charge for: creating a zero quantity line on
+      // every subscription would put "Extra branch £0.00" on invoices that have no branches.
+      if (quantity === 0) return { synced: true, reason: "nothing_to_bill", quantity };
+      await stripe.subscriptionItems.create({
+        subscription: billing.stripe_subscription_id,
+        price,
+        quantity,
+        proration_behavior: "create_prorations",
+      });
+    } else if ((item.quantity ?? 0) !== quantity) {
+      await stripe.subscriptionItems.update(item.id, {
+        quantity,
+        proration_behavior: "create_prorations",
+      });
+    } else {
+      return { synced: true, reason: "unchanged", quantity };
+    }
+
+    return { synced: true, quantity };
+  } catch (e) {
+    console.error("[billing] branch sync failed:", (e as Error).message);
+    return { synced: false, reason: "error" };
+  }
+}
+
+
+/**
+ * Nightly branch billing reconciliation (THE LIST item 16).
+ *
+ * WHY A RECONCILE AND NOT JUST A HOOK. There is no code path in this product that creates a
+ * branch: the only insert is the pair seeded with a new company, and every extra branch Acme
+ * has was added straight in SQL. A sync that fired "when a branch is added" would therefore
+ * never fire, and would LOOK built while collecting nothing, which is the exact failure this
+ * item already was. A founder screen exists now, but the reconcile is what makes the billing
+ * true regardless of how the row got there.
+ *
+ * Cheap: one query for the companies with a live subscription, then one Stripe read per
+ * company, and a write only when the quantity actually differs.
+ */
+export async function reconcileBranchBilling(): Promise<{
+  checked: number;
+  changed: number;
+  skipped: number;
+}> {
+  const result = { checked: 0, changed: 0, skipped: 0 };
+  try {
+    if (!branchPriceId()) return result;
+    const supabase = createServiceClient();
+    const { data } = await supabase
+      .from("company_billing")
+      .select("company_id")
+      .not("stripe_subscription_id", "is", null);
+
+    for (const row of (data as { company_id: string }[] | null) ?? []) {
+      result.checked += 1;
+      const outcome = await syncBranchQuantity(row.company_id);
+      if (outcome.synced && outcome.reason === undefined) result.changed += 1;
+      else if (!outcome.synced) result.skipped += 1;
+    }
+  } catch (e) {
+    console.error("[billing] branch reconcile failed:", (e as Error).message);
+  }
+  return result;
 }
