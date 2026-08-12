@@ -124,6 +124,8 @@ export default async function FounderCompanyPage({
   const seats = computeSeatUsage(activeUsers, includedSeatsForTier(company.tier));
   const isSub = isSubscriptionTier(company.tier);
   const branchIncluded = includedBranchesForTier(company.tier ?? "business");
+  const operationalBranches = (branches ?? []).filter((b) => (b as { kind?: string }).kind === "branch");
+  const officeBranches = (branches ?? []).filter((b) => (b as { kind?: string }).kind !== "branch");
   const monthlyTotalPence = isSub
     ? TIER_BASE_PENCE[company.tier as keyof typeof TIER_BASE_PENCE] +
       seats.extraCostPence
@@ -210,10 +212,17 @@ export default async function FounderCompanyPage({
           value={activeUsers}
           sub={`${(profiles ?? []).length} total · ${(invites ?? []).length} pending`}
         />
+        {/* OPERATIONAL branches only. The card counted the company's Office too, so it read
+            "Branches 5" directly above copy saying "this tier includes 2 branches" — making a
+            company two branches over its allowance look three over. The office is not a branch
+            and is never billed, so it is named separately rather than counted. */}
         <StatCard
           label="Branches"
-          value={(branches ?? []).length}
-          sub={(branches ?? []).map((b) => b.name).join(", ") || "None"}
+          value={operationalBranches.length}
+          sub={
+            (operationalBranches.map((b) => b.name).join(", ") || "None") +
+            (officeBranches.length > 0 ? ` · plus ${officeBranches.map((b) => b.name).join(", ")}` : "")
+          }
         />
       </section>
 
