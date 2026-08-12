@@ -111,6 +111,34 @@ export default async function MyAreaPage() {
         </>
       )}
 
+      {/* RAISE A CONCERN (Phil, 2026-08-12: "how does a employee access it, is it in their
+          portal?"). It was not, and that was the hole: the register could only be filled in
+          by the Admin typing up what somebody had told them, so the people most likely to
+          have something to disclose had no way in.
+
+          Deliberately quiet and deliberately NOT folded away: somebody looking for this is
+          usually looking for it once, in a hurry, and should not have to hunt. It carries no
+          count and no history, because a record of "you raised a concern" sitting in a
+          carer's own portal is a trail on the person who did the right thing. */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
+          Something wrong at work
+        </h2>
+        <Link
+          href="/my/concern"
+          className="glass-card flex items-center justify-between gap-4 p-5 hover:bg-white/5"
+        >
+          <span>
+            <span className="block text-sm font-semibold text-white">Raise a concern</span>
+            <span className="block text-xs text-white/55">
+              Unsafe, dishonest or wrong. Goes to the Admin and the Responsible Individual
+              only, never to your manager. You can send it without giving your name.
+            </span>
+          </span>
+          <span aria-hidden className="text-white/40">&rsaquo;</span>
+        </Link>
+      </section>
+
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
           My briefings

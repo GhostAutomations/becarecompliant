@@ -161,7 +161,7 @@ export const NAV_ENTRIES: NavEntry[] = [
     // Company Admin and Responsible Individual ONLY. Hiding the entry is a courtesy, not
     // the control: whistleblowing_disclosures refuses everyone else in RLS (0174/0175),
     // because the commonest real disclosure is about a manager.
-    roles: ["platform_admin", "company_admin", "registered_individual"],
+    roles: ["company_admin", "registered_individual"],
   },
   {
     href: "/briefings",

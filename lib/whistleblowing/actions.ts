@@ -18,7 +18,7 @@ import type { ActionState } from "@/lib/forms";
 import { DISCLOSURE_STATUSES, type DisclosureStatus } from "./types";
 import { todayIso } from "./logic";
 
-const MANAGE_ROLES = ["company_admin", "registered_individual", "platform_admin"];
+const MANAGE_ROLES = ["company_admin", "registered_individual"];
 
 function trimOrNull(v: FormDataEntryValue | null): string | null {
   const s = String(v ?? "").trim();

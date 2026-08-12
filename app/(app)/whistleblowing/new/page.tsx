@@ -8,7 +8,10 @@ import { todayIso } from "@/lib/whistleblowing/logic";
 
 export const metadata: Metadata = { title: "Record a disclosure" };
 
-const MANAGE_ROLES = ["company_admin", "registered_individual", "platform_admin"];
+/* NO platform_admin. The founder is not a reader of this register (migration 0177), and
+ * leaving them in this list would let a support session render a page whose every query
+ * comes back empty - which looks like a bug rather than a boundary. */
+const MANAGE_ROLES = ["company_admin", "registered_individual"];
 
 export default async function NewDisclosurePage() {
   const { profile } = await requireCompany();
