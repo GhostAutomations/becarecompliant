@@ -67,8 +67,17 @@ export function safeguardingLines(inc: Incidents): string[] {
       `None of the ${count(inc.total, "incident", "incidents")} in the period ${agree(inc.total, "was", "were")} escalated to safeguarding.`,
     ];
   }
+  /* "1 of the 1 incident in the period was escalated" is grammatical and reads like a
+     machine wrote it, which in a Reg 80 report is its own kind of wrong. When every
+     incident was escalated, say so. */
+  const escalated =
+    inc.safeguarding === inc.total
+      ? inc.total === 1
+        ? "The incident in the period was escalated to safeguarding."
+        : `All ${count(inc.total, "incident", "incidents")} in the period were escalated to safeguarding.`
+      : `${inc.safeguarding} of the ${count(inc.total, "incident", "incidents")} in the period ${agree(inc.safeguarding, "was", "were")} escalated to safeguarding.`;
   return [
-    `${inc.safeguarding} of the ${count(inc.total, "incident", "incidents")} in the period ${agree(inc.safeguarding, "was", "were")} escalated to safeguarding.`,
+    escalated,
     inc.awaitingReferral === 0
       ? `${agree(inc.referred, "It has", "All have")} a referral date recorded.`
       : `${inc.referred} ${agree(inc.referred, "has", "have")} a referral date recorded and ${inc.awaitingReferral} ${agree(inc.awaitingReferral, "does", "do")} not.`,

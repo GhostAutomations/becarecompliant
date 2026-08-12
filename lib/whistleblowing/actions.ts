@@ -105,8 +105,19 @@ export async function createDisclosure(_prev: ActionState, formData: FormData): 
 
   if (error) return { error: error.message };
 
-  // The audit summary carries the category and nothing else. The audit log is readable by
-  // people who cannot read the disclosures themselves, so it must not restate them.
+  /*
+   * THE AUDIT ENTRY CARRIES NO CATEGORY, AND NO METADATA ABOUT THE DISCLOSURE.
+   *
+   * It used to say "Recorded a whistleblowing disclosure (Falsification of records)", which
+   * I wrote for the Admin's benefit. Phil spotted the consequence on the live dashboard:
+   * audit_log keeps its is_platform_admin() clause, so the founder could read the CATEGORY
+   * of every company's disclosures out of the audit trail, having just been shut out of the
+   * register itself by 0177. A boundary that holds on one table and leaks on the next is
+   * not a boundary.
+   *
+   * So this records only THAT a disclosure was recorded and by whom. What it was about
+   * lives in one place, behind one policy.
+   */
   await writeAudit({
     companyId,
     actorId: user.id,
@@ -115,8 +126,7 @@ export async function createDisclosure(_prev: ActionState, formData: FormData): 
     action: "whistleblowing.created",
     entityType: "whistleblowing_disclosure",
     entityId: row.id,
-    summary: `Recorded a whistleblowing disclosure (${category})`,
-    metadata: { category, anonymous: identity.anonymous },
+    summary: "Recorded a whistleblowing disclosure",
   });
 
   revalidatePath("/whistleblowing");

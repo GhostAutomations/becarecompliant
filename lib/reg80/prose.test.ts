@@ -82,10 +82,24 @@ test("no incidents produces a sentence, not a stray zero", () => {
   assert.match(safeguardingLines(inc())[0], /^No incidents were recorded in the period/);
 });
 
-test('one escalation out of one incident is not "1 of the 1 incidents were"', () => {
+test("the only incident being escalated does not read \"1 of the 1 incident\"", () => {
+  // Live check on 2026-08-12 produced exactly that, which is grammatical and reads like a
+  // machine wrote it. In a document a regulator reads, that is its own kind of wrong.
   const lines = safeguardingLines(inc({ total: 1, safeguarding: 1, referred: 1 }));
-  assert.equal(lines[0], "1 of the 1 incident in the period was escalated to safeguarding.");
+  assert.equal(lines[0], "The incident in the period was escalated to safeguarding.");
   assert.equal(lines[1], "It has a referral date recorded.");
+  assert.doesNotMatch(lines.join("\n"), /1 of the 1/);
+});
+
+test("all of several incidents being escalated reads as all", () => {
+  const lines = safeguardingLines(inc({ total: 3, safeguarding: 3, referred: 3 }));
+  assert.equal(lines[0], "All 3 incidents in the period were escalated to safeguarding.");
+  assert.equal(lines[1], "All have a referral date recorded.");
+});
+
+test("some but not all still reads as a proportion", () => {
+  const lines = safeguardingLines(inc({ total: 4, safeguarding: 1, referred: 1 }));
+  assert.equal(lines[0], "1 of the 4 incidents in the period was escalated to safeguarding.");
 });
 
 test("an unreferred escalation says so", () => {
