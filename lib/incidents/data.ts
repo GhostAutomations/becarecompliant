@@ -82,3 +82,38 @@ export async function listPeopleLite(
     .order("full_name", { ascending: true });
   return (data as Array<{ id: string; full_name: string; branch_id: string | null }> | null) ?? [];
 }
+
+/**
+ * The dashboard figure: incidents with a duty still outstanding.
+ *
+ * "Awaiting action" means flagged notifiable with no notification date, or escalated to
+ * safeguarding with no referral date. It counts CLOSED incidents too, deliberately -
+ * closing the record does not discharge the duty, and if it did, an un-notified incident
+ * could be buried by closing it.
+ *
+ * Branch scoped by RLS, so a manager's tile counts their own branches and no others.
+ */
+export async function getIncidentActions(
+  companyId: string,
+): Promise<{ awaiting: number; open: number }> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("incidents")
+    .select("notifiable, notified_on, safeguarding, safeguarding_referred_on, status")
+    .eq("company_id", companyId);
+  const rows =
+    (data as Array<{
+      notifiable: boolean;
+      notified_on: string | null;
+      safeguarding: boolean;
+      safeguarding_referred_on: string | null;
+      status: string;
+    }> | null) ?? [];
+  return {
+    awaiting: rows.filter(
+      (r) =>
+        (r.notifiable && !r.notified_on) || (r.safeguarding && !r.safeguarding_referred_on),
+    ).length,
+    open: rows.filter((r) => r.status !== "closed").length,
+  };
+}

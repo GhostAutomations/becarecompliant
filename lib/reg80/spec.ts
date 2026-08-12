@@ -117,11 +117,29 @@ export const REG80_SECTIONS: Reg80Section[] = [
   {
     title: "Incidents, safeguarding and whistleblowing",
     intro:
-      "Aggregated analysis of incidents, notifiable incidents, safeguarding matters and whistleblowing (Regulation 80(3)(b)). Recorded by the Responsible Individual; the platform does not hold these yet.",
+      "Aggregated analysis of incidents, notifiable incidents, safeguarding matters and whistleblowing (Regulation 80(3)(b)).",
     fields: [
-      { key: "incidents_summary", label: "Incidents and notifiable incidents (aggregated)", type: "text" },
-      { key: "safeguarding_summary", label: "Safeguarding matters (aggregated)", type: "text" },
-      { key: "whistleblowing_summary", label: "Whistleblowing (aggregated)", type: "text" },
+      {
+        key: "incidents_summary",
+        label: "Incidents and notifiable incidents (aggregated)",
+        type: "text",
+        data: true,
+        hint: "Pre-filled from the Incidents register: what happened in the period, how many were notifiable, and how many notifications were actually made.",
+      },
+      {
+        key: "safeguarding_summary",
+        label: "Safeguarding matters (aggregated)",
+        type: "text",
+        data: true,
+        hint: "Pre-filled from the same incidents. A safeguarding referral is an incident that was escalated, so these figures always reconcile with the line above.",
+      },
+      {
+        key: "whistleblowing_summary",
+        label: "Whistleblowing (aggregated)",
+        type: "text",
+        data: true,
+        hint: "Pre-filled from the Whistleblowing register for the Admin and the Responsible Individual only. Left BLANK for anyone else, because they cannot read that register: blank here does not mean none. Anything you save in this box becomes part of the report, which a branch manager can read.",
+      },
       { key: "incidents_actions", label: "Action needed and measures", type: "text" },
     ],
   },
@@ -270,6 +288,48 @@ export function buildInitialData(p: Reg80Prefill, riName: string): Record<string
     `By category (6 months): ${p.complaints.concern6.map((c) => `${c.type} ${c.count}`).join(", ") || "none"}.`,
   ];
 
+  const inc = p.incidents;
+  const incidentLines = inc.total === 0
+    ? [`No incidents were recorded for ${p.branchName} between ${p.periodStart} and ${p.periodEnd}.`]
+    : [
+        `${inc.total} incidents occurred at ${p.branchName} between ${p.periodStart} and ${p.periodEnd}.`,
+        inc.notifiable === 0
+          ? "None were notifiable to the regulator."
+          : `${inc.notifiable} were notifiable to the regulator, of which ${inc.notified} have a notification recorded` +
+            (inc.awaitingNotification > 0 ? ` and ${inc.awaitingNotification} do not.` : "."),
+        `By category: ${inc.byCategory.map((c) => `${c.category} ${c.count}`).join(", ")}.`,
+        `Status at today's date: ${inc.open} open, ${inc.underReview} under review, ${inc.closed} closed.`,
+      ];
+
+  const safeguardingLines = inc.total === 0
+    ? ["No incidents were recorded in the period, so no safeguarding matters arose from one."]
+    : inc.safeguarding === 0
+      ? [`None of the ${inc.total} incidents in the period were escalated to safeguarding.`]
+      : [
+          `${inc.safeguarding} of the ${inc.total} incidents in the period were escalated to safeguarding.`,
+          inc.awaitingReferral === 0
+            ? `All ${inc.referred} have a referral date recorded.`
+            : `${inc.referred} have a referral date recorded and ${inc.awaitingReferral} do not.`,
+        ];
+
+  /* ABSENT, NOT ZERO, when this person may not read the register. See the note in
+     prefill.ts: a blank box the RI fills in is recoverable, "no disclosures were received"
+     in a report to CIW is not. Returning nothing also means a Refresh by someone who cannot
+     read them leaves whatever the RI wrote alone. */
+  const wb = p.whistleblowing;
+  const whistleblowingLines = !wb.readable
+    ? null
+    : wb.total === 0
+      ? [`No whistleblowing disclosures were received between ${p.periodStart} and ${p.periodEnd}.`]
+      : [
+          `${wb.total} whistleblowing disclosures were received between ${p.periodStart} and ${p.periodEnd}.`,
+          `Recorded company wide: disclosures are not held against a branch, so this covers the whole company and not ${p.branchName} alone.`,
+          `${wb.anonymous} were made anonymously.`,
+          `By category: ${wb.byCategory.map((c) => `${c.category} ${c.count}`).join(", ")}.`,
+          `Status at today's date: ${wb.open} open, ${wb.underReview} under review, ${wb.closed} closed` +
+            (wb.medianDaysToClose === null ? "." : `, typically closed in ${wb.medianDaysToClose} days.`),
+        ];
+
   const auditAvg = p.audits.monthsInPeriod
     ? ((p.audits.people6 + p.audits.serviceUsers6) / p.audits.monthsInPeriod).toFixed(1)
     : "0";
@@ -313,6 +373,9 @@ export function buildInitialData(p: Reg80Prefill, riName: string): Record<string
     prev_actions_status: prevStatus,
     staffing_levels: staffingLines.join("\n"),
     complaints_summary: complaintsLines.join("\n"),
+    incidents_summary: incidentLines.join("\n"),
+    safeguarding_summary: safeguardingLines.join("\n"),
+    ...(whistleblowingLines ? { whistleblowing_summary: whistleblowingLines.join("\n") } : {}),
     audits_summary: auditLines.join("\n"),
     care_plans_summary: carePlanLines.join("\n"),
     supervision_summary: supervisionLines.join("\n"),

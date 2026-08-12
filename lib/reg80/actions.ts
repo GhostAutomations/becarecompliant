@@ -46,6 +46,12 @@ async function guard() {
   return { profile };
 }
 
+/** Who may have the whistleblowing figures pulled into their draft. The same two roles the
+ *  register itself admits (migrations 0174, 0175 and 0177). A Registered Manager is NOT one
+ *  of them, deliberately: they can author a Reg 80 review, and they still cannot read
+ *  disclosures. */
+const CAN_READ_WHISTLEBLOWING = ["company_admin", "registered_individual"];
+
 export async function createReg80Draft(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const g = await guard();
   if ("error" in g) return { error: g.error };
@@ -63,7 +69,13 @@ export async function createReg80Draft(_prev: ActionState, formData: FormData): 
   const branchName = (branch.name as string) ?? "Branch";
   const companyName = (company?.name as string) ?? "Company";
 
-  const prefill = await getReg80Prefill({ companyId, companyName, branchId, branchName });
+  const prefill = await getReg80Prefill({
+    companyId,
+    companyName,
+    branchId,
+    branchName,
+    canReadWhistleblowing: CAN_READ_WHISTLEBLOWING.includes(profile.role),
+  });
   const initial = buildInitialData(prefill, profile.full_name ?? "");
   const reference = `Reg 80 ${branchName} ${initial.period_end}`;
 
@@ -242,6 +254,7 @@ export async function refreshReg80Data(_prev: ActionState, formData: FormData): 
     branchId: row.branch_id as string,
     branchName,
     period,
+    canReadWhistleblowing: CAN_READ_WHISTLEBLOWING.includes(profile.role),
   });
   const oldData = (row.data as Record<string, string>) ?? {};
   const fresh = buildInitialData(prefill, oldData.ri_name ?? profile.full_name ?? "");

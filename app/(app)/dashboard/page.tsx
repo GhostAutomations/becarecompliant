@@ -11,6 +11,7 @@ import { featureEnabled } from "@/lib/billing/tier";
 import { PLANNER_ROLES } from "@/lib/planner/data";
 import { defaultOnTimeWindow } from "@/lib/export/on-time";
 import { getComplaintCounts } from "@/lib/complaints/data";
+import { getIncidentActions } from "@/lib/incidents/data";
 import { listAccessibleBranchTypes } from "@/lib/service-users/data";
 import type { PqsMeasure } from "@/lib/export/on-time";
 import {
@@ -82,6 +83,17 @@ const ICONS: Record<string, ReactNode> = {
  * shown a count from it. RLS would hand a Supervisor an empty set, and an empty set rendered as
  * "0 complaints" is a lie by omission.
  */
+/** The Incidents tile is drawn for exactly the roles the Incidents register admits. Any
+ *  wider and a Supervisor reads a zero and takes it to mean nothing is outstanding, when it
+ *  means the rows were never visible to them. */
+const INCIDENT_ROLES = [
+  "company_admin",
+  "registered_individual",
+  "registered_manager",
+  "manager",
+  "platform_admin",
+];
+
 const COMPLAINTS_ROLES = [
   "company_admin",
   "registered_individual",
@@ -543,6 +555,8 @@ export default async function DashboardPage() {
   // Supervisor would read a zero and take it to mean there are no complaints.
   const canSeeComplaints =
     COMPLAINTS_ROLES.includes(profile.role) && (await featureEnabled(companyId, "complaints"));
+  // No feature gate: recording an incident is a legal duty on every tier, Business included.
+  const canSeeIncidents = INCIDENT_ROLES.includes(profile.role);
 
   const { people, serviceUsers } = await getComplianceBuckets(companyId);
   const [
@@ -553,6 +567,7 @@ export default async function DashboardPage() {
     dueSoon,
     plannerWeek,
     complaints,
+    incidentActions,
     absenceActions,
     holidaysPending,
     spend,
@@ -573,6 +588,9 @@ export default async function DashboardPage() {
       canSeeComplaints
         ? getComplaintCounts(companyId)
         : Promise.resolve(null as Awaited<ReturnType<typeof getComplaintCounts>> | null),
+      canSeeIncidents
+        ? getIncidentActions(companyId)
+        : Promise.resolve(null as Awaited<ReturnType<typeof getIncidentActions>> | null),
       getAbsenceActions(companyId),
       getPendingHolidayApprovals(companyId),
       // Admin only: both sources are Admin only by RLS, and a Manager reading them would get
@@ -862,6 +880,26 @@ export default async function DashboardPage() {
           />
           {/* Complaints, in place of the Incidents tile there is no feature for (Phil, 2026-07-30).
               The figure is cases NOT closed, which is what a manager acts on. */}
+          {incidentActions ? (
+            <Tile
+              href="/incidents"
+              label="Incidents awaiting action"
+              className={spendCols}
+              icon="risk"
+              iconTone="red"
+              /* THE OUTSTANDING DUTY IS THE HEADLINE, not the number of open incidents.
+                 A notifiable incident with no notification date is the one thing on this
+                 screen that can put a provider in front of the regulator, and it stays
+                 counted after the incident is closed. */
+              value={incidentActions.awaiting}
+              tone={incidentActions.awaiting > 0 ? "red" : "green"}
+              sub={
+                incidentActions.awaiting > 0
+                  ? "flagged, but no date recorded yet"
+                  : `nothing outstanding, ${incidentActions.open} open`
+              }
+            />
+          ) : null}
           {complaints ? (
             <Tile
               href="/complaints"

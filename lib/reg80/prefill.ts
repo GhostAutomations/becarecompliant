@@ -12,13 +12,30 @@ import "server-only";
  * Everything reads through the caller's RLS client (branch authorised). No dashes in copy.
  *
  * Reg 80(3) also requires analysing incidents, notifiable incidents, safeguarding and
- * whistleblowing. We do not hold those as structured data yet (see THE LIST item 21),
- * so those sections are RI authored narrative; everything here is what we can pull.
+ * whistleblowing. Since THE LIST item 21 we DO hold those, so they are pulled here too,
+ * counted by the same pure modules the registers use (lib/incidents/summary,
+ * lib/whistleblowing/summary) rather than by a second set of rules that would drift.
+ *
+ * WHISTLEBLOWING IS NOT PULLED FOR EVERYONE, and the reason matters. A branch manager can
+ * view a saved Reg 80 report, and cannot read the whistleblowing register. Reading it here
+ * through their RLS client would return zero rows, and zero rows would become the sentence
+ * "no disclosures were received in the period" in a document that goes to CIW. So the
+ * caller states whether this person may read them, and when they may not the field is left
+ * ABSENT rather than filled with a zero: absent survives a Refresh, and a blank box the RI
+ * fills in is recoverable in a way that a confident falsehood is not.
  */
 
 import { createClient } from "@/lib/supabase/server";
 import { getPqsMeasures, defaultOnTimeWindow } from "@/lib/export/on-time";
 import { todayInLondon, formatCivilDate } from "@/lib/recurrence";
+import { summariseIncidents, type CountableIncident } from "@/lib/incidents/summary";
+import {
+  summariseDisclosures,
+  type CountableDisclosure,
+  type DisclosureSummary,
+} from "@/lib/whistleblowing/summary";
+import type { IncidentStatus } from "@/lib/incidents/types";
+import type { DisclosureStatus } from "@/lib/whistleblowing/types";
 
 const AUDIT_TARGET_PER_MONTH = 5; // the branch target the report grades audits against
 const PERIOD_MONTHS = 6;
@@ -44,6 +61,25 @@ export type Reg80Prefill = {
     concern6: { type: string; count: number }[];
     concern12: { type: string; count: number }[];
   };
+  /** Incidents that OCCURRED in the period, in this branch. Branch scoped by RLS as well
+   *  as by the query, so a manager's report covers their own branch and no other. */
+  incidents: {
+    total: number;
+    notifiable: number;
+    notified: number;
+    awaitingNotification: number;
+    safeguarding: number;
+    referred: number;
+    awaitingReferral: number;
+    open: number;
+    underReview: number;
+    closed: number;
+    byCategory: Array<{ category: string; count: number }>;
+  };
+  /** Disclosures RECEIVED in the period, company wide. `readable: false` means this person
+   *  is not allowed to read the register - which is NOT the same as there being none, and
+   *  the report must never turn one into the other. */
+  whistleblowing: ({ readable: true } & DisclosureSummary) | { readable: false };
   audits: { people6: number; serviceUsers6: number; monthsInPeriod: number; targetPerMonth: number };
   outcomes: { totalServiceUsers: number; withOutcomes: number };
   overdue: {
@@ -117,6 +153,10 @@ export async function getReg80Prefill(input: {
   branchName: string;
   /** The review period drives every windowed figure. Defaults to the last 6 months. */
   period?: { start: string; end: string };
+  /** Whether THIS caller may read whistleblowing disclosures (Admin or Responsible
+   *  Individual). Passed in rather than inferred, so the decision sits next to the profile
+   *  that made it. False leaves the section absent; it never produces a zero. */
+  canReadWhistleblowing?: boolean;
 }): Promise<Reg80Prefill> {
   const supabase = await createClient();
   const today = formatCivilDate(todayInLondon());
@@ -273,6 +313,54 @@ export async function getReg80Prefill(input: {
       .filter((id) => suIds.has(id)),
   );
 
+  /*
+   * Incidents and whistleblowing. Counted by the registers' own pure modules so the report
+   * and the screen can never disagree about what "notifiable but not notified" means.
+   *
+   * Incidents are windowed on occurred_on, not on when they were typed up: a Reg 80 review
+   * covers what happened in the period, whenever the paperwork caught up.
+   */
+  const { data: incidentRows } = await supabase
+    .from("incidents")
+    .select("occurred_on, category, notifiable, notified_on, safeguarding, safeguarding_referred_on, status")
+    .eq("company_id", input.companyId)
+    .eq("branch_id", input.branchId)
+    .gte("occurred_on", periodStart)
+    .lte("occurred_on", periodEnd);
+  const incidentSummary = summariseIncidents(
+    ((incidentRows as Array<Record<string, unknown>> | null) ?? []).map((r) => ({
+      occurred_on: r.occurred_on as string,
+      category: r.category as string,
+      notifiable: Boolean(r.notifiable),
+      notified_on: (r.notified_on as string | null) ?? null,
+      safeguarding: Boolean(r.safeguarding),
+      safeguarding_referred_on: (r.safeguarding_referred_on as string | null) ?? null,
+      status: r.status as IncidentStatus,
+    })) satisfies CountableIncident[],
+  );
+
+  let disclosureSummary: Reg80Prefill["whistleblowing"] = { readable: false };
+  if (input.canReadWhistleblowing) {
+    const { data: wbRows } = await supabase
+      .from("whistleblowing_disclosures")
+      .select("received_on, category, anonymous, status, closed_on")
+      .eq("company_id", input.companyId)
+      .gte("received_on", periodStart)
+      .lte("received_on", periodEnd);
+    disclosureSummary = {
+      readable: true,
+      ...summariseDisclosures(
+        ((wbRows as Array<Record<string, unknown>> | null) ?? []).map((r) => ({
+          received_on: r.received_on as string,
+          category: r.category as string,
+          anonymous: Boolean(r.anonymous),
+          status: r.status as DisclosureStatus,
+          closed_on: (r.closed_on as string | null) ?? null,
+        })) satisfies CountableDisclosure[],
+      ),
+    };
+  }
+
   return {
     branchId: input.branchId,
     branchName: input.branchName,
@@ -293,6 +381,8 @@ export async function getReg80Prefill(input: {
       concern6: tally(cx6, (c) => (c.concern_type ?? "").trim() || "Not categorised"),
       concern12: tally(cx, (c) => (c.concern_type ?? "").trim() || "Not categorised"),
     },
+    incidents: incidentSummary,
+    whistleblowing: disclosureSummary,
     audits: {
       people6: auditPeople,
       serviceUsers6: auditServiceUsers,
