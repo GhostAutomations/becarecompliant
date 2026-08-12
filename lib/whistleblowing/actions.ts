@@ -51,6 +51,19 @@ function identityFields(formData: FormData) {
   return {
     anonymous: !named,
     discloser_name: named ? trimOrNull(formData.get("discloser_name")) : null,
+    /*
+     * created_by IS CLEARED TOO when the disclosure becomes anonymous (migration 0178).
+     *
+     * Found on the live site by looking at the rows rather than the code. A disclosure
+     * raised through the Team Member area under the person's own name carried their user
+     * id here; unticking the box cleared discloser_name and left that foreign key pointing
+     * straight at them. "The name is deleted, not hidden" was then only true of one column.
+     *
+     * On an Admin-typed record this discards which Admin typed it, which is a real if small
+     * loss - and audit_log has it. Worth it for a rule with no exceptions: an anonymous
+     * disclosure holds no identity in any column.
+     */
+    ...(named ? {} : { created_by: null }),
   };
 }
 
@@ -78,12 +91,14 @@ export async function createDisclosure(_prev: ActionState, formData: FormData): 
       company_id: companyId,
       branch_id: trimOrNull(formData.get("branch_id")),
       received_on,
-      ...identity,
       category,
       disclosure,
       action_taken: trimOrNull(formData.get("action_taken")),
       status: "open",
+      // Who typed it up. LAST, so the spread below can null it: an anonymous disclosure
+      // holds no identity in any column, and this Admin's id is still in audit_log.
       created_by: user.id,
+      ...identity,
     })
     .select("id")
     .single();
