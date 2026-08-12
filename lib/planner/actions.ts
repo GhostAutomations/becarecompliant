@@ -8,6 +8,7 @@ import { requireFeature } from "@/lib/billing/tier";
 import type { ActionState } from "@/lib/forms";
 import { ukDate } from "@/lib/dates";
 import { normaliseStartTime } from "@/lib/planner/booking-time";
+import { bookingsOverlap, displayTime } from "@/lib/planner/overlap";
 
 function revalidatePlanner() {
   revalidatePath("/planner");
@@ -26,6 +27,104 @@ export async function setPlannerView(view: "calendar" | "list"): Promise<void> {
 
 /** Book a task: either against one of a record's checks, or ad-hoc. Lands on the
  *  chosen conductor's planner and the branch whiteboard. */
+type ClashSubject = {
+  conductorId: string;
+  personId: string | null;
+  serviceUserId: string | null;
+};
+
+/**
+ * The sentence somebody reads instead of a database error.
+ *
+ * Migration 0180 makes a double booking impossible with three exclusion constraints, which
+ * is the guarantee. This is the manners: it names WHO is already busy and WHEN, so the
+ * person booking can move it rather than being told "exclusion_violation".
+ *
+ * All three dimensions, because Phil's follow up was the important half: a conductor-only
+ * rule still lets a second manager book the same carer at the same moment.
+ */
+async function findClash(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  companyId: string,
+  scheduledDate: string,
+  startTime: string | null,
+  durationMinutes: number,
+  subject: ClashSubject,
+  ignoreBookingId?: string,
+): Promise<string | null> {
+  // An untimed booking occupies no window, so it cannot clash. Same rule as the constraints.
+  if (!startTime) return null;
+
+  const { data } = await supabase
+    .from("planner_bookings")
+    .select(
+      "id, start_time, duration_minutes, check_kind, title, conductor_profile_id, subject_person_id, subject_service_user_id",
+    )
+    .eq("company_id", companyId)
+    .eq("scheduled_date", scheduledDate)
+    .neq("status", "cancelled")
+    .not("start_time", "is", null);
+
+  const rows = (data as Array<{
+    id: string;
+    start_time: string | null;
+    duration_minutes: number | null;
+    check_kind: string | null;
+    title: string | null;
+    conductor_profile_id: string | null;
+    subject_person_id: string | null;
+    subject_service_user_id: string | null;
+  }> | null) ?? [];
+
+  for (const row of rows) {
+    if (ignoreBookingId && row.id === ignoreBookingId) continue;
+    if (
+      !bookingsOverlap(
+        { startTime, durationMinutes },
+        { startTime: row.start_time, durationMinutes: row.duration_minutes },
+      )
+    ) {
+      continue;
+    }
+
+    const what = row.check_kind || row.title || "another task";
+    const when = displayTime(row.start_time);
+
+    // Conductor first: it is the commonest clash and the easiest to act on.
+    if (row.conductor_profile_id && row.conductor_profile_id === subject.conductorId) {
+      const { data: who } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", subject.conductorId)
+        .maybeSingle();
+      const name = (who?.full_name as string | null) || "That person";
+      return `${name} already has ${what} booked at ${when} that day.`;
+    }
+
+    if (subject.personId && row.subject_person_id === subject.personId) {
+      const { data: who } = await supabase
+        .from("people")
+        .select("full_name")
+        .eq("id", subject.personId)
+        .maybeSingle();
+      const name = (who?.full_name as string | null) || "That person";
+      return `${name} is already booked for ${what} at ${when} that day, by somebody else.`;
+    }
+
+    if (subject.serviceUserId && row.subject_service_user_id === subject.serviceUserId) {
+      const { data: who } = await supabase
+        .from("service_users")
+        .select("full_name")
+        .eq("id", subject.serviceUserId)
+        .maybeSingle();
+      const name = (who?.full_name as string | null) || "That service user";
+      return `${name} is already booked for ${what} at ${when} that day, by somebody else.`;
+    }
+  }
+
+  return null;
+}
+
 export async function createBooking(formData: FormData): Promise<ActionState> {
   const { user, profile } = await requireCompany();
   if (!profile.company_id) return { error: "No company context." };
@@ -109,6 +208,16 @@ export async function createBooking(formData: FormData): Promise<ActionState> {
   // Duration defaults to 30 minutes when left blank.
   const duration = durationRaw ? Math.max(5, Number(durationRaw) || 30) : 30;
 
+  /* Nobody is in two places at once, and nobody is visited twice at once. The database
+     refuses this outright (0180); this is so the person booking gets a sentence naming who
+     is already busy instead of a constraint error. */
+  const clash = await findClash(supabase, companyId, scheduledDate, startTime, duration, {
+    conductorId,
+    personId: subjectPersonId,
+    serviceUserId: subjectServiceUserId,
+  });
+  if (clash) return { error: clash };
+
   const { data: inserted, error } = await supabase
     .from("planner_bookings")
     .insert({
@@ -179,7 +288,9 @@ async function loadBooking(bookingId: string, companyId: string) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("planner_bookings")
-    .select("id, company_id, subject_person_id, subject_service_user_id")
+    // conductor_profile_id is needed by the clash check on reschedule: moving a booking can
+    // put its conductor on top of another one just as easily as creating it can.
+    .select("id, company_id, subject_person_id, subject_service_user_id, conductor_profile_id")
     .eq("id", bookingId)
     .maybeSingle();
   if (!data || data.company_id !== companyId) return null;
@@ -202,6 +313,25 @@ export async function rescheduleBooking(formData: FormData): Promise<ActionState
 
   const duration = durationRaw ? Math.max(5, Number(durationRaw) || 30) : 30;
   const supabase = await createClient();
+
+  /* Rescheduling can create a clash just as easily as booking can. Ignoring the booking
+     being moved matters: without that it would collide with its own old slot and refuse to
+     save an unchanged time. */
+  const clash = await findClash(
+    supabase,
+    profile.company_id,
+    scheduledDate,
+    startTime,
+    duration,
+    {
+      conductorId: existing.conductor_profile_id,
+      personId: existing.subject_person_id,
+      serviceUserId: existing.subject_service_user_id,
+    },
+    bookingId,
+  );
+  if (clash) return { error: clash };
+
   const { data, error } = await supabase
     .from("planner_bookings")
     .update({
