@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
-import { getSeatUsage, getBranchUsage, formatPence } from "@/lib/billing/seats";
+import { getSeatUsage, getBranchUsage, formatPence, EXTRA_BRANCH_PENCE } from "@/lib/billing/seats";
 import { getAiCreditBalance } from "@/lib/billing/ai-credits";
 import { getSmsCreditBalance } from "@/lib/billing/sms-credits";
 import { SMS_TOPUP_CREDITS, SMS_TOPUP_PENCE, smsTopupPriceId } from "@/lib/stripe/config";
@@ -86,7 +86,12 @@ export default async function BillingPage() {
   const smsTopupReady = Boolean(smsTopupPriceId());
   const isSub = isSubscriptionTier(tier);
   const basePence = isSub ? TIER_BASE_PENCE[tier as keyof typeof TIER_BASE_PENCE] : 0;
-  const monthlyTotalPence = basePence + seats.extraCostPence;
+  // Extra BRANCHES are part of the bill now (THE LIST item 16), so they belong in the total.
+  // Until this line, the page listed "1 extra branch at £7.50, £7.50/mo" and then totalled
+  // £69.00 — which was survivable only while nothing actually charged for a branch. The moment
+  // it does, that page is telling a customer £69 and Stripe is taking £76.50. This product has
+  // already been bitten once by a screen and an invoice disagreeing (£69 sold, £99 charged).
+  const monthlyTotalPence = basePence + seats.extraCostPence + branches.extraCostPence;
   const hasSubscription = Boolean(billing?.stripe_subscription_id);
   const activeSub = ["active", "trialing", "past_due"].includes(
     billing?.subscription_status ?? "",
@@ -210,13 +215,25 @@ export default async function BillingPage() {
               </span>
               <span>{formatPence(seats.extraCostPence)}/mo</span>
             </div>
+            {/* Above the total, because a total has to come after the things it adds up. */}
+            {branches.extra > 0 ? (
+              <div className="flex justify-between">
+                <span>
+                  {branches.extra} extra {branches.extra === 1 ? "branch" : "branches"} at{" "}
+                  {formatPence(EXTRA_BRANCH_PENCE)}
+                </span>
+                <span>{formatPence(branches.extraCostPence)}/mo</span>
+              </div>
+            ) : null}
             <div className="mt-2 flex justify-between border-t border-white/10 pt-2 font-semibold text-white">
               <span>Estimated monthly total</span>
               <span>{formatPence(monthlyTotalPence)}/mo</span>
             </div>
             <p className="pt-1 text-xs text-white/40">
               Each user beyond the first {seats.included} is {formatPence(500)} per
-              month. Changes are prorated onto your next invoice.
+              month, and each branch beyond {branches.included} is{" "}
+              {formatPence(EXTRA_BRANCH_PENCE)} per month. Changes are prorated onto your next
+              invoice.
             </p>
           </div>
         ) : (
