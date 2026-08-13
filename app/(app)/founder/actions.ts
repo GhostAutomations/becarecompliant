@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import { requirePlatformAdmin } from "@/lib/auth/guards";
 import { syncBranchQuantity } from "@/lib/billing/stripe-sync";
 import { removalRefusal, type RemovalResult } from "@/lib/branches/removal";
+import { changeTier } from "@/lib/billing/tier-apply";
 import { createClient } from "@/lib/supabase/server";
 import { createAndSendInvite, resendInvite, revokeInvite, type Actor } from "@/lib/invites";
 import { syncSeatQuantity } from "@/lib/billing/stripe-sync";
@@ -1022,6 +1023,50 @@ export async function removeBranch(
         ? `Removed ${name}. Billing updated to ${billed.quantity} extra branch${billed.quantity === 1 ? "" : "es"}.`
         : `Removed ${name}.`,
   };
+}
+
+/**
+ * Move a company to another plan, and settle Stripe.
+ *
+ * Until 2026-08-13 nothing in the product could do this: companies.tier was written at creation
+ * and by trial provisioning and by nothing else. So Thistle could not be put on Black without
+ * hand-written SQL, and no Business customer could ever upgrade to Pro.
+ *
+ * The rule and the Stripe work live in lib/billing/tier-apply.ts, shared with the customer's own
+ * upgrade on /settings/billing, so the two cannot disagree about what is allowed.
+ */
+export async function changeCompanyTier(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requirePlatformAdmin();
+  const companyId = String(formData.get("company_id") ?? "").trim();
+  const tier = String(formData.get("tier") ?? "").trim();
+  if (!companyId) return { error: "Missing company." };
+  if (!tier) return { error: "Choose a plan." };
+
+  const outcome = await changeTier({ companyId, to: tier, actor: "founder" });
+  if (!outcome.ok) return { error: outcome.error };
+
+  await writeAudit({
+    companyId,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "billing.tier_changed",
+    entityType: "company",
+    entityId: companyId,
+    summary: `Moved from the ${outcome.from} plan to the ${outcome.to} plan`,
+    metadata: { from: outcome.from, to: outcome.to, billing_settled: outcome.billingSettled },
+  });
+
+  revalidatePath(`/founder/companies/${companyId}`);
+  revalidatePath("/founder");
+  revalidatePath("/settings/billing");
+  // A Stripe half that did not settle is reported as an ERROR even though the plan moved. In the
+  // move-to-Black case this notice is the only thing standing between a free company and being
+  // charged indefinitely, and it must not arrive under a green "Changed".
+  return outcome.billingSettled ? { ok: outcome.message } : { error: outcome.message };
 }
 
 export async function addBranch(

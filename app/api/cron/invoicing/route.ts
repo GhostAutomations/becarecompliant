@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runRecurringInvoices, runOverdueReminders } from "@/lib/invoicing/cron";
-import { reconcileBranchBilling } from "@/lib/billing/stripe-sync";
+import { reconcileBilling } from "@/lib/billing/stripe-sync";
 
 /**
  * Daily invoicing automation: draft due recurring invoices, then email overdue
@@ -22,11 +22,12 @@ export async function GET(request: NextRequest) {
 
   const recurring = await runRecurringInvoices();
   const reminders = await runOverdueReminders();
-  // Extra branch billing (THE LIST item 16). Reconciled rather than hooked, because nothing in
-  // the product creates a branch: every extra branch on Acme was added straight in SQL, so a
-  // hook would never fire and would look built while collecting nothing. This is our own
-  // subscription revenue, not a customer's invoice, but it is billing and this is the daily
-  // billing job, so it lives here rather than in a cron of its own.
-  const branches = await reconcileBranchBilling();
-  return NextResponse.json({ recurring, reminders, branches });
+  /* Our own subscription billing: the plan line, the seat quantity, the branch quantity, and
+     that nobody on a free tier is still being charged. Reconciled rather than hooked, because
+     nothing in the product creates a branch (every extra branch on Acme was added straight in
+     SQL, so a hook would never fire and would look built while collecting nothing), and because
+     a plan change writes the tier before telling Stripe, so this is what heals the half that
+     failed. Not a customer's invoice, but it is billing and this is the daily billing job. */
+  const subscriptions = await reconcileBilling();
+  return NextResponse.json({ recurring, reminders, subscriptions });
 }

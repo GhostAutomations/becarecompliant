@@ -1,9 +1,16 @@
 import "server-only";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe/client";
-import { seatPriceId, branchPriceId, isSubscriptionTier } from "@/lib/stripe/config";
+import {
+  seatPriceId,
+  branchPriceId,
+  tierBasePriceId,
+  isSubscriptionTier,
+} from "@/lib/stripe/config";
 import { includedSeatsForTier, includedBranchesForTier, NON_BILLABLE_ROLES } from "@/lib/billing/seats";
 import { customerIdentityPatch } from "@/lib/billing/customer-identity";
+import { isTierName, type TierName } from "@/lib/billing/tier-change";
+import { pickBaseItem, baseSwapDecision } from "@/lib/billing/base-item";
 import { subscriptionHasEnded } from "@/lib/billing/subscription-state";
 
 /**
@@ -225,6 +232,206 @@ export async function syncSeatQuantity(
 
 
 /* ===========================================================================
+ * THE BASE PRICE — keeping the subscription on the plan the app says they are on.
+ *
+ * The app is UPSTREAM of Stripe: the webhook copies billed_tier FROM companies.tier and never
+ * derives the tier from the price. So when the tier moves, something has to move the base
+ * price too, or the company is on Pro and paying for Business for ever.
+ * =========================================================================== */
+
+/**
+ * Make the subscription's base line match the company's tier, prorated.
+ *
+ * Best effort by the same contract as the seat and branch syncs: a Stripe hiccup is logged and
+ * reported, never thrown, so changing somebody's plan can never half-fail in a way that leaves
+ * the founder unsure whether it happened.
+ *
+ * ALSO THE SELF-HEAL. The nightly reconcile calls this, so a tier change whose Stripe half
+ * failed corrects itself by morning instead of silently undercharging for ever. That mattered
+ * enough to build: without it, the only witness to the failure was a log line.
+ */
+export async function syncBasePrice(
+  companyId: string,
+): Promise<{ synced: boolean; reason?: string; tier?: string }> {
+  try {
+    const stripe = getStripe();
+    if (!stripe) return { synced: false, reason: "stripe_unconfigured" };
+
+    const billing = await getCompanyBilling(companyId);
+    if (!billing?.stripe_subscription_id) return { synced: false, reason: "no_subscription" };
+    if (subscriptionHasEnded(billing.subscription_status)) {
+      return { synced: false, reason: "subscription_ended" };
+    }
+
+    const tier = await companyTierName(companyId);
+    if (!tier) return { synced: false, reason: "unknown_tier" };
+    if (!isSubscriptionTier(tier)) {
+      // Black. The subscription is being cancelled at period end by the tier change itself;
+      // there is no base price to move it to, and swapping one in would start charging a
+      // company that is supposed to be free.
+      return { synced: false, reason: "not_subscription_tier", tier };
+    }
+
+    const wanted = tierBasePriceId(tier);
+    if (!wanted) return { synced: false, reason: "no_base_price", tier };
+
+    const subscription = await stripe.subscriptions.retrieve(billing.stripe_subscription_id);
+
+    // Which line is the plan is decided by lib/billing/base-item.ts, which refuses rather than
+    // guesses. See that file: with an add-on price id unconfigured, NOTHING is excluded and
+    // every line looks like a plan line, so a "best guess" would rewrite the seat line's price
+    // and charge every user the plan price.
+    const found = pickBaseItem(
+      subscription.items.data.map((i) => ({ id: i.id, priceId: i.price?.id })),
+      seatPriceId(),
+      branchPriceId(),
+    );
+    if (!found.ok) {
+      console.error(
+        `[billing] base price sync ${found.reason} (${found.count} candidates) on ${billing.stripe_subscription_id}`,
+      );
+      return { synced: false, reason: `base_item_${found.reason}`, tier };
+    }
+
+    /* Only a line carrying a price we recognise as some tier's base price may be rewritten.
+       See lib/billing/base-item.ts: swapping on "the id differs" would turn pointing an env var
+       at a new Stripe Price into an overnight migration of every existing customer onto it. */
+    const decision = baseSwapDecision(found.item.priceId, wanted, [
+      tierBasePriceId("business"),
+      tierBasePriceId("pro"),
+    ]);
+    if (!decision.swap) {
+      if (decision.reason === "unrecognised_price") {
+        console.error(
+          `[billing] base price on ${billing.stripe_subscription_id} is not a tier price; leaving it alone`,
+        );
+      }
+      return { synced: decision.reason === "already_correct", reason: decision.reason, tier };
+    }
+
+    await stripe.subscriptionItems.update(found.item.id, {
+      price: wanted,
+      quantity: 1,
+      proration_behavior: "create_prorations",
+    });
+    return { synced: true, tier };
+  } catch (e) {
+    console.error("[billing] base price sync failed:", (e as Error).message);
+    return { synced: false, reason: "error" };
+  }
+}
+
+/** Stop billing at the end of the period already paid for. Used when a company moves to Black:
+ *  they keep what they bought, nothing is refunded, and no money moves in either direction. */
+export async function endSubscriptionAtPeriodEnd(
+  companyId: string,
+): Promise<{ ended: boolean; reason?: string }> {
+  try {
+    const stripe = getStripe();
+    if (!stripe) return { ended: false, reason: "stripe_unconfigured" };
+
+    const billing = await getCompanyBilling(companyId);
+    if (!billing?.stripe_subscription_id) return { ended: false, reason: "no_subscription" };
+    if (subscriptionHasEnded(billing.subscription_status)) {
+      return { ended: true, reason: "already_ended" };
+    }
+
+    await stripe.subscriptions.update(billing.stripe_subscription_id, {
+      cancel_at_period_end: true,
+    });
+    // The webhook writes cancel_at_period_end back, but the founder should not have to wait for
+    // a round trip to see that it worked.
+    await upsertCompanyBilling(companyId, { cancel_at_period_end: true });
+    return { ended: true };
+  } catch (e) {
+    console.error("[billing] cancel at period end failed:", (e as Error).message);
+    return { ended: false, reason: "error" };
+  }
+}
+
+/**
+ * Call off a scheduled cancellation.
+ *
+ * Reachable only in the window after a move to Black, while the period already paid for is
+ * still running. Without this, undoing that move left the subscription still scheduled to stop:
+ * the company would sit on a paid plan with everything unlocked, get cancelled weeks later, and
+ * no screen anywhere would say so.
+ */
+export async function resumeSubscription(
+  companyId: string,
+): Promise<{ resumed: boolean; reason?: string }> {
+  try {
+    const stripe = getStripe();
+    if (!stripe) return { resumed: false, reason: "stripe_unconfigured" };
+
+    const billing = await getCompanyBilling(companyId);
+    if (!billing?.stripe_subscription_id) return { resumed: false, reason: "no_subscription" };
+    if (subscriptionHasEnded(billing.subscription_status)) {
+      // Too late: it has already stopped. They subscribe again through Checkout, which is also
+      // what collects a card. Saying so beats pretending it worked.
+      return { resumed: false, reason: "subscription_ended" };
+    }
+
+    await stripe.subscriptions.update(billing.stripe_subscription_id, {
+      cancel_at_period_end: false,
+    });
+    await upsertCompanyBilling(companyId, { cancel_at_period_end: false });
+    return { resumed: true };
+  } catch (e) {
+    console.error("[billing] resume subscription failed:", (e as Error).message);
+    return { resumed: false, reason: "error" };
+  }
+}
+
+/**
+ * Schedule the cancellation of a subscription belonging to a company that is no longer on a
+ * paid plan. Returns true only when it actually changed something, so the reconcile does not
+ * report work it did not do.
+ */
+async function stopBillingAFreeCompany(companyId: string): Promise<boolean> {
+  try {
+    const stripe = getStripe();
+    if (!stripe) return false;
+    const billing = await getCompanyBilling(companyId);
+    if (!billing?.stripe_subscription_id) return false;
+    if (subscriptionHasEnded(billing.subscription_status)) return false;
+    if (billing.cancel_at_period_end) return false; // already on its way out
+
+    const subscription = await stripe.subscriptions.retrieve(billing.stripe_subscription_id);
+    if (subscription.cancel_at_period_end) {
+      // Stripe already knows; our copy was just stale.
+      await upsertCompanyBilling(companyId, { cancel_at_period_end: true });
+      return false;
+    }
+
+    console.error(
+      `[billing] company ${companyId} is on a free tier but still billing; scheduling cancellation`,
+    );
+    await stripe.subscriptions.update(billing.stripe_subscription_id, {
+      cancel_at_period_end: true,
+    });
+    await upsertCompanyBilling(companyId, { cancel_at_period_end: true });
+    return true;
+  } catch (e) {
+    console.error("[billing] could not stop billing a free company:", (e as Error).message);
+    return false;
+  }
+}
+
+/** The company's tier as a known TierName, or null when it is something we do not sell. */
+async function companyTierName(companyId: string): Promise<TierName | null> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("companies")
+    .select("tier")
+    .eq("id", companyId)
+    .maybeSingle();
+  const tier = (data as { tier?: string } | null)?.tier;
+  return isTierName(tier) ? tier : null;
+}
+
+
+/* ===========================================================================
  * EXTRA BRANCHES (THE LIST item 16).
  *
  * The pricing page has promised "£7.50 per extra branch per month" since launch and NOTHING
@@ -330,7 +537,13 @@ export async function syncBranchQuantity(
 
 
 /**
- * Nightly branch billing reconciliation (THE LIST item 16).
+ * Nightly billing reconciliation (THE LIST item 16; extended 2026-08-13 to the base price and
+ * seats when plan changing was built).
+ *
+ * Was reconcileBranchBilling. It now checks the PLAN LINE, the SEAT quantity, the BRANCH
+ * quantity, and that nobody on a free tier is still being charged. The old name described a
+ * third of what it does, and a job that quietly does more than its name says is how the next
+ * person misses that it is the only thing standing behind a failed plan change.
  *
  * WHY A RECONCILE AND NOT JUST A HOOK. There is no code path in this product that creates a
  * branch: the only insert is the pair seeded with a new company, and every extra branch Acme
@@ -342,14 +555,18 @@ export async function syncBranchQuantity(
  * Cheap: one query for the companies with a live subscription, then one Stripe read per
  * company, and a write only when the quantity actually differs.
  */
-export async function reconcileBranchBilling(): Promise<{
+export async function reconcileBilling(): Promise<{
   checked: number;
   changed: number;
   skipped: number;
 }> {
   const result = { checked: 0, changed: 0, skipped: 0 };
   try {
-    if (!branchPriceId()) return result;
+    /* NOT `if (!branchPriceId()) return` any more. The base price and seat reconciles live in
+       this loop too, and they are what heals a tier change whose Stripe half failed — the whole
+       reason changeTier writes the tier before telling Stripe. Behind the branch guard, a
+       deployment without STRIPE_PRICE_BRANCH would never have run them at all. */
+    const hasBranchPrice = Boolean(branchPriceId());
     const supabase = createServiceClient();
     const { data } = await supabase
       .from("company_billing")
@@ -358,6 +575,40 @@ export async function reconcileBranchBilling(): Promise<{
 
     for (const row of (data as { company_id: string }[] | null) ?? []) {
       result.checked += 1;
+
+      /* THE BASE PRICE FIRST, and this is the important half.
+         Changing a company's tier writes companies.tier and then tells Stripe, in that order,
+         because undercharging is the safe direction to fail in. If the Stripe half fails the
+         company sits on the new plan paying the old price, and the only witness would be a log
+         line nobody reads. Running it here means that heals itself by morning.
+         It also has to come BEFORE the branch quantity, since the tier decides the allowance. */
+      const base = await syncBasePrice(row.company_id);
+      if (base.synced && base.reason === undefined) result.changed += 1;
+
+      /* THE ONE DIRECTION NOTHING ELSE WATCHES. Everything above heals UNDERCHARGING. A company
+         on a free tier with a live subscription that is not scheduled to stop is the opposite:
+         money being taken that we have promised not to take. It can only arise from a failed
+         cancellation or a tier changed by hand in SQL, and in both cases scheduling the
+         cancellation is the right answer. Scheduling rather than cancelling keeps it reversible
+         for the rest of the period. */
+      if (base.reason === "not_subscription_tier") {
+        const stopped = await stopBillingAFreeCompany(row.company_id);
+        if (stopped) result.changed += 1;
+      }
+
+      /* SEATS TOO, and this is not tidiness. The allowance moves with the tier (Business 4,
+         Pro 6), so an upgrade whose Stripe half failed leaves the seat quantity computed
+         against the OLD allowance. The base price would heal here and the seats would not,
+         which turns a temporary undercharge into a permanent OVERCHARGE for users the new plan
+         includes — the exact bug this whole change was written to kill, through another door.
+         Nothing else in the product calls this on a schedule. */
+      const seats = await syncSeatQuantity(row.company_id);
+      if (seats.synced && seats.reason === undefined) result.changed += 1;
+
+      if (!hasBranchPrice) {
+        result.skipped += 1;
+        continue;
+      }
       const outcome = await syncBranchQuantity(row.company_id);
       if (outcome.synced && outcome.reason === undefined) result.changed += 1;
       else if (!outcome.synced) result.skipped += 1;

@@ -10,6 +10,7 @@
  * Company Admin only. Black (free, founder granted) has no Checkout.
  */
 
+import { revalidatePath } from "next/cache";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
@@ -37,6 +38,72 @@ import {
   extraBranches,
 } from "@/lib/billing/stripe-sync";
 import { checkoutPriceProblem } from "@/lib/billing/price-check";
+import { changeTier } from "@/lib/billing/tier-apply";
+
+/**
+ * Upgrade this company from Business to Pro.
+ *
+ * THE LAUNCH BLOCKER, found 2026-08-13: companies.tier was written at creation and by trial
+ * provisioning and by NOTHING ELSE, so no Business customer could ever move up to Pro. The app
+ * is upstream of Stripe here (the webhook copies billed_tier FROM companies.tier and never
+ * derives the tier from the price), so a plan change made in the Stripe portal would not have
+ * moved it either.
+ *
+ * Not a new Checkout: they already have a card and a subscription, so this swaps the base price
+ * on the subscription they have, prorated onto the next invoice, exactly as adding a seat or a
+ * branch does. A second Checkout would take a second payment method and leave two subscriptions.
+ *
+ * allowLapsed, for the same reason startCheckout has it: upgrading is a way OUT of a lapsed
+ * trial, and gating it behind the lock it clears would leave somebody with no route back.
+ */
+export async function upgradeToPro(
+  _prev: ActionState,
+  _formData: FormData,
+): Promise<ActionState> {
+  const { profile } = await requireCompanyAdmin({ allowLapsed: true });
+  if (!profile.company_id) return { error: "No company on your account." };
+  if (!stripeConfigured()) {
+    return { error: "Billing is not configured yet. Please try again later." };
+  }
+
+  // The price guard (refuse rather than charge an amount nobody was shown) lives inside
+  // changeTier, so the founder control gets it too. It used to be here and only here.
+  const outcome = await changeTier({
+    companyId: profile.company_id,
+    to: "pro",
+    actor: "company_admin",
+  });
+  if (!outcome.ok) return { error: outcome.error };
+
+  await writeAudit({
+    companyId: profile.company_id,
+    actorId: profile.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "billing.tier_changed",
+    entityType: "company",
+    entityId: profile.company_id,
+    summary: `Upgraded from the ${outcome.from} plan to the ${outcome.to} plan`,
+    metadata: { from: outcome.from, to: outcome.to, billing_settled: outcome.billingSettled },
+  });
+
+  revalidatePath("/settings/billing");
+  revalidatePath("/dashboard");
+  if (!outcome.billingSettled) {
+    // A green "Saved" flash over "we could not update your subscription" is a lie told in the
+    // most reassuring possible font. The plan DID change, which the message says; the button
+    // still has to read as something went wrong.
+    return {
+      error:
+        "You are on Pro, but we could not update your subscription just now, so you have not been charged the difference yet. We will put that right automatically.",
+    };
+  }
+  /* outcome.message, not a hard-coded sentence. The card is shown to any Business company,
+     including one that has never subscribed and one whose subscription has been cancelled, and
+     both of those were being told in green that a difference had been prorated onto an invoice
+     that does not exist. The rule already knows which case it is; use its words. */
+  return { ok: outcome.message };
+}
 
 export async function startCheckout(
   _prev: ActionState,

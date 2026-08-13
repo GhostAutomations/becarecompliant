@@ -26,8 +26,9 @@ import {
   isBillableSeat,
 } from "@/lib/billing/seats";
 import { subscriptionMonthlyPence } from "@/lib/billing/monthly-total";
+import { TIER_LABELS } from "@/lib/stripe/config";
 import ActionForm from "@/components/action-form";
-import { addBranch, removeBranch } from "@/app/(app)/founder/actions";
+import { addBranch, removeBranch, changeCompanyTier } from "@/app/(app)/founder/actions";
 import { TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
 import {
   billingStatusPill,
@@ -106,7 +107,7 @@ export default async function FounderCompanyPage({
     supabase
       .from("company_billing")
       .select(
-        "subscription_status, billed_tier, seat_quantity, current_period_end, cancel_at_period_end",
+        "stripe_subscription_id, subscription_status, billed_tier, seat_quantity, current_period_end, cancel_at_period_end",
       )
       .eq("company_id", id)
       .maybeSingle(),
@@ -125,6 +126,12 @@ export default async function FounderCompanyPage({
   ).length;
   const seats = computeSeatUsage(activeUsers, includedSeatsForTier(company.tier));
   const isSub = isSubscriptionTier(company.tier);
+  /* A company moved to Black keeps a live subscription until the end of the period it has
+     already paid for, so "Black: no Stripe subscription attached" would be false for up to a
+     month — and would hide the status, the period end and the "scheduled to cancel" row, which
+     are exactly what somebody needs to see in that window. Show the billing detail whenever
+     there is billing to show, not whenever the tier is one we sell. */
+  const hasBillingRow = Boolean(billing?.stripe_subscription_id);
   const branchIncluded = includedBranchesForTier(company.tier ?? "business");
   const operationalBranches = (branches ?? []).filter((b) => (b as { kind?: string }).kind === "branch");
   const officeBranches = (branches ?? []).filter((b) => (b as { kind?: string }).kind !== "branch");
@@ -296,9 +303,46 @@ export default async function FounderCompanyPage({
         ) : null}
       </section>
 
+      {/* CHANGE THE PLAN. Until 2026-08-13 companies.tier was written at creation and by trial
+          provisioning and by NOTHING ELSE, so a company could never move plan and no Business
+          customer could upgrade. Moving DOWN from Pro is deliberately not offered yet: Pro
+          includes more users and branches, so the extras bill rises as the base falls and the
+          total barely moves. Nobody should agree to that without seeing the new number. */}
+      <section aria-label="Plan" className="glass-card p-5">
+        <h2 className="mb-1 text-sm font-semibold text-white/80">Plan</h2>
+        <p className="mb-3 text-xs text-white/50">
+          On {TIER_LABELS[(company.tier ?? "business") as keyof typeof TIER_LABELS] ?? company.tier}.
+          Moving to Black makes them free straight away and stops their subscription at the end of
+          the period they have already paid for, so no money moves either way. Moving up to Pro is
+          prorated onto their next invoice. Moving down from Pro is not built yet.
+        </p>
+        <ActionForm
+          action={changeCompanyTier}
+          hidden={{ company_id: company.id }}
+          inline
+          label="Change plan"
+          savedLabel="Changed"
+          confirm="Change this company's plan? This changes what they are charged."
+        >
+          <label htmlFor="new_tier" className="form-label">Move to</label>
+          <select id="new_tier" name="tier" defaultValue="" required>
+            <option value="" disabled>Choose a plan</option>
+            {(["business", "pro", "black"] as const)
+              // Not merely "anything but the current one": a Pro company offered Business is a
+              // trap, because the server refuses that move every single time.
+              .filter((t) => t !== company.tier && !(company.tier === "pro" && t === "business"))
+              .map((t) => (
+                <option key={t} value={t}>
+                  {TIER_LABELS[t]}
+                </option>
+              ))}
+          </select>
+        </ActionForm>
+      </section>
+
       <section aria-label="Billing detail" className="glass-card p-5">
         <h2 className="mb-3 text-sm font-semibold text-white/80">Billing</h2>
-        {isSub ? (
+        {isSub || hasBillingRow ? (
           <div className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
             <div className="flex justify-between">
               <span className="text-white/60">Status</span>
@@ -334,6 +378,13 @@ export default async function FounderCompanyPage({
               : "No subscription."}
           </p>
         )}
+        {!isSub && hasBillingRow ? (
+          <p className="mt-3 text-xs text-amber-200/80">
+            On Black, but a subscription is still running. That is expected for the rest of the
+            period they had already paid for, and it should show as scheduled to cancel above. If
+            it does not, they are still being charged and it needs stopping in Stripe.
+          </p>
+        ) : null}
       </section>
 
       <section aria-label="Usage" className="glass-card p-5">

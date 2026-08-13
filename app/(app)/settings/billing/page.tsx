@@ -8,7 +8,11 @@ import {
   formatPence,
   EXTRA_BRANCH_PENCE,
   EXTRA_SEAT_PENCE,
+  includedSeatsForTier,
+  includedBranchesForTier,
 } from "@/lib/billing/seats";
+import ActionForm from "@/components/action-form";
+import { upgradeToPro } from "@/lib/billing/actions";
 import { subscriptionMonthlyPence } from "@/lib/billing/monthly-total";
 import { getAiCreditBalance } from "@/lib/billing/ai-credits";
 import { getSmsCreditBalance } from "@/lib/billing/sms-credits";
@@ -105,10 +109,30 @@ export default async function BillingPage() {
     extraBranches: branches.extra,
     branchPence: EXTRA_BRANCH_PENCE,
   });
+
+  /* WHAT PRO WOULD ACTUALLY COST THEM, worked out from their own numbers rather than quoted as
+     a headline price. Pro includes 6 users and 2 branches against Business's 4 and 1, so an
+     upgrade can REDUCE the extras bill at the same time as it raises the base, and the only
+     honest thing to show somebody is the new total. */
+  const canUpgradeToPro = tier === "business";
+  const proSeatExtra = Math.max(0, seats.used - includedSeatsForTier("pro"));
+  const proBranchExtra = Math.max(0, branches.used - includedBranchesForTier("pro"));
+  const proTotalPence = subscriptionMonthlyPence({
+    basePence: TIER_BASE_PENCE.pro,
+    extraSeats: proSeatExtra,
+    seatPence: EXTRA_SEAT_PENCE,
+    extraBranches: proBranchExtra,
+    branchPence: EXTRA_BRANCH_PENCE,
+  });
   const hasSubscription = Boolean(billing?.stripe_subscription_id);
   const activeSub = ["active", "trialing", "past_due"].includes(
     billing?.subscription_status ?? "",
   );
+  /* A cancelled subscription is a subscription id with nothing behind it. Using hasSubscription
+     to decide whether to promise "prorated onto your next invoice" told a company whose
+     subscription had ended that it would be charged a difference on an invoice that is never
+     going to be issued. */
+  const willBeProrated = hasSubscription && activeSub;
   const pill = statusPill(billing?.subscription_status ?? null);
   const periodEnd = billing?.current_period_end
     ? new Date(billing.current_period_end).toLocaleDateString("en-GB", {
@@ -255,6 +279,46 @@ export default async function BillingPage() {
           </p>
         )}
       </section>
+
+      {/* UPGRADE TO PRO. Until 2026-08-13 there was no way for a customer to change plan at
+          all: companies.tier was written at creation and by trial provisioning and by nothing
+          else. This is not a second Checkout — they already have a card and a subscription, so
+          it swaps the base price on the one they have, prorated, exactly as adding a seat does.
+          A second Checkout would take a second payment method and leave two subscriptions. */}
+      {canUpgradeToPro ? (
+        <section className="glass-card p-5">
+          <h2 className="text-sm font-semibold text-white/80">Move to Pro</h2>
+          <p className="mt-2 text-sm text-white/70">
+            Pro adds SMS reminders, reporting and inspector ready exports, the form builder,
+            Complaints, Invoicing, the Planner and On Call. It also includes{" "}
+            {includedSeatsForTier("pro")} users and {includedBranchesForTier("pro")} branches
+            instead of {seats.included} and {branches.included}.
+          </p>
+          <div className="mt-3 space-y-1 text-sm text-white/70">
+            <div className="flex justify-between">
+              <span>You pay now</span>
+              <span>{formatPence(monthlyTotalPence)}/mo</span>
+            </div>
+            <div className="flex justify-between font-semibold text-white">
+              <span>On Pro</span>
+              <span>{formatPence(proTotalPence)}/mo</span>
+            </div>
+          </div>
+          <p className="mt-2 text-xs text-white/40">
+            {willBeProrated
+              ? "The difference is prorated onto your next invoice, so you only pay for the rest of this month."
+              : "Nothing is charged until you subscribe."}
+          </p>
+          <div className="mt-4">
+            <ActionForm
+              action={upgradeToPro}
+              label="Move to Pro"
+              savedLabel="On Pro"
+              confirm={`Move to Pro? Your monthly total goes from ${formatPence(monthlyTotalPence)} to ${formatPence(proTotalPence)}${willBeProrated ? ", prorated onto your next invoice" : ". Nothing is charged until you subscribe"}.`}
+            />
+          </div>
+        </section>
+      ) : null}
 
       {/* Branches */}
       <section className="glass-card p-5">
