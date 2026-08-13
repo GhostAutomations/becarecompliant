@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { requirePlatformAdmin } from "@/lib/auth/guards";
 import { syncBranchQuantity } from "@/lib/billing/stripe-sync";
+import { removalRefusal, type RemovalResult } from "@/lib/branches/removal";
 import { createClient } from "@/lib/supabase/server";
 import { createAndSendInvite, resendInvite, revokeInvite, type Actor } from "@/lib/invites";
 import { syncSeatQuantity } from "@/lib/billing/stripe-sync";
@@ -961,6 +962,68 @@ export async function provisionFromTrialRequest(
  *
  * Platform admin only, like every other founder action.
  */
+/**
+ * Remove an operational branch — the undo for one added by mistake.
+ *
+ * WHY THE REAL WORK IS IN THE DATABASE (migration 0181). The foreign keys onto branches
+ * CASCADE from reg73_visits and reg80_reviews, so a plain delete would erase the statutory
+ * Regulation 73 visits and Regulation 80 quality reviews held against that branch, and SET
+ * NULL would quietly detach incidents, evidence and checks from it. remove_unused_branch
+ * refuses unless nothing at all references the branch, and does the check and the delete
+ * under one lock so nothing can be inserted between them.
+ *
+ * A client-side control is not a guard, and neither is this action: both are manners on top
+ * of the rule.
+ */
+export async function removeBranch(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requirePlatformAdmin();
+  const companyId = String(formData.get("company_id") ?? "").trim();
+  const branchId = String(formData.get("branch_id") ?? "").trim();
+  if (!companyId || !branchId) return { error: "Missing branch." };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("remove_unused_branch", { p_branch: branchId });
+  if (error) return { error: error.message };
+
+  const result = (data ?? null) as RemovalResult | null;
+  const refusal = removalRefusal(result);
+  if (refusal) return { error: refusal };
+
+  const name = (result?.name ?? "").trim() || "The branch";
+
+  // Stop billing for it. Best effort by the same contract as addBranch: the branch is gone
+  // either way, and the nightly reconcile corrects the quantity if Stripe was unreachable.
+  const billed = await syncBranchQuantity(companyId);
+
+  await writeAudit({
+    companyId,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "branch.removed",
+    entityType: "branch",
+    entityId: branchId,
+    summary: `Removed the branch ${name}`,
+    metadata: {
+      billed: billed.synced,
+      billing_reason: billed.reason ?? null,
+      quantity: billed.quantity ?? null,
+    },
+  });
+
+  revalidatePath(`/founder/companies/${companyId}`);
+  revalidatePath("/settings/branches");
+  return {
+    ok:
+      billed.synced && billed.quantity !== undefined
+        ? `Removed ${name}. Billing updated to ${billed.quantity} extra branch${billed.quantity === 1 ? "" : "es"}.`
+        : `Removed ${name}.`,
+  };
+}
+
 export async function addBranch(
   _prev: ActionState,
   formData: FormData,

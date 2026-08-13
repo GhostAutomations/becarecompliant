@@ -27,7 +27,7 @@ import {
 } from "@/lib/billing/seats";
 import { subscriptionMonthlyPence } from "@/lib/billing/monthly-total";
 import ActionForm from "@/components/action-form";
-import { addBranch } from "@/app/(app)/founder/actions";
+import { addBranch, removeBranch } from "@/app/(app)/founder/actions";
 import { TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
 import {
   billingStatusPill,
@@ -259,6 +259,41 @@ export default async function FounderCompanyPage({
           <label htmlFor="new_branch_name" className="form-label">Branch name</label>
           <input id="new_branch_name" name="name" type="text" maxLength={80} required placeholder="e.g. Swansea" />
         </ActionForm>
+
+        {/* REMOVING ONE. Until now Add was one way: provision a branch by mistake and the
+            customer paid £7.50 a month for ever. Removal is an undo, not a way to erase
+            history — migration 0181 refuses while anything at all references the branch,
+            because the foreign keys would otherwise cascade away its Regulation 73 visits and
+            Regulation 80 reviews. The office row is not listed: it is not a branch. */}
+        {operationalBranches.length > 0 ? (
+          <div className="mt-5 border-t border-white/10 pt-4">
+            <h3 className="mb-1 text-xs font-semibold text-white/70">Remove a branch</h3>
+            <p className="mb-3 text-xs text-white/50">
+              Only a branch with nothing recorded against it can be removed, so this undoes one
+              added by mistake. Removing it stops the {formatPence(EXTRA_BRANCH_PENCE)} a month
+              straight away.
+            </p>
+            <ul className="space-y-2">
+              {operationalBranches.map((b) => (
+                <li
+                  key={b.id as string}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/5 px-3 py-2"
+                >
+                  <span className="text-sm text-white/80">{b.name}</span>
+                  <ActionForm
+                    action={removeBranch}
+                    hidden={{ company_id: company.id, branch_id: b.id as string }}
+                    label="Remove"
+                    savedLabel="Removed"
+                    buttonClassName="btn-secondary text-xs"
+                    className=""
+                    confirm={`Remove ${b.name}? This cannot be undone, and it stops billing for that branch.`}
+                  />
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </section>
 
       <section aria-label="Billing detail" className="glass-card p-5">
