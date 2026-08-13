@@ -10,6 +10,31 @@ Standing decisions taken at planning:
 - Dark app theme (Phil, Phase 0 sign-off): all app screens are dark, navy gradient surfaces with dark glass cards (bg-white/10 + blur) and light text. Light glass app screens were rejected as too white; do not reintroduce.
 - Supabase org upgraded to Pro to allow the third active project (becarecompliant, eu-west-2, ref bgrtcvyjuwopunpnudeu).
 
+## The three operations (Phil, 2026-08-13)
+
+The phases are grouped into three OPERATIONS. A phase belongs to exactly one, and the
+operation says what the work is FOR — which is the question that actually settles arguments
+about scope.
+
+| Operation | Phases | What it is for |
+|---|---|---|
+| **Operation Launch** | 0 to 12 | Building and shipping BCC v1. Ends when the marketing site is live and the product can take a paying customer. |
+| **Operation Thistle** | 13 | The real Thistle Care runs on the live product. Every defect real use exposes is fixed BEFORE anybody pays. |
+| **Operation New Dawn** | 14 onwards | Growing from tracking compliance ABOUT care into recording the care itself: scheduling, calls, tasks, medication, notes and the staff app. |
+
+**Why Thistle gets a whole operation of its own.** Everything through Phase 12 is tested by
+Phil and by Claude against Acme, a company built for testing. A real agency with real carers,
+real service users and real rotas will do things nobody thought to try, and the cost of finding
+that out from a paying customer is a refund and a reputation. Thistle is the last chance to be
+wrong cheaply.
+
+**Operation New Dawn is what FREEDOM-2027-ROADMAP.md already plans**, promoted into the phase
+plan on 2026-08-13. That document is now New Dawn's detailed design, not a standalone: its
+locked-in decisions (home care first, a contracted Clinical Safety Officer for the medication
+module) carry over unchanged. The one decision that has MOVED is the staff app — see Phase 14.
+
+# OPERATION LAUNCH — Phases 0 to 12
+
 ## Phase 0 — Foundations  ✅ COMPLETE (confirmed by Phil 2026-07-08, checklist 14/14)
 
 - PHASES.md master plan
@@ -1870,6 +1895,89 @@ assertion; and the price health check comment describing a case its own code can
 56 tests pass.
 
 
+# OPERATION THISTLE — Phase 13
+
+## Phase 13 — Thistle Care live  ⬜ NOT STARTED
+
+**The real Thistle Care runs the real product, and every defect that finds is fixed before a
+single paying customer arrives.**
+
+Everything up to here has been tested against **Acme**, a company built for testing by the two
+people who built the product. A working agency will do things nobody thought to try: import a
+spreadsheet with a column we never imagined, put a carer in two branches, mark somebody a leaver
+and then un-leave them, run a supervision cycle that straddles a rename. The cost of learning
+that from a paying customer is a refund and a reputation. **Thistle is the last chance to be
+wrong cheaply.**
+
+Scope, to be agreed by popup before starting:
+
+- **A real tenant.** Thistle Care provisioned properly through the founder console, on the tier
+  it would actually buy, with its own branches, forms and register columns. Not a copy of Acme.
+- **Real data in.** Their staff, service users, training history and policies, through the
+  import paths a customer would use — which is itself the test. Anything that has to be fixed
+  in SQL is a defect in the import, not a data problem.
+- **Real people using it.** Managers on the register and the Planner, carers on the Team Member
+  area, briefings and policies actually signed, an inspection-readiness run that Thistle would
+  be willing to show CIW.
+- **A defect log kept as it happens**, with the same rule as everywhere else: look at the
+  artefact, not the code. See [[bcc-look-at-the-artefact]].
+- **Billing exercised for real**, on the tier Thistle is on, including a branch change and a
+  seat change, now that the machinery is proved (Additions item 16, 2026-08-13).
+- **Exit criteria**, agreed up front rather than argued afterwards: a period of ordinary use
+  with no new defect above an agreed severity, and Thistle's own manager saying they would
+  rather use it than what they use now.
+
+Open questions for Phil: which tier Thistle sits on and whether it pays; whether Thistle's data
+lives in the same Supabase project as the demo and test companies (it should, or the thing being
+tested is not the thing being sold); and what happens to Acme once Thistle is real.
+
+# OPERATION NEW DAWN — Phase 14 onwards
+
+## Phase 14 — Scheduling, care recording and the staff app  ⬜ NOT STARTED
+
+**BCC grows from tracking compliance ABOUT care into recording the care itself.**
+
+The detailed design already exists in **FREEDOM-2027-ROADMAP.md**, drafted 2026-07-27 and
+promoted into this plan on 2026-08-13. Its locked-in decisions carry over: **home care
+(domiciliary) first**, residential later; a **contracted Clinical Safety Officer** for the
+medication module, which is an NHS-standards requirement rather than a choice.
+
+What Phil asked for, 2026-08-13:
+
+- **Scheduling calls**, in the shape Nourish's planner does it: client visit patterns generating
+  recurring calls, dragged onto carers and runs, with travel time and clash warnings.
+- **Tasks, medication, notes** at the point of care, in the shape Birdie does it: per-visit task
+  lists, MAR charts and medication recording, notes and observations against the service user.
+- **A staff app** the carer actually uses on their phone.
+- **New reports**, all of which only become possible once calls are recorded:
+  - **Duration** — how long the call actually lasted against how long it was planned for, both
+    ways: cut short, and run over.
+  - **Earliness** — arriving too early, which is as much a safeguarding and dignity issue as
+    lateness and is the one nobody reports on.
+  - **Lateness** — arriving after the planned time, by how much, and how often.
+  - **Note quality** — whether what was written is worth anything, not merely that something
+    was written.
+  - **Medication competency** — the existing competency check joined to what the carer actually
+    recorded on the MAR, so the check stops being a form and starts being evidence.
+
+**DECISION CHANGED 2026-08-13 — the staff app is an installable WEB app first.** Freedom locked
+in React Native + Expo on 27 July; Phil's call now is a mobile web app the carer opens in Safari
+or Chrome and adds to their home screen. No store accounts, no review cycles, and it ships from
+the Next.js codebase that already exists. Freedom itself already called the carer web view "the
+floor, not the fallback". Native remains open as its own later phase, and the two things it
+would buy — dependable offline recording and background location for call monitoring — are the
+reasons to revisit it, not before.
+
+**Do not start any of this until Operation Thistle has signed off.** A platform that schedules
+care on top of a compliance product nobody has yet run in anger is a much worse bet than one
+built on a product a real agency already trusts.
+
+# WORK LOG — dated entries
+
+Everything below is a running record of work as it happened, newest at the end. It is NOT phase
+scope: read the phase sections above for what a phase is FOR.
+
+
 ## Inbound SMS: replies, and the STOP list (2026-08-01)
 
 Phil ruled out an alphanumeric Sender ID: "i dont want to go alphanumeric as people cant reply
@@ -2389,3 +2497,65 @@ bucket listing, the database rows after the screen said "Saved", and the names o
 tile. Unit tests and typechecking passed throughout.
 
 212 tests pass. Migrations 0170, 0171, 0172, 0173.
+
+## 2026-08-13 — Additions item 12: billing proved with real money, and two silent defects
+
+**Extra branches are actually sellable.** The £7.50 price now exists (product
+`prod_V3r1ZqVtrF0mY0`, price `price_1U3jJcRhL0XqZmTgw2kLiVz0`, GBP monthly, licensed not
+metered), `STRIPE_PRICE_BRANCH` is set in Vercel, and Acme took out a real subscription from
+its own billing page: `sub_1U46BgRhL0XqZmTg008eTiyw`, invoice `U6ZNESFB-0069`, **£76.50
+paid** — Pro £69.00 × 1 and Extra Branch £7.50 × 1. The webhook wrote the subscription id,
+`active` and the period end onto `company_billing`. The founder "Add a branch" then moved the
+quantity to 2 with prorations (+£15.00, −£7.50), and "Remove a branch" moved it back to 1 with
+the prorations cancelling to nothing. This is the first time anything in BCC has been billed
+for a branch.
+
+**A cancelled subscription is skipped quietly.** Both `syncSeatQuantity` and
+`syncBranchQuantity` would have retried a dead subscription every night, been refused by
+Stripe, and logged an error — so the one night something real broke would have looked exactly
+the same. `subscriptionHasEnded` (`lib/billing/subscription-state.ts`) returns false for null,
+deliberately: refusing on an unknown status would leave a real subscription unbilled for ever.
+
+**Defect: the Stripe customer kept its old name for ever.** `ensureCustomer` stored the
+customer id at the first checkout and never looked at the record again. Acme was set up as
+"Thistle Care Wales" and renamed in BCC; a month later Stripe still said Thistle Care Wales,
+and Stripe is what prints on the invoice, the receipt and the card statement. For a care agency
+that rebrands or is bought, that is the name it files accounts under. Now refreshed when it
+differs, best effort so a rename can never stop somebody subscribing, with the decision in
+`lib/billing/customer-identity.ts` — 7 tests, including that a blank name never wipes one
+Stripe already holds.
+
+**Defect: the founder console under-reported the bill.** Its BILLING tile computed
+`base + extra seats` and forgot branches, so it showed Acme at £69.00/mo while Stripe billed
+£76.50, then £84.00. The customer billing page had been fixed for exactly this a fortnight
+earlier; the founder page was missed. Nothing was wrong in either file on its own — the defect
+was that there were two files. There is now ONE rule, `lib/billing/monthly-total.ts`, with
+every component a REQUIRED field, so adding a fourth charge stops the compiler at every call
+site instead of letting one screen quietly under-report. Both pages call it, and the founder
+tile shows its working: "£76.50/mo · base £69.00 + 1 branch".
+
+**Remove a branch** (0181). Add was a one-way door: a branch provisioned by mistake billed the
+customer £7.50 a month for ever. Removal is an UNDO, never a way to erase history, and the
+reason it had to live in the database is the foreign keys. They are three different rules and
+two of them lose records silently: **CASCADE** from `reg73_visits`, `reg80_reviews` and
+`user_branches` — a plain DELETE would have erased the statutory Regulation 73 visits and
+Regulation 80 quality reviews held against that branch; **SET NULL** from incidents, evidence,
+checks, holidays and whistleblowing — the rows survive but forget which branch they belong to;
+**RESTRICT** from people, complaints, invoices and planner bookings. `remove_unused_branch()`
+is founder only, locks the row, counts references across all 26 referencing tables and refuses
+if there is a single one, with the check and the delete under one lock so nothing can be
+inserted between them. The office/team row is refused outright. The refusal names what is in
+the way: "Cardiff1 has records against it… It still has 518 training records, 294 evidence and
+188 checks."
+
+Proved against the live database as the founder, inside a transaction that was rolled back:
+Cardiff1 `in_use` listing 17 kinds of record including **7 Regulation 80 reviews and 6
+Regulation 73 visits**; the office row `not_a_branch`; a nonexistent id `not_found`; Akram, a
+company admin, `not_permitted` on both a real branch and the empty one — a company cannot
+delete a branch out from under its own records.
+
+**The lesson again.** Both defects today were found by reading the artefact — a Stripe customer
+page and a founder tile — not the code. `tsc` was clean and every test passed the whole time.
+That is eleven such defects in three sessions.
+
+307 tests pass. Migration 0181.

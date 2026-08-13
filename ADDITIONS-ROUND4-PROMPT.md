@@ -15,8 +15,30 @@ Wales). I am Phil, the founder. We are continuing **Phase 10, Additions**.
 Stack: Next.js 15 App Router, TypeScript, Tailwind v4, React 19, Supabase (Postgres,
 RLS, Storage, Realtime, Auth), Stripe, Resend, Twilio, Anthropic. Hosted on Vercel, repo
 on my Mac in iCloud, Supabase project ref `bgrtcvyjuwopunpnudeu` (eu-west-2). Test
-company is **Acme Care Company** (42 people, 4 branches, Pro tier). Migrations are
-applied up to **0180**. 281 unit tests pass.
+company is **Acme Care Company** (42 people, three operational branches plus its office,
+Pro tier, on a LIVE Pro subscription in the Stripe sandbox since 13 August). Migrations are
+applied up to **0181**. 307 unit tests pass.
+
+**This brief was last true on the evening of 2026-08-13.** Check the migration number and
+the test count before believing any of it; both are printed by the first commands you run.
+
+## The three operations (Phil, 2026-08-13)
+
+Everything up to and including Phase 12 is **Operation Launch** — building and shipping BCC v1.
+Then two new phases:
+
+- **Phase 13, Operation Thistle.** The real Thistle Care Ltd (the agency Phil subcontracts to,
+  and the reason the test company was renamed off that name a year ago) runs on the live product.
+  Every defect real use exposes is fixed BEFORE a paying customer arrives. Everything so far has
+  been tested against Acme, a company built for testing by the two people who built the product.
+- **Phase 14, Operation New Dawn.** Scheduling calls the way Nourish's planner does it; tasks,
+  medication, notes at the point of care the way Birdie does it; a staff app; and five reports
+  that only become possible once calls are recorded — duration against plan, earliness, lateness,
+  note quality and medication competency joined to the MAR. **This IS FREEDOM-2027-ROADMAP.md,
+  promoted**; that file is now Phase 14's design doc rather than a standalone. One decision
+  moved: the staff app is an **installable web app first**, not React Native + Expo.
+
+Nothing in New Dawn starts until Thistle has signed off. Full detail in PHASES.md.
 
 ## Where we are
 
@@ -78,6 +100,47 @@ says when it stopped being.
 HTTP status, a bucket listing, the rows after a green "Saved", a screenshot Phil sent. Every
 one had clean `tsc` and green tests. Two were in the fix for the previous one.
 
+### 2026-08-13, billing proved with real money
+
+Item 12 closed end to end. The £7.50 branch price now exists, a real subscription was taken
+out, and the quantity was watched moving in BOTH directions against Stripe.
+
+- **The price**: product "Be Care Compliant Extra Branch" `prod_V3r1ZqVtrF0mY0`, price
+  `price_1U3jJcRhL0XqZmTgw2kLiVz0`, £7.50 GBP monthly, licensed not metered.
+  `STRIPE_PRICE_BRANCH` set in Vercel. The founder health panel reads Matches on all five.
+- **A real checkout** from Acme's billing page: `sub_1U46BgRhL0XqZmTg008eTiyw`, invoice
+  `U6ZNESFB-0069` for **£76.50 paid** — Pro £69.00 × 1 and Extra Branch £7.50 × 1. The
+  webhook wrote the subscription id, `active` and the period end onto `company_billing`.
+- **Add a branch** took the quantity to 2 with prorations (+£15.00, −£7.50); **Remove a
+  branch** took it back to 1 and the prorations cancelled to nothing.
+- A **cancelled subscription is now skipped quietly** by both sync functions rather than
+  retried and logged as a failure every night (`lib/billing/subscription-state.ts`).
+
+**Two defects found on the way, neither visible to `tsc` or the tests:**
+
+- **The Stripe customer kept its old name for ever.** `ensureCustomer` stored the id once
+  and never looked again, so Acme — set up as "Thistle Care Wales" and renamed — would have
+  had that name on every future invoice, receipt and card statement. Now refreshed when it
+  differs, with the decision in a tested pure module (`lib/billing/customer-identity.ts`).
+  A blank name never wipes one Stripe already holds.
+- **The founder console under-reported the bill.** It computed base + seats and forgot
+  branches, so it showed Acme at £69.00/mo while Stripe billed £84.00. The customer page had
+  been fixed for this a fortnight earlier; the founder page was missed. There is now ONE
+  rule, `lib/billing/monthly-total.ts`, with every component a REQUIRED field, so a fourth
+  charge stops the compiler at every call site instead of one screen going quiet.
+
+**Remove a branch** (0181). Add was one way, so a branch provisioned by mistake billed the
+customer for ever. Removal is an UNDO, never a way to erase history: the foreign keys onto
+`branches` CASCADE from `reg73_visits` and `reg80_reviews`, so a plain DELETE would have
+erased statutory Regulation 73 and 80 records — removing Cardiff1 would have taken 7 Reg 80
+reviews and 6 Reg 73 visits with it. `remove_unused_branch()` is founder only, locks the
+row, counts references across all 26 referencing tables and refuses if there is a single
+one, check and delete under one lock. Proved against the live database inside a rolled-back
+transaction: Cardiff1 `in_use`, the office row `not_a_branch`, a company admin
+`not_permitted`.
+
+**Eleven defects now found by looking at the artefact rather than the code.**
+
 ## What is left
 
 **Decisions only I can make**
@@ -108,10 +171,9 @@ one had clean `tsc` and green tests. Two were in the fix for the previous one.
    2026-08-12: the picker offers two policies and Holiday Requests, nothing else.
 10. ~~Nothing enforces retention.~~ **DONE 2026-08-12** (0171, cron, hold, settings page).
 11. ~~Incidents, Safeguarding and Whistleblowing log.~~ **DONE 2026-08-12** (0174 to 0178).
-12. **Extra branches: BUILT BUT UNSELLABLE.** The billing, the founder screen and the
-    nightly reconcile all exist. Nothing can be charged until Phil creates the £7.50
-    recurring GBP licensed price and sets `STRIPE_PRICE_BRANCH` in Vercel. Phil's call
-    2026-08-12: leave this until last.
+12. ~~Extra branches: BUILT BUT UNSELLABLE.~~ **DONE 2026-08-13.** Price created, env var
+    set, a real £76.50 subscription taken out from Acme's billing page, and the quantity
+    watched going 1 → 2 → 1 in Stripe with correct prorations. Removal added (0181).
 13. ~~`spend_ai_credit` is executable by anon.~~ **DONE 2026-08-12** (0172).
 14. ~~Settings > Notifications lists only Admins and Managers.~~ **DONE 2026-08-12.**
 15. Dashboard remainder: **Policies up to date DONE 2026-08-12.** The second half of this
