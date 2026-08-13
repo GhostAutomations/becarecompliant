@@ -21,9 +21,11 @@ import {
   includedSeatsForTier,
   includedBranchesForTier,
   EXTRA_BRANCH_PENCE,
+  EXTRA_SEAT_PENCE,
   formatPence,
   isBillableSeat,
 } from "@/lib/billing/seats";
+import { subscriptionMonthlyPence } from "@/lib/billing/monthly-total";
 import ActionForm from "@/components/action-form";
 import { addBranch } from "@/app/(app)/founder/actions";
 import { TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
@@ -126,9 +128,18 @@ export default async function FounderCompanyPage({
   const branchIncluded = includedBranchesForTier(company.tier ?? "business");
   const operationalBranches = (branches ?? []).filter((b) => (b as { kind?: string }).kind === "branch");
   const officeBranches = (branches ?? []).filter((b) => (b as { kind?: string }).kind !== "branch");
+  // Extra branches are REAL MONEY on the subscription (one £7.50 line, quantity = beyond the
+  // allowance), so the founder console has to include them or it reports a number Stripe
+  // disagrees with. Acme showed £69.00/mo here while Stripe was billing £84.00.
+  const extraBranchCount = Math.max(0, operationalBranches.length - branchIncluded);
   const monthlyTotalPence = isSub
-    ? TIER_BASE_PENCE[company.tier as keyof typeof TIER_BASE_PENCE] +
-      seats.extraCostPence
+    ? subscriptionMonthlyPence({
+        basePence: TIER_BASE_PENCE[company.tier as keyof typeof TIER_BASE_PENCE],
+        extraSeats: seats.extra,
+        seatPence: EXTRA_SEAT_PENCE,
+        extraBranches: extraBranchCount,
+        branchPence: EXTRA_BRANCH_PENCE,
+      })
     : 0;
   const bpill = billingStatusPill(billing?.subscription_status ?? null);
 
@@ -196,7 +207,14 @@ export default async function FounderCompanyPage({
           }
           sub={
             isSub
-              ? `${formatPence(monthlyTotalPence)}/mo`
+              ? `${formatPence(monthlyTotalPence)}/mo` +
+                (seats.extra > 0 || extraBranchCount > 0
+                  ? ` · base ${formatPence(TIER_BASE_PENCE[company.tier as keyof typeof TIER_BASE_PENCE])}` +
+                    (seats.extra > 0 ? ` + ${seats.extra} seat${seats.extra === 1 ? "" : "s"}` : "") +
+                    (extraBranchCount > 0
+                      ? ` + ${extraBranchCount} branch${extraBranchCount === 1 ? "" : "es"}`
+                      : "")
+                  : "")
               : company.tier === "black"
                 ? "Founder granted"
                 : undefined

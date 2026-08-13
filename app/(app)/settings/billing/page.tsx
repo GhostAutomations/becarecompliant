@@ -2,7 +2,14 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
-import { getSeatUsage, getBranchUsage, formatPence, EXTRA_BRANCH_PENCE } from "@/lib/billing/seats";
+import {
+  getSeatUsage,
+  getBranchUsage,
+  formatPence,
+  EXTRA_BRANCH_PENCE,
+  EXTRA_SEAT_PENCE,
+} from "@/lib/billing/seats";
+import { subscriptionMonthlyPence } from "@/lib/billing/monthly-total";
 import { getAiCreditBalance } from "@/lib/billing/ai-credits";
 import { getSmsCreditBalance } from "@/lib/billing/sms-credits";
 import { SMS_TOPUP_CREDITS, SMS_TOPUP_PENCE, smsTopupPriceId } from "@/lib/stripe/config";
@@ -91,7 +98,13 @@ export default async function BillingPage() {
   // £69.00 — which was survivable only while nothing actually charged for a branch. The moment
   // it does, that page is telling a customer £69 and Stripe is taking £76.50. This product has
   // already been bitten once by a screen and an invoice disagreeing (£69 sold, £99 charged).
-  const monthlyTotalPence = basePence + seats.extraCostPence + branches.extraCostPence;
+  const monthlyTotalPence = subscriptionMonthlyPence({
+    basePence,
+    extraSeats: seats.extra,
+    seatPence: EXTRA_SEAT_PENCE,
+    extraBranches: branches.extra,
+    branchPence: EXTRA_BRANCH_PENCE,
+  });
   const hasSubscription = Boolean(billing?.stripe_subscription_id);
   const activeSub = ["active", "trialing", "past_due"].includes(
     billing?.subscription_status ?? "",
