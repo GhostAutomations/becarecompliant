@@ -28,6 +28,9 @@ real service users and real rotas will do things nobody thought to try, and the 
 that out from a paying customer is a refund and a reputation. Thistle is the last chance to be
 wrong cheaply.
 
+**Launch is WALES ONLY to start** (Phil, 2026-08-13), which defers most of the England assurance
+bill — see Phase 14.
+
 **Operation New Dawn is what FREEDOM-2027-ROADMAP.md already plans**, promoted into the phase
 plan on 2026-08-13. That document is now New Dawn's detailed design, not a standalone: its
 locked-in decisions (home care first, a contracted Clinical Safety Officer for the medication
@@ -1927,9 +1930,31 @@ Scope, to be agreed by popup before starting:
   with no new defect above an agreed severity, and Thistle's own manager saying they would
   rather use it than what they use now.
 
-Open questions for Phil: which tier Thistle sits on and whether it pays; whether Thistle's data
-lives in the same Supabase project as the demo and test companies (it should, or the thing being
-tested is not the thing being sold); and what happens to Acme once Thistle is real.
+**Phil, 2026-08-13: Thistle STARTS AS A PAYING CUSTOMER, then moves to Black (free) once the
+shakedown is over.** That is the right way round — a free pilot is a favour and gets treated like
+one, whereas an invoice makes both sides serious, and it exercises the billing path a real
+customer will take rather than a founder-granted shortcut.
+
+**It also lands on a real gap, found 2026-08-13: A COMPANY'S TIER CANNOT BE CHANGED. ANYWHERE.**
+`companies.tier` is written at creation and by trial provisioning, and by nothing else in the
+product. There is no founder control and no customer control, so:
+
+- Thistle cannot be moved onto Black without a hand-written SQL update.
+- **Nothing cancels their Stripe subscription when they move**, so a company on the free tier
+  would keep being charged, and `syncSeatQuantity` / `syncBranchQuantity` would then quietly
+  refuse with `not_subscription_tier` while the last quantities sat there.
+- More seriously for launch: **no Business customer can ever upgrade to Pro.** The tier is also
+  what `billed_tier` is copied FROM in the webhook, so Stripe is downstream of the app here; a
+  plan change made in the Stripe portal would not move the tier either.
+
+Changing tier is therefore Phase 13 scope, not a nice-to-have, and it has to do the whole job:
+move the tier, settle Stripe (cancel, or switch the base price and prorate), and write an audit
+entry. Also decide what happens to seats and branches that were inside the old allowance and are
+outside the new one.
+
+Still open for Phil: whether Thistle's data lives in the same Supabase project as the demo and
+test companies (it should, or the thing being tested is not the thing being sold), and what
+happens to Acme once Thistle is real.
 
 # OPERATION NEW DAWN — Phase 14 onwards
 
@@ -1967,6 +1992,31 @@ the Next.js codebase that already exists. Freedom itself already called the care
 floor, not the fallback". Native remains open as its own later phase, and the two things it
 would buy — dependable offline recording and background location for call monitoring — are the
 reasons to revisit it, not before.
+
+**WALES ONLY TO START (Phil, 2026-08-13.)** This is a bigger decision than it sounds, because
+almost the whole assurance bill is an ENGLAND bill:
+
+- **DCB0129** — the clinical risk management standard that requires a named Clinical Safety
+  Officer — is an NHS **England** information standard under the Health and Social Care Act 2012.
+  It is what NHS England procurement checks. It does not bind a supplier selling to a Welsh
+  domiciliary agency.
+- The **assured DSCR list** and MODS/DAPB4102 certification are an NHS England procurement and
+  funding gate, not a licence. Wales has no equivalent scheme; CIW regulates PROVIDERS, not
+  software vendors.
+- So DTAC evidence, the assured list, Cyber Essentials Plus and a pen test can all wait until
+  BCC sells into England. That is most of the £15–30k trust stack deferred, not avoided.
+
+**What Wales-only does NOT remove is the reason the Clinical Safety Officer existed.** If BCC
+records that a carer gave a medicine and the record is wrong, "no English standard applied to us"
+is not a defence to the provider, their insurer, or a coroner. The CSO is still in scope for the
+medication module specifically — but the TIMING moves: it is needed before eMAR goes live on real
+service users, not at Phase 14 kickoff. Everything else in New Dawn (scheduling, calls, tasks,
+notes, the five reports) carries no such requirement at all.
+
+Worth checking before eMAR is built rather than after: whether Digital Health and Care Wales
+publishes its own patient-safety information standards that mirror DCB0129, and whether Welsh
+local authorities ask for clinical safety evidence in domiciliary care tenders. Neither was
+confirmed on 2026-08-13; the England position was.
 
 **Do not start any of this until Operation Thistle has signed off.** A platform that schedules
 care on top of a compliance product nobody has yet run in anger is a much worse bet than one
