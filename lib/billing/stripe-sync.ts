@@ -202,11 +202,24 @@ export async function syncSeatQuantity(
     );
 
     if (!seatItem) {
-      // Subscription has no seat line yet: add it at the right quantity.
+      /* NOTHING TO ADD WHEN THERE IS NOTHING TO CHARGE FOR. The branch sync has always had this
+         guard and the seat sync never did, which did not matter while this only ran when a user
+         was added — there was always a seat to bill. Now that a plan change and the nightly
+         reconcile call it, it fires on subscriptions with nobody over the allowance, and it put
+         "Extra Seat 0 × £5.00 = £0.00" straight onto a real invoice. Seen on Acme, 13 Aug. */
+      if (quantity === 0) return { synced: true, reason: "nothing_to_bill", quantity };
       await stripe.subscriptionItems.create({
         subscription: billing.stripe_subscription_id,
         price: seatPrice,
         quantity,
+        proration_behavior: "create_prorations",
+      });
+    } else if (quantity === 0 && subscription.items.data.length > 1) {
+      /* The line has fallen to nothing, so REMOVE it rather than leave a zero on the invoice.
+         Setting the quantity to 0 would print "Extra Seat 0 × £5.00 £0.00" on every invoice for
+         ever, which reads like a mistake even though the total is right. Only when something
+         else remains: a subscription cannot have no items at all. */
+      await stripe.subscriptionItems.del(seatItem.id, {
         proration_behavior: "create_prorations",
       });
     } else if ((seatItem.quantity ?? 0) !== quantity) {
@@ -517,6 +530,12 @@ export async function syncBranchQuantity(
         subscription: billing.stripe_subscription_id,
         price,
         quantity,
+        proration_behavior: "create_prorations",
+      });
+    } else if (quantity === 0 && subscription.items.data.length > 1) {
+      // Same rule as seats: a line that has fallen to nothing is removed, not zeroed, or every
+      // future invoice carries "Extra branch 0 × £7.50 £0.00".
+      await stripe.subscriptionItems.del(item.id, {
         proration_behavior: "create_prorations",
       });
     } else if ((item.quantity ?? 0) !== quantity) {
