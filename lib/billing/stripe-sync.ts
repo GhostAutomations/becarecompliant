@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe/client";
 import { seatPriceId, branchPriceId, isSubscriptionTier } from "@/lib/stripe/config";
 import { includedSeatsForTier, includedBranchesForTier, NON_BILLABLE_ROLES } from "@/lib/billing/seats";
+import { customerIdentityPatch } from "@/lib/billing/customer-identity";
 import { subscriptionHasEnded } from "@/lib/billing/subscription-state";
 
 /**
@@ -83,6 +84,17 @@ export async function upsertCompanyBilling(
 /**
  * Ensure a Stripe Customer exists for the company and return its id, or null if
  * Stripe is not configured. Stores the id on company_billing.
+ *
+ * ALSO CORRECTS A STALE NAME. The customer record is written once, at the first checkout,
+ * and Stripe is what prints on the invoice, the receipt and the card statement. A company
+ * that renames therefore kept its old name on every future invoice for ever.
+ *
+ * Acme is the live example: Phil set it up as "Thistle Care Wales" and renamed it in BCC, and
+ * the Stripe customer still said Thistle Care Wales a month later. In the care sector this is
+ * not cosmetic — an agency that rebrands, or is bought, needs the invoice to carry the name it
+ * files accounts under.
+ *
+ * Best effort by design: a rename that cannot be pushed must never stop somebody subscribing.
  */
 export async function ensureCustomer(
   companyId: string,
@@ -91,7 +103,10 @@ export async function ensureCustomer(
   const stripe = getStripe();
   if (!stripe) return null;
   const existing = await getCompanyBilling(companyId);
-  if (existing?.stripe_customer_id) return existing.stripe_customer_id;
+  if (existing?.stripe_customer_id) {
+    await refreshCustomerIdentity(existing.stripe_customer_id, opts);
+    return existing.stripe_customer_id;
+  }
 
   const customer = await stripe.customers.create({
     name: opts?.name,
@@ -100,6 +115,43 @@ export async function ensureCustomer(
   });
   await upsertCompanyBilling(companyId, { stripe_customer_id: customer.id });
   return customer.id;
+}
+
+/**
+ * Push a changed company name or billing email onto an existing Stripe customer.
+ *
+ * Writes only when something actually differs, so the ordinary case costs one read and no
+ * write. Never throws: every caller is in the middle of doing something the user asked for,
+ * and none of them should fail because Stripe was briefly unreachable.
+ */
+async function refreshCustomerIdentity(
+  customerId: string,
+  opts?: { name?: string; email?: string },
+): Promise<void> {
+  const name = opts?.name?.trim();
+  const email = opts?.email?.trim();
+  if (!name && !email) return;
+
+  try {
+    const stripe = getStripe();
+    if (!stripe) return;
+
+    const customer = await stripe.customers.retrieve(customerId);
+    // A customer deleted in the Stripe dashboard comes back as { deleted: true } with no
+    // fields. Updating it would throw; leaving it alone lets checkout fail loudly instead.
+    if (!customer || (customer as { deleted?: boolean }).deleted) return;
+
+    const patch = customerIdentityPatch(
+      customer as { name?: string | null; email?: string | null },
+      { name, email },
+    );
+    // Null means nothing differs, so the ordinary checkout costs one read and no write.
+    if (!patch) return;
+
+    await stripe.customers.update(customerId, patch);
+  } catch (e) {
+    console.error("[billing] customer identity refresh failed:", (e as Error).message);
+  }
 }
 
 /**
