@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe/client";
 import { seatPriceId, branchPriceId, isSubscriptionTier } from "@/lib/stripe/config";
 import { includedSeatsForTier, includedBranchesForTier, NON_BILLABLE_ROLES } from "@/lib/billing/seats";
+import { subscriptionHasEnded } from "@/lib/billing/subscription-state";
 
 /**
  * Exact seat sync to Stripe. Product rule: 4 users included, then £5/extra/mo.
@@ -118,6 +119,12 @@ export async function syncSeatQuantity(
     if (!billing?.stripe_subscription_id) {
       return { synced: false, reason: "no_subscription" };
     }
+    if (subscriptionHasEnded(billing.subscription_status)) {
+      // A cancelled subscription is not a billing failure. Without this it would be
+      // retried and refused by Stripe every night, logged as an error, and the one night
+      // something real broke would look exactly the same.
+      return { synced: false, reason: "subscription_ended" };
+    }
     if (billing.billed_tier && !isSubscriptionTier(billing.billed_tier)) {
       return { synced: false, reason: "not_subscription_tier" };
     }
@@ -224,6 +231,12 @@ export async function syncBranchQuantity(
     const billing = await getCompanyBilling(companyId);
     if (!billing?.stripe_subscription_id) {
       return { synced: false, reason: "no_subscription" };
+    }
+    if (subscriptionHasEnded(billing.subscription_status)) {
+      // A cancelled subscription is not a billing failure. Without this it would be
+      // retried and refused by Stripe every night, logged as an error, and the one night
+      // something real broke would look exactly the same.
+      return { synced: false, reason: "subscription_ended" };
     }
     if (billing.billed_tier && !isSubscriptionTier(billing.billed_tier)) {
       return { synced: false, reason: "not_subscription_tier" };
