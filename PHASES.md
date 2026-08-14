@@ -2039,9 +2039,54 @@ What that endpoint has to get right, none of which is obvious:
   Moving a candidate's record between them needs a lawful basis and an agreement in place, and
   the carer needs to have been told. Worth settling before the first real carer, not after.
 
-Open until Phil decides: the tenant and branch mapping; whether Hired triggers a Team Member
-invite; what happens when a hired carer already exists in BCC; and whether BCC ever pushes
-anything BACK (an expired training record is exactly the sort of thing C.A would want to know).
+### DECIDED by Phil, 2026-08-14
+
+1. **Which tenant: an API key per BCC company.** JCN stores the key against that employer, so the
+   KEY IS THE COMPANY — there is no name or domain matching to drift, and a rename on either
+   side changes nothing. The branch is named separately in the payload.
+2. **Hired sends the invite immediately.** A hired carer gets their Team Member login the moment
+   JCN says Hired, so they can sign policies before their first shift rather than after it.
+3. **A carer who already exists is FLAGGED, never merged automatically.** A manager sees the
+   incoming record beside the one already there and chooses what to take across. Same shape as
+   the unmatched submissions queue. Nothing a manager typed is ever overwritten by a machine.
+4. **Nothing is pushed back to JCN.** One way.
+5. **Training completed AFTER hire comes from C.A DIRECTLY to BCC**, not back through JCN. Once
+   somebody is an employee, JCN is out of the loop.
+6. **The carer is told at the point they apply.** It goes into the JCN privacy notice.
+
+**4 and 5 are not in conflict, and the note matters:** BCC pushes nothing anywhere, and RECEIVES
+from two senders — JCN at the moment of hire, and Carer.Academy for training after it. Two inbound
+routes, one direction of travel.
+
+7. **How C.A addresses a record: an opaque REFERENCE, with email and phone as a CHECK.** Phil
+   asked whether the company name plus the employee's email and phone — all three of which exist
+   in all three systems — could do the matching instead. They cannot do the ADDRESSING, and the
+   reasons are worth keeping because they will come up again:
+
+   - **A carer works for two agencies.** Normal in domiciliary care: bank staff, top-up shifts,
+     two employers at once. The same email then exists in two BCC companies, and a completion
+     addressed only to that email says nothing about whose register it belongs in. Guessing files
+     a training record into the wrong company's compliance evidence.
+   - **A company name drifts, and already has.** Acme was "Thistle Care Wales" until July and the
+     Stripe customer still said so a month later — the defect fixed on 13 August. Decision 1
+     chose an API key precisely to avoid name matching; the same argument holds here.
+   - **A cross-system email lookup is a probe.** If BCC searches every company for an inbound
+     email address, anyone who can reach the endpoint can discover whether a given person works
+     for a given care company. With a reference, no search happens: the message can only reach
+     the record it was issued for.
+
+   So: at hire, BCC issues an opaque reference for that person which reaches C.A, and every
+   completion carries it — that is the whole routing decision. **Email and phone travel with the
+   payload and BCC refuses and flags when they do not match the record the reference points at**,
+   which catches a mis-issued reference, a replaced leaver and a wrong-person mix-up that a
+   reference alone would not. The company name is never matched on: display only, so a human
+   reading the queue can see it. A completion arriving with NO reference — a carer who trained
+   with C.A but was never hired through JCN — goes to the flag queue for a manager, by decision 3.
+
+   The cost is one extra stored field per learner in C.A.
+
+Still to design: what happens when the branch named in the payload matches nothing in BCC —
+reject the carer, or file to the office row and flag it.
 
 **WALES ONLY TO START (Phil, 2026-08-13.)** This is a bigger decision than it sounds, because
 almost the whole assurance bill is an ENGLAND bill:
