@@ -1133,9 +1133,19 @@ export default async function DashboardPage() {
                                 .filter(Boolean)
                                 .join(" ")}
                             >
-                              <span className="block truncate text-[10px] tabular-nums text-gold-300/85">
+                              {/* GOLD IS FOR A TIME, NOT FOR THE ABSENCE OF ONE. Every booking
+                                  used to print this line in the gold accent, so an untimed
+                                  booking read "No time" in amber directly beside grey "Clear"
+                                  days — which looks like a warning about something that is
+                                  merely unset. An untimed booking is now muted, like "Clear",
+                                  and says "No time set" so it reads as information. */}
+                              <span
+                                className={`block truncate text-[10px] tabular-nums ${
+                                  it.time ? "text-gold-300/85" : "text-white/40"
+                                }`}
+                              >
                                 {it.dayHint ? `${it.dayHint} ` : ""}
-                                {it.time ?? "No time"}
+                                {it.time ?? "No time set"}
                               </span>
                               <span className="block truncate text-[11px] text-white/70">
                                 {it.label}

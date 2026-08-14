@@ -10,6 +10,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { IDLE_STATE } from "@/lib/forms";
+import { ukDate } from "@/lib/dates";
 import {
   DEFAULT_STAGE_THRESHOLDS,
   DEFAULT_BRADFORD_BANDS,
@@ -242,8 +243,11 @@ export default function AbsenceSettings({
       <section className="glass-card p-5">
         <h2 className="text-sm font-semibold text-white/80">Company absence policy</h2>
         <p className="mt-1 text-xs text-white/50">
+          {/* ukDate, not slice(0,10). A raw ISO date on a customer's screen is the leak
+              lib/dates.ts was written for on 2026-08-10; it came back in the Reg 80 prose on
+              12 August and it was still here. British dates for British care companies. */}
           {policyUploadedAt
-            ? `A policy was uploaded on ${policyUploadedAt.slice(0, 10)}.`
+            ? `A policy was uploaded on ${ukDate(policyUploadedAt)}.`
             : "No policy uploaded yet."}
         </p>
 

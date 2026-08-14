@@ -2609,3 +2609,79 @@ page and a founder tile — not the code. `tsc` was clean and every test passed 
 That is eleven such defects in three sessions.
 
 307 tests pass. Migration 0181.
+
+## 2026-08-13 (late) — a company can change plan, and Stripe is told
+
+**The gap.** `companies.tier` was written at creation and by trial provisioning and by NOTHING
+ELSE. So no Business customer could ever upgrade to Pro — a launch blocker hiding in plain sight
+— and moving a company onto the free Black tier meant hand-written SQL with nothing to stop
+Stripe carrying on charging them. The app is UPSTREAM of Stripe here (the webhook copies
+`billed_tier` FROM `companies.tier` and never derives the tier from the price), so a plan change
+made in the Stripe portal would not have moved it either.
+
+**What was built.** One pure rule (`lib/billing/tier-change.ts`, 11 tests) decides what moves are
+allowed and what Stripe must be told; one implementation (`lib/billing/tier-apply.ts`) does it;
+two entry points call it — a Plan control on the founder company page and Move to Pro on the
+customer's own billing page, which shows the real new total worked out from their own user and
+branch counts. Downgrades are deliberately refused for now: Pro includes 6 users and 2 branches
+against Business's 4 and 1, so the extras bill rises as the base falls and nobody should agree to
+that without seeing the number. Moving to Black changes the plan at once and stops the
+subscription at PERIOD END, so no money moves in either direction.
+
+The tier is written BEFORE Stripe is told, deliberately. There is no atomic option across a
+database and a payment processor, so the choice is which way to fail: tier first fails towards
+UNDERCHARGING, which this product already decided is the safe direction, and the nightly
+reconcile heals it.
+
+**FIVE DEFECTS FOUND BY REVIEW, in two rounds, none visible to `tsc` or the tests.**
+
+1. **`billed_tier` is what the seat and branch syncs read**, not `companies.tier`, and the tier
+   change did not write it. A Business company with 6 users moving to Pro would have recounted
+   its extra seats against the OLD allowance of 4, found no change, written nothing, and carried
+   on charging £10 a month for two users Pro includes — indefinitely, because the nightly job did
+   not touch seats at all. **The comment claimed the extras were recounted.** Fixed at both ends.
+2. **Undoing a move to Black did nothing.** Since the move cancels at period end, a Black company
+   keeps a live subscription for up to a month; moving them back said "nothing is charged" about
+   a company still being charged, then cancelled them weeks later while they sat on a paid plan
+   with everything unlocked. There is now a `resume` settlement.
+3. **A regression introduced by the fix itself**: putting the base price into the nightly
+   reconcile made it swap whenever the price id merely DIFFERED. Point `STRIPE_PRICE_PRO` at a
+   new Price meaning it for new customers, and every existing customer would have been migrated
+   onto it overnight, prorated, silently, and any grandfathered price rewritten.
+   `baseSwapDecision` (`lib/billing/base-item.ts`) now only rewrites a line carrying a price we
+   recognise as SOME TIER'S base price. Anything else is somebody's deliberate arrangement.
+4. **The price guard protected one path only.** With a stale `STRIPE_PRICE_PRO`, a customer
+   clicking upgrade was correctly refused while the founder screen silently moved them onto the
+   wrong amount. `checkoutPriceProblem` now lives inside the shared rule.
+5. **"Tonight's reconcile will correct it"** was asserted for failures the reconcile hits
+   identically every night for ever. It is now said only of transient ones.
+
+Also: a failure to settle billing renders as an ERROR, not under a green "Changed"; the founder
+picker no longer offers Business to a Pro company; the Billing panel no longer denies a
+subscription that exists; and `stopBillingAFreeCompany` catches the one direction nothing was
+watching — a company on a free tier still being charged.
+
+`reconcileBranchBilling` became **`reconcileBilling`**: it now checks the plan line, the seat
+quantity, the branch quantity and the free-tier case. The old name described a third of what it
+does, and a job that quietly does more than its name says is how the next person misses that it
+is the only thing standing behind a failed plan change.
+
+**A defect the live test found, on a real invoice.** Moving Acme to Black and back worked in both
+systems — Stripe read "Cancels 13 Sept / Ends at period end / Next invoice £0.00", then the
+cancellation was called off and the next invoice went back to £76.50 — but a third line appeared:
+**"Extra Seat, quantity 0, £0.00"**. `syncBranchQuantity` has always refused to create a
+zero-quantity line; `syncSeatQuantity` never had that guard, and it did not matter while it only
+ran when somebody was added. Making the plan change and the reconcile call it is what fired it on
+a company with nobody over the allowance. Both now refuse to create a worthless line AND remove
+one that has fallen to zero, rather than leaving "0 × £5.00 £0.00" on every future invoice.
+
+**Verified live**: the reconcile run at 23:32 removed the stray line, left the correct Pro base
+price alone, and left the branch quantity alone. Acme is back where it started: Pro, active,
+£76.50, three branches.
+
+**Not yet tested live: Business to Pro.** Acme is the only company in the database and is already
+on Pro, and moving it down to test the way back is the one move deliberately refused. The rule and
+the price guard have unit tests; the Stripe base-price swap has not been exercised against a real
+subscription. Thistle's first real upgrade is the natural place.
+
+331 tests pass.
