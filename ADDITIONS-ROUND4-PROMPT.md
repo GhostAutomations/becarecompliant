@@ -38,6 +38,12 @@ Then two new phases:
   promoted**; that file is now Phase 14's design doc rather than a standalone. One decision
   moved: the staff app is an **installable web app first**, not React Native + Expo.
 
+- **Also in Phase 14, added 2026-08-14: the suite handover.** A carer applies on **Join Care
+  Now**, is moved to Training, which creates their **Carer.Academy** account; C.A issues the
+  training and tells JCN when it is done; and when they are moved to **Hired**, their details and
+  training record are sent to **Be Care Compliant**. BCC builds the RECEIVING END ONLY — the
+  standing rule that this repo never touches joincarenow or carer-academy still holds.
+
 Nothing in New Dawn starts until Thistle has signed off. Full detail in PHASES.md.
 
 ## Where we are

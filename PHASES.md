@@ -1993,6 +1993,56 @@ floor, not the fallback". Native remains open as its own later phase, and the tw
 would buy — dependable offline recording and background location for call monitoring — are the
 reasons to revisit it, not before.
 
+### The suite handover: JCN to Carer.Academy to BCC (Phil, 2026-08-14)
+
+The three products stop being a slogan and become one pipeline. A carer is recruited on **Join
+Care Now**, trained by **Carer.Academy**, and arrives in **Be Care Compliant** already compliant,
+with the evidence attached.
+
+The flow Phil described:
+
+1. A carer applies on **JCN**.
+2. Somewhere in the recruitment pipeline they are moved to the **Training** stage.
+3. That move calls **Carer.Academy** over a webhook or API, which creates their account.
+4. C.A issues the training.
+5. When the training is complete, **C.A tells JCN**, and the candidate carries on down the
+   pipeline.
+6. When they are moved to **Hired**, their details **and their training record** are sent to
+   **Be Care Compliant**.
+
+**BCC'S HALF IS THE RECEIVING END, AND ONLY THAT.** JCN pushes; BCC accepts. The standing rule
+that nothing in this repo touches the joincarenow or carer-academy projects still holds, so the
+other two legs are built in their own repos, in their own sessions. What is built here is one
+authenticated inbound endpoint and everything behind it.
+
+What that endpoint has to get right, none of which is obvious:
+
+- **Which tenant.** A hired carer means nothing without a company, and a company means nothing
+  without a branch. JCN has to name both, which means an agreed mapping between a JCN employer
+  and a BCC company that survives a rename on either side. This is the crux; everything else is
+  plumbing.
+- **Authentication that fails closed**, in the shape the Stripe and Twilio webhooks already use:
+  a signed request, a public path, and a 4xx rather than a silent 200 on a bad signature. A
+  route that accepts unsigned staff records is a route that lets a stranger write to a care
+  company's register.
+- **Idempotency.** The same carer will arrive twice — a retry, a re-hire, somebody clicking
+  Hired again. An external id from JCN, and a second arrival that updates rather than duplicates.
+  A People register with the same carer twice is worse than one that missed them.
+- **Course mapping.** C.A's course names are not BCC's course names, and BCC already has the
+  hard-won logic for exactly this problem in the training CSV import, where six data destroying
+  defects were caught in review. Reuse it; do not write a second matcher.
+- **Whether arriving creates a LOGIN.** BCC auto-invites a Team Member when a person is added,
+  so as things stand a hired carer would be emailed an invite the moment JCN says Hired. That
+  may be exactly right, or premature on their first day. **Phil's call, not an implementation
+  detail.**
+- **Three separate controllers.** JCN, C.A and BCC are three companies of Phil's, not one system.
+  Moving a candidate's record between them needs a lawful basis and an agreement in place, and
+  the carer needs to have been told. Worth settling before the first real carer, not after.
+
+Open until Phil decides: the tenant and branch mapping; whether Hired triggers a Team Member
+invite; what happens when a hired carer already exists in BCC; and whether BCC ever pushes
+anything BACK (an expired training record is exactly the sort of thing C.A would want to know).
+
 **WALES ONLY TO START (Phil, 2026-08-13.)** This is a bigger decision than it sounds, because
 almost the whole assurance bill is an ENGLAND bill:
 
