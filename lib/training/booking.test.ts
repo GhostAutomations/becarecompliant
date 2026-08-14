@@ -8,6 +8,7 @@ import {
   shortDate,
   longDate,
   trainingWritePlan,
+  bookingSortKey,
 } from "./booking.ts";
 import { trainingStatus } from "./renewal.ts";
 
@@ -241,4 +242,30 @@ test("clearing the booking date cancels the booking and leaves everything else a
   assert.equal(plan.status, "completed");
   assert.equal(plan.completedOn, "2026-01-10");
   assert.equal(plan.expiryOn, "2027-01-10");
+});
+
+test("a live booking sorts to the top of a carer's list, soonest first", () => {
+  const rows = [
+    { name: "CoSHH", booking: "none" as const, on: null },
+    { name: "Fire Training", booking: "booked" as const, on: "2026-10-01" },
+    { name: "Dementia Care", booking: "booked" as const, on: "2026-09-03" },
+    { name: "Food Safety", booking: "missed" as const, on: "2026-08-01" },
+    { name: "Autism", booking: "none" as const, on: null },
+  ];
+  const order = rows
+    .slice()
+    .sort((a, b) => bookingSortKey(a.booking, a.on).localeCompare(bookingSortKey(b.booking, b.on)))
+    .map((r) => r.name);
+  assert.equal(order[0], "Dementia Care");
+  assert.equal(order[1], "Fire Training");
+  // A missed booking stays down with the rest: she cannot act on it, and floating it to the top
+  // of her own screen would only tell her off for something her manager has to sort out.
+  assert.ok(order.indexOf("Food Safety") > 1);
+});
+
+test("the sort key ignores a booking date that is not a date", () => {
+  assert.equal(bookingSortKey("booked", "soon"), "1");
+  assert.equal(bookingSortKey("booked", null), "1");
+  assert.equal(bookingSortKey("none", "2026-09-03"), "1");
+  assert.equal(bookingSortKey("booked", "2026-09-03"), "02026-09-03");
 });

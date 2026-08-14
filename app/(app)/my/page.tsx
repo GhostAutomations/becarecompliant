@@ -15,6 +15,7 @@ import { POLICY_ACK_FORM_KEY } from "@/lib/assignments/types";
 import MyHolidays from "@/components/staff/my-holidays";
 import AssignedToMe from "@/components/staff/assigned-to-me";
 import MySection from "@/components/staff/my-section";
+import { bookingSortKey, longDate } from "@/lib/training/booking";
 
 /**
  * A Team Member's own area, and the only page a staff login has.
@@ -162,6 +163,55 @@ export default async function MyAreaPage() {
         </>
       )}
 
+      {/* TRAINING SHE IS BOOKED ON (Phil, 2026-08-14).
+          Found by signing in as a carer and looking, not by reading the code. The booking was
+          being shown, correctly, on her training list, and it was the hardest line on the page
+          to find: alphabetical among thirty two other courses, inside a section folded shut by
+          default. A date she has to turn up to is the same kind of fact as a holiday, so it
+          goes where she already looks for those, and it is NOT collapsible.
+
+          Live bookings only. A missed one is her manager's to sort out, and putting it here
+          would just tell her off. Nothing here changes whether the course counts as done: the
+          footnote says so plainly, because a carer who thinks being booked is enough is exactly
+          the misunderstanding this whole feature has been built to avoid. */}
+      {(() => {
+        const booked = training
+          .filter((t) => t.cell.booking === "booked" && t.cell.bookedFor)
+          .sort((a, b) =>
+            bookingSortKey(a.cell.booking, a.cell.bookedFor).localeCompare(
+              bookingSortKey(b.cell.booking, b.cell.bookedFor),
+            ),
+          );
+        if (booked.length === 0) return null;
+        return (
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
+              Training I am booked on
+            </h2>
+            <div className="glass-card divide-y divide-white/10">
+              {booked.map((t) => (
+                <div
+                  key={t.courseId}
+                  className="flex flex-wrap items-center justify-between gap-3 p-4"
+                >
+                  <p className="text-sm font-semibold text-white">
+                    {t.courseName}
+                    {t.mandatory ? (
+                      <span className="ml-2 text-xs font-normal text-white/40">Mandatory</span>
+                    ) : null}
+                  </p>
+                  <span className="pill-neutral">{longDate(t.cell.bookedFor as string)}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-white/40">
+              Your manager records the training after you have been. Until then it still counts
+              as outstanding.
+            </p>
+          </section>
+        );
+      })()}
+
       {/* RAISE A CONCERN (Phil, 2026-08-12: "how does a employee access it, is it in their
           portal?"). It was not, and that was the hole: the register could only be filled in
           by the Admin typing up what somebody had told them, so the people most likely to
@@ -257,12 +307,28 @@ export default async function MyAreaPage() {
             const recorded = training
               .filter((t) => t.cell.status !== "missing")
               .sort((a, b) => {
+                /* A LIVE BOOKING OUTRANKS "mandatory" here. Everything on this list is
+                   mandatory at Acme, so that tie breaker sorts nothing, while a booking is a
+                   date she has to turn up to. Same key as the section at the top of the page,
+                   so the two orders cannot disagree. */
+                const byBooking = bookingSortKey(a.cell.booking, a.cell.bookedFor).localeCompare(
+                  bookingSortKey(b.cell.booking, b.cell.bookedFor),
+                );
+                if (byBooking !== 0) return byBooking;
                 if (a.mandatory !== b.mandatory) return a.mandatory ? -1 : 1;
                 return a.courseName.localeCompare(b.courseName);
               });
             const notRecorded = training
               .filter((t) => t.cell.status === "missing")
               .sort((a, b) => {
+                /* A LIVE BOOKING OUTRANKS "mandatory" here. Everything on this list is
+                   mandatory at Acme, so that tie breaker sorts nothing, while a booking is a
+                   date she has to turn up to. Same key as the section at the top of the page,
+                   so the two orders cannot disagree. */
+                const byBooking = bookingSortKey(a.cell.booking, a.cell.bookedFor).localeCompare(
+                  bookingSortKey(b.cell.booking, b.cell.bookedFor),
+                );
+                if (byBooking !== 0) return byBooking;
                 if (a.mandatory !== b.mandatory) return a.mandatory ? -1 : 1;
                 return a.courseName.localeCompare(b.courseName);
               });

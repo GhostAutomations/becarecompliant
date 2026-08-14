@@ -185,3 +185,20 @@ export function trainingWritePlan(opts: {
     bookingOnly,
   };
 }
+
+/**
+ * SORT KEY: a live booking first, soonest first, everything else after.
+ *
+ * WHY (Phil, 2026-08-14, found by logging in as a carer rather than by reading the code). Her
+ * own screen listed a booked course alphabetically among thirty two others, inside a section
+ * that is folded shut by default. The one line on that list that is about the FUTURE and needs
+ * her to do something, turn up, was the hardest one on it to find.
+ *
+ * A missed booking sorts with the rest deliberately. She cannot act on it; it is her manager's
+ * to sort out, and floating it to the top of her list would only tell her off.
+ */
+export function bookingSortKey(booking: BookingState, bookedFor: string | null | undefined): string {
+  // "0" + an ISO date sorts correctly as plain text, which is the whole reason the dates are
+  // stored ISO. Everything else gets "1" and keeps whatever order the caller had.
+  return booking === "booked" && bookedFor && ISO.test(bookedFor) ? `0${bookedFor}` : "1";
+}
