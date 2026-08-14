@@ -167,7 +167,7 @@ export async function listLinkablePeople(companyId: string): Promise<PersonOptio
     .eq("company_id", companyId)
     .neq("employment_status", "leaver")
     .is("archived_at", null)
-    .order("full_name");
+    .order("surname_key");
   return ((data ?? []) as Array<{
     id: string;
     full_name: string;

@@ -164,7 +164,7 @@ export async function listRegister(
     .from("people")
     .select("*, branches(name)")
     .eq("company_id", companyId)
-    .order("full_name", { ascending: true });
+    .order("surname_key", { ascending: true });
   if (scope === "all") {
     // no status/archived filter: load everyone so the client can switch views instantly
   } else if (scope === "archived") {

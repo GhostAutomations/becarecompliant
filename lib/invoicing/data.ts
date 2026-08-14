@@ -53,7 +53,7 @@ export async function listAccessibleServiceUsers(companyId: string): Promise<Ser
     .select("id, full_name, branch_id, service_status")
     .eq("company_id", companyId)
     .eq("service_status", "active")
-    .order("full_name", { ascending: true });
+    .order("surname_key", { ascending: true });
   return ((data as Array<{ id: string; full_name: string; branch_id: string }> | null) ?? []).map(
     (r) => ({ id: r.id, name: r.full_name, branch_id: r.branch_id }),
   );
@@ -124,7 +124,7 @@ export async function listPrivateInvoicingClients(companyId: string): Promise<Pr
     .eq("company_id", companyId)
     .eq("private_invoicing", true)
     .eq("service_status", "active")
-    .order("full_name", { ascending: true });
+    .order("surname_key", { ascending: true });
   return ((data as Array<{
     id: string;
     full_name: string;

@@ -63,7 +63,7 @@ export async function listServiceUsersLite(
     .select("id, full_name, branch_id")
     .eq("company_id", companyId)
     .is("archived_at", null)
-    .order("full_name", { ascending: true });
+    .order("surname_key", { ascending: true });
   return (data as Array<{ id: string; full_name: string; branch_id: string | null }> | null) ?? [];
 }
 
@@ -79,7 +79,7 @@ export async function listPeopleLite(
     .select("id, full_name, branch_id")
     .eq("company_id", companyId)
     .is("archived_at", null)
-    .order("full_name", { ascending: true });
+    .order("surname_key", { ascending: true });
   return (data as Array<{ id: string; full_name: string; branch_id: string | null }> | null) ?? [];
 }
 

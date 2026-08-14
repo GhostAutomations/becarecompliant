@@ -8,6 +8,7 @@ import "server-only";
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { bySurname } from "@/lib/people/name-sort";
 import {
   deriveAbsenceStatus,
   resolveAbsenceConfig,
@@ -73,15 +74,18 @@ export async function listAbsenceRegister(
   const supabase = await createClient();
   const config = await getAbsenceConfig(companyId);
 
+  /* The one register whose source is a VIEW, which has no surname_key column to order by.
+     Sorted here instead, with the SAME tested rule the database uses (lib/people/name-sort.ts),
+     so the Absence register files under surname like every other register rather than being the
+     odd one out. Redefining the view for this would be a bigger change than the problem. */
   let query = supabase
     .from("person_absence_summary")
     .select("*")
-    .eq("company_id", companyId)
-    .order("full_name", { ascending: true });
+    .eq("company_id", companyId);
   if (branchId) query = query.eq("branch_id", branchId);
 
   const { data } = await query;
-  const rows = ((data as SummaryRow[] | null) ?? []).map((r) => ({
+  const rows = bySurname((data as SummaryRow[] | null) ?? [], (r) => r.full_name).map((r) => ({
     personId: r.person_id,
     fullName: r.full_name,
     branchId: r.branch_id,
@@ -156,7 +160,7 @@ export async function listActivePeople(companyId: string): Promise<PersonLite[]>
     .eq("company_id", companyId)
     .eq("employment_status", "active")
     .is("archived_at", null)
-    .order("full_name", { ascending: true });
+    .order("surname_key", { ascending: true });
   return (data as PersonLite[] | null) ?? [];
 }
 

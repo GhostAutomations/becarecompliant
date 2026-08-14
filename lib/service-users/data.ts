@@ -309,7 +309,7 @@ export async function getOutcomesRegister(companyId: string): Promise<OutcomesRe
       .select("id, full_name, branch_id, branches(name)")
       .eq("company_id", companyId)
       .eq("service_status", "active")
-      .order("full_name", { ascending: true }),
+      .order("surname_key", { ascending: true }),
     supabase
       .from("service_user_outcomes")
       .select("service_user_id, status, last_update_at, created_at")
@@ -408,7 +408,7 @@ export async function listRegister(
     .from("service_users")
     .select("*, branches(name)")
     .eq("company_id", companyId)
-    .order("full_name", { ascending: true });
+    .order("surname_key", { ascending: true });
   if (scope === "all") {
     // no status/archived filter: load everyone so the client can switch views instantly
   } else if (scope === "cancelled") {

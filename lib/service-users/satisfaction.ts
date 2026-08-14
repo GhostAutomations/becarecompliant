@@ -89,7 +89,7 @@ export async function getSatisfaction(
     .select("id, full_name, branch_id, branches(name)")
     .eq("company_id", companyId)
     .eq("service_status", "active")
-    .order("full_name", { ascending: true });
+    .order("surname_key", { ascending: true });
   if (branchId) suQuery = suQuery.eq("branch_id", branchId);
   const { data: sus } = await suQuery;
   const suList = (sus as Array<{ id: string; full_name: string; branch_id: string; branches: { name: string } | null }> | null) ?? [];

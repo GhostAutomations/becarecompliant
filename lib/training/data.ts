@@ -245,7 +245,7 @@ const getTrainingMatrixUncached = cache(async function getTrainingMatrix(
     .eq("company_id", companyId)
     .is("archived_at", null)
     .neq("employment_status", "leaver")
-    .order("full_name", { ascending: true })
+    .order("surname_key", { ascending: true })
     .order("id", { ascending: true });
   if (branchId) peopleQ = peopleQ.eq("branch_id", branchId);
 
