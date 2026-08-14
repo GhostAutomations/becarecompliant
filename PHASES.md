@@ -2780,3 +2780,55 @@ the price guard have unit tests; the Stripe base-price swap has not been exercis
 subscription. Thistle's first real upgrade is the natural place.
 
 331 tests pass.
+
+## 2026-08-14 — Item 14 Phase C, and the escalation it was hiding
+
+**The fixture, left deliberately on 12 August:** Tim Mingle manages Cardiff1 and Newport1 and was
+booked to supervise **Bethan Hughes, who is Caerphilly**. The question was whether his Planner
+shows him a carer he cannot otherwise see.
+
+**No leak.** Proved at the database as Tim: 28 people visible (Cardiff1's 21 + Newport1's 7,
+correctly excluding Caerphilly's 14), Bethan's row unreadable, the booking readable because he is
+the conductor. No screen showed her name.
+
+**But the booking was useless.** The list read "Supervision · Ad-hoc · Caerphilly · Overdue" — the
+"Ad-hoc" being a lie, since it has a named subject — and **Complete check** dropped him on a
+People register of 28 records that does not contain her, with no message. Same shape as the
+Supervision 4 dead end: the server correctly refuses and the screen says nothing. A manager was
+handed a job he could not identify or complete.
+
+**Phil's call:** being booked to conduct a check IS the authorisation to see that person, for
+that person only, while the booking is live.
+
+**AND THAT WOULD HAVE BEEN A PRIVILEGE ESCALATION.** Checked before building it:
+`planner_bookings_insert` validates `is_branch_manager(branch_id)` — the BOOKING's branch — and
+nothing ever checked that the SUBJECT belongs to it. Proved by inserting, as Tim, a booking with
+`branch_id` = Cardiff1 and `subject_person_id` = a Caerphilly carer: **accepted**. Harmless while
+a conductor saw nothing; with the grant it would have meant "book yourself onto anyone in the
+company, then read their record".
+
+**0183 does both halves.** A BEFORE trigger makes the branch FOLLOW the subject, so RLS WITH
+CHECK is then evaluated on the corrected row and the same insert is now refused. Deriving beats
+validating: the two can never disagree again. No existing row disagreed, so nothing to backfill.
+The grant is `status = 'planned'` AND `created_by is distinct from auth.uid()` — you cannot grant
+yourself sight of somebody by booking yourself onto them — added as ADDITIVE policies (the 0079
+pattern) so no existing policy was rewritten and no clause could be lost in transcription.
+
+**Proved after, all inside rolled-back transactions:**
+
+- Tim sees 30 people, not 28 and not 42 — the two carers he is actually booked with
+- Only **2 of Caerphilly's 14**: the grant is a person, not a branch
+- `can_complete_person_check` true for Bethan, **false** for another Caerphilly carer
+- The escalating insert that succeeded an hour earlier: **refused by RLS**
+- An ADMIN booking Tim onto a Caerphilly carer: still accepted, branch correctly recorded as
+  Caerphilly
+
+**On screen afterwards:** "Supervision · **Bethan Hughes** · Caerphilly", and Complete check now
+reaches the real Supervision form. The "Ad-hoc" mislabel fixed itself — it was only ever a
+symptom of the invisible name.
+
+**Follow-on, not fixed:** `canManage` on the person record page is a ROLE check
+(`MANAGE_ROLES.includes(profile.role)`), not a per-record one, so a manager viewing a record
+outside their branches — newly possible — is offered "Manage record" and per-check Complete
+buttons whose writes RLS will refuse. Not a leak and not data loss; a button that cannot work.
+It wants `canManage` to be role AND `can_manage_person(id)`.
