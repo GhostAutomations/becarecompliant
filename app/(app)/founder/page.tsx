@@ -4,8 +4,17 @@ import { requirePlatformAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { StatCard } from "@/components/founder/stat-card";
 import { SignupsChart } from "@/components/founder/signups-chart";
-import { computeSeatUsage, includedSeatsForTier, formatPence, isBillableSeat } from "@/lib/billing/seats";
+import {
+  computeSeatUsage,
+  includedSeatsForTier,
+  includedBranchesForTier,
+  formatPence,
+  isBillableSeat,
+  EXTRA_SEAT_PENCE,
+  EXTRA_BRANCH_PENCE,
+} from "@/lib/billing/seats";
 import { TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
+import { subscriptionMonthlyPence } from "@/lib/billing/monthly-total";
 import { buildSignupSeries, londonMonthKey, tallyBy } from "@/lib/founder/stats";
 import {
   companyStatusPillClass as statusPillClass,
@@ -23,6 +32,7 @@ export default async function FounderPage() {
   const [
     { data: companies },
     { data: profiles },
+    { data: branchRows },
     { data: billingRows },
     { data: usageRows },
     { count: newTrialRequests },
@@ -32,6 +42,8 @@ export default async function FounderPage() {
       .select("id, name, slug, tier, status, created_at")
       .order("created_at", { ascending: false }),
     supabase.from("profiles").select("company_id, status, role"),
+    // Operational branches only (kind = 'branch'); the office/team row is never billed.
+    supabase.from("branches").select("company_id, kind"),
     supabase
       .from("company_billing")
       .select("company_id, subscription_status, current_period_end"),
@@ -69,16 +81,34 @@ export default async function FounderPage() {
 
   const list = companies ?? [];
 
-  // Committed MRR: base + extra seats for companies with a live subscription.
+  /* Committed MRR: base, extra seats AND EXTRA BRANCHES for companies with a live
+     subscription. Branches were missing until 2026-08-14, so this tile reported £69.00 while
+     Stripe was billing Acme £76.50 — the same omission as the customer billing page and the
+     founder company page, in a third and fourth file. It is now the one shared rule, whose
+     every component is a required field precisely so the next charge cannot be forgotten.
+     This is the number Phil quotes to a bank or a grant panel; it has to be the real one. */
+  const operationalBranches = new Map<string, number>();
+  for (const b of (branchRows as { company_id: string; kind: string | null }[] | null) ?? []) {
+    if (b.kind !== "branch") continue;
+    operationalBranches.set(b.company_id, (operationalBranches.get(b.company_id) ?? 0) + 1);
+  }
+
   let mrrPence = 0;
   for (const company of list) {
     if (!isSubscriptionTier(company.tier)) continue;
     const status = billingByCompany.get(company.id)?.subscription_status ?? null;
     if (!["active", "trialing", "past_due"].includes(status ?? "")) continue;
     const seats = computeSeatUsage(activeUsers.get(company.id) ?? 0, includedSeatsForTier(company.tier));
-    mrrPence +=
-      TIER_BASE_PENCE[company.tier as keyof typeof TIER_BASE_PENCE] +
-      seats.extraCostPence;
+    mrrPence += subscriptionMonthlyPence({
+      basePence: TIER_BASE_PENCE[company.tier as keyof typeof TIER_BASE_PENCE],
+      extraSeats: seats.extra,
+      seatPence: EXTRA_SEAT_PENCE,
+      extraBranches: Math.max(
+        0,
+        (operationalBranches.get(company.id) ?? 0) - includedBranchesForTier(company.tier),
+      ),
+      branchPence: EXTRA_BRANCH_PENCE,
+    });
   }
 
   // Platform aggregates for the dashboard.
@@ -136,7 +166,7 @@ export default async function FounderPage() {
           <StatCard
             label="Committed MRR"
             value={`${formatPence(mrrPence)}/mo`}
-            sub="Base + seats on live subscriptions"
+            sub="Base, seats and branches on live subscriptions"
             href="/founder/revenue"
           />
           <StatCard

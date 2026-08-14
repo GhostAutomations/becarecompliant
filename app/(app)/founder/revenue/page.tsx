@@ -4,8 +4,17 @@ import { requirePlatformAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import BackLink from "@/components/back-link";
 import { StatCard } from "@/components/founder/stat-card";
-import { computeSeatUsage, includedSeatsForTier, formatPence, isBillableSeat } from "@/lib/billing/seats";
+import {
+  computeSeatUsage,
+  includedSeatsForTier,
+  includedBranchesForTier,
+  formatPence,
+  isBillableSeat,
+  EXTRA_SEAT_PENCE,
+  EXTRA_BRANCH_PENCE,
+} from "@/lib/billing/seats";
 import { TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
+import { subscriptionMonthlyPence } from "@/lib/billing/monthly-total";
 import { billingStatusPill, tierLabel } from "@/lib/founder/format";
 
 export const metadata: Metadata = { title: "Revenue" };
@@ -24,13 +33,16 @@ export default async function FounderRevenuePage() {
   await requirePlatformAdmin();
   const supabase = await createClient();
 
-  const [{ data: companies }, { data: profiles }, { data: billingRows }] = await Promise.all([
+  const [{ data: companies }, { data: profiles }, { data: branchRows }, { data: billingRows }] =
+    await Promise.all([
     supabase
       .from("companies")
       .select("id, name, tier, status")
       .neq("status", "archived")
       .order("name", { ascending: true }),
     supabase.from("profiles").select("company_id, status, role"),
+    // Operational branches only (kind = 'branch'); the office/team row is never billed.
+    supabase.from("branches").select("company_id, kind"),
     supabase
       .from("company_billing")
       .select(
@@ -50,6 +62,12 @@ export default async function FounderRevenuePage() {
     }
   }
 
+  const operationalBranches = new Map<string, number>();
+  for (const b of (branchRows as { company_id: string; kind: string | null }[] | null) ?? []) {
+    if (b.kind !== "branch") continue;
+    operationalBranches.set(b.company_id, (operationalBranches.get(b.company_id) ?? 0) + 1);
+  }
+
   type Row = {
     id: string;
     name: string;
@@ -59,6 +77,7 @@ export default async function FounderRevenuePage() {
     monthlyPence: number;
     seatsUsed: number;
     seatsExtra: number;
+    branchesExtra: number;
     periodEnd: string | null;
     cancelAtEnd: boolean;
   };
@@ -71,6 +90,10 @@ export default async function FounderRevenuePage() {
   for (const c of list) {
     const b = billingByCompany.get(c.id) ?? null;
     const seats = computeSeatUsage(activeUsers.get(c.id) ?? 0, includedSeatsForTier(c.tier));
+    const branchesExtra = Math.max(
+      0,
+      (operationalBranches.get(c.id) ?? 0) - includedBranchesForTier(c.tier),
+    );
     const row: Row = {
       id: c.id,
       name: c.name,
@@ -80,14 +103,23 @@ export default async function FounderRevenuePage() {
       monthlyPence: 0,
       seatsUsed: seats.used,
       seatsExtra: seats.extra,
+      branchesExtra: branchesExtra,
       periodEnd: b?.current_period_end ?? null,
       cancelAtEnd: b?.cancel_at_period_end ?? false,
     };
 
     if (isSubscriptionTier(c.tier)) {
-      row.monthlyPence =
-        TIER_BASE_PENCE[c.tier as keyof typeof TIER_BASE_PENCE] +
-        seats.extraCostPence;
+      /* Base, seats AND BRANCHES. Branches were missing here until 2026-08-14, so the
+         revenue page under-reported every company with an extra branch — Acme by £7.50 a
+         month. Same omission as the customer billing page and the founder company page; this
+         was the fourth copy of the same sum, which is why they now share one rule. */
+      row.monthlyPence = subscriptionMonthlyPence({
+        basePence: TIER_BASE_PENCE[c.tier as keyof typeof TIER_BASE_PENCE],
+        extraSeats: seats.extra,
+        seatPence: EXTRA_SEAT_PENCE,
+        extraBranches: branchesExtra,
+        branchPence: EXTRA_BRANCH_PENCE,
+      });
       const st = b?.subscription_status ?? null;
       if (["active", "trialing", "past_due"].includes(st ?? "")) {
         mrrPence += row.monthlyPence;
@@ -144,6 +176,9 @@ export default async function FounderRevenuePage() {
                   <th className="py-1 pr-4 font-medium">Tier</th>
                   <th className="py-1 pr-4 font-medium">Billing</th>
                   <th className="py-1 pr-4 font-medium">Seats</th>
+                  {/* Branches earn a column now that they are actually charged: without it the
+                      Monthly figure is unexplainable from the row it sits in. */}
+                  <th className="py-1 pr-4 font-medium">Extra branches</th>
                   <th className="py-1 pr-4 font-medium">Monthly</th>
                   <th className="py-1 font-medium">Renews</th>
                 </tr>
@@ -171,6 +206,11 @@ export default async function FounderRevenuePage() {
                       <td className="py-1.5 pr-4 text-white/70">
                         {r.seatsUsed}
                         {r.seatsExtra > 0 ? ` (+${r.seatsExtra})` : ""}
+                      </td>
+                      <td className="py-1.5 pr-4 text-white/70">
+                        {r.branchesExtra > 0
+                          ? `${r.branchesExtra} (${formatPence(r.branchesExtra * EXTRA_BRANCH_PENCE)})`
+                          : "—"}
                       </td>
                       <td className="py-1.5 pr-4 text-white/90">
                         {formatPence(r.monthlyPence)}
