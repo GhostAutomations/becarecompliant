@@ -1926,6 +1926,11 @@ Scope, to be agreed by popup before starting:
   artefact, not the code. See [[bcc-look-at-the-artefact]].
 - **Billing exercised for real**, on the tier Thistle is on, including a branch change and a
   seat change, now that the machinery is proved (Additions item 16, 2026-08-13).
+- **A real testimonial**, taken from Thistle once they have actually been running on it
+  (Phil, 2026-08-14: moved here off the open list). The homepage carries a social proof band
+  with nothing real behind it, and the only honest source of a quote is a company that has used
+  the product in anger. If Thistle will not give one, the band comes off the homepage. Either
+  way it is decided here, not left open indefinitely.
 - **Exit criteria**, agreed up front rather than argued afterwards: a period of ordinary use
   with no new defect above an agreed severity, and Thistle's own manager saying they would
   rather use it than what they use now.
@@ -2053,6 +2058,24 @@ What that endpoint has to get right, none of which is obvious:
 5. **Training completed AFTER hire comes from C.A DIRECTLY to BCC**, not back through JCN. Once
    somebody is an employee, JCN is out of the loop.
 6. **The carer is told at the point they apply.** It goes into the JCN privacy notice.
+
+**Three of the long-standing open questions closed the same day.**
+
+8. **The Planner window stays 06:00 to 22:00.** A 23:00 spot check on a night carer therefore
+   cannot be planned, and Phil has decided that is the right trade rather than an oversight. It
+   is not a defect and should stop being raised as one.
+9. **An untimed booking stays MUTED GREY on the dashboard, not gold.** It reads as
+   information, in the same tone as a clear day, rather than as a warning about something
+   merely unset. Note for the record: this was asked badly. The open question had gone stale
+   and still described the colour as amber, so Phil first answered "amber" against a state that
+   no longer existed, and confirmed muted grey once the true state was put in front of him. A
+   question that misdescribes what is on the screen gets an answer to the wrong question.
+10. **The two pre-fix whistleblowing audit rows: NOTHING TO REWRITE.** Phil authorised a rewrite
+   on 14 August; checking the rows first showed there is nothing to rewrite. All six
+   whistleblowing audit rows read "Recorded a whistleblowing disclosure" / "Updated a
+   whistleblowing disclosure" / "An anonymous concern was raised through the Team Member area",
+   and not one carries a category in its summary OR its metadata. The note claiming otherwise
+   was stale. An audit log that did not need touching was not touched.
 
 **4 and 5 are not in conflict, and the note matters:** BCC pushes nothing anywhere, and RECEIVES
 from two senders — JCN at the moment of hire, and Carer.Academy for training after it. Two inbound
@@ -2832,3 +2855,45 @@ symptom of the invisible name.
 outside their branches — newly possible — is offered "Manage record" and per-check Complete
 buttons whose writes RLS will refuse. Not a leak and not data loss; a button that cannot work.
 It wants `canManage` to be role AND `can_manage_person(id)`.
+
+## 2026-08-14 (later) — people file under their surname, and a new company is not born non-compliant
+
+**Item 26 leftovers.** Phil picked two of the four; the other two (a "booked" training state, and
+the raw certificate file input) stay open by choice.
+
+**Sorting (0184).** The complaint was "the training register sorts on first name". It does — but
+so does everything else: a person has ONE `full_name` column and **twenty-odd queries** ordered by
+it across People, Service Users, Training, Absence, Complaints, Invoicing, On Call and Reg 73.
+Fixing only the training register would have left the registers disagreeing with each other, so
+the rule went in the DATABASE: a stored generated column `surname_key` with an index, so the
+order is a property of the row and every query gets it by naming a different column. Sorting in
+TypeScript would have had to be repeated twenty times, would drift on the twenty-first, and would
+break silently if any of them were ever paginated.
+
+The sweep was done by a script that only rewrote a line when the nearest `.from()` was actually
+`people` or `service_users`, and PRINTED the ones it skipped so they could be checked: 13 changed,
+6 skipped — five `profiles` (staff pickers, a different table) and one the absence summary VIEW,
+which has no such column and now sorts with the same rule in TypeScript rather than being the one
+register out of step.
+
+**The hard part was never splitting on a space.** Dutch, Portuguese, Spanish and Arabic surnames
+carry particles that belong WITH the surname — "Anna van der Berg" files under V — and this
+product serves an overwhelmingly international workforce; Acme alone holds Palliyaguru,
+Quadri-Eleruja, Ikpi-Ubi, Aladesuyi and Jepkosgei. `mac`, `mc` and `o` are deliberately NOT
+particles: they are nearly always joined, so treating them as such would swallow the given name
+of a "Mac Smith". A name that is all particles keeps a surname rather than becoming unsortable.
+9 tests in `lib/people/name-sort.ts`, which is an explicit mirror of the SQL function, each
+carrying a comment saying so.
+
+Verified on the rendered registers: Aladesuyi, Asanimor, Awoyo, Can, Carter, Driscoll, Evans,
+Hughes, Idowu, Ikpi-Ubi, Islam, Jepkosgei — People and Training both.
+
+**Seeded courses (0185).** All 33 templates were mandatory, so a new customer opened the Training
+register to every carer red against every course and a PQS figure of zero. That is not a
+compliance signal, it is a wall — and it is what made Charlotte's own screen a column of 33 "Out
+of date" rows for courses nobody had ever recorded. Phil chose a core set: **14 mandatory, 19
+optional**, TEMPLATES ONLY, so existing companies including Acme are untouched. `mandatory` was
+already editable per course, so this changes a default, not a ceiling. Phil reviewed the exact
+split before it was applied, including the four I flagged as judgement calls.
+
+340 tests pass. Migrations 0184, 0185.
