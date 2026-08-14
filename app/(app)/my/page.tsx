@@ -60,6 +60,12 @@ function TrainingRowLine({ row }: { row: TrainingRow }) {
             {row.cell.sub ? ` · ${row.cell.sub}` : ""}
           </p>
         )}
+        {/* A live booking, shown even on a course that has NEVER been recorded, which is the
+            case where it matters most: the pill still says "Not recorded" and this is the line
+            that tells her she is expected somewhere. The pill is untouched on purpose. */}
+        {row.cell.bookingCaption ? (
+          <p className="text-xs text-white/45">{row.cell.bookingCaption}</p>
+        ) : null}
       </div>
       <span
         className={

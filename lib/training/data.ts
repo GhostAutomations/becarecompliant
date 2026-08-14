@@ -12,6 +12,7 @@ import "server-only";
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { trainingStatus, type TrainingStatus } from "@/lib/training/renewal";
+import { bookingState, bookingCaption, type BookingState } from "@/lib/training/booking";
 
 export type TrainingCourse = {
   id: string;
@@ -38,6 +39,17 @@ export type TrainingCell = {
    *  A FLAG rather than a match on the "No renewal date" caption: the filter used to compare the
    *  displayed string, so rewording the caption would have silently emptied it. */
   needsRenewalDate?: boolean;
+  /**
+   * The booking on this course, if any. DELIBERATELY SEPARATE from `rag` and `status`, both of
+   * which are computed without ever seeing it: a booked course is still not compliant (Phil,
+   * 2026-08-14). See lib/training/booking.ts for why that is a column and not a status.
+   *
+   * `caption` is null for a missed booking, because the matrix goes back to plain overdue once
+   * the date has gone by. The missed booking is still on the record, where somebody can act on it.
+   */
+  booking: BookingState;
+  bookingCaption?: string | null;
+  bookedFor?: string | null; // ISO, for the edit panel
   completedOn?: string | null; // ISO, for the edit panel
   expiryOn?: string | null; // ISO, for the edit panel
   recordId?: string | null; // person_training id, when a record exists
@@ -91,6 +103,7 @@ export type RecordRow = {
   completed_on: string | null;
   expiry_on: string | null;
   certificate_path: string | null;
+  booked_for?: string | null;
 };
 type PersonRow = {
   id: string;
@@ -133,7 +146,15 @@ export function cellFor(
   rec: RecordRow | undefined,
   todayIso: string,
 ): TrainingCell {
+  /*
+   * Worked out here and carried on every cell below, but fed into NOTHING that follows. The
+   * status, the colour, the compliance percentages and the digest are all computed as if this
+   * did not exist, which is exactly the decision: a booked course is still not compliant.
+   */
   const meta = {
+    booking: bookingState(rec?.booked_for ?? null, todayIso),
+    bookingCaption: bookingCaption(rec?.booked_for ?? null, todayIso),
+    bookedFor: rec?.booked_for ?? null,
     completedOn: rec?.completed_on ?? null,
     expiryOn: rec?.expiry_on ?? null,
     recordId: rec?.id ?? null,
@@ -270,7 +291,7 @@ const getTrainingMatrixUncached = cache(async function getTrainingMatrix(
       const chunk = personIds.slice(i, i + IDS_PER_REQUEST);
       const recQ = supabase
         .from("person_training")
-        .select("id, person_id, course_id, status, completed_on, expiry_on, certificate_path")
+        .select("id, person_id, course_id, status, completed_on, expiry_on, certificate_path, booked_for")
         .eq("company_id", companyId)
         .in("person_id", chunk)
         .order("id", { ascending: true });

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import ActionForm from "@/components/action-form";
 import { saveTraining } from "@/lib/training/actions";
 import { deriveRenewalDate } from "@/lib/training/renewal";
+import { bookingNoteFor } from "@/lib/training/booking";
 import type { TrainingCourse, TrainingCell } from "@/lib/training/data";
 
 /**
@@ -21,6 +22,11 @@ import type { TrainingCourse, TrainingCell } from "@/lib/training/data";
  * Clear no longer deletes on one press. It went through ActionForm's confirm, which exists
  * precisely because a confirming button must not be a submit button: the old one wiped a carer's
  * training history, and its certificate, with a single click and no question asked.
+ *
+ * A THIRD THING ON 2026-08-14: a course can be BOOKED. That is a date on this record and nothing
+ * else. It does not touch the colour of the cell, the compliance score or the chasing digest,
+ * because a carer booked onto Fire Safety has not done Fire Safety. Say so on the screen, in
+ * words, so nobody books a course expecting the red to go away.
  */
 export default function TrainingCellDialog({
   personId,
@@ -50,6 +56,18 @@ export default function TrainingCellDialog({
    * attach a certificate, and Save quietly put it back to the rule. Worse, a record imported with
    * a renewal date and no completion had the field BLANKED and could not be saved at all.
    */
+  /**
+   * The booking, which is a plain date and nothing more. NOT derived from anything and deriving
+   * nothing: it must never be able to move the completion, the renewal or the colour.
+   */
+  const [bookedFor, setBookedFor] = useState(cell.bookedFor ?? "");
+  /**
+   * Read from the state the SERVER worked out, never from a clock in this browser. A booking
+   * judged against the user's device timezone would be a day out from the matrix behind it at
+   * exactly the boundary where a day matters.
+   */
+  const storedNote = bookingNoteFor(cell.booking, cell.bookedFor ?? null);
+
   const [expiryEdited, setExpiryEdited] = useState(
     () => (cell.expiryOn ?? "") !== (deriveRenewalDate(cell.completedOn ?? "", course.renewal_months) ?? ""),
   );
@@ -126,11 +144,45 @@ export default function TrainingCellDialog({
             )}
           </div>
 
+          {/* Booking. A DATE ON THE RECORD, not a status: see lib/training/booking.ts. */}
+          <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+            <label htmlFor="booked_for" className="form-label">
+              Booked for (optional)
+            </label>
+            <input
+              id="booked_for"
+              name="booked_for"
+              type="date"
+              value={bookedFor}
+              onChange={(e) => setBookedFor(e.target.value)}
+              className="max-w-[10rem]"
+            />
+            <p className="mt-1 text-xs text-white/40">
+              {storedNote ??
+                "The date this training is booked to happen. It does not count as done until it is recorded."}
+            </p>
+            {cell.bookedFor ? (
+              <p className="mt-1 text-xs text-white/40">Clear the date and save to cancel the booking.</p>
+            ) : null}
+          </div>
+
           <div>
             <label htmlFor="certificate" className="form-label">
               Certificate (optional)
             </label>
-            <input id="certificate" name="certificate" type="file" className="text-sm text-white/70" />
+            {/*
+              STYLED WITH file: MODIFIERS ON THE INPUT ITSELF, the pattern that is already
+              working on the Care Plan upload. Deliberately NOT a label wrapped input: doing
+              that to the Reg 80 image field broke it, and this is not the place to find out
+              whether it was the wrapping or something else. Copy what works.
+            */}
+            <input
+              id="certificate"
+              name="certificate"
+              type="file"
+              accept=".pdf,.doc,.docx,image/*"
+              className="mt-1 block w-full text-sm text-white/70 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-gold-400 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-[#0f1424] hover:file:bg-gold-400/90"
+            />
             {cell.hasCertificate && cell.recordId ? (
               <a
                 href={`/api/training/${cell.recordId}/certificate`}

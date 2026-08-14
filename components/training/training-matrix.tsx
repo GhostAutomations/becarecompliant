@@ -252,7 +252,7 @@ export default function TrainingMatrix({
                         : cell.label === "Not done"
                           ? "✕"
                           : null;
-                    const inner = (
+                    const chip = (
                       <span className={`rag-cell ${ragClass(cell.rag)}`}>
                         {glyph ? (
                           <span style={{ fontWeight: 700, fontSize: "14px", lineHeight: 1 }}>{glyph}</span>
@@ -261,6 +261,29 @@ export default function TrainingMatrix({
                         )}
                         {cell.sub && !navy ? <span className="rag-sub">{cell.sub}</span> : null}
                       </span>
+                    );
+                    /*
+                     * A BOOKING SITS UNDER THE CHIP, NOT IN IT (Phil, 2026-08-14).
+                     *
+                     * The cell keeps its red. "Booked 3 Sep" is a separate neutral line, because
+                     * the whole decision is that a booked course is still not compliant: put the
+                     * words inside the chip and they take the chip's colour, and a red chip that
+                     * says something reassuring is how a company talks itself out of a gap.
+                     *
+                     * Shown in BOTH themes, unlike cell.sub. The navy theme drops "Expired"
+                     * because it repeats what the red already says on every affected row; a
+                     * booking is on almost no rows and says something nothing else does.
+                     *
+                     * Only a LIVE booking is captioned. Once the date has gone by the cell reads
+                     * as plain overdue again, and the missed booking moves to the record.
+                     */
+                    const inner = cell.bookingCaption ? (
+                      <span className="inline-flex flex-col items-center">
+                        {chip}
+                        <span className="booking-note">{cell.bookingCaption}</span>
+                      </span>
+                    ) : (
+                      chip
                     );
                     return (
                       <td key={c.id}>
@@ -295,7 +318,13 @@ export default function TrainingMatrix({
 
       <p className="text-[11px] text-white/40">
         Green: in date. Amber: due soon. Red: expired or not done. ★ marks the safeguarding course.
-        {canManage ? " Click any cell to record or update it." : ""}
+        {/* CAREFUL WITH THIS SENTENCE. It first said a booked course "stays on the chasing
+            list", which is not true: the daily digest chases recorded training that is running
+            out, and a course nobody has ever done is not in it at all. Copy that promises a
+            reminder nobody will get is worse than saying nothing. */}
+        {" "}A booking under a cell is the date the training is arranged for. It does not make the
+        course compliant: it counts as outstanding until the training itself is recorded.
+        {canManage ? " Click any cell to record, book or update it." : ""}
       </p>
 
       {bulkOpen ? (

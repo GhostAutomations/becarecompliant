@@ -9,6 +9,7 @@
 import { revalidatePath } from "next/cache";
 import { requireCompany } from "@/lib/auth/guards";
 import { deriveRenewalDate } from "@/lib/training/renewal";
+import { trainingWritePlan } from "@/lib/training/booking";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { uploadTrainingCertificate, deleteTrainingCertificate } from "@/lib/training/storage";
@@ -88,10 +89,13 @@ export async function saveTraining(_prev: ActionState, formData: FormData): Prom
 
   const completedRaw = String(formData.get("completed_on") ?? "").trim();
   const expiryRaw = String(formData.get("expiry_on") ?? "").trim();
+  const bookedRaw = String(formData.get("booked_for") ?? "").trim();
   const completed = ISO_RE.test(completedRaw) ? completedRaw : null;
   const typedExpiry = ISO_RE.test(expiryRaw) ? expiryRaw : null;
-  if (!completed && !typedExpiry) {
-    return { error: "Enter a completed date or a renewal date, or use Clear." };
+  /** Blank CLEARS the booking, which is how a manager cancels one: empty the field and save. */
+  const bookedFor = ISO_RE.test(bookedRaw) ? bookedRaw : null;
+  if (!completed && !typedExpiry && !bookedFor) {
+    return { error: "Enter a completed date, a renewal date or a booking date, or use Clear." };
   }
 
   /*
@@ -108,6 +112,49 @@ export async function saveTraining(_prev: ActionState, formData: FormData): Prom
   const expiry =
     typedExpiry ?? (completed ? deriveRenewalDate(completed, course.renewal_months as number | null) : null);
 
+  /*
+   * A BOOKING ON ITS OWN IS NOT A COMPLETION, AND MUST NOT UNDO ONE (Phil, 2026-08-14).
+   *
+   * Booking a carer onto a course they have never done writes a row with status 'not_done', so
+   * the matrix still shows it red and the company stays short of compliant. The booking is a
+   * second fact on the same row, in its own column, invisible to trainingStatus(). Migration 0186.
+   *
+   * WHAT THE RECORD ALREADY HOLDS IS READ FIRST, and the decision is made in a pure, tested
+   * function rather than here. Deciding it from the FORM alone was a defect caught in review: a
+   * one off course has no renewal field in the dialog and is imported as completed with no dates
+   * at all, so booking a refresher against a green tick submitted two blank date fields and would
+   * have written 'not_done' over the completion. See lib/training/booking.ts.
+   */
+  const { data: existingRow } = await supabase
+    .from("person_training")
+    .select("status, completed_on, expiry_on")
+    .eq("person_id", personId)
+    .eq("course_id", courseId)
+    .maybeSingle();
+
+  const plan = trainingWritePlan({
+    completed,
+    expiry,
+    bookedFor,
+    existing: existingRow
+      ? {
+          status: existingRow.status as string,
+          completedOn: existingRow.completed_on as string | null,
+          expiryOn: existingRow.expiry_on as string | null,
+        }
+      : null,
+  });
+  /*
+   * "BOOKING ONLY" FOR THE AUDIT TRAIL ALSO MEANS NO CERTIFICATE.
+   *
+   * A dateless record that already carries a booking submits no dates, so the plan calls it a
+   * booking even when what the manager actually did was attach a certificate. The row an
+   * inspector reads should say what happened, so the certificate wins the wording.
+   */
+  const file = formData.get("certificate");
+  const uploadingCertificate = !!(file && typeof file !== "string" && file.size > 0);
+  const bookingOnly = plan.bookingOnly && !uploadingCertificate;
+
   const { data: up, error } = await supabase
     .from("person_training")
     .upsert(
@@ -116,9 +163,13 @@ export async function saveTraining(_prev: ActionState, formData: FormData): Prom
         branch_id: person.branch_id,
         person_id: personId,
         course_id: courseId,
-        status: "completed",
-        completed_on: completed,
-        expiry_on: expiry,
+        status: plan.status,
+        completed_on: plan.completedOn,
+        expiry_on: plan.expiryOn,
+        booked_for: plan.bookedFor,
+        // Attributed, or the database refuses it: a booking nobody made is a booking nobody
+        // chases. Cleared alongside the date so a cancelled booking leaves nobody's name behind.
+        booked_by: bookedFor ? profile.id : null,
         updated_by: profile.id,
         updated_at: new Date().toISOString(),
       },
@@ -129,8 +180,8 @@ export async function saveTraining(_prev: ActionState, formData: FormData): Prom
   if (error) return { error: error.message };
 
   // Optional certificate upload.
-  const file = formData.get("certificate");
-  if (up && file && typeof file !== "string" && file.size > 0) {
+  if (up && uploadingCertificate) {
+    const file = formData.get("certificate") as File;
     const res = await uploadTrainingCertificate(person.company_id, up.id, file);
     if (!res.ok) return { error: res.error };
     await supabase.from("person_training").update({ certificate_path: res.path }).eq("id", up.id);
@@ -141,14 +192,23 @@ export async function saveTraining(_prev: ActionState, formData: FormData): Prom
     actorId: profile.id,
     actorEmail: profile.email,
     actorRole: profile.role,
-    action: "training.updated",
+    // A booking and a completion are different things a manager did, and an inspector reading
+    // the audit trail should be able to tell them apart without opening the record.
+    action: bookingOnly ? "training.booked" : "training.updated",
     entityType: "training",
     entityId: personId,
-    summary: `Recorded ${course.name} training`,
-    metadata: { course_id: courseId, completed_on: completed, expiry_on: expiry },
+    summary: bookingOnly
+      ? `Booked ${course.name} training`
+      : `Recorded ${course.name} training`,
+    metadata: {
+      course_id: courseId,
+      completed_on: plan.completedOn,
+      expiry_on: plan.expiryOn,
+      booked_for: plan.bookedFor,
+    },
   });
   revalidatePath("/people/training");
-  return { ok: "Training saved." };
+  return { ok: bookingOnly ? "Booking saved." : "Training saved." };
 }
 
 /**

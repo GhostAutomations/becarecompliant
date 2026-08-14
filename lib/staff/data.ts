@@ -154,7 +154,7 @@ export async function getMyTraining(personId: string): Promise<MyTrainingRow[]> 
       .order("sort_order", { ascending: true }),
     supabase
       .from("person_training")
-      .select("id, person_id, course_id, status, completed_on, expiry_on, certificate_path")
+      .select("id, person_id, course_id, status, completed_on, expiry_on, certificate_path, booked_for")
       .eq("person_id", personId),
   ]);
 

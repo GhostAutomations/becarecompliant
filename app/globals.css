@@ -456,6 +456,13 @@
     @apply text-[10px] font-normal opacity-70;
   }
 
+  /* A booking, sitting UNDER the RAG chip rather than inside it, in its OWN neutral colour.
+     Outside the chip on purpose: a booked course is still not compliant, and anything that
+     borrowed the chip's green, amber or red would read as a status. */
+  .booking-note {
+    @apply mt-0.5 block text-[10px] font-medium leading-tight text-white/45;
+  }
+
   /* Compact select used in the People nav dropdowns. Muted (not white) text. */
   .inline-cell {
     @apply w-auto cursor-pointer rounded-lg border border-white/15 bg-white/5 py-1 pl-2.5 pr-7 text-xs font-medium text-white/60;
