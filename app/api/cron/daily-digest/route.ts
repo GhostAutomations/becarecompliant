@@ -47,7 +47,7 @@ import type { Tier } from "@/lib/stripe/config";
 import { siteUrl } from "@/lib/site";
 
 /**
- * Daily compliance digest (Supervisor caseload) + the two People / Service User
+ * Daily compliance digest (Supervisor branch digest) + the two People / Service User
  * reports (Admins, Managers) + SMS escalation. Overdue items, with their days
  * overdue, live inside the two reports; there is no separate chaser email.
  *
@@ -173,9 +173,13 @@ export async function GET(request: NextRequest) {
       summary.trainingDue += trainingDue.length;
 
       if (company.settings.emailDigestEnabled) {
-        // 1a. Caseload digest: SUPERVISORS only. Admins and Managers get the two
+        // 1a. Branch digest: SUPERVISORS only. Admins and Managers get the two
         // compliance reports below instead (admins company-wide, managers their
         // branches). Anyone with nothing to report gets no digest.
+        //
+        // "Caseload" until 2026-08-14, which was the bug: supervisors were scoped by
+        // person_assignments, a table migration 0078 abandoned, so this loop had nothing to
+        // send and never sent it. They are scoped by BRANCH now. See lib/notifications/scope.ts.
         const digestRecipients = recipients.filter((r) => r.role === "supervisor");
         for (const digest of buildDigests(digestRecipients, items)) {
           const logId = await claimNotification({

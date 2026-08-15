@@ -94,9 +94,6 @@ export async function saveTraining(_prev: ActionState, formData: FormData): Prom
   const typedExpiry = ISO_RE.test(expiryRaw) ? expiryRaw : null;
   /** Blank CLEARS the booking, which is how a manager cancels one: empty the field and save. */
   const bookedFor = ISO_RE.test(bookedRaw) ? bookedRaw : null;
-  if (!completed && !typedExpiry && !bookedFor) {
-    return { error: "Enter a completed date, a renewal date or a booking date, or use Clear." };
-  }
 
   /*
    * THE RENEWAL DATE IS WORKED OUT WHEN IT IS BLANK (Phil, 2026-08-01).
@@ -127,10 +124,32 @@ export async function saveTraining(_prev: ActionState, formData: FormData): Prom
    */
   const { data: existingRow } = await supabase
     .from("person_training")
-    .select("status, completed_on, expiry_on")
+    .select("status, completed_on, expiry_on, booked_for")
     .eq("person_id", personId)
     .eq("course_id", courseId)
     .maybeSingle();
+
+  /*
+   * AN EMPTY SAVE IS ONLY MEANINGLESS WHEN THERE IS NO RECORD (caught in review).
+   *
+   * The guard used to refuse every save with all three dates blank, which made a booking on a
+   * course with no dates IMPOSSIBLE TO CANCEL. That is the commonest booking there is: a carer
+   * booked onto something they have never done carries no completion and no renewal, so emptying
+   * the booking field submits three blank dates and hit the refusal. The dialog meanwhile said
+   * "Clear the date and save to cancel the booking", and the error pointed at Clear, which
+   * DELETES the training record, its history and its certificate. On a one off course imported
+   * as completed with no dates, that is a manager being told to destroy a real compliance record
+   * in order to undo a booking.
+   *
+   * With a record already there, an empty save is not nothing: it means cancel the booking and
+   * leave everything else alone, which is precisely what trainingWritePlan does.
+   */
+  if (!completed && !typedExpiry && !bookedFor && !existingRow) {
+    return { error: "Enter a completed date, a renewal date or a booking date." };
+  }
+  if (!completed && !typedExpiry && !bookedFor && !existingRow?.booked_for) {
+    return { error: "Nothing to change. Enter a date, or use Clear to remove the record." };
+  }
 
   const plan = trainingWritePlan({
     completed,
@@ -153,7 +172,20 @@ export async function saveTraining(_prev: ActionState, formData: FormData): Prom
    */
   const file = formData.get("certificate");
   const uploadingCertificate = !!(file && typeof file !== "string" && file.size > 0);
-  const bookingOnly = plan.bookingOnly && !uploadingCertificate;
+
+  /*
+   * CANCELLING A BOOKING IS NOT MAKING ONE (caught in review, and it was my own defect).
+   *
+   * Emptying the date and saving takes the same route as a booking only save, so the audit row
+   * said `training.booked` / "Booked Fire Safety training" and the toast said "Booking saved."
+   * on the day the booking was CANCELLED. That inverts the meaning of the row, on the one screen
+   * whose whole purpose is telling an inspector what somebody did.
+   *
+   * Only a save that changes NOTHING ELSE counts as a cancellation. Recording the completion and
+   * dropping the booking in one press is a completion, and reads as one.
+   */
+  const cancelledBooking = plan.bookingOnly && !plan.bookedFor && !!existingRow?.booked_for;
+  const bookingOnly = plan.bookingOnly && !uploadingCertificate && !cancelledBooking;
 
   const { data: up, error } = await supabase
     .from("person_training")
@@ -194,21 +226,116 @@ export async function saveTraining(_prev: ActionState, formData: FormData): Prom
     actorRole: profile.role,
     // A booking and a completion are different things a manager did, and an inspector reading
     // the audit trail should be able to tell them apart without opening the record.
-    action: bookingOnly ? "training.booked" : "training.updated",
+    action: cancelledBooking
+      ? "training.booking_cancelled"
+      : bookingOnly
+        ? "training.booked"
+        : "training.updated",
     entityType: "training",
     entityId: personId,
-    summary: bookingOnly
-      ? `Booked ${course.name} training`
-      : `Recorded ${course.name} training`,
+    summary: cancelledBooking
+      ? `Cancelled the ${course.name} booking`
+      : bookingOnly
+        ? `Booked ${course.name} training`
+        : `Recorded ${course.name} training`,
     metadata: {
       course_id: courseId,
       completed_on: plan.completedOn,
       expiry_on: plan.expiryOn,
       booked_for: plan.bookedFor,
+      // The date that was cancelled, kept on purpose. "A booking was cancelled" is a worse
+      // answer than "the booking for 3 September was cancelled", and the row is the only place
+      // that fact survives once the column is null.
+      booking_cancelled_from: cancelledBooking ? existingRow?.booked_for ?? null : null,
     },
   });
   revalidatePath("/people/training");
-  return { ok: bookingOnly ? "Booking saved." : "Training saved." };
+  return {
+    ok: cancelledBooking ? "Booking cancelled." : bookingOnly ? "Booking saved." : "Training saved.",
+  };
+}
+
+/**
+ * Take a certificate off a record WITHOUT destroying the record.
+ *
+ * WHY (Phil, 2026-08-14). The only way to get rid of a wrong certificate was Clear, which
+ * deletes the training record, its dates and its history along with the file. So a manager who
+ * attached the wrong PDF, or attached one to the wrong carer, had to choose between leaving a
+ * false document on a compliance record and destroying a true one. Both are worse than the
+ * problem. Found when a test upload had to be undone with hand written SQL, which is the same
+ * complaint from the other side.
+ *
+ * The FILE goes and the RECORD stays: dates, status and booking are untouched.
+ */
+export async function removeTrainingCertificate(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+  if (!["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"].includes(profile.role)) {
+    return { error: "Only Admins and Managers can change training records." };
+  }
+
+  const recordId = String(formData.get("record_id") ?? "");
+  if (!recordId) return { error: "Missing training record." };
+
+  const supabase = await createClient();
+  /*
+   * READ IT THROUGH RLS FIRST. The row comes back only if this manager can already reach it, so
+   * the branch decides the write, not the id in the browser. Same shape as saveTraining.
+   */
+  const { data: row } = await supabase
+    .from("person_training")
+    .select("id, company_id, person_id, course_id, certificate_path")
+    .eq("id", recordId)
+    .maybeSingle();
+  if (!row || row.company_id !== profile.company_id) {
+    return { error: "That training record is not in your view." };
+  }
+  if (!row.certificate_path) return { error: "There is no certificate on that record." };
+
+  /*
+   * THE COLUMN IS CLEARED FIRST, THEN THE FILE.
+   *
+   * That order is deliberate and it is the opposite of the tidy one. If the update fails the
+   * file is still there and still reachable, which is a no op. If the file removal fails after
+   * the column is cleared, the worst case is an orphan in a private bucket that nothing points
+   * at. Deleting the file first would risk the reverse: a record advertising a certificate that
+   * is no longer there, and a "View" link that 404s in front of an inspector.
+   */
+  const { data: cleared, error } = await supabase
+    .from("person_training")
+    .update({ certificate_path: null, updated_by: profile.id, updated_at: new Date().toISOString() })
+    .eq("id", recordId)
+    .select("id");
+  if (error) return { error: error.message };
+  if (!cleared || cleared.length === 0) {
+    return { error: "That certificate could not be removed. The record may sit outside your branches." };
+  }
+  await deleteTrainingCertificate(row.certificate_path as string);
+
+  const { data: course } = await supabase
+    .from("training_courses")
+    .select("name")
+    .eq("id", row.course_id)
+    .maybeSingle();
+
+  await writeAudit({
+    companyId: profile.company_id,
+    actorId: profile.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "training.certificate_removed",
+    entityType: "training",
+    entityId: row.person_id as string,
+    summary: `Removed the ${course?.name ?? "training"} certificate`,
+    // The path is kept in the audit row on purpose. An inspector asking what was taken off a
+    // compliance record deserves a better answer than "a file".
+    metadata: { course_id: row.course_id, record_id: recordId, path: row.certificate_path },
+  });
+  revalidatePath("/people/training");
+  return { ok: "Certificate removed." };
 }
 
 /**
@@ -225,6 +352,16 @@ export async function saveTraining(_prev: ActionState, formData: FormData): Prom
  * refused, and the count she gets back is what was actually written.
  *
  * ONE audit row, not twenty. This is one action a person took.
+ *
+ * IT ALSO BOOKS (Phil, 2026-08-14), on the same form, switched by an intent. A team is booked
+ * onto a course together far more often than it is recorded together: the booking is made when
+ * the trainer is arranged, weeks before anybody attends. Doing it one carer at a time was the
+ * original complaint about recording, and building the booking without it would have shipped
+ * the same complaint again.
+ *
+ * ONE ACTION, TWO INTENTS, exactly like saveTraining's save and clear. A second action would
+ * mean a second copy of the reach rules, the chunking and the bounded retry, and those are the
+ * parts that are easy to get subtly wrong.
  */
 /** "Fire Training" / "Fire Training and Food Safety" / "3 courses", for one audit line. */
 function courseWord(names: string[]): string {
@@ -243,9 +380,16 @@ export async function saveTrainingBulk(_prev: ActionState, formData: FormData): 
   const courseIds = [...new Set(formData.getAll("course_ids").map((v) => String(v)).filter(Boolean))];
   if (courseIds.length === 0) return { error: "Choose at least one course." };
 
+  const booking = String(formData.get("intent") ?? "record") === "book";
   const completedRaw = String(formData.get("completed_on") ?? "").trim();
-  if (!ISO_RE.test(completedRaw)) return { error: "Choose the date the training was completed." };
-  const completed = completedRaw;
+  const bookedRaw = String(formData.get("booked_for") ?? "").trim();
+  if (booking) {
+    if (!ISO_RE.test(bookedRaw)) return { error: "Choose the date the training is booked for." };
+  } else if (!ISO_RE.test(completedRaw)) {
+    return { error: "Choose the date the training was completed." };
+  }
+  const completed = booking ? "" : completedRaw;
+  const bookedFor = booking ? bookedRaw : null;
 
   const personIds = formData.getAll("person_ids").map((v) => String(v)).filter(Boolean);
   if (personIds.length === 0) return { error: "Tick at least one carer." };
@@ -297,19 +441,88 @@ export async function saveTrainingBulk(_prev: ActionState, formData: FormData): 
    * due together, and a one off course does not fall due at all.
    */
   const now = new Date().toISOString();
+
+  /*
+   * BOOKING READS WHAT IS ALREADY THERE FIRST. A booking never touches a completion, and the
+   * decision is made by the same tested function the single record dialog uses, so a team
+   * booked onto a refresher cannot have their existing certificates wiped in one press. That
+   * defect was caught in review on the single record path; doing this in bulk would have
+   * multiplied it by the size of the team.
+   *
+   * Recording does NOT read first, deliberately: recording a completion is meant to replace
+   * what is there, and the screen says so.
+   */
+  const existing = new Map<string, { status: string; completedOn: string | null; expiryOn: string | null }>();
+  if (booking) {
+    const key = (personId: string, courseId: string) => `${personId}:${courseId}`;
+    /*
+     * PAGED, AND A SHORT READ IS FATAL RATHER THAN QUIET.
+     *
+     * Caught in review. PostgREST caps a response at 1000 rows and says nothing about it, and
+     * these are people TIMES courses: 150 carers across 8 courses is 1,200. Rows past the cut
+     * came back as "no record", trainingWritePlan then took its brand new booking branch, and
+     * the upsert wrote status 'not_done' with null dates OVER real completions. RLS permits it,
+     * because they are ordinary in branch rows. Silent, permanent, and the toast would have said
+     * "Booked ... for 150 carers".
+     *
+     * A read that cannot be trusted must stop the write. Every other read of this table pages
+     * for exactly this reason (lib/training/data.ts).
+     */
+    const IDS = 200;
+    const PAGE = 1000;
+    const courseIdList = courses.map((c) => c.id);
+    for (let i = 0; i < reachable.length; i += IDS) {
+      const chunk = reachable.slice(i, i + IDS).map((p) => p.id);
+      for (let from = 0; ; from += PAGE) {
+        const { data, error: readError } = await supabase
+          .from("person_training")
+          .select("person_id, course_id, status, completed_on, expiry_on")
+          .eq("company_id", profile.company_id)
+          .in("person_id", chunk)
+          .in("course_id", courseIdList)
+          // A TOTAL order, or paging can repeat one row and miss another.
+          .order("id", { ascending: true })
+          .range(from, from + PAGE - 1);
+        if (readError) {
+          return { error: `The training records could not be read, so nothing was booked: ${readError.message}` };
+        }
+        const rows = data ?? [];
+        for (const r of rows) {
+          existing.set(key(r.person_id as string, r.course_id as string), {
+            status: r.status as string,
+            completedOn: r.completed_on as string | null,
+            expiryOn: r.expiry_on as string | null,
+          });
+        }
+        if (rows.length < PAGE) break;
+      }
+    }
+  }
+
   const rows = courses.flatMap((c) => {
-    const expiry = deriveRenewalDate(completed, c.renewal_months);
-    return reachable.map((p) => ({
-      company_id: p.company_id,
-      branch_id: p.branch_id,
-      person_id: p.id,
-      course_id: c.id,
-      status: "completed",
-      completed_on: completed,
-      expiry_on: expiry,
-      updated_by: profile.id,
-      updated_at: now,
-    }));
+    const expiry = booking ? null : deriveRenewalDate(completed, c.renewal_months);
+    return reachable.map((p) => {
+      const plan = trainingWritePlan({
+        completed: booking ? null : completed,
+        expiry,
+        bookedFor,
+        existing: booking ? existing.get(`${p.id}:${c.id}`) ?? null : null,
+      });
+      return {
+        company_id: p.company_id,
+        branch_id: p.branch_id,
+        person_id: p.id,
+        course_id: c.id,
+        status: plan.status,
+        completed_on: plan.completedOn,
+        expiry_on: plan.expiryOn,
+        ...(booking
+          ? { booked_for: plan.bookedFor, booked_by: plan.bookedFor ? profile.id : null }
+          : {}),
+        updated_by: profile.id,
+        updated_at: now,
+      };
+    });
   });
 
   /*
@@ -356,16 +569,17 @@ export async function saveTrainingBulk(_prev: ActionState, formData: FormData): 
     actorId: profile.id,
     actorEmail: profile.email,
     actorRole: profile.role,
-    action: "training.recorded_in_bulk",
+    action: booking ? "training.booked_in_bulk" : "training.recorded_in_bulk",
     // The subject of a bulk record is the COURSE, not one person, so the id says so. With several
     // the first stands for the set and the metadata carries them all.
     entityType: "training_course",
     entityId: courses[0].id,
-    summary: `Recorded ${courseWord(courses.map((c) => c.name))} for ${reachable.length} ${reachable.length === 1 ? "person" : "people"}`,
+    summary: `${booking ? "Booked" : "Recorded"} ${courseWord(courses.map((c) => c.name))} for ${reachable.length} ${reachable.length === 1 ? "person" : "people"}`,
     metadata: {
       course_ids: courses.map((c) => c.id),
       course_names: courses.map((c) => c.name),
-      completed_on: completed,
+      completed_on: booking ? null : completed,
+      booked_for: bookedFor,
       records_written: written,
       people: reachable.length,
     },
@@ -375,10 +589,11 @@ export async function saveTrainingBulk(_prev: ActionState, formData: FormData): 
   const expected = courses.length * reachable.length;
   const carers = `${reachable.length} ${reachable.length === 1 ? "carer" : "carers"}`;
   const courseText = courses.length === 1 ? courses[0].name : `${courses.length} courses`;
+  const verb = booking ? "Booked" : "Recorded";
   if (written < expected) {
-    return { ok: `Recorded ${written} of ${expected}. The rest could not be, so they were left alone.` };
+    return { ok: `${verb} ${written} of ${expected}. The rest could not be, so they were left alone.` };
   }
-  return { ok: `Recorded ${courseText} for ${carers}.` };
+  return { ok: `${verb} ${courseText} for ${carers}.` };
 }
 
 /** Create or update a training course in the company catalogue. Admins only. */

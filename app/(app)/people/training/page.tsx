@@ -4,6 +4,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import { listBranches } from "@/lib/people/data";
+import { callerBranchIds } from "@/lib/auth/branches";
 import { getTrainingMatrix } from "@/lib/training/data";
 import TrainingMatrix from "@/components/training/training-matrix";
 
@@ -28,9 +29,10 @@ export default async function TrainingPage() {
   }
 
   const companyId = profile.company_id;
-  const [branches, matrix] = await Promise.all([
+  const [branches, matrix, viewerBranchIds] = await Promise.all([
     listBranches(companyId),
     getTrainingMatrix(companyId, null),
+    callerBranchIds(profile.id),
   ]);
 
   return (
@@ -42,7 +44,11 @@ export default async function TrainingPage() {
           courses={matrix.courses}
           people={matrix.people}
           branches={branches}
-          canManage={["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"].includes(profile.role)}
+          /* The ROLE and the BRANCHES, not a boolean. The matrix decides per carer, because a
+             manager can now see a carer outside her branches (0183, booked conductor) and every
+             write on that carer is refused. See lib/auth/manage-scope.ts. */
+          viewerRole={profile.role}
+          viewerBranchIds={viewerBranchIds}
         />
       </div>
     </div>

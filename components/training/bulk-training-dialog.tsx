@@ -23,6 +23,12 @@ type PersonLite = { id: string; full_name: string; branch_name: string };
  *
  * The renewal dates are shown but never typed: they follow the course. The server works them out
  * again from the same function, so what is stored does not depend on the browser.
+ *
+ * IT ALSO BOOKS (Phil, 2026-08-14). A team is booked onto a course together far more often than
+ * it is recorded together, because the booking is made when the trainer is arranged, weeks
+ * before anybody turns up. Same list of carers, same list of courses, one toggle, and the
+ * screen says out loud which of the two it is about to do: replacing a training record and
+ * arranging a date are not things anybody should do by accident.
  */
 export default function BulkTrainingDialog({
   courses,
@@ -35,7 +41,11 @@ export default function BulkTrainingDialog({
 }) {
   const router = useRouter();
   const [chosenCourses, setChosenCourses] = useState<Set<string>>(new Set());
+  /** "record" writes completions. "book" writes a date and touches nothing else. */
+  const [mode, setMode] = useState<"record" | "book">("record");
+  const booking = mode === "book";
   const [completed, setCompleted] = useState("");
+  const [bookedFor, setBookedFor] = useState("");
   const [query, setQuery] = useState("");
   const [picked, setPicked] = useState<Set<string>>(new Set());
 
@@ -86,17 +96,39 @@ export default function BulkTrainingDialog({
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
     >
       <div className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-2xl border border-white/10 bg-navy-900 p-6 shadow-2xl">
-        <h2 className="text-lg font-semibold text-white">Record training</h2>
+        <h2 className="text-lg font-semibold text-white">
+          {booking ? "Book training" : "Record training"}
+        </h2>
         <p className="mt-1 text-sm text-white/55">
-          One date, everyone who attended, and as many courses as the session covered. Anything
-          already recorded for these carers on these courses is replaced.
+          {booking
+            ? "One date, everyone who is going, and as many courses as the session covers. Nothing already recorded is changed, and nobody becomes compliant by being booked."
+            : "One date, everyone who attended, and as many courses as the session covered. Anything already recorded for these carers on these courses is replaced."}
         </p>
 
+        {/* TWO BUTTONS, NOT A CHECKBOX. The difference between recording and booking is the
+            difference between "this happened" and "this is arranged", and one of them replaces
+            a compliance record. A tick box on the far side of a long form is not enough
+            warning. */}
+        <div className="mt-4 flex gap-2">
+          {(["record", "book"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setMode(m)}
+              className={`${mode === m ? "btn-primary" : "btn-outline"} px-3 py-1.5 text-xs`}
+            >
+              {m === "record" ? "They have done it" : "They are booked on it"}
+            </button>
+          ))}
+        </div>
+
         <ActionForm
+          key={mode}
           action={saveTrainingBulk}
-          label="Record training"
-          savingLabel="Recording…"
-          savedLabel="Recorded"
+          hidden={{ intent: mode }}
+          label={booking ? "Book training" : "Record training"}
+          savingLabel={booking ? "Booking…" : "Recording…"}
+          savedLabel={booking ? "Booked" : "Recorded"}
           buttonClassName="btn-primary px-4 py-2 text-sm"
           className="mt-5 flex min-h-0 flex-1 flex-col gap-4"
           onDone={() => {
@@ -114,22 +146,40 @@ export default function BulkTrainingDialog({
               />
             </div>
             <div>
-              <label htmlFor="bulk_completed" className="form-label">
-                Completed
+              <label htmlFor={booking ? "bulk_booked" : "bulk_completed"} className="form-label">
+                {booking ? "Booked for" : "Completed"}
               </label>
-              <input
-                id="bulk_completed"
-                name="completed_on"
-                type="date"
-                value={completed}
-                onChange={(e) => setCompleted(e.target.value)}
-                className="mt-1 max-w-[10rem]"
-                required
-              />
+              {booking ? (
+                <input
+                  id="bulk_booked"
+                  name="booked_for"
+                  type="date"
+                  value={bookedFor}
+                  onChange={(e) => setBookedFor(e.target.value)}
+                  className="mt-1 max-w-[10rem]"
+                  required
+                />
+              ) : (
+                <input
+                  id="bulk_completed"
+                  name="completed_on"
+                  type="date"
+                  value={completed}
+                  onChange={(e) => setCompleted(e.target.value)}
+                  className="mt-1 max-w-[10rem]"
+                  required
+                />
+              )}
             </div>
           </div>
 
-          {renewals.length > 0 ? (
+          {booking ? (
+            <p className="text-xs text-white/45">
+              {chosenCourses.size === 0
+                ? "Choose the courses this session covers."
+                : "A booking does not make a course compliant. These carers stay on the chasing list until the training itself is recorded."}
+            </p>
+          ) : renewals.length > 0 ? (
             <ul className="space-y-0.5 text-xs text-white/45">
               {renewals.map((r) => (
                 <li key={r.name}>
@@ -149,7 +199,7 @@ export default function BulkTrainingDialog({
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex-1">
               <label htmlFor="bulk_search" className="form-label">
-                Who attended
+                {booking ? "Who is going" : "Who attended"}
               </label>
               <input
                 id="bulk_search"

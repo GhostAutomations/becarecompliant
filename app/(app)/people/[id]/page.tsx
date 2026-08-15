@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
+import { canManageRecord } from "@/lib/auth/manage-scope";
+import { callerBranchIds } from "@/lib/auth/branches";
 import BackLink from "@/components/back-link";
 import ActionForm from "@/components/action-form";
 import RecordHistory from "@/components/reports/record-history";
@@ -94,7 +96,20 @@ export default async function PersonPage({
   const person = await getPerson(id);
   if (!person || !profile.company_id) redirect("/people");
   const companyId = profile.company_id;
-  const canManage = MANAGE_ROLES.includes(profile.role);
+  /*
+   * PER RECORD, NOT PER ROLE (Phil, 2026-08-14). This used to be
+   * `MANAGE_ROLES.includes(profile.role)`, which is a role check where RLS does a role check AND
+   * a branch check. Migration 0183 opened the gap for real: a booked conductor can now SEE a
+   * carer outside their branches, and every Manage control on that record is a write the
+   * database will refuse. lib/auth/manage-scope.ts is a transcription of the policy.
+   */
+  const canManage =
+    MANAGE_ROLES.includes(profile.role) &&
+    canManageRecord({
+      role: profile.role,
+      branchIds: await callerBranchIds(profile.id),
+      recordBranchId: person.branch_id,
+    });
   const canComplete = COMPLETE_ROLES.includes(profile.role);
   // The audit History timeline is Admins only (Founder + Company Admin).
   const canViewHistory = profile.role === "platform_admin" || profile.role === "company_admin";

@@ -9,6 +9,7 @@ import type {
 } from "@/lib/training/data";
 import TrainingCellDialog from "@/components/training/training-cell-dialog";
 import BulkTrainingDialog from "@/components/training/bulk-training-dialog";
+import { canManageRecord, canManageAnything } from "@/lib/auth/manage-scope";
 import { HorizontalScrollbar } from "@/components/register/horizontal-scrollbar";
 import { VerticalScrollbar } from "@/components/register/vertical-scrollbar";
 
@@ -18,7 +19,7 @@ type Selected = { personId: string; personName: string; course: TrainingCourse; 
 
 /** The states a manager actually goes looking for. "Needs a date" is the record somebody half
  *  filled in: completed, no renewal, so it sits amber for ever until it is finished. */
-type Narrow = "all" | "expired" | "due_soon" | "missing" | "no_date";
+type Narrow = "all" | "expired" | "due_soon" | "missing" | "no_date" | "booked";
 
 const NARROW_LABEL: Record<Narrow, string> = {
   all: "Everything",
@@ -26,6 +27,9 @@ const NARROW_LABEL: Record<Narrow, string> = {
   due_soon: "Due soon",
   missing: "Never recorded",
   no_date: "Needs a renewal date",
+  // Live bookings only. "Show me what is booked" is a question about the diary, and a booking
+  // that was missed is not in the diary any more; it is on the record, where it belongs.
+  booked: "Booked",
 };
 
 /** Does this person have at least one course in the state being looked for? */
@@ -35,6 +39,7 @@ function matchesNarrow(cells: Record<string, TrainingCell>, courses: TrainingCou
     const cell = cells[c.id];
     if (!cell) return false;
     if (n === "no_date") return cell.needsRenewalDate === true;
+    if (n === "booked") return cell.booking === "booked";
     return cell.status === n;
   });
 }
@@ -53,13 +58,42 @@ export default function TrainingMatrix({
   courses,
   people,
   branches,
-  canManage,
+  viewerRole,
+  viewerBranchIds,
 }: {
   courses: TrainingCourse[];
   people: TrainingPerson[];
   branches: BranchLite[];
-  canManage: boolean;
+  viewerRole: string;
+  viewerBranchIds: string[];
 }) {
+  /*
+   * TWO DIFFERENT QUESTIONS, and they used to be one boolean.
+   *
+   * canManage answers "should this toolbar button exist at all", which is about the role.
+   * canEdit(person) answers "will a write to THIS carer succeed", which is about the role AND
+   * the branch, because that is what RLS checks. Migration 0183 lets a manager see a carer she
+   * is booked to conduct a check on, in a branch she does not run; every cell on that row opens
+   * a dialog whose Save the database refuses.
+   */
+  const canManage = canManageAnything(viewerRole);
+  const canEdit = (person: TrainingPerson) =>
+    canManageRecord({ role: viewerRole, branchIds: viewerBranchIds, recordBranchId: person.branch_id });
+
+  /*
+   * A CARER WHOSE TRAINING RECORDS THIS VIEWER CANNOT READ IS LEFT OFF ENTIRELY.
+   *
+   * Caught in review, and it was worse than a cosmetic problem. `people_select` was widened by
+   * 0183 so a booked conductor can see the carer they are booked with, but `person_training_select`
+   * still needs the branch. So an out of branch carer arrived here with NO training rows, and no
+   * record renders as "Not done": thirty three red cells against somebody who is fully trained.
+   * She then counted in the headline percentage, appeared under "Never recorded", and made the
+   * branch look non compliant on the strength of data the screen was not allowed to see.
+   *
+   * Filtering, not greying out. A row we cannot read is not a row with bad news in it, it is a
+   * row with no news in it, and there is no honest way to colour that.
+   */
+  const readable = useMemo(() => people.filter(canEdit), [people, viewerRole, viewerBranchIds]);
   const [branch, setBranch] = useState<string>("all");
   const [query, setQuery] = useState("");
   const [narrow, setNarrow] = useState<Narrow>("all");
@@ -74,8 +108,8 @@ export default function TrainingMatrix({
   /** Branch only. The headline above the table counts the branch you are looking at, NOT what
    *  the search box has narrowed it to: a figure that moved as you typed would be worthless. */
   const inBranch = useMemo(
-    () => (branch === "all" ? people : people.filter((p) => p.branch_id === branch)),
-    [branch, people],
+    () => (branch === "all" ? readable : readable.filter((p) => p.branch_id === branch)),
+    [branch, readable],
   );
 
   const shown = useMemo(() => {
@@ -238,6 +272,7 @@ export default function TrainingMatrix({
                 // Navy theme: if any course is expired, flag the name cell instead of
                 // adding an "Expired" line to the date cell (which made rows uneven).
                 const hasExpired = navy && courses.some((c) => p.cells[c.id]?.sub === "Expired");
+                const editable = canEdit(p);
                 return (
                 <tr key={p.id}>
                   <td className={`col-carer ${hasExpired ? "training-expired" : ""}`}>
@@ -287,7 +322,7 @@ export default function TrainingMatrix({
                     );
                     return (
                       <td key={c.id}>
-                        {canManage ? (
+                        {editable ? (
                           <button
                             type="button"
                             className="rounded-lg transition hover:ring-2 hover:ring-gold-400/50"
@@ -325,12 +360,20 @@ export default function TrainingMatrix({
         {" "}A booking under a cell is the date the training is arranged for. It does not make the
         course compliant: it counts as outstanding until the training itself is recorded.
         {canManage ? " Click any cell to record, book or update it." : ""}
+        {canManage && people.length !== readable.length
+          ? " Carers in branches you do not run are left off: their training records are not yours to see."
+          : ""}
       </p>
 
       {bulkOpen ? (
         <BulkTrainingDialog
           courses={courses}
-          people={inBranch.map((p) => ({ id: p.id, full_name: p.full_name, branch_name: p.branch_name }))}
+          /* inBranch is already only carers this manager can write to, but the filter stays:
+             a bulk record that silently drops half the ticked list is worse than not offering
+             them, and this is the last line before the write. */
+          people={inBranch
+            .filter(canEdit)
+            .map((p) => ({ id: p.id, full_name: p.full_name, branch_name: p.branch_name }))}
           onClose={() => setBulkOpen(false)}
         />
       ) : null}

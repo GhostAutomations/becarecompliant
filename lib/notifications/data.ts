@@ -41,9 +41,13 @@ export type Recipient = {
   trueRole: string;
   /** Branches a manager covers (empty for admins: they cover the company). */
   branchIds: string[];
-  /** Supervisor caseload record ids. */
-  personIds: string[];
-  serviceUserIds: string[];
+  /*
+   * NO personIds / serviceUserIds. They were read from person_assignments and
+   * service_user_assignments to scope a Supervisor's digest to a caseload. Migration 0078 made
+   * Supervisors branch based and abandoned both tables, which now hold zero rows, so every
+   * Supervisor was scoped to nothing and their digest never arrived. Scoping is by branch for
+   * Managers and Supervisors alike; carrying the fields would invite the same mistake back.
+   */
 };
 
 export type AttentionItem = {
@@ -97,8 +101,8 @@ export async function getDigestCompanies(): Promise<DigestCompany[]> {
 
 /**
  * Digest recipients for one company, per the agreed rules: Company Admins get
- * the whole company, Managers get their branches (user_branches), Supervisors
- * get their assigned caseload. Team Members are never compliance recipients.
+ * the whole company, Managers and Supervisors get their branches (user_branches).
+ * Team Members are never compliance recipients.
  * Only active profiles with an email qualify.
  */
 export async function getRecipients(companyId: string): Promise<Recipient[]> {
@@ -113,18 +117,12 @@ export async function getRecipients(companyId: string): Promise<Recipient[]> {
   if (!profiles || profiles.length === 0) return [];
 
   const ids = profiles.map((p) => p.id);
-  const [branchesRes, peopleRes, susRes] = await Promise.all([
-    supabase.from("user_branches").select("user_id, branch_id").in("user_id", ids),
-    supabase.from("person_assignments").select("user_id, person_id").in("user_id", ids),
-    supabase
-      .from("service_user_assignments")
-      .select("user_id, service_user_id")
-      .in("user_id", ids),
-  ]);
+  const branchesRes = await supabase
+    .from("user_branches")
+    .select("user_id, branch_id")
+    .in("user_id", ids);
 
   const branchByUser = groupBy(branchesRes.data ?? [], "user_id", "branch_id");
-  const peopleByUser = groupBy(peopleRes.data ?? [], "user_id", "person_id");
-  const susByUser = groupBy(susRes.data ?? [], "user_id", "service_user_id");
 
   return profiles
     .filter((p) => Boolean(p.email))
@@ -138,8 +136,6 @@ export async function getRecipients(companyId: string): Promise<Recipient[]> {
         : p.role) as Recipient["role"],
       trueRole: p.role as string,
       branchIds: branchByUser.get(p.id) ?? [],
-      personIds: peopleByUser.get(p.id) ?? [],
-      serviceUserIds: susByUser.get(p.id) ?? [],
     }));
 }
 

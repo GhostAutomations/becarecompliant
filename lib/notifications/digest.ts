@@ -12,6 +12,7 @@
  *    SMS opted in.
  */
 import { parseCivilDate, daysBetween, todayInLondon, formatCivilDate } from "@/lib/recurrence";
+import { scopeItems } from "@/lib/notifications/scope";
 import type {
   AttentionItem,
   Recipient,
@@ -56,20 +57,14 @@ export function daysOverdue(dueDate: string, now: Date = new Date()): number {
   return Math.max(0, diff);
 }
 
-/** The slice of a company's items one recipient is responsible for. */
-export function scopeItems(recipient: Recipient, items: AttentionItem[]): AttentionItem[] {
-  if (recipient.role === "company_admin") return items;
-  if (recipient.role === "manager") {
-    const branches = new Set(recipient.branchIds);
-    return items.filter((i) => i.branchId !== null && branches.has(i.branchId));
-  }
-  // Supervisor: assigned caseload only.
-  const people = new Set(recipient.personIds);
-  const sus = new Set(recipient.serviceUserIds);
-  return items.filter((i) =>
-    i.population === "people" ? people.has(i.recordId) : sus.has(i.recordId),
-  );
-}
+/**
+ * The slice of a company's items one recipient is responsible for.
+ *
+ * MOVED to lib/notifications/scope.ts and re-exported here, so it can be unit tested: this file
+ * imports "@/lib/recurrence", and one aliased import makes a module unrunnable under the node
+ * test harness. It was untested, and it was silently wrong for a month. See scope.ts.
+ */
+export { scopeItems };
 
 /** Build each recipient's digest; recipients with nothing to report get none. */
 export function buildDigests(
@@ -148,7 +143,7 @@ export function smsEscalationItems(
 // Daily People / Service User reporting emails (Phil, 2026-07-13). Managers and
 // Admins get a per population report each morning INSTEAD of the generic digest:
 // records overdue, and records with a check due in the next 14 days. Supervisors
-// keep the caseload digest. Compliance checks only (no holiday or absence).
+// keep the branch digest. Compliance checks only (no holiday or absence).
 // ---------------------------------------------------------------------------
 
 /** Split a population's checks into overdue (due before today) and due soon

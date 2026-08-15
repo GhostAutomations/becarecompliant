@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import ActionForm from "@/components/action-form";
-import { saveTraining } from "@/lib/training/actions";
+import { saveTraining, removeTrainingCertificate } from "@/lib/training/actions";
 import { deriveRenewalDate } from "@/lib/training/renewal";
 import { bookingNoteFor } from "@/lib/training/booking";
 import type { TrainingCourse, TrainingCell } from "@/lib/training/data";
@@ -183,18 +183,41 @@ export default function TrainingCellDialog({
               accept=".pdf,.doc,.docx,image/*"
               className="mt-1 block w-full text-sm text-white/70 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-gold-400 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-[#0f1424] hover:file:bg-gold-400/90"
             />
-            {cell.hasCertificate && cell.recordId ? (
-              <a
-                href={`/api/training/${cell.recordId}/certificate`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-1 inline-block text-xs text-gold-300 underline"
-              >
-                View current certificate
-              </a>
-            ) : null}
           </div>
         </ActionForm>
+
+        {/*
+          VIEW AND REMOVE SIT OUTSIDE THE SAVE FORM, deliberately. ActionForm renders a <form>,
+          and a form nested in a form is invalid HTML that browsers silently unpick; the Clear
+          button has always lived out here for the same reason.
+
+          REMOVING A CERTIFICATE DOES NOT TOUCH THE RECORD (Phil, 2026-08-14). Until now the only
+          way to get rid of a wrong certificate was Clear, which takes the dates and the history
+          with it, so a manager who attached the wrong PDF had to choose between leaving a false
+          document on a compliance record and destroying a true one.
+        */}
+        {cell.hasCertificate && cell.recordId ? (
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <a
+              href={`/api/training/${cell.recordId}/certificate`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-gold-300 underline"
+            >
+              View current certificate
+            </a>
+            <ActionForm
+              action={removeTrainingCertificate}
+              hidden={{ record_id: cell.recordId }}
+              label="Remove certificate"
+              savedLabel="Removed"
+              buttonClassName="btn-outline px-3 py-1.5 text-xs"
+              className=""
+              confirm={`Remove the ${course.name} certificate for ${personName}? The file is deleted and cannot be undone. The training dates stay exactly as they are.`}
+              onDone={done}
+            />
+          </div>
+        ) : null}
 
         <div className="mt-4 flex items-center gap-3 border-t border-white/10 pt-4">
           {hasRecord ? (
