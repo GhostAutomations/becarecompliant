@@ -35,7 +35,7 @@ export default async function HolidayPage() {
   );
   const canBookForPerson = canApprove || profile.role === "supervisor";
   const [branches, requests, people, requestForm] = await Promise.all([
-    listBranches(companyId),
+    listBranches(companyId, profile),
     listHolidayRequests(companyId, null),
     canBookForPerson ? listActivePeople(companyId) : Promise.resolve([]),
     getCompanyFormByKey(companyId, "holiday_requests"),

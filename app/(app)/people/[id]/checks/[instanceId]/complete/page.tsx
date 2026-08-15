@@ -12,7 +12,7 @@ import {
   getSupervisionCompDates,
   getAppraisalCompDates,
   getSupervisionCycleMode,
-  listBranches,
+  branchName,
 } from "@/lib/people/data";
 import { supervisionSlots, annotateSupervisionOptions } from "@/lib/people/logic";
 import { todayInLondon, formatCivilDate } from "@/lib/recurrence";
@@ -96,8 +96,10 @@ export default async function CompleteCheckPage({
   // Pre-fill the person's own details (name + branch) into whatever form this check
   // uses, so it never re-asks who the check is for. Presets only (no schema change),
   // so client and server validate the same form. Works for any form, new or old.
-  const branches = await listBranches(profile.company_id ?? "");
-  const personBranchName = branches.find((b) => b.id === person?.branch_id)?.name ?? null;
+  // READ THE NAME FROM THE RECORD, not from the branch picker. listBranches now returns only
+  // the branches this viewer may CHOOSE, and a conductor booked onto a carer in another branch
+  // (0183) still has to see whose branch it is. Names are readable to the whole company.
+  const personBranchName = await branchName(person?.branch_id);
   const recordPresets = recordFormPresets(schema, {
     fullName: person?.full_name ?? null,
     branchName: personBranchName,

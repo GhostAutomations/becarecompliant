@@ -66,3 +66,28 @@ export function canManageRecord(opts: {
 export function canManageAnything(role: string): boolean {
   return COMPANY_WIDE.has(role) || role === "manager";
 }
+
+/**
+ * Is this role confined to the branches it is assigned to?
+ *
+ * WHY IT EXISTS (Phil, 2026-08-14). `branches_select` is `is_company_member`, so every branch in
+ * the company is READABLE by anyone in it, and every branch picker in the app rendered whatever
+ * it was handed. A manager of Cardiff1 and Newport1 could therefore choose Caerphilly from the
+ * Branch dropdown and be told "No active people in this branch yet. Add people to the register",
+ * which is false and points her at the wrong action.
+ *
+ * The register filter was the visible half. The worse half was the branch picker on a RECORD:
+ * `people_insert` and `people_update` both require `is_branch_manager(branch_id)`, so choosing a
+ * branch she does not run meant filling in a whole form that the database would refuse at the
+ * end. Same defect as a Manage button that cannot save, which is what canManageRecord above was
+ * written for.
+ *
+ * MANAGER and SUPERVISOR only, and deliberately no one else. Both are provably branch confined
+ * in the database: `is_branch_manager` joins user_branches, and `is_person_supervisor` has done
+ * the same since 0078. An On Call user reads the WHOLE company (`is_company_on_call`), so
+ * narrowing them would take away branches they can genuinely reach, and the company wide roles
+ * are unaffected by definition. Widening this set is a decision about RLS, not about a dropdown.
+ */
+export function branchScopedRole(role: string): boolean {
+  return role === "manager" || role === "supervisor";
+}

@@ -109,7 +109,7 @@ export default async function ServiceUserPage({
       listServiceUserEvidence(id),
       canManage ? listSupervisoryUsers(companyId) : Promise.resolve([]),
       canManage ? listServiceUserAssignments(id) : Promise.resolve([]),
-      canManage ? listBranches(companyId) : Promise.resolve([]),
+      canManage ? listBranches(companyId, profile) : Promise.resolve([]),
       getServiceUserTracker(id),
       getServiceUserBranchType(id),
       getComplexReviewInterval(companyId),

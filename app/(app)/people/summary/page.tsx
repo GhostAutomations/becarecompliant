@@ -28,7 +28,7 @@ export default async function PeopleSummaryPage({
   const branchId = branch || null;
 
   const [branches, counts] = await Promise.all([
-    listBranches(companyId),
+    listBranches(companyId, profile),
     getRollupCounts(companyId, branchId),
   ]);
 

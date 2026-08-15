@@ -11,7 +11,7 @@ export default async function ImportPage() {
   const { profile } = await requireCompanyAdmin();
   if (!profile.company_id) redirect("/founder");
 
-  const branches = await listBranches(profile.company_id);
+  const branches = await listBranches(profile.company_id, profile);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">

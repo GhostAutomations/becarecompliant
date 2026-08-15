@@ -131,7 +131,7 @@ export default async function PersonPage({
     listPersonEvidence(id),
     canManage ? listSupervisoryUsers(companyId) : Promise.resolve([]),
     canManage ? listPersonAssignments(id) : Promise.resolve([]),
-    canManage ? listBranches(companyId) : Promise.resolve([]),
+    canManage ? listBranches(companyId, profile) : Promise.resolve([]),
     getPersonTracker(id),
     listPersonHolidays(id),
     listPersonAbsences(id),

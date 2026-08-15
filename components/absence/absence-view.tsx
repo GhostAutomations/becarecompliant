@@ -53,6 +53,7 @@ export default function AbsenceView({
   stageThresholds,
   rows,
   branches,
+  branchNames,
   people,
   events,
   absenceSchema,
@@ -70,7 +71,11 @@ export default function AbsenceView({
    *  Stage N meeting discusses. Empty for Bradford. */
   stageThresholds: StageThreshold[];
   rows: AbsencePersonRow[];
+  /** What the viewer may CHOOSE. Narrowed to the branches she can act in. */
   branches: BranchLite[];
+  /** What the app may SHOW. Every branch in the company, because a register read through RLS
+   *  can contain a row from a branch she cannot act in and that row still needs a label. */
+  branchNames: BranchLite[];
   people: PersonLite[];
   events: AbsenceEventRow[];
   absenceSchema: FormSchema | null;
@@ -202,8 +207,10 @@ export default function AbsenceView({
     () => (branch ? people.filter((p) => p.branch_id === branch) : people),
     [people, branch],
   );
+  // Labelled from the DISPLAY list, not the picker. Looking a name up in the narrowed picker
+  // left a blank grey line where the branch should be, on exactly the rows 0183 exists to show.
   const branchName = (id: string | null) =>
-    branches.find((b) => b.id === id)?.name ?? "";
+    branchNames.find((b) => b.id === id)?.name ?? "";
 
   /** Today in Europe/London, for the Return to Work interview date. Computed from the
    *  shared recurrence helpers so there is one definition of "today" in the app, and

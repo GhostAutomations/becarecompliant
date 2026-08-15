@@ -3,7 +3,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import { listOutstandingRtw } from "@/lib/absence/rtw";
 import RealtimeRefresh from "@/components/realtime-refresh";
-import { listBranches, getCompanyFormByKey } from "@/lib/people/data";
+import { listBranches, listBranchNames, getCompanyFormByKey } from "@/lib/people/data";
 import { listAbsenceRegister, listActivePeople, listAbsenceEvents, listOpenBookings, listMeetingConductors, listMeetingOffices } from "@/lib/absence/data";
 import { isFormSchema, type FormSchema } from "@/lib/form-schema";
 import type { StageThreshold } from "@/lib/absence/logic";
@@ -39,8 +39,9 @@ export default async function AbsencePage() {
     openBookings,
     conductors,
     offices,
+    branchNames,
   ] = await Promise.all([
-      listBranches(companyId),
+      listBranches(companyId, profile),
       listAbsenceRegister(companyId, null),
       listActivePeople(companyId),
       listAbsenceEvents(companyId, null),
@@ -51,6 +52,7 @@ export default async function AbsencePage() {
       listOpenBookings(companyId),
       listMeetingConductors(companyId),
       listMeetingOffices(companyId),
+      listBranchNames(companyId),
     ]);
 
   const absenceSchema: FormSchema | null =
@@ -76,6 +78,7 @@ export default async function AbsencePage() {
         stageThresholds={config.method === "stages" ? (config.thresholds as StageThreshold[]) : []}
         rows={rows}
         branches={branches}
+        branchNames={branchNames}
         people={people}
         events={events}
         absenceSchema={absenceSchema}

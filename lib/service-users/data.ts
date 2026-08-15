@@ -12,6 +12,7 @@ import "server-only";
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { branchScopedRole } from "@/lib/auth/manage-scope";
 import type { CheckDefinition } from "@/lib/people/types";
 import type {
   ServiceUserRecord,
@@ -103,11 +104,17 @@ export async function listBranchTypes(companyId: string): Promise<BranchType[]> 
   return (data as BranchType[]) ?? [];
 }
 
-/** The branches (not the office/team) the current user may work in: Admin and
- *  Platform see all; everyone else (Managers, Supervisors, Team Members) sees only
- *  the branches they are assigned to (user_branches). Used for the register Branches
- *  dropdown and the Add Service User branch picker, so a user never sees a branch they
- *  are not assigned to. */
+/**
+ * The branches (not the office/team) the current user may work in.
+ *
+ * NARROWED BY THE SAME RULE AS listBranches (caught in review, 2026-08-14). This used to narrow
+ * everyone except company_admin and platform_admin, which took branches away from three roles
+ * that can genuinely reach them: `is_company_wide` covers registered_individual and
+ * registered_manager, and `is_company_on_call` covers the whole company. A Registered Manager
+ * with no user_branches rows got NO branch picker at all here while seeing every branch on
+ * /people, which is two answers to one question. branchScopedRole is the one that matches the
+ * database.
+ */
 export async function listAccessibleBranchTypes(
   companyId: string,
   role: string,
@@ -115,7 +122,7 @@ export async function listAccessibleBranchTypes(
 ): Promise<BranchType[]> {
   const supabase = await createClient();
   let branchIds: string[] | null = null;
-  if (role !== "company_admin" && role !== "platform_admin") {
+  if (branchScopedRole(role)) {
     const { data: ubs } = await supabase.from("user_branches").select("branch_id").eq("user_id", userId);
     branchIds = ((ubs as Array<{ branch_id: string }> | null) ?? []).map((r) => r.branch_id);
     if (branchIds.length === 0) return [];

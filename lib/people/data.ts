@@ -8,6 +8,8 @@ import "server-only";
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { branchScopedRole } from "@/lib/auth/manage-scope";
+import { callerBranchIds } from "@/lib/auth/branches";
 import type {
   CheckDefinition,
   CheckStatus,
@@ -76,7 +78,21 @@ export async function getColumnLabels(companyId: string): Promise<Record<string,
   return ((data?.people_column_labels as Record<string, string> | null) ?? {}) as Record<string, string>;
 }
 
-export async function listBranches(companyId: string): Promise<BranchLite[]> {
+/**
+ * The branches this VIEWER can act in, for every picker and filter in the app.
+ *
+ * The viewer is a required argument on purpose. It was `listBranches(companyId)`, and every
+ * screen rendered all of them because `branches_select` is `is_company_member`. Making it
+ * required means the compiler names every call site rather than leaving one quietly wrong.
+ *
+ * A branch that is only READABLE is still rendered elsewhere: a booked conductor sees a carer
+ * from another branch on the Planner and that branch's NAME has to appear. This narrows what can
+ * be CHOSEN, not what can be read, which is why the RLS policy is left exactly as it is.
+ */
+export async function listBranches(
+  companyId: string,
+  viewer: { id: string; role: string },
+): Promise<BranchLite[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("branches")
@@ -85,7 +101,56 @@ export async function listBranches(companyId: string): Promise<BranchLite[]> {
     .eq("status", "active")
     .order("kind", { ascending: true })
     .order("name", { ascending: true });
+  const all = (data as BranchLite[]) ?? [];
+  if (!branchScopedRole(viewer.role)) return all;
+
+  /*
+   * An EMPTY list is the honest answer for a branch confined viewer with no branches, and the
+   * pickers already handle it: the register hides a dropdown with fewer than two entries, and a
+   * form with no branch to choose is exactly right for somebody whose every insert would be
+   * refused. Falling back to "all" here would put the original defect straight back.
+   */
+  const mine = new Set(await callerBranchIds(viewer.id));
+  return all.filter((b) => mine.has(b.id));
+}
+
+/**
+ * ONE branch's name, for DISPLAY.
+ *
+ * The companion to listBranches, and the reason that one could safely be narrowed. Branch NAMES
+ * stay readable to everyone in the company (`branches_select` is `is_company_member`); what a
+ * viewer may CHOOSE is a different question from what they may READ.
+ *
+ * Caught in review, and it was already live. Both check completion screens found the name by
+ * searching the picker list, so the moment that list narrowed, a manager conducting a check on a
+ * carer from another branch (migration 0183, the whole point of which is to let him) lost the
+ * branch preset on the form. On the Service User plan review that field is REQUIRED and lists
+ * every branch, so he would have been made to guess, and a wrong guess is saved as inspection
+ * evidence.
+ */
+/**
+ * Every branch NAME in the company, for labelling rows. NEVER for a picker.
+ *
+ * The names are readable to everyone in the company by policy, and a register read through RLS
+ * can legitimately contain a row from a branch this viewer cannot act in (0183). Labelling that
+ * row is display; offering the branch is choice. listBranches is the one to reach for when a
+ * user is going to CHOOSE, and this one when the app is going to SHOW.
+ */
+export async function listBranchNames(companyId: string): Promise<BranchLite[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("branches")
+    .select("id, name, kind")
+    .eq("company_id", companyId)
+    .order("name", { ascending: true });
   return (data as BranchLite[]) ?? [];
+}
+
+export async function branchName(branchId: string | null | undefined): Promise<string | null> {
+  if (!branchId) return null;
+  const supabase = await createClient();
+  const { data } = await supabase.from("branches").select("name").eq("id", branchId).maybeSingle();
+  return (data?.name as string | undefined) ?? null;
 }
 
 export async function listPeopleCheckDefinitions(companyId: string): Promise<CheckDefinition[]> {

@@ -28,7 +28,7 @@ export default async function ServiceUserSummaryPage({
   const branchId = branch || null;
 
   const [branches, counts] = await Promise.all([
-    listBranches(companyId),
+    listBranches(companyId, profile),
     getServiceUserRollupCounts(companyId, branchId),
   ]);
 

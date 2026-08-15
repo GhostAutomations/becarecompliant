@@ -15,7 +15,7 @@ export default async function NewPersonPage() {
   if (!MANAGE_ROLES.includes(profile.role)) redirect("/people");
 
   const [branches, users, branchStaff, jobTitles] = await Promise.all([
-    listBranches(profile.company_id),
+    listBranches(profile.company_id, profile),
     listSupervisoryUsers(profile.company_id),
     getBranchStaffMap(profile.company_id),
     listJobTitles(profile.company_id),

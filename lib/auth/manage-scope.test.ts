@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { canManageRecord, canManageAnything } from "./manage-scope.ts";
+import { canManageRecord, canManageAnything, branchScopedRole } from "./manage-scope.ts";
 
 /**
  * These tests are the contract between this file and the RLS policy it transcribes. If a policy
@@ -72,5 +72,30 @@ test("the coarse check is for pages and toolbars, and agrees with the per record
   // then deny every control on it.
   for (const role of ["supervisor", "on_call", "viewer", "team_member", "auditor"]) {
     assert.equal(canManageRecord({ role, branchIds: [CARDIFF], recordBranchId: CARDIFF }), false, role);
+  }
+});
+
+test("only the roles the database confines to a branch have their branch list narrowed", () => {
+  // is_branch_manager joins user_branches; is_person_supervisor has done the same since 0078.
+  assert.equal(branchScopedRole("manager"), true);
+  assert.equal(branchScopedRole("supervisor"), true);
+
+  // On Call reads the WHOLE company (is_company_on_call), so narrowing would take away branches
+  // they can genuinely reach. The company wide roles are unaffected by definition.
+  for (const role of ["on_call", "platform_admin", "company_admin", "registered_individual", "registered_manager"]) {
+    assert.equal(branchScopedRole(role), false, role);
+  }
+});
+
+test("anyone whose branch list is narrowed can only manage inside those branches", () => {
+  // The two rules have to agree, or a manager is offered a branch she cannot write to, or
+  // refused one she can.
+  const branchIds = ["b-cardiff"];
+  for (const role of ["manager", "supervisor"]) {
+    const inside = canManageRecord({ role, branchIds, recordBranchId: "b-cardiff" });
+    const outside = canManageRecord({ role, branchIds, recordBranchId: "b-caerphilly" });
+    assert.equal(outside, false, `${role} outside`);
+    // A supervisor manages nothing at all, which is stricter, never looser.
+    if (role === "manager") assert.equal(inside, true);
   }
 });

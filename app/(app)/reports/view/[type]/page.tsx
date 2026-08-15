@@ -50,7 +50,7 @@ export default async function ReportViewPage({
   const isOnTime = reportType === "on-time";
   const sp = await searchParams;
   const str = (v: string | string[] | undefined) => (typeof v === "string" && v.length > 0 ? v : null);
-  const branches = await listBranches(profile.company_id);
+  const branches = await listBranches(profile.company_id, profile);
   const branchOptions = branches.map((b) => ({ id: b.id, name: b.name }));
 
   /*

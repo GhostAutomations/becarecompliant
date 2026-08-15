@@ -39,7 +39,7 @@ export default async function PeoplePage({
   // Load EVERY person once (all statuses, all the viewer's branches). Branches and
   // View are then switched instantly on the client with no server round trip.
   const [branches, register, columnLabels, checkColumns, cycleMode] = await Promise.all([
-    listBranches(companyId),
+    listBranches(companyId, profile),
     listRegister(companyId, null, "all"),
     getColumnLabels(companyId),
     listRegisterCheckColumns(companyId, "people"),

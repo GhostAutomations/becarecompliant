@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import BackLink from "@/components/back-link";
 import CompleteCheck from "@/components/service-users/complete-check";
 import { getServiceUser, getPublishedFormVersion } from "@/lib/service-users/data";
-import { listBranches } from "@/lib/people/data";
+import { branchName } from "@/lib/people/data";
 import { recordFormPresets } from "@/lib/forms/record-presets";
 import { todayInLondon, formatCivilDate } from "@/lib/recurrence";
 import { fieldToNameSelect, findField, isFormSchema, removeField, type Answers, type FormSchema } from "@/lib/form-schema";
@@ -59,8 +59,10 @@ export default async function CompleteServiceUserCheckPage({
   // Pre-fill the service user's own details (name + branch) into whatever form this
   // check uses, so it never re-asks who it is for. Presets only (no schema change),
   // so client and server validate the same form. Works for any form, new or old.
-  const branches = await listBranches(profile.company_id ?? "");
-  const suBranchName = branches.find((b) => b.id === serviceUser?.branch_id)?.name ?? null;
+  // READ THE NAME FROM THE RECORD, not from the branch picker. listBranches now returns only
+  // the branches this viewer may CHOOSE, and a conductor booked onto a carer in another branch
+  // (0183) still has to see whose branch it is. Names are readable to the whole company.
+  const suBranchName = await branchName(serviceUser?.branch_id);
   const presetAnswers: Answers = recordFormPresets(schema, {
     fullName: serviceUser?.full_name ?? null,
     branchName: suBranchName,

@@ -30,7 +30,7 @@ export default async function TrainingPage() {
 
   const companyId = profile.company_id;
   const [branches, matrix, viewerBranchIds] = await Promise.all([
-    listBranches(companyId),
+    listBranches(companyId, profile),
     getTrainingMatrix(companyId, null),
     callerBranchIds(profile.id),
   ]);
