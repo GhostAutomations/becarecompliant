@@ -16,6 +16,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireCompany, requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
+import { profilesById } from "@/lib/auth/company-profiles";
 import { writeAudit } from "@/lib/audit";
 import { sendCalendarInvite } from "@/lib/notifications/invites";
 import { escapeHtml } from "@/lib/email/templates";
@@ -581,8 +582,10 @@ export async function bookReview(formData: FormData): Promise<void> {
   // a changed date sends a fresh invitation.
   let inviteOutcome = "not_applicable";
   if (plannedDate && reviewerId) {
-    const [{ data: reviewer }, { data: su }, { data: company }] = await Promise.all([
-      supabase.from("profiles").select("id, full_name, email").eq("id", reviewerId).maybeSingle(),
+    // Definer path: read directly this was null for a Manager or Supervisor, so the reviewer's
+    // calendar invitation was silently never sent and the audit recorded "not_applicable".
+    const [reviewer, { data: su }, { data: company }] = await Promise.all([
+      profilesById([reviewerId], profile.company_id).then((m) => m.get(reviewerId) ?? null),
       supabase.from("service_users").select("full_name, branch_id").eq("id", id).maybeSingle(),
       supabase.from("companies").select("name").eq("id", profile.company_id).maybeSingle(),
     ]);
@@ -597,7 +600,7 @@ export async function bookReview(formData: FormData): Promise<void> {
         dedupeKey: `su_review:${id}:${plannedDate}:${plannedTime ?? "allday"}:${reviewerId}`,
         recipient: {
           profileId: reviewer.id,
-          name: reviewer.full_name || reviewer.email,
+          name: reviewer.name || reviewer.email,
           email: reviewer.email,
         },
         eventTitle: `Care Plan Review: ${su.full_name}`,

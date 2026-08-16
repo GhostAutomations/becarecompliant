@@ -5,6 +5,7 @@ import "server-only";
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { listStaff } from "@/lib/auth/company-profiles";
 
 export type Reg73VisitRow = {
   id: string;
@@ -38,17 +39,19 @@ export async function listReg73Visits(companyId: string, branchId: string): Prom
 
 /** People eligible to undertake an RI branch visit: branch manager and above. */
 export async function listReg73Signatories(companyId: string): Promise<string[]> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("profiles")
-    .select("full_name, role, status")
-    .eq("company_id", companyId)
-    .in("role", ["manager", "registered_manager", "registered_individual", "company_admin"])
-    .order("full_name", { ascending: true });
-  const names = ((data as { full_name: string | null; status: string | null }[] | null) ?? [])
-    .filter((p) => p.full_name && p.status !== "disabled")
-    .map((p) => p.full_name as string);
-  return Array.from(new Set(names));
+  // Definer path: read directly, the only roles allowed to edit these reports (RI and RM) saw
+  // nobody but themselves in the dropdown.
+  const staff = await listStaff({
+    companyId,
+    roles: ["manager", "registered_manager", "registered_individual", "company_admin"],
+  });
+  /*
+   * The chosen STRING is stored as ri_name and printed on the submitted Reg 73 report, so this
+   * is not a picker label that can be tidied up later. The lookup falls back to the email address
+   * when full_name is blank (it is NOT NULL DEFAULT ''), and an address is not a signature, so
+   * anybody without a name on file is left out rather than signed in as their inbox.
+   */
+  return Array.from(new Set(staff.filter((p) => p.name && p.name !== p.email).map((p) => p.name)));
 }
 
 export type Reg73VisitListItem = Reg73VisitRow & { branch_name: string };

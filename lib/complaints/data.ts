@@ -9,6 +9,7 @@ import "server-only";
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { profilesById } from "@/lib/auth/company-profiles";
 import { deriveComplaintPrefix } from "./logic";
 import {
   DEFAULT_COMPLAINTS_CONFIG,
@@ -244,19 +245,11 @@ export async function getInvestigationEvidence(
 
 /** Resolve author display names for a set of user ids (created_by references
  *  auth.users, so it cannot be embedded; profiles share the same id). */
-async function authorNames(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  ids: string[],
-): Promise<Map<string, string>> {
-  const unique = [...new Set(ids.filter(Boolean))];
-  if (unique.length === 0) return new Map();
-  const { data } = await supabase.from("profiles").select("id, full_name, email").in("id", unique);
-  return new Map(
-    ((data as Array<{ id: string; full_name: string | null; email: string | null }> | null) ?? []).map((p) => [
-      p.id,
-      p.full_name || p.email || "Unknown",
-    ]),
-  );
+async function authorNames(ids: string[]): Promise<Map<string, string>> {
+  // DEFINER PATH. Read directly, this resolved only the viewer, so every response drafted by a
+  // colleague was attributed to "Unknown" on a record a regulator reads.
+  const byId = await profilesById(ids);
+  return new Map([...byId.values()].map((p) => [p.id, p.name]));
 }
 
 /** Initial responses drafted/sent for a complaint (newest first). */
@@ -268,7 +261,7 @@ export async function listComplaintResponses(complaintId: string): Promise<Compl
     .eq("complaint_id", complaintId)
     .order("created_at", { ascending: false });
   const rows = (data as ComplaintResponseDbRow[] | null) ?? [];
-  const names = await authorNames(supabase, rows.map((r) => r.created_by ?? ""));
+  const names = await authorNames(rows.map((r) => r.created_by ?? ""));
   return rows.map(({ created_by, ...rest }) => ({
     ...rest,
     author_name: created_by ? names.get(created_by) ?? null : null,
@@ -281,7 +274,7 @@ export async function getComplaintResponse(id: string): Promise<ComplaintRespons
   const { data } = await supabase.from("complaint_responses").select(RESPONSE_COLS).eq("id", id).maybeSingle();
   if (!data) return null;
   const { created_by, ...rest } = data as ComplaintResponseDbRow;
-  const names = await authorNames(supabase, [created_by ?? ""]);
+  const names = await authorNames([created_by ?? ""]);
   return { ...rest, author_name: created_by ? names.get(created_by) ?? null : null };
 }
 

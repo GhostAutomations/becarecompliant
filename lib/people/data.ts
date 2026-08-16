@@ -8,6 +8,7 @@ import "server-only";
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { listStaff, profilesById } from "@/lib/auth/company-profiles";
 import { branchScopedRole } from "@/lib/auth/manage-scope";
 import { callerBranchIds } from "@/lib/auth/branches";
 import type {
@@ -517,30 +518,24 @@ export async function getPublishedFormVersion(
   return data ?? null;
 }
 
-/** Users in the company who can be a line manager / team leader / supervisor. */
-export async function listCompanyUsers(companyId: string): Promise<ProfileLite[]> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("profiles")
-    .select("id, full_name, email, role")
-    .eq("company_id", companyId)
-    .eq("status", "active")
-    .order("full_name", { ascending: true });
-  return (data as ProfileLite[]) ?? [];
-}
-
-/** Active users who can be a line manager, team leader or assigned supervisor,
- *  i.e. management/supervisory roles. Excludes Team Members. */
+/**
+ * Active users who can be a line manager, team leader or assigned supervisor.
+ *
+ * THROUGH THE DEFINER PATH, and the reason is the worst thing the sweep of 2026-08-16 found.
+ * This read `profiles` directly, so for a Manager it returned one row, herself. The Line manager
+ * control on a person's record is a <select> built from this list, and a select whose stored
+ * value is not among its options falls back to "None" — so a Manager opening a colleague's
+ * record and saving ANY unrelated field wrote manager_id = null. Silent, on every save.
+ *
+ * The Registered roles are in the list now as well. They were not, so an RI or RM got an empty
+ * dropdown on a required field and could not create a person at all.
+ */
 export async function listSupervisoryUsers(companyId: string): Promise<ProfileLite[]> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("profiles")
-    .select("id, full_name, email, role")
-    .eq("company_id", companyId)
-    .eq("status", "active")
-    .in("role", ["company_admin", "manager", "supervisor"])
-    .order("full_name", { ascending: true });
-  return (data as ProfileLite[]) ?? [];
+  const staff = await listStaff({
+    companyId,
+    roles: ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor"],
+  });
+  return staff.map((p) => ({ id: p.id, full_name: p.name, email: p.email, role: p.role })) as ProfileLite[];
 }
 
 export type BranchStaff = Record<string, { managers: ProfileLite[]; supervisors: ProfileLite[] }>;
@@ -553,18 +548,15 @@ export async function getBranchStaffMap(companyId: string): Promise<BranchStaff>
   const supabase = await createClient();
   // Auto-fill uses each user's PRIMARY branch only: a user is auto-filled into the
   // branch they belong to, not the "additional branch views" they can merely see.
-  const [{ data: ubs }, { data: profs }] = await Promise.all([
+  const [{ data: ubs }, profs] = await Promise.all([
     supabase.from("user_branches").select("user_id, branch_id").eq("is_primary", true),
-    supabase
-      .from("profiles")
-      .select("id, full_name, email, role")
-      .eq("company_id", companyId)
-      .eq("status", "active")
-      .in("role", ["manager", "supervisor"]),
+    // Definer path: read directly and a Manager sees only herself, so the branch auto-fill on
+    // Add person filled in nothing for anybody but an Admin.
+    listStaff({ companyId, roles: ["manager", "supervisor"] }),
   ]);
 
   const byId = new Map<string, ProfileLite>(
-    ((profs as ProfileLite[] | null) ?? []).map((p) => [p.id, p]),
+    profs.map((p) => [p.id, { id: p.id, full_name: p.name, email: p.email, role: p.role } as ProfileLite]),
   );
   const map: BranchStaff = {};
   for (const ub of ((ubs as Array<{ user_id: string; branch_id: string }> | null) ?? [])) {
@@ -577,16 +569,25 @@ export async function getBranchStaffMap(companyId: string): Promise<BranchStaff>
   return map;
 }
 
+/**
+ * The supervisors assigned to a person.
+ *
+ * The embedded join on profiles returned null for everyone but the viewer, and the nulls were
+ * then filtered out, so an existing assignment became invisible AND un removable: the Remove
+ * button hangs off the row that was no longer there.
+ */
 export async function listPersonAssignments(personId: string): Promise<ProfileLite[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("person_assignments")
-    .select("user_id, profiles:user_id(id, full_name, email, role)")
+    .select("user_id")
     .eq("person_id", personId);
-  type Row = { profiles: ProfileLite | ProfileLite[] | null };
-  return ((data as unknown as Row[]) ?? [])
-    .map((r) => (Array.isArray(r.profiles) ? (r.profiles[0] ?? null) : r.profiles))
-    .filter((p): p is ProfileLite => p != null);
+  const ids = ((data as Array<{ user_id: string }> | null) ?? []).map((r) => r.user_id);
+  const byId = await profilesById(ids);
+  return ids
+    .map((id) => byId.get(id))
+    .filter(Boolean)
+    .map((p) => ({ id: p!.id, full_name: p!.name, email: p!.email, role: p!.role })) as ProfileLite[];
 }
 
 /** Evidence history for a Record (newest first), for the drill-down timeline. */

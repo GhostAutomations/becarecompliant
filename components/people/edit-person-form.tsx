@@ -44,8 +44,20 @@ export default function EditPersonForm({
         </div>
         <div>
           <label htmlFor="e_manager_id" className="form-label">Line manager</label>
+          {/*
+            THE STORED VALUE IS ALWAYS AN OPTION, even when it is not in the list.
+            A <select> whose value is not among its options silently falls back to the first one,
+            which here is "None", and Save then writes manager_id = null. That is how a Manager
+            opening a colleague's record and changing a phone number wiped their line manager.
+            The list itself was the bigger half of the bug (fixed 2026-08-16, it returned only the
+            viewer), but a line manager who has since LEFT the company is still not in it, and
+            leaving is not a reason to lose the record of who managed somebody.
+          */}
           <select id="e_manager_id" name="manager_id" defaultValue={person.manager_id ?? ""}>
             <option value="">None</option>
+            {person.manager_id && !users.some((u) => u.id === person.manager_id) ? (
+              <option value={person.manager_id}>Current line manager (no longer listed)</option>
+            ) : null}
             {users.map((u) => (
               <option key={u.id} value={u.id}>{u.full_name || u.email}</option>
             ))}

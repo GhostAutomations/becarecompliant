@@ -1,7 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { cookies } from "next/headers";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { decodeSessionId } from "@/lib/auth/jwt";
+import { MANAGE_AS_COOKIE } from "@/lib/founder/manage-as";
 
 /**
  * Verifies a one time token from a branded invite email (sent via Resend) and
@@ -27,6 +29,14 @@ export async function GET(request: NextRequest) {
   if (error || !data.session) {
     return NextResponse.redirect(`${origin}/login?reason=no-access`);
   }
+
+  /*
+   * The third way into a session, and it is the one every invited user takes. A manage-as cookie
+   * left behind on this browser would otherwise stamp their audit rows as the founder
+   * impersonating a tenant (lib/audit.ts), which is a false provenance on a record a regulator
+   * reads. Same one line as the sign in and sign out paths.
+   */
+  (await cookies()).delete(MANAGE_AS_COOKIE);
 
   // Single-session: make this the active session.
   const sessionId = decodeSessionId(data.session.access_token);

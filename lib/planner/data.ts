@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import { profilesById, listStaff } from "@/lib/auth/company-profiles";
 import { branchScopedRole } from "@/lib/auth/manage-scope";
 import { callerBranchIds } from "@/lib/auth/branches";
 
@@ -93,9 +94,16 @@ export async function getWhiteboardBoard(companyId: string, todayIso: string): P
   // to-book list can exclude anything already booked.
   const booked: BoardBooked[] = [];
   const bookedInstanceIds = new Set<string>();
-  for (const r of (bookedRows.data as Row[] | null) ?? []) {
-    if (!checkStillBookable(r)) continue;
-    const v = toView(r);
+  /*
+   * The board is the DEFAULT Whiteboard view and the calendar is opt in, so filling the names in
+   * listBoardBookings and not here fixed the view nobody lands on. To a Manager or a Supervisor
+   * every chip on the board simply dropped the name of whoever is carrying the booking out.
+   */
+  const bookedViews = await withConductorNames(
+    ((bookedRows.data as Row[] | null) ?? []).filter(checkStillBookable).map(toView),
+    companyId,
+  );
+  for (const v of bookedViews) {
     if (v.checkInstanceId) bookedInstanceIds.add(v.checkInstanceId);
     booked.push({
       bookingId: v.id,
@@ -204,6 +212,10 @@ type Row = {
   linked_check: { definition: { active: boolean }[] | { active: boolean } | null }[] | { definition: { active: boolean }[] | { active: boolean } | null } | null;
 };
 
+/** Who may be given a task to carry out. Passed to list_company_staff, and mirrored by
+ *  is_company_conductor in migration 0192, which is what actually enforces it. */
+const CONDUCTOR_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor"];
+
 const SELECT =
   "id, branch_id, population, subject_person_id, subject_service_user_id, check_instance_id, check_kind, title, conductor_profile_id, scheduled_date, start_time, duration_minutes, status, notes, conductor:profiles(full_name), person:people(full_name), service_user:service_users(full_name), branch:branches(name), linked_check:check_instances(definition:check_definitions(active))";
 
@@ -216,20 +228,21 @@ const SELECT =
  * hands a Manager or a Supervisor only their own row. So a whiteboard full of colleagues' work
  * showed a whiteboard full of nobody's work.
  *
- * planner_conductor_names is SECURITY DEFINER and answers only about ids the caller already
+ * company_profiles_by_id is SECURITY DEFINER and answers only about ids the caller already
  * holds, inside their own company, including people who have since left, because a booking made
  * last month still has to say who it was for.
  *
  * The join is LEFT IN PLACE and tried first: for an Admin, and for your own bookings, it already
  * works and this costs nothing.
  */
-async function withConductorNames(rows: PlannerBookingView[]): Promise<PlannerBookingView[]> {
+async function withConductorNames(
+  rows: PlannerBookingView[],
+  companyId?: string,
+): Promise<PlannerBookingView[]> {
   const missing = [...new Set(rows.filter((r) => !r.conductorName).map((r) => r.conductorId))];
   if (missing.length === 0) return rows;
-  const supabase = await createClient();
-  const { data } = await supabase.rpc("planner_conductor_names", { ids: missing });
-  const byId = new Map(((data ?? []) as Array<{ id: string; name: string }>).map((p) => [p.id, p.name]));
-  return rows.map((r) => (r.conductorName ? r : { ...r, conductorName: byId.get(r.conductorId) ?? null }));
+  const byId = await profilesById(missing, companyId);
+  return rows.map((r) => (r.conductorName ? r : { ...r, conductorName: byId.get(r.conductorId)?.name ?? null }));
 }
 
 /** A booking is shown only if it is ad-hoc (no linked check) or its check definition
@@ -377,12 +390,12 @@ export async function getPlannerRecordForm(
      * THROUGH THE RPC, not the table. profiles_select hands a Manager or a Supervisor ONLY THEIR
      * OWN ROW, so reading the table here returned a conductor list of one: themselves. On a carer
      * outside their branches the form then removed even that, leaving an empty required dropdown
-     * under a note offering to book it for a colleague. list_company_conductors is SECURITY
-     * DEFINER and carries the role list itself; see migration 0193. It takes the company as an
+     * under a note offering to book it for a colleague. list_company_staff is SECURITY
+     * DEFINER and is given the conductor role list here; see migration 0199. It takes the company as an
      * argument because the founder managing as a company has no company_id of his own, and the
      * database sees his auth.uid() rather than the shadowed profile.
      */
-    supabase.rpc("list_company_conductors", { cid: companyId }),
+    listStaff({ companyId, roles: CONDUCTOR_ROLES }),
     supabase
       .from("check_instances")
       // !inner + the definition active filter so a check whose DEFINITION was turned
@@ -397,10 +410,7 @@ export async function getPlannerRecordForm(
   ]);
 
   const branches = (branchesRes.data ?? []).map((b) => ({ id: b.id as string, name: b.name as string }));
-  const conductors = ((conductorsRes.data ?? []) as Array<{ id: string; name: string }>).map((p) => ({
-    id: p.id,
-    name: p.name,
-  }));
+  const conductors = conductorsRes.map((p) => ({ id: p.id, name: p.name }));
   const checks: BookableCheck[] = [];
   for (const raw of instRes.data ?? []) {
     const def = relOne((raw as { check_definitions: { name: string; key: string }[] | { name: string; key: string } | null }).check_definitions);
@@ -451,12 +461,12 @@ export async function getPlannerFormData(
      * THROUGH THE RPC, not the table. profiles_select hands a Manager or a Supervisor ONLY THEIR
      * OWN ROW, so reading the table here returned a conductor list of one: themselves. On a carer
      * outside their branches the form then removed even that, leaving an empty required dropdown
-     * under a note offering to book it for a colleague. list_company_conductors is SECURITY
-     * DEFINER and carries the role list itself; see migration 0193. It takes the company as an
+     * under a note offering to book it for a colleague. list_company_staff is SECURITY
+     * DEFINER and is given the conductor role list here; see migration 0199. It takes the company as an
      * argument because the founder managing as a company has no company_id of his own, and the
      * database sees his auth.uid() rather than the shadowed profile.
      */
-    supabase.rpc("list_company_conductors", { cid: companyId }),
+    listStaff({ companyId, roles: CONDUCTOR_ROLES }),
     supabase
       .from("people")
       .select("id, full_name, branch_id, employment_status, archived_at")
@@ -479,10 +489,7 @@ export async function getPlannerFormData(
   ]);
 
   const branches = (branchesRes.data ?? []).map((b) => ({ id: b.id as string, name: b.name as string }));
-  const conductors = ((conductorsRes.data ?? []) as Array<{ id: string; name: string }>).map((p) => ({
-    id: p.id,
-    name: p.name,
-  }));
+  const conductors = conductorsRes.map((p) => ({ id: p.id, name: p.name }));
 
   // Group active check instances by their record.
   const byPerson = new Map<string, BookableCheck[]>();

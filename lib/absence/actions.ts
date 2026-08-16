@@ -14,6 +14,10 @@
 import { revalidatePath } from "next/cache";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
+import { profilesById } from "@/lib/auth/company-profiles";
+
+/** Who may hold a formal absence meeting. Mirrors listMeetingConductors in lib/absence/data.ts. */
+const CONDUCTOR_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager"];
 import { writeAudit } from "@/lib/audit";
 import { sendCalendarInvite } from "@/lib/notifications/invites";
 import { sendEmail } from "@/lib/email/resend";
@@ -438,17 +442,30 @@ export async function bookAbsenceMeeting(
   }
 
   // The conductor must be an active Manager or Admin in THIS company.
-  const { data: conductor } = await supabase
-    .from("profiles")
-    .select("id, full_name, email, role, company_id, status")
-    .eq("id", conductedBy)
-    .maybeSingle();
-  if (
-    !conductor ||
-    conductor.company_id !== person.company_id ||
-    conductor.status !== "active" ||
-    !["company_admin", "manager"].includes(conductor.role as string)
-  ) {
+  /*
+   * Through the definer path. Read from `profiles` directly this returned null for anybody but
+   * the caller themselves, so a Manager choosing a colleague, and a Supervisor choosing anyone,
+   * were refused with a message that was not true: "The meeting must be held by a Manager or
+   * Admin in your company." It was. She just could not see them.
+   *
+   * company_profiles_by_id is NOT a company check on its own: since 0199 it also answers about
+   * the caller's own id whatever company they are in, so the founder resolves his own name. The
+   * company, the role and the active check are all carried by is_company_conductor below. Do not
+   * delete that call as redundant.
+   */
+  const conductor = (await profilesById([conductedBy])).get(conductedBy);
+  /*
+   * ACTIVE is checked separately and on purpose. company_profiles_by_id deliberately answers
+   * about leavers, so a meeting held in June still says who held it, which means the resolved
+   * role alone no longer proves the person is still here. Without this a stale form left open
+   * while that Manager was disabled would book the meeting and then post their invitation letter
+   * to them. is_company_conductor is the same definer check the planner's trigger uses.
+   */
+  const { data: conductorActive } = await supabase.rpc("is_company_conductor", {
+    cid: person.company_id as string,
+    pid: conductedBy,
+  });
+  if (!conductor || !CONDUCTOR_ROLES.includes(conductor.role) || conductorActive !== true) {
     return { error: "The meeting must be held by a Manager or Admin in your company." };
   }
 
@@ -475,9 +492,10 @@ export async function bookAbsenceMeeting(
   // Formal letter invitations: employee + conductor.
   let employeeEmail = (person.work_email as string | null) ?? null;
   if (!employeeEmail && person.profile_id) {
-    const { data: p } = await supabase
-      .from("profiles").select("email").eq("id", person.profile_id).maybeSingle();
-    employeeEmail = p?.email ?? null;
+    // Definer path: read directly this was null for every caller who is not an admin, so the
+    // letter was silently never sent to a carer whose only address is on their login.
+    employeeEmail =
+      (await profilesById([person.profile_id as string])).get(person.profile_id as string)?.email ?? null;
   }
   const { data: company } = await supabase
     .from("companies").select("name").eq("id", person.company_id as string).maybeSingle();
@@ -502,7 +520,7 @@ export async function bookAbsenceMeeting(
     },
     conductor: {
       id: conductor.id as string,
-      name: (conductor.full_name || conductor.email) as string,
+      name: conductor.name,
       email: (conductor.email as string | null) ?? null,
     },
     rearranged: false,
@@ -768,17 +786,27 @@ export async function rearrangeAbsenceMeeting(
   if ("error" in resolved) return { error: resolved.error };
   const { location, locationKind } = resolved;
 
-  const { data: conductor } = await supabase
-    .from("profiles")
-    .select("id, full_name, email, role, company_id, status")
-    .eq("id", conductedBy)
-    .maybeSingle();
-  if (
-    !conductor ||
-    conductor.company_id !== profile.company_id ||
-    conductor.status !== "active" ||
-    !["company_admin", "manager"].includes(conductor.role as string)
-  ) {
+  /*
+   * Through the definer path. Read from `profiles` directly this returned null for anybody but
+   * the caller themselves, so a Manager choosing a colleague, and a Supervisor choosing anyone,
+   * were refused with a message that was not true: "The meeting must be held by a Manager or
+   * Admin in your company." It was. She just could not see them.
+   *
+   * company_profiles_by_id is NOT a company check on its own: since 0199 it also answers about
+   * the caller's own id whatever company they are in, so the founder resolves his own name. The
+   * company, the role and the active check are all carried by is_company_conductor below. Do not
+   * delete that call as redundant.
+   */
+  const conductor = (await profilesById([conductedBy])).get(conductedBy);
+  /*
+   * ACTIVE is checked separately and on purpose: company_profiles_by_id answers about leavers by
+   * design, so the resolved role does not prove the person is still here. See bookMeeting.
+   */
+  const { data: conductorActive } = await supabase.rpc("is_company_conductor", {
+    cid: profile.company_id,
+    pid: conductedBy,
+  });
+  if (!conductor || !CONDUCTOR_ROLES.includes(conductor.role) || conductorActive !== true) {
     return { error: "The meeting must be held by a Manager or Admin in your company." };
   }
 
@@ -805,9 +833,10 @@ export async function rearrangeAbsenceMeeting(
     .maybeSingle();
   let employeeEmail = (person?.work_email as string | null) ?? null;
   if (!employeeEmail && person?.profile_id) {
-    const { data: p } = await supabase
-      .from("profiles").select("email").eq("id", person.profile_id).maybeSingle();
-    employeeEmail = p?.email ?? null;
+    // Definer path: read directly this was null for every caller who is not an admin, so the
+    // letter was silently never sent to a carer whose only address is on their login.
+    employeeEmail =
+      (await profilesById([person.profile_id as string])).get(person.profile_id as string)?.email ?? null;
   }
   const { data: company } = await supabase
     .from("companies").select("name").eq("id", profile.company_id).maybeSingle();
@@ -832,7 +861,7 @@ export async function rearrangeAbsenceMeeting(
     },
     conductor: {
       id: conductor.id as string,
-      name: (conductor.full_name || conductor.email) as string,
+      name: conductor.name,
       email: (conductor.email as string | null) ?? null,
     },
     rearranged: true,
@@ -923,9 +952,10 @@ export async function cancelAbsenceMeetingBooking(
   const notices: { profileId: string | null; name: string; email: string; hasAccount: boolean }[] = [];
   let employeeEmail = (person?.work_email as string | null) ?? null;
   if (!employeeEmail && person?.profile_id) {
-    const { data: p } = await supabase
-      .from("profiles").select("email").eq("id", person.profile_id).maybeSingle();
-    employeeEmail = p?.email ?? null;
+    // Definer path: read directly this was null for every caller who is not an admin, so the
+    // letter was silently never sent to a carer whose only address is on their login.
+    employeeEmail =
+      (await profilesById([person.profile_id as string])).get(person.profile_id as string)?.email ?? null;
   }
   if (person && employeeEmail) {
     notices.push({
@@ -936,12 +966,13 @@ export async function cancelAbsenceMeetingBooking(
     });
   }
   if (meeting.conducted_by) {
-    const { data: conductor } = await supabase
-      .from("profiles").select("id, full_name, email").eq("id", meeting.conducted_by).maybeSingle();
+    // Definer path: without it the person due to hold the meeting was never told it was off.
+    const conductor =
+      (await profilesById([meeting.conducted_by as string])).get(meeting.conducted_by as string) ?? null;
     if (conductor?.email) {
       notices.push({
         profileId: conductor.id,
-        name: conductor.full_name || conductor.email,
+        name: conductor.name,
         email: conductor.email,
         hasAccount: true,
       });

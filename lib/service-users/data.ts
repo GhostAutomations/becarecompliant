@@ -12,6 +12,7 @@ import "server-only";
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { profilesById, profileName } from "@/lib/auth/company-profiles";
 import { branchScopedRole } from "@/lib/auth/manage-scope";
 import type { CheckDefinition } from "@/lib/people/types";
 import type {
@@ -504,10 +505,23 @@ export async function listRegister(
   const rollupBySu = new Map(rollups.map((r) => [r.service_user_id, r]));
 
   type TrackerRow = ServiceUserTracker & { reviewer: { full_name: string | null } | null };
+  const trackerRows = (trackerData as TrackerRow[] | null) ?? [];
+  // One definer lookup for the whole register: the join returns nothing for a Manager, so every
+  // "Booked In" review showed a date with no reviewer against it.
+  const reviewerNames = await profilesById(
+    trackerRows.filter((t) => !t.reviewer?.full_name).map((t) => t.planned_reviewer_id),
+  );
   const trackerBySu = new Map<string, ServiceUserTracker>();
-  for (const t of (trackerData as TrackerRow[] | null) ?? []) {
+  for (const t of trackerRows) {
     const { reviewer, ...rest } = t;
-    trackerBySu.set(t.service_user_id, { ...rest, planned_reviewer_name: reviewer?.full_name ?? null });
+    trackerBySu.set(t.service_user_id, {
+      ...rest,
+      planned_reviewer_name:
+        // full_name is NOT NULL DEFAULT '', so ?? kept the blank and discarded the name the
+        // definer lookup had just resolved. Truthiness, matching the filter above.
+        reviewer?.full_name ||
+        (t.planned_reviewer_id ? reviewerNames.get(t.planned_reviewer_id)?.name ?? null : null),
+    });
   }
 
   const statusByKeyBySu = new Map<string, Record<string, SuCheckStatus>>();
@@ -538,7 +552,12 @@ export async function getServiceUserTracker(id: string): Promise<ServiceUserTrac
     .maybeSingle();
   if (!data) return null;
   const { reviewer, ...rest } = data as ServiceUserTracker & { reviewer: { full_name: string | null } | null };
-  return { ...rest, planned_reviewer_name: reviewer?.full_name ?? null };
+  // The join reads nothing for a non admin, so a booked review showed a date with nobody
+  // against it. Falls back to the definer path.
+  // || not ??: full_name is NOT NULL DEFAULT '', and a blank is not an answer.
+  const name =
+    reviewer?.full_name || (await profileName((rest as { planned_reviewer_id?: string | null }).planned_reviewer_id));
+  return { ...rest, planned_reviewer_name: name };
 }
 
 /** All Care Plan Review completion dates for one Service User (oldest first), used to
@@ -598,18 +617,26 @@ export async function getServiceUserChecks(id: string): Promise<SuCheckStatus[]>
   return (data as SuCheckStatus[]) ?? [];
 }
 
+/**
+ * The supervisors assigned to a Service User.
+ *
+ * The embedded join returned null for everyone but the viewer, and the nulls were filtered out,
+ * so an existing assignment became invisible AND un removable. Definer path instead.
+ */
 export async function listServiceUserAssignments(id: string): Promise<
   Array<{ id: string; full_name: string; email: string; role: string }>
 > {
   const supabase = await createClient();
   const { data } = await supabase
     .from("service_user_assignments")
-    .select("user_id, profiles:user_id(id, full_name, email, role)")
+    .select("user_id")
     .eq("service_user_id", id);
-  type Row = { profiles: { id: string; full_name: string; email: string; role: string } | Array<{ id: string; full_name: string; email: string; role: string }> | null };
-  return ((data as unknown as Row[]) ?? [])
-    .map((r) => (Array.isArray(r.profiles) ? (r.profiles[0] ?? null) : r.profiles))
-    .filter((p): p is { id: string; full_name: string; email: string; role: string } => p != null);
+  const ids = ((data as Array<{ user_id: string }> | null) ?? []).map((r) => r.user_id);
+  const byId = await profilesById(ids);
+  return ids
+    .map((uid) => byId.get(uid))
+    .filter(Boolean)
+    .map((p) => ({ id: p!.id, full_name: p!.name, email: p!.email ?? "", role: p!.role }));
 }
 
 /** Evidence history for a Record (newest first), for the drill-down timeline. */

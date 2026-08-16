@@ -7,6 +7,7 @@ import "server-only";
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { listStaff, profilesById } from "@/lib/auth/company-profiles";
 import type { BranchOption, OnCallLog, OnCallShift, PersonOption, RotaCell, RotaScope } from "./types";
 
 /** Normalise a Supabase to-one embedded relation (typed as an array) to one row. */
@@ -45,20 +46,16 @@ export async function getOnCallBranches(
   return (data as BranchOption[] | null) ?? [];
 }
 
-/** Active users in the company, for the "on call person" and "call handler"
- *  dropdowns. Falls back gracefully to an empty list if RLS hides profiles. */
+/**
+ * Active users in the company, for the "on call person" and "call handler" dropdowns.
+ *
+ * The old comment said it "falls back gracefully to an empty list if RLS hides profiles", which
+ * is precisely what it did, every time, for every role that uses this screen: a Manager could
+ * roster nobody but herself onto a shift. Graceful is not the same as working.
+ */
 export async function getCompanyPeopleOptions(companyId: string): Promise<PersonOption[]> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("profiles")
-    .select("id, full_name, email")
-    .eq("company_id", companyId)
-    .eq("status", "active")
-    .order("full_name", { ascending: true });
-  return ((data as Array<{ id: string; full_name: string | null; email: string | null }> | null) ?? []).map((p) => ({
-    id: p.id,
-    name: p.full_name || p.email || "Unknown",
-  }));
+  const staff = await listStaff({ companyId });
+  return staff.map((p) => ({ id: p.id, name: p.name }));
 }
 
 type ShiftRow = {
@@ -68,6 +65,37 @@ type ShiftRow = {
   branches: { name: string } | { name: string }[] | null;
   profiles: { full_name: string | null; email: string | null } | { full_name: string | null; email: string | null }[] | null;
 };
+
+/**
+ * Fill in the names the embedded join could not read.
+ *
+ * The rota is the one screen whose entire purpose is saying who is on call, and it said
+ * "Unassigned" on all nine live shifts to Managers, Supervisors and On Call users, because
+ * profiles_select hands them only their own row. The write path nulls on_call_name whenever a
+ * profile is chosen, so there was no denormalised name to fall back on either.
+ */
+async function fillShiftNames(shifts: OnCallShift[], companyId?: string): Promise<OnCallShift[]> {
+  const byId = await profilesById(
+    shifts.filter((x) => !x.on_call_person_name).map((x) => x.on_call_profile_id),
+    companyId,
+  );
+  if (byId.size === 0) return shifts;
+  return shifts.map((x) =>
+    x.on_call_person_name
+      ? x
+      : { ...x, on_call_person_name: (x.on_call_profile_id && byId.get(x.on_call_profile_id)?.name) || null },
+  );
+}
+
+async function fillLogNames(logs: OnCallLog[]): Promise<OnCallLog[]> {
+  const byId = await profilesById(logs.filter((x) => !x.handler_person_name).map((x) => x.handler_profile_id));
+  if (byId.size === 0) return logs;
+  return logs.map((x) =>
+    x.handler_person_name
+      ? x
+      : { ...x, handler_person_name: (x.handler_profile_id && byId.get(x.handler_profile_id)?.name) || null },
+  );
+}
 
 function toShift(r: ShiftRow): OnCallShift {
   const branch = relOne(r.branches);
@@ -112,9 +140,14 @@ export async function getRotaGrid(
     .lte("shift_date", lastDate);
   q = scope === "company" ? q.is("branch_id", null) : q.eq("branch_id", branchId ?? "");
   const { data } = await q;
+  /*
+   * The grid IS the rota screen. Filling the names in getRota and getCurrentOnCall, which
+   * nothing calls, fixed nothing: every cell still read "Assigned" to a Manager, because
+   * rota-grid calls firstName(null) and firstName falls back to the literal "Assigned".
+   */
+  const shifts = await fillShiftNames(((data as ShiftRow[] | null) ?? []).map(toShift), companyId);
   const map = new Map<string, RotaCell>();
-  for (const raw of (data as ShiftRow[] | null) ?? []) {
-    const s = toShift(raw);
+  for (const s of shifts) {
     if (!s.shift_date || !s.slot) continue;
     map.set(`${s.shift_date}|${s.slot}`, {
       id: s.id, name: s.on_call_person_name, phone: s.phone, profileId: s.on_call_profile_id,
@@ -133,7 +166,7 @@ export async function getRota(companyId: string): Promise<OnCallShift[]> {
     .eq("company_id", companyId)
     .gte("ends_at", cutoff)
     .order("starts_at", { ascending: true });
-  return ((data as ShiftRow[] | null) ?? []).map(toShift);
+  return fillShiftNames(((data as ShiftRow[] | null) ?? []).map(toShift));
 }
 
 /** The shift(s) live right now (started, not yet ended). */
@@ -147,7 +180,7 @@ export async function getCurrentOnCall(companyId: string): Promise<OnCallShift[]
     .lte("starts_at", now)
     .gt("ends_at", now)
     .order("branch_id", { ascending: true });
-  return ((data as ShiftRow[] | null) ?? []).map(toShift);
+  return fillShiftNames(((data as ShiftRow[] | null) ?? []).map(toShift));
 }
 
 export type ArchiveWeek = { mondayIso: string; days: string[]; cells: Record<string, RotaCell> };
@@ -179,9 +212,9 @@ export async function getArchiveRota(
   q = scope === "company" ? q.is("branch_id", null) : q.eq("branch_id", branchId ?? "");
   const { data } = await q;
 
+  const shifts = await fillShiftNames(((data as ShiftRow[] | null) ?? []).map(toShift), companyId);
   const byWeek = new Map<string, Record<string, RotaCell>>();
-  for (const raw of (data as ShiftRow[] | null) ?? []) {
-    const s = toShift(raw);
+  for (const s of shifts) {
     if (!s.shift_date || !s.slot) continue;
     const wk = mondayOf(s.shift_date);
     const cells = byWeek.get(wk) ?? {};
@@ -202,7 +235,8 @@ export async function getArchiveRota(
 export async function getShift(id: string): Promise<OnCallShift | null> {
   const supabase = await createClient();
   const { data } = await supabase.from("on_call_shifts").select(SHIFT_SELECT).eq("id", id).maybeSingle();
-  return data ? toShift(data as ShiftRow) : null;
+  if (!data) return null;
+  return (await fillShiftNames([toShift(data as ShiftRow)]))[0] ?? null;
 }
 
 type LogRow = {
@@ -251,7 +285,7 @@ export async function listCallLog(companyId: string): Promise<OnCallLog[]> {
     .eq("company_id", companyId)
     .order("occurred_at", { ascending: false })
     .order("ref_number", { ascending: false });
-  return ((data as LogRow[] | null) ?? []).map(toLog);
+  return fillLogNames(((data as LogRow[] | null) ?? []).map(toLog));
 }
 
 export async function getLog(id: string): Promise<OnCallLog | null> {

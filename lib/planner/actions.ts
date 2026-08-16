@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
+import { profileName } from "@/lib/auth/company-profiles";
 import { writeAudit } from "@/lib/audit";
 import { requireFeature } from "@/lib/billing/tier";
 import type { ActionState } from "@/lib/forms";
@@ -95,12 +96,9 @@ async function findClash(
 
     // Conductor first: it is the commonest clash and the easiest to act on.
     if (row.conductor_profile_id && row.conductor_profile_id === subject.conductorId) {
-      const { data: who } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("id", subject.conductorId)
-        .maybeSingle();
-      const name = (who?.full_name as string | null) || "That person";
+      // Definer path, so the message can name the colleague rather than saying "That person",
+      // which is the one word in it that exists to be helpful.
+      const name = (await profileName(subject.conductorId)) || "That person";
       return clashMessage({ name, what, when, bookedByAnother: false });
     }
 

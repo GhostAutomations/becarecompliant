@@ -8,6 +8,7 @@ import "server-only";
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { listStaff, profilesById } from "@/lib/auth/company-profiles";
 import { bySurname } from "@/lib/people/name-sort";
 import {
   deriveAbsenceStatus,
@@ -137,18 +138,21 @@ export async function listMeetingOffices(companyId: string): Promise<MeetingOffi
   }));
 }
 
-/** Active Managers + Company Admins: the only people who can hold a formal
- *  absence meeting (Phil, 2026-07-12). */
+/**
+ * Active Managers, Registered roles and Company Admins: the people who can hold a formal absence
+ * meeting (Phil, 2026-07-12).
+ *
+ * Through the definer path. Read directly, this gave a Manager one option, herself, and a
+ * Supervisor or On Call user an EMPTY required dropdown, so the Stage meeting they were being
+ * chased to book could not be booked at all. The Registered roles are included because they
+ * manage company wide and were being left out of a list they belong in.
+ */
 export async function listMeetingConductors(companyId: string): Promise<ConductorLite[]> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("profiles")
-    .select("id, full_name, email, role")
-    .eq("company_id", companyId)
-    .eq("status", "active")
-    .in("role", ["company_admin", "manager"])
-    .order("full_name");
-  return (data as ConductorLite[] | null) ?? [];
+  const staff = await listStaff({
+    companyId,
+    roles: ["company_admin", "registered_individual", "registered_manager", "manager"],
+  });
+  return staff.map((p) => ({ id: p.id, full_name: p.name, email: p.email, role: p.role })) as ConductorLite[];
 }
 
 /** Active people (RLS-scoped) for the "record an absence" person picker. */
@@ -241,12 +245,22 @@ export async function listOpenBookings(companyId: string): Promise<OpenBookingRo
     .eq("company_id", companyId)
     .is("evidence_id", null)
     .order("meeting_date", { ascending: true });
-  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => {
+  const rows = ((data ?? []) as Array<Record<string, unknown>>);
+  // The embedded join reads nothing for anyone but an admin, so "held by X" vanished and the
+  // meeting form lost its conductor preset. Resolved through the definer path instead.
+  const byId = await profilesById(rows.map((r) => r.conducted_by as string | null));
+  return rows.map((row) => {
     const raw = row.conductor as
       | { full_name: string | null; email: string | null }
       | Array<{ full_name: string | null; email: string | null }>
       | null;
-    const conductor = Array.isArray(raw) ? raw[0] : raw;
+    const joined = Array.isArray(raw) ? raw[0] : raw;
+    const resolved = byId.get(row.conducted_by as string);
+    const conductor = joined?.full_name || joined?.email
+      ? joined
+      : resolved
+        ? { full_name: resolved.name, email: resolved.email }
+        : null;
     return {
       id: row.id as string,
       person_id: row.person_id as string,
