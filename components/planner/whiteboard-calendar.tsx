@@ -155,7 +155,10 @@ export default function WhiteboardCalendar({
               key={cell.iso}
               type="button"
               onClick={() => setSelectedDay(cell.iso)}
-              className={`${isWeek ? "min-h-[320px]" : "min-h-[112px]"} bg-slate-900/50 p-1.5 text-left align-top transition hover:bg-slate-800/60 ${isToday ? "ring-1 ring-inset ring-gold-400/60" : ""}`}
+              /* flex-col + justify-start because a BUTTON centres its content vertically. In a
+                 112px month cell that was invisible; in a 320px week cell the appointments
+                 floated in the middle of the day with empty space above them. */
+              className={`flex flex-col justify-start ${isWeek ? "min-h-[320px]" : "min-h-[112px]"} bg-slate-900/50 p-1.5 text-left align-top transition hover:bg-slate-800/60 ${isToday ? "ring-1 ring-inset ring-gold-400/60" : ""}`}
             >
               {isWeek ? null : (
                 <span className={`block text-[11px] font-semibold ${isToday ? "text-gold-300" : "text-white/50"}`}>{cell.day}</span>
