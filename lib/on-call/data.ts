@@ -1,9 +1,11 @@
 import "server-only";
 
 /**
- * Be Care Compliant — On Call department server data access. All reads go through
- * the RLS-scoped user client (migration 0113), so Supervisors/Managers see their
- * branch(es), company-wide seniors and the On Call role see every branch.
+ * Be Care Compliant — On Call department server data access. All reads go through the RLS-scoped
+ * user client. Company-wide seniors and the On Call role see everything; a Manager or Supervisor
+ * sees the branches they run, and, since 0203, a company-wide rota and call log as well, because
+ * a company that keeps one out of hours list writes no branch on any row and they were seeing
+ * nothing at all. They can record a call on that list but not roster it.
  */
 
 import { createClient } from "@/lib/supabase/server";

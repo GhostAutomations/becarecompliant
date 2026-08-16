@@ -19,6 +19,14 @@ const ONCALL_ROLES = [
   "manager", "supervisor", "on_call", "platform_admin",
 ];
 const SCOPE_ADMIN_ROLES = ["company_admin", "registered_individual", "registered_manager", "platform_admin"];
+/*
+ * Who may ROSTER, as opposed to read. A Manager or Supervisor runs a branch, so on a branch rota
+ * they roster their own; on a company-wide rota there is no branch to be theirs, and rostering
+ * the company's out of hours cover belongs to the people who own it (Phil, 2026-08-17). They can
+ * still see it, which is the point of the screen: 0203 grants the read and withholds the write,
+ * and this is the screen agreeing with the database rather than offering a + that gets refused.
+ */
+const ROSTER_ROLES = ["company_admin", "registered_individual", "registered_manager", "on_call", "platform_admin"];
 
 export default async function OnCallPage({
   searchParams,
@@ -49,6 +57,15 @@ export default async function OnCallPage({
   const first = weeks[0].days[0];
   const last = weeks[2].days[6];
 
+  /*
+   * On a branch rota, rostering needs a branch to roster INTO. A Manager whose only branch is a
+   * team, or a branch since archived, gets an empty picker, selectedBranchId null, and a grid
+   * that drew a + in all forty two cells and saved none of them: assignCell returns silently
+   * with no branch. That is the same defect as the company-wide one, one branch away.
+   */
+  const canManage =
+    scope === "branch" ? selectedBranchId !== null : ROSTER_ROLES.includes(profile.role);
+
   const [cells, people] = await Promise.all([
     getRotaGrid(companyId, scope, selectedBranchId, first, last),
     getCompanyPeopleOptions(companyId),
@@ -60,7 +77,7 @@ export default async function OnCallPage({
       <RotaGrid
         scope={scope}
         canChangeScope={SCOPE_ADMIN_ROLES.includes(profile.role)}
-        canManage
+        canManage={canManage}
         branches={branches}
         selectedBranchId={selectedBranchId}
         weeks={weeks}

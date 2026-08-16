@@ -452,6 +452,24 @@ export async function deleteUser(
     return { error: `The user could not be deleted: ${error.message}` };
   }
 
+  /*
+   * Their invitation goes with them. It used to be left pending, and a pending invite whose
+   * account has been deleted is not dormant: Resend found the address free, minted a brand new
+   * auth user with no company and no role, and sent them a link into a dead end while the screen
+   * said "Invite resent." Service role, because the profile this would have been scoped through
+   * has just been cascaded away.
+   */
+  const { data: revoked, error: revokeErr } = await admin
+    .from("invites")
+    .update({ status: "revoked" })
+    .eq("company_id", ctx.companyId)
+    .eq("email", target.email as string)
+    .eq("status", "pending")
+    .select("id");
+  if (revokeErr) {
+    console.error("[deleteUser] pending invite not revoked:", revokeErr.message);
+  }
+
   await writeAudit({
     companyId: ctx.companyId,
     actorId: ctx.actor.id,
@@ -461,6 +479,9 @@ export async function deleteUser(
     entityType: "profile",
     entityId: userId,
     summary: `Deleted user ${target.email}`,
+    // Without this, "why did this invitation stop working" has no answer: the invite is revoked
+    // and nothing anywhere says who did it or when.
+    metadata: { invites_revoked: (revoked ?? []).map((r) => r.id as string) },
   });
   // They must stop being offered as an option on any Form that lists the company's
   // staff (best-effort, see rebake-options.ts).

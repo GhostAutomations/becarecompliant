@@ -3,11 +3,13 @@
 /**
  * Be Care Compliant — On Call department server actions (Phase 10 Additions).
  *
- * Shifts (the rota) and call logs are plain records, not the recurring check
- * engine. RLS (migration 0113) is the real guard: Supervisors and above plus the
- * On Call role, scoped by branch. The role checks here just give a clean message
- * before the database refuses. Datetimes are stored as entered (wall-clock,
- * normalised to a stable UTC instant) so the rota does not drift across DST.
+ * Shifts (the rota) and call logs are plain records, not the recurring check engine. RLS is the
+ * real guard: Supervisors and above plus the On Call role, scoped by branch where there is a
+ * branch. A company that keeps ONE out of hours list writes no branch on any row, and there
+ * 0203 lets a Manager or Supervisor read the rota and both read and write the call log, but not
+ * roster. The role checks here just give a clean message before the database refuses. Datetimes
+ * are stored as entered (wall-clock, normalised to a stable UTC instant) so the rota does not
+ * drift across DST.
  */
 
 import { revalidatePath } from "next/cache";

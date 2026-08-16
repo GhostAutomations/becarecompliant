@@ -39,6 +39,12 @@ export async function completeInvite(
   if (!profile) {
     return { error: "We could not find your profile. Contact your administrator." };
   }
+  // The page turns them away too, but a form post does not have to come from the page.
+  if (profile.status !== "invited") {
+    return {
+      error: "This invitation is no longer open. Ask your administrator to invite you again.",
+    };
+  }
 
   let admin: ReturnType<typeof createServiceClient>;
   try {

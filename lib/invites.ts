@@ -252,6 +252,13 @@ export async function createAndSendInvite(
   // The result used to be discarded, so a refused promotion still sent the email and still
   // reported success: the person got an invitation into a company they had not been added to.
   if (promoteErr) {
+    /*
+     * The invites row was written a few lines up. Left behind it would sit pending beside a
+     * profile with no company, and the resend guard below would then say that person's account
+     * does not exist, about an account that does. Take it back out so the Admin can simply try
+     * again rather than having to revoke something that never worked.
+     */
+    await supabase.from("invites").delete().eq("id", invite.id);
     return { ok: false, error: `The invitation could not be recorded: ${promoteErr.message}` };
   }
 
@@ -323,6 +330,31 @@ export async function resendInvite(
     admin = createServiceClient();
   } catch (e) {
     return { ok: false, error: (e as Error).message };
+  }
+
+  /*
+   * The invitation must still have an account behind it.
+   *
+   * Delete an invited user from Settings > Users and their auth user and profile go, but the
+   * invites row was left pending. Resending it then found the address free, so generateLink took
+   * the "invite" branch and minted a BRAND NEW auth user with no company, no role and status
+   * active, who followed the link, sailed past /welcome and bounced off /login?reason=no-access
+   * while this screen said "Invite resent." Deleting a user now revokes their pending invites,
+   * which removes the cause; this is the check that says so out loud if one is ever orphaned
+   * another way.
+   */
+  const { data: invitee } = await admin
+    .from("profiles")
+    .select("id, status")
+    .eq("email", invite.email)
+    .eq("company_id", invite.company_id)
+    .maybeSingle();
+  if (!invitee) {
+    return {
+      ok: false,
+      error:
+        "That person's account no longer exists, so the invitation cannot be resent. Revoke it and invite them again.",
+    };
   }
 
   const link = await generateConfirmUrl(admin, invite.email, invite.full_name);
@@ -454,6 +486,21 @@ export async function resendStaffInviteByEmail(
     .select("name")
     .eq("id", companyId)
     .maybeSingle();
+
+  // Same orphan check as resendInvite: never mint a fresh account off a stale invitation.
+  const { data: invitee } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("email", address)
+    .eq("company_id", companyId)
+    .maybeSingle();
+  if (!invitee) {
+    return {
+      ok: false,
+      error:
+        "That person's account no longer exists, so the invitation cannot be resent. Revoke it and invite them again.",
+    };
+  }
 
   const link = await generateConfirmUrl(admin, address, invite.full_name as string);
   if (link.error || !link.url) {

@@ -17,6 +17,14 @@ export default async function WelcomePage() {
 
   // Already set up: straight to the app.
   if (profile?.status === "active") redirect("/dashboard");
+  /*
+   * ONLY AN OPEN INVITATION GETS THIS FORM. This page runs on requireUser, not requireProfile, so
+   * the disabled check that guards the rest of the app never ran here, and it only turned people
+   * away when they were already active. Revoke an invitation and the link in that person's inbox
+   * still worked: they set a password, the action flipped them to active, and the seat was
+   * billed. Same for an Admin disabling somebody who had never accepted.
+   */
+  if (profile?.status !== "invited") redirect("/login?reason=no-access");
 
   return (
     <main className="auth-bg flex min-h-dvh items-center justify-center px-4 py-10">
