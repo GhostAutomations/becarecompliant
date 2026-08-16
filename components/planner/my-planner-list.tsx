@@ -20,11 +20,22 @@ function timeLabel(b: PlannerBookingView): string {
   return parts.join(" · ");
 }
 
-function BookingCard({ b, todayIso }: { b: PlannerBookingView; todayIso: string }) {
+/**
+ * ONE OVERDUE JOB, ON ONE LINE (Phil, 2026-08-16: "way too big, needs to be simpler and smaller").
+ *
+ * This was a full card per booking, with the task in a heading, the name under it, the date in
+ * its own column and three buttons on a row of their own. Two overdue jobs filled half the
+ * screen and pushed the calendar below the fold, which is the wrong way round: the band is a
+ * prompt, not the page.
+ *
+ * The name leads, as it does on the calendar chip, because it is the thing that answers "where
+ * am I going". Everything that was implied is dropped: these are all overdue, so nothing says
+ * "Overdue" on each row, and they are all planned, so there is no status line.
+ */
+function BookingCard({ b }: { b: PlannerBookingView }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [rescheduling, setRescheduling] = useState(false);
-  const overdue = b.status === "planned" && b.scheduledDate < todayIso;
 
   function run(fn: (fd: FormData) => Promise<{ ok?: string; error?: string }>, fd: FormData) {
     startTransition(async () => {
@@ -34,49 +45,43 @@ function BookingCard({ b, todayIso }: { b: PlannerBookingView; todayIso: string 
     });
   }
 
+  const btn = "px-2.5 py-1 text-[11px]";
+
   return (
-    <div className="glass-card p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="font-semibold text-white">{b.label}</p>
-          <p className="text-sm text-white/60">
-            {b.subjectName ?? "Ad-hoc"}{b.branchName ? ` · ${b.branchName}` : ""}
-          </p>
-        </div>
-        <div className="text-right text-sm">
-          <p className={overdue ? "font-semibold text-red-300" : "text-white/80"}>
-            {overdue ? "Overdue · " : ""}{fmtDate(b.scheduledDate)}
-          </p>
-          {timeLabel(b) ? <p className="text-xs text-white/50">{timeLabel(b)}</p> : null}
-        </div>
-      </div>
-
-      {b.notes ? <p className="mt-2 text-sm text-white/60">{b.notes}</p> : null}
-
-      {b.status === "planned" ? (
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+    <div className="px-4 py-2.5">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <span className="min-w-0 flex-1 truncate text-sm">
+          <span className="font-medium text-white">{b.subjectName ?? b.label}</span>
+          {b.subjectName ? <span className="text-white/45"> · {b.label}</span> : null}
+          {b.branchName ? <span className="text-white/35"> · {b.branchName}</span> : null}
+        </span>
+        <span className="shrink-0 text-xs text-red-300">
+          {fmtDate(b.scheduledDate)}
+          {timeLabel(b) ? <span className="text-white/40"> · {timeLabel(b)}</span> : null}
+        </span>
+        <span className="flex shrink-0 items-center gap-1.5">
           {b.checkInstanceId && b.subjectId && b.population ? (
-            // Linked to a check: completing the check auto-completes this booking,
-            // so send the user to the check's form rather than marking it done here.
+            // Linked to a check: completing the check auto-completes this booking, so send the
+            // user to the check's form rather than marking it done here.
             <Link
               href={`/${b.population === "people" ? "people" : "service-users"}/${b.subjectId}/checks/${b.checkInstanceId}/complete`}
-              className="btn-primary text-xs"
+              className={`btn-primary ${btn}`}
             >
-              Complete check
+              Complete
             </Link>
           ) : (
             <form action={(fd) => run(completeBooking, fd)}>
               <input type="hidden" name="booking_id" value={b.id} />
-              <button type="submit" disabled={pending} className="btn-primary text-xs">Mark done</button>
+              <button type="submit" disabled={pending} className={`btn-primary ${btn}`}>Done</button>
             </form>
           )}
           <button
             type="button"
             disabled={pending}
-            className="btn-outline text-xs"
+            className={`btn-outline ${btn}`}
             onClick={() => setRescheduling((v) => !v)}
           >
-            Reschedule
+            Move
           </button>
           <form
             action={(fd) => {
@@ -85,17 +90,17 @@ function BookingCard({ b, todayIso }: { b: PlannerBookingView; todayIso: string 
             }}
           >
             <input type="hidden" name="booking_id" value={b.id} />
-            <button type="submit" disabled={pending} className="btn-outline text-xs text-red-300">Cancel</button>
+            <button type="submit" disabled={pending} className={`btn-outline ${btn} text-red-300`}>Cancel</button>
           </form>
-        </div>
-      ) : (
-        <p className="mt-2 text-xs uppercase tracking-wide text-white/40">{b.status}</p>
-      )}
+        </span>
+      </div>
+
+      {b.notes ? <p className="mt-1 truncate text-xs text-white/45">{b.notes}</p> : null}
 
       {rescheduling ? (
         <form
           action={(fd) => { run(rescheduleBooking, fd); setRescheduling(false); }}
-          className="mt-3 flex flex-wrap items-end gap-2 border-t border-white/10 pt-3"
+          className="mt-2 flex flex-wrap items-end gap-2 border-t border-white/10 pt-2"
         >
           <input type="hidden" name="booking_id" value={b.id} />
           <label className="text-xs text-white/70">
@@ -110,7 +115,7 @@ function BookingCard({ b, todayIso }: { b: PlannerBookingView; todayIso: string 
             Min
             <input type="number" name="duration_minutes" min={5} step={5} defaultValue={b.durationMinutes ?? 30} className="ml-2 w-20" />
           </label>
-          <button type="submit" disabled={pending} className="btn-primary text-xs">Save</button>
+          <button type="submit" disabled={pending} className={`btn-primary ${btn}`}>Save</button>
         </form>
       ) : null}
     </div>
@@ -142,11 +147,13 @@ export default function OverdueBookings({
   if (overdue.length === 0) return null;
 
   return (
-    <section className="space-y-3">
-      <h2 className="text-sm font-semibold text-red-300">
+    <section className="space-y-2">
+      <h2 className="text-xs font-semibold uppercase tracking-wide text-red-300">
         Overdue ({overdue.length})
       </h2>
-      {overdue.map((b) => <BookingCard key={b.id} b={b} todayIso={todayIso} />)}
+      <div className="glass-card divide-y divide-white/10">
+        {overdue.map((b) => <BookingCard key={b.id} b={b} />)}
+      </div>
     </section>
   );
 }
