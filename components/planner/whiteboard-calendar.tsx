@@ -47,6 +47,7 @@ export default function WhiteboardCalendar({
   bookings,
   branches,
   basePath = "/planner/whiteboard",
+  showConductor = false,
 }: {
   /** A month grid, or one week across. ONE component on purpose: the chip, the tooltip and the
    *  day panel are the same in both, and two copies would drift the first time either changed. */
@@ -60,6 +61,14 @@ export default function WhiteboardCalendar({
   branches: Array<{ id: string; name: string }>;
   /** Where the prev/next links point (so the calendar works on both pages). */
   basePath?: string;
+  /**
+   * Name the person carrying each task out.
+   *
+   * ON THE WHITEBOARD, NOT ON MY PLANNER (Phil, 2026-08-16). The whiteboard is everybody's work
+   * on one grid, so "who is doing this" is half the question. My Planner is only ever your own
+   * bookings, where printing your own name on every chip is noise in the space the task needs.
+   */
+  showConductor?: boolean;
 }) {
   const isWeek = span === "week";
   const [branchId, setBranchId] = useState("");
@@ -181,11 +190,22 @@ export default function WhiteboardCalendar({
                       <span className="block truncate">
                         {b.startTime ? `${b.startTime} ` : ""}{chipName(b)}
                       </span>
-                      {b.subjectName ? (
-                        <span className="block truncate text-gold-100/60">
-                          {b.label}{isWeek && b.branchName ? ` · ${b.branchName}` : ""}
-                        </span>
-                      ) : null}
+                      {(() => {
+                        /*
+                         * The second line, built from whatever is worth saying and nothing that
+                         * is not. The task is skipped on an ad-hoc booking because the first
+                         * line IS the task; the conductor only on the whiteboard, where the grid
+                         * is everybody's; the branch only in the week, where there is room.
+                         */
+                        const parts = [
+                          b.subjectName ? b.label : null,
+                          showConductor ? b.conductorName ?? "Unassigned" : null,
+                          isWeek ? b.branchName : null,
+                        ].filter(Boolean);
+                        return parts.length > 0 ? (
+                          <span className="block truncate text-gold-100/60">{parts.join(" · ")}</span>
+                        ) : null;
+                      })()}
                     </span>
                     <span className="pointer-events-none absolute left-0 top-full z-40 mt-1 hidden w-48 rounded-lg border border-white/15 bg-slate-900 p-2 text-left shadow-xl group-hover/appt:block">
                       <span className="block text-[11px] font-semibold text-white">{b.label}</span>

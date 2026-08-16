@@ -85,6 +85,8 @@ export default async function WhiteboardPage({
           bookings={calendarBookings}
           branches={branches}
           basePath="/planner/whiteboard?view=calendar"
+          /* Everybody's work on one grid, so the chip has to say whose. */
+          showConductor
         />
       ) : (
         <WhiteboardBoard
