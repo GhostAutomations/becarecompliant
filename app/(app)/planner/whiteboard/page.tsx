@@ -40,7 +40,7 @@ export default async function WhiteboardPage({
   const branchId = branch ?? "";
 
   const [formData, branchTypes] = await Promise.all([
-    getPlannerFormData(profile.company_id),
+    getPlannerFormData(profile.company_id, profile),
     listAccessibleBranchTypes(profile.company_id, profile.role, user.id),
   ]);
   const branches = branchTypes.map((b) => ({ id: b.id, name: b.name }));

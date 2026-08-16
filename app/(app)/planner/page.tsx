@@ -15,7 +15,7 @@ export const metadata: Metadata = { title: "My Planner" };
 export default async function PlannerPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string }>;
+  searchParams: Promise<{ month?: string; week?: string }>;
 }) {
   const { user, profile } = await requireCompany();
   if (!profile.company_id) redirect("/founder");
@@ -24,26 +24,33 @@ export default async function PlannerPage({
 
   const [bookings, formData, branchTypes] = await Promise.all([
     listMyBookings(user.id),
-    getPlannerFormData(profile.company_id),
+    getPlannerFormData(profile.company_id, profile),
     listAccessibleBranchTypes(profile.company_id, profile.role, user.id),
   ]);
   const branches = branchTypes.map((b) => ({ id: b.id, name: b.name }));
   const todayIso = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
 
-  // The view (Calendar or List) is the user's saved choice, remembered across
-  // pages and sessions. Calendar is the default.
+  /*
+   * THE VIEW IS THE USER'S SAVED CHOICE, remembered across pages and sessions, so the Planner
+   * opens on whatever they were last looking at. Month, Week or List; migration 0187 renamed
+   * 'calendar' to 'month' and added the week, so an existing preference carries over.
+   */
   const supabase = await createClient();
   const { data: pref } = await supabase.from("profiles").select("planner_view").eq("id", user.id).maybeSingle();
-  const isCalendar = (pref?.planner_view ?? "calendar") !== "list";
+  const saved = (pref?.planner_view as string | null) ?? "month";
+  const view: "month" | "week" | "list" =
+    saved === "list" ? "list" : saved === "week" ? "week" : "month";
 
-  const { month: monthParam } = await searchParams;
+  const { month: monthParam, week: weekParam } = await searchParams;
   const match = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? monthParam : todayIso.slice(0, 7);
   const [yearStr, monthStr] = match.split("-");
   const year = Number(yearStr);
   const month = Number(monthStr);
+  // Defaults to the week containing today, which is the one somebody opening this page wants.
+  const weekStartIso = weekParam && /^\d{4}-\d{2}-\d{2}$/.test(weekParam) ? weekParam : todayIso;
 
   return (
-    <div className={`flex h-full min-h-0 flex-col gap-6 ${isCalendar ? "w-full" : "mx-auto max-w-3xl"}`}>
+    <div className={`flex h-full min-h-0 flex-col gap-6 ${view === "list" ? "mx-auto max-w-3xl" : "w-full"}`}>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="page-title">My Planner</h1>
@@ -53,22 +60,24 @@ export default async function PlannerPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <PlannerViewToggle current={isCalendar ? "calendar" : "list"} />
+          <PlannerViewToggle current={view} />
           <BookingForm data={formData} currentUserId={user.id} />
         </div>
       </div>
 
-      {isCalendar ? (
+      {view === "list" ? (
+        <MyPlannerList bookings={bookings} todayIso={todayIso} />
+      ) : (
         <WhiteboardCalendar
+          span={view}
           year={year}
           month={month}
+          weekStartIso={weekStartIso}
           todayIso={todayIso}
           bookings={bookings}
           branches={branches}
           basePath="/planner"
         />
-      ) : (
-        <MyPlannerList bookings={bookings} todayIso={todayIso} />
       )}
     </div>
   );

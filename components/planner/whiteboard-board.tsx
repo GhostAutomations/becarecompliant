@@ -1,5 +1,6 @@
 "use client";
 
+import { ukShortDayMonth } from "@/lib/dates";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createBooking, cancelBooking } from "@/lib/planner/actions";
@@ -13,8 +14,8 @@ function addDays(iso: string, n: number): string {
   return `${dt.getUTCFullYear()}-${pad2(dt.getUTCMonth() + 1)}-${pad2(dt.getUTCDate())}`;
 }
 function fmtShort(iso: string): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+  // See lib/dates.ts: one spelling of a month across the whole app.
+  return ukShortDayMonth(iso);
 }
 
 // The whiteboard shows only these checks, in this order and column layout. Any

@@ -4,13 +4,21 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { setPlannerView } from "@/lib/planner/actions";
 
-/** Calendar / List toggle for My Planner. The choice is saved per user so it
- *  persists across pages and sessions. */
-export default function PlannerViewToggle({ current }: { current: "calendar" | "list" }) {
+export type PlannerView = "month" | "week" | "list";
+
+/**
+ * Month / Week / List for My Planner. The choice is SAVED PER USER, so the Planner opens on
+ * whatever you were last looking at rather than on somebody's idea of a default.
+ *
+ * Week was added on 2026-08-15 (Phil). A month grid answers "how busy is August"; the question
+ * somebody actually opens this page with is "where am I going today", and a week is the shape of
+ * that question. 'calendar' became 'month' in migration 0187, so an existing preference carries.
+ */
+export default function PlannerViewToggle({ current }: { current: PlannerView }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
-  function choose(view: "calendar" | "list") {
+  function choose(view: PlannerView) {
     if (view === current) return;
     startTransition(async () => {
       await setPlannerView(view);
@@ -24,12 +32,17 @@ export default function PlannerViewToggle({ current }: { current: "calendar" | "
 
   return (
     <div className="flex overflow-hidden rounded-lg border border-white/15 text-xs">
-      <button type="button" disabled={pending} onClick={() => choose("calendar")} className={`${base} ${current === "calendar" ? on : off}`}>
-        Calendar
-      </button>
-      <button type="button" disabled={pending} onClick={() => choose("list")} className={`${base} ${current === "list" ? on : off}`}>
-        List
-      </button>
+      {(["month", "week", "list"] as const).map((v) => (
+        <button
+          key={v}
+          type="button"
+          disabled={pending}
+          onClick={() => choose(v)}
+          className={`${base} ${current === v ? on : off}`}
+        >
+          {v === "month" ? "Month" : v === "week" ? "Week" : "List"}
+        </button>
+      ))}
     </div>
   );
 }

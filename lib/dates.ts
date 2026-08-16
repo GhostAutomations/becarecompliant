@@ -72,3 +72,55 @@ export function addYearsIso(iso: string, years: number): string | null {
   const safeDay = Math.min(day, lastDay);
   return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(safeDay).padStart(2, "0")}`;
 }
+
+/*
+ * SHORT DATES, AND WHY THE MONTHS ARE WRITTEN OUT.
+ *
+ * Caught in review 2026-08-15. Every short date in the app went through
+ * toLocaleDateString("en-GB", { month: "short" }), and current ICU renders September as "Sept".
+ * So the Planner's week heading said "6 Sep" while its own List view said "6 Sept", and flipping
+ * the Month / Week / List toggle changed the spelling of the month on the same booking. It also
+ * differs between the server render and the browser, depending on which ICU each is carrying.
+ *
+ * The same twelve strings as lib/training/booking.ts, which cannot import this file: it has to
+ * stay importless to run under the node test harness. That duplication is the renewal.ts and
+ * recurrence.ts arrangement, and lib/planner/week.test.ts asserts the copies agree, so they
+ * cannot drift without a test going red.
+ */
+const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const WEEKDAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/** "2026-09-06" becomes "6 Sep 2026". Anything that is not a date is handed back unchanged. */
+export function ukShortDate(value: string | null | undefined): string {
+  const parts = civilParts(value);
+  if (!parts) return value ? String(value) : "";
+  return `${parts.day} ${MONTHS_SHORT[parts.monthIndex]} ${parts.year}`;
+}
+
+/** "Sun 6 Sep". For a dense list where the year is obvious from the heading above it. */
+export function ukShortDateWithWeekday(value: string | null | undefined): string {
+  const parts = civilParts(value);
+  if (!parts) return value ? String(value) : "";
+  return `${WEEKDAYS_SHORT[parts.weekday]} ${parts.day} ${MONTHS_SHORT[parts.monthIndex]}`;
+}
+
+/** "6 Sep". The year left off on purpose, for a column that is already dated. */
+export function ukShortDayMonth(value: string | null | undefined): string {
+  const parts = civilParts(value);
+  if (!parts) return value ? String(value) : "";
+  return `${parts.day} ${MONTHS_SHORT[parts.monthIndex]}`;
+}
+
+/** Split an ISO date, refusing anything that does not survive the round trip, as ukDate does. */
+function civilParts(
+  value: string | null | undefined,
+): { day: number; monthIndex: number; year: number; weekday: number } | null {
+  if (!value) return null;
+  const text = String(value);
+  if (!ISO.test(text)) return null;
+  const [y, m, d] = text.slice(0, 10).split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  if (Number.isNaN(dt.getTime())) return null;
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return null;
+  return { day: d, monthIndex: m - 1, year: y, weekday: dt.getUTCDay() };
+}

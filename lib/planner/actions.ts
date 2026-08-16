@@ -15,11 +15,13 @@ function revalidatePlanner() {
   revalidatePath("/planner/whiteboard");
 }
 
-/** Remember the user's My Planner view choice (calendar or list) so it persists
- *  across pages and sessions. */
-export async function setPlannerView(view: "calendar" | "list"): Promise<void> {
+/** Remember the user's My Planner view choice (month, week or list) so the Planner opens on
+ *  whatever they were last looking at. Migration 0187 renamed 'calendar' to 'month'. */
+export async function setPlannerView(view: "month" | "week" | "list"): Promise<void> {
   await requireCompany();
-  if (view !== "calendar" && view !== "list") return;
+  // Checked here as well as in the RPC: the RPC raises, and a raise from a view toggle would put
+  // an error on the screen for something nobody can see the consequence of.
+  if (view !== "month" && view !== "week" && view !== "list") return;
   const supabase = await createClient();
   await supabase.rpc("set_planner_view", { v: view });
   revalidatePath("/planner");

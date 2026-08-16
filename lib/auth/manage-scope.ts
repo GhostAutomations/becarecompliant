@@ -91,3 +91,31 @@ export function canManageAnything(role: string): boolean {
 export function branchScopedRole(role: string): boolean {
   return role === "manager" || role === "supervisor";
 }
+
+/**
+ * Can this caller CREATE a planner booking against a record in this branch?
+ *
+ * A THIRD RULE, because it is a third policy, and lumping it in with canManageRecord would be
+ * wrong in both directions. `planner_bookings_insert` is:
+ *
+ *   is_platform_admin() OR is_company_admin(company_id)
+ *   OR is_branch_manager(branch_id) OR is_branch_supervisor(branch_id)
+ *
+ * Note the supervisor clause. A Supervisor may book, and canManageRecord refuses them, so using
+ * that here would hide a control from somebody the database would have allowed.
+ *
+ * WHY IT EXISTS (review, 2026-08-15). "Book a task" sits on every record page OUTSIDE the manage
+ * gate, and with a preset it hides its own branch and subject pickers, so narrowing the dropdown
+ * fixed nothing there: a manager opening the record of a carer he is booked with, in a branch he
+ * does not run, could pick a check, a conductor and a date and be refused at the last step, with
+ * no field he could have set differently.
+ */
+export function canBookInBranch(opts: {
+  role: string;
+  branchIds: string[];
+  recordBranchId: string | null | undefined;
+}): boolean {
+  if (COMPANY_WIDE.has(opts.role)) return true;
+  if (!branchScopedRole(opts.role)) return false;
+  return !!opts.recordBranchId && opts.branchIds.includes(opts.recordBranchId);
+}

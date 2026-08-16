@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { canManageRecord, canManageAnything, branchScopedRole } from "./manage-scope.ts";
+import { canManageRecord, canManageAnything, branchScopedRole, canBookInBranch } from "./manage-scope.ts";
 
 /**
  * These tests are the contract between this file and the RLS policy it transcribes. If a policy
@@ -97,5 +97,42 @@ test("anyone whose branch list is narrowed can only manage inside those branches
     assert.equal(outside, false, `${role} outside`);
     // A supervisor manages nothing at all, which is stricter, never looser.
     if (role === "manager") assert.equal(inside, true);
+  }
+});
+
+test("a SUPERVISOR may book in their own branch even though they may not manage the record", () => {
+  /*
+   * The reason booking is a separate rule. planner_bookings_insert ORs in is_branch_supervisor,
+   * which people_update does not, so reusing canManageRecord here would hide a control from
+   * somebody the database would have allowed.
+   */
+  assert.equal(
+    canBookInBranch({ role: "supervisor", branchIds: [CARDIFF], recordBranchId: CARDIFF }),
+    true,
+  );
+  assert.equal(
+    canManageRecord({ role: "supervisor", branchIds: [CARDIFF], recordBranchId: CARDIFF }),
+    false,
+  );
+});
+
+test("nobody may book against a record in a branch they do not run", () => {
+  for (const role of ["manager", "supervisor"]) {
+    assert.equal(
+      canBookInBranch({ role, branchIds: [CARDIFF, NEWPORT], recordBranchId: CAERPHILLY }),
+      false,
+      role,
+    );
+    assert.equal(canBookInBranch({ role, branchIds: [CARDIFF], recordBranchId: null }), false, role);
+  }
+  // And the roles that are in neither clause of the insert policy.
+  for (const role of ["on_call", "viewer", "team_member", "auditor"]) {
+    assert.equal(canBookInBranch({ role, branchIds: [CARDIFF], recordBranchId: CARDIFF }), false, role);
+  }
+});
+
+test("the company wide roles may book anywhere, matching is_branch_manager's is_company_wide clause", () => {
+  for (const role of ["platform_admin", "company_admin", "registered_individual", "registered_manager"]) {
+    assert.equal(canBookInBranch({ role, branchIds: [], recordBranchId: CAERPHILLY }), true, role);
   }
 });

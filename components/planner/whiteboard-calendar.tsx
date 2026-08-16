@@ -3,6 +3,9 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { PlannerBookingView } from "@/lib/planner/data";
+// Pure and tested in lib/planner/week.test.ts: month ends, year ends, leap days and the clocks
+// going back are exactly where week arithmetic quietly goes wrong.
+import { mondayOf, shiftWeek, weekLabel, weekDays } from "@/lib/planner/week";
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -20,22 +23,45 @@ function shiftMonth(year: number, month: number, delta: number): string {
   return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}`;
 }
 
+/**
+ * WHAT A CHIP SAYS (Phil, 2026-08-15): "if it showed the name, the person would know where they
+ * are going with a quick glance".
+ *
+ * It used to read the time and the check kind, so a week of work said "10:00 Supervision,
+ * 14:00 Supervision, 09:00 Spot Check" and told a manager nothing about where to drive. The NAME
+ * is the thing that answers the question, so it leads. The kind is still on the tooltip, and on
+ * its own line in the week view where there is room for it.
+ */
+function chipName(b: PlannerBookingView): string {
+  // label is already the ad-hoc TITLE when there is no subject, so an ad-hoc task keeps saying
+  // what it is rather than falling back to a word nobody typed.
+  return b.subjectName ?? b.label;
+}
+
 export default function WhiteboardCalendar({
+  span = "month",
   year,
   month,
+  weekStartIso,
   todayIso,
   bookings,
   branches,
   basePath = "/planner/whiteboard",
 }: {
+  /** A month grid, or one week across. ONE component on purpose: the chip, the tooltip and the
+   *  day panel are the same in both, and two copies would drift the first time either changed. */
+  span?: "month" | "week";
   year: number;
   month: number;
+  /** The Monday of the week being shown. Only read when span is "week". */
+  weekStartIso?: string;
   todayIso: string;
   bookings: PlannerBookingView[];
   branches: Array<{ id: string; name: string }>;
-  /** Where the month prev/next links point (so the calendar works on both pages). */
+  /** Where the prev/next links point (so the calendar works on both pages). */
   basePath?: string;
 }) {
+  const isWeek = span === "week";
   const [branchId, setBranchId] = useState("");
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
@@ -53,11 +79,18 @@ export default function WhiteboardCalendar({
     return m;
   }, [filtered]);
 
-  const firstWeekday = (new Date(Date.UTC(year, month - 1, 1)).getUTCDay() + 6) % 7; // Mon=0
-  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const monday = mondayOf(weekStartIso ?? todayIso);
   const cells: Array<{ day: number; iso: string } | null> = [];
-  for (let i = 0; i < firstWeekday; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push({ day: d, iso: `${year}-${pad(month)}-${pad(d)}` });
+  if (isWeek) {
+    for (const iso of weekDays(monday)) cells.push({ day: Number(iso.slice(8, 10)), iso });
+  } else {
+    const firstWeekday = (new Date(Date.UTC(year, month - 1, 1)).getUTCDay() + 6) % 7; // Mon=0
+    const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    for (let i = 0; i < firstWeekday; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) cells.push({ day: d, iso: `${year}-${pad(month)}-${pad(d)}` });
+  }
+  // A week shows everything; a month cell is too short to, so it caps and says how many are left.
+  const perCell = isWeek ? 99 : 3;
 
   const selectedList = selectedDay ? byDay.get(selectedDay) ?? [] : [];
 
@@ -65,9 +98,21 @@ export default function WhiteboardCalendar({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Link href={`${basePath}${sep}month=${shiftMonth(year, month, -1)}`} className="btn-ghost text-xs">‹ Prev</Link>
-          <span className="min-w-[9rem] text-center text-sm font-semibold text-white">{monthName(year, month)}</span>
-          <Link href={`${basePath}${sep}month=${shiftMonth(year, month, 1)}`} className="btn-ghost text-xs">Next ›</Link>
+          <Link
+            href={isWeek ? `${basePath}${sep}week=${shiftWeek(monday, -1)}` : `${basePath}${sep}month=${shiftMonth(year, month, -1)}`}
+            className="btn-ghost text-xs"
+          >
+            ‹ Prev
+          </Link>
+          <span className="min-w-[9rem] text-center text-sm font-semibold text-white">
+            {isWeek ? weekLabel(monday) : monthName(year, month)}
+          </span>
+          <Link
+            href={isWeek ? `${basePath}${sep}week=${shiftWeek(monday, 1)}` : `${basePath}${sep}month=${shiftMonth(year, month, 1)}`}
+            className="btn-ghost text-xs"
+          >
+            Next ›
+          </Link>
         </div>
         {branches.length > 1 ? (
           <label className="flex items-center gap-2 text-sm font-medium text-white/80">
@@ -95,15 +140,22 @@ export default function WhiteboardCalendar({
               key={cell.iso}
               type="button"
               onClick={() => setSelectedDay(cell.iso)}
-              className={`min-h-[92px] bg-slate-900/50 p-1.5 text-left align-top transition hover:bg-slate-800/60 ${isToday ? "ring-1 ring-inset ring-gold-400/60" : ""}`}
+              className={`${isWeek ? "min-h-[320px]" : "min-h-[92px]"} bg-slate-900/50 p-1.5 text-left align-top transition hover:bg-slate-800/60 ${isToday ? "ring-1 ring-inset ring-gold-400/60" : ""}`}
             >
               <span className={`block text-[11px] font-semibold ${isToday ? "text-gold-300" : "text-white/50"}`}>{cell.day}</span>
               <span className="mt-1 flex flex-col gap-0.5">
-                {items.slice(0, 3).map((b) => (
+                {items.slice(0, perCell).map((b) => (
                   <span key={b.id} className="group/appt relative block">
+                    {/* THE NAME LEADS. See chipName: a column of "10:00 Supervision" told a
+                        manager nothing about where she was going. */}
                     <span className="block truncate rounded bg-gold-400/15 px-1 py-0.5 text-[10px] text-gold-100">
-                      {b.startTime ? `${b.startTime} ` : ""}{b.label}
+                      {b.startTime ? `${b.startTime} ` : ""}{chipName(b)}
                     </span>
+                    {isWeek ? (
+                      <span className="block truncate px-1 text-[10px] text-white/45">
+                        {b.label}{b.branchName ? ` · ${b.branchName}` : ""}
+                      </span>
+                    ) : null}
                     <span className="pointer-events-none absolute left-0 top-full z-40 mt-1 hidden w-48 rounded-lg border border-white/15 bg-slate-900 p-2 text-left shadow-xl group-hover/appt:block">
                       <span className="block text-[11px] font-semibold text-white">{b.label}</span>
                       <span className="block text-[10px] text-white/70">
@@ -115,8 +167,8 @@ export default function WhiteboardCalendar({
                     </span>
                   </span>
                 ))}
-                {items.length > 3 ? (
-                  <span className="text-[10px] text-white/50">+{items.length - 3} more</span>
+                {items.length > perCell ? (
+                  <span className="text-[10px] text-white/50">+{items.length - perCell} more</span>
                 ) : null}
               </span>
             </button>

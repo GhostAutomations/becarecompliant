@@ -1,5 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import { branchScopedRole } from "@/lib/auth/manage-scope";
+import { callerBranchIds } from "@/lib/auth/branches";
 
 /** Supabase types a to-one embedded relation as an array; normalise to one row. */
 function relOne<T>(v: T[] | T | null | undefined): T | null {
@@ -380,8 +382,32 @@ export async function getPlannerRecordForm(
   return { data: { branches, conductors, subjects: [] }, preset };
 }
 
-export async function getPlannerFormData(companyId: string): Promise<PlannerFormData> {
+/**
+ * What Book a task may offer.
+ *
+ * THE VIEWER IS REQUIRED, and the branches and subjects are narrowed to the ones this person can
+ * actually create a booking in (Phil, 2026-08-15, found by looking at Tim Mingle's Planner).
+ *
+ * `planner_bookings_insert` requires is_branch_manager(branch_id). The form, though, built its
+ * branch list from whichever SUBJECTS came back through RLS, and 0183 puts the carer a manager
+ * is booked to conduct a check on into that list. So Caerphilly appeared in his Branch dropdown,
+ * picking it offered Bethan Hughes and Owain Thomas BY NAME, and the whole form filled in
+ * happily right up to Book task, where the database refused it.
+ *
+ * Narrowing the SUBJECTS fixes both lists at once, because the branch list is derived from them.
+ */
+export async function getPlannerFormData(
+  companyId: string,
+  viewer: { id: string; role: string },
+): Promise<PlannerFormData> {
   const supabase = await createClient();
+  /*
+   * Empty for a company wide role, and never consulted for one. For a Manager or a Supervisor
+   * it is the whole reach: no branches means nothing to book, which is the honest answer for
+   * somebody who has not been given a branch yet.
+   */
+  const bookable = branchScopedRole(viewer.role) ? new Set(await callerBranchIds(viewer.id)) : null;
+  const canBookIn = (branchId: string | null) => !bookable || (!!branchId && bookable.has(branchId));
 
   const [branchesRes, conductorsRes, peopleRes, suRes, instRes] = await Promise.all([
     supabase
@@ -417,7 +443,9 @@ export async function getPlannerFormData(companyId: string): Promise<PlannerForm
       .eq("check_definitions.active", true),
   ]);
 
-  const branches = (branchesRes.data ?? []).map((b) => ({ id: b.id as string, name: b.name as string }));
+  const branches = (branchesRes.data ?? [])
+    .filter((b) => canBookIn(b.id as string))
+    .map((b) => ({ id: b.id as string, name: b.name as string }));
   const conductors = (conductorsRes.data ?? []).map((p) => ({
     id: p.id as string,
     name: (p.full_name as string) || (p.email as string),
@@ -448,6 +476,9 @@ export async function getPlannerFormData(companyId: string): Promise<PlannerForm
 
   const subjects: PlannerSubject[] = [];
   for (const p of peopleRes.data ?? []) {
+    // Readable is not bookable. A carer reachable only because this viewer is booked to conduct
+    // a check on them (0183) must not be offered as somebody to book a NEW task on.
+    if (!canBookIn((p.branch_id as string | null) ?? null)) continue;
     subjects.push({
       population: "people",
       id: p.id as string,
@@ -457,6 +488,7 @@ export async function getPlannerFormData(companyId: string): Promise<PlannerForm
     });
   }
   for (const su of suRes.data ?? []) {
+    if (!canBookIn((su.branch_id as string | null) ?? null)) continue;
     subjects.push({
       population: "service_users",
       id: su.id as string,

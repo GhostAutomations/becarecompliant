@@ -1,5 +1,6 @@
 "use client";
 
+import { ukShortDateWithWeekday } from "@/lib/dates";
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -8,13 +9,8 @@ import TimeSelect from "./time-select";
 import type { PlannerBookingView } from "@/lib/planner/data";
 
 function fmtDate(iso: string): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-GB", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    timeZone: "UTC",
-  });
+  // See lib/dates.ts: the toggle used to change the spelling of September between views.
+  return ukShortDateWithWeekday(iso);
 }
 
 function timeLabel(b: PlannerBookingView): string {
