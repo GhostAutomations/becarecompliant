@@ -207,6 +207,31 @@ type Row = {
 const SELECT =
   "id, branch_id, population, subject_person_id, subject_service_user_id, check_instance_id, check_kind, title, conductor_profile_id, scheduled_date, start_time, duration_minutes, status, notes, conductor:profiles(full_name), person:people(full_name), service_user:service_users(full_name), branch:branches(name), linked_check:check_instances(definition:check_definitions(active))";
 
+/**
+ * Fill in the conductor names the embedded join could not read.
+ *
+ * WHY (Phil, 2026-08-16: "there are chips on the calendar as unassigned"). There were not. Every
+ * booking has a conductor — the column is NOT NULL and no row is without one. The NAME was
+ * missing, because SELECT reads it through `conductor:profiles(full_name)` and profiles_select
+ * hands a Manager or a Supervisor only their own row. So a whiteboard full of colleagues' work
+ * showed a whiteboard full of nobody's work.
+ *
+ * planner_conductor_names is SECURITY DEFINER and answers only about ids the caller already
+ * holds, inside their own company, including people who have since left, because a booking made
+ * last month still has to say who it was for.
+ *
+ * The join is LEFT IN PLACE and tried first: for an Admin, and for your own bookings, it already
+ * works and this costs nothing.
+ */
+async function withConductorNames(rows: PlannerBookingView[]): Promise<PlannerBookingView[]> {
+  const missing = [...new Set(rows.filter((r) => !r.conductorName).map((r) => r.conductorId))];
+  if (missing.length === 0) return rows;
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("planner_conductor_names", { ids: missing });
+  const byId = new Map(((data ?? []) as Array<{ id: string; name: string }>).map((p) => [p.id, p.name]));
+  return rows.map((r) => (r.conductorName ? r : { ...r, conductorName: byId.get(r.conductorId) ?? null }));
+}
+
 /** A booking is shown only if it is ad-hoc (no linked check) or its check definition
  *  is still active. Hides ghost bookings left behind when a check is turned off (e.g.
  *  Annual Appraisal under the four-supervisions cycle). */
@@ -263,7 +288,7 @@ export async function listMyBookings(userId: string): Promise<PlannerBookingView
     .eq("conductor_profile_id", userId)
     .order("scheduled_date", { ascending: true })
     .order("start_time", { ascending: true, nullsFirst: true });
-  return ((data as Row[] | null) ?? []).filter(checkStillBookable).map(toView);
+  return withConductorNames(((data as Row[] | null) ?? []).filter(checkStillBookable).map(toView));
 }
 
 /** Every booking visible to the caller in a date range (the whiteboard). RLS
@@ -281,7 +306,7 @@ export async function listBoardBookings(
     .neq("status", "cancelled")
     .order("scheduled_date", { ascending: true })
     .order("start_time", { ascending: true, nullsFirst: true });
-  return ((data as Row[] | null) ?? []).filter(checkStillBookable).map(toView);
+  return withConductorNames(((data as Row[] | null) ?? []).filter(checkStillBookable).map(toView));
 }
 
 /** Active, non-cancelled bookings for one record (shown on its record page). */
@@ -297,7 +322,7 @@ export async function listRecordBookings(
     .eq(column, recordId)
     .eq("status", "planned")
     .order("scheduled_date", { ascending: true });
-  return ((data as Row[] | null) ?? []).filter(checkStillBookable).map(toView);
+  return withConductorNames(((data as Row[] | null) ?? []).filter(checkStillBookable).map(toView));
 }
 
 // ---------------------------------------------------------------------------

@@ -199,7 +199,10 @@ export default function WhiteboardCalendar({
                          */
                         const parts = [
                           b.subjectName ? b.label : null,
-                          showConductor ? b.conductorName ?? "Unassigned" : null,
+                          // NEVER "Unassigned". A booking cannot exist without a conductor
+                          // (the column is NOT NULL), so a missing name is a name that could not
+                          // be read, and saying nothing beats saying something untrue.
+                          showConductor ? b.conductorName : null,
                           isWeek ? b.branchName : null,
                         ].filter(Boolean);
                         return parts.length > 0 ? (
@@ -213,7 +216,9 @@ export default function WhiteboardCalendar({
                         {b.subjectName ?? "Ad-hoc"}{b.branchName ? ` · ${b.branchName}` : ""}
                       </span>
                       <span className="block text-[10px] text-white/60">
-                        {b.conductorName ?? "Unassigned"}{b.startTime ? ` · ${b.startTime}` : ""}{b.durationMinutes ? ` · ${b.durationMinutes} min` : ""}
+                        {[b.conductorName, b.startTime, b.durationMinutes ? `${b.durationMinutes} min` : null]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </span>
                     </span>
                   </span>
@@ -244,7 +249,7 @@ export default function WhiteboardCalendar({
                   <div className="min-w-0">
                     <p className="font-medium text-white">{b.label}</p>
                     <p className="text-white/60">
-                      {b.subjectName ?? "Ad-hoc"}{b.branchName ? ` · ${b.branchName}` : ""} · {b.conductorName ?? "Unassigned"}
+                      {[b.subjectName, b.branchName, b.conductorName].filter(Boolean).join(" · ")}
                     </p>
                   </div>
                   <span className="shrink-0 text-white/70">{b.startTime ?? "—"}</span>
