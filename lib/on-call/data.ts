@@ -156,33 +156,6 @@ export async function getRotaGrid(
   return map;
 }
 
-/** Shifts ending today or in the future, soonest first (the rota looks forward). */
-export async function getRota(companyId: string): Promise<OnCallShift[]> {
-  const supabase = await createClient();
-  const cutoff = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-  const { data } = await supabase
-    .from("on_call_shifts")
-    .select(SHIFT_SELECT)
-    .eq("company_id", companyId)
-    .gte("ends_at", cutoff)
-    .order("starts_at", { ascending: true });
-  return fillShiftNames(((data as ShiftRow[] | null) ?? []).map(toShift));
-}
-
-/** The shift(s) live right now (started, not yet ended). */
-export async function getCurrentOnCall(companyId: string): Promise<OnCallShift[]> {
-  const supabase = await createClient();
-  const now = new Date().toISOString();
-  const { data } = await supabase
-    .from("on_call_shifts")
-    .select(SHIFT_SELECT)
-    .eq("company_id", companyId)
-    .lte("starts_at", now)
-    .gt("ends_at", now)
-    .order("branch_id", { ascending: true });
-  return fillShiftNames(((data as ShiftRow[] | null) ?? []).map(toShift));
-}
-
 export type ArchiveWeek = { mondayIso: string; days: string[]; cells: Record<string, RotaCell> };
 
 function mondayOf(iso: string): string {
@@ -230,13 +203,6 @@ export async function getArchiveRota(
       const days = Array.from({ length: 7 }, (_, i) => new Date(Date.UTC(y, m - 1, d + i)).toISOString().slice(0, 10));
       return { mondayIso, days, cells: byWeek.get(mondayIso) ?? {} };
     });
-}
-
-export async function getShift(id: string): Promise<OnCallShift | null> {
-  const supabase = await createClient();
-  const { data } = await supabase.from("on_call_shifts").select(SHIFT_SELECT).eq("id", id).maybeSingle();
-  if (!data) return null;
-  return (await fillShiftNames([toShift(data as ShiftRow)]))[0] ?? null;
 }
 
 type LogRow = {
@@ -347,16 +313,4 @@ export async function getUrgentFollowUps(companyId: string): Promise<UrgentFollo
     slot: r.slot,
     branch_name: relOne(r.branches)?.name ?? null,
   }));
-}
-
-/** Count of open follow-ups (required, not done) for the header / dashboard. */
-export async function getOpenFollowUpCount(companyId: string): Promise<number> {
-  const supabase = await createClient();
-  const { count } = await supabase
-    .from("on_call_logs")
-    .select("id", { count: "exact", head: true })
-    .eq("company_id", companyId)
-    .eq("follow_up_required", true)
-    .eq("follow_up_done", false);
-  return count ?? 0;
 }
