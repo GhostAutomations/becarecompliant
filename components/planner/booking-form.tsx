@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createBooking } from "@/lib/planner/actions";
 import TimeSelect from "./time-select";
 import type { PlannerFormData, PlannerSubject } from "@/lib/planner/data";
+import { mayConductInBranch } from "@/lib/auth/manage-scope";
 
 /** ISO date -> DD/MM/YYYY for display. */
 function fmtDue(iso: string): string {
@@ -50,6 +51,22 @@ export default function BookingForm({
   const [branchId, setBranchId] = useState(preset?.branchId ?? "");
   const [subjectId, setSubjectId] = useState(preset ? preset.id : "");
   const [checkInstanceId, setCheckInstanceId] = useState("");
+
+  /** The branch of whoever the task is for. From the preset on a record page, or the picker. */
+  const subjectBranchId = preset
+    ? preset.branchId
+    : data.subjects.find((s) => s.population === department && s.id === subjectId)?.branchId ?? null;
+
+  const mayConductSelf = mayConductInBranch({
+    role: data.viewerRole,
+    branchIds: data.myBranchIds,
+    recordBranchId: subjectBranchId,
+  });
+
+  const conductorOptions = useMemo(
+    () => (mayConductSelf ? data.conductors : data.conductors.filter((c) => c.id !== data.viewerId)),
+    [mayConductSelf, data.conductors, data.viewerId],
+  );
 
   const deptSubjects = useMemo(
     () => (department ? data.subjects.filter((s) => s.population === department) : []),
@@ -188,14 +205,34 @@ export default function BookingForm({
         )
       ) : null}
 
+      {/*
+        CARRIED OUT BY, AND THE ONE NAME THAT MAY BE MISSING FROM IT.
+        You can book anybody in the company. You cannot put YOURSELF down for a carer outside the
+        branches you run, because being the conductor is what opens that carer's record to you
+        (0183), and nobody should be able to hand themselves that. Booking a colleague is fine:
+        they get it because somebody else asked them to. Migration 0191 enforces the same rule,
+        so this list can never offer a choice the save will refuse.
+      */}
       <label className="block text-sm">
         <span className="mb-1 block font-medium text-white/80">Carried out by</span>
-        <select className="w-full" name="conductor_id" defaultValue={currentUserId} required>
+        <select
+          className="w-full"
+          name="conductor_id"
+          defaultValue={mayConductSelf ? currentUserId : ""}
+          key={mayConductSelf ? "self" : "others"}
+          required
+        >
           <option value="">Choose…</option>
-          {data.conductors.map((c) => (
+          {conductorOptions.map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
+        {!mayConductSelf && subjectBranchId ? (
+          <span className="mt-1 block text-xs text-white/45">
+            You can book this for a colleague, but not for yourself: this record is in a branch
+            you do not run.
+          </span>
+        ) : null}
       </label>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">

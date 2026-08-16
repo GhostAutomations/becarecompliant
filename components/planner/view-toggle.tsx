@@ -4,15 +4,18 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { setPlannerView } from "@/lib/planner/actions";
 
-export type PlannerView = "month" | "week" | "list";
+export type PlannerView = "month" | "week";
 
 /**
- * Month / Week / List for My Planner. The choice is SAVED PER USER, so the Planner opens on
- * whatever you were last looking at rather than on somebody's idea of a default.
+ * Month / Week for My Planner. The choice is SAVED PER USER, so the Planner opens on whatever
+ * you were last looking at rather than on somebody's idea of a default.
  *
  * Week was added on 2026-08-15 (Phil). A month grid answers "how busy is August"; the question
  * somebody actually opens this page with is "where am I going today", and a week is the shape of
  * that question. 'calendar' became 'month' in migration 0187, so an existing preference carries.
+ *
+ * The LIST view went the same day. What it alone carried, the overdue jobs and the three action
+ * buttons, moved above the calendar where they are always visible instead of one toggle away.
  */
 export default function PlannerViewToggle({ current }: { current: PlannerView }) {
   const router = useRouter();
@@ -32,7 +35,7 @@ export default function PlannerViewToggle({ current }: { current: PlannerView })
 
   return (
     <div className="flex overflow-hidden rounded-lg border border-white/15 text-xs">
-      {(["month", "week", "list"] as const).map((v) => (
+      {(["month", "week"] as const).map((v) => (
         <button
           key={v}
           type="button"
@@ -40,7 +43,7 @@ export default function PlannerViewToggle({ current }: { current: PlannerView })
           onClick={() => choose(v)}
           className={`${base} ${current === v ? on : off}`}
         >
-          {v === "month" ? "Month" : v === "week" ? "Week" : "List"}
+          {v === "month" ? "Month" : "Week"}
         </button>
       ))}
     </div>

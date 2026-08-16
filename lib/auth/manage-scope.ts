@@ -93,24 +93,22 @@ export function branchScopedRole(role: string): boolean {
 }
 
 /**
- * Can this caller CREATE a planner booking against a record in this branch?
+ * May this caller put THEMSELVES down as the conductor of a task in this branch?
  *
- * A THIRD RULE, because it is a third policy, and lumping it in with canManageRecord would be
- * wrong in both directions. `planner_bookings_insert` is:
+ * Not "may they book" — Phil, 2026-08-15: people book tasks for each other, so anybody who can
+ * use the Planner can book anybody in the company. The restriction is narrower than a branch and
+ * sits on the CONDUCTOR, because being the conductor of a live booking is what grants sight of
+ * that one carer's record (0183). What must not happen is somebody granting that to themselves.
+ *
+ * A THIRD RULE, because it is a third policy. `planner_bookings_insert` is:
  *
  *   is_platform_admin() OR is_company_admin(company_id)
  *   OR is_branch_manager(branch_id) OR is_branch_supervisor(branch_id)
  *
- * Note the supervisor clause. A Supervisor may book, and canManageRecord refuses them, so using
- * that here would hide a control from somebody the database would have allowed.
- *
- * WHY IT EXISTS (review, 2026-08-15). "Book a task" sits on every record page OUTSIDE the manage
- * gate, and with a preset it hides its own branch and subject pickers, so narrowing the dropdown
- * fixed nothing there: a manager opening the record of a carer he is booked with, in a branch he
- * does not run, could pick a check, a conductor and a date and be refused at the last step, with
- * no field he could have set differently.
+ * Note the supervisor clause. A Supervisor may conduct in their own branch, and canManageRecord
+ * refuses them, so reusing that here would hide a choice the database would have allowed.
  */
-export function canBookInBranch(opts: {
+export function mayConductInBranch(opts: {
   role: string;
   branchIds: string[];
   recordBranchId: string | null | undefined;

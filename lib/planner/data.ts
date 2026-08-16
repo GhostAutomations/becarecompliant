@@ -314,18 +314,16 @@ export type PlannerSubject = {
   checks: BookableCheck[];
 };
 export type PlannerFormData = {
+  /** The branches this viewer RUNS. Empty for a company wide role, which may conduct anywhere.
+   *  Used only to decide whether they may put THEMSELVES down as the conductor. */
+  myBranchIds: string[];
+  viewerId: string;
+  viewerRole: string;
   branches: Array<{ id: string; name: string }>;
   conductors: Array<{ id: string; name: string }>;
   subjects: PlannerSubject[];
 };
 
-const CONDUCTOR_ROLES = [
-  "company_admin",
-  "registered_individual",
-  "registered_manager",
-  "manager",
-  "supervisor",
-];
 
 /** Lighter form data for a record page: branches, conductors and a single preset
  *  subject (the record) with its bookable checks. Avoids loading every subject. */
@@ -335,8 +333,12 @@ export async function getPlannerRecordForm(
   recordId: string,
   recordName: string,
   branchId: string | null,
+  viewer: { id: string; role: string },
 ): Promise<{ data: PlannerFormData; preset: PlannerSubject }> {
   const supabase = await createClient();
+  // Same as getPlannerFormData: the form needs to know which branches this viewer runs, so it can
+  // decide whether they may put themselves down as the conductor. See migration 0191.
+  const myBranchIds = branchScopedRole(viewer.role) ? await callerBranchIds(viewer.id) : [];
   const instColumn = population === "people" ? "person_id" : "service_user_id";
   const recordType = population === "people" ? "person" : "service_user";
   const [branchesRes, conductorsRes, instRes] = await Promise.all([
@@ -346,12 +348,16 @@ export async function getPlannerRecordForm(
       .eq("company_id", companyId)
       .in("kind", ["branch", "team"])
       .order("name", { ascending: true }),
-    supabase
-      .from("profiles")
-      .select("id, full_name, email, role, status")
-      .eq("company_id", companyId)
-      .eq("status", "active")
-      .in("role", CONDUCTOR_ROLES),
+    /*
+     * THROUGH THE RPC, not the table. profiles_select hands a Manager or a Supervisor ONLY THEIR
+     * OWN ROW, so reading the table here returned a conductor list of one: themselves. On a carer
+     * outside their branches the form then removed even that, leaving an empty required dropdown
+     * under a note offering to book it for a colleague. list_company_conductors is SECURITY
+     * DEFINER and carries the role list itself; see migration 0193. It takes the company as an
+     * argument because the founder managing as a company has no company_id of his own, and the
+     * database sees his auth.uid() rather than the shadowed profile.
+     */
+    supabase.rpc("list_company_conductors", { cid: companyId }),
     supabase
       .from("check_instances")
       // !inner + the definition active filter so a check whose DEFINITION was turned
@@ -366,9 +372,9 @@ export async function getPlannerRecordForm(
   ]);
 
   const branches = (branchesRes.data ?? []).map((b) => ({ id: b.id as string, name: b.name as string }));
-  const conductors = (conductorsRes.data ?? []).map((p) => ({
-    id: p.id as string,
-    name: (p.full_name as string) || (p.email as string),
+  const conductors = ((conductorsRes.data ?? []) as Array<{ id: string; name: string }>).map((p) => ({
+    id: p.id,
+    name: p.name,
   }));
   const checks: BookableCheck[] = [];
   for (const raw of instRes.data ?? []) {
@@ -379,35 +385,35 @@ export async function getPlannerRecordForm(
   checks.sort((a, b) => a.name.localeCompare(b.name));
 
   const preset: PlannerSubject = { population, id: recordId, name: recordName, branchId, checks };
-  return { data: { branches, conductors, subjects: [] }, preset };
+  return {
+    data: { branches, conductors, subjects: [], myBranchIds, viewerId: viewer.id, viewerRole: viewer.role },
+    preset,
+  };
 }
 
 /**
  * What Book a task may offer.
  *
- * THE VIEWER IS REQUIRED, and the branches and subjects are narrowed to the ones this person can
- * actually create a booking in (Phil, 2026-08-15, found by looking at Tim Mingle's Planner).
+ * EVERYONE IN THE COMPANY, and a list of the branches this viewer runs (Phil, 2026-08-15:
+ * "people may book tasks for each other").
  *
- * `planner_bookings_insert` requires is_branch_manager(branch_id). The form, though, built its
- * branch list from whichever SUBJECTS came back through RLS, and 0183 puts the carer a manager
- * is booked to conduct a check on into that list. So Caerphilly appeared in his Branch dropdown,
- * picking it offered Bethan Hughes and Owain Thomas BY NAME, and the whole form filled in
- * happily right up to Book task, where the database refused it.
+ * It briefly narrowed to the viewer's own branches, which was too tight: a manager arranges a
+ * supervision and asks a colleague in another branch to carry it out. The restriction that
+ * matters is narrower than a branch and lives on the CONDUCTOR, not the subject:
  *
- * Narrowing the SUBJECTS fixes both lists at once, because the branch list is derived from them.
+ *   book anyone; do not book YOURSELF outside the branches you run.
+ *
+ * Being the conductor of a live booking is what grants sight of that carer's record (0183), so
+ * the thing to prevent is granting that to yourself. `myBranchIds` is handed to the form so the
+ * conductor list can drop "me" for a carer outside them, matching migration 0191 exactly.
  */
 export async function getPlannerFormData(
   companyId: string,
   viewer: { id: string; role: string },
 ): Promise<PlannerFormData> {
   const supabase = await createClient();
-  /*
-   * Empty for a company wide role, and never consulted for one. For a Manager or a Supervisor
-   * it is the whole reach: no branches means nothing to book, which is the honest answer for
-   * somebody who has not been given a branch yet.
-   */
-  const bookable = branchScopedRole(viewer.role) ? new Set(await callerBranchIds(viewer.id)) : null;
-  const canBookIn = (branchId: string | null) => !bookable || (!!branchId && bookable.has(branchId));
+  /** Empty for a company wide role, which may conduct anywhere and never consults this. */
+  const myBranchIds = branchScopedRole(viewer.role) ? await callerBranchIds(viewer.id) : [];
 
   const [branchesRes, conductorsRes, peopleRes, suRes, instRes] = await Promise.all([
     supabase
@@ -416,12 +422,16 @@ export async function getPlannerFormData(
       .eq("company_id", companyId)
       .in("kind", ["branch", "team"])
       .order("name", { ascending: true }),
-    supabase
-      .from("profiles")
-      .select("id, full_name, email, role, status")
-      .eq("company_id", companyId)
-      .eq("status", "active")
-      .in("role", CONDUCTOR_ROLES),
+    /*
+     * THROUGH THE RPC, not the table. profiles_select hands a Manager or a Supervisor ONLY THEIR
+     * OWN ROW, so reading the table here returned a conductor list of one: themselves. On a carer
+     * outside their branches the form then removed even that, leaving an empty required dropdown
+     * under a note offering to book it for a colleague. list_company_conductors is SECURITY
+     * DEFINER and carries the role list itself; see migration 0193. It takes the company as an
+     * argument because the founder managing as a company has no company_id of his own, and the
+     * database sees his auth.uid() rather than the shadowed profile.
+     */
+    supabase.rpc("list_company_conductors", { cid: companyId }),
     supabase
       .from("people")
       .select("id, full_name, branch_id, employment_status, archived_at")
@@ -443,12 +453,10 @@ export async function getPlannerFormData(
       .eq("check_definitions.active", true),
   ]);
 
-  const branches = (branchesRes.data ?? [])
-    .filter((b) => canBookIn(b.id as string))
-    .map((b) => ({ id: b.id as string, name: b.name as string }));
-  const conductors = (conductorsRes.data ?? []).map((p) => ({
-    id: p.id as string,
-    name: (p.full_name as string) || (p.email as string),
+  const branches = (branchesRes.data ?? []).map((b) => ({ id: b.id as string, name: b.name as string }));
+  const conductors = ((conductorsRes.data ?? []) as Array<{ id: string; name: string }>).map((p) => ({
+    id: p.id,
+    name: p.name,
   }));
 
   // Group active check instances by their record.
@@ -476,9 +484,6 @@ export async function getPlannerFormData(
 
   const subjects: PlannerSubject[] = [];
   for (const p of peopleRes.data ?? []) {
-    // Readable is not bookable. A carer reachable only because this viewer is booked to conduct
-    // a check on them (0183) must not be offered as somebody to book a NEW task on.
-    if (!canBookIn((p.branch_id as string | null) ?? null)) continue;
     subjects.push({
       population: "people",
       id: p.id as string,
@@ -488,7 +493,6 @@ export async function getPlannerFormData(
     });
   }
   for (const su of suRes.data ?? []) {
-    if (!canBookIn((su.branch_id as string | null) ?? null)) continue;
     subjects.push({
       population: "service_users",
       id: su.id as string,
@@ -499,5 +503,5 @@ export async function getPlannerFormData(
   }
   subjects.sort((a, b) => a.name.localeCompare(b.name));
 
-  return { branches, conductors, subjects };
+  return { branches, conductors, subjects, myBranchIds, viewerId: viewer.id, viewerRole: viewer.role };
 }

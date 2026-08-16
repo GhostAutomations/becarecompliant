@@ -7,7 +7,7 @@ import { listMyBookings, getPlannerFormData, PLANNER_ROLES } from "@/lib/planner
 import { listAccessibleBranchTypes } from "@/lib/service-users/data";
 import BookingForm from "@/components/planner/booking-form";
 import PlannerViewToggle from "@/components/planner/view-toggle";
-import MyPlannerList from "@/components/planner/my-planner-list";
+import OverdueBookings from "@/components/planner/my-planner-list";
 import WhiteboardCalendar from "@/components/planner/whiteboard-calendar";
 
 export const metadata: Metadata = { title: "My Planner" };
@@ -37,9 +37,10 @@ export default async function PlannerPage({
    */
   const supabase = await createClient();
   const { data: pref } = await supabase.from("profiles").select("planner_view").eq("id", user.id).maybeSingle();
+  // 'list' is a preference some users will still carry; it is read as 'month' rather than
+  // migrated, so nobody lands on a view that no longer exists.
   const saved = (pref?.planner_view as string | null) ?? "month";
-  const view: "month" | "week" | "list" =
-    saved === "list" ? "list" : saved === "week" ? "week" : "month";
+  const view: "month" | "week" = saved === "week" ? "week" : "month";
 
   const { month: monthParam, week: weekParam } = await searchParams;
   const match = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? monthParam : todayIso.slice(0, 7);
@@ -50,7 +51,7 @@ export default async function PlannerPage({
   const weekStartIso = weekParam && /^\d{4}-\d{2}-\d{2}$/.test(weekParam) ? weekParam : todayIso;
 
   return (
-    <div className={`flex h-full min-h-0 flex-col gap-6 ${view === "list" ? "mx-auto max-w-3xl" : "w-full"}`}>
+    <div className="flex h-full min-h-0 flex-col gap-6 w-full">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="page-title">My Planner</h1>
@@ -65,20 +66,20 @@ export default async function PlannerPage({
         </div>
       </div>
 
-      {view === "list" ? (
-        <MyPlannerList bookings={bookings} todayIso={todayIso} />
-      ) : (
-        <WhiteboardCalendar
-          span={view}
-          year={year}
-          month={month}
-          weekStartIso={weekStartIso}
-          todayIso={todayIso}
-          bookings={bookings}
-          branches={branches}
-          basePath="/planner"
-        />
-      )}
+      {/* Overdue first, always, whichever span is showing: a job from last month is not on this
+          month's grid, and a calendar on its own is where those go to be forgotten. */}
+      <OverdueBookings bookings={bookings} todayIso={todayIso} />
+
+      <WhiteboardCalendar
+        span={view}
+        year={year}
+        month={month}
+        weekStartIso={weekStartIso}
+        todayIso={todayIso}
+        bookings={bookings}
+        branches={branches}
+        basePath="/planner"
+      />
     </div>
   );
 }

@@ -1,7 +1,5 @@
 import { ukShortDate } from "@/lib/dates";
 import { requireCompany } from "@/lib/auth/guards";
-import { canBookInBranch } from "@/lib/auth/manage-scope";
-import { callerBranchIds } from "@/lib/auth/branches";
 import { featureEnabled } from "@/lib/billing/tier";
 import { listRecordBookings, getPlannerRecordForm } from "@/lib/planner/data";
 import BookingForm from "./booking-form";
@@ -34,35 +32,19 @@ export default async function RecordPlanner({
   if (!(await featureEnabled(companyId, "planner"))) return null;
 
   const { user, profile } = await requireCompany();
-  /*
-   * CAN THIS VIEWER ACTUALLY BOOK HERE (review, 2026-08-15)?
-   *
-   * This card sits OUTSIDE the manage gate, on purpose: seeing what is booked in for somebody is
-   * not the same as being able to change their record. But the Book a task button inside it was
-   * not gated at all, and with a preset the form hides its own branch and subject pickers, so
-   * there was no dropdown to narrow. A manager opening the record of a carer he is booked with,
-   * in a branch he does not run (0183), could choose a check, a conductor and a date and be
-   * refused by planner_bookings_insert at the last step, with no field he could have set
-   * differently. The list stays; the button goes.
-   */
-  const canBook = canBookInBranch({
-    role: profile.role,
-    branchIds: await callerBranchIds(profile.id),
-    recordBranchId: branchId,
-  });
-
   const [bookings, form] = await Promise.all([
     listRecordBookings(population === "people" ? "person" : "service_user", recordId),
-    getPlannerRecordForm(companyId, population, recordId, recordName, branchId),
+    getPlannerRecordForm(companyId, population, recordId, recordName, branchId, profile),
   ]);
 
   return (
     <section className="glass-card space-y-3 p-5">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-white">Planner</h2>
-        {canBook ? (
-          <BookingForm data={form.data} currentUserId={user.id} preset={form.preset} buttonLabel="Book a task" />
-        ) : null}
+        {/* Anyone who can use the Planner can book a task on this record. What they cannot do is
+            put THEMSELVES down for a carer outside the branches they run, and the form enforces
+            that on the Carried out by list. See migration 0191. */}
+        <BookingForm data={form.data} currentUserId={user.id} preset={form.preset} buttonLabel="Book a task" />
       </div>
       {bookings.length === 0 ? (
         <p className="text-sm text-white/50">Nothing booked in.</p>

@@ -117,7 +117,21 @@ function BookingCard({ b, todayIso }: { b: PlannerBookingView; todayIso: string 
   );
 }
 
-export default function MyPlannerList({
+/**
+ * ANYTHING OVERDUE, ABOVE THE CALENDAR.
+ *
+ * This was a whole List view behind a toggle, and Phil scrapped it on 2026-08-15. Scrapping it
+ * outright would have lost two things worth keeping, so they moved here instead:
+ *
+ *   - A job planned for last month is not on this month's grid, so a calendar on its own is
+ *     exactly where an overdue task goes to be forgotten. This band is always visible and does
+ *     not depend on which week you happen to be looking at.
+ *   - Complete check, Reschedule and Cancel lived only in the list. They come with it.
+ *
+ * Renders NOTHING when there is nothing overdue, which is the normal state and the point: it is
+ * a band that appears when something needs doing, not another empty panel to scroll past.
+ */
+export default function OverdueBookings({
   bookings,
   todayIso,
 }: {
@@ -125,41 +139,14 @@ export default function MyPlannerList({
   todayIso: string;
 }) {
   const overdue = bookings.filter((b) => b.status === "planned" && b.scheduledDate < todayIso);
-  const upcoming = bookings.filter((b) => b.status === "planned" && b.scheduledDate >= todayIso);
-  const done = bookings.filter((b) => b.status !== "planned");
-
-  if (bookings.length === 0) {
-    return (
-      <div className="glass-card px-6 py-12 text-center text-sm text-white/60">
-        Nothing planned for you yet.
-      </div>
-    );
-  }
+  if (overdue.length === 0) return null;
 
   return (
-    <div className="space-y-6">
-      {overdue.length > 0 ? (
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-red-300">Overdue</h2>
-          {overdue.map((b) => <BookingCard key={b.id} b={b} todayIso={todayIso} />)}
-        </section>
-      ) : null}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-white/80">Upcoming</h2>
-        {upcoming.length === 0 ? (
-          <p className="text-sm text-white/50">Nothing coming up.</p>
-        ) : (
-          upcoming.map((b) => <BookingCard key={b.id} b={b} todayIso={todayIso} />)
-        )}
-      </section>
-      {done.length > 0 ? (
-        <details className="section-card">
-          <summary>Completed and cancelled ({done.length})</summary>
-          <div className="space-y-3 border-t border-white/10 p-4">
-            {done.map((b) => <BookingCard key={b.id} b={b} todayIso={todayIso} />)}
-          </div>
-        </details>
-      ) : null}
-    </div>
+    <section className="space-y-3">
+      <h2 className="text-sm font-semibold text-red-300">
+        Overdue ({overdue.length})
+      </h2>
+      {overdue.map((b) => <BookingCard key={b.id} b={b} todayIso={todayIso} />)}
+    </section>
   );
 }

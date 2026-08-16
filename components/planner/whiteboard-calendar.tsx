@@ -90,7 +90,7 @@ export default function WhiteboardCalendar({
     for (let d = 1; d <= daysInMonth; d++) cells.push({ day: d, iso: `${year}-${pad(month)}-${pad(d)}` });
   }
   // A week shows everything; a month cell is too short to, so it caps and says how many are left.
-  const perCell = isWeek ? 99 : 3;
+  const perCell = isWeek ? 99 : 2;
 
   const selectedList = selectedDay ? byDay.get(selectedDay) ?? [] : [];
 
@@ -140,7 +140,7 @@ export default function WhiteboardCalendar({
               key={cell.iso}
               type="button"
               onClick={() => setSelectedDay(cell.iso)}
-              className={`${isWeek ? "min-h-[320px]" : "min-h-[92px]"} bg-slate-900/50 p-1.5 text-left align-top transition hover:bg-slate-800/60 ${isToday ? "ring-1 ring-inset ring-gold-400/60" : ""}`}
+              className={`${isWeek ? "min-h-[320px]" : "min-h-[112px]"} bg-slate-900/50 p-1.5 text-left align-top transition hover:bg-slate-800/60 ${isToday ? "ring-1 ring-inset ring-gold-400/60" : ""}`}
             >
               <span className={`block text-[11px] font-semibold ${isToday ? "text-gold-300" : "text-white/50"}`}>{cell.day}</span>
               <span className="mt-1 flex flex-col gap-0.5">
@@ -151,9 +151,13 @@ export default function WhiteboardCalendar({
                     <span className="block truncate rounded bg-gold-400/15 px-1 py-0.5 text-[10px] text-gold-100">
                       {b.startTime ? `${b.startTime} ` : ""}{chipName(b)}
                     </span>
-                    {isWeek ? (
+                    {/* THE TASK, under the name, in both spans (Phil, 2026-08-15). The name
+                        answers "where am I going"; the task answers "to do what", and one
+                        without the other sends somebody out unprepared. The branch is added in
+                        the week, where there is room for it. */}
+                    {b.subjectName ? (
                       <span className="block truncate px-1 text-[10px] text-white/45">
-                        {b.label}{b.branchName ? ` · ${b.branchName}` : ""}
+                        {b.label}{isWeek && b.branchName ? ` · ${b.branchName}` : ""}
                       </span>
                     ) : null}
                     <span className="pointer-events-none absolute left-0 top-full z-40 mt-1 hidden w-48 rounded-lg border border-white/15 bg-slate-900 p-2 text-left shadow-xl group-hover/appt:block">
