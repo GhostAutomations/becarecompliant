@@ -55,6 +55,7 @@ export function CreateCompanyForm() {
               Admin name
             </label>
             <input id="admin_name" name="admin_name" placeholder="Jane Morgan" />
+            <p className="mt-1 text-xs text-white/45">Needed if you enter an email address.</p>
           </div>
           <div>
             <label htmlFor="admin_email" className="form-label">

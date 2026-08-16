@@ -69,6 +69,11 @@ export async function createCompany(
   const adminEmail = String(formData.get("admin_email") ?? "").trim();
 
   if (!name) return { error: "Enter a company name." };
+  // An address with no name behind it used to be accepted here and refused by the database at
+  // the far end of createAndSendInvite, after the company had already been made.
+  if (adminEmail && !adminName) {
+    return { error: "Enter the Admin's full name as well as their email address." };
+  }
   if (!VALID_TIERS.includes(tier)) return { error: "Choose a valid tier." };
 
   const slug = slugInput ? slugify(slugInput) : slugify(name);

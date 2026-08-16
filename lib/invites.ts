@@ -75,17 +75,43 @@ async function generateConfirmUrl(
   email: string,
   fullName: string,
 ): Promise<{ url: string | null; userId: string | null; error?: string }> {
+  /*
+   * THIS is the door, not createAndSendInvite. generateLink is what creates the auth user, and
+   * the two resend paths reach it directly, carrying invites.full_name, which is text not null
+   * default '' and can hold a blank written before names were required. A blank here reaches the
+   * auth.users trigger, and the profile it makes is named by the trigger's own last-resort
+   * fallback rather than by anybody. Refused, with something the Admin can act on.
+   */
+  const name = fullName.trim();
+  if (!name) {
+    return {
+      url: null,
+      userId: null,
+      error:
+        "That invitation has no name on it. Revoke it and invite them again with their full name.",
+    };
+  }
   const invite = await admin.auth.admin.generateLink({
     type: "invite",
     email,
-    options: { data: { full_name: fullName } },
+    options: { data: { full_name: name } },
   });
   const inviteHash = invite.data?.properties?.hashed_token;
   if (!invite.error && inviteHash) {
     return { url: confirmUrl(inviteHash, "invite"), userId: invite.data.user?.id ?? null };
   }
 
-  const magic = await admin.auth.admin.generateLink({ type: "magiclink", email });
+  /*
+   * The name goes on BOTH branches. This one used to pass no metadata at all, and it is not only
+   * a resend path: it is where a brand new user lands whenever the invite branch errors, which
+   * happens whenever the address was used before. The auth.users trigger reads full_name from
+   * this metadata.
+   */
+  const magic = await admin.auth.admin.generateLink({
+    type: "magiclink",
+    email,
+    options: { data: { full_name: name } },
+  });
   const magicHash = magic.data?.properties?.hashed_token;
   if (!magic.error && magicHash) {
     return { url: confirmUrl(magicHash, "magiclink"), userId: magic.data.user?.id ?? null };
@@ -108,6 +134,20 @@ export async function createAndSendInvite(
   const email = p.email.trim().toLowerCase();
   if (!EMAIL_RE.test(email)) {
     return { ok: false, error: "Enter a valid email address." };
+  }
+  /*
+   * A NAME IS NOT OPTIONAL. Checked beside the address rule because four callers reach this
+   * function and three of them had no length check, so an Admin or the founder could tab past
+   * the name box and create an account called nothing. What that printed varied by screen; on a
+   * Reg 73 report it would have printed their email address as the signatory of a submitted
+   * regulatory document.
+   *
+   * generateConfirmUrl below refuses a blank too, and that is the one the resend paths hit. This
+   * one exists so somebody filling in a form gets the message written for filling in a form.
+   */
+  const fullName = p.fullName.trim();
+  if (!fullName) {
+    return { ok: false, error: "Enter the person's full name. Their name appears on the records and reports they sign." };
   }
   /**
    * Never invite a demo or reserved address.
@@ -157,7 +197,7 @@ export async function createAndSendInvite(
 
   const supabase = await createClient();
 
-  const link = await generateConfirmUrl(admin, email, p.fullName);
+  const link = await generateConfirmUrl(admin, email, fullName);
   if (link.error || !link.userId || !link.url) {
     return { ok: false, error: link.error ?? "Could not create the invitation link." };
   }
@@ -184,7 +224,7 @@ export async function createAndSendInvite(
       company_id: p.companyId,
       branch_id: p.branchId,
       email,
-      full_name: p.fullName,
+      full_name: fullName,
       role: p.role,
       invited_by: p.inviter.id,
     })
@@ -200,15 +240,20 @@ export async function createAndSendInvite(
   // Promote the profile to the invited role/company (service role bypasses the
   // protected-fields trigger). Company Admins are implicitly all branches, so
   // only non-admin roles get a user_branches row.
-  await admin
+  const { error: promoteErr } = await admin
     .from("profiles")
     .update({
       company_id: p.companyId,
       role: p.role,
       status: "invited",
-      full_name: p.fullName,
+      full_name: fullName,
     })
     .eq("id", link.userId);
+  // The result used to be discarded, so a refused promotion still sent the email and still
+  // reported success: the person got an invitation into a company they had not been added to.
+  if (promoteErr) {
+    return { ok: false, error: `The invitation could not be recorded: ${promoteErr.message}` };
+  }
 
   if (p.branchId && p.role !== "company_admin") {
     // The invited branch is the user's primary branch (drives auto-fill). Additional

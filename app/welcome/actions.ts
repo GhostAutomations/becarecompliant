@@ -20,6 +20,9 @@ export async function completeInvite(
   const confirm = String(formData.get("confirm") ?? "");
   const fullName = String(formData.get("full_name") ?? "").trim();
 
+  if (!fullName) {
+    return { error: "Enter your full name. It appears on everything you sign." };
+  }
   if (password.length < 8) {
     return { error: "Choose a password of at least 8 characters." };
   }
@@ -51,10 +54,18 @@ export async function completeInvite(
     return { error: pwErr.message };
   }
 
-  await admin
+  /*
+   * The result used to be discarded. The password above HAS been set by this point, so a refused
+   * update left the person able to sign in with status still "invited", and the action carried
+   * on to redirect them into the app half activated with nothing on screen to say so.
+   */
+  const { error: activateErr } = await admin
     .from("profiles")
-    .update({ status: "active", full_name: fullName || profile.full_name })
+    .update({ status: "active", full_name: fullName })
     .eq("id", user.id);
+  if (activateErr) {
+    return { error: `Your password was saved but your account could not be activated: ${activateErr.message}` };
+  }
 
   await admin
     .from("invites")

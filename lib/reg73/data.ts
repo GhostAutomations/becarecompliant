@@ -47,11 +47,12 @@ export async function listReg73Signatories(companyId: string): Promise<string[]>
   });
   /*
    * The chosen STRING is stored as ri_name and printed on the submitted Reg 73 report, so this
-   * is not a picker label that can be tidied up later. The lookup falls back to the email address
-   * when full_name is blank (it is NOT NULL DEFAULT ''), and an address is not a signature, so
-   * anybody without a name on file is left out rather than signed in as their inbox.
+   * is not a picker label that can be tidied up later. It briefly excluded anybody whose display
+   * name had fallen back to their email address, to keep an inbox off a regulatory document.
+   * profiles_full_name_not_blank (0201) removes the need: a profile with no name can no longer
+   * exist, so nobody is silently missing from this list.
    */
-  return Array.from(new Set(staff.filter((p) => p.name && p.name !== p.email).map((p) => p.name)));
+  return Array.from(new Set(staff.map((p) => p.name).filter(Boolean)));
 }
 
 export type Reg73VisitListItem = Reg73VisitRow & { branch_name: string };

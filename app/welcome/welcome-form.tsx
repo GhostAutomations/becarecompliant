@@ -39,6 +39,7 @@ export function WelcomeForm({ defaultName, email }: { defaultName: string; email
           defaultValue={defaultName}
           autoComplete="name"
           placeholder="Your full name"
+          required
         />
       </div>
 

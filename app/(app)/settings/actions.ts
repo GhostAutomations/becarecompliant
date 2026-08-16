@@ -93,6 +93,9 @@ export async function inviteUser(
   const role = String(formData.get("role") ?? "") as InviteRole;
   const branchId = String(formData.get("branch_id") ?? "").trim();
 
+  if (!fullName) {
+    return { error: "Enter their full name. It appears on the records and reports they sign." };
+  }
   if (!INVITABLE_ROLES.includes(role)) {
     return { error: "Only the Founder can create Company Admins. Choose one of the available roles." };
   }

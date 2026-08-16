@@ -16,7 +16,7 @@ export function InviteForm({ branches }: { branches: BranchOption[] }) {
           <label htmlFor="full_name" className="form-label">
             Full name
           </label>
-          <input id="full_name" name="full_name" placeholder="Alex Powell" />
+          <input id="full_name" name="full_name" placeholder="Alex Powell" required />
         </div>
         <div>
           <label htmlFor="email" className="form-label">
