@@ -236,8 +236,23 @@ function SplitTile({
         : tone === "green"
           ? "text-emerald-300"
           : "text-white";
-  // The SAME geometry as Tile: label on one line, numbers at the same size and height, captions
-  // starting at the same offset, so a split tile lines up with the single figure tiles beside it.
+  /*
+   * The SAME geometry as Tile: label on one line, numbers on one baseline, captions starting at
+   * the same offset, so a split tile lines up with the single figure tiles beside it.
+   *
+   * TWO FIGURES IN A TWO COLUMN TILE IS ABOUT 45px A SIDE on a narrow window, and nothing here
+   * was told what to do about that: the figure kept Tile's 40px, the caption had a fixed height
+   * and no way to wrap, and neither had min-w-0, so both simply overflowed their half and ran
+   * into the other one. "100%" and "39%" printed as "1039%".
+   *
+   * The figure now steps with the TILE'S OWN width rather than the viewport's, because that is
+   * the thing that is actually too narrow: a two column tile and a three column tile are on the
+   * same screen at the same time. It is never truncated. A clipped "10…" where a compliance
+   * percentage should be is a wrong number, which is the one thing this dashboard keeps trying
+   * not to print. Captions wrap instead of overflowing and have a floor rather than a fixed
+   * height, so a second line has somewhere to go. Keep them to a word or two: the sentence
+   * belongs on the screen the tile opens.
+   */
   const inner = (
     <div className="flex h-full items-start gap-3">
       <div className="flex min-w-0 flex-1 flex-col">
@@ -246,10 +261,12 @@ function SplitTile({
           {pairs.map((p) => {
             const half = (
               <>
-                <p className={`text-[40px] font-bold leading-none tabular-nums ${ink(p.tone)}`}>
+                <p
+                  className={`min-w-0 text-[18px] font-bold leading-none tabular-nums @[13rem]:text-[24px] @[15rem]:text-[30px] @[17rem]:text-[40px] ${ink(p.tone)}`}
+                >
                   {p.value}
                 </p>
-                <p className="mt-auto flex h-[30px] items-end justify-center text-[11px] leading-snug text-white/55">
+                <p className="mt-auto flex min-h-[30px] min-w-0 items-end justify-center text-balance break-words text-[10px] leading-snug text-white/55 @[13rem]:text-[11px]">
                   {p.caption}
                 </p>
               </>
@@ -275,12 +292,13 @@ function SplitTile({
     </div>
   );
   const halvesLink = pairs.some((p) => p.href);
+  // @container: the figures size themselves off THIS card, not the viewport.
   return href && !halvesLink ? (
-    <Link href={href} className={`glass-card glass-card-hover block h-full p-4 ${className}`}>
+    <Link href={href} className={`glass-card glass-card-hover @container block h-full p-4 ${className}`}>
       {inner}
     </Link>
   ) : (
-    <div className={`glass-card h-full p-4 ${className}`}>{inner}</div>
+    <div className={`glass-card @container h-full p-4 ${className}`}>{inner}</div>
   );
 }
 
@@ -849,19 +867,14 @@ export default async function DashboardPage() {
                   policyCoverage == null || policyCoverage.pct == null
                     ? "n/a"
                     : `${Math.floor(policyCoverage.pct)}%`,
-                caption:
-                  policyCoverage == null
-                    ? "Policies"
-                    : policyCoverage.assigned === 0
-                      ? "Policies: none sent yet"
-                      : `Policies: ${policyCoverage.upToDate} of ${policyCoverage.assigned}`,
+                caption: "Policies",
                 href: "/briefings/coverage",
               },
               {
                 // Math.floor, not Math.round: the figure arrives floored to one decimal, and
                 // rounding it back up here would undo that on the most looked at screen.
                 value: trainingPct == null ? "n/a" : `${Math.floor(trainingPct)}%`,
-                caption: "Mandatory training in date",
+                caption: "Training",
                 href: "/people/training",
               },
             ]}
@@ -938,12 +951,7 @@ export default async function DashboardPage() {
                    that can put a provider in front of the regulator, and it stays counted after
                    the incident is closed. */
                 value: incidentActions == null ? "n/a" : incidentActions.awaiting,
-                caption:
-                  incidentActions == null
-                    ? "Incidents"
-                    : incidentActions.awaiting > 0
-                      ? "Incidents flagged, no date yet"
-                      : `Incidents: ${incidentActions.open} open`,
+                caption: "Incidents",
                 tone:
                   incidentActions == null
                     ? "none"
@@ -954,12 +962,7 @@ export default async function DashboardPage() {
               },
               {
                 value: complaints == null ? "n/a" : complaints.open + complaints.inProgress,
-                caption:
-                  complaints == null
-                    ? "Complaints: Pro feature"
-                    : complaints.overdue > 0
-                      ? `Complaints: ${complaints.overdue} past response`
-                      : "Complaints open",
+                caption: "Complaints",
                 tone:
                   complaints == null
                     ? "none"
