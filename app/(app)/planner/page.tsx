@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { featureEnabled } from "@/lib/billing/tier";
-import { listMyBookings, getPlannerFormData, PLANNER_ROLES } from "@/lib/planner/data";
+import { listMyBookings, listCompanyBookings, getPlannerFormData, PLANNER_ROLES } from "@/lib/planner/data";
 import { listAccessibleBranchTypes } from "@/lib/service-users/data";
 import BookingForm from "@/components/planner/booking-form";
 import PlannerViewToggle from "@/components/planner/view-toggle";
@@ -50,14 +50,38 @@ export default async function PlannerPage({
   // Defaults to the week containing today, which is the one somebody opening this page wants.
   const weekStartIso = weekParam && /^\d{4}-\d{2}-\d{2}$/.test(weekParam) ? weekParam : todayIso;
 
+  /*
+   * The calendar reads the WHOLE COMPANY, the overdue band above it reads only yours. Two
+   * different questions on one page: what have I let slip, and who is where this month. The
+   * range is only ever the span on screen, so a month view never pulls a year of rows.
+   */
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const monthStart = `${year}-${pad(month)}-01`;
+  const monthEnd = `${year}-${pad(month)}-${pad(new Date(Date.UTC(year, month, 0)).getUTCDate())}`;
+  const weekEndIso = new Date(Date.UTC(
+    Number(weekStartIso.slice(0, 4)),
+    Number(weekStartIso.slice(5, 7)) - 1,
+    Number(weekStartIso.slice(8, 10)) + 13,
+  )).toISOString().slice(0, 10);
+  const weekFromIso = new Date(Date.UTC(
+    Number(weekStartIso.slice(0, 4)),
+    Number(weekStartIso.slice(5, 7)) - 1,
+    Number(weekStartIso.slice(8, 10)) - 7,
+  )).toISOString().slice(0, 10);
+  const calendarBookings = await listCompanyBookings(
+    view === "week" ? weekFromIso : monthStart,
+    view === "week" ? weekEndIso : monthEnd,
+    profile.company_id,
+  );
+
   return (
     <div className="flex h-full min-h-0 flex-col gap-6 w-full">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="page-title">My Planner</h1>
           <p className="page-subtitle">
-            The tasks you have booked in to carry out. Book a new one or manage what
-            is coming up.
+            What is overdue for you to carry out, and everybody&apos;s work on the calendar.
+            Book a new one or manage what is coming up.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -76,7 +100,7 @@ export default async function PlannerPage({
         month={month}
         weekStartIso={weekStartIso}
         todayIso={todayIso}
-        bookings={bookings}
+        bookings={calendarBookings}
         branches={branches}
         basePath="/planner"
       />

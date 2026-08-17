@@ -305,6 +305,33 @@ export async function listMyBookings(userId: string): Promise<PlannerBookingView
 }
 
 
+/**
+ * EVERYBODY'S bookings in a date range, for the Planner calendar.
+ *
+ * The calendar was on the Whiteboard and showed the whole company; the Whiteboard is the board
+ * only now (Phil, 2026-08-17) and the calendar moved to the Planner, so it has to keep showing
+ * the whole company or the move quietly lost the one grid that answers "who is where this
+ * month". RLS scopes it: a Manager or Supervisor sees their branches, company-wide roles see
+ * everything. listMyBookings is still what the overdue band reads, because Complete, Move and
+ * Cancel are only yours to press.
+ */
+export async function listCompanyBookings(
+  fromIso: string,
+  toIso: string,
+  companyId?: string,
+): Promise<PlannerBookingView[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("planner_bookings")
+    .select(SELECT)
+    .gte("scheduled_date", fromIso)
+    .lte("scheduled_date", toIso)
+    .neq("status", "cancelled")
+    .order("scheduled_date", { ascending: true })
+    .order("start_time", { ascending: true, nullsFirst: true });
+  return withConductorNames(((data as Row[] | null) ?? []).filter(checkStillBookable).map(toView), companyId);
+}
+
 /** Active, non-cancelled bookings for one record (shown on its record page). */
 export async function listRecordBookings(
   recordType: "person" | "service_user",

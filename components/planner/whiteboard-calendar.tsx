@@ -197,12 +197,17 @@ export default function WhiteboardCalendar({
                          */
                         const parts = [
                           /*
-                           * No conductor on the chip. It was here for the Whiteboard calendar,
-                           * which is gone (Phil, 2026-08-17), and the only calendar left is My
-                           * Planner, where every booking is the viewer's own: printing your own
-                           * name on every chip is noise in the space the task needs. The hover
-                           * card and the day list below still name whoever is carrying it out.
+                           * THE CONDUCTOR COMES FIRST. This grid is the whole company's work, so
+                           * who is carrying the task out is half the question, and it was last
+                           * on the line, which is what the truncation ate in a month cell:
+                           * "Care Plan Review · Akra…" reads as a broken name rather than a
+                           * name. It survives the squeeze now and the task gives way instead.
+                           *
+                           * NEVER "Unassigned". A booking cannot exist without a conductor (the
+                           * column is NOT NULL), so a missing name is a name that could not be
+                           * read, and saying nothing beats saying something untrue.
                            */
+                          b.conductorName,
                           b.subjectName ? b.label : null,
                           isWeek ? b.branchName : null,
                         ].filter(Boolean);
