@@ -210,10 +210,12 @@ export default function WhiteboardCalendar({
                         </span>
                         {(() => {
                           /*
-                           * ONLY THE NAME OF WHOEVER IS CARRYING IT OUT IS GOLD (Phil,
-                           * 2026-08-17). Everything else on the chip is one colour, so the eye
-                           * lands on the person rather than sorting two shades of one accent.
-                           * The background still says whose appointment it is.
+                           * GOLD MEANS YOU (Phil, 2026-08-17). The name of whoever is carrying
+                           * the task out is the last thing on the chip, and it is gold only when
+                           * that person is the one reading the screen. Everything else is one
+                           * colour, so the gold is not a decoration to be sorted through: on a
+                           * month of everybody's work, the gold names are your appointments and
+                           * nothing else is.
                            *
                            * The task is skipped on an ad-hoc booking because the first group IS
                            * the task, and the branch only in the week, where there is room.
@@ -236,7 +238,15 @@ export default function WhiteboardCalendar({
                             <span className="max-w-full truncate">
                               {`· ${before ? `${before} · ` : ""}`}
                               {b.conductorName ? (
-                                <span className="text-gold-300">{b.conductorName}</span>
+                                <span
+                                  className={
+                                    currentUserId && b.conductorId === currentUserId
+                                      ? "text-gold-300"
+                                      : undefined
+                                  }
+                                >
+                                  {b.conductorName}
+                                </span>
                               ) : null}
                               {after ? ` · ${after}` : ""}
                             </span>
