@@ -328,7 +328,12 @@ export async function updateLog(_prev: ActionState, formData: FormData): Promise
   if (!details) return { error: "Add the on call notes." };
 
   const supabase = await createClient();
-  // A finalised shift is locked.
+  /*
+   * A finalised shift is locked, and the LOCK IS A TRIGGER (0205), not this check. This one
+   * stays because it is what turns a refusal into a sentence somebody can read; the trigger is
+   * what makes the rule true on every path, including one written later. It allows exactly the
+   * follow up columns through, which is why resolveFollowUp still works on a finalised shift.
+   */
   const { data: existing } = await supabase.from("on_call_logs").select("finalised").eq("id", id).maybeSingle();
   if (existing?.finalised) return { error: "This shift has been finalised and can no longer be edited." };
 
