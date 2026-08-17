@@ -151,9 +151,22 @@ transaction: Cardiff1 `in_use`, the office row `not_a_branch`, a company admin
 
 **Decisions only I can make**
 
-1. **Stripe AI credit top up** — three one off packs, needs my price points.
-2. **SMS top up price** does not exist, so the Billing button has nothing to call.
-3. **SMS bundle numbers** (Business 0, Pro 100, Black 2000) are an estimate, not modelled.
+1. ~~**Stripe AI credit top up** — three one off packs, needs my price points.~~ **CLOSED
+   2026-08-17.** ONE pack, not three: 100 credits for £10 plus VAT, which is what
+   AI_TOPUP_CREDITS and AI_TOPUP_PENCE have said since 19 July. Checkout, the webhook grant
+   and the audit entries are all built. Nothing to decide and nothing to build.
+2. ~~**SMS top up price** does not exist, so the Billing button has nothing to call.~~
+   **STALE, struck 2026-08-17.** It has existed since 31 July: 250 texts for £20 plus VAT,
+   SMS_TOPUP_CREDITS and SMS_TOPUP_PENCE in lib/stripe/config.ts, with Checkout and the
+   webhook grant wired end to end. What is missing is the Stripe Price object and
+   STRIPE_PRICE_SMS_TOPUP in Vercel, which is item 7's job and has to be redone at go live
+   anyway. Same for STRIPE_PRICE_AI_TOPUP.
+3. ~~**SMS bundle numbers** (Business 0, Pro 100, Black 2000) are an estimate, not
+   modelled.~~ **STALE, struck 2026-08-17.** They are modelled and tested:
+   tier_monthly_sms_credits grants exactly those three, the Billing page prints the same
+   three, and lib/billing/sms-allowance.test.ts fails if the database, the page and the
+   constants ever disagree. The Enterprise 250 and Diamond 500 in the original note are
+   dead numbers: both tiers were retired the same day.
 4. **SMS replies are filed and shown, not acted on.** Nothing reads "YES" or "DONE".
 5. A real **testimonial quote** for the homepage, or take the social proof band out.
 
@@ -182,9 +195,10 @@ transaction: Cardiff1 `in_use`, the office row `not_a_branch`, a company admin
     watched going 1 → 2 → 1 in Stripe with correct prorations. Removal added (0181).
 13. ~~`spend_ai_credit` is executable by anon.~~ **DONE 2026-08-12** (0172).
 14. ~~Settings > Notifications lists only Admins and Managers.~~ **DONE 2026-08-12.**
-15. Dashboard remainder: **Policies up to date DONE 2026-08-12.** The second half of this
-    entry was WRONG when written: `getTrainingCompletion` was checked and does not build
-    the matrix to read one number. Nothing to do.
+15. ~~Dashboard remainder.~~ **DONE 2026-08-12** (Policies up to date), and the second half
+    of the entry was WRONG when written: `getTrainingCompletion` was checked and does not
+    build the matrix to read one number. Nothing to do, struck 2026-08-17 so the list stops
+    reading one longer than it is.
 16. ~~Photo evidence on the Evidence PDF.~~ **DONE 2026-08-12.**
 
 **Testing, not building**
