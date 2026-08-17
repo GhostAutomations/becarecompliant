@@ -218,6 +218,13 @@ export default function WhiteboardCalendar({
                             isWeek ? b.branchName : null,
                           ].filter(Boolean);
                           return parts.length > 0 ? (
+                            /*
+                             * The dot that joins the two groups LEADS this one, so that on a
+                             * chip that fits on one line every part is separated the same way —
+                             * 10:00 · Bethan Hughes · Supervision · Tim Mingle — and on one that
+                             * wraps it marks the second line as a continuation rather than
+                             * leaving a dot dangling off the end of the first.
+                             */
                             <span
                               className={`max-w-full truncate ${
                                 currentUserId && b.conductorId === currentUserId
@@ -225,7 +232,7 @@ export default function WhiteboardCalendar({
                                   : "text-white/45"
                               }`}
                             >
-                              {parts.join(" · ")}
+                              {`· ${parts.join(" · ")}`}
                             </span>
                           ) : null;
                         })()}
