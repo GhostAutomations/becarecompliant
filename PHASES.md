@@ -433,6 +433,33 @@ ITEM 3 (import templates) BUILT 2026-07-14, no migration. Scope agreed by popup 
 
 ## Phase 11 — Final Testing
 
+FINAL TESTING PART 1, THE UI/UX AND FUNCTIONAL SWEEP, RAN 17 AUGUST 2026 (evening, live
+production, all six roles driven in Chrome with Phil signing in at each switch). The full
+findings log with severities is QA-REPORT-UIUX.md, verdict GO for soft launch on UI/UX
+grounds. Fifteen fixes shipped in three batches during the run; batches 1 and 2 verified
+live the same evening. Highlights: the founder Companies list quoted committed revenue
+without branches (the FIFTH surface of that class, now on the shared rule); a typed
+two-digit year had reached a live card as "Back at work 19 Feb 0026" and is now refused
+at three layers with unit tests; the raw black Next.js 404 is branded; support mode can
+finally read credit balances (0208); the supervisor dashboard no longer claims features
+are off when the role simply cannot see them.
+
+CLEARED FROM THIS LIST BY THE RUN: the manage-as 30 minute auto-expiry (observed lapsing
+naturally); dashboard card clickthroughs; branch scoping of the dashboard for a Branch
+Manager; the Supervisor and Responsible Individual visual passes (both roles seeded as
+real logins, swept, and RI holiday approval EXERCISED LIVE — approve pressed, audit row
+holiday.decided/registered_individual); evidence read-through on fresh evidence; seat
+maths at 4 of 6 after two acceptances (no seat line, correct).
+
+STILL COLD AFTER THE RUN, carried forward: verification of the two supervisor dashboard
+copy fixes on a live Sam login after the batch 3 deploy (30 seconds, needs one sign-in);
+founder branch Remove button re-render as founder (batch 2 changed its class from the
+undefined btn-secondary to btn-outline); whether a booked conductor can complete a check
+they were NOT booked for on an other-branch person (Part 2, security — the buttons render,
+the RPC guard is the question); everything already listed below needing Stripe CLI, test
+clocks, Twilio or a second device.
+
+
 LETTERS (added 2026-07-27, not run live):
 - Settings > Letters: edit the absence meeting invitation, save, book a meeting, and confirm the EMPLOYEE's email carries the new wording with the placeholders filled and the Accept / I cannot attend buttons still working.
 - Confirm the conductor's chairing copy is addressed to the conductor and still reads unambiguously as "you are chairing this", not "you are invited".

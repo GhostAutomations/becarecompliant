@@ -790,9 +790,13 @@ export default async function DashboardPage() {
           ) : (
             <div>
               <p className="text-xs uppercase tracking-wide text-white/50">Compliance score</p>
+              {/* Two different reasons land here and they must not share a sentence: a
+                  Supervisor was told the feature is "not switched on for this company"
+                  while the Admin was looking at a live score (17 Aug QA). */}
               <p className="mt-2 text-sm text-white/60">
-                Inspection Readiness is not switched on for this company, so there is no score to
-                show. Every other figure on this page is live.
+                {companyWide
+                  ? "Inspection Readiness is not switched on for this company, so there is no score to show. Every other figure on this page is live."
+                  : "The compliance score is part of the management view, so it is not shown for your role. Every figure below is live."}
               </p>
             </div>
           )}
@@ -1025,6 +1029,11 @@ export default async function DashboardPage() {
           {/* On call sits BESIDE the tiles rather than inside their grid (Phil, 2026-07-30: the
               urgent follow ups belong at the top of the screen). Out here it keeps its own width
               whatever the tile count is, instead of taking slots the tiles are counting. */}
+          {/* Hidden below manager level: those roles can never read on-call data, and
+              the old fallback message wrongly told a Supervisor the feature was off
+              (17 Aug QA). Manager-plus with the feature genuinely off keeps the honest
+              message below. */}
+          {companyWide ? (
           <div className="shrink-0 xl:w-[21rem]">
         {/* On call and Due in 14 days swapped (Phil, 2026-07-30): the urgent follow ups
               belong at the top of the screen, in the four column slot that runs down both tile
@@ -1070,6 +1079,7 @@ export default async function DashboardPage() {
           )}
         </Panel>
           </div>
+          ) : null}
         </div>
       </div>
 

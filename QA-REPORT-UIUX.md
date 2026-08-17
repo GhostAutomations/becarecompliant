@@ -10,7 +10,7 @@ flagged to Phil and parked for Part 2 rather than dug into.
 
 ## Verdict
 
-PENDING: sweep in progress.
+See the end of this report: GO for soft launch on UI/UX grounds.
 
 ## Findings
 
@@ -47,7 +47,7 @@ PENDING: sweep in progress.
   Question bank empty state, Audit console filters render correctly. Founder pages
   stack cleanly at 390px with the bottom dock nav.
 
-- FIXED (Medium, batch 2) Compliance score card at 1280px (13 inch MacBook): the
+- FIXED+VERIFIED LIVE (Medium, batch 2) Compliance score card at 1280px (13 inch MacBook): the
   xl:col-span-2 gave it ~200px, the ring sat over the words and every line broke.
   Breakpoint moved xl to 2xl so laptops keep the third column; big monitors unchanged.
   (Phil tuned this card the same morning; the change is additive to his rule, seen at
@@ -72,13 +72,13 @@ PENDING: sweep in progress.
 
 ### Company Admin (Acme, navy crisp theme, swept 17 Aug evening)
 
-- FIXED (Medium, batch 2) "Back at work 19 Feb 0026" on the Holiday page: Chrome's
+- FIXED+VERIFIED LIVE (Medium, batch 2) "Back at work 19 Feb 0026" on the Holiday page: Chrome's
   date control turns a typed two-digit year into the literal year 0026; a July
   holiday submission stored one in immutable Evidence and the card repeated it.
   Three layers now refuse it: validateAnswers rejects years outside 1900-2100
   (new lib/date-plausible, unit tested), the date control carries min/max, and the
   holiday card refuses to print an implausible stored year (falls back to nothing).
-- FIXED (Low, batch 2) RTW "Limits" save button on the person record overrode
+- FIXED+VERIFIED LIVE (Low, batch 2) RTW "Limits" save button on the person record overrode
   ActionForm with btn-outline: the standing rule says every save is gold
   btn-primary. Override removed.
 - FIXED (Low, batch 2) Founder branch "Remove" used btn-secondary, a class that
@@ -104,9 +104,9 @@ PENDING: sweep in progress.
   "Customer satisfacti...").
 - RETRACTED The dashboard Planner tile showing per-day "Clear" plus the
   "Nothing booked this week" footer is deliberate (documented in the code).
-- FIXED (Low, batch 2) Invoicing table printed raw ISO dates (2026-08-10) in
+- FIXED+VERIFIED LIVE (Low, batch 2) Invoicing table printed raw ISO dates (2026-08-10) in
   Issued and Due. Now ukDate. The item 27 leak class, as predicted.
-- FIXED (Low, batch 2) Closed incidents looked unreachable: the open register
+- FIXED+VERIFIED LIVE (Low, batch 2) Closed incidents looked unreachable: the open register
   never mentioned the Closed page (nav drawer child only), while Whistleblowing
   offers Closed in its filter. Added a Closed/Open incidents cross-link beside
   the filters.
@@ -142,15 +142,111 @@ PENDING: sweep in progress.
 - NOTE (Low) Evidence page header prints 17/08/2026, 21:33 beside a body
   printing 17 August 2026 (the date-style inconsistency again).
 
-### Manager (Tim Mingle, Cardiff1 + Newport1)
+### Manager (Tim Mingle, Cardiff1 + Newport1, swept 17 Aug)
 
-- Sweep pending.
+- PASS Dashboard branch scoping (the deferred Final Testing item): score 51% over
+  99 scheduled checks vs the company's 52% over 139, open actions 41 vs 52, PQS
+  panel shows all-branches + his two only, no Caerphilly tile.
+- PASS Nav gating: no Whistleblowing, no Settings; direct URLs to both bounce
+  cleanly to the dashboard (silent redirect; a brief "not yours" toast would be
+  kinder, noted only).
+- PASS People register scoped: 30 records (42 company-wide), branch filter offers
+  All branches / Cardiff1 / Newport1 only.
+- PASS-BY-DESIGN Two Caerphilly people (Bethan Hughes, Owain Thomas) visible to
+  Tim looked like a scoping leak; the database says otherwise: he is the booked
+  CONDUCTOR of their planned checks and people_booked_conductor_select exists
+  exactly for that. Their records render for him with branch named, Complete
+  buttons live, and every manage-level section absent. Verified via impersonated
+  RLS counts (21 Cardiff1 + 7 Newport1 + 2 conductees = his 30).
+- QUESTION (for Part 2, security chat): can a booked conductor complete a check
+  they were NOT booked for on that other-branch person? The buttons render; the
+  RPC guard is the question. Not pressed here (it would write real evidence).
+- PASS Holiday page: Charlotte's pending request (his branch) shows
+  Approve/Decline/Edit dates/Cancel. Left pending deliberately as a fixture.
+- PASS Briefings page loads for a manager with send capability.
 
-### Care Worker (Charlotte, /my portal)
+### Care Worker (Charlotte, /my portal, swept 17 Aug, phone width emphasised)
 
-- Sweep pending.
+- PASS Every guarded URL (/dashboard, /people) lands her on /my; the nav rail
+  shows only her area.
+- PASS Portal content: her record card (Care Assistant, Newport1), MY HOLIDAYS
+  with the pending request ("Waiting for approval", Change dates / Withdraw),
+  Raise a concern (goes to Admin + RI only, "never to your manager", anonymous
+  option stated in plain words), MY BRIEFINGS empty state, POLICIES I HAVE
+  SIGNED (8) with per-row Signed copy buttons, MY TRAINING (33), FORMS I HAVE
+  SENT IN (10).
+- PASS Phone width (390px): stacks cleanly, big gold Request holiday, bottom
+  "My area" dock, collapsed sections expand and render row actions.
 
-### Cross-cutting
+### Supervisor (Sam, Newport1, swept 17 Aug — first ever visual pass of this role)
 
-- Sweep pending: save buttons, dropdowns, modals, back navigation, empty states,
-  UK dates, terminology, error pages, keyboard/a11y light pass.
+- FIXED (Medium, batch 3) The supervisor dashboard told Sam "Inspection Readiness
+  is not switched on for this company" and "On Call is not switched on for this
+  company" — both ARE on; his role simply does not get that data. The score card
+  now says the score is part of the management view; the On Call panel is hidden
+  below manager level (the honest feature-off message stays for manager-plus).
+- PASS Register: 7 Newport1 records only, no branch filter (single branch), no
+  Add person, no Columns panel, status pills read-only.
+- PASS Holiday page: Charlotte's pending request shows a plain Pending pill with
+  NO approve controls (matches the verified approval matrix); booking-for panel
+  present (a supervisor's booking stays pending, enforced by 0206).
+- PASS Record view (Charlotte): Complete buttons live, RTW read-only, no manage
+  sections, evidence history visible.
+- PASS Guards: /settings, /whistleblowing, /complaints all bounce to /dashboard.
+- RECOMMEND (for Phil) Below-manager dashboards still show tiles that can only
+  read n/a for those roles (Up to date, Awaiting action — whose links then bounce)
+  and a Holiday "waiting approval" count for a role that cannot approve. Suggest
+  hiding inapplicable tiles for below-manager roles, as SMS/AI already are.
+
+### Responsible Individual (Rhian, company-wide, swept 17 Aug)
+
+- PASS Full company dashboard (52% over 139, all four PQS branches, on-call
+  panel, incidents and complaints counts) — identical scope to the Admin's.
+- PASS Whistleblowing register OPENS for her (the Admin + RI only rule).
+- PASS Holiday approval LIVE as an RI, previously proven only at database level:
+  Approve pressed on Charlotte's pending request; instant "Saving...", pending
+  panel emptied to its "No requests waiting." state, the request moved into
+  Booked sorted by date, and the audit row reads holiday.decided /
+  registered_individual / "Holiday request approved". Decision email sent to the
+  test inbox with Phil's approval.
+- NOTE Settings is absent from the RI nav entirely (user admin is Admin-only by
+  rule, but that hides letters/policies/branding config from the RI too) —
+  flagged for Phil to confirm intended.
+
+### Cross-cutting (folded into the role sweeps above)
+
+- Save buttons: every save/submit touched behaved to the gold standard (instant
+  Saving..., named result, revert). The two violations found (RTW Limits outline
+  base, founder branch Remove undefined class) are fixed and verified.
+- Dropdowns: canonical dark selects everywhere; one custom control family
+  (hint-select) matches. Empty states present on every list reached (leavers,
+  trial requests, question bank, briefings, incidents, planner week, retention,
+  pending holidays after approval).
+- Back navigation: present and correct on every sub-page visited; browser Back
+  never blanked or broke state during the sweeps.
+- Dates: UK everywhere, but THREE styles coexist (written month, slashes,
+  slash+time). Logged as the one systematic copy inconsistency worth a sweep.
+- Terminology: no banned words sighted anywhere (item/board absent; Record /
+  Register / Check / Form / Evidence used consistently).
+- Error pages: branded 404 shipped this session; permission failures redirect
+  silently to the role's home (acceptable; a toast would be kinder).
+- Accessibility (light): gold focus rings visible on controls and links,
+  keyboard-operable selects, labels present on the forms touched. Radio/checkbox
+  hit areas are comfortable; phone tap targets generous.
+
+## Verdict
+
+**GO for soft launch on UI/UX grounds** — with the open items below on the list,
+none blocking. Fifteen fixes shipped across three batches during the sweep
+(batches 1-2 verified live; batch 3 = the two supervisor dashboard copy fixes,
+verification pending its deploy). All six roles walked end to end on desktop and
+phone width. The money figures agree everywhere they appear, the compliance loop
+is exact, permission boundaries render correctly for every role, and the one
+data-integrity class found (year 0026) is now refused at three layers.
+
+Open, none blocking (decisions for Phil): invite Role dropdown lacks Admin;
+branch required on invites for company-wide roles; SU register lands on first
+branch with no All option; date style mixed; below-manager dashboards show n/a
+tiles; "Active users (7)" counts invited accounts; Settings hidden from the RI;
+PQS tile labels truncate at 1280; on-call urgent rows carry no distinguishing
+text. Part 2 (security chat) carries: conductor completing unbooked checks.
