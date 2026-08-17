@@ -807,12 +807,15 @@ export default async function DashboardPage() {
             */}
           <div className="flex flex-col gap-3 lg:col-span-10 xl:flex-row">
           {/*
-            * content-start, or the lines STRETCH. The tiles sit beside the On call panel, which
-            * is the taller of the two, so the flex lines were splitting its height between them
-            * and a tile came out 520px tall: two enormous boxes with a figure marooned at the
-            * top of each. Deployed and looked at, not reasoned about.
+            * content-start AND h-auto, or the tiles are 548px tall. Two separate causes, and
+            * fixing only the first changed nothing: the lines were stretching to split the
+            * height of the On call panel beside them, AND every tile carries h-full, which
+            * resolves against a container the outer row has already stretched. The arbitrary
+            * child selector outranks the h-full inside the tile. Both found by taking a
+            * screenshot; the measurements I ran first asked about type and overflow and came
+            * back clean, because I never asked about height.
             */}
-          <div className="flex flex-1 flex-wrap content-start gap-3 [&>*]:min-w-[17rem] [&>*]:flex-1">
+          <div className="flex flex-1 flex-wrap content-start gap-3 [&>*]:h-auto [&>*]:min-w-[17rem] [&>*]:flex-1">
           <Tile
             href="/people"
             label="Open actions"
