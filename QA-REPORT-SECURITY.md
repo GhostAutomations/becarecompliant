@@ -14,8 +14,8 @@ Severity: Critical / High / Medium / Low.
 
 ## Verdict
 
-**GO for soft launch on security grounds**, subject only to the security-batch-2
-headers push completing and being confirmed live.
+**GO for soft launch on security grounds.** Both fixes are deployed and confirmed
+live. Nothing open blocks onboarding a real company with real special-category data.
 
 Nothing found in this audit blocks onboarding a real care company with real
 special-category data. The two boundaries that matter most for a multi-tenant
@@ -143,7 +143,8 @@ compliance product - TENANT isolation and PRIVILEGE isolation - hold:
   sit in URLs and would leak via Referer), no Permissions-Policy. HSTS WAS present
   (max-age 2y, platform-set). Added all four via next.config.ts headers(): X-Frame-
   Options DENY, nosniff, Referrer-Policy strict-origin-when-cross-origin,
-  Permissions-Policy locking camera/mic/geo/topics. Re-test after deploy: PENDING.
+  Permissions-Policy locking camera/mic/geo/topics. RE-TESTED LIVE: all four headers
+  present on production responses (HSTS also present); CSP intentionally absent (follow-up).
 - RECOMMENDED (Low) No Content-Security-Policy. A CSP is the right compensating
   control for the JS-readable auth cookie, but a blocking policy must be built with
   per-request nonces so it does not break Next.js inline scripts; logged as a

@@ -433,6 +433,41 @@ ITEM 3 (import templates) BUILT 2026-07-14, no migration. Scope agreed by popup 
 
 ## Phase 11 — Final Testing
 
+FINAL TESTING PART 2, THE SECURITY AND PERMISSIONS AUDIT, RAN 17 AUGUST 2026 (live
+production + database proof via the Supabase MCP, with a second seeded test company
+"Bevan Care Ltd" as the attacker tenant). Full findings in QA-REPORT-SECURITY.md,
+verdict GO for soft launch on security grounds. Nothing found blocks onboarding a real
+company with real special-category data.
+
+What held (proven by crossing the boundary, not just reading): TENANT isolation is
+airtight - as the Bevan admin, 0 rows of Acme readable/updatable/deletable/insertable
+across every sensitive table (DB) and every record URL / file / report endpoint blocked
+(HTTP); RLS enabled on every table, no security-definer views, no RLS-disabled tables;
+the ~15 anon-key-reachable SECURITY DEFINER functions all fail closed for anon;
+webhooks verify signatures (missing + forged -> 400) and fail closed; crons reject
+anonymous callers (401); manage-as is admin-only, 30-min, and every impersonation write
+is audit-tagged; a care worker cannot complete a colleague's check or self-elevate
+(DB triggers refuse); no XSS surface (zero dangerouslySetInnerHTML), queries parameterised.
+
+TWO fixes shipped this session. (1) MEDIUM broken access control: five management pages
+(/people/holiday, /people/absence, /people/summary, /service-users/summary,
+/briefings/coverage) rendered for the staff role instead of redirecting like their
+siblings; the exposure was the company branch list (RLS kept all colleague and care
+data locked). Role-gated to block staff, deployed, re-tested live - all five now
+redirect a care worker to /my. (2) Baseline security response headers (X-Frame-Options
+DENY, X-Content-Type-Options nosniff, Referrer-Policy, Permissions-Policy) added via
+next.config.ts; HSTS was already platform-set.
+
+OPEN, NONE BLOCKING (Low): the Supabase SSR auth cookie is JS-readable (inherent to
+@supabase/ssr, only exploitable via an XSS of which there is none) - compensate with a
+CSP; no CSP yet (recommended as a nonce-based tested follow-up); the public trial form
+has a honeypot but no rate limit (spam-only); Supabase leaked-password protection is off
+(one-click enable). Optional: a live Stripe CLI valid-event idempotency run (the
+security-critical signature + fail-closed behaviour is already proven).
+
+Seeded for future testing: Bevan Care Ltd (Business), admin ppdavies+coB@gmail.com.
+
+
 FINAL TESTING PART 1, THE UI/UX AND FUNCTIONAL SWEEP, RAN 17 AUGUST 2026 (evening, live
 production, all six roles driven in Chrome with Phil signing in at each switch). The full
 findings log with severities is QA-REPORT-UIUX.md, verdict GO for soft launch on UI/UX
