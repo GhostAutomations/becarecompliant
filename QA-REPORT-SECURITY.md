@@ -14,7 +14,49 @@ Severity: Critical / High / Medium / Low.
 
 ## Verdict
 
-PENDING: audit in progress.
+**GO for soft launch on security grounds**, subject only to the security-batch-2
+headers push completing and being confirmed live.
+
+Nothing found in this audit blocks onboarding a real care company with real
+special-category data. The two boundaries that matter most for a multi-tenant
+compliance product - TENANT isolation and PRIVILEGE isolation - hold:
+
+- Tenant isolation is airtight. A fully-authenticated admin of a second company
+  (Bevan) could read, update, delete and insert NOTHING of the first company's
+  (Acme) data, proven both at the database (every sensitive table, 0 rows, with a
+  passing positive control) and over the live HTTP layer (record URLs bounce to the
+  attacker's own empty register; evidence and policy files 404; the founder console
+  and founder-wide audit export are refused). RLS is enabled on every table; there
+  are no security-definer views and no RLS-disabled tables.
+- The ~15 SECURITY DEFINER functions reachable with the public anon key each gate
+  internally on auth.uid()-derived membership/admin and fail closed for anon.
+- Privilege isolation had ONE real defect - five management pages rendered for a
+  care worker - now fixed and re-tested live. The leak was the company branch list;
+  RLS kept all colleague holiday/absence/care data and PII locked. Care workers
+  cannot complete a colleague's check or elevate their own role (DB triggers refuse).
+- Auth/session: single-session enforced, manage-as is admin-only + 30-min + fully
+  audit-tagged, profile self-tamper blocked. Webhooks verify signatures and fail
+  closed; crons reject anonymous callers; no XSS surface; queries are parameterised.
+
+### Fixed this audit
+1. (Medium) Broken access control: five management pages role-gated to block the
+   staff role - DEPLOYED + re-tested live.
+2. (Low->Medium) Baseline security headers added (X-Frame-Options DENY, nosniff,
+   Referrer-Policy, Permissions-Policy) - CODE DONE, push pending, then confirm live.
+
+### Open, none blocking (for Phil)
+- (Low) Supabase SSR auth cookie is JS-readable (inherent to @supabase/ssr; only
+  exploitable via an XSS, of which there is none). Compensate with a CSP.
+- (Low) No Content-Security-Policy. Recommended as a nonce-based, tested follow-up
+  (a blocking CSP added blind would break Next.js inline scripts).
+- (Low) Public trial-request form has a honeypot + validation but no rate limit;
+  spam-only, founder approves each. Gate on the existing public_form_rate_ok.
+- (Low, consistency) `/api/reports/register` and `/api/invoicing/export` return 200
+  to a care worker but are RLS-empty (leak nothing); could role-gate for tidiness.
+- (Info) Supabase leaked-password protection (HaveIBeenPwned) is off - a one-click
+  enable in the Supabase Auth dashboard, sensible before real sign-ups.
+- Optional: a live Stripe CLI valid-event idempotency run (the security-critical
+  bad/forged-signature -> 400 and fail-closed -> 503 are already proven).
 
 ## Findings
 
@@ -74,8 +116,38 @@ PENDING: audit in progress.
 
 ### Auth / session
 
-- PENDING: forged/tampered cookie, sign-out, single-session, manage-as scoping +
-  30-min lapse + impersonation audit tag.
+- PASS Single session: `requireUser` decodes the JWT session id and signs the user
+  out ("signed-out-elsewhere") if it is not the active row in `user_sessions`;
+  observed working in Part 1.
+- PASS Manage-as (impersonation) is properly bounded: it only shadows a
+  `platform_admin` (`applyManageAs` returns the profile unchanged for anyone else, so
+  a forged manage-as cookie is inert for a normal user); the cookie is a signed,
+  httpOnly, 30-minute token (the lapse was observed expiring in Part 1); and every
+  write during a support session is audit-tagged - confirmed in the DB:
+  `whistleblowing.created/updated` and `incident.status_changed` by the founder carry
+  `actor_role=platform_admin` and `metadata {impersonating:true, acting_company_id}`.
+- PASS Profile self-tamper blocked: the `enforce_profile_protected_fields` trigger
+  refuses any change to role, company or status by the row's owner (proven as
+  Charlotte above).
+- FINDING (Low, defense-in-depth) The Supabase SSR auth cookie
+  (`sb-...-auth-token`, holding the access AND refresh token) is readable by
+  JavaScript (not httpOnly). This is the standard `@supabase/ssr` behaviour (the
+  browser client must read it, and making it httpOnly breaks client-side auth +
+  realtime), and it is only exploitable via an XSS - of which this audit found NONE
+  (no dangerouslySetInnerHTML, React escaping, parameterised queries). Mitigation:
+  keep the no-XSS posture and add a CSP (below). Not fixed in code (architectural,
+  would break realtime); documented for Phil's awareness.
+- FIXED (Low->Medium, batch 2) Missing baseline security headers. The app served no
+  X-Frame-Options (clickjacking - a compliance app that approves/completes records
+  should not be frameable), no X-Content-Type-Options, no Referrer-Policy (record IDs
+  sit in URLs and would leak via Referer), no Permissions-Policy. HSTS WAS present
+  (max-age 2y, platform-set). Added all four via next.config.ts headers(): X-Frame-
+  Options DENY, nosniff, Referrer-Policy strict-origin-when-cross-origin,
+  Permissions-Policy locking camera/mic/geo/topics. Re-test after deploy: PENDING.
+- RECOMMENDED (Low) No Content-Security-Policy. A CSP is the right compensating
+  control for the JS-readable auth cookie, but a blocking policy must be built with
+  per-request nonces so it does not break Next.js inline scripts; logged as a
+  tested follow-up rather than added blind.
 
 ### Role / privilege isolation
 
@@ -98,7 +170,8 @@ PENDING: audit in progress.
   `requireCompany()` (any member) with no role gate. Fix: each page now redirects
   `staff` to `/my` (holiday/absence/summaries) or non-manager roles to `/dashboard`
   (briefings coverage), matching the guard on its register/send sibling. tsc + 402
-  tests green. Re-test after deploy: PENDING.
+  tests green. RE-TESTED LIVE after deploy: all five now redirect Charlotte to /my;
+  the change is additive (staff only) so manager/admin/supervisor/viewer are unaffected.
 - PASS Care worker cannot escalate via writes: `complete_check` on a colleague's
   check raised "Not allowed to complete this check"; self-elevation
   (`update profiles set role='company_admin'` on her own row) raised "Not allowed to
@@ -112,6 +185,10 @@ PENDING: audit in progress.
 
 ### Data / files / privacy
 
+- PASS Record-level file isolation (DB-proven as a care worker): Charlotte sees 8
+  evidence_files, ALL her own; 0 evidence_files belonging to any other record; 0 of a
+  colleague's evidence rows. The evidence file route redirect she got was to her OWN
+  signature file, not a colleague's.
 - File routes (evidence, policies, training, assignments) read through the RLS
   client AND re-check company_id; served via 5-minute signed URLs; downloads
   audit-logged; policy/evidence streams are `private, no-store`. Live signed-URL
@@ -131,6 +208,18 @@ PENDING: audit in progress.
   NOTE (Low, to confirm) HTML email templates interpolate user-controlled names into
   markup; self-scoped (a company injecting into its own managers' emails), low impact,
   worth confirming the values are escaped.
+- PASS Rate limiting: Supabase GoTrue rate-limits sign-in / sign-up / OTP / password
+  reset at the platform (the brute-force surface). The public holiday form gates on
+  `public_form_rate_ok` (5 hits / 10 min per key). The public trial-request form
+  (`submitTrialRequest`) has a honeypot field, length-capped inputs, email-format
+  validation and HTML-ESCAPED notification emails, but NO rate limit.
+  FINDING (Low) The trial-request form can be spammed by a bot that skips the
+  honeypot; impact is a cluttered founder trial-requests list (founder approves each
+  before anything provisions), no data or auth exposure. Recommend gating it on the
+  existing public_form_rate_ok. Not fixed (abuse/spam, not a breach).
+- NOTE the earlier "HTML email injection" concern is handled on the trial path
+  (escapeHtml on every interpolated value); worth confirming the same on the digest
+  templates, but user names there originate from authenticated same-company staff.
 - (Cron/webhook code notes retained above; all proven live this session.)
 - Server-side validation: form submissions go through validateAnswers server-side
   in submit_evidence and the public-form path; client validation is not relied on.
