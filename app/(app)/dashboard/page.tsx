@@ -806,7 +806,13 @@ export default async function DashboardPage() {
             * it. Eight tiles land three, three and two; six land three and three.
             */}
           <div className="flex flex-col gap-3 lg:col-span-10 xl:flex-row">
-          <div className="flex flex-1 flex-wrap gap-3 [&>*]:min-w-[17rem] [&>*]:flex-1">
+          {/*
+            * content-start, or the lines STRETCH. The tiles sit beside the On call panel, which
+            * is the taller of the two, so the flex lines were splitting its height between them
+            * and a tile came out 520px tall: two enormous boxes with a figure marooned at the
+            * top of each. Deployed and looked at, not reasoned about.
+            */}
+          <div className="flex flex-1 flex-wrap content-start gap-3 [&>*]:min-w-[17rem] [&>*]:flex-1">
           <Tile
             href="/people"
             label="Open actions"
