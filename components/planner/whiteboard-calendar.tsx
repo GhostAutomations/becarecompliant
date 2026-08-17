@@ -185,36 +185,39 @@ export default function WhiteboardCalendar({
                       where you are going without knowing what for sends somebody out unprepared.
                     */}
                     <span className="block rounded bg-gold-400/15 px-1 py-0.5 text-[10px] text-gold-100">
-                      <span className="block truncate">
-                        {b.startTime ? `${b.startTime} ` : ""}{chipName(b)}
-                      </span>
-                      {(() => {
-                        /*
-                         * The second line, built from whatever is worth saying and nothing that
-                         * is not. The task is skipped on an ad-hoc booking because the first
-                         * line IS the task; the conductor only on the whiteboard, where the grid
-                         * is everybody's; the branch only in the week, where there is room.
-                         */
-                        const parts = [
+                      {/*
+                        ONE LINE WHERE IT FITS, TWO WHERE IT DOES NOT, and the break always falls
+                        in the same place (Phil, 2026-08-17). The time and who it is FOR are one
+                        unbreakable group; the task and who is DOING it are the other. They are
+                        laid out as wrapping blocks, so a week cell holds all four on one line
+                        and a month cell drops the second group underneath, rather than breaking
+                        wherever the words happen to run out, which is what a sentence does.
+                      */}
+                      <span className="flex flex-wrap gap-x-1">
+                        <span className="max-w-full truncate">
+                          {b.startTime ? `${b.startTime} ` : ""}{chipName(b)}
+                        </span>
+                        {(() => {
                           /*
-                           * THE CONDUCTOR COMES FIRST. This grid is the whole company's work, so
-                           * who is carrying the task out is half the question, and it was last
-                           * on the line, which is what the truncation ate in a month cell:
-                           * "Care Plan Review · Akra…" reads as a broken name rather than a
-                           * name. It survives the squeeze now and the task gives way instead.
+                           * The task is skipped on an ad-hoc booking because the first group IS
+                           * the task, and the branch only in the week, where there is room.
                            *
                            * NEVER "Unassigned". A booking cannot exist without a conductor (the
                            * column is NOT NULL), so a missing name is a name that could not be
                            * read, and saying nothing beats saying something untrue.
                            */
-                          b.conductorName,
-                          b.subjectName ? b.label : null,
-                          isWeek ? b.branchName : null,
-                        ].filter(Boolean);
-                        return parts.length > 0 ? (
-                          <span className="block truncate text-gold-100/60">{parts.join(" · ")}</span>
-                        ) : null;
-                      })()}
+                          const parts = [
+                            b.subjectName ? b.label : null,
+                            b.conductorName,
+                            isWeek ? b.branchName : null,
+                          ].filter(Boolean);
+                          return parts.length > 0 ? (
+                            <span className="max-w-full truncate text-gold-100/60">
+                              {parts.join(" · ")}
+                            </span>
+                          ) : null;
+                        })()}
+                      </span>
                     </span>
                     <span className="pointer-events-none absolute left-0 top-full z-40 mt-1 hidden w-48 rounded-lg border border-white/15 bg-slate-900 p-2 text-left shadow-xl group-hover/appt:block">
                       <span className="block text-[11px] font-semibold text-white">{b.label}</span>
