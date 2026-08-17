@@ -197,15 +197,20 @@ export default function WhiteboardCalendar({
                       }`}
                     >
                       {/*
-                        ONE LINE WHERE IT FITS, TWO WHERE IT DOES NOT, and the break always falls
-                        in the same place (Phil, 2026-08-17). The time and who it is FOR are one
-                        unbreakable group; the task and who is DOING it are the other. They are
-                        laid out as wrapping blocks, so a week cell holds all four on one line
-                        and a month cell drops the second group underneath, rather than breaking
-                        wherever the words happen to run out, which is what a sentence does.
+                        ONE LINE IN THE WEEK, TWO IN THE MONTH, decided by the view rather than by
+                        whether a particular name happens to fit (Phil, 2026-08-17: no line
+                        starting or ending with a dot).
+                        
+                        A dot that JOINS two groups has to live on one line or the other, and CSS
+                        cannot tell whether a chip wrapped, so "dot when it fits, none when it
+                        does not" is not something a stylesheet can express. Deciding by view
+                        makes it certain: a week cell has the width for all four parts, so they
+                        sit on one line with a dot between each. A month cell does not, so the
+                        two groups are always stacked and there is no joining dot at all. Neither
+                        layout can ever produce an edge dot.
                       */}
-                      <span className="flex flex-wrap gap-x-1">
-                        <span className="max-w-full truncate">
+                      <span className={isWeek ? "flex flex-wrap gap-x-1" : "block"}>
+                        <span className="block max-w-full truncate">
                           {[b.startTime, chipName(b)].filter(Boolean).join(" · ")}
                         </span>
                         {(() => {
@@ -228,15 +233,9 @@ export default function WhiteboardCalendar({
                           const after = isWeek ? b.branchName : null;
                           if (!before && !b.conductorName && !after) return null;
                           return (
-                            /*
-                             * The dot that joins the two groups LEADS this one, so that on a
-                             * chip that fits on one line every part is separated the same way —
-                             * 10:00 · Bethan Hughes · Supervision · Tim Mingle — and on one that
-                             * wraps it marks the second line as a continuation rather than
-                             * leaving a dot dangling off the end of the first.
-                             */
-                            <span className="max-w-full truncate">
-                              {`· ${before ? `${before} · ` : ""}`}
+                            <span className="block max-w-full truncate">
+                              {isWeek ? "· " : ""}
+                              {before ? `${before} · ` : ""}
                               {b.conductorName ? (
                                 <span
                                   className={
