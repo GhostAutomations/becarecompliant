@@ -28,29 +28,52 @@ export const INCIDENT_STATUSES: IncidentStatus[] = ["open", "under_review", "clo
  * required to record, and it maps onto what CQC (Regulation 18 notifications) and CIW
  * (Regulation 60 notifications) ask about, so the Reg 80 aggregate can be grouped by it.
  *
- * "Notifiable to the regulator" is deliberately NOT a category — it is a flag on the
- * record. The same category can be notifiable in one case and not in another, and a
- * provider who has to choose between "Fall" and "Notifiable" will pick one and lose
- * the other.
+ * "Notifiable to the regulator" is deliberately NOT a category. It is a flag on the record. The
+ * same category can be notifiable in one case and not in another, and a provider forced to
+ * choose between "Fall" and "Notifiable" will pick one and lose the other.
+ *
+ * PROVISIONAL FOR THE THISTLE SOFT LAUNCH (Phil, 2026-08-17). The list was written by Claude and
+ * then rebuilt against the instruments themselves; Phil has left it whole for now rather than
+ * cutting it, so that a real provider using it is what decides what comes out. Expect to shorten
+ * it once Thistle has filed a month of records.
  */
 export const INCIDENT_CATEGORIES = [
+  /*
+   * NAMED BY A REGULATOR. Every one of these is an event a provider is required to notify, and
+   * the wording follows the instrument rather than our own: CIW Schedule 3 Part 1 of the
+   * Regulated Services (Service Providers and Responsible Individuals) (Wales) Regulations 2017,
+   * and CQC Regulation 18 of the Care Quality Commission (Registration) Regulations 2009. The
+   * number in brackets is the paragraph, so the next person can check it rather than trust it.
+   */
+  "Abuse or allegation of abuse",                       // CIW Sch 3 (13), CQC 18(2)(c)
+  "Allegation of misconduct by a member of staff",      // CIW Sch 3 (15)
+  "Serious accident or injury",                         // CIW Sch 3 (17), CQC 18(2)(a),(b)
+  "Pressure damage, category 3, 4 or unstageable",      // CIW Sch 3 (16)
+  "Infection or outbreak",                              // CIW Sch 3 (18)
+  "Reported to the police",                             // CIW Sch 3 (19), CQC 18(2)(d)
+  "Death of a service user",                            // CIW Sch 3 (21), CQC notifies separately
+  "Deprivation of Liberty request or authorisation",    // CIW Sch 3 (22), CQC 18(2)(g)
+  // CQC names what this covers: staffing, utilities lost for more than 24 hours, damage to the
+  // premises, and a fire alarm or safety device out for more than 24 hours.
+  "Something that stops us running the service safely", // CIW Sch 3 (20), CQC 18(2)(e)
+
+  /*
+   * NOT NAMED BY A REGULATOR, and recorded by every provider anyway. These are what somebody
+   * actually types at half past six, and several of them become one of the above once the
+   * outcome is known: a fall becomes a serious injury, a missed call becomes staffing.
+   */
   "Fall",
   "Medication error",
-  "Injury to a service user",
-  "Injury to a member of staff",
-  "Pressure ulcer",
   "Choking or swallowing difficulty",
   "Behaviour that challenges",
-  "Allegation of abuse or neglect",
+  "Missing person or unexplained absence",  // CIW names this for children only, Sch 3 Pt 2 (31)
   "Missed or late call",
-  "Missing person or unexplained absence",
-  "Death of a service user",
-  "Infection or outbreak",
   "Medical emergency or hospital admission",
-  "Property damage, loss or theft",
-  "Data or confidentiality breach",
+  "Injury to a member of staff",            // RIDDOR, not CQC or CIW
   "Fire, flood or utility failure",
   "Vehicle or road traffic incident",
+  "Property damage, loss or theft",
+  "Data or confidentiality breach",         // the ICO, not CQC or CIW
   "Near miss",
   "Other",
 ] as const;

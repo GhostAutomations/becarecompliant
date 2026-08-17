@@ -29,20 +29,39 @@ export const DISCLOSURE_STATUSES: DisclosureStatus[] = ["open", "under_review", 
  * half past six. Every entry below falls under at least one PIDA head.
  *
  * Stored as free text so the list can change later without orphaning old records.
+ *
+ * PROVISIONAL FOR THE THISTLE SOFT LAUNCH (Phil, 2026-08-17). Left whole for now rather than cut,
+ * so that a real provider using it is what decides what comes out.
  */
 export const DISCLOSURE_CATEGORIES = [
-  "Abuse or neglect of a service user",
-  "Unsafe care or poor practice",
-  "Staffing levels or missed calls",
-  "Medication practice",
-  "Falsification of records",
-  "Financial impropriety or theft",
-  "Bullying, harassment or discrimination",
-  "Breach of confidentiality",
-  "Health and safety",
-  "Recruitment or right to work",
-  "Concealment of any of the above",
+  /*
+   * The letter is the head of section 43B(1) each one falls under, so the list can be checked
+   * against the Act rather than taken on trust:
+   *   (a) a criminal offence      (b) failure to comply with a legal obligation
+   *   (c) a miscarriage of justice (d) health or safety endangered
+   *   (da) sexual harassment      (e) damage to the environment
+   *   (f) deliberate concealment of any of the above
+   */
+  "Abuse or neglect of a service user",       // (d)
+  "Unsafe care or poor practice",             // (d)
+  "Staffing levels or missed calls",          // (d)(b)
+  "Medication practice",                      // (d)(b)
+  "Falsification of records",                 // (a)(b)(f)
+  "Financial impropriety or theft",           // (a)
+  // (da) is its OWN head now, added to the Act. It used to be folded into the line below, which
+  // is no longer where the law puts it.
+  "Sexual harassment",                        // (da)
+  "Bullying, harassment or discrimination",   // (b)
+  "Breach of confidentiality",                // (b)
+  "Health and safety",                        // (d)
+  "Recruitment or right to work",             // (a)(b)
+  "Concealment of any of the above",          // (f)
   "Other",
+  /*
+   * (c) miscarriage of justice and (e) damage to the environment have no entry. That is a
+   * decision, not an oversight: in domiciliary care both are close to unreachable, and anybody
+   * who does have one has "Other" and a free text box. Revisit if Thistle ever files one there.
+   */
 ] as const;
 
 export type DisclosureRecord = {
