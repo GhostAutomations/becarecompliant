@@ -197,19 +197,20 @@ export default function WhiteboardCalendar({
                       }`}
                     >
                       {/*
-                        ONE LINE IN THE WEEK, TWO IN THE MONTH, decided by the view rather than by
-                        whether a particular name happens to fit (Phil, 2026-08-17: no line
+                        TWO LINES, ALWAYS, and no dot joining them (Phil, 2026-08-17: no line
                         starting or ending with a dot).
                         
                         A dot that JOINS two groups has to live on one line or the other, and CSS
                         cannot tell whether a chip wrapped, so "dot when it fits, none when it
-                        does not" is not something a stylesheet can express. Deciding by view
-                        makes it certain: a week cell has the width for all four parts, so they
-                        sit on one line with a dot between each. A month cell does not, so the
-                        two groups are always stacked and there is no joining dot at all. Neither
-                        layout can ever produce an edge dot.
+                        does not" is not something a stylesheet can express. I tried deciding it
+                        by view — one line in the week, where a column looked wide enough — and
+                        deployed it: at 1456px a week column is about 195px and every chip in it
+                        wrapped anyway, leading dot and all. So the layout does not depend on a
+                        width guess at all now. Time and who it is FOR on the first line, the
+                        task and who is DOING it on the second, and the only dots are the ones
+                        inside a line.
                       */}
-                      <span className={isWeek ? "flex flex-wrap gap-x-1" : "block"}>
+                      <span className="block">
                         <span className="block max-w-full truncate">
                           {[b.startTime, chipName(b)].filter(Boolean).join(" · ")}
                         </span>
@@ -234,7 +235,6 @@ export default function WhiteboardCalendar({
                           if (!before && !b.conductorName && !after) return null;
                           return (
                             <span className="block max-w-full truncate">
-                              {isWeek ? "· " : ""}
                               {before ? `${before} · ` : ""}
                               {b.conductorName ? (
                                 <span
