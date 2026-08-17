@@ -53,6 +53,15 @@ PENDING: sweep in progress.
   (Phil tuned this card the same morning; the change is additive to his rule, seen at
   a width his monitor does not hit.)
 
+### Process note (17 Aug, batch 2 red deploy)
+
+- Batch 2's first push FAILED on Vercel: an inserted import landed inside a
+  multi-line import in lib/form-validate.ts. npm test cannot catch this (the file
+  is deliberately never imported by tests) and the semicolon terminal block pushes
+  even when the local build fails. Repaired same evening. NEW RULE: npx tsc
+  --noEmit runs on Phil's machine in seconds and is now run before every handover
+  block, so a parse or type error can never reach Vercel again.
+
 ### Marketing site (public pages, swept 17 Aug)
 
 - PASS Homepage, pricing page copy and numbers: £49/£69 plus VAT, £7.50 branch, £5
