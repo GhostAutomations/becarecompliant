@@ -13,6 +13,12 @@ export type Profile = {
   role:
     | "platform_admin"
     | "company_admin"
+    /** The two company wide registered roles (CIW/CQC). They were missing from
+     *  this union while profiles_role_check has allowed them for months, so the
+     *  role lists that name them, such as the Holiday page's canApprove, were
+     *  comparing against a type that said they could not exist. */
+    | "registered_individual"
+    | "registered_manager"
     | "manager"
     | "supervisor"
     | "team_member"

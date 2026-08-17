@@ -189,9 +189,19 @@ transaction: Cardiff1 `in_use`, the office row `not_a_branch`, a company admin
 
 **Testing, not building**
 
-17. **Roles**: Supervisor, Viewer, Registered holiday approval. Four logins, and the app is
-    single session, so I am at the keyboard for each switch. Claude can test the boundaries
-    directly against RLS instead, which answers the real question.
+17. ~~**Roles**: Supervisor, Viewer, Registered holiday approval.~~ **DONE 2026-08-17.**
+    All eight roles impersonated against production RLS, every probe inside a transaction
+    that rolled back, Acme unchanged. Supervisor, Viewer and Team Member came out correct:
+    they see what they should and cannot decide anything, and nobody can UPDATE the table
+    at all because there is no UPDATE policy. Three defects found and fixed in 0206:
+    every role including Viewer could INSERT an already approved holiday for anybody in
+    any branch, because the policy never looked at `status`; the two Registered roles
+    could neither see nor decide a branch less request, though the screen offered them
+    the button; and `decide_holiday_request` ignored the status it was overwriting, so a
+    cancelled holiday could be re approved and keep its `cancelled_at`. Re proved after.
+    0207 is the review of 0206: a branch belongs to its company the same way a person
+    does, decided_at is stamped rather than defaulted so it cannot be backdated, and the
+    approver emails no longer go to Branch Managers who cannot see the request.
 18. **Registered roles emails** — digest, chaser, holiday approver.
 19. ~~**Item 14 Phase C**: Tim Mingle's Planner and Bethan Hughes of Caerphilly.~~ **DONE
     2026-08-16.**

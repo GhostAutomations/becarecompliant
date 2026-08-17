@@ -227,6 +227,7 @@ export default function HolidayView({
   people,
   requestSchema,
   canApprove,
+  approvableBranchIds,
   canBookForPerson,
   currentUserId,
 }: {
@@ -236,12 +237,23 @@ export default function HolidayView({
   requestSchema: FormSchema | null;
   /** Branch Manager and above: can approve, decline, amend and cancel. */
   canApprove: boolean;
+  /** The branches whose requests this user may decide, or null for a company wide
+   *  role that may decide any of them. A Branch Manager's authority comes from
+   *  their branch, so a request with no branch is not theirs to approve and the
+   *  database refuses it (0206). Without this the button was offered and the
+   *  press came back as an error. */
+  approvableBranchIds: string[] | null;
   /** Branch Manager and above + Supervisor: can book a holiday for a person (a
    *  Supervisor's booking is created pending until approved). */
   canBookForPerson: boolean;
   /** So someone can withdraw their own pending request. */
   currentUserId: string;
 }) {
+  const canDecide = (r: HolidayRequestRow) =>
+    canApprove &&
+    (approvableBranchIds === null ||
+      (r.branch_id !== null && approvableBranchIds.includes(r.branch_id)));
+
   const now = new Date();
   const [branch, setBranch] = useState("");
   const [pickPerson, setPickPerson] = useState("");
@@ -430,10 +442,10 @@ export default function HolidayView({
                   </p>
                   {clashLine(r)}
                 </div>
-                {canApprove || r.requested_by === currentUserId ? (
+                {canDecide(r) || r.requested_by === currentUserId ? (
                   <RequestActions
                     request={r}
-                    canManage={canApprove}
+                    canManage={canDecide(r)}
                     canWithdraw={r.requested_by === currentUserId}
                   />
                 ) : (
@@ -466,7 +478,7 @@ export default function HolidayView({
                     {r.return_to_work_date ? ` · Back at work ${fmt(r.return_to_work_date)}` : ""}
                   </p>
                 </div>
-                <RequestActions request={r} canManage canWithdraw={false} />
+                <RequestActions request={r} canManage={canDecide(r)} canWithdraw={false} />
               </li>
             ))}
           </ul>

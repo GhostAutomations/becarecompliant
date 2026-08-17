@@ -207,6 +207,22 @@ export async function bookHolidayForPerson(
     return { error: "The Holiday Form is not available for your company yet." };
   }
 
+  // Branch Manager and above book directly (approved); a Supervisor's booking is
+  // logged as pending until a Branch Manager or higher approves it.
+  //
+  // ASK THE DATABASE, do not restate it. Migration 0206 puts this rule in a BEFORE
+  // INSERT trigger, because until then it lived only here: the INSERT policy never
+  // looked at `status`, so anybody in the company could POST an already approved
+  // holiday for anybody, in any branch. A role list here would answer a different
+  // question from the trigger's for a Branch Manager booking outside their own
+  // branches, and the insert would then be refused AFTER the Evidence was written,
+  // leaving an Evidence row with no request behind it. One source, asked first.
+  const { data: mayApprove } = await supabase.rpc("can_manage_holiday", {
+    p_company: companyId,
+    p_branch: (person.branch_id as string | null) ?? null,
+  });
+  const canApproveOwn = mayApprove === true;
+
   const result = await submitEvidence({
     formVersionId: form.versionId,
     branchId: (person.branch_id as string | null) ?? null,
@@ -216,12 +232,6 @@ export async function bookHolidayForPerson(
     recordId: personId,
   });
   if (!result.ok) return { error: result.error };
-
-  // Branch Manager and above book directly (approved); a Supervisor's booking is
-  // logged as pending until a Branch Manager or higher approves it.
-  const canApproveOwn = ["company_admin", "registered_individual", "registered_manager", "manager", "platform_admin"].includes(
-    profile.role,
-  );
   const { error: insErr } = await supabase.from("holiday_requests").insert({
     company_id: companyId,
     branch_id: (person.branch_id as string | null) ?? null,

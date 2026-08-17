@@ -33,6 +33,12 @@ export default async function HolidayPage() {
   const canApprove = ["company_admin", "registered_individual", "registered_manager", "manager", "platform_admin"].includes(
     profile.role,
   );
+  // A Branch Manager's authority is their branch, so a request carrying no branch is
+  // not theirs to decide and can_manage_holiday refuses it. listBranches already
+  // returns exactly their branches, and every branch for a company wide role.
+  const companyWideApprover = ["company_admin", "registered_individual", "registered_manager", "platform_admin"].includes(
+    profile.role,
+  );
   const canBookForPerson = canApprove || profile.role === "supervisor";
   const [branches, requests, people, requestForm] = await Promise.all([
     listBranches(companyId, profile),
@@ -55,6 +61,7 @@ export default async function HolidayPage() {
         requestSchema={requestSchema}
         currentUserId={user.id}
         canApprove={canApprove}
+        approvableBranchIds={companyWideApprover ? null : branches.map((b) => b.id)}
         canBookForPerson={canBookForPerson}
       />
     </div>

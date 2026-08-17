@@ -60,6 +60,11 @@ export async function notifyHolidayRequested(opts: {
         const inBranch = new Set((branchRows ?? []).map((r) => r.user_id));
         approvers = approvers.filter((a) => companyWide.has(a.role as string) || inBranch.has(a.id));
       }
+    } else {
+      // A request with no branch belongs to no branch, so after 0206 a Branch
+      // Manager can neither see it on the Holiday page nor decide it. Emailing
+      // them a request they cannot act on is worse than not emailing them.
+      approvers = approvers.filter((a) => companyWide.has(a.role as string));
     }
 
     for (const approver of approvers) {
