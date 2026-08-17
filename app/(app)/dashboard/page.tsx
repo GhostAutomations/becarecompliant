@@ -212,7 +212,18 @@ function SplitTile({
 }: {
   href?: string;
   label: string;
-  pairs: Array<{ value: ReactNode; caption: string; tone?: "red" | "amber" | "green" | "none" }>;
+  /*
+   * A pair may carry its own href. Two figures merged into one tile are still two places to go,
+   * and a card level link would have to pick one of them; an anchor inside an anchor is invalid
+   * HTML that the browser silently unnests. So when a pair has an href, the HALF is the link and
+   * the card is a plain div.
+   */
+  pairs: Array<{
+    value: ReactNode;
+    caption: string;
+    tone?: "red" | "amber" | "green" | "none";
+    href?: string;
+  }>;
   icon?: string;
   iconTone?: string;
   className?: string;
@@ -232,23 +243,39 @@ function SplitTile({
       <div className="flex min-w-0 flex-1 flex-col">
         <p className="truncate text-xs uppercase tracking-wide text-white/50">{label}</p>
         <div className="mt-2 flex flex-1 justify-between gap-1">
-          {pairs.map((p) => (
-            <div key={p.caption} className="flex min-w-0 flex-1 flex-col text-center">
-              <p className={`text-[40px] font-bold leading-none tabular-nums ${ink(p.tone)}`}>
-                {p.value}
-              </p>
-              <p className="mt-auto flex h-[30px] items-end justify-center text-[11px] leading-snug text-white/55">
-                {p.caption}
-              </p>
-            </div>
-          ))}
+          {pairs.map((p) => {
+            const half = (
+              <>
+                <p className={`text-[40px] font-bold leading-none tabular-nums ${ink(p.tone)}`}>
+                  {p.value}
+                </p>
+                <p className="mt-auto flex h-[30px] items-end justify-center text-[11px] leading-snug text-white/55">
+                  {p.caption}
+                </p>
+              </>
+            );
+            return p.href ? (
+              <Link
+                key={p.caption}
+                href={p.href}
+                className="-mx-1 flex min-w-0 flex-1 flex-col rounded-lg px-1 text-center transition hover:bg-white/[0.06]"
+              >
+                {half}
+              </Link>
+            ) : (
+              <div key={p.caption} className="flex min-w-0 flex-1 flex-col text-center">
+                {half}
+              </div>
+            );
+          })}
         </div>
       </div>
       {/* Top right, matching Tile. */}
       {icon ? <TileIcon name={icon} tone={iconTone} /> : null}
     </div>
   );
-  return href ? (
+  const halvesLink = pairs.some((p) => p.href);
+  return href && !halvesLink ? (
     <Link href={href} className={`glass-card glass-card-hover block h-full p-4 ${className}`}>
       {inner}
     </Link>
@@ -360,11 +387,13 @@ function ScoreTile({
   name,
   measures,
   href,
+  className = "",
 }: {
   name: string;
   measures: PqsMeasure[];
   /** That scope's own PQS report: a branch, or all branches for the company tile. */
   href?: string;
+  className?: string;
 }) {
   const body = (
     <>
@@ -415,7 +444,7 @@ function ScoreTile({
     </>
   );
 
-  const skin = "rounded-xl bg-white p-3 shadow-lg shadow-black/20";
+  const skin = `rounded-xl bg-white p-3 shadow-lg shadow-black/20 ${className}`;
   return href ? (
     <Link
       href={href}
@@ -800,31 +829,42 @@ export default async function DashboardPage() {
               ]}
             />
           ) : null}
-          {policyCoverage ? (
-            <Tile
-              href="/briefings/coverage"
-              label="Policies up to date"
-              className={spendCols}
-              icon="policy"
-              iconTone="blue"
-              value={policyCoverage.pct == null ? "n/a" : `${Math.floor(policyCoverage.pct)}%`}
-              sub={
-                policyCoverage.assigned === 0
-                  ? "no policy sent out yet"
-                  : `${policyCoverage.upToDate} of ${policyCoverage.assigned} on the current version`
-              }
-            />
-          ) : null}
-          <Tile
-            href="/people/training"
-            label="Training completion"
+          {/*
+            * ONE tile, two figures (2026-08-17). Policies up to date arrived on 11 Aug and
+            * Incidents awaiting action on 12 Aug, into a block whose arithmetic was already
+            * exact: On call is four columns by two rows, which leaves sixteen slots, which is
+            * eight tiles. Ten tiles wanted twenty eight slots against twenty four, so the block
+            * silently spilled into a third row and left holes in the two above it. Merging the
+            * two pairs that answer one question each puts it back to eight, and each half keeps
+            * its own link because they are still two places to go.
+            */}
+          <SplitTile
+            label="Up to date"
             className={spendCols}
-            icon="training"
+            icon="policy"
             iconTone="blue"
-            // Math.floor, not Math.round: the figure arrives floored to one decimal, and rounding
-            // it back up here would undo that on the most looked at screen in the app.
-            value={trainingPct == null ? "n/a" : `${Math.floor(trainingPct)}%`}
-            sub="of mandatory training is in date"
+            pairs={[
+              {
+                value:
+                  policyCoverage == null || policyCoverage.pct == null
+                    ? "n/a"
+                    : `${Math.floor(policyCoverage.pct)}%`,
+                caption:
+                  policyCoverage == null
+                    ? "Policies"
+                    : policyCoverage.assigned === 0
+                      ? "Policies: none sent yet"
+                      : `Policies: ${policyCoverage.upToDate} of ${policyCoverage.assigned}`,
+                href: "/briefings/coverage",
+              },
+              {
+                // Math.floor, not Math.round: the figure arrives floored to one decimal, and
+                // rounding it back up here would undo that on the most looked at screen.
+                value: trainingPct == null ? "n/a" : `${Math.floor(trainingPct)}%`,
+                caption: "Mandatory training in date",
+                href: "/people/training",
+              },
+            ]}
           />
         {/* On call and Due in 14 days swapped (Phil, 2026-07-30): the urgent follow ups
               belong at the top of the screen, in the four column slot that runs down both tile
@@ -878,55 +918,60 @@ export default async function DashboardPage() {
             value={auditsPct == null ? "n/a" : `${auditsPct}%`}
             sub="audits in date"
           />
-          {/* Complaints, in place of the Incidents tile there is no feature for (Phil, 2026-07-30).
-              The figure is cases NOT closed, which is what a manager acts on. */}
-          {incidentActions ? (
-            <Tile
-              href="/incidents"
-              label="Incidents awaiting action"
-              className={spendCols}
-              icon="risk"
-              iconTone="red"
-              /* THE OUTSTANDING DUTY IS THE HEADLINE, not the number of open incidents.
-                 A notifiable incident with no notification date is the one thing on this
-                 screen that can put a provider in front of the regulator, and it stays
-                 counted after the incident is closed. */
-              value={incidentActions.awaiting}
-              tone={incidentActions.awaiting > 0 ? "red" : "green"}
-              sub={
-                incidentActions.awaiting > 0
-                  ? "flagged, but no date recorded yet"
-                  : `nothing outstanding, ${incidentActions.open} open`
-              }
-            />
-          ) : null}
-          {complaints ? (
-            <Tile
-              href="/complaints"
-              label="Complaints"
-              className={spendCols}
-              icon="shield"
-              iconTone="red"
-              value={complaints.open + complaints.inProgress}
-              tone={
-                complaints.overdue > 0
-                  ? "red"
-                  : complaints.open + complaints.inProgress > 0
-                    ? "amber"
-                    : "green"
-              }
-              sub={
-                complaints.overdue > 0
-                  ? `${complaints.overdue} past the response date`
-                  : "open and in progress"
-              }
-            />
-          ) : (
-            <MissingTile label="Complaints"
-              className={spendCols}
-              needs="Complaints is a Pro feature and is not switched on for this company"
-              icon="shield" />
-          )}
+          {/*
+            * The second merged pair. Both halves are the same question — what is outstanding and
+            * could put this provider in front of the regulator — and each keeps its own link.
+            *
+            * A half with nothing behind it reads "n/a" and says why, rather than dropping out of
+            * the tile: a missing tile changes the width of the row, and a row whose width depends
+            * on the tier is how this block came apart in the first place.
+            */}
+          <SplitTile
+            label="Awaiting action"
+            className={spendCols}
+            icon="risk"
+            iconTone="red"
+            pairs={[
+              {
+                /* THE OUTSTANDING DUTY IS THE HEADLINE, not the number of open incidents. A
+                   notifiable incident with no notification date is the one thing on this screen
+                   that can put a provider in front of the regulator, and it stays counted after
+                   the incident is closed. */
+                value: incidentActions == null ? "n/a" : incidentActions.awaiting,
+                caption:
+                  incidentActions == null
+                    ? "Incidents"
+                    : incidentActions.awaiting > 0
+                      ? "Incidents flagged, no date yet"
+                      : `Incidents: ${incidentActions.open} open`,
+                tone:
+                  incidentActions == null
+                    ? "none"
+                    : incidentActions.awaiting > 0
+                      ? "red"
+                      : "green",
+                href: "/incidents",
+              },
+              {
+                value: complaints == null ? "n/a" : complaints.open + complaints.inProgress,
+                caption:
+                  complaints == null
+                    ? "Complaints: Pro feature"
+                    : complaints.overdue > 0
+                      ? `Complaints: ${complaints.overdue} past response`
+                      : "Complaints open",
+                tone:
+                  complaints == null
+                    ? "none"
+                    : complaints.overdue > 0
+                      ? "red"
+                      : complaints.open + complaints.inProgress > 0
+                        ? "amber"
+                        : "green",
+                href: "/complaints",
+              },
+            ]}
+          />
           {spend ? (
             <SplitTile
               href="/settings/billing"
@@ -1011,11 +1056,20 @@ export default async function DashboardPage() {
             <div className="flex h-full flex-col">
               <div className="min-h-0 flex-1 overflow-y-auto pr-1">
                 <div className="grid grid-cols-2 gap-3">
-                  {pqsScopes.map((sc) => (
+                  {pqsScopes.map((sc, i) => (
                     <ScoreTile
                       key={sc.key}
                       name={sc.name}
                       measures={sc.measures}
+                      /* An ODD number of scopes fills the row rather than leaving a hole. An
+                         Admin gets the company and every branch, so it is usually even and lays
+                         out two by two; a Manager of two branches gets three, and the third used
+                         to sit beside an empty cell. */
+                      className={
+                        pqsScopes.length % 2 === 1 && i === pqsScopes.length - 1
+                          ? "col-span-2"
+                          : ""
+                      }
                       /* A link only where it will actually open: the report viewer admits
                          MANAGER_PLUS_ROLES, so a Supervisor following one would be bounced
                          straight back here. The company tile opens the SAME report across all
