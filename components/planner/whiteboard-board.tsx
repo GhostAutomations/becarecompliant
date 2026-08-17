@@ -91,7 +91,17 @@ export default function WhiteboardBoard({
                   <span className="min-w-0 truncate font-semibold text-slate-800">{b.recordName}</span>
                   <span className="flex shrink-0 items-center gap-2 whitespace-nowrap text-slate-500">
                     <span>
-                      {b.conductorName ? `${b.conductorName} · ` : ""}{fmtShort(b.date)}{b.startTime ? ` · ${b.startTime}` : ""}
+                      {/* GOLD MEANS YOU, the same as the Planner calendar: on a board of
+                          everybody's work your own are the ones you do not have to read for. */}
+                      {b.conductorName ? (
+                        <>
+                          <span className={b.conductorId === currentUserId ? "font-semibold text-amber-600" : undefined}>
+                            {b.conductorName}
+                          </span>
+                          {" · "}
+                        </>
+                      ) : null}
+                      {fmtShort(b.date)}{b.startTime ? ` · ${b.startTime}` : ""}
                     </span>
                     <form action={(fd) => { if (!confirm("Cancel this booking? It moves back to 'to book'.")) return; run(cancelBooking, fd); }}>
                       <input type="hidden" name="booking_id" value={b.bookingId} />

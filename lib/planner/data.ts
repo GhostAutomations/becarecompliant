@@ -40,6 +40,9 @@ export type BoardBooked = {
   date: string; // scheduled date ISO
   startTime: string | null;
   durationMinutes: number | null;
+  /** WHO, by id. The name is for reading; the id is what decides whose it is, because two
+   *  colleagues can share a name and a filter that matched on one would quietly include both. */
+  conductorId: string;
   conductorName: string | null;
   branchId: string | null;
 };
@@ -113,6 +116,7 @@ export async function getWhiteboardBoard(companyId: string, todayIso: string): P
       date: v.scheduledDate,
       startTime: v.startTime,
       durationMinutes: v.durationMinutes,
+      conductorId: v.conductorId,
       conductorName: v.conductorName,
       branchId: v.branchId,
     });
