@@ -9,6 +9,7 @@ import NotificationSettings, {
 } from "@/components/settings/notification-settings";
 import { resendConfigured } from "@/lib/email/resend";
 import { twilioConfigured } from "@/lib/sms/twilio";
+import { SMS_ESCALATION_ROLES } from "@/lib/notifications/roles";
 
 export const metadata: Metadata = { title: "Notification settings" };
 
@@ -34,7 +35,7 @@ export default async function NotificationSettingsPage() {
         .select("id, full_name, email, role, phone")
         .eq("company_id", profile.company_id)
         .eq("status", "active")
-        .in("role", ["company_admin", "registered_individual", "registered_manager", "manager"])
+        .in("role", SMS_ESCALATION_ROLES)
         .order("full_name"),
       supabase
         .from("sms_inbound")

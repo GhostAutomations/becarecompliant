@@ -1,5 +1,6 @@
 import "server-only";
 import { createServiceClient } from "@/lib/supabase/admin";
+import { COMPLIANCE_RECIPIENT_ROLES, normaliseRecipientRole } from "@/lib/notifications/roles";
 import { todayInLondon, formatCivilDate } from "@/lib/recurrence";
 
 /**
@@ -32,10 +33,8 @@ export type Recipient = {
   fullName: string;
   email: string;
   phone: string | null;
-  /** Registered Individual and Registered Manager are company wide, exactly like a
-   *  Company Admin, so they are NORMALISED to company_admin here and every
-   *  role check downstream treats them correctly without a change (fixed
-   *  2026-07-27: they were receiving no digest, chaser or holiday email at all). */
+  /** Normalised: see normaliseRecipientRole in ./roles.ts, which is where the
+   *  rule and its tests live. */
   role: "company_admin" | "manager" | "supervisor";
   /** The role actually on the profile, before the normalisation above. */
   trueRole: string;
@@ -112,7 +111,7 @@ export async function getRecipients(companyId: string): Promise<Recipient[]> {
     .select("id, full_name, email, phone, role")
     .eq("company_id", companyId)
     .eq("status", "active")
-    .in("role", ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor"]);
+    .in("role", COMPLIANCE_RECIPIENT_ROLES);
   if (error) throw new Error(error.message);
   if (!profiles || profiles.length === 0) return [];
 
@@ -131,12 +130,14 @@ export async function getRecipients(companyId: string): Promise<Recipient[]> {
       fullName: p.full_name || p.email,
       email: p.email,
       phone: (p.phone as string | null) || null,
-      role: (p.role === "registered_individual" || p.role === "registered_manager"
-        ? "company_admin"
-        : p.role) as Recipient["role"],
+      // The rule and its nine role table live in ./roles.ts, where a test can
+      // reach them. It returns null for anybody who is not a compliance
+      // recipient, so a widened query above still cannot email a Viewer.
+      role: normaliseRecipientRole(p.role as string),
       trueRole: p.role as string,
       branchIds: branchByUser.get(p.id) ?? [],
-    }));
+    }))
+    .filter((r): r is Recipient => r.role !== null);
 }
 
 /**

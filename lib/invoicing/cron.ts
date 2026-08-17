@@ -25,12 +25,14 @@ import { buildCarePlanLines, rateLookup, type PlanEntryRow } from "./care-plan-b
 import { unitPricePence } from "@/lib/service-users/care-plan-consts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-const MANAGER_PLUS = new Set([
-  "company_admin",
-  "registered_individual",
-  "registered_manager",
-  "manager",
-]);
+/*
+ * THE NORMALISED role, not the one on the profile. getRecipients collapses
+ * registered_individual and registered_manager to company_admin, so those two
+ * entries were dead here and read as though this were a true role list: anybody
+ * later removing the normalisation would see them and think this was covered.
+ * A Registered Manager still gets this email, as a company_admin.
+ */
+const MANAGER_PLUS = new Set(["company_admin", "manager"]);
 
 function addDaysIso(iso: string, days: number): string {
   const [y, m, d] = iso.split("-").map(Number);

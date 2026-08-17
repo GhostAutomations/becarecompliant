@@ -16,6 +16,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
 import type { ActionState } from "@/lib/forms";
+import { SMS_ESCALATION_ROLES } from "@/lib/notifications/roles";
 
 export async function saveNotificationSettings(
   _prev: ActionState,
@@ -99,11 +100,9 @@ export async function saveUserPhone(
   if (!target || target.company_id !== profile.company_id) {
     return { error: "That user is not in your company." };
   }
-  if (
-    !["company_admin", "registered_individual", "registered_manager", "manager"].includes(
-      target.role as string,
-    )
-  ) {
+  // The same list the Settings screen offers a phone box to, and the same list
+  // the cron texts. One constant, so the screen and this guard cannot disagree.
+  if (!SMS_ESCALATION_ROLES.includes(target.role as string)) {
     return { error: "SMS numbers are only held for Managers and Admins." };
   }
 

@@ -4,6 +4,7 @@ import { sendEmail } from "@/lib/email/resend";
 import { noticeEmailHtml, escapeHtml, formatDateUk } from "@/lib/email/templates";
 import { claimNotification, settleNotification } from "@/lib/notifications/log";
 import { siteUrl } from "@/lib/site";
+import { HOLIDAY_APPROVER_ROLES, holidayApprovers } from "@/lib/notifications/roles";
 
 /**
  * Holiday notification emails (Phase 6, the flow owed from Holidays):
@@ -33,7 +34,7 @@ export async function notifyHolidayRequested(opts: {
         .select("id, full_name, email, role")
         .eq("company_id", opts.companyId)
         .eq("status", "active")
-        .in("role", ["company_admin", "registered_individual", "registered_manager", "manager"]),
+        .in("role", HOLIDAY_APPROVER_ROLES),
       supabase.from("companies").select("name, holiday_request_emails_enabled").eq("id", opts.companyId).maybeSingle(),
     ]);
 
@@ -46,26 +47,28 @@ export async function notifyHolidayRequested(opts: {
     }
 
     // Branch Managers only for the request's branch; company wide roles always.
-    // Registered Individual and Registered Manager are company wide like an Admin.
-    const companyWide = new Set(["company_admin", "registered_individual", "registered_manager"]);
-    let approvers = admins ?? [];
+    // The rule itself is in ./roles.ts, with tests: a request with NO branch
+    // belongs to no branch, so after migration 0206 a Branch Manager can
+    // neither see it on the Holiday page nor decide it, and emailing them one
+    // is worse than silence.
+    const candidates = admins ?? [];
+    let managerIdsInBranch: string[] = [];
     if (opts.branchId) {
-      const managerIds = approvers.filter((a) => a.role === "manager").map((a) => a.id);
+      const managerIds = candidates.filter((a) => a.role === "manager").map((a) => a.id);
       if (managerIds.length > 0) {
         const { data: branchRows } = await supabase
           .from("user_branches")
           .select("user_id")
           .eq("branch_id", opts.branchId)
           .in("user_id", managerIds);
-        const inBranch = new Set((branchRows ?? []).map((r) => r.user_id));
-        approvers = approvers.filter((a) => companyWide.has(a.role as string) || inBranch.has(a.id));
+        managerIdsInBranch = (branchRows ?? []).map((r) => r.user_id as string);
       }
-    } else {
-      // A request with no branch belongs to no branch, so after 0206 a Branch
-      // Manager can neither see it on the Holiday page nor decide it. Emailing
-      // them a request they cannot act on is worse than not emailing them.
-      approvers = approvers.filter((a) => companyWide.has(a.role as string));
     }
+    const approvers = holidayApprovers({
+      branchId: opts.branchId,
+      candidates: candidates.map((a) => ({ ...a, id: a.id as string, role: a.role as string })),
+      managerIdsInBranch,
+    });
 
     for (const approver of approvers) {
       if (!approver.email) continue;

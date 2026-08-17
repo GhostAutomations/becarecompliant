@@ -202,7 +202,16 @@ transaction: Cardiff1 `in_use`, the office row `not_a_branch`, a company admin
     0207 is the review of 0206: a branch belongs to its company the same way a person
     does, decided_at is stamped rather than defaulted so it cannot be backdated, and the
     approver emails no longer go to Branch Managers who cannot see the request.
-18. **Registered roles emails** — digest, chaser, holiday approver.
+18. ~~**Registered roles emails** — digest, chaser, holiday approver.~~ **DONE 2026-08-17.**
+    All three already reached the two Registered roles; the normalisation to company_admin
+    was fixed on 27 July. What was missing was any test of it: the rule sat inside
+    lib/notifications/data.ts, which imports the Supabase admin client, so nothing could
+    load it, which is exactly how the Supervisor digest stayed empty for a month. The four
+    role lists and the two rules are now in lib/notifications/roles.ts, importless, with
+    13 tests that pin all nine roles. Two real finds on the way: the guard on who may hold
+    an SMS number was a fourth hand copy of the list the screen reads, and MANAGER_PLUS in
+    the invoicing cron carried two entries that could never match because it is applied to
+    the normalised role.
 19. ~~**Item 14 Phase C**: Tim Mingle's Planner and Bethan Hughes of Caerphilly.~~ **DONE
     2026-08-16.**
 20. ~~**Briefings form completion and policy signing** as Charlotte test.~~ **DONE
