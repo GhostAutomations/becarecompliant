@@ -721,7 +721,14 @@ export default async function DashboardPage() {
         {/* justify-between, not justify-center: the card is as tall as the tile block beside it,
             and centring left a dead band top and bottom. Now the figure sits at the top and the
             breakdown link on the floor. */}
-        <div className="glass-card flex flex-col justify-between gap-3 p-5 lg:col-span-2">
+        {/*
+            THREE TWELFTHS BELOW xl, TWO ABOVE. Two twelfths of a 1150px window is about 120px,
+            and this card carries sentences, not a figure: "Down 1 since 10 Aug" was breaking one
+            word to a line. Nothing changes at the widths where two twelfths is wide enough, and
+            below xl the On call panel has already dropped under the tiles, so the row it takes
+            the column from has it to spare.
+         */}
+        <div className="glass-card flex flex-col justify-between gap-3 p-5 lg:col-span-3 xl:col-span-2">
           {score.enabled ? (
             <>
               <div className="flex items-center gap-3">
@@ -811,7 +818,7 @@ export default async function DashboardPage() {
             * a two figure tile reads at exactly the same size as the single figure tile beside
             * it. Eight tiles land three, three and two; six land three and three.
             */}
-          <div className="flex flex-col gap-3 lg:col-span-10 xl:flex-row">
+          <div className="flex flex-col gap-3 lg:col-span-9 xl:col-span-10 xl:flex-row">
           {/*
             * content-start AND h-auto, or the tiles are 548px tall. Two separate causes, and
             * fixing only the first changed nothing: the lines were stretching to split the
