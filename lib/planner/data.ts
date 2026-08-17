@@ -96,7 +96,7 @@ export async function getWhiteboardBoard(companyId: string, todayIso: string): P
   const bookedInstanceIds = new Set<string>();
   /*
    * The board is the DEFAULT Whiteboard view and the calendar is opt in, so filling the names in
-   * listBoardBookings and not here fixed the view nobody lands on. To a Manager or a Supervisor
+   * the calendar and not here fixed the view nobody lands on. To a Manager or a Supervisor
    * every chip on the board simply dropped the name of whoever is carrying the booking out.
    */
   const bookedViews = await withConductorNames(
@@ -304,23 +304,6 @@ export async function listMyBookings(userId: string): Promise<PlannerBookingView
   return withConductorNames(((data as Row[] | null) ?? []).filter(checkStillBookable).map(toView));
 }
 
-/** Every booking visible to the caller in a date range (the whiteboard). RLS
- *  scopes the rows to their branch(es). */
-export async function listBoardBookings(
-  fromIso: string,
-  toIso: string,
-): Promise<PlannerBookingView[]> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("planner_bookings")
-    .select(SELECT)
-    .gte("scheduled_date", fromIso)
-    .lte("scheduled_date", toIso)
-    .neq("status", "cancelled")
-    .order("scheduled_date", { ascending: true })
-    .order("start_time", { ascending: true, nullsFirst: true });
-  return withConductorNames(((data as Row[] | null) ?? []).filter(checkStillBookable).map(toView));
-}
 
 /** Active, non-cancelled bookings for one record (shown on its record page). */
 export async function listRecordBookings(

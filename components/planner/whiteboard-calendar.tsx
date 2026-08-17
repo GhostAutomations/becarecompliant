@@ -47,7 +47,6 @@ export default function WhiteboardCalendar({
   bookings,
   branches,
   basePath = "/planner/whiteboard",
-  showConductor = false,
 }: {
   /** A month grid, or one week across. ONE component on purpose: the chip, the tooltip and the
    *  day panel are the same in both, and two copies would drift the first time either changed. */
@@ -68,7 +67,6 @@ export default function WhiteboardCalendar({
    * on one grid, so "who is doing this" is half the question. My Planner is only ever your own
    * bookings, where printing your own name on every chip is noise in the space the task needs.
    */
-  showConductor?: boolean;
 }) {
   const isWeek = span === "week";
   const [branchId, setBranchId] = useState("");
@@ -198,11 +196,14 @@ export default function WhiteboardCalendar({
                          * is everybody's; the branch only in the week, where there is room.
                          */
                         const parts = [
+                          /*
+                           * No conductor on the chip. It was here for the Whiteboard calendar,
+                           * which is gone (Phil, 2026-08-17), and the only calendar left is My
+                           * Planner, where every booking is the viewer's own: printing your own
+                           * name on every chip is noise in the space the task needs. The hover
+                           * card and the day list below still name whoever is carrying it out.
+                           */
                           b.subjectName ? b.label : null,
-                          // NEVER "Unassigned". A booking cannot exist without a conductor
-                          // (the column is NOT NULL), so a missing name is a name that could not
-                          // be read, and saying nothing beats saying something untrue.
-                          showConductor ? b.conductorName : null,
                           isWeek ? b.branchName : null,
                         ].filter(Boolean);
                         return parts.length > 0 ? (
