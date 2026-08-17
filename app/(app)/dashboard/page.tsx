@@ -245,8 +245,8 @@ function SplitTile({
    * and no way to wrap, and neither had min-w-0, so both simply overflowed their half and ran
    * into the other one. "100%" and "39%" printed as "1039%".
    *
-   * Fixed by giving the tile a MINIMUM WIDTH rather than by shrinking the type: at 17rem a half
-   * is 98px and "100%" at 40px is 94px, both measured on the deployed page, so nothing is a
+   * Fixed by giving the tile a MINIMUM WIDTH rather than by shrinking the type: at 19rem a half
+   * is 104px, "100%" at 40px is 94px, and there is a rule and 12px between them, so nothing is a
    * different size from anything else. The one step down is for a phone, where a tile is the
    * whole screen and 40px twice over will not fit. Never truncated: a clipped "10…" where a
    * compliance percentage should be is a wrong number, which is the one thing this dashboard
@@ -257,7 +257,13 @@ function SplitTile({
     <div className="flex h-full items-start gap-3">
       <div className="flex min-w-0 flex-1 flex-col">
         <p className="truncate text-xs uppercase tracking-wide text-white/50">{label}</p>
-        <div className="mt-2 flex flex-1 justify-between gap-1">
+        {/*
+            A LINE BETWEEN THEM, and room to breathe. Measured, "100%" and "39%" each fitted
+            their half with 8px to spare and no overflow flag anywhere — and on the screen they
+            read as one number, 10039%, because nothing separated them. Fitting is not the same
+            as reading as two figures.
+         */}
+        <div className="mt-2 flex flex-1 justify-between gap-3 divide-x divide-white/10">
           {pairs.map((p) => {
             const half = (
               <>
@@ -275,7 +281,7 @@ function SplitTile({
               <Link
                 key={p.caption}
                 href={p.href}
-                className="-mx-1 flex min-w-0 flex-1 flex-col rounded-lg px-1 text-center transition hover:bg-white/[0.06]"
+                className="flex min-w-0 flex-1 flex-col rounded-lg px-1 text-center transition hover:bg-white/[0.06]"
               >
                 {half}
               </Link>
@@ -801,7 +807,7 @@ export default async function DashboardPage() {
             * The tiles now WRAP and STRETCH. Each one asks for at least 15rem and takes an equal
             * share of whatever is left, so a row is always completely full whatever the tier and
             * the role turn on, and a tile is never narrower than the figures inside it. That
-            * minimum is the whole point: half of a 17rem tile holds "100%" at the full 40px, so
+            * minimum is the whole point: half of a 19rem tile holds "100%" at the full 40px with
             * a two figure tile reads at exactly the same size as the single figure tile beside
             * it. Eight tiles land three, three and two; six land three and three.
             */}
@@ -815,7 +821,7 @@ export default async function DashboardPage() {
             * screenshot; the measurements I ran first asked about type and overflow and came
             * back clean, because I never asked about height.
             */}
-          <div className="flex flex-1 flex-wrap content-start gap-3 [&>*]:h-auto [&>*]:min-w-[17rem] [&>*]:flex-1">
+          <div className="flex flex-1 flex-wrap content-start gap-3 [&>*]:h-auto [&>*]:min-w-[19rem] [&>*]:flex-1">
           <Tile
             href="/people"
             label="Open actions"
