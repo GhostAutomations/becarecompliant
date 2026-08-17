@@ -1197,13 +1197,17 @@ export default async function DashboardPage() {
               The Planner is not switched on for you, so there is nothing booked to show.
             </p>
           ) : (
-            <>
-              <div className="grid grid-cols-5 divide-x divide-white/10">
+            <div className="flex h-full flex-col">
+              {/* THE COLUMNS FILL THE PANEL. They were capped at 88px, and the panel is as tall
+                  as Recent activity beside it, so a fifth of it held the week and the rest was
+                  nothing. Each column now takes the height it is given and scrolls only when it
+                  genuinely runs out. */}
+              <div className="grid min-h-0 flex-1 grid-cols-5 divide-x divide-white/10">
                 {plannerWeek.map((d) => {
                   const { day, date } = fmtDay(d.iso);
                   const isToday = day === "Today";
                   return (
-                    <div key={d.iso} className="min-w-0 px-2 first:pl-0 last:pr-0">
+                    <div key={d.iso} className="flex min-w-0 flex-col px-2 first:pl-0 last:pr-0">
                       <p
                         className={`truncate text-[11px] font-semibold uppercase tracking-wide ${
                           isToday ? "text-gold-300" : "text-white/60"
@@ -1215,7 +1219,7 @@ export default async function DashboardPage() {
                       {/* Every booking is here. The column scrolls when there are more than a
                           couple, so a busy day is never truncated to a "+N more" you cannot
                           open. */}
-                      <ul className="mt-2 max-h-[88px] space-y-1.5 overflow-y-auto pr-0.5">
+                      <ul className="mt-2 min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-0.5">
                         {d.items.length === 0 ? (
                           <li className="text-[11px] text-white/30">Clear</li>
                         ) : (
@@ -1251,10 +1255,14 @@ export default async function DashboardPage() {
                   );
                 })}
               </div>
-              <p className="mt-2 border-t border-white/10 pt-2 text-[10px] text-white/45">
-                Your booked tasks. Weekend bookings show on the next working day.
+              <p className="mt-2 shrink-0 border-t border-white/10 pt-2 text-[10px] text-white/45">
+                {/* An empty week said "Clear" five times and left the rest of the panel blank.
+                    Say it once, in the space that was doing nothing. */}
+                {plannerWeek.every((d) => d.items.length === 0)
+                  ? "Nothing booked this week. Weekend bookings show on the next working day."
+                  : "Your booked tasks. Weekend bookings show on the next working day."}
               </p>
-            </>
+            </div>
           )}
         </Panel>
         <Panel title="Recent activity" href="/reports" linkLabel="View all" className="lg:col-span-3">

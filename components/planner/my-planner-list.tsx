@@ -135,7 +135,14 @@ function BookingCard({ b }: { b: PlannerBookingView }) {
  *
  * Renders NOTHING when there is nothing overdue, which is the normal state and the point: it is
  * a band that appears when something needs doing, not another empty panel to scroll past.
+ *
+ * AND IT IS CAPPED. Acme has 31 overdue, which is 31 rows above the calendar: the band stopped
+ * being a prompt and became the page, and the calendar it sits above was two screens down. Four
+ * rows and a count, with the rest one click away, because a band you have to scroll past to
+ * reach the thing you came for is the List view we deleted wearing a different hat.
  */
+const OVERDUE_SHOWN = 4;
+
 export default function OverdueBookings({
   bookings,
   todayIso,
@@ -143,8 +150,11 @@ export default function OverdueBookings({
   bookings: PlannerBookingView[];
   todayIso: string;
 }) {
+  const [showAll, setShowAll] = useState(false);
   const overdue = bookings.filter((b) => b.status === "planned" && b.scheduledDate < todayIso);
   if (overdue.length === 0) return null;
+  const shown = showAll ? overdue : overdue.slice(0, OVERDUE_SHOWN);
+  const hidden = overdue.length - shown.length;
 
   return (
     <section className="space-y-2">
@@ -152,7 +162,18 @@ export default function OverdueBookings({
         Overdue ({overdue.length})
       </h2>
       <div className="glass-card divide-y divide-white/10">
-        {overdue.map((b) => <BookingCard key={b.id} b={b} />)}
+        {shown.map((b) => <BookingCard key={b.id} b={b} />)}
+        {hidden > 0 || showAll ? (
+          <button
+            type="button"
+            onClick={() => setShowAll((v) => !v)}
+            className="w-full px-4 py-2 text-left text-xs font-medium text-gold-300 transition hover:bg-white/[0.04]"
+          >
+            {/* The oldest are at the top, so what is hidden is the least overdue. Said plainly
+                rather than left as a number the reader has to work out. */}
+            {showAll ? "Show fewer" : `Show ${hidden} more overdue`}
+          </button>
+        ) : null}
       </div>
     </section>
   );
