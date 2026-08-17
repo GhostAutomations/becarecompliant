@@ -193,11 +193,22 @@ transaction: Cardiff1 `in_use`, the office row `not_a_branch`, a company admin
     single session, so I am at the keyboard for each switch. Claude can test the boundaries
     directly against RLS instead, which answers the real question.
 18. **Registered roles emails** — digest, chaser, holiday approver.
-19. **Item 14 Phase C**: sign in as Tim Mingle (ficklephil@me.com, Manager of Cardiff1 and
-    Newport1) and check the Planner. A booking was deliberately left for **Bethan Hughes,
-    who is Caerphilly**, to see whether his Planner shows a carer he cannot otherwise see.
-20. **Briefings form completion and policy signing** as Charlotte test
-    (wakeling13@icloud.com, staff, linked to her record).
+19. ~~**Item 14 Phase C**: Tim Mingle's Planner and Bethan Hughes of Caerphilly.~~ **DONE
+    2026-08-16.**
+20. ~~**Briefings form completion and policy signing** as Charlotte test.~~ **DONE
+    2026-08-17.** Signed in as her: the reader refuses to offer Sign it until the document has
+    been scrolled to the end, the signature is stored as a real file and the policy VERSION is
+    recorded on both the assignment and the Evidence, the form files its Evidence and closes
+    the assignment, and submitting Holiday Requests created a real holiday request carrying
+    request_evidence_id back to that Evidence. No approver email, correctly: Acme has
+    holiday_request_emails_enabled = false. Acme restored to its before state afterwards.
+
+21. ~~The finalised on call shift lock lived in updateLog, not in a trigger.~~ **DONE
+    2026-08-17** (0205). Follow up columns stay writable; details and un-finalising are refused.
+
+22. ~~The On Call CSV export wrote six columns that are null on every write.~~ **DONE
+    2026-08-17.** The columns are the fields the Register actually holds, and a branch-less
+    shift reads Company wide.
 
 **Open questions from 2026-08-12, none blocking**
 
@@ -205,10 +216,16 @@ transaction: Cardiff1 `in_use`, the office row `not_a_branch`, a company admin
   planned. Right for the bug it fixed; worth deciding on its own terms.
 - "No time" renders amber on the dashboard next to grey "Clear" days, so an untimed
   booking reads as a warning. Pre-existing.
-- The incident and whistleblowing CATEGORY LISTS were written by Claude, not by Phil.
-- Two whistleblowing audit rows created before the 2026-08-12 fix still carry the
-  disclosure category in their summary. Acme test data only, and rewriting an audit log
-  needs Phil to say so.
+- ~~The incident and whistleblowing CATEGORY LISTS were written by Claude, not by Phil.~~
+  **DONE 2026-08-17.** Both rebuilt from the instruments themselves, each entry carrying the
+  paragraph it answers to: CIW Schedule 3 Part 1, CQC Regulation 18, and section 43B(1) of the
+  Employment Rights Act 1996. Left WHOLE for the Thistle soft launch rather than cut, so a real
+  provider using them decides what comes out. Both files say so.
+- ~~Two whistleblowing audit rows still carry the disclosure category.~~ **ALREADY DONE, the
+  note was stale.** Migration 0182 fixed it on 2026-08-14, written as a pattern match rather
+  than against two known ids so it is correct in any environment. Verified against production
+  2026-08-17: all six whistleblowing audit entries carry no category in the summary and no
+  `category` key in the metadata. Nothing to authorise.
 
 ## How I want you to work — these are settled, do not relitigate them
 
