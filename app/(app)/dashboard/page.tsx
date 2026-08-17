@@ -245,13 +245,13 @@ function SplitTile({
    * and no way to wrap, and neither had min-w-0, so both simply overflowed their half and ran
    * into the other one. "100%" and "39%" printed as "1039%".
    *
-   * The figure now steps with the TILE'S OWN width rather than the viewport's, because that is
-   * the thing that is actually too narrow: a two column tile and a three column tile are on the
-   * same screen at the same time. It is never truncated. A clipped "10…" where a compliance
-   * percentage should be is a wrong number, which is the one thing this dashboard keeps trying
-   * not to print. Captions wrap instead of overflowing and have a floor rather than a fixed
-   * height, so a second line has somewhere to go. Keep them to a word or two: the sentence
-   * belongs on the screen the tile opens.
+   * Fixed by giving the tile a MINIMUM WIDTH rather than by shrinking the type: at 15rem a half
+   * holds "100%" at the same 40px the single figure tiles use, so nothing on the row is a
+   * different size from anything else. The one step down is for a phone, where a tile is the
+   * whole screen and 40px twice over will not fit. Never truncated: a clipped "10…" where a
+   * compliance percentage should be is a wrong number, which is the one thing this dashboard
+   * keeps trying not to print. Captions wrap instead of overflowing and have a floor rather than
+   * a fixed height. Keep them to a word or two: the sentence belongs on the screen it opens.
    */
   const inner = (
     <div className="flex h-full items-start gap-3">
@@ -262,7 +262,7 @@ function SplitTile({
             const half = (
               <>
                 <p
-                  className={`min-w-0 text-[18px] font-bold leading-none tabular-nums @[13rem]:text-[24px] @[15rem]:text-[30px] @[17rem]:text-[40px] ${ink(p.tone)}`}
+                  className={`min-w-0 text-[24px] font-bold leading-none tabular-nums @[15rem]:text-[40px] ${ink(p.tone)}`}
                 >
                   {p.value}
                 </p>
@@ -677,7 +677,7 @@ export default async function DashboardPage() {
    * four keep the three columns they had, and a Manager sees exactly the layout they saw before,
    * rather than a hole where two tiles they may not read would have been.
    */
-  const spendCols = spend ? "xl:col-span-2" : "xl:col-span-3";
+
   const healthy =
     score.enabled ? score.requirements.filter((r) => r.status === "green").length : 0;
   const scored = score.enabled ? score.requirements.filter((r) => r.score != null).length : 0;
@@ -790,11 +790,26 @@ export default async function DashboardPage() {
           {/* grid-rows-2 and h-full: the two tile rows split the column evenly and fill it, so
               the block ends exactly level with the score card beside it. Without it the rows size
               to their content and the two columns finish at different heights. */}
-          <div className="grid h-full gap-3 sm:grid-cols-2 lg:col-span-10 xl:grid-cols-12 xl:grid-rows-2">
+          {/*
+            * THE TILES DIVIDE THE ROW BETWEEN THEM, they are not each pinned to a fixed number
+            * of twelfths (2026-08-17). Hand counted spans were what broke this block twice: it
+            * was exact at eight tiles on 30 July, two more arrived on 11 and 12 August, and
+            * nobody redid the arithmetic, so it spilled into a third row with holes in the two
+            * above. Then merging to get back to eight made every tile narrower than the figures
+            * inside it, so a two figure tile printed 100% and 39% as 1039%.
+            *
+            * The tiles now WRAP and STRETCH. Each one asks for at least 15rem and takes an equal
+            * share of whatever is left, so a row is always completely full whatever the tier and
+            * the role turn on, and a tile is never narrower than the figures inside it. That
+            * minimum is the whole point: half of a 15rem tile holds "100%" at the full 40px, so
+            * a two figure tile reads at exactly the same size as the single figure tile beside
+            * it. Eight tiles land three, three and two; six land three and three.
+            */}
+          <div className="flex flex-col gap-3 lg:col-span-10 xl:flex-row">
+          <div className="flex flex-1 flex-wrap gap-3 [&>*]:min-w-[15rem] [&>*]:flex-1">
           <Tile
             href="/people"
             label="Open actions"
-            className="xl:col-span-2"
             icon="actions"
             iconTone="indigo"
             value={overdue}
@@ -806,7 +821,6 @@ export default async function DashboardPage() {
           <Tile
             href="/people/holiday"
             label="Holiday"
-            className={spendCols}
             icon="calendar"
             iconTone="blue"
             value={holidaysPending}
@@ -822,8 +836,7 @@ export default async function DashboardPage() {
             <SplitTile
               href="/settings/billing"
               label="SMS"
-              className="xl:col-span-2"
-              icon="policy"
+                icon="policy"
               iconTone="blue"
               pairs={[
                 { value: spend.sms.sent, caption: "Sent" },
@@ -858,7 +871,6 @@ export default async function DashboardPage() {
             */}
           <SplitTile
             label="Up to date"
-            className={spendCols}
             icon="policy"
             iconTone="blue"
             pairs={[
@@ -879,53 +891,9 @@ export default async function DashboardPage() {
               },
             ]}
           />
-        {/* On call and Due in 14 days swapped (Phil, 2026-07-30): the urgent follow ups
-              belong at the top of the screen, in the four column slot that runs down both tile
-              rows. */}
-          <Panel
-            title="On call: urgent follow ups"
-            href="/on-call"
-            className="xl:col-span-4 xl:row-span-2"
-          >
-          {!canSeeOnCall ? (
-            <p className="text-sm text-white/55">On Call is not switched on for this company.</p>
-          ) : onCallUrgent.length === 0 ? (
-            <p className="text-sm text-white/55">Nothing urgent. Every call has been followed up.</p>
-          ) : (
-            /* FIVE, and NOT scrollable (Phil, 2026-07-30). The fifth row goes in the space that
-               was sitting empty at the bottom of the panel. The "View all" link in the corner is
-               the way to the rest. */
-            <ul className="space-y-2">
-              {onCallUrgent.slice(0, 5).map((u) => (
-                <li key={u.id}>
-                  <Link
-                    href={`/on-call/log/${u.id}`}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-white/10 px-3 py-2 transition hover:bg-white/[0.06]"
-                  >
-                    <span className="pill-amber shrink-0">
-                      <span className="pill-dot" /> Urgent
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-sm text-white/80">
-                      {shiftLabel(u.shift_date, u.slot)}
-                    </span>
-                    {u.branch_name ? (
-                      <span className="shrink-0 text-xs text-white/45">{u.branch_name}</span>
-                    ) : null}
-                  </Link>
-                </li>
-              ))}
-              {onCallUrgent.length > 5 ? (
-                <li className="pt-0.5 text-[11px] text-white/45">
-                  {onCallUrgent.length - 5} more waiting
-                </li>
-              ) : null}
-            </ul>
-          )}
-        </Panel>
           <Tile
             href="/people"
             label="Audits completed"
-            className="xl:col-span-2"
             icon="audit"
             iconTone="indigo"
             value={auditsPct == null ? "n/a" : `${auditsPct}%`}
@@ -941,7 +909,6 @@ export default async function DashboardPage() {
             */}
           <SplitTile
             label="Awaiting action"
-            className={spendCols}
             icon="risk"
             iconTone="red"
             pairs={[
@@ -979,8 +946,7 @@ export default async function DashboardPage() {
             <SplitTile
               href="/settings/billing"
               label="AI credits"
-              className="xl:col-span-2"
-              icon="training"
+                icon="training"
               iconTone="indigo"
               pairs={[
                 { value: spend.ai.used, caption: "Used" },
@@ -1011,7 +977,6 @@ export default async function DashboardPage() {
           <SplitTile
             href="/people/absence"
             label="Absences"
-            className={spendCols}
             icon="risk"
             iconTone="orange"
             pairs={[
@@ -1033,6 +998,55 @@ export default async function DashboardPage() {
               },
             ]}
           />
+          </div>
+          {/* On call sits BESIDE the tiles rather than inside their grid (Phil, 2026-07-30: the
+              urgent follow ups belong at the top of the screen). Out here it keeps its own width
+              whatever the tile count is, instead of taking slots the tiles are counting. */}
+          <div className="shrink-0 xl:w-[21rem]">
+        {/* On call and Due in 14 days swapped (Phil, 2026-07-30): the urgent follow ups
+              belong at the top of the screen, in the four column slot that runs down both tile
+              rows. */}
+          <Panel
+            title="On call: urgent follow ups"
+            href="/on-call"
+            className="h-full"
+          >
+          {!canSeeOnCall ? (
+            <p className="text-sm text-white/55">On Call is not switched on for this company.</p>
+          ) : onCallUrgent.length === 0 ? (
+            <p className="text-sm text-white/55">Nothing urgent. Every call has been followed up.</p>
+          ) : (
+            /* FIVE, and NOT scrollable (Phil, 2026-07-30). The fifth row goes in the space that
+               was sitting empty at the bottom of the panel. The "View all" link in the corner is
+               the way to the rest. */
+            <ul className="space-y-2">
+              {onCallUrgent.slice(0, 5).map((u) => (
+                <li key={u.id}>
+                  <Link
+                    href={`/on-call/log/${u.id}`}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-white/10 px-3 py-2 transition hover:bg-white/[0.06]"
+                  >
+                    <span className="pill-amber shrink-0">
+                      <span className="pill-dot" /> Urgent
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-sm text-white/80">
+                      {shiftLabel(u.shift_date, u.slot)}
+                    </span>
+                    {u.branch_name ? (
+                      <span className="shrink-0 text-xs text-white/45">{u.branch_name}</span>
+                    ) : null}
+                  </Link>
+                </li>
+              ))}
+              {onCallUrgent.length > 5 ? (
+                <li className="pt-0.5 text-[11px] text-white/45">
+                  {onCallUrgent.length - 5} more waiting
+                </li>
+              ) : null}
+            </ul>
+          )}
+        </Panel>
+          </div>
         </div>
       </div>
 
