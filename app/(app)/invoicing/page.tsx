@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireInvoicing } from "@/lib/invoicing/guard";
+import { ukDate } from "@/lib/dates";
 import { getInvoiceSummary, listInvoices, londonToday } from "@/lib/invoicing/data";
 import {
   formatMoney,
@@ -61,8 +62,10 @@ export default async function InvoicingPage() {
                 </td>
                 <td className="py-2 pr-3 text-white/85">{inv.client_name}</td>
                 <td className="py-2 pr-3 text-white/60">{inv.branch_name}</td>
-                <td className="py-2 pr-3 text-white/60">{inv.issue_date ?? "—"}</td>
-                <td className="py-2 pr-3 text-white/60">{inv.due_date ?? "—"}</td>
+                {/* ukDate, not the raw ISO string: the stored date leaked to this
+                    table as 2026-08-10 (17 Aug QA), the recurring leak item 27 predicts. */}
+                <td className="py-2 pr-3 text-white/60">{inv.issue_date ? ukDate(inv.issue_date) : "—"}</td>
+                <td className="py-2 pr-3 text-white/60">{inv.due_date ? ukDate(inv.due_date) : "—"}</td>
                 <td className="py-2 pr-3 text-right font-semibold text-white/90">
                   {formatMoney(inv.total_pence)}
                 </td>

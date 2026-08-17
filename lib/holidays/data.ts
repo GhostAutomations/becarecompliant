@@ -1,4 +1,5 @@
 import "server-only";
+import { implausibleYearMessage } from "@/lib/date-plausible";
 
 /**
  * Be Care Compliant — Holiday (People extension) server data access.
@@ -37,16 +38,27 @@ export type HolidayRequestRow = {
 /** Field keys on the holiday form that hold the first date back at work. */
 const RETURN_DATE_KEYS = ["what_is_the_first_date_you_are_avail"];
 
+/**
+ * A date worth printing on a card. Older evidence can carry a year like 0026
+ * (Chrome turns a typed two-digit year into the literal year 0026, and that
+ * reached a live card as "Back at work 19 Feb 0026"). Evidence is immutable, so
+ * the garbage row stays; the card simply refuses to repeat it.
+ */
+function plausibleIsoDate(v: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
+  return implausibleYearMessage(v) === null;
+}
+
 function pickReturnDate(answers: Record<string, unknown> | null | undefined): string | null {
   if (!answers) return null;
   for (const k of RETURN_DATE_KEYS) {
     const v = answers[k];
-    if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+    if (typeof v === "string" && plausibleIsoDate(v)) return v;
   }
   // Fall back to any date-valued answer whose key mentions availability, so a
   // company whose holiday form uses a different key still shows the return date.
   for (const [k, v] of Object.entries(answers)) {
-    if (/avail/i.test(k) && typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+    if (/avail/i.test(k) && typeof v === "string" && plausibleIsoDate(v)) return v;
   }
   return null;
 }

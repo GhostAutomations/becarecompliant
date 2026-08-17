@@ -394,11 +394,12 @@ export default async function PersonPage({
               </dl>
               {canManage ? (
                 <div className="mt-3">
+                  {/* Default gold save button: an outline base on a SAVE broke the
+                      standing save-button rule (17 Aug QA). */}
                   <ActionForm
                     action={updateTracker}
                     hidden={{ person_id: person.id }}
                     inline
-                    buttonClassName="btn-outline text-xs"
                   >
                     <label htmlFor="rtw_limits" className="form-label">Limits</label>
                     <select id="rtw_limits" name="rtw_limits" defaultValue={tracker?.rtw_limits ?? ""}>

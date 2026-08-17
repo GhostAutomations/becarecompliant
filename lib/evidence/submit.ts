@@ -80,7 +80,7 @@ export async function submitEvidence(input: SubmitEvidenceInput): Promise<Submit
       .select("id, version, schema, forms(name, company_id)")
       .eq("id", input.formVersionId)
       .single<FormVersionRow>(),
-    supabase.from("profiles").select("full_name, email").eq("id", user.id).maybeSingle(),
+    supabase.from("profiles").select("full_name, email, role").eq("id", user.id).maybeSingle(),
   ]);
   if (fvErr || !fv || !fv.forms) {
     return { ok: false, error: "That form could not be found." };
@@ -151,7 +151,7 @@ export async function submitEvidence(input: SubmitEvidenceInput): Promise<Submit
     companyId,
     actorId: user.id,
     actorEmail: profile?.email ?? user.email ?? null,
-    actorRole: "unknown",
+    actorRole: (profile as { role?: string } | null)?.role ?? "unknown",
     action: "evidence.created",
     entityType: "evidence",
     entityId: evidenceId,

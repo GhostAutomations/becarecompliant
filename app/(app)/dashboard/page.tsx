@@ -722,13 +722,14 @@ export default async function DashboardPage() {
             and centring left a dead band top and bottom. Now the figure sits at the top and the
             breakdown link on the floor. */}
         {/*
-            THREE TWELFTHS BELOW xl, TWO ABOVE. Two twelfths of a 1150px window is about 120px,
+            THREE TWELFTHS BELOW 2xl, TWO ABOVE. Two twelfths of a 1150px window is about 120px,
             and this card carries sentences, not a figure: "Down 1 since 10 Aug" was breaking one
-            word to a line. Nothing changes at the widths where two twelfths is wide enough, and
-            below xl the On call panel has already dropped under the tiles, so the row it takes
-            the column from has it to spare.
+            word to a line. The first cut of this rule switched at xl, but a 13 inch MacBook is
+            exactly 1280, and two twelfths there is ~200px: the ring sat on top of the words
+            (seen live, 17 Aug QA). 2xl keeps the third column through the laptop widths and
+            gives it back on big monitors, where two twelfths genuinely is wide enough.
          */}
-        <div className="glass-card flex flex-col justify-between gap-3 p-5 lg:col-span-3 xl:col-span-2">
+        <div className="glass-card flex flex-col justify-between gap-3 p-5 lg:col-span-3 2xl:col-span-2">
           {score.enabled ? (
             <>
               <div className="flex items-center gap-3">
@@ -818,7 +819,7 @@ export default async function DashboardPage() {
             * a two figure tile reads at exactly the same size as the single figure tile beside
             * it. Eight tiles land three, three and two; six land three and three.
             */}
-          <div className="flex flex-col gap-3 lg:col-span-9 xl:col-span-10 xl:flex-row">
+          <div className="flex flex-col gap-3 lg:col-span-9 2xl:col-span-10 xl:flex-row">
           {/*
             * content-start AND h-auto, or the tiles are 548px tall. Two separate causes, and
             * fixing only the first changed nothing: the lines were stretching to split the

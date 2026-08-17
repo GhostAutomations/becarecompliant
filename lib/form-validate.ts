@@ -14,6 +14,7 @@
  */
 
 import {
+import { implausibleYearMessage } from "./date-plausible";
   type AddressValue,
   type Answers,
   type AnswerValue,
@@ -106,6 +107,9 @@ function validateField(field: FormField, value: AnswerValue | undefined): string
       }
       const d = new Date(value + "T00:00:00Z");
       if (Number.isNaN(d.getTime())) return "Enter a valid date.";
+      // The year-range rule lives in lib/date-plausible (importless, unit tested).
+      const yearMsg = implausibleYearMessage(value);
+      if (yearMsg) return yearMsg;
       return null;
     }
     case "time": {

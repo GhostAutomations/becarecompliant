@@ -214,6 +214,8 @@ function Field({
           id={id}
           type="date"
           value={typeof value === "string" ? value : ""}
+          min="1900-01-01"
+          max="2100-12-31"
           disabled={disabled}
           onChange={(e) => onValue(e.target.value)}
         />,

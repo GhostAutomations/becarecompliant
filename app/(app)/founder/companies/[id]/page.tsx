@@ -286,7 +286,7 @@ export default async function FounderCompanyPage({
                     hidden={{ company_id: company.id, branch_id: b.id as string }}
                     label="Remove"
                     savedLabel="Removed"
-                    buttonClassName="btn-secondary text-xs"
+                    buttonClassName="btn-outline text-xs"
                     className=""
                     confirm={`Remove ${b.name}? This cannot be undone, and it stops billing for that branch.`}
                   />
