@@ -37,15 +37,9 @@ import {
 } from "@/lib/founder/format";
 import { monthKeyLabel } from "@/lib/founder/stats";
 import { listFounderAudit } from "@/lib/audit-log/data";
+import { ROLE_LABELS } from "@/lib/nav";
 
 export const metadata: Metadata = { title: "Company" };
-
-const ROLE_LABELS: Record<string, string> = {
-  company_admin: "Admin",
-  manager: "Manager",
-  supervisor: "Supervisor",
-  team_member: "Team Member",
-};
 
 function userStatusPill(status: string): { cls: string; text: string } {
   if (status === "active") return { cls: "pill-green", text: "Active" };

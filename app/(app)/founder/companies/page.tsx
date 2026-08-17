@@ -4,7 +4,16 @@ import { requirePlatformAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import BackLink from "@/components/back-link";
 import { CompanyStatusButton } from "@/components/founder/company-status-button";
-import { computeSeatUsage, includedSeatsForTier, formatPence, isBillableSeat } from "@/lib/billing/seats";
+import {
+  computeSeatUsage,
+  includedSeatsForTier,
+  includedBranchesForTier,
+  EXTRA_BRANCH_PENCE,
+  EXTRA_SEAT_PENCE,
+  formatPence,
+  isBillableSeat,
+} from "@/lib/billing/seats";
+import { subscriptionMonthlyPence } from "@/lib/billing/monthly-total";
 import { TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
 import {
   billingStatusPill,
@@ -18,7 +27,13 @@ export default async function FounderCompaniesPage() {
   await requirePlatformAdmin();
   const supabase = await createClient();
 
-  const [{ data: companies }, { data: profiles }, { data: invites }, { data: billingRows }] =
+  const [
+    { data: companies },
+    { data: profiles },
+    { data: invites },
+    { data: billingRows },
+    { data: branchRows },
+  ] =
     await Promise.all([
       supabase
         .from("companies")
@@ -27,6 +42,7 @@ export default async function FounderCompaniesPage() {
       supabase.from("profiles").select("company_id, status, role"),
       supabase.from("invites").select("company_id, status"),
       supabase.from("company_billing").select("company_id, subscription_status"),
+      supabase.from("branches").select("company_id, kind"),
     ]);
 
   const billingByCompany = new Map(
@@ -45,6 +61,16 @@ export default async function FounderCompaniesPage() {
       pendingInvites.set(i.company_id, (pendingInvites.get(i.company_id) ?? 0) + 1);
     }
   }
+  // OPERATIONAL branches only (kind === "branch"): the office row is not a branch and is
+  // never billed. Same filter as the company drill-in page.
+  const operationalBranches = new Map<string, number>();
+  for (const b of branchRows ?? []) {
+    if (b.company_id && (b as { kind?: string }).kind === "branch") {
+      operationalBranches.set(b.company_id, (operationalBranches.get(b.company_id) ?? 0) + 1);
+    }
+  }
+  const extraBranchesFor = (companyId: string, tier: string) =>
+    Math.max(0, (operationalBranches.get(companyId) ?? 0) - includedBranchesForTier(tier));
 
   const list = companies ?? [];
 
@@ -54,9 +80,15 @@ export default async function FounderCompaniesPage() {
     const status = billingByCompany.get(company.id)?.subscription_status ?? null;
     if (!["active", "trialing", "past_due"].includes(status ?? "")) continue;
     const seats = computeSeatUsage(activeUsers.get(company.id) ?? 0, includedSeatsForTier(company.tier));
-    mrrPence +=
-      TIER_BASE_PENCE[company.tier as keyof typeof TIER_BASE_PENCE] +
-      seats.extraCostPence;
+    // The shared rule, so this header can never disagree with the console tile, the
+    // revenue page or Stripe again. Branches are REQUIRED input, not an afterthought.
+    mrrPence += subscriptionMonthlyPence({
+      basePence: TIER_BASE_PENCE[company.tier as keyof typeof TIER_BASE_PENCE],
+      extraSeats: seats.extra,
+      seatPence: EXTRA_SEAT_PENCE,
+      extraBranches: extraBranchesFor(company.id, company.tier),
+      branchPence: EXTRA_BRANCH_PENCE,
+    });
   }
 
   return (
@@ -96,9 +128,15 @@ export default async function FounderCompaniesPage() {
             const isSub = isSubscriptionTier(company.tier);
             const bill = billingByCompany.get(company.id) ?? null;
             const bpill = billingStatusPill(bill?.subscription_status ?? null);
+            const extraBranches = extraBranchesFor(company.id, company.tier);
             const monthlyTotalPence = isSub
-              ? TIER_BASE_PENCE[company.tier as keyof typeof TIER_BASE_PENCE] +
-                seats.extraCostPence
+              ? subscriptionMonthlyPence({
+                  basePence: TIER_BASE_PENCE[company.tier as keyof typeof TIER_BASE_PENCE],
+                  extraSeats: seats.extra,
+                  seatPence: EXTRA_SEAT_PENCE,
+                  extraBranches,
+                  branchPence: EXTRA_BRANCH_PENCE,
+                })
               : 0;
             return (
               <div key={company.id} className="glass-card p-5">
@@ -141,6 +179,11 @@ export default async function FounderCompaniesPage() {
                     Extra billable:{" "}
                     <span className="text-white/90">{seats.extra}</span> (
                     {formatPence(seats.extraCostPence)}/mo)
+                  </span>
+                  <span>
+                    Extra branches:{" "}
+                    <span className="text-white/90">{extraBranches}</span> (
+                    {formatPence(extraBranches * EXTRA_BRANCH_PENCE)}/mo)
                   </span>
                   <span>
                     Pending invites: <span className="text-white/90">{pending}</span>

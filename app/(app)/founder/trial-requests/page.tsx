@@ -245,7 +245,7 @@ export default async function FounderTrialRequestsPage() {
   return (
     <div className="w-full space-y-6">
       <div>
-        <BackLink href="/founder" label="Back to founder console" />
+        <BackLink href="/founder" label="Back to Founder console" />
         <h1 className="page-title mt-1">Trial requests</h1>
         <p className="page-subtitle">
           Everyone who pressed Start free trial on the website, newest first. Nobody
