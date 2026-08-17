@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
@@ -15,7 +16,7 @@ export const metadata: Metadata = { title: "My Planner" };
 export default async function PlannerPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string; week?: string }>;
+  searchParams: Promise<{ month?: string; week?: string; who?: string }>;
 }) {
   const { user, profile } = await requireCompany();
   if (!profile.company_id) redirect("/founder");
@@ -42,7 +43,14 @@ export default async function PlannerPage({
   const saved = (pref?.planner_view as string | null) ?? "month";
   const view: "month" | "week" = saved === "week" ? "week" : "month";
 
-  const { month: monthParam, week: weekParam } = await searchParams;
+  const { month: monthParam, week: weekParam, who } = await searchParams;
+  /*
+   * MY CALENDAR / ALL. The grid is the whole company's, which is what it is for, and the viewer's
+   * own chips are gold so they are findable in it without reading every name. This is for when
+   * that is not enough and you want only yours: a filter on what is already loaded, so switching
+   * costs nothing. All is the default because that is the question the calendar answers.
+   */
+  const mineOnly = who === "mine";
   const match = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? monthParam : todayIso.slice(0, 7);
   const [yearStr, monthStr] = match.split("-");
   const year = Number(yearStr);
@@ -68,11 +76,12 @@ export default async function PlannerPage({
     Number(weekStartIso.slice(5, 7)) - 1,
     Number(weekStartIso.slice(8, 10)) - 7,
   )).toISOString().slice(0, 10);
-  const calendarBookings = await listCompanyBookings(
+  const everyone = await listCompanyBookings(
     view === "week" ? weekFromIso : monthStart,
     view === "week" ? weekEndIso : monthEnd,
     profile.company_id,
   );
+  const calendarBookings = mineOnly ? everyone.filter((b) => b.conductorId === user.id) : everyone;
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-6 w-full">
@@ -85,6 +94,30 @@ export default async function PlannerPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {/* Whose, then how long. The span toggle is saved per user; this one is not, because
+              "show me only mine for a moment" is a question you ask, not a way you work. */}
+          <div className="flex overflow-hidden rounded-lg border border-white/15 text-xs">
+            {([
+              { key: "mine", label: "My calendar" },
+              { key: "all", label: "All" },
+            ] as const).map((o) => {
+              const isOn = (o.key === "mine") === mineOnly;
+              const params = new URLSearchParams();
+              if (monthParam) params.set("month", monthParam);
+              if (weekParam) params.set("week", weekParam);
+              if (o.key === "mine") params.set("who", "mine");
+              const qs = params.toString();
+              return (
+                <Link
+                  key={o.key}
+                  href={qs ? `/planner?${qs}` : "/planner"}
+                  className={`px-3 py-1.5 ${isOn ? "bg-white/15 text-white" : "text-white/60 hover:bg-white/10"}`}
+                >
+                  {o.label}
+                </Link>
+              );
+            })}
+          </div>
           <PlannerViewToggle current={view} />
           <BookingForm data={formData} currentUserId={user.id} />
         </div>
@@ -102,7 +135,8 @@ export default async function PlannerPage({
         todayIso={todayIso}
         bookings={calendarBookings}
         branches={branches}
-        basePath="/planner"
+        basePath={mineOnly ? "/planner?who=mine" : "/planner"}
+        currentUserId={user.id}
       />
     </div>
   );

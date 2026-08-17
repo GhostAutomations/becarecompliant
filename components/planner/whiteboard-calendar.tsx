@@ -47,6 +47,7 @@ export default function WhiteboardCalendar({
   bookings,
   branches,
   basePath = "/planner/whiteboard",
+  currentUserId,
 }: {
   /** A month grid, or one week across. ONE component on purpose: the chip, the tooltip and the
    *  day panel are the same in both, and two copies would drift the first time either changed. */
@@ -61,12 +62,11 @@ export default function WhiteboardCalendar({
   /** Where the prev/next links point (so the calendar works on both pages). */
   basePath?: string;
   /**
-   * Name the person carrying each task out.
-   *
-   * ON THE WHITEBOARD, NOT ON MY PLANNER (Phil, 2026-08-16). The whiteboard is everybody's work
-   * on one grid, so "who is doing this" is half the question. My Planner is only ever your own
-   * bookings, where printing your own name on every chip is noise in the space the task needs.
+   * Whose chips are MINE. The calendar is the whole company's work, so the viewer's own
+   * appointments have to be findable in it at a glance rather than by reading every name: theirs
+   * are gold, everybody else's are the neutral card colour.
    */
+  currentUserId?: string;
 }) {
   const isWeek = span === "week";
   const [branchId, setBranchId] = useState("");
@@ -184,7 +184,13 @@ export default function WhiteboardCalendar({
                       about where she was going. The task and the branch follow, because knowing
                       where you are going without knowing what for sends somebody out unprepared.
                     */}
-                    <span className="block rounded bg-gold-400/15 px-1 py-0.5 text-[10px] text-gold-100">
+                    <span
+                      className={`block rounded px-1 py-0.5 text-[10px] ${
+                        currentUserId && b.conductorId === currentUserId
+                          ? "bg-gold-400/15 text-gold-100"
+                          : "bg-white/[0.07] text-white/80"
+                      }`}
+                    >
                       {/*
                         ONE LINE WHERE IT FITS, TWO WHERE IT DOES NOT, and the break always falls
                         in the same place (Phil, 2026-08-17). The time and who it is FOR are one
@@ -195,7 +201,7 @@ export default function WhiteboardCalendar({
                       */}
                       <span className="flex flex-wrap gap-x-1">
                         <span className="max-w-full truncate">
-                          {b.startTime ? `${b.startTime} ` : ""}{chipName(b)}
+                          {[b.startTime, chipName(b)].filter(Boolean).join(" · ")}
                         </span>
                         {(() => {
                           /*
@@ -212,7 +218,13 @@ export default function WhiteboardCalendar({
                             isWeek ? b.branchName : null,
                           ].filter(Boolean);
                           return parts.length > 0 ? (
-                            <span className="max-w-full truncate text-gold-100/60">
+                            <span
+                              className={`max-w-full truncate ${
+                                currentUserId && b.conductorId === currentUserId
+                                  ? "text-gold-100/60"
+                                  : "text-white/45"
+                              }`}
+                            >
                               {parts.join(" · ")}
                             </span>
                           ) : null;
