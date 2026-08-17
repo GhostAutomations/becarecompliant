@@ -150,7 +150,7 @@ export default function CarePlanEditor({
 
       {mode === "update" ? (
         <div className="rounded-xl border border-gold-400/40 bg-gold-400/10 p-5">
-          <label htmlFor="cp-effective" className="text-sm font-semibold text-gold-200">
+          <label htmlFor="cp-effective" className="text-sm font-semibold text-gold-300">
             New plan starts on
           </label>
           <input

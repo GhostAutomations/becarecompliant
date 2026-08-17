@@ -187,7 +187,7 @@ function ScopeToggle({ scope }: { scope: RotaScope }) {
           name="scope"
           value={s}
           disabled={pending || scope === s}
-          className={`px-3 py-1.5 text-xs font-medium ${scope === s ? "bg-gold-400/20 text-gold-200" : "text-white/60 hover:bg-white/5"}`}
+          className={`px-3 py-1.5 text-xs font-medium ${scope === s ? "bg-gold-400/20 text-gold-300" : "text-white/60 hover:bg-white/5"}`}
         >
           {s === "company" ? "By company" : "By branch"}
         </button>

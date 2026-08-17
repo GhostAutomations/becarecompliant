@@ -22,7 +22,7 @@ function LoopVisual() {
           </li>
         ))}
       </ol>
-      <div className="mt-4 flex items-center gap-2 rounded-lg border border-gold-400/20 bg-gold-400/[0.06] px-3 py-2 text-xs text-gold-200">
+      <div className="mt-4 flex items-center gap-2 rounded-lg border border-gold-400/20 bg-gold-400/[0.06] px-3 py-2 text-xs text-gold-300">
         <span aria-hidden>&#8635;</span> Repeats automatically, every cycle
       </div>
     </div>

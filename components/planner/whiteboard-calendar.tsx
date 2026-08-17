@@ -65,6 +65,11 @@ export default function WhiteboardCalendar({
    * Whose chips are MINE. The calendar is the whole company's work, so the viewer's own
    * appointments have to be findable in it at a glance rather than by reading every name: theirs
    * are gold, everybody else's are the neutral card colour.
+   *
+   * gold-300 because THERE IS NO gold-100. The theme defines 300 to 600 only ("rich amber end of
+   * the scale, never light yellow"), so text-gold-100 generated no rule at all and the text has
+   * been plain inherited white since it was written. Measured on the deployed page: the chip
+   * background was gold at 15% and the text was rgb(255,255,255).
    */
   currentUserId?: string;
 }) {
@@ -187,7 +192,7 @@ export default function WhiteboardCalendar({
                     <span
                       className={`block rounded px-1 py-0.5 text-[10px] ${
                         currentUserId && b.conductorId === currentUserId
-                          ? "bg-gold-400/15 text-gold-100"
+                          ? "bg-gold-400/15 text-gold-300"
                           : "bg-white/[0.07] text-white/80"
                       }`}
                     >
@@ -228,7 +233,7 @@ export default function WhiteboardCalendar({
                             <span
                               className={`max-w-full truncate ${
                                 currentUserId && b.conductorId === currentUserId
-                                  ? "text-gold-100/60"
+                                  ? "text-gold-300/70"
                                   : "text-white/45"
                               }`}
                             >
