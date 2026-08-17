@@ -190,10 +190,10 @@ export default function WhiteboardCalendar({
                       where you are going without knowing what for sends somebody out unprepared.
                     */}
                     <span
-                      className={`block rounded px-1 py-0.5 text-[10px] ${
+                      className={`block rounded px-1 py-0.5 text-[10px] text-white/85 ${
                         currentUserId && b.conductorId === currentUserId
-                          ? "bg-gold-400/15 text-gold-300"
-                          : "bg-white/[0.07] text-white/80"
+                          ? "bg-gold-400/15"
+                          : "bg-white/[0.07]"
                       }`}
                     >
                       {/*
@@ -210,6 +210,11 @@ export default function WhiteboardCalendar({
                         </span>
                         {(() => {
                           /*
+                           * ONLY THE NAME OF WHOEVER IS CARRYING IT OUT IS GOLD (Phil,
+                           * 2026-08-17). Everything else on the chip is one colour, so the eye
+                           * lands on the person rather than sorting two shades of one accent.
+                           * The background still says whose appointment it is.
+                           *
                            * The task is skipped on an ad-hoc booking because the first group IS
                            * the task, and the branch only in the week, where there is room.
                            *
@@ -217,12 +222,10 @@ export default function WhiteboardCalendar({
                            * column is NOT NULL), so a missing name is a name that could not be
                            * read, and saying nothing beats saying something untrue.
                            */
-                          const parts = [
-                            b.subjectName ? b.label : null,
-                            b.conductorName,
-                            isWeek ? b.branchName : null,
-                          ].filter(Boolean);
-                          return parts.length > 0 ? (
+                          const before = b.subjectName ? b.label : null;
+                          const after = isWeek ? b.branchName : null;
+                          if (!before && !b.conductorName && !after) return null;
+                          return (
                             /*
                              * The dot that joins the two groups LEADS this one, so that on a
                              * chip that fits on one line every part is separated the same way —
@@ -230,16 +233,14 @@ export default function WhiteboardCalendar({
                              * wraps it marks the second line as a continuation rather than
                              * leaving a dot dangling off the end of the first.
                              */
-                            <span
-                              className={`max-w-full truncate ${
-                                currentUserId && b.conductorId === currentUserId
-                                  ? "text-gold-300/70"
-                                  : "text-white/45"
-                              }`}
-                            >
-                              {`· ${parts.join(" · ")}`}
+                            <span className="max-w-full truncate">
+                              {`· ${before ? `${before} · ` : ""}`}
+                              {b.conductorName ? (
+                                <span className="text-gold-300">{b.conductorName}</span>
+                              ) : null}
+                              {after ? ` · ${after}` : ""}
                             </span>
-                          ) : null;
+                          );
                         })()}
                       </span>
                     </span>
