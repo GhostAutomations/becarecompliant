@@ -245,8 +245,8 @@ function SplitTile({
    * and no way to wrap, and neither had min-w-0, so both simply overflowed their half and ran
    * into the other one. "100%" and "39%" printed as "1039%".
    *
-   * Fixed by giving the tile a MINIMUM WIDTH rather than by shrinking the type: at 15rem a half
-   * holds "100%" at the same 40px the single figure tiles use, so nothing on the row is a
+   * Fixed by giving the tile a MINIMUM WIDTH rather than by shrinking the type: at 17rem a half
+   * is 98px and "100%" at 40px is 94px, both measured on the deployed page, so nothing is a
    * different size from anything else. The one step down is for a phone, where a tile is the
    * whole screen and 40px twice over will not fit. Never truncated: a clipped "10…" where a
    * compliance percentage should be is a wrong number, which is the one thing this dashboard
@@ -262,7 +262,7 @@ function SplitTile({
             const half = (
               <>
                 <p
-                  className={`min-w-0 text-[24px] font-bold leading-none tabular-nums @[15rem]:text-[40px] ${ink(p.tone)}`}
+                  className={`min-w-0 text-[24px] font-bold leading-none tabular-nums @[14rem]:text-[40px] ${ink(p.tone)}`}
                 >
                   {p.value}
                 </p>
@@ -801,12 +801,12 @@ export default async function DashboardPage() {
             * The tiles now WRAP and STRETCH. Each one asks for at least 15rem and takes an equal
             * share of whatever is left, so a row is always completely full whatever the tier and
             * the role turn on, and a tile is never narrower than the figures inside it. That
-            * minimum is the whole point: half of a 15rem tile holds "100%" at the full 40px, so
+            * minimum is the whole point: half of a 17rem tile holds "100%" at the full 40px, so
             * a two figure tile reads at exactly the same size as the single figure tile beside
             * it. Eight tiles land three, three and two; six land three and three.
             */}
           <div className="flex flex-col gap-3 lg:col-span-10 xl:flex-row">
-          <div className="flex flex-1 flex-wrap gap-3 [&>*]:min-w-[15rem] [&>*]:flex-1">
+          <div className="flex flex-1 flex-wrap gap-3 [&>*]:min-w-[17rem] [&>*]:flex-1">
           <Tile
             href="/people"
             label="Open actions"
