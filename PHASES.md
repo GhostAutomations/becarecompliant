@@ -451,13 +451,14 @@ real logins, swept, and RI holiday approval EXERCISED LIVE — approve pressed, 
 holiday.decided/registered_individual); evidence read-through on fresh evidence; seat
 maths at 4 of 6 after two acceptances (no seat line, correct).
 
-STILL COLD AFTER THE RUN, carried forward: verification of the two supervisor dashboard
-copy fixes on a live Sam login after the batch 3 deploy (30 seconds, needs one sign-in);
-founder branch Remove button re-render as founder (batch 2 changed its class from the
-undefined btn-secondary to btn-outline); whether a booked conductor can complete a check
-they were NOT booked for on an other-branch person (Part 2, security — the buttons render,
-the RPC guard is the question); everything already listed below needing Stripe CLI, test
-clocks, Twilio or a second device.
+STILL COLD AFTER THE RUN, carried forward: whether a booked conductor can complete a
+check they were NOT booked for on an other-branch person (Part 2, security — the buttons
+render, the RPC guard is the question); everything already listed below needing Stripe
+CLI, test clocks, Twilio or a second device. The other two carried items were closed the
+same evening: the supervisor dashboard copy was verified on a live Sam login after the
+batch 3 deploy (role-aware sentence renders, On Call panel gone, tiles reflow), and the
+founder branch Remove buttons render as proper bordered buttons, with the seats card
+reading 4 of 6, 0 extra, £0.00 beside the £76.50 billing line.
 
 
 LETTERS (added 2026-07-27, not run live):

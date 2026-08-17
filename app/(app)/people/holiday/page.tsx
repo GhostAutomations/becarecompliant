@@ -15,6 +15,10 @@ export const metadata: Metadata = { title: "Holiday" };
 export default async function HolidayPage() {
   const { user, profile } = await requireCompany();
   if (profile.role === "on_call") redirect("/on-call");
+  // Care workers manage their own holiday in /my; this is the branch management view
+  // (approve requests, book for others, the branch calendar). A staff login reaching it
+  // exposed the company branch list. Match the People register's staff guard.
+  if (profile.role === "staff") redirect("/my");
 
   if (!profile.company_id) {
     return (

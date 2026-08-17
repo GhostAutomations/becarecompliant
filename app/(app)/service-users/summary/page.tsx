@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import SuViewNav from "@/components/service-users/su-view-nav";
@@ -12,6 +13,9 @@ export default async function ServiceUserSummaryPage({
   searchParams: Promise<{ branch?: string }>;
 }) {
   const { profile } = await requireCompany();
+  // Same guard as the Service Users register this summarises.
+  if (profile.role === "staff") redirect("/my");
+  if (profile.role === "on_call") redirect("/on-call");
   if (!profile.company_id) {
     return (
       <div className="mx-auto max-w-3xl">

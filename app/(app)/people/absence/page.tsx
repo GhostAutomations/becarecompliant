@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import { listOutstandingRtw } from "@/lib/absence/rtw";
@@ -13,6 +14,9 @@ export const metadata: Metadata = { title: "Absence" };
 
 export default async function AbsencePage() {
   const { profile } = await requireCompany();
+  // Care workers have no absence-management view (branch register + Return to Work +
+  // the branch list). on_call keeps it, its remit includes Absence. Match /people.
+  if (profile.role === "staff") redirect("/my");
 
   if (!profile.company_id) {
     return (

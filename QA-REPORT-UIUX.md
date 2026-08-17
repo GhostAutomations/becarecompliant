@@ -180,7 +180,7 @@ See the end of this report: GO for soft launch on UI/UX grounds.
 
 ### Supervisor (Sam, Newport1, swept 17 Aug — first ever visual pass of this role)
 
-- FIXED (Medium, batch 3) The supervisor dashboard told Sam "Inspection Readiness
+- FIXED+VERIFIED LIVE (Medium, batch 3) The supervisor dashboard told Sam "Inspection Readiness
   is not switched on for this company" and "On Call is not switched on for this
   company" — both ARE on; his role simply does not get that data. The score card
   now says the score is part of the management view; the On Call panel is hidden
@@ -238,8 +238,8 @@ See the end of this report: GO for soft launch on UI/UX grounds.
 
 **GO for soft launch on UI/UX grounds** — with the open items below on the list,
 none blocking. Fifteen fixes shipped across three batches during the sweep
-(batches 1-2 verified live; batch 3 = the two supervisor dashboard copy fixes,
-verification pending its deploy). All six roles walked end to end on desktop and
+(all three batches verified live, including batch 3 on a live Sam login and the
+founder branch Remove buttons). All six roles walked end to end on desktop and
 phone width. The money figures agree everywhere they appear, the compliance loop
 is exact, permission boundaries render correctly for every role, and the one
 data-integrity class found (year 0026) is now refused at three layers.

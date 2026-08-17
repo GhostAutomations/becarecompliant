@@ -20,6 +20,16 @@ export const metadata: Metadata = { title: "Policy coverage" };
 export default async function PolicyCoveragePage() {
   const { profile } = await requireCompany();
   if (!profile.company_id) redirect("/dashboard");
+  // Policy coverage is a management report and sits under the Briefings send page, which is
+  // Manager and above. A staff login reaching it saw the reporting view. Match /briefings.
+  const MANAGER_PLUS = [
+    "company_admin",
+    "registered_individual",
+    "registered_manager",
+    "manager",
+    "platform_admin",
+  ];
+  if (!MANAGER_PLUS.includes(profile.role)) redirect("/dashboard");
 
   const coverage = await getPolicyCoverage(profile.company_id);
 
