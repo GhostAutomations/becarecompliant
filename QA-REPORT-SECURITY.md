@@ -18,9 +18,8 @@ Severity: Critical / High / Medium / Low.
 Low item are now deployed and verified live (see "Security hardening", 18 Aug, below).
 Nothing open blocks onboarding a real company with real special-category data.
 
-Nothing found in this audit blocks onboarding a real care company with real
-special-category data. The two boundaries that matter most for a multi-tenant
-compliance product - TENANT isolation and PRIVILEGE isolation - hold:
+The two boundaries that matter most for a multi-tenant compliance product -
+TENANT isolation and PRIVILEGE isolation - hold:
 
 - Tenant isolation is airtight. A fully-authenticated admin of a second company
   (Bevan) could read, update, delete and insert NOTHING of the first company's
@@ -253,11 +252,11 @@ Every Low/Info item below was closed the same session; detail + live evidence in
 
 ---
 
-## Security hardening — 18 Aug 2026 (clearing the open Low items)
+## Security hardening — 18 Aug 2026 (Low items cleared in this session)
 
 Deploy `dpl_5uN7gkjg5xhHdBmEP3cmncFzQhFo` (branch main). Order: quick wins first
-(rate limit, export gates, email escaping); nonce CSP and the Stripe CLI check to
-follow. `tsc --noEmit` clean and 402/402 tests green before deploy.
+(rate limit, export gates, email escaping); nonce CSP and the Stripe CLI check
+followed. `tsc --noEmit` clean and 402/402 tests green before deploy.
 
 ### CLEARED — Trial-request Form rate limit (was FINDING, Low)
 
