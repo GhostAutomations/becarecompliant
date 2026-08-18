@@ -280,10 +280,31 @@ follow. `tsc --noEmit` clean and 402/402 tests green before deploy.
   keep raw text — correct, they are plain-text JSON fields to Resend, never rendered
   as HTML.
 
-### STILL OPEN (this session, in order)
+### CLEARED — Nonce-based Content-Security-Policy (enforcing)
 
-- Nonce-based CSP — to be added in Report-Only first, then enforced; compensating
-  control for the JS-readable Supabase auth cookie.
+- Implemented a per-request nonce in middleware (inside Supabase `updateSession`, the
+  cookie logic untouched), forwarded via the `x-nonce` + `Content-Security-Policy`
+  request headers so Next.js 15 nonces every one of its inline scripts. Policy:
+  `default-src 'self'; script-src 'self' 'nonce-<per request>' 'strict-dynamic';
+  style-src 'self' 'unsafe-inline'; connect-src 'self' + Supabase REST + Realtime;
+  object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`.
+- WHY: compensating control for the JS-readable Supabase auth cookie — an injected
+  inline <script> without the unguessable, per-request nonce cannot run.
+- Report-Only first (deploy dpl_5uN7...): swept EVERY role with the console open —
+  public (home / pricing / privacy / start-trial), staff (/my), admin (dashboard,
+  reports, report viewer, people, add-person form, settings, billing/Stripe, service
+  users, incidents, whistleblowing, briefings, plus a form submit and a popover), and
+  founder (console, revenue, companies, trial-requests). ZERO violations; all 50
+  homepage script tags carried the nonce; no enforcing CSP header leaked.
+- Flipped to ENFORCING (deploy dpl_5Svc...): confirmed the response now serves a
+  blocking `Content-Security-Policy` (the Report-Only header is gone), all scripts
+  still nonced, and client hydration intact (window.next loaded, App Router flight
+  data present). Nothing broken: dashboard / reports / forms render, client-side nav
+  and popover work, and the PDF export returns 200 under enforcement (server log
+  18 Aug 11:19:25, dpl_5Svc...).
+
+### STILL OPEN (this session)
+
 - Stripe CLI valid-event idempotency — commands to hand to Phil; bad-signature 400 and
   fail-closed 503 already proven.
 - (Phil, out of hardening scope: enable Supabase leaked-password protection in the Auth
