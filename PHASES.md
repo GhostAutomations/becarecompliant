@@ -2227,6 +2227,91 @@ publishes its own patient-safety information standards that mirror DCB0129, and 
 local authorities ask for clinical safety evidence in domiciliary care tenders. Neither was
 confirmed on 2026-08-13; the England position was.
 
+### eMAR — the electronic Medication Administration Record (Phil, 2026-08-18)
+
+This is the medication module named in Phase 14, specified. It is what lets BCC stand
+against Birdie in domiciliary care. Record-only, AI-assisted setup, human-owned throughout.
+
+**BCC records medication; it does not advise on it.** The eMAR is deliberately RECORD-ONLY.
+A carer records what they gave, refused or omitted, and the system keeps the chart, the
+reasons and the audit trail. It offers NO clinical decision support — no drug-interaction
+alerts, no dose or contraindication warnings, no judgement on whether a medicine should be
+given. That line is drawn on purpose: the moment software interprets a medicine and advises
+a clinical action it risks being a medical device under the MHRA's Software as a Medical
+Device rules, with the conformity assessment and post-market burden that brings. A faithful
+record of what a human decided and did is not that. Staying on the recording side of that
+line is the single most important scope decision in this module, and every later feature is
+tested against it.
+
+**Setup happens once, at the service user's home, before any care is recorded.** A
+supervisor sits with the client's actual medicines — the dispensing labels, the boxes, the
+blister pack, or the prescription — and builds the MAR from what is physically in front of
+them, not from memory or a typed list.
+
+**AI assists the data entry; it never owns it.** The supervisor photographs each label or
+prescription and a vision model reads it — drug name, strength, form, dose and directions —
+mapping each to the NHS **dm+d** (dictionary of medicines and devices) so the same medicine
+is named and measured the same way for every client and every report. That read PRE-FILLS
+the MAR as a DRAFT. The draft is never saved on the machine's say-so: the supervisor checks
+every field against the physical box and approves it, field by field. A low-confidence read
+is FLAGGED for extra checking — a printed pharmacy label reads cleanly and can be trusted; a
+handwritten prescription cannot, and is treated with more caution rather than less. The
+photograph is stored and attached to the Record as Evidence, so the source an entry was
+taken from is always recoverable.
+
+**Nothing goes live on one person's word.** Before a client's MAR is active, a manager
+performs a SECOND-PERSON sign-off, confirming the entered chart matches the labels. Two
+people, one of them senior, stand behind every medication record before a carer ever
+administers against it. This is the human control that makes "AI-assisted" safe: the machine
+drafts, a supervisor verifies against the box, a manager confirms.
+
+**The round is what the carer actually uses.** On a visit the carer opens the client and
+sees what medication is due or required. They record the outcome against the standard MAR
+codes — administered, refused, omitted (with a reason), not available — and for PRN
+"as required" medicines the Record demands a reason AND enforces the maximum dose and
+frequency captured at setup, so a "when needed" medicine cannot be quietly over-administered
+across a day, or across two carers who cannot see each other. Any error or medication issue
+is recorded as such and feeds the **Incident** log — deliberately, because some medication
+errors are CQC-notifiable and the provider needs them surfaced, not buried in a chart. Every
+entry carries the full audit trail the rest of BCC already keeps: who, what, when, and
+old->new on any change.
+
+**Clinical safety is in scope even though we only record.** DCB0129 — the NHS clinical risk
+management standard for health IT — applies to medication software even when it is
+record-only, so the module needs a clinical safety case and a named **Clinical Safety
+Officer**. BCC's intended CSO for this scope is the district nurse already in the picture,
+who is NMC-registered; this is the "contracted Clinical Safety Officer for the medication
+module" the New Dawn decisions already locked in. The safety case must be written around the
+ACTUAL design — AI-assisted, human-verified entry — and be explicit that the AI is a
+data-entry aid and the clinician-supervised human owns safety at every step. As set out
+under Wales-only above, the STANDARD is an NHS England information standard whose procurement
+teeth do not bite in Wales, but the DUTY it encodes does: if BCC records that a carer gave a
+medicine and the record is wrong, "no English standard applied to us" is no defence to the
+provider, their insurer or a coroner. The CSO and the safety case are needed before eMAR
+goes live on real service users, not at Phase 14 kickoff.
+
+**The medication photos are special-category data from day one.** A label carries a person's
+name, their medicines and sometimes their NHS number — health data in the strictest class
+GDPR recognises. The AI processing therefore has to run through a provider under a
+data-processing agreement, ideally with UK/EU processing, kept tenant-isolated, with NO PII
+written to logs. This is a day-one requirement of the module, designed in from the first
+migration rather than bolted on as a later hardening pass, and it is called out here so it
+is not discovered late.
+
+**Phasing.**
+
+- **Phase 1 — the MVP that ships with soft launch.** Everything above: the manual-but-
+  AI-assisted setup, the second-person sign-off, the carer round with the MAR codes and the
+  PRN limits, the Incident feed, the full audit trail, and the CSO plus DCB0129 safety case.
+  A complete, safe, human-owned eMAR with no external dependency — which is exactly what
+  makes it shippable.
+- **Phase 2 — the moat that matches Birdie.** Direct integration with the dispensing
+  pharmacy's system so the medication list flows in automatically instead of being
+  photographed and typed, with deeper dm+d use for changes and reconciliation. This is the
+  hard, defensible piece: setup stops being a task the supervisor repeats for every client
+  and becomes data the pharmacy already holds, and it is what lets BCC stand beside Birdie
+  rather than behind it.
+
 **Do not start any of this until Operation Thistle has signed off.** A platform that schedules
 care on top of a compliance product nobody has yet run in anger is a much worse bet than one
 built on a product a real agency already trusts.
