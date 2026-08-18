@@ -14,8 +14,9 @@ Severity: Critical / High / Medium / Low.
 
 ## Verdict
 
-**GO for soft launch on security grounds.** Both fixes are deployed and confirmed
-live. Nothing open blocks onboarding a real company with real special-category data.
+**GO for soft launch on security grounds.** The two audit fixes AND every follow-up
+Low item are now deployed and verified live (see "Security hardening", 18 Aug, below).
+Nothing open blocks onboarding a real company with real special-category data.
 
 Nothing found in this audit blocks onboarding a real care company with real
 special-category data. The two boundaries that matter most for a multi-tenant
@@ -42,21 +43,25 @@ compliance product - TENANT isolation and PRIVILEGE isolation - hold:
 1. (Medium) Broken access control: five management pages role-gated to block the
    staff role - DEPLOYED + re-tested live.
 2. (Low->Medium) Baseline security headers added (X-Frame-Options DENY, nosniff,
-   Referrer-Policy, Permissions-Policy) - CODE DONE, push pending, then confirm live.
+   Referrer-Policy, Permissions-Policy) - FIXED: deployed and re-tested live (all four
+   present on production; HSTS also present).
 
-### Open, none blocking (for Phil)
+### Follow-ups from this audit — ALL CLEARED (18 Aug 2026)
+Every Low/Info item below was closed the same session; detail + live evidence in
+"Security hardening", further down.
 - (Low) Supabase SSR auth cookie is JS-readable (inherent to @supabase/ssr; only
-  exploitable via an XSS, of which there is none). Compensate with a CSP.
-- (Low) No Content-Security-Policy. Recommended as a nonce-based, tested follow-up
-  (a blocking CSP added blind would break Next.js inline scripts).
-- (Low) Public trial-request form has a honeypot + validation but no rate limit;
-  spam-only, founder approves each. Gate on the existing public_form_rate_ok.
-- (Low, consistency) `/api/reports/register` and `/api/invoicing/export` return 200
-  to a care worker but are RLS-empty (leak nothing); could role-gate for tidiness.
-- (Info) Supabase leaked-password protection (HaveIBeenPwned) is off - a one-click
-  enable in the Supabase Auth dashboard, sensible before real sign-ups.
-- Optional: a live Stripe CLI valid-event idempotency run (the security-critical
-  bad/forged-signature -> 400 and fail-closed -> 503 are already proven).
+  exploitable via an XSS, of which there is none). CLEARED — compensated by a
+  nonce-based CSP now ENFORCED in production.
+- (Low) Content-Security-Policy. CLEARED — nonce-based CSP built (Report-Only swept
+  across every role, then enforced); does not break Next.js inline scripts.
+- (Low) Public trial-request form rate limit. CLEARED — gated on public_form_rate_ok
+  (a 6th rapid submit is blocked); normal submit intact.
+- (Low, consistency) `/api/reports/register` and `/api/invoicing/export`. CLEARED —
+  both now return 403 to a care worker and 200 to an admin.
+- (Info) Supabase leaked-password protection (HaveIBeenPwned). DONE — enabled 18 Aug
+  (+ minimum length 8); the advisor warning is gone.
+- Stripe CLI valid-event idempotency. CLEARED — proven at the DB level (duplicate
+  event ids rejected by the stripe_events primary key; processed events not re-run).
 
 ## Findings
 
@@ -135,8 +140,9 @@ compliance product - TENANT isolation and PRIVILEGE isolation - hold:
   browser client must read it, and making it httpOnly breaks client-side auth +
   realtime), and it is only exploitable via an XSS - of which this audit found NONE
   (no dangerouslySetInnerHTML, React escaping, parameterised queries). Mitigation:
-  keep the no-XSS posture and add a CSP (below). Not fixed in code (architectural,
-  would break realtime); documented for Phil's awareness.
+  keep the no-XSS posture; a nonce-based CSP is now ENFORCED in production as the
+  compensating control (see below). The cookie itself is architectural — making it
+  httpOnly would break client auth + realtime — so it stays; documented for awareness.
 - FIXED (Low->Medium, batch 2) Missing baseline security headers. The app served no
   X-Frame-Options (clickjacking - a compliance app that approves/completes records
   should not be frameable), no X-Content-Type-Options, no Referrer-Policy (record IDs
@@ -144,11 +150,12 @@ compliance product - TENANT isolation and PRIVILEGE isolation - hold:
   (max-age 2y, platform-set). Added all four via next.config.ts headers(): X-Frame-
   Options DENY, nosniff, Referrer-Policy strict-origin-when-cross-origin,
   Permissions-Policy locking camera/mic/geo/topics. RE-TESTED LIVE: all four headers
-  present on production responses (HSTS also present); CSP intentionally absent (follow-up).
-- RECOMMENDED (Low) No Content-Security-Policy. A CSP is the right compensating
-  control for the JS-readable auth cookie, but a blocking policy must be built with
-  per-request nonces so it does not break Next.js inline scripts; logged as a
-  tested follow-up rather than added blind.
+  present on production responses (HSTS also present); a nonce-based CSP has since been
+  added and enforced (see below).
+- CLEARED (was Low) Content-Security-Policy. Built as the compensating control for the
+  JS-readable auth cookie, with per-request nonces so it does not break Next.js inline
+  scripts. Added in Report-Only, swept across every role with a clean console, then
+  ENFORCED in production (see "Nonce-based CSP", below).
 
 ### Role / privilege isolation
 
@@ -180,8 +187,9 @@ compliance product - TENANT isolation and PRIVILEGE isolation - hold:
 - PASS Care worker API surface: company audit export -> 403; colleague evidence pack
   -> 404 "cannot access it"; colleague evidence + evidence_files -> 0 visible at the
   DB (record-scoped, not company-scoped); on-call export -> 403. The register and
-  invoicing exports return 200 but RLS-empty (0 invoices, her own 1 record); NOTE
-  (Low) those two export routes could role-gate for consistency, but leak nothing.
+  invoicing exports returned 200 but RLS-empty (0 invoices, her own 1 record); now
+  CLEARED — both role-gate to a clean 403 for below-Manager roles (care worker 403,
+  admin 200; see "Register + Invoicing export role-gates", below).
 - PASS Cross-tenant + anon already covered above.
 
 ### Data / files / privacy
@@ -218,27 +226,30 @@ compliance product - TENANT isolation and PRIVILEGE isolation - hold:
 - PASS XSS surface: zero dangerouslySetInnerHTML in the codebase (the only two
   matches are comments noting its deliberate absence); React escapes by default. All
   DB access is parameterized (.rpc() / supabase.from()); no raw SQL interpolation.
-  NOTE (Low, to confirm) HTML email templates interpolate user-controlled names into
-  markup; self-scoped (a company injecting into its own managers' emails), low impact,
-  worth confirming the values are escaped.
+  Now CONFIRMED — every user-controlled value in the email templates is escapeHtml-
+  wrapped; verified by running the real renderLetterHtml against a hostile <script>
+  name (see "Digest / email template escaping", below). Self-scoped and low impact
+  regardless.
 - PASS Rate limiting: Supabase GoTrue rate-limits sign-in / sign-up / OTP / password
   reset at the platform (the brute-force surface). The public holiday form gates on
   `public_form_rate_ok` (5 hits / 10 min per key). The public trial-request form
   (`submitTrialRequest`) has a honeypot field, length-capped inputs, email-format
-  validation and HTML-ESCAPED notification emails, but NO rate limit.
-  FINDING (Low) The trial-request form can be spammed by a bot that skips the
-  honeypot; impact is a cluttered founder trial-requests list (founder approves each
-  before anything provisions), no data or auth exposure. Recommend gating it on the
-  existing public_form_rate_ok. Not fixed (abuse/spam, not a breach).
-- NOTE the earlier "HTML email injection" concern is handled on the trial path
-  (escapeHtml on every interpolated value); worth confirming the same on the digest
-  templates, but user names there originate from authenticated same-company staff.
+  validation, HTML-ESCAPED notification emails, and — now CLEARED — a rate limit. It
+  gates on the same `public_form_rate_ok` after the honeypot: a bot that skips the
+  honeypot is throttled (a 6th rapid submit is blocked), while a normal submission
+  still creates its trial_requests row. (Impact was only spam of the founder's
+  trial-requests list; no data or auth exposure.)
+- The earlier "HTML email injection" concern is handled on the trial path (escapeHtml
+  on every interpolated value) AND now CONFIRMED on the digest / reporting /
+  calendar-invite templates too (every interpolated value escaped; see below).
 - (Cron/webhook code notes retained above; all proven live this session.)
 - Server-side validation: form submissions go through validateAnswers server-side
   in submit_evidence and the public-form path; client validation is not relied on.
 - Stripe CLI: the security-critical webhook behaviour (bad/forged signature -> 400,
-  fail-closed -> 503) is proven without it; a live valid-event idempotency run via
-  the CLI is optional and logged as a functional check, not a security blocker.
+  fail-closed -> 503) is proven. The valid-event idempotency check is now CLEARED too
+  — proven at the DB level (a duplicate event id is rejected by the stripe_events
+  primary key; an already-processed event is not re-run; see "Stripe webhook
+  idempotency", below).
 
 ---
 
