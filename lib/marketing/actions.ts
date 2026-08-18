@@ -8,6 +8,8 @@
  * email. It is founder-led on purpose: a request creates a lead, not a live tenant.
  */
 
+import { headers } from "next/headers";
+import { createHash } from "crypto";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { sendEmail, resendConfigured } from "@/lib/email/resend";
 import { noticeEmailHtml, escapeHtml } from "@/lib/email/templates";
@@ -41,6 +43,27 @@ export async function submitTrialRequest(
   if (trap) return { ok: "Thanks, we will be in touch shortly." };
 
   const supabase = createServiceClient();
+
+  // Rate limit so a bot that skips the honeypot cannot flood the founder's leads.
+  // Keyed on a hash of the caller IP (no IP is ever stored), the same helper and
+  // 5-per-10-minutes window the public compliance forms use.
+  const hdrs = await headers();
+  const ip = (hdrs.get("x-forwarded-for") ?? "unknown").split(",")[0].trim();
+  const rateKey = createHash("sha256").update(`${ip}:trial-request`).digest("hex");
+  const { data: rateOk, error: rateError } = await supabase.rpc("public_form_rate_ok", {
+    p_key: rateKey,
+    p_limit: 5,
+    p_window_minutes: 10,
+  });
+  if (rateError) {
+    return { error: "Something went wrong. Please try again, or email hello@becarecompliant.com." };
+  }
+  if (rateOk === false) {
+    return {
+      error: "You have sent several requests in a short time. Please wait a few minutes and try again.",
+    };
+  }
+
   const { error } = await supabase.from("trial_requests").insert({
     company_name,
     contact_name,

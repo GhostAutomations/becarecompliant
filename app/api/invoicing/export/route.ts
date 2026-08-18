@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { requireCompany } from "@/lib/auth/guards";
+import { INVOICING_ROLES } from "@/lib/invoicing/types";
 import { featureEnabled } from "@/lib/billing/tier";
 import { buildCsv } from "@/lib/export/csv";
 import { listInvoices, londonToday } from "@/lib/invoicing/data";
@@ -9,6 +10,11 @@ import { displayStatus, STATUS_LABEL, formatMoney } from "@/lib/invoicing/types"
 export async function GET(_req: NextRequest) {
   const { profile } = await requireCompany();
   if (!profile.company_id) return new Response("No company", { status: 403 });
+  // Manager+ only, matching requireInvoicing on the page. A care worker hitting this
+  // got a 200 empty CSV before; a clean 403 is correct (security hardening, 18 Aug).
+  if (!INVOICING_ROLES.includes(profile.role)) {
+    return new Response("Invoicing is available to Managers and above.", { status: 403 });
+  }
   if (!(await featureEnabled(profile.company_id, "invoicing"))) {
     return new Response("Invoicing is a Pro feature.", { status: 403 });
   }

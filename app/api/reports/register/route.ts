@@ -15,6 +15,13 @@ import { pdfResponse, csvResponse, exportError } from "@/lib/export/deliver";
 export async function GET(req: NextRequest) {
   const { profile } = await requireCompany();
   if (!profile.company_id) return exportError("No company context for this report.", 400);
+  // Role-gate to match the Reports page (Manager and above). Without it a care worker
+  // could call this endpoint directly; RLS made the result empty, but a clean 403 is
+  // the right answer, not a 200 with an empty register (security hardening, 18 Aug).
+  const REPORT_ROLES = ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"];
+  if (!REPORT_ROLES.includes(profile.role)) {
+    return exportError("This report is available to Managers and above.", 403);
+  }
 
   const params = req.nextUrl.searchParams;
   const population = params.get("population") === "service_users" ? "service_users" : "people";
