@@ -465,6 +465,34 @@ has a honeypot but no rate limit (spam-only); Supabase leaked-password protectio
 (one-click enable). Optional: a live Stripe CLI valid-event idempotency run (the
 security-critical signature + fail-closed behaviour is already proven).
 
+SECURITY HARDENING + TWO CARRIED-OVER CHECKS, 18 AUGUST 2026 — every OPEN Low item above
+is now CLOSED (full evidence in QA-REPORT-SECURITY.md; all re-tested live across roles):
+
+- Nonce-based CSP: added in Report-Only, swept every role (public, staff, admin, founder)
+  with a clean console and all scripts nonced, then ENFORCED (single middleware header
+  flip). The compensating control for the JS-readable Supabase auth cookie.
+- Trial-request form: rate-limited via public_form_rate_ok (5 / 10 min, sha256(ip) key);
+  normal submit intact (a live submission created a trial_requests row).
+- Register + Invoicing exports: role-gated — 403 below Manager, 200 for admins — instead of
+  a 200 empty file. Verified live via Vercel logs (care worker 403, admin 200).
+- Digest / email templates: every user-controlled value confirmed escaped; the real
+  renderLetterHtml run against a hostile <script>/O'Brien/&/"" name came back fully escaped.
+  No code change needed.
+- Stripe webhook idempotency: a re-delivered event is rejected by the stripe_events PRIMARY
+  KEY (SQLSTATE 23505) and skipped, never reprocessed; proven at the DB.
+- Supabase leaked-password protection: ENABLED by Phil (+ minimum length 8); the "Leaked
+  Password Protection Disabled" advisor warning cleared.
+- File isolation (was PENDING): as the Bevan admin a cross-tenant evidence fetch over HTTP
+  -> 404; the SAME file as an Acme user -> a working signed URL, which -> 400 "exp claim
+  timestamp check failed" once its 5-minute window passed; a tampered token -> 400
+  "signature verification failed"; the evidence bucket is private (public URL -> "Bucket
+  not found"), with storage RLS scoped to company members. Live-proven on real care files.
+- Export-download "503": shown to be a browser Network-panel artifact of Chrome aborting a
+  navigation-to-download; the server returns 200 and the user gets a clean download with the
+  page unchanged. Tidied with a `download` attribute on the same-origin export links.
+
+Verdict stays GO. From the security side BCC is clear to onboard a real care company.
+
 Seeded for future testing: Bevan Care Ltd (Business), admin ppdavies+coB@gmail.com.
 
 
