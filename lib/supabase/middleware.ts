@@ -61,11 +61,13 @@ function buildCsp(nonce: string): string {
 }
 
 /**
- * Report-Only first: the browser reports violations to the console but blocks
- * nothing, so a missed inline script cannot take the app down while we load each
- * role. Change this to "Content-Security-Policy" to ENFORCE once the console is clean.
+ * ENFORCING. Verified first in Report-Only across every role (public, staff, admin,
+ * founder) with a clean console and all scripts carrying the nonce, so serving the
+ * enforcing header name blocks nothing legitimate. Revert to
+ * "Content-Security-Policy-Report-Only" to return to observe-only if a future change
+ * needs re-checking.
  */
-const CSP_HEADER = "Content-Security-Policy-Report-Only";
+const CSP_HEADER = "Content-Security-Policy";
 
 /** Refreshes the Supabase session and enforces auth redirects. */
 export async function updateSession(request: NextRequest) {
