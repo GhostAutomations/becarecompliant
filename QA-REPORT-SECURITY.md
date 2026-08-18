@@ -325,6 +325,10 @@ follow. `tsc --noEmit` clean and 402/402 tests green before deploy.
 4. Digest / email template escaping — verified, every user value escaped.
 5. Stripe webhook idempotency — duplicate re-delivery skipped, proven at the DB.
 
-### STILL OPEN — Phil (outside hardening scope)
+### DONE — Phil (Auth dashboard, 18 Aug 2026)
 
-- Enable Supabase leaked-password protection in the Auth dashboard.
+- Leaked-password protection ENABLED (new / changed passwords are checked against
+  HaveIBeenPwned) and minimum password length set to 8. The Supabase security advisor
+  "Leaked Password Protection Disabled" warning has cleared.
+
+Nothing open. Security hardening complete.
