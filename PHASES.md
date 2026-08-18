@@ -28,6 +28,14 @@ real service users and real rotas will do things nobody thought to try, and the 
 that out from a paying customer is a refund and a reputation. Thistle is the last chance to be
 wrong cheaply.
 
+**DECISION (Phil, 2026-08-18) — run Phase 13 before Phase 12.** Marketing & Launch (Phase 12)
+is HELD until Operation Thistle (Phase 13) has proven the live product on a real agency. The
+phase NUMBERS stay as they are; the ORDER of work is 13 then 12. The reasoning is the paragraph
+directly above — don't pay to launch a platform nobody has yet run in anger: finish the build,
+let Thistle run the live product privately, and only once a real agency already trusts it do we
+spend on the public marketing site and the paid launch. (Phase 14 / New Dawn was already gated
+behind Thistle sign-off, so nothing there changes.)
+
 **Launch is WALES ONLY to start** (Phil, 2026-08-13), which defers most of the England assurance
 bill — see Phase 14.
 
@@ -1385,6 +1393,10 @@ TWO THINGS DELIBERATELY NOT FIXED HERE, both now on the list:
   above rather than a bug in this work.
 
 ## Phase 12 — Marketing & Launch
+
+**HELD until after Phase 13 (Operation Thistle) — Phil, 2026-08-18.** The public launch is
+deferred until a real agency has run the live product; see "The three operations" above for the
+reasoning. Build and polish work under this phase can continue — it is the LAUNCH that waits.
 
 Marketing site on becarecompliant.com, onboarding collateral, subscription agreement (no data selling clause), launch.
 
