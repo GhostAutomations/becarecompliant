@@ -24,9 +24,64 @@ export function isPublicPath(pathname: string): boolean {
   );
 }
 
+/**
+ * Per-request Content-Security-Policy with a nonce.
+ *
+ * WHY a nonce, and why here. The Supabase auth cookie is readable by JavaScript, so a
+ * single injected inline <script> could exfiltrate a live session. A nonce-based CSP
+ * is the compensating control: only a script carrying THIS request's nonce runs, and
+ * the nonce is unguessable and regenerated every request, so an attacker cannot
+ * pre-write a valid one into stored content. next.config headers() is static and
+ * cannot do this, so the policy is built in middleware where each request is unique.
+ *
+ * 'strict-dynamic' lets Next.js's nonced bootstrap load the hashed chunk scripts it
+ * needs without listing each filename; 'self' is the fallback for browsers that do
+ * not understand strict-dynamic. Styles deliberately keep 'unsafe-inline': a style
+ * nonce would disable the inline style="" attributes React and Tailwind emit, and
+ * injected CSS cannot execute script. Supabase REST + Realtime are allowed to connect.
+ */
+function buildCsp(nonce: string): string {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  const supabaseWss = supabaseUrl.replace(/^https:/, "wss:");
+  return [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob: https:",
+    "font-src 'self' data:",
+    `connect-src 'self' ${supabaseUrl} ${supabaseWss}`,
+    "frame-src 'self'",
+    "worker-src 'self' blob:",
+    "manifest-src 'self'",
+  ].join("; ");
+}
+
+/**
+ * Report-Only first: the browser reports violations to the console but blocks
+ * nothing, so a missed inline script cannot take the app down while we load each
+ * role. Change this to "Content-Security-Policy" to ENFORCE once the console is clean.
+ */
+const CSP_HEADER = "Content-Security-Policy-Report-Only";
+
 /** Refreshes the Supabase session and enforces auth redirects. */
 export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request });
+  const nonce = btoa(crypto.randomUUID());
+  const csp = buildCsp(nonce);
+
+  // Forward the nonce to Next.js (it reads the 'Content-Security-Policy' request
+  // header to nonce its own inline scripts) and to Server Components (via x-nonce)
+  // for any inline script they render themselves.
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set("Content-Security-Policy", csp);
+
+  let supabaseResponse = NextResponse.next({
+    request: { headers: requestHeaders },
+  });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -40,7 +95,14 @@ export async function updateSession(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value),
           );
-          supabaseResponse = NextResponse.next({ request });
+          // Rebuild forwarded headers so they carry BOTH the refreshed cookies and
+          // the nonce (a plain new Headers(request.headers) here would drop it).
+          const refreshedHeaders = new Headers(request.headers);
+          refreshedHeaders.set("x-nonce", nonce);
+          refreshedHeaders.set("Content-Security-Policy", csp);
+          supabaseResponse = NextResponse.next({
+            request: { headers: refreshedHeaders },
+          });
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options),
           );
@@ -70,5 +132,7 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // HTML-rendering path: attach the policy (Report-Only for now).
+  supabaseResponse.headers.set(CSP_HEADER, csp);
   return supabaseResponse;
 }

@@ -227,3 +227,64 @@ compliance product - TENANT isolation and PRIVILEGE isolation - hold:
 - Stripe CLI: the security-critical webhook behaviour (bad/forged signature -> 400,
   fail-closed -> 503) is proven without it; a live valid-event idempotency run via
   the CLI is optional and logged as a functional check, not a security blocker.
+
+---
+
+## Security hardening — 18 Aug 2026 (clearing the open Low items)
+
+Deploy `dpl_5uN7gkjg5xhHdBmEP3cmncFzQhFo` (branch main). Order: quick wins first
+(rate limit, export gates, email escaping); nonce CSP and the Stripe CLI check to
+follow. `tsc --noEmit` clean and 402/402 tests green before deploy.
+
+### CLEARED — Trial-request Form rate limit (was FINDING, Low)
+
+- Fix: `submitTrialRequest` gates on `public_form_rate_ok(sha256(ip:"trial-request"),
+  5, 10)` after the honeypot, before the DB insert and the founder notification. A
+  read error and an over-limit both return a friendly message; neither provisions
+  anything. No IP is stored (hash only).
+- LIVE EVIDENCE: DB probe with a fresh key and the exact params the Form uses returned
+  `[true,true,true,true,true,false]` — first 5 allowed, 6th blocked. Happy path
+  re-tested live: a normal submission created a `trial_requests` row (server 200), so
+  the change did not break lead capture.
+
+### CLEARED — Register + Invoicing export role-gates (was NOTE, Low)
+
+- Fix: `/api/reports/register` and `/api/invoicing/export` return a clean 403 for roles
+  below Manager (was 200 + RLS-empty). Allow-list matches the page guards:
+  platform_admin, company_admin, registered_individual, registered_manager, manager.
+- LIVE EVIDENCE (server-side status via Vercel runtime logs, deploy dpl_5uN7...):
+  - Register: care worker `staff` (Charlotte, Acme) -> 403 (09:38); company_admin
+    (Bev, Bevan Care Ltd) -> 200, five exports (09:46-09:54). A browser top-level
+    navigation to these attachment responses shows a client-side "503" as Chrome
+    aborts the navigation to download; the server returned 200 (log-confirmed, and
+    every attempt logged "Exported People register" to the audit feed).
+  - Invoicing: care worker `staff` -> 403 "Invoicing is available to Managers and
+    above." (the new role gate); company_admin (Bev) PASSES the role gate and is then
+    stopped by the pre-existing Pro-tier gate -> 403 "Invoicing is a Pro feature."
+    (Bevan Care Ltd is business tier). On a Pro company an admin passes both -> 200
+    CSV. The role gate correctly admits Manager+; the tier gate is a separate, correct
+    control.
+
+### CLEARED — Digest / email template escaping (was NOTE, Low, to confirm)
+
+- Verdict: NO code change needed. Every user-controlled value across the digest,
+  reporting, chaser, calendar-invite and invoice templates plus the shared shell
+  (record / check / branch / company names, employee and conductor names) is wrapped
+  in `escapeHtml` / `esc`. The only raw slots (`detailHtml`, `bodyHtml`) are composed
+  server-side from already-escaped fragments; the shell escapes heading, preheader,
+  title, footerNote, ctaUrl and ctaLabel.
+- EVIDENCE: ran the real `renderLetterHtml` (the highest-risk sink — free-text
+  employee names flowing into the raw calendar-invite `detailHtml`) against
+  `<script>alert('xss')</script> O'Brien & <b>Sons</b> "Quote"`. Output came back fully
+  escaped (`&lt;script&gt;... &amp; &lt;b&gt;... &quot;`), no live tags. Subject lines
+  keep raw text — correct, they are plain-text JSON fields to Resend, never rendered
+  as HTML.
+
+### STILL OPEN (this session, in order)
+
+- Nonce-based CSP — to be added in Report-Only first, then enforced; compensating
+  control for the JS-readable Supabase auth cookie.
+- Stripe CLI valid-event idempotency — commands to hand to Phil; bad-signature 400 and
+  fail-closed 503 already proven.
+- (Phil, out of hardening scope: enable Supabase leaked-password protection in the Auth
+  dashboard.)
