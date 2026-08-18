@@ -303,9 +303,28 @@ follow. `tsc --noEmit` clean and 402/402 tests green before deploy.
   and popover work, and the PDF export returns 200 under enforcement (server log
   18 Aug 11:19:25, dpl_5Svc...).
 
-### STILL OPEN (this session)
+### CLEARED — Stripe webhook idempotency (valid event re-delivered)
 
-- Stripe CLI valid-event idempotency — commands to hand to Phil; bad-signature 400 and
-  fail-closed 503 already proven.
-- (Phil, out of hardening scope: enable Supabase leaked-password protection in the Auth
-  dashboard.)
+- Verified at the database + code level (no live CLI run needed). The webhook claims
+  every event id in `stripe_events` before handling, and the table has a PRIMARY
+  KEY (id) — so a re-delivered event cannot create a second row. Proven live: a
+  duplicate insert of an already-processed event id (evt_1U486...) was rejected with
+  SQLSTATE 23505, exactly the path `claimEvent` catches. For a row already
+  status='processed' the handler returns `{received:true, duplicate:true}` and does
+  NOT re-run (`if (claim === "skip") return ...`), and `processed_at` is never touched
+  on the skip path — so the side effect happens exactly once however many times Stripe
+  re-delivers.
+- With the signature checks already proven (missing signature -> 400, forged -> 400,
+  no secret -> 503 fail-closed), the Stripe webhook is fully closed out.
+
+## Security hardening — all five Low items CLEARED
+
+1. Nonce-based CSP — enforcing, clean across every role.
+2. Trial-request Form rate limit — throttles at the limit, happy path intact.
+3. Register + Invoicing export role-gates — 403 below Manager, works for admins.
+4. Digest / email template escaping — verified, every user value escaped.
+5. Stripe webhook idempotency — duplicate re-delivery skipped, proven at the DB.
+
+### STILL OPEN — Phil (outside hardening scope)
+
+- Enable Supabase leaked-password protection in the Auth dashboard.
