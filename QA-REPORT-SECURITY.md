@@ -346,3 +346,19 @@ follow. `tsc --noEmit` clean and 402/402 tests green before deploy.
 Nothing open — including the carried-over file-isolation check (signed-URL expiry +
 cross-tenant fetch), now closed live in the Data / files / privacy section above.
 Security hardening complete.
+
+
+---
+
+## NOTE (cosmetic, fixed 18 Aug 2026) — export download "503" in the browser Network panel
+
+Opening an export URL as a top-level navigation (typing/pasting it, or clicking a plain
+download link) makes Chrome begin a main-frame navigation and then abort it to turn the
+`Content-Disposition: attachment` response into a download. That aborted navigation is
+labelled "503" in the browser's Network/devtools panel — but the SERVER returns 200
+(Vercel log-confirmed) and the user sees nothing: the page stays in place and the file
+downloads. Verified live: clicking "Download PDF" as an admin kept the report page fully
+in place, server 200. Tidied anyway by adding the HTML `download` attribute to the
+same-origin export links (register PDF/CSV, invoicing CSV, inspection pack) so a click is
+an explicit download with no aborted navigation — the Network panel stays clean too. The
+single-invoice PDF link is left as-is (a deliberate open-in-new-tab view, not a download).

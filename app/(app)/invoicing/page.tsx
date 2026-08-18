@@ -106,7 +106,7 @@ export default async function InvoicingPage() {
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-sm font-semibold text-white/80">Invoices</h2>
           {invoices.length > 0 ? (
-            <a href="/api/invoicing/export" className="btn-ghost text-xs">Export CSV</a>
+            <a href="/api/invoicing/export" download className="btn-ghost text-xs">Export CSV</a>
           ) : null}
         </div>
         {active.length === 0 ? (

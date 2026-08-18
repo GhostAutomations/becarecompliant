@@ -107,7 +107,7 @@ export default async function ReadinessPage() {
               <div className="text-[11px] uppercase tracking-wide text-white/40">Readiness</div>
             </div>
           ) : null}
-          <a href="/api/reports/readiness-pack" className="btn-primary text-sm">Inspection pack</a>
+          <a href="/api/reports/readiness-pack" download className="btn-primary text-sm">Inspection pack</a>
         </div>
       </div>
 

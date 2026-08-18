@@ -126,8 +126,8 @@ export default async function ReportViewPage({
           <span className="ml-auto flex items-center gap-2">
             {entitled ? (
               <>
-                <a href={exportHref("pdf")} className="btn-outline px-3 py-2 text-xs">Download PDF</a>
-                <a href={exportHref("csv")} className="btn-outline px-3 py-2 text-xs">Download CSV</a>
+                <a href={exportHref("pdf")} download className="btn-outline px-3 py-2 text-xs">Download PDF</a>
+                <a href={exportHref("csv")} download className="btn-outline px-3 py-2 text-xs">Download CSV</a>
               </>
             ) : (
               <a href="/settings/billing" className="btn-outline px-3 py-2 text-xs">
@@ -154,8 +154,8 @@ export default async function ReportViewPage({
             <span className="ml-auto flex items-center gap-2">
               {entitled ? (
                 <>
-                  <a href={exportHref("pdf")} className="btn-outline px-3 py-2 text-xs">Download PDF</a>
-                  <a href={exportHref("csv")} className="btn-outline px-3 py-2 text-xs">Download CSV</a>
+                  <a href={exportHref("pdf")} download className="btn-outline px-3 py-2 text-xs">Download PDF</a>
+                  <a href={exportHref("csv")} download className="btn-outline px-3 py-2 text-xs">Download CSV</a>
                 </>
               ) : (
                 <a href="/settings/billing" className="btn-outline px-3 py-2 text-xs">
