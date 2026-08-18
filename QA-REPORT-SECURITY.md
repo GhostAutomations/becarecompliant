@@ -192,8 +192,20 @@ compliance product - TENANT isolation and PRIVILEGE isolation - hold:
   signature file, not a colleague's.
 - File routes (evidence, policies, training, assignments) read through the RLS
   client AND re-check company_id; served via 5-minute signed URLs; downloads
-  audit-logged; policy/evidence streams are `private, no-store`. Live signed-URL
-  expiry + cross-tenant file fetch: PENDING.
+  audit-logged; policy/evidence streams are `private, no-store`.
+- PASS (live, 18 Aug) signed-URL expiry + cross-tenant file fetch — CLOSED:
+  - Cross-tenant HTTP: as Bev (Bevan admin) GET /api/evidence/<an Acme evidence id>/file
+    -> 404 "File not found"; the SAME file requested by an Acme user (Charlotte) -> 302
+    to a signed URL, image rendered (200). Company isolation, not a broken file.
+  - Signed-URL expiry: the download JWT carries scope=download, iat and exp with a 300s
+    (5 min) TTL. The exact link that returned the image at 14:42:09 UTC, re-fetched at
+    14:47:36 (27s after its 14:47:09 exp), returned 400 InvalidJWT "exp claim timestamp
+    check failed". A download link cannot be reused once it expires.
+  - Token integrity: flipping a significant signature byte -> 400 InvalidJWT "signature
+    verification failed" (the token cannot be modified to extend exp or repoint the path).
+  - Private bucket: the evidence bucket is public=false; the object's public URL -> 400
+    "Bucket not found". Storage RLS (evidence_objects_select) additionally requires
+    is_company_member(first path folder = companyId).
 
 ### Input / integration security
 
@@ -331,4 +343,6 @@ follow. `tsc --noEmit` clean and 402/402 tests green before deploy.
   HaveIBeenPwned) and minimum password length set to 8. The Supabase security advisor
   "Leaked Password Protection Disabled" warning has cleared.
 
-Nothing open. Security hardening complete.
+Nothing open — including the carried-over file-isolation check (signed-URL expiry +
+cross-tenant fetch), now closed live in the Data / files / privacy section above.
+Security hardening complete.
