@@ -359,7 +359,7 @@ people genuinely do move between agencies.
 
 ---
 
-## DEF-010 — A user who has run an on-call shift or logged an incident can never be deleted  ·  OPEN (customer-facing)
+## DEF-010 — A user who has run an on-call shift or logged an incident can never be deleted  ·  FIXED for the purge / OPEN for Settings, Users
 
 **Found 2026-08-19**, when purging Acme for real **failed** — and failed safely, refusing to
 half-erase the company:
@@ -399,3 +399,34 @@ the reader nothing.
    attached: `whistleblowing_disclosures.created_by` going NULL turns an attributed disclosure
    into an anonymous one. That may be exactly right for erasure, but it is a decision about a
    safeguarding record, not a schema tidy-up.
+
+---
+
+## DEF-011 — A refusal claimed nothing had been erased, when files and logins were already gone  ·  FIXED
+
+**Found 2026-08-19**, reading the counts after Acme was finally purged.
+
+The failed first attempt (DEF-010) reported:
+
+> 2 login(s) could not be deleted, so **the company has been left standing rather than half
+> erased**
+
+That sentence was **not true**. By the time it printed, the purge had already deleted **all 53
+storage objects** and **nine of the eleven logins**. It aborted before touching any rows, which
+is what the guard was for — but storage and auth deletions are not transactional and cannot be
+taken back. The proof is in the second run's counts: `storage:evidence: 0` and `logins: 2`, on a
+company that had 53 files and 11 logins an hour earlier.
+
+**Why it matters more than the wording suggests:** a founder reading "left standing rather than
+half erased" would reasonably conclude the company was intact and try something else — or tell a
+customer their data was untouched. It is the same class as every other defect this phase has
+found: **a screen stating something it does not know.**
+
+**Fix:** every abort inside the purge now reports what has ALREADY gone and cannot be recovered,
+and only claims "no rows were deleted" — which is the one part that is actually true, because the
+row deletions all happen after the irreversible steps.
+
+**Acme is now fully purged** (2026-08-19): company row, 53 files, 42 people, 24 service users,
+346 evidence records, 1,084 audit rows, 19 Stripe events and all 11 logins — gone, with
+`purge_error` null and the tombstone holding the record. `phil@thistlecarewales.co.uk` went with
+it, so that address is now completely free for Thistle.

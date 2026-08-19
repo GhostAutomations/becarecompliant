@@ -384,7 +384,20 @@ export async function purgeCompany(input: {
     try {
       paths = await listCompanyObjects(bucket, company.id);
     } catch (e) {
-      return { ok: false, error: `Could not list ${bucket}: ${(e as Error).message}. Nothing was erased.` };
+      /* Say what HAS gone, not what we wish had. On the first live purge of a real company the
+         abort message read "the company has been left standing rather than half erased" — while
+         53 files and nine logins had already been deleted. Storage and auth deletions are not
+         transactional and cannot be taken back, so a refusal must never claim they did not
+         happen. */
+      const already = Object.entries(removed)
+        .filter(([k, v]) => k.startsWith("storage:") && v > 0)
+        .map(([k, v]) => `${v} from ${k.slice(8)}`);
+      return {
+        ok: false,
+        error:
+          `Could not list ${bucket}: ${(e as Error).message}. No rows were deleted` +
+          (already.length ? `, but files already removed are gone (${already.join(", ")}).` : "."),
+      };
     }
     let done = 0;
     for (let i = 0; i < paths.length; i += 100) {
@@ -393,7 +406,10 @@ export async function purgeCompany(input: {
       if (error) {
         return {
           ok: false,
-          error: `Could not remove files from ${bucket}: ${error.message}. Nothing else was erased, so it can be run again.`,
+          error:
+            `Could not remove files from ${bucket}: ${error.message}. ${done} file(s) of ` +
+            `${paths.length} had already gone and cannot be brought back; no rows were deleted, ` +
+            `so the purge can be run again.`,
         };
       }
       done += batch.length;
