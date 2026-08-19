@@ -21,7 +21,7 @@ import {
   readInviteDomains,
 } from "@/lib/invite-domains";
 import type { ActionState } from "@/lib/forms";
-import { picksABranch } from "@/lib/people/roles";
+import { picksABranch, mayChooseAllBranches, ALL_BRANCHES } from "@/lib/people/roles";
 
 const INVITABLE_ROLES: InviteRole[] = [
   "registered_individual",
@@ -106,7 +106,14 @@ export async function inviteUser(
      only the founder can invite) reach every branch in RLS, so a branch is not merely optional
      for them, it is meaningless. Requiring one wrote a primary branch that made an RI look like
      they belonged to Cardiff. */
-  const noBranch = !picksABranch(role);
+  /* "All branches" is a deliberate choice, not an empty one. Only a role that is allowed to
+     make it may post it — otherwise a hand-crafted form could hand somebody an unscoped account
+     by typing "all" into the branch field. */
+  const choseAll = branchId === ALL_BRANCHES && mayChooseAllBranches(role);
+  if (branchId === ALL_BRANCHES && !choseAll) {
+    return { error: "That role has to be given a branch." };
+  }
+  const noBranch = !picksABranch(role) || choseAll;
   if (!noBranch && !branchId) {
     return { error: "Choose a branch for this person." };
   }

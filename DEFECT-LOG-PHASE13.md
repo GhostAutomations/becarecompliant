@@ -509,9 +509,16 @@ change — `is_company_wide`, the `manage-scope` transcription beside it, the no
 normalisation and the readiness scope all read that rule — and it is NOT done. **Open question for
 Phil.**
 
-The invite form shows **"All branches"** for the Admin and the RI instead of a required picker,
-the action refuses to trust a branch posted with those two, and no `user_branches` row is written
-for them.
+**Refined again, same evening (Phil): "for RM there should be an option for all branches but not
+default."** So the Registered Manager's branch picker now carries **All branches** as an option
+sitting beside the real branches, and the picker still opens on "Choose a branch" — they pick
+deliberately, one way or the other. Nobody else is offered it, and the server refuses an
+`all` posted by a role that may not choose it, so a hand-crafted form cannot mint an unscoped
+account.
+
+The invite form shows a flat **"All branches"** (no picker) for the Admin and the RI, the action
+refuses to trust a branch posted with those two, and no `user_branches` row is written for them —
+nor for an RM who chooses All branches.
 
 **A trap avoided while fixing it:** the Edit form's "Current line manager (no longer listed)"
 fallback compared against the UNFILTERED list. Narrowing eligibility would have dropped an

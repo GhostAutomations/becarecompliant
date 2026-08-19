@@ -47,6 +47,24 @@ export function picksABranch(role: string): boolean {
   return !(NO_BRANCH_ROLES as readonly string[]).includes(role);
 }
 
+/** The value the branch picker posts for "All branches". Not an empty string: empty is what an
+ *  untouched required select posts, and "they chose all branches" must not be indistinguishable
+ *  from "they chose nothing". */
+export const ALL_BRANCHES = "all";
+
+/**
+ * Roles that may be offered "All branches" as a CHOICE on the invite form.
+ *
+ * Phil, 2026-08-19: a Registered Manager should have the option, **but not as the default** —
+ * some run every branch, some run one service. So it sits in the list beside the branches and
+ * they pick deliberately, like everything else on that form.
+ */
+export const MAY_CHOOSE_ALL_BRANCHES = ["registered_manager"] as const;
+
+export function mayChooseAllBranches(role: string): boolean {
+  return (MAY_CHOOSE_ALL_BRANCHES as readonly string[]).includes(role);
+}
+
 /**
  * Roles that may be chosen as a person's line manager.
  *

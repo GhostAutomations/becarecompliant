@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { inviteUser } from "@/app/(app)/settings/actions";
 import { IDLE_STATE } from "@/lib/forms";
-import { picksABranch } from "@/lib/people/roles";
+import { picksABranch, mayChooseAllBranches, ALL_BRANCHES } from "@/lib/people/roles";
 
 type BranchOption = { id: string; name: string; kind: string };
 
@@ -80,10 +80,16 @@ export function InviteForm({ branches }: { branches: BranchOption[] }) {
               </p>
             </>
           ) : (
-            <select id="branch_id" name="branch_id" defaultValue="" required>
+            <select id="branch_id" name="branch_id" defaultValue="" required key={role}>
               <option value="" disabled>
                 Choose a branch
               </option>
+              {/* Offered to a Registered Manager, deliberately NOT selected for them: some run
+                  every branch, some run one registered service, and the product should not
+                  assume which (Phil, 2026-08-19). */}
+              {mayChooseAllBranches(role) ? (
+                <option value={ALL_BRANCHES}>All branches</option>
+              ) : null}
               {branches.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name}

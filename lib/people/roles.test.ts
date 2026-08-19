@@ -3,7 +3,13 @@ import assert from "node:assert/strict";
 
 /** RELATIVE, EXTENSIONED: node --experimental-strip-types resolves neither aliases nor
  *  extensionless files. roles.ts has no runtime imports for exactly this reason. */
-import { canBeLineManager, isCompanyWideRole, picksABranch } from "./roles.ts";
+import {
+  canBeLineManager,
+  isCompanyWideRole,
+  picksABranch,
+  mayChooseAllBranches,
+  ALL_BRANCHES,
+} from "./roles.ts";
 
 test("a Registered Manager can be a line manager — they usually run every branch", () => {
   assert.equal(canBeLineManager("registered_manager"), true);
@@ -34,6 +40,20 @@ test("PHIL'S CORRECTION: a Registered Manager picks a branch, because they may r
   // The RI oversees the provider, and an Admin is the account holder.
   assert.equal(picksABranch("registered_individual"), false);
   assert.equal(picksABranch("company_admin"), false);
+});
+
+test("a Registered Manager may CHOOSE all branches, and nobody else is offered it", () => {
+  // Phil, 2026-08-19: the option exists for the RM, but it is never the default.
+  assert.equal(mayChooseAllBranches("registered_manager"), true);
+  for (const role of ["manager", "supervisor", "on_call", "team_member", "company_admin"]) {
+    assert.equal(mayChooseAllBranches(role), false, role);
+  }
+});
+
+test("the all-branches value is not an empty string", () => {
+  // An untouched required select posts "", and "chose all" must not look like "chose nothing".
+  assert.equal(ALL_BRANCHES, "all");
+  assert.notEqual(ALL_BRANCHES, "");
 });
 
 test("the company wide roles are the three the database treats as company wide", () => {

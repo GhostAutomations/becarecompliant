@@ -3287,3 +3287,17 @@ Registered Manager or a Branch Manager. Not the RI, not a Supervisor. The invite
 
 Everything else the RI can do is untouched — every branch visible, absence meetings, Planner
 bookings, and the Reg 73 report which is theirs by statute.
+
+**Same evening, twice corrected by Phil, and both corrections were right.** First: *"Registered
+Manager may not manage all branches so all should not be default for this role"* — so the
+no-branch list is Admin and RI only, and an RM picks a branch like anybody else. Then: *"for RM
+there should be an option for all branches but not default"* — so **All branches** sits in the
+RM's picker as a choice, never preselected. Nobody else is offered it, and the server refuses an
+`all` from a role that may not choose it.
+
+**Written down because the form now implies something the database does not enforce:** a
+Registered Manager is still company wide in RLS (`is_company_wide`), so the branch chosen for them
+is their BASE, not a limit. Genuinely scoping an RM to one registered service is a permissions
+change — `is_company_wide`, the manage-scope transcription beside it, the notification recipient
+normalisation and the readiness scope all read that rule — and it is deliberately NOT done here.
+Phil's call, as its own piece of work with the role boundaries re-proven.
