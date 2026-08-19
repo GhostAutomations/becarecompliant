@@ -23,6 +23,12 @@ import {
 
 export const metadata: Metadata = { title: "Companies" };
 
+/** Is money actually moving? Mirrors the MRR tile on the founder console, which has always
+ *  counted only these three states. */
+function isLiveSubscription(status: string | null): boolean {
+  return ["active", "trialing", "past_due"].includes(status ?? "");
+}
+
 export default async function FounderCompaniesPage() {
   await requirePlatformAdmin();
   const supabase = await createClient();
@@ -200,12 +206,32 @@ export default async function FounderCompaniesPage() {
                   {isSub ? (
                     <>
                       <span className={`pill ${bpill.cls}`}>{bpill.text}</span>
-                      <span>
-                        Monthly:{" "}
-                        <span className="text-white/90">
-                          {formatPence(monthlyTotalPence)}/mo
+                      {/*
+                        WHAT THEY ARE CHARGED, NOT WHAT THE TIER COSTS. A deleted company printed
+                        "Cancelled · Monthly: £76.50/mo" next to a red deleted pill on 2026-08-19,
+                        while the page total correctly read £0.00/mo — the same number contradicting
+                        itself on one screen. With no live subscription there is no monthly charge,
+                        and the tier's price is a quote, not a fact about this company.
+                      */}
+                      {isLiveSubscription(bill?.subscription_status ?? null) ? (
+                        <span>
+                          Monthly:{" "}
+                          <span className="text-white/90">
+                            {formatPence(monthlyTotalPence)}/mo
+                          </span>
                         </span>
-                      </span>
+                      ) : (
+                        <span>
+                          Monthly:{" "}
+                          <span className="text-white/90">
+                            nothing charged
+                          </span>
+                          <span className="text-white/40">
+                            {" "}
+                            ({formatPence(monthlyTotalPence)}/mo if they subscribe)
+                          </span>
+                        </span>
+                      )}
                     </>
                   ) : (
                     <span>

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import BackLink from "@/components/back-link";
+import SupportModeNotice from "@/components/support-mode-notice";
 import CompleteCheck from "@/components/service-users/complete-check";
 import { getServiceUser, getPublishedFormVersion } from "@/lib/service-users/data";
 import { branchName } from "@/lib/people/data";
@@ -23,6 +24,15 @@ export default async function CompleteServiceUserCheckPage({
   const { profile } = await requireCompany();
   const { id, instanceId } = await params;
   if (!COMPLETE_ROLES.includes(profile.role)) redirect(`/service-users/${id}`);
+  if (profile.actingAsCompanyId) {
+    return (
+      <SupportModeNotice
+        backHref={`/service-users/${id}`}
+        backLabel="Back to the record"
+        what="complete a check"
+      />
+    );
+  }
 
   const supabase = await createClient();
   const { data: instance } = await supabase

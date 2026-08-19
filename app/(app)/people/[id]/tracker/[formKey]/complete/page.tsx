@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
+import SupportModeNotice from "@/components/support-mode-notice";
 import CompleteTracker from "@/components/people/complete-tracker";
 import { getPerson, getCompanyFormByKey } from "@/lib/people/data";
 import { TRACKER_FORMS } from "@/lib/people/logic";
@@ -20,6 +21,15 @@ export default async function CompleteTrackerPage({
   const { id, formKey } = await params;
   if (!profile.company_id) redirect("/people");
   if (!MANAGE_ROLES.includes(profile.role)) redirect(`/people/${id}`);
+  if (profile.actingAsCompanyId) {
+    return (
+      <SupportModeNotice
+        backHref={`/people/${id}`}
+        backLabel="Back to the record"
+        what="record this document"
+      />
+    );
+  }
 
   const spec = TRACKER_FORMS[formKey];
   if (!spec) redirect(`/people/${id}`);

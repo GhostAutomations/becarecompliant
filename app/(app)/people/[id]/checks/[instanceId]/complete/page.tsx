@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import BackLink from "@/components/back-link";
+import SupportModeNotice from "@/components/support-mode-notice";
 import CompleteCheck from "@/components/people/complete-check";
 import {
   getPerson,
@@ -35,6 +36,17 @@ export default async function CompleteCheckPage({
   const { id, instanceId } = await params;
   const { sup } = await searchParams;
   if (!COMPLETE_ROLES.includes(profile.role)) redirect(`/people/${id}`);
+  // Reachable only by typing the URL now that the buttons are hidden, but it is the
+  // authoritative half: the save would be refused, so never render the form.
+  if (profile.actingAsCompanyId) {
+    return (
+      <SupportModeNotice
+        backHref={`/people/${id}`}
+        backLabel="Back to the record"
+        what="complete a check"
+      />
+    );
+  }
 
   const supabase = await createClient();
   const { data: instance } = await supabase

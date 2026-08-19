@@ -85,7 +85,10 @@ export default async function ServiceUserPage({
       branchIds: await callerBranchIds(profile.id),
       recordBranchId: serviceUser.branch_id,
     });
-  const canComplete = COMPLETE_ROLES.includes(profile.role);
+  /* See the note in the People record page: support mode never offers Complete, because the
+     save is refused and the work is lost. */
+  const supportMode = Boolean(profile.actingAsCompanyId);
+  const canComplete = COMPLETE_ROLES.includes(profile.role) && !supportMode;
   // The audit History timeline is Admins only (Founder + Company Admin).
   const canViewHistory = profile.role === "platform_admin" || profile.role === "company_admin";
 

@@ -110,7 +110,12 @@ export default async function PersonPage({
       branchIds: await callerBranchIds(profile.id),
       recordBranchId: person.branch_id,
     });
-  const canComplete = COMPLETE_ROLES.includes(profile.role);
+  /* SUPPORT MODE CANNOT COMPLETE A CHECK, so it must not offer to. Completing writes signed
+     compliance evidence, and evidence signed by the founder impersonating a manager is worse
+     than no evidence. Until 2026-08-19 the buttons rendered, the form filled in, and the save
+     was refused at the very end with "Not a member of this company" — after the work. */
+  const supportMode = Boolean(profile.actingAsCompanyId);
+  const canComplete = COMPLETE_ROLES.includes(profile.role) && !supportMode;
   // The audit History timeline is Admins only (Founder + Company Admin).
   const canViewHistory = profile.role === "platform_admin" || profile.role === "company_admin";
 
@@ -201,7 +206,7 @@ export default async function PersonPage({
           <h2 className="text-sm font-semibold text-white">Probation</h2>
           {probationStatusPill(tracker?.probation_status ?? null)}
         </div>
-        {canManage ? (
+        {canManage && !supportMode ? (
           <Link href={`/people/${person.id}/tracker/probation_review/complete`} className="btn-outline text-xs">
             Record
           </Link>
@@ -227,7 +232,7 @@ export default async function PersonPage({
     <div className="glass-card p-5">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-white">Probation</h2>
-        {canManage ? (
+        {canManage && !supportMode ? (
           <Link href={`/people/${person.id}/tracker/probation_review/complete`} className="btn-outline text-xs">
             Record
           </Link>
@@ -367,7 +372,7 @@ export default async function PersonPage({
             <div className="glass-card p-5">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-white">DBS</h2>
-                {canManage ? (
+                {canManage && !supportMode ? (
                   <Link href={`/people/${person.id}/tracker/dbs_renewal/complete`} className="btn-outline text-xs">
                     Record
                   </Link>
@@ -383,7 +388,7 @@ export default async function PersonPage({
             <div className="glass-card p-5">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-white">Right to Work</h2>
-                {canManage ? (
+                {canManage && !supportMode ? (
                   <Link href={`/people/${person.id}/tracker/right_to_work/complete`} className="btn-outline text-xs">
                     Record
                   </Link>

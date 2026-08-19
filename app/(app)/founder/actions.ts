@@ -59,6 +59,9 @@ function slugify(s: string): string {
 
 /** Founder-led company creation. Seeds one Team (office) + one Branch and,
  *  optionally, invites the first Company Admin. */
+/** The only two answers. CIW inspects in Wales, CQC in England. */
+const REGULATORS = ["ciw", "cqc"];
+
 export async function createCompany(
   _prev: ActionState,
   formData: FormData,
@@ -72,8 +75,14 @@ export async function createCompany(
     String(formData.get("branch_name") ?? "").trim() || "Main Branch";
   const adminName = String(formData.get("admin_name") ?? "").trim();
   const adminEmail = String(formData.get("admin_email") ?? "").trim();
+  const regulator = String(formData.get("regulator") ?? "").trim();
 
   if (!name) return { error: "Enter a company name." };
+  // A UK care provider answers to one of two regulators and there is no third answer, so this
+  // is refused rather than defaulted. See the note on the form.
+  if (!REGULATORS.includes(regulator)) {
+    return { error: "Choose the regulator: CIW for Wales, CQC for England." };
+  }
   // An address with no name behind it used to be accepted here and refused by the database at
   // the far end of createAndSendInvite, after the company had already been made.
   if (adminEmail && !adminName) {
@@ -88,7 +97,7 @@ export async function createCompany(
 
   const { data: company, error: companyErr } = await supabase
     .from("companies")
-    .insert({ name, slug, tier })
+    .insert({ name, slug, tier, regulator })
     .select("id, name")
     .single();
   if (companyErr) {
@@ -1223,4 +1232,53 @@ export async function purgeCompanyNow(
   revalidatePath("/founder/companies");
   revalidatePath("/founder");
   redirect("/founder/companies");
+}
+
+/** Correct a company's regulator. Founder only: it decides what every readiness figure and
+ *  statutory report on that tenant is measured against, so it is not a customer setting. */
+export async function setCompanyRegulator(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requirePlatformAdmin();
+  const companyId = String(formData.get("company_id") ?? "").trim();
+  const regulator = String(formData.get("regulator") ?? "").trim();
+  if (!companyId) return { error: "Missing company." };
+  if (!REGULATORS.includes(regulator)) {
+    return { error: "Choose the regulator: CIW for Wales, CQC for England." };
+  }
+
+  const supabase = await createClient();
+  const { data: before } = await supabase
+    .from("companies")
+    .select("regulator")
+    .eq("id", companyId)
+    .maybeSingle();
+
+  const { data, error } = await supabase
+    .from("companies")
+    .update({ regulator })
+    .eq("id", companyId)
+    .select("id");
+  if (error) return { error: error.message };
+  // An RLS no-op must never pass as a save (standing rule).
+  if (!data || data.length === 0) {
+    return { error: "No change was saved. The company may not exist." };
+  }
+
+  await writeAudit({
+    companyId,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: "platform_admin",
+    action: "company.regulator_changed",
+    entityType: "company",
+    entityId: companyId,
+    summary: `Set regulator from ${(before as { regulator?: string | null } | null)?.regulator ?? "none"} to ${regulator}`,
+    metadata: { regulator, previous: (before as { regulator?: string | null } | null)?.regulator ?? null },
+  });
+
+  revalidatePath(`/founder/companies/${companyId}`);
+  revalidatePath("/dashboard");
+  return { ok: `Regulator set to ${regulator.toUpperCase()}.` };
 }

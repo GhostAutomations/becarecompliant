@@ -55,6 +55,14 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
   const branch_id = String(formData.get("branch_id") ?? "").trim();
   if (!full_name) return { error: "Enter the person's name." };
   if (!branch_id) return { error: "Choose a branch." };
+  // Says what to do about it. The form hides the dropdown when there is nobody to pick, so
+  // reaching this means the company has no accepted users yet.
+  if (!trimOrNull(formData.get("manager_id"))) {
+    return {
+      error:
+        "Choose a line manager. If there is nobody to choose, invite your office team in Settings, Users first — they appear here once they have accepted.",
+    };
+  }
 
   const start_date = isoDateOrNull(formData.get("start_date"));
 

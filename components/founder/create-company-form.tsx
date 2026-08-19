@@ -45,6 +45,34 @@ export function CreateCompanyForm() {
         </div>
       </div>
 
+      {/*
+        REGULATOR IS REQUIRED, AND THERE IS NO DEFAULT ON PURPOSE.
+        Until 2026-08-19 this field was not on the form at all and was written by nothing in the
+        product, so every company created here was a care provider that could not say who
+        inspected it — and the compliance score, Inspection Readiness, Reg 73, Reg 80, the
+        incidents screen and the privacy notice all read it. Defaulting it would be worse than
+        asking: a Welsh provider silently measured against CQC's key questions looks like a
+        working product right up until an inspector reads the report.
+      */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label htmlFor="regulator" className="form-label">
+            Regulator
+          </label>
+          <select id="regulator" name="regulator" required defaultValue="">
+            <option value="" disabled>
+              Please choose
+            </option>
+            <option value="ciw">CIW (Wales)</option>
+            <option value="cqc">CQC (England)</option>
+          </select>
+          <p className="form-hint">
+            Who inspects them. It decides which framework their readiness is measured against,
+            and whether the RISCA reports (Reg 73, Reg 80) apply.
+          </p>
+        </div>
+      </div>
+
       <div className="border-t border-white/10 pt-5">
         <p className="mb-3 text-sm font-semibold text-white/90">
           Invite the first Company Admin (optional)

@@ -32,7 +32,12 @@ import {
 import { subscriptionMonthlyPence } from "@/lib/billing/monthly-total";
 import { TIER_LABELS } from "@/lib/stripe/config";
 import ActionForm from "@/components/action-form";
-import { addBranch, removeBranch, changeCompanyTier } from "@/app/(app)/founder/actions";
+import {
+  addBranch,
+  removeBranch,
+  changeCompanyTier,
+  setCompanyRegulator,
+} from "@/app/(app)/founder/actions";
 import { TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
 import {
   billingStatusPill,
@@ -72,7 +77,7 @@ export default async function FounderCompanyPage({
 
   const { data: company } = await supabase
     .from("companies")
-    .select("id, name, slug, tier, status, created_at, deleted_at, purge_after, supervision_cycle_mode, people_column_labels, service_user_column_labels")
+    .select("id, name, slug, tier, status, created_at, deleted_at, purge_after, regulator, supervision_cycle_mode, people_column_labels, service_user_column_labels")
     .eq("id", id)
     .maybeSingle();
 
@@ -182,6 +187,17 @@ export default async function FounderCompanyPage({
           <p className="page-subtitle">
             {tierLabel(company.tier)} tier · {company.slug} · created{" "}
             {fmtDate(company.created_at)}
+          </p>
+          {/* Said out loud, because a company with no regulator cannot be scored, cannot be
+              mapped to a framework and cannot produce the right statutory reports — and until
+              2026-08-19 every company created here had none. */}
+          <p className="mt-1 text-xs text-white/50">
+            Regulator:{" "}
+            {company.regulator ? (
+              <span className="text-white/80">{String(company.regulator).toUpperCase()}</span>
+            ) : (
+              <span className="text-red-300">not set</span>
+            )}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -584,6 +600,28 @@ export default async function FounderCompanyPage({
             ))}
           </div>
         )}
+      </section>
+
+      <section aria-label="Regulator" className="glass-card p-5">
+        <h2 className="text-sm font-semibold text-white/80">Regulator</h2>
+        <p className="mt-1 mb-3 text-sm text-white/60">
+          Who inspects this company. It decides which framework Inspection Readiness measures
+          them against, and whether the RISCA reports (Reg 73, Reg 80) apply to them at all.
+        </p>
+        <ActionForm
+          action={setCompanyRegulator}
+          hidden={{ company_id: company.id }}
+          label="Save"
+          inline
+        >
+          <select name="regulator" defaultValue={company.regulator ?? ""}>
+            <option value="" disabled>
+              Please choose
+            </option>
+            <option value="ciw">CIW (Wales)</option>
+            <option value="cqc">CQC (England)</option>
+          </select>
+        </ActionForm>
       </section>
 
       {company.status === "deleted" ? (

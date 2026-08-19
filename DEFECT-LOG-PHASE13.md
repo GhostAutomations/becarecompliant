@@ -131,7 +131,7 @@ holding 346 evidence records.
 
 ---
 
-## DEF-003 — A company created through the founder console has no regulator  ·  CONFIRMED (Thistle blocker)
+## DEF-003 — A company created through the founder console has no regulator  ·  FIXED (not yet re-proven)
 
 **Spotted** 2026-08-18 in the data, not yet proven on the screen.
 
@@ -162,7 +162,7 @@ question for `framework_enabled`, which is also false on every company but Acme.
 
 ---
 
-## DEF-004 — A deleted company still prints a monthly charge  ·  OPEN
+## DEF-004 — A deleted company still prints a monthly charge  ·  FIXED (not yet re-proven)
 
 **Found** 2026-08-19 on the founder Companies list, immediately after deleting Acme.
 
@@ -179,7 +179,7 @@ without a live subscription. Not fixed mid-flow; logged here.
 
 ---
 
-## DEF-005 — A brand-new company cannot add its first person  ·  OPEN
+## DEF-005 — A brand-new company cannot add its first person  ·  FIXED (not yet re-proven)
 
 **Found** 2026-08-19, doing the first thing any new customer does.
 
@@ -204,7 +204,7 @@ this company yet" and carry on, which is exactly the treatment Line manager need
 
 ---
 
-## DEF-006 — Support mode can create records but cannot complete a check, and says so badly  ·  OPEN
+## DEF-006 — Support mode can create records but cannot complete a check, and says so badly  ·  FIXED (not yet re-proven)
 
 **Found** 2026-08-19, managing as Purge Test Ltd from the founder console.
 
@@ -249,3 +249,43 @@ moment for one, because the honest reading is "did that work?".
 
 **To re-prove:** purge one more throwaway company and confirm it lands on the Companies list with
 the company gone, no 404.
+
+---
+
+# Fixes shipped 2026-08-19 (evening)
+
+**DEF-003 — regulator.** Required on **Create a company** (CIW Wales / CQC England, with no
+default: defaulting it would silently measure a Welsh provider against CQC's key questions and
+look like a working product until an inspector read the report). Refused server-side as well as
+in the form. The founder company page now **states the regulator** — "not set" in red when it is
+missing — and carries a control to change it, with an audit row (`company.regulator_changed`).
+Chosen founder-only, not a customer setting (Phil, 2026-08-19): it decides what every readiness
+figure and statutory report on that tenant is measured against.
+
+*Note:* Bevan Care Ltd still has no regulator. It is a test company, and the new control is now
+the way to set it.
+
+**DEF-005 — the first person.** The rule stands, because Phil's onboarding order is the right one:
+the first Admin accepts, they set up the office team, then people and service users. What changed
+is the dead end. When there is nobody to pick, the Line manager field is no longer a required
+empty dropdown — it explains that the office team has to be invited first and links to Settings,
+Users, exactly as Supervisors already does. The server refusal names the same fix rather than
+returning a raw constraint error. **Verified in the code that this window is narrow**: the
+dropdown lists Admins, Responsible Individual, Registered Manager, managers and supervisors, so
+it fills as soon as the first Admin accepts.
+
+**DEF-006 — support mode.** Complete buttons no longer render while managing as a company (People
+records, Service User records, the reviews panel and the DBS / Right to Work / Probation "Record"
+buttons, which write evidence too). All three complete routes refuse server-side with a shared
+`SupportModeNotice` that says why: evidence is signed by whoever completed it and has to be
+somebody who works there, or an inspector is told a member of staff did something they never did.
+
+**DEF-004 — the contradictory monthly figure.** A company with no live subscription now reads
+"Monthly: nothing charged", with the tier price shown greyed as what they *would* pay if they
+subscribed. The live-subscription test matches the MRR tile exactly (`active`, `trialing`,
+`past_due`), so the row and the page total can no longer disagree.
+
+**All four are FIXED, none is PROVEN.** `tsc` clean and 416 unit tests green, which by this
+project's own history means very little. They are proven when a company is created with a
+regulator on it, a first person is added on a fresh tenant, a Complete button is looked for in
+support mode and not found, and the Companies list is read.

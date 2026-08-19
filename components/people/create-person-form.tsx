@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useActionState, useState } from "react";
 import { createPerson } from "@/lib/people/actions";
 import { IDLE_STATE } from "@/lib/forms";
@@ -79,14 +81,39 @@ export default function CreatePersonForm({
         </div>
 
         <div>
-          <label htmlFor="manager_id" className="form-label">Line manager *</label>
-          <select id="manager_id" name="manager_id" required value={managerId} onChange={(e) => setManagerId(e.target.value)}>
-            <option value="" disabled>Please choose</option>
-            {managers.map((u) => (
-              <option key={u.id} value={u.id}>{u.full_name || u.email}</option>
-            ))}
-          </select>
-          <p className="form-hint">Auto filled from the branch. Change if needed.</p>
+          <label htmlFor="manager_id" className="form-label">
+            Line manager{managers.length > 0 ? " *" : ""}
+          </label>
+          {/*
+            A REQUIRED DROPDOWN WITH NOTHING IN IT IS A DEAD END, and this one was reached on the
+            first thing a new customer does. Before anybody has accepted their invite there is
+            nobody to be a line manager, so the browser refused with its own "Please select an
+            item in the list" and there was no way forward and no explanation. The rule stays —
+            staff report to somebody — but the screen now says what has to happen first, the way
+            Supervisors below already does.
+          */}
+          {managers.length === 0 ? (
+            <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+              <p className="text-sm text-white/70">
+                There is nobody to report to yet. Set your office team up first: invite your
+                managers in Settings, Users, and they appear here as soon as they have accepted
+                and set a password.
+              </p>
+              <Link href="/settings/users" className="mt-2 inline-block text-xs text-gold-300 hover:underline">
+                Go to Settings, Users
+              </Link>
+            </div>
+          ) : (
+            <>
+              <select id="manager_id" name="manager_id" required value={managerId} onChange={(e) => setManagerId(e.target.value)}>
+                <option value="" disabled>Please choose</option>
+                {managers.map((u) => (
+                  <option key={u.id} value={u.id}>{u.full_name || u.email}</option>
+                ))}
+              </select>
+              <p className="form-hint">Auto filled from the branch. Change if needed.</p>
+            </>
+          )}
         </div>
 
         <div>
