@@ -158,14 +158,20 @@ export default async function FounderCompaniesPage() {
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    {company.status !== "active" ? (
-                      <CompanyStatusButton companyId={company.id} status="active" label="Activate" />
-                    ) : null}
-                    {company.status !== "suspended" && company.status !== "archived" ? (
-                      <CompanyStatusButton companyId={company.id} status="suspended" label="Suspend" />
-                    ) : null}
-                    {company.status !== "archived" ? (
-                      <CompanyStatusButton companyId={company.id} status="archived" label="Archive" />
+                    {/* Restore and Purge live on the company's own page, where the deletion is
+                        explained. Nothing here applies to a company that has been deleted. */}
+                    {company.status !== "deleted" ? (
+                      <>
+                        {company.status !== "active" ? (
+                          <CompanyStatusButton companyId={company.id} status="active" label="Activate" />
+                        ) : null}
+                        {company.status !== "suspended" && company.status !== "archived" ? (
+                          <CompanyStatusButton companyId={company.id} status="suspended" label="Suspend" />
+                        ) : null}
+                        {company.status !== "archived" ? (
+                          <CompanyStatusButton companyId={company.id} status="archived" label="Archive" />
+                        ) : null}
+                      </>
                     ) : null}
                   </div>
                 </div>

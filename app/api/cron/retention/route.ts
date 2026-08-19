@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runRetentionExpiry } from "@/lib/evidence/retention";
+import { runCompanyPurge } from "@/lib/companies/delete-apply";
 
 /**
  * Daily evidence retention: anonymise evidence that is past its retention date.
@@ -32,6 +33,13 @@ export async function GET(request: NextRequest) {
   }
 
   const retention = await runRetentionExpiry();
+
+  /* THE COMPANY PURGE RIDES ALONG (2026-08-18). A company deleted in the founder console is
+     locked and cancelled immediately but not erased for thirty days; this is what erases it.
+     It shares the 02:30 slot rather than taking a cron of its own because it does the same kind
+     of work — the nightly erasure of things whose time is up — and because a second schedule is
+     a second thing to notice has stopped running. */
+  const companies = await runCompanyPurge();
   // A FAILED RUN MUST NOT LOOK LIKE A QUIET ONE. Found live 2026-08-11: the function raised
   // "column reference evidence_id is ambiguous", this route swallowed it into a JSON field
   // and answered 200, so Vercel showed a healthy cron and nothing was ever anonymised. For a
@@ -39,7 +47,14 @@ export async function GET(request: NextRequest) {
   // broken for months" must never look the same from the outside.
   if (retention.error) {
     console.error("[cron/retention] run failed:", retention.error);
-    return NextResponse.json({ retention }, { status: 500 });
+    return NextResponse.json({ retention, companies }, { status: 500 });
   }
-  return NextResponse.json({ retention });
+  // Same rule for the purge half: a company that was due to be erased and was not is a failed
+  // run, and a failed run must not answer 200. A purge that half-completed reports its error
+  // here rather than only in the tombstone nobody is watching.
+  if (companies.errors.length) {
+    console.error("[cron/retention] company purge failed:", companies.errors.join(" | "));
+    return NextResponse.json({ retention, companies }, { status: 500 });
+  }
+  return NextResponse.json({ retention, companies });
 }

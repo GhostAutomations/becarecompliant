@@ -3,7 +3,7 @@ import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { decodeSessionId } from "@/lib/auth/jwt";
 import { readActingCompanyId } from "@/lib/founder/manage-as";
-import { isCompanyLapsed } from "@/lib/billing/trial-gate";
+import { isCompanyLapsed, isCompanyLocked } from "@/lib/billing/trial-gate";
 
 export type Profile = {
   id: string;
@@ -152,6 +152,12 @@ export async function requireCompany(
     return { user, profile: await applyManageAs(profile) };
   }
   if (!profile.company_id) redirect("/login?reason=no-access");
+  /* THE COMPANY LOCK, and it comes before the trial lock because it is the stronger of the two:
+     a suspended, archived or deleted company is shut whether or not its trial has anything left
+     to run. allowLapsed deliberately does NOT open this door — the two billing actions it exists
+     for are "add a card and carry on", which is not on offer to a company that has been shut.
+     No query string on the redirect (see the Next 15 note below). */
+  if (await isCompanyLocked(profile.company_id)) redirect("/company-closed");
   if (!options.allowLapsed && (await isCompanyLapsed(profile.company_id))) {
     // No query string on this redirect: redirecting a Server Action to a URL carrying one
     // trips the Next 15 router bug this codebase has already paid for (see lib/forms).

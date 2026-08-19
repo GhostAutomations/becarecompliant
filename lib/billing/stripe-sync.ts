@@ -637,3 +637,48 @@ export async function reconcileBilling(): Promise<{
   }
   return result;
 }
+
+
+/**
+ * Cancel the subscription THERE AND THEN, with no refund and no proration.
+ *
+ * Used by exactly one caller: deleting a company. Moving a company to Black stops billing at
+ * the END of the period they already paid for, because they keep what they bought and carry on
+ * using it. A deleted company is not carrying on using anything, so leaving the subscription
+ * running to the end of the month would bill somebody for a product that no longer exists for
+ * them — which is the one billing failure a customer notices on a statement.
+ *
+ * Deliberately NOT prorated: they had the product for the part of the month they had it. This
+ * is the same "no money moves in either direction" rule the move to Black settled on, applied
+ * at the other end of the period.
+ *
+ * Best effort like everything else here, and the caller SAYS SO on screen when it fails: a
+ * company that could not be unsubscribed is still charged, and the founder needs to know that
+ * in the same breath as being told the company has gone, not from a log line.
+ */
+export async function cancelSubscriptionNow(
+  companyId: string,
+): Promise<{ cancelled: boolean; reason?: string }> {
+  try {
+    const stripe = getStripe();
+    if (!stripe) return { cancelled: false, reason: "stripe_unconfigured" };
+
+    const billing = await getCompanyBilling(companyId);
+    if (!billing?.stripe_subscription_id) return { cancelled: true, reason: "no_subscription" };
+    if (subscriptionHasEnded(billing.subscription_status)) {
+      return { cancelled: true, reason: "already_ended" };
+    }
+
+    await stripe.subscriptions.cancel(billing.stripe_subscription_id, { prorate: false });
+    // Write it back rather than waiting for the webhook: the founder is looking at the screen
+    // now, and "cancelled" that depends on a round trip is a claim, not a result.
+    await upsertCompanyBilling(companyId, {
+      subscription_status: "canceled",
+      cancel_at_period_end: false,
+    });
+    return { cancelled: true };
+  } catch (e) {
+    console.error("[billing] immediate cancel failed:", (e as Error).message);
+    return { cancelled: false, reason: "error" };
+  }
+}

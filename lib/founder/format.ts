@@ -12,6 +12,8 @@ export function tierLabel(tier: string): string {
 export function companyStatusPillClass(status: string): string {
   if (status === "active") return "pill-green";
   if (status === "suspended") return "pill-amber";
+  // Deleted is not a shade of dormant: it is counting down to erasure and reads red.
+  if (status === "deleted") return "pill-red";
   return "pill-neutral";
 }
 

@@ -2003,7 +2003,41 @@ assertion; and the price health check comment describing a case its own code can
 
 # OPERATION THISTLE — Phase 13
 
-## Phase 13 — Thistle Care live  ⬜ NOT STARTED
+## Phase 13 — Thistle Care live  🟡 IN PROGRESS (started 2026-08-18)
+
+### 2026-08-18 — Phase 13 agreed with Phil (popup), and one piece of scope corrected
+
+**Agreed:**
+
+- **Order.** Provision Thistle FIRST, through the founder console, then imports, then real use.
+  Defects surface by the real path, in the order a customer meets them.
+- **Data home.** Thistle lives in the SAME Supabase project (`bgrtcvyjuwopunpnudeu`) as Acme and
+  Bevan, and **Acme stays** — untouched, as the test company and the six-role permission fixture
+  Final Testing was built on. The thing being tested stays the thing being sold.
+- **Starting tier: BUSINESS, then upgrade to PRO.** Thistle pays for Business, runs on it, then
+  upgrades. That exercises the Business → Pro base-price swap on a real Stripe subscription — the
+  one money path never proved — and closes the long-standing "no Business company exists to test
+  with" gap. Thistle moves to Black (free) once the shakedown is over, as decided 2026-08-13.
+- **Thistle is a real company and the FIRST PERMANENT USER** (Phil, 2026-08-18) — not a pilot that
+  ends. So the PHASE closes, not the tenancy: **a full monthly cycle of real use** (supervisions
+  falling due, a billing run, a report cycle, a policy round) **with no new High or Medium defect
+  in the final fortnight, and Thistle's own manager saying they would rather use it than what they
+  use now.** Thistle carries on afterwards, on Black.
+- **Data in.** Phil supplies Thistle's real staff, service user and training exports; they go
+  through the CUSTOMER import screens exactly as they come. Anything that can only be put right
+  with hand-written SQL is a defect in the import, fixed in the product for every company.
+
+**Scope correction (tracking drift, caught at kickoff).** The Phase 13 kickoff prompt carried
+"THE KNOWN GAP: a company's tier cannot be changed anywhere" as Phase 13 work. **It was built and
+live-tested on 2026-08-13** — `lib/billing/tier-change.ts`, `base-item.ts`, `tier-apply.ts`, the
+founder Plan control and the customer "Move to Pro", with Acme moved to Black and back against
+real Stripe. Verified in the code at kickoff, not taken from the prompt. What genuinely remains is
+narrower: **Business → Pro has never run against a real Stripe subscription**, which is why
+Thistle starts on Business.
+
+**Open at kickoff, to prove on the screen before it is called a defect:** Bevan Care Ltd was
+created through the founder console with `regulator` NULL and `framework_enabled` false — a
+company that never states whether it answers to CQC or CIW.
 
 **The real Thistle Care runs the real product, and every defect that finds is fixed before a
 single paying customer arrives.**
@@ -3085,3 +3119,59 @@ already editable per course, so this changes a default, not a ceiling. Phil revi
 split before it was applied, including the four I flagged as judgement calls.
 
 340 tests pass. Migrations 0184, 0185.
+
+
+## 2026-08-18 — Operation Thistle opens by deleting a company, and finds that "Suspend" never worked
+
+Phil, at kickoff: **delete Acme and Bevan, nothing must stay.** Agreed by popup, and one of the
+answers changed the shape of it: **Bevan stays** as the empty attacker tenant for cross-tenant
+isolation tests, so only Acme goes. The rest was settled the same way — build the control rather
+than hand-run the SQL; cancel Stripe immediately (the subscription is sandbox money); a
+**30-day grace** before anything is erased for real; and **one tombstone row survives**.
+
+### What checking first found
+
+**There is no delete path in the product at all**, and a plain `DELETE FROM companies` would not
+have erased a company anyway. 62 tables CASCADE; **five SET NULL** (`profiles`, `audit_log`,
+`sms_opt_outs`, `stripe_events`, `trial_requests`), so logins, staff names and emails, mobile
+numbers on the STOP list and Stripe payloads would all have been left floating. The **53 storage
+objects** would have survived untouched. The hazard is not theoretical: `ppdavies+bcctest@gmail.com`
+is already sitting in the database as a profile with no company, left by an earlier removal.
+
+**And the bigger one, DEF-001: `companies.status` was read by NO guard.** The founder console
+wrote it, two screens printed it as a pill, and `requireCompany` never looked at it. **Suspending
+a company did nothing whatsoever** — its users carried on working. That is the lever you pull
+when somebody stops paying.
+
+### Built (migration 0209, next is 0210)
+
+- `companies` gains `deleted`, `deleted_at` and `purge_after`; `company_deletions` is the
+  tombstone (no foreign key, on purpose — a record that cascades away with the thing it records
+  is not a record). Founder-read-only RLS; written only by the service role.
+- `lib/companies/deletion.ts` — the rules, pure, **13 unit tests**. `lib/companies/delete-apply.ts`
+  — the implementation: soft delete, restore, purge, and the nightly `runCompanyPurge`.
+- `cancelSubscriptionNow` in `lib/billing/stripe-sync.ts`: a deleted company is cancelled there
+  and then, unprorated. Moving to Black stops at period end because they carry on using it; a
+  deleted company is not using anything, and billing for a product that no longer exists is the
+  failure a customer notices on a statement.
+- Founder console: a red **Delete this company** panel where the typed company name IS the
+  confirmation (no dialog on top of it — a dialog is dismissed by reflex, typing the name is
+  not), and a **Restore / Purge now** panel once deleted. Status buttons are hidden on a deleted
+  company; the status tally, the revenue table and the pill all learned the new state.
+- **The company lock**: `companyIsLocked` → `isCompanyLocked` → `requireCompany`, ahead of the
+  trial gate, with `/company-closed` as the screen. An unreadable row reads as active, so a
+  database blip can never lock a working company out. This is the DEF-001 fix.
+- The purge rides on the existing 02:30 retention cron and answers **500** when a company that
+  was due to be erased was not.
+
+**The purge order is deliberate**: files first (while the rows naming them still exist), then
+logins, then the five SET NULL tables, then the company. Then it counts what is left — rows AND
+bucket objects — and records the answer, because a delete statement that returned no error is
+not evidence that anything went.
+
+`DEFECT-LOG-PHASE13.md` opened with DEF-001, DEF-002 and DEF-003 (a company created through the
+founder console has no regulator — Bevan has `regulator` NULL; unverified on screen).
+
+**Nothing is PROVEN yet**: tsc and 416 unit tests are green, which by this project's own history
+means very little. Acme is deleted and purged only when the screen, the bucket and Stripe have
+been looked at.

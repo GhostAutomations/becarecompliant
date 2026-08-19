@@ -38,7 +38,7 @@ export default async function FounderRevenuePage() {
     supabase
       .from("companies")
       .select("id, name, tier, status")
-      .neq("status", "archived")
+      .not("status", "in", "(archived,deleted)")
       .order("name", { ascending: true }),
     supabase.from("profiles").select("company_id, status, role"),
     // Operational branches only (kind = 'branch'); the office/team row is never billed.

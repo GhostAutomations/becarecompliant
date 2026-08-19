@@ -118,12 +118,16 @@ export default async function FounderPage() {
     "active",
     "suspended",
     "archived",
+    // Deleted companies are counted, not hidden: a status tally that silently omits a state
+    // makes the total stop adding up, and "where did that company go" is the whole question.
+    "deleted",
   ]);
 
   let totalActiveUsers = 0;
   let totalExtraSeats = 0;
   for (const company of list) {
-    if (company.status === "archived") continue;
+    // Neither an archived nor a deleted company has users to count towards the platform total.
+    if (company.status === "archived" || company.status === "deleted") continue;
     const used = activeUsers.get(company.id) ?? 0;
     const seats = computeSeatUsage(used, includedSeatsForTier(company.tier));
     totalActiveUsers += used;

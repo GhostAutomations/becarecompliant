@@ -27,6 +27,11 @@ import {
   trialRequestStatusLabel,
 } from "@/lib/founder/trial-requests";
 import { trialDomainFor } from "@/lib/founder/trial-matching";
+import {
+  softDeleteCompany,
+  restoreCompany,
+  purgeCompany,
+} from "@/lib/companies/delete-apply";
 
 /** The founder acting as themselves, for audit attribution on tenant writes. */
 async function founderActor(): Promise<{ actor: Actor }> {
@@ -1128,4 +1133,84 @@ export async function addBranch(
       ? `Added ${branch.name}. Billing updated to ${billed.quantity} extra branch${billed.quantity === 1 ? "" : "es"}.`
       : `Added ${branch.name}.`,
   };
+}
+
+
+/* ===========================================================================
+ * Deleting a company (2026-08-18)
+ *
+ * Three actions, one rule set (lib/companies/deletion.ts) and one implementation
+ * (lib/companies/delete-apply.ts). Nothing here decides anything: these are the doors, and
+ * every refusal comes back as a sentence the founder can act on.
+ * =========================================================================== */
+
+/** Delete a company: locked out now, cancelled in Stripe now, erased in thirty days. */
+export async function deleteCompany(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requirePlatformAdmin();
+  const companyId = String(formData.get("company_id") ?? "").trim();
+  const typedName = String(formData.get("confirm_name") ?? "");
+  if (!companyId) return { error: "Missing company." };
+
+  const outcome = await softDeleteCompany({
+    companyId,
+    typedName,
+    actor: { id: user.id, email: profile.email },
+    isFounder: true,
+  });
+  if (!outcome.ok) return { error: outcome.error };
+
+  revalidatePath(`/founder/companies/${companyId}`);
+  revalidatePath("/founder/companies");
+  revalidatePath("/founder");
+  // A subscription that could not be cancelled is reported as an ERROR even though the company
+  // has gone, for the same reason the tier change does it: that notice is the only thing
+  // standing between a deleted company and a monthly charge nobody is watching.
+  return outcome.stripeCancelled ? { ok: outcome.message } : { error: outcome.message };
+}
+
+/** Undo a deletion, while the grace period lasts. */
+export async function restoreCompanyAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requirePlatformAdmin();
+  const companyId = String(formData.get("company_id") ?? "").trim();
+  if (!companyId) return { error: "Missing company." };
+
+  const outcome = await restoreCompany({
+    companyId,
+    actor: { id: user.id, email: profile.email },
+    isFounder: true,
+  });
+  if (!outcome.ok) return { error: outcome.error };
+
+  revalidatePath(`/founder/companies/${companyId}`);
+  revalidatePath("/founder/companies");
+  revalidatePath("/founder");
+  return { ok: outcome.message };
+}
+
+/** Erase a deleted company now rather than waiting out the grace period. */
+export async function purgeCompanyNow(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requirePlatformAdmin();
+  const companyId = String(formData.get("company_id") ?? "").trim();
+  if (!companyId) return { error: "Missing company." };
+
+  const outcome = await purgeCompany({
+    companyId,
+    actor: { id: user.id, email: profile.email },
+    by: "founder",
+    force: true,
+  });
+  revalidatePath("/founder/companies");
+  revalidatePath("/founder");
+  if (!outcome.ok) return { error: outcome.error };
+  // The company page it was pressed from no longer exists, so send them somewhere that does.
+  return { ok: outcome.message, redirectTo: "/founder/companies" };
 }

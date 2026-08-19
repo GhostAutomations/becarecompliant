@@ -7,6 +7,10 @@ import BackLink from "@/components/back-link";
 import { StatCard } from "@/components/founder/stat-card";
 import { CompanyStatusButton } from "@/components/founder/company-status-button";
 import {
+  DeleteCompanyPanel,
+  DeletedCompanyPanel,
+} from "@/components/founder/delete-company";
+import {
   UserStatusButton,
   InviteActions,
 } from "@/components/founder/user-admin-controls";
@@ -68,7 +72,7 @@ export default async function FounderCompanyPage({
 
   const { data: company } = await supabase
     .from("companies")
-    .select("id, name, slug, tier, status, created_at, supervision_cycle_mode, people_column_labels, service_user_column_labels")
+    .select("id, name, slug, tier, status, created_at, deleted_at, purge_after, supervision_cycle_mode, people_column_labels, service_user_column_labels")
     .eq("id", id)
     .maybeSingle();
 
@@ -182,14 +186,20 @@ export default async function FounderCompanyPage({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <EnterManageAsButton companyId={company.id} />
-          {company.status !== "active" ? (
-            <CompanyStatusButton companyId={company.id} status="active" label="Activate" />
-          ) : null}
-          {company.status !== "suspended" && company.status !== "archived" ? (
-            <CompanyStatusButton companyId={company.id} status="suspended" label="Suspend" />
-          ) : null}
-          {company.status !== "archived" ? (
-            <CompanyStatusButton companyId={company.id} status="archived" label="Archive" />
+          {/* A deleted company gets Restore and Purge in its own panel below, and nothing here.
+              "Activate" would put it back without the tombstone ever hearing about it. */}
+          {company.status !== "deleted" ? (
+            <>
+              {company.status !== "active" ? (
+                <CompanyStatusButton companyId={company.id} status="active" label="Activate" />
+              ) : null}
+              {company.status !== "suspended" && company.status !== "archived" ? (
+                <CompanyStatusButton companyId={company.id} status="suspended" label="Suspend" />
+              ) : null}
+              {company.status !== "archived" ? (
+                <CompanyStatusButton companyId={company.id} status="archived" label="Archive" />
+              ) : null}
+            </>
           ) : null}
         </div>
       </div>
@@ -575,6 +585,16 @@ export default async function FounderCompanyPage({
           </div>
         )}
       </section>
+
+      {company.status === "deleted" ? (
+        <DeletedCompanyPanel
+          companyId={company.id}
+          companyName={company.name}
+          purgeAfter={(company as { purge_after?: string | null }).purge_after ?? null}
+        />
+      ) : (
+        <DeleteCompanyPanel companyId={company.id} companyName={company.name} />
+      )}
     </div>
   );
 }
