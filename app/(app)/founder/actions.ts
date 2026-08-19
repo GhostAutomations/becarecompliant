@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { requirePlatformAdmin } from "@/lib/auth/guards";
-import { syncBranchQuantity } from "@/lib/billing/stripe-sync";
+import { syncBranchQuantity, refreshCustomerIdentity } from "@/lib/billing/stripe-sync";
 import { removalRefusal, type RemovalResult } from "@/lib/branches/removal";
 import { changeTier } from "@/lib/billing/tier-apply";
 import { createClient } from "@/lib/supabase/server";
@@ -1241,6 +1241,83 @@ export async function purgeCompanyNow(
   revalidatePath("/founder/companies");
   revalidatePath("/founder");
   redirect("/founder/companies");
+}
+
+/**
+ * Rename a company.
+ *
+ * There was no way to do this in the product at all (found 2026-08-19 when Thistle Care LTD
+ * was created with the wrong capitalisation), which matters more than it sounds: the company
+ * name prints on every evidence PDF, on the statutory reports and — through the Stripe
+ * customer — on every invoice and card statement. Care agencies rebrand and get bought; the
+ * name they file accounts under has to be able to change.
+ *
+ * The Stripe customer is updated in the same breath. Acme spent a month invoicing as "Thistle
+ * Care Wales" after being renamed, because nothing pushed the new name across.
+ */
+export async function renameCompany(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requirePlatformAdmin();
+  const companyId = String(formData.get("company_id") ?? "").trim();
+  const name = String(formData.get("name") ?? "").trim();
+  if (!companyId) return { error: "Missing company." };
+  if (!name) return { error: "Enter the company name." };
+  if (name.length > 120) return { error: "That name is too long." };
+
+  const supabase = await createClient();
+  const { data: before } = await supabase
+    .from("companies")
+    .select("name")
+    .eq("id", companyId)
+    .maybeSingle();
+  const previous = (before as { name?: string } | null)?.name ?? null;
+  if (previous === name) return { ok: "That is already the name." };
+
+  const { data, error } = await supabase
+    .from("companies")
+    .update({ name })
+    .eq("id", companyId)
+    .select("id");
+  if (error) return { error: error.message };
+  if (!data || data.length === 0) {
+    return { error: "No change was saved. The company may not exist." };
+  }
+
+  /* The slug is NOT touched. It is in URLs people have bookmarked and in nothing a customer
+     reads; changing it silently would break links to make a cosmetic field tidier. */
+
+  await writeAudit({
+    companyId,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: "platform_admin",
+    action: "company.renamed",
+    entityType: "company",
+    entityId: companyId,
+    summary: `Renamed ${previous ?? "the company"} to ${name}`,
+    metadata: { from: previous, to: name },
+  });
+
+  // Push it to Stripe now rather than at the next billing touch, so the next invoice cannot
+  // print the old name. Best effort: a Stripe hiccup must not undo a rename that worked.
+  let stripeNote = "";
+  const { data: billing } = await supabase
+    .from("company_billing")
+    .select("stripe_customer_id")
+    .eq("company_id", companyId)
+    .maybeSingle();
+  const customerId = (billing as { stripe_customer_id?: string | null } | null)?.stripe_customer_id;
+  if (customerId) {
+    await refreshCustomerIdentity(customerId, { name });
+    stripeNote = " Their Stripe customer record was updated too, so the next invoice carries it.";
+  }
+
+  revalidatePath(`/founder/companies/${companyId}`);
+  revalidatePath("/founder/companies");
+  revalidatePath("/founder");
+  return { ok: `Renamed to ${name}.${stripeNote}` };
 }
 
 /** Correct a company's regulator. Founder only: it decides what every readiness figure and

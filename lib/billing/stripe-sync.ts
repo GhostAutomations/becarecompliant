@@ -131,7 +131,7 @@ export async function ensureCustomer(
  * write. Never throws: every caller is in the middle of doing something the user asked for,
  * and none of them should fail because Stripe was briefly unreachable.
  */
-async function refreshCustomerIdentity(
+export async function refreshCustomerIdentity(
   customerId: string,
   opts?: { name?: string; email?: string },
 ): Promise<void> {

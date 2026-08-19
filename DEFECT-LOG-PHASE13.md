@@ -430,3 +430,23 @@ row deletions all happen after the irreversible steps.
 346 evidence records, 1,084 audit rows, 19 Stripe events and all 11 logins — gone, with
 `purge_error` null and the tombstone holding the record. `phil@thistlecarewales.co.uk` went with
 it, so that address is now completely free for Thistle.
+
+---
+
+## DEF-012 — A company cannot be renamed  ·  FIXED (not yet proven)
+
+**Found 2026-08-19**, when Thistle Care LTD was created with the wrong capitalisation and there
+was nowhere in the product to correct it.
+
+`companies.name` was written at creation and by nothing else — no founder control, no customer
+setting. That name prints on **every evidence PDF**, on the **statutory reports**, and through the
+Stripe customer on **every invoice and card statement**. Care agencies rebrand, merge and get
+bought; a name that can only be changed by hand-written SQL is a gap, not a nicety.
+
+It also has form: **Acme spent a month invoicing as "Thistle Care Wales"** after being renamed,
+because nothing pushed the new name to Stripe.
+
+**Fix:** a Company name control on the founder company page, with an audit row
+(`company.renamed`, recording from and to), which **also updates the Stripe customer immediately**
+rather than waiting for the next billing touch. The **slug is deliberately left alone** — it is in
+URLs people have bookmarked and in nothing a customer reads.

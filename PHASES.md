@@ -3259,3 +3259,13 @@ a failed send must not tell the next reader the person has been written to.
 Two details worth keeping: a HELD invite and a FAILED send both arrive with `emailSent: false`
 and mean opposite things, so every caller says which; and existing invites were backfilled to
 `created_at` rather than left looking like a pile of unsent invitations.
+
+### 2026-08-19 (late) — a company can be renamed (DEF-012)
+
+Thistle Care LTD was created with the wrong capitalisation and there was **nowhere in the product
+to correct it**: `companies.name` was written at creation and by nothing else. That name prints on
+every evidence PDF, on the statutory reports and — through the Stripe customer — on every invoice.
+Acme already spent a month invoicing under its old name for exactly this reason.
+
+Now a Company name control on the founder company page, audited (`company.renamed`, from and to),
+which pushes the new name to the Stripe customer in the same breath. The slug is left alone.
