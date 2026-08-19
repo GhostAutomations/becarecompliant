@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { inviteUser } from "@/app/(app)/settings/actions";
 import { IDLE_STATE } from "@/lib/forms";
-import { isCompanyWideRole } from "@/lib/people/roles";
+import { picksABranch } from "@/lib/people/roles";
 
 type BranchOption = { id: string; name: string; kind: string };
 
@@ -14,7 +14,7 @@ export function InviteForm({ branches }: { branches: BranchOption[] }) {
      reach every branch whatever is picked here. Forcing a branch implied they belonged to one,
      and for an RM who runs the lot it read as a demotion. Now the field says what is true. */
   const [role, setRole] = useState("team_member");
-  const companyWide = isCompanyWideRole(role);
+  const noBranch = !picksABranch(role);
 
   return (
     <form action={formAction} className="space-y-4">
@@ -62,7 +62,7 @@ export function InviteForm({ branches }: { branches: BranchOption[] }) {
           <label htmlFor="branch_id" className="form-label">
             Branch
           </label>
-          {companyWide ? (
+          {noBranch ? (
             <>
               <input
                 id="branch_id"

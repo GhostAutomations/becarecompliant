@@ -21,7 +21,7 @@ import {
   readInviteDomains,
 } from "@/lib/invite-domains";
 import type { ActionState } from "@/lib/forms";
-import { isCompanyWideRole } from "@/lib/people/roles";
+import { picksABranch } from "@/lib/people/roles";
 
 const INVITABLE_ROLES: InviteRole[] = [
   "registered_individual",
@@ -106,8 +106,8 @@ export async function inviteUser(
      only the founder can invite) reach every branch in RLS, so a branch is not merely optional
      for them, it is meaningless. Requiring one wrote a primary branch that made an RI look like
      they belonged to Cardiff. */
-  const companyWide = isCompanyWideRole(role);
-  if (!companyWide && !branchId) {
+  const noBranch = !picksABranch(role);
+  if (!noBranch && !branchId) {
     return { error: "Choose a branch for this person." };
   }
 
@@ -116,7 +116,7 @@ export async function inviteUser(
   // The branch must belong to the admin's company (defence in depth over RLS). Skipped for a
   // company wide role, which has no branch to check — and a stray branch_id posted with one is
   // ignored below rather than trusted.
-  if (!companyWide) {
+  if (!noBranch) {
     const { data: branch } = await supabase
       .from("branches")
       .select("id, company_id, status")
@@ -145,7 +145,7 @@ export async function inviteUser(
     companyName: company?.name ?? "your company",
     // NULL for a company wide role, whatever the form posted: nothing should record them as
     // belonging to one branch.
-    branchId: companyWide ? null : branchId,
+    branchId: noBranch ? null : branchId,
     email,
     fullName,
     role,

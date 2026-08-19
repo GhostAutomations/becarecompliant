@@ -496,9 +496,22 @@ carer could therefore have a line manager the other screen would never have offe
 Admin, a **Registered Manager** or a Branch Manager — never the **RI** (nobody reports into them)
 and never a Supervisor (assigned separately, further down the same form). Both screens use it.
 
-The invite form now shows **"All branches"** for the three company-wide roles instead of a
-required picker, the action refuses to trust a branch posted with one, and no `user_branches` row
-is written for them at all.
+**Corrected the same evening, by Phil:** *"Registered Manager may not manage all branches so all
+should not be default for this role."* CIW registers a manager against a service, and plenty of
+providers run one RM per registered service. So the no-branch list is **not** the company-wide
+list: only the **Company Admin and the Responsible Individual** skip the branch picker. A
+**Registered Manager picks a branch like anybody else**, and it is recorded as their base.
+
+**Say this out loud, because the form now implies something the database does not enforce:** an RM
+is still **company wide in RLS** (`is_company_wide`), so the branch chosen for them is their base,
+not a limit on what they can reach. Genuinely scoping an RM to one service is a permissions
+change — `is_company_wide`, the `manage-scope` transcription beside it, the notification recipient
+normalisation and the readiness scope all read that rule — and it is NOT done. **Open question for
+Phil.**
+
+The invite form shows **"All branches"** for the Admin and the RI instead of a required picker,
+the action refuses to trust a branch posted with those two, and no `user_branches` row is written
+for them.
 
 **A trap avoided while fixing it:** the Edit form's "Current line manager (no longer listed)"
 fallback compared against the UNFILTERED list. Narrowing eligibility would have dropped an

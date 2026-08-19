@@ -5,7 +5,7 @@ import { isSendableAddress, sendEmail } from "@/lib/email/resend";
 import { isEmailDomainAllowed, inviteDomainRefusal } from "@/lib/invite-domains";
 import { inviteEmailHtml, inviteSubject } from "@/lib/email/templates";
 import { writeAudit } from "@/lib/audit";
-import { isCompanyWideRole } from "@/lib/people/roles";
+import { picksABranch } from "@/lib/people/roles";
 import { siteUrl } from "@/lib/site";
 import { ROLE_LABELS } from "@/lib/nav";
 
@@ -274,12 +274,14 @@ export async function createAndSendInvite(
     return { ok: false, error: `The invitation could not be recorded: ${promoteErr.message}` };
   }
 
-  if (p.branchId && !isCompanyWideRole(p.role)) {
+  if (p.branchId && picksABranch(p.role)) {
     /* The invited branch is the user's primary branch (drives auto-fill). Additional branch
        views are added later from the Users screen.
-       COMPANY WIDE ROLES GET NO ROW AT ALL (widened from company_admin on 2026-08-19): a
-       Responsible Individual or Registered Manager reaches every branch through
-       is_company_wide, so a primary branch row only made screens claim they belonged to one. */
+       A COMPANY ADMIN AND A RESPONSIBLE INDIVIDUAL GET NO ROW (2026-08-19): neither belongs to
+       a branch, and writing one made screens claim they did. A REGISTERED MANAGER DOES get one
+       (Phil, same day: "may not manage all branches") — CIW registers a manager against a
+       service, so their branch is their base. Note the database still treats an RM as company
+       wide, so that row is their base, not a limit. */
     await admin
       .from("user_branches")
       .upsert(

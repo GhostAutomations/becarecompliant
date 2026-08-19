@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 /** RELATIVE, EXTENSIONED: node --experimental-strip-types resolves neither aliases nor
  *  extensionless files. roles.ts has no runtime imports for exactly this reason. */
-import { canBeLineManager, isCompanyWideRole } from "./roles.ts";
+import { canBeLineManager, isCompanyWideRole, picksABranch } from "./roles.ts";
 
 test("a Registered Manager can be a line manager — they usually run every branch", () => {
   assert.equal(canBeLineManager("registered_manager"), true);
@@ -24,6 +24,16 @@ test("carers, viewers and on-call are never line managers", () => {
   for (const role of ["staff", "team_member", "on_call"]) {
     assert.equal(canBeLineManager(role), false, role);
   }
+});
+
+test("PHIL'S CORRECTION: a Registered Manager picks a branch, because they may run just one", () => {
+  // CIW registers a manager against a service; plenty of providers have one RM per service.
+  assert.equal(picksABranch("registered_manager"), true);
+  assert.equal(picksABranch("manager"), true);
+  assert.equal(picksABranch("supervisor"), true);
+  // The RI oversees the provider, and an Admin is the account holder.
+  assert.equal(picksABranch("registered_individual"), false);
+  assert.equal(picksABranch("company_admin"), false);
 });
 
 test("the company wide roles are the three the database treats as company wide", () => {

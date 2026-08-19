@@ -27,6 +27,27 @@ export function isCompanyWideRole(role: string): boolean {
 }
 
 /**
+ * Roles that are not asked for a branch when they are invited.
+ *
+ * NOT the same list as COMPANY_WIDE_ROLES, and the difference is Phil's (2026-08-19):
+ * **a Registered Manager may well run one branch, not all of them** — CIW registers a manager
+ * against a service, and plenty of providers have one RM per registered service. So an RM picks
+ * a branch like anybody else, and that branch is their base.
+ *
+ * The Responsible Individual does not, because they oversee the whole provider and nobody
+ * reports into them; nor does a Company Admin.
+ *
+ * NOTE, and it matters: the DATABASE still treats a Registered Manager as company wide
+ * (is_company_wide), so the branch recorded here is their base, not a limit on what they can
+ * reach. Narrowing that is a permissions change, not a form change.
+ */
+export const NO_BRANCH_ROLES = ["company_admin", "registered_individual"] as const;
+
+export function picksABranch(role: string): boolean {
+  return !(NO_BRANCH_ROLES as readonly string[]).includes(role);
+}
+
+/**
  * Roles that may be chosen as a person's line manager.
  *
  * Registered Manager IS here: they manage, often across every branch.
