@@ -629,6 +629,7 @@ export default async function FounderCompanyPage({
           companyId={company.id}
           companyName={company.name}
           purgeAfter={(company as { purge_after?: string | null }).purge_after ?? null}
+          hadSubscription={hasBillingRow}
         />
       ) : (
         <DeleteCompanyPanel companyId={company.id} companyName={company.name} />

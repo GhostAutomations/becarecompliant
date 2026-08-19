@@ -131,7 +131,7 @@ holding 346 evidence records.
 
 ---
 
-## DEF-003 — A company created through the founder console has no regulator  ·  FIXED (not yet re-proven)
+## DEF-003 — A company created through the founder console has no regulator  ·  PROVEN
 
 **Spotted** 2026-08-18 in the data, not yet proven on the screen.
 
@@ -162,7 +162,7 @@ question for `framework_enabled`, which is also false on every company but Acme.
 
 ---
 
-## DEF-004 — A deleted company still prints a monthly charge  ·  FIXED (not yet re-proven)
+## DEF-004 — A deleted company still prints a monthly charge  ·  PROVEN
 
 **Found** 2026-08-19 on the founder Companies list, immediately after deleting Acme.
 
@@ -179,7 +179,7 @@ without a live subscription. Not fixed mid-flow; logged here.
 
 ---
 
-## DEF-005 — A brand-new company cannot add its first person  ·  FIXED (not yet re-proven)
+## DEF-005 — A brand-new company cannot add its first person  ·  PROVEN
 
 **Found** 2026-08-19, doing the first thing any new customer does.
 
@@ -204,7 +204,7 @@ this company yet" and carry on, which is exactly the treatment Line manager need
 
 ---
 
-## DEF-006 — Support mode can create records but cannot complete a check, and says so badly  ·  FIXED (not yet re-proven)
+## DEF-006 — Support mode can create records but cannot complete a check, and says so badly  ·  PROVEN
 
 **Found** 2026-08-19, managing as Purge Test Ltd from the founder console.
 
@@ -227,7 +227,7 @@ with nothing to act on. Either hide Complete in support mode, or say plainly why
 
 ---
 
-## DEF-007 — Purging a company ends on a 404  ·  FIXED (not yet re-proven)
+## DEF-007 — Purging a company ends on a 404  ·  PROVEN
 
 **Found 2026-08-19 by Phil, in the same press that proved DEF-002.** Everything worked — the
 company, its file, its login and its records were all correctly erased in thirteen seconds — and
@@ -285,7 +285,42 @@ somebody who works there, or an inspector is told a member of staff did somethin
 subscribed. The live-subscription test matches the MRR tile exactly (`active`, `trialing`,
 `past_due`), so the row and the page total can no longer disagree.
 
-**All four are FIXED, none is PROVEN.** `tsc` clean and 416 unit tests green, which by this
-project's own history means very little. They are proven when a company is created with a
-regulator on it, a first person is added on a fresh tenant, a Complete button is looked for in
-support mode and not found, and the Companies list is read.
+**ALL FIVE PROVEN LIVE, 2026-08-19**, on a throwaway company (`Regulator Test Ltd`, created,
+exercised and purged inside twenty minutes):
+
+- **DEF-003**: the form refused to create without a regulator; created with CIW and the row came
+  out `regulator = 'ciw'`; the company page printed **"Regulator: CIW"**; changing it to CQC and
+  back both saved and both wrote audit rows (*"Set regulator from ciw to cqc"*, *"Set regulator
+  from cqc to ciw"*).
+- **DEF-005**: Add a person on the fresh tenant showed the explanation and the Settings link where
+  the dead required dropdown used to be.
+- **DEF-006**: on a service user added in support mode, **no Complete button rendered anywhere** —
+  not on the check tiles, not on the Care Plan Review panel — and typing the complete URL directly
+  produced the "Support mode cannot complete a check" page instead of the form.
+- **DEF-004**: every row on the Companies list now reads *"Monthly: nothing charged (£49.00/mo if
+  they subscribe)"*, including the deleted Acme, and agrees with the £0.00/mo page total.
+- **DEF-007**: Delete then **Purge now** landed on the **Companies list** with the company gone.
+  **No 404.** The database confirms the erasure: company row, files, service users and audit rows
+  all zero, `purge_error` null.
+
+One thing the run could not exercise through the UI: the **server-side** regulator refusal. The
+browser's own `required` stops the form first, so the guard behind it is proved by unit-level
+reasoning only. That is the right order (both should exist), but it is worth saying out loud.
+
+---
+
+## DEF-008 — A company that never subscribed is told its subscription was cancelled  ·  FIXED (not yet re-proven)
+
+**Found 2026-08-19** while proving the others. `Regulator Test Ltd` never had a subscription — no
+card, no Stripe customer, nothing. Deleting it produced: *"Nobody at Regulator Test Ltd can sign
+in, **and their subscription was cancelled when they were deleted**"*, and then *"Restoring them
+brings the records back; it does not bring the subscription back."*
+
+Both sentences are about a subscription that never existed. Small, and exactly the class this
+project keeps finding: **a screen stating a fact it does not have.** On a real customer it is
+worse than untidy — a founder reading it would believe billing had been settled when nothing was
+ever billed.
+
+**Fix:** the panel is told whether there was a subscription, and says only what is true of that
+company. No subscription: *"Nobody at X can sign in."* and *"Restoring them brings the records
+back exactly as they were."*

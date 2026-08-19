@@ -81,10 +81,13 @@ export function DeletedCompanyPanel({
   companyId,
   companyName,
   purgeAfter,
+  hadSubscription,
 }: {
   companyId: string;
   companyName: string;
   purgeAfter: string | null;
+  /** False when this company never had a subscription in the first place. */
+  hadSubscription: boolean;
 }) {
   const left = daysUntilPurge(purgeAfter, new Date().toISOString());
   const on = purgeAfter
@@ -103,12 +106,17 @@ export function DeletedCompanyPanel({
     >
       <h2 className="text-sm font-semibold text-red-200">This company is deleted</h2>
       <p className="mt-2 text-sm text-white/70">
-        Nobody at {companyName} can sign in, and their subscription was cancelled when they were
-        deleted.{" "}
+        {/* A company that never subscribed was being told its subscription had been cancelled —
+            a screen stating a fact it does not have, which is the class of defect this project
+            keeps finding. Say only what is true of THIS company. */}
+        Nobody at {companyName} can sign in
+        {hadSubscription ? ", and their subscription was cancelled when they were deleted" : ""}.{" "}
         {on
           ? `Everything they hold is erased for good on ${on} (${left} day${left === 1 ? "" : "s"} away).`
           : "Everything they hold is erased once the grace period runs out."}{" "}
-        Restoring them brings the records back; it does not bring the subscription back.
+        {hadSubscription
+          ? "Restoring them brings the records back; it does not bring the subscription back."
+          : "Restoring them brings the records back exactly as they were."}
       </p>
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <ActionForm

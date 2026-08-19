@@ -3208,3 +3208,29 @@ holding 346 evidence records. Logged in `DEFECT-LOG-PHASE13.md` as the open half
 **DEF-004 opened:** the founder Companies list prints "Monthly: £76.50/mo" on a deleted,
 cancelled company (the page total correctly says £0.00/mo). The figure is really "what this tier
 would cost", shown as though it were what they pay.
+
+
+### 2026-08-19 (late) — the five fixes proven on a throwaway company, and one more found doing it
+
+`Regulator Test Ltd` was created, exercised and purged inside twenty minutes, and every fix from
+earlier this evening was judged on the screen rather than on the tests.
+
+- **DEF-003 regulator PROVEN**: creation refused without one; created as CIW and the row read
+  `ciw`; the company page printed "Regulator: CIW"; changed to CQC and back, both saved, both
+  audited.
+- **DEF-005 PROVEN**: the first-person dead end is gone — the Line manager field now explains
+  that the office team is invited first, and links to Settings, Users.
+- **DEF-006 PROVEN**: no Complete button renders anywhere in support mode, and the complete URL
+  typed directly answers with the "Support mode cannot complete a check" page.
+- **DEF-004 PROVEN**: the Companies list reads "nothing charged" for every company without a live
+  subscription and agrees with the £0.00/mo total.
+- **DEF-007 PROVEN**: Delete then Purge now lands on the Companies list, no 404; the database
+  confirms company, files, records and audit rows all gone with no purge error.
+
+**DEF-008 found in the same run**: a company that never had a subscription was told, on deletion,
+that "their subscription was cancelled". A screen stating a fact it does not have — the class of
+defect this project keeps meeting. Fixed the same evening; not yet re-proven.
+
+**Phase 13 standing at the end of the evening:** the delete/purge machinery is built and proven,
+Acme is deleted with an erase date of 18 September, Bevan remains as the empty second tenant, and
+the three Thistle blockers found tonight are closed. `DEFECT-LOG-PHASE13.md` holds all eight.
