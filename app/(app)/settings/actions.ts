@@ -21,6 +21,7 @@ import {
   readInviteDomains,
 } from "@/lib/invite-domains";
 import type { ActionState } from "@/lib/forms";
+import { isCompanyWideRole } from "@/lib/people/roles";
 
 const INVITABLE_ROLES: InviteRole[] = [
   "registered_individual",
@@ -101,20 +102,29 @@ export async function inviteUser(
   if (!INVITABLE_ROLES.includes(role)) {
     return { error: "Only the Founder can create Company Admins. Choose one of the available roles." };
   }
-  if (!branchId) {
+  /* Company wide roles (Responsible Individual, Registered Manager — and Company Admin, which
+     only the founder can invite) reach every branch in RLS, so a branch is not merely optional
+     for them, it is meaningless. Requiring one wrote a primary branch that made an RI look like
+     they belonged to Cardiff. */
+  const companyWide = isCompanyWideRole(role);
+  if (!companyWide && !branchId) {
     return { error: "Choose a branch for this person." };
   }
 
   const supabase = await createClient();
 
-  // The branch must belong to the admin's company (defence in depth over RLS).
-  const { data: branch } = await supabase
-    .from("branches")
-    .select("id, company_id, status")
-    .eq("id", branchId)
-    .maybeSingle();
-  if (!branch || branch.company_id !== ctx.companyId || branch.status !== "active") {
-    return { error: "That branch is not valid for your company." };
+  // The branch must belong to the admin's company (defence in depth over RLS). Skipped for a
+  // company wide role, which has no branch to check — and a stray branch_id posted with one is
+  // ignored below rather than trusted.
+  if (!companyWide) {
+    const { data: branch } = await supabase
+      .from("branches")
+      .select("id, company_id, status")
+      .eq("id", branchId)
+      .maybeSingle();
+    if (!branch || branch.company_id !== ctx.companyId || branch.status !== "active") {
+      return { error: "That branch is not valid for your company." };
+    }
   }
 
   const { data: company } = await supabase
@@ -133,7 +143,9 @@ export async function inviteUser(
   const outcome = await createAndSendInvite({
     companyId: ctx.companyId,
     companyName: company?.name ?? "your company",
-    branchId,
+    // NULL for a company wide role, whatever the form posted: nothing should record them as
+    // belonging to one branch.
+    branchId: companyWide ? null : branchId,
     email,
     fullName,
     role,

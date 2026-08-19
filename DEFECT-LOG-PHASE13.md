@@ -450,3 +450,60 @@ because nothing pushed the new name to Stripe.
 (`company.renamed`, recording from and to), which **also updates the Stripe customer immediately**
 rather than waiting for the next billing touch. The **slug is deliberately left alone** — it is in
 URLs people have bookmarked and in nothing a customer reads.
+
+---
+
+## DEF-013 — Deleting or purging a company leaves the founder still "managing as" it  ·  OPEN (low)
+
+**Found 2026-08-19**, immediately after purging Invite Test Ltd.
+
+Support mode is held in a signed cookie carrying a company id. Purging that company erased the
+row, but the cookie stayed — so the founder went on browsing with the support banner up, now
+reading **"Managing as this company"** instead of a name, because there is no company left to
+name. Every page continued to render as a tenant that does not exist.
+
+Nothing dangerous follows (RLS has nothing to return, and the founder is the only person who can
+hold the cookie), but it is a screen in a state that cannot be true, and the wording gives it
+away rather than the product noticing.
+
+**Fix:** clear the manage-as cookie when the company it points at is deleted or purged, and have
+`applyManageAs` drop a cookie whose company no longer exists rather than shadowing the founder
+into a ghost tenant. **Not fixed** — logged.
+
+---
+
+## DEF-014 — The invite form forced a branch on roles that run every branch, and the two Line manager lists disagreed  ·  FIXED (not yet proven)
+
+**Raised by Phil 2026-08-19** while inviting Thistle's office team: *"for a registered manager some
+companies will have them run all branches, and for responsible individual they are kind of a
+passive role, see all type thing but no one reports into them."*
+
+Both were right, and checking the code found a third thing neither of us had said out loud.
+
+**1. The branch field contradicted the permissions.** `is_company_wide` covers Company Admin,
+**Responsible Individual and Registered Manager** — all three reach every branch in RLS whatever
+is picked. The invite form nevertheless **required** a branch and wrote it as their primary
+branch, so screens showed an RI as belonging to Cardiff and an RM who runs the lot as belonging
+to one site. Only `company_admin` was excluded from the `user_branches` write; the two Registered
+roles were not.
+
+**2. The two Line manager lists disagreed with each other.** Add a person filtered to `manager`
+and `company_admin` — so a **Registered Manager could not be chosen as anybody's line manager**.
+The Edit form on the record offered **every** supervisory user — so the **RI could be**. One
+carer could therefore have a line manager the other screen would never have offered.
+
+**Fix:** one shared rule in `lib/people/roles.ts` (pure, 5 tests): a line manager is a Company
+Admin, a **Registered Manager** or a Branch Manager — never the **RI** (nobody reports into them)
+and never a Supervisor (assigned separately, further down the same form). Both screens use it.
+
+The invite form now shows **"All branches"** for the three company-wide roles instead of a
+required picker, the action refuses to trust a branch posted with one, and no `user_branches` row
+is written for them at all.
+
+**A trap avoided while fixing it:** the Edit form's "Current line manager (no longer listed)"
+fallback compared against the UNFILTERED list. Narrowing eligibility would have dropped an
+existing RI-as-manager off the options — and this select's own history is that a value missing
+from its options silently saves as **None**. It now compares against the filtered list.
+
+**The RI keeps everything else**: sees every branch, conducts absence meetings, is bookable on the
+Planner, authors the Reg 73 visit report.

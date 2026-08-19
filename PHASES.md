@@ -3269,3 +3269,21 @@ Acme already spent a month invoicing under its old name for exactly this reason.
 
 Now a Company name control on the founder company page, audited (`company.renamed`, from and to),
 which pushes the new name to the Stripe customer in the same breath. The slug is left alone.
+
+### 2026-08-19 (late) — Phil on the Registered Manager and the Responsible Individual (DEF-014)
+
+Phil, inviting Thistle's office team: a Registered Manager often runs ALL branches, and the
+Responsible Individual is a passive see-everything role that nobody reports into.
+
+Both true, and the code was contradicting itself. `is_company_wide` already covers Admin, RI and
+Registered Manager — they reach every branch whatever branch the invite form made you pick — yet
+the form required one and wrote it as their primary branch. And the two Line manager lists
+disagreed: Add a person offered only Admins and Branch Managers (excluding the RM), while the
+Edit form offered everyone (including the RI).
+
+Now one shared rule, `lib/people/roles.ts` with 5 tests: a line manager is a Company Admin, a
+Registered Manager or a Branch Manager. Not the RI, not a Supervisor. The invite form shows
+**All branches** for the company-wide roles and writes no `user_branches` row for them.
+
+Everything else the RI can do is untouched — every branch visible, absence meetings, Planner
+bookings, and the Reg 73 report which is theirs by statute.

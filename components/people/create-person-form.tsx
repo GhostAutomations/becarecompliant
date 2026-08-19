@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { canBeLineManager } from "@/lib/people/roles";
 
 import { useActionState, useState } from "react";
 import { createPerson } from "@/lib/people/actions";
@@ -19,7 +20,9 @@ export default function CreatePersonForm({
   jobTitles: JobTitle[];
 }) {
   const [state, formAction, pending] = useActionState(createPerson, IDLE_STATE);
-  const managers = users.filter((u) => u.role === "manager" || u.role === "company_admin");
+  // One shared rule with the Edit form on the record (lib/people/roles.ts): the two screens
+  // offered different people as a line manager until 2026-08-19.
+  const managers = users.filter((u) => canBeLineManager(u.role));
   const supervisors = users.filter((u) => u.role === "supervisor");
 
   const [branchId, setBranchId] = useState("");

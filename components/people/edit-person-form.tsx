@@ -6,6 +6,7 @@ import { IDLE_STATE } from "@/lib/forms";
 import { useSavedFlash } from "@/lib/use-saved-flash";
 import type { PersonRecord } from "@/lib/people/types";
 import type { ProfileLite as UserLite } from "@/lib/people/data";
+import { canBeLineManager } from "@/lib/people/roles";
 
 export default function EditPersonForm({
   person,
@@ -14,6 +15,8 @@ export default function EditPersonForm({
   person: PersonRecord;
   users: UserLite[];
 }) {
+  // One shared rule with Add a person (lib/people/roles.ts).
+  const eligible = users.filter((u) => canBeLineManager(u.role));
   const [state, formAction, pending] = useActionState(updatePerson, IDLE_STATE);
   const [saved, flash, reset] = useSavedFlash();
   useEffect(() => { if (state.ok && !pending) flash(); }, [state, pending, flash]);
@@ -55,10 +58,14 @@ export default function EditPersonForm({
           */}
           <select id="e_manager_id" name="manager_id" defaultValue={person.manager_id ?? ""}>
             <option value="">None</option>
-            {person.manager_id && !users.some((u) => u.id === person.manager_id) ? (
+            {/* Checked against the FILTERED list, not the raw one. Narrowing who may be a line
+                manager (the RI came out on 2026-08-19) would otherwise drop somebody's existing
+                manager off the options — and this select's whole history is that a value missing
+                from the options silently saves as None. */}
+            {person.manager_id && !eligible.some((u) => u.id === person.manager_id) ? (
               <option value={person.manager_id}>Current line manager (no longer listed)</option>
             ) : null}
-            {users.map((u) => (
+            {eligible.map((u) => (
               <option key={u.id} value={u.id}>{u.full_name || u.email}</option>
             ))}
           </select>

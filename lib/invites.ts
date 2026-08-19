@@ -5,6 +5,7 @@ import { isSendableAddress, sendEmail } from "@/lib/email/resend";
 import { isEmailDomainAllowed, inviteDomainRefusal } from "@/lib/invite-domains";
 import { inviteEmailHtml, inviteSubject } from "@/lib/email/templates";
 import { writeAudit } from "@/lib/audit";
+import { isCompanyWideRole } from "@/lib/people/roles";
 import { siteUrl } from "@/lib/site";
 import { ROLE_LABELS } from "@/lib/nav";
 
@@ -273,9 +274,12 @@ export async function createAndSendInvite(
     return { ok: false, error: `The invitation could not be recorded: ${promoteErr.message}` };
   }
 
-  if (p.branchId && p.role !== "company_admin") {
-    // The invited branch is the user's primary branch (drives auto-fill). Additional
-    // branch views are added later from the Users screen.
+  if (p.branchId && !isCompanyWideRole(p.role)) {
+    /* The invited branch is the user's primary branch (drives auto-fill). Additional branch
+       views are added later from the Users screen.
+       COMPANY WIDE ROLES GET NO ROW AT ALL (widened from company_admin on 2026-08-19): a
+       Responsible Individual or Registered Manager reaches every branch through
+       is_company_wide, so a primary branch row only made screens claim they belonged to one. */
     await admin
       .from("user_branches")
       .upsert(
