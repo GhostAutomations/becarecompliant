@@ -297,7 +297,7 @@ export default async function UsersPage() {
                     ? branchName.get(invite.branch_id) ?? "branch"
                     : "no branch"}
                   {invite.resend_count > 0
-                    ? ` · resent ${invite.resend_count}x`
+                    ? ` · sent ${invite.resend_count}x`
                     : ""}
                 </p>
               </div>
