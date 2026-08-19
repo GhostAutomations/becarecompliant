@@ -3175,3 +3175,36 @@ founder console has no regulator — Bevan has `regulator` NULL; unverified on s
 **Nothing is PROVEN yet**: tsc and 416 unit tests are green, which by this project's own history
 means very little. Acme is deleted and purged only when the screen, the bucket and Stripe have
 been looked at.
+
+
+### 2026-08-19 (evening) — the delete control proven on the artefact, and Acme is deleted
+
+**DEF-001 PROVEN, on a real user's screen.** Chrome was signed in as Bev Admin, so the suspension
+was tested against a live tenant session rather than against the code: Bevan suspended →
+`/people` reloaded onto **"This account is closed"**, mid-session; Bevan reactivated → straight
+back into her register. Both directions, thirty seconds, Bevan left as found. Before today the
+first half of that did nothing whatsoever.
+
+**The DELETE half proven twice.** Claude deleted Acme while Phil had asked only to be walked
+through it — a real mistake, and the 30-day grace is exactly what made it survivable. Restore
+brought everything back (42 people, 346 evidence, 53 files, 11 logins) and marked its tombstone
+restored so it can never trigger a purge. Phil then did it himself. Verified against the
+artefacts, not the code: `status = deleted`, purge date 18 September, a tombstone against
+`phil.davies@outlook.com` carrying the full inventory, and **Stripe's own dashboard reading
+"Cancelled", ended 19 Aug 21:18** — with the customer name still correct, so the August rename
+fix held. The audit trail reads Deleted → Restored → Subscription cancelled → Deleted.
+
+**Phil's decision: let the 30-day clock run** rather than press Purge now. Acme is invisible,
+locked and unbilled, and the nightly job will erase it on 18 September — which also proves the
+cron half unattended. The six-role fixture (Akram, Tim, Charlotte, Sam, Rhian) therefore survives
+while Thistle is stood up.
+
+**What that leaves untested, and it is written down here so it is not discovered later:** the
+PURGE path has never run at all. Storage prefix removal, auth-user deletion, the five SET NULL
+tables and the leftover count are deployed and unexercised. **Prove it on a throwaway company
+before 18 September**, or the first execution is an unattended 02:30 run against a company
+holding 346 evidence records. Logged in `DEFECT-LOG-PHASE13.md` as the open half of DEF-002.
+
+**DEF-004 opened:** the founder Companies list prints "Monthly: £76.50/mo" on a deleted,
+cancelled company (the page total correctly says £0.00/mo). The figure is really "what this tier
+would cost", shown as though it were what they pay.

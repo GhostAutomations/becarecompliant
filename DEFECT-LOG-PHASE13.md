@@ -16,7 +16,7 @@ the row, the file or the third party's own dashboard has been looked at.
 
 ---
 
-## DEF-001 — "Suspend" and "Archive" did nothing at all  ·  FIXED
+## DEF-001 — "Suspend" and "Archive" did nothing at all  ·  PROVEN
 
 **Found** 2026-08-18, reading the guards while designing company deletion.
 
@@ -35,12 +35,15 @@ trial gate, because a shut company is shut whether or not its trial has time lef
 fails reads as `active`, so a database blip can never lock a working company out. Locked users
 land on `/company-closed`.
 
-**To prove:** suspend a company in the founder console, sign in as one of its users, confirm the
-closed screen. Then activate it and confirm they are back.
+**PROVEN LIVE 2026-08-19**, on a real user's screen and in both directions. Chrome was signed in
+as **Bev Admin** (Bevan Care Ltd). Bevan was set to `suspended` → reloading `/people` landed her
+on **"This account is closed"**, mid-session, without signing out. Bevan set back to `active` →
+reload → straight back into her Compliance register. Before today the first half would have done
+nothing at all. Bevan was left exactly as it was found.
 
 ---
 
-## DEF-002 — A company could not be deleted, anywhere  ·  FIXED
+## DEF-002 — A company could not be deleted, anywhere  ·  PROVEN (delete half) / OPEN (purge half)
 
 **Found** 2026-08-18, when Phil asked for the two test companies to be removed.
 
@@ -79,9 +82,27 @@ earlier removal.
 Restore is available for the whole grace period; it says plainly that the subscription does not
 come back.
 
-**To prove:** delete a company, confirm its users are locked out and Stripe shows the
-subscription cancelled; then purge it and confirm the bucket prefix is empty, the auth users are
-gone, and the tombstone carries the counts.
+**PROVEN LIVE 2026-08-19 — the DELETE half, twice, once by Claude and once by Phil.**
+
+- The panel refuses to arm until the typed name matches; the button sits dead grey and then turns
+  red. Deleting wrote `status = deleted`, `purge_after = 18 September 2026`, and a tombstone
+  carrying the full inventory (42 people · 24 service users · 346 evidence · 358 checks · 13
+  invoices · 4 branches · 11 logins · 1,083 audit rows).
+- **Stripe's own dashboard read "Cancelled", ended 19 Aug 21:18** — the third party's screen, not
+  our row. The customer still reads "Acme Care Company", so the August rename fix held.
+- **Restore was exercised for real** (Claude deleted it in error while Phil had asked to be
+  walked through it; the grace period is exactly what made that survivable). Everything came
+  back — 42 people, 346 evidence, 53 files, 11 logins — and the tombstone was marked restored so
+  it can never trigger a purge. The audit trail reads Deleted → Restored → Subscription
+  cancelled → Deleted, which is what an audit trail is for.
+
+**STILL OPEN — the PURGE half has never run.** Phil chose (2026-08-19) to let the 30-day clock
+run rather than press Purge now, so the erasure code is deployed and unexercised, and is next due
+to run **unattended, on the 02:30 cron, on 18 September 2026**. Nothing proves the storage purge,
+the auth-user deletion or the leftover count until then. **Prove it before that date on a
+throwaway company** (create one, delete it, Purge now, then read the bucket prefix, `auth.users`
+and the tombstone's `purge_counts`), or the first real run is an unattended one on a company
+holding 346 evidence records.
 
 ---
 
@@ -96,3 +117,20 @@ score once defaulted to the wrong one, which is already a fixed defect).
 
 **Next step:** create a company through the console and watch whether the regulator is asked for.
 If it is not, the fix is in the provisioning form, not in Bevan's row.
+
+---
+
+## DEF-004 — A deleted company still prints a monthly charge  ·  OPEN
+
+**Found** 2026-08-19 on the founder Companies list, immediately after deleting Acme.
+
+Acme's row reads **"Cancelled · Monthly: £76.50/mo"** while carrying a red `deleted` pill. The
+Committed monthly revenue figure at the top of the page correctly says £0.00/mo, so the total is
+right and the row contradicts it. A row that quotes a monthly charge for a company that is gone,
+next to a pill saying it is gone, is the kind of number somebody repeats in a meeting.
+
+Bevan shows the same shape from the other direction — "No subscription · Monthly: £49.00/mo" —
+so the figure is really "what this tier would cost", printed as though it were what they pay.
+
+**Fix:** the row should show what is actually being charged, or nothing at all, for any company
+without a live subscription. Not fixed mid-flow; logged here.
