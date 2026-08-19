@@ -80,6 +80,10 @@ export async function commitPeople(
   rows: ParsedRow[],
   /** Who is running the import, so their Team Member invites are attributed. */
   inviter?: Actor,
+  /** True when the importer ticked "don't send their logins yet" — the invites are created
+   *  and wait on Settings > Users. Defaults to sending, which is how imports behaved before
+   *  2026-08-19 (Phil chose to keep that default). */
+  holdEmail = false,
 ): Promise<CommitResult> {
   const supabase = await createClient();
   const defs = await listPeopleCheckDefinitions(companyId);
@@ -158,7 +162,7 @@ export async function commitPeople(
     }
 
     if (inviter && row.fields.work_email) {
-      const res = await inviteStaffForPerson(person.id, inviter);
+      const res = await inviteStaffForPerson(person.id, inviter, { sendEmail: !holdEmail });
       if (res.ok && !res.skipped) invited += 1;
       else if (res.skipped === "demo_email") notInvited += 1;
       else if (!res.ok) inviteFailed.push({ name: label, error: res.error ?? "unknown" });

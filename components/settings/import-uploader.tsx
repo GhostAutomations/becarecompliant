@@ -29,6 +29,10 @@ export default function ImportUploader() {
   const [emailNote, setEmailNote] = useState<string | null>(null);
   const [columnNotes, setColumnNotes] = useState<CommitOutcome["columnNotes"] | null>(null);
   const [pending, startTransition] = useTransition();
+  /* DELAYED LOGINS (Phil, 2026-08-19). An import of forty carers emails forty people the moment
+     it finishes, and whoever is importing is thinking about data, not about forty replies that
+     evening. Default stays as it was — it sends — and this is the opt out. */
+  const [holdLogins, setHoldLogins] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   function reset() {
@@ -63,7 +67,9 @@ export default function ImportUploader() {
     if (!csvText) return;
     startTransition(async () => {
       const res =
-        pop === "training" ? await commitTrainingImportAction(csvText) : await commitImportAction(pop, csvText);
+        pop === "training"
+          ? await commitTrainingImportAction(csvText)
+          : await commitImportAction(pop, csvText, holdLogins);
       setMessage(res.message);
       setFlags(res.flags ?? null);
       setEmailNote(res.emailNote ?? null);
@@ -263,6 +269,24 @@ export default function ImportUploader() {
               </tbody>
             </table>
           </div>
+
+          {pop === "people" ? (
+            <label className="mb-3 flex items-start gap-2 text-sm text-white/80">
+              <input
+                type="checkbox"
+                checked={holdLogins}
+                onChange={(e) => setHoldLogins(e.target.checked)}
+                className="mt-0.5"
+              />
+              <span>
+                Don&rsquo;t send their Team Member logins yet
+                <span className="block text-xs text-white/50">
+                  Everyone is imported as usual and their logins are created, but nobody is
+                  emailed. Send them from Settings, Users when you are ready for the questions.
+                </span>
+              </span>
+            </label>
+          ) : null}
 
           <div className="flex items-center gap-3">
             <button

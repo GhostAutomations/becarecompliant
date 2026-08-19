@@ -3234,3 +3234,28 @@ defect this project keeps meeting. Fixed the same evening; not yet re-proven.
 **Phase 13 standing at the end of the evening:** the delete/purge machinery is built and proven,
 Acme is deleted with an erase date of 18 September, Bevan remains as the empty second tenant, and
 the three Thistle blockers found tonight are closed. `DEFECT-LOG-PHASE13.md` holds all eight.
+
+
+### 2026-08-19 (late) — Phil's two pieces of feedback, both built
+
+**1. Create a company left the button live under a "created" message.** A second press could only
+ever produce a slug clash, and there was nothing on screen pointing at the company you had just
+made. The action now hands the new id back, and on success the button turns green, reads
+**Company created** and cannot be pressed, with **Go to company** beside it.
+
+**2. DELAYED INVITES (migration 0210).** An invitation and an invitation EMAIL were treated as
+one event, so a bulk import of forty carers emailed forty people the moment it finished — and
+whoever ran the import was thinking about data, not about forty replies that evening.
+
+`invites.email_sent_at` now records when the email actually went; NULL means "created, nobody has
+been told". A **"Don't send the email yet"** tick appears wherever an invite is created — Settings
+> Users, the founder's Create a company, Add a person, and the bulk import — and Settings > Users
+shows those as **"Not sent yet"** with a **Send invite** button, plus **Send all N** for a batch.
+The send goes through the existing resend path, which now stamps `email_sent_at` on success only:
+a failed send must not tell the next reader the person has been written to.
+
+**The import default stays as it was — it sends** (Phil, 2026-08-19). The tick is the opt out.
+
+Two details worth keeping: a HELD invite and a FAILED send both arrive with `emailSent: false`
+and mean opposite things, so every caller says which; and existing invites were backfilled to
+`created_at` rather than left looking like a pile of unsent invitations.

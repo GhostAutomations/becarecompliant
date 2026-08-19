@@ -42,6 +42,17 @@ export type InviteParams = {
    * untouched by the feature. An empty array means the same as unset: off.
    */
   enforceEmailDomains?: readonly string[];
+  /**
+   * DELAYED INVITES (Phil, 2026-08-19). Set false to create the invitation without telling
+   * anybody about it: the account, the invites row and the branch row are all made exactly as
+   * usual, and only the email is held. Settings > Users then lists it as "Not sent yet" with a
+   * Send invite button, which goes through resendInvite like any other send.
+   *
+   * The reason it exists: a bulk import of forty carers emails forty people the moment it
+   * finishes, and the person doing the import is thinking about data, not about forty replies
+   * that evening. Defaults to true so every existing caller behaves as it did.
+   */
+  sendEmail?: boolean;
 };
 
 export type InviteOutcome =
@@ -273,16 +284,29 @@ export async function createAndSendInvite(
       );
   }
 
-  const send = await sendEmail({
-    to: email,
-    subject: inviteSubject(p.companyName),
-    html: inviteEmailHtml({
-      companyName: p.companyName,
-      inviterName: p.inviter.name || "Your administrator",
-      roleLabel: ROLE_LABELS[p.role] ?? p.role,
-      actionUrl: link.url,
-    }),
-  });
+  const hold = p.sendEmail === false;
+  const send = hold
+    ? { sent: false, skippedReason: undefined as string | undefined, error: undefined as string | undefined }
+    : await sendEmail({
+        to: email,
+        subject: inviteSubject(p.companyName),
+        html: inviteEmailHtml({
+          companyName: p.companyName,
+          inviterName: p.inviter.name || "Your administrator",
+          roleLabel: ROLE_LABELS[p.role] ?? p.role,
+          actionUrl: link.url,
+        }),
+      });
+
+  /* Stamp WHEN it went, not merely that it did. A NULL here is what "Not sent yet" is read from
+     on Settings > Users, so a failed send must leave it NULL too: an invitation the person never
+     received is not a sent invitation, whatever the reason. */
+  if (send.sent) {
+    await supabase
+      .from("invites")
+      .update({ email_sent_at: new Date().toISOString() })
+      .eq("id", invite.id);
+  }
 
   await writeAudit({
     companyId: p.companyId,
@@ -298,10 +322,17 @@ export async function createAndSendInvite(
       role: p.role,
       branch_id: p.branchId,
       email_sent: send.sent,
+      held: hold,
     },
   });
 
-  return { ok: true, emailSent: send.sent, emailNote: send.skippedReason ?? send.error };
+  return {
+    ok: true,
+    emailSent: send.sent,
+    emailNote: hold
+      ? "The email is being held: send it from Settings, Users when you are ready."
+      : (send.skippedReason ?? send.error),
+  };
 }
 
 /** Regenerate a link and re-send a pending invite. */
@@ -373,11 +404,16 @@ export async function resendInvite(
     }),
   });
 
+  /* This is also the SEND button for a held invite (email_sent_at NULL), so it stamps that
+     column when the send succeeds — otherwise a held invite would stay "Not sent yet" for ever
+     however many times somebody pressed it. Only on success: a failed send must not tell the
+     next reader the person has been written to. */
   await supabase
     .from("invites")
     .update({
       last_sent_at: new Date().toISOString(),
       resend_count: (invite.resend_count ?? 0) + 1,
+      ...(send.sent ? { email_sent_at: new Date().toISOString() } : {}),
     })
     .eq("id", inviteId);
 

@@ -14,6 +14,7 @@ import {
   removeInviteDomain,
   resendInviteAction,
   revokeInviteAction,
+  sendHeldInvitesAction,
 } from "../actions";
 import { listInviteDomains, readInviteDomains } from "@/lib/invite-domains";
 
@@ -63,7 +64,7 @@ export default async function UsersPage() {
         .neq("role", "platform_admin"),
       supabase
         .from("invites")
-        .select("id, email, full_name, role, branch_id, last_sent_at, resend_count")
+        .select("id, email, full_name, role, branch_id, last_sent_at, resend_count, email_sent_at")
         .eq("company_id", companyId)
         .eq("status", "pending")
         .order("created_at", { ascending: false }),
@@ -109,6 +110,8 @@ export default async function UsersPage() {
   const activeUsers = userList.filter((u) => !PASSIVE_ROLES.includes(u.role));
   const passiveUsers = userList.filter((u) => PASSIVE_ROLES.includes(u.role));
   const pending = invites ?? [];
+  // Created but never sent: the person does not know they have an account.
+  const heldCount = pending.filter((i) => !i.email_sent_at).length;
 
   const branchOptions = activeBranches
     .filter((b) => b.kind === "branch")
@@ -252,9 +255,28 @@ export default async function UsersPage() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-white/80">
-          Pending invites ({pending.length})
-        </h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-white/80">
+            Pending invites ({pending.length})
+          </h2>
+          {heldCount > 0 ? (
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-white/60">
+                {heldCount} {heldCount === 1 ? "invite has" : "invites have"} not been sent yet
+              </span>
+              {heldCount > 1 ? (
+                <ActionForm
+                  action={sendHeldInvitesAction}
+                  label={`Send all ${heldCount}`}
+                  savedLabel="Sent"
+                  buttonClassName="btn-primary px-3 py-1.5 text-xs"
+                  className=""
+                  confirm={`Send the invitation email to all ${heldCount} people who are waiting? They will be able to sign in as soon as they set a password.`}
+                />
+              ) : null}
+            </div>
+          ) : null}
+        </div>
         {pending.length === 0 ? (
           <div className="glass-card px-5 py-8 text-center text-sm text-white/50">
             No pending invites.
@@ -280,12 +302,24 @@ export default async function UsersPage() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <span className="pill-amber">Pending</span>
+                {/* "Pending" and "Not sent yet" are different facts about an invitation and were
+                    being told as one. Somebody chasing a manager who has not accepted needs to
+                    know whether that manager was ever written to. */}
+                {invite.email_sent_at ? (
+                  <span className="pill-amber">Pending</span>
+                ) : (
+                  <span className="pill pill-neutral">Not sent yet</span>
+                )}
                 <ActionForm
                   action={resendInviteAction}
                   hidden={{ invite_id: invite.id }}
-                  label="Resend"
-                  buttonClassName="btn-ghost px-3 py-1.5 text-xs"
+                  label={invite.email_sent_at ? "Resend" : "Send invite"}
+                  savedLabel="Sent"
+                  buttonClassName={
+                    invite.email_sent_at
+                      ? "btn-ghost px-3 py-1.5 text-xs"
+                      : "btn-primary px-3 py-1.5 text-xs"
+                  }
                   className=""
                 />
                 <ActionForm

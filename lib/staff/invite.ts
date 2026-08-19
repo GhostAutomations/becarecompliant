@@ -42,6 +42,9 @@ export type StaffInviteOutcome = {
 export async function inviteStaffForPerson(
   personId: string,
   inviter: Actor,
+  /** Pass false to create the login without emailing them yet: the invite waits on
+   *  Settings > Users as "Not sent yet" until somebody presses Send invite. */
+  opts?: { sendEmail?: boolean },
 ): Promise<StaffInviteOutcome> {
   const supabase = await createClient();
 
@@ -73,6 +76,7 @@ export async function inviteStaffForPerson(
     fullName: person.full_name as string,
     role: "staff",
     inviter,
+    sendEmail: opts?.sendEmail !== false,
   });
 
   // An invite already waiting is not a failure: someone was added twice, or the

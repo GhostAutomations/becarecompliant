@@ -59,6 +59,8 @@ async function companyAdminEmails(companyId: string): Promise<string[]> {
 export async function commitImportAction(
   population: string,
   csvText: string,
+  /** Tick on the import screen: create the Team Member logins but hold their emails. */
+  holdEmail = false,
 ): Promise<CommitOutcome> {
   const { user, profile } = await requireCompanyAdmin();
   if (!profile.company_id) return { ok: false, message: "No company context." };
@@ -70,12 +72,18 @@ export async function commitImportAction(
 
   const result: CommitResult =
     pop === "people"
-      ? await commitPeople(profile.company_id, user.id, res.rows, {
-          id: user.id,
-          name: profile.full_name,
-          email: profile.email,
-          role: profile.role,
-        })
+      ? await commitPeople(
+          profile.company_id,
+          user.id,
+          res.rows,
+          {
+            id: user.id,
+            name: profile.full_name,
+            email: profile.email,
+            role: profile.role,
+          },
+          holdEmail,
+        )
       : await commitServiceUsers(profile.company_id, user.id, res.rows);
   const flags: ImportFlags = {
     skipped: result.skipped,
@@ -98,6 +106,7 @@ export async function commitImportAction(
       errors: flags.errored.length,
       invited: result.invited ?? 0,
       not_invited: result.notInvited ?? 0,
+      logins_held: holdEmail,
       invite_failed: result.inviteFailed?.length ?? 0,
     },
   });

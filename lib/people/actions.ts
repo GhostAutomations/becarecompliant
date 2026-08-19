@@ -130,12 +130,17 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
   // Person being added, so the outcome is audited rather than surfaced as an error.
   let inviteOutcome: Record<string, unknown> = { attempted: false };
   if (trimOrNull(formData.get("work_email"))) {
-    const invited = await inviteStaffForPerson(person.id, {
-      id: user.id,
-      name: profile.full_name,
-      email: profile.email,
-      role: profile.role,
-    });
+    const invited = await inviteStaffForPerson(
+      person.id,
+      {
+        id: user.id,
+        name: profile.full_name,
+        email: profile.email,
+        role: profile.role,
+      },
+      // Delayed invites (Phil, 2026-08-19): add the carer now, tell them when you are ready.
+      { sendEmail: String(formData.get("hold_email") ?? "") !== "1" },
+    );
     inviteOutcome = { attempted: true, ...invited };
   }
 

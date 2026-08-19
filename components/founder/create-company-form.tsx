@@ -1,11 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { createCompany } from "@/app/(app)/founder/actions";
 import { IDLE_STATE } from "@/lib/forms";
 
 export function CreateCompanyForm() {
   const [state, formAction, pending] = useActionState(createCompany, IDLE_STATE);
+  /* THE COMPANY EXISTS NOW, so the button must stop offering to make it again (Phil,
+     2026-08-19: it stayed live under a gold "created" box, and a second press only ever
+     produced a slug clash). The id comes back with the result, so there is somewhere to go. */
+  const createdId = state.data?.companyId ?? null;
 
   return (
     <form action={formAction} className="space-y-5">
@@ -101,6 +106,17 @@ export function CreateCompanyForm() {
           They receive a branded invite to set their password. Leave blank to
           invite later.
         </p>
+
+        <label className="mt-3 flex items-start gap-2 text-sm text-white/80">
+          <input type="checkbox" name="hold_email" value="1" className="mt-0.5" />
+          <span>
+            Don&rsquo;t send the email yet
+            <span className="block text-xs text-white/50">
+              The account is created and waits on their Settings, Users as &ldquo;Not sent
+              yet&rdquo;. Useful when the tenant is not ready for them to look at it.
+            </span>
+          </span>
+        </label>
       </div>
 
       {state.error ? (
@@ -117,9 +133,20 @@ export function CreateCompanyForm() {
         </p>
       ) : null}
 
-      <button type="submit" className="btn-primary" disabled={pending}>
-        {pending ? "Creating…" : "Create company"}
-      </button>
+      {createdId ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <button type="button" disabled className="btn-saved cursor-default px-4 py-2 text-sm">
+            Company created
+          </button>
+          <Link href={`/founder/companies/${createdId}`} className="btn-primary px-4 py-2 text-sm">
+            Go to company
+          </Link>
+        </div>
+      ) : (
+        <button type="submit" className="btn-primary" disabled={pending}>
+          {pending ? "Creating…" : "Create company"}
+        </button>
+      )}
     </form>
   );
 }

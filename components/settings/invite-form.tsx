@@ -64,6 +64,19 @@ export function InviteForm({ branches }: { branches: BranchOption[] }) {
         </div>
       </div>
 
+      {/* DELAYED INVITES (Phil, 2026-08-19). The invitation is created either way; this only
+          holds the email until somebody presses Send invite on the pending list below. */}
+      <label className="flex items-start gap-2 text-sm text-white/80">
+        <input type="checkbox" name="hold_email" value="1" className="mt-0.5" />
+        <span>
+          Don&rsquo;t send the email yet
+          <span className="block text-xs text-white/50">
+            They are added and appear below as &ldquo;Not sent yet&rdquo;. Send it when you are
+            ready for them to have access.
+          </span>
+        </span>
+      </label>
+
       {state.error ? (
         <p role="alert" className="form-error">
           {state.error}

@@ -76,6 +76,8 @@ export async function createCompany(
   const adminName = String(formData.get("admin_name") ?? "").trim();
   const adminEmail = String(formData.get("admin_email") ?? "").trim();
   const regulator = String(formData.get("regulator") ?? "").trim();
+  // Delayed invite: create the Admin's account, tell them when the tenant is ready for them.
+  const holdEmail = String(formData.get("hold_email") ?? "") === "1";
 
   if (!name) return { error: "Enter a company name." };
   // A UK care provider answers to one of two regulators and there is no third answer, so this
@@ -211,9 +213,13 @@ export async function createCompany(
         email: profile.email,
         role: "platform_admin",
       },
+      sendEmail: !holdEmail,
     });
     if (!outcome.ok) {
       note += ` The Admin invite could not be sent: ${outcome.error}`;
+    } else if (holdEmail) {
+      // Held and FAILED both arrive with emailSent false and mean opposite things.
+      note += ` The Admin invite for ${adminEmail} is waiting: nothing has been emailed, send it from Settings, Users when the company is ready.`;
     } else if (!outcome.emailSent) {
       note += ` The Admin invite was recorded, but the email was not sent (${outcome.emailNote ?? "email not configured"}).`;
     } else {
@@ -222,7 +228,10 @@ export async function createCompany(
   }
 
   revalidatePath("/founder");
-  return { ok: note };
+  // The id goes back so the form can offer "Go to company" instead of leaving somebody to hunt
+  // for what they just made — and so the button can stop being pressable (a second press only
+  // ever produced a slug clash).
+  return { ok: note, data: { companyId: company.id } };
 }
 
 /** Founder: import the founder-curated master templates (forms + training

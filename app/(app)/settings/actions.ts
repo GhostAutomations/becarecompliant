@@ -92,6 +92,8 @@ export async function inviteUser(
   const fullName = String(formData.get("full_name") ?? "").trim();
   const role = String(formData.get("role") ?? "") as InviteRole;
   const branchId = String(formData.get("branch_id") ?? "").trim();
+  // Delayed invites (Phil, 2026-08-19): create it, tell them later.
+  const holdEmail = String(formData.get("hold_email") ?? "") === "1";
 
   if (!fullName) {
     return { error: "Enter their full name. It appears on the records and reports they sign." };
@@ -137,11 +139,19 @@ export async function inviteUser(
     role,
     inviter: ctx.actor,
     enforceEmailDomains: readInviteDomains(company?.invite_email_domains),
+    sendEmail: !holdEmail,
   });
 
   if (!outcome.ok) return { error: outcome.error };
 
   revalidatePath("/settings/users");
+  /* A held invite and a FAILED send both arrive here with emailSent false, and they mean
+     opposite things: one is what you asked for, the other is a problem. Say which. */
+  if (holdEmail) {
+    return {
+      ok: `${fullName} has been added. Nothing has been emailed — press Send invite below when you are ready.`,
+    };
+  }
   if (!outcome.emailSent) {
     return {
       ok: `Invite recorded, but the email was not sent (${outcome.emailNote ?? "email not configured"}). Use Resend once email is configured.`,
@@ -158,13 +168,55 @@ export async function resendInviteAction(
   if (!ctx.ok) return { error: ctx.error };
   const inviteId = String(formData.get("invite_id") ?? "");
   if (!inviteId) return { error: "Missing invite." };
+  // Also the SEND button for a held invite: same send, and lib/invites stamps email_sent_at.
   const outcome = await resendInvite(inviteId, ctx.actor);
   revalidatePath("/settings/users");
   if (!outcome.ok) return { error: outcome.error };
   if (!outcome.emailSent) {
     return { ok: `Invite updated, but the email was not sent (${outcome.emailNote ?? "email not configured"}).` };
   }
-  return { ok: "Invite resent." };
+  return { ok: "Invite sent." };
+}
+
+/** Send every invite that was created with the email held back. */
+export async function sendHeldInvitesAction(
+  _prev: ActionState,
+  _formData: FormData,
+): Promise<ActionState> {
+  const ctx = await adminContext();
+  if (!ctx.ok) return { error: ctx.error };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("invites")
+    .select("id, email")
+    .eq("company_id", ctx.companyId)
+    .eq("status", "pending")
+    .is("email_sent_at", null);
+  if (error) return { error: error.message };
+
+  const held = (data ?? []) as { id: string; email: string }[];
+  if (held.length === 0) return { error: "There are no held invites to send." };
+
+  let sent = 0;
+  const failed: string[] = [];
+  for (const invite of held) {
+    const outcome = await resendInvite(invite.id, ctx.actor);
+    // A send that did not actually go out is a failure, whatever the reason. Counting it as
+    // sent would leave somebody waiting for an email nobody will ever receive.
+    if (outcome.ok && outcome.emailSent) sent += 1;
+    else failed.push(invite.email);
+  }
+
+  revalidatePath("/settings/users");
+  if (failed.length) {
+    return {
+      error:
+        `${sent} of ${held.length} sent. These did not go and are still waiting: ` +
+        failed.join(", "),
+    };
+  }
+  return { ok: `${sent} invite${sent === 1 ? "" : "s"} sent.` };
 }
 
 export async function revokeInviteAction(

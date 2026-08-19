@@ -119,6 +119,14 @@ export default function CreatePersonForm({
         <div>
           <label htmlFor="work_email" className="form-label">Personal email *</label>
           <input id="work_email" name="work_email" type="email" required />
+          {/* Adding a person with an email sends them a Team Member login straight away. This
+              is the way to add somebody before you want them looking at it. */}
+          <label className="mt-2 flex items-start gap-2 text-xs text-white/70">
+            <input type="checkbox" name="hold_email" value="1" className="mt-0.5" />
+            <span>
+              Don&rsquo;t send their login yet — send it from Settings, Users when you are ready
+            </span>
+          </label>
         </div>
 
         <div>
