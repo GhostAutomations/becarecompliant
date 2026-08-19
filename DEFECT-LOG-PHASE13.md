@@ -43,7 +43,7 @@ nothing at all. Bevan was left exactly as it was found.
 
 ---
 
-## DEF-002 — A company could not be deleted, anywhere  ·  PROVEN (delete half) / OPEN (purge half)
+## DEF-002 — A company could not be deleted, anywhere  ·  PROVEN (both halves)
 
 **Found** 2026-08-18, when Phil asked for the two test companies to be removed.
 
@@ -96,7 +96,32 @@ come back.
   it can never trigger a purge. The audit trail reads Deleted → Restored → Subscription
   cancelled → Deleted, which is what an audit trail is for.
 
-**STILL OPEN — the PURGE half has never run.** Phil chose (2026-08-19) to let the 30-day clock
+**THE PURGE HALF PROVEN LIVE 2026-08-19, on a throwaway company built for the purpose.**
+
+`Purge Test Ltd` was created through the founder console, its Admin invite was accepted for real
+(branded email → set password), a service user was added, and a **Setup check was completed on a
+phone with a finger-drawn signature**. Opening the evidence PDF then wrote a **9,284-byte file two
+folders deep** in the private bucket (`<company>/<evidence>/render/evidence.pdf`) — deliberately
+the nested case a naive purge would miss.
+
+Phil then pressed Delete, then **Purge now**. Thirteen seconds later, checked directly against the
+database and the storage table:
+
+| What | Before | After |
+|---|---|---|
+| Company row | 1 | **0** |
+| Files in the bucket | 1 (nested) | **0** |
+| Profiles | 1 | **0** |
+| `auth.users` login | 1 | **0** |
+| Service users / evidence / forms / branches / audit rows | 1 / 1 / 20 / 2 / 13 | **0 / 0 / 0 / 0 / 0** |
+
+The tombstone survived with both sets of figures — what the company held, and what the purge
+actually removed (`{logins: 1, storage:evidence: 1, audit_log: 14, company: 1, stray_profiles: 0}`)
+— and `purge_error` is null, meaning the post-purge recount found nothing left behind.
+
+**Acme is still deleted-not-purged**, due to be erased by the nightly cron on 18 September. The
+cron path (as opposed to the button) is therefore still unproven, but it calls the same function
+with `by: "cron"`. Phil chose (2026-08-19) to let the 30-day clock
 run rather than press Purge now, so the erasure code is deployed and unexercised, and is next due
 to run **unattended, on the 02:30 cron, on 18 September 2026**. Nothing proves the storage purge,
 the auth-user deletion or the leftover count until then. **Prove it before that date on a
@@ -106,7 +131,7 @@ holding 346 evidence records.
 
 ---
 
-## DEF-003 — A company created through the founder console has no regulator  ·  OPEN (unverified)
+## DEF-003 — A company created through the founder console has no regulator  ·  CONFIRMED (Thistle blocker)
 
 **Spotted** 2026-08-18 in the data, not yet proven on the screen.
 
@@ -115,8 +140,25 @@ holding 346 evidence records.
 cannot have its inspection framework, and several screens key off the regulator (the dashboard
 score once defaulted to the wrong one, which is already a fixed defect).
 
-**Next step:** create a company through the console and watch whether the regulator is asked for.
-If it is not, the fix is in the provisioning form, not in Bevan's row.
+**CONFIRMED on the screen 2026-08-19**, by creating a company the way a customer would be created.
+The **Create a company** form asks for name, slug, tier, first branch and the first Admin. **There
+is no regulator field on it.** "Purge Test Ltd" came out of it with `regulator` NULL, exactly like
+Bevan.
+
+**And it cannot be set anywhere afterwards.** `companies.regulator` is READ in the dashboard
+compliance score, Inspection Readiness, Reg 73, Reg 80, the incidents screen and the privacy
+notice — and **written by nothing in the application**: not the create form, not Settings, not the
+founder company page. Acme reads `ciw` only because a migration set it by hand.
+
+**Why this is a Thistle blocker.** Thistle is a Welsh provider answering to CIW. Provisioned
+today it would be a company the product believes has no regulator, and the only way to correct it
+would be hand-written SQL against one tenant's row — which this phase's governing rule defines as
+a defect, not a fix. It also has form: the dashboard score once defaulted to CQC while everything
+else defaulted to CIW, and that was a real defect fixed in July.
+
+**Fix:** regulator belongs on the Create a company form (required, CQC or CIW — there is no third
+answer for a UK care provider), and editable afterwards by the founder. Consider the same
+question for `framework_enabled`, which is also false on every company but Acme.
 
 ---
 
@@ -134,3 +176,76 @@ so the figure is really "what this tier would cost", printed as though it were w
 
 **Fix:** the row should show what is actually being charged, or nothing at all, for any company
 without a live subscription. Not fixed mid-flow; logged here.
+
+---
+
+## DEF-005 — A brand-new company cannot add its first person  ·  OPEN
+
+**Found** 2026-08-19, doing the first thing any new customer does.
+
+On **Add a person**, "Line manager" is a **required** field whose dropdown is populated from the
+company's own users. On a company created minutes ago there are none — the first Admin has been
+invited but has not accepted — so the dropdown contains only "Please choose", and pressing **Add
+person** produces the browser's own bubble, *"Please select an item in the list"*. There is no way
+through it. Everything else on the form was filled correctly.
+
+So the true sequence is: create company → Admin accepts the invite → *then* staff can be added.
+That may be a perfectly reasonable rule, but **nothing anywhere says it**, and the first thing a
+new customer will try is to put their staff in. What they meet is a form that refuses with a
+browser tooltip and no explanation.
+
+**Fix (either is defensible, one of them is required):** allow the first person to be added with
+no line manager while the company has no eligible users, or say so on the form — an empty state on
+the Line manager field explaining that somebody has to accept their invite first, with a link to
+Settings > Users. What must not stand is a required dropdown with nothing in it.
+
+**Watch for the same shape elsewhere:** Supervisors on that form already say "No supervisors in
+this company yet" and carry on, which is exactly the treatment Line manager needs.
+
+---
+
+## DEF-006 — Support mode can create records but cannot complete a check, and says so badly  ·  OPEN
+
+**Found** 2026-08-19, managing as Purge Test Ltd from the founder console.
+
+As the founder in support mode: adding a service user **worked**. Opening that service user's
+Setup check, filling it in and pressing **Complete and save evidence** was refused with a red
+**"Not a member of this company"** under the button.
+
+**The refusal itself may well be right** — evidence is a signed compliance record, and a record
+signed by the founder impersonating a manager is arguably worse than no record. But three things
+are wrong with how it lands:
+
+1. The check tiles offer a **Complete** button that support mode can never use.
+2. The form fills in, submits, and only then refuses — after the work.
+3. **"Not a member of this company" is not true from the reader's point of view.** The banner at
+   the top of that very page says "Managing as Purge Test Ltd". The message needs to name the real
+   rule: evidence must be completed by somebody who works there.
+
+Same shape as the Supervision 4 dead end fixed in August: a form that fills, submits and refuses
+with nothing to act on. Either hide Complete in support mode, or say plainly why it is refused.
+
+---
+
+## DEF-007 — Purging a company ends on a 404  ·  FIXED (not yet re-proven)
+
+**Found 2026-08-19 by Phil, in the same press that proved DEF-002.** Everything worked — the
+company, its file, its login and its records were all correctly erased in thirteen seconds — and
+what he saw was **"404 page not found"**.
+
+The cause: the button lives on `/founder/companies/[id]`. The action deletes that company, then
+`revalidatePath` re-rendered that very route, which correctly called `notFound()` for a company
+that no longer exists. The client-side `redirectTo` never got a chance, because the current route
+has to render once before the client navigates.
+
+**This is the failure mode this project keeps meeting from the other direction**: the code was
+right, the data was right, the database proved every row had gone — and the screen told the
+founder the product was broken. A 404 after an irreversible action is also the worst possible
+moment for one, because the honest reading is "did that work?".
+
+**Fix:** revalidate the LIST, never the dead page, and leave by a server-side `redirect()` to
+`/founder/companies` instead of returning `redirectTo`. A redirect with no query string is safe
+(the Next 15 hooks bug this codebase has already paid for is specific to query strings).
+
+**To re-prove:** purge one more throwaway company and confirm it lands on the Companies list with
+the company gone, no 404.

@@ -1208,9 +1208,19 @@ export async function purgeCompanyNow(
     by: "founder",
     force: true,
   });
+  if (!outcome.ok) return { error: outcome.error };
+
+  /* THE PAGE THIS WAS PRESSED ON NO LONGER EXISTS, and that is not a hypothetical: pressing
+     Purge now put a "404 page not found" in front of Phil on 2026-08-19 (live test). The button
+     lives on /founder/companies/[id], the action deletes the company, and the revalidate then
+     re-rendered that very route, which correctly called notFound() for a company that no longer
+     exists. Everything had worked perfectly and the screen said the product was broken.
+
+     So: revalidate the list, NOT the dead page, and leave by a server redirect rather than
+     returning redirectTo. The client-side redirectTo still has to render the current route once
+     before it navigates, which is the 404. A redirect() with no query string is safe here (the
+     Next 15 hooks bug this codebase has paid for is specific to query strings — see lib/forms). */
   revalidatePath("/founder/companies");
   revalidatePath("/founder");
-  if (!outcome.ok) return { error: outcome.error };
-  // The company page it was pressed from no longer exists, so send them somewhere that does.
-  return { ok: outcome.message, redirectTo: "/founder/companies" };
+  redirect("/founder/companies");
 }
