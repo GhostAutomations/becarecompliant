@@ -324,3 +324,78 @@ ever billed.
 **Fix:** the panel is told whether there was a subscription, and says only what is true of that
 company. No subscription: *"Nobody at X can sign in."* and *"Restoring them brings the records
 back exactly as they were."*
+
+---
+
+## DEF-009 — An invite silently moves an account out of another company  ·  OPEN (low, but decide before real customers)
+
+**Found 2026-08-19**, checking whether Phil can use his Thistle address as Thistle's first Admin.
+
+`phil@thistlecarewales.co.uk` already exists as an auth user with a profile — invited into **Acme**
+as a manager on 29 July, never accepted, never signed in. Acme is now deleted.
+
+`createAndSendInvite` guards against poaching somebody from another company **only when their
+status is `active`**:
+
+```
+existing.company_id !== p.companyId && existing.status === "active"  →  refused
+```
+
+A profile that is merely **`invited`** elsewhere falls straight through, and the promotion a few
+lines later **overwrites `company_id` and `role`** — so inviting that address into a second
+company silently moves the account, and the first company's pending invite becomes a link into a
+company that person is no longer part of. Nobody is told, at either end.
+
+**For Thistle this is harmless and actually convenient**: the dormant Acme invite gets pulled
+across to where it belongs. **For real customers it is not**: two agencies inviting the same
+peripatetic manager, or a customer inviting an address a rival tenant has pending, would move an
+account with no warning and no audit line saying which company it came from.
+
+**Options when it is picked up:** refuse the way an active member is refused; or allow it and say
+so plainly (to the inviter, and in the audit row), which is probably right for a sector where
+people genuinely do move between agencies.
+
+**Not fixed** — logged deliberately rather than fixed mid-provisioning.
+
+---
+
+## DEF-010 — A user who has run an on-call shift or logged an incident can never be deleted  ·  OPEN (customer-facing)
+
+**Found 2026-08-19**, when purging Acme for real **failed** — and failed safely, refusing to
+half-erase the company:
+
+> 2 login(s) could not be deleted, so the company has been left standing rather than half erased:
+> ppdavies@gmail.com: {}; ficklephil@me.com: {}
+
+Diagnosed by attempting the delete inside a rolled-back transaction, which named it properly:
+
+```
+ERROR: 23514: This shift has been finalised and can no longer be edited.
+CONTEXT: PL/pgSQL function on_call_log_finalised_is_locked() line 35
+SQL statement "UPDATE ONLY public.on_call_logs SET created_by = NULL WHERE ... = created_by"
+```
+
+**Deleting an auth user is not one row.** Around forty tables carry a user reference with
+`ON DELETE SET NULL`, so Postgres UPDATES every one of them. An update to a **finalised** on-call
+log is refused by the lock trigger from migration 0205, whose allowlist of changeable columns
+does not include `created_by`. Four more references are **NO ACTION** and block the delete
+outright: `incidents.created_by`, `whistleblowing_disclosures.created_by`, and both
+`retention_hold_set_by` columns.
+
+**This is not only a purge problem.** The same thing happens in **Settings → Users → delete a
+user**: any manager who has ever finalised an on-call shift, or logged an incident, cannot be
+deleted by their own company — and the error they would see is a sentence about a shift.
+
+**Fixed for the purge** by reordering it: the company row (and the four SET-NULL-scoped tables)
+now go BEFORE the logins, so the CASCADE removes everything pointing at those users first. The
+error reporting was fixed too — an auth error with an empty message printed as `{}`, which told
+the reader nothing.
+
+**NOT fixed, and it needs a decision:**
+
+1. The **0205 lock trigger** should tolerate a user reference being NULLed on a finalised log —
+   that is not somebody editing a shift, it is an account being removed.
+2. The four **NO ACTION** references should probably become SET NULL, with one genuine question
+   attached: `whistleblowing_disclosures.created_by` going NULL turns an attributed disclosure
+   into an anonymous one. That may be exactly right for erasure, but it is a decision about a
+   safeguarding record, not a schema tidy-up.

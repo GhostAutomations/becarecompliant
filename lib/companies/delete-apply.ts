@@ -401,7 +401,11 @@ export async function purgeCompany(input: {
     removed[`storage:${bucket}`] = done;
   }
 
-  // 2. THE LOGINS. Deleting the auth user cascades their profile, branch rows and assignments.
+  /* 2. WHO THE LOGINS ARE — captured NOW, before anything else moves.
+        `profiles.company_id` is SET NULL when the company row goes, and so are audit_log,
+        sms_opt_outs, stripe_events and trial_requests. Once the company is deleted there is
+        nothing left to find any of them BY, so the ids and the company-scoped rows have to be
+        taken first. */
   const { data: profileRows, error: profileError } = await supabase
     .from("profiles")
     .select("id, email, role")
@@ -410,30 +414,15 @@ export async function purgeCompany(input: {
     return { ok: false, error: `Could not list the logins: ${profileError.message}. Nothing else was erased.` };
   }
   const profiles = (profileRows ?? []) as { id: string; email: string | null; role: string }[];
-  let logins = 0;
-  const loginFailures: string[] = [];
-  for (const p of profiles) {
-    // The founder is not a member of any tenant, but refuse anyway: a platform_admin row
-    // carrying a company_id would be a bug, and deleting the founder's own login to fix it
-    // would be a very expensive way to find out.
-    if (p.role === "platform_admin") continue;
-    const { error } = await supabase.auth.admin.deleteUser(p.id);
-    if (error) loginFailures.push(`${p.email ?? p.id}: ${error.message}`);
-    else logins += 1;
-  }
-  removed.logins = logins;
-  if (loginFailures.length) {
-    return {
-      ok: false,
-      error:
-        `${loginFailures.length} login(s) could not be deleted, so the company has been left ` +
-        `standing rather than half erased: ${loginFailures.join("; ")}`,
-    };
-  }
+  // The founder is not a member of any tenant, but skip them anyway: a platform_admin row
+  // carrying a company_id would be a bug, and deleting the founder's own login to fix it would
+  // be a very expensive way to find out.
+  const loginIds = profiles.filter((p) => p.role !== "platform_admin");
 
-  // 3. THE ROWS THAT DO NOT CASCADE. These five reference companies with SET NULL, so a plain
-  //    delete would leave staff names, emails, phone numbers and Stripe payloads floating free
-  //    with nothing to say whose they were. That is the opposite of an erasure.
+  /* 3. THE ROWS THAT DO NOT CASCADE, while their company_id still says whose they are. These
+        five reference companies with SET NULL, so a plain delete would leave staff names,
+        emails, phone numbers and Stripe payloads floating free with nothing to say whose they
+        were. That is the opposite of an erasure. */
   for (const table of ["audit_log", "sms_opt_outs", "trial_requests", "stripe_events"]) {
     const { count, error } = await supabase
       .from(table)
@@ -442,14 +431,21 @@ export async function purgeCompany(input: {
     if (error) return { ok: false, error: `Could not clear ${table}: ${error.message}.` };
     removed[table] = count ?? 0;
   }
-  // Any profile row left without an auth user behind it (an invite that never became a login).
-  const { count: strayProfiles } = await supabase
-    .from("profiles")
-    .delete({ count: "exact" })
-    .eq("company_id", company.id);
-  removed.stray_profiles = strayProfiles ?? 0;
 
-  // 4. THE COMPANY, which CASCADES the other sixty-two tables.
+  /* 4. THE COMPANY, which CASCADES the other sixty-two tables — AND IT GOES BEFORE THE LOGINS.
+        That order was the other way round until 2026-08-19, when purging Acme failed on a real
+        company with this: "This shift has been finalised and can no longer be edited."
+
+        Deleting an auth user does not just remove a row. Around forty tables carry a user
+        reference with ON DELETE SET NULL, so Postgres UPDATES every one of them — and an update
+        to a finalised on-call log is refused by the lock trigger from 0205, which allows a short
+        list of columns to change and `created_by` is not on it. Four more (incidents.created_by,
+        whistleblowing_disclosures.created_by, and both retention_hold_set_by columns) are NO
+        ACTION, which blocks the delete outright.
+
+        Deleting the company first cascades all of those rows away, so by the time the logins go
+        there is nothing left pointing at them. The guard held and refused to half-erase the
+        company, which is why this was a diagnosis rather than a mess. */
   const { data: gone, error: deleteError } = await supabase
     .from("companies")
     .delete()
@@ -459,14 +455,62 @@ export async function purgeCompany(input: {
   if (!gone || gone.length === 0) return { ok: false, error: "Nothing was deleted." };
   removed.company = 1;
 
+  // 5. THE LOGINS, now that nothing references them.
+  let logins = 0;
+  const loginFailures: string[] = [];
+  for (const p of loginIds) {
+    const { error } = await supabase.auth.admin.deleteUser(p.id);
+    // An auth error can arrive with an empty message (it did: "ppdavies@gmail.com: {}"), which
+    // tells whoever reads it nothing at all. Say whatever the error actually carries.
+    if (error) {
+      const detail =
+        error.message || (error as { name?: string }).name || JSON.stringify(error) || "unknown";
+      loginFailures.push(`${p.email ?? p.id}: ${detail}`);
+    } else logins += 1;
+  }
+  removed.logins = logins;
+
+  // Any profile row left behind (an invite that never became a login, or a failed delete).
+  const strayIds = loginIds.map((p) => p.id);
+  if (strayIds.length) {
+    const { count: strayProfiles } = await supabase
+      .from("profiles")
+      .delete({ count: "exact" })
+      .in("id", strayIds);
+    removed.stray_profiles = strayProfiles ?? 0;
+  } else {
+    removed.stray_profiles = 0;
+  }
+
+  if (loginFailures.length) {
+    /* The company itself has gone by this point, so this is reported as a partial erasure rather
+       than a refusal: saying "nothing was erased" would be a lie, and the tombstone below records
+       exactly what was and was not removed. */
+    return {
+      ok: false,
+      error:
+        `${company.name} was erased, but ${loginFailures.length} login(s) could not be deleted ` +
+        `and are still in the authentication store: ${loginFailures.join("; ")}`,
+    };
+  }
+
   // 5. LOOK AT WHAT IS LEFT. A delete that returned no error is not proof that anything went.
   const leftovers: Record<string, number> = {};
-  for (const table of ["people", "service_users", "evidence", "profiles", "audit_log"]) {
+  for (const table of ["people", "service_users", "evidence", "audit_log"]) {
     const { count } = await supabase
       .from(table)
       .select("*", { count: "exact", head: true })
       .eq("company_id", company.id);
     if ((count ?? 0) > 0) leftovers[table] = count ?? 0;
+  }
+  // Profiles are checked BY ID: their company_id was set to NULL by the company delete, so
+  // counting on company_id here would report a clean sweep no matter what survived.
+  if (strayIds.length) {
+    const { count: profilesLeft } = await supabase
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .in("id", strayIds);
+    if ((profilesLeft ?? 0) > 0) leftovers.profiles = profilesLeft ?? 0;
   }
   for (const bucket of COMPANY_BUCKETS) {
     try {
