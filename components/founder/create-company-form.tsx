@@ -42,6 +42,23 @@ export function CreateCompanyForm() {
           </select>
         </div>
         <div>
+          <label htmlFor="trial_days" className="form-label">
+            Trial days
+          </label>
+          <input
+            id="trial_days"
+            name="trial_days"
+            type="number"
+            min={0}
+            max={365}
+            defaultValue={14}
+          />
+          <p className="form-hint">
+            0 for no trial. A trial covers one branch and two colleagues besides the Admin, and
+            the Admin is told so the moment they sign in.
+          </p>
+        </div>
+        <div>
           <label htmlFor="branch_name" className="form-label">
             First branch name
           </label>

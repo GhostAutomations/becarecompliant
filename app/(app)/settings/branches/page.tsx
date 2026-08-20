@@ -57,8 +57,9 @@ export default async function BranchesPage() {
           Additional branches
         </h2>
         <p className="mt-2 text-sm text-white/60">
-          Extra branches are a paid add on. This arrives with billing in a later
-          phase.
+          Extra branches are a paid add on at £7.50 per branch per month, added to your
+          subscription. Ask us to add one and it appears here. (This used to say billing was
+          coming in a later phase; it arrived.)
         </p>
       </div>
     </div>

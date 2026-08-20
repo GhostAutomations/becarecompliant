@@ -540,3 +540,47 @@ from its options silently saves as **None**. It now compares against the filtere
 
 **The RI keeps everything else**: sees every branch, conducts absence meetings, is bookable on the
 Planner, authors the Reg 73 visit report.
+
+---
+
+## DEF-015 — A company can run over its allowance, with no subscription, and nothing ever says so  ·  FIXED (not yet proven)
+
+**Found by Phil 2026-08-20**, doing the real thing: *"i have added 6 office team members and with
+myself as admin, that is 7, so far i have not setup the subscription or had any challenge about
+paying for extra seats or branches."*
+
+Read off the database: Thistle Care Ltd, **Business** (4 users, 1 branch included), **1 active +
+6 invited** billable users, **2 operational branches**, `subscription_status` **null**.
+
+**Three separate holes, and only the third is arguably deliberate:**
+
+1. **Nothing is said at the point of action.** The invite form takes a fifth, tenth or fiftieth
+   user without a word. The figures existed on **Settings → Billing** and nowhere else, so the
+   only way to learn was to open a page you had no reason to open. Branches, by contrast, already
+   warned ("£7.50 per branch per month is added… tell the customer before you add one") — so half
+   the product had a conscience.
+2. **Nothing ever asks for a subscription.** `trial_ends_at` is NULL on a founder-created company
+   (only the self-serve trial path sets it), so the lapse gate never fires. A tenant can run
+   **indefinitely, free, over allowance**, and the overage is visible only to the founder.
+3. **There is no seat GATE** — and there should not be. A compliance tool must never refuse to add
+   the manager who has to sign something off. "We will not stop you" is right; "we will not tell
+   you" was not.
+
+**Fix:**
+
+- `lib/billing/seat-notice.ts` — pure, 6 tests, including one named for this exact case (1 active,
+  6 invited, 4 included, no subscription → *"3 extra users… £15.00 a month… billing is not set up
+  yet, so nothing is being charged"*).
+- **Settings → Users** carries that line above the invite form. It is careful about a distinction
+  the old screens blurred: **seats are charged on ACTIVE users**, so a pending invitation is not a
+  charge — the notice says what it *will* cost when accepted, not what it costs now.
+- **The dashboard** shows a "Billing is not set up, and you are using N more users and N more
+  branches than your plan includes" bar — **Admins only**, never in a support session, never on
+  Black. A manager mid-audit is not the person to tell, and a founder-granted free tenant should
+  never be asked for a card.
+- The stale Settings → Branches copy ("this arrives with billing in a later phase") now states the
+  real £7.50.
+
+**Deliberately NOT done:** no seat gate, and no trial clock forced onto founder-created tenants.
+Whether a provisioned company should eventually lapse if it never subscribes is a commercial
+decision, not a bug fix — **open for Phil**.

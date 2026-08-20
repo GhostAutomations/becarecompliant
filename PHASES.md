@@ -3301,3 +3301,19 @@ is their BASE, not a limit. Genuinely scoping an RM to one registered service is
 change — `is_company_wide`, the manage-scope transcription beside it, the notification recipient
 normalisation and the readiness scope all read that rule — and it is deliberately NOT done here.
 Phil's call, as its own piece of work with the role boundaries re-proven.
+
+### 2026-08-20 — the product now says what it is about to charge for (DEF-015)
+
+Phil added six office users to a four-user plan, on two branches where one is included, with no
+subscription — and **nothing anywhere said a word**. The figures lived on Settings → Billing and
+nowhere else.
+
+Now: a seat notice above the invite form (pure rule, `lib/billing/seat-notice.ts`, 6 tests) that
+distinguishes **charged-now** from **charged-when-accepted**, because seats count ACTIVE users and
+an invitation costs nothing; a dashboard bar for an Admin — never in support mode, never on Black
+— when there is no subscription; and the stale "billing arrives in a later phase" line on
+Settings → Branches replaced with the real £7.50.
+
+**Still no seat gate, on purpose**: a compliance tool must not refuse to add the manager who signs
+things off. And founder-created tenants still get no trial clock, so nothing lapses — that is a
+commercial decision left open, not an oversight.

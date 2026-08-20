@@ -8,7 +8,10 @@ import RealtimeRefresh from "@/components/realtime-refresh";
 import { InviteForm } from "@/components/settings/invite-form";
 import UserDropdown from "@/components/settings/user-dropdown";
 import type { UserListItem } from "@/components/settings/user-popup";
+import Link from "next/link";
 import ActionForm from "@/components/action-form";
+import { seatNotice } from "@/lib/billing/seat-notice";
+import { includedSeatsForTier, EXTRA_SEAT_PENCE, isBillableSeat } from "@/lib/billing/seats";
 import {
   addInviteDomain,
   removeInviteDomain,
@@ -70,7 +73,7 @@ export default async function UsersPage() {
         .order("created_at", { ascending: false }),
       supabase
         .from("companies")
-        .select("invite_email_domains")
+        .select("invite_email_domains, tier")
         .eq("id", companyId)
         .maybeSingle(),
     ]);
@@ -112,6 +115,28 @@ export default async function UsersPage() {
   const pending = invites ?? [];
   // Created but never sent: the person does not know they have an account.
   const heldCount = pending.filter((i) => !i.email_sent_at).length;
+
+  /* What the invitations already sent will cost when they are accepted. Seats are counted on
+     ACTIVE users, so a pending invite is not a charge yet — the notice says so rather than
+     pretending an invitation is a bill. */
+  const activeBillable = (users ?? []).filter(
+    (u) => u.status === "active" && isBillableSeat(u.role),
+  ).length;
+  const pendingBillable = pending.filter((i) => isBillableSeat(i.role)).length;
+  const { data: billingRow } = await supabase
+    .from("company_billing")
+    .select("subscription_status")
+    .eq("company_id", companyId)
+    .maybeSingle();
+  const notice = seatNotice({
+    activeUsers: activeBillable,
+    pendingInvites: pendingBillable,
+    included: includedSeatsForTier((company?.tier as string) ?? "business"),
+    extraSeatPence: EXTRA_SEAT_PENCE,
+    hasSubscription: ["active", "trialing", "past_due"].includes(
+      (billingRow as { subscription_status?: string | null } | null)?.subscription_status ?? "",
+    ),
+  });
 
   const branchOptions = activeBranches
     .filter((b) => b.kind === "branch")
@@ -168,6 +193,22 @@ export default async function UsersPage() {
           or change roles.
         </p>
       </div>
+
+      {/* SAID BEFORE THE INVITE, NOT AFTER THE INVOICE (Phil, 2026-08-20). Six office users were
+          added to a four-user plan and nothing anywhere mentioned it: the figures lived on
+          Settings > Billing and nowhere else. There is deliberately still no seat GATE — a
+          compliance tool must never refuse to add the manager who has to sign things off. */}
+      {notice.show ? (
+        <div className="rounded-2xl border border-gold-400/40 bg-gold-400/10 px-5 py-4">
+          <p className="text-sm text-gold-100">{notice.message}</p>
+          <Link
+            href="/settings/billing"
+            className="mt-2 inline-block text-xs text-gold-300 hover:underline"
+          >
+            See your plan and billing
+          </Link>
+        </div>
+      ) : null}
 
       <section className="glass-card p-6">
         <h2 className="text-base font-semibold text-white">Invite a person</h2>

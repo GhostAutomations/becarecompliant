@@ -78,6 +78,13 @@ export async function createCompany(
   const regulator = String(formData.get("regulator") ?? "").trim();
   // Delayed invite: create the Admin's account, tell them when the tenant is ready for them.
   const holdEmail = String(formData.get("hold_email") ?? "") === "1";
+  /* THE TRIAL CLOCK, chosen here (Phil, 2026-08-20). Founder-created companies had none at all,
+     so nothing ever lapsed and nothing ever asked for a card. 0 means no trial: a company set up
+     as an already-paying customer, or a Black account. */
+  const trialDaysRaw = Number(formData.get("trial_days") ?? 0);
+  const trialDays = Number.isFinite(trialDaysRaw)
+    ? Math.max(0, Math.min(365, Math.trunc(trialDaysRaw)))
+    : 0;
 
   if (!name) return { error: "Enter a company name." };
   // A UK care provider answers to one of two regulators and there is no third answer, so this
@@ -99,7 +106,21 @@ export async function createCompany(
 
   const { data: company, error: companyErr } = await supabase
     .from("companies")
-    .insert({ name, slug, tier, regulator })
+    .insert({
+      name,
+      slug,
+      tier,
+      regulator,
+      /* Absolute time, not civil dates: a trial is a fixed length from the moment it is granted
+         (see lib/billing/trial.ts). Both columns or neither — trial_ends_at alone is what the
+         lock reads, and trial_started_at is what tells you when it began. */
+      ...(trialDays > 0
+        ? {
+            trial_started_at: new Date().toISOString(),
+            trial_ends_at: new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000).toISOString(),
+          }
+        : {}),
+    })
     .select("id, name")
     .single();
   if (companyErr) {
@@ -178,6 +199,9 @@ export async function createCompany(
   });
 
   let note = `Company ${name} created with its Team and first Branch.`;
+  if (trialDays > 0) {
+    note += ` It is on a ${trialDays} day trial, covering one branch and two colleagues besides the Admin.`;
+  }
   if (seedErr) {
     note += ` The starter forms could not be seeded: ${seedErr.message}`;
   } else {

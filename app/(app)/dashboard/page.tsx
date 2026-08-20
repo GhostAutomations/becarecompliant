@@ -8,6 +8,12 @@ import RealtimeRefresh from "@/components/realtime-refresh";
 import { getUrgentFollowUps } from "@/lib/on-call/data";
 import { shiftLabel } from "@/lib/on-call/format";
 import { featureEnabled } from "@/lib/billing/tier";
+import BillingAttention from "@/components/billing/billing-attention";
+import {
+  isBillableSeat,
+  includedSeatsForTier,
+  includedBranchesForTier,
+} from "@/lib/billing/seats";
 import { PLANNER_ROLES } from "@/lib/planner/data";
 import { defaultOnTimeWindow } from "@/lib/export/on-time";
 import { getComplaintCounts } from "@/lib/complaints/data";
@@ -594,6 +600,48 @@ export default async function DashboardPage() {
     subtitle = "You are managing this company for support. Its compliance overview is below.";
   }
 
+  /* Billing attention (2026-08-20). Only an Admin sees it: it is the only role that can do
+     anything about it, and the support session is excluded because the founder is not the
+     person to tell. */
+  const showsBilling = profile.role === "company_admin" && !profile.actingAsCompanyId;
+  let billingMessage: string | null = null;
+  if (showsBilling) {
+    const [{ data: co }, { data: bill }, { data: userRows }, { data: branchRows }] =
+      await Promise.all([
+        supabase.from("companies").select("tier").eq("id", companyId).maybeSingle(),
+        supabase
+          .from("company_billing")
+          .select("subscription_status")
+          .eq("company_id", companyId)
+          .maybeSingle(),
+        supabase.from("profiles").select("role, status").eq("company_id", companyId),
+        supabase.from("branches").select("kind").eq("company_id", companyId).eq("status", "active"),
+      ]);
+    const tier = ((co as { tier?: string } | null)?.tier ?? "business") as string;
+    const live = ["active", "trialing", "past_due"].includes(
+      (bill as { subscription_status?: string | null } | null)?.subscription_status ?? "",
+    );
+    // Black is founder-granted and free: never ask them for a card.
+    if (!live && tier !== "black") {
+      const activeBillable = ((userRows ?? []) as { role: string; status: string }[]).filter(
+        (u) => u.status === "active" && isBillableSeat(u.role),
+      ).length;
+      const branchCount = ((branchRows ?? []) as { kind: string | null }[]).filter(
+        (b) => b.kind === "branch",
+      ).length;
+      const extraSeats = Math.max(0, activeBillable - includedSeatsForTier(tier));
+      const extraBranches = Math.max(0, branchCount - includedBranchesForTier(tier));
+      const parts: string[] = [];
+      if (extraSeats > 0) parts.push(`${extraSeats} more ${extraSeats === 1 ? "user" : "users"}`);
+      if (extraBranches > 0) {
+        parts.push(`${extraBranches} more ${extraBranches === 1 ? "branch" : "branches"}`);
+      }
+      billingMessage = parts.length
+        ? `Billing is not set up, and you are using ${parts.join(" and ")} than your plan includes.`
+        : "Billing is not set up for this account yet.";
+    }
+  }
+
   const companyWide = MANAGER_PLUS_ROLES.includes(profile.role);
   // The report viewer admits exactly these roles, so nothing else is given a link into it.
   const canOpenReports = MANAGER_PLUS_ROLES.includes(profile.role);
@@ -695,6 +743,8 @@ export default async function DashboardPage() {
         tables={["service_users", "check_instances", "service_user_trackers"]}
         channel="service-users-live"
       />
+
+      {billingMessage ? <BillingAttention message={billingMessage} /> : null}
 
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
