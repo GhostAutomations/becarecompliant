@@ -3350,3 +3350,19 @@ The throwaway was then deleted and purged through the founder console — `purge
 logins gone, no leftovers — leaving **Thistle Care Ltd** (the pilot) and **Bevan Care Ltd** (the
 deliberately empty cross-tenant attacker) as the only companies on the platform.
 
+### 2026-08-20 — branches read in the order they cost money
+
+Phil, on the Settings → Branches screen: "put office team at the top, then the included branch,
+then any chargeble branches." The old order was alphabetical by kind, which buried the office at
+the BOTTOM because "branch" sorts before "team" — nobody had chosen that.
+
+Fixing the order forced a decision the product had never actually made: **which** branch is the
+one the tier includes. Billing only ever counted them (count minus included), correct on the
+invoice and invisible on screen. The rule is now oldest-first — the branch they have had longest
+is the included one — so opening a new branch never silently reclassifies one they already had.
+`lib/branches/ordering.ts`, pure, 11 tests including the upgrade case (Business → Pro relabels
+without reordering) and the Black case (nothing is ever chargeable).
+
+The screen now says it out loud: an "Included in your plan" pill, a "£7.50 a month" pill on the
+extra ones, and a total underneath. A customer could not previously tell what the £7.50 was for.
+
