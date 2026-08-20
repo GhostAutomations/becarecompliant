@@ -609,9 +609,16 @@ want to add more seats or branches, they need to sign up and commit."*
 
 **THIS IS THE ONE PLACE THE PRODUCT SAYS NO ABOUT SEATS, and it is deliberate.** Everywhere else
 the rule is the opposite (DEF-015): a compliance tool must never refuse to add the manager who has
-to sign something off. A trial is different — it is a taster with a commercial edge, and the edge
-is the reason to subscribe. **Every refusal names the way out**, and the moment a card is added
-the limits vanish and the seat NOTICE takes over from the seat LIMIT.
+to sign something off.
+
+**Phil ratified the principle in one line, 2026-08-20, and it is the test for anything like this
+in future: "the trial is the exception because they are not a customer yet."** A customer is never
+blocked from running their service properly, whatever the invoice ends up saying; somebody still
+deciding is a different case, because for them the limit IS the offer.
+
+**Every refusal names the way out**, and the moment a card is added the limits vanish and the seat
+NOTICE takes over from the seat LIMIT. **Confirmed by Phil: two invites PLUS the Admin** — three
+logins on a trial.
 
 **Not applied retrospectively.** Thistle Care Ltd has no trial dates (it was created before this
 existed) and is unaffected — it is the pilot and is going to subscribe for real. Existing tenants

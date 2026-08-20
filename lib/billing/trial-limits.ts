@@ -9,9 +9,14 @@
  *
  * SO THIS IS THE ONE PLACE THE PRODUCT SAYS NO, and it is deliberate. Everywhere else the rule
  * is the opposite: a compliance tool must never refuse to add the manager who has to sign
- * something off (see lib/billing/seat-notice.ts). A trial is different — it is a taster with a
- * commercial edge, and the edge is the reason to subscribe. The moment a card is on the account
- * the limits vanish and the seat NOTICE takes over from the seat LIMIT.
+ * something off (see lib/billing/seat-notice.ts).
+ *
+ * PHIL'S RULE, 2026-08-20, and it is the test to apply to anything like this in future:
+ * **"the trial is the exception because they are not a customer yet."**
+ *
+ * A customer is never blocked from running their service properly, whatever the invoice ends up
+ * saying. Somebody still deciding is a different case: the limit IS the offer. The moment a card
+ * is on the account the limits vanish and the seat NOTICE takes over from the seat LIMIT.
  *
  * A refusal here must always name the way out, because the way out is the point.
  */
