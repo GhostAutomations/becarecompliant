@@ -53,16 +53,19 @@ export function picksABranch(role: string): boolean {
 export const ALL_BRANCHES = "all";
 
 /**
- * Roles that may be offered "All branches" as a CHOICE on the invite form.
+ * Who may be offered "All branches" as a CHOICE on the invite form: **everybody who picks a
+ * branch at all** (Phil, 2026-08-19, after asking for it for the Registered Manager first and
+ * then for every role). It is never the default — the picker still opens on "Choose a branch".
  *
- * Phil, 2026-08-19: a Registered Manager should have the option, **but not as the default** —
- * some run every branch, some run one service. So it sits in the list beside the branches and
- * they pick deliberately, like everything else on that form.
+ * What it MEANS depends on the role, and the difference is not cosmetic:
+ *   * For a company wide role (Registered Manager) nothing is written — they already reach
+ *     every branch through is_company_wide.
+ *   * For a scoped role (Branch Manager, Supervisor, On Call, Viewer) it writes a
+ *     `user_branches` row for EVERY active branch, because for them reach comes from those rows.
+ *     That is the same thing the Users screen calls "additional branches", done up front.
  */
-export const MAY_CHOOSE_ALL_BRANCHES = ["registered_manager"] as const;
-
 export function mayChooseAllBranches(role: string): boolean {
-  return (MAY_CHOOSE_ALL_BRANCHES as readonly string[]).includes(role);
+  return picksABranch(role);
 }
 
 /**

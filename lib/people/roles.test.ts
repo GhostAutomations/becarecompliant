@@ -42,12 +42,14 @@ test("PHIL'S CORRECTION: a Registered Manager picks a branch, because they may r
   assert.equal(picksABranch("company_admin"), false);
 });
 
-test("a Registered Manager may CHOOSE all branches, and nobody else is offered it", () => {
-  // Phil, 2026-08-19: the option exists for the RM, but it is never the default.
-  assert.equal(mayChooseAllBranches("registered_manager"), true);
-  for (const role of ["manager", "supervisor", "on_call", "team_member", "company_admin"]) {
-    assert.equal(mayChooseAllBranches(role), false, role);
+test("every role that picks a branch may CHOOSE all branches, and it is never the default", () => {
+  // Phil, 2026-08-19: asked for it on the Registered Manager, then for every role.
+  for (const role of ["registered_manager", "manager", "supervisor", "on_call", "team_member"]) {
+    assert.equal(mayChooseAllBranches(role), true, role);
   }
+  // The two that never pick a branch are not "offered" it — their field already says All.
+  assert.equal(mayChooseAllBranches("company_admin"), false);
+  assert.equal(mayChooseAllBranches("registered_individual"), false);
 });
 
 test("the all-branches value is not an empty string", () => {

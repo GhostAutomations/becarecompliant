@@ -153,6 +153,7 @@ export async function inviteUser(
     // NULL for a company wide role, whatever the form posted: nothing should record them as
     // belonging to one branch.
     branchId: noBranch ? null : branchId,
+    allBranches: choseAll,
     email,
     fullName,
     role,

@@ -98,6 +98,12 @@ export function InviteForm({ branches }: { branches: BranchOption[] }) {
               ))}
             </select>
           )}
+          {mayChooseAllBranches(role) ? (
+            <p className="form-hint">
+              Pick one branch, or All branches for somebody who covers every site. You can change
+              it later on this screen.
+            </p>
+          ) : null}
         </div>
       </div>
 

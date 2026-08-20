@@ -509,8 +509,21 @@ change — `is_company_wide`, the `manage-scope` transcription beside it, the no
 normalisation and the readiness scope all read that rule — and it is NOT done. **Open question for
 Phil.**
 
-**Refined again, same evening (Phil): "for RM there should be an option for all branches but not
-default."** So the Registered Manager's branch picker now carries **All branches** as an option
+**Refined twice more, same evening (Phil): "for RM there should be an option for all branches but
+not default", then "have all branch option for all roles."** So **every role that picks a branch**
+is offered **All branches** in the picker, never preselected.
+
+**What it means depends on the role, and that difference is the whole job:**
+
+- **Company wide (Registered Manager)** — nothing is written. They already reach every branch
+  through `is_company_wide`.
+- **Scoped (Branch Manager, Supervisor, On Call, Viewer)** — a `user_branches` row is written for
+  **every active branch**, because for them reach IS those rows. Writing nothing would have handed
+  a Branch Manager an account that could see **nothing at all** — the exact opposite of what the
+  words on the form say. One row is marked primary (it drives the branch auto-fill on Add person),
+  preferring an operational branch over the office team row, because that is where her people are.
+
+**Original wording of this correction:** So the Registered Manager's branch picker now carries **All branches** as an option
 sitting beside the real branches, and the picker still opens on "Choose a branch" — they pick
 deliberately, one way or the other. Nobody else is offered it, and the server refuses an
 `all` posted by a role that may not choose it, so a hand-crafted form cannot mint an unscoped

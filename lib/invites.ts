@@ -5,7 +5,7 @@ import { isSendableAddress, sendEmail } from "@/lib/email/resend";
 import { isEmailDomainAllowed, inviteDomainRefusal } from "@/lib/invite-domains";
 import { inviteEmailHtml, inviteSubject } from "@/lib/email/templates";
 import { writeAudit } from "@/lib/audit";
-import { picksABranch } from "@/lib/people/roles";
+import { picksABranch, isCompanyWideRole } from "@/lib/people/roles";
 import { siteUrl } from "@/lib/site";
 import { ROLE_LABELS } from "@/lib/nav";
 
@@ -43,6 +43,13 @@ export type InviteParams = {
    * untouched by the feature. An empty array means the same as unset: off.
    */
   enforceEmailDomains?: readonly string[];
+  /**
+   * "All branches" was chosen on the invite form. For a company wide role nothing is written
+   * (they already reach everything); for a SCOPED role — Branch Manager, Supervisor, On Call,
+   * Viewer — a user_branches row is written for every active branch, because for them reach
+   * comes from exactly those rows and nowhere else.
+   */
+  allBranches?: boolean;
   /**
    * DELAYED INVITES (Phil, 2026-08-19). Set false to create the invitation without telling
    * anybody about it: the account, the invites row and the branch row are all made exactly as
@@ -274,7 +281,30 @@ export async function createAndSendInvite(
     return { ok: false, error: `The invitation could not be recorded: ${promoteErr.message}` };
   }
 
-  if (p.branchId && picksABranch(p.role)) {
+  if (p.allBranches && picksABranch(p.role) && !isCompanyWideRole(p.role)) {
+    /* EVERY ACTIVE BRANCH, because a scoped role's reach IS its user_branches rows. Giving a
+       Branch Manager "all branches" and writing nothing would have handed her an account that
+       can see nothing at all — the opposite of what the words on the form say.
+       One row is primary (it drives the branch auto-fill on Add person); an operational branch
+       is preferred over the office team row, because that is where her people are. */
+    const { data: allBranchRows } = await admin
+      .from("branches")
+      .select("id, kind")
+      .eq("company_id", p.companyId)
+      .eq("status", "active");
+    const rows = (allBranchRows ?? []) as { id: string; kind: string | null }[];
+    if (rows.length) {
+      const primary = rows.find((b) => b.kind === "branch") ?? rows[0];
+      await admin.from("user_branches").upsert(
+        rows.map((b) => ({
+          user_id: link.userId,
+          branch_id: b.id,
+          is_primary: b.id === primary.id,
+        })),
+        { onConflict: "user_id,branch_id" },
+      );
+    }
+  } else if (p.branchId && picksABranch(p.role)) {
     /* The invited branch is the user's primary branch (drives auto-fill). Additional branch
        views are added later from the Users screen.
        A COMPANY ADMIN AND A RESPONSIBLE INDIVIDUAL GET NO ROW (2026-08-19): neither belongs to
