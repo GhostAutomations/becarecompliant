@@ -3334,3 +3334,19 @@ never refuse to add the manager who signs things off. Every refusal names the wa
 a card removes the limits entirely.
 
 Thistle is unaffected: it predates this and has no trial dates.
+
+### 2026-08-20 — the trial model proved on the artefact, and the throwaway purged
+
+The trial limits were run on a real throwaway tenant rather than trusted from the unit tests, and
+that immediately found DEF-016: the seat count treated an invited Admin as two people (a profile
+row AND an invitation), so a trial refused the second colleague instead of the third. Fixed to
+count ACTIVE profiles only, with pending invitations covering everyone who has not accepted.
+
+Re-run live afterwards: the second colleague went in, the third was refused with wording that
+names the way out, and the database held exactly three invites and three profiles with nothing
+written for the refused address.
+
+The throwaway was then deleted and purged through the founder console — `purge_error` null, three
+logins gone, no leftovers — leaving **Thistle Care Ltd** (the pilot) and **Bevan Care Ltd** (the
+deliberately empty cross-tenant attacker) as the only companies on the platform.
+

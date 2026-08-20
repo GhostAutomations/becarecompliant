@@ -648,3 +648,18 @@ green unit tests sail straight past, and exactly why this phase judges things on
 **Fix:** count **ACTIVE** profiles only, and let pending invitations account for everyone who has
 not accepted. A test now pins the case: a fresh trial with two outstanding invitations (the Admin
 and one colleague) must still allow the second colleague, and refuse the third.
+
+**Re-proved live on the artefact, 2026-08-20, on the same throwaway (`Trial Test Ltd`, 14-day
+trial, Admin invited and not accepted, one colleague already invited):**
+
+- Second colleague — **accepted**: *"Trial Colleague Two has been added. Nothing has been emailed
+  — press Send invite below when you are ready."*
+- Third colleague — **refused, naming the way out**: *"A trial includes you and 2 colleagues, and
+  you have used all 3. Add a card to invite the rest of your team — everything you have set up so
+  far stays exactly as it is."*
+- Database after: exactly **3 invites** (Admin + 2 colleagues) and **3 profiles**, and **no row of
+  any kind** for the refused third address. The refusal wrote nothing.
+
+The throwaway was then deleted and purged from the founder console: `purge_error` null, 3 logins
+removed, 0 leftover profiles / invites / audit rows, and the platform is back to **Thistle Care Ltd
+and Bevan Care Ltd**.
