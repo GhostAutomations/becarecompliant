@@ -623,3 +623,28 @@ logins on a trial.
 **Not applied retrospectively.** Thistle Care Ltd has no trial dates (it was created before this
 existed) and is unaffected — it is the pilot and is going to subscribe for real. Existing tenants
 with NULL trial dates keep behaving exactly as they did.
+
+---
+
+## DEF-016 — The trial seat limit counted the Admin twice  ·  FIXED (found by testing the fix that introduced it)
+
+**Found 2026-08-20**, an hour after building the trial limits, by running them on a real throwaway
+company rather than trusting the unit tests.
+
+A fresh trial (`Trial Test Ltd`, 14 days, Admin invited and not yet accepted) refused the **second**
+colleague, not the third:
+
+> A trial includes you and 2 colleagues, and you have used all 3.
+
+**Why:** every pending invitation ALSO has a profile row with `status = 'invited'` —
+`createAndSendInvite` promotes the profile as part of sending. The call site counted profiles that
+were "not disabled" (which includes `invited`) **and** pending invites, so the Admin was counted
+once as a profile and once as an invitation. One seat too tight, on every trial, from the first
+invite.
+
+The pure rule was right; the caller fed it the wrong numbers — which is exactly the kind of thing
+green unit tests sail straight past, and exactly why this phase judges things on the artefact.
+
+**Fix:** count **ACTIVE** profiles only, and let pending invitations account for everyone who has
+not accepted. A test now pins the case: a fresh trial with two outstanding invitations (the Admin
+and one colleague) must still allow the second colleague, and refuse the third.

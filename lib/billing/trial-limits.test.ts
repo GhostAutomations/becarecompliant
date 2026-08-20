@@ -27,6 +27,17 @@ test("a trial company may invite two people, and is refused the third", () => {
   assert.match(String(refusal), /Add a card/);
 });
 
+test("THE DOUBLE COUNT, found live: an invited Admin is one person, not two", () => {
+  /* Every pending invitation also has a profile row with status 'invited'. Counting "not
+     disabled" profiles AND pending invites made a fresh trial — Admin invited, one colleague
+     invited — read as 3 of 3 used, and refused the second colleague. Callers must pass ACTIVE
+     profiles only. */
+  const freshTrial = { onTrial: true, activeBillable: 0, pendingBillable: 2 };
+  assert.equal(trialInviteRefusal(freshTrial), null);
+  // And the third is still refused.
+  assert.notEqual(trialInviteRefusal({ ...freshTrial, pendingBillable: 3 }), null);
+});
+
 test("pending invitations count, or the limit means nothing", () => {
   // Ten invitations that all land tomorrow would otherwise sail past a limit on active users.
   assert.notEqual(trialInviteRefusal({ onTrial: true, activeBillable: 1, pendingBillable: 5 }), null);

@@ -143,8 +143,13 @@ export async function inviteUser(
     ]);
     const refusal = trialInviteRefusal({
       onTrial: true,
+      /* ACTIVE ONLY, and this is not fussiness: every pending invitation ALSO has a profile row
+         with status 'invited' (createAndSendInvite promotes it), so counting "not disabled" here
+         and pending invites below counted the same person twice. Live proof, 2026-08-20: a fresh
+         trial with only the Admin's own invitation outstanding refused the SECOND colleague
+         instead of the third. */
       activeBillable: ((seatRows ?? []) as { role: string; status: string }[]).filter(
-        (u) => u.status !== "disabled" && isBillableSeat(u.role),
+        (u) => u.status === "active" && isBillableSeat(u.role),
       ).length,
       pendingBillable: ((pendingRows ?? []) as { role: string }[]).filter((i) =>
         isBillableSeat(i.role),
