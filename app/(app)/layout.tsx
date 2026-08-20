@@ -11,6 +11,7 @@ import { ROLE_LABELS, navEntriesForRole } from "@/lib/nav";
 import { featureEnabled } from "@/lib/billing/tier";
 import { getCompanyTrialState } from "@/lib/billing/trial-gate";
 import { trialDaysLabel } from "@/lib/billing/trial";
+import { trialNotice } from "@/lib/billing/trial-limits";
 
 export default async function AppLayout({
   children,
@@ -218,6 +219,28 @@ export default async function AppLayout({
 
         {actingCompanyName ? (
           <ManageAsBanner companyName={actingCompanyName} />
+        ) : null}
+
+        {/* SAID FROM THE FIRST LOGIN, not three days from the end (Phil, 2026-08-20: "when an
+            admin first logins in to a founder setup company, they should be told it is a trial,
+            and that payment details are required"). A customer who finds out on day 12 that this
+            was a trial has been misled by silence, however true the small print was. The last
+            three days keep their sharper wording. */}
+        {trial?.status === "trialing" ? (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-gold-400/25 bg-gold-400/[0.08] px-4 py-2 text-sm md:px-8">
+            <span className="font-semibold text-gold-200">
+              {trialDaysLabel(trial.daysLeft)}
+            </span>
+            <span className="text-gold-100/80">{trialNotice(trial.daysLeft)}</span>
+            {canBill ? (
+              <Link
+                href="/settings/billing"
+                className="font-medium text-gold-200 underline decoration-gold-200/40 hover:text-white"
+              >
+                Add payment details
+              </Link>
+            ) : null}
+          </div>
         ) : null}
 
         {trial?.status === "ending_soon" ? (

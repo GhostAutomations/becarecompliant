@@ -27,6 +27,8 @@ import {
   trialRequestStatusLabel,
 } from "@/lib/founder/trial-requests";
 import { trialDomainFor } from "@/lib/founder/trial-matching";
+import { trialState } from "@/lib/billing/trial";
+import { trialBranchRefusal } from "@/lib/billing/trial-limits";
 import {
   softDeleteCompany,
   restoreCompany,
@@ -1132,6 +1134,28 @@ export async function addBranch(
   if (!name) return { error: "Enter a branch name." };
 
   const supabase = await createClient();
+
+  /* THE TRIAL LIMIT (Phil, 2026-08-20): a trial covers one branch. Enforced here because
+     branches are founder-added, so this IS the door. It refuses rather than silently billing a
+     company that has not agreed to pay for anything yet — and the refusal names the way out. */
+  const { data: trialCo } = await supabase
+    .from("companies")
+    .select("tier, trial_ends_at")
+    .eq("id", companyId)
+    .maybeSingle();
+  const trial = trialState({
+    trialEndsAt: (trialCo as { trial_ends_at?: string | null } | null)?.trial_ends_at ?? null,
+    tier: (trialCo as { tier?: string | null } | null)?.tier ?? undefined,
+  });
+  if (trial.status !== "none") {
+    const { count: branchCount } = await supabase
+      .from("branches")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId)
+      .eq("kind", "branch");
+    const refusal = trialBranchRefusal({ onTrial: true, branchCount: branchCount ?? 0 });
+    if (refusal) return { error: `${refusal} (They are on a trial.)` };
+  }
 
   // Refuse a duplicate NAME rather than letting two "Cardiff1" branches exist: every register,
   // every import and every report identifies a branch to a human by its name.

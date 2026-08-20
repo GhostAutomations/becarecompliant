@@ -584,3 +584,35 @@ Read off the database: Thistle Care Ltd, **Business** (4 users, 1 branch include
 **Deliberately NOT done:** no seat gate, and no trial clock forced onto founder-created tenants.
 Whether a provisioned company should eventually lapse if it never subscribes is a commercial
 decision, not a bug fix — **open for Phil**.
+
+---
+
+## Trial model for founder-created companies (Phil, 2026-08-20)  ·  BUILT (not yet proven)
+
+Not a defect — a decision, taken while looking at DEF-015. Phil: *"when founder adds a company, he
+can choose the number of trial days, when an admin first logins in to a founder setup company,
+they should be told it is a trial, and that payment details are required. for a trial on one
+branch and 2 invites should be sent, we want them to trial the product and get a taster, if they
+want to add more seats or branches, they need to sign up and commit."*
+
+**Built:**
+
+- **Trial days on Create a company**, default 14, 0 for none. It writes `trial_started_at` and
+  `trial_ends_at` — the same single column the existing lock reads, so nothing new decides access.
+- **A trial is one branch and two colleagues besides the Admin** (`lib/billing/trial-limits.ts`,
+  pure, 7 tests). Enforced on the invite form (counting **accepted AND pending** — ten invitations
+  that all land tomorrow would otherwise sail past the limit) and on the founder's Add a branch,
+  which is where branches actually come from.
+- **Told from the FIRST login**, not three days from the end: the banner now runs for the whole
+  trial, saying what it covers and that payment details are needed to carry on, with "nothing is
+  charged until you add them". The sharper last-three-days wording is unchanged.
+
+**THIS IS THE ONE PLACE THE PRODUCT SAYS NO ABOUT SEATS, and it is deliberate.** Everywhere else
+the rule is the opposite (DEF-015): a compliance tool must never refuse to add the manager who has
+to sign something off. A trial is different — it is a taster with a commercial edge, and the edge
+is the reason to subscribe. **Every refusal names the way out**, and the moment a card is added
+the limits vanish and the seat NOTICE takes over from the seat LIMIT.
+
+**Not applied retrospectively.** Thistle Care Ltd has no trial dates (it was created before this
+existed) and is unaffected — it is the pilot and is going to subscribe for real. Existing tenants
+with NULL trial dates keep behaving exactly as they did.

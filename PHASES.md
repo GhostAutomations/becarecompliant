@@ -3317,3 +3317,20 @@ Settings → Branches replaced with the real £7.50.
 **Still no seat gate, on purpose**: a compliance tool must not refuse to add the manager who signs
 things off. And founder-created tenants still get no trial clock, so nothing lapses — that is a
 commercial decision left open, not an oversight.
+
+### 2026-08-20 — founder-created companies get a real trial
+
+Phil's model: the founder picks the trial length; the Admin is told it is a trial **at first
+login**, not near the end; a trial covers **one branch and two colleagues besides the Admin**; and
+anybody wanting more seats or branches subscribes.
+
+Built as `lib/billing/trial-limits.ts` (pure, 7 tests) plus a Trial days field on Create a company
+(default 14, 0 for none) writing the same `trial_ends_at` the existing lock already reads. The
+invite limit counts accepted AND pending invitations; the branch limit sits on the founder's Add a
+branch, which is where branches come from. The trial banner now runs for the whole trial.
+
+**The one place the product refuses on seats, on purpose** — everywhere else (DEF-015) it must
+never refuse to add the manager who signs things off. Every refusal names the way out, and adding
+a card removes the limits entirely.
+
+Thistle is unaffected: it predates this and has no trial dates.

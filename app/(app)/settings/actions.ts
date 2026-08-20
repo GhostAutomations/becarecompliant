@@ -22,6 +22,9 @@ import {
 } from "@/lib/invite-domains";
 import type { ActionState } from "@/lib/forms";
 import { picksABranch, mayChooseAllBranches, ALL_BRANCHES } from "@/lib/people/roles";
+import { trialState } from "@/lib/billing/trial";
+import { trialInviteRefusal } from "@/lib/billing/trial-limits";
+import { isBillableSeat } from "@/lib/billing/seats";
 
 const INVITABLE_ROLES: InviteRole[] = [
   "registered_individual",
@@ -119,6 +122,36 @@ export async function inviteUser(
   }
 
   const supabase = await createClient();
+
+  /* THE TRIAL LIMIT (Phil, 2026-08-20): a trial is the Admin and two colleagues. This is the one
+     place the product says no about seats, and it always names the way out. Read the trial state
+     from the same single column the lock reads (companies.trial_ends_at) — a subscription clears
+     it, so a paying company is never refused. */
+  const { data: trialCo } = await supabase
+    .from("companies")
+    .select("tier, trial_ends_at")
+    .eq("id", ctx.companyId)
+    .maybeSingle();
+  const trial = trialState({
+    trialEndsAt: (trialCo as { trial_ends_at?: string | null } | null)?.trial_ends_at ?? null,
+    tier: (trialCo as { tier?: string | null } | null)?.tier ?? undefined,
+  });
+  if (trial.status !== "none") {
+    const [{ data: seatRows }, { data: pendingRows }] = await Promise.all([
+      supabase.from("profiles").select("role, status").eq("company_id", ctx.companyId),
+      supabase.from("invites").select("role").eq("company_id", ctx.companyId).eq("status", "pending"),
+    ]);
+    const refusal = trialInviteRefusal({
+      onTrial: true,
+      activeBillable: ((seatRows ?? []) as { role: string; status: string }[]).filter(
+        (u) => u.status !== "disabled" && isBillableSeat(u.role),
+      ).length,
+      pendingBillable: ((pendingRows ?? []) as { role: string }[]).filter((i) =>
+        isBillableSeat(i.role),
+      ).length,
+    });
+    if (refusal) return { error: refusal };
+  }
 
   // The branch must belong to the admin's company (defence in depth over RLS). Skipped for a
   // company wide role, which has no branch to check — and a stray branch_id posted with one is
