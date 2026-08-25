@@ -14,7 +14,8 @@ import { useRouter } from "next/navigation";
 import { NavIcon } from "@/components/nav-icon";
 import RegisterMatrix from "./register-matrix";
 import ColumnsPanel from "@/components/register/columns-panel";
-import type { RegisterRow } from "@/lib/people/types";
+import { toneClass, type Tone } from "@/components/register/pill-select";
+import { WORKING_STATUS_LABELS, type RegisterRow } from "@/lib/people/types";
 import type { BranchLite } from "@/lib/people/data";
 import { MAX_REGISTER_COLUMNS, type RegisterCheckColumn } from "@/lib/register/custom-columns";
 
@@ -203,18 +204,98 @@ export default function PeopleRegister({
             )}
           </div>
         ) : (
-          <RegisterMatrix
-            rows={filtered}
-            config={config}
-            editable={canManage}
-            columnLabels={columnLabels}
-            extraColumns={shownColumns}
-            columnText={columnText}
-            scope={meta.scope}
-            returnTo={urlFor(view, branchId)}
-          />
+          <>
+            {/* Desktop (>= md): the full compliance matrix, scrolled sideways within
+                its own box. */}
+            <div className="hidden h-full min-h-0 md:flex md:flex-col">
+              <RegisterMatrix
+                rows={filtered}
+                config={config}
+                editable={canManage}
+                columnLabels={columnLabels}
+                extraColumns={shownColumns}
+                columnText={columnText}
+                scope={meta.scope}
+                returnTo={urlFor(view, branchId)}
+              />
+            </div>
+            {/* Mobile: one stacked card per person — scroll DOWN, never sideways.
+                Editing happens on the record (one tap away). */}
+            <PeopleCards rows={filtered} returnTo={urlFor(view, branchId)} />
+          </>
         )}
       </div>
+    </div>
+  );
+}
+
+function workingTone(v: string | null): Tone {
+  if (v === "active") return "green";
+  if (v === "mat_leave" || v === "lts") return "amber";
+  if (v === "leaver") return "red";
+  return "neutral";
+}
+
+/** Rolls the recurring-check RAGs up into overdue / due-soon counts for the card. */
+function ragCounts(row: RegisterRow): { red: number; amber: number } {
+  let red = 0;
+  let amber = 0;
+  for (const s of Object.values(row.statusByKey)) {
+    if (s?.rag === "red") red += 1;
+    else if (s?.rag === "amber") amber += 1;
+  }
+  return { red, amber };
+}
+
+/** Mobile-only stacked cards for the People register. */
+function PeopleCards({ rows, returnTo }: { rows: RegisterRow[]; returnTo: string }) {
+  const fromQuery = `?from=${encodeURIComponent(returnTo)}`;
+  return (
+    <div className="md:hidden">
+      {rows.map((row) => {
+        const p = row.person;
+        const { red, amber } = ragCounts(row);
+        const meta = [p.job_title, p.branch_name, p.team].filter(Boolean);
+        return (
+          <Link
+            key={p.id}
+            href={`/people/${p.id}${fromQuery}`}
+            className="record-card glass-card-hover"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <span className="min-w-0 truncate text-base font-semibold text-white">
+                {p.full_name}
+              </span>
+              <span className={toneClass(workingTone(p.employment_status))}>
+                {WORKING_STATUS_LABELS[p.employment_status as keyof typeof WORKING_STATUS_LABELS] ??
+                  p.employment_status}
+              </span>
+            </div>
+            {meta.length > 0 ? (
+              <div className="record-card-meta">
+                {meta.map((m, i) => (
+                  <span key={i}>{m}</span>
+                ))}
+              </div>
+            ) : null}
+            <div className="flex flex-wrap items-center gap-2">
+              {red > 0 ? (
+                <span className="pill-red">
+                  {red} overdue
+                </span>
+              ) : null}
+              {amber > 0 ? (
+                <span className="pill-amber">
+                  {amber} due soon
+                </span>
+              ) : null}
+              {red === 0 && amber === 0 ? (
+                <span className="pill-green">Up to date</span>
+              ) : null}
+            </div>
+          </Link>
+        );
+      })}
     </div>
   );
 }

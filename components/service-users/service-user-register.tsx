@@ -285,7 +285,11 @@ export default function ServiceUserRegister({
               </span>
             </div>
 
-            <div ref={wrapRef} className="matrix-wrap min-h-0 flex-1">
+            {/* Mobile: one stacked card per service user — scroll DOWN, never
+                sideways. The full review grid is on the record, one tap away. */}
+            <ServiceUserCards rows={filtered} fromQuery={fromQuery} />
+
+            <div ref={wrapRef} className="matrix-wrap hidden min-h-0 flex-1 md:block">
               <table className="matrix">
                 <thead>
                   <tr>
@@ -473,10 +477,65 @@ export default function ServiceUserRegister({
               </table>
             </div>
 
-            <HorizontalScrollbar targetRef={wrapRef} />
+            <div className="hidden md:block">
+              <HorizontalScrollbar targetRef={wrapRef} />
+            </div>
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Mobile-only stacked cards for the Service User register. */
+function ServiceUserCards({
+  rows,
+  fromQuery,
+}: {
+  rows: ServiceUserRow[];
+  fromQuery: string;
+}) {
+  return (
+    <div className="md:hidden">
+      {rows.map((row) => {
+        const su = row.service_user;
+        const rag = row.rollup?.rag ?? "none";
+        const meta = [su.ssid ? `SSID ${su.ssid}` : null, su.branch_name].filter(Boolean);
+        return (
+          <Link
+            key={su.id}
+            href={`/service-users/${su.id}${fromQuery}`}
+            className="record-card glass-card-hover"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <span className="min-w-0 truncate text-base font-semibold text-white">
+                {su.full_name}
+              </span>
+              <span className={toneClass(serviceStatusTone(su.service_status))}>
+                {SERVICE_STATUS_LABELS[su.service_status]}
+              </span>
+            </div>
+            {meta.length > 0 ? (
+              <div className="record-card-meta">
+                {meta.map((m, i) => (
+                  <span key={i}>{m}</span>
+                ))}
+              </div>
+            ) : null}
+            <div className="flex flex-wrap items-center gap-2">
+              {rag === "red" ? (
+                <span className="pill-red">Needs attention</span>
+              ) : rag === "amber" ? (
+                <span className="pill-amber">Review due soon</span>
+              ) : rag === "green" ? (
+                <span className="pill-green">Up to date</span>
+              ) : (
+                <span className="pill-neutral">No reviews due</span>
+              )}
+            </div>
+          </Link>
+        );
+      })}
     </div>
   );
 }
