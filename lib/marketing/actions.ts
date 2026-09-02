@@ -64,19 +64,36 @@ export async function submitTrialRequest(
     };
   }
 
-  const { error } = await supabase.from("trial_requests").insert({
-    company_name,
-    contact_name,
-    email,
-    phone,
-    tier_interest,
-    team_size,
-    message,
-    source: "website",
-  });
+  const { data: inserted, error } = await supabase
+    .from("trial_requests")
+    .insert({
+      company_name,
+      contact_name,
+      email,
+      phone,
+      tier_interest,
+      team_size,
+      message,
+      source: "website",
+    })
+    .select("id")
+    .single();
   if (error) return { error: "Something went wrong. Please try again, or email hello@becarecompliant.com." };
+  const requestId = (inserted as { id: string } | null)?.id ?? null;
+
+  /* WHETHER THE FOUNDER WAS TOLD IS NOW A FACT ON THE ROW.
+     Two real companies asked for a trial on 27 Aug 2026 and sat unanswered for six days. The
+     alert was attempted here and then forgotten: nothing recorded that it left, nothing
+     recorded when it did not. A lead is the one thing on this platform that costs money when
+     it is late, so it gets the same treatment the product gives an overdue supervision —
+     proof of delivery, and a chase until somebody deals with it (api/cron/trial-chase). */
+  let alertedAt: string | null = null;
+  let alertError: string | null = null;
 
   // Notify the founder(s). Never blocks the submission if email is unconfigured.
+  if (!resendConfigured()) {
+    alertError = "Email is not configured on this deployment (RESEND_API_KEY / RESEND_FROM).";
+  }
   if (resendConfigured()) {
     const { data: admins } = await supabase
       .from("profiles")
@@ -105,9 +122,28 @@ export async function submitTrialRequest(
       ctaUrl: `${siteUrl()}/founder`,
       footerNote: "You receive this because you are the platform admin for Be Care Compliant.",
     });
-    for (const a of (admins as Array<{ email: string | null }> | null) ?? []) {
-      if (a.email) await sendEmail({ to: a.email, subject: `New trial request: ${company_name}`, html, replyTo: email });
+    const recipients = ((admins as Array<{ email: string | null }> | null) ?? [])
+      .map((a) => a.email)
+      .filter((e): e is string => Boolean(e));
+
+    if (recipients.length === 0) {
+      // A platform with nobody to tell is a configuration fault, not a quiet success.
+      alertError = "No platform admin has an email address on their profile.";
     }
+    const failures: string[] = [];
+    for (const to of recipients) {
+      const result = await sendEmail({
+        to,
+        subject: `New trial request: ${company_name}`,
+        html,
+        replyTo: email,
+      });
+      if (result.sent) alertedAt = new Date().toISOString();
+      else failures.push(result.error ?? result.skippedReason ?? "Unknown send failure");
+    }
+    /* Recorded even when ANOTHER admin's copy went: "one of you got it" is not the same as
+       "you got it", and the console must not imply it was. */
+    if (failures.length > 0) alertError = failures.join("; ").slice(0, 500);
 
     // Acknowledge the applicant (no app CTA: they have no account yet).
     const ackHtml = noticeEmailHtml({
@@ -117,6 +153,15 @@ export async function submitTrialRequest(
       footerNote: "You receive this because you requested a Be Care Compliant trial.",
     });
     await sendEmail({ to: email, subject: "Your Be Care Compliant trial request", html: ackHtml });
+  }
+
+  /* Best effort, and deliberately AFTER the applicant has been served: a failure to record the
+     alert must never turn a captured lead into an error on their screen. */
+  if (requestId) {
+    await supabase
+      .from("trial_requests")
+      .update({ founder_alerted_at: alertedAt, founder_alert_error: alertedAt ? null : alertError })
+      .eq("id", requestId);
   }
 
   return { ok: "Thanks, we have your request. We will be in touch shortly to set up your 14 day trial." };

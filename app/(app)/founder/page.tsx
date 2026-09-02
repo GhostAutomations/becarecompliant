@@ -20,6 +20,7 @@ import {
   companyStatusPillClass as statusPillClass,
   tierLabel,
 } from "@/lib/founder/format";
+import { hoursWaiting, waitingLabel, waitingTone } from "@/lib/founder/trial-alerts";
 
 export const metadata: Metadata = { title: "Founder" };
 
@@ -36,6 +37,7 @@ export default async function FounderPage() {
     { data: billingRows },
     { data: usageRows },
     { count: newTrialRequests },
+    { data: oldestTrialRequest },
   ] = await Promise.all([
     supabase
       .from("companies")
@@ -57,9 +59,21 @@ export default async function FounderPage() {
       .from("trial_requests")
       .select("id", { count: "exact", head: true })
       .eq("status", "new"),
+    /* THE OLDEST ONE'S AGE. A count alone reads the same on day one and day six, which is
+       exactly how two real requests sat here unanswered from 27 August to 2 September 2026. */
+    supabase
+      .from("trial_requests")
+      .select("created_at")
+      .eq("status", "new")
+      .order("created_at", { ascending: true })
+      .limit(1),
   ]);
 
   const waitingTrialRequests = newTrialRequests ?? 0;
+  const oldestWaitingIso = (oldestTrialRequest ?? [])[0]?.created_at ?? null;
+  const oldestWaitingHours = oldestWaitingIso
+    ? hoursWaiting({ created_at: oldestWaitingIso })
+    : 0;
 
   const billingByCompany = new Map<
     string,
@@ -258,12 +272,20 @@ export default async function FounderPage() {
           <div className="flex items-start justify-between gap-2">
             <h2 className="text-base font-semibold text-white">Trial requests</h2>
             {waitingTrialRequests > 0 ? (
-              <span className="pill pill-amber">{waitingTrialRequests} new</span>
+              <span
+                className={`pill ${
+                  waitingTone(oldestWaitingHours) === "red" ? "pill-red" : "pill-amber"
+                }`}
+              >
+                {waitingTrialRequests} new
+              </span>
             ) : null}
           </div>
           <p className="text-sm text-white/60">
             {waitingTrialRequests > 0
-              ? `${waitingTrialRequests} ${waitingTrialRequests === 1 ? "request is" : "requests are"} waiting for a reply. Setup stays founder led, so nothing is provisioned automatically.`
+              ? `${waitingTrialRequests} ${waitingTrialRequests === 1 ? "request is" : "requests are"} waiting for a reply${
+                  oldestWaitingHours > 0 ? `, the oldest for ${waitingLabel(oldestWaitingHours).replace("Waiting ", "")}` : ""
+                }. Setup stays founder led, so nothing is provisioned automatically.`
               : "Leads from the Start free trial form on the website. Nothing waiting."}
           </p>
         </Link>

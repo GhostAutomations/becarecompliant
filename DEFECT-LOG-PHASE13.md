@@ -663,3 +663,58 @@ trial, Admin invited and not accepted, one colleague already invited):**
 The throwaway was then deleted and purged from the founder console: `purge_error` null, 3 logins
 removed, 0 leftover profiles / invites / audit rows, and the platform is back to **Thistle Care Ltd
 and Bevan Care Ltd**.
+
+---
+
+## DEF-017 — A trial request could wait six days and nothing chased it  ·  FIXED (found by a real customer, not by testing)
+
+**Found 2026-09-02**, on returning to the platform after ten days away.
+
+**Livity Care Ltd** (Sean Kuuya, interested in Pro, team of 10) and **Clareege Ltd** (Ade
+Odumosu) both asked for a trial through the website on **27 August**. On 2 September both were
+still `status = 'new'`, and Phil had received nothing at phil.davies@outlook.com.
+
+**This is the worst defect of the phase so far**, and not because of the code. Everything else in
+this log was found by testing. This one was found by two real care companies trying to hand over
+money and getting silence for six days.
+
+**What was actually wrong.** The alert email was not missing — `submitTrialRequest` has emailed
+the platform admin since it was written. It was **fire and forget**:
+
+- nothing recorded that the alert left,
+- nothing recorded why it did not,
+- nothing ever tried again.
+
+So the one event on this platform that costs real money when it is late was the only one with no
+proof of delivery and no chase. The product chases a registered manager about an overdue
+supervision every single day without fail; it was not chasing its own founder about a customer.
+Whether that particular send was rejected by Resend or filed as junk by Outlook is still unknown —
+**and being unknown is the defect**.
+
+**The fix, in four parts (migration 0211):**
+
+1. **The attempt is a fact on the row.** `founder_alerted_at`, `founder_alert_error`,
+   `founder_chased_at`, `founder_chase_count`. A send that fails writes the provider's own words.
+   A deployment with no email configured, or no platform admin with an address, records exactly
+   that instead of passing as a quiet success.
+2. **The console never claims delivery it cannot prove.** No timestamp means it says *"No alert
+   recorded — you may never have been told about this one"*, in amber, on the request itself.
+   The three requests that predate this say so explicitly rather than leaving a NULL a future
+   reader could mistake for "never attempted".
+3. **A daily chase** (`/api/cron/trial-chase`, 07:00 London via the same double-schedule gate the
+   digest uses). One digest email while anything is still New, wording that gets blunter with
+   age, and it carries the delivery state of the original alert so a first email that never
+   arrived is visible rather than repeated. It only stamps when something actually left — a chase
+   that failed to send is tried again tomorrow, which is the precise mistake being fixed.
+   Marking a request Contacted, Provisioned or Declined stops it, and every chase says so.
+4. **Waiting time on screen.** "Received 27 Aug" reads identically on day one and day six. Each
+   New request now carries a pill — neutral, amber past 4 hours, red past 24 — and the founder
+   console tile names the oldest wait.
+
+`lib/founder/trial-alerts.ts`, pure, 10 tests. The one that matters: **an unrecorded alert is
+never presented as delivered.**
+
+**Still to confirm on the artefact:** whether Resend accepted the 27 August send at all. The
+chase itself is the test — the first run emails phil.davies@outlook.com, and if that lands, the
+provider path works and the original was either rejected or junked.
+

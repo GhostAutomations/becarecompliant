@@ -3366,3 +3366,18 @@ without reordering) and the Black case (nothing is ever chargeable).
 The screen now says it out loud: an "Included in your plan" pill, a "£7.50 a month" pill on the
 extra ones, and a total underneath. A customer could not previously tell what the £7.50 was for.
 
+### 2026-09-02 — the platform starts chasing itself
+
+Ten days away, and two real care companies had asked for a trial on 27 August and heard nothing.
+The rows were there; the alert email was fire and forget; nothing ever tried again.
+
+Migration 0211 records the outcome of the founder alert on the request itself, the console shows
+how long each one has been waiting and says plainly when it cannot prove the founder was told,
+and a daily cron chases until somebody deals with it. The wording gets blunter with age and the
+way to stop it — mark it Contacted — is in every email.
+
+The principle worth keeping: **this product chases a care manager about an overdue supervision
+every day without fail, and it was not chasing its own founder about a paying customer.** Any
+event that costs money when it is late gets proof of delivery and a chase, not a single hopeful
+email.
+
