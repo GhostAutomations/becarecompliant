@@ -125,9 +125,15 @@ export async function sendEmail(opts: {
   html: string;
   replyTo?: string;
   attachments?: EmailAttachment[];
+  /** Override the From address. Console replies go out as hello@, not as the no-reply sender. */
+  fromOverride?: string;
+  /** Raw headers. In-Reply-To and References are what make a reply thread properly. */
+  headers?: Record<string, string>;
+  /** Plain text alternative. Set on console replies so the text part is what the founder typed. */
+  text?: string;
 }): Promise<SendResult> {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM;
+  const from = opts.fromOverride || process.env.RESEND_FROM;
   if (!apiKey || !from) {
     return {
       sent: false,
@@ -147,6 +153,10 @@ export async function sendEmail(opts: {
         to: [opts.to],
         subject: opts.subject,
         html: opts.html,
+        ...(opts.text ? { text: opts.text } : {}),
+        ...(opts.headers && Object.keys(opts.headers).length > 0
+          ? { headers: opts.headers }
+          : {}),
         ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
         ...(opts.attachments && opts.attachments.length > 0
           ? {

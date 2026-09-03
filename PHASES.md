@@ -3381,3 +3381,27 @@ every day without fail, and it was not chasing its own founder about a paying cu
 event that costs money when it is late gets proof of delivery and a chase, not a single hopeful
 email.
 
+### 2026-09-03 — the product can hold a conversation
+
+Be Care Compliant could send and could not receive. becarecompliant.com had no MX record at all,
+and the trial acknowledgement ended "just reply to this email" — from a no-reply address, into a
+domain with no inbox. Two real care companies were told that on 27 August.
+
+Resend receives, but keeps received mail for 30 days on every plan, Pro included. That is a
+postbox, not a record, so migration 0212 puts the mail in our own database and leaves Resend
+carrying it: `founder_emails`, platform-admin read only, every write through the service role.
+
+`/api/webhooks/resend-inbound` verifies the Svix signature against the raw body and fails closed
+without a secret, exactly as the Stripe webhook does; the verification is its own module with 11
+tests, because it is the only thing between a public endpoint and a stranger writing into the
+founder's inbox. The webhook carries metadata only, so the body is fetched separately — a fetch
+that fails loses the body and never the fact that somebody wrote.
+
+Founder → Inbox lists everything, and each trial request now carries its own conversation with a
+reply box. Replies thread properly (In-Reply-To and References) and the outbound copy is stored
+whether the send worked or not — the lesson of DEF-017.
+
+**The rule this page follows: received mail is attacker-controlled.** The HTML part is stored for
+the record and never rendered; the console shows plain text. Nothing goes near
+dangerouslySetInnerHTML.
+\n

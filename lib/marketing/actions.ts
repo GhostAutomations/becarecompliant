@@ -18,6 +18,11 @@ import { type ActionState } from "@/lib/forms";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/** The address a human actually reads. Configurable so it can move without a deploy. */
+function contactAddress(): string {
+  return process.env.CONTACT_EMAIL || "hello@becarecompliant.com";
+}
+
 function clean(v: FormDataEntryValue | null, max = 500): string {
   return String(v ?? "").trim().slice(0, max);
 }
@@ -149,10 +154,18 @@ export async function submitTrialRequest(
     const ackHtml = noticeEmailHtml({
       preheader: "We have your Be Care Compliant trial request",
       heading: "Thanks, we have your request",
-      bodyHtml: `<p>Hi ${escapeHtml(contact_name)},</p><p>Thanks for your interest in Be Care Compliant. We have received your request to start a 14 day trial for ${escapeHtml(company_name)} and will be in touch shortly to set you up.</p><p>If you need anything in the meantime, just reply to this email.</p>`,
+      bodyHtml: `<p>Hi ${escapeHtml(contact_name)},</p><p>Thanks for your interest in Be Care Compliant. We have received your request to start a 14 day trial for ${escapeHtml(company_name)} and will be in touch shortly to set you up.</p><p>If you need anything in the meantime, email us at ${escapeHtml(contactAddress())}.</p>`,
       footerNote: "You receive this because you requested a Be Care Compliant trial.",
     });
-    await sendEmail({ to: email, subject: "Your Be Care Compliant trial request", html: ackHtml });
+    /* REPLY-TO IS A REAL ADDRESS NOW. This email used to say "just reply to this email" while
+       being sent from a no-reply address on a domain with no MX record — so anyone who did
+       reply vanished, silently, including two real care companies on 27 August 2026. */
+    await sendEmail({
+      to: email,
+      subject: "Your Be Care Compliant trial request",
+      html: ackHtml,
+      replyTo: contactAddress(),
+    });
   }
 
   /* Best effort, and deliberately AFTER the applicant has been served: a failure to record the

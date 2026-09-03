@@ -28,6 +28,7 @@ import {
 } from "@/lib/founder/trial-requests";
 import { trialDomainFor } from "@/lib/founder/trial-matching";
 import { trialState } from "@/lib/billing/trial";
+import { sendFounderReply } from "@/lib/founder/inbox-store";
 import { trialBranchRefusal } from "@/lib/billing/trial-limits";
 import {
   softDeleteCompany,
@@ -1416,3 +1417,101 @@ export async function setCompanyRegulator(
   revalidatePath("/dashboard");
   return { ok: `Regulator set to ${regulator.toUpperCase()}.` };
 }
+
+/* ---------------------------------------------------------------------------
+ * The founder inbox
+ * ------------------------------------------------------------------------- */
+
+/** Deliberately loose: enough to catch a typo, not an attempt to validate RFC 5322. */
+const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * Reply to somebody who wrote in, from the console, keeping our own copy.
+ *
+ * This exists because until 2026-09-03 the product could send and not receive, and the trial
+ * acknowledgement told people to "just reply to this email" — from a no-reply address, into a
+ * domain with no MX record. Replies went nowhere and nobody knew.
+ */
+export async function sendInboxReply(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user } = await requirePlatformAdmin();
+
+  const to = String(formData.get("to") ?? "").trim().toLowerCase();
+  const subject = String(formData.get("subject") ?? "").trim().slice(0, 300);
+  const bodyText = String(formData.get("body") ?? "").trim().slice(0, 20000);
+  const replyToId = String(formData.get("reply_to_id") ?? "").trim();
+  const trialRequestId = String(formData.get("trial_request_id") ?? "").trim() || null;
+
+  if (!EMAIL_SHAPE.test(to)) return { error: "That is not an email address." };
+  if (!bodyText) return { error: "Write something before you send it." };
+
+  const supabase = await createClient();
+
+  /* Threading comes from the message being answered, read here rather than trusted from the
+     form: a header supplied by the browser would let anyone graft a reply onto a thread. */
+  let inReplyTo: string | null = null;
+  let references: string | null = null;
+  let inheritedSubject: string | null = null;
+  if (replyToId) {
+    const { data: original } = await supabase
+      .from("founder_emails")
+      .select("message_id, reference_ids, subject")
+      .eq("id", replyToId)
+      .maybeSingle();
+    inReplyTo = (original?.message_id as string | null) ?? null;
+    references = (original?.reference_ids as string | null) ?? null;
+    inheritedSubject = (original?.subject as string | null) ?? null;
+  }
+
+  const result = await sendFounderReply({
+    to,
+    subject: subject || inheritedSubject || "Be Care Compliant",
+    bodyText,
+    inReplyToMessageId: inReplyTo,
+    existingReferences: references,
+    trialRequestId,
+    sentBy: user.id,
+  });
+
+  if (!result.ok) {
+    // The failed attempt is already recorded against the thread, which is the point.
+    return { error: result.error ?? "The email did not send." };
+  }
+
+  await writeAudit({
+    companyId: null,
+    action: "founder.email_sent",
+    entityType: "email",
+    entityId: trialRequestId,
+    summary: `Replied to ${to}`,
+  });
+
+  revalidatePath("/founder/inbox");
+  revalidatePath("/founder/trial-requests");
+  return { ok: "Sent." };
+}
+
+/** Mark a received message as dealt with, or put it back. */
+export async function setEmailRead(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requirePlatformAdmin();
+  const id = String(formData.get("email_id") ?? "").trim();
+  const read = String(formData.get("read") ?? "") === "true";
+  if (!id) return { error: "Missing email." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("founder_emails")
+    .update({ is_read: read })
+    .eq("id", id)
+    .select("id");
+  if (error) return { error: error.message };
+
+  revalidatePath("/founder/inbox");
+  return { ok: read ? "Marked as done." : "Put back." };
+}
+

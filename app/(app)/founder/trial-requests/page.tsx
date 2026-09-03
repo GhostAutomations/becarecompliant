@@ -7,7 +7,9 @@ import ActionForm from "@/components/action-form";
 import {
   setTrialRequestStatus,
   provisionFromTrialRequest,
+  sendInboxReply,
 } from "@/app/(app)/founder/actions";
+import { withoutQuotedReply, replySubject } from "@/lib/founder/inbox";
 import { tierLabel } from "@/lib/founder/format";
 import {
   TRIAL_REQUEST_STATUSES,
@@ -103,7 +105,7 @@ export default async function FounderTrialRequestsPage() {
   await requirePlatformAdmin();
   const supabase = await createClient();
 
-  const [{ data }, { data: companyData }] = await Promise.all([
+  const [{ data }, { data: companyData }, { data: emailData }] = await Promise.all([
     supabase
       .from("trial_requests")
       .select(
@@ -114,10 +116,35 @@ export default async function FounderTrialRequestsPage() {
     supabase
       .from("companies")
       .select("id, name, name_key, trial_owner_email, trial_owner_domain, trial_ends_at"),
+    /* THE CONVERSATION BELONGS TO THE LEAD. A reply about Livity Care is not a thing that
+       happens in somebody's inbox; it is part of this record. */
+    supabase
+      .from("founder_emails")
+      .select("id, direction, from_address, from_name, subject, body_text, trial_request_id, send_error, occurred_at")
+      .not("trial_request_id", "is", null)
+      .order("occurred_at", { ascending: true })
+      .limit(500),
   ]);
 
   const rows = (data ?? []) as TrialRequestRow[];
   const companies = (companyData ?? []) as CompanyRow[];
+
+  type ThreadMessage = {
+    id: string;
+    direction: string;
+    from_address: string;
+    from_name: string | null;
+    subject: string | null;
+    body_text: string | null;
+    trial_request_id: string | null;
+    send_error: string | null;
+    occurred_at: string;
+  };
+  const threads = new Map<string, ThreadMessage[]>();
+  for (const m of (emailData ?? []) as ThreadMessage[]) {
+    if (!m.trial_request_id) continue;
+    threads.set(m.trial_request_id, [...(threads.get(m.trial_request_id) ?? []), m]);
+  }
 
   // Name whoever last moved each request, in one lookup rather than one per row.
   const actorIds = [...new Set(rows.map((r) => r.status_changed_by).filter(Boolean))] as string[];
@@ -548,6 +575,78 @@ export default async function FounderTrialRequestsPage() {
                     </ActionForm>
                   </div>
                 )}
+
+                <div className="mt-4 border-t border-white/10 pt-4">
+                  <h3 className="text-sm font-semibold text-white">Conversation</h3>
+                  {(threads.get(r.id) ?? []).length === 0 ? (
+                    <p className="mt-1 text-xs text-white/50">
+                      Nothing yet. Anything {r.contact_name} sends to your receiving address
+                      appears here, and your reply below goes out on the same thread.
+                    </p>
+                  ) : (
+                    <ul className="mt-3 space-y-3">
+                      {(threads.get(r.id) ?? []).map((m) => (
+                        <li
+                          key={m.id}
+                          className="rounded-lg border border-white/10 bg-white/[0.03] p-3"
+                        >
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span
+                              className={
+                                m.direction === "in" ? "pill pill-green" : "pill pill-neutral"
+                              }
+                            >
+                              {m.direction === "in" ? "Received" : "Sent"}
+                            </span>
+                            {m.send_error ? (
+                              <span className="pill pill-red">Did not send</span>
+                            ) : null}
+                            <span className="text-xs text-white/50">
+                              {formatReceivedAt(m.occurred_at)}
+                            </span>
+                          </div>
+                          {/* Plain text only: this was typed by a stranger. */}
+                          <p className="mt-2 whitespace-pre-wrap text-sm text-white/80">
+                            {withoutQuotedReply(m.body_text) || m.body_text || "No text content"}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  <ActionForm
+                    action={sendInboxReply}
+                    hidden={{
+                      to: r.email,
+                      subject: replySubject(
+                        (threads.get(r.id) ?? []).at(-1)?.subject ??
+                          "Your Be Care Compliant trial request",
+                      ),
+                      reply_to_id:
+                        [...(threads.get(r.id) ?? [])].reverse().find((m) => m.direction === "in")
+                          ?.id ?? "",
+                      trial_request_id: r.id,
+                    }}
+                    label="Send email"
+                    savingLabel="Sending…"
+                    savedLabel="Sent"
+                    className="mt-3 space-y-3"
+                  >
+                    <div>
+                      <label htmlFor={`email-${r.id}`} className="form-label">
+                        Write to {r.email}
+                      </label>
+                      <textarea
+                        id={`email-${r.id}`}
+                        name="body"
+                        rows={5}
+                        maxLength={20000}
+                        required
+                        placeholder="Goes out from your own address, and their reply comes back here."
+                      />
+                    </div>
+                  </ActionForm>
+                </div>
 
                 <div className="mt-4 border-t border-white/10 pt-4">
                   <ActionForm

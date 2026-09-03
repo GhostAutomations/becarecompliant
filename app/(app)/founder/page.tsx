@@ -38,6 +38,7 @@ export default async function FounderPage() {
     { data: usageRows },
     { count: newTrialRequests },
     { data: oldestTrialRequest },
+    { count: unreadEmails },
   ] = await Promise.all([
     supabase
       .from("companies")
@@ -67,9 +68,18 @@ export default async function FounderPage() {
       .eq("status", "new")
       .order("created_at", { ascending: true })
       .limit(1),
+    /* Somebody wrote in and has not been answered. Same principle as the trial requests: the
+       thing that costs money when it is late gets counted where it will be seen. */
+    supabase
+      .from("founder_emails")
+      .select("id", { count: "exact", head: true })
+      .eq("direction", "in")
+      .eq("is_read", false)
+      .eq("is_spam", false),
   ]);
 
   const waitingTrialRequests = newTrialRequests ?? 0;
+  const waitingEmails = unreadEmails ?? 0;
   const oldestWaitingIso = (oldestTrialRequest ?? [])[0]?.created_at ?? null;
   const oldestWaitingHours = oldestWaitingIso
     ? hoursWaiting({ created_at: oldestWaitingIso })
@@ -264,6 +274,19 @@ export default async function FounderPage() {
         <Link href="/founder/health" className="app-tile">
           <h2 className="text-base font-semibold text-white">Platform health</h2>
           <p className="text-sm text-white/60">Dependencies, sends and webhooks.</p>
+        </Link>
+        <Link href="/founder/inbox" className="app-tile">
+          <div className="flex items-start justify-between gap-2">
+            <h2 className="text-base font-semibold text-white">Inbox</h2>
+            {waitingEmails > 0 ? (
+              <span className="pill pill-amber">{waitingEmails}</span>
+            ) : null}
+          </div>
+          <p className="text-sm text-white/60">
+            {waitingEmails > 0
+              ? `${waitingEmails} ${waitingEmails === 1 ? "message is" : "messages are"} waiting on a reply.`
+              : "Everything sent to and from the platform, kept for good."}
+          </p>
         </Link>
         <Link
           href="/founder/trial-requests"
