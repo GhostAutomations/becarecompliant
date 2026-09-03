@@ -145,3 +145,22 @@ export function looksAutomated(fromAddress: string, subject: string | null | und
     s.includes("delivery status notification")
   );
 }
+
+/**
+ * What the list shows under the subject.
+ *
+ * "No text content" was shown for a message whose content had FAILED TO ARRIVE, which is the
+ * same lie DEF-018 was about: a fetch that was refused looked identical to an email somebody
+ * sent blank. The list gets its own words for each case.
+ */
+export function listPreview(row: {
+  body_text: string | null;
+  body_error: string | null;
+  send_error: string | null;
+}): string {
+  if (row.send_error) return "Did not send";
+  const text = withoutQuotedReply(row.body_text) || row.body_text;
+  if (text && text.trim()) return previewOf(text, 70);
+  if (row.body_error) return "Content not collected yet";
+  return "No message text";
+}

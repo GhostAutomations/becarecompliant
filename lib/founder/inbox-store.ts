@@ -72,14 +72,23 @@ export async function fetchReceivedBody(emailId: string): Promise<BodyFetch> {
       headers: { Authorization: `Bearer ${apiKey}` },
     });
     if (!res.ok) {
-      const detail = (await res.text()).slice(0, 200);
+      const raw = (await res.text()).slice(0, 400);
+      /* The provider answers with JSON. Printing `{"statusCode":401,"message":...}` at a person
+         is not a message, it is a stack trace with a colon in it. */
+      let detail = raw;
+      try {
+        const parsed = JSON.parse(raw) as { message?: string };
+        if (parsed.message) detail = parsed.message;
+      } catch {
+        /* Not JSON. The raw text is the best we have. */
+      }
       /* Name the fix in the message. A 401 or 403 here is almost always a sending-only key, and
          the person reading it should not have to work that out twice. */
       const hint =
         res.status === 401 || res.status === 403
-          ? " — the API key needs Full access, not Sending access, to read received mail."
+          ? " The API key needs Full access, not Sending access, to read received mail."
           : "";
-      const error = `Resend ${res.status}: ${detail}${hint}`;
+      const error = `${detail}${hint}`;
       console.error("[inbox] body fetch failed:", error);
       return { ok: false, error };
     }

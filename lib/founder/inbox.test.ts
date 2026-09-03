@@ -13,6 +13,7 @@ import {
   withoutQuotedReply,
   isOurAddress,
   looksAutomated,
+  listPreview,
 } from "./inbox.ts";
 
 test("an address is compared lowercased and trimmed", () => {
@@ -126,4 +127,38 @@ test("bounces and out-of-office do not look like a customer waiting", () => {
   assert.equal(looksAutomated("postmaster@x.com", null), true);
   assert.equal(looksAutomated("no-reply@x.com", "anything"), true);
   assert.equal(looksAutomated("info@livitycare.co.uk", "Re: Your trial request"), false);
+});
+
+test("THE LIST NEVER CALLS A FAILED FETCH AN EMPTY EMAIL", () => {
+  // This is the wording that made Phil apologise for a defect that was not his:
+  // a refused fetch read as "No text content", exactly like a blank message.
+  assert.equal(
+    listPreview({ body_text: null, body_error: "restricted_api_key", send_error: null }),
+    "Content not collected yet",
+  );
+  // A genuinely blank message says so, and says something different.
+  assert.equal(
+    listPreview({ body_text: null, body_error: null, send_error: null }),
+    "No message text",
+  );
+  // Whitespace is not content.
+  assert.equal(
+    listPreview({ body_text: "   \n  ", body_error: null, send_error: null }),
+    "No message text",
+  );
+});
+
+test("a failed send outranks everything else in the list", () => {
+  assert.equal(
+    listPreview({ body_text: "Hello there", body_error: null, send_error: "Resend 422" }),
+    "Did not send",
+  );
+});
+
+test("the preview is the message, without the part it is quoting", () => {
+  const body = "Yes, Friday works.\n\nOn Thu, Phil Davies wrote:\n> Would Friday suit?";
+  assert.equal(
+    listPreview({ body_text: body, body_error: null, send_error: null }),
+    "Yes, Friday works.",
+  );
 });

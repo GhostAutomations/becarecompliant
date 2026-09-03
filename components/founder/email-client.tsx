@@ -29,7 +29,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import ActionForm from "@/components/action-form";
-import { previewOf, withoutQuotedReply, replySubject } from "@/lib/founder/inbox";
+import { listPreview, replySubject } from "@/lib/founder/inbox";
 
 export type EmailRow = {
   id: string;
@@ -299,9 +299,7 @@ export default function EmailClient({
                           {r.subject || "(no subject)"}
                         </span>
                         <span className="mailx-preview mailx-tr" style={{ display: "block" }}>
-                          {r.send_error
-                            ? "Did not send"
-                            : previewOf(withoutQuotedReply(r.body_text) || r.body_text, 70)}
+                          {listPreview(r)}
                         </span>
                       </span>
                     </button>
