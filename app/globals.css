@@ -919,3 +919,64 @@
   .mailx-list { max-height: 40vh; }
 }
 
+/* ---------------------------------------------------------------------------
+   EMAIL, FULL BLEED. Phil, 2026-09-03: "why is it in a box? outlook isnt in a
+   box it is the page, make it the page."
+
+   He is right, and it is not only cosmetic: a mail client in a card gets two
+   scrollbars, one for the page and one for the list, and the reading pane never
+   gets the height it needs. The negative margins cancel the app shell's own
+   padding (px-4 pt-6 pb-24, md:px-8 md:pb-8 in app/(app)/layout.tsx) so this one
+   screen runs to the edges. If that padding ever changes, change it here too.
+   --------------------------------------------------------------------------- */
+.mailx-full {
+  margin: -1.5rem -1rem -6rem;
+  height: calc(100% + 7.5rem);
+}
+@media (min-width: 768px) {
+  .mailx-full {
+    margin: -1.5rem -2rem -2rem;
+    height: calc(100% + 3.5rem);
+  }
+}
+.mailx-full .mailx {
+  border: 0;
+  border-radius: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.mailx-full .mailx-body {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.mailx-full .mailx-list,
+.mailx-full .mailx-read {
+  max-height: none;
+  height: 100%;
+}
+/* A back way out, since the page heading goes with the box. */
+.mailx-back {
+  color: #0f6cbd;
+  font-size: 0.8rem;
+  text-decoration: none;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.mailx-back:hover { background: #f0f0f0; }
+.mailx-heading {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #242424;
+  padding: 0 0.35rem;
+}
+
+@media (max-width: 1150px) {
+  .mailx-full { height: auto; }
+  .mailx-full .mailx { height: auto; }
+  .mailx-full .mailx-list { max-height: 40vh; height: auto; }
+  .mailx-full .mailx-read { height: auto; }
+}
+

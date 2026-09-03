@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { requirePlatformAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
-import BackLink from "@/components/back-link";
 import EmailClient, { type EmailRow } from "@/components/founder/email-client";
 import {
   sendInboxReply,
@@ -21,15 +20,17 @@ import {
  * Pro included. What is here is the permanent record, which is also why a body that failed to
  * arrive is chased rather than shrugged at.
  *
- * The screen itself is a client component so a message can be selected without a round trip;
- * this file does the reading and hands the server actions down as props.
+ * NO PAGE CHROME. Phil, 2026-09-03: "outlook isnt in a box it is the page, make it the page."
+ * There is no heading, no card and no back link here — the client owns the whole area and puts
+ * the way back into its own command bar, the way a mail client does.
  */
 
 export const metadata: Metadata = { title: "Email" };
 
 /** The address this mailbox IS, shown the way Outlook shows the account. */
 function mailboxAddress(): string {
-  const raw = process.env.RESEND_REPLY_FROM || process.env.CONTACT_EMAIL || "hello@becarecompliant.com";
+  const raw =
+    process.env.RESEND_REPLY_FROM || process.env.CONTACT_EMAIL || "hello@becarecompliant.com";
   const angled = raw.match(/<([^>]+)>/);
   return (angled ? angled[1] : raw).trim();
 }
@@ -56,16 +57,7 @@ export default async function FounderEmailPage() {
   }
 
   return (
-    <div className="w-full space-y-5">
-      <div>
-        <BackLink href="/founder" label="Back to Founder console" />
-        <h1 className="page-title mt-1">Email</h1>
-        <p className="page-subtitle">
-          Everything the platform has received or sent, kept here for good. Replies go out from
-          your own address and land in the thread the person started.
-        </p>
-      </div>
-
+    <div className="mailx-full">
       <EmailClient
         rows={rows}
         leadNames={leadNames}

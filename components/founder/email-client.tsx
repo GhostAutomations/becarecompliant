@@ -171,6 +171,11 @@ export default function EmailClient({
     <div className="mailx">
       {/* ---------------- COMMAND BAR ---------------- */}
       <div className="mailx-bar">
+        <Link href="/founder" className="mailx-back">
+          ← Founder
+        </Link>
+        <span className="mailx-heading">Email</span>
+        <span className="mailx-divider" />
         <button
           type="button"
           className="mailx-new"
