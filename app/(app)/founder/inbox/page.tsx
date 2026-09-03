@@ -27,6 +27,13 @@ import {
 
 export const metadata: Metadata = { title: "Email" };
 
+/** The address this mailbox IS, shown the way Outlook shows the account. */
+function mailboxAddress(): string {
+  const raw = process.env.RESEND_REPLY_FROM || process.env.CONTACT_EMAIL || "hello@becarecompliant.com";
+  const angled = raw.match(/<([^>]+)>/);
+  return (angled ? angled[1] : raw).trim();
+}
+
 export default async function FounderEmailPage() {
   await requirePlatformAdmin();
   const supabase = await createClient();
@@ -62,6 +69,7 @@ export default async function FounderEmailPage() {
       <EmailClient
         rows={rows}
         leadNames={leadNames}
+        mailbox={mailboxAddress()}
         actions={{
           reply: sendInboxReply as never,
           setRead: setEmailRead as never,

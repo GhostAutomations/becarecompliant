@@ -680,3 +680,242 @@
 .rag-cell-green { background: rgba(0, 200, 117, 0.16); color: #43d99a; }
 .rag-cell-amber { background: rgba(253, 171, 61, 0.16); color: #f5bd6a; }
 .rag-cell-red { background: rgba(226, 68, 92, 0.16); color: #f18196; }
+
+/* ===========================================================================
+   THE EMAIL SCREEN (Founder > Email) — a light mail client inside a dark app.
+
+   Phil, 2026-09-03, twice: "make it look like outlook", then with a screenshot
+   of his own Outlook: "even worse, make it look like outlook but not dark."
+
+   THIS IS DELIBERATELY THE ONE LIGHT SURFACE IN THE PRODUCT. Everything else is
+   the navy glass. Email is the exception because it is not a Be Care Compliant
+   screen in the usual sense — it is a mail client, and people read mail on white.
+   Founder only, so no customer ever sees the inconsistency.
+
+   HAND WRITTEN CSS, NOT TAILWIND UTILITIES, ON PURPOSE. Two attempts at this
+   screen were lost to Tailwind classes that silently never generated: an
+   arbitrary grid template (grid-cols-[180px_320px_minmax(0,1fr)]) that left the
+   panes stacked, and btn-secondary, which does not exist in this file at all.
+   Plain CSS cannot fail that way — if it is written here it ships.
+   =========================================================================== */
+
+.mailx {
+  --mailx-blue: #0f6cbd;
+  --mailx-blue-dark: #0c5aa0;
+  --mailx-line: #e1dfdd;
+  --mailx-hover: #f5f5f5;
+  --mailx-sel: #e1efff;
+  --mailx-ink: #242424;
+  --mailx-ink-soft: #616161;
+  background: #ffffff;
+  color: var(--mailx-ink);
+  border: 1px solid var(--mailx-line);
+  border-radius: 12px;
+  overflow: hidden;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+/* Command bar. Only real actions live here — a Delete or Archive button that did
+   nothing would be worse than not having one. */
+.mailx-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0.75rem;
+  background: #faf9f8;
+  border-bottom: 1px solid var(--mailx-line);
+}
+.mailx-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--mailx-blue);
+  color: #ffffff;
+  border: 0;
+  border-radius: 6px;
+  padding: 0.45rem 0.95rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.mailx-new:hover { background: var(--mailx-blue-dark); }
+.mailx-divider { width: 1px; height: 22px; background: var(--mailx-line); margin: 0 0.3rem; }
+
+.mailx-body { display: flex; align-items: stretch; }
+
+/* Folders */
+.mailx-rail {
+  flex: 0 0 190px;
+  width: 190px;
+  border-right: 1px solid var(--mailx-line);
+  background: #faf9f8;
+  padding: 0.5rem;
+}
+.mailx-account {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--mailx-ink);
+  padding: 0.25rem 0.5rem 0.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mailx-folder {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--mailx-ink);
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+.mailx-folder:hover { background: #efedeb; }
+.mailx-folder.is-active { background: var(--mailx-sel); color: #0c4a80; font-weight: 700; }
+.mailx-count { font-size: 0.75rem; color: var(--mailx-ink-soft); }
+.mailx-count.is-unread { color: var(--mailx-blue); font-weight: 700; }
+.mailx-note { padding: 0.6rem 0.5rem 0; font-size: 0.7rem; line-height: 1.35; color: #8a8886; }
+
+/* List */
+.mailx-list {
+  flex: 0 0 330px;
+  width: 330px;
+  border-right: 1px solid var(--mailx-line);
+  background: #ffffff;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.mailx-group {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #ffffff;
+  padding: 0.55rem 0.8rem 0.3rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--mailx-blue);
+}
+.mailx-row {
+  display: flex;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.55rem 0.8rem;
+  border: 0;
+  border-bottom: 1px solid #f3f2f1;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.mailx-row:hover { background: var(--mailx-hover); }
+.mailx-row.is-selected { background: var(--mailx-sel); }
+.mailx-avatar {
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.mailx-rowmain { min-width: 0; flex: 1 1 auto; }
+.mailx-rowtop { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; }
+.mailx-from { font-size: 0.85rem; color: var(--mailx-ink); }
+.mailx-row.is-unread .mailx-from { font-weight: 700; }
+.mailx-subject { font-size: 0.82rem; color: #424242; }
+.mailx-row.is-unread .mailx-subject { color: var(--mailx-blue); font-weight: 600; }
+.mailx-preview { font-size: 0.76rem; color: var(--mailx-ink-soft); }
+.mailx-time { flex: 0 0 auto; font-size: 0.72rem; color: var(--mailx-ink-soft); white-space: nowrap; }
+.mailx-dot { flex: 0 0 8px; width: 8px; height: 8px; border-radius: 50%; background: var(--mailx-blue); margin-top: 0.55rem; }
+.mailx-tr { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mailx-empty { padding: 1.5rem 0.9rem; font-size: 0.85rem; color: var(--mailx-ink-soft); }
+
+/* Reading pane */
+.mailx-read {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 1.1rem 1.35rem;
+  background: #ffffff;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.mailx-title { font-size: 1.15rem; font-weight: 600; color: var(--mailx-ink); margin: 0 0 0.75rem; }
+.mailx-who { display: flex; gap: 0.7rem; align-items: flex-start; }
+.mailx-meta { font-size: 0.8rem; color: var(--mailx-ink-soft); }
+.mailx-rule { border: 0; border-top: 1px solid var(--mailx-line); margin: 1rem 0; }
+.mailx-text { white-space: pre-wrap; font-size: 0.9rem; line-height: 1.6; color: var(--mailx-ink); }
+.mailx-warn { color: #a4610a; }
+.mailx-bad { color: #a4262c; }
+
+/* Forms inside the light pane. The app's own inputs are styled for the dark
+   theme by element selector, so they are overridden here rather than fought. */
+.mailx input[type="text"],
+.mailx input[type="email"],
+.mailx textarea {
+  width: 100%;
+  background: #ffffff;
+  color: var(--mailx-ink);
+  border: 1px solid #d1d1d1;
+  border-radius: 6px;
+  padding: 0.5rem 0.6rem;
+  font-size: 0.88rem;
+  font-family: inherit;
+}
+.mailx input::placeholder,
+.mailx textarea::placeholder { color: #a19f9d; }
+.mailx input:focus,
+.mailx textarea:focus { outline: none; border-color: var(--mailx-blue); box-shadow: 0 0 0 2px rgba(15, 108, 189, 0.25); }
+.mailx-label { display: block; margin-bottom: 0.25rem; font-size: 0.78rem; font-weight: 600; color: #424242; }
+
+/* Buttons: ActionForm passes these in, so the shared save behaviour is kept. */
+.mailx-send {
+  background: var(--mailx-blue);
+  color: #ffffff;
+  border: 0;
+  border-radius: 6px;
+  padding: 0.5rem 1.1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.mailx-send:hover { background: var(--mailx-blue-dark); }
+.mailx-cmd {
+  background: transparent;
+  border: 1px solid var(--mailx-line);
+  border-radius: 6px;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.8rem;
+  color: var(--mailx-ink);
+  cursor: pointer;
+}
+.mailx-cmd:hover { background: #f0f0f0; }
+.mailx-link { background: none; border: 0; color: var(--mailx-blue); font-size: 0.8rem; cursor: pointer; text-decoration: underline; }
+/* ActionForm's inline error is a pale red meant for the navy background. */
+.mailx .text-red-300 { color: #a4262c; }
+
+/* Narrow: stack, the way Outlook drops its reading pane on a small window. */
+@media (max-width: 1150px) {
+  .mailx-body { flex-direction: column; }
+  .mailx-rail,
+  .mailx-list {
+    flex: 1 1 auto;
+    width: auto;
+    max-height: none;
+    border-right: 0;
+    border-bottom: 1px solid var(--mailx-line);
+  }
+  .mailx-rail { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
+  .mailx-account { width: 100%; }
+  .mailx-folder { width: auto; }
+  .mailx-note { display: none; }
+  .mailx-list { max-height: 40vh; }
+}
+
