@@ -51,21 +51,43 @@ type ReceivedBody = {
  * Fetch the body. The webhook carries metadata ONLY — no body, no headers — so the content has
  * to be asked for separately. Returns null on any failure; the caller stores the message anyway.
  */
-export async function fetchReceivedBody(emailId: string): Promise<ReceivedBody | null> {
+export type BodyFetch =
+  | { ok: true; body: ReceivedBody }
+  | { ok: false; error: string };
+
+/**
+ * Fetch the body. The webhook carries metadata ONLY — no body, no headers — so the content has
+ * to be asked for separately.
+ *
+ * RETURNS THE REASON ON FAILURE, and that is the whole point of this signature. The first real
+ * email through this feature (3 Sep 2026) stored with a null body because the API key had
+ * "Sending access" only, and a null body reads exactly like an email somebody sent with no text
+ * in it. A 401 must look like a 401.
+ */
+export async function fetchReceivedBody(emailId: string): Promise<BodyFetch> {
   const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) return null;
+  if (!apiKey) return { ok: false, error: "RESEND_API_KEY is not configured." };
   try {
     const res = await fetch(`https://api.resend.com/emails/receiving/${emailId}`, {
       headers: { Authorization: `Bearer ${apiKey}` },
     });
     if (!res.ok) {
-      console.error("[inbox] body fetch failed:", res.status, (await res.text()).slice(0, 200));
-      return null;
+      const detail = (await res.text()).slice(0, 200);
+      /* Name the fix in the message. A 401 or 403 here is almost always a sending-only key, and
+         the person reading it should not have to work that out twice. */
+      const hint =
+        res.status === 401 || res.status === 403
+          ? " — the API key needs Full access, not Sending access, to read received mail."
+          : "";
+      const error = `Resend ${res.status}: ${detail}${hint}`;
+      console.error("[inbox] body fetch failed:", error);
+      return { ok: false, error };
     }
-    return (await res.json()) as ReceivedBody;
+    return { ok: true, body: (await res.json()) as ReceivedBody };
   } catch (e) {
-    console.error("[inbox] body fetch threw:", (e as Error).message);
-    return null;
+    const error = (e as Error).message;
+    console.error("[inbox] body fetch threw:", error);
+    return { ok: false, error };
   }
 }
 
@@ -93,7 +115,8 @@ export async function storeReceivedEmail(payload: ReceivedPayload): Promise<Stor
     .maybeSingle();
   if (seen) return { stored: false, id: seen.id as string, reason: "Already stored" };
 
-  const body = await fetchReceivedBody(emailId);
+  const fetched = await fetchReceivedBody(emailId);
+  const body = fetched.ok ? fetched.body : null;
   const from = parseFrom(payload.from);
 
   const { data: leads } = await supabase
@@ -120,6 +143,8 @@ export async function storeReceivedEmail(payload: ReceivedPayload): Promise<Stor
       subject: payload.subject ?? null,
       body_text: body?.text ?? null,
       body_html: body?.html ?? null,
+      body_error: fetched.ok ? null : fetched.error,
+      body_fetched_at: fetched.ok ? new Date().toISOString() : null,
       attachments: payload.attachments ?? [],
       trial_request_id: trialRequestId,
       /* Bounces and out-of-office replies are parked rather than sitting in the list looking
@@ -218,3 +243,86 @@ function escapeForHtml(value: string): string {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
+
+/* ---------------------------------------------------------------------------
+ * Collecting bodies that did not arrive first time
+ * ------------------------------------------------------------------------- */
+
+export type BackfillResult = { attempted: number; recovered: number; errors: string[] };
+
+/**
+ * Re-fetch the content of received messages that still have none.
+ *
+ * THIS IS TIME LIMITED AND THAT IS WHY IT EXISTS. Resend keeps received mail for 30 days on
+ * every plan, so a body we never collected stops existing — and the row would sit in the
+ * archive for ever looking like an email somebody sent blank. Run nightly, and available as a
+ * button on any message that is missing its text.
+ */
+export async function backfillMissingBodies(limit = 50): Promise<BackfillResult> {
+  const supabase = createServiceClient();
+  const errors: string[] = [];
+
+  const { data, error } = await supabase
+    .from("founder_emails")
+    .select("id, resend_email_id")
+    .eq("direction", "in")
+    .is("body_text", null)
+    .is("body_html", null)
+    .not("resend_email_id", "is", null)
+    .order("occurred_at", { ascending: false })
+    .limit(limit);
+
+  if (error) return { attempted: 0, recovered: 0, errors: [error.message] };
+
+  const rows = (data ?? []) as Array<{ id: string; resend_email_id: string }>;
+  let recovered = 0;
+
+  for (const row of rows) {
+    const fetched = await fetchReceivedBody(row.resend_email_id);
+    const patch = fetched.ok
+      ? {
+          body_text: fetched.body.text ?? null,
+          body_html: fetched.body.html ?? null,
+          body_error: null,
+          body_fetched_at: new Date().toISOString(),
+        }
+      : { body_error: fetched.error };
+
+    const { error: upErr } = await supabase
+      .from("founder_emails")
+      .update(patch)
+      .eq("id", row.id);
+    if (upErr) errors.push(`${row.id}: ${upErr.message}`);
+    else if (fetched.ok && (fetched.body.text || fetched.body.html)) recovered += 1;
+    else if (!fetched.ok) errors.push(`${row.id}: ${fetched.error}`);
+  }
+
+  return { attempted: rows.length, recovered, errors };
+}
+
+/** The single-message version of the backfill, behind the button on a message with no text. */
+export async function refetchOneBody(
+  rowId: string,
+  resendEmailId: string,
+): Promise<{ ok: boolean; recovered: boolean; error?: string }> {
+  const supabase = createServiceClient();
+  const fetched = await fetchReceivedBody(resendEmailId);
+
+  const patch = fetched.ok
+    ? {
+        body_text: fetched.body.text ?? null,
+        body_html: fetched.body.html ?? null,
+        body_error: null,
+        body_fetched_at: new Date().toISOString(),
+      }
+    : { body_error: fetched.error };
+
+  const { error } = await supabase.from("founder_emails").update(patch).eq("id", rowId);
+  if (error) return { ok: false, recovered: false, error: error.message };
+  if (!fetched.ok) return { ok: false, recovered: false, error: fetched.error };
+
+  /* A GENUINELY EMPTY EMAIL IS NOT A FAILURE. Somebody can send a subject and no body, and the
+     console must say that rather than implying something went wrong. */
+  return { ok: true, recovered: Boolean(fetched.body.text || fetched.body.html) };
+}
+

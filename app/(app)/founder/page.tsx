@@ -277,7 +277,7 @@ export default async function FounderPage() {
         </Link>
         <Link href="/founder/inbox" className="app-tile">
           <div className="flex items-start justify-between gap-2">
-            <h2 className="text-base font-semibold text-white">Inbox</h2>
+            <h2 className="text-base font-semibold text-white">Email</h2>
             {waitingEmails > 0 ? (
               <span className="pill pill-amber">{waitingEmails}</span>
             ) : null}

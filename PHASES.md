@@ -3405,3 +3405,23 @@ whether the send worked or not — the lesson of DEF-017.
 the record and never rendered; the console shows plain text. Nothing goes near
 dangerouslySetInnerHTML.
 \n
+
+### 2026-09-03 — Inbox becomes Email, and looks like a mail client
+
+Phil, after the first message went in and out successfully: "lets call inbox Email and lets make
+it look like outlook."
+
+The part of Outlook worth copying is the shape, not the blue chrome: folders down the side, a
+scannable list in the middle, the message in a reading pane, and the reply starting where you are
+reading. Inbox / Sent / Other, unread in bold with a marker down the left, one click to read.
+Other holds bounces and out-of-office replies so they stop looking like somebody waiting.
+
+Built as a client component so selecting a message costs no round trip, with the page still doing
+the reading and passing the server actions down. The rule from the first version holds: received
+HTML is stored and never rendered, the plain text is what you read, and nothing goes near
+dangerouslySetInnerHTML.
+
+Shipped alongside DEF-018, which the first real email exposed within the hour: a body that failed
+to fetch left a silent null. It now records why, shows it, offers a button to try again, and is
+retried nightly before the provider forgets the message.
+

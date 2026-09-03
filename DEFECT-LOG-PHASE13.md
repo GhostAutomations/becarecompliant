@@ -732,3 +732,41 @@ the delivery outcome is now recorded rather than hoped for.
 
 DEF-017 is **CLOSED**.
 
+---
+
+## DEF-018 — A received email lost its body, and said nothing about it  ·  PARTLY FIXED (needs an API key change)
+
+**Found 2026-09-03**, on the first real message through the new founder inbox — an hour after
+building it.
+
+The message stored perfectly: sender, subject, message id, and a reply from the console that
+landed in the right thread in Outlook. **`body_text` and `body_html` were both null.**
+
+**Cause: `RESEND_API_KEY` has "Sending access".** Reading a received email needs **Full access**.
+The inbound webhook carries metadata only — no body, no headers — so the content always arrives
+on a second call, and that call was refused.
+
+**But the permission is not the defect.** The defect is that a refused fetch left a silent NULL
+that reads exactly like an email somebody sent with only a subject line. Phil said as much
+himself: *"i didnt put a content in the message just a subject so it might be my fault."* He was
+being fair to the software, and the software had given him no way to tell. He then sent a second
+message WITH content; it arrived at 13:04 and stored with a null body too, which settled it.
+
+**This is DEF-017 repeating inside the feature built to fix DEF-017.** An attempt whose outcome
+is not recorded is an attempt nobody can trust. I wrote `console.error` and returned null — a log
+line nobody reads is not a record.
+
+**Fixed in the product (migration 0213):**
+
+- `body_error` and `body_fetched_at` on `founder_emails`. A failure stores the provider's own
+  words, and a 401 or 403 appends the actual fix: *"the API key needs Full access, not Sending
+  access, to read received mail."*
+- The screen distinguishes three states that used to look identical: text we have, **content we
+  could not collect** (in amber, with the reason), and a genuinely empty message.
+- **A "Collect the content" button** on any message missing its text, and a nightly backfill on
+  the retention cron. Both matter because Resend keeps received mail for **30 days on every plan**
+  — a body never collected stops existing.
+
+**Still needed from Phil, and only he can do it:** create a Full access API key and replace
+`RESEND_API_KEY` in Vercel. Until then bodies keep failing — but now they say so.
+

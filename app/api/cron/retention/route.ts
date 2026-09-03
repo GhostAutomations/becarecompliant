@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runRetentionExpiry } from "@/lib/evidence/retention";
 import { runCompanyPurge } from "@/lib/companies/delete-apply";
+import { backfillMissingBodies } from "@/lib/founder/inbox-store";
 
 /**
  * Daily evidence retention: anonymise evidence that is past its retention date.
@@ -40,6 +41,15 @@ export async function GET(request: NextRequest) {
      of work — the nightly erasure of things whose time is up — and because a second schedule is
      a second thing to notice has stopped running. */
   const companies = await runCompanyPurge();
+
+  /* EMAIL BODIES THAT NEVER ARRIVED, collected before the provider forgets them (2026-09-03).
+     The inbound webhook carries metadata only, so every body needs a second call, and that call
+     can fail — the first real message through the feature lost its body to a sending-only API
+     key. Resend keeps received mail for 30 days on EVERY plan, so an uncollected body stops
+     existing. This rides along here for the same reason the purge does: it is nightly work on
+     things whose time is running out, and a second schedule is a second thing to notice has
+     stopped. */
+  const emailBodies = await backfillMissingBodies();
   // A FAILED RUN MUST NOT LOOK LIKE A QUIET ONE. Found live 2026-08-11: the function raised
   // "column reference evidence_id is ambiguous", this route swallowed it into a JSON field
   // and answered 200, so Vercel showed a healthy cron and nothing was ever anonymised. For a
@@ -47,14 +57,19 @@ export async function GET(request: NextRequest) {
   // broken for months" must never look the same from the outside.
   if (retention.error) {
     console.error("[cron/retention] run failed:", retention.error);
-    return NextResponse.json({ retention, companies }, { status: 500 });
+    return NextResponse.json({ retention, companies, emailBodies }, { status: 500 });
   }
   // Same rule for the purge half: a company that was due to be erased and was not is a failed
   // run, and a failed run must not answer 200. A purge that half-completed reports its error
   // here rather than only in the tombstone nobody is watching.
   if (companies.errors.length) {
     console.error("[cron/retention] company purge failed:", companies.errors.join(" | "));
-    return NextResponse.json({ retention, companies }, { status: 500 });
+    return NextResponse.json({ retention, companies, emailBodies }, { status: 500 });
   }
-  return NextResponse.json({ retention, companies });
+  /* A body we could not collect is reported, never silent — but it does not fail the run,
+     because retention and the purge did their work and a 500 here would hide that. */
+  if (emailBodies.errors.length) {
+    console.error("[cron/retention] email bodies:", emailBodies.errors.join(" | "));
+  }
+  return NextResponse.json({ retention, companies, emailBodies });
 }

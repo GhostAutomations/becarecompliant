@@ -28,7 +28,7 @@ import {
 } from "@/lib/founder/trial-requests";
 import { trialDomainFor } from "@/lib/founder/trial-matching";
 import { trialState } from "@/lib/billing/trial";
-import { sendFounderReply } from "@/lib/founder/inbox-store";
+import { sendFounderReply, refetchOneBody } from "@/lib/founder/inbox-store";
 import { trialBranchRefusal } from "@/lib/billing/trial-limits";
 import {
   softDeleteCompany,
@@ -1513,5 +1513,31 @@ export async function setEmailRead(
 
   revalidatePath("/founder/inbox");
   return { ok: read ? "Marked as done." : "Put back." };
+}
+
+/** Go and get the text of a message whose body never arrived. */
+export async function fetchEmailBody(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requirePlatformAdmin();
+  const id = String(formData.get("email_id") ?? "").trim();
+  if (!id) return { error: "Missing email." };
+
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("founder_emails")
+    .select("resend_email_id")
+    .eq("id", id)
+    .maybeSingle();
+
+  const resendId = (data?.resend_email_id as string | null) ?? null;
+  if (!resendId) return { error: "This message has no provider reference to fetch." };
+
+  const result = await refetchOneBody(id, resendId);
+  revalidatePath("/founder/inbox");
+  return result.ok
+    ? { ok: result.recovered ? "Content collected." : "The provider has no text for this one." }
+    : { error: result.error ?? "Could not collect the content." };
 }
 
