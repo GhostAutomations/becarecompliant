@@ -1465,6 +1465,11 @@ export async function sendInboxReply(
     inheritedSubject = (original?.subject as string | null) ?? null;
   }
 
+  /* A NEW message is not a reply: no "Re:", no threading headers, and the subject is used
+     exactly as typed. Decided by whether there is a message being answered, not by a flag the
+     browser could set. */
+  const isReply = Boolean(replyToId);
+
   const result = await sendFounderReply({
     to,
     subject: subject || inheritedSubject || "Be Care Compliant",
@@ -1473,6 +1478,7 @@ export async function sendInboxReply(
     existingReferences: references,
     trialRequestId,
     sentBy: user.id,
+    isReply,
   });
 
   if (!result.ok) {

@@ -176,6 +176,8 @@ export type SendReplyInput = {
   existingReferences?: string | null;
   trialRequestId?: string | null;
   sentBy: string;
+  /** A reply gets "Re:" and threading headers. A new message gets neither. */
+  isReply?: boolean;
 };
 
 /**
@@ -190,7 +192,7 @@ export async function sendFounderReply(input: SendReplyInput): Promise<{ ok: boo
   const from = replyFromAddress();
   if (!from) return { ok: false, error: "No sending address is configured." };
 
-  const subject = replySubject(input.subject);
+  const subject = input.isReply === false ? input.subject.trim() : replySubject(input.subject);
   const references = buildReferences(input.existingReferences, input.inReplyToMessageId);
 
   const headers: Record<string, string> = {};
