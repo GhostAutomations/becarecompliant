@@ -718,3 +718,17 @@ never presented as delivered.**
 chase itself is the test — the first run emails phil.davies@outlook.com, and if that lands, the
 provider path works and the original was either rejected or junked.
 
+**PROVED ON THE ARTEFACT, 2026-09-03, unattended and without anybody pressing anything.**
+
+The 06:00 UTC run (07:00 London) sent the chase; the 07:00 UTC run skipped it as already chased
+today, which is the double-schedule gate working. Phil received the email. In the database all
+three requests carry `founder_chased_at = 2026-09-03 06:01:20+00` and `founder_chase_count = 1`.
+
+**And it answered the open question.** Resend reaches phil.davies@outlook.com — the same address,
+the same sending domain, the same provider path. So the 27 August alert was either rejected by
+Resend or filed as junk by Outlook; the mail path itself is sound. That is worth knowing before
+the first paying customer depends on an email from this product, and it is only knowable because
+the delivery outcome is now recorded rather than hoped for.
+
+DEF-017 is **CLOSED**.
+
