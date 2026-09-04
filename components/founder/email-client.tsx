@@ -314,7 +314,7 @@ export default function EmailClient({
         <button type="button" className="mailx-cmd" onClick={sync} disabled={isPending}>
           {isPending ? "Syncing…" : "Sync"}
         </button>
-        <span className="mailx-sync">
+        <span className="mailx-sync" suppressHydrationWarning>
           {lastSync
             ? `Updated ${lastSync.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`
             : "Live"}
@@ -466,7 +466,9 @@ export default function EmailClient({
                       <span className="mailx-rowmain">
                         <span className="mailx-rowtop">
                           <span className="mailx-from mailx-tr">{who}</span>
-                          <span className="mailx-time">{whenLabel(r.occurred_at)}</span>
+                          <span className="mailx-time" suppressHydrationWarning>
+                            {whenLabel(r.occurred_at)}
+                          </span>
                         </span>
                         <span className="mailx-subject mailx-tr" style={{ display: "block" }}>
                           {r.subject || "(no subject)"}
@@ -580,7 +582,9 @@ export default function EmailClient({
                   <div className="mailx-meta">
                     To: {selected.direction === "in" ? mailbox : (selected.to_addresses ?? []).join(", ")}
                   </div>
-                  <div className="mailx-meta">{fullWhen(selected.occurred_at)}</div>
+                  <div className="mailx-meta" suppressHydrationWarning>
+                    {fullWhen(selected.occurred_at)}
+                  </div>
                   {selected.trial_request_id && leadNames[selected.trial_request_id] ? (
                     <div className="mailx-meta">
                       Lead:{" "}
