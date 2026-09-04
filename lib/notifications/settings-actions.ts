@@ -17,6 +17,7 @@ import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
 import type { ActionState } from "@/lib/forms";
 import { SMS_ESCALATION_ROLES } from "@/lib/notifications/roles";
+import { DEFAULT_NOTIFICATION_SETTINGS } from "@/lib/notifications/defaults";
 
 export async function saveNotificationSettings(
   _prev: ActionState,
@@ -27,9 +28,18 @@ export async function saveNotificationSettings(
 
   const emailDigest = formData.get("email_digest_enabled") === "on";
   const smsEnabled = formData.get("sms_enabled") === "on";
-  const first = clampDays(formData.get("chaser_first_days"), 7);
-  const second = clampDays(formData.get("chaser_second_days"), 14);
-  const smsDays = clampDays(formData.get("sms_overdue_days"), 14);
+  const first = clampDays(
+    formData.get("chaser_first_days"),
+    DEFAULT_NOTIFICATION_SETTINGS.chaserFirstDays,
+  );
+  const second = clampDays(
+    formData.get("chaser_second_days"),
+    DEFAULT_NOTIFICATION_SETTINGS.chaserSecondDays,
+  );
+  const smsDays = clampDays(
+    formData.get("sms_overdue_days"),
+    DEFAULT_NOTIFICATION_SETTINGS.smsOverdueDays,
+  );
   if (second <= first) {
     return { error: "The second chaser must be later than the first." };
   }

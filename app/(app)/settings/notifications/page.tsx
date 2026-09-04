@@ -10,6 +10,7 @@ import NotificationSettings, {
 import { resendConfigured } from "@/lib/email/resend";
 import { twilioConfigured } from "@/lib/sms/twilio";
 import { SMS_ESCALATION_ROLES } from "@/lib/notifications/roles";
+import { DEFAULT_NOTIFICATION_SETTINGS } from "@/lib/notifications/defaults";
 
 export const metadata: Metadata = { title: "Notification settings" };
 
@@ -96,11 +97,15 @@ export default async function NotificationSettingsPage() {
 
       <NotificationSettings
         initial={{
-          emailDigestEnabled: settings?.email_digest_enabled ?? true,
-          smsEnabled: settings?.sms_enabled ?? false,
-          chaserFirstDays: settings?.chaser_first_days ?? 7,
-          chaserSecondDays: settings?.chaser_second_days ?? 14,
-          smsOverdueDays: settings?.sms_overdue_days ?? 14,
+          emailDigestEnabled:
+            settings?.email_digest_enabled ?? DEFAULT_NOTIFICATION_SETTINGS.emailDigestEnabled,
+          smsEnabled: settings?.sms_enabled ?? DEFAULT_NOTIFICATION_SETTINGS.smsEnabled,
+          chaserFirstDays:
+            settings?.chaser_first_days ?? DEFAULT_NOTIFICATION_SETTINGS.chaserFirstDays,
+          chaserSecondDays:
+            settings?.chaser_second_days ?? DEFAULT_NOTIFICATION_SETTINGS.chaserSecondDays,
+          smsOverdueDays:
+            settings?.sms_overdue_days ?? DEFAULT_NOTIFICATION_SETTINGS.smsOverdueDays,
         }}
         users={escalationUsers}
         replies={replies}

@@ -1,4 +1,5 @@
 import "server-only";
+import { DEFAULT_NOTIFICATION_SETTINGS } from "@/lib/notifications/defaults";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { COMPLIANCE_RECIPIENT_ROLES, normaliseRecipientRole } from "@/lib/notifications/roles";
 import { todayInLondon, formatCivilDate } from "@/lib/recurrence";
@@ -61,13 +62,7 @@ export type AttentionItem = {
   rag: "red" | "amber";
 };
 
-const DEFAULT_SETTINGS = {
-  emailDigestEnabled: true,
-  smsEnabled: false,
-  chaserFirstDays: 7,
-  chaserSecondDays: 14,
-  smsOverdueDays: 14,
-};
+const DEFAULT_SETTINGS = DEFAULT_NOTIFICATION_SETTINGS;
 
 /** Active companies with their notification settings (defaults if no row). */
 export async function getDigestCompanies(): Promise<DigestCompany[]> {
