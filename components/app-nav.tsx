@@ -96,8 +96,12 @@ export function MobileDock({
       (e.children ?? []).some((c) => isActive(c.href)),
   );
 
+  /* Tight on purpose. The tab's NATURAL height is what sets the bar's height — the min-height in
+     the stylesheet never bound, which is why raising and lowering it changed nothing at all
+     (2026-09-04). Icon plate 28px, half-step padding, a 10px label: about 44pt of bar, plus the
+     home-indicator inset that iOS requires below it. */
   const tabClass = (active: boolean) =>
-    `flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1 text-[10px] font-medium leading-tight transition ${
+    `flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-0.5 text-[10px] font-medium leading-tight transition ${
       active ? "text-gold-300" : "text-white/65 hover:text-white"
     }`;
 
@@ -115,7 +119,7 @@ export function MobileDock({
                 className={tabClass(active)}
               >
                 <span
-                  className={`flex h-8 w-full max-w-[64px] items-center justify-center rounded-xl transition ${
+                  className={`flex h-7 w-full max-w-[64px] items-center justify-center rounded-xl transition ${
                     active ? "bg-white/15" : ""
                   }`}
                 >
@@ -135,7 +139,7 @@ export function MobileDock({
               className={tabClass(overflowActive)}
             >
               <span
-                className={`flex h-8 w-full max-w-[64px] items-center justify-center rounded-xl transition ${
+                className={`flex h-7 w-full max-w-[64px] items-center justify-center rounded-xl transition ${
                   overflowActive ? "bg-white/15" : ""
                 }`}
               >
