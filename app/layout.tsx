@@ -12,7 +12,11 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    title: "Compliant",
+    /* The name UNDER THE ICON on a phone home screen. iOS gives it about 12 characters before
+       it truncates, so "Be Care Compliant" would read as "Be Care Com…". Phil, 2026-09-04: BCC.
+       Must match short_name in the manifest, or Android and iOS disagree about what the app is
+       called. */
+    title: "BCC",
     statusBarStyle: "black-translucent",
   },
   icons: {

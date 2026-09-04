@@ -1,6 +1,6 @@
 {
   "name": "Be Care Compliant",
-  "short_name": "Compliant",
+  "short_name": "BCC",
   "description": "Keeps UK care companies compliant with CQC, CIW and local authorities.",
   "start_url": "/dashboard",
   "scope": "/",
