@@ -980,3 +980,7 @@
   .mailx-full .mailx-read { height: auto; }
 }
 
+/* The quiet "Updated 16:42" beside Sync. Deliberately unobtrusive: it is reassurance that the
+   screen is current, not information anybody acts on. */
+.mailx-sync { font-size: 0.72rem; color: #8a8886; padding-left: 0.15rem; }
+

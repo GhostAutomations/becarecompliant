@@ -26,7 +26,8 @@
  * text is what you read. Nothing goes near dangerouslySetInnerHTML.
  */
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ActionForm from "@/components/action-form";
 import { listPreview, replySubject } from "@/lib/founder/inbox";
@@ -142,6 +143,53 @@ export default function EmailClient({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [composing, setComposing] = useState(false);
 
+  /* ------------------------------------------------------------------
+   * NEW MAIL APPEARS WITHOUT A REFRESH
+   *
+   * Phil, 2026-09-03: "can we have it set up so that when an email is received it shows in
+   * email rather than having to refresh the page?"
+   *
+   * POLLING, NOT A LIVE SOCKET, ON PURPOSE. A realtime subscription is the fancier answer and
+   * it is another dependency that can stop working quietly — which is the exact failure this
+   * whole feature exists to stamp out. router.refresh() re-runs the server component and swaps
+   * the data in; client state (which folder, which message, what you have typed) survives it.
+   *
+   * Two things it deliberately does NOT do:
+   *   - poll while the tab is in the background, because nobody is reading it, and
+   *   - poll while a reply is half written, because a refresh mid-sentence is unforgivable
+   *     even if React would probably keep the text.
+   * ------------------------------------------------------------------ */
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [lastSync, setLastSync] = useState<Date | null>(null);
+  const typingRef = useRef(false);
+
+  const sync = useCallback(() => {
+    startTransition(() => {
+      router.refresh();
+      setLastSync(new Date());
+    });
+  }, [router]);
+
+  useEffect(() => {
+    const POLL_MS = 20_000;
+    const tick = () => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      if (typingRef.current) return;
+      sync();
+    };
+    const timer = setInterval(tick, POLL_MS);
+    // Catch up immediately when the tab comes back, rather than waiting out the interval.
+    const onVisible = () => {
+      if (!document.hidden && !typingRef.current) sync();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [sync]);
+
   const folders = useMemo(
     () => ({
       inbox: rows.filter((r) => r.direction === "in" && !r.is_spam),
@@ -188,6 +236,15 @@ export default function EmailClient({
         </button>
 
         <span className="mailx-divider" />
+
+        <button type="button" className="mailx-cmd" onClick={sync} disabled={isPending}>
+          {isPending ? "Syncing…" : "Sync"}
+        </button>
+        <span className="mailx-sync">
+          {lastSync
+            ? `Updated ${lastSync.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`
+            : "Checking every 20 seconds"}
+        </span>
 
         {/* REAL ACTIONS ONLY. A Delete or Archive button that did nothing would be worse than
             not having one at all. */}
@@ -358,7 +415,16 @@ export default function EmailClient({
                   <label htmlFor="compose-body" className="mailx-label">
                     Message
                   </label>
-                  <textarea id="compose-body" name="body" rows={14} maxLength={20000} required />
+                  <textarea
+                    id="compose-body"
+                    name="body"
+                    rows={14}
+                    maxLength={20000}
+                    required
+                    onInput={(e) => {
+                      typingRef.current = e.currentTarget.value.length > 0;
+                    }}
+                  />
                 </div>
               </ActionForm>
             </section>
@@ -477,6 +543,9 @@ export default function EmailClient({
                         rows={7}
                         maxLength={20000}
                         required
+                        onInput={(e) => {
+                          typingRef.current = e.currentTarget.value.length > 0;
+                        }}
                       />
                     </div>
                   </ActionForm>
