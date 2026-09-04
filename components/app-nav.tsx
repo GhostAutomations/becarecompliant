@@ -108,10 +108,6 @@ export function MobileDock({
   return (
     <>
       <nav aria-label="Main" className="mobile-dock md:hidden">
-        {/* TEMPORARY, FOUNDER ONLY. Three rounds of me adjusting this bar by reasoning about
-            pixels I could not see. This prints what the device actually reports, so one
-            screenshot settles it. Remove once the height is agreed. */}
-        {role === "platform_admin" ? <DockReadout /> : null}
         <div className="mobile-dock-row">
           {primary.map((entry) => {
             const active = isActive(entry.href);
@@ -163,35 +159,6 @@ export function MobileDock({
         />
       )}
     </>
-  );
-}
-
-/** Temporary diagnostic: the dock's real height and the device's real safe-area inset. */
-function DockReadout() {
-  const [text, setText] = useState("");
-  useEffect(() => {
-    const read = () => {
-      const nav = document.querySelector(".mobile-dock");
-      const row = document.querySelector(".mobile-dock-row");
-      if (!nav || !row) return;
-      const inset = getComputedStyle(document.documentElement).getPropertyValue("--sai-bottom");
-      const probe = document.createElement("div");
-      probe.style.cssText = "position:fixed;bottom:0;height:env(safe-area-inset-bottom);width:1px;";
-      document.body.appendChild(probe);
-      const real = probe.getBoundingClientRect().height;
-      probe.remove();
-      setText(
-        `dock ${nav.getBoundingClientRect().height.toFixed(0)} · row ${row.getBoundingClientRect().height.toFixed(0)} · pad ${getComputedStyle(row).paddingBottom} · inset ${real.toFixed(0)}${inset ? ` (${inset})` : ""}`,
-      );
-    };
-    read();
-    window.addEventListener("resize", read);
-    return () => window.removeEventListener("resize", read);
-  }, []);
-  return (
-    <div className="px-2 pt-0.5 text-center text-[9px] text-white/40" suppressHydrationWarning>
-      {text}
-    </div>
   );
 }
 

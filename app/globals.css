@@ -1029,7 +1029,7 @@ canvas {
      reserved about 20px more than the dock actually occupies — dead space at the end of every
      scroll, on top of the space the dock itself was wasting. */
   /* Matches the dock: tabs plus the trimmed inset, and nothing spare. */
-  padding-bottom: calc(3.5rem + max(0.125rem, calc(env(safe-area-inset-bottom) - 26px)));
+  padding-bottom: calc(3.5rem + env(safe-area-inset-bottom));
 }
 @media (min-width: 768px) {
   .app-main {
@@ -1060,32 +1060,20 @@ canvas {
   /* THE INSET IS APPLIED IN ONE PLACE ONLY. It was on the nav's padding while the row had its
      own padding too, which is the sort of arrangement where a value quietly gets counted twice
      and nobody can say why the bar is taller than the sum of its parts. */
-  /* THE INSET IS TRIMMED, NOT HONOURED IN FULL. iOS reports about 34pt below the tabs on a
-     modern iPhone, and Phil is right that it reads as a wasted centimetre — because it IS a
-     centimetre, and our bar is not a system bar that needs all of it.
-     8pt is kept. That is BELOW Apple's guidance, which wants the full inset clear of the home
-     indicator, and it is a deliberate trade: the indicator pill now sits across the very bottom
-     of the tabs, and a tap in the lowest few points may be taken by the system's swipe-up
-     instead. Each tab is 46.5pt tall, so its centre — where people actually press — is well
-     clear. Phil's call, 2026-09-04, on an app he is the main user of.
-     Dial it back by changing 26px: 14px gives 20pt, or drop the subtraction for the full inset. */
-  padding: 0.125rem max(0.5rem, env(safe-area-inset-left))
-    max(0.125rem, calc(env(safe-area-inset-bottom) - 26px))
+  /* THE BAR PAINTS THE HOME-INDICATOR AREA; THE TABS DO NOT SIT IN IT.
+     Measured on Phil's iPhone, 2026-09-04: Safari reports a 53pt bar and a 0 inset; the
+     installed app reports the same bar and a 34pt inset. That 34pt is the home indicator and
+     controls cannot live there — a tap in it goes to the system swipe.
+     What I got wrong was taking the padding OFF the bar to "save" the space. The space does not
+     go anywhere; all that changed is that the BAR stopped painting it, so bare page background
+     showed under the tabs and it read as a gap rather than as part of the bar. The padding is
+     back on the nav, where it extends the bar's own background over the inset, and the row keeps
+     its tight 2px so the tabs themselves stay small. */
+  padding: 0.125rem max(0.5rem, env(safe-area-inset-left)) 0.125rem
     max(0.5rem, env(safe-area-inset-right));
+.mobile-dock {
+  padding-bottom: env(safe-area-inset-bottom);
 }
-/* 48px, still comfortably above Apple's 44pt minimum for a tap target. It was 52 plus 0.375rem
-   of padding above and below, which on top of the home-indicator inset made the bar read as a
-   band of empty navy rather than a navigation bar (Phil, 2026-09-04). */
-.mobile-dock-row > a,
-.mobile-dock-row > button {
-  /* 44px is Apple's minimum tap target. It is a FLOOR, not the height: the tab's own content is
-     what normally sets it. */
-  min-height: 44px;
-}
-
-/* THE HOME INDICATOR AREA STAYS. iOS reserves it, and a tab sitting under it means a swipe up
-   hits the system gesture rather than your button. It is about 34pt on a modern iPhone and it
-   is most of what reads as "a big space" — the rest, which is ours, has been trimmed above. */
 
 /* ---- "More" bottom sheet ---- */
 .mobile-sheet-root {
