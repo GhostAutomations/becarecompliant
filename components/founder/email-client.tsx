@@ -152,6 +152,18 @@ export default function EmailClient({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [composing, setComposing] = useState(false);
 
+  /* PHONE OR DESKTOP. Below this width the screen navigates like Apple Mail — the list, or a
+     message, never both — because three panes stacked on a phone is not a mail app. */
+  const [phone, setPhone] = useState(false);
+  const [reading, setReading] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1150px)");
+    const apply = () => setPhone(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
   /* ------------------------------------------------------------------
    * NEW MAIL ARRIVES BY PUSH, NOT BY POLLING
    *
@@ -208,51 +220,47 @@ export default function EmailClient({
      hours later, when the mobile branch swapped pb-24 for a safe-area calculation to clear the
      phone dock. So the offsets are now read from the shell's ACTUAL computed padding.
 
-     AND ONLY ON A WIDE SCREEN. Below the point where the three panes sit side by side, the
-     layout stacks and is taller than the window — taking the shell's scrolling away there would
-     simply cut the bottom off, and the space at the foot belongs to the mobile dock anyway. On a
-     phone this screen scrolls like any other page. */
+     ON A PHONE IT FILLS THE SCREEN TOO, but stops short of the dock: the shell's bottom padding
+     IS the dock's space, so it is left in place and the height comes down by the same amount.
+     The panes scroll inside; the page never does. */
   useEffect(() => {
     const shell = shellRef.current;
     const main = shell?.closest("main") as HTMLElement | null;
     if (!shell || !main) return;
 
-    const wide = window.matchMedia("(min-width: 1151px)");
     const previousOverflow = main.style.overflow;
 
-    const release = () => {
-      main.style.overflow = previousOverflow;
-      shell.style.height = "";
-      shell.style.marginTop = "";
-      shell.style.marginLeft = "";
-      shell.style.marginRight = "";
-      shell.style.marginBottom = "";
-    };
-
     const fit = () => {
-      if (!wide.matches) {
-        release();
-        return;
-      }
       const pad = getComputedStyle(main);
+      const wide = window.matchMedia("(min-width: 1151px)").matches;
+
       shell.style.marginTop = `-${pad.paddingTop}`;
       shell.style.marginLeft = `-${pad.paddingLeft}`;
       shell.style.marginRight = `-${pad.paddingRight}`;
-      shell.style.marginBottom = `-${pad.paddingBottom}`;
-      // clientHeight includes the padding, so this is exactly the visible area.
-      shell.style.height = `${main.clientHeight}px`;
+      /* On a phone the shell's bottom padding is the space the dock occupies, so it is left
+         alone and the height comes down by the same amount. On desktop there is no dock and the
+         screen runs to the very bottom. */
+      shell.style.marginBottom = wide ? `-${pad.paddingBottom}` : "0px";
+      shell.style.height = wide
+        ? `${main.clientHeight}px`
+        : `${main.clientHeight - (parseFloat(pad.paddingBottom) || 0)}px`;
       main.style.overflow = "hidden";
     };
     fit();
 
     const observer = new ResizeObserver(fit);
     observer.observe(main);
-    wide.addEventListener("change", fit);
+    window.addEventListener("resize", fit);
 
     return () => {
       observer.disconnect();
-      wide.removeEventListener("change", fit);
-      release();
+      window.removeEventListener("resize", fit);
+      main.style.overflow = previousOverflow;
+      shell.style.height = "";
+      shell.style.marginTop = "";
+      shell.style.marginLeft = "";
+      shell.style.marginRight = "";
+      shell.style.marginBottom = "";
     };
   }, []);
 
@@ -268,7 +276,11 @@ export default function EmailClient({
 
   const list = folders[folder];
   const unread = folders.inbox.filter((r) => !r.is_read).length;
-  const selected = composing ? null : (list.find((r) => r.id === selectedId) ?? list[0] ?? null);
+  const selected = composing
+    ? null
+    : phone
+      ? (reading ? (list.find((r) => r.id === selectedId) ?? null) : null)
+      : (list.find((r) => r.id === selectedId) ?? list[0] ?? null);
 
   /** The list, cut into date groups in order, the way Outlook shows it. */
   const grouped = useMemo(() => {
@@ -384,6 +396,43 @@ export default function EmailClient({
         ) : null}
       </div>
 
+      {phone && !reading && !composing ? (
+        <div className="mailx-strip">
+          {(["inbox", "sent", "other", "deleted"] as Folder[]).map((id) => {
+            const badge = id === "inbox" ? unread : 0;
+            return (
+              <button
+                key={id}
+                type="button"
+                className={folder === id ? "is-active" : ""}
+                onClick={() => {
+                  setFolder(id);
+                  setSelectedId(null);
+                  setReading(false);
+                }}
+              >
+                {FOLDER_LABEL[id]}
+                {badge > 0 ? ` (${badge})` : ""}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {phone && (reading || composing) ? (
+        <div className="mailx-backrow">
+          <button
+            type="button"
+            onClick={() => {
+              setReading(false);
+              setComposing(false);
+            }}
+          >
+            ← {FOLDER_LABEL[folder]}
+          </button>
+        </div>
+      ) : null}
+
       <div className="mailx-body">
         {/* ---------------- FOLDERS ---------------- */}
         <nav className="mailx-rail">
@@ -417,7 +466,10 @@ export default function EmailClient({
         </nav>
 
         {/* ---------------- LIST ---------------- */}
-        <div className="mailx-list" ref={listRef}>
+        <div
+          className={`mailx-list${phone && (reading || composing) ? " mailx-phone-hide" : ""}`}
+          ref={listRef}
+        >
           {list.length === 0 ? (
             <p className="mailx-empty">
               {folder === "inbox"
@@ -454,6 +506,7 @@ export default function EmailClient({
                       onClick={() => {
                         setComposing(false);
                         setSelectedId(r.id);
+                        setReading(true);
                       }}
                     >
                       {isUnread ? <span className="mailx-dot" /> : null}
@@ -486,7 +539,7 @@ export default function EmailClient({
         </div>
 
         {/* ---------------- READING PANE / COMPOSE ---------------- */}
-        <div className="mailx-read" ref={readRef}>
+        <div className={`mailx-read${phone && !reading && !composing ? " mailx-phone-hide" : ""}`} ref={readRef}>
           {composing ? (
             <section>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>

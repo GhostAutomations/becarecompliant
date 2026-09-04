@@ -967,10 +967,77 @@
 }
 
 @media (max-width: 1150px) {
-  /* Stacked: the panes scroll inside a page that scrolls normally, so the shell is left alone. */
-  .mailx-full .mailx { height: auto; }
-  .mailx-full .mailx-list { max-height: 40vh; height: auto; }
-  .mailx-full .mailx-read { height: auto; }
+  /* ------------------------------------------------------------------
+     PHONE: A MAIL APP, NOT THREE PANES STACKED.
+
+     Phil, 2026-09-04: "email looks rubbish and we have one pass at making it look like apple
+     mail at least?" He was right — a white card floating in a navy page with the folder rail,
+     the list and the reading pane all piled on top of each other is not a mail app.
+
+     Apple Mail on a phone NAVIGATES rather than tiles: you are looking at the list, or you are
+     looking at a message, never both. The component switches to that below this width, and the
+     folders become a compact strip instead of a column.
+     ------------------------------------------------------------------ */
+  .mailx-body { flex-direction: column; min-height: 0; }
+  .mailx-rail { display: none; }
+  .mailx-list,
+  .mailx-read {
+    flex: 1 1 auto;
+    width: auto;
+    max-height: none;
+    height: auto;
+    min-height: 0;
+    border-right: 0;
+    overflow-y: auto;
+  }
+  /* One or the other, never both. */
+  .mailx-phone-hide { display: none !important; }
+
+  /* The folder strip that replaces the rail. */
+  .mailx-strip {
+    display: flex;
+    gap: 0.25rem;
+    overflow-x: auto;
+    padding: 0.4rem 0.6rem;
+    border-bottom: 1px solid var(--mailx-line);
+    background: #faf9f8;
+  }
+  .mailx-strip button {
+    flex: 0 0 auto;
+    border: 0;
+    background: transparent;
+    border-radius: 999px;
+    padding: 0.25rem 0.7rem;
+    font-size: 0.8rem;
+    color: var(--mailx-ink);
+  }
+  .mailx-strip button.is-active { background: var(--mailx-sel); color: #0c4a80; font-weight: 700; }
+
+  /* Rows get the room they need: Apple shows two lines of preview. */
+  .mailx-preview { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .mailx-row { padding: 0.6rem 0.8rem; }
+  .mailx-read { padding: 0.9rem 1rem 2rem; }
+  .mailx-bar { gap: 0.3rem; padding: 0.4rem 0.6rem; }
+  .mailx-heading { display: none; }
+}
+
+/* The back link that appears above a message on a phone. */
+.mailx-backrow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--mailx-line);
+  background: #faf9f8;
+}
+.mailx-backrow button {
+  border: 0;
+  background: transparent;
+  color: var(--mailx-blue);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.1rem 0;
 }
 
 /* The quiet "Updated 16:42" beside Sync. Deliberately unobtrusive: it is reassurance that the
