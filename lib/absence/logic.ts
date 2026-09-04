@@ -85,9 +85,9 @@ export const DEFAULT_BRADFORD_BANDS: BradfordBand[] = [
   { threshold: 401, label: "Stage 3", action: "Final review" },
 ];
 
-/** Kept as the documented equivalent of the default window (12 months). Nothing
- *  computes with it any more: the window carries its own unit. */
-export const DEFAULT_ROLLING_WINDOW_DAYS = 365;
+/* DEFAULT_ROLLING_WINDOW_DAYS is gone (2026-09-04). The window carries its own unit
+   now, and a day count that no longer matches the default is worse than no constant:
+   the default is DEFAULT_ABSENCE_WINDOW in lib/absence/window.ts. */
 
 /** Bradford Factor: S squared times D (spells squared times total days). */
 export function bradfordScore(occasions: number, totalDays: number): number {

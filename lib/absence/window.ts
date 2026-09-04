@@ -15,8 +15,9 @@
 export type WindowUnit = "day" | "week" | "month";
 export type AbsenceWindow = { value: number; unit: WindowUnit };
 
-/** A rolling twelve months: what nearly every UK absence policy says. */
-export const DEFAULT_ABSENCE_WINDOW: AbsenceWindow = { value: 12, unit: "month" };
+/** A rolling six months (Phil, 2026-09-04). Twelve is the longest window in common
+ *  use; six is the one that actually catches a pattern while it can still be helped. */
+export const DEFAULT_ABSENCE_WINDOW: AbsenceWindow = { value: 6, unit: "month" };
 
 /** The unit dropdown, in the order it is shown. */
 export const WINDOW_UNITS: ReadonlyArray<{ unit: WindowUnit; label: string }> = [
@@ -67,6 +68,8 @@ export function parseAbsenceWindow(
  * A window given in days converted to the unit that says the same thing, used once to
  * read the old days-only column and to make sense of a policy that talks in days.
  * 365 is a year, 730 two years; anything else stays as days, because it was chosen.
+ * Note this converts what was WRITTEN, not what is DEFAULT: 365 days becomes twelve
+ * months even though a new company now starts at six.
  */
 export function windowFromDays(days: unknown): AbsenceWindow {
   const n = typeof days === "number" ? days : Number.parseInt(String(days ?? ""), 10);

@@ -13,9 +13,13 @@ import {
   windowLabel,
 } from "./window.ts";
 
-test("THE POINT: a policy says a rolling twelve months, not 365 days", () => {
-  assert.deepEqual(DEFAULT_ABSENCE_WINDOW, { value: 12, unit: "month" });
-  assert.equal(windowLabel(DEFAULT_ABSENCE_WINDOW), "12 months");
+test("THE POINT: a policy says a rolling period in months, not in days", () => {
+  assert.equal(windowLabel({ value: 12, unit: "month" }), "12 months");
+  assert.equal(windowLabel({ value: 6, unit: "month" }), "6 months");
+});
+
+test("a new company starts on a rolling six months", () => {
+  assert.deepEqual(DEFAULT_ABSENCE_WINDOW, { value: 6, unit: "month" });
 });
 
 test("the window is written in the words of the policy", () => {
