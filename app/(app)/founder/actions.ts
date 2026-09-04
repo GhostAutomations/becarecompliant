@@ -8,6 +8,7 @@ import { syncBranchQuantity, refreshCustomerIdentity } from "@/lib/billing/strip
 import { removalRefusal, type RemovalResult } from "@/lib/branches/removal";
 import { changeTier } from "@/lib/billing/tier-apply";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/admin";
 import { createAndSendInvite, resendInvite, revokeInvite, type Actor } from "@/lib/invites";
 import { syncSeatQuantity } from "@/lib/billing/stripe-sync";
 import {
@@ -1420,6 +1421,18 @@ export async function setCompanyRegulator(
 
 /* ---------------------------------------------------------------------------
  * The founder inbox
+ *
+ * EVERY WRITE HERE USES THE SERVICE ROLE, and that is not a shortcut.
+ *
+ * founder_emails (0212) has a SELECT policy and nothing else, on purpose: a customer's email is
+ * not editable by any tenant, and the only writer is meant to be the platform itself. These
+ * actions were written against the ordinary user client, so every update matched zero rows and
+ * came back as "That message could not be found" — Delete, Mark as Read, Erase, all of it.
+ * Found by Phil, 2026-09-04, pressing Delete.
+ *
+ * requirePlatformAdmin() above each one is therefore the whole of the protection, exactly as it
+ * is for the company purge. The misleading message was at least the guard doing its job: the
+ * actions check the affected count, so an RLS no-op surfaces instead of pretending to succeed.
  * ------------------------------------------------------------------------- */
 
 /** Deliberately loose: enough to catch a typo, not an attempt to validate RFC 5322. */
@@ -1509,7 +1522,7 @@ export async function setEmailRead(
   const read = String(formData.get("read") ?? "") === "true";
   if (!id) return { error: "Missing email." };
 
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   const { error } = await supabase
     .from("founder_emails")
     .update({ is_read: read })
@@ -1530,7 +1543,7 @@ export async function fetchEmailBody(
   const id = String(formData.get("email_id") ?? "").trim();
   if (!id) return { error: "Missing email." };
 
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   const { data } = await supabase
     .from("founder_emails")
     .select("resend_email_id")
@@ -1563,7 +1576,7 @@ export async function setEmailDeleted(
   const deleted = String(formData.get("deleted") ?? "") === "true";
   if (!id) return { error: "Missing email." };
 
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   const { data, error } = await supabase
     .from("founder_emails")
     .update({ deleted_at: deleted ? new Date().toISOString() : null })
@@ -1585,7 +1598,7 @@ export async function eraseEmail(
   const id = String(formData.get("email_id") ?? "").trim();
   if (!id) return { error: "Missing email." };
 
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
   /* ONLY FROM THE DELETED FOLDER. Checked here rather than trusted from the screen, so a stale
      page or a crafted post cannot erase a live message. */
@@ -1619,7 +1632,7 @@ export async function emptyDeletedEmails(
   _formData: FormData,
 ): Promise<ActionState> {
   const { user } = await requirePlatformAdmin();
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
   const { data, error } = await supabase
     .from("founder_emails")

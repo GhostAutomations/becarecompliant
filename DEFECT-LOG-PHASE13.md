@@ -770,3 +770,31 @@ line nobody reads is not a record.
 **Still needed from Phil, and only he can do it:** create a Full access API key and replace
 `RESEND_API_KEY` in Vercel. Until then bodies keep failing — but now they say so.
 
+---
+
+## DEF-019 — Every write in the founder inbox failed, and blamed the message  ·  FIXED
+
+**Found 2026-09-04** by Phil pressing Delete: *"when i am in inbox and press delete, i get a red
+message, saying it could not be found."*
+
+Nothing was missing. `founder_emails` (0212) was created with a SELECT policy and deliberately
+nothing else — a customer's email must not be editable by any tenant, and the only writer was
+meant to be the platform itself. Then I wrote the actions against the ordinary user client. Every
+update matched zero rows: **Delete, Restore, Mark as Read, Erase and Empty Deleted, all of them**,
+not just the one he pressed.
+
+**Fixed** by using the service-role client in those five actions, after `requirePlatformAdmin()`,
+which is exactly how the company purge works. The guard is then the whole of the protection, and
+that is the design — not a shortcut around RLS.
+
+**The one thing that worked properly was the error handling.** Because every action checks the
+affected row count, an RLS no-op surfaced as a refusal on screen instead of a button that flashed
+"Saved" and did nothing. The message was wrong — "could not be found" described the symptom, not
+the cause — but the failure was visible, which is the only reason it was found in a minute rather
+than the first time a real customer email needed deleting.
+
+**The pattern worth naming, because it is now three for three today:** DEF-017 (an unrecorded
+send), DEF-018 (an unrecorded fetch) and this one are all the same shape — an operation whose
+outcome was assumed rather than checked. The cure is the same each time: report what actually
+happened to the row.
+
