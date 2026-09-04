@@ -1025,7 +1025,10 @@ canvas {
 
 /* Main scroll area leaves room for the fixed dock + home indicator on phones. */
 .app-main {
-  padding-bottom: calc(5.25rem + env(safe-area-inset-bottom));
+  /* Exactly the dock's height plus a little clearance, nothing more. It was 5.25rem, which
+     reserved about 20px more than the dock actually occupies — dead space at the end of every
+     scroll, on top of the space the dock itself was wasting. */
+  padding-bottom: calc(4.25rem + env(safe-area-inset-bottom));
 }
 @media (min-width: 768px) {
   .app-main {
@@ -1054,14 +1057,20 @@ canvas {
   display: flex;
   align-items: stretch;
   gap: 0.25rem;
-  padding: 0.375rem max(0.5rem, env(safe-area-inset-left)) 0.375rem
+  padding: 0.25rem max(0.5rem, env(safe-area-inset-left)) 0.25rem
     max(0.5rem, env(safe-area-inset-right));
 }
-/* Comfortable tap targets: each tab is at least 56px tall. */
+/* 48px, still comfortably above Apple's 44pt minimum for a tap target. It was 52 plus 0.375rem
+   of padding above and below, which on top of the home-indicator inset made the bar read as a
+   band of empty navy rather than a navigation bar (Phil, 2026-09-04). */
 .mobile-dock-row > a,
 .mobile-dock-row > button {
-  min-height: 52px;
+  min-height: 48px;
 }
+
+/* THE HOME INDICATOR AREA STAYS. iOS reserves it, and a tab sitting under it means a swipe up
+   hits the system gesture rather than your button. It is about 34pt on a modern iPhone and it
+   is most of what reads as "a big space" — the rest, which is ours, has been trimmed above. */
 
 /* ---- "More" bottom sheet ---- */
 .mobile-sheet-root {
