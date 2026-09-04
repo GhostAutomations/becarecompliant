@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import BackLink from "@/components/back-link";
 import BranchForm from "@/components/settings/branch-form";
 import { orderBranches, chargeableCount } from "@/lib/branches/ordering";
+import { type BranchAddressRow, officeAddress } from "@/lib/branches/office-address";
 import {
   includedBranchesForTier,
   EXTRA_BRANCH_PENCE,
@@ -21,7 +22,7 @@ export default async function BranchesPage() {
   const [{ data: branches }, { data: company }] = await Promise.all([
     supabase
       .from("branches")
-      .select("id, name, kind, status, address, created_at")
+      .select("id, name, kind, status, address, uses_office_address, created_at")
       .eq("company_id", profile.company_id),
     supabase.from("companies").select("tier").eq("id", profile.company_id).maybeSingle(),
   ]);
@@ -30,6 +31,9 @@ export default async function BranchesPage() {
      office LAST, because "branch" sorts before "team" — an accident nobody chose. Phil,
      2026-08-20: "put office team at the top, then the included branch, then any chargeble
      branches." See lib/branches/ordering.ts for why the included one is the oldest one. */
+  /* One address, resolved where it is used: a branch with no premises of its own
+     shares the office's rather than keeping a copy that goes stale when we move. */
+  const office = officeAddress((branches ?? []) as BranchAddressRow[]);
   const included = includedBranchesForTier(company?.tier ?? "business");
   const list = orderBranches(branches ?? [], included);
   const chargeable = chargeableCount(list);
@@ -50,6 +54,13 @@ export default async function BranchesPage() {
           . Records belong to exactly one branch.
         </p>
       </div>
+
+      {office === null ? (
+        <p className="form-error mt-0">
+          The office has no address yet. Formal meeting letters print it in full, and
+          any branch set to use it has nothing to print, so set it first.
+        </p>
+      ) : null}
 
       <div className="space-y-3">
         {list.map((branch) => (
@@ -77,6 +88,9 @@ export default async function BranchesPage() {
               branchId={branch.id}
               initialName={branch.name}
               initialAddress={branch.address ?? ""}
+              isOffice={branch.kind === "team"}
+              initialSharesOffice={Boolean(branch.uses_office_address)}
+              officeAddress={office}
             />
           </div>
         ))}

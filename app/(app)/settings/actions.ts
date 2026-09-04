@@ -642,6 +642,8 @@ export async function changeUserRole(formData: FormData): Promise<void> {
 
 /** Rename one of the company's branches and set its office address (printed in
  *  full on formal meeting letters when the Location is Office, migration 0050).
+ *  A branch with no premises of its own SHARES the office address instead of
+ *  holding a copy (migration 0222), so the copy is cleared when it is ticked.
  *  Returns ActionState so the button can show Saving, Saved and real errors:
  *  a save must never be silent (standing rule, Phil 2026-07-12). */
 export async function renameBranch(
@@ -656,9 +658,28 @@ export async function renameBranch(
   if (!branchId || !name) return { error: "The branch needs a name." };
 
   const supabase = await createClient();
+  /* The kind is read here, not trusted from the post: the office cannot share an
+     address with itself, and a branch that shares one must not keep a stale copy. */
+  const { data: existing } = await supabase
+    .from("branches")
+    .select("kind")
+    .eq("id", branchId)
+    .eq("company_id", ctx.companyId)
+    .maybeSingle();
+  if (!existing) return { error: "The branch could not be saved: no matching branch." };
+  const sharesOffice =
+    existing.kind !== "team" && formData.get("uses_office_address") === "on";
+
   const { error, count } = await supabase
     .from("branches")
-    .update({ name, address: address || null }, { count: "exact" })
+    .update(
+      {
+        name,
+        uses_office_address: sharesOffice,
+        address: sharesOffice ? null : address || null,
+      },
+      { count: "exact" },
+    )
     .eq("id", branchId)
     .eq("company_id", ctx.companyId);
   if (error) return { error: `The branch could not be saved: ${error.message}` };
@@ -673,7 +694,11 @@ export async function renameBranch(
     entityType: "branch",
     entityId: branchId,
     summary: `Updated branch ${name}`,
-    metadata: { name, address: address || null },
+    metadata: {
+      name,
+      address: sharesOffice ? null : address || null,
+      uses_office_address: sharesOffice,
+    },
   });
   // Every Form field keyed branch or region carries a baked copy of the branch names
   // (migration 0076), so a rename leaves them offering the old one until we re-bake

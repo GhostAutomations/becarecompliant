@@ -14,6 +14,11 @@
 import { revalidatePath } from "next/cache";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
+import {
+  type BranchAddressRow,
+  officeAddress,
+  resolveBranchAddress,
+} from "@/lib/branches/office-address";
 import { profilesById } from "@/lib/auth/company-profiles";
 
 /** Who may hold a formal absence meeting. Mirrors listMeetingConductors in lib/absence/data.ts. */
@@ -560,8 +565,9 @@ export async function bookAbsenceMeeting(
 
 /** Resolve the booking's location choice: "teams", or the id of one of the
  *  company's offices (the Team office or a branch office). Offices must have
- *  their address set in Settings > Branches; the full address is what the
- *  letters print. Ownership checked: the office must belong to this company. */
+ *  their address set in Settings > Branches, or share the main office's; the
+ *  full address is what the letters print. Ownership checked: the office must
+ *  belong to this company. */
 async function resolveMeetingLocation(
   supabase: Awaited<ReturnType<typeof createClient>>,
   companyId: string,
@@ -572,18 +578,31 @@ async function resolveMeetingLocation(
   }
   const { data: office } = await supabase
     .from("branches")
-    .select("id, name, kind, address, company_id")
+    .select("id, name, kind, address, uses_office_address, company_id")
     .eq("id", choice)
     .maybeSingle();
   if (!office || office.company_id !== companyId) {
     return { error: "Choose where the meeting will be held." };
   }
-  if (!office.address) {
+  /* A branch with no premises of its own shares the office address (migration 0222),
+     so the office is read too and the error names the place that is actually blank. */
+  const { data: rows } = await supabase
+    .from("branches")
+    .select("id, name, kind, address, uses_office_address")
+    .eq("company_id", companyId);
+  const companyOffice = officeAddress((rows ?? []) as BranchAddressRow[]);
+  const { address, inherited } = resolveBranchAddress(
+    office as unknown as BranchAddressRow,
+    companyOffice,
+  );
+  if (!address) {
     return {
-      error: `That office has no address yet. Set it in Settings, Branches first, then book the meeting.`,
+      error: inherited
+        ? `${office.name} uses the main office address, and the office has no address yet. Set it in Settings, Branches first, then book the meeting.`
+        : `That office has no address yet. Set it in Settings, Branches first, then book the meeting.`,
     };
   }
-  return { location: office.address as string, locationKind: "office" };
+  return { location: address, locationKind: "office" };
 }
 
 /** The formal letter pair for a booked or rearranged meeting: the employee's
