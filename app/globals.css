@@ -923,22 +923,15 @@
    EMAIL, FULL BLEED. Phil, 2026-09-03: "why is it in a box? outlook isnt in a
    box it is the page, make it the page."
 
-   He is right, and it is not only cosmetic: a mail client in a card gets two
-   scrollbars, one for the page and one for the list, and the reading pane never
-   gets the height it needs. The negative margins cancel the app shell's own
-   padding (px-4 pt-6 pb-24, md:px-8 md:pb-8 in app/(app)/layout.tsx) so this one
-   screen runs to the edges. If that padding ever changes, change it here too.
+   THE SIZE AND THE OFFSETS ARE SET IN JAVASCRIPT, NOT HERE, and that is a
+   deliberate retreat. They were CSS arithmetic — a percentage plus the app
+   shell's padding written out by hand — with a comment warning that if the
+   shell's padding ever changed, this had to change too. It changed four hours
+   later, in the mobile branch, which swapped pb-24 for a safe-area calculation
+   to clear the phone dock. Two places holding the same number is a defect
+   waiting for a date, so email-client.tsx now reads the shell's ACTUAL computed
+   padding and cancels exactly that.
    --------------------------------------------------------------------------- */
-.mailx-full {
-  margin: -1.5rem -1rem -6rem;
-  height: calc(100% + 7.5rem);
-}
-@media (min-width: 768px) {
-  .mailx-full {
-    margin: -1.5rem -2rem -2rem;
-    height: calc(100% + 3.5rem);
-  }
-}
 .mailx-full .mailx {
   border: 0;
   border-radius: 0;
@@ -974,7 +967,7 @@
 }
 
 @media (max-width: 1150px) {
-  .mailx-full { height: auto; }
+  /* Stacked: the panes scroll inside a page that scrolls normally, so the shell is left alone. */
   .mailx-full .mailx { height: auto; }
   .mailx-full .mailx-list { max-height: 40vh; height: auto; }
   .mailx-full .mailx-read { height: auto; }
@@ -988,3 +981,158 @@
 .mailx-danger { color: #a4262c; border-color: #f1c9cb; }
 .mailx-danger:hover { background: #fdf3f4; }
 
+/* ============================================================= *
+ * Mobile / PWA polish pass (Phil, 2026-08-25).
+ * Native-app feel on phones: a truly fixed bottom nav that sits
+ * above the home-indicator, safe-area padding on every edge,
+ * momentum scrolling, no accidental input zoom, and no sideways
+ * page scroll. Desktop (>= md / 768px) is untouched.
+ * ============================================================= */
+
+/* ---- No horizontal page scroll: only ever up/down ---- */
+html,
+body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+/* Media never forces the viewport wider than the screen. */
+img,
+video,
+canvas {
+  max-width: 100%;
+}
+
+/* Momentum scrolling on the two scroll surfaces the app uses. */
+.app-main,
+.matrix-wrap {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* ---- Safe areas (notch + home indicator) ---- */
+/* The frosted topbar clears the status bar / notch when installed. */
+.topbar {
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+@media (min-width: 768px) {
+  .topbar {
+    padding-left: max(2rem, env(safe-area-inset-left));
+    padding-right: max(2rem, env(safe-area-inset-right));
+  }
+}
+
+/* Main scroll area leaves room for the fixed dock + home indicator on phones. */
+.app-main {
+  padding-bottom: calc(5.25rem + env(safe-area-inset-bottom));
+}
+@media (min-width: 768px) {
+  .app-main {
+    padding-bottom: 2rem;
+  }
+}
+
+/* ---- Fixed bottom navigation ---- */
+.mobile-dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 45;
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--color-navy-950) 88%, transparent),
+    var(--color-navy-950)
+  );
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.mobile-dock-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.25rem;
+  padding: 0.375rem max(0.5rem, env(safe-area-inset-left)) 0.375rem
+    max(0.5rem, env(safe-area-inset-right));
+}
+/* Comfortable tap targets: each tab is at least 56px tall. */
+.mobile-dock-row > a,
+.mobile-dock-row > button {
+  min-height: 52px;
+}
+
+/* ---- "More" bottom sheet ---- */
+.mobile-sheet-root {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.mobile-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 8, 20, 0.6);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  border: 0;
+  width: 100%;
+  height: 100%;
+  animation: sheet-fade 160ms ease-out;
+}
+.mobile-sheet-panel {
+  position: relative;
+  border-top-left-radius: 1.25rem;
+  border-top-right-radius: 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 0;
+  background: var(--color-navy-900);
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.5);
+  padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+  animation: sheet-up 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  max-height: 75vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@keyframes sheet-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mobile-sheet-panel,
+  .mobile-sheet-backdrop {
+    animation: none;
+  }
+}
+
+/* ---- No accidental zoom on input focus (iOS zooms when < 16px) ---- */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  select,
+  textarea,
+  .inline-cell,
+  .ctl-sm,
+  .hint-select-trigger {
+    font-size: 16px;
+  }
+}
+
+/* ---- Mobile record cards (registers reflow from grid to stacked cards) ---- */
+.record-card {
+  @apply flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.06] p-4;
+}
+.record-card + .record-card {
+  margin-top: 0.625rem;
+}
+.record-card-meta {
+  @apply flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/55;
+}

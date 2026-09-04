@@ -202,36 +202,60 @@ export default function EmailClient({
     return () => cancelAnimationFrame(frame);
   }, [isPending]);
 
-  /* THE PAGE ITSELF MUST NOT SCROLL, and measuring beats arithmetic.
-     The height was calculated in CSS as a percentage plus the app shell's padding, which does
-     not land exactly — so the client was a few pixels taller than the window, the page scrolled
-     as well as the panes, and every refresh nudged it. The height is now taken from the actual
-     container, and the container's own scrolling is switched off while this screen is mounted
-     and put back when it is not. */
+  /* THE PAGE ITSELF MUST NOT SCROLL — measured from the shell, never assumed.
+     This used to be CSS: a percentage height plus the app shell's padding written out by hand,
+     with a comment saying "if that padding ever changes, change it here too". It changed four
+     hours later, when the mobile branch swapped pb-24 for a safe-area calculation to clear the
+     phone dock. So the offsets are now read from the shell's ACTUAL computed padding.
+
+     AND ONLY ON A WIDE SCREEN. Below the point where the three panes sit side by side, the
+     layout stacks and is taller than the window — taking the shell's scrolling away there would
+     simply cut the bottom off, and the space at the foot belongs to the mobile dock anyway. On a
+     phone this screen scrolls like any other page. */
   useEffect(() => {
     const shell = shellRef.current;
     const main = shell?.closest("main") as HTMLElement | null;
     if (!shell || !main) return;
 
+    const wide = window.matchMedia("(min-width: 1151px)");
     const previousOverflow = main.style.overflow;
-    main.style.overflow = "hidden";
+
+    const release = () => {
+      main.style.overflow = previousOverflow;
+      shell.style.height = "";
+      shell.style.marginTop = "";
+      shell.style.marginLeft = "";
+      shell.style.marginRight = "";
+      shell.style.marginBottom = "";
+    };
 
     const fit = () => {
+      if (!wide.matches) {
+        release();
+        return;
+      }
+      const pad = getComputedStyle(main);
+      shell.style.marginTop = `-${pad.paddingTop}`;
+      shell.style.marginLeft = `-${pad.paddingLeft}`;
+      shell.style.marginRight = `-${pad.paddingRight}`;
+      shell.style.marginBottom = `-${pad.paddingBottom}`;
+      // clientHeight includes the padding, so this is exactly the visible area.
       shell.style.height = `${main.clientHeight}px`;
+      main.style.overflow = "hidden";
     };
     fit();
 
     const observer = new ResizeObserver(fit);
     observer.observe(main);
+    wide.addEventListener("change", fit);
+
     return () => {
       observer.disconnect();
-      main.style.overflow = previousOverflow;
-      shell.style.height = "";
+      wide.removeEventListener("change", fit);
+      release();
     };
   }, []);
 
-  /* Deleted is a folder, not a filter on the others: a deleted message must vanish from the
-     Inbox AND still be somewhere you can get it back from. */
   const folders = useMemo(() => {
     const live = rows.filter((r) => !r.deleted_at);
     return {

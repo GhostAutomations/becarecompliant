@@ -263,12 +263,15 @@ export default async function AppLayout({
           </div>
         ) : null}
 
-        <main className="min-h-0 flex-1 overflow-y-auto px-4 pb-24 pt-6 md:px-8 md:pb-8">
+        <main className="app-main min-h-0 flex-1 overflow-y-auto px-4 pt-6 md:px-8">
           {children}
         </main>
       </div>
 
-      <MobileDock entries={navEntries} />
+      <MobileDock
+        entries={navEntries}
+        role={actingCompanyId ? "company_admin" : profile.role}
+      />
       <ToastHost />
     </div>
   );

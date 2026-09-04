@@ -1,8 +1,11 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { NavEntry } from "@/lib/nav";
+import { splitMobileNav } from "@/lib/nav";
 import { NavIcon } from "@/components/nav-icon";
 
 /** Gradient sidebar navigation (desktop). */
@@ -64,34 +67,190 @@ export function SidebarNav({ entries }: { entries: NavEntry[] }) {
   );
 }
 
-/** Dock-style bottom navigation (mobile). */
-export function MobileDock({ entries }: { entries: NavEntry[] }) {
+/**
+ * Fixed bottom navigation (mobile).
+ *
+ * Phil, 2026-08-25: the old dock floated (inset-x-4 bottom-4) so it drifted on scroll
+ * and jumped when the browser chrome or keyboard moved, and it crammed EVERY department
+ * in. This bar is truly fixed to the bottom edge, sits above the home-indicator safe
+ * area, and shows only a small role-aware set of primaries plus a "More" button that
+ * opens the rest in a bottom sheet.
+ */
+export function MobileDock({
+  entries,
+  role,
+}: {
+  entries: NavEntry[];
+  role: string;
+}) {
   const pathname = usePathname();
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  const isActive = (href: string) =>
+    pathname === href || pathname.startsWith(`${href}/`);
+
+  const { primary, overflow } = splitMobileNav(role, entries);
+  const overflowActive = overflow.some(
+    (e) =>
+      isActive(e.href) ||
+      (e.children ?? []).some((c) => isActive(c.href)),
+  );
+
+  const tabClass = (active: boolean) =>
+    `flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1 text-[10px] font-medium leading-tight transition ${
+      active ? "text-gold-300" : "text-white/65 hover:text-white"
+    }`;
 
   return (
-    <nav
-      aria-label="Main"
-      className="sidebar-gradient fixed inset-x-4 bottom-4 z-40 flex items-center justify-around rounded-2xl border border-white/15 px-2 py-2 shadow-2xl backdrop-blur-xl md:hidden"
-    >
-      {entries.map((entry) => {
-        const active =
-          pathname === entry.href || pathname.startsWith(`${entry.href}/`);
-        return (
-          <Link
-            key={entry.href}
-            href={entry.href}
-            aria-current={active ? "page" : undefined}
-            className={`flex flex-col items-center gap-0.5 rounded-xl px-4 py-1.5 text-[11px] font-medium transition ${
-              active
-                ? "bg-white/15 text-gold-300"
-                : "text-white/70 hover:text-white"
-            }`}
+    <>
+      <nav aria-label="Main" className="mobile-dock md:hidden">
+        <div className="mobile-dock-row">
+          {primary.map((entry) => {
+            const active = isActive(entry.href);
+            return (
+              <Link
+                key={entry.href}
+                href={entry.href}
+                aria-current={active ? "page" : undefined}
+                className={tabClass(active)}
+              >
+                <span
+                  className={`flex h-8 w-full max-w-[64px] items-center justify-center rounded-xl transition ${
+                    active ? "bg-white/15" : ""
+                  }`}
+                >
+                  <NavIcon icon={entry.icon} className="h-5 w-5" />
+                </span>
+                <span className="max-w-full truncate">{entry.label}</span>
+              </Link>
+            );
+          })}
+
+          {overflow.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setMoreOpen(true)}
+              aria-haspopup="dialog"
+              aria-expanded={moreOpen}
+              className={tabClass(overflowActive)}
+            >
+              <span
+                className={`flex h-8 w-full max-w-[64px] items-center justify-center rounded-xl transition ${
+                  overflowActive ? "bg-white/15" : ""
+                }`}
+              >
+                <MoreIcon className="h-5 w-5" />
+              </span>
+              <span className="max-w-full truncate">More</span>
+            </button>
+          )}
+        </div>
+      </nav>
+
+      {moreOpen && (
+        <MoreSheet
+          entries={overflow}
+          isActive={isActive}
+          onClose={() => setMoreOpen(false)}
+        />
+      )}
+    </>
+  );
+}
+
+/** Bottom sheet listing the overflow destinations. Portalled to <body> per the
+ *  house rule (never inline), high z-index, closes on backdrop/tap/Escape. */
+function MoreSheet({
+  entries,
+  isActive,
+  onClose,
+}: {
+  entries: NavEntry[];
+  isActive: (href: string) => boolean;
+  onClose: () => void;
+}) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    // Stop the page scrolling behind the open sheet.
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+
+  if (!mounted) return null;
+
+  // Flatten each department and its sub-sections into one tappable list.
+  return createPortal(
+    <div className="mobile-sheet-root md:hidden" role="dialog" aria-modal="true" aria-label="More">
+      <button
+        type="button"
+        aria-label="Close menu"
+        className="mobile-sheet-backdrop"
+        onClick={onClose}
+      />
+      <div className="mobile-sheet-panel">
+        <div className="mb-3 flex items-center justify-between">
+          <span className="text-sm font-semibold text-white/90">More</span>
+          <button
+            type="button"
+            onClick={onClose}
+            className="btn-ghost px-3 py-1.5 text-xs"
           >
-            <NavIcon icon={entry.icon} className="h-5 w-5" />
-            {entry.label}
-          </Link>
-        );
-      })}
-    </nav>
+            Close
+          </button>
+        </div>
+        <nav aria-label="More destinations" className="grid grid-cols-3 gap-2">
+          {entries.map((entry) => {
+            const active =
+              isActive(entry.href) ||
+              (entry.children ?? []).some((c) => isActive(c.href));
+            return (
+              <Link
+                key={entry.href}
+                href={entry.href}
+                onClick={onClose}
+                aria-current={active ? "page" : undefined}
+                className={`flex flex-col items-center gap-1.5 rounded-2xl border px-2 py-3 text-center text-[11px] font-medium transition ${
+                  active
+                    ? "border-gold-400/40 bg-gold-400/10 text-gold-300"
+                    : "border-white/10 bg-white/5 text-white/75 hover:bg-white/10"
+                }`}
+              >
+                <NavIcon icon={entry.icon} className="h-6 w-6" />
+                <span className="max-w-full truncate">{entry.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+function MoreIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none" />
+    </svg>
   );
 }

@@ -286,6 +286,60 @@ export function navEntriesForRole(role: string): NavEntry[] {
   );
 }
 
+/**
+ * Mobile bottom-nav primary destinations per role (Phil, 2026-08-25 mobile pass).
+ *
+ * The old MobileDock crammed EVERY department into a floating pill. On a phone that
+ * meant overlapping icons and cut-off labels. Instead the bottom bar shows only a
+ * SMALL set of the most-used destinations for that role; everything else moves into a
+ * "More" bottom sheet. These are sensible defaults chosen from how each role works day
+ * to day — easy to adjust once seen on a real device.
+ *
+ * A href listed here that the role cannot see (feature flag off, wrong role) is simply
+ * skipped, and the bar tops up from whatever remains, so it never renders a dead tab.
+ */
+export const MOBILE_PRIMARY_BY_ROLE: Record<string, string[]> = {
+  company_admin: ["/dashboard", "/people", "/service-users"],
+  registered_individual: ["/dashboard", "/people", "/service-users"],
+  registered_manager: ["/dashboard", "/people", "/service-users"],
+  manager: ["/dashboard", "/people", "/service-users"],
+  supervisor: ["/dashboard", "/people", "/service-users"],
+  team_member: ["/people", "/service-users"],
+  on_call: ["/on-call", "/people/absence", "/complaints"],
+  staff: ["/my"],
+  platform_admin: ["/founder"],
+};
+
+/**
+ * Split a role's visible nav entries into the bottom-bar primaries and the "More"
+ * overflow. The bar holds at most `maxPrimary` items; when there is overflow, one slot
+ * is reserved for the More button, so it shows `maxPrimary - 1` primaries plus More.
+ * When everything fits, no More button is needed and all entries are primary.
+ */
+export function splitMobileNav(
+  role: string,
+  entries: NavEntry[],
+  maxPrimary = 4,
+): { primary: NavEntry[]; overflow: NavEntry[] } {
+  if (entries.length <= maxPrimary) {
+    return { primary: entries, overflow: [] };
+  }
+  const preferred = MOBILE_PRIMARY_BY_ROLE[role] ?? [];
+  const byHref = new Map(entries.map((e) => [e.href, e]));
+  // Preferred destinations that this role can actually see, in order.
+  const ordered: NavEntry[] = [];
+  for (const href of preferred) {
+    const e = byHref.get(href);
+    if (e && !ordered.includes(e)) ordered.push(e);
+  }
+  // Top up from the remaining entries (original order) if the preferred list was short.
+  for (const e of entries) {
+    if (!ordered.includes(e)) ordered.push(e);
+  }
+  const slots = maxPrimary - 1; // reserve one for More
+  return { primary: ordered.slice(0, slots), overflow: ordered.slice(slots) };
+}
+
 export const ROLE_LABELS: Record<string, string> = {
   // NOTE the two names that read alike, on purpose. 'team_member' is the OLD
   // read-only role, shown as "Viewer" since the roles overhaul. 'staff' is the
