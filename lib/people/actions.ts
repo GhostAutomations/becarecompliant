@@ -484,13 +484,22 @@ export async function updateCheckDefinition(formData: FormData): Promise<ActionS
     const flag = Number.parseInt(String(formData.get("flag_days") ?? "").trim(), 10);
     if (Number.isInteger(flag) && flag >= 0) patch.amber_days = flag;
   } else {
-    // Recurring checks need a positive interval; a non-recurring check (e.g. Setup)
-    // may be due before its anchor, so a negative day offset is allowed (never zero).
+    /*
+     * Recurring checks need a positive interval.
+     *
+     * A NON-RECURRING check is due BEFORE its anchor, never after (Phil, 2026-09-04:
+     * "why would we setup after starting care?"). Setup is the only one today, and a
+     * setup completed after the package has begun is a setup that did not happen. The
+     * screen asks for "Due before start (days)" as a plain positive number and the sign
+     * is applied HERE as well as in the form, so the invariant holds even if the post
+     * is hand made. The stored value keeps its old meaning - a signed offset from the
+     * anchor - so nothing downstream changes.
+     */
     const recurring = String(formData.get("recurring") ?? "1") === "1";
     const days = Number.parseInt(String(formData.get("days") ?? "").trim(), 10);
     if (Number.isInteger(days) && days !== 0 && (recurring ? days >= 1 : true)) {
       patch.frequency = "day";
-      patch.interval = days;
+      patch.interval = recurring ? days : -Math.abs(days);
     }
     const amberRaw = String(formData.get("amber_days") ?? "").trim();
     if (amberRaw === "") patch.amber_days = null;

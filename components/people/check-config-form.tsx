@@ -58,7 +58,12 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
   const [error, setError] = useState<string | null>(null);
 
   const [active, setActive] = useState(def.active);
-  const [days, setDays] = useState(String(def.interval ?? 90));
+  /* A one-off check is due BEFORE its anchor, so the box asks for a plain positive
+     number of days and the sign is put back on save. The stored interval keeps its old
+     meaning (a signed offset), so only the words and the sign change. */
+  const [days, setDays] = useState(
+    String(def.recurring ? (def.interval ?? 90) : Math.abs(def.interval ?? 1)),
+  );
   const [amber, setAmber] = useState(def.amber_days != null ? String(def.amber_days) : "");
   const [reportingDays, setReportingDays] = useState(
     def.reporting_interval_days != null ? String(def.reporting_interval_days) : "",
@@ -78,7 +83,7 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
     if (isExpiry) {
       fd.set("flag_days", flagDays);
     } else {
-      fd.set("days", days);
+      fd.set("days", def.recurring ? days : String(-Math.abs(Number.parseInt(days, 10) || 1)));
       fd.set("amber_days", amber);
       fd.set("reporting_days", reportingDays);
       fd.set("schedule_mode", scheduleMode);
@@ -137,13 +142,13 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
     </Field>
   ) : (
     <Field
-      label={def.recurring ? "Every (days)" : "Due after start (days)"}
+      label={def.recurring ? "Every (days)" : "Due before start (days)"}
       htmlFor={`days-${def.id}`}
     >
       <input
         id={`days-${def.id}`}
         type="number"
-        min={def.recurring ? 1 : undefined}
+        min={1}
         value={days}
         onChange={(e) => {
           setDays(e.target.value);
@@ -211,7 +216,7 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
   }
   if (!isExpiry && !def.recurring) {
     hints.push(
-      "Due after start: use a negative number for before the start date, e.g. -1.",
+      "A one off check is due before the start date, so 1 means the day before care begins.",
     );
   }
   if (!isExpiry && def.recurring) {
