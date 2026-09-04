@@ -984,3 +984,7 @@
    screen is current, not information anybody acts on. */
 .mailx-sync { font-size: 0.72rem; color: #8a8886; padding-left: 0.15rem; }
 
+/* Erasing is the only thing on this screen that cannot be undone, so it is the only red. */
+.mailx-danger { color: #a4262c; border-color: #f1c9cb; }
+.mailx-danger:hover { background: #fdf3f4; }
+

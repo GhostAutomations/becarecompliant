@@ -1547,3 +1547,97 @@ export async function fetchEmailBody(
     : { error: result.error ?? "Could not collect the content." };
 }
 
+/**
+ * Move a message to Deleted Items, or put it back.
+ *
+ * TWO STEPS ON PURPOSE. This table is the archive — Resend forgets received mail after 30 days —
+ * so erasing a message here removes it from the world, not from a view. Delete is reversible;
+ * erasing is a separate, deliberate act from inside the Deleted folder.
+ */
+export async function setEmailDeleted(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requirePlatformAdmin();
+  const id = String(formData.get("email_id") ?? "").trim();
+  const deleted = String(formData.get("deleted") ?? "") === "true";
+  if (!id) return { error: "Missing email." };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("founder_emails")
+    .update({ deleted_at: deleted ? new Date().toISOString() : null })
+    .eq("id", id)
+    .select("id");
+  if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "That message could not be found." };
+
+  revalidatePath("/founder/inbox");
+  return { ok: deleted ? "Moved to Deleted." : "Put back." };
+}
+
+/** Erase for good, from Deleted Items only. There is no way back from here and it says so. */
+export async function eraseEmail(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user } = await requirePlatformAdmin();
+  const id = String(formData.get("email_id") ?? "").trim();
+  if (!id) return { error: "Missing email." };
+
+  const supabase = await createClient();
+
+  /* ONLY FROM THE DELETED FOLDER. Checked here rather than trusted from the screen, so a stale
+     page or a crafted post cannot erase a live message. */
+  const { data: row } = await supabase
+    .from("founder_emails")
+    .select("id, deleted_at, subject, from_address")
+    .eq("id", id)
+    .maybeSingle();
+  if (!row) return { error: "That message could not be found." };
+  if (!row.deleted_at) return { error: "Delete it first. Only messages in Deleted can be erased." };
+
+  const { error } = await supabase.from("founder_emails").delete().eq("id", id);
+  if (error) return { error: error.message };
+
+  await writeAudit({
+    companyId: null,
+    actorId: user.id,
+    action: "founder.email_erased",
+    entityType: "email",
+    entityId: id,
+    summary: `Erased "${(row.subject as string | null) ?? "(no subject)"}" from ${row.from_address}`,
+  });
+
+  revalidatePath("/founder/inbox");
+  return { ok: "Erased." };
+}
+
+/** Empty the Deleted folder in one go, which is what clearing out test messages actually needs. */
+export async function emptyDeletedEmails(
+  _prev: ActionState,
+  _formData: FormData,
+): Promise<ActionState> {
+  const { user } = await requirePlatformAdmin();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("founder_emails")
+    .delete()
+    .not("deleted_at", "is", null)
+    .select("id");
+  if (error) return { error: error.message };
+
+  const count = data?.length ?? 0;
+  await writeAudit({
+    companyId: null,
+    actorId: user.id,
+    action: "founder.email_folder_emptied",
+    entityType: "email",
+    summary: `Erased ${count} deleted ${count === 1 ? "message" : "messages"}`,
+  });
+
+  revalidatePath("/founder/inbox");
+  return { ok: count === 0 ? "Nothing to erase." : `Erased ${count}.` };
+}
+

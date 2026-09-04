@@ -42,6 +42,7 @@ export type EmailRow = {
   body_text: string | null;
   body_html: string | null;
   body_error: string | null;
+  deleted_at: string | null;
   attachments: unknown;
   trial_request_id: string | null;
   is_read: boolean;
@@ -50,18 +51,22 @@ export type EmailRow = {
   occurred_at: string;
 };
 
-type Folder = "inbox" | "sent" | "other";
+type Folder = "inbox" | "sent" | "other" | "deleted";
 
 type Actions = {
   reply: (prev: never, formData: FormData) => Promise<never>;
   setRead: (prev: never, formData: FormData) => Promise<never>;
   fetchBody: (prev: never, formData: FormData) => Promise<never>;
+  setDeleted: (prev: never, formData: FormData) => Promise<never>;
+  erase: (prev: never, formData: FormData) => Promise<never>;
+  emptyDeleted: (prev: never, formData: FormData) => Promise<never>;
 };
 
 const FOLDER_LABEL: Record<Folder, string> = {
   inbox: "Inbox",
   sent: "Sent",
   other: "Other",
+  deleted: "Deleted",
 };
 
 /** Outlook's own disc colours, so two senders are rarely the same and none is garish. */
@@ -190,14 +195,17 @@ export default function EmailClient({
     };
   }, [sync]);
 
-  const folders = useMemo(
-    () => ({
-      inbox: rows.filter((r) => r.direction === "in" && !r.is_spam),
-      sent: rows.filter((r) => r.direction === "out"),
-      other: rows.filter((r) => r.direction === "in" && r.is_spam),
-    }),
-    [rows],
-  );
+  /* Deleted is a folder, not a filter on the others: a deleted message must vanish from the
+     Inbox AND still be somewhere you can get it back from. */
+  const folders = useMemo(() => {
+    const live = rows.filter((r) => !r.deleted_at);
+    return {
+      inbox: live.filter((r) => r.direction === "in" && !r.is_spam),
+      sent: live.filter((r) => r.direction === "out"),
+      other: live.filter((r) => r.direction === "in" && r.is_spam),
+      deleted: rows.filter((r) => r.deleted_at),
+    };
+  }, [rows]);
 
   const list = folders[folder];
   const unread = folders.inbox.filter((r) => !r.is_read).length;
@@ -246,9 +254,46 @@ export default function EmailClient({
             : "Checking every 20 seconds"}
         </span>
 
-        {/* REAL ACTIONS ONLY. A Delete or Archive button that did nothing would be worse than
-            not having one at all. */}
-        {selected && selected.direction === "in" ? (
+        {/* REAL ACTIONS ONLY. A button that did nothing would be worse than not having one. */}
+        {selected ? (
+          <ActionForm
+            key={`bar-del-${selected.id}`}
+            action={actions.setDeleted as never}
+            hidden={{ email_id: selected.id, deleted: selected.deleted_at ? "false" : "true" }}
+            label={selected.deleted_at ? "Restore" : "Delete"}
+            savedLabel="Done"
+            buttonClassName="mailx-cmd"
+            className=""
+          />
+        ) : null}
+
+        {selected && selected.deleted_at ? (
+          <ActionForm
+            key={`bar-erase-${selected.id}`}
+            action={actions.erase as never}
+            hidden={{ email_id: selected.id }}
+            label="Erase for ever"
+            savingLabel="Erasing…"
+            savedLabel="Erased"
+            buttonClassName="mailx-cmd mailx-danger"
+            className=""
+            confirm="Erase this message for good? It is not kept anywhere else — the provider deletes received mail after 30 days — so this cannot be undone."
+          />
+        ) : null}
+
+        {folder === "deleted" && folders.deleted.length > 0 ? (
+          <ActionForm
+            action={actions.emptyDeleted as never}
+            label={`Empty Deleted (${folders.deleted.length})`}
+            savingLabel="Erasing…"
+            savedLabel="Emptied"
+            buttonClassName="mailx-cmd mailx-danger"
+            className=""
+            confirm="Erase everything in Deleted for good? This cannot be undone."
+          />
+        ) : null}
+
+        {selected && selected.direction === "in" && !selected.deleted_at ? (
           <>
             <ActionForm
               key={`bar-read-${selected.id}`}
@@ -279,7 +324,7 @@ export default function EmailClient({
         {/* ---------------- FOLDERS ---------------- */}
         <nav className="mailx-rail">
           <div className="mailx-account">{mailbox}</div>
-          {(["inbox", "sent", "other"] as Folder[]).map((id) => {
+          {(["inbox", "sent", "other", "deleted"] as Folder[]).map((id) => {
             const count = folders[id].length;
             const badge = id === "inbox" ? unread : 0;
             const active = folder === id && !composing;
@@ -315,7 +360,9 @@ export default function EmailClient({
                 ? "Nothing here. Anything sent to your address appears the moment it arrives."
                 : folder === "sent"
                   ? "Nothing sent from here yet."
-                  : "No bounces or automatic replies."}
+                  : folder === "deleted"
+                    ? "Deleted is empty."
+                    : "No bounces or automatic replies."}
             </p>
           ) : (
             grouped.map((block) => (
@@ -515,7 +562,7 @@ export default function EmailClient({
                 </p>
               ) : null}
 
-              {selected.direction === "in" ? (
+              {selected.direction === "in" && !selected.deleted_at ? (
                 <>
                   <hr className="mailx-rule" />
                   <ActionForm

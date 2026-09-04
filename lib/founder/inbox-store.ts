@@ -126,7 +126,12 @@ export async function storeReceivedEmail(payload: ReceivedPayload): Promise<Stor
 
   const fetched = await fetchReceivedBody(emailId);
   const body = fetched.ok ? fetched.body : null;
-  const from = parseFrom(payload.from);
+
+  /* THE SENDER'S NAME IS IN THE HEADERS, NOT THE WEBHOOK. Resend's event carries a bare
+     address, so the list showed "phil.davies@outlook.com" where Outlook and Mail show "Phil
+     Davies". The full From header comes back with the body, so the name is taken from there and
+     the payload is only the fallback. */
+  const from = parseFrom(headerValue(body?.headers, "from") || payload.from);
 
   const { data: leads } = await supabase
     .from("trial_requests")
@@ -290,12 +295,14 @@ export async function backfillMissingBodies(limit = 50): Promise<BackfillResult>
 
   for (const row of rows) {
     const fetched = await fetchReceivedBody(row.resend_email_id);
+    const named = fetched.ok ? parseFrom(headerValue(fetched.body.headers, "from")).name : null;
     const patch = fetched.ok
       ? {
           body_text: fetched.body.text ?? null,
           body_html: fetched.body.html ?? null,
           body_error: null,
           body_fetched_at: new Date().toISOString(),
+          ...(named ? { from_name: named } : {}),
         }
       : { body_error: fetched.error };
 
@@ -325,6 +332,11 @@ export async function refetchOneBody(
         body_html: fetched.body.html ?? null,
         body_error: null,
         body_fetched_at: new Date().toISOString(),
+        /* The From header arrives with the body, so collecting content is also where a message
+           stored before this existed finally gets its sender's NAME. */
+        ...(parseFrom(headerValue(fetched.body.headers, "from")).name
+          ? { from_name: parseFrom(headerValue(fetched.body.headers, "from")).name }
+          : {}),
       }
     : { body_error: fetched.error };
 

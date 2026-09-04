@@ -6,6 +6,9 @@ import {
   sendInboxReply,
   setEmailRead,
   fetchEmailBody,
+  setEmailDeleted,
+  eraseEmail,
+  emptyDeletedEmails,
 } from "@/app/(app)/founder/actions";
 
 /**
@@ -43,7 +46,7 @@ export default async function FounderEmailPage() {
     supabase
       .from("founder_emails")
       .select(
-        "id, direction, from_address, from_name, to_addresses, subject, body_text, body_html, body_error, attachments, trial_request_id, is_read, is_spam, send_error, occurred_at",
+        "id, direction, from_address, from_name, to_addresses, subject, body_text, body_html, body_error, deleted_at, attachments, trial_request_id, is_read, is_spam, send_error, occurred_at",
       )
       .order("occurred_at", { ascending: false })
       .limit(500),
@@ -66,6 +69,9 @@ export default async function FounderEmailPage() {
           reply: sendInboxReply as never,
           setRead: setEmailRead as never,
           fetchBody: fetchEmailBody as never,
+          setDeleted: setEmailDeleted as never,
+          erase: eraseEmail as never,
+          emptyDeleted: emptyDeletedEmails as never,
         }}
       />
     </div>
