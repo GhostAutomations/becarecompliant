@@ -26,7 +26,7 @@
  * text is what you read. Nothing goes near dangerouslySetInnerHTML.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ActionForm from "@/components/action-form";
@@ -169,12 +169,39 @@ export default function EmailClient({
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const typingRef = useRef(false);
 
+  /* THE PAGE MUST NOT MOVE UNDER YOU WHEN IT REFRESHES.
+     Phil, 2026-09-04: "why does the page keep jumping when it refreshes." Because a refresh
+     re-renders the server tree and both scrolling panes go back to the top — so a poll every
+     twenty seconds threw you back to the newest message while you were reading an older one.
+     Nothing is more irritating than a screen that moves on its own, and it is entirely
+     self-inflicted: the data changed, the reading position did not. */
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const readRef = useRef<HTMLDivElement | null>(null);
+  const scrollRef = useRef<{ list: number; read: number } | null>(null);
+
   const sync = useCallback(() => {
+    scrollRef.current = {
+      list: listRef.current?.scrollTop ?? 0,
+      read: readRef.current?.scrollTop ?? 0,
+    };
     startTransition(() => {
       router.refresh();
       setLastSync(new Date());
     });
   }, [router]);
+
+  useEffect(() => {
+    if (isPending) return;
+    const saved = scrollRef.current;
+    if (!saved) return;
+    scrollRef.current = null;
+    // After the swapped-in tree has painted, not during it.
+    const frame = requestAnimationFrame(() => {
+      if (listRef.current) listRef.current.scrollTop = saved.list;
+      if (readRef.current) readRef.current.scrollTop = saved.read;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [isPending]);
 
   useEffect(() => {
     const POLL_MS = 20_000;
@@ -351,7 +378,7 @@ export default function EmailClient({
         </nav>
 
         {/* ---------------- LIST ---------------- */}
-        <div className="mailx-list">
+        <div className="mailx-list" ref={listRef}>
           {list.length === 0 ? (
             <p className="mailx-empty">
               {folder === "inbox"
@@ -363,8 +390,13 @@ export default function EmailClient({
                     : "No bounces or automatic replies."}
             </p>
           ) : (
+            /* FLAT, NOT NESTED. Wrapping each date group in its own <div> meant that the moment
+               a message moved from "Today" into "This Week", every row below it was destroyed
+               and rebuilt — losing the scroll position and making the list flicker. Headings and
+               rows are now siblings with stable keys, so a new message inserts one row and
+               disturbs nothing else. */
             grouped.map((block) => (
-              <div key={block.group}>
+              <Fragment key={block.group}>
                 <div className="mailx-group">{block.group}</div>
                 {block.items.map((r) => {
                   const inbound = r.direction === "in";
@@ -407,13 +439,13 @@ export default function EmailClient({
                     </button>
                   );
                 })}
-              </div>
+              </Fragment>
             ))
           )}
         </div>
 
         {/* ---------------- READING PANE / COMPOSE ---------------- */}
-        <div className="mailx-read">
+        <div className="mailx-read" ref={readRef}>
           {composing ? (
             <section>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
