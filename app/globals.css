@@ -1057,22 +1057,26 @@ canvas {
   display: flex;
   align-items: stretch;
   gap: 0.25rem;
-  /* THE INSET IS APPLIED IN ONE PLACE ONLY. It was on the nav's padding while the row had its
-     own padding too, which is the sort of arrangement where a value quietly gets counted twice
-     and nobody can say why the bar is taller than the sum of its parts. */
   /* THE BAR PAINTS THE HOME-INDICATOR AREA; THE TABS DO NOT SIT IN IT.
-     Measured on Phil's iPhone, 2026-09-04: Safari reports a 53pt bar and a 0 inset; the
-     installed app reports the same bar and a 34pt inset. That 34pt is the home indicator and
-     controls cannot live there — a tap in it goes to the system swipe.
+     Measured on Phil's iPhone, 2026-09-04: Safari reports a 53pt bar and a 0 inset; the installed
+     app reports the same bar and a 34pt inset. That 34pt is the home indicator, and controls
+     cannot live in it — a tap there goes to the system swipe.
      What I got wrong was taking the padding OFF the bar to "save" the space. The space does not
      go anywhere; all that changed is that the BAR stopped painting it, so bare page background
-     showed under the tabs and it read as a gap rather than as part of the bar. The padding is
-     back on the nav, where it extends the bar's own background over the inset, and the row keeps
-     its tight 2px so the tabs themselves stay small. */
+     showed under the tabs and it read as a gap rather than as part of the bar. The inset padding
+     belongs on the nav below, which extends the bar's background over it, while the row keeps a
+     tight 2px so the tabs themselves stay small. */
   padding: 0.125rem max(0.5rem, env(safe-area-inset-left)) 0.125rem
     max(0.5rem, env(safe-area-inset-right));
+}
 .mobile-dock {
   padding-bottom: env(safe-area-inset-bottom);
+}
+/* 44px is Apple's minimum tap target. It is a FLOOR, not the height: the tab's own content is
+   what normally sets it. */
+.mobile-dock-row > a,
+.mobile-dock-row > button {
+  min-height: 44px;
 }
 
 /* ---- "More" bottom sheet ---- */
