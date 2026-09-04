@@ -1028,7 +1028,8 @@ canvas {
   /* Exactly the dock's height plus a little clearance, nothing more. It was 5.25rem, which
      reserved about 20px more than the dock actually occupies — dead space at the end of every
      scroll, on top of the space the dock itself was wasting. */
-  padding-bottom: calc(3.5rem + env(safe-area-inset-bottom));
+  /* Matches the dock: tabs plus the trimmed inset, and nothing spare. */
+  padding-bottom: calc(3.5rem + max(0.125rem, calc(env(safe-area-inset-bottom) - 14px)));
 }
 @media (min-width: 768px) {
   .app-main {
@@ -1059,8 +1060,16 @@ canvas {
   /* THE INSET IS APPLIED IN ONE PLACE ONLY. It was on the nav's padding while the row had its
      own padding too, which is the sort of arrangement where a value quietly gets counted twice
      and nobody can say why the bar is taller than the sum of its parts. */
+  /* THE INSET IS TRIMMED, NOT HONOURED IN FULL. iOS reports about 34pt below the tabs on a
+     modern iPhone, and Phil is right that it reads as a wasted centimetre — because it IS a
+     centimetre, and our bar is not a system bar that needs all of it.
+     20pt is kept, which is the height of the home-indicator gesture area itself, so a tab's
+     bottom edge stops exactly where the system's swipe-up begins. Below that the gesture starts
+     eating taps, which is a far worse defect than a tall bar. Reverting to the full inset is one
+     value: replace the subtraction with env(safe-area-inset-bottom). */
   padding: 0.125rem max(0.5rem, env(safe-area-inset-left))
-    calc(0.125rem + env(safe-area-inset-bottom)) max(0.5rem, env(safe-area-inset-right));
+    max(0.125rem, calc(env(safe-area-inset-bottom) - 14px))
+    max(0.5rem, env(safe-area-inset-right));
 }
 /* 48px, still comfortably above Apple's 44pt minimum for a tap target. It was 52 plus 0.375rem
    of padding above and below, which on top of the home-indicator inset made the bar read as a
