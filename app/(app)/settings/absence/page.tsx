@@ -29,7 +29,7 @@ export default async function AbsenceSettingsPage() {
 
       <AbsenceSettings
         initialMethod={config.method}
-        initialWindow={config.rollingWindowDays}
+        initialWindow={config.window}
         initialThresholds={config.thresholds}
         policyUploadedAt={row?.policy_uploaded_at ?? null}
         policyAiSummary={row?.policy_ai_summary ?? null}

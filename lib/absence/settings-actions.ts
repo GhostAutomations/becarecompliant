@@ -17,6 +17,7 @@
 import { revalidatePath } from "next/cache";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
+import { parseAbsenceWindow, windowLabel } from "@/lib/absence/window";
 import { writeAudit } from "@/lib/audit";
 import { recordUsage } from "@/lib/notifications/usage";
 import { spendAiCredit, refundAiCredit, OUT_OF_CREDITS } from "@/lib/billing/ai-credits";
@@ -35,10 +36,12 @@ export async function saveAbsenceConfig(
   if (method !== "stages" && method !== "bradford") {
     return { error: "Choose a tracking method." };
   }
-  const windowDays = Number.parseInt(String(formData.get("rolling_window_days") ?? ""), 10);
-  if (!Number.isInteger(windowDays) || windowDays < 1) {
-    return { error: "Enter the rolling window in days." };
-  }
+  const parsedWindow = parseAbsenceWindow(
+    formData.get("rolling_window_value"),
+    formData.get("rolling_window_unit"),
+  );
+  if ("error" in parsedWindow) return { error: parsedWindow.error };
+  const { window } = parsedWindow;
 
   let thresholds: unknown;
   try {
@@ -53,7 +56,8 @@ export async function saveAbsenceConfig(
     {
       company_id: profile.company_id,
       method,
-      rolling_window_days: windowDays,
+      rolling_window_value: window.value,
+      rolling_window_unit: window.unit,
       thresholds,
       updated_by: user.id,
       updated_at: new Date().toISOString(),
@@ -70,8 +74,12 @@ export async function saveAbsenceConfig(
     action: "absence_config.updated",
     entityType: "company",
     entityId: profile.company_id,
-    summary: `Set absence tracking to ${method}`,
-    metadata: { method, rolling_window_days: windowDays },
+    summary: `Set absence tracking to ${method} over a rolling ${windowLabel(window)}`,
+    metadata: {
+      method,
+      rolling_window_value: window.value,
+      rolling_window_unit: window.unit,
+    },
   });
 
   revalidatePath("/settings/absence");
@@ -178,7 +186,8 @@ export async function suggestAbsencePolicy(
     "You are configuring an absence-tracking system for a UK care company.",
     "Read the attached absence policy and decide how absence should be tracked.",
     "Return ONLY valid JSON, no prose, matching exactly:",
-    '{"method":"stages"|"bradford","rolling_window_days":number,"thresholds":[...],"summary":"one sentence"}',
+    '{"method":"stages"|"bradford","rolling_window_value":number,"rolling_window_unit":"day"|"week"|"month","thresholds":[...],"summary":"one sentence"}',
+    'Give the rolling window in the unit the policy itself uses: a policy that says "a rolling twelve month period" is 12 and "month", not 365 and "day".',
     'For "stages" each threshold is {"stage":1,"label":"Stage 1","occasions":3}.',
     'For "bradford" each threshold is {"threshold":51,"label":"Stage 1","action":"Informal discussion"}.',
     "A Return to Work interview is conducted after EVERY absence, at every stage/level regardless of the stage; state this clearly in the summary.",

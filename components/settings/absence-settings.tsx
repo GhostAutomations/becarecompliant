@@ -7,6 +7,12 @@
  * opt-in and only pre-fills the form — nothing is saved until Save is pressed.
  */
 
+import {
+  type AbsenceWindow,
+  type WindowUnit,
+  WINDOW_UNITS,
+  isWindowUnit,
+} from "@/lib/absence/window";
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { IDLE_STATE } from "@/lib/forms";
@@ -35,14 +41,15 @@ export default function AbsenceSettings({
   policyAiSummary,
 }: {
   initialMethod: AbsenceMethod;
-  initialWindow: number;
+  initialWindow: AbsenceWindow;
   initialThresholds: StageThreshold[] | BradfordBand[];
   policyUploadedAt: string | null;
   policyAiSummary: string | null;
 }) {
   const router = useRouter();
   const [method, setMethod] = useState<AbsenceMethod>(initialMethod);
-  const [windowDays, setWindowDays] = useState(String(initialWindow));
+  const [windowValue, setWindowValue] = useState(String(initialWindow.value));
+  const [windowUnit, setWindowUnit] = useState<WindowUnit>(initialWindow.unit);
   const [rows, setRows] = useState<Row[]>(initialThresholds as unknown as Row[]);
   const [summary, setSummary] = useState<string | null>(policyAiSummary);
   const [dirty, setDirty] = useState(false);
@@ -61,12 +68,14 @@ export default function AbsenceSettings({
     try {
       const s = JSON.parse(aiState.ok) as {
         method?: string;
-        rolling_window_days?: number;
+        rolling_window_value?: number;
+        rolling_window_unit?: string;
         thresholds?: Row[];
         summary?: string;
       };
       if (s.method === "stages" || s.method === "bradford") setMethod(s.method);
-      if (s.rolling_window_days) setWindowDays(String(s.rolling_window_days));
+      if (s.rolling_window_value) setWindowValue(String(s.rolling_window_value));
+      if (isWindowUnit(s.rolling_window_unit)) setWindowUnit(s.rolling_window_unit);
       if (Array.isArray(s.thresholds)) setRows(s.thresholds);
       if (s.summary) setSummary(s.summary);
       setDirty(true); // AI pre-filled: the admin still needs to Save.
@@ -129,7 +138,8 @@ export default function AbsenceSettings({
     });
     const fd = new FormData();
     fd.set("method", method);
-    fd.set("rolling_window_days", windowDays);
+    fd.set("rolling_window_value", windowValue);
+    fd.set("rolling_window_unit", windowUnit);
     fd.set("thresholds", JSON.stringify(cleaned));
     setSubmitting(true); // show "Saving…" immediately, before the transition's pending flips
     setTimeout(() => saveAction(fd), 0);
@@ -174,20 +184,47 @@ export default function AbsenceSettings({
           </label>
         </div>
 
-        <div className="mt-4 max-w-xs">
-          <label htmlFor="window" className="form-label">
-            Rolling window (days)
-          </label>
-          <input
-            id="window"
-            type="number"
-            min={1}
-            value={windowDays}
-            onChange={(e) => {
-              setWindowDays(e.target.value);
-              setDirty(true);
-            }}
-          />
+        {/* The window in the words of the policy: "a rolling twelve month period",
+            not 365 days. Same shape as the probationary period. */}
+        <div className="mt-4 grid max-w-md gap-4 sm:grid-cols-2">
+          <div className="flex flex-col">
+            <label htmlFor="window" className="form-label">
+              Rolling window
+            </label>
+            <div className="mt-auto">
+              <input
+                id="window"
+                type="number"
+                min={1}
+                value={windowValue}
+                onChange={(e) => {
+                  setWindowValue(e.target.value);
+                  setDirty(true);
+                }}
+              />
+            </div>
+          </div>
+          <div className="flex flex-col">
+            <label htmlFor="window-unit" className="form-label">
+              Counted in
+            </label>
+            <div className="mt-auto">
+              <select
+                id="window-unit"
+                value={windowUnit}
+                onChange={(e) => {
+                  setWindowUnit(e.target.value as WindowUnit);
+                  setDirty(true);
+                }}
+              >
+                {WINDOW_UNITS.map((u) => (
+                  <option key={u.unit} value={u.unit}>
+                    {u.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
 
         <div className="mt-4">

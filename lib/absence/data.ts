@@ -21,7 +21,8 @@ import {
 export type AbsenceConfigRow = {
   company_id: string;
   method: string;
-  rolling_window_days: number;
+  rolling_window_value: number;
+  rolling_window_unit: string;
   thresholds: unknown;
   policy_path: string | null;
   policy_uploaded_at: string | null;

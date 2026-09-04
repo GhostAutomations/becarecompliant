@@ -10,6 +10,8 @@
  * Nothing here talks to the database or React. Keep it dependency-free.
  */
 
+import { type AbsenceWindow, absenceWindowFrom } from "@/lib/absence/window";
+
 export type AbsenceMethod = "stages" | "bradford";
 
 /** Trigger-point stage: fires when the number of occasions crosses the threshold. */
@@ -28,7 +30,8 @@ export type BradfordBand = {
 
 export type AbsenceConfig = {
   method: AbsenceMethod;
-  rollingWindowDays: number;
+  /** The rolling window in the words of the policy: 12 months, 52 weeks, 365 days. */
+  window: AbsenceWindow;
   /** StageThreshold[] when method='stages', BradfordBand[] when 'bradford'. */
   thresholds: StageThreshold[] | BradfordBand[];
 };
@@ -82,6 +85,8 @@ export const DEFAULT_BRADFORD_BANDS: BradfordBand[] = [
   { threshold: 401, label: "Stage 3", action: "Final review" },
 ];
 
+/** Kept as the documented equivalent of the default window (12 months). Nothing
+ *  computes with it any more: the window carries its own unit. */
 export const DEFAULT_ROLLING_WINDOW_DAYS = 365;
 
 /** Bradford Factor: S squared times D (spells squared times total days). */
@@ -154,11 +159,12 @@ export function deriveAbsenceStatus(
 /** Resolve a stored config row (possibly empty) into a usable AbsenceConfig. */
 export function resolveAbsenceConfig(row: {
   method?: string | null;
-  rolling_window_days?: number | null;
+  rolling_window_value?: number | null;
+  rolling_window_unit?: string | null;
   thresholds?: unknown;
 } | null): AbsenceConfig {
   const method: AbsenceMethod = row?.method === "bradford" ? "bradford" : "stages";
-  const rollingWindowDays = row?.rolling_window_days ?? DEFAULT_ROLLING_WINDOW_DAYS;
+  const window = absenceWindowFrom(row?.rolling_window_value, row?.rolling_window_unit);
   const stored = Array.isArray(row?.thresholds) ? (row!.thresholds as unknown[]) : [];
   const thresholds =
     stored.length > 0
@@ -166,5 +172,5 @@ export function resolveAbsenceConfig(row: {
       : method === "bradford"
         ? DEFAULT_BRADFORD_BANDS
         : DEFAULT_STAGE_THRESHOLDS;
-  return { method, rollingWindowDays, thresholds };
+  return { method, window, thresholds };
 }
