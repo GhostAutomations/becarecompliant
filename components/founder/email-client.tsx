@@ -304,18 +304,16 @@ export default function EmailClient({
               buttonClassName="mailx-cmd"
               className=""
             />
-            {!selected.body_text ? (
-              <ActionForm
-                key={`bar-body-${selected.id}`}
-                action={actions.fetchBody as never}
-                hidden={{ email_id: selected.id }}
-                label="Collect content"
-                savingLabel="Collecting…"
-                savedLabel="Done"
-                buttonClassName="mailx-cmd"
-                className=""
-              />
-            ) : null}
+            <ActionForm
+              key={`bar-body-${selected.id}`}
+              action={actions.fetchBody as never}
+              hidden={{ email_id: selected.id }}
+              label={selected.body_text ? "Refresh details" : "Collect content"}
+              savingLabel="Fetching…"
+              savedLabel="Done"
+              buttonClassName="mailx-cmd"
+              className=""
+            />
           </>
         ) : null}
       </div>

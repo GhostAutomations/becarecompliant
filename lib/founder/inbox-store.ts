@@ -45,6 +45,8 @@ type ReceivedBody = {
   html?: string | null;
   headers?: Record<string, string> | null;
   message_id?: string | null;
+  /** The full From, display name included. The webhook event only carries a bare address. */
+  from?: string | null;
 };
 
 /**
@@ -106,6 +108,18 @@ function headerValue(headers: Record<string, string> | null | undefined, name: s
   return key ? headers[key] : null;
 }
 
+/**
+ * The best From we can find.
+ *
+ * The webhook event carries a BARE ADDRESS, which is why the list read "phil.davies@outlook.com"
+ * where Outlook and Mail show "Phil Davies". The display name only exists on the retrieved
+ * message — as its own `from` field, or failing that in the raw headers.
+ */
+function senderHeader(body: ReceivedBody | null | undefined): string | null {
+  if (!body) return null;
+  return body.from || headerValue(body.headers, "from");
+}
+
 export type StoreResult = { stored: boolean; id?: string; reason?: string };
 
 /** Store one received email, matched to a lead where the address says so. */
@@ -131,7 +145,7 @@ export async function storeReceivedEmail(payload: ReceivedPayload): Promise<Stor
      address, so the list showed "phil.davies@outlook.com" where Outlook and Mail show "Phil
      Davies". The full From header comes back with the body, so the name is taken from there and
      the payload is only the fallback. */
-  const from = parseFrom(headerValue(body?.headers, "from") || payload.from);
+  const from = parseFrom(senderHeader(body) || payload.from);
 
   const { data: leads } = await supabase
     .from("trial_requests")
@@ -278,13 +292,16 @@ export async function backfillMissingBodies(limit = 50): Promise<BackfillResult>
   const supabase = createServiceClient();
   const errors: string[] = [];
 
+  /* MISSING A BODY **OR** MISSING A NAME.
+     The first version asked only for rows with no body, so every message that arrived before
+     the sender's name was being read stayed nameless for ever — there was no path back to it.
+     Found by Phil, 2026-09-04: "i have synced by the emails and not the names are showing." */
   const { data, error } = await supabase
     .from("founder_emails")
     .select("id, resend_email_id")
     .eq("direction", "in")
-    .is("body_text", null)
-    .is("body_html", null)
     .not("resend_email_id", "is", null)
+    .or("and(body_text.is.null,body_html.is.null),from_name.is.null")
     .order("occurred_at", { ascending: false })
     .limit(limit);
 
@@ -295,7 +312,7 @@ export async function backfillMissingBodies(limit = 50): Promise<BackfillResult>
 
   for (const row of rows) {
     const fetched = await fetchReceivedBody(row.resend_email_id);
-    const named = fetched.ok ? parseFrom(headerValue(fetched.body.headers, "from")).name : null;
+    const named = fetched.ok ? parseFrom(senderHeader(fetched.body)).name : null;
     const patch = fetched.ok
       ? {
           body_text: fetched.body.text ?? null,
@@ -334,8 +351,8 @@ export async function refetchOneBody(
         body_fetched_at: new Date().toISOString(),
         /* The From header arrives with the body, so collecting content is also where a message
            stored before this existed finally gets its sender's NAME. */
-        ...(parseFrom(headerValue(fetched.body.headers, "from")).name
-          ? { from_name: parseFrom(headerValue(fetched.body.headers, "from")).name }
+        ...(parseFrom(senderHeader(fetched.body)).name
+          ? { from_name: parseFrom(senderHeader(fetched.body)).name }
           : {}),
       }
     : { body_error: fetched.error };
@@ -346,6 +363,9 @@ export async function refetchOneBody(
 
   /* A GENUINELY EMPTY EMAIL IS NOT A FAILURE. Somebody can send a subject and no body, and the
      console must say that rather than implying something went wrong. */
-  return { ok: true, recovered: Boolean(fetched.body.text || fetched.body.html) };
+  return {
+    ok: true,
+    recovered: Boolean(fetched.body.text || fetched.body.html || parseFrom(senderHeader(fetched.body)).name),
+  };
 }
 
