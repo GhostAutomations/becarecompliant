@@ -67,15 +67,27 @@ export async function getServiceUserColumnLabels(companyId: string): Promise<Rec
   return ((data?.service_user_column_labels as Record<string, string> | null) ?? {}) as Record<string, string>;
 }
 
-/** The company Complex review interval in days (default 80). */
-export async function getComplexReviewInterval(companyId: string): Promise<number> {
+/**
+ * The Care Plan Review cadence in days, for BOTH Simple and Complex branches.
+ *
+ * Phil, 2026-09-04: "the only difference between complex and simple is the view."
+ * Complex shows the review as four numbered slots with their own history; Simple shows
+ * one rolling due date. Same review, same cadence, so there is one number, and it is
+ * the one on the Care Plan Review check. The company used to carry a second
+ * complex_review_interval_days, which lib/export/reports.ts already ignored in favour
+ * of this definition - two numbers for one thing, already disagreeing.
+ */
+export async function getReviewIntervalDays(companyId: string): Promise<number> {
   const supabase = await createClient();
   const { data } = await supabase
-    .from("companies")
-    .select("complex_review_interval_days")
-    .eq("id", companyId)
+    .from("check_definitions")
+    .select("interval")
+    .eq("company_id", companyId)
+    .eq("population", "service_users")
+    .eq("key", "care_plan_review")
     .maybeSingle();
-  return (data?.complex_review_interval_days as number | null) ?? 80;
+  const days = data?.interval as number | null;
+  return typeof days === "number" && days >= 1 ? days : 90;
 }
 
 /** The company outcomes review cadence in months (default 3). */

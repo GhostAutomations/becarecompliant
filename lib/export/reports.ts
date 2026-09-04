@@ -315,7 +315,7 @@ export async function buildServiceUserRegisterReport(
   const today = todayIso();
 
   const reviewDef = definitions.find((d) => d.key === "care_plan_review");
-  const reviewInterval = reviewDef?.interval ?? 80;
+  const reviewInterval = reviewDef?.interval ?? 90;
   const reviewAmber = reviewDef?.amber_days ?? 30;
   // Latest care plan review per service user, coloured on time / late (register pill).
   const reviewRows = rows

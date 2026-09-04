@@ -97,7 +97,7 @@ export default function ServiceUserRegister({
   columnLabels,
   checkColumns = [],
   columnText = {},
-  complexIntervalDays,
+  reviewIntervalDays,
   canManage,
   isAdmin = false,
   initialView,
@@ -111,7 +111,7 @@ export default function ServiceUserRegister({
   checkColumns?: RegisterCheckColumn[];
   /** Cell text keyed by evidence id, for columns pointed at a question on their form. */
   columnText?: Record<string, string>;
-  complexIntervalDays: number;
+  reviewIntervalDays: number;
   canManage: boolean;
   /** Only a Company Admin can change which columns show + their order. */
   isAdmin?: boolean;
@@ -387,7 +387,7 @@ export default function ServiceUserRegister({
                         </td>
                         {isComplex ? (
                           (() => {
-                            const slots = reviewSlots(su.package_start_date, row.reviewComps, complexIntervalDays);
+                            const slots = reviewSlots(su.package_start_date, row.reviewComps, reviewIntervalDays);
                             return (
                               <>
                                 {slots.map((s) => (

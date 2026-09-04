@@ -8,7 +8,7 @@ import {
   listSupervisoryUsers,
   getServiceUserColumnLabels,
   listAccessibleBranchTypes,
-  getComplexReviewInterval,
+  getReviewIntervalDays,
 } from "@/lib/service-users/data";
 import { listRegisterCheckColumns, getRegisterColumnText } from "@/lib/register/data";
 
@@ -43,12 +43,12 @@ export default async function ServiceUsersPage({
 
   // Load EVERY Service User once (all statuses, all the viewer's branches). Branches
   // and View are then switched instantly on the client with no server round trip.
-  const [branches, register, reviewers, columnLabels, complexIntervalDays, checkColumns] = await Promise.all([
+  const [branches, register, reviewers, columnLabels, reviewIntervalDays, checkColumns] = await Promise.all([
     listAccessibleBranchTypes(companyId, profile.role, user.id),
     listRegister(companyId, null, "all"),
     listSupervisoryUsers(companyId),
     getServiceUserColumnLabels(companyId),
-    getComplexReviewInterval(companyId),
+    getReviewIntervalDays(companyId),
     listRegisterCheckColumns(companyId, "service_users"),
   ]);
 
@@ -84,7 +84,7 @@ export default async function ServiceUsersPage({
         columnLabels={columnLabels}
         checkColumns={checkColumns}
         columnText={columnText}
-        complexIntervalDays={complexIntervalDays}
+        reviewIntervalDays={reviewIntervalDays}
         canManage={canManage}
         isAdmin={isAdmin}
         initialView={view ?? "main"}

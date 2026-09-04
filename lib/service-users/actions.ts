@@ -42,13 +42,21 @@ async function complexReviewContext(
   companyId: string,
   branchId: string,
 ): Promise<{ isComplex: boolean; intervalDays: number }> {
-  const [{ data: branch }, { data: company }] = await Promise.all([
+  const [{ data: branch }, { data: def }] = await Promise.all([
     supabase.from("branches").select("service_user_type").eq("id", branchId).maybeSingle(),
-    supabase.from("companies").select("complex_review_interval_days").eq("id", companyId).maybeSingle(),
+    supabase
+      .from("check_definitions")
+      .select("interval")
+      .eq("company_id", companyId)
+      .eq("population", "service_users")
+      .eq("key", "care_plan_review")
+      .maybeSingle(),
   ]);
+  const days = def?.interval as number | null;
   return {
     isComplex: (branch?.service_user_type as string | null) === "complex",
-    intervalDays: (company?.complex_review_interval_days as number | null) ?? 80,
+    /* ONE cadence for both views (Phil, 2026-09-04): the Care Plan Review's own. */
+    intervalDays: typeof days === "number" && days >= 1 ? days : 90,
   };
 }
 
@@ -862,37 +870,9 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
   };
 }
 
-/** Save the company Complex review interval (days) used for the REV1-4 cadence on
- *  Complex branches. Applies to future scheduling. */
-export async function updateComplexReviewInterval(formData: FormData): Promise<ActionState> {
-  const { user, profile } = await requireCompany();
-  if (!profile.company_id) return { error: "No company context." };
-  const days = Number.parseInt(String(formData.get("days") ?? "").trim(), 10);
-  if (!Number.isInteger(days) || days < 1) return { error: "Enter a number of days." };
-
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("companies")
-    .update({ complex_review_interval_days: days })
-    .eq("id", profile.company_id);
-  if (error) return { error: error.message };
-
-  await writeAudit({
-    companyId: profile.company_id,
-    actorId: user.id,
-    actorEmail: profile.email,
-    actorRole: profile.role,
-    action: "company.complex_review_interval_updated",
-    entityType: "company",
-    entityId: profile.company_id,
-    summary: `Set Complex review interval to ${days} days`,
-    metadata: { days },
-  });
-
-  revalidatePath("/settings/service-users");
-  revalidatePath("/service-users");
-  return { ok: "Saved" };
-}
+/* updateComplexReviewInterval is gone (2026-09-04). Complex and Simple differ only in
+   how the register draws the review, so the cadence is the Care Plan Review's own
+   interval, set with the other checks in Settings, Service users. */
 
 /** Set a branch's Service User type (Simple or Complex). Company Admin only, enforced
  *  by the branches_update RLS policy. */
@@ -909,28 +889,18 @@ export async function setBranchServiceUserType(formData: FormData): Promise<void
     .eq("id", branchId);
   if (error) return;
 
-  // Re-anchor every Service User's Care Plan Review due date in this branch to the new
-  // mode's cadence: Complex uses the company Complex interval, Simple the Care Plan
-  // Review definition interval. The register slots recompute from the completion
-  // history automatically; this keeps the RAG rollup correct.
-  let intervalDays = 365;
-  if (type === "complex") {
-    const { data: company } = await supabase
-      .from("companies")
-      .select("complex_review_interval_days")
-      .eq("id", profile.company_id ?? "")
-      .maybeSingle();
-    intervalDays = (company?.complex_review_interval_days as number | null) ?? 80;
-  } else {
-    const { data: def } = await supabase
-      .from("check_definitions")
-      .select("interval")
-      .eq("company_id", profile.company_id ?? "")
-      .eq("population", "service_users")
-      .eq("key", "care_plan_review")
-      .maybeSingle();
-    intervalDays = (def?.interval as number | null) ?? 365;
-  }
+  // Re-anchor every Service User's Care Plan Review due date in this branch. Both modes
+  // now run on the SAME cadence - the Care Plan Review's own interval - so switching type
+  // changes only how the register draws it. The re-anchor stays because the register
+  // slots recompute from the completion history and this keeps the RAG rollup correct.
+  const { data: def } = await supabase
+    .from("check_definitions")
+    .select("interval")
+    .eq("company_id", profile.company_id ?? "")
+    .eq("population", "service_users")
+    .eq("key", "care_plan_review")
+    .maybeSingle();
+  const intervalDays = (def?.interval as number | null) ?? 90;
   await supabase.rpc("reschedule_branch_reviews", {
     p_branch_id: branchId,
     p_interval_days: intervalDays,

@@ -20,7 +20,7 @@ import {
   getServiceUserTracker,
   getReviewComps,
   getServiceUserBranchType,
-  getComplexReviewInterval,
+  getReviewIntervalDays,
   listBranches,
   listSupervisoryUsers,
   listServiceUserCheckDefinitions,
@@ -105,7 +105,7 @@ export default async function ServiceUserPage({
     summary: `Viewed ${serviceUser.full_name}`,
   });
 
-  const [statuses, definitions, evidence, users, assignments, branches, tracker, branchType, complexInterval] =
+  const [statuses, definitions, evidence, users, assignments, branches, tracker, branchType, reviewInterval] =
     await Promise.all([
       getServiceUserChecks(id),
       listServiceUserCheckDefinitions(companyId),
@@ -115,7 +115,7 @@ export default async function ServiceUserPage({
       canManage ? listBranches(companyId, profile) : Promise.resolve([]),
       getServiceUserTracker(id),
       getServiceUserBranchType(id),
-      getComplexReviewInterval(companyId),
+      getReviewIntervalDays(companyId),
     ]);
 
   // History timeline (managers/admins, via the record_audit_trail RPC) + export gate.
@@ -141,7 +141,7 @@ export default async function ServiceUserPage({
     ? await getReviewComps(id, reviewDef?.form_id ?? null, reviewDef?.id ?? null)
     : [];
   const slots = isComplex
-    ? reviewSlots(serviceUser.package_start_date, reviewComps, complexInterval)
+    ? reviewSlots(serviceUser.package_start_date, reviewComps, reviewInterval)
     : [];
   // Reviews are completed in order, so only the next outstanding slot can be completed.
   const nextReviewN = slots.find((s) => !s.comp)?.n ?? null;
@@ -248,8 +248,8 @@ export default async function ServiceUserPage({
                 })}
               </div>
               <p className="text-[11px] text-white/40">
-                Review 1 is due {complexInterval} days after the package start; each further
-                review is due {complexInterval} days after the previous one is completed.
+                Review 1 is due {reviewInterval} days after the package start; each further
+                review is due {reviewInterval} days after the previous one is completed.
               </p>
             </section>
           ) : (

@@ -7,13 +7,11 @@ import CreateCheckTypeForm from "@/components/people/create-check-type-form";
 import SuColumnNamesForm from "@/components/service-users/su-column-names-form";
 import { listCompanyForms } from "@/lib/form-builder/data";
 import BranchTypeForm from "@/components/service-users/branch-type-form";
-import ComplexIntervalForm from "@/components/service-users/complex-interval-form";
 import OutcomesIntervalForm from "@/components/service-users/outcomes-interval-form";
 import {
   listAllServiceUserCheckDefinitions,
   getServiceUserColumnLabels,
   listBranchTypes,
-  getComplexReviewInterval,
   getOutcomesReviewMonths,
 } from "@/lib/service-users/data";
 import { SU_REGISTER_COLUMNS } from "@/lib/service-users/types";
@@ -24,11 +22,10 @@ export default async function SettingsServiceUsersPage() {
   const { profile } = await requireCompanyAdmin();
   if (!profile.company_id) redirect("/founder");
 
-  const [definitions, columnLabels, branchTypes, complexInterval, outcomesMonths, allForms] = await Promise.all([
+  const [definitions, columnLabels, branchTypes, outcomesMonths, allForms] = await Promise.all([
     listAllServiceUserCheckDefinitions(profile.company_id),
     getServiceUserColumnLabels(profile.company_id),
     listBranchTypes(profile.company_id),
-    getComplexReviewInterval(profile.company_id),
     getOutcomesReviewMonths(profile.company_id),
     listCompanyForms(profile.company_id),
   ]);
@@ -59,19 +56,15 @@ export default async function SettingsServiceUsersPage() {
           ) : (
             definitions.map((def) => <CheckConfigForm key={def.id} def={def} />)
           )}
-          {/* This said Simple branches run "the single annual review", which stopped
-              being true when the Care Plan Review moved to quarterly (0227). It also
-              read as though Complex meant MORE reviews; both run a rolling review, and
-              what Complex changes is that the register shows four numbered slots with
-              their own history instead of one rolling due date. Phil, 2026-09-04:
-              "there is no annual review". */}
+          {/* The Complex cadence setting is gone (Phil, 2026-09-04): "the only
+              difference between complex and simple is the view", so there is one
+              cadence - the Care Plan Review's, set above - and two ways of drawing it. */}
           <p className="page-subtitle pt-2">
             A Complex branch shows the Care Plan Review as four numbered slots (Review 1
-            to Review 4) on the register, each one due this many days after the last was
-            completed, with its own history. A Simple branch shows one rolling review due
-            date, on the Care Plan Review cadence set above.
+            to Review 4) on the register, each due after the last was completed, with its
+            own history. A Simple branch shows one rolling review due date. Both run on
+            the Care Plan Review cadence above.
           </p>
-          <ComplexIntervalForm days={complexInterval} />
           <p className="page-subtitle pt-2">
             Active personal outcomes are flagged for a progress update on this cadence,
             separate from the care plan reviews above.
