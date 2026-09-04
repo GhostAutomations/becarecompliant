@@ -106,7 +106,7 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
     .select("probation_period_days")
     .eq("id", companyId)
     .maybeSingle();
-  const probEndDue = addDaysIso(start_date, (company?.probation_period_days as number | null) ?? 180);
+  const probEndDue = addDaysIso(start_date, (company?.probation_period_days as number | null) ?? 90);
   await supabase
     .from("person_trackers")
     .update({ probation_end_due: probEndDue, probation_status: "due", updated_by: user.id })

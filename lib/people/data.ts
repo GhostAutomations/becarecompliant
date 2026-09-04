@@ -50,7 +50,7 @@ export async function getProbationPeriod(companyId: string): Promise<number> {
     .select("probation_period_days")
     .eq("id", companyId)
     .maybeSingle();
-  return (data?.probation_period_days as number | null) ?? 180;
+  return (data?.probation_period_days as number | null) ?? 90;
 }
 
 export type JobTitle = { id: string; title: string };
