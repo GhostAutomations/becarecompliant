@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
+import { branchSummary } from "@/lib/auth/manage-scope";
 import { createClient } from "@/lib/supabase/server";
 import { ROLE_LABELS } from "@/lib/nav";
 import BackLink from "@/components/back-link";
@@ -138,6 +139,33 @@ export default async function UsersPage() {
     ),
   });
 
+  /* A PENDING INVITE ALREADY HAS ITS BRANCHES. The profile is created and promoted when
+     the invite is sent (lib/invites.ts), and an "All branches" invite writes a
+     user_branches row for every active branch while leaving invites.branch_id null. The
+     list printed that null as "no branch", so all and none looked identical. Read the
+     rows instead, keyed by email because that is what the two tables share. */
+  const profileByEmail = new Map(
+    (users ?? []).map((u) => [String(u.email).toLowerCase(), u]),
+  );
+  function branchNamesForUser(userId: string): string[] {
+    const primaryId = primaryByUser.get(userId) ?? null;
+    return [
+      primaryId ? branchName.get(primaryId) : null,
+      ...(additionalByUser.get(userId) ?? []).map((id) => branchName.get(id)),
+    ].filter(Boolean) as string[];
+  }
+  function inviteBranchSummary(invite: { email: string; role: string; branch_id: string | null }): string {
+    const linked = profileByEmail.get(String(invite.email).toLowerCase());
+    const names = linked
+      ? branchNamesForUser(linked.id)
+      : ((invite.branch_id ? [branchName.get(invite.branch_id)] : []).filter(Boolean) as string[]);
+    return branchSummary({
+      role: invite.role,
+      branchNames: names,
+      activeBranchCount: activeBranches.length,
+    });
+  }
+
   const branchOptions = activeBranches
     .filter((b) => b.kind === "branch")
     .map((b) => ({ id: b.id, name: b.name }));
@@ -157,10 +185,7 @@ export default async function UsersPage() {
     const isAdmin = u.role === "company_admin";
     const primaryId = primaryByUser.get(u.id) ?? null;
     const additionalIds = additionalByUser.get(u.id) ?? [];
-    const branchNames = [
-      primaryId ? branchName.get(primaryId) : null,
-      ...additionalIds.map((id) => branchName.get(id)),
-    ].filter(Boolean) as string[];
+    const branchNames = branchNamesForUser(u.id);
     return {
       id: u.id,
       fullName: u.full_name,
@@ -172,11 +197,15 @@ export default async function UsersPage() {
       canManage: !isSelf && !isAdmin,
       primaryBranchId: primaryId,
       additionalBranchIds: additionalIds,
-      branchSummary: isAdmin
-        ? "All branches"
-        : branchNames.length > 0
-          ? branchNames.join(", ")
-          : "No branch",
+      /* ONE RULE, shared with the pending invites below and transcribed from the RLS
+         policy (lib/auth/manage-scope.ts). This said "All branches" for the Admin only,
+         so a Responsible Individual and a Registered Manager - company wide in the
+         policy - read "No branch" while seeing everything. */
+      branchSummary: branchSummary({
+        role: u.role,
+        branchNames,
+        activeBranchCount: activeBranches.length,
+      }),
     };
   }
 
@@ -334,9 +363,7 @@ export default async function UsersPage() {
                 </p>
                 <p className="text-xs text-white/50">
                   {invite.email} · {ROLE_LABELS[invite.role] ?? invite.role} ·{" "}
-                  {invite.branch_id
-                    ? branchName.get(invite.branch_id) ?? "branch"
-                    : "no branch"}
+                  {inviteBranchSummary(invite)}
                   {invite.resend_count > 0
                     ? ` · sent ${invite.resend_count}x`
                     : ""}

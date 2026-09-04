@@ -68,6 +68,52 @@ export function canManageAnything(role: string): boolean {
 }
 
 /**
+ * Does this role reach the whole company, whatever user_branches says?
+ *
+ * The same set the RLS `is_company_wide` uses. Exported because three screens were each
+ * deciding it for themselves with an inline `role === "company_admin"`, which is right
+ * for the Admin and wrong for the other two.
+ */
+export function isCompanyWideRole(role: string): boolean {
+  return COMPANY_WIDE.has(role);
+}
+
+/**
+ * WHAT THE SCREEN SHOULD SAY ABOUT SOMEBODY'S BRANCHES.
+ *
+ * WHY IT EXISTS (Phil, 2026-09-04, looking at Settings > Users). Every one of six pending
+ * invites read "no branch". Four of them were invited with All branches and hold a
+ * user_branches row for every branch in the company; the other two are company wide roles
+ * that reach everything without a row at all. The screen was reporting the exact opposite
+ * of the truth, on the screen an Admin uses to decide whether the team is set up.
+ *
+ * Two separate bugs, one rule missing:
+ *   * Pending invites printed the invite's single branch_id, which is null for an
+ *     All branches invite, so "all" and "none" looked identical.
+ *   * The team list said "All branches" for company_admin only, so a Responsible
+ *     Individual and a Registered Manager - both company wide in the policy - read
+ *     "No branch" while seeing everything.
+ *
+ * Same failure as canManageRecord above, in the other direction: there the screen was
+ * optimistic about what the database would allow, here it is pessimistic. Both are the
+ * screen and the database disagreeing.
+ */
+export function branchSummary(opts: {
+  role: string;
+  /** Branch names from this person's user_branches rows. */
+  branchNames: readonly string[];
+  /** How many active branches the company has, to recognise "all of them". */
+  activeBranchCount: number;
+}): string {
+  if (isCompanyWideRole(opts.role)) return "All branches";
+  if (opts.branchNames.length === 0) return "No branch";
+  if (opts.activeBranchCount > 0 && opts.branchNames.length >= opts.activeBranchCount) {
+    return "All branches";
+  }
+  return [...opts.branchNames].join(", ");
+}
+
+/**
  * Is this role confined to the branches it is assigned to?
  *
  * WHY IT EXISTS (Phil, 2026-08-14). `branches_select` is `is_company_member`, so every branch in

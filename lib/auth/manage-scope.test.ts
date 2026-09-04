@@ -1,6 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { canManageRecord, canManageAnything, branchScopedRole, mayConductInBranch } from "./manage-scope.ts";
+import {
+  branchScopedRole,
+  branchSummary,
+  canManageAnything,
+  canManageRecord,
+  isCompanyWideRole,
+  mayConductInBranch,
+} from "./manage-scope.ts";
 
 /**
  * These tests are the contract between this file and the RLS policy it transcribes. If a policy
@@ -135,4 +142,73 @@ test("the company wide roles may conduct anywhere, matching is_branch_manager's 
   for (const role of ["platform_admin", "company_admin", "registered_individual", "registered_manager"]) {
     assert.equal(mayConductInBranch({ role, branchIds: [], recordBranchId: CAERPHILLY }), true, role);
   }
+});
+
+/* ------------------------------------------------------------------------- *
+ * branchSummary — what the Users screen says about somebody's branches.
+ * Phil, 2026-09-04: six pending invites all read "no branch", and not one of
+ * them had no branch.
+ * ------------------------------------------------------------------------- */
+
+test("THE DEFECT: a supervisor invited with All branches read 'no branch'", () => {
+  // Lucy, Chloe, Lauren and Hayley: a user_branches row for all three Thistle branches.
+  assert.equal(
+    branchSummary({
+      role: "supervisor",
+      branchNames: ["Cardiff", "Newport", "Thistle Care Ltd Office"],
+      activeBranchCount: 3,
+    }),
+    "All branches",
+  );
+});
+
+test("THE OTHER HALF: every company wide role says All branches, not just the Admin", () => {
+  for (const role of ["company_admin", "registered_individual", "registered_manager", "platform_admin"]) {
+    assert.equal(
+      branchSummary({ role, branchNames: [], activeBranchCount: 3 }),
+      "All branches",
+      role,
+    );
+  }
+});
+
+test("a scoped role with some of the branches is listed, not summarised", () => {
+  assert.equal(
+    branchSummary({ role: "supervisor", branchNames: ["Cardiff", "Newport"], activeBranchCount: 3 }),
+    "Cardiff, Newport",
+  );
+  assert.equal(
+    branchSummary({ role: "manager", branchNames: ["Cardiff"], activeBranchCount: 3 }),
+    "Cardiff",
+  );
+});
+
+test("a scoped role with genuinely no branch still says so", () => {
+  assert.equal(
+    branchSummary({ role: "supervisor", branchNames: [], activeBranchCount: 3 }),
+    "No branch",
+  );
+});
+
+test("one branch company: the only branch IS all branches", () => {
+  assert.equal(
+    branchSummary({ role: "manager", branchNames: ["Swansea"], activeBranchCount: 1 }),
+    "All branches",
+  );
+});
+
+test("a count of zero never turns an empty list into All branches", () => {
+  assert.equal(
+    branchSummary({ role: "supervisor", branchNames: [], activeBranchCount: 0 }),
+    "No branch",
+  );
+});
+
+test("isCompanyWideRole matches the policy's is_company_wide, and nothing else", () => {
+  assert.equal(isCompanyWideRole("registered_manager"), true);
+  assert.equal(isCompanyWideRole("registered_individual"), true);
+  assert.equal(isCompanyWideRole("company_admin"), true);
+  assert.equal(isCompanyWideRole("manager"), false);
+  assert.equal(isCompanyWideRole("supervisor"), false);
+  assert.equal(isCompanyWideRole("staff"), false);
 });
