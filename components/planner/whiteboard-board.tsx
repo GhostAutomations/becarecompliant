@@ -22,7 +22,9 @@ function fmtShort(iso: string): string {
 // other check (MAR Audit, DBS, etc.) is not shown here.
 const PEOPLE_LEFT = ["Spot Check", "Supervision", "Annual Appraisal"];
 const PEOPLE_RIGHT = ["Medication Competency", "Manual Handling"];
-const SU_LEFT = ["Setup"];
+/* MATCHED BY NAME: renaming a check in the database drops it off this board unless the
+   name here moves with it. "Setup" became "Setup Visit" on 2026-09-04. */
+const SU_LEFT = ["Setup Visit"];
 const SU_RIGHT = ["Care Plan Review"];
 const ALLOWED: Record<"people" | "service_users", string[]> = {
   people: [...PEOPLE_LEFT, ...PEOPLE_RIGHT],

@@ -45,8 +45,10 @@ export default async function SettingsServiceUsersPage() {
         <summary>Service User checks</summary>
         <div className="space-y-3 border-t border-white/10 p-5">
           <p className="page-subtitle">
-            Set how often each service user compliance check recurs. Changes apply to
-            future scheduling; the amber window updates the register straight away.
+            Set how often each service user check recurs. The Setup Visit is not a
+            recurring check: it is the visit where the office team collects everything
+            needed to start care, so it is due before the package starts. Changes apply
+            to future scheduling; the amber window updates the register straight away.
           </p>
           {definitions.length === 0 ? (
             <p className="text-sm text-white/60">

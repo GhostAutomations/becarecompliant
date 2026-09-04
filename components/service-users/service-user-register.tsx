@@ -297,8 +297,8 @@ export default function ServiceUserRegister({
                     <th>{col("ssid", "SSID")}</th>
                     <th>{col("status", "Status")}</th>
                     <th>{col("package_start_date", "Package Start Date")}</th>
-                    <th>{col("setup_due", "Setup Due")}</th>
-                    <th>{col("setup_completed", "Setup Completed")}</th>
+                    <th>{col("setup_due", "Setup Visit Due")}</th>
+                    <th>{col("setup_completed", "Setup Visit Completed")}</th>
                     {isComplex ? (
                       <>
                         <th>{col("rev1_due", "Review 1 Due")}</th>
