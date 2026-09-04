@@ -59,9 +59,17 @@ export default async function SettingsServiceUsersPage() {
           ) : (
             definitions.map((def) => <CheckConfigForm key={def.id} def={def} />)
           )}
+          {/* This said Simple branches run "the single annual review", which stopped
+              being true when the Care Plan Review moved to quarterly (0227). It also
+              read as though Complex meant MORE reviews; both run a rolling review, and
+              what Complex changes is that the register shows four numbered slots with
+              their own history instead of one rolling due date. Phil, 2026-09-04:
+              "there is no annual review". */}
           <p className="page-subtitle pt-2">
-            Complex branches run four rolling Care Plan Reviews (REV1 to REV4) at this
-            cadence instead of the single annual review used by Simple branches.
+            A Complex branch shows the Care Plan Review as four numbered slots (Review 1
+            to Review 4) on the register, each one due this many days after the last was
+            completed, with its own history. A Simple branch shows one rolling review due
+            date, on the Care Plan Review cadence set above.
           </p>
           <ComplexIntervalForm days={complexInterval} />
           <p className="page-subtitle pt-2">
