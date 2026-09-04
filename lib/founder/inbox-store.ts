@@ -2,6 +2,7 @@ import "server-only";
 import { createServiceClient } from "@/lib/supabase/admin";
 export { verifyResendSignature } from "@/lib/founder/webhook-signature";
 import { sendEmail } from "@/lib/email/resend";
+import { fromHeaderOf } from "@/lib/founder/mime";
 import {
   parseFrom,
   matchLead,
@@ -47,6 +48,8 @@ type ReceivedBody = {
   message_id?: string | null;
   /** The full From, display name included. The webhook event only carries a bare address. */
   from?: string | null;
+  /** Signed URL to the original message. The last resort for the sender's real name. */
+  raw?: string | { url?: string | null } | null;
 };
 
 /**
@@ -102,10 +105,32 @@ export async function fetchReceivedBody(emailId: string): Promise<BodyFetch> {
   }
 }
 
-function headerValue(headers: Record<string, string> | null | undefined, name: string): string | null {
+/**
+ * One header, from whichever shape the provider used.
+ *
+ * Providers return headers either as an object keyed by name or as an array of {name, value}.
+ * The first version of this assumed an object, so on an array it looked for keys called "0" and
+ * "1" and quietly found nothing — which is part of why the sender's name never appeared.
+ */
+function headerValue(headers: unknown, name: string): string | null {
   if (!headers) return null;
-  const key = Object.keys(headers).find((k) => k.toLowerCase() === name.toLowerCase());
-  return key ? headers[key] : null;
+  const wanted = name.toLowerCase();
+
+  if (Array.isArray(headers)) {
+    const hit = (headers as Array<{ name?: string; key?: string; value?: string }>).find(
+      (h) => (h?.name ?? h?.key ?? "").toLowerCase() === wanted,
+    );
+    return hit?.value ?? null;
+  }
+
+  if (typeof headers === "object") {
+    const obj = headers as Record<string, unknown>;
+    const key = Object.keys(obj).find((k) => k.toLowerCase() === wanted);
+    const value = key ? obj[key] : null;
+    return typeof value === "string" ? value : null;
+  }
+
+  return null;
 }
 
 /**
@@ -115,9 +140,32 @@ function headerValue(headers: Record<string, string> | null | undefined, name: s
  * where Outlook and Mail show "Phil Davies". The display name only exists on the retrieved
  * message — as its own `from` field, or failing that in the raw headers.
  */
-function senderHeader(body: ReceivedBody | null | undefined): string | null {
+async function senderHeader(body: ReceivedBody | null | undefined): Promise<string | null> {
   if (!body) return null;
-  return body.from || headerValue(body.headers, "from");
+
+  // 1. The provider's own parsed field, when it carries a display name.
+  const parsed = body.from ?? null;
+  if (parsed && parsed.includes("<")) return parsed;
+
+  // 2. The headers it hands back, in whichever shape.
+  const header = headerValue(body.headers, "from");
+  if (header) return header;
+
+  /* 3. THE ORIGINAL MESSAGE. The provider's parsed fields do not reliably carry the display
+        name — its own dashboard shows a bare address — so the last resort is the message
+        itself. Only the head is needed, so the read stops after 16KB rather than pulling a
+        whole email with its attachments down for one line. */
+  const url = typeof body.raw === "string" ? body.raw : (body.raw?.url ?? null);
+  if (!url) return parsed;
+  try {
+    const res = await fetch(url, { headers: { Range: "bytes=0-16383" } });
+    if (!res.ok) return parsed;
+    const head = await res.text();
+    return fromHeaderOf(head) ?? parsed;
+  } catch (e) {
+    console.error("[inbox] raw fetch for sender name failed:", (e as Error).message);
+    return parsed;
+  }
 }
 
 export type StoreResult = { stored: boolean; id?: string; reason?: string };
@@ -145,7 +193,7 @@ export async function storeReceivedEmail(payload: ReceivedPayload): Promise<Stor
      address, so the list showed "phil.davies@outlook.com" where Outlook and Mail show "Phil
      Davies". The full From header comes back with the body, so the name is taken from there and
      the payload is only the fallback. */
-  const from = parseFrom(senderHeader(body) || payload.from);
+  const from = parseFrom((await senderHeader(body)) || payload.from);
 
   const { data: leads } = await supabase
     .from("trial_requests")
@@ -312,7 +360,7 @@ export async function backfillMissingBodies(limit = 50): Promise<BackfillResult>
 
   for (const row of rows) {
     const fetched = await fetchReceivedBody(row.resend_email_id);
-    const named = fetched.ok ? parseFrom(senderHeader(fetched.body)).name : null;
+    const named = fetched.ok ? parseFrom(await senderHeader(fetched.body)).name : null;
     const patch = fetched.ok
       ? {
           body_text: fetched.body.text ?? null,
@@ -343,6 +391,7 @@ export async function refetchOneBody(
   const supabase = createServiceClient();
   const fetched = await fetchReceivedBody(resendEmailId);
 
+  const namedFrom = fetched.ok ? parseFrom(await senderHeader(fetched.body)).name : null;
   const patch = fetched.ok
     ? {
         body_text: fetched.body.text ?? null,
@@ -351,9 +400,7 @@ export async function refetchOneBody(
         body_fetched_at: new Date().toISOString(),
         /* The From header arrives with the body, so collecting content is also where a message
            stored before this existed finally gets its sender's NAME. */
-        ...(parseFrom(senderHeader(fetched.body)).name
-          ? { from_name: parseFrom(senderHeader(fetched.body)).name }
-          : {}),
+        ...(namedFrom ? { from_name: namedFrom } : {}),
       }
     : { body_error: fetched.error };
 
@@ -363,9 +410,6 @@ export async function refetchOneBody(
 
   /* A GENUINELY EMPTY EMAIL IS NOT A FAILURE. Somebody can send a subject and no body, and the
      console must say that rather than implying something went wrong. */
-  return {
-    ok: true,
-    recovered: Boolean(fetched.body.text || fetched.body.html || parseFrom(senderHeader(fetched.body)).name),
-  };
+  return { ok: true, recovered: Boolean(fetched.body.text || fetched.body.html || namedFrom) };
 }
 
