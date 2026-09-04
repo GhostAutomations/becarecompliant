@@ -9,6 +9,7 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { listStaff, profilesById } from "@/lib/auth/company-profiles";
+import { type ProbationPeriod, probationFrom } from "@/lib/people/probation";
 import { branchScopedRole } from "@/lib/auth/manage-scope";
 import { callerBranchIds } from "@/lib/auth/branches";
 import type {
@@ -43,14 +44,14 @@ export async function getRollupCounts(
 }
 
 /** The company Probationary Period in days (default 180). */
-export async function getProbationPeriod(companyId: string): Promise<number> {
+export async function getProbationPeriod(companyId: string): Promise<ProbationPeriod> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("companies")
-    .select("probation_period_days")
+    .select("probation_period_value, probation_period_unit")
     .eq("id", companyId)
     .maybeSingle();
-  return (data?.probation_period_days as number | null) ?? 90;
+  return probationFrom(data?.probation_period_value, data?.probation_period_unit);
 }
 
 export type JobTitle = { id: string; title: string };

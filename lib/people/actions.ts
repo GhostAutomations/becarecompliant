@@ -29,9 +29,15 @@ import {
   nextDueAfterCompletion,
   todayIso,
   addDaysIso,
+  probationEndDue,
   TRACKER_FORMS,
   REGISTER_COLUMNS,
 } from "./logic";
+import {
+  parseProbationPeriod,
+  probationFrom,
+  probationLabel,
+} from "@/lib/people/probation";
 import { parseCivilDate } from "@/lib/recurrence";
 
 function trimOrNull(v: FormDataEntryValue | null): string | null {
@@ -100,13 +106,17 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
     p_rows: rows,
   });
 
-  // Probation: end due = start date + the company Probationary Period; status = Due.
+  // Probation: end due = start date + the company Probationary Period, in the unit
+  // the company set (days, weeks or months); status = Due.
   const { data: company } = await supabase
     .from("companies")
-    .select("probation_period_days")
+    .select("probation_period_value, probation_period_unit")
     .eq("id", companyId)
     .maybeSingle();
-  const probEndDue = addDaysIso(start_date, (company?.probation_period_days as number | null) ?? 90);
+  const probEndDue = probationEndDue(
+    start_date,
+    probationFrom(company?.probation_period_value, company?.probation_period_unit),
+  );
   await supabase
     .from("person_trackers")
     .update({ probation_end_due: probEndDue, probation_status: "due", updated_by: user.id })
@@ -653,18 +663,26 @@ export async function createCheckType(input: {
   return { ok: `Check "${name}" created.` };
 }
 
-/** Save the company Probationary Period (days). Applies to carers added afterwards;
- *  it deliberately does NOT recompute existing carers' probation dates. */
+/** Save the company Probationary Period, in the unit the contract uses. Applies to
+ *  carers added afterwards; it deliberately does NOT recompute existing carers'
+ *  probation dates. */
 export async function updateProbationPeriod(formData: FormData): Promise<ActionState> {
   const { user, profile } = await requireCompany();
   if (!profile.company_id) return { error: "No company context." };
-  const days = Number.parseInt(String(formData.get("probation_period_days") ?? "").trim(), 10);
-  if (!Number.isInteger(days) || days < 1) return { error: "Enter a number of days." };
+  const parsed = parseProbationPeriod(
+    formData.get("probation_period_value"),
+    formData.get("probation_period_unit"),
+  );
+  if ("error" in parsed) return { error: parsed.error };
+  const { period } = parsed;
 
   const supabase = await createClient();
   const { error } = await supabase
     .from("companies")
-    .update({ probation_period_days: days })
+    .update({
+      probation_period_value: period.value,
+      probation_period_unit: period.unit,
+    })
     .eq("id", profile.company_id);
   if (error) return { error: error.message };
 
@@ -676,8 +694,8 @@ export async function updateProbationPeriod(formData: FormData): Promise<ActionS
     action: "company.probation_period_updated",
     entityType: "company",
     entityId: profile.company_id,
-    summary: `Set probationary period to ${days} days`,
-    metadata: { days },
+    summary: `Set probationary period to ${probationLabel(period)}`,
+    metadata: { value: period.value, unit: period.unit },
   });
 
   revalidatePath("/settings/people");

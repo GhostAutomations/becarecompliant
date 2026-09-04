@@ -13,6 +13,10 @@ import {
   type FormSchema,
 } from "@/lib/form-schema";
 import {
+  type ProbationPeriod,
+  probationToRecurrence,
+} from "@/lib/people/probation";
+import {
   type CivilDate,
   type Rag,
   type RecurrenceRule,
@@ -66,10 +70,24 @@ export function initialDueDate(def: CheckDefinition, startDate: string | null): 
   return formatCivilDate(addInterval(parseCivilDate(startDate), rule.frequency, rule.interval));
 }
 
-/** start date + N days as an ISO string (used for the probation end due date). */
+/** start date + N days as an ISO string. */
 export function addDaysIso(startDate: string | null, days: number | null): string | null {
   if (!startDate || !/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !days || days < 1) return null;
   return formatCivilDate(addInterval(parseCivilDate(startDate), "day", days));
+}
+
+/**
+ * Probation end due = start date + the company probationary period, in the unit the
+ * company set. Months go through the engine as MONTHS, so three months from 30
+ * November is 28 February, not 28 days adrift of it.
+ */
+export function probationEndDue(
+  startDate: string | null,
+  period: ProbationPeriod,
+): string | null {
+  if (!startDate || !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return null;
+  const { frequency, interval } = probationToRecurrence(period);
+  return formatCivilDate(addInterval(parseCivilDate(startDate), frequency, interval));
 }
 
 /**

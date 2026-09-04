@@ -19,7 +19,7 @@ export default async function SettingsPeoplePage() {
   const { profile } = await requireCompanyAdmin();
   if (!profile.company_id) redirect("/founder");
 
-  const [definitions, columnLabels, probationDays, allForms, courses, jobTitles] = await Promise.all([
+  const [definitions, columnLabels, probationPeriod, allForms, courses, jobTitles] = await Promise.all([
     listAllPeopleCheckDefinitions(profile.company_id),
     getColumnLabels(profile.company_id),
     getProbationPeriod(profile.company_id),
@@ -74,9 +74,11 @@ export default async function SettingsPeoplePage() {
         <summary>Probation</summary>
         <div className="border-t border-white/10 p-5">
           <p className="page-subtitle mb-3">
-            The probationary period used to set a new carer&rsquo;s probation end due date.
+            The probationary period used to set a new carer&rsquo;s probation end due
+            date. Set it the way your employment contract words it &mdash; in days,
+            weeks or months.
           </p>
-          <ProbationPeriodForm days={probationDays} />
+          <ProbationPeriodForm period={probationPeriod} />
         </div>
       </details>
 
