@@ -32,9 +32,13 @@ const POLL_MS = 10_000;
 export default function RealtimeRefresh({
   tables = PEOPLE_TABLES,
   channel: channelName = "people-live",
+  pollMs = POLL_MS,
 }: {
   tables?: string[];
   channel?: string;
+  /** Safety net only. The founder inbox passes a long one: on a screen you READ, a refresh you
+   *  did not ask for moves the page under you, so it must be rare (Phil, 2026-09-04). */
+  pollMs?: number;
 } = {}) {
   const router = useRouter();
 
@@ -51,14 +55,14 @@ export default function RealtimeRefresh({
     channel.subscribe();
 
     // Poll fallback: keeps RAG fresh even if the socket drops.
-    const interval = setInterval(() => router.refresh(), POLL_MS);
+    const interval = setInterval(() => router.refresh(), pollMs);
 
     return () => {
       supabase.removeChannel(channel);
       clearInterval(interval);
     };
     // tables is a stable literal from the caller; join for a primitive dep.
-  }, [router, channelName, tables.join(",")]);
+  }, [router, channelName, pollMs, tables.join(",")]);
 
   return null;
 }

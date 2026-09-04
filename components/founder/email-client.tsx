@@ -30,6 +30,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState, useTransit
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ActionForm from "@/components/action-form";
+import RealtimeRefresh from "@/components/realtime-refresh";
 import { listPreview, replySubject } from "@/lib/founder/inbox";
 
 export type EmailRow = {
@@ -61,6 +62,9 @@ type Actions = {
   erase: (prev: never, formData: FormData) => Promise<never>;
   emptyDeleted: (prev: never, formData: FormData) => Promise<never>;
 };
+
+/** Stable module-level literal: RealtimeRefresh keys its effect on the joined list. */
+const FOUNDER_EMAIL_TABLES = ["founder_emails"];
 
 const FOLDER_LABEL: Record<Folder, string> = {
   inbox: "Inbox",
@@ -149,40 +153,34 @@ export default function EmailClient({
   const [composing, setComposing] = useState(false);
 
   /* ------------------------------------------------------------------
-   * NEW MAIL APPEARS WITHOUT A REFRESH
+   * NEW MAIL ARRIVES BY PUSH, NOT BY POLLING
    *
-   * Phil, 2026-09-03: "can we have it set up so that when an email is received it shows in
-   * email rather than having to refresh the page?"
+   * Phil, 2026-09-04: "why cant we have it as a push like we have on other things like when
+   * forms are submitted?" Right on both counts — this codebase already had RealtimeRefresh
+   * doing exactly that for People, complaints and the dashboard, and I built a twenty second
+   * poll instead of using it.
    *
-   * POLLING, NOT A LIVE SOCKET, ON PURPOSE. A realtime subscription is the fancier answer and
-   * it is another dependency that can stop working quietly — which is the exact failure this
-   * whole feature exists to stamp out. router.refresh() re-runs the server component and swaps
-   * the data in; client state (which folder, which message, what you have typed) survives it.
+   * The poll was not only redundant, it was a defect: it refreshed whether or not anything had
+   * changed, and every refresh moved the screen under him mid-read. A push refreshes only when
+   * a row actually changes, which on a mailbox is a handful of times a day.
    *
-   * Two things it deliberately does NOT do:
-   *   - poll while the tab is in the background, because nobody is reading it, and
-   *   - poll while a reply is half written, because a refresh mid-sentence is unforgivable
-   *     even if React would probably keep the text.
+   * Sync stays as a manual button, because sometimes you just want to be sure.
    * ------------------------------------------------------------------ */
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [lastSync, setLastSync] = useState<Date | null>(null);
-  const typingRef = useRef(false);
 
-  /* THE PAGE MUST NOT MOVE UNDER YOU WHEN IT REFRESHES.
-     Phil, 2026-09-04: "why does the page keep jumping when it refreshes." Because a refresh
-     re-renders the server tree and both scrolling panes go back to the top — so a poll every
-     twenty seconds threw you back to the newest message while you were reading an older one.
-     Nothing is more irritating than a screen that moves on its own, and it is entirely
-     self-inflicted: the data changed, the reading position did not. */
   const listRef = useRef<HTMLDivElement | null>(null);
   const readRef = useRef<HTMLDivElement | null>(null);
-  const scrollRef = useRef<{ list: number; read: number } | null>(null);
+  const shellRef = useRef<HTMLDivElement | null>(null);
+  const scrollRef = useRef<{ list: number; read: number; main: number } | null>(null);
 
   const sync = useCallback(() => {
+    const main = shellRef.current?.closest("main") as HTMLElement | null;
     scrollRef.current = {
       list: listRef.current?.scrollTop ?? 0,
       read: readRef.current?.scrollTop ?? 0,
+      main: main?.scrollTop ?? 0,
     };
     startTransition(() => {
       router.refresh();
@@ -195,32 +193,42 @@ export default function EmailClient({
     const saved = scrollRef.current;
     if (!saved) return;
     scrollRef.current = null;
-    // After the swapped-in tree has painted, not during it.
     const frame = requestAnimationFrame(() => {
       if (listRef.current) listRef.current.scrollTop = saved.list;
       if (readRef.current) readRef.current.scrollTop = saved.read;
+      const main = shellRef.current?.closest("main") as HTMLElement | null;
+      if (main) main.scrollTop = saved.main;
     });
     return () => cancelAnimationFrame(frame);
   }, [isPending]);
 
+  /* THE PAGE ITSELF MUST NOT SCROLL, and measuring beats arithmetic.
+     The height was calculated in CSS as a percentage plus the app shell's padding, which does
+     not land exactly — so the client was a few pixels taller than the window, the page scrolled
+     as well as the panes, and every refresh nudged it. The height is now taken from the actual
+     container, and the container's own scrolling is switched off while this screen is mounted
+     and put back when it is not. */
   useEffect(() => {
-    const POLL_MS = 20_000;
-    const tick = () => {
-      if (typeof document !== "undefined" && document.hidden) return;
-      if (typingRef.current) return;
-      sync();
+    const shell = shellRef.current;
+    const main = shell?.closest("main") as HTMLElement | null;
+    if (!shell || !main) return;
+
+    const previousOverflow = main.style.overflow;
+    main.style.overflow = "hidden";
+
+    const fit = () => {
+      shell.style.height = `${main.clientHeight}px`;
     };
-    const timer = setInterval(tick, POLL_MS);
-    // Catch up immediately when the tab comes back, rather than waiting out the interval.
-    const onVisible = () => {
-      if (!document.hidden && !typingRef.current) sync();
-    };
-    document.addEventListener("visibilitychange", onVisible);
+    fit();
+
+    const observer = new ResizeObserver(fit);
+    observer.observe(main);
     return () => {
-      clearInterval(timer);
-      document.removeEventListener("visibilitychange", onVisible);
+      observer.disconnect();
+      main.style.overflow = previousOverflow;
+      shell.style.height = "";
     };
-  }, [sync]);
+  }, []);
 
   /* Deleted is a folder, not a filter on the others: a deleted message must vanish from the
      Inbox AND still be somewhere you can get it back from. */
@@ -251,7 +259,14 @@ export default function EmailClient({
   }, [list]);
 
   return (
-    <div className="mailx">
+    <div className="mailx" ref={shellRef}>
+      {/* Push. The long fallback poll is only for a dropped socket — on a screen you read, an
+          unasked-for refresh moves the page under you, so it must be rare. */}
+      <RealtimeRefresh
+        tables={FOUNDER_EMAIL_TABLES}
+        channel="founder-email-live"
+        pollMs={120_000}
+      />
       {/* ---------------- COMMAND BAR ---------------- */}
       <div className="mailx-bar">
         <Link href="/founder" className="mailx-back">
@@ -278,7 +293,7 @@ export default function EmailClient({
         <span className="mailx-sync">
           {lastSync
             ? `Updated ${lastSync.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`
-            : "Checking every 20 seconds"}
+            : "Live"}
         </span>
 
         {/* REAL ACTIONS ONLY. A button that did nothing would be worse than not having one. */}
@@ -498,9 +513,6 @@ export default function EmailClient({
                     rows={14}
                     maxLength={20000}
                     required
-                    onInput={(e) => {
-                      typingRef.current = e.currentTarget.value.length > 0;
-                    }}
                   />
                 </div>
               </ActionForm>
@@ -620,9 +632,6 @@ export default function EmailClient({
                         rows={7}
                         maxLength={20000}
                         required
-                        onInput={(e) => {
-                          typingRef.current = e.currentTarget.value.length > 0;
-                        }}
                       />
                     </div>
                   </ActionForm>
