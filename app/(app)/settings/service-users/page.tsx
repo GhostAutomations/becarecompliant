@@ -37,7 +37,7 @@ export default async function SettingsServiceUsersPage() {
     .map((f) => ({ id: f.id, name: f.name }));
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-5xl space-y-6">
       <div>
         <BackLink href="/settings" label="Back to Settings" />
         <h1 className="page-title mt-1">Service User settings</h1>

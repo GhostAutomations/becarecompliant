@@ -1,11 +1,50 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { updateCheckDefinition } from "@/lib/people/actions";
 import { recurrenceLabel } from "@/lib/people/logic";
 import { useSavedFlash } from "@/lib/use-saved-flash";
 import type { CheckDefinition } from "@/lib/people/types";
+
+/**
+ * One slot in the card grid. Every check renders the SAME four slots in the same
+ * order (Schedule, interval, Amber, Reporting deadline), so the number boxes line
+ * up down the page whatever shape a check is. The input sits at the bottom of the
+ * slot (mt-auto) so a label that wraps never pushes one box out of line.
+ */
+function Field({
+  label,
+  htmlFor,
+  children,
+}: {
+  label: string;
+  htmlFor?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col">
+      {htmlFor ? (
+        <label htmlFor={htmlFor} className="form-label">
+          {label}
+        </label>
+      ) : (
+        <span className="form-label">{label}</span>
+      )}
+      <div className="mt-auto">{children}</div>
+    </div>
+  );
+}
+
+/** A read-only slot value. Same box as a control so the grid stays square. */
+function StaticValue({ children }: { children: ReactNode }) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-white/50">
+      {children}
+    </div>
+  );
+}
 
 /**
  * Not a <form action> on purpose: React 19 auto-resets action forms, which was
@@ -28,6 +67,8 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
   const [scheduleMode, setScheduleMode] = useState<string>(def.schedule_mode);
 
   const isExpiry = def.anchor === "expiry";
+  const isAppraisal = def.key === "appraisal" && !isExpiry;
+  const afterSup3 = isAppraisal && scheduleMode === "after_sup3";
 
   function save() {
     const fd = new FormData();
@@ -56,16 +97,128 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
     });
   }
 
-  const saveButton = (
-    <button
-      type="button"
-      onClick={save}
-      disabled={pending}
-      className={`btn ${saved ? "btn-saved" : "btn-primary"} text-xs`}
-    >
-      {pending ? "Saving…" : saved ? "Saved" : "Save"}
-    </button>
+  /** Slot 1 — how the check is scheduled. */
+  const scheduleSlot = isAppraisal ? (
+    <Field label="Schedule" htmlFor={`sched-${def.id}`}>
+      <select
+        id={`sched-${def.id}`}
+        value={scheduleMode}
+        onChange={(e) => {
+          setScheduleMode(e.target.value);
+          reset();
+        }}
+      >
+        <option value="interval">Yearly</option>
+        <option value="after_sup3">After Supervision 3</option>
+      </select>
+    </Field>
+  ) : (
+    <Field label="Schedule">
+      <StaticValue>
+        {isExpiry
+          ? "On document expiry"
+          : def.schedule_mode === "ad_hoc"
+            ? "Ad hoc"
+            : def.recurring
+              ? "Fixed interval"
+              : "One off"}
+      </StaticValue>
+    </Field>
   );
+
+  /** Slot 2 — the interval the check runs on. */
+  const intervalSlot = isExpiry ? (
+    <Field label="Every (days)">
+      <StaticValue>From the expiry date</StaticValue>
+    </Field>
+  ) : afterSup3 ? (
+    <Field label="Every (days)">
+      <StaticValue>3 &times; Supervision</StaticValue>
+    </Field>
+  ) : (
+    <Field
+      label={def.recurring ? "Every (days)" : "Due after start (days)"}
+      htmlFor={`days-${def.id}`}
+    >
+      <input
+        id={`days-${def.id}`}
+        type="number"
+        min={def.recurring ? 1 : undefined}
+        value={days}
+        onChange={(e) => {
+          setDays(e.target.value);
+          reset();
+        }}
+      />
+    </Field>
+  );
+
+  /** Slot 3 — the amber window. For an expiry check this is the only number. */
+  const amberSlot = isExpiry ? (
+    <Field label="Amber (days before expiry)" htmlFor={`flag-${def.id}`}>
+      <input
+        id={`flag-${def.id}`}
+        type="number"
+        min={0}
+        value={flagDays}
+        onChange={(e) => {
+          setFlagDays(e.target.value);
+          reset();
+        }}
+      />
+    </Field>
+  ) : (
+    <Field label="Amber (days before due)" htmlFor={`amber-${def.id}`}>
+      <input
+        id={`amber-${def.id}`}
+        type="number"
+        min={0}
+        value={amber}
+        placeholder="Default 30"
+        onChange={(e) => {
+          setAmber(e.target.value);
+          reset();
+        }}
+      />
+    </Field>
+  );
+
+  /** Slot 4 — the reporting deadline, on recurring completion checks only. */
+  const reportingSlot =
+    !isExpiry && def.recurring ? (
+      <Field label="Reporting deadline (days)" htmlFor={`report-${def.id}`}>
+        <input
+          id={`report-${def.id}`}
+          type="number"
+          min={1}
+          value={reportingDays}
+          placeholder="Same as interval"
+          onChange={(e) => {
+            setReportingDays(e.target.value);
+            reset();
+          }}
+        />
+      </Field>
+    ) : (
+      <Field label="Reporting deadline (days)">
+        <StaticValue>Not used</StaticValue>
+      </Field>
+    );
+
+  const hints: string[] = [];
+  if (afterSup3) {
+    hints.push("Scheduled from the Supervision interval (3 \u00d7 Supervision days).");
+  }
+  if (!isExpiry && !def.recurring) {
+    hints.push(
+      "Due after start: use a negative number for before the start date, e.g. -1.",
+    );
+  }
+  if (!isExpiry && def.recurring) {
+    hints.push(
+      "Reporting deadline: the regulatory deadline for the on time report (e.g. 90 for three monthly). Leave blank to grade against the interval. It does not change the register.",
+    );
+  }
 
   return (
     <div className="glass-card p-5">
@@ -87,115 +240,36 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
         </label>
       </div>
 
-      {isExpiry ? (
-        <div className="flex flex-wrap items-end gap-3">
-          <div>
-            <label htmlFor={`flag-${def.id}`} className="form-label">
-              Flag this many days before the recorded expiry
-            </label>
-            <input
-              id={`flag-${def.id}`}
-              type="number"
-              min={0}
-              value={flagDays}
-              onChange={(e) => {
-                setFlagDays(e.target.value);
-                reset();
-              }}
-              className="max-w-[8rem]"
-            />
-          </div>
-          {saveButton}
-        </div>
-      ) : (
-        <div className="flex flex-wrap items-end gap-4">
-          {def.key === "appraisal" ? (
-            <div>
-              <label htmlFor={`sched-${def.id}`} className="form-label">Schedule</label>
-              <select
-                id={`sched-${def.id}`}
-                value={scheduleMode}
-                onChange={(e) => {
-                  setScheduleMode(e.target.value);
-                  reset();
-                }}
-              >
-                <option value="interval">Yearly</option>
-                <option value="after_sup3">After Supervision 3</option>
-              </select>
-            </div>
-          ) : null}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {scheduleSlot}
+        {intervalSlot}
+        {amberSlot}
+        {reportingSlot}
+      </div>
 
-          {def.key === "appraisal" && scheduleMode === "after_sup3" ? (
-            <p className="form-hint max-w-[14rem]">
-              Scheduled from the Supervision interval (3 × Supervision days).
+      {hints.length > 0 ? (
+        <div className="mt-3 space-y-1">
+          {hints.map((h) => (
+            <p key={h} className="form-hint mt-0">
+              {h}
             </p>
-          ) : (
-            <div>
-              <label htmlFor={`days-${def.id}`} className="form-label">
-                {def.recurring ? "Every (days)" : "Due after start (days)"}
-              </label>
-              <input
-                id={`days-${def.id}`}
-                type="number"
-                min={def.recurring ? 1 : undefined}
-                value={days}
-                onChange={(e) => {
-                  setDays(e.target.value);
-                  reset();
-                }}
-                className="max-w-[8rem]"
-              />
-              {!def.recurring ? (
-                <p className="form-hint">Use a negative number for before the start date, e.g. -1.</p>
-              ) : null}
-            </div>
-          )}
-
-          <div>
-            <label htmlFor={`amber-${def.id}`} className="form-label">Amber (days before due)</label>
-            <input
-              id={`amber-${def.id}`}
-              type="number"
-              min={0}
-              value={amber}
-              placeholder="Default 30"
-              onChange={(e) => {
-                setAmber(e.target.value);
-                reset();
-              }}
-              className="max-w-[8rem]"
-            />
-          </div>
-
-          {def.recurring ? (
-            <div>
-              <label htmlFor={`report-${def.id}`} className="form-label">
-                Reporting deadline (days)
-              </label>
-              <input
-                id={`report-${def.id}`}
-                type="number"
-                min={1}
-                value={reportingDays}
-                placeholder="Same as interval"
-                onChange={(e) => {
-                  setReportingDays(e.target.value);
-                  reset();
-                }}
-                className="max-w-[8rem]"
-              />
-              <p className="form-hint max-w-[14rem]">
-                Regulatory deadline for the on time report (e.g. 90 for three monthly). Leave blank
-                to grade against the interval. Does not change the register.
-              </p>
-            </div>
-          ) : null}
-          {saveButton}
+          ))}
         </div>
-      )}
+      ) : null}
 
-      {error ? <p className="form-error">{error}</p> : null}
+      <div className="mt-4 flex items-center justify-between gap-3 border-t border-white/10 pt-4">
+        <p className="form-error mt-0" role="alert">
+          {error ?? ""}
+        </p>
+        <button
+          type="button"
+          onClick={save}
+          disabled={pending}
+          className={`${saved ? "btn-saved" : "btn-primary"} shrink-0 px-4 py-2 text-sm`}
+        >
+          {pending ? "Saving\u2026" : saved ? "Saved" : "Save"}
+        </button>
+      </div>
     </div>
   );
 }
