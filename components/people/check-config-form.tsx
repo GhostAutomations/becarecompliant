@@ -7,6 +7,7 @@ import { updateCheckDefinition } from "@/lib/people/actions";
 import { recurrenceLabel } from "@/lib/people/logic";
 import { useSavedFlash } from "@/lib/use-saved-flash";
 import type { CheckDefinition } from "@/lib/people/types";
+import { bufferNote } from "@/lib/people/reporting-buffer";
 
 /**
  * One slot in the card grid. Every check renders the SAME four slots in the same
@@ -210,6 +211,15 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
       </Field>
     );
 
+  /* THE SLACK, SAID OUT LOUD (Phil, 2026-09-05). Two numbers on a check do two jobs and
+     nothing on screen ever said what the gap between them bought. Computed from what is
+     in the boxes right now, so changing 80 to 85 changes the note to 5 days as it is
+     typed, and a deadline sooner than the plan is called out rather than saved quietly. */
+  const buffer =
+    !isExpiry && def.recurring
+      ? bufferNote(Number.parseInt(days, 10), Number.parseInt(reportingDays, 10))
+      : null;
+
   const hints: string[] = [];
   if (afterSup3) {
     hints.push("Scheduled from the Supervision interval (3 \u00d7 Supervision days).");
@@ -222,7 +232,7 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
       `${def.name} is due before the start date, so 1 means the day before it begins.`,
     );
   }
-  if (!isExpiry && def.recurring) {
+  if (!isExpiry && def.recurring && !buffer) {
     hints.push(
       "Reporting deadline: the regulatory deadline for the on time report (e.g. 90 for three monthly). Leave blank to grade against the interval. It does not change the register.",
     );
@@ -254,6 +264,12 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
         {amberSlot}
         {reportingSlot}
       </div>
+
+      {buffer ? (
+        <p className={buffer.tone === "over" ? "form-error mt-3" : "form-hint mt-3"}>
+          {buffer.text}
+        </p>
+      ) : null}
 
       {hints.length > 0 ? (
         <div className="mt-3 space-y-1">
