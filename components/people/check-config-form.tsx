@@ -216,7 +216,10 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
   }
   if (!isExpiry && !def.recurring) {
     hints.push(
-      "A one off check is due before the start date, so 1 means the day before care begins.",
+      /* Uses the definition's own name rather than the word "check": the Setup Visit
+         is not one (Phil, 2026-09-04), and any one off a company adds later will read
+         correctly too. */
+      `${def.name} is due before the start date, so 1 means the day before it begins.`,
     );
   }
   if (!isExpiry && def.recurring) {
