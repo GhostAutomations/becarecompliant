@@ -88,22 +88,11 @@ export type ComplaintsConfig = {
   ref_prefix: string | null;
 };
 
-/** Defaults: acknowledge within 3 days, respond within 25 days, counted as CALENDAR
- *  days (Phil's choice). The regulatory benchmarks (England CQC Regulation 16 / LGSCO;
- *  Wales Social Services Complaints Procedure (Wales) Regulations 2014) are expressed
- *  in working days, so a company can switch to working days in Settings. Amber window
- *  5 days before the response is due. */
 /**
- * What a company gets before it opens Settings, Complaints.
- *
- * count_working_days is TRUE (2026-09-05). It was false here while the database column
- * defaulted to true and the settings page itself cited "3 working days / 25 working
- * days" as the sector default, so a company with no settings row had its complaint
- * deadlines counted in CALENDAR days against timescales written in working ones -- and
- * the moment it pressed Save, the same company switched to working days without anyone
- * changing a setting. Regulated complaint timescales are working days: CQC Regulation
- * 16 and the Local Government and Social Care Ombudsman in England, the Social Services
- * Complaints Procedure (Wales) Regulations 2014 in Wales.
+ * The starting timescales now come from the company's REGULATOR
+ * (lib/complaints/regulator-defaults.ts): CIW acknowledges in 2 working days, CQC in 3.
+ * This constant remains only as the shape used when no company context is available,
+ * and it matches the England figures.
  */
 export const DEFAULT_COMPLAINTS_CONFIG: ComplaintsConfig = {
   acknowledgement_days: 3,

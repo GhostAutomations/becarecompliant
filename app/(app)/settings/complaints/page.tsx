@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import ActionForm from "@/components/action-form";
-import { getComplaintsConfig, getComplaintRefPrefix } from "@/lib/complaints/data";
+import { getComplaintsConfig, getComplaintRefPrefix, getRegulator } from "@/lib/complaints/data";
+import { timescaleSource } from "@/lib/complaints/regulator-defaults";
 import { updateComplaintsConfig } from "@/lib/complaints/actions";
 
 export const metadata: Metadata = { title: "Complaints settings" };
@@ -11,9 +12,10 @@ export const metadata: Metadata = { title: "Complaints settings" };
 export default async function ComplaintsSettingsPage() {
   const { profile } = await requireCompanyAdmin();
   if (!profile.company_id) redirect("/founder");
-  const [config, effectivePrefix] = await Promise.all([
+  const [config, effectivePrefix, regulator] = await Promise.all([
     getComplaintsConfig(profile.company_id),
     getComplaintRefPrefix(profile.company_id),
+    getRegulator(profile.company_id),
   ]);
 
   return (
@@ -65,11 +67,11 @@ export default async function ComplaintsSettingsPage() {
             <input type="checkbox" name="count_working_days" defaultChecked={config.count_working_days} />
             Count in working days (skip weekends)
           </label>
+          {/* The figures a company STARTS on come from its regulator, so the note says
+              which regulator and where the numbers come from rather than citing both
+              nations at every company. */}
           <p className="mt-2 text-xs text-white/45">
-            Cited sector defaults: acknowledge within 3 working days, respond within 25
-            working days. England follows CQC Regulation 16 and the Local Government and
-            Social Care Ombudsman benchmarks. Wales follows the Social Services Complaints
-            Procedure (Wales) Regulations 2014. Bank holidays are not counted, so adjust a
+            {timescaleSource(regulator)} Bank holidays are not counted, so adjust a
             deadline on the complaint if needed.
           </p>
         </ActionForm>

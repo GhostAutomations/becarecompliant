@@ -17,6 +17,8 @@ import {
   type ComplaintsConfig,
 } from "./types";
 
+import { defaultComplaintTimescales } from "./regulator-defaults";
+
 export { getCompanyFormByKey, getPublishedFormVersion } from "@/lib/people/data";
 export { listAccessibleBranchTypes } from "@/lib/service-users/data";
 
@@ -37,22 +39,43 @@ function toComplaint(row: ComplaintRow): ComplaintRecord {
 const COMPLAINT_SELECT =
   "*, branches(name), service_users:service_user_id(full_name)";
 
-/** Per-company complaint response timescales, falling back to the cited defaults. */
+/**
+ * Per-company complaint response timescales.
+ *
+ * A company that has not set its own falls back to the timescales for ITS REGULATOR
+ * (Phil, 2026-09-05), not to one number that suits neither nation: CIW acknowledges in
+ * 2 working days, CQC in 3.
+ */
 export async function getComplaintsConfig(companyId: string): Promise<ComplaintsConfig> {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("complaints_config")
-    .select("acknowledgement_days, response_days, amber_days, count_working_days, ref_prefix")
-    .eq("company_id", companyId)
-    .maybeSingle();
-  if (!data) return DEFAULT_COMPLAINTS_CONFIG;
+  const [{ data }, { data: company }] = await Promise.all([
+    supabase
+      .from("complaints_config")
+      .select("acknowledgement_days, response_days, amber_days, count_working_days, ref_prefix")
+      .eq("company_id", companyId)
+      .maybeSingle(),
+    supabase.from("companies").select("regulator").eq("id", companyId).maybeSingle(),
+  ]);
+  const fallback = defaultComplaintTimescales(company?.regulator);
+  if (!data) return { ...fallback, ref_prefix: null };
   return {
-    acknowledgement_days: data.acknowledgement_days ?? DEFAULT_COMPLAINTS_CONFIG.acknowledgement_days,
-    response_days: data.response_days ?? DEFAULT_COMPLAINTS_CONFIG.response_days,
-    amber_days: data.amber_days ?? DEFAULT_COMPLAINTS_CONFIG.amber_days,
-    count_working_days: data.count_working_days ?? DEFAULT_COMPLAINTS_CONFIG.count_working_days,
+    acknowledgement_days: data.acknowledgement_days ?? fallback.acknowledgement_days,
+    response_days: data.response_days ?? fallback.response_days,
+    amber_days: data.amber_days ?? fallback.amber_days,
+    count_working_days: data.count_working_days ?? fallback.count_working_days,
     ref_prefix: (data.ref_prefix as string | null) ?? null,
   };
+}
+
+/** The company's regulator, for screens that explain where a default came from. */
+export async function getRegulator(companyId: string): Promise<string | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("companies")
+    .select("regulator")
+    .eq("id", companyId)
+    .maybeSingle();
+  return (data?.regulator as string | null) ?? null;
 }
 
 /** The resolved complaint reference prefix: the configured one, else derived from the
