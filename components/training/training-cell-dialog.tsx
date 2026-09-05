@@ -181,7 +181,7 @@ export default function TrainingCellDialog({
               name="certificate"
               type="file"
               accept=".pdf,.doc,.docx,image/*"
-              className="mt-1 block w-full text-sm text-white/70 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-gold-400 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-[#0f1424] hover:file:bg-gold-400/90"
+              className="mt-1"
             />
           </div>
         </ActionForm>

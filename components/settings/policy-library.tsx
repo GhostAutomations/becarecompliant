@@ -167,6 +167,9 @@ export default function PolicyLibrary({
                 </div>
                 <div>
                   <label htmlFor="policy-doc" className="form-label">Document *</label>
+                  {/* Styled by the canonical input[type="file"] rule in globals.css,
+                      not by classes here: one place decides what a file input looks
+                      like across the site. */}
                   <input id="policy-doc" name="document" type="file" required accept="application/pdf,.pdf" />
                   <p className="form-hint">
                     PDF, up to 3MB. Your team reads it on their phone and their signature

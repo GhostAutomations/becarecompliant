@@ -127,7 +127,6 @@ export default function ImportUploader() {
           type="file"
           accept=".csv,text/csv"
           onChange={onFile}
-          className="text-sm text-white/70 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-gold-400 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-[#0f1424] hover:file:bg-gold-400/90"
         />
         {fileName ? (
           <button type="button" onClick={reset} className="btn-outline px-3 py-1.5 text-xs">

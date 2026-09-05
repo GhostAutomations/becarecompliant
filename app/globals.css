@@ -57,6 +57,50 @@
     transition: border-color 150ms ease, box-shadow 150ms ease;
   }
 
+  /*
+   * FILE INPUTS ARE A BUTTON, EVERYWHERE (Phil, 2026-09-05: "the choose file option
+   * isnt very clear, its just text not a button ... check all upload functions are a
+   * button across the site").
+   *
+   * The rule above deliberately excludes [type="file"], which left a bare browser
+   * control - grey system text on a dark panel - wherever nobody had remembered to
+   * style it by hand. Four components carried the same file: utility string copied
+   * verbatim, three wrapped a hidden input in their own button, and two (the policy
+   * library) had nothing at all. This is the one place it is decided, so a file input
+   * added tomorrow looks right without anyone knowing this rule exists.
+   *
+   * A file input whose own class hides it (hidden / sr-only, the button-clicks-by-ref
+   * pattern) is unaffected: display none wins.
+   */
+  /* Deliberately no width or display: several of these sit in a flex row beside their
+     own Upload button, and forcing w-full would wrap that button onto the next line. */
+  input[type="file"] {
+    @apply max-w-full cursor-pointer text-sm text-white/70;
+  }
+
+  input[type="file"]::file-selector-button {
+    @apply mr-3 cursor-pointer rounded-lg border-0 px-4 py-2 text-sm font-semibold;
+    background-color: var(--color-gold-400);
+    color: #0f1424;
+    transition: background-color 150ms ease;
+  }
+
+  input[type="file"]::file-selector-button:hover {
+    background-color: color-mix(in srgb, var(--color-gold-400) 90%, transparent);
+  }
+
+  input[type="file"]:focus-visible {
+    @apply outline-none;
+  }
+
+  input[type="file"]:focus-visible::file-selector-button {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-gold-400) 35%, transparent);
+  }
+
+  input[type="file"]:disabled::file-selector-button {
+    @apply cursor-not-allowed opacity-60;
+  }
+
   /* Native dropdown lists render on light panels */
   select option {
     @apply bg-navy-900 text-white;

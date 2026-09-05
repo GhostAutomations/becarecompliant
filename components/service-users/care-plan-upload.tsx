@@ -50,7 +50,6 @@ export default function CarePlanUpload({
             type="file"
             name="care_plan"
             accept=".pdf,.doc,.docx,image/*"
-            className="text-sm text-white/70 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-gold-400 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-[#0f1424] hover:file:bg-gold-400/90"
           />
           <button type="submit" disabled={pending} className={`${saved ? "btn-saved" : "btn-primary"} px-3 py-2 text-xs disabled:opacity-40`}>
             {pending ? "Uploading…" : saved ? "Uploaded" : hasPlan ? "Replace" : "Upload"}
