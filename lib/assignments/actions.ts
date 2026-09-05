@@ -150,6 +150,74 @@ export async function updatePolicySigning(
 }
 
 /**
+ * Rename a policy.
+ *
+ * WHY IT EXISTS (Phil, 2026-09-05). A policy was uploaded with a full stop on the end
+ * of its title and there was no way to take it off: updateWrittenPolicy edits the
+ * WORDING and refuses an uploaded document outright, and nothing anywhere edited a
+ * title. The title is what shows in Briefings, on the signing screen and on the
+ * certificate handed to an inspector, so a typo in it could only be corrected by
+ * someone running SQL. That is the definition of a defect here.
+ *
+ * A RENAME IS NOT A NEW VERSION, deliberately. The document has not changed, so this
+ * must not create a version, must not re-ask anybody to sign, and must not disturb a
+ * signature already given: those are evidenced against a version, and this touches no
+ * version at all. It is audited, because a title that appears on evidence changing is
+ * worth being able to account for.
+ *
+ * Works for both kinds of policy: uploaded and written.
+ */
+export async function renamePolicy(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requireCompanyAdmin();
+  if (!profile.company_id) return { error: "No company context." };
+  const policyId = String(formData.get("policy_id") ?? "");
+  if (!policyId) return { error: "Missing policy." };
+
+  const title = String(formData.get("title") ?? "").trim();
+  if (title.length < 3) return { error: "Give the policy a title." };
+  if (title.length > 140) return { error: "That title is too long, 140 characters at most." };
+
+  const supabase = await createClient();
+  const { data: existing } = await supabase
+    .from("company_policies")
+    .select("id, title")
+    .eq("id", policyId)
+    .eq("company_id", profile.company_id)
+    .maybeSingle();
+  if (!existing) return { error: "That policy could not be found." };
+  const was = (existing.title as string | null) ?? "";
+  if (was === title) return { ok: "Nothing had changed." };
+
+  const { data, error } = await supabase
+    .from("company_policies")
+    .update({ title, updated_at: new Date().toISOString() })
+    .eq("id", policyId)
+    .eq("company_id", profile.company_id)
+    .select("id");
+  if (error) return { error: `The policy could not be renamed: ${error.message}` };
+  if (!data || data.length === 0) return { error: "That policy could not be found." };
+
+  await writeAudit({
+    companyId: profile.company_id,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "policy.renamed",
+    entityType: "policy",
+    entityId: policyId,
+    summary: `Renamed "${was}" to "${title}"`,
+    metadata: { from: was, to: title },
+  });
+
+  revalidatePath("/settings/policies");
+  revalidatePath("/briefings");
+  return { ok: "Renamed." };
+}
+
+/**
  * PDF only, since 2026-07-27.
  *
  * Not fussiness: a Word file cannot be rendered by the reader on a phone and

@@ -16,6 +16,7 @@ import {
   archivePolicy,
   createWrittenPolicy,
   updateWrittenPolicy,
+  renamePolicy,
   uploadPolicyVersion,
   updatePolicySigning,
   reassignPolicyToEveryone,
@@ -116,6 +117,7 @@ export default function PolicyLibrary({
   const [versioning, setVersioning] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [signingFor, setSigningFor] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<string | null>(null);
 
   return (
     <div className="space-y-5">
@@ -310,6 +312,13 @@ export default function PolicyLibrary({
                 >
                   Signing
                 </button>
+                <button
+                  type="button"
+                  className="btn-ghost px-3 py-2 text-xs"
+                  onClick={() => setRenaming(renaming === p.id ? null : p.id)}
+                >
+                  Rename
+                </button>
                 <ActionForm
                   action={archivePolicy}
                   hidden={{ policy_id: p.id }}
@@ -339,6 +348,33 @@ export default function PolicyLibrary({
                     <p className="form-hint">
                       Applies to this policy only. Signatures already given keep the rule that
                       was in force when they signed.
+                    </p>
+                  </ActionForm>
+                </div>
+              ) : null}
+
+              {renaming === p.id ? (
+                <div className="w-full border-t border-white/10 pt-3">
+                  <ActionForm
+                    action={renamePolicy}
+                    hidden={{ policy_id: p.id }}
+                    label="Save title"
+                    savedLabel="Renamed"
+                    buttonClassName="btn-primary px-3 py-2 text-xs"
+                  >
+                    <label htmlFor={`rename-${p.id}`} className="form-label">
+                      Title
+                    </label>
+                    <input
+                      id={`rename-${p.id}`}
+                      name="title"
+                      defaultValue={p.title}
+                      required
+                      maxLength={140}
+                    />
+                    <p className="form-hint">
+                      Only the name changes. This is not a new version, so nobody is asked
+                      to sign again and signatures already given are untouched.
                     </p>
                   </ActionForm>
                 </div>
