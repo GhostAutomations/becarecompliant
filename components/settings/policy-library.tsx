@@ -361,6 +361,10 @@ export default function PolicyLibrary({
                     label="Save title"
                     savedLabel="Renamed"
                     buttonClassName="btn-primary px-3 py-2 text-xs"
+                    /* Green flash, then the panel folds itself away (Phil, 2026-09-05).
+                       Same behaviour the briefings tile already had; onDone waits out
+                       the flash so the confirmation is read before it closes. */
+                    onDone={() => setRenaming(null)}
                   >
                     <label htmlFor={`rename-${p.id}`} className="form-label">
                       Title
