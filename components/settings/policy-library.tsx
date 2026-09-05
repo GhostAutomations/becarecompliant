@@ -155,7 +155,12 @@ export default function PolicyLibrary({
           </div>
 
           {how === "upload" ? (
-            <ActionForm action={uploadPolicy} label="Add policy" savedLabel="Added">
+            <ActionForm
+              action={uploadPolicy}
+              label="Add policy"
+              savedLabel="Added"
+              onDone={() => setAdding(false)}
+            >
               <div className="space-y-4">
                 <div>
                   <label htmlFor="policy-title" className="form-label">Title *</label>
@@ -196,7 +201,12 @@ export default function PolicyLibrary({
               </div>
             </ActionForm>
           ) : (
-            <ActionForm action={createWrittenPolicy} label="Save policy" savedLabel="Saved">
+            <ActionForm
+              action={createWrittenPolicy}
+              label="Save policy"
+              savedLabel="Saved"
+              onDone={() => setAdding(false)}
+            >
               <div className="space-y-4">
                 <div>
                   <label htmlFor="written-title" className="form-label">Title *</label>
@@ -338,6 +348,7 @@ export default function PolicyLibrary({
                     label="Save"
                     savedLabel="Saved"
                     buttonClassName="btn-primary px-3 py-2 text-xs"
+                    onDone={() => setSigningFor(null)}
                   >
                     <SigningFields
                       idPrefix={`sign-${p.id}`}
@@ -392,6 +403,7 @@ export default function PolicyLibrary({
                     label={`Save as version ${p.version + 1}`}
                     savedLabel="Saved"
                     buttonClassName="btn-primary px-3 py-2 text-xs"
+                    onDone={() => setEditing(null)}
                   >
                     <label htmlFor={`edit-${p.id}`} className="form-label">
                       The wording
@@ -418,6 +430,7 @@ export default function PolicyLibrary({
                     label={`Upload version ${p.version + 1}`}
                     savedLabel="Uploaded"
                     buttonClassName="btn-primary px-3 py-2 text-xs"
+                    onDone={() => setVersioning(null)}
                   >
                     <label htmlFor={`ver-${p.id}`} className="form-label">
                       The new document
