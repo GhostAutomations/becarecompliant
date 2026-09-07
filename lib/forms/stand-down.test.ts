@@ -6,7 +6,8 @@ import { standDownKeys, type GatedField } from "./stand-down.ts";
 const SPOT_CHECK: GatedField[] = [
   { key: "spot_check_date" },
   { key: "scheduled_time" },
-  { key: "able_to_complete", standsDown: { when: ["no"] } },
+  { key: "able_to_complete", standsDown: { when: ["no"], except: ["not_completed_reason"] } },
+  { key: "not_completed_reason" },
   { key: "service_user" },
   { key: "arrived_on_time" },
   { key: "declaration" },
@@ -28,6 +29,43 @@ test("an answer that is not the gate value stands nothing down", () => {
 test("the gate value stands down everything after it", () => {
   const down = standDownKeys(SPOT_CHECK, { able_to_complete: "no" });
   assert.deepEqual([...down], ["service_user", "arrived_on_time", "declaration"]);
+});
+
+test("the question asking why survives the answer that raised it", () => {
+  const down = standDownKeys(SPOT_CHECK, { able_to_complete: "no" });
+  assert.ok(!down.has("not_completed_reason"));
+});
+
+test("an exception only applies to the gate that named it", () => {
+  const fields: GatedField[] = [
+    { key: "first_gate", standsDown: { when: ["no"], except: ["first_reason"] } },
+    { key: "first_reason" },
+    { key: "second_gate", standsDown: { when: ["no"], except: ["second_reason"] } },
+    { key: "second_reason" },
+    { key: "tail" },
+  ];
+  const down = standDownKeys(fields, { first_gate: "yes", second_gate: "no" });
+  assert.deepEqual([...down], ["tail"]);
+});
+
+test("a spared field does not itself stand anything down", () => {
+  /* Its own gate is ignored while the form is already standing down: one answer, one
+     rule, so the reason box can never quietly silence more of the form. */
+  const fields: GatedField[] = [
+    { key: "gate", standsDown: { when: ["no"], except: ["reason"] } },
+    { key: "reason", standsDown: { when: ["anything"] } },
+    { key: "tail" },
+  ];
+  const down = standDownKeys(fields, { gate: "no", reason: "anything" });
+  assert.deepEqual([...down], ["tail"]);
+});
+
+test("a gate with no exceptions spares nothing", () => {
+  const fields: GatedField[] = [
+    { key: "gate", standsDown: { when: ["no"] } },
+    { key: "reason" },
+  ];
+  assert.ok(standDownKeys(fields, { gate: "no" }).has("reason"));
 });
 
 test("the Service User is stood down with the rest", () => {
@@ -62,7 +100,7 @@ test("a stood down gate cannot itself decide anything", () => {
      and the fields after it stay stood down either way. */
   const fields: GatedField[] = [
     { key: "first_gate", standsDown: { when: ["no"] } },
-    { key: "second_gate", standsDown: { when: ["yes"] } },
+    { key: "second_gate", standsDown: { when: ["yes"], except: ["tail"] } },
     { key: "tail" },
   ];
   const down = standDownKeys(fields, { first_gate: "no", second_gate: "yes" });

@@ -13,14 +13,21 @@
  * order the moment its answer matches. Put the rule on the gate and a question added to
  * the form next year is covered without anybody remembering to mark it.
  *
+ * `except` names the questions that survive: the ones that exist BECAUSE of the answer
+ * that stood the rest down. A Spot Check that could not be done still has to say why,
+ * and that question sits under the gate rather than above it, where it reads correctly.
+ *
  * A stood down field is greyed, never required, and its answer is dropped on submit, so
  * the Evidence records that the questions were not asked rather than answered blank.
  *
  * Pure and self-contained (no imports) so it can be unit tested directly.
  */
 
-/** The gate: when the field carrying this is answered with one of `when`. */
-export type StandsDownRule = { when: string[] };
+/**
+ * The gate: when the field carrying this is answered with one of `when`, every later
+ * field stands down apart from the keys in `except`.
+ */
+export type StandsDownRule = { when: string[]; except?: string[] };
 
 /** The only shape this module needs from a form field. */
 export type GatedField = { key: string; standsDown?: StandsDownRule };
@@ -37,22 +44,26 @@ function asChoices(value: unknown): string[] {
  *
  * The gate itself is never stood down — it has to stay answerable, or there would be no
  * way back. A field already stood down is not consulted as a gate either: its answer is
- * on its way out, and a value nobody can see must never decide anything.
+ * on its way out, and a value nobody can see must never decide anything. Nor is an
+ * excepted field: it stays live and required, but it does not get to stand down anything
+ * further, so one gate is only ever answered by one rule.
  */
 export function standDownKeys(
   fields: ReadonlyArray<GatedField>,
   answers: Readonly<Record<string, unknown>>,
 ): Set<string> {
   const out = new Set<string>();
+  let spared: ReadonlySet<string> = new Set();
   let standing = false;
   for (const field of fields) {
     if (standing) {
-      out.add(field.key);
+      if (!spared.has(field.key)) out.add(field.key);
       continue;
     }
     const rule = field.standsDown;
     if (rule && asChoices(answers[field.key]).some((v) => rule.when.includes(v))) {
       standing = true;
+      spared = new Set(rule.except ?? []);
     }
   }
   return out;

@@ -79,10 +79,11 @@ export type VisibleWhen = { field: string; in: string[] };
  * A gate. When the field carrying this is answered with one of `when`, every field
  * AFTER it in document order is stood down: greyed out, not required, and its answer
  * dropped on submit. Written on the one question that decides it, never on each of the
- * questions it silences, so a question added later is covered automatically. The rule
- * itself lives in lib/forms/stand-down.ts.
+ * questions it silences, so a question added later is covered automatically. `except`
+ * names the questions that exist BECAUSE of that answer (e.g. why could it not be
+ * done), which stay live. The rule itself lives in lib/forms/stand-down.ts.
  */
-export type StandsDown = { when: string[] };
+export type StandsDown = { when: string[]; except?: string[] };
 
 export type FormField = {
   /** Stable, unique-within-schema key. Answers are keyed by this. */
