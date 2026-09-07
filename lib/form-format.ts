@@ -61,6 +61,11 @@ export function formatAnswerForDisplay(field: FormField, value: AnswerValue | un
     case "file_upload":
       return typeof value === "string" && value.trim() !== "" ? value : "No file attached";
 
+    /* The stored answer IS the record's name, so it reads back as itself for ever -
+       after that record is renamed, archived or deleted. */
+    case "record_lookup":
+      return typeof value === "string" && value.trim() !== "" ? value : "Not answered";
+
     case "number":
       return value == null || value === "" ? "Not answered" : String(value);
 

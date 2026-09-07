@@ -18,7 +18,9 @@ import {
 } from "@/lib/form-builder/actions";
 
 const BANK_TYPES = FIELD_TYPE_META.filter(
-  (m) => !["heading", "signature", "file_upload"].includes(m.type),
+  /* record_lookup is excluded with signature and file_upload: a banked question is
+     reusable wording, and this one's meaning depends on which register it searches. */
+  (m) => !["heading", "signature", "file_upload", "record_lookup"].includes(m.type),
 );
 
 const POP_LABEL: Record<string, string> = {

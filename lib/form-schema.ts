@@ -31,7 +31,18 @@ export type FieldType =
   | "heading"
   | "signature"
   | "file_upload"
-  | "address";
+  | "address"
+  /**
+   * A type-ahead that picks an EXISTING record (2026-09-07). The answer stores the
+   * record's NAME, because evidence is immutable and must still read correctly years
+   * later after a rename or an archive; the id travels out of band to the submit
+   * pipeline so the evidence can also be linked to that record. Same split as
+   * file_upload, which stores the file's name and hands over the File.
+   */
+  | "record_lookup";
+
+/** Which register a record_lookup field searches. */
+export type LookupSource = "service_user" | "person";
 
 /** A choice for select / radio / multi_select fields. */
 export type FieldOption = {
@@ -75,6 +86,8 @@ export type FormField = {
   placeholder?: string;
   /** For single_select, multi_select and radio. */
   options?: FieldOption[];
+  /** For record_lookup: which register to search. Defaults to service_user. */
+  lookup?: LookupSource;
   validation?: FieldValidation;
   visibleWhen?: VisibleWhen;
 };

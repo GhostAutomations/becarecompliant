@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import BackLink from "@/components/back-link";
+import { choicesForSchema } from "@/lib/forms/lookup-data";
 import SupportModeNotice from "@/components/support-mode-notice";
 import CompleteCheck from "@/components/people/complete-check";
 import {
@@ -129,6 +130,12 @@ export default async function CompleteCheckPage({
     schema = fieldToNameSelect(schema, "auditor_name", names, profile.full_name || profile.email || null);
   }
 
+  /* Only queried when the schema actually has a record_lookup field, and read through
+     the caller's own client so the names offered are the ones RLS lets them see. */
+  const lookupChoices = profile.company_id
+    ? await choicesForSchema(profile.company_id, schema)
+    : undefined;
+
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
@@ -141,7 +148,12 @@ export default async function CompleteCheckPage({
       </div>
 
       <div className="glass-card p-6">
-        <CompleteCheck schema={schema} instanceId={instanceId} presetAnswers={presetAnswers} />
+        <CompleteCheck
+          schema={schema}
+          instanceId={instanceId}
+          presetAnswers={presetAnswers}
+          lookupChoices={lookupChoices}
+        />
       </div>
     </div>
   );

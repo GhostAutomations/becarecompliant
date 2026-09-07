@@ -146,6 +146,19 @@ function validateField(field: FormField, value: AnswerValue | undefined): string
       }
       return null;
     }
+    /*
+     * A record_lookup answer is the record's NAME. The validator here can only check it
+     * is a non-empty string: it has no access to the company's records, and it runs on
+     * the server as well as in the browser. The control refuses a name that matches no
+     * record as it is typed (lib/forms/lookup.ts, lookupError), which is where that
+     * check belongs - it is the only place the list exists.
+     */
+    case "record_lookup": {
+      const s = String(value).trim();
+      if (s === "") return required ? "Choose a record from the list." : null;
+      return null;
+    }
+
     case "short_text":
     case "long_text": {
       const s = String(value);

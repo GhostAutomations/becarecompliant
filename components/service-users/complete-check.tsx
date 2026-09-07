@@ -13,6 +13,7 @@ import { useActionState } from "react";
 import { useRouter } from "next/navigation";
 import FormRenderer from "@/components/forms/form-renderer";
 import type { Answers, FormSchema } from "@/lib/form-schema";
+import type { LookupChoice } from "@/lib/forms/lookup";
 import { validateAnswers, type FieldError } from "@/lib/form-validate";
 import { completeCheck } from "@/lib/service-users/actions";
 import { IDLE_STATE } from "@/lib/forms";
@@ -21,11 +22,14 @@ export default function CompleteCheck({
   schema,
   instanceId,
   presetAnswers,
+  lookupChoices,
 }: {
   schema: FormSchema;
   instanceId: string;
   /** Answers supplied outside the form (e.g. the review number from the slot clicked). */
   presetAnswers?: Answers;
+  /** Records a record_lookup field may pick from, read server side under RLS. */
+  lookupChoices?: Partial<Record<string, LookupChoice[]>>;
 }) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState(completeCheck, IDLE_STATE);
@@ -69,6 +73,7 @@ export default function CompleteCheck({
         errors={errors}
         onChange={setAnswers}
         onFileSelect={(key, file) => setFiles((prev) => ({ ...prev, [key]: file }))}
+        lookupChoices={lookupChoices}
       />
 
       {state.error ? <p className="form-error">{state.error}</p> : null}

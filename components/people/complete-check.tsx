@@ -10,6 +10,7 @@
 import { useEffect, useState } from "react";
 import FormRenderer from "@/components/forms/form-renderer";
 import type { Answers, FormSchema } from "@/lib/form-schema";
+import type { LookupChoice } from "@/lib/forms/lookup";
 import { validateAnswers, type FieldError } from "@/lib/form-validate";
 import { useActionState } from "react";
 import { useRouter } from "next/navigation";
@@ -20,9 +21,12 @@ export default function CompleteCheck({
   schema,
   instanceId,
   presetAnswers,
+  lookupChoices,
 }: {
   schema: FormSchema;
   instanceId: string;
+  /** Records a record_lookup field may pick from, read server side under RLS. */
+  lookupChoices?: Partial<Record<string, LookupChoice[]>>;
   /** Answers supplied outside the form (e.g. the supervision number from the button
    *  clicked), seeded into the form so they are submitted and validated. */
   presetAnswers?: Answers;
@@ -73,6 +77,7 @@ export default function CompleteCheck({
         errors={errors}
         onChange={setAnswers}
         onFileSelect={(key, file) => setFiles((prev) => ({ ...prev, [key]: file }))}
+        lookupChoices={lookupChoices}
       />
 
       {state.error ? <p className="form-error">{state.error}</p> : null}

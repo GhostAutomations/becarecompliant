@@ -92,6 +92,11 @@ export const FIELD_TYPE_META: ReadonlyArray<{
   { type: "heading", label: "Section heading", hint: "A label, collects no answer" },
   { type: "signature", label: "Signature", hint: "A drawn signature" },
   { type: "file_upload", label: "File upload", hint: "Attach a file as evidence" },
+  {
+    type: "record_lookup",
+    label: "Find a record",
+    hint: "Type ahead to pick a Service User or a person",
+  },
 ];
 
 export function fieldTypeLabel(type: FieldType): string {

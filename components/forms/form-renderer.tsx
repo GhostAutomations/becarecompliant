@@ -31,6 +31,7 @@ import {
   isAddressValue,
 } from "@/lib/form-schema";
 import { type FieldError, isFieldVisible } from "@/lib/form-validate";
+import { type LookupChoice, filterChoices, lookupError } from "@/lib/forms/lookup";
 
 type Props = {
   schema: FormSchema;
@@ -45,6 +46,18 @@ type Props = {
   onChange?: (answers: Answers) => void;
   /** Called when a file_upload / signature binary is chosen or cleared. */
   onFileSelect?: (key: string, file: File | null) => void;
+  /**
+   * Records a record_lookup field may pick from, keyed by source ("service_user",
+   * "person"). Passed IN by the server component that renders the form, so who may see
+   * which records is decided there, under RLS, and never by this client component.
+   */
+  lookupChoices?: Partial<Record<string, LookupChoice[]>>;
+  /**
+   * Called when a record is picked or cleared, with the record's id. The ANSWER keeps
+   * the name; this is how the submit pipeline links the evidence to the record, the
+   * same out-of-band route file_upload uses for the File itself.
+   */
+  onLookupSelect?: (key: string, choice: LookupChoice | null) => void;
 };
 
 // React 19 note: useCallback is imported individually above to match the repo's
@@ -57,6 +70,8 @@ export default function FormRenderer({
   idPrefix = "f",
   onChange,
   onFileSelect,
+  lookupChoices,
+  onLookupSelect,
 }: Props) {
   const [answers, setAnswers] = useState<Answers>(defaultValue ?? {});
   // Mirror the latest answers in a ref so `update` can build the next value
@@ -111,6 +126,8 @@ export default function FormRenderer({
                   idPrefix={idPrefix}
                   onValue={(v) => update(field.key, v)}
                   onFileSelect={onFileSelect}
+                  lookupChoices={lookupChoices}
+                  onLookupSelect={onLookupSelect}
                 />
               ) : null,
             )}
@@ -138,6 +155,8 @@ function Field({
   idPrefix,
   onValue,
   onFileSelect,
+  lookupChoices,
+  onLookupSelect,
 }: {
   field: FormField;
   value: AnswerValue | undefined;
@@ -146,6 +165,8 @@ function Field({
   idPrefix: string;
   onValue: (v: AnswerValue) => void;
   onFileSelect?: (key: string, file: File | null) => void;
+  lookupChoices?: Partial<Record<string, LookupChoice[]>>;
+  onLookupSelect?: (key: string, choice: LookupChoice | null) => void;
 }) {
   const id = `${idPrefix}-${field.key}`;
 
@@ -403,6 +424,22 @@ function Field({
         />,
       );
 
+    case "record_lookup":
+      return labelledControl(
+        <LookupField
+          id={id}
+          value={typeof value === "string" ? value : ""}
+          choices={lookupChoices?.[field.lookup ?? "service_user"] ?? []}
+          disabled={disabled}
+          onPick={(choice, typed) => {
+            /* The ANSWER is the name, so the evidence still reads correctly after a
+               rename; the id goes out of band so the evidence can be linked. */
+            onValue(choice ? choice.label : typed);
+            onLookupSelect?.(field.key, choice);
+          }}
+        />,
+      );
+
     case "signature":
       return labelledControl(
         <SignaturePad
@@ -600,6 +637,128 @@ function AddressFields({
           onChange={(e) => onValue({ ...value, [key]: e.target.value })}
         />
       ))}
+    </div>
+  );
+}
+
+/**
+ * Type-ahead that picks an existing record (2026-09-07).
+ *
+ * A Spot Check happens in a Service User's home and the carer's record cannot imply
+ * which one; free text would give three spellings of one person and a dropdown of two
+ * hundred names is unusable. The choices are handed in by the server component that
+ * renders the form, so who may see which records is decided under RLS and never here.
+ *
+ * Keyboard first: down/up move, Enter picks, Escape closes. A name that matches nobody
+ * is refused as it is typed rather than at submit, because the moment to say "she is
+ * not on the list, add her first" is while the person is still looking at the list.
+ */
+function LookupField({
+  id,
+  value,
+  choices,
+  disabled,
+  onPick,
+}: {
+  id: string;
+  value: string;
+  choices: LookupChoice[];
+  disabled: boolean;
+  onPick: (choice: LookupChoice | null, typed: string) => void;
+}) {
+  const [query, setQuery] = useState(value);
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  // The list follows what is typed, never the other way round.
+  const shown = useMemo(() => filterChoices(choices, query), [choices, query]);
+  const problem = open ? null : lookupError(choices, query, false);
+
+  // Clicking away closes the list. Without this the list can sit over the next field.
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  function choose(choice: LookupChoice) {
+    setQuery(choice.label);
+    setOpen(false);
+    onPick(choice, choice.label);
+  }
+
+  return (
+    <div ref={boxRef} className="relative">
+      <input
+        id={id}
+        type="text"
+        role="combobox"
+        aria-expanded={open}
+        aria-autocomplete="list"
+        autoComplete="off"
+        value={query}
+        disabled={disabled}
+        placeholder="Start typing a name"
+        onChange={(e) => {
+          const next = e.target.value;
+          setQuery(next);
+          setActive(0);
+          setOpen(true);
+          /* Typing after a pick clears the link: the answer is no longer a record until
+             one is chosen again, so the evidence can never carry a stale id. */
+          onPick(null, next);
+        }}
+        onFocus={() => setOpen(true)}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setOpen(true);
+            setActive((i) => Math.min(i + 1, Math.max(shown.length - 1, 0)));
+          } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setActive((i) => Math.max(i - 1, 0));
+          } else if (e.key === "Enter" && open && shown[active]) {
+            e.preventDefault();
+            choose(shown[active]);
+          } else if (e.key === "Escape") {
+            setOpen(false);
+          }
+        }}
+      />
+
+      {open && shown.length > 0 ? (
+        <ul
+          role="listbox"
+          className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-white/15 bg-navy-900 py-1 shadow-2xl"
+        >
+          {shown.map((c, i) => (
+            <li key={c.id} role="option" aria-selected={i === active}>
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => choose(c)}
+                onMouseEnter={() => setActive(i)}
+                className={`flex w-full items-baseline justify-between gap-3 px-3.5 py-2 text-left text-sm ${
+                  i === active ? "bg-white/10 text-white" : "text-white/80"
+                }`}
+              >
+                <span>{c.label}</span>
+                {c.hint ? <span className="text-xs text-white/45">{c.hint}</span> : null}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {open && query.trim() !== "" && shown.length === 0 ? (
+        <p className="form-hint">No record matches that. Add the record first.</p>
+      ) : null}
+
+      {problem ? <p className="form-error">{problem}</p> : null}
     </div>
   );
 }
