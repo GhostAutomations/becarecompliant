@@ -59,17 +59,24 @@ test("the branch tells two same-named records apart", () => {
   assert.deepEqual(filterChoices(PEOPLE, "smith newport").map((c) => c.label), ["John Smith"]);
 });
 
-test("an empty query browses rather than showing nothing", () => {
-  assert.equal(filterChoices(PEOPLE, "").length, 4);
-  assert.equal(filterChoices(PEOPLE, "   ").length, 4);
+test("nothing is shown until something is typed", () => {
+  assert.deepEqual(filterChoices(PEOPLE, ""), []);
+  assert.deepEqual(filterChoices(PEOPLE, "   "), []);
 });
 
-test("the list is capped, so two hundred service users cannot flood the screen", () => {
+test("every match is shown, so a common first name never hides one of them", () => {
+  const davids: LookupChoice[] = Array.from({ length: 40 }, (_, i) => ({
+    id: String(i),
+    label: `David Number ${i}`,
+  }));
+  assert.equal(filterChoices(davids, "david").length, 40);
+});
+
+test("a caller that wants a ceiling can still ask for one", () => {
   const many: LookupChoice[] = Array.from({ length: 200 }, (_, i) => ({
     id: String(i),
     label: `Carer Number ${i}`,
   }));
-  assert.equal(filterChoices(many, "carer").length, 8);
   assert.equal(filterChoices(many, "carer", 3).length, 3);
 });
 

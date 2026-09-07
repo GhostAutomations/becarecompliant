@@ -62,16 +62,24 @@ function haystack(choice: LookupChoice): string[] {
  * The choices to show for what has been typed.
  *
  * Matches on any WORD of the label starting with any word of the query, so "jo smi"
- * finds "Joanne Smith" and typing a surname first works too. An empty query shows the
- * first `limit` choices rather than nothing, so the field is still usable by browsing.
+ * finds "Joanne Smith" and typing a surname first works too.
+ *
+ * NOTHING is shown until something is typed (Phil, 2026-09-07: "no names should appear
+ * until they start typing"). This is a type-ahead, not a dropdown: opening a list of
+ * every service user the moment the field is clicked is the thing it exists to avoid.
+ *
+ * Once they have typed, EVERY match is returned, not a first few -- "if a common name
+ * like David is typed all davids are shown". A caller that genuinely needs a ceiling
+ * passes `limit`; the field does not, because the list scrolls and a hidden David is a
+ * spot check recorded against the wrong person.
  */
 export function filterChoices(
   choices: readonly LookupChoice[],
   query: string,
-  limit = 8,
+  limit?: number,
 ): LookupChoice[] {
   const q = normalise(query);
-  if (q === "") return choices.slice(0, limit);
+  if (q === "") return [];
   /* The query is split as TYPED. The closed-up form belongs on the choice side only:
      adding it here made every term required in both forms, so "smith-jones" stopped
      finding "Smith Jones". Typing "obrien" still works because the choice carries the
@@ -82,7 +90,7 @@ export function filterChoices(
     const words = haystack(choice);
     const everyTermMatches = terms.every((t) => words.some((w) => w.startsWith(t)));
     if (everyTermMatches) out.push(choice);
-    if (out.length >= limit) break;
+    if (limit !== undefined && out.length >= limit) break;
   }
   return out;
 }
