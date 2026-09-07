@@ -61,7 +61,7 @@ const ROWS: Row[] = [
   {
     name: "Thomas Reed",
     register: "Person supported",
-    check: "Risk assessment",
+    check: "Care plan review",
     status: "Done 01/09/2026",
     tone: "green",
   },

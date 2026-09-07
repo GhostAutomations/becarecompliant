@@ -10,8 +10,8 @@
  *
  * The table is a fixed set of review columns (not a per-check matrix): Service User,
  * Package Start Date, SSID, Status, Most Recent Review, New Review Due, Planned
- * Review Date, Review Status. Risk assessment, MAR audit and consent review live in
- * the record drill-down.
+ * Review Date, Review Status. Any other check a company adds of its own lives in the
+ * record drill-down.
  */
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
@@ -251,8 +251,8 @@ export default function ServiceUserRegister({
               <>
                 <h2 className="text-base font-semibold text-white">No Service User records yet</h2>
                 <p className="max-w-md text-sm text-white/60">
-                  Add your first service user and their care plan review, risk assessment,
-                  medication audit and consent review are scheduled automatically.
+                  Add your first service user and their Setup Visit and Care Plan Review
+                  are scheduled automatically.
                 </p>
                 {canManage ? (
                   <Link href="/service-users/new" className="btn-primary mt-2">Add your first service user</Link>

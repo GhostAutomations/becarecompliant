@@ -184,8 +184,8 @@ export default async function SettingsPage() {
         <Link href="/settings/service-users" className="app-tile">
           <h2 className="text-base font-semibold text-white">Service User checks</h2>
           <p className="text-sm text-white/60">
-            Care plan reviews, risk assessments and medication audits. Arrives with
-            Service Users.
+            The Setup Visit and the Care Plan Review. Arrives with Service Users, and
+            you can add your own.
           </p>
         </Link>
         <Link href="/settings/templates" className="app-tile">

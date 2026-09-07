@@ -301,7 +301,8 @@ export default async function ServiceUserPage({
           </section>
           )}
 
-          {/* Other recurring checks: risk assessment, MAR audit, consent review */}
+          {/* Every check on this record: the seeded Setup Visit and Care Plan Review,
+              plus any the company has added of its own. */}
           <section className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Checks</h2>

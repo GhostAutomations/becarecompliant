@@ -23,8 +23,8 @@ export default async function NewServiceUserPage() {
         <BackLink href="/service-users" label="Back to Service Users" />
         <h1 className="page-title mt-1">Add a service user</h1>
         <p className="page-subtitle">
-          Identity only. Their care plan review, risk assessment, medication audit and
-          consent review are applied and scheduled automatically.
+          Identity only. Their Setup Visit and Care Plan Review are applied and
+          scheduled automatically.
         </p>
       </div>
 

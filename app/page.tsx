@@ -86,7 +86,7 @@ const STEPS: Array<{ n: string; title: string; body: string }> = [
   {
     n: "2",
     title: "Your checks schedule themselves",
-    body: "Supervisions, appraisals, spot checks, care plan reviews, risk assessments and more are applied and dated automatically.",
+    body: "Supervisions, appraisals, spot checks, care plan reviews and more are applied and dated automatically.",
   },
   {
     n: "3",
