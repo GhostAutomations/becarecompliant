@@ -20,14 +20,25 @@
  * A stood down field is greyed, never required, and its answer is dropped on submit, so
  * the Evidence records that the questions were not asked rather than answered blank.
  *
+ * AND THE CHECK IS NOT ADVANCED (Phil, 2026-09-07: "if they select not able to complete
+ * it must not update the matrix"). A spot check that did not happen has not been done:
+ * the Evidence is kept, because an attempt and its reason are worth recording, but the
+ * Check stays due and the matrix keeps showing it. That is the DEFAULT for any gate --
+ * a compliance system must never credit something that did not happen -- and a gate
+ * that means something else has to say so with `completesCheck: true`.
+ *
  * Pure and self-contained (no imports) so it can be unit tested directly.
  */
 
 /**
  * The gate: when the field carrying this is answered with one of `when`, every later
  * field stands down apart from the keys in `except`.
+ *
+ * `completesCheck` defaults to FALSE: tripping a gate normally means the thing did not
+ * happen, so the Check it was opened from is left due. Set it true only for a gate that
+ * silences part of a form without the activity itself having failed.
  */
-export type StandsDownRule = { when: string[]; except?: string[] };
+export type StandsDownRule = { when: string[]; except?: string[]; completesCheck?: boolean };
 
 /** The only shape this module needs from a form field. */
 export type GatedField = { key: string; standsDown?: StandsDownRule };
@@ -39,32 +50,55 @@ function asChoices(value: unknown): string[] {
   return [String(value)];
 }
 
+/** The first gate the answers have tripped, with its position, or null. */
+function trippedGate(
+  fields: ReadonlyArray<GatedField>,
+  answers: Readonly<Record<string, unknown>>,
+): { at: number; rule: StandsDownRule } | null {
+  for (let i = 0; i < fields.length; i++) {
+    const rule = fields[i].standsDown;
+    if (rule && asChoices(answers[fields[i].key]).some((v) => rule.when.includes(v))) {
+      return { at: i, rule };
+    }
+  }
+  return null;
+}
+
 /**
- * The keys of every field that is stood down by the answers so far.
+ * The keys of every field that is stood down by the answers so far — the questions that
+ * an earlier answer has made pointless.
  *
  * The gate itself is never stood down — it has to stay answerable, or there would be no
- * way back. A field already stood down is not consulted as a gate either: its answer is
- * on its way out, and a value nobody can see must never decide anything. Nor is an
- * excepted field: it stays live and required, but it does not get to stand down anything
- * further, so one gate is only ever answered by one rule.
+ * way back — and neither is anything the gate spares by name. Only the FIRST gate to
+ * trip decides: a later gate sits inside the region it silenced, and a value nobody can
+ * see must never decide anything.
  */
 export function standDownKeys(
   fields: ReadonlyArray<GatedField>,
   answers: Readonly<Record<string, unknown>>,
 ): Set<string> {
+  const hit = trippedGate(fields, answers);
+  if (!hit) return new Set();
+  const spared = new Set(hit.rule.except ?? []);
   const out = new Set<string>();
-  let spared: ReadonlySet<string> = new Set();
-  let standing = false;
-  for (const field of fields) {
-    if (standing) {
-      if (!spared.has(field.key)) out.add(field.key);
-      continue;
-    }
-    const rule = field.standsDown;
-    if (rule && asChoices(answers[field.key]).some((v) => rule.when.includes(v))) {
-      standing = true;
-      spared = new Set(rule.except ?? []);
-    }
+  for (let i = hit.at + 1; i < fields.length; i++) {
+    if (!spared.has(fields[i].key)) out.add(fields[i].key);
   }
   return out;
+}
+
+/**
+ * Did the thing this Form records actually happen?
+ *
+ * False when a gate has been tripped that does not claim otherwise, which is the point:
+ * the Evidence is still stored, but the Check is not advanced, its last completed date
+ * is untouched, and it keeps showing as due. True whenever no gate is tripped, so every
+ * form without a gate behaves exactly as it always has.
+ */
+export function completesCheck(
+  fields: ReadonlyArray<GatedField>,
+  answers: Readonly<Record<string, unknown>>,
+): boolean {
+  const hit = trippedGate(fields, answers);
+  return hit === null || hit.rule.completesCheck === true;
 }

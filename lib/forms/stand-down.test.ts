@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { standDownKeys, type GatedField } from "./stand-down.ts";
+import { completesCheck, standDownKeys, type GatedField } from "./stand-down.ts";
 
 /* The Spot Check shape: a gate part way down the first section, then the rest. */
 const SPOT_CHECK: GatedField[] = [
@@ -125,4 +125,37 @@ test("an empty form stands nothing down", () => {
 test("a null answer is not a gate value even when the rule lists an empty string", () => {
   const fields: GatedField[] = [{ key: "gate", standsDown: { when: [""] } }, { key: "tail" }];
   assert.equal(standDownKeys(fields, { gate: null }).size, 0);
+});
+
+/* Whether the thing happened at all — the answer that decides if the Check advances. */
+
+test("a form with no gate always completes its check", () => {
+  assert.equal(completesCheck([{ key: "a" }, { key: "b" }], { a: "no" }), true);
+});
+
+test("an untripped gate completes its check", () => {
+  assert.equal(completesCheck(SPOT_CHECK, { able_to_complete: "yes" }), true);
+});
+
+test("a spot check that could not be done does not complete its check", () => {
+  assert.equal(completesCheck(SPOT_CHECK, { able_to_complete: "no" }), false);
+});
+
+test("a gate can say the activity still happened", () => {
+  const fields: GatedField[] = [
+    { key: "gate", standsDown: { when: ["none"], completesCheck: true } },
+    { key: "tail" },
+  ];
+  assert.equal(completesCheck(fields, { gate: "none" }), true);
+  /* It still stands the rest of the form down; only the crediting differs. */
+  assert.ok(standDownKeys(fields, { gate: "none" }).has("tail"));
+});
+
+test("the first gate decides, not a later one buried inside what it silenced", () => {
+  const fields: GatedField[] = [
+    { key: "first_gate", standsDown: { when: ["no"] } },
+    { key: "second_gate", standsDown: { when: ["yes"], completesCheck: true } },
+    { key: "tail" },
+  ];
+  assert.equal(completesCheck(fields, { first_gate: "no", second_gate: "yes" }), false);
 });

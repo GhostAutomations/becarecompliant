@@ -27,7 +27,7 @@ import {
   isPresentational,
 } from "./form-schema";
 import { implausibleYearMessage } from "./date-plausible";
-import { standDownKeys } from "./forms/stand-down";
+import { completesCheck, standDownKeys } from "./forms/stand-down";
 
 export type FieldError = { key: string; message: string };
 export type ValidationResult = { ok: boolean; errors: FieldError[] };
@@ -39,6 +39,15 @@ export type ValidationResult = { ok: boolean; errors: FieldError[] };
  */
 export function standDown(schema: FormSchema, answers: Answers): Set<string> {
   return standDownKeys(flattenFields(schema), answers);
+}
+
+/**
+ * Did the thing this Form records actually happen? False when an answer stood the rest
+ * of the form down, which is what stops a Check being advanced by a visit that could not
+ * be made. Every form without a gate returns true, so nothing else changes behaviour.
+ */
+export function formCompletesCheck(schema: FormSchema, answers: Answers): boolean {
+  return completesCheck(flattenFields(schema), answers);
 }
 
 /** Is a field visible given the current answers (conditional logic)? */

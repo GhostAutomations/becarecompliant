@@ -81,9 +81,11 @@ export type VisibleWhen = { field: string; in: string[] };
  * dropped on submit. Written on the one question that decides it, never on each of the
  * questions it silences, so a question added later is covered automatically. `except`
  * names the questions that exist BECAUSE of that answer (e.g. why could it not be
- * done), which stay live. The rule itself lives in lib/forms/stand-down.ts.
+ * done), which stay live. Tripping a gate also means the Check is NOT advanced unless
+ * `completesCheck` says otherwise: the activity did not happen, so nothing may be
+ * credited for it. The rule itself lives in lib/forms/stand-down.ts.
  */
-export type StandsDown = { when: string[]; except?: string[] };
+export type StandsDown = { when: string[]; except?: string[]; completesCheck?: boolean };
 
 export type FormField = {
   /** Stable, unique-within-schema key. Answers are keyed by this. */

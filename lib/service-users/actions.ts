@@ -23,6 +23,7 @@ import { escapeHtml } from "@/lib/email/templates";
 import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
 import { applyRetentionForRecord } from "@/lib/evidence/retention";
 import { type Answers, type FormSchema, firstDateFieldKey, isFormSchema } from "@/lib/form-schema";
+import { formCompletesCheck } from "@/lib/form-validate";
 import type { ActionState } from "@/lib/forms";
 import type { CheckDefinition } from "@/lib/people/types";
 import { parseCivilDate } from "@/lib/recurrence";
@@ -823,6 +824,33 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
     );
     if (ctx.isComplex) nextDue = addDaysToIso(completedOnIso, ctx.intervalDays);
   }
+  // Did it actually happen? A Form whose gate has been tripped records the attempt and
+  // the reason as Evidence, but the Check is NOT advanced: it stays due on the register
+  // exactly as it was. Crediting a visit that never happened is the one thing a
+  // compliance record must never do.
+  const happened = isFormSchema(version.schema)
+    ? formCompletesCheck(version.schema as FormSchema, answers)
+    : true;
+  if (!happened) {
+    await writeAudit({
+      companyId: instance.company_id as string,
+      actorId: user.id,
+      actorEmail: profile.email,
+      actorRole: profile.role,
+      action: "check.not_completed",
+      entityType: "check_instance",
+      entityId: instanceId,
+      summary: `${def.name} could not be completed`,
+      metadata: { evidence_id: result.evidenceId, definition_id: def.id, record_type: "service_user" },
+    });
+    revalidatePath(`/service-users/${instance.service_user_id}`);
+    revalidatePath("/service-users");
+    return {
+      ok: "recorded",
+      redirectTo: `/service-users/${instance.service_user_id}?recorded=${encodeURIComponent(def.name)}`,
+    };
+  }
+
   const { error: advanceErr } = await supabase.rpc("complete_check", {
     p_instance_id: instanceId,
     p_completed_on: completedOnIso,

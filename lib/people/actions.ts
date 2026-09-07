@@ -21,6 +21,7 @@ import { assignStandingPolicies } from "@/lib/assignments/new-starters";
 import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
 import { applyRetentionForRecord } from "@/lib/evidence/retention";
 import { type Answers, type FormSchema, firstDateFieldKey, isFormSchema } from "@/lib/form-schema";
+import { formCompletesCheck } from "@/lib/form-validate";
 import type { ActionState } from "@/lib/forms";
 import type { CheckDefinition } from "./types";
 import { listPeopleCheckDefinitions, getPublishedFormVersion, getCompanyFormByKey } from "./data";
@@ -961,7 +962,35 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
     return { error: result.error };
   }
 
-  // 2. Advance the Check: next due computed by the shared recurrence engine. For an
+  // 2. Did it actually happen? A Form whose gate has been tripped (a spot check that
+  // could not be completed) records the attempt and the reason as Evidence, but the
+  // Check is NOT advanced: no completion date, no new due date, and it stays on the
+  // matrix exactly as it was. Crediting a visit that never happened is the one thing a
+  // compliance record must never do.
+  const happened = isFormSchema(version.schema)
+    ? formCompletesCheck(version.schema as FormSchema, answers)
+    : true;
+  if (!happened) {
+    await writeAudit({
+      companyId: instance.company_id as string,
+      actorId: user.id,
+      actorEmail: profile.email,
+      actorRole: profile.role,
+      action: "check.not_completed",
+      entityType: "check_instance",
+      entityId: instanceId,
+      summary: `${def.name} could not be completed`,
+      metadata: { evidence_id: result.evidenceId, definition_id: def.id },
+    });
+    revalidatePath(`/people/${instance.person_id}`);
+    revalidatePath("/people");
+    return {
+      ok: "recorded",
+      redirectTo: `/people/${instance.person_id}?recorded=${encodeURIComponent(def.name)}`,
+    };
+  }
+
+  // 3. Advance the Check: next due computed by the shared recurrence engine. For an
   // "after Supervision 3" appraisal, the interval comes from the Supervision box.
   const { data: supDef } = await supabase
     .from("check_definitions")

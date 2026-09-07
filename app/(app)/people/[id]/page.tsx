@@ -84,11 +84,11 @@ export default async function PersonPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ completed?: string; from?: string }>;
+  searchParams: Promise<{ completed?: string; recorded?: string; from?: string }>;
 }) {
   const { profile } = await requireCompany();
   const { id } = await params;
-  const { completed, from } = await searchParams;
+  const { completed, recorded, from } = await searchParams;
   // Back returns to the view the record was opened from (Main, Leavers, Archive, ...);
   // only accept in-app /people paths to avoid an open redirect.
   const backHref = from && from.startsWith("/people") ? from : "/people";
@@ -278,6 +278,15 @@ export default async function PersonPage({
       {completed ? (
         <div className="glass-card border border-rag-green/20 p-4 text-sm text-rag-green-soft">
           {completed} completed. Evidence stored and the next due date scheduled.
+        </div>
+      ) : null}
+
+      {/* It could not be done, so nothing was credited. Saying so is the whole point:
+          the green banner above would be a lie about a check that is still due. */}
+      {recorded ? (
+        <div className="glass-card border border-rag-amber/25 p-4 text-sm text-rag-amber-soft">
+          {recorded} recorded as not completed. Evidence stored with the reason, and the
+          check is still due.
         </div>
       ) : null}
 
