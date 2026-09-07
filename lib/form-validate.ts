@@ -10,6 +10,8 @@
  *  - A field hidden by conditional logic is never required and its answer is
  *    stripped (see cleanAnswers), so users are never trapped behind a hidden
  *    required question.
+ *  - A field STOOD DOWN by an earlier answer is treated the same way: the question
+ *    was never asked, so it is not required and stores nothing (lib/forms/stand-down).
  *  - required, per-type shape, and per-field validation constraints are checked.
  */
 
@@ -25,9 +27,19 @@ import {
   isPresentational,
 } from "./form-schema";
 import { implausibleYearMessage } from "./date-plausible";
+import { standDownKeys } from "./forms/stand-down";
 
 export type FieldError = { key: string; message: string };
 export type ValidationResult = { ok: boolean; errors: FieldError[] };
+
+/**
+ * The keys of every field stood down by the answers so far — the questions that an
+ * earlier answer has made pointless. Exported because the Evidence views need the same
+ * answer as the validator: a question nobody was asked is not printed as unanswered.
+ */
+export function standDown(schema: FormSchema, answers: Answers): Set<string> {
+  return standDownKeys(flattenFields(schema), answers);
+}
 
 /** Is a field visible given the current answers (conditional logic)? */
 export function isFieldVisible(field: FormField, answers: Answers): boolean {
@@ -49,7 +61,12 @@ export function isFieldVisible(field: FormField, answers: Answers): boolean {
  * exists must never be invisible in a compliance record, and the on screen view and
  * the PDF must never disagree about what is in it, so both call this one function.
  */
-export function shouldShowInEvidence(field: FormField, answers: Answers): boolean {
+export function shouldShowInEvidence(
+  field: FormField,
+  answers: Answers,
+  stoodDown?: ReadonlySet<string>,
+): boolean {
+  if (stoodDown?.has(field.key) && isEmpty(answers[field.key])) return false;
   return isFieldVisible(field, answers) || !isEmpty(answers[field.key]);
 }
 
@@ -74,8 +91,10 @@ const TIME_RE = /^\d{2}:\d{2}$/;
  */
 export function cleanAnswers(schema: FormSchema, answers: Answers): Answers {
   const out: Answers = {};
+  const down = standDown(schema, answers);
   for (const field of flattenFields(schema)) {
     if (isPresentational(field.type)) continue;
+    if (down.has(field.key)) continue;
     if (!isFieldVisible(field, answers)) continue;
     if (field.key in answers) out[field.key] = answers[field.key];
   }
@@ -215,8 +234,10 @@ function validateField(field: FormField, value: AnswerValue | undefined): string
  */
 export function validateAnswers(schema: FormSchema, answers: Answers): ValidationResult {
   const errors: FieldError[] = [];
+  const down = standDown(schema, answers);
   for (const field of flattenFields(schema)) {
     if (isPresentational(field.type)) continue;
+    if (down.has(field.key)) continue;
     if (!isFieldVisible(field, answers)) continue;
     const message = validateField(field, answers[field.key]);
     if (message) errors.push({ key: field.key, message });

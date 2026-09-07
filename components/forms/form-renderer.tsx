@@ -30,7 +30,7 @@ import {
   type FormSchema,
   isAddressValue,
 } from "@/lib/form-schema";
-import { type FieldError, isFieldVisible } from "@/lib/form-validate";
+import { type FieldError, isFieldVisible, standDown } from "@/lib/form-validate";
 import { type LookupChoice, filterChoices, lookupError } from "@/lib/forms/lookup";
 
 type Props = {
@@ -84,6 +84,10 @@ export default function FormRenderer({
   // the event handler with a concrete value.
   const answersRef = useRef<Answers>(answers);
 
+  /* Questions an earlier answer has made pointless: still on screen, so the person can
+     see what they are not being asked, but inert and not required. */
+  const stoodDown = useMemo(() => standDown(schema, answers), [schema, answers]);
+
   const errorMap = useMemo(() => {
     const m = new Map<string, string>();
     (errors ?? []).forEach((e) => m.set(e.key, e.message));
@@ -122,7 +126,8 @@ export default function FormRenderer({
                   field={field}
                   value={answers[field.key]}
                   error={errorMap.get(field.key)}
-                  disabled={disabled}
+                  disabled={disabled || stoodDown.has(field.key)}
+                  stoodDown={stoodDown.has(field.key)}
                   idPrefix={idPrefix}
                   onValue={(v) => update(field.key, v)}
                   onFileSelect={onFileSelect}
@@ -152,6 +157,7 @@ function Field({
   value,
   error,
   disabled,
+  stoodDown = false,
   idPrefix,
   onValue,
   onFileSelect,
@@ -162,6 +168,8 @@ function Field({
   value: AnswerValue | undefined;
   error?: string;
   disabled: boolean;
+  /** An earlier answer has made this question pointless: greyed and not required. */
+  stoodDown?: boolean;
   idPrefix: string;
   onValue: (v: AnswerValue) => void;
   onFileSelect?: (key: string, file: File | null) => void;
@@ -180,10 +188,11 @@ function Field({
   }
 
   const labelledControl = (control: React.ReactNode) => (
-    <div>
+    <div className={stoodDown ? "opacity-45" : undefined}>
       <label htmlFor={id} className="form-label">
         {field.label}
-        <RequiredMark required={field.required} />
+        {/* Not required any more: the question is not being asked. */}
+        <RequiredMark required={field.required && !stoodDown} />
       </label>
       {control}
       {field.help ? <p className="form-hint">{field.help}</p> : null}

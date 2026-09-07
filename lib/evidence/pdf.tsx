@@ -31,7 +31,7 @@ import {
   isPresentational,
 } from "@/lib/form-schema";
 import { drawnImageBox, type EvidenceAttachments } from "@/lib/evidence/image-format";
-import { shouldShowInEvidence } from "@/lib/form-validate";
+import { shouldShowInEvidence, standDown } from "@/lib/form-validate";
 import { formatAnswerForDisplay } from "@/lib/form-format";
 
 /**
@@ -152,6 +152,8 @@ export function EvidenceEntry({
   attachments?: EvidenceAttachments;
 }) {
   const author = meta.authorName || meta.authorEmail || "Not recorded";
+  // Questions an answer on this record stood down: never asked, so never printed.
+  const stoodDown = standDown(schema, answers);
   return (
     <>
       <Text style={styles.title}>{meta.formName}</Text>
@@ -187,7 +189,7 @@ export function EvidenceEntry({
         // shouldShowInEvidence, not plain visibility: a conditional field nobody was
         // asked is left out, but anything actually answered is always printed. The on
         // screen Evidence page filters with the same function.
-        const visible = section.fields.filter((f) => shouldShowInEvidence(f, answers));
+        const visible = section.fields.filter((f) => shouldShowInEvidence(f, answers, stoodDown));
         if (visible.length === 0) return null;
         // wrap={false} keeps a section whole on one page, which is right for text but
         // wrong the moment a section carries photographs: a section taller than an A4

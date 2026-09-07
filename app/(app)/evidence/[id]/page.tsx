@@ -3,7 +3,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import { getEvidenceView } from "@/lib/evidence/on-demand";
 import { isBinaryField, isPresentational, type AnswerValue } from "@/lib/form-schema";
-import { shouldShowInEvidence } from "@/lib/form-validate";
+import { shouldShowInEvidence, standDown } from "@/lib/form-validate";
 import { formatAnswerForDisplay } from "@/lib/form-format";
 import { ukDate } from "@/lib/dates";
 
@@ -84,6 +84,8 @@ export default async function EvidenceViewPage({
   }
 
   const ev = result.data;
+  // Questions an answer on this record stood down: never asked, so never printed.
+  const stoodDown = standDown(ev.schema, ev.answers);
   const backHref = cameFrom
     ? cameFrom.href
     : ev.recordType === "person"
@@ -160,9 +162,10 @@ export default async function EvidenceViewPage({
       {ev.schema.sections.map((section) => {
         // Same rule as the PDF (shouldShowInEvidence): a conditional field nobody was
         // asked is left out, but anything actually answered is always shown, so the two
-        // renderings of one immutable record can never disagree.
+        // renderings of one immutable record can never disagree. A question stood down
+        // by an earlier answer was never asked either, so it is left out the same way.
         const answerable = section.fields.filter(
-          (f) => !isPresentational(f.type) && shouldShowInEvidence(f, ev.answers),
+          (f) => !isPresentational(f.type) && shouldShowInEvidence(f, ev.answers, stoodDown),
         );
         if (answerable.length === 0) return null;
         return (
