@@ -1,0 +1,685 @@
+{
+  "schemaVersion": 1,
+  "sections": [
+    {
+      "id": "visit",
+      "title": "The visit",
+      "fields": [
+        {
+          "key": "spot_check_date",
+          "type": "date",
+          "label": "Date of spot check",
+          "required": true
+        },
+        {
+          "key": "scheduled_time",
+          "type": "time",
+          "label": "Scheduled time of the care visit",
+          "required": true
+        },
+        {
+          "key": "able_to_complete",
+          "type": "single_select",
+          "label": "Was the spot check able to be completed?",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes"
+            },
+            {
+              "value": "no",
+              "label": "No"
+            }
+          ]
+        },
+        {
+          "key": "service_user",
+          "type": "record_lookup",
+          "lookup": "service_user",
+          "label": "Service User",
+          "required": true,
+          "help": "Start typing the name and pick them from the list."
+        }
+      ]
+    },
+    {
+      "id": "arrival",
+      "title": "Section 1 - On arrival to the Service User's home",
+      "fields": [
+        {
+          "key": "arrived_on_time",
+          "type": "single_select",
+          "label": "Did the employee arrive at the Service User's home within 15 minutes either side of the planned visit time?",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes"
+            },
+            {
+              "value": "no",
+              "label": "No"
+            },
+            {
+              "value": "na",
+              "label": "N/A"
+            }
+          ]
+        },
+        {
+          "key": "uniform",
+          "type": "single_select",
+          "label": "Is the employee dressed as per Thistle Care's Appearance and Wearing of Uniform Policy?",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes"
+            },
+            {
+              "value": "no",
+              "label": "No"
+            },
+            {
+              "value": "na",
+              "label": "N/A"
+            }
+          ]
+        },
+        {
+          "key": "announced_arrival",
+          "type": "single_select",
+          "label": "Did the employee announce their arrival upon entry to the property, and did they address the Service User by the name they wish to be addressed by on the Service User's Personal Plan?",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes"
+            },
+            {
+              "value": "no",
+              "label": "No"
+            },
+            {
+              "value": "na",
+              "label": "N/A"
+            }
+          ]
+        },
+        {
+          "key": "id_badge",
+          "type": "single_select",
+          "label": "Does the employee have a valid in date ID badge?",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes"
+            },
+            {
+              "value": "no",
+              "label": "No"
+            },
+            {
+              "value": "na",
+              "label": "N/A"
+            }
+          ]
+        },
+        {
+          "key": "logged_in",
+          "type": "single_select",
+          "label": "Did the employee log into the visit correctly?",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes"
+            },
+            {
+              "value": "no",
+              "label": "No"
+            },
+            {
+              "value": "na",
+              "label": "N/A"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "care_plan",
+      "title": "Section 2 - Care Plan",
+      "fields": [
+        {
+          "key": "checked_notes",
+          "type": "single_select",
+          "label": "Did the employee check the previous visit notes upon arrival?",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes"
+            },
+            {
+              "value": "no",
+              "label": "No"
+            },
+            {
+              "value": "na",
+              "label": "N/A"
+            }
+          ]
+        },
+        {
+          "key": "sought_consent",
+          "type": "single_select",
+          "label": "Did the employee seek the Service User's consent before delivering any aspect of care?",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes"
+            },
+            {
+              "value": "no",
+              "label": "No"
+            },
+            {
+              "value": "na",
+              "label": "N/A"
+            }
+          ]
+        },
+        {
+          "key": "knows_care",
+          "type": "single_select",
+          "label": "Does the employee know what care the Service User needs?",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes"
+            },
+            {
+              "value": "no",
+              "label": "No"
+            },
+            {
+              "value": "na",
+              "label": "N/A"
+            }
+          ],
+          "help": "i.e. the care worker should be reading the tasks and notes instead of asking the Service User or next of kin what else they need."
+        }
+      ]
+    },
+    {
+      "id": "safe_working",
+      "title": "Section 3 - Safe Working Practices",
+      "fields": [
+        {
+          "key": "ppe_used",
+          "type": "single_select",
+          "label": "Did the employee use their PPE correctly?",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes"
+            },
+            {
+              "value": "no",
+              "label": "No"
+            },
+            {
+              "value": "na",
+              "label": "N/A"
+            }
+          ]
+        },
+        {
+          "key": "hazards",
+          "type": "single_select",
+          "label": "Was the employee vigilant for any hazards in the property?",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes"
+            },
+            {
+              "value": "no",
+              "label": "No"
+            },
+            {
+              "value": "na",
+              "label": "N/A"
+            }
+          ]
+        },
+        {
+          "key": "moving_handling",
+          "type": "single_select",
+          "label": "If the Service User has manual handling equipment, and it was used, did the employee use the equipment correctly (hoists, transfer aids, slide sheets, profiling beds etc.)?",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes"
+            },
+            {
+              "value": "no",
+              "label": "No"
+            },
+            {
+              "value": "na",
+              "label": "N/A"
+            }
+          ]
+        },
+        {
+          "key": "food_hygiene",
+          "type": "single_select",
+          "label": "Was any food handled correctly and hygienically?",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes"
+            },
+            {
+              "value": "no",
+              "label": "No"
+            },
+            {
+              "value": "na",
+              "label": "N/A"
+            }
+          ]
+        },
+        {
+          "key": "area_clean",
+          "type": "single_select",
+          "label": "Did the employee keep the working area clean and tidy?",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes"
+            },
+            {
+              "value": "no",
+              "label": "No"
+            },
+            {
+              "value": "na",
+              "label": "N/A"
+            }
+          ]
+        },
+        {
+          "key": "ppe_disposed",
+          "type": "single_select",
+          "label": "Did the employee dispose of PPE correctly?",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes"
+            },
+            {
+              "value": "no",
+              "label": "No"
+            },
+            {
+              "value": "na",
+              "label": "N/A"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "medication",
+      "title": "Section 4 - Medication",
+      "fields": [
+        {
+          "key": "med_consent",
+          "type": "single_select",
+          "label": "Did the employee gain consent prior to administering medication?",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes"
+            },
+            {
+              "value": "no",
+              "label": "No"
+            },
+            {
+              "value": "na",
+              "label": "N/A"
+            }
+          ],
+          "help": "All care staff would have had a medication competency assessment."
+        },
+        {
+          "key": "six_rights",
+          "type": "single_select",
+          "label": "Did the employee follow the 6 Rights of Medication correctly?",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes"
+            },
+            {
+              "value": "no",
+              "label": "No"
+            },
+            {
+              "value": "na",
+              "label": "N/A"
+            }
+          ],
+          "help": "Right Person, Right Medication, Right Route, Right Dose, Right Time, Right to Decline Medication (Service Users)."
+        },
+        {
+          "key": "med_administered",
+          "type": "single_select",
+          "label": "Did they check and administer medication correctly?",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes"
+            },
+            {
+              "value": "no",
+              "label": "No"
+            },
+            {
+              "value": "na",
+              "label": "N/A"
+            }
+          ],
+          "help": "Ask staff what and how they would report any issues with medication. Advise they need to call the office for any concerns, not message."
+        }
+      ]
+    },
+    {
+      "id": "attitude",
+      "title": "Section 5 - Attitude and Behaviour",
+      "fields": [
+        {
+          "key": "communication",
+          "type": "single_select",
+          "label": "Did the employee communicate well with the Service User and evidence compassionate care?",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes"
+            },
+            {
+              "value": "no",
+              "label": "No"
+            },
+            {
+              "value": "na",
+              "label": "N/A"
+            }
+          ]
+        },
+        {
+          "key": "privacy",
+          "type": "single_select",
+          "label": "Did the employee respect the Service User's privacy?",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes"
+            },
+            {
+              "value": "no",
+              "label": "No"
+            },
+            {
+              "value": "na",
+              "label": "N/A"
+            }
+          ]
+        },
+        {
+          "key": "dignity",
+          "type": "single_select",
+          "label": "Did the employee respect the dignity of the Service User?",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes"
+            },
+            {
+              "value": "no",
+              "label": "No"
+            },
+            {
+              "value": "na",
+              "label": "N/A"
+            }
+          ]
+        },
+        {
+          "key": "choice",
+          "type": "single_select",
+          "label": "Did the employee allow the Service User to make their own choices?",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes"
+            },
+            {
+              "value": "no",
+              "label": "No"
+            },
+            {
+              "value": "na",
+              "label": "N/A"
+            }
+          ]
+        },
+        {
+          "key": "enabling",
+          "type": "single_select",
+          "label": "Did the employee work in an enabling way?",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes"
+            },
+            {
+              "value": "no",
+              "label": "No"
+            },
+            {
+              "value": "na",
+              "label": "N/A"
+            }
+          ]
+        },
+        {
+          "key": "positives",
+          "type": "long_text",
+          "label": "Thinking about the carer's attitude and behaviour, detail any positive factors that you noticed",
+          "required": false,
+          "validation": {
+            "maxLength": 2000
+          }
+        }
+      ]
+    },
+    {
+      "id": "recording",
+      "title": "Section 6 - Recording",
+      "fields": [
+        {
+          "key": "task_record",
+          "type": "single_select",
+          "label": "Did the employee provide an accurate record of tasks that were undertaken?",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes"
+            },
+            {
+              "value": "no",
+              "label": "No"
+            },
+            {
+              "value": "na",
+              "label": "N/A"
+            }
+          ]
+        },
+        {
+          "key": "notes_in_call",
+          "type": "single_select",
+          "label": "Did the employee complete care notes within the care call?",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes"
+            },
+            {
+              "value": "no",
+              "label": "No"
+            },
+            {
+              "value": "na",
+              "label": "N/A"
+            }
+          ]
+        },
+        {
+          "key": "logged_in_out",
+          "type": "single_select",
+          "label": "Did the employee log in and out correctly from the visit?",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes"
+            },
+            {
+              "value": "no",
+              "label": "No"
+            },
+            {
+              "value": "na",
+              "label": "N/A"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "su_feedback",
+      "title": "Section 7 - Service User Feedback",
+      "description": "You may ask the Service User if they would like to provide feedback, however not all Service Users will be willing, please respect their decision. If they are willing please allow the care worker to leave the property first.",
+      "fields": [
+        {
+          "key": "feedback_willing",
+          "type": "single_select",
+          "label": "Was the Service User willing to provide feedback?",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes"
+            },
+            {
+              "value": "no",
+              "label": "No"
+            },
+            {
+              "value": "na",
+              "label": "N/A"
+            }
+          ]
+        },
+        {
+          "key": "feedback_comments",
+          "type": "long_text",
+          "label": "Any comments to add from the Service User?",
+          "required": false,
+          "validation": {
+            "maxLength": 2000
+          },
+          "visibleWhen": {
+            "field": "feedback_willing",
+            "in": [
+              "yes"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "follow_up",
+      "title": "Section 8 - Follow up actions",
+      "fields": [
+        {
+          "key": "observations",
+          "type": "long_text",
+          "label": "Spot check observations",
+          "required": true,
+          "validation": {
+            "maxLength": 2000
+          }
+        },
+        {
+          "key": "follow_up_actions",
+          "type": "long_text",
+          "label": "Follow up actions required",
+          "required": true,
+          "validation": {
+            "maxLength": 2000
+          }
+        },
+        {
+          "key": "passed",
+          "type": "single_select",
+          "label": "Has the carer passed the spot check?",
+          "required": true,
+          "options": [
+            {
+              "value": "pass",
+              "label": "Pass"
+            },
+            {
+              "value": "fail",
+              "label": "Fail"
+            }
+          ]
+        },
+        {
+          "key": "declaration",
+          "type": "signature",
+          "label": "Supervisor's declaration",
+          "required": true,
+          "help": "I confirm that this spot check record is an accurate and true record of the employee's care visit."
+        }
+      ]
+    }
+  ]
+}
