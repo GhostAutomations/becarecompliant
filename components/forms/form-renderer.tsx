@@ -669,21 +669,49 @@ function LookupField({
   const [query, setQuery] = useState(value);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
+  const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
   const boxRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLUListElement>(null);
 
   // The list follows what is typed, never the other way round.
   const shown = useMemo(() => filterChoices(choices, query), [choices, query]);
   const problem = open ? null : lookupError(choices, query, false);
 
+  /* The list is rendered into the body, positioned over the page, because every form
+     section is a .section-card with overflow:hidden -- in flow, a list longer than the
+     gap to the card's edge is cut off and the matches below the fold cannot be seen or
+     clicked. Same approach as HintSelect. */
+  const place = useCallback(() => {
+    const r = inputRef.current?.getBoundingClientRect();
+    if (r) setCoords({ top: r.bottom + 4, left: r.left, width: r.width });
+  }, []);
+
+  function show() {
+    place();
+    setOpen(true);
+  }
+
   // Clicking away closes the list. Without this the list can sit over the next field.
   useEffect(() => {
     if (!open) return;
     function onDown(e: MouseEvent) {
-      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (boxRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
+    }
+    function onScroll() {
+      place();
     }
     document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [open]);
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onScroll);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [open, place]);
 
   function choose(choice: LookupChoice) {
     setQuery(choice.label);
@@ -694,6 +722,7 @@ function LookupField({
   return (
     <div ref={boxRef} className="relative">
       <input
+        ref={inputRef}
         id={id}
         type="text"
         role="combobox"
@@ -707,16 +736,16 @@ function LookupField({
           const next = e.target.value;
           setQuery(next);
           setActive(0);
-          setOpen(true);
+          show();
           /* Typing after a pick clears the link: the answer is no longer a record until
              one is chosen again, so the evidence can never carry a stale id. */
           onPick(null, next);
         }}
-        onFocus={() => setOpen(true)}
+        onFocus={() => show()}
         onKeyDown={(e) => {
           if (e.key === "ArrowDown") {
             e.preventDefault();
-            setOpen(true);
+            show();
             setActive((i) => Math.min(i + 1, Math.max(shown.length - 1, 0)));
           } else if (e.key === "ArrowUp") {
             e.preventDefault();
@@ -730,10 +759,13 @@ function LookupField({
         }}
       />
 
-      {open && shown.length > 0 ? (
+      {open && shown.length > 0
+        ? createPortal(
         <ul
+          ref={menuRef}
           role="listbox"
-          className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-white/15 bg-navy-900 py-1 shadow-2xl"
+          className="z-50 max-h-64 overflow-auto rounded-xl border border-white/15 bg-navy-900 py-1 shadow-2xl"
+          style={{ position: "fixed", top: coords.top, left: coords.left, width: coords.width }}
         >
           {shown.map((c, i) => (
             <li key={c.id} role="option" aria-selected={i === active}>
@@ -751,8 +783,10 @@ function LookupField({
               </button>
             </li>
           ))}
-        </ul>
-      ) : null}
+        </ul>,
+            document.body,
+          )
+        : null}
 
       {open && query.trim() !== "" && shown.length === 0 ? (
         <p className="form-hint">No record matches that. Add the record first.</p>
