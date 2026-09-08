@@ -22,7 +22,7 @@ import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
 import { applyRetentionForRecord } from "@/lib/evidence/retention";
 import { type Answers, type FormSchema, firstDateFieldKey, isFormSchema } from "@/lib/form-schema";
 import { cleanAnswers, formCompletesCheck } from "@/lib/form-validate";
-import { closeBookingsForCheck } from "@/lib/planner/close-booking";
+import { closeBookingsForCheck, closeBookingsForTrackerForm } from "@/lib/planner/close-booking";
 import type { ActionState } from "@/lib/forms";
 import type { CheckDefinition } from "./types";
 import { listPeopleCheckDefinitions, getPublishedFormVersion, getCompanyFormByKey } from "./data";
@@ -974,6 +974,9 @@ export async function completeTrackerForm(_prev: ActionState, formData: FormData
     if (typeof sv === "string" && sv) patch[spec.statusFrom.column] = sv;
   }
   await supabase.from("person_trackers").update(patch).eq("person_id", personId);
+
+  // Booked on the planner as a task? It has now been done, so the chip goes green.
+  await closeBookingsForTrackerForm(supabase, personId, formKey, user.id);
 
   await writeAudit({
     companyId: person.company_id as string,

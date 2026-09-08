@@ -65,7 +65,9 @@ export default function BookingForm({
   const [department, setDepartment] = useState<"" | "people" | "service_users">(preset ? preset.population : "");
   const [branchId, setBranchId] = useState(preset?.branchId ?? "");
   const [subjectId, setSubjectId] = useState(preset ? preset.id : "");
-  const [checkInstanceId, setCheckInstanceId] = useState("");
+  /* One dropdown, two kinds of target. A check is its instance id; a tracker form has no
+     instance, so it is "tracker:<key>" and the action pulls the key back off it. */
+  const [checkTarget, setCheckTarget] = useState("");
 
   /** The branch of whoever the task is for. From the preset on a record page, or the picker. */
   const subjectBranchId = preset
@@ -105,7 +107,7 @@ export default function BookingForm({
     setDepartment(preset ? preset.population : "");
     setBranchId(preset?.branchId ?? "");
     setSubjectId(preset ? preset.id : "");
-    setCheckInstanceId("");
+    setCheckTarget("");
     setError(null);
   }
 
@@ -113,11 +115,17 @@ export default function BookingForm({
     e.preventDefault();
     setError(null);
     if (!department || !subjectId) { setError("Choose a department, branch and name."); return; }
-    if (!checkInstanceId) { setError("Choose the check this task is for."); return; }
+    if (!checkTarget) { setError("Choose the check this task is for."); return; }
     const fd = new FormData(e.currentTarget);
     fd.set("subject_kind", department === "people" ? "person" : "service_user");
     fd.set("subject_id", subjectId);
-    fd.set("check_instance_id", checkInstanceId);
+    if (checkTarget.startsWith("tracker:")) {
+      fd.set("tracker_form_key", checkTarget.slice("tracker:".length));
+      fd.set("check_instance_id", "");
+    } else {
+      fd.set("check_instance_id", checkTarget);
+      fd.set("tracker_form_key", "");
+    }
     startTransition(async () => {
       const res = await createBooking(fd);
       if (res.error) { setError(res.error); return; }
@@ -170,7 +178,7 @@ export default function BookingForm({
                 setDepartment(e.target.value as "" | "people" | "service_users");
                 setBranchId("");
                 setSubjectId("");
-                setCheckInstanceId("");
+                setCheckTarget("");
               }}
               required
             >
@@ -184,7 +192,7 @@ export default function BookingForm({
             <select
               className="w-full"
               value={branchId}
-              onChange={(e) => { setBranchId(e.target.value); setSubjectId(""); setCheckInstanceId(""); }}
+              onChange={(e) => { setBranchId(e.target.value); setSubjectId(""); setCheckTarget(""); }}
               disabled={!department}
             >
               <option value="">All branches</option>
@@ -198,7 +206,7 @@ export default function BookingForm({
             <select
               className="w-full"
               value={subjectId}
-              onChange={(e) => { setSubjectId(e.target.value); setCheckInstanceId(""); }}
+              onChange={(e) => { setSubjectId(e.target.value); setCheckTarget(""); }}
               disabled={!department}
               required
             >
@@ -219,16 +227,19 @@ export default function BookingForm({
             <span className="mb-1 block font-medium text-white/80">Check</span>
             <select
               className="w-full"
-              value={checkInstanceId}
-              onChange={(e) => setCheckInstanceId(e.target.value)}
+              value={checkTarget}
+              onChange={(e) => setCheckTarget(e.target.value)}
               required
             >
               <option value="">Choose…</option>
-              {checks.map((c) => (
-                <option key={c.instanceId} value={c.instanceId}>
-                  {c.name}{c.dueDate ? ` — due ${fmtDue(c.dueDate)}` : ""}
-                </option>
-              ))}
+              {checks.map((c) => {
+                const value = c.trackerKey ? `tracker:${c.trackerKey}` : c.instanceId;
+                return (
+                  <option key={value} value={value}>
+                    {c.name}{c.dueDate ? ` — due ${fmtDue(c.dueDate)}` : ""}
+                  </option>
+                );
+              })}
             </select>
           </label>
         )

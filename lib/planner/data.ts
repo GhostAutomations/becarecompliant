@@ -181,6 +181,8 @@ export type PlannerBookingView = {
   subjectId: string | null;
   subjectName: string | null;
   checkInstanceId: string | null;
+  /** The tracker form this task is for, when it is not a check. Never both. */
+  trackerFormKey: string | null;
   /** The label to show: ad-hoc title, or the check name it was booked against. */
   label: string;
   conductorId: string;
@@ -199,6 +201,7 @@ type Row = {
   subject_person_id: string | null;
   subject_service_user_id: string | null;
   check_instance_id: string | null;
+  tracker_form_key: string | null;
   check_kind: string | null;
   title: string | null;
   conductor_profile_id: string;
@@ -221,7 +224,7 @@ type Row = {
 const CONDUCTOR_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor"];
 
 const SELECT =
-  "id, branch_id, population, subject_person_id, subject_service_user_id, check_instance_id, check_kind, title, conductor_profile_id, scheduled_date, start_time, duration_minutes, status, notes, conductor:profiles(full_name), person:people(full_name), service_user:service_users(full_name), branch:branches(name), linked_check:check_instances(definition:check_definitions(active))";
+  "id, branch_id, population, subject_person_id, subject_service_user_id, check_instance_id, tracker_form_key, check_kind, title, conductor_profile_id, scheduled_date, start_time, duration_minutes, status, notes, conductor:profiles(full_name), person:people(full_name), service_user:service_users(full_name), branch:branches(name), linked_check:check_instances(definition:check_definitions(active))";
 
 /**
  * Fill in the conductor names the embedded join could not read.
@@ -271,6 +274,7 @@ function toView(r: Row): PlannerBookingView {
     subjectId: r.subject_person_id ?? r.subject_service_user_id ?? null,
     subjectName,
     checkInstanceId: r.check_instance_id,
+    trackerFormKey: r.tracker_form_key,
     label,
     conductorId: r.conductor_profile_id,
     conductorName: r.conductor?.full_name ?? null,
@@ -357,7 +361,38 @@ export async function listRecordBookings(
 // its bookable (active) checks.
 // ---------------------------------------------------------------------------
 
-export type BookableCheck = { instanceId: string; name: string; key: string; dueDate: string | null };
+/**
+ * Something Book a task can be booked against: a check instance, or one of the tracker
+ * forms, which have no instance to point at (Phil, 2026-09-08: "i want it in the drop
+ * down"). Exactly one of instanceId and trackerKey is set.
+ */
+export type BookableCheck = {
+  instanceId: string;
+  name: string;
+  key: string;
+  dueDate: string | null;
+  /** Set instead of instanceId when this is a tracker form rather than a check. */
+  trackerKey?: string;
+};
+
+/** The tracker forms a PERSON can have booked, in the order they are offered. Service
+ *  Users have no trackers, so their list is unchanged. */
+export const BOOKABLE_TRACKERS: ReadonlyArray<{ key: string; name: string }> = [
+  { key: "probation_review", name: "Probation Review" },
+  { key: "dbs_renewal", name: "DBS" },
+  { key: "right_to_work", name: "Right to Work" },
+];
+
+/** The tracker forms as bookable entries. */
+function trackerChoices(): BookableCheck[] {
+  return BOOKABLE_TRACKERS.map((t) => ({
+    instanceId: "",
+    name: t.name,
+    key: t.key,
+    dueDate: null,
+    trackerKey: t.key,
+  }));
+}
 export type PlannerSubject = {
   population: "people" | "service_users";
   id: string;
@@ -431,6 +466,7 @@ export async function getPlannerRecordForm(
     if (!def) continue;
     checks.push({ instanceId: raw.id as string, name: def.name, key: def.key, dueDate: (raw.due_date as string | null) ?? null });
   }
+  if (population === "people") checks.push(...trackerChoices());
   checks.sort((a, b) => a.name.localeCompare(b.name));
 
   const preset: PlannerSubject = { population, id: recordId, name: recordName, branchId, checks };
@@ -535,7 +571,9 @@ export async function getPlannerFormData(
       id: p.id as string,
       name: p.full_name as string,
       branchId: (p.branch_id as string | null) ?? null,
-      checks: (byPerson.get(p.id as string) ?? []).sort((a, b) => a.name.localeCompare(b.name)),
+      checks: [...(byPerson.get(p.id as string) ?? []), ...trackerChoices()].sort((a, b) =>
+        a.name.localeCompare(b.name),
+      ),
     });
   }
   for (const su of suRes.data ?? []) {

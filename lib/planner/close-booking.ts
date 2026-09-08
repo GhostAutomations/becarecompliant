@@ -35,3 +35,22 @@ export async function closeBookingsForCheck(
     .eq("check_instance_id", checkInstanceId)
     .eq("status", "planned");
 }
+
+/**
+ * The same, for a tracker form. Probation, DBS and Right to Work are booked by form key
+ * rather than by check instance (0243), so a completed Probation Review closes the task
+ * that was booked for it and the whiteboard chip goes green like any other.
+ */
+export async function closeBookingsForTrackerForm(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  personId: string,
+  trackerFormKey: string,
+  userId: string,
+): Promise<void> {
+  await supabase
+    .from("planner_bookings")
+    .update({ status: "completed", updated_by: userId })
+    .eq("subject_person_id", personId)
+    .eq("tracker_form_key", trackerFormKey)
+    .eq("status", "planned");
+}

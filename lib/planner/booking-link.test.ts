@@ -37,3 +37,44 @@ test("an ad-hoc task with nobody attached opens nothing", () => {
   assert.equal(bookingHref({ ...PLANNED_PERSON, subjectId: null }), null);
   assert.equal(bookingHref({ ...PLANNED_PERSON, population: null }), null);
 });
+
+/* Tracker forms: Probation, DBS and Right to Work have no check instance to point at. */
+
+test("a booked probation review opens the tracker form", () => {
+  assert.equal(
+    bookingHref({
+      population: "people",
+      subjectId: "p1",
+      checkInstanceId: null,
+      trackerFormKey: "probation_review",
+      status: "planned",
+    }),
+    "/people/p1/tracker/probation_review/complete",
+  );
+});
+
+test("a completed tracker task opens the record, not the form again", () => {
+  assert.equal(
+    bookingHref({
+      population: "people",
+      subjectId: "p1",
+      checkInstanceId: null,
+      trackerFormKey: "dbs_renewal",
+      status: "completed",
+    }),
+    "/people/p1",
+  );
+});
+
+test("a tracker key on a service user opens the record, because they have no trackers", () => {
+  assert.equal(
+    bookingHref({
+      population: "service_users",
+      subjectId: "s1",
+      checkInstanceId: null,
+      trackerFormKey: "probation_review",
+      status: "planned",
+    }),
+    "/service-users/s1",
+  );
+});
