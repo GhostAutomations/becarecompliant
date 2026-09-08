@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { createBooking } from "@/lib/planner/actions";
 import TimeSelect from "./time-select";
@@ -38,13 +39,27 @@ export default function BookingForm({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLFormElement>(null);
 
+  /* Clicking away closes it. The panel is rendered into the body (see below), so it is
+     not inside `ref` and has to be excluded by name or its own clicks would close it. */
   useEffect(() => {
     function onDoc(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (ref.current?.contains(t) || panelRef.current?.contains(t)) return;
+      setOpen(false);
     }
-    if (open) document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    if (open) {
+      document.addEventListener("mousedown", onDoc);
+      document.addEventListener("keydown", onKey);
+    }
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
   }, [open]);
 
   const [department, setDepartment] = useState<"" | "people" | "service_users">(preset ? preset.population : "");
@@ -117,8 +132,22 @@ export default function BookingForm({
       <button type="button" className="btn-primary text-xs" onClick={() => setOpen((o) => !o)}>
         {buttonLabel}
       </button>
-      {open ? (
-    <form onSubmit={submit} className="glass-card absolute right-0 top-full z-40 mt-2 w-[30rem] max-w-[90vw] space-y-4 p-5">
+      {/* CENTRED, not hung off the button (Phil, 2026-09-08: "the booking pop up is far
+          right, make it central"). Anchored under a top right button it opened half off
+          the calendar, and on the whiteboard it covered the month it was booking into.
+          Rendered into the body so no scroll container or backdrop filter can clip or
+          re-anchor it, with a scrim that dims the page behind. */}
+      {open
+        ? createPortal(
+      <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center">
+    <form
+      ref={panelRef}
+      onSubmit={submit}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Book a task"
+      className="glass-card my-auto w-[30rem] max-w-full space-y-4 p-5"
+    >
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-white">Book a task</h3>
         <button type="button" className="text-xs text-white/50 hover:text-white" onClick={() => { setOpen(false); resetAll(); }}>
@@ -263,7 +292,10 @@ export default function BookingForm({
         </button>
       </div>
     </form>
-      ) : null}
+      </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

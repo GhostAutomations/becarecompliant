@@ -78,8 +78,12 @@ export default function WhiteboardCalendar({
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
   const sep = basePath.includes("?") ? "&" : "?";
-  // Only planned bookings belong on the calendar; completed and cancelled ones drop off.
-  const filtered = bookings.filter((b) => b.status === "planned" && (!branchId || b.branchId === branchId));
+  /* A COMPLETED TASK STAYS ON THE BOARD, GREEN (Phil, 2026-09-08: "when a form is
+     completed for a booked task, the task in the planner should be green"). It used to
+     drop off, which made a finished day look like a day nobody had booked anything on,
+     and left no way to tell work that was done from work that was never planned. A
+     CANCELLED one still drops off: it is not work, done or otherwise. */
+  const filtered = bookings.filter((b) => b.status !== "cancelled" && (!branchId || b.branchId === branchId));
 
   const byDay = useMemo(() => {
     const m = new Map<string, PlannerBookingView[]>();
@@ -191,9 +195,14 @@ export default function WhiteboardCalendar({
                     */}
                     <span
                       className={`block rounded px-1 py-0.5 text-[10px] text-white/85 ${
-                        currentUserId && b.conductorId === currentUserId
-                          ? "bg-gold-400/15"
-                          : "bg-white/[0.07]"
+                        /* GREEN BEATS GOLD. Gold means the task is yours; green means it
+                           is done, and done is the more useful thing to see at a glance
+                           on a board of forty chips. */
+                        b.status === "completed"
+                          ? "bg-rag-green/20"
+                          : currentUserId && b.conductorId === currentUserId
+                            ? "bg-gold-400/15"
+                            : "bg-white/[0.07]"
                       }`}
                     >
                       {/*
@@ -295,7 +304,14 @@ export default function WhiteboardCalendar({
                       {[b.subjectName, b.branchName, b.conductorName].filter(Boolean).join(" · ")}
                     </p>
                   </div>
-                  <span className="shrink-0 text-white/70">{b.startTime ?? "—"}</span>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {/* The word, not only the colour: a chip that is merely a different
+                        shade of dark tells a colour blind manager nothing. */}
+                    {b.status === "completed" ? (
+                      <span className="pill bg-rag-green/20 text-rag-green-soft">Completed</span>
+                    ) : null}
+                    <span className="text-white/70">{b.startTime ?? "—"}</span>
+                  </div>
                 </div>
               ))}
             </div>

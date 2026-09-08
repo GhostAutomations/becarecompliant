@@ -24,6 +24,7 @@ import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
 import { applyRetentionForRecord } from "@/lib/evidence/retention";
 import { type Answers, type FormSchema, firstDateFieldKey, isFormSchema } from "@/lib/form-schema";
 import { formCompletesCheck } from "@/lib/form-validate";
+import { closeBookingsForCheck } from "@/lib/planner/close-booking";
 import type { ActionState } from "@/lib/forms";
 import type { CheckDefinition } from "@/lib/people/types";
 import { parseCivilDate } from "@/lib/recurrence";
@@ -875,6 +876,10 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
       })
       .eq("service_user_id", instance.service_user_id as string);
   }
+
+  // The work was booked; it has now been done. Turn the planner task green rather than
+  // leaving a month of appointments on the whiteboard that all already happened.
+  await closeBookingsForCheck(supabase, instanceId, user.id);
 
   await writeAudit({
     companyId: instance.company_id as string,
