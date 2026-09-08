@@ -213,6 +213,18 @@
     @apply mx-auto w-full max-w-3xl;
   }
 
+  /* THE COMPLETE BUTTON ON A TILE (Phil, 2026-09-08: "i like them central but not sure of
+     the width"). Full width made sense when the tiles were 500px and two abreast and the
+     button anchored a wide card. Now they are 230 to 390px and there are six of them, so six
+     full width gold bars started competing with the RAG pills, which are the thing somebody
+     is actually scanning for. Centred and sized to its words on a computer; still full width
+     on a phone, where a thumb wants the target and there is one tile per row anyway. */
+  .btn-tile {
+    /* flex + w-fit + mx-auto, not w-auto + self-center: the check tiles are a plain block
+       card, where self-center does nothing and an inline-flex button would sit hard left. */
+    @apply mt-3 w-full justify-center sm:mx-auto sm:flex sm:w-fit sm:px-5;
+  }
+
   /* Surfaces */
   .app-bg {
     @apply min-h-dvh bg-gradient-to-br from-navy-950 via-navy-900 to-navy-800;

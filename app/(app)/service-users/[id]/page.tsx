@@ -262,7 +262,7 @@ export default async function ServiceUserPage({
                       {s.n === nextReviewN && reviewStatusCheck && reviewDef?.form_id && canComplete ? (
                         <Link
                           href={`/service-users/${serviceUser.id}/checks/${reviewStatusCheck.instance_id}/complete`}
-                          className="btn-primary mt-3 w-full justify-center text-xs"
+                          className="btn-primary btn-tile text-xs"
                         >
                           Complete
                         </Link>
@@ -357,7 +357,7 @@ export default async function ServiceUserPage({
                       <div className="flex justify-between"><dt>Last completed</dt><dd className="text-white/85">{s?.last_completed_on ? formatDisplayDate(s.last_completed_on) : "Never"}</dd></div>
                     </dl>
                     {s && def.form_id && canComplete ? (
-                      <Link href={`/service-users/${serviceUser.id}/checks/${s.instance_id}/complete`} className="btn-primary mt-3 w-full justify-center text-xs">Complete</Link>
+                      <Link href={`/service-users/${serviceUser.id}/checks/${s.instance_id}/complete`} className="btn-primary btn-tile text-xs">Complete</Link>
                     ) : null}
                   </div>
                 );

@@ -323,7 +323,7 @@ export default async function PersonPage({
           <div className="flex justify-between"><dt>Last completed</dt><dd className="text-white/85">{lastComp ? formatDisplayDate(lastComp) : "Never"}</dd></div>
         </dl>
         {st && def.form_id && canComplete ? (
-          <Link href={`/people/${person.id}/checks/${st.instance_id}/complete`} className="btn-primary mt-3 w-full justify-center text-xs">Complete</Link>
+          <Link href={`/people/${person.id}/checks/${st.instance_id}/complete`} className="btn-primary btn-tile text-xs">Complete</Link>
         ) : null}
       </div>
     );
@@ -402,7 +402,7 @@ export default async function PersonPage({
                   {supStatus && supFormId && canComplete && s.n === dueSupN ? (
                     <Link
                       href={`/people/${person.id}/checks/${supStatus.instance_id}/complete?sup=${s.n}`}
-                      className="btn-primary mt-3 w-full justify-center text-xs"
+                      className="btn-primary btn-tile text-xs"
                     >
                       Complete
                     </Link>
