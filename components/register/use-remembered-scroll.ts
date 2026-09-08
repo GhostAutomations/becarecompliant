@@ -73,14 +73,19 @@ export function useRememberedScroll(
       settleRef.current = setTimeout(remember, SETTLE_MS);
     };
     el.addEventListener("scroll", onScroll, { passive: true });
-    /* Leaving for a record is a navigation, not an unload, so pagehide is the belt and
-       braces for closing the tab or following a link out of the app mid-scroll. */
+    /* pagehide covers closing the tab or leaving the app mid-scroll, while the element is
+       still on the page and can still be read. */
     window.addEventListener("pagehide", remember);
     return () => {
       if (settleRef.current) clearTimeout(settleRef.current);
       el.removeEventListener("scroll", onScroll);
       window.removeEventListener("pagehide", remember);
-      remember();
+      /* NOTHING IS WRITTEN ON THE WAY OUT, and this is the whole trick. Clicking a record
+         unmounts the board, and a detached element reports scrollLeft 0 -- so a save here
+         reads a position nobody scrolled to and erases the real one. Measured 2026-09-08:
+         the far right was stored correctly, then wiped by this very cleanup, and the board
+         came back at zero exactly as before. The scroll handler has already written the
+         position 150ms after the person stopped scrolling; there is nothing left to do. */
     };
   }, [ref, board]);
 }
