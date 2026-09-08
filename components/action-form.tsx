@@ -50,10 +50,11 @@ export default function ActionForm({
   className?: string;
   /** Lay children and the button out on one row (select + Save). */
   inline?: boolean;
-  /** Inline, but the control keeps its own width and the row sits at the RIGHT instead of
-   *  the control stretching across it (Phil, 2026-09-08, of the Right to Work dropdown: "it
-   *  doesnt need to be the width of the tile but keep it to the right"). Opt in, so every
-   *  existing inline form is untouched. */
+  /** Inline, but the control keeps its OWN width instead of stretching across the row
+   *  (Phil, 2026-09-08, of the Right to Work dropdown: "it doesnt need to be the width of the
+   *  tile"). It stays where it was, on the left, with the button beside it -- moving it to the
+   *  right as well was my own addition and wrong ("the drop down should have stayed on the
+   *  left"). Opt in, so every existing inline form is untouched. */
   inlineTight?: boolean;
   /** Optional confirmation prompt shown before submit. */
   confirm?: string;
@@ -132,7 +133,7 @@ export default function ActionForm({
       ref={formRef}
       action={formAction}
       onChange={() => setSaved(false)}
-      className={inline ? `flex items-end gap-2${inlineTight ? " justify-end" : ""}` : className}
+      className={inline ? "flex items-end gap-2" : className}
     >
       {hidden
         ? Object.entries(hidden).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)

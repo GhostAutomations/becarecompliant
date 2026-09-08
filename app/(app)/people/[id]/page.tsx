@@ -497,17 +497,18 @@ export default async function PersonPage({
                       standing save-button rule (17 Aug QA).
 
                       inlineTight (Phil, 2026-09-08: "it doesnt need to be the width of the
-                      tile but keep it to the right"). A dropdown whose longest option is a
-                      few words was being stretched across the whole tile because inline
-                      forms give the control flex-1. It now takes its own width and the row
-                      sits at the right, beside Save. */}
+                      tile"). A dropdown whose longest option is a few words was stretched
+                      across the whole tile because inline forms give the control flex-1. It
+                      now takes its own width and stays where it was, on the left, with Save
+                      beside it at the size of a Complete button. */}
                   <ActionForm
                     action={updateTracker}
                     hidden={{ person_id: person.id }}
                     inline
                     inlineTight
+                    buttonClassName="btn-primary text-[13px] sm:px-5"
                   >
-                    <label htmlFor="rtw_limits" className="form-label text-right">Limits</label>
+                    <label htmlFor="rtw_limits" className="form-label">Limits</label>
                     <select id="rtw_limits" name="rtw_limits" className="w-auto" defaultValue={tracker?.rtw_limits ?? ""}>
                       <option value="">Not set</option>
                       {(Object.keys(RTW_LIMIT_LABELS) as RtwLimit[]).map((k) => (
