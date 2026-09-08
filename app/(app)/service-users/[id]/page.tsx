@@ -162,10 +162,10 @@ export default async function ServiceUserPage({
     <div className="page-shell space-y-6">
       {/* The record's actions live in the corner, not in a card of their own further down
           (Phil, 2026-09-08). Book a task renders nothing off the Planner tier. */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <BackLink href={backHref} label="Back to Service Users" />
-          <div className="mt-1 flex flex-wrap items-center gap-3">
+      <div>
+        <BackLink href={backHref} label="Back to Service Users" />
+        <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <h1 className={`page-title ${NAME_SIZE}`}>{serviceUser.full_name}</h1>
             {ragPill(worstRag, PILL_SIZE)}
             {serviceUser.service_status !== "active" ? (
@@ -173,19 +173,19 @@ export default async function ServiceUserPage({
             ) : null}
             {serviceUser.archived_at ? <span className="pill-neutral">Archived</span> : null}
           </div>
-          <p className="page-subtitle mt-1.5 text-lg">
-            {[serviceUser.ssid ? `SSID ${serviceUser.ssid}` : null, serviceUser.branch_name]
-              .filter(Boolean)
-              .join(" · ") || "Service user record"}
-          </p>
+          <RecordBookTask
+            companyId={companyId}
+            population="service_users"
+            recordId={serviceUser.id}
+            recordName={serviceUser.full_name}
+            branchId={serviceUser.branch_id}
+          />
         </div>
-        <RecordBookTask
-          companyId={companyId}
-          population="service_users"
-          recordId={serviceUser.id}
-          recordName={serviceUser.full_name}
-          branchId={serviceUser.branch_id}
-        />
+        <p className="page-subtitle mt-1.5 text-lg">
+          {[serviceUser.ssid ? `SSID ${serviceUser.ssid}` : null, serviceUser.branch_name]
+            .filter(Boolean)
+            .join(" · ") || "Service user record"}
+        </p>
       </div>
 
       {completed ? (

@@ -218,8 +218,20 @@ export default async function PersonPage({
      of supervisor and above"). The instance is already refused in the database; this is
      the same rule on the screen. */
   const applicableDefs = checksForTitle(definitions, person.job_title);
+  /* THE APPRAISAL STANDS WITH THE SUPERVISIONS, NOT AMONG THE CHECKS (Phil, 2026-09-08:
+     "move the annual appraisal from checks and put it to the right of supervisions so it is
+     its own tile with the title above the tile like supervision"). On a three-supervisions
+     company the appraisal is not another annual check that happens to fall in the same year:
+     it is the fourth meeting of the cycle, it is what Supervision 3 leads to, and completing
+     it is what starts the next three. Sat in the Checks grid between Manual Handling and
+     Medication Competency, nothing on the screen said so. In four-supervisions mode there is
+     no appraisal in the cycle at all, so it stays an ordinary check. */
+  const appraisalTileDef =
+    cycleMode === "appraisal"
+      ? applicableDefs.find((d) => d.key === "appraisal") ?? null
+      : null;
   const otherDefs = applicableDefs
-    .filter((d) => d.key !== "supervision")
+    .filter((d) => d.key !== "supervision" && d.id !== appraisalTileDef?.id)
     .sort((a, b) => (CHECK_ORDER[a.key] ?? 99) - (CHECK_ORDER[b.key] ?? 99));
 
   // Probation tile sits ABOVE the Checks until the employee passes probation, then
@@ -287,14 +299,45 @@ export default async function PersonPage({
   const branchOptions = branches.filter((b) => b.kind === "branch" || b.kind === "team");
   const isLeaver = person.employment_status === "leaver";
 
+  /* ONE TILE, ONE PLACE. The appraisal renders beside the supervisions and every other check
+     renders in the grid, and both go through this, so the two can never drift into showing a
+     due date two different ways. */
+  const checkTile = (def: (typeof definitions)[number]) => {
+    const st = statusByDef.get(def.id);
+    // The appraisal's dates come from the cycle, not the stored instance.
+    const derived = def.key === "appraisal" && cycleMode === "appraisal";
+    const nextDue = derived ? aaSlot.nextDue : st?.due_date ?? null;
+    const lastComp = derived ? aaSlot.comp : st?.last_completed_on ?? null;
+    const rag = derived ? aaSlot.nextDueRag : st?.rag ?? "none";
+    return (
+      <div key={def.id} className="glass-card p-4">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-semibold text-white">{def.name}</h3>
+            <p className="text-[11px] text-white/45">{recurrenceLabel(def)}</p>
+          </div>
+          {st ? ragPill(rag) : <span className="pill-neutral">Not applied</span>}
+        </div>
+        <dl className="mt-3 space-y-1 text-xs text-white/60">
+          <div className="flex justify-between"><dt>Next due</dt><dd className="text-white/85">{nextDue ? formatDisplayDate(nextDue) : "—"}</dd></div>
+          <div className="flex justify-between"><dt>Last completed</dt><dd className="text-white/85">{lastComp ? formatDisplayDate(lastComp) : "Never"}</dd></div>
+        </dl>
+        {st && def.form_id && canComplete ? (
+          <Link href={`/people/${person.id}/checks/${st.instance_id}/complete`} className="btn-primary mt-3 w-full justify-center text-xs">Complete</Link>
+        ) : null}
+      </div>
+    );
+  };
+
   return (
     <div className="page-shell space-y-6">
-      {/* The record's actions live in the corner, not in a card of their own further down
-          (Phil, 2026-09-08). Book a task renders nothing off the Planner tier. */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <BackLink href={backHref} label="Back to People" />
-          <div className="mt-1 flex flex-wrap items-center gap-3">
+      {/* The record's actions live in the corner, not in a card of their own further down,
+          and LEVEL WITH THE NAME rather than up by the Back link (Phil, 2026-09-08). Book a
+          task renders nothing off the Planner tier, and the name row simply closes up. */}
+      <div>
+        <BackLink href={backHref} label="Back to People" />
+        <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <h1 className={`page-title ${NAME_SIZE}`}>{person.full_name}</h1>
             {ragPill(worstRag, PILL_SIZE)}
             {person.employment_status !== "active" ? (
@@ -302,17 +345,17 @@ export default async function PersonPage({
             ) : null}
             {person.archived_at ? <span className="pill-neutral">Archived</span> : null}
           </div>
-          <p className="page-subtitle mt-1.5 text-lg">
-            {[person.job_title, person.branch_name, person.team].filter(Boolean).join(" · ") || "Staff record"}
-          </p>
+          <RecordBookTask
+            companyId={companyId}
+            population="people"
+            recordId={person.id}
+            recordName={person.full_name}
+            branchId={person.branch_id}
+          />
         </div>
-        <RecordBookTask
-          companyId={companyId}
-          population="people"
-          recordId={person.id}
-          recordName={person.full_name}
-          branchId={person.branch_id}
-        />
+        <p className="page-subtitle mt-1.5 text-lg">
+          {[person.job_title, person.branch_name, person.team].filter(Boolean).join(" · ") || "Staff record"}
+        </p>
       </div>
 
       {completed ? (
@@ -337,8 +380,11 @@ export default async function PersonPage({
         </div>
       ) : (
         <>
-          {/* Supervision slots (Sup 1-3 + appraisal, or Sup 1-4 in four-supervisions mode) */}
-          <section className="space-y-3">
+          {/* Supervision, and beside it the appraisal that closes the cycle. Four columns so
+              the appraisal tile is exactly the width of one supervision slot; on a narrow
+              screen it drops underneath rather than squeezing four into a phone. */}
+          <div className={appraisalTileDef ? "grid items-start gap-4 lg:grid-cols-4" : ""}>
+          <section className={`space-y-3 ${appraisalTileDef ? "lg:col-span-3" : ""}`}>
             <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Supervision</h2>
             <div className={`glass-card grid gap-3 p-4 ${supCount === 4 ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3"}`}>
               {slots.map((s) => (
@@ -370,6 +416,18 @@ export default async function PersonPage({
               {" "}Each further supervision is due {supInterval} days after the previous one is completed.
             </p>
           </section>
+          {appraisalTileDef ? (
+            <section className="space-y-3">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
+                Annual Appraisal
+              </h2>
+              {checkTile(appraisalTileDef)}
+              <p className="text-[11px] text-white/40">
+                Due {supInterval} days after Supervision 3. Completing it starts the next three.
+              </p>
+            </section>
+          ) : null}
+          </div>
 
           {/* Probation shows here (above Checks) until the employee passes, full
               width to match the Supervision card above (Phil, 2026-07-18). */}
@@ -397,32 +455,7 @@ export default async function PersonPage({
                 monitor land in one row, and a narrow screen wraps rather than shrinking them
                 to nothing. Only the width changes; the tile's own content sets its height. */}
             <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(230px,1fr))]">
-              {otherDefs.map((def) => {
-                const s = statusByDef.get(def.id);
-                // The appraisal's dates come from the cycle, not the stored instance.
-                const derived = def.key === "appraisal" && cycleMode === "appraisal";
-                const nextDue = derived ? aaSlot.nextDue : s?.due_date ?? null;
-                const lastComp = derived ? aaSlot.comp : s?.last_completed_on ?? null;
-                const rag = derived ? aaSlot.nextDueRag : s?.rag ?? "none";
-                return (
-                  <div key={def.id} className="glass-card p-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <h3 className="text-sm font-semibold text-white">{def.name}</h3>
-                        <p className="text-[11px] text-white/45">{recurrenceLabel(def)}</p>
-                      </div>
-                      {s ? ragPill(rag) : <span className="pill-neutral">Not applied</span>}
-                    </div>
-                    <dl className="mt-3 space-y-1 text-xs text-white/60">
-                      <div className="flex justify-between"><dt>Next due</dt><dd className="text-white/85">{nextDue ? formatDisplayDate(nextDue) : "—"}</dd></div>
-                      <div className="flex justify-between"><dt>Last completed</dt><dd className="text-white/85">{lastComp ? formatDisplayDate(lastComp) : "Never"}</dd></div>
-                    </dl>
-                    {s && def.form_id && canComplete ? (
-                      <Link href={`/people/${person.id}/checks/${s.instance_id}/complete`} className="btn-primary mt-3 w-full justify-center text-xs">Complete</Link>
-                    ) : null}
-                  </div>
-                );
-              })}
+              {otherDefs.map((def) => checkTile(def))}
             </div>
           </section>
 
