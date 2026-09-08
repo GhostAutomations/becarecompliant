@@ -30,6 +30,8 @@ export type ScoreTotal = {
   counted: number;
   /** How many were answered N/A. */
   notApplicable: number;
+  /** How many questions the total covers, answered or not. */
+  asked: number;
 };
 
 /** The value that means a question does not apply. */
@@ -62,7 +64,13 @@ export function scoreTotal(
     score += n;
     counted += 1;
   }
-  return { score, outOf: counted * pointsPerQuestion, counted, notApplicable };
+  return {
+    score,
+    outOf: counted * pointsPerQuestion,
+    counted,
+    notApplicable,
+    asked: keys.length,
+  };
 }
 
 /** Add several totals together, for an overall score across sections. */
@@ -73,9 +81,15 @@ export function combineTotals(totals: ReadonlyArray<ScoreTotal>): ScoreTotal {
       outOf: acc.outOf + t.outOf,
       counted: acc.counted + t.counted,
       notApplicable: acc.notApplicable + t.notApplicable,
+      asked: acc.asked + t.asked,
     }),
-    { score: 0, outOf: 0, counted: 0, notApplicable: 0 },
+    { score: 0, outOf: 0, counted: 0, notApplicable: 0, asked: 0 },
   );
+}
+
+/** Has every question behind this total been answered, N/A included? */
+export function isComplete(total: ScoreTotal): boolean {
+  return total.asked > 0 && total.counted + total.notApplicable >= total.asked;
 }
 
 /**
@@ -84,12 +98,19 @@ export function combineTotals(totals: ReadonlyArray<ScoreTotal>): ScoreTotal {
  * `bands` are given against the FULL scale (Thistle's 0 to 63) and are read as
  * proportions of it, so the same table works whatever N/A leaves available. Null when
  * nothing has been scored yet, because no band is honest about an empty form.
+ *
+ * NOTHING IS RATED UNTIL IT IS FINISHED (Phil, 2026-09-08). The share is true at every
+ * point, but a rating read off two answers out of twenty one is not: answer the first two
+ * questions well and the form would have announced "Exceeding Required Standard" before
+ * the meeting had properly started, which is exactly the sort of number somebody screenshots.
+ * So there is no band at all until every question has an answer, N/A counting as one.
  */
 export function scoreBand(
   total: ScoreTotal,
   bands: ReadonlyArray<ScoreBand>,
   fullScale: number,
 ): string | null {
+  if (!isComplete(total)) return null;
   if (total.outOf <= 0 || fullScale <= 0 || bands.length === 0) return null;
   const share = total.score / total.outOf;
   for (const band of bands) {
@@ -101,4 +122,14 @@ export function scoreBand(
 /** "48 of 48" — the score with the denominator it was actually out of. */
 export function scoreLabel(total: ScoreTotal): string {
   return `${total.score} of ${total.outOf}`;
+}
+
+/**
+ * What to show beside a band: how far through it is while it is being filled in, and the
+ * score once it is finished. Saying "12 of 21 answered" is the honest version of a rating
+ * that is not ready yet, and it tells the person what is still missing.
+ */
+export function scoreProgress(total: ScoreTotal): string {
+  if (isComplete(total)) return scoreLabel(total);
+  return `${total.counted + total.notApplicable} of ${total.asked} answered`;
 }

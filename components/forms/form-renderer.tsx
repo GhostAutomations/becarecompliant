@@ -32,7 +32,7 @@ import {
 } from "@/lib/form-schema";
 import { type FieldError, isFieldVisible, standDown } from "@/lib/form-validate";
 import { computeScores, bandTotal } from "@/lib/forms/compute-scores";
-import { scoreLabel } from "@/lib/forms/scoring";
+import { scoreProgress } from "@/lib/forms/scoring";
 import { type LookupChoice, filterChoices, lookupError } from "@/lib/forms/lookup";
 
 type Props = {
@@ -134,7 +134,7 @@ export default function FormRenderer({
                   value={scored[field.key]}
                   scoreHint={
                     field.type === "score_band"
-                      ? scoreLabel(bandTotal(schema, answers, field))
+                      ? scoreProgress(bandTotal(schema, answers, field))
                       : undefined
                   }
                   error={errorMap.get(field.key)}
@@ -179,7 +179,7 @@ function Field({
 }: {
   field: FormField;
   value: AnswerValue | undefined;
-  /** score_band only: the number behind the band, e.g. "48 of 48". */
+  /** score_band only: "12 of 21 answered" while filling in, "48 of 48" once finished. */
   scoreHint?: string;
   error?: string;
   disabled: boolean;
