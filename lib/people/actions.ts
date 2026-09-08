@@ -23,9 +23,10 @@ import { applyRetentionForRecord } from "@/lib/evidence/retention";
 import { type Answers, type FormSchema, firstDateFieldKey, isFormSchema } from "@/lib/form-schema";
 import { cleanAnswers, formCompletesCheck } from "@/lib/form-validate";
 import { closeBookingsForCheck, closeBookingsForTrackerForm } from "@/lib/planner/close-booking";
+import { emailEvidenceCopy, wantsEmailCopy } from "@/lib/evidence/email-copy";
 import type { ActionState } from "@/lib/forms";
 import type { CheckDefinition } from "./types";
-import { listPeopleCheckDefinitions, getPublishedFormVersion, getCompanyFormByKey } from "./data";
+import { listPeopleCheckDefinitions, getPublishedFormVersion, getCompanyFormByKey, branchName } from "./data";
 import {
   initialDueDate,
   nextDueAfterCompletion,
@@ -918,7 +919,7 @@ export async function completeTrackerForm(_prev: ActionState, formData: FormData
   const supabase = await createClient();
   const { data: person } = await supabase
     .from("people")
-    .select("branch_id, company_id")
+    .select("branch_id, company_id, full_name, work_email")
     .eq("id", personId)
     .maybeSingle();
   if (!person) return { error: "That record could not be found." };
@@ -978,6 +979,33 @@ export async function completeTrackerForm(_prev: ActionState, formData: FormData
   // Booked on the planner as a task? It has now been done, so the chip goes green.
   await closeBookingsForTrackerForm(supabase, personId, formKey, user.id);
 
+  /* A review done over the telephone can be emailed to the person it is about, because
+     unlike a face to face one they have not signed it or seen it. Driven by the answer,
+     not by which form this is. The Evidence is already stored by now, so a failure to send
+     is reported rather than thrown: the record stands either way, and a manager must never
+     be left believing a copy went when it did not. */
+  let emailNote: string | null = null;
+  if (wantsEmailCopy(visible)) {
+    const [{ data: co }, personBranchName] = await Promise.all([
+      supabase.from("companies").select("name").eq("id", person.company_id as string).maybeSingle(),
+      branchName((person.branch_id as string | null) ?? null),
+    ]);
+    const companyName = (co?.name as string | null) ?? "Your employer";
+    emailNote = await emailEvidenceCopy({
+      schema: form.schema as FormSchema,
+      answers: visible,
+      recipientName: (person.full_name as string | null) ?? null,
+      recipientEmail: (person.work_email as string | null) ?? null,
+      companyName,
+      branchName: personBranchName,
+      formName: spec.title,
+      formVersion: 1,
+      authorName: profile.full_name || profile.email || null,
+      authorEmail: profile.email ?? null,
+      evidenceId: result.evidenceId,
+    });
+  }
+
   await writeAudit({
     companyId: person.company_id as string,
     actorId: user.id,
@@ -992,6 +1020,9 @@ export async function completeTrackerForm(_prev: ActionState, formData: FormData
 
   revalidatePath(`/people/${personId}`);
   revalidatePath("/people");
+  /* A copy that did not send is worth stopping for. The Evidence is saved either way, so
+     this is a message on the form rather than an error that loses their work. */
+  if (emailNote) return { error: emailNote };
   // Navigate client-side (see ActionState.redirectTo): a Server Action redirect()
   // to a URL with a query string trips Next.js issue #78396 (React #310).
   return { ok: "completed", redirectTo: `/people/${personId}?completed=${encodeURIComponent(spec.title)}` };
