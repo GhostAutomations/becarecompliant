@@ -21,7 +21,6 @@ import {
   listBranches,
   listSupervisoryUsers,
   listPeopleCheckDefinitions,
-  listPersonAssignments,
   listPersonEvidence,
 } from "@/lib/people/data";
 import { listPersonHolidays } from "@/lib/holidays/data";
@@ -31,12 +30,10 @@ import { listAssignmentsForPerson } from "@/lib/assignments/data";
 import { listPersonAbsences, listPersonMeetings } from "@/lib/absence/data";
 import {
   applyMissingChecks,
-  assignSupervisor,
   setArchived,
   setEmploymentStatus,
   setRetentionHold,
   transferPerson,
-  unassignSupervisor,
   updateTracker,
 } from "@/lib/people/actions";
 import { appraisalSlot, formatDisplayDate, recurrenceLabel, supervisionSlots } from "@/lib/people/logic";
@@ -126,7 +123,6 @@ export default async function PersonPage({
     definitions,
     evidence,
     users,
-    assignments,
     branches,
     tracker,
     holidays,
@@ -137,7 +133,6 @@ export default async function PersonPage({
     listPeopleCheckDefinitions(companyId),
     listPersonEvidence(id),
     canManage ? listSupervisoryUsers(companyId) : Promise.resolve([]),
-    canManage ? listPersonAssignments(id) : Promise.resolve([]),
     canManage ? listBranches(companyId, profile) : Promise.resolve([]),
     getPersonTracker(id),
     listPersonHolidays(id),
@@ -663,6 +658,12 @@ export default async function PersonPage({
           <div className="space-y-6 border-t border-white/10 p-5">
             <EditPersonForm person={person} users={users} />
 
+            {/* TRANSFER ALONE. The Supervisors picker that used to sit beside it wrote to
+                person_assignments, a table migration 0078 abandoned: a Supervisor sees
+                their BRANCH, not an assigned caseload, and no policy, function or query
+                has read that table since. It was a control that looked like it decided who
+                could see a carer and decided nothing (Phil, 2026-09-08: "i dont think we
+                need Supervisor caseload"). */}
             <div className="grid gap-5 sm:grid-cols-2">
               <ActionForm action={transferPerson} hidden={{ person_id: person.id }} label="Transfer" buttonClassName="btn-outline text-xs">
                 <label htmlFor="transfer_branch" className="form-label">Transfer to branch</label>
@@ -671,42 +672,6 @@ export default async function PersonPage({
                 </select>
               </ActionForm>
 
-              {/* SUPERVISORS, the same word the Add a person form uses for the same thing
-                  (Phil, 2026-09-08: "what is supervisor caseload"). It was the only place
-                  in the product calling it a caseload, and on a carer's record that reads
-                  as the carer's own caseload rather than who supervises them.
-
-                  The picker sits directly under the label so it lines up with the branch
-                  box beside it; who is already assigned is listed underneath, where a
-                  growing list cannot push the two columns out of step. */}
-              <div>
-                <span className="form-label">Supervisors</span>
-                <ActionForm action={assignSupervisor} hidden={{ person_id: person.id }} inline label="Assign" buttonClassName="btn-outline text-xs">
-                  <select name="user_id" defaultValue="" aria-label="Assign a supervisor">
-                    <option value="" disabled>Assign a user</option>
-                    {users.map((u) => (<option key={u.id} value={u.id}>{u.full_name || u.email}</option>))}
-                  </select>
-                </ActionForm>
-                <p className="form-hint">Who can see this record and carry out their checks. Set from the branch when the record was added.</p>
-                <div className="mt-2 flex flex-col gap-1">
-                  {assignments.length === 0 ? (
-                    <span className="text-xs text-white/50">No one assigned.</span>
-                  ) : (
-                    assignments.map((a) => (
-                      <div key={a.id} className="flex items-center justify-between gap-2">
-                        <span className="text-xs text-white/80">{a.full_name || a.email}</span>
-                        <ActionForm
-                          action={unassignSupervisor}
-                          hidden={{ person_id: person.id, user_id: a.id }}
-                          label="Remove"
-                          buttonClassName="btn-ghost text-[11px]"
-                          className=""
-                        />
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
             </div>
 
             <div className="flex flex-wrap items-end gap-3 border-t border-white/10 pt-4">
