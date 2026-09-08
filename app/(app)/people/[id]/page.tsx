@@ -373,7 +373,14 @@ export default async function PersonPage({
                 />
               ) : null}
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 min-[1900px]:grid-cols-5 min-[2300px]:grid-cols-6">
+            {/* ALL THE CHECKS ON ONE LINE (Phil, 2026-09-08: "narrow the tiles and put them
+                all on one line keep height the same only change width"). Fixed column counts
+                cannot do that: the number of checks varies by company and by job title, so
+                any number picked is wrong for somebody. auto-fit with a 230px floor fits as
+                many as the screen allows and shares the rest out - six checks on a wide
+                monitor land in one row, and a narrow screen wraps rather than shrinking them
+                to nothing. Only the width changes; the tile's own content sets its height. */}
+            <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(230px,1fr))]">
               {otherDefs.map((def) => {
                 const s = statusByDef.get(def.id);
                 // The appraisal's dates come from the cycle, not the stored instance.

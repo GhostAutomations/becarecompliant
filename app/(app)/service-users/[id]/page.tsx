@@ -325,7 +325,7 @@ export default async function ServiceUserPage({
                 />
               ) : null}
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 min-[1900px]:grid-cols-5 min-[2300px]:grid-cols-6">
+            <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(230px,1fr))]">
               {otherDefs.map((def) => {
                 const s = statusByDef.get(def.id);
                 return (
