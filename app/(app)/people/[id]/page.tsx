@@ -373,7 +373,7 @@ export default async function PersonPage({
                 />
               ) : null}
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 min-[1900px]:grid-cols-5 min-[2300px]:grid-cols-6">
               {otherDefs.map((def) => {
                 const s = statusByDef.get(def.id);
                 // The appraisal's dates come from the cycle, not the stored instance.
@@ -466,7 +466,7 @@ export default async function PersonPage({
 
       {/* Their Team Member login, and what has been assigned to them. */}
       {canManage ? (
-        <section className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+        <section className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3 min-[2300px]:grid-cols-4">
           <div className="glass-card p-5">
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white">
               Team Member login
@@ -556,7 +556,7 @@ export default async function PersonPage({
       ) : null}
 
       {/* Holiday & Absence history */}
-      <section className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+      <section className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3 min-[2300px]:grid-cols-4">
         <div className="glass-card p-5">
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white">Holiday</h2>
           {holidays.length === 0 ? (

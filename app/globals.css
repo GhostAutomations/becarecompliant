@@ -195,14 +195,18 @@
      wide they were. Two classes now decide it for the whole app.
 
      .page-shell is for anything you READ or WORK from: registers, records, dashboards,
-     reports, settings. It takes the width it is given, up to 1600px.
+     reports, settings. It takes the whole width it is given. It was capped at 1600px first
+     and that was still wrong: measured on the live record at 2560px, the shell sat 1600
+     wide inside a 2384 wide main, so 392px of empty navy remained down each side while the
+     page itself was still 441px taller than the screen. A cap is a narrower column with a
+     bigger number on it.
 
      .page-form is for a single form you FILL IN. It stays narrow on purpose. A text field
      stretched to 1600px puts the label at one end of the monitor and the answer at the
      other, and a line of typed prose that long is genuinely harder to read -- widening
      these would be the same mistake in the opposite direction. */
   .page-shell {
-    @apply mx-auto w-full max-w-[1600px];
+    @apply mx-auto w-full;
   }
 
   .page-form {
