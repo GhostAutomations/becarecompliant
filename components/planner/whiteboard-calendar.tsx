@@ -332,7 +332,12 @@ export default function WhiteboardCalendar({
                       {/* The word, not only the colour: a chip that is merely a different
                           shade of dark tells a colour blind manager nothing. */}
                       {b.status === "completed" ? (
-                        <span className="pill bg-rag-green/20 text-rag-green-soft">Completed</span>
+                        /* THE SAME GREEN AS COMPLIANT ON A RECORD (Phil, 2026-09-08:
+                           "the completed should be the same green as the compliant from
+                           the name card"). It was a one-off tint that read as a third
+                           green next to the chip and the pills; pill-green is the one
+                           the product already uses to mean this is fine. */
+                        <span className="pill-green">Completed</span>
                       ) : null}
                       <span className="text-white/70">{b.startTime ?? "—"}</span>
                     </div>
