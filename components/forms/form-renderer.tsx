@@ -113,7 +113,15 @@ export default function FormRenderer({
 
   return (
     <div className="flex flex-col gap-6">
-      {schema.sections.map((section) => (
+      {schema.sections.map((section) => {
+        /* A SECTION WITH NOTHING LEFT TO ASK IS NOT A SECTION. Every field in a section can
+           be hidden by conditional logic at once -- the Audit's call statistics exist only
+           for an ECM audit -- and a heading with nothing under it reads as a question the
+           person has failed to answer. Sections carry no visibleWhen of their own; they do
+           not need one, because a section IS its questions. */
+        const visibleFields = section.fields.filter((field) => isFieldVisible(field, answers));
+        if (visibleFields.length === 0) return null;
+        return (
         <section key={section.id} className="section-card p-5">
           {section.title || section.description ? (
             <div className="mb-4">
@@ -126,8 +134,7 @@ export default function FormRenderer({
             </div>
           ) : null}
           <div className="flex flex-col gap-5">
-            {section.fields.map((field) =>
-              isFieldVisible(field, answers) ? (
+            {visibleFields.map((field) => (
                 <Field
                   key={field.key}
                   field={field}
@@ -146,11 +153,11 @@ export default function FormRenderer({
                   lookupChoices={lookupChoices}
                   onLookupSelect={onLookupSelect}
                 />
-              ) : null,
-            )}
+            ))}
           </div>
         </section>
-      ))}
+        );
+      })}
     </div>
   );
 }
