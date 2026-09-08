@@ -17,6 +17,7 @@ import {
   branchName,
 } from "@/lib/people/data";
 import { supervisionSlots, annotateSupervisionOptions } from "@/lib/people/logic";
+import { nextSupervisionNumber } from "@/lib/people/next-supervision";
 import { DEFAULT_AMBER_DAYS, todayInLondon, formatCivilDate } from "@/lib/recurrence";
 import { recordFormPresets } from "@/lib/forms/record-presets";
 import { fieldToNameSelect, findField, isFormSchema, removeField, type Answers, type FormSchema } from "@/lib/form-schema";
@@ -73,9 +74,17 @@ export default async function CompleteCheckPage({
     );
   }
 
-  // Supervision: which supervision (1/2/3) is set by the Complete button clicked on
-  // the record, passed as ?sup=. We hide the "Which supervision" field and supply the
-  // value automatically. (Fallback for a missing sup: keep the annotated dropdown.)
+  /* Supervision: which supervision it is is NEVER asked. The Complete button on the
+     record passes it as ?sup=, and anything arriving without that -- a task opened from
+     the planner, a bookmark, a link in an email -- works it out from the record instead
+     (Phil, 2026-09-08: "why does it not know? it should [be] the same as if i am clicking
+     the supervision from the name card"). Supervisions are sequential, so the answer is
+     the first slot with no completion against it, which is the same rule the record card
+     uses to decide which tile gets a Complete button: nextSupervisionNumber, one rule in
+     one place so the two can never disagree.
+
+     The dropdown survives only for the case the rule cannot answer -- every supervision
+     in the cycle already completed -- where asking is the honest thing to do. */
   let schema = version.schema as FormSchema;
   let presetAnswers: Answers | undefined;
   let heading = def.name;
@@ -102,7 +111,14 @@ export default async function CompleteCheckPage({
         cycleMode === "four_supervisions" ? 4 : 3,
         cycleMode,
       );
-      schema = annotateSupervisionOptions(schema, slots);
+      const nextN = nextSupervisionNumber(slots);
+      if (nextN !== null) {
+        schema = removeField(schema, "supervision_type");
+        presetAnswers = { supervision_type: String(nextN) };
+        heading = `Supervision ${nextN}`;
+      } else {
+        schema = annotateSupervisionOptions(schema, slots);
+      }
     }
   }
 

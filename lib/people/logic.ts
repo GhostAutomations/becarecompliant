@@ -28,6 +28,7 @@ import {
   todayInLondon,
 } from "@/lib/recurrence";
 import type { CheckDefinition, SupervisionSlot } from "./types";
+import { nextSupervisionNumber } from "./next-supervision";
 
 /** The recurrence rule carried by a check definition (null when not recurring/complete). */
 function ruleOf(def: CheckDefinition): RecurrenceRule | null {
@@ -368,7 +369,7 @@ export function annotateSupervisionOptions(
   schema: FormSchema,
   slots: SupervisionSlot[],
 ): FormSchema {
-  const nextN = slots.find((s) => !s.comp)?.n ?? null;
+  const nextN = nextSupervisionNumber(slots);
   const hintFor = (slot: SupervisionSlot): string | undefined => {
     let hint: string;
     if (slot.comp) hint = `completed ${formatDisplayDate(slot.comp)}`;

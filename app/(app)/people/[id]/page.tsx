@@ -40,6 +40,7 @@ import {
   updateTracker,
 } from "@/lib/people/actions";
 import { formatDisplayDate, recurrenceLabel, supervisionSlots } from "@/lib/people/logic";
+import { nextSupervisionNumber } from "@/lib/people/next-supervision";
 import { ukDate } from "@/lib/dates";
 import {
   type CheckStatus,
@@ -184,8 +185,10 @@ export default async function PersonPage({
     cycleMode,
   );
   // Sequential: only the next-due supervision (the first one not yet completed)
-  // offers a Complete button, mirroring the Service User reviews.
-  const dueSupN = slots.find((s) => !s.comp)?.n ?? null;
+  // offers a Complete button, mirroring the Service User reviews. The rule is shared with
+  // the completion page, which has to reach the same answer when it is opened from the
+  // planner with no supervision number in the URL.
+  const dueSupN = nextSupervisionNumber(slots);
 
   const statusByDef = new Map<string, CheckStatus>(statuses.map((s) => [s.definition_id, s]));
   const supStatus = statuses.find((s) => s.check_key === "supervision") ?? null;
