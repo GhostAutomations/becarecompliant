@@ -27,7 +27,6 @@ import {
 import { listPersonHolidays } from "@/lib/holidays/data";
 import { getPersonLoginStatus } from "@/lib/staff/data";
 import { invitePersonLogin } from "@/lib/staff/actions";
-import { listAssignmentsForPerson } from "@/lib/assignments/data";
 import { listPersonAbsences, listPersonMeetings } from "@/lib/absence/data";
 import {
   applyMissingChecks,
@@ -141,12 +140,9 @@ export default async function PersonPage({
     listPersonMeetings(id),
   ]);
 
-  // Their own login, and anything assigned to them. Both are Manager-and-above
-  // information, so they are only fetched for someone who can manage the record.
-  const [login, personAssignments] = await Promise.all([
-    canManage ? getPersonLoginStatus(id) : Promise.resolve(null),
-    canManage ? listAssignmentsForPerson(id) : Promise.resolve([]),
-  ]);
+  // Their own login. Manager-and-above information, so it is only fetched for someone who
+  // can manage the record. The briefings that were fetched alongside it went with the tile.
+  const login = canManage ? await getPersonLoginStatus(id) : null;
 
   // The history timeline uses the record_audit_trail RPC (guarded by
   // can_manage_person), so only fetch it for managers/admins. Exports are Pro+.
@@ -482,7 +478,10 @@ export default async function PersonPage({
         </>
       )}
 
-      {/* Their Team Member login, and what has been assigned to them. */}
+      {/* Their Team Member login. The Briefings tile that sat beside it is gone (Phil,
+          2026-09-08: "i dont think we need the breifings tile") -- Briefings is its own
+          department, and a read-only list of the last eight, with a link saying Send one that
+          went somewhere else to send it, earned a card on a record it never acted on. */}
       {canManage ? (
         <section className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3 min-[2300px]:grid-cols-4">
           <div className="glass-card p-5">
@@ -540,36 +539,6 @@ export default async function PersonPage({
             )}
           </div>
 
-          <div className="glass-card p-5">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-white">
-                Briefings
-              </h2>
-              <Link href="/briefings" className="text-xs text-white/50 hover:text-white">
-                Send one
-              </Link>
-            </div>
-            {personAssignments.length === 0 ? (
-              <p className="text-sm text-white/50">Nothing sent to them.</p>
-            ) : (
-              <ul className="space-y-2">
-                {personAssignments.slice(0, 8).map((a) => (
-                  <li key={a.id} className="flex items-center justify-between gap-2 text-sm">
-                    <span className="min-w-0 truncate text-white/80">{a.title}</span>
-                    {a.status === "completed" ? (
-                      <span className="pill-green shrink-0">Done</span>
-                    ) : a.due_date && a.due_date < new Date().toISOString().slice(0, 10) ? (
-                      <span className="pill-red shrink-0">Overdue</span>
-                    ) : (
-                      <span className="pill-neutral shrink-0">
-                        {a.due_date ? formatDisplayDate(a.due_date) : "No date"}
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
         </section>
       ) : null}
 
