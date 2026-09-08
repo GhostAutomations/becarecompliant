@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { bookingHref } from "@/lib/planner/booking-link";
+import { bookingIsLate } from "@/lib/planner/late";
 import type { PlannerBookingView } from "@/lib/planner/data";
 // Pure and tested in lib/planner/week.test.ts: month ends, year ends, leap days and the clocks
 // going back are exactly where week arithmetic quietly goes wrong.
@@ -76,6 +77,22 @@ export default function WhiteboardCalendar({
 }) {
   const isWeek = span === "week";
   const [branchId, setBranchId] = useState("");
+
+  /* THE TIME OF DAY, READ AFTER MOUNTING. A planned task whose slot has passed shows red
+     (Phil, 2026-09-08), which needs the clock, and a client component that reads the clock
+     during render disagrees with the server's HTML and breaks hydration. Null until the
+     browser has it, and null is never late, so the first paint matches. Re-read every
+     minute so a chip turns red while the board is left open. */
+  const [nowMinutes, setNowMinutes] = useState<number | null>(null);
+  useEffect(() => {
+    const read = () => {
+      const d = new Date();
+      setNowMinutes(d.getHours() * 60 + d.getMinutes());
+    };
+    read();
+    const id = setInterval(read, 60_000);
+    return () => clearInterval(id);
+  }, []);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
   const sep = basePath.includes("?") ? "&" : "?";
@@ -220,9 +237,16 @@ export default function WhiteboardCalendar({
                            glance. */
                         b.status === "completed"
                           ? "bg-rag-green font-medium text-white"
-                          : currentUserId && b.conductorId === currentUserId
-                            ? "bg-gold-400/15 text-white/85"
-                            : "bg-white/[0.07] text-white/85"
+                          : /* RED BEATS BOTH: a slot that has been and gone without the
+                               work being done is the one thing on the board that needs
+                               acting on today. Planner only -- the check's own RAG is
+                               untouched, because a missed appointment is not the same as
+                               an overdue check. */
+                            bookingIsLate(b, todayIso, nowMinutes)
+                            ? "bg-rag-red font-medium text-white"
+                            : currentUserId && b.conductorId === currentUserId
+                              ? "bg-gold-400/15 text-white/85"
+                              : "bg-white/[0.07] text-white/85"
                       }`}
                     >
                       {/*
@@ -244,6 +268,7 @@ export default function WhiteboardCalendar({
                           {/* The tick, not only the colour: a chip that differs by hue
                               alone is invisible to a colour blind manager. */}
                           {b.status === "completed" ? "✓ " : ""}
+                          {bookingIsLate(b, todayIso, nowMinutes) ? "! " : ""}
                           {[b.startTime, chipName(b)].filter(Boolean).join(" · ")}
                         </span>
                         {(() => {
@@ -275,6 +300,7 @@ export default function WhiteboardCalendar({
                                        chip is already saying the more important thing:
                                        this one is done. */
                                     b.status !== "completed" &&
+                                    !bookingIsLate(b, todayIso, nowMinutes) &&
                                     currentUserId &&
                                     b.conductorId === currentUserId
                                       ? "text-gold-300"
@@ -349,6 +375,8 @@ export default function WhiteboardCalendar({
                            green next to the chip and the pills; pill-green is the one
                            the product already uses to mean this is fine. */
                         <span className="pill-green">Completed</span>
+                      ) : bookingIsLate(b, todayIso, nowMinutes) ? (
+                        <span className="pill-red">Missed</span>
                       ) : null}
                       <span className="text-white/70">{b.startTime ?? "—"}</span>
                     </div>
