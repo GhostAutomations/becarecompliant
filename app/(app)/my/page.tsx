@@ -15,6 +15,8 @@ import { POLICY_ACK_FORM_KEY } from "@/lib/assignments/types";
 import MyHolidays from "@/components/staff/my-holidays";
 import AssignedToMe from "@/components/staff/assigned-to-me";
 import MySection from "@/components/staff/my-section";
+import FormEvidenceDialog from "@/components/forms/form-evidence-dialog";
+import { recordFinancialTransaction } from "@/lib/staff/financial-actions";
 import { bookingSortKey, longDate } from "@/lib/training/booking";
 
 /**
@@ -96,13 +98,16 @@ export default async function MyAreaPage() {
   const { profile } = await requireCompany();
   if (!profile.company_id) redirect("/founder");
 
-  const [record, submissions, requestForm, ackForm, policyConfig] = await Promise.all([
+  const [record, submissions, requestForm, ackForm, policyConfig, moneyForm] = await Promise.all([
     getMyRecord(),
     getMySubmissions(),
     getCompanyFormByKey(profile.company_id, "holiday_requests"),
     getCompanyFormByKey(profile.company_id, POLICY_ACK_FORM_KEY),
     getPolicyConfig(profile.company_id),
+    getCompanyFormByKey(profile.company_id, "financial_transaction"),
   ]);
+  const moneySchema =
+    moneyForm && isFormSchema(moneyForm.schema) ? (moneyForm.schema as FormSchema) : null;
 
   const holidays = record ? await getMyHolidays(record.id) : [];
   // Item 26: the person being chased about their training was the only one who could not
@@ -211,6 +216,42 @@ export default async function MyAreaPage() {
           </section>
         );
       })()}
+
+      {/* MONEY HANDLED ON SOMEBODY ELSE'S BEHALF. The one form a Team Member fills in about
+          their own work, and it belongs here for the same reason Raise a concern does: the
+          person who actually held the money is the person who should be writing it down,
+          with the Service User signing next to them at the door. Typed up by an office later
+          it is a note ABOUT a transaction; recorded here it is the transaction.
+
+          Nothing falls due and nothing goes red -- shopping happens when it happens -- so it
+          is a form with no check behind it. It files Evidence on their own record, which is
+          where a question about somebody's money is answered from. */}
+      {record && moneySchema ? (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
+            Money I have handled
+          </h2>
+          <div className="glass-card flex flex-wrap items-center justify-between gap-4 p-5">
+            <span>
+              <span className="block text-sm font-semibold text-white">
+                Record a financial transaction
+              </span>
+              <span className="block text-xs text-white/55">
+                Money taken for shopping, a prescription or a top up. Fill it in with the
+                person before you leave and have them sign it.
+              </span>
+            </span>
+            <FormEvidenceDialog
+              title="Record a financial transaction"
+              schema={moneySchema}
+              action={recordFinancialTransaction}
+              triggerLabel="Record one"
+              triggerClassName="btn-primary px-3 py-2 text-sm"
+              submitLabel="Save this record"
+            />
+          </div>
+        </section>
+      ) : null}
 
       {/* RAISE A CONCERN (Phil, 2026-08-12: "how does a employee access it, is it in their
           portal?"). It was not, and that was the hole: the register could only be filled in
