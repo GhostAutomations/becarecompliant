@@ -26,6 +26,7 @@ export default function BookingForm({
   currentUserId,
   preset,
   buttonLabel = "New booking",
+  buttonClassName = "btn-primary text-xs",
 }: {
   data: PlannerFormData;
   /** Default conductor (the logged-in user). */
@@ -33,6 +34,8 @@ export default function BookingForm({
   /** When opened from a record, lock the subject to that record. */
   preset?: { population: "people" | "service_users"; id: string; name: string; branchId: string | null; checks: PlannerSubject["checks"] };
   buttonLabel?: string;
+  /** The trigger's classes. Defaults to what every other caller already had. */
+  buttonClassName?: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -137,7 +140,7 @@ export default function BookingForm({
 
   return (
     <div ref={ref} className="relative inline-block text-left">
-      <button type="button" className="btn-primary text-xs" onClick={() => setOpen((o) => !o)}>
+      <button type="button" className={buttonClassName} onClick={() => setOpen((o) => !o)}>
         {buttonLabel}
       </button>
       {/* CENTRED, not hung off the button (Phil, 2026-09-08: "the booking pop up is far

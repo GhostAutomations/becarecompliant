@@ -49,12 +49,16 @@ const MANAGE_ROLES = ["company_admin", "registered_individual", "registered_mana
 const COMPLETE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor", "platform_admin"];
 const RAG_RANK: Record<string, number> = { red: 0, amber: 1, green: 2, none: 3 };
 
-function ragPill(rag: string) {
-  if (rag === "red") return <span className="pill-red"><span className="pill-dot" /> Overdue</span>;
-  if (rag === "amber") return <span className="pill-amber"><span className="pill-dot" /> Due soon</span>;
-  if (rag === "green") return <span className="pill-green"><span className="pill-dot" /> Compliant</span>;
-  return <span className="pill-neutral">Not scheduled</span>;
+function ragPill(rag: string, size = "") {
+  if (rag === "red") return <span className={`pill-red ${size}`}><span className="pill-dot" /> Overdue</span>;
+  if (rag === "amber") return <span className={`pill-amber ${size}`}><span className="pill-dot" /> Due soon</span>;
+  if (rag === "green") return <span className={`pill-green ${size}`}><span className="pill-dot" /> Compliant</span>;
+  return <span className={`pill-neutral ${size}`}>Not scheduled</span>;
 }
+
+/* The record header only, matching the People record. */
+const NAME_SIZE = "text-4xl sm:text-5xl";
+const PILL_SIZE = "px-4 py-2 text-base";
 
 export default async function ServiceUserPage({
   params,
@@ -162,14 +166,14 @@ export default async function ServiceUserPage({
         <div>
           <BackLink href={backHref} label="Back to Service Users" />
           <div className="mt-1 flex flex-wrap items-center gap-3">
-            <h1 className="page-title">{serviceUser.full_name}</h1>
-            {ragPill(worstRag)}
+            <h1 className={`page-title ${NAME_SIZE}`}>{serviceUser.full_name}</h1>
+            {ragPill(worstRag, PILL_SIZE)}
             {serviceUser.service_status !== "active" ? (
               <span className="pill-neutral">{SERVICE_STATUS_LABELS[serviceUser.service_status]}</span>
             ) : null}
             {serviceUser.archived_at ? <span className="pill-neutral">Archived</span> : null}
           </div>
-          <p className="page-subtitle mt-1">
+          <p className="page-subtitle mt-1.5 text-lg">
             {[serviceUser.ssid ? `SSID ${serviceUser.ssid}` : null, serviceUser.branch_name]
               .filter(Boolean)
               .join(" · ") || "Service user record"}

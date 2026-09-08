@@ -56,12 +56,21 @@ const MANAGE_ROLES = ["company_admin", "registered_individual", "registered_mana
 const COMPLETE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor", "platform_admin"];
 const RAG_RANK: Record<string, number> = { red: 0, amber: 1, green: 2, none: 3 };
 
-function ragPill(rag: string) {
-  if (rag === "red") return <span className="pill-red"><span className="pill-dot" /> Overdue</span>;
-  if (rag === "amber") return <span className="pill-amber"><span className="pill-dot" /> Due soon</span>;
-  if (rag === "green") return <span className="pill-green"><span className="pill-dot" /> Compliant</span>;
-  return <span className="pill-neutral">Not scheduled</span>;
+function ragPill(rag: string, size = "") {
+  if (rag === "red") return <span className={`pill-red ${size}`}><span className="pill-dot" /> Overdue</span>;
+  if (rag === "amber") return <span className={`pill-amber ${size}`}><span className="pill-dot" /> Due soon</span>;
+  if (rag === "green") return <span className={`pill-green ${size}`}><span className="pill-dot" /> Compliant</span>;
+  return <span className={`pill-neutral ${size}`}>Not scheduled</span>;
 }
+
+/* The record header only (Phil, 2026-09-08: "make the persons name, job title and branch
+   bigger, made the pill next to their name bigger"). A record IS a person, and their name
+   was the same 24px as the word "Settings" on a settings page. The pill beside it carries
+   the one thing a manager opens the record to learn -- whether this person is compliant --
+   at the size of a footnote. Scoped here rather than in .page-title and .pill, which are
+   used on every screen in the app. */
+const NAME_SIZE = "text-4xl sm:text-5xl";
+const PILL_SIZE = "px-4 py-2 text-base";
 
 function slotPill(rag: string) {
   const cls =
@@ -286,14 +295,14 @@ export default async function PersonPage({
         <div>
           <BackLink href={backHref} label="Back to People" />
           <div className="mt-1 flex flex-wrap items-center gap-3">
-            <h1 className="page-title">{person.full_name}</h1>
-            {ragPill(worstRag)}
+            <h1 className={`page-title ${NAME_SIZE}`}>{person.full_name}</h1>
+            {ragPill(worstRag, PILL_SIZE)}
             {person.employment_status !== "active" ? (
               <span className="pill-neutral">{WORKING_STATUS_LABELS[person.employment_status]}</span>
             ) : null}
             {person.archived_at ? <span className="pill-neutral">Archived</span> : null}
           </div>
-          <p className="page-subtitle mt-1">
+          <p className="page-subtitle mt-1.5 text-lg">
             {[person.job_title, person.branch_name, person.team].filter(Boolean).join(" · ") || "Staff record"}
           </p>
         </div>
@@ -478,12 +487,15 @@ export default async function PersonPage({
         </>
       )}
 
-      {/* Their Team Member login. The Briefings tile that sat beside it is gone (Phil,
-          2026-09-08: "i dont think we need the breifings tile") -- Briefings is its own
-          department, and a read-only list of the last eight, with a link saying Send one that
-          went somewhere else to send it, earned a card on a record it never acted on. */}
+      {/* THE PERSON'S OWN ADMIN, IN ONE ROW: their login, their holiday, their absence
+          (Phil, 2026-09-08: "holiday and absence can go next to Team meber login"). All three
+          are about the employee rather than their compliance, they are read far more often
+          than they are acted on, and each was taking a row of its own. The login tile is
+          managers only, so auto-fit rather than a fixed three: a Supervisor sees two and they
+          share the row between them instead of leaving a gap where the login would have been.
+          The Briefings tile that used to sit here went with its query. */}
+      <section className="grid items-start gap-4 grid-cols-[repeat(auto-fit,minmax(320px,1fr))]">
       {canManage ? (
-        <section className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3 min-[2300px]:grid-cols-4">
           <div className="glass-card p-5">
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white">
               Team Member login
@@ -538,12 +550,8 @@ export default async function PersonPage({
               </div>
             )}
           </div>
-
-        </section>
       ) : null}
 
-      {/* Holiday & Absence history */}
-      <section className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3 min-[2300px]:grid-cols-4">
         <div className="glass-card p-5">
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white">Holiday</h2>
           {holidays.length === 0 ? (

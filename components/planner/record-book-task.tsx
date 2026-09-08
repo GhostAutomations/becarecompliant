@@ -45,6 +45,9 @@ export default async function RecordBookTask({
       currentUserId={user.id}
       preset={form.preset}
       buttonLabel="Book a task"
+      /* Twice the size of a normal button (Phil, 2026-09-08). It is the only action in the
+         corner of a record, competing with a page full of gold Complete buttons below it. */
+      buttonClassName="btn-primary rounded-2xl px-8 py-5 text-base"
     />
   );
 }
