@@ -63,6 +63,9 @@ export type CheckDefinition = {
   /** 'interval' (own days), 'after_sup3' (first due aligned to Supervision 3), or
    *  'ad_hoc' (non-recurring, completed on demand, no due date, e.g. Mentoring). */
   schedule_mode: "interval" | "after_sup3" | "ad_hoc";
+  /** Job titles this check belongs to. Null or empty means everybody, which is what
+   *  every check was before Lead the Leader (0253). */
+  job_titles: string[] | null;
 };
 
 /** One check applied to one Record, with its computed RAG (from person_check_status). */

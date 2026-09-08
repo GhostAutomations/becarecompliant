@@ -155,7 +155,7 @@ export default async function ServiceUserPage({
   const isCancelled = serviceUser.service_status === "cancelled";
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="mx-auto w-full max-w-[1600px] space-y-6">
       <div>
         <BackLink href={backHref} label="Back to Service Users" />
         <div className="mt-1 flex flex-wrap items-center gap-3">
@@ -325,7 +325,7 @@ export default async function ServiceUserPage({
                 />
               ) : null}
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {otherDefs.map((def) => {
                 const s = statusByDef.get(def.id);
                 return (

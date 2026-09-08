@@ -5,6 +5,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import { canManageRecord } from "@/lib/auth/manage-scope";
 import { callerBranchIds } from "@/lib/auth/branches";
 import BackLink from "@/components/back-link";
+import { checksForTitle } from "@/lib/people/check-scope";
 import ActionForm from "@/components/action-form";
 import RecordHistory from "@/components/reports/record-history";
 import EditPersonForm from "@/components/people/edit-person-form";
@@ -206,7 +207,13 @@ export default async function PersonPage({
   // Checks grid order: Spot Check first, then Annual Appraisal, then the rest
   // (Phil, 2026-07-18). Unlisted checks keep their natural order after these.
   const CHECK_ORDER: Record<string, number> = { spot_check: 0, appraisal: 1 };
-  const otherDefs = definitions
+  /* A check restricted to job titles is not shown on anybody else's record at all --
+     not as a tile saying "Not applied", which reads as something missing when it is
+     simply not theirs (Phil, 2026-09-08: Lead the Leader "will only sit on the name card
+     of supervisor and above"). The instance is already refused in the database; this is
+     the same rule on the screen. */
+  const applicableDefs = checksForTitle(definitions, person.job_title);
+  const otherDefs = applicableDefs
     .filter((d) => d.key !== "supervision")
     .sort((a, b) => (CHECK_ORDER[a.key] ?? 99) - (CHECK_ORDER[b.key] ?? 99));
 
@@ -269,12 +276,14 @@ export default async function PersonPage({
     statuses.length === 0
       ? "none"
       : statuses.reduce((worst, s) => (RAG_RANK[s.rag] < RAG_RANK[worst] ? s.rag : worst), "green" as string);
-  const missingCount = definitions.filter((d) => !statusByDef.has(d.id)).length;
+  /* Counted over the checks that are actually this person's, so the button never offers to
+     apply something the database would refuse and then report nothing happened. */
+  const missingCount = applicableDefs.filter((d) => !statusByDef.has(d.id)).length;
   const branchOptions = branches.filter((b) => b.kind === "branch" || b.kind === "team");
   const isLeaver = person.employment_status === "leaver";
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="mx-auto w-full max-w-[1600px] space-y-6">
       <div>
         <BackLink href={backHref} label="Back to People" />
         <div className="mt-1 flex flex-wrap items-center gap-3">
@@ -364,7 +373,7 @@ export default async function PersonPage({
                 />
               ) : null}
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {otherDefs.map((def) => {
                 const s = statusByDef.get(def.id);
                 // The appraisal's dates come from the cycle, not the stored instance.
@@ -457,7 +466,7 @@ export default async function PersonPage({
 
       {/* Their Team Member login, and what has been assigned to them. */}
       {canManage ? (
-        <section className="grid gap-4 lg:grid-cols-2">
+        <section className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
           <div className="glass-card p-5">
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white">
               Team Member login
@@ -547,7 +556,7 @@ export default async function PersonPage({
       ) : null}
 
       {/* Holiday & Absence history */}
-      <section className="grid gap-4 lg:grid-cols-2">
+      <section className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
         <div className="glass-card p-5">
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white">Holiday</h2>
           {holidays.length === 0 ? (
