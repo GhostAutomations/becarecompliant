@@ -21,7 +21,7 @@ import { assignStandingPolicies } from "@/lib/assignments/new-starters";
 import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
 import { applyRetentionForRecord } from "@/lib/evidence/retention";
 import { type Answers, type FormSchema, firstDateFieldKey, isFormSchema } from "@/lib/form-schema";
-import { formCompletesCheck } from "@/lib/form-validate";
+import { cleanAnswers, formCompletesCheck } from "@/lib/form-validate";
 import { closeBookingsForCheck } from "@/lib/planner/close-booking";
 import type { ActionState } from "@/lib/forms";
 import type { CheckDefinition } from "./types";
@@ -880,18 +880,28 @@ export async function completeTrackerForm(_prev: ActionState, formData: FormData
   });
   if (!result.ok) return { error: result.error };
 
-  // Stamp the mapped tracker dates (+ status) from the answers. Only touch a
-  // column when the form actually captured that field: a form that omits a
-  // date (e.g. probation end due is set at record creation, or a field hidden
-  // by conditional logic) must never wipe the stored value.
+  /* Stamp the mapped tracker dates (+ status) from the answers. Only touch a column when
+     the form actually captured that field: a form that omits a date (e.g. probation end
+     due is set at record creation) must never wipe the stored value.
+
+     READ THE CLEANED ANSWERS, NOT THE RAW ONES. A date the person could not see when they
+     submitted must not be written to their record. Pick "probation passed", type the end
+     date, then change your mind and pick "extended", and the raw answers still carry the
+     end date you typed a moment ago -- the renderer hides the field but does not forget
+     what was in it. The Evidence row has always been written from cleanAnswers for exactly
+     this reason; the tracker columns were not, and would have recorded a probation as
+     ended on a date nobody was asked for. */
+  const visible = isFormSchema(form.schema)
+    ? cleanAnswers(form.schema as FormSchema, answers)
+    : answers;
   const patch: Record<string, unknown> = { updated_by: user.id };
   for (const [answerKey, column] of Object.entries(spec.dateFields)) {
-    if (!(answerKey in answers)) continue;
-    const v = answers[answerKey];
+    if (!(answerKey in visible)) continue;
+    const v = visible[answerKey];
     patch[column] = typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
   }
   if (spec.statusFrom) {
-    const sv = answers[spec.statusFrom.answer];
+    const sv = visible[spec.statusFrom.answer];
     if (typeof sv === "string" && sv) patch[spec.statusFrom.column] = sv;
   }
   await supabase.from("person_trackers").update(patch).eq("person_id", personId);

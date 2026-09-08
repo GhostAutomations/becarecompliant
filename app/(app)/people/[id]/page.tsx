@@ -227,8 +227,8 @@ export default async function PersonPage({
           {probationStatusPill(tracker?.probation_status ?? null)}
         </div>
         {canManage && !supportMode ? (
-          <Link href={`/people/${person.id}/tracker/probation_review/complete`} className="btn-outline text-xs">
-            Record
+          <Link href={`/people/${person.id}/tracker/probation_review/complete`} className="btn-primary text-xs">
+            Complete
           </Link>
         ) : null}
       </div>
@@ -253,8 +253,8 @@ export default async function PersonPage({
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-white">Probation</h2>
         {canManage && !supportMode ? (
-          <Link href={`/people/${person.id}/tracker/probation_review/complete`} className="btn-outline text-xs">
-            Record
+          <Link href={`/people/${person.id}/tracker/probation_review/complete`} className="btn-primary text-xs">
+            Complete
           </Link>
         ) : null}
       </div>
@@ -407,8 +407,8 @@ export default async function PersonPage({
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-white">DBS</h2>
                 {canManage && !supportMode ? (
-                  <Link href={`/people/${person.id}/tracker/dbs_renewal/complete`} className="btn-outline text-xs">
-                    Record
+                  <Link href={`/people/${person.id}/tracker/dbs_renewal/complete`} className="btn-primary text-xs">
+                    Complete
                   </Link>
                 ) : null}
               </div>
@@ -423,8 +423,8 @@ export default async function PersonPage({
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-white">Right to Work</h2>
                 {canManage && !supportMode ? (
-                  <Link href={`/people/${person.id}/tracker/right_to_work/complete`} className="btn-outline text-xs">
-                    Record
+                  <Link href={`/people/${person.id}/tracker/right_to_work/complete`} className="btn-primary text-xs">
+                    Complete
                   </Link>
                 ) : null}
               </div>
