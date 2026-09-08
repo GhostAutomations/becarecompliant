@@ -671,9 +671,24 @@ export default async function PersonPage({
                 </select>
               </ActionForm>
 
-              <div className="space-y-2">
-                <span className="form-label">Supervisor caseload</span>
-                <div className="flex flex-col gap-1">
+              {/* SUPERVISORS, the same word the Add a person form uses for the same thing
+                  (Phil, 2026-09-08: "what is supervisor caseload"). It was the only place
+                  in the product calling it a caseload, and on a carer's record that reads
+                  as the carer's own caseload rather than who supervises them.
+
+                  The picker sits directly under the label so it lines up with the branch
+                  box beside it; who is already assigned is listed underneath, where a
+                  growing list cannot push the two columns out of step. */}
+              <div>
+                <span className="form-label">Supervisors</span>
+                <ActionForm action={assignSupervisor} hidden={{ person_id: person.id }} inline label="Assign" buttonClassName="btn-outline text-xs">
+                  <select name="user_id" defaultValue="" aria-label="Assign a supervisor">
+                    <option value="" disabled>Assign a user</option>
+                    {users.map((u) => (<option key={u.id} value={u.id}>{u.full_name || u.email}</option>))}
+                  </select>
+                </ActionForm>
+                <p className="form-hint">Who can see this record and carry out their checks. Set from the branch when the record was added.</p>
+                <div className="mt-2 flex flex-col gap-1">
                   {assignments.length === 0 ? (
                     <span className="text-xs text-white/50">No one assigned.</span>
                   ) : (
@@ -691,12 +706,6 @@ export default async function PersonPage({
                     ))
                   )}
                 </div>
-                <ActionForm action={assignSupervisor} hidden={{ person_id: person.id }} inline label="Assign" buttonClassName="btn-outline text-xs">
-                  <select name="user_id" defaultValue="" aria-label="Assign a supervisor">
-                    <option value="" disabled>Assign a user</option>
-                    {users.map((u) => (<option key={u.id} value={u.id}>{u.full_name || u.email}</option>))}
-                  </select>
-                </ActionForm>
               </div>
             </div>
 
