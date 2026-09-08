@@ -12,6 +12,7 @@ import "server-only";
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { completionDate, dateKeysByVersion } from "@/lib/evidence/completion-date";
 import { profilesById, profileName } from "@/lib/auth/company-profiles";
 import { branchScopedRole } from "@/lib/auth/manage-scope";
 import type { CheckDefinition } from "@/lib/people/types";
@@ -467,13 +468,18 @@ export async function listRegister(
     reviewFormId
       ? supabase
           .from("evidence")
-          .select("record_id, submitted_at, answers")
+          .select("record_id, submitted_at, answers, form_version_id")
           .eq("record_type", "service_user")
           .eq("form_id", reviewFormId)
           .in("record_id", ids)
           .order("submitted_at", { ascending: true })
       : Promise.resolve({
-          data: [] as Array<{ record_id: string; submitted_at: string; answers: Record<string, unknown> }>,
+          data: [] as Array<{
+            record_id: string;
+            submitted_at: string;
+            answers: Record<string, unknown>;
+            form_version_id: string | null;
+          }>,
         }),
     reviewDefId
       ? supabase
@@ -491,13 +497,20 @@ export async function listRegister(
   // (not keyed by review number) so switching a branch Simple <-> Complex reuses the
   // same completions.
   const reviewCompsBySu = new Map<string, string[]>();
-  for (const e of (reviewEvidence as Array<{
-    record_id: string;
-    submitted_at: string;
-    answers: Record<string, unknown>;
-  }>) ?? []) {
-    const d = e.answers?.review_date;
-    const iso = typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : e.submitted_at.slice(0, 10);
+  const reviewRows =
+    (reviewEvidence as Array<{
+      record_id: string;
+      submitted_at: string;
+      answers: Record<string, unknown>;
+      form_version_id: string | null;
+    }>) ?? [];
+  const reviewDateKeys = await dateKeysFor(supabase, reviewRows);
+  for (const e of reviewRows) {
+    const iso = completionDate(
+      e.answers,
+      e.submitted_at,
+      reviewDateKeys.get(e.form_version_id ?? "") ?? null,
+    );
     const list = reviewCompsBySu.get(e.record_id) ?? [];
     list.push(iso);
     reviewCompsBySu.set(e.record_id, list);
@@ -572,6 +585,20 @@ export async function getServiceUserTracker(id: string): Promise<ServiceUserTrac
   return { ...rest, planned_reviewer_name: name };
 }
 
+
+/** Which answer holds the completion date, for each form version some Evidence was
+ *  submitted under. One small query however many records are being read, and the same
+ *  rule the saving side uses (lib/evidence/completion-date.ts). */
+async function dateKeysFor(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  rows: ReadonlyArray<{ form_version_id?: string | null }>,
+): Promise<Map<string, string | null>> {
+  const ids = [...new Set(rows.map((r) => r.form_version_id).filter((id): id is string => !!id))];
+  if (ids.length === 0) return new Map();
+  const { data } = await supabase.from("form_versions").select("id, schema").in("id", ids);
+  return dateKeysByVersion((data as Array<{ id: string; schema: unknown }>) ?? []);
+}
+
 /** All Care Plan Review completion dates for one Service User (oldest first), used to
  *  derive the Review 1-4 slots positionally on Complex branches. */
 export async function getReviewComps(
@@ -584,14 +611,20 @@ export async function getReviewComps(
   if (reviewFormId) {
     const { data } = await supabase
       .from("evidence")
-      .select("submitted_at, answers")
+      .select("submitted_at, answers, form_version_id")
       .eq("record_type", "service_user")
       .eq("record_id", serviceUserId)
       .eq("form_id", reviewFormId)
       .order("submitted_at", { ascending: true });
-    for (const e of (data as Array<{ submitted_at: string; answers: Record<string, unknown> }>) ?? []) {
-      const d = e.answers?.review_date;
-      out.push(typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : e.submitted_at.slice(0, 10));
+    const rows =
+      (data as Array<{
+        submitted_at: string;
+        answers: Record<string, unknown>;
+        form_version_id: string | null;
+      }>) ?? [];
+    const keys = await dateKeysFor(supabase, rows);
+    for (const e of rows) {
+      out.push(completionDate(e.answers, e.submitted_at, keys.get(e.form_version_id ?? "") ?? null));
     }
   }
   if (reviewDefId) {

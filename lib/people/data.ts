@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 import { listStaff, profilesById } from "@/lib/auth/company-profiles";
 import { type ProbationPeriod, probationFrom } from "@/lib/people/probation";
 import { branchScopedRole } from "@/lib/auth/manage-scope";
+import { completionDate, dateKeysByVersion } from "@/lib/evidence/completion-date";
 import { callerBranchIds } from "@/lib/auth/branches";
 import type {
   CheckDefinition,
@@ -273,13 +274,18 @@ export async function listRegister(
     supFormId
       ? supabase
           .from("evidence")
-          .select("record_id, submitted_at, answers")
+          .select("record_id, submitted_at, answers, form_version_id")
           .eq("record_type", "person")
           .eq("form_id", supFormId)
           .in("record_id", ids)
           .order("submitted_at", { ascending: true })
       : Promise.resolve({
-          data: [] as Array<{ record_id: string; submitted_at: string; answers: Record<string, unknown> }>,
+          data: [] as Array<{
+            record_id: string;
+            submitted_at: string;
+            answers: Record<string, unknown>;
+            form_version_id: string | null;
+          }>,
         }),
     supDefId
       ? supabase
@@ -292,13 +298,18 @@ export async function listRegister(
     appraisalFormId
       ? supabase
           .from("evidence")
-          .select("record_id, submitted_at, answers")
+          .select("record_id, submitted_at, answers, form_version_id")
           .eq("record_type", "person")
           .eq("form_id", appraisalFormId)
           .in("record_id", ids)
           .order("submitted_at", { ascending: true })
       : Promise.resolve({
-          data: [] as Array<{ record_id: string; submitted_at: string; answers: Record<string, unknown> }>,
+          data: [] as Array<{
+            record_id: string;
+            submitted_at: string;
+            answers: Record<string, unknown>;
+            form_version_id: string | null;
+          }>,
         }),
     appraisalDefId
       ? supabase
@@ -339,12 +350,19 @@ export async function listRegister(
     a.push(d);
     supDatesByPerson.set(pid, a);
   };
-  for (const e of (supEvidence as Array<{
-    record_id: string;
-    submitted_at: string;
-    answers: Record<string, unknown>;
-  }>) ?? []) {
-    pushSupDate(e.record_id, supervisionCompDate(e.answers, e.submitted_at));
+  const supRows =
+    (supEvidence as Array<{
+      record_id: string;
+      submitted_at: string;
+      answers: Record<string, unknown>;
+      form_version_id: string | null;
+    }>) ?? [];
+  const supDateKeys = await dateKeysFor(supabase, supRows);
+  for (const e of supRows) {
+    pushSupDate(
+      e.record_id,
+      completionDate(e.answers, e.submitted_at, supDateKeys.get(e.form_version_id ?? "") ?? null),
+    );
   }
   for (const m of (supMigrated as Array<{ record_id: string; completed_on: string }>) ?? []) {
     pushSupDate(m.record_id, m.completed_on);
@@ -360,12 +378,19 @@ export async function listRegister(
     a.push(d);
     appraisalDatesByPerson.set(pid, a);
   };
-  for (const e of (appraisalEvidence as Array<{
-    record_id: string;
-    submitted_at: string;
-    answers: Record<string, unknown>;
-  }>) ?? []) {
-    pushAppraisalDate(e.record_id, appraisalCompDate(e.answers, e.submitted_at));
+  const appraisalRows =
+    (appraisalEvidence as Array<{
+      record_id: string;
+      submitted_at: string;
+      answers: Record<string, unknown>;
+      form_version_id: string | null;
+    }>) ?? [];
+  const appraisalDateKeys = await dateKeysFor(supabase, appraisalRows);
+  for (const e of appraisalRows) {
+    pushAppraisalDate(
+      e.record_id,
+      completionDate(e.answers, e.submitted_at, appraisalDateKeys.get(e.form_version_id ?? "") ?? null),
+    );
   }
   for (const m of (appraisalMigrated as Array<{ record_id: string; completed_on: string }>) ?? []) {
     pushAppraisalDate(m.record_id, m.completed_on);
@@ -394,20 +419,17 @@ export async function getPersonTracker(personId: string): Promise<PersonTracker 
   return (data as PersonTracker | null) ?? null;
 }
 
-/** The supervision completion date to display: the form's "Date of supervision"
- *  (when it actually happened) if captured, else the submission timestamp. */
-function supervisionCompDate(answers: Record<string, unknown>, submittedAt: string): string {
-  const d = answers?.supervision_date;
-  if (typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
-  return submittedAt.slice(0, 10);
-}
-
-/** The appraisal completion date: the form's "Date of Appraisal" if captured,
- *  else the submission timestamp. */
-function appraisalCompDate(answers: Record<string, unknown>, submittedAt: string): string {
-  const d = answers?.date_of_appraisal;
-  if (typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
-  return submittedAt.slice(0, 10);
+/** Which answer holds the completion date, for each form version some Evidence was
+ *  submitted under. One small query however many records are being read, and the same
+ *  rule the saving side uses (lib/evidence/completion-date.ts). */
+async function dateKeysFor(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  rows: ReadonlyArray<{ form_version_id?: string | null }>,
+): Promise<Map<string, string | null>> {
+  const ids = [...new Set(rows.map((r) => r.form_version_id).filter((id): id is string => !!id))];
+  if (ids.length === 0) return new Map();
+  const { data } = await supabase.from("form_versions").select("id, schema").in("id", ids);
+  return dateKeysByVersion((data as Array<{ id: string; schema: unknown }>) ?? []);
 }
 
 /** All appraisal completion dates (ISO) for a person, from evidence AND migrated
@@ -422,13 +444,20 @@ export async function getAppraisalCompDates(
   if (appraisalFormId) {
     const { data } = await supabase
       .from("evidence")
-      .select("submitted_at, answers")
+      .select("submitted_at, answers, form_version_id")
       .eq("record_type", "person")
       .eq("record_id", personId)
       .eq("form_id", appraisalFormId)
       .order("submitted_at", { ascending: true });
-    for (const e of (data as Array<{ submitted_at: string; answers: Record<string, unknown> }>) ?? []) {
-      dates.push(appraisalCompDate(e.answers, e.submitted_at));
+    const rows =
+      (data as Array<{
+        submitted_at: string;
+        answers: Record<string, unknown>;
+        form_version_id: string | null;
+      }>) ?? [];
+    const keys = await dateKeysFor(supabase, rows);
+    for (const e of rows) {
+      dates.push(completionDate(e.answers, e.submitted_at, keys.get(e.form_version_id ?? "") ?? null));
     }
   }
   if (appraisalDefId) {
@@ -455,13 +484,20 @@ export async function getSupervisionCompDates(
   if (supFormId) {
     const { data } = await supabase
       .from("evidence")
-      .select("submitted_at, answers")
+      .select("submitted_at, answers, form_version_id")
       .eq("record_type", "person")
       .eq("record_id", personId)
       .eq("form_id", supFormId)
       .order("submitted_at", { ascending: true });
-    for (const e of (data as Array<{ submitted_at: string; answers: Record<string, unknown> }>) ?? []) {
-      dates.push(supervisionCompDate(e.answers, e.submitted_at));
+    const rows =
+      (data as Array<{
+        submitted_at: string;
+        answers: Record<string, unknown>;
+        form_version_id: string | null;
+      }>) ?? [];
+    const keys = await dateKeysFor(supabase, rows);
+    for (const e of rows) {
+      dates.push(completionDate(e.answers, e.submitted_at, keys.get(e.form_version_id ?? "") ?? null));
     }
   }
   if (supDefId) {
