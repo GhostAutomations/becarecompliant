@@ -39,7 +39,7 @@ import {
   unassignSupervisor,
   updateTracker,
 } from "@/lib/people/actions";
-import { formatDisplayDate, recurrenceLabel, supervisionSlots } from "@/lib/people/logic";
+import { appraisalSlot, formatDisplayDate, recurrenceLabel, supervisionSlots } from "@/lib/people/logic";
 import { nextSupervisionNumber } from "@/lib/people/next-supervision";
 import { ukDate } from "@/lib/dates";
 import {
@@ -189,6 +189,22 @@ export default async function PersonPage({
   // the completion page, which has to reach the same answer when it is opened from the
   // planner with no supervision number in the URL.
   const dueSupN = nextSupervisionNumber(slots);
+
+  /* THE ANNUAL APPRAISAL IS DERIVED, NOT READ (Phil, 2026-09-08: "on the compliance
+     matrix the annual appraisal due shows the date of 29/11/26 but on the name card for
+     annual appraisal next due is blank... the name card should match the matrix").
+
+     In appraisal mode the appraisal falls due a supervision interval after the third
+     supervision of the cycle. The register works that out live from the completions; this
+     page was reading check_instances.due_date, which is only written at the moment Sup 3
+     is completed AND only if the appraisal was already set to "after supervision 3". Turn
+     that setting on afterwards -- exactly what happened here -- and the stored date stays
+     empty forever while the register shows the real one. Two screens, two answers, one of
+     them wrong.
+
+     Both now derive it the same way, from the same function and the same inputs, so they
+     cannot disagree. Untouched in four-supervisions mode, where there is no appraisal. */
+  const aaSlot = appraisalSlot(appraisalCompDates, supCompDates, supInterval, supAmber);
 
   const statusByDef = new Map<string, CheckStatus>(statuses.map((s) => [s.definition_id, s]));
   const supStatus = statuses.find((s) => s.check_key === "supervision") ?? null;
@@ -356,6 +372,11 @@ export default async function PersonPage({
             <div className="grid gap-3 sm:grid-cols-2">
               {otherDefs.map((def) => {
                 const s = statusByDef.get(def.id);
+                // The appraisal's dates come from the cycle, not the stored instance.
+                const derived = def.key === "appraisal" && cycleMode === "appraisal";
+                const nextDue = derived ? aaSlot.nextDue : s?.due_date ?? null;
+                const lastComp = derived ? aaSlot.comp : s?.last_completed_on ?? null;
+                const rag = derived ? aaSlot.nextDueRag : s?.rag ?? "none";
                 return (
                   <div key={def.id} className="glass-card p-4">
                     <div className="flex items-start justify-between gap-2">
@@ -363,11 +384,11 @@ export default async function PersonPage({
                         <h3 className="text-sm font-semibold text-white">{def.name}</h3>
                         <p className="text-[11px] text-white/45">{recurrenceLabel(def)}</p>
                       </div>
-                      {s ? ragPill(s.rag) : <span className="pill-neutral">Not applied</span>}
+                      {s ? ragPill(rag) : <span className="pill-neutral">Not applied</span>}
                     </div>
                     <dl className="mt-3 space-y-1 text-xs text-white/60">
-                      <div className="flex justify-between"><dt>Next due</dt><dd className="text-white/85">{s?.due_date ? formatDisplayDate(s.due_date) : "—"}</dd></div>
-                      <div className="flex justify-between"><dt>Last completed</dt><dd className="text-white/85">{s?.last_completed_on ? formatDisplayDate(s.last_completed_on) : "Never"}</dd></div>
+                      <div className="flex justify-between"><dt>Next due</dt><dd className="text-white/85">{nextDue ? formatDisplayDate(nextDue) : "—"}</dd></div>
+                      <div className="flex justify-between"><dt>Last completed</dt><dd className="text-white/85">{lastComp ? formatDisplayDate(lastComp) : "Never"}</dd></div>
                     </dl>
                     {s && def.form_id && canComplete ? (
                       <Link href={`/people/${person.id}/checks/${s.instance_id}/complete`} className="btn-primary mt-3 w-full justify-center text-xs">Complete</Link>
