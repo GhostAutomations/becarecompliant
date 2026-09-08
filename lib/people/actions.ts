@@ -190,6 +190,16 @@ export async function updatePerson(_prev: ActionState, formData: FormData): Prom
   if (!full_name) return { error: "Enter the person's name." };
 
   const supabase = await createClient();
+  const startDate = isoDateOrNull(formData.get("start_date"));
+
+  // What the start date was BEFORE this save, so we only reschedule when it actually moved.
+  const { data: before } = await supabase
+    .from("people")
+    .select("start_date, company_id")
+    .eq("id", personId)
+    .maybeSingle();
+  const startMoved = (before?.start_date ?? null) !== startDate;
+
   const { error } = await supabase
     .from("people")
     .update({
@@ -200,10 +210,69 @@ export async function updatePerson(_prev: ActionState, formData: FormData): Prom
       team: trimOrNull(formData.get("team")),
       manager_id: trimOrNull(formData.get("manager_id")),
       team_leader_id: trimOrNull(formData.get("team_leader_id")),
-      start_date: isoDateOrNull(formData.get("start_date")),
+      start_date: startDate,
     })
     .eq("id", personId);
   if (error) return { error: error.message };
+
+  /* A START DATE THAT MOVES TAKES ITS DATES WITH IT (Phil, 2026-09-08).
+     Creating a person works the probation end and every start anchored check date out
+     from the start date; editing one used to write the new start date and nothing else.
+     A record corrected from 2025 to 2026 kept a probation ending nine months before the
+     person started, and checks due on dates derived from a start date that no longer
+     existed. Nobody would have spotted it: both screens agreed, and both were wrong.
+
+     Only what has not happened yet is touched. A probation already ended keeps its dates,
+     because the end actual is a fact and no correction to a start date changes it, and
+     reschedule_check_instances refuses any instance with a completion against it. */
+  if (startMoved && before?.company_id) {
+    const companyId = before.company_id as string;
+
+    const { data: tracker } = await supabase
+      .from("person_trackers")
+      .select("probation_end_actual")
+      .eq("person_id", personId)
+      .maybeSingle();
+
+    if (!tracker?.probation_end_actual) {
+      const { data: company } = await supabase
+        .from("companies")
+        .select("probation_period_value, probation_period_unit")
+        .eq("id", companyId)
+        .maybeSingle();
+      await supabase
+        .from("person_trackers")
+        .update({
+          probation_end_due: probationEndDue(
+            startDate,
+            probationFrom(company?.probation_period_value, company?.probation_period_unit),
+          ),
+          updated_by: user.id,
+        })
+        .eq("person_id", personId);
+    }
+
+    const definitions = await listPeopleCheckDefinitions(companyId);
+    const { data: insts } = await supabase
+      .from("check_instances")
+      .select("id, definition_id")
+      .eq("person_id", personId)
+      .is("last_completed_on", null);
+    const byDefinition = new Map<string, Array<{ instance_id: string; due_date: string | null }>>();
+    for (const i of ((insts as Array<{ id: string; definition_id: string }>) ?? [])) {
+      const def = definitions.find((d) => d.id === i.definition_id);
+      if (!def) continue;
+      const rows = byDefinition.get(def.id) ?? [];
+      rows.push({ instance_id: i.id, due_date: initialDueDate(def, startDate) });
+      byDefinition.set(def.id, rows);
+    }
+    for (const [definitionId, rows] of byDefinition) {
+      await supabase.rpc("reschedule_check_instances", {
+        p_definition_id: definitionId,
+        p_rows: rows,
+      });
+    }
+  }
 
   await writeAudit({
     companyId: profile.company_id ?? "",
