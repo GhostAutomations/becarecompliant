@@ -106,8 +106,17 @@ export default function WhiteboardCalendar({
     for (let i = 0; i < firstWeekday; i++) cells.push(null);
     for (let d = 1; d <= daysInMonth; d++) cells.push({ day: d, iso: `${year}-${pad(month)}-${pad(d)}` });
   }
-  // A week shows everything; a month cell is too short to, so it caps and says how many are left.
-  const perCell = isWeek ? 99 : 2;
+  /* A week shows everything; a month cell is too short to, so it caps and says how many are
+     left. FOUR, IN TWO COLUMNS (Phil, 2026-09-08: "do the chips in the calendar need to be
+     so wide, we could have four chips in one date if they are next to each other in 2
+     columns of 2"). A full width chip in a month cell wasted half the row on empty space
+     and pushed a third booking behind a "+1 more" that nobody clicks. Two columns doubles
+     what a day shows without making the cell taller.
+
+     Only from lg up. Below that a seventh of the screen cannot hold two readable chips, so
+     the grid stays one column and the cap drops back to two rather than hiding three
+     bookings behind a plus. The hover card carries the full text either way. */
+  const perCell = isWeek ? 99 : 4;
 
   const selectedList = selectedDay ? byDay.get(selectedDay) ?? [] : [];
 
@@ -180,7 +189,9 @@ export default function WhiteboardCalendar({
               {isWeek ? null : (
                 <span className={`block text-[11px] font-semibold ${isToday ? "text-gold-300" : "text-white/50"}`}>{cell.day}</span>
               )}
-              <span className="mt-1 flex flex-col gap-0.5">
+              <span
+                className={`mt-1 grid gap-0.5 ${isWeek ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2"}`}
+              >
                 {items.slice(0, perCell).map((b) => (
                   <span key={b.id} className="group/appt relative block">
                     {/*
@@ -293,7 +304,7 @@ export default function WhiteboardCalendar({
                   </span>
                 ))}
                 {items.length > perCell ? (
-                  <span className="text-[10px] text-white/50">+{items.length - perCell} more</span>
+                  <span className="text-[10px] text-white/50 lg:col-span-2">+{items.length - perCell} more</span>
                 ) : null}
               </span>
             </button>
