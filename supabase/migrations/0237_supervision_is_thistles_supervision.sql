@@ -1,0 +1,77 @@
+-- 0237_supervision_is_thistles_supervision
+-- The Supervision form in the library was scaffolding written while the site was being
+-- built: ten generic questions ("Wellbeing and any concerns", "Workload and capacity")
+-- in three sections. Thistle's real Team Quarterly Supervision has forty eight questions
+-- in seven sections and is the form the service actually runs on, so it replaces it.
+--
+-- Rebuilt from the live form, question for question, with the answer options read off
+-- each control rather than assumed: Yes/No throughout, and a five point agreement scale
+-- (Strongly agree, Agree, Neutral, Disagree, Strongly Disagree) on the five carer
+-- feedback statements.
+--
+-- DROPPED, because the record already knows them (Phil's rule from the Spot Check: "as
+-- you click the persons name or service users name to get to the form, we dont need name
+-- / branch as they should be a given"): Name, Region and Completed By. Also dropped is
+-- "What Supervision are you completing?" -- Phil, 2026-09-08: "the form links up with the
+-- matrix as to what to complete in the name card, we built that bit already". The
+-- supervision_type FIELD stays in the schema so the Evidence still records which
+-- supervision it was; the complete page removes it from the render and supplies it from
+-- the button that was pressed, exactly as it does today. It sits ABOVE the gate below,
+-- so a supervision that did not happen still records which one it was.
+--
+-- THE EMPLOYEE DECLARATION IS DROPPED and only the manager signs (Phil, 2026-09-08).
+-- Both declarations on the paper form are a typed Name above a signature pad; the names
+-- go for the same reason as the one at the top, and Thistle does not need the employee's
+-- signature captured in the system.
+--
+-- A GATE AT THE TOP, which the paper form does not have (Phil, 2026-09-08, asked for the
+-- same behaviour as the Spot Check): "Did the supervision take place?" No greys out
+-- every question after it, asks why instead, stores the Evidence, and leaves the check
+-- due on the matrix. See lib/forms/stand-down.ts.
+--
+-- THE FIGURES STAY FREE TEXT (Phil, 2026-09-08). Calls attended, missed calls, the three
+-- averages, handbacks, sickness and one to ones are typed in from the rostering system
+-- and behave exactly as they do on the Monday form.
+--
+-- Four wording fixes, all plain typos in the original, nothing rephrased: "theses" ->
+-- "these", "responsibilties" -> "responsibilities", "staffs improvement" -> "staff
+-- improvement", and the summary hint's "supervise" -> "supervisee". The em dash in the
+-- QCF hint became plain words because the product does not use dashes in copy.
+--
+-- Thistle's and Bevan's copies are replaced IN PLACE at version 1, not versioned up:
+-- both companies are still being set up and neither form has a single piece of evidence
+-- against it (checked before writing this, and the guard below enforces it rather than
+-- trusting this note). The moment either had, this would have had to publish a version 2,
+-- because evidence points at the version it was completed on.
+-- Applied to the becarecompliant project ONLY (ref bgrtcvyjuwopunpnudeu).
+
+do $$
+declare
+  v_schema jsonb := '{"schemaVersion": 1, "sections": [{"id": "supervision", "title": "The supervision", "fields": [{"key": "supervision_date", "type": "date", "label": "Date of supervision", "required": true}, {"key": "supervision_type", "type": "single_select", "label": "Which supervision", "required": true, "options": [{"value": "1", "label": "Supervision 1"}, {"value": "2", "label": "Supervision 2"}, {"value": "3", "label": "Supervision 3"}, {"value": "4", "label": "Supervision 4"}]}, {"key": "start_time", "type": "time", "label": "Time supervision took place", "required": true}, {"key": "took_place", "type": "single_select", "label": "Did the supervision take place?", "required": true, "options": [{"value": "yes", "label": "Yes"}, {"value": "no", "label": "No"}], "standsDown": {"when": ["no"], "except": ["not_held_reason"]}}, {"key": "not_held_reason", "type": "long_text", "label": "Why did the supervision not take place?", "validation": {"maxLength": 500}, "required": true, "visibleWhen": {"field": "took_place", "in": ["no"]}}]}, {"id": "carer_feedback", "title": "Carer feedback", "description": "This is to be discussed with staff at supervision.", "fields": [{"key": "safeguarding_concerns", "type": "single_select", "label": "Any safeguarding concerns you would like to raise since your last supervision?", "required": true, "options": [{"value": "yes", "label": "Yes"}, {"value": "no", "label": "No"}]}, {"key": "working_environment", "type": "single_select", "label": "Any issues within your working environment you would like to raise?", "required": true, "options": [{"value": "yes", "label": "Yes"}, {"value": "no", "label": "No"}]}, {"key": "agreement_heading", "type": "heading", "label": "How much would you agree with the below statements"}, {"key": "agree_training", "type": "single_select", "label": "I am happy with the training that Thistle Care have provided me?", "required": true, "options": [{"value": "strongly_agree", "label": "Strongly agree"}, {"value": "agree", "label": "Agree"}, {"value": "neutral", "label": "Neutral"}, {"value": "disagree", "label": "Disagree"}, {"value": "strongly_disagree", "label": "Strongly Disagree"}]}, {"key": "agree_issues_addressed", "type": "single_select", "label": "Thistle Care ensure that any issues raised are addressed correctly?", "required": true, "options": [{"value": "strongly_agree", "label": "Strongly agree"}, {"value": "agree", "label": "Agree"}, {"value": "neutral", "label": "Neutral"}, {"value": "disagree", "label": "Disagree"}, {"value": "strongly_disagree", "label": "Strongly Disagree"}]}, {"key": "agree_ppe", "type": "single_select", "label": "Thistle Care ensure that PPE is made easily available?", "required": true, "options": [{"value": "strongly_agree", "label": "Strongly agree"}, {"value": "agree", "label": "Agree"}, {"value": "neutral", "label": "Neutral"}, {"value": "disagree", "label": "Disagree"}, {"value": "strongly_disagree", "label": "Strongly Disagree"}]}, {"key": "agree_recommend", "type": "single_select", "label": "I would happily recommend Thistle Care as an employer?", "required": true, "options": [{"value": "strongly_agree", "label": "Strongly agree"}, {"value": "agree", "label": "Agree"}, {"value": "neutral", "label": "Neutral"}, {"value": "disagree", "label": "Disagree"}, {"value": "strongly_disagree", "label": "Strongly Disagree"}]}, {"key": "agree_hours", "type": "single_select", "label": "I am happy with the hours allocated to me?", "required": true, "options": [{"value": "strongly_agree", "label": "Strongly agree"}, {"value": "agree", "label": "Agree"}, {"value": "neutral", "label": "Neutral"}, {"value": "disagree", "label": "Disagree"}, {"value": "strongly_disagree", "label": "Strongly Disagree"}]}, {"key": "carer_comments", "type": "long_text", "label": "Additional comments", "validation": {"maxLength": 2000}}, {"key": "additional_training", "type": "single_select", "label": "Is there any training you feel you would like to complete as additional?", "required": true, "options": [{"value": "yes", "label": "Yes"}, {"value": "no", "label": "No"}]}, {"key": "goals", "type": "single_select", "label": "Are there any goals you would like to achieve before your next supervision?", "required": true, "options": [{"value": "yes", "label": "Yes"}, {"value": "no", "label": "No"}]}, {"key": "role_difficult", "type": "single_select", "label": "Do you find any part of your job role / responsibilities difficult?", "required": true, "options": [{"value": "yes", "label": "Yes"}, {"value": "no", "label": "No"}]}]}, {"id": "office_use", "title": "Office use", "fields": [{"key": "previous_actions", "type": "long_text", "label": "Actions from previous supervision", "validation": {"maxLength": 2000}}, {"key": "previous_actions_addressed", "type": "long_text", "label": "Have these actions been addressed / any actions ongoing?", "validation": {"maxLength": 2000}}]}, {"id": "since_last", "title": "Since last supervision", "fields": [{"key": "calls_attended", "type": "short_text", "label": "Calls attended"}, {"key": "missed_calls", "type": "short_text", "label": "Missed calls"}, {"key": "average_duration", "type": "short_text", "label": "Average duration"}, {"key": "average_earliness", "type": "short_text", "label": "Average earliness"}, {"key": "average_lateness", "type": "short_text", "label": "Average lateness"}, {"key": "handbacks", "type": "short_text", "label": "Number of handbacks"}, {"key": "sickness_absences", "type": "short_text", "label": "Sickness and/or absences"}, {"key": "one_to_ones", "type": "short_text", "label": "Number of one to one meetings"}, {"key": "improvement_required", "type": "single_select", "label": "Is improvement required in this area?", "required": true, "options": [{"value": "yes", "label": "Yes"}, {"value": "no", "label": "No"}]}]}, {"id": "compliance", "title": "Compliance", "fields": [{"key": "issues_set_tasks", "type": "single_select", "label": "Any issues with completing set tasks?", "required": true, "options": [{"value": "yes", "label": "Yes"}, {"value": "no", "label": "No"}]}, {"key": "issues_communication", "type": "single_select", "label": "Any issues with communication?", "required": true, "options": [{"value": "yes", "label": "Yes"}, {"value": "no", "label": "No"}]}, {"key": "issues_notes", "type": "single_select", "label": "Any issues with completing notes?", "required": true, "options": [{"value": "yes", "label": "Yes"}, {"value": "no", "label": "No"}]}, {"key": "issues_medication", "type": "single_select", "label": "Any issues with recording medication administration?", "required": true, "options": [{"value": "yes", "label": "Yes"}, {"value": "no", "label": "No"}]}, {"key": "issues_data_protection", "type": "single_select", "label": "Any issues with data protection and/or confidentiality?", "required": true, "options": [{"value": "yes", "label": "Yes"}, {"value": "no", "label": "No"}]}, {"key": "issues_personal_care", "type": "single_select", "label": "Any issues that have been raised regarding personal care tasks?", "required": true, "options": [{"value": "yes", "label": "Yes"}, {"value": "no", "label": "No"}]}, {"key": "spot_check_non_compliances", "type": "single_select", "label": "Has the staff member had any non-compliances raised during a spot check?", "required": true, "options": [{"value": "yes", "label": "Yes"}, {"value": "no", "label": "No"}]}, {"key": "issues_daily_log", "type": "single_select", "label": "Any issues with regards to daily log compliance?", "required": true, "options": [{"value": "yes", "label": "Yes"}, {"value": "no", "label": "No"}]}, {"key": "issues_logging", "type": "single_select", "label": "Any issues with logging in and out of allocated calls correctly?", "required": true, "options": [{"value": "yes", "label": "Yes"}, {"value": "no", "label": "No"}]}]}, {"id": "development", "title": "Development", "fields": [{"key": "qcf_completed", "type": "single_select", "label": "Has the employee completed a QCF relevant to his/her role?", "required": true, "options": [{"value": "yes", "label": "Yes"}, {"value": "no", "label": "No"}], "help": "Please refer to the employee''s HR file to establish if any QCF qualification certificates are held by the organisation. The company qualification standard relating to the staff quality controller role is QCF Level 3, Health and Social Care, sector specific."}, {"key": "qcf_enrolled", "type": "single_select", "label": "Has the employee been enrolled to complete a QCF relevant to his/her role?", "required": true, "options": [{"value": "yes", "label": "Yes"}, {"value": "no", "label": "No"}], "help": "Please refer to the employee''s HR file to establish if the file contains confirmation of the employee being enrolled onto the relevant QCF qualification."}, {"key": "scw_enrolled", "type": "single_select", "label": "Has the employee been enrolled with Social Care Wales?", "required": true, "options": [{"value": "yes", "label": "Yes"}, {"value": "no", "label": "No"}], "help": "Please refer to the employee''s HR file to establish if the file contains confirmation of the employee being enrolled onto the relevant SCW qualification."}, {"key": "development_timescale", "type": "date", "label": "What timescale should this be completed within?"}]}, {"id": "actions", "title": "Actions and outcomes", "fields": [{"key": "employee_actions", "type": "long_text", "label": "What actions are required of the employee to ensure his/her improvement?", "validation": {"maxLength": 2000}, "help": "Set out to agree specific actions the employee is required to undertake that will improve his/her performance in this area."}, {"key": "employee_actions_timescale", "type": "date", "label": "What timescale should this be completed within?"}, {"key": "employee_actions_owner", "type": "short_text", "label": "Who should complete this action?"}, {"key": "management_actions", "type": "long_text", "label": "What actions are required of the management to ensure staff improvement?", "validation": {"maxLength": 2000}, "help": "Set out to agree specific actions that are required to be implemented to address this matter."}, {"key": "management_actions_owner", "type": "short_text", "label": "Who should complete this action?"}, {"key": "convictions_declaration", "type": "single_select", "label": "Does the employee have any declarations to make concerning criminal convictions, cautions or reprimands, spent or pending, since their last supervision, or commencement of employment with the organisation?", "required": true, "options": [{"value": "yes", "label": "Yes"}, {"value": "no", "label": "No"}]}, {"key": "actions_comments", "type": "long_text", "label": "Additional comments", "validation": {"maxLength": 2000}}, {"key": "summary", "type": "long_text", "label": "Summary", "validation": {"maxLength": 2000}, "help": "Any comments made, positive or negative, by the supervisee or supervisor that do not fit anywhere else on the form."}, {"key": "end_time", "type": "time", "label": "End time"}, {"key": "by_telephone", "type": "single_select", "label": "Was this supervision undertaken over the telephone?", "required": true, "options": [{"value": "yes", "label": "Yes"}, {"value": "no", "label": "No"}]}, {"key": "manager_signature", "type": "signature", "label": "Manager''s declaration", "required": true, "help": "I confirm that this is an accurate and true record of the supervision."}]}]}'::jsonb;
+  v_blocked int;
+begin
+  select count(*) into v_blocked
+    from public.evidence e
+    join public.form_versions fv on fv.id = e.form_version_id
+    join public.forms f on f.id = fv.form_id
+   where f.key = 'supervision';
+
+  if v_blocked > 0 then
+    raise exception 'Supervision has % pieces of evidence against it; publish a new version instead of replacing v1', v_blocked;
+  end if;
+
+  -- 1. The master template: every company seeded from here on gets Thistle's form.
+  update public.form_templates
+     set schema = v_schema,
+         name = 'Supervision',
+         updated_at = now()
+   where key = 'supervision';
+
+  -- 2. The companies that already hold the scaffolding.
+  update public.form_versions fv
+     set schema = v_schema
+    from public.forms f
+   where f.id = fv.form_id
+     and f.key = 'supervision'
+     and fv.version = 1;
+end $$;
