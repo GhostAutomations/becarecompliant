@@ -21,6 +21,7 @@ import { formatDisplayDate, supervisionSlots, appraisalSlot, dateRag } from "@/l
 import { setEmploymentStatus, updateTracker } from "@/lib/people/actions";
 import { PillSelect, toneClass, type Tone } from "@/components/register/pill-select";
 import { HorizontalScrollbar } from "@/components/register/horizontal-scrollbar";
+import { useRememberedScroll } from "@/components/register/use-remembered-scroll";
 import { VerticalScrollbar } from "@/components/register/vertical-scrollbar";
 import ExtraCheckCell from "@/components/register/extra-check-cell";
 import { cellText, type RegisterCheckColumn } from "@/lib/register/custom-columns";
@@ -125,6 +126,7 @@ export default function RegisterMatrix({
   scope?: string;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
+  useRememberedScroll(wrapRef, `people:${scope}`);
   const col = (key: string, def: string) => columnLabels[key] || def;
   const fromQuery = `?from=${encodeURIComponent(returnTo)}`;
   // Archive is offered on the Status pill only when viewing Leavers (to clear them out).

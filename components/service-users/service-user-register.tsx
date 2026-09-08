@@ -20,6 +20,7 @@ import { useRouter } from "next/navigation";
 import { NavIcon } from "@/components/nav-icon";
 import { PillSelect, toneClass, type Tone } from "@/components/register/pill-select";
 import { HorizontalScrollbar } from "@/components/register/horizontal-scrollbar";
+import { useRememberedScroll } from "@/components/register/use-remembered-scroll";
 import ColumnsPanel from "@/components/register/columns-panel";
 import ExtraCheckCell from "@/components/register/extra-check-cell";
 import { cellText, MAX_REGISTER_COLUMNS, type RegisterCheckColumn } from "@/lib/register/custom-columns";
@@ -136,6 +137,7 @@ export default function ServiceUserRegister({
     setNavy(typeof document !== "undefined" && !!document.querySelector(".theme-navy"));
   }, []);
   const wrapRef = useRef<HTMLDivElement>(null);
+  useRememberedScroll(wrapRef, `service-users:${view}`);
   const meta = VIEW_META[view];
   const col = (key: string, def: string) => columnLabels[key] || def;
   // Capped on READ as well as on save: whatever the database says, the register never renders

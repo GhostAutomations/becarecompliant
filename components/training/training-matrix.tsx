@@ -11,6 +11,7 @@ import TrainingCellDialog from "@/components/training/training-cell-dialog";
 import BulkTrainingDialog from "@/components/training/bulk-training-dialog";
 import { canManageRecord, canManageAnything } from "@/lib/auth/manage-scope";
 import { HorizontalScrollbar } from "@/components/register/horizontal-scrollbar";
+import { useRememberedScroll } from "@/components/register/use-remembered-scroll";
 import { VerticalScrollbar } from "@/components/register/vertical-scrollbar";
 
 type BranchLite = { id: string; name: string };
@@ -104,6 +105,7 @@ export default function TrainingMatrix({
     setNavy(typeof document !== "undefined" && !!document.querySelector(".theme-navy"));
   }, []);
   const wrapRef = useRef<HTMLDivElement>(null);
+  useRememberedScroll(wrapRef, "training");
 
   /** Branch only. The headline above the table counts the branch you are looking at, NOT what
    *  the search box has narrowed it to: a figure that moved as you typed would be worthless. */
