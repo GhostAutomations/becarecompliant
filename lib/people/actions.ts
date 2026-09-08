@@ -575,6 +575,18 @@ export async function updateCheckDefinition(formData: FormData): Promise<ActionS
       if (rows.length > 0) {
         await supabase.rpc("reschedule_check_instances", { p_definition_id: definitionId, p_rows: rows });
       }
+
+      /* The Annual Appraisal on "after supervision 3" schedules itself off the third
+         supervision of the cycle, which the reschedule above cannot work out: it asks
+         initialDueDate, and initialDueDate deliberately returns nothing for this mode.
+         So turning the setting on left every person who ALREADY had three supervisions
+         with an empty due date, while the register and the record card derived and showed
+         the real one. Saving the setting now writes it down. Safe to run again: only
+         dates that actually differ are sent. */
+      if (def.key === "appraisal" && def.population === "people" && def.schedule_mode === "after_sup3") {
+        const { backfillAppraisalDueDates } = await import("@/lib/people/appraisal-backfill");
+        await backfillAppraisalDueDates(def.company_id as string);
+      }
     }
   }
 
