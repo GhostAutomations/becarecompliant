@@ -14,7 +14,7 @@ export default async function ImportPage() {
   const branches = await listBranches(profile.company_id, profile);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="page-shell space-y-6">
       <BackLink href="/settings" label="Back to Settings" />
       <div>
         <h1 className="page-title">Import records</h1>

@@ -24,7 +24,7 @@ export default async function PeoplePage({
 
   if (!profile.company_id) {
     return (
-      <div className="mx-auto max-w-3xl">
+      <div className="page-shell">
         <h1 className="page-title">People</h1>
         <div className="glass-card mt-6 p-6 text-sm text-white/60">
           Open a company from the Founder console and choose Manage as company to

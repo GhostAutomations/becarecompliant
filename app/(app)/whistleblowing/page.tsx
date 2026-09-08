@@ -29,7 +29,7 @@ export default async function WhistleblowingPage() {
    */
   if (profile.actingAsCompanyId) {
     return (
-      <div className="mx-auto max-w-3xl">
+      <div className="page-shell">
         <h1 className="page-title">Whistleblowing</h1>
         <p className="page-subtitle">Not readable in support mode.</p>
         <div className="glass-card mt-5 border border-amber-300/20 p-5 text-sm text-white/75">
@@ -51,7 +51,7 @@ export default async function WhistleblowingPage() {
   const rows = await listDisclosures(profile.company_id);
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="page-shell">
       <WhistleblowingRegister rows={rows} canManage />
     </div>
   );

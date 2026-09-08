@@ -23,7 +23,7 @@ export default async function Reg80ReportsPage() {
   );
 
   return (
-    <div className="mx-auto max-w-4xl space-y-5">
+    <div className="page-shell space-y-5">
       <BackLink href="/reports/reg80" label="Back to Regulation 80 reviews" />
       <div>
         <h1 className="page-title">R80 Reports</h1>

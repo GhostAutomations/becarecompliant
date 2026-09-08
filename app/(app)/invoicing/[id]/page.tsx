@@ -42,7 +42,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
   const showPrice = showsUnitPrice(inv.lines);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="page-shell space-y-6">
       <BackLink href="/invoicing" label="Back to Invoicing" />
 
       <div className="flex flex-wrap items-start justify-between gap-3">

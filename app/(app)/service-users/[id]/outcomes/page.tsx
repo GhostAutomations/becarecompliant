@@ -43,7 +43,7 @@ export default async function ServiceUserOutcomesPage({
   const pct = inScope > 0 ? Math.floor((ap / inScope) * 100) : null;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="page-shell space-y-6">
       <BackLink href={backHref} label={backLabel} />
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>

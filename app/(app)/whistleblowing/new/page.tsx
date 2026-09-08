@@ -21,7 +21,7 @@ export default async function NewDisclosurePage() {
   const branches = await listCompanyBranches(profile.company_id);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="page-form space-y-6">
       <div>
         <BackLink href="/whistleblowing" label="Back to Whistleblowing" />
         <h1 className="page-title mt-1">Record a disclosure</h1>

@@ -49,7 +49,7 @@ export default async function IncidentPage({ params }: { params: Promise<{ id: s
   const who = [incident.service_user_name, incident.person_name].filter(Boolean).join(" and ");
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="page-shell space-y-6">
       <div>
         <BackLink href="/incidents" label="Back to Incidents" />
         <div className="mt-1 flex flex-wrap items-baseline justify-between gap-3">

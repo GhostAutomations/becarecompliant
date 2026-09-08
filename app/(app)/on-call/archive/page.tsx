@@ -41,7 +41,7 @@ export default async function ArchivedRotaPage({
   const weeks = await getArchiveRota(companyId, scope, selectedBranchId, currentMonday);
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
+    <div className="page-shell space-y-4">
       <BackLink href="/on-call" label="Back to Rota" />
       <h1 className="text-xl font-bold text-white">Archived rota</h1>
       <RotaArchive scope={scope} branches={branches} selectedBranchId={selectedBranchId} weeks={weeks} />

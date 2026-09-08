@@ -23,7 +23,7 @@ export default async function NewPersonPage() {
   const branchOptions = branches.filter((b) => b.kind === "branch" || b.kind === "team");
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="page-form space-y-6">
       <div>
         <BackLink href="/people" label="Back to People" />
         <h1 className="page-title mt-1">Add a person</h1>

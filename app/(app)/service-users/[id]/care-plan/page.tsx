@@ -33,7 +33,7 @@ export default async function CarePlanPage({ params }: { params: Promise<{ id: s
   const servicesWithFixed = INVOICE_SERVICES.filter((s) => serviceFixedPence(config, s.key) > 0).map((s) => s.label);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="page-shell space-y-6">
       <BackLink href={`/service-users/${id}`} label="Back to record" />
 
       <CarePlanManager

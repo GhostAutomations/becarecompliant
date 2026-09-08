@@ -30,7 +30,7 @@ export default async function SatisfactionPage() {
   const branches = branchTypes.map((b) => ({ id: b.id, name: b.name }));
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="page-shell space-y-6">
       <BackLink href="/service-users" label="Back to Service Users" />
       <div>
         <h1 className="page-title">Satisfaction</h1>

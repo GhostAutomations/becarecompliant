@@ -72,7 +72,7 @@ export default async function OnCallPage({
   ]);
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="page-shell">
       <RealtimeRefresh tables={["on_call_shifts", "on_call_logs"]} channel="on-call-live" />
       <RotaGrid
         scope={scope}

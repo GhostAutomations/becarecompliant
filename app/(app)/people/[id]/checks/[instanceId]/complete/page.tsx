@@ -65,7 +65,7 @@ export default async function CompleteCheckPage({
   const version = await getPublishedFormVersion(def.form_id);
   if (!version || !isFormSchema(version.schema)) {
     return (
-      <div className="mx-auto max-w-2xl">
+      <div className="page-form">
         <h1 className="page-title">Complete {def.name}</h1>
         <div className="glass-card mt-6 p-6 text-sm text-white/60">
           This check has no usable form version. Please contact your administrator.
@@ -153,7 +153,7 @@ export default async function CompleteCheckPage({
     : undefined;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="page-form space-y-6">
       <div>
         <BackLink href={`/people/${id}`} label={`Back to ${person?.full_name ?? "record"}`} />
         <h1 className="page-title mt-1">{heading}</h1>

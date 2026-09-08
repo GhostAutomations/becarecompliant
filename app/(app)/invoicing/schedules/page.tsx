@@ -19,7 +19,7 @@ export default async function SchedulesPage() {
   const schedules = await listSchedules(companyId);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="page-shell space-y-6">
       <BackLink href="/invoicing" label="Back to Invoicing" />
       <div>
         <h1 className="page-title">Recurring invoices</h1>

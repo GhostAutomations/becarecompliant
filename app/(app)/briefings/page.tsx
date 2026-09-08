@@ -60,7 +60,7 @@ export default async function BriefingsPage() {
   const done = assignments.filter((a) => a.status === "completed");
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="page-shell space-y-6">
       <RealtimeRefresh tables={["assignments"]} channel="assignments" />
       <div>
         <h1 className="page-title">Briefings</h1>

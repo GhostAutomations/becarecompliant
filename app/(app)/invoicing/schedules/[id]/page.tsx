@@ -32,7 +32,7 @@ export default async function SchedulePage({ params }: { params: Promise<{ id: s
   }${sc.interval_count > 1 ? "s" : ""}`;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="page-shell space-y-6">
       <BackLink href="/invoicing/schedules" label="Back to recurring invoices" />
 
       <div>

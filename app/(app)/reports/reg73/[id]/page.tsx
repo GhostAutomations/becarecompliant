@@ -29,7 +29,7 @@ export default async function Reg73VisitPage({ params }: { params: Promise<{ id:
   const canEdit = EDIT_ROLES.includes(profile.role) && visit.status === "draft";
 
   return (
-    <div className="mx-auto max-w-4xl space-y-5">
+    <div className="page-shell space-y-5">
       <BackLink href="/reports/reg73" label="Back to Regulation 73 visits" />
       <div>
         <h1 className="page-title">Responsible Individual Branch Visit</h1>

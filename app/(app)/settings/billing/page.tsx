@@ -143,7 +143,7 @@ export default async function BillingPage() {
     : null;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="page-shell space-y-6">
       <div>
         <BackLink href="/settings" label="Back to Settings" />
         <h1 className="page-title mt-1">Billing</h1>

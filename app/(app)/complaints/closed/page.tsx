@@ -31,7 +31,7 @@ export default async function ClosedComplaintsPage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="page-shell">
       <RealtimeRefresh tables={["complaints"]} channel="complaints-live" />
       <ComplaintsRegister
         rows={rows}

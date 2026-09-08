@@ -114,7 +114,7 @@ export default async function ReportViewPage({
   const selfPath = `/reports/view/${reportType}`;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-5">
+    <div className="page-shell space-y-5">
       <BackLink href="/reports" label="Back to reports" />
 
       {isTraining ? (

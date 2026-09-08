@@ -23,7 +23,7 @@ export default async function CallLogPage() {
   const rows = await listCallLog(profile.company_id);
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
+    <div className="page-shell space-y-4">
       <RealtimeRefresh tables={["on_call_logs"]} channel="on-call-log-live" />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>

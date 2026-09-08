@@ -272,7 +272,7 @@ export default async function ComplaintPage({
   ].sort((a, b) => b.date.localeCompare(a.date));
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="page-shell space-y-6">
       <div>
         <BackLink href="/complaints" label="Back to Complaints" />
         <div className="mt-1 flex flex-wrap items-center gap-3">

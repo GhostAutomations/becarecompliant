@@ -18,7 +18,7 @@ export default async function ReportsPage() {
   const entitled = await featureEnabled(profile.company_id, "reporting_exports");
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8">
+    <div className="page-shell space-y-8">
       <div>
         <h1 className="page-title">Reports</h1>
         <p className="page-subtitle">

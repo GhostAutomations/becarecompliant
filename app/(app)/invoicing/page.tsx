@@ -81,7 +81,7 @@ export default async function InvoicingPage() {
   );
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="page-shell space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="page-title">Invoicing</h1>

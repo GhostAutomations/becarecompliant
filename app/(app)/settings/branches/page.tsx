@@ -42,7 +42,7 @@ export default async function BranchesPage() {
   const unlimited = included >= 9999;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8">
+    <div className="page-shell space-y-8">
       <div>
         <BackLink href="/settings" label="Back to Settings" />
         <h1 className="page-title mt-1">Branches</h1>

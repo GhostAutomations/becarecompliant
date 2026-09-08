@@ -45,7 +45,7 @@ export default async function CallPage({ params }: { params: Promise<{ id: strin
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className="page-shell space-y-4">
       <LogReadOnLoad logId={log.id} />
       <BackLink href="/on-call/log" label="Back to call log" />
       <div>

@@ -51,7 +51,7 @@ export default async function SettingsFormsPage() {
   const canBuild = await featureEnabled(profile.company_id, "form_builder");
   if (!canBuild) {
     return (
-      <div className="mx-auto max-w-4xl space-y-6">
+      <div className="page-shell space-y-6">
         <div>
           <BackLink href="/settings" label="Back to Settings" />
           <h1 className="page-title mt-1">Forms</h1>
@@ -104,7 +104,7 @@ export default async function SettingsFormsPage() {
   );
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="page-shell space-y-6">
       <div>
         <BackLink href="/settings" label="Back to Settings" />
         <h1 className="page-title mt-1">Forms</h1>

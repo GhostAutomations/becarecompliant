@@ -35,7 +35,7 @@ export default async function CompanyAuditPage({
   ]);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="page-shell space-y-6">
       <BackLink href="/reports" label="Back to reports" />
       <div>
         <h1 className="page-title">Company audit log</h1>

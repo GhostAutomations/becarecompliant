@@ -20,7 +20,7 @@ export default async function Reg73ListPage() {
   const branches = await listAccessibleBranchTypes(profile.company_id, profile.role, user.id);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-5">
+    <div className="page-shell space-y-5">
       <BackLink href="/reports" label="Back to reports" />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>

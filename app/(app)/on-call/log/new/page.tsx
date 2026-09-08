@@ -32,7 +32,7 @@ export default async function NewCallPage() {
   const defaultShift = `${hour < 12 ? "am" : "pm"}|${todayIso}`;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className="page-shell space-y-4">
       <BackLink href="/on-call/log" label="Back to call log" />
       <h1 className="text-xl font-bold text-white">Log a call</h1>
       <LogForm

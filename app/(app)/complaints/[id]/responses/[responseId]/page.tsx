@@ -36,7 +36,7 @@ export default async function ComplaintResponsePage({
   const heading = `${kindLabel} (${response.method === "email" ? "email" : "letter"})`;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
+    <div className="page-shell space-y-5">
       <BackLink href={`/complaints/${id}`} label="Back to complaint" />
 
       <div>

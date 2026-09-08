@@ -155,7 +155,7 @@ export default async function ServiceUserPage({
   const isCancelled = serviceUser.service_status === "cancelled";
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] space-y-6">
+    <div className="page-shell space-y-6">
       <div>
         <BackLink href={backHref} label="Back to Service Users" />
         <div className="mt-1 flex flex-wrap items-center gap-3">

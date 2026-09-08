@@ -60,7 +60,7 @@ export default async function RetentionSettingsPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="page-shell space-y-6">
       <BackLink href="/settings" label="Back to Settings" />
 
       <div>

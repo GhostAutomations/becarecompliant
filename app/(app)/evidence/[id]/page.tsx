@@ -76,7 +76,7 @@ export default async function EvidenceViewPage({
 
   if (!result.ok) {
     return (
-      <div className="mx-auto max-w-3xl space-y-5">
+      <div className="page-shell space-y-5">
         <BackLink href="/people" label="Back" />
         <div className="glass-card p-6 text-sm text-white/70">{result.error}</div>
       </div>
@@ -102,7 +102,7 @@ export default async function EvidenceViewPage({
         : "Back to service user";
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
+    <div className="page-shell space-y-5">
       <BackLink href={backHref} label={backLabel} />
 
       <div className="flex flex-wrap items-end justify-between gap-3">

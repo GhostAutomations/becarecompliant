@@ -13,7 +13,7 @@ export default async function BrandingSettingsPage() {
   const logoUrl = await getCompanyLogoDataUrl(profile.company_id);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="page-form space-y-6">
       <BackLink href="/settings" label="Back to Settings" />
       <div>
         <h1 className="page-title">Branding</h1>

@@ -18,7 +18,7 @@ export default async function NewServiceUserPage() {
   const branchOptions = await listAccessibleBranchTypes(profile.company_id, profile.role, user.id);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="page-form space-y-6">
       <div>
         <BackLink href="/service-users" label="Back to Service Users" />
         <h1 className="page-title mt-1">Add a service user</h1>

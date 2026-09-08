@@ -18,7 +18,7 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
   const config = await getInvoicingConfig(companyId);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="page-shell space-y-6">
       <BackLink href={`/invoicing/${id}`} label="Back to invoice" />
       <h1 className="page-title">Edit draft invoice</h1>
       <InvoiceBuilder

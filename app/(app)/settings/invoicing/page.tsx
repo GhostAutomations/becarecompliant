@@ -22,7 +22,7 @@ export default async function InvoicingSettingsPage() {
   const canEditStart = profile.role === "platform_admin" || Boolean(profile.actingAsCompanyId);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="page-form space-y-6">
       <BackLink href="/settings" label="Back to Settings" />
       <div>
         <h1 className="page-title">Invoicing</h1>

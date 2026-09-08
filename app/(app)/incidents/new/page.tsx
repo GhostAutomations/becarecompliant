@@ -32,7 +32,7 @@ export default async function NewIncidentPage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="page-form space-y-6">
       <div>
         <BackLink href="/incidents" label="Back to Incidents" />
         <h1 className="page-title mt-1">Record an incident</h1>

@@ -20,7 +20,7 @@ export default async function NewInvoicePage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="page-shell space-y-6">
       <BackLink href="/invoicing" label="Back to Invoicing" />
       <h1 className="page-title">New invoice</h1>
       <InvoiceBuilder

@@ -210,7 +210,7 @@ export default async function UsersPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8">
+    <div className="page-shell space-y-8">
       {/* Live refresh: the pending and team lists update the instant an invite is
           accepted or a user changes, no manual refresh. RLS scopes events. */}
       <RealtimeRefresh tables={["invites", "profiles"]} channel="users-live" />

@@ -18,7 +18,7 @@ export default async function TrainingPage() {
 
   if (!profile.company_id) {
     return (
-      <div className="mx-auto max-w-3xl">
+      <div className="page-shell">
         <BackLink href="/people" label="Back to People" />
         <h1 className="page-title mt-1">Training</h1>
         <div className="glass-card mt-6 p-6 text-sm text-white/60">

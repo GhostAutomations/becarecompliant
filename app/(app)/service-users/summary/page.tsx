@@ -18,7 +18,7 @@ export default async function ServiceUserSummaryPage({
   if (profile.role === "on_call") redirect("/on-call");
   if (!profile.company_id) {
     return (
-      <div className="mx-auto max-w-3xl">
+      <div className="page-shell">
         <h1 className="page-title">Service User Summary</h1>
         <div className="glass-card mt-6 p-6 text-sm text-white/60">
           Select a company to view its compliance summary.

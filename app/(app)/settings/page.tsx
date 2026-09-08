@@ -27,7 +27,7 @@ export default async function SettingsPage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8">
+    <div className="page-shell space-y-8">
       <div>
         <h1 className="page-title">Settings</h1>
         <p className="page-subtitle">

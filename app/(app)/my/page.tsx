@@ -135,7 +135,7 @@ export default async function MyAreaPage() {
     ackForm && isFormSchema(ackForm.schema) ? (ackForm.schema as FormSchema) : null;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8">
+    <div className="page-shell space-y-8">
       <RealtimeRefresh tables={["holiday_requests"]} channel="my-holidays" />
 
       <div>

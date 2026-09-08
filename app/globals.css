@@ -186,6 +186,29 @@
 /* ---------- Standard components ---------- */
 
 @layer components {
+  /* PAGE WIDTH, IN ONE PLACE (Phil, 2026-09-08: "fill the page instead of having a narrow
+     collumn that needs to be scrolled", then "widen all").
+
+     Every screen used to carry its own max-w-2xl / 3xl / 4xl / 5xl / 6xl, eighty of them,
+     chosen a page at a time over months. On a wide monitor that meant a thousand pixels of
+     empty navy either side of a column being scrolled, and no two departments agreed on how
+     wide they were. Two classes now decide it for the whole app.
+
+     .page-shell is for anything you READ or WORK from: registers, records, dashboards,
+     reports, settings. It takes the width it is given, up to 1600px.
+
+     .page-form is for a single form you FILL IN. It stays narrow on purpose. A text field
+     stretched to 1600px puts the label at one end of the monitor and the answer at the
+     other, and a line of typed prose that long is genuinely harder to read -- widening
+     these would be the same mistake in the opposite direction. */
+  .page-shell {
+    @apply mx-auto w-full max-w-[1600px];
+  }
+
+  .page-form {
+    @apply mx-auto w-full max-w-3xl;
+  }
+
   /* Surfaces */
   .app-bg {
     @apply min-h-dvh bg-gradient-to-br from-navy-950 via-navy-900 to-navy-800;

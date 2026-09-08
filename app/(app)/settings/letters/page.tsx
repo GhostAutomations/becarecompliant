@@ -14,7 +14,7 @@ export default async function SettingsLettersPage() {
   const letters = await listLetters(profile.company_id);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="page-shell space-y-6">
       <BackLink href="/settings" label="Back to Settings" />
       <div>
         <h1 className="page-title">Letters</h1>

@@ -23,7 +23,7 @@ export default async function NewComplaintPage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="page-form space-y-6">
       <div>
         <BackLink href="/complaints" label="Back to Complaints" />
         <h1 className="page-title mt-1">Log a complaint</h1>

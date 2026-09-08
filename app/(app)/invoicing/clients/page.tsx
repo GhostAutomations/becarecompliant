@@ -11,7 +11,7 @@ export default async function PrivateClientsPage() {
   const clients = await listPrivateInvoicingClients(companyId);
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="page-shell space-y-6">
       <BackLink href="/invoicing" label="Back to Invoicing" />
       <div>
         <h1 className="page-title">Private Clients</h1>

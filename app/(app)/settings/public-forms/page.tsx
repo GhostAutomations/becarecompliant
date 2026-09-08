@@ -31,7 +31,7 @@ export default async function PublicFormsSettingsPage() {
   const base = siteUrl().replace(/^https?:\/\//, "");
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="page-shell space-y-6">
       <BackLink href="/settings" label="Back to Settings" />
       <div>
         <h1 className="page-title">Public forms</h1>

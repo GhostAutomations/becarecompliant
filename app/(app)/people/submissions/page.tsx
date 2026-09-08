@@ -65,7 +65,7 @@ export default async function SubmissionsPage() {
   const done = submissions.filter((s) => s.status !== "unmatched");
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="page-shell space-y-6">
       <RealtimeRefresh tables={["public_form_submissions"]} channel="public-submissions" />
       <BackLink href="/people" label="Back to People" />
       <div>

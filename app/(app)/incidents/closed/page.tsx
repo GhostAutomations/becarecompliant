@@ -26,7 +26,7 @@ export default async function ClosedIncidentsPage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="page-shell">
       <RealtimeRefresh tables={["incidents"]} channel="incidents-live" />
       <IncidentsRegister
         rows={rows}

@@ -34,7 +34,7 @@ export default async function PolicyCoveragePage() {
   const coverage = await getPolicyCoverage(profile.company_id);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
+    <div className="page-shell space-y-5">
       <BackLink href="/briefings" label="Back to Briefings" />
 
       <div>

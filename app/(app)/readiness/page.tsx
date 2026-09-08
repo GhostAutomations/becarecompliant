@@ -86,7 +86,7 @@ export default async function ReadinessPage() {
   }, "green");
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="page-shell space-y-6">
       <SnapshotOnLoad />
 
       <div className="flex flex-wrap items-start justify-between gap-4">

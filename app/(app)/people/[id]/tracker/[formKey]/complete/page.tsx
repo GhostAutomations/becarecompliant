@@ -42,7 +42,7 @@ export default async function CompleteTrackerPage({
 
   if (!form || !isFormSchema(form.schema)) {
     return (
-      <div className="mx-auto max-w-2xl">
+      <div className="page-form">
         <h1 className="page-title">{spec.title}</h1>
         <div className="glass-card mt-6 p-6 text-sm text-white/60">
           This form is not available. Please contact your administrator.
@@ -52,7 +52,7 @@ export default async function CompleteTrackerPage({
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="page-form space-y-6">
       <div>
         <BackLink href={`/people/${id}`} label={`Back to ${person.full_name}`} />
         <h1 className="page-title mt-1">{spec.title}</h1>

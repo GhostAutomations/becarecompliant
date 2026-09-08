@@ -19,7 +19,7 @@ export default async function RaiseConcernPage() {
   if (!profile.company_id) redirect("/dashboard");
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="page-form space-y-6">
       <div>
         <BackLink href="/my" label="Back to My area" />
         <h1 className="page-title mt-1">Raise a concern</h1>

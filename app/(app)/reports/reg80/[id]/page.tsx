@@ -30,7 +30,7 @@ export default async function Reg80ReviewPage({ params }: { params: Promise<{ id
   const canEdit = EDIT_ROLES.includes(profile.role) && review.status === "draft";
 
   return (
-    <div className="mx-auto max-w-4xl space-y-5">
+    <div className="page-shell space-y-5">
       <BackLink href="/reports/reg80" label="Back to Regulation 80 reviews" />
       <div>
         <h1 className="page-title">Quality of Care Review</h1>

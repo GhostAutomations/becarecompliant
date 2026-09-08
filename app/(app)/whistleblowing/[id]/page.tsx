@@ -29,7 +29,7 @@ export default async function DisclosurePage({ params }: { params: Promise<{ id:
   const branches = await listCompanyBranches(profile.company_id);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="page-shell space-y-6">
       <div>
         <BackLink href="/whistleblowing" label="Back to Whistleblowing" />
         <div className="mt-1 flex flex-wrap items-baseline justify-between gap-3">
