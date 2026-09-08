@@ -9,7 +9,7 @@ import { checksForTitle } from "@/lib/people/check-scope";
 import ActionForm from "@/components/action-form";
 import RecordHistory from "@/components/reports/record-history";
 import EditPersonForm from "@/components/people/edit-person-form";
-import RecordPlanner from "@/components/planner/record-planner";
+import RecordBookTask from "@/components/planner/record-book-task";
 import { featureEnabled } from "@/lib/billing/tier";
 import { getRecordAuditTrail } from "@/lib/audit-log/data";
 import {
@@ -284,19 +284,30 @@ export default async function PersonPage({
 
   return (
     <div className="page-shell space-y-6">
-      <div>
-        <BackLink href={backHref} label="Back to People" />
-        <div className="mt-1 flex flex-wrap items-center gap-3">
-          <h1 className="page-title">{person.full_name}</h1>
-          {ragPill(worstRag)}
-          {person.employment_status !== "active" ? (
-            <span className="pill-neutral">{WORKING_STATUS_LABELS[person.employment_status]}</span>
-          ) : null}
-          {person.archived_at ? <span className="pill-neutral">Archived</span> : null}
+      {/* The record's actions live in the corner, not in a card of their own further down
+          (Phil, 2026-09-08). Book a task renders nothing off the Planner tier. */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <BackLink href={backHref} label="Back to People" />
+          <div className="mt-1 flex flex-wrap items-center gap-3">
+            <h1 className="page-title">{person.full_name}</h1>
+            {ragPill(worstRag)}
+            {person.employment_status !== "active" ? (
+              <span className="pill-neutral">{WORKING_STATUS_LABELS[person.employment_status]}</span>
+            ) : null}
+            {person.archived_at ? <span className="pill-neutral">Archived</span> : null}
+          </div>
+          <p className="page-subtitle mt-1">
+            {[person.job_title, person.branch_name, person.team].filter(Boolean).join(" · ") || "Staff record"}
+          </p>
         </div>
-        <p className="page-subtitle mt-1">
-          {[person.job_title, person.branch_name, person.team].filter(Boolean).join(" · ") || "Staff record"}
-        </p>
+        <RecordBookTask
+          companyId={companyId}
+          population="people"
+          recordId={person.id}
+          recordName={person.full_name}
+          branchId={person.branch_id}
+        />
       </div>
 
       {completed ? (
@@ -625,15 +636,6 @@ export default async function PersonPage({
           )}
         </div>
       </section>
-
-      {/* Planner: tasks booked in for this record (Pro; renders nothing otherwise). */}
-      <RecordPlanner
-        companyId={companyId}
-        population="people"
-        recordId={person.id}
-        recordName={person.full_name}
-        branchId={person.branch_id}
-      />
 
       {/* Evidence history (collapsed by default, matches the Manage record card). */}
       <details className="glass-card section-card">

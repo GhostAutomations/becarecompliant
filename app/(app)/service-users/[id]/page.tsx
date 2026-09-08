@@ -11,7 +11,7 @@ import ActionForm from "@/components/action-form";
 import RecordHistory from "@/components/reports/record-history";
 import EditServiceUserForm from "@/components/service-users/edit-service-user-form";
 import PlannedReviewCell from "@/components/service-users/planned-review-cell";
-import RecordPlanner from "@/components/planner/record-planner";
+import RecordBookTask from "@/components/planner/record-book-task";
 import { featureEnabled } from "@/lib/billing/tier";
 import { getRecordAuditTrail } from "@/lib/audit-log/data";
 import {
@@ -156,21 +156,32 @@ export default async function ServiceUserPage({
 
   return (
     <div className="page-shell space-y-6">
-      <div>
-        <BackLink href={backHref} label="Back to Service Users" />
-        <div className="mt-1 flex flex-wrap items-center gap-3">
-          <h1 className="page-title">{serviceUser.full_name}</h1>
-          {ragPill(worstRag)}
-          {serviceUser.service_status !== "active" ? (
-            <span className="pill-neutral">{SERVICE_STATUS_LABELS[serviceUser.service_status]}</span>
-          ) : null}
-          {serviceUser.archived_at ? <span className="pill-neutral">Archived</span> : null}
+      {/* The record's actions live in the corner, not in a card of their own further down
+          (Phil, 2026-09-08). Book a task renders nothing off the Planner tier. */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <BackLink href={backHref} label="Back to Service Users" />
+          <div className="mt-1 flex flex-wrap items-center gap-3">
+            <h1 className="page-title">{serviceUser.full_name}</h1>
+            {ragPill(worstRag)}
+            {serviceUser.service_status !== "active" ? (
+              <span className="pill-neutral">{SERVICE_STATUS_LABELS[serviceUser.service_status]}</span>
+            ) : null}
+            {serviceUser.archived_at ? <span className="pill-neutral">Archived</span> : null}
+          </div>
+          <p className="page-subtitle mt-1">
+            {[serviceUser.ssid ? `SSID ${serviceUser.ssid}` : null, serviceUser.branch_name]
+              .filter(Boolean)
+              .join(" · ") || "Service user record"}
+          </p>
         </div>
-        <p className="page-subtitle mt-1">
-          {[serviceUser.ssid ? `SSID ${serviceUser.ssid}` : null, serviceUser.branch_name]
-            .filter(Boolean)
-            .join(" · ") || "Service user record"}
-        </p>
+        <RecordBookTask
+          companyId={companyId}
+          population="service_users"
+          recordId={serviceUser.id}
+          recordName={serviceUser.full_name}
+          branchId={serviceUser.branch_id}
+        />
       </div>
 
       {completed ? (
@@ -351,15 +362,6 @@ export default async function ServiceUserPage({
           </section>
         </>
       )}
-
-      {/* Planner: tasks booked in for this record (Pro; renders nothing otherwise). */}
-      <RecordPlanner
-        companyId={companyId}
-        population="service_users"
-        recordId={serviceUser.id}
-        recordName={serviceUser.full_name}
-        branchId={serviceUser.branch_id}
-      />
 
       {/* Evidence history (collapsed by default, matches the Manage record card). */}
       <details className="glass-card section-card">
