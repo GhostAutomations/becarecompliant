@@ -242,7 +242,7 @@ export default async function PersonPage({
     <div className="glass-card p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3">
-          <h2 className="text-sm font-semibold text-white">Probation</h2>
+          <h2 className="text-[15px] font-semibold text-white">Probation</h2>
           {probationStatusPill(tracker?.probation_status ?? null)}
         </div>
         {canManage && !supportMode ? (
@@ -253,16 +253,16 @@ export default async function PersonPage({
       </div>
       <div className="grid grid-cols-3 gap-3">
         <div className="rounded-lg border border-white/10 px-3 py-2">
-          <p className="text-[11px] text-white/50">End due</p>
-          <p className="text-sm text-white/90">{formatDisplayDate(tracker?.probation_end_due ?? null) || "—"}</p>
+          <p className="text-[12px] text-white/50">End due</p>
+          <p className="text-[15px] text-white/90">{formatDisplayDate(tracker?.probation_end_due ?? null) || "—"}</p>
         </div>
         <div className="rounded-lg border border-white/10 px-3 py-2">
-          <p className="text-[11px] text-white/50">End actual</p>
-          <p className="text-sm text-white/90">{formatDisplayDate(tracker?.probation_end_actual ?? null) || "—"}</p>
+          <p className="text-[12px] text-white/50">End actual</p>
+          <p className="text-[15px] text-white/90">{formatDisplayDate(tracker?.probation_end_actual ?? null) || "—"}</p>
         </div>
         <div className="rounded-lg border border-white/10 px-3 py-2">
-          <p className="text-[11px] text-white/50">Extension</p>
-          <p className="text-sm text-white/90">{formatDisplayDate(tracker?.probation_extension_date ?? null) || "—"}</p>
+          <p className="text-[12px] text-white/50">Extension</p>
+          <p className="text-[15px] text-white/90">{formatDisplayDate(tracker?.probation_extension_date ?? null) || "—"}</p>
         </div>
       </div>
     </div>
@@ -270,14 +270,14 @@ export default async function PersonPage({
   const probationTile = (
     <div className="glass-card p-5">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-white">Probation</h2>
+        <h2 className="text-[15px] font-semibold text-white">Probation</h2>
         {canManage && !supportMode ? (
           <Link href={`/people/${person.id}/tracker/probation_review/complete`} className="btn-primary text-xs">
             Complete
           </Link>
         ) : null}
       </div>
-      <dl className="space-y-1 text-sm">
+      <dl className="space-y-1 text-[15px]">
         <div className="flex justify-between"><dt className="text-white/50">End due</dt><dd className="text-white/85">{formatDisplayDate(tracker?.probation_end_due ?? null) || "—"}</dd></div>
         <div className="flex justify-between"><dt className="text-white/50">End actual</dt><dd className="text-white/85">{formatDisplayDate(tracker?.probation_end_actual ?? null) || "—"}</dd></div>
         <div className="flex justify-between"><dt className="text-white/50">Extension</dt><dd className="text-white/85">{formatDisplayDate(tracker?.probation_extension_date ?? null) || "—"}</dd></div>
@@ -313,17 +313,17 @@ export default async function PersonPage({
       <div key={def.id} className="glass-card p-4">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <h3 className="text-sm font-semibold text-white">{def.name}</h3>
-            <p className="text-[11px] text-white/45">{recurrenceLabel(def)}</p>
+            <h3 className="text-[15px] font-semibold text-white">{def.name}</h3>
+            <p className="text-[12px] text-white/45">{recurrenceLabel(def)}</p>
           </div>
           {st ? ragPill(rag) : <span className="pill-neutral">Not applied</span>}
         </div>
-        <dl className="mt-3 space-y-1 text-xs text-white/60">
+        <dl className="mt-3 space-y-1 text-[13px] text-white/60">
           <div className="flex justify-between"><dt>Next due</dt><dd className="text-white/85">{nextDue ? formatDisplayDate(nextDue) : "—"}</dd></div>
           <div className="flex justify-between"><dt>Last completed</dt><dd className="text-white/85">{lastComp ? formatDisplayDate(lastComp) : "Never"}</dd></div>
         </dl>
         {st && def.form_id && canComplete ? (
-          <Link href={`/people/${person.id}/checks/${st.instance_id}/complete`} className="btn-primary btn-tile text-xs">Complete</Link>
+          <Link href={`/people/${person.id}/checks/${st.instance_id}/complete`} className="btn-primary btn-tile text-[13px]">Complete</Link>
         ) : null}
       </div>
     );
@@ -390,19 +390,19 @@ export default async function PersonPage({
               {slots.map((s) => (
                 <div key={s.n} className="flex flex-col rounded-xl border border-white/10 p-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-white/70">{s.n}</span>
+                    <span className="text-[13px] font-semibold text-white/70">{s.n}</span>
                     <span className={`rag-cell ${slotPill(s.rag)}`}>
                       {s.comp ? "Done" : s.due ? formatDisplayDate(s.due) : "—"}
                     </span>
                   </div>
-                  <dl className="mt-2 space-y-1 text-[11px] text-white/55">
+                  <dl className="mt-2 space-y-1 text-[12px] text-white/55">
                     <div className="flex justify-between"><dt>Due</dt><dd className="text-white/80">{formatDisplayDate(s.due) || "—"}</dd></div>
                     <div className="flex justify-between"><dt>Completed</dt><dd className="text-white/80">{formatDisplayDate(s.comp) || "Not yet"}</dd></div>
                   </dl>
                   {supStatus && supFormId && canComplete && s.n === dueSupN ? (
                     <Link
                       href={`/people/${person.id}/checks/${supStatus.instance_id}/complete?sup=${s.n}`}
-                      className="btn-primary btn-tile text-xs"
+                      className="btn-primary btn-tile btn-tile-left text-[13px]"
                     >
                       Complete
                     </Link>
@@ -465,14 +465,14 @@ export default async function PersonPage({
             {/* DBS */}
             <div className="glass-card p-5">
               <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-white">DBS</h2>
+                <h2 className="text-[15px] font-semibold text-white">DBS</h2>
                 {canManage && !supportMode ? (
                   <Link href={`/people/${person.id}/tracker/dbs_renewal/complete`} className="btn-primary text-xs">
                     Complete
                   </Link>
                 ) : null}
               </div>
-              <dl className="space-y-1 text-sm">
+              <dl className="space-y-1 text-[15px]">
                 <div className="flex justify-between"><dt className="text-white/50">DBS</dt><dd className="text-white/85">{formatDisplayDate(tracker?.dbs_date ?? null) || "—"}</dd></div>
                 <div className="flex justify-between"><dt className="text-white/50">Enhanced DBS</dt><dd className="text-white/85">{formatDisplayDate(tracker?.enhanced_dbs_date ?? null) || "—"}</dd></div>
               </dl>
@@ -481,14 +481,14 @@ export default async function PersonPage({
             {/* Right to Work */}
             <div className="glass-card p-5">
               <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-white">Right to Work</h2>
+                <h2 className="text-[15px] font-semibold text-white">Right to Work</h2>
                 {canManage && !supportMode ? (
                   <Link href={`/people/${person.id}/tracker/right_to_work/complete`} className="btn-primary text-xs">
                     Complete
                   </Link>
                 ) : null}
               </div>
-              <dl className="space-y-1 text-sm">
+              <dl className="space-y-1 text-[15px]">
                 <div className="flex justify-between"><dt className="text-white/50">Expiry</dt><dd className="text-white/85">{formatDisplayDate(tracker?.rtw_expiry_date ?? null) || "—"}</dd></div>
               </dl>
               {canManage ? (

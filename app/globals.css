@@ -225,6 +225,15 @@
     @apply mt-3 w-full justify-center sm:mx-auto sm:flex sm:w-fit sm:px-5;
   }
 
+  /* THE SAME BUTTON, HELD LEFT (Phil, 2026-09-08: "complete buttons for supervisions, move
+     to bottom left"). A supervision slot is a quarter the width of a check tile and carries
+     two lines of dates, both flush left; a button centred under them read as adrift. Auto
+     margins rather than another width: mr-auto is what mx-auto does on one side, so the two
+     stay the same button at the same size, differing only in where the spare room goes. */
+  .btn-tile-left {
+    @apply sm:mr-auto sm:ml-0;
+  }
+
   /* Surfaces */
   .app-bg {
     @apply min-h-dvh bg-gradient-to-br from-navy-950 via-navy-900 to-navy-800;
