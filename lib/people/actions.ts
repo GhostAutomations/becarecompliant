@@ -196,16 +196,18 @@ export async function updatePerson(_prev: ActionState, formData: FormData): Prom
   // What the start date was BEFORE this save, so we only reschedule when it actually moved.
   const { data: before } = await supabase
     .from("people")
-    .select("start_date, company_id")
+    .select("start_date, company_id, job_title")
     .eq("id", personId)
     .maybeSingle();
   const startMoved = (before?.start_date ?? null) !== startDate;
+  const newJobTitle = trimOrNull(formData.get("job_title"));
+  const titleChanged = (before?.job_title ?? null) !== newJobTitle;
 
   const { error } = await supabase
     .from("people")
     .update({
       full_name,
-      job_title: trimOrNull(formData.get("job_title")),
+      job_title: newJobTitle,
       work_email: trimOrNull(formData.get("work_email")),
       mobile: trimOrNull(formData.get("mobile")),
       team: trimOrNull(formData.get("team")),
@@ -215,6 +217,26 @@ export async function updatePerson(_prev: ActionState, formData: FormData): Prom
     })
     .eq("id", personId);
   if (error) return { error: error.message };
+
+  /* A PROMOTION BRINGS ITS CHECKS WITH IT (2026-09-08). Some checks belong to certain job
+     titles -- Lead the Leader is for the people who supervise -- and those are applied when
+     a record is added, from the job title it had THEN. Promote a carer to Supervisor a year
+     later and nothing was watching, so the check that exists precisely for supervisors would
+     never appear on the one record that had just started needing it.
+
+     Applied, never removed. apply_person_checks skips a definition the new title does not
+     match, so nothing arrives that should not; and a demotion leaves what is already there,
+     because an instance can hold completed Evidence and a job title change is not a reason
+     to make a year of supervisions disappear. */
+  if (titleChanged && before?.company_id) {
+    const definitions = await listPeopleCheckDefinitions(before.company_id as string);
+    const rows = definitions.map((def: CheckDefinition) => ({
+      definition_id: def.id,
+      due_date: initialDueDate(def, startDate),
+      expiry_date: null,
+    }));
+    await supabase.rpc("apply_person_checks", { p_person_id: personId, p_rows: rows });
+  }
 
   /* A START DATE THAT MOVES TAKES ITS DATES WITH IT (Phil, 2026-09-08).
      Creating a person works the probation end and every start anchored check date out
