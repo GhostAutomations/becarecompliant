@@ -33,6 +33,7 @@ export default function ActionForm({
   buttonClassName = "btn-primary text-xs",
   className = "space-y-2",
   inline = false,
+  inlineTight = false,
   confirm,
   onDone,
   onDoneDelayMs = 1200,
@@ -49,6 +50,11 @@ export default function ActionForm({
   className?: string;
   /** Lay children and the button out on one row (select + Save). */
   inline?: boolean;
+  /** Inline, but the control keeps its own width and the row sits at the RIGHT instead of
+   *  the control stretching across it (Phil, 2026-09-08, of the Right to Work dropdown: "it
+   *  doesnt need to be the width of the tile but keep it to the right"). Opt in, so every
+   *  existing inline form is untouched. */
+  inlineTight?: boolean;
   /** Optional confirmation prompt shown before submit. */
   confirm?: string;
   /** Called after the success flash, e.g. to close the panel that contained the
@@ -126,12 +132,12 @@ export default function ActionForm({
       ref={formRef}
       action={formAction}
       onChange={() => setSaved(false)}
-      className={inline ? "flex items-end gap-2" : className}
+      className={inline ? `flex items-end gap-2${inlineTight ? " justify-end" : ""}` : className}
     >
       {hidden
         ? Object.entries(hidden).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)
         : null}
-      {inline ? <div className="flex-1">{children}</div> : children}
+      {inline ? <div className={inlineTight ? "" : "flex-1"}>{children}</div> : children}
       <div className={inline ? "flex items-center gap-2" : "flex items-center gap-2"}>
         <button
           type={confirm ? "button" : "submit"}
