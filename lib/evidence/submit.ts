@@ -30,6 +30,7 @@ import {
 } from "@/lib/form-schema";
 import { cleanAnswers, validateAnswers, type FieldError } from "@/lib/form-validate";
 import { describeValidationErrors } from "@/lib/forms/validation-message";
+import { computeScores } from "@/lib/forms/compute-scores";
 import { evidenceFilePath, sha256Hex, uploadEvidenceObject } from "./storage";
 
 export type EvidenceFileInput = {
@@ -91,8 +92,15 @@ export async function submitEvidence(input: SubmitEvidenceInput): Promise<Submit
   const schema = fv.schema as FormSchema;
   const companyId = fv.forms.company_id;
 
+  /* 1b. WORK THE SCORES OUT AGAIN, HERE. A score_total or score_band arriving from the
+     browser is a number that could have been edited on the way, and a score is exactly the
+     part of an appraisal somebody has a reason to lean on. The same function the renderer
+     uses is run again on the server, so what is stored is what the schema says it should
+     be. Forms with no computed fields are handed straight back untouched. */
+  const answers = computeScores(schema, input.answers);
+
   // 2. Authoritative validation.
-  const result = validateAnswers(schema, input.answers);
+  const result = validateAnswers(schema, answers);
   if (!result.ok) {
     // NAMES the offending answers rather than saying "the highlighted fields". Every
     // caller of this function turns the failure into a single line of copy, and a page
@@ -103,7 +111,7 @@ export async function submitEvidence(input: SubmitEvidenceInput): Promise<Submit
   }
 
   // 3. Strip hidden/presentational answers.
-  const cleaned = cleanAnswers(schema, input.answers);
+  const cleaned = cleanAnswers(schema, answers);
 
   const evidenceId = input.evidenceId ?? randomUUID();
 

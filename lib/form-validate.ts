@@ -181,6 +181,13 @@ function validateField(field: FormField, value: AnswerValue | undefined): string
      * record as it is typed (lib/forms/lookup.ts, lookupError), which is where that
      * check belongs - it is the only place the list exists.
      */
+    /* Computed, so there is nothing for a person to get wrong and nothing to check. The
+       server recomputes the value on submit (see computeScores), so whatever the browser
+       sent is replaced rather than trusted. */
+    case "score_total":
+    case "score_band":
+      return null;
+
     case "record_lookup": {
       const s = String(value).trim();
       if (s === "") return required ? "Choose a record from the list." : null;

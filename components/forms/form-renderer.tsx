@@ -31,6 +31,8 @@ import {
   isAddressValue,
 } from "@/lib/form-schema";
 import { type FieldError, isFieldVisible, standDown } from "@/lib/form-validate";
+import { computeScores, bandTotal } from "@/lib/forms/compute-scores";
+import { scoreLabel } from "@/lib/forms/scoring";
 import { type LookupChoice, filterChoices, lookupError } from "@/lib/forms/lookup";
 
 type Props = {
@@ -84,6 +86,11 @@ export default function FormRenderer({
   // the event handler with a concrete value.
   const answersRef = useRef<Answers>(answers);
 
+  /* A form that adds itself up: the totals and the band are worked out from the answers
+     rather than typed, and move as the questions are answered. The SERVER does the same
+     sum again on submit, so the stored Evidence never depends on what the browser sent. */
+  const scored = useMemo(() => computeScores(schema, answers), [schema, answers]);
+
   /* Questions an earlier answer has made pointless: still on screen, so the person can
      see what they are not being asked, but inert and not required. */
   const stoodDown = useMemo(() => standDown(schema, answers), [schema, answers]);
@@ -124,7 +131,12 @@ export default function FormRenderer({
                 <Field
                   key={field.key}
                   field={field}
-                  value={answers[field.key]}
+                  value={scored[field.key]}
+                  scoreHint={
+                    field.type === "score_band"
+                      ? scoreLabel(bandTotal(schema, answers, field))
+                      : undefined
+                  }
                   error={errorMap.get(field.key)}
                   disabled={disabled || stoodDown.has(field.key)}
                   stoodDown={stoodDown.has(field.key)}
@@ -155,6 +167,7 @@ function RequiredMark({ required }: { required?: boolean }) {
 function Field({
   field,
   value,
+  scoreHint,
   error,
   disabled,
   stoodDown = false,
@@ -166,6 +179,8 @@ function Field({
 }: {
   field: FormField;
   value: AnswerValue | undefined;
+  /** score_band only: the number behind the band, e.g. "48 of 48". */
+  scoreHint?: string;
   error?: string;
   disabled: boolean;
   /** An earlier answer has made this question pointless: greyed and not required. */
@@ -447,6 +462,25 @@ function Field({
             onLookupSelect?.(field.key, choice);
           }}
         />,
+      );
+
+    /* WORKED OUT, NOT TYPED. Read only by design: the whole point of computing a score is
+       that it cannot be got wrong at the end of a long meeting, and cannot be nudged. */
+    case "score_total":
+      return labelledControl(
+        <p className="rounded-xl border border-white/15 bg-white/[0.06] px-3.5 py-2.5 text-sm font-semibold text-white">
+          {typeof value === "string" && value ? value : "0 of 0"}
+        </p>,
+      );
+
+    case "score_band":
+      return labelledControl(
+        <div className="rounded-xl border border-white/15 bg-white/[0.06] px-3.5 py-2.5">
+          <p className="text-sm font-semibold text-white">
+            {typeof value === "string" && value ? value : "Not scored yet"}
+          </p>
+          {scoreHint ? <p className="mt-0.5 text-xs text-white/60">{scoreHint}</p> : null}
+        </div>,
       );
 
     case "signature":

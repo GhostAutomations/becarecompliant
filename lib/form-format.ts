@@ -66,6 +66,13 @@ export function formatAnswerForDisplay(field: FormField, value: AnswerValue | un
     case "record_lookup":
       return typeof value === "string" && value.trim() !== "" ? value : "Not answered";
 
+    /* Worked out by the form, and stored with its denominator ("48 of 48") so it still
+       reads correctly in an export years later, when nobody has the schema to hand to
+       know what it was out of. */
+    case "score_total":
+    case "score_band":
+      return typeof value === "string" && value.trim() !== "" ? value : "Not scored";
+
     case "number":
       return value == null || value === "" ? "Not answered" : String(value);
 

@@ -39,7 +39,16 @@ export type FieldType =
    * pipeline so the evidence can also be linked to that record. Same split as
    * file_upload, which stores the file's name and hands over the File.
    */
-  | "record_lookup";
+  | "record_lookup"
+  /**
+   * A running total the form works out for itself (2026-09-08). It sums the scored
+   * questions it names, leaves out anything answered N/A, and cannot be typed into, so
+   * the arithmetic on a twenty one question appraisal can neither be got wrong nor
+   * fudged. The rule is lib/forms/scoring.ts and the server recomputes it on submit.
+   */
+  | "score_total"
+  /** The band a score falls in, worked out from the totals it names. Read only. */
+  | "score_band";
 
 /** Which register a record_lookup field searches. */
 export type LookupSource = "service_user" | "person";
@@ -100,6 +109,16 @@ export type FormField = {
   options?: FieldOption[];
   /** For record_lookup: which register to search. Defaults to service_user. */
   lookup?: LookupSource;
+  /** score_total: the keys of the scored questions it adds up. */
+  sum?: string[];
+  /** score_total and score_band: points a single question is marked out of. Default 3. */
+  pointsPerQuestion?: number;
+  /** score_band: the score_total keys it reads, added together. */
+  from?: string[];
+  /** score_band: the scale, written against the full marks (`fullScale`). */
+  bands?: Array<{ upTo: number; label: string }>;
+  /** score_band: the full marks the bands are written against. */
+  fullScale?: number;
   validation?: FieldValidation;
   visibleWhen?: VisibleWhen;
   /** Answering this field with one of `when` stands down every field after it. */
