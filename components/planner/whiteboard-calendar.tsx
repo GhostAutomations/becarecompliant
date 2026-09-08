@@ -195,15 +195,23 @@ export default function WhiteboardCalendar({
                       where you are going without knowing what for sends somebody out unprepared.
                     */}
                     <span
-                      className={`block rounded px-1 py-0.5 text-[10px] text-white/85 ${
+                      className={`block rounded px-1 py-0.5 text-[10px] ${
                         /* GREEN BEATS GOLD. Gold means the task is yours; green means it
                            is done, and done is the more useful thing to see at a glance
-                           on a board of forty chips. */
+                           on a board of forty chips.
+
+                           SOLID, not a tint (Phil, 2026-09-08: "the completed and the
+                           green task don't really stand out, especially because of the
+                           colour of the calendar"). rag-green at 20% over a navy cell is
+                           barely a different shade of dark; the chip now uses the same
+                           emerald the green pills use, at full strength, with white text
+                           and a tick, so a done task reads as done across the month at a
+                           glance. */
                         b.status === "completed"
-                          ? "bg-rag-green/20"
+                          ? "bg-rag-green font-medium text-white"
                           : currentUserId && b.conductorId === currentUserId
-                            ? "bg-gold-400/15"
-                            : "bg-white/[0.07]"
+                            ? "bg-gold-400/15 text-white/85"
+                            : "bg-white/[0.07] text-white/85"
                       }`}
                     >
                       {/*
@@ -222,6 +230,9 @@ export default function WhiteboardCalendar({
                       */}
                       <span className="block">
                         <span className="block max-w-full truncate">
+                          {/* The tick, not only the colour: a chip that differs by hue
+                              alone is invisible to a colour blind manager. */}
+                          {b.status === "completed" ? "✓ " : ""}
                           {[b.startTime, chipName(b)].filter(Boolean).join(" · ")}
                         </span>
                         {(() => {
@@ -249,7 +260,12 @@ export default function WhiteboardCalendar({
                               {b.conductorName ? (
                                 <span
                                   className={
-                                    currentUserId && b.conductorId === currentUserId
+                                    /* Gold on a solid green chip is unreadable, and the
+                                       chip is already saying the more important thing:
+                                       this one is done. */
+                                    b.status !== "completed" &&
+                                    currentUserId &&
+                                    b.conductorId === currentUserId
                                       ? "text-gold-300"
                                       : undefined
                                   }

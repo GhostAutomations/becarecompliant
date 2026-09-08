@@ -14,7 +14,7 @@ import "server-only";
  * overdue and due soon lists drill straight to the exact records that need action.
  */
 
-import { type Rag, todayInLondon, formatCivilDate } from "@/lib/recurrence";
+import { DEFAULT_AMBER_DAYS, type Rag, todayInLondon, formatCivilDate } from "@/lib/recurrence";
 import { listRegister as listPeopleRegister, getSupervisionCycleMode } from "@/lib/people/data";
 import { supervisionSlots, appraisalSlot } from "@/lib/people/logic";
 import {
@@ -141,7 +141,7 @@ export async function buildPeopleRegisterReport(
 
   const supDef = definitions.find((d) => d.key === "supervision");
   const supInterval = supDef?.interval ?? 90;
-  const supAmber = supDef?.amber_days ?? 30;
+  const supAmber = supDef?.amber_days ?? DEFAULT_AMBER_DAYS;
   const cycleMode = await getSupervisionCycleMode(input.companyId);
   // Latest supervision + appraisal per person, coloured on time / late (register pill).
   const cycleRows = rows
@@ -316,7 +316,7 @@ export async function buildServiceUserRegisterReport(
 
   const reviewDef = definitions.find((d) => d.key === "care_plan_review");
   const reviewInterval = reviewDef?.interval ?? 90;
-  const reviewAmber = reviewDef?.amber_days ?? 30;
+  const reviewAmber = reviewDef?.amber_days ?? DEFAULT_AMBER_DAYS;
   // Latest care plan review per service user, coloured on time / late (register pill).
   const reviewRows = rows
     .map((r: ServiceUserRow) => {

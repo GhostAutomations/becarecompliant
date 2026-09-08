@@ -9,6 +9,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  DEFAULT_AMBER_DAYS,
   addDays,
   addInterval,
   addMonths,
@@ -152,4 +153,20 @@ test("a month-long interval is unaffected by a DST change in between", () => {
   // Completed 2026-03-15 (GMT), +1 month crosses the 29 Mar spring-forward.
   // Calendar maths must still land exactly on 2026-04-15.
   assert.equal(f(addInterval(d("2026-03-15"), "month", 1)), "2026-04-15");
+});
+
+/* The due soon window. Thirty days made a monthly check amber from the moment it was
+   completed, so green was unreachable; fourteen leaves a fortnight of each. */
+
+test("the default due soon window is fourteen days", () => {
+  assert.equal(DEFAULT_AMBER_DAYS, 14);
+});
+
+test("a monthly check is green for a fortnight after it is completed, then amber", () => {
+  const today = d("2026-09-08");
+  assert.equal(ragStatus(d("2026-10-08"), today, DEFAULT_AMBER_DAYS), "green"); // 30 days out
+  assert.equal(ragStatus(d("2026-09-23"), today, DEFAULT_AMBER_DAYS), "green"); // 15 days out
+  assert.equal(ragStatus(d("2026-09-22"), today, DEFAULT_AMBER_DAYS), "amber"); // 14 days (edge)
+  assert.equal(ragStatus(today, today, DEFAULT_AMBER_DAYS), "amber"); // due today
+  assert.equal(ragStatus(d("2026-09-07"), today, DEFAULT_AMBER_DAYS), "red"); // 1 day overdue
 });

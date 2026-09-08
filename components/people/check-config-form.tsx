@@ -8,6 +8,7 @@ import { recurrenceLabel } from "@/lib/people/logic";
 import { useSavedFlash } from "@/lib/use-saved-flash";
 import type { CheckDefinition } from "@/lib/people/types";
 import { bufferNote } from "@/lib/people/reporting-buffer";
+import { DEFAULT_AMBER_DAYS } from "@/lib/recurrence";
 
 /**
  * One slot in the card grid. Every check renders the SAME four slots in the same
@@ -69,7 +70,7 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
   const [reportingDays, setReportingDays] = useState(
     def.reporting_interval_days != null ? String(def.reporting_interval_days) : "",
   );
-  const [flagDays, setFlagDays] = useState(String(def.amber_days ?? 30));
+  const [flagDays, setFlagDays] = useState(String(def.amber_days ?? DEFAULT_AMBER_DAYS));
   const [scheduleMode, setScheduleMode] = useState<string>(def.schedule_mode);
 
   const isExpiry = def.anchor === "expiry";

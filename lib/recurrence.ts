@@ -186,8 +186,24 @@ export function nextDueDate(
 }
 
 /**
+ * The "due soon" window every check falls back to: FOURTEEN days.
+ *
+ * Phil, 2026-09-08: "once you complete the form as yes, the spot check is amber
+ * straight away because it is due soon... so it would never be green." At thirty days
+ * a monthly check is amber the instant it is completed and stays amber until it is
+ * overdue, so the colour carried no information at all: green was unreachable. Fourteen
+ * days gives a fortnight of green on a monthly cadence and still a fortnight of warning.
+ *
+ * This is the FALLBACK. A company sets its own in Settings (companies.amber_days_default)
+ * and a single check can override that (check_definitions.amber_days); both are left
+ * alone. One constant, because seven places had their own copy of the number and any of
+ * them could drift from the database default without anybody noticing.
+ */
+export const DEFAULT_AMBER_DAYS = 14;
+
+/**
  * RAG status of a check given its due date and today. amberDays is the "due soon"
- * window (company default 30, overridable per check). A missing due date (an
+ * window (the company default, overridable per check). A missing due date (an
  * unscheduled or not-yet-configured check) is neutral -> treated as green here;
  * the UI shows an explicit "not scheduled" state rather than a colour.
  */

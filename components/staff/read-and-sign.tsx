@@ -32,6 +32,8 @@ import PolicyReader from "@/components/staff/policy-reader";
 import PolicyText from "@/components/staff/policy-text";
 import type { Answers, FormSchema } from "@/lib/form-schema";
 import { validateAnswers, type FieldError } from "@/lib/form-validate";
+import { describeValidationErrors } from "@/lib/forms/validation-message";
+import { focusFirstError } from "@/components/forms/focus-first-error";
 import { IDLE_STATE, type ActionState } from "@/lib/forms";
 import { acknowledgePolicy } from "@/lib/assignments/actions";
 import { signatureGiven, type SignatureMode } from "@/lib/assignments/signing";
@@ -75,6 +77,7 @@ export default function ReadAndSign({
   const [state, formAction, pending] = useActionState(acknowledgePolicy, IDLE_STATE);
   const [answers, setAnswers] = useState<Answers>({});
   const [errors, setErrors] = useState<FieldError[]>([]);
+  const [missing, setMissing] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => setMounted(true), []);
@@ -182,9 +185,15 @@ export default function ReadAndSign({
     const result = validateAnswers(schema, answers);
     if (!result.ok) {
       setErrors(result.errors);
+      /* Say what is missing and TAKE THEM TO IT. The per-field message alone sits
+         wherever the field is, which on a forty question form is nowhere near the
+         button they just pressed, so the button reads as broken. */
+      setMissing(describeValidationErrors(schema, result.errors));
+      focusFirstError(result.errors);
       return;
     }
     setErrors([]);
+    setMissing(null);
     setSubmitting(true);
     const fd = new FormData();
     fd.set("answers", JSON.stringify(answers));
@@ -297,7 +306,8 @@ export default function ReadAndSign({
 
                   <FormRenderer schema={schema} errors={errors} onChange={setAnswers} />
 
-                  {state.error ? <p className="form-error mt-3">{state.error}</p> : null}
+                  {missing ? <p className="form-error">{missing}</p> : null}
+      {state.error ? <p className="form-error mt-3">{state.error}</p> : null}
 
                   <button
                     type="submit"

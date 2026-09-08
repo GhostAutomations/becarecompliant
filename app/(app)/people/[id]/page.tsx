@@ -50,6 +50,7 @@ import {
   type ProbationStatus,
   type EmploymentStatus,
 } from "@/lib/people/types";
+import { DEFAULT_AMBER_DAYS } from "@/lib/recurrence";
 
 export const metadata: Metadata = { title: "Record" };
 
@@ -165,7 +166,7 @@ export default async function PersonPage({
     getAppraisalCompDates(id, appraisalDef?.form_id ?? null, appraisalDef?.id ?? null),
   ]);
   const supInterval = supDef?.interval ?? 90;
-  const supAmber = supDef?.amber_days ?? 30;
+  const supAmber = supDef?.amber_days ?? DEFAULT_AMBER_DAYS;
   const cycleMode = await getSupervisionCycleMode(companyId);
   const supCount = cycleMode === "four_supervisions" ? 4 : 3;
   // Sup 1 due anchors on the later of the last Annual Appraisal completion and the

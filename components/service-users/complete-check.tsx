@@ -15,6 +15,8 @@ import FormRenderer from "@/components/forms/form-renderer";
 import type { Answers, FormSchema } from "@/lib/form-schema";
 import type { LookupChoice } from "@/lib/forms/lookup";
 import { validateAnswers, type FieldError } from "@/lib/form-validate";
+import { describeValidationErrors } from "@/lib/forms/validation-message";
+import { focusFirstError } from "@/components/forms/focus-first-error";
 import { completeCheck } from "@/lib/service-users/actions";
 import { IDLE_STATE } from "@/lib/forms";
 
@@ -36,6 +38,7 @@ export default function CompleteCheck({
   const [answers, setAnswers] = useState<Answers>(presetAnswers ?? {});
   const [files, setFiles] = useState<Record<string, File | null>>({});
   const [errors, setErrors] = useState<FieldError[]>([]);
+  const [missing, setMissing] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   useEffect(() => {
     setSubmitting(false);
@@ -50,9 +53,15 @@ export default function CompleteCheck({
     const result = validateAnswers(schema, answers);
     if (!result.ok) {
       setErrors(result.errors);
+      /* Say what is missing and TAKE THEM TO IT. The per-field message alone sits
+         wherever the field is, which on a forty question form is nowhere near the
+         button they just pressed, so the button reads as broken. */
+      setMissing(describeValidationErrors(schema, result.errors));
+      focusFirstError(result.errors);
       return;
     }
     setErrors([]);
+    setMissing(null);
     setSubmitting(true);
     const fd = new FormData();
     fd.set("instance_id", instanceId);
@@ -76,6 +85,7 @@ export default function CompleteCheck({
         lookupChoices={lookupChoices}
       />
 
+      {missing ? <p className="form-error">{missing}</p> : null}
       {state.error ? <p className="form-error">{state.error}</p> : null}
 
       <div className="flex items-center gap-3">

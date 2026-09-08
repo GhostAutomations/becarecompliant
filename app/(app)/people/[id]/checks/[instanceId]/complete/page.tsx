@@ -17,7 +17,7 @@ import {
   branchName,
 } from "@/lib/people/data";
 import { supervisionSlots, annotateSupervisionOptions } from "@/lib/people/logic";
-import { todayInLondon, formatCivilDate } from "@/lib/recurrence";
+import { DEFAULT_AMBER_DAYS, todayInLondon, formatCivilDate } from "@/lib/recurrence";
 import { recordFormPresets } from "@/lib/forms/record-presets";
 import { fieldToNameSelect, findField, isFormSchema, removeField, type Answers, type FormSchema } from "@/lib/form-schema";
 import type { CheckDefinition } from "@/lib/people/types";
@@ -95,7 +95,7 @@ export default async function CompleteCheckPage({
       const slots = supervisionSlots(
         def.interval,
         supCompDates,
-        def.amber_days ?? 30,
+        def.amber_days ?? DEFAULT_AMBER_DAYS,
         appraisalCompDates,
         tracker?.probation_end_actual ?? null,
         undefined,

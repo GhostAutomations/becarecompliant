@@ -7,7 +7,7 @@
  * effects, safe on server and client.
  */
 
-import {
+import { DEFAULT_AMBER_DAYS,
   type CivilDate,
   type Rag,
   type RecurrenceRule,
@@ -105,7 +105,7 @@ export function reviewSlots(
   orderedComps: string[],
   intervalDays: number,
   count = 4,
-  amberDays = 30,
+  amberDays = DEFAULT_AMBER_DAYS,
   today: CivilDate = todayInLondon(),
 ): ReviewSlot[] {
   const slots: ReviewSlot[] = [];

@@ -5,6 +5,7 @@ import PeopleRegister from "@/components/people/people-register";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import { listBranches, listRegister, getColumnLabels, getSupervisionCycleMode } from "@/lib/people/data";
 import { listRegisterCheckColumns, getRegisterColumnText } from "@/lib/register/data";
+import { DEFAULT_AMBER_DAYS } from "@/lib/recurrence";
 
 export const metadata: Metadata = { title: "People" };
 
@@ -69,8 +70,8 @@ export default async function PeoplePage({
   const defByKey = Object.fromEntries(definitions.map((d) => [d.key, d]));
   const matrixConfig = {
     supInterval: defByKey["supervision"]?.interval ?? 90,
-    supAmber: defByKey["supervision"]?.amber_days ?? 30,
-    rtwAmber: defByKey["right_to_work"]?.amber_days ?? 30,
+    supAmber: defByKey["supervision"]?.amber_days ?? DEFAULT_AMBER_DAYS,
+    rtwAmber: defByKey["right_to_work"]?.amber_days ?? DEFAULT_AMBER_DAYS,
     probationAmber: defByKey["probation_review"]?.amber_days ?? 14,
     cycleMode,
   };
