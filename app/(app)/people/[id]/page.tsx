@@ -606,7 +606,15 @@ export default async function PersonPage({
         </div>
       </section>
 
-      {/* Evidence history (collapsed by default, matches the Manage record card). */}
+      {/* THE THREE FOLDED SECTIONS SIT IN ONE ROW (Phil, 2026-09-08: "Evidence history,
+          history and manage record all be one third of the size and sit on one row"). Closed,
+          which is how they spend nearly all their time, three summaries stacked took three
+          full rows of a record to say nothing. auto-fit rather than grid-cols-3 because two
+          of the three are permission dependent -- History is Admins only and Manage record is
+          managers only -- so a fixed three columns would leave a hole on the records of the
+          people who see fewer of them. items-start so opening one does not stretch the others
+          to match it. */}
+      <section className="grid items-start gap-4 grid-cols-[repeat(auto-fit,minmax(320px,1fr))]">
       <details className="glass-card section-card">
         <summary>Evidence history{evidence.length ? ` (${evidence.length})` : ""}</summary>
         {evidence.length === 0 ? (
@@ -741,6 +749,7 @@ export default async function PersonPage({
           </div>
         </details>
       ) : null}
+      </section>
     </div>
   );
 }

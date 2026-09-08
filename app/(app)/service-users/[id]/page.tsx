@@ -363,7 +363,10 @@ export default async function ServiceUserPage({
         </>
       )}
 
-      {/* Evidence history (collapsed by default, matches the Manage record card). */}
+      {/* The three folded sections sit in one row, as on the People record. auto-fit because
+          two of the three are permission dependent; items-start so opening one does not
+          stretch the others. */}
+      <section className="grid items-start gap-4 grid-cols-[repeat(auto-fit,minmax(320px,1fr))]">
       <details className="glass-card section-card">
         <summary>Evidence history{evidence.length ? ` (${evidence.length})` : ""}</summary>
         {evidence.length === 0 ? (
@@ -519,6 +522,7 @@ export default async function ServiceUserPage({
           </div>
         </details>
       ) : null}
+      </section>
     </div>
   );
 }
