@@ -375,12 +375,19 @@ export type BookableCheck = {
   trackerKey?: string;
 };
 
-/** The tracker forms a PERSON can have booked, in the order they are offered. Service
- *  Users have no trackers, so their list is unchanged. */
+/**
+ * The tracker forms a PERSON can have booked. Probation only (Phil, 2026-09-08: "no dbs
+ * and right to work doesnt need to be in it"). A probation review is an appointment with
+ * somebody, and Thistle holds one every month while probation runs; a DBS renewal and a
+ * right to work check are desk jobs done from the record when the paperwork arrives, not
+ * meetings anybody books a slot for.
+ *
+ * This list is the whole rule: it fills the dropdown AND is what createBooking validates
+ * against, so a key that is not offered cannot be posted either. Service Users have no
+ * trackers, so their list is unchanged.
+ */
 export const BOOKABLE_TRACKERS: ReadonlyArray<{ key: string; name: string }> = [
   { key: "probation_review", name: "Probation Review" },
-  { key: "dbs_renewal", name: "DBS" },
-  { key: "right_to_work", name: "Right to Work" },
 ];
 
 /** The tracker forms as bookable entries. */

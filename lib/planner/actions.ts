@@ -3,13 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
-import { TRACKER_FORMS } from "@/lib/people/logic";
 import { profileName } from "@/lib/auth/company-profiles";
 import { writeAudit } from "@/lib/audit";
 import { requireFeature } from "@/lib/billing/tier";
 import type { ActionState } from "@/lib/forms";
 import { ukDate } from "@/lib/dates";
 import { normaliseStartTime } from "@/lib/planner/booking-time";
+import { BOOKABLE_TRACKERS } from "@/lib/planner/data";
 import { bookingsOverlap, clashMessage, displayTime } from "@/lib/planner/overlap";
 
 function revalidatePlanner() {
@@ -141,8 +141,9 @@ export async function createBooking(formData: FormData): Promise<ActionState> {
   /* A task is for a check OR a tracker form, never both: the database says so too
      (0243). Probation, DBS and Right to Work have no check instance to point at. */
   const trackerFormKeyRaw = String(formData.get("tracker_form_key") ?? "").trim();
-  const trackerFormKey = TRACKER_FORMS[trackerFormKeyRaw] ? trackerFormKeyRaw : "";
-  if (trackerFormKeyRaw && !trackerFormKey) return { error: "That form was not found." };
+  const bookableTracker = BOOKABLE_TRACKERS.find((t) => t.key === trackerFormKeyRaw) ?? null;
+  const trackerFormKey = bookableTracker?.key ?? "";
+  if (trackerFormKeyRaw && !trackerFormKey) return { error: "That form cannot be booked." };
   const title = String(formData.get("title") ?? "").trim();
   const conductorId = String(formData.get("conductor_id") ?? "").trim();
   const scheduledDate = String(formData.get("scheduled_date") ?? "").trim();
@@ -205,7 +206,7 @@ export async function createBooking(formData: FormData): Promise<ActionState> {
        task whose form does not exist for that record. */
     if (trackerFormKey) {
       if (subjectKind !== "person") return { error: "That form is only on a team member's record." };
-      checkKind = TRACKER_FORMS[trackerFormKey].title;
+      checkKind = bookableTracker?.name ?? null;
     }
   } else {
     // Ad-hoc: needs a title and an explicit branch.
