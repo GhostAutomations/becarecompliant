@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { bookingHref } from "@/lib/planner/booking-link";
 import type { PlannerBookingView } from "@/lib/planner/data";
 // Pure and tested in lib/planner/week.test.ts: month ends, year ends, leap days and the clocks
 // going back are exactly where week arithmetic quietly goes wrong.
@@ -296,24 +297,47 @@ export default function WhiteboardCalendar({
             <p className="text-sm text-white/50">Nothing booked.</p>
           ) : (
             <div className="space-y-2">
-              {selectedList.map((b) => (
-                <div key={b.id} className="flex items-start justify-between gap-3 border-t border-white/10 pt-2 text-sm first:border-t-0 first:pt-0">
-                  <div className="min-w-0">
-                    <p className="font-medium text-white">{b.label}</p>
-                    <p className="text-white/60">
-                      {[b.subjectName, b.branchName, b.conductorName].filter(Boolean).join(" · ")}
-                    </p>
+              {selectedList.map((b) => {
+                /* THE TASK IS THE WAY IN (Phil, 2026-09-08). A planned check opens the
+                   form that completes it, so nobody has to leave the planner, find the
+                   register, find the person and find the check to do the thing the
+                   planner just told them to do. bookingHref decides where each one
+                   goes; a task with nothing attached is not a link at all. */
+                const href = bookingHref(b);
+                const body = (
+                  <>
+                    <div className="min-w-0">
+                      <p className="font-medium text-white">{b.label}</p>
+                      <p className="text-white/60">
+                        {[b.subjectName, b.branchName, b.conductorName].filter(Boolean).join(" · ")}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      {/* The word, not only the colour: a chip that is merely a different
+                          shade of dark tells a colour blind manager nothing. */}
+                      {b.status === "completed" ? (
+                        <span className="pill bg-rag-green/20 text-rag-green-soft">Completed</span>
+                      ) : null}
+                      <span className="text-white/70">{b.startTime ?? "—"}</span>
+                    </div>
+                  </>
+                );
+                const rowClass =
+                  "flex items-start justify-between gap-3 border-t border-white/10 pt-2 text-sm first:border-t-0 first:pt-0";
+                return href ? (
+                  <Link
+                    key={b.id}
+                    href={href}
+                    className={`${rowClass} -mx-2 rounded-lg px-2 hover:bg-white/5`}
+                  >
+                    {body}
+                  </Link>
+                ) : (
+                  <div key={b.id} className={rowClass}>
+                    {body}
                   </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    {/* The word, not only the colour: a chip that is merely a different
-                        shade of dark tells a colour blind manager nothing. */}
-                    {b.status === "completed" ? (
-                      <span className="pill bg-rag-green/20 text-rag-green-soft">Completed</span>
-                    ) : null}
-                    <span className="text-white/70">{b.startTime ?? "—"}</span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

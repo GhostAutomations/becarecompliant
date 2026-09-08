@@ -3,6 +3,7 @@
 import { ukShortDateWithWeekday } from "@/lib/dates";
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import { bookingHref } from "@/lib/planner/booking-link";
 import { useRouter } from "next/navigation";
 import { rescheduleBooking, completeBooking, cancelBooking } from "@/lib/planner/actions";
 import TimeSelect from "./time-select";
@@ -61,10 +62,12 @@ function BookingCard({ b }: { b: PlannerBookingView }) {
         </span>
         <span className="flex shrink-0 items-center gap-1.5">
           {b.checkInstanceId && b.subjectId && b.population ? (
-            // Linked to a check: completing the check auto-completes this booking, so send the
-            // user to the check's form rather than marking it done here.
+            // Linked to a check: completing the check closes this booking (see
+            // lib/planner/close-booking.ts), so send the user to the check's form rather
+            // than marking it done here. One source of truth for the URL: the day panel
+            // on the calendar opens exactly the same page from the same helper.
             <Link
-              href={`/${b.population === "people" ? "people" : "service-users"}/${b.subjectId}/checks/${b.checkInstanceId}/complete`}
+              href={bookingHref(b) ?? "#"}
               className={`btn-primary ${btn}`}
             >
               Complete
