@@ -535,12 +535,34 @@ export default async function PersonPage({
           managers only, so auto-fit rather than a fixed three: a Supervisor sees two and they
           share the row between them instead of leaving a gap where the login would have been.
           The Briefings tile that used to sit here went with its query. */}
-      <section className="grid items-start gap-4 grid-cols-[repeat(auto-fit,minmax(320px,1fr))]">
+      <section className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(320px,1fr))]">
       {canManage ? (
           <div className="glass-card p-5">
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white">
-              Team Member login
-            </h2>
+            {/* The invite sits in the corner beside the heading, where a tile's action lives
+                (Phil, 2026-09-08). Its WORD changes with the state -- Invite them when there
+                is no login, Send it again when one was sent and never opened -- because they
+                are the same act and a person should not have to read two paragraphs to work
+                out which button they are looking at. Nothing at all when there is no email to
+                send to, or when the login is already active. */}
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-white">
+                Team Member login
+              </h2>
+              {login?.has_email && !(login.has_login && login.login_status === "active") ? (
+                <ActionForm
+                  action={invitePersonLogin}
+                  hidden={{ person_id: id }}
+                  label={
+                    login.invite_status === "pending" || login.login_status === "invited"
+                      ? "Send it again"
+                      : "Invite them"
+                  }
+                  savedLabel="Sent"
+                  buttonClassName="btn-primary text-[13px] sm:px-5"
+                  className=""
+                />
+              ) : null}
+            </div>
             {!login?.has_email ? (
               <p className="text-sm text-white/50">
                 No personal email on this record, so they cannot be given a login. Add one
@@ -554,40 +576,21 @@ export default async function PersonPage({
                 </span>
               </div>
             ) : login.invite_status === "pending" || login.login_status === "invited" ? (
-              <div className="space-y-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="pill-amber">Invited</span>
-                  {login.invited_at ? (
-                    <span className="text-sm text-white/60">
-                      Sent {formatDisplayDate(String(login.invited_at).slice(0, 10))}, not
-                      opened yet.
-                    </span>
-                  ) : null}
-                </div>
-                <ActionForm
-                  action={invitePersonLogin}
-                  hidden={{ person_id: id }}
-                  label="Send it again"
-                  savedLabel="Sent"
-                  buttonClassName="btn-outline px-3 py-2 text-xs"
-                  className=""
-                />
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="pill-amber">Invited</span>
+                {login.invited_at ? (
+                  <span className="text-sm text-white/60">
+                    Sent {formatDisplayDate(String(login.invited_at).slice(0, 10))}, not
+                    opened yet.
+                  </span>
+                ) : null}
               </div>
             ) : (
-              <div className="space-y-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="pill-neutral">No login</span>
-                  <span className="text-sm text-white/60">
-                    They cannot see their holidays or anything assigned to them.
-                  </span>
-                </div>
-                <ActionForm
-                  action={invitePersonLogin}
-                  hidden={{ person_id: id }}
-                  label="Invite them"
-                  savedLabel="Invited"
-                  className=""
-                />
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="pill-neutral">No login</span>
+                <span className="text-sm text-white/60">
+                  They cannot see their holidays or anything assigned to them.
+                </span>
               </div>
             )}
           </div>
