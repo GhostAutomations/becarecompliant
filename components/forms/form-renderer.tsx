@@ -37,6 +37,7 @@ import { computeScores, bandTotal } from "@/lib/forms/compute-scores";
 import { scoreProgress } from "@/lib/forms/scoring";
 import { type LookupChoice, filterChoices, lookupError } from "@/lib/forms/lookup";
 import CarePackageField from "./care-package-field";
+import CarePackageSummary from "@/components/forms/care-package-summary";
 import {
   CARE_PLAN_SERVICES,
   CARE_PLAN_UNITS,
@@ -350,6 +351,13 @@ function Field({
        from the field's options, because a package line has to BE a care plan row — a service
        or a duration the plan cannot store would price at nothing. */
     case "care_package":
+      /* Shown, not asked: the schedule comes from the record and the server rewrites it
+         on submit, so there is nothing here for anyone to edit. */
+      if (field.readOnly) {
+        return labelledControl(
+          <CarePackageSummary value={isPackageValue(value) ? value : []} />,
+        );
+      }
       return labelledControl(
         <CarePackageField
           value={isPackageValue(value) ? value : []}

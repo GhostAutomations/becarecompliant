@@ -114,6 +114,14 @@ export type FormField = {
   type: FieldType;
   label: string;
   required?: boolean;
+  /**
+   * Shown, never asked (2026-09-09). The value comes from the RECORD, not the person
+   * filling the form in, and the server rewrites it on submit from the record's own
+   * data, so what is frozen into the Evidence is what the system held at that moment
+   * and not what a browser sent. Used by the Individual Plan Review to put the care
+   * schedule in front of the reviewer and ask whether it still matches.
+   */
+  readOnly?: boolean;
   /** Small helper text shown under the control. */
   help?: string;
   placeholder?: string;

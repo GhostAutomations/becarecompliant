@@ -22,7 +22,7 @@ import { sendCalendarInvite } from "@/lib/notifications/invites";
 import { escapeHtml } from "@/lib/email/templates";
 import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
 import { applyRetentionForRecord } from "@/lib/evidence/retention";
-import { type Answers, type FormSchema, firstDateFieldKey, isFormSchema } from "@/lib/form-schema";
+import { type Answers, type FormSchema, firstDateFieldKey, flattenFields, isFormSchema } from "@/lib/form-schema";
 import { formCompletesCheck } from "@/lib/form-validate";
 import { closeBookingsForCheck } from "@/lib/planner/close-booking";
 import { rebakeFormFieldOptions } from "@/lib/forms/rebake-options";
@@ -35,10 +35,11 @@ import { nextDueAfterCompletion } from "@/lib/people/logic";
 import {
   listServiceUserCheckDefinitions,
   getPublishedFormVersion,
+  getCarePlanEntries,
 } from "./data";
 import { initialDueDate, todayIso, addDaysToIso } from "./logic";
 import { carersOf, handedFromCarers } from "./care-plan-consts";
-import { CALL_SLOTS } from "./care-package";
+import { CALL_SLOTS, linesFromRows } from "./care-package";
 
 const SLOTS: string[] = CALL_SLOTS.map((s) => s.value);
 import { SU_REGISTER_COLUMNS } from "./types";
@@ -843,6 +844,20 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
 
   const version = await getPublishedFormVersion(def.form_id);
   if (!version) return { error: "This check's form has no published version." };
+
+  /* A read only field is SHOWN, never asked, so what the browser sent for it is not
+     evidence of anything. Rewrite it here from the record itself, immediately before the
+     answers are frozen, so the Individual Plan Review can never store a care schedule
+     that disagrees with the one Invoicing bills from. */
+  if (isFormSchema(version.schema)) {
+    for (const field of flattenFields(version.schema as FormSchema)) {
+      if (field.type === "care_package" && field.readOnly) {
+        answers[field.key] = linesFromRows(
+          await getCarePlanEntries(instance.service_user_id as string),
+        );
+      }
+    }
+  }
 
   const files: EvidenceFileInput[] = [];
   for (const [key, value] of formData.entries()) {

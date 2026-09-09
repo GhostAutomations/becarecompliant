@@ -10,7 +10,9 @@ import { getServiceUser, getPublishedFormVersion } from "@/lib/service-users/dat
 import { branchName } from "@/lib/people/data";
 import { recordFormPresets } from "@/lib/forms/record-presets";
 import { todayInLondon, formatCivilDate } from "@/lib/recurrence";
-import { fieldToNameSelect, findField, isFormSchema, removeField, type Answers, type FormSchema } from "@/lib/form-schema";
+import { fieldToNameSelect, findField, flattenFields, isFormSchema, removeField, type Answers, type FormSchema } from "@/lib/form-schema";
+import { getCarePlanEntries } from "@/lib/service-users/data";
+import { linesFromRows } from "@/lib/service-users/care-package";
 import type { CheckDefinition } from "@/lib/people/types";
 
 export const metadata: Metadata = { title: "Complete check" };
@@ -80,6 +82,16 @@ export default async function CompleteServiceUserCheckPage({
     authorName: profile.full_name || profile.email || null,
     today: formatCivilDate(todayInLondon()),
   });
+
+  /* A read only care_package field is the schedule we already hold, put in front of the
+     reviewer so the form can ask whether it still matches instead of asking them to retype
+     it. Seeded here and REWRITTEN on submit (lib/service-users/actions.ts), so the frozen
+     Evidence carries what the system held, not what a browser sent. */
+  for (const field of flattenFields(schema)) {
+    if (field.type === "care_package" && field.readOnly) {
+      presetAnswers[field.key] = linesFromRows(await getCarePlanEntries(id));
+    }
+  }
 
   // Audit (and any form with an auditor_name field): the Auditor Full Name is a
   // dropdown of the company's active users, preselected to whoever is signed in
