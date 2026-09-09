@@ -54,9 +54,13 @@ export default function CareScheduleTile({
               : `${callsPerWeek} ${callsPerWeek === 1 ? "call" : "calls"} a week. Invoices are built from this.`}
           </p>
         </div>
-        <Link href={`/service-users/${serviceUserId}/care-plan`} className="btn-outline text-xs">
-          {canManage && callsPerWeek === 0 ? "Add the schedule" : "Open the care plan"}
-        </Link>
+        {/* The button says what pressing it does to THIS tile, not which page it happens to
+            open (Phil, 2026-09-09). Only offered to somebody who can actually change it. */}
+        {canManage ? (
+          <Link href={`/service-users/${serviceUserId}/care-plan`} className="btn-outline text-xs">
+            {callsPerWeek === 0 ? "Add the care schedule" : "Edit care schedule"}
+          </Link>
+        ) : null}
       </div>
 
       {callsPerWeek === 0 ? (
@@ -68,7 +72,7 @@ export default function CareScheduleTile({
         <div className="mt-4 grid gap-2 grid-cols-[repeat(auto-fit,minmax(260px,1fr))]">
           {CARE_PLAN_DAYS.map((day, i) => (
             <div key={day} className="rounded-xl border border-white/10 p-3">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-white/40">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-white">
                 {day}
               </p>
               {byDay[i].length === 0 ? (
