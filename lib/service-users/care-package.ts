@@ -60,6 +60,10 @@ export type PackageLine = {
   unit: string;
   /** 1 to 4. */
   carers: number;
+  /** How many times this call happens on each of its days. Almost always 1; the weekly grid
+   *  has always allowed more and an existing plan may use it, so it is carried rather than
+   *  quietly rounded down to one and under-billed. */
+  quantity: number;
 };
 
 /** A row of the weekly Care Plan, in the shape care_plan_entries stores. */
@@ -78,6 +82,14 @@ const MAX_LINES = 20;
 function clampCarers(v: unknown): number {
   const n = Math.trunc(Number(v));
   return Number.isFinite(n) && n >= 1 ? Math.min(n, 4) : 1;
+}
+
+/** A call happens at least once and, past a point, is somebody typing rather than a rota. */
+function clampQuantity(v: unknown): number {
+  if (v === undefined || v === null || v === "") return 1;
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0) return 1;
+  return Math.min(Math.round(n * 100) / 100, 24);
 }
 
 /**
@@ -116,7 +128,14 @@ export function parsePackage(
     ].sort((a, b) => a - b);
     if (days.length === 0) continue;
 
-    lines.push({ service, days, slot: slot as CallSlot, unit, carers: clampCarers(o.carers) });
+    lines.push({
+      service,
+      days,
+      slot: slot as CallSlot,
+      unit,
+      carers: clampCarers(o.carers),
+      quantity: clampQuantity(o.quantity),
+    });
   }
   return lines;
 }
@@ -142,14 +161,62 @@ export function packageRows(lines: ReadonlyArray<PackageLine>): PackageRow[] {
     unit: line.unit,
     slot: line.slot,
     carers: line.carers,
-    quantity: 1,
+    quantity: line.quantity,
     position,
   }));
 }
 
 /** How many calls a week the package is, for the screen and the audit trail. */
 export function callsPerWeek(lines: ReadonlyArray<PackageLine>): number {
-  return lines.reduce((total, l) => total + l.days.length, 0);
+  return lines.reduce((total, l) => total + l.days.length * l.quantity, 0);
+}
+
+/**
+ * Fold a stored weekly plan back into package lines, so the same builder edits a plan however
+ * it was first written — at a setup visit, or row by row in the old grid.
+ *
+ * Rows that agree on everything but the day ARE one repeating call, which is what a line is.
+ * Grouping on all five means two calls that differ only in length, or only in carers, stay two
+ * lines and keep their own money.
+ */
+export function linesFromRows(
+  rows: ReadonlyArray<{
+    day_of_week: number;
+    service: string;
+    unit: string;
+    slot: string | null;
+    carers: number;
+    quantity: number;
+  }>,
+): PackageLine[] {
+  const byKey = new Map<string, PackageLine>();
+  for (const row of rows) {
+    const slot = (row.slot && row.slot in SLOT_ORDER ? row.slot : "morning") as CallSlot;
+    const carers = clampCarers(row.carers);
+    const quantity = clampQuantity(row.quantity);
+    const key = `${row.service}|${row.unit}|${slot}|${carers}|${quantity}`;
+    const found = byKey.get(key);
+    if (found) {
+      if (!found.days.includes(row.day_of_week)) found.days.push(row.day_of_week);
+    } else {
+      byKey.set(key, {
+        service: row.service,
+        unit: row.unit,
+        slot,
+        carers,
+        quantity,
+        days: [row.day_of_week],
+      });
+    }
+  }
+  const lines = [...byKey.values()];
+  for (const line of lines) line.days.sort((a, b) => a - b);
+  return lines.sort(
+    (a, b) =>
+      (SLOT_ORDER[a.slot] ?? 99) - (SLOT_ORDER[b.slot] ?? 99) ||
+      a.service.localeCompare(b.service) ||
+      a.unit.localeCompare(b.unit),
+  );
 }
 
 /** One readable line: "Care 45m, 2 carers, morning, Mon Tue Wed Thu Fri Sat Sun". */
@@ -160,7 +227,8 @@ export function describeLine(line: PackageLine): string {
       ? "every day"
       : line.days.map((d) => PACKAGE_DAYS[d]?.label ?? String(d)).join(" ");
   const carers = line.carers === 1 ? "1 carer" : `${line.carers} carers`;
-  return `${line.service} ${line.unit}, ${carers}, ${slot.toLowerCase()}, ${days}`;
+  const times = line.quantity > 1 ? ` ×${line.quantity}` : "";
+  return `${line.service} ${line.unit}${times}, ${carers}, ${slot.toLowerCase()}, ${days}`;
 }
 
 /** The whole package in words, for the audit trail. */

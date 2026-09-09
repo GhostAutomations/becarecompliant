@@ -24,7 +24,15 @@
 import { CALL_SLOTS, PACKAGE_DAYS } from "@/lib/service-users/care-package";
 import type { PackageLineValue } from "@/lib/form-schema";
 
-type Line = { service: string; days: number[]; slot: string; unit: string; carers: number };
+type Line = {
+  service: string;
+  days: number[];
+  slot: string;
+  unit: string;
+  carers: number;
+  /** How many times this call happens on each of its days. Almost always 1. */
+  quantity: number;
+};
 
 export default function CarePackageField({
   value,
@@ -47,6 +55,7 @@ export default function CarePackageField({
     slot: String(l.slot ?? "morning"),
     unit: String(l.unit ?? units[0] ?? "30m"),
     carers: Number(l.carers ?? 1),
+    quantity: Number(l.quantity ?? 1) || 1,
   }));
 
   function update(index: number, patch: Partial<Line>) {
@@ -58,7 +67,14 @@ export default function CarePackageField({
        seven boxes. */
     onChange([
       ...lines,
-      { service: services[0] ?? "Care", days: [0, 1, 2, 3, 4, 5, 6], slot: "morning", unit: units[0] ?? "30m", carers: 1 },
+      {
+        service: services[0] ?? "Care",
+        days: [0, 1, 2, 3, 4, 5, 6],
+        slot: "morning",
+        unit: units[0] ?? "30m",
+        carers: 1,
+        quantity: 1,
+      },
     ]);
   }
 
@@ -74,7 +90,7 @@ export default function CarePackageField({
     update(index, { days });
   }
 
-  const totalCalls = lines.reduce((n, l) => n + l.days.length, 0);
+  const totalCalls = lines.reduce((n, l) => n + l.days.length * l.quantity, 0);
 
   return (
     <div className="mt-1 space-y-3">
@@ -142,6 +158,24 @@ export default function CarePackageField({
                   <option key={c.value} value={c.value}>{c.label}</option>
                 ))}
               </select>
+            </div>
+
+            {/* Times a day: the weekly grid has always allowed a call to happen more than
+                once on a day, so the builder has to be able to say it too or editing an
+                existing plan would quietly halve somebody's bill. */}
+            <div>
+              <label className="form-label" htmlFor={`pkg-${i}-times`}>Times a day</label>
+              <input
+                id={`pkg-${i}-times`}
+                type="number"
+                min={1}
+                max={24}
+                step={1}
+                value={line.quantity}
+                disabled={disabled}
+                onChange={(e) => update(i, { quantity: Number(e.target.value) || 1 })}
+                className="w-20"
+              />
             </div>
 
             <button

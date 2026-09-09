@@ -176,6 +176,7 @@ export type PackageLineValue = {
   slot?: string;
   unit?: string;
   carers?: number;
+  quantity?: number;
 };
 
 export type AnswerValue =
