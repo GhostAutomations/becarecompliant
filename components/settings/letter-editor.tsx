@@ -5,10 +5,21 @@
  * cursor, and a live preview with example values so an Admin can see what an employee
  * will actually receive before saving. The preview uses the same pure merge the sender
  * uses, so what is shown is what goes out.
+ *
+ * SAVE IS NOT AN ActionForm, and it cannot be (Phil, 2026-09-09, found on the funding options
+ * next door). ActionForm submits through <form action={...}>, and React 19 resets a form's
+ * fields once its action resolves. Subject and Wording are controlled by state here — they have
+ * to be, the live preview reads them — so the reset emptied both boxes on screen the moment
+ * Save turned green, while the letter itself saved perfectly. It looked exactly like pressing
+ * Save had wiped the letter. A transition and an ordinary button instead: nothing to reset.
+ *
+ * "Use the standard wording" below stays on ActionForm: it has no fields to lose, and it wants
+ * ActionForm's confirmation dialog.
  */
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import ActionForm from "@/components/action-form";
+import { useSavedFlash } from "@/lib/use-saved-flash";
 import {
   LETTER_PLACEHOLDERS,
   mergeLetterText,
@@ -43,6 +54,9 @@ export default function LetterEditor({
   const [subject, setSubject] = useState(letter.subject);
   const [body, setBody] = useState(letter.body);
   const [open, setOpen] = useState(false);
+  const [pending, startTransition] = useTransition();
+  const [saved, flash, resetFlash] = useSavedFlash();
+  const [error, setError] = useState<string | null>(null);
   const bodyRef = useRef<HTMLTextAreaElement | null>(null);
 
   const preview = useMemo(
@@ -54,6 +68,22 @@ export default function LetterEditor({
     [body],
   );
   const previewSubject = useMemo(() => mergeLetterText(subject, EXAMPLE), [subject]);
+
+  function saveLetter() {
+    const fd = new FormData();
+    fd.set("letter_key", letter.key);
+    fd.set("subject", hasSubject ? subject : "");
+    fd.set("body", body);
+    startTransition(async () => {
+      const result = await save({}, fd);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setError(null);
+      flash();
+    });
+  }
 
   /** Drop a placeholder in at the cursor rather than making them type the braces. */
   function insert(token: string) {
@@ -93,7 +123,7 @@ export default function LetterEditor({
 
       {open ? (
         <div className="mt-5 space-y-5 border-t border-white/10 pt-5">
-          <ActionForm action={save} hidden={{ letter_key: letter.key }} label="Save">
+          <div className="space-y-2">
             {hasSubject ? (
               <div>
                 <label htmlFor={`${letter.key}-subject`} className="form-label">
@@ -101,14 +131,16 @@ export default function LetterEditor({
                 </label>
                 <input
                   id={`${letter.key}-subject`}
-                  name="subject"
                   value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
+                  disabled={pending}
+                  onChange={(e) => {
+                    setSubject(e.target.value);
+                    resetFlash();
+                    setError(null);
+                  }}
                 />
               </div>
-            ) : (
-              <input type="hidden" name="subject" value="" />
-            )}
+            ) : null}
 
             <div>
               <label htmlFor={`${letter.key}-body`} className="form-label">
@@ -116,11 +148,15 @@ export default function LetterEditor({
               </label>
               <textarea
                 id={`${letter.key}-body`}
-                name="body"
                 ref={bodyRef}
                 value={body}
                 rows={9}
-                onChange={(e) => setBody(e.target.value)}
+                disabled={pending}
+                onChange={(e) => {
+                  setBody(e.target.value);
+                  resetFlash();
+                  setError(null);
+                }}
               />
               <p className="form-hint">
                 Leave a blank line between paragraphs. Write plain wording, not HTML.
@@ -148,7 +184,19 @@ export default function LetterEditor({
                 disappearing from the letter.
               </p>
             </div>
-          </ActionForm>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={saveLetter}
+                disabled={pending}
+                className={saved ? "btn-saved text-xs" : "btn-primary text-xs"}
+              >
+                {pending ? "Saving…" : saved ? "Saved" : "Save"}
+              </button>
+              {error ? <span className="text-xs text-red-300">{error}</span> : null}
+            </div>
+          </div>
 
           <div className="rounded-xl border border-white/10 bg-white/5 p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-white/40">

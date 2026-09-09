@@ -9,10 +9,17 @@
  *
  * The button stays disabled until what you typed matches. The server checks it again
  * (lib/companies/deletion.ts) — this half is only so the screen tells you before you press.
+ *
+ * NOT <form action={...}> (2026-09-09). React 19 resets a form's fields once its action
+ * resolves, and the confirmation box is controlled by state. On a REFUSED delete that emptied
+ * the box while `typed` still held the name, so the button stayed enabled over a box that
+ * looked blank, and pressing it submitted nothing and was refused again — a dead end you could
+ * not type your way out of. A transition instead, with the typed name sent from state rather
+ * than read back out of the DOM.
  */
 
-import { useActionState, useState } from "react";
-import { IDLE_STATE } from "@/lib/forms";
+import { useState, useTransition } from "react";
+import type { ActionState } from "@/lib/forms";
 import { deletionWarning, daysUntilPurge, GRACE_DAYS } from "@/lib/companies/deletion";
 import {
   deleteCompany,
@@ -33,9 +40,19 @@ export function DeleteCompanyPanel({
   companyId: string;
   companyName: string;
 }) {
-  const [state, action, pending] = useActionState(deleteCompany, IDLE_STATE);
+  const [state, setState] = useState<ActionState>({});
+  const [pending, startTransition] = useTransition();
   const [typed, setTyped] = useState("");
   const ready = matches(typed, companyName);
+
+  function submit() {
+    const fd = new FormData();
+    fd.set("company_id", companyId);
+    fd.set("confirm_name", typed);
+    startTransition(async () => {
+      setState(await deleteCompany({}, fd));
+    });
+  }
 
   return (
     <section
@@ -45,24 +62,27 @@ export function DeleteCompanyPanel({
       <h2 className="text-sm font-semibold text-red-200">Delete this company</h2>
       <p className="mt-2 text-sm text-white/70">{deletionWarning(companyName, GRACE_DAYS)}</p>
 
-      <form action={action} className="mt-4 space-y-3">
-        <input type="hidden" name="company_id" value={companyId} />
+      <div className="mt-4 space-y-3">
         <label className="block text-xs text-white/60" htmlFor="confirm_name">
           Type <span className="font-semibold text-white/80">{companyName}</span> to confirm
         </label>
         <input
           id="confirm_name"
-          name="confirm_name"
           type="text"
           autoComplete="off"
           value={typed}
-          onChange={(e) => setTyped(e.target.value)}
+          disabled={pending}
+          onChange={(e) => {
+            setTyped(e.target.value);
+            setState({});
+          }}
           className="w-full max-w-sm"
           placeholder={companyName}
         />
         <div className="flex items-center gap-3">
           <button
-            type="submit"
+            type="button"
+            onClick={submit}
             disabled={pending || !ready}
             className="rounded-lg bg-red-500/90 px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/40"
           >
@@ -71,7 +91,7 @@ export function DeleteCompanyPanel({
           {state.error ? <span className="text-xs text-red-300">{state.error}</span> : null}
           {state.ok ? <span className="text-xs text-green-300">{state.ok}</span> : null}
         </div>
-      </form>
+      </div>
     </section>
   );
 }
