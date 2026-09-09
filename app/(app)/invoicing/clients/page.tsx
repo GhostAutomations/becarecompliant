@@ -15,21 +15,32 @@ export default async function PrivateClientsPage() {
       <BackLink href="/invoicing" label="Back to Invoicing" />
       <div>
         <h1 className="page-title">Private Clients</h1>
+        {/* Reworded 2026-09-09: private invoicing is no longer asked when a service user is
+            added. It is switched on by the Setup Visit's funding answer, so the page has to
+            say where these came from rather than send people to a tick box that has gone. */}
         <p className="page-subtitle">
-          Service users with private invoicing switched on. Turn it on when adding or editing a
-          service user.
+          Service users you invoice yourselves. They arrive here when a Setup Visit is completed
+          with a funding type your company invoices directly, and you can switch it on by hand
+          on any service user record.
         </p>
       </div>
 
       {clients.length === 0 ? (
         <div className="glass-card px-6 py-12 text-center">
           <p className="text-sm text-white/60">
-            No private invoicing clients yet. Open a Service User, edit their details and tick
-            Private invoicing.
+            No private clients yet. They appear here on their own once a Setup Visit is
+            completed with a funding type you invoice directly — set which those are in
+            Settings, Service Users, Funding options. You can also switch it on by hand on a
+            service user record.
           </p>
-          <Link href="/service-users" className="btn-outline mt-4 inline-block text-sm">
-            Go to Service Users
-          </Link>
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+            <Link href="/settings/service-users" className="btn-outline inline-block text-sm">
+              Funding options
+            </Link>
+            <Link href="/service-users" className="btn-ghost inline-block text-sm">
+              Go to Service Users
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="space-y-2">
