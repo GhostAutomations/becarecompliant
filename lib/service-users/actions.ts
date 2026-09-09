@@ -431,12 +431,27 @@ export async function updateCarePlan(_prev: ActionState, formData: FormData): Pr
     .limit(1)
     .maybeSingle();
   const currentFrom = current?.effective_from as string | undefined;
-  if (currentFrom && newFrom <= currentFrom) {
-    return { error: `The new plan must start after the current plan began (${currentFrom}).` };
+  if (currentFrom && newFrom < currentFrom) {
+    return { error: `The schedule cannot start before the current one began (${currentFrom}).` };
   }
 
-  // Close the current open version the day before the new one starts.
-  if (currentFrom) {
+  /* SAME DATE MEANS CORRECT, NOT SUPERSEDE (2026-09-09). Every edit now carries the date the
+     schedule starts (Phil: "the new plan starts on should be required for any edits"), and
+     the honest reading of the SAME date is that this version was written wrong and is being
+     put right — not that a second version begins the day it began. Closing it the day before
+     its own start would leave a version that was live for minus one day, and refusing outright
+     leaves somebody who spotted a typo an hour later with nowhere to go. */
+  const correctingInPlace = currentFrom === newFrom;
+
+  if (correctingInPlace) {
+    const { error: delErr } = await supabase
+      .from("care_plan_entries")
+      .delete()
+      .eq("service_user_id", serviceUserId)
+      .is("effective_to", null);
+    if (delErr) return { error: "Could not update the care plan. Please try again." };
+  } else if (currentFrom) {
+    // Close the current open version the day before the new one starts.
     const { error: closeErr } = await supabase
       .from("care_plan_entries")
       .update({ effective_to: addDaysIso(newFrom, -1) })
@@ -471,9 +486,14 @@ export async function updateCarePlan(_prev: ActionState, formData: FormData): Pr
     action: "service_user.care_plan_updated",
     entityType: "service_user",
     entityId: serviceUserId,
-    summary: `New care plan version effective ${newFrom}`,
+    summary: correctingInPlace
+      ? `Corrected the care schedule effective ${newFrom}`
+      : `New care schedule version effective ${newFrom}`,
+    metadata: { effective_from: newFrom, corrected_in_place: correctingInPlace },
   });
   revalidatePath(`/service-users/${serviceUserId}/care-plan`);
+  revalidatePath(`/service-users/${serviceUserId}/care-schedule`);
+  revalidatePath(`/service-users/${serviceUserId}`);
   return { ok: "Saved" };
 }
 

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import CareScheduleEditor from "@/components/service-users/care-schedule-editor";
-import { getServiceUser, getCarePlanEntries } from "@/lib/service-users/data";
+import { getServiceUser, getCarePlanEntries, getCurrentCarePlanFrom } from "@/lib/service-users/data";
 import { getInvoicingConfig, londonToday } from "@/lib/invoicing/data";
 import { INVOICE_SERVICES, serviceFixedPence } from "@/lib/invoicing/types";
 
@@ -35,8 +35,9 @@ export default async function CareSchedulePage({ params }: { params: Promise<{ i
   if (!su) redirect("/service-users");
   if (!MANAGE_ROLES.includes(profile.role)) redirect(`/service-users/${id}`);
 
-  const [entries, config] = await Promise.all([
+  const [entries, currentFrom, config] = await Promise.all([
     getCarePlanEntries(id),
+    getCurrentCarePlanFrom(id),
     getInvoicingConfig(su.company_id),
   ]);
   const servicesWithFixed = INVOICE_SERVICES.filter(
@@ -60,6 +61,7 @@ export default async function CareSchedulePage({ params }: { params: Promise<{ i
         servicesWithFixed={servicesWithFixed}
         today={londonToday()}
         hasPlan={entries.length > 0}
+        currentFrom={currentFrom}
         backHref={`/service-users/${id}`}
       />
     </div>

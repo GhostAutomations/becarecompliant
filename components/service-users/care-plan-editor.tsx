@@ -106,7 +106,7 @@ export default function CarePlanEditor({
       {mode === "update" ? (
         <div className="rounded-xl border border-gold-400/40 bg-gold-400/10 p-5">
           <label htmlFor="cp-effective" className="text-sm font-semibold text-gold-300">
-            New plan starts on
+            This schedule starts on
           </label>
           <input
             id="cp-effective"
@@ -118,9 +118,9 @@ export default function CarePlanEditor({
             onChange={reset}
           />
           <p className="form-hint mt-2">
-            This creates a NEW dated version. The current plan is kept and billed up to the day
-            before; this plan applies from this date. Invoices that straddle the date bill part
-            on each plan.
+            Keep the date the current schedule started and this CORRECTS it. Choose a later date
+            and the current schedule is kept and billed up to the day before, with this one
+            applying from the date chosen. An invoice straddling the date bills part on each.
           </p>
         </div>
       ) : null}
@@ -145,8 +145,8 @@ export default function CarePlanEditor({
           {pending
             ? "Saving…"
             : showSaved
-              ? mode === "update" ? "Started" : "Saved"
-              : mode === "update" ? "Start new plan" : "Save care plan"}
+              ? "Saved"
+              : mode === "update" ? "Save schedule" : "Save care plan"}
         </button>
         {state.error ? <span className="text-xs text-red-300">{state.error}</span> : null}
       </div>
