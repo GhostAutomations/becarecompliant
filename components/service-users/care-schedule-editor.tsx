@@ -16,8 +16,16 @@
  * money. Choosing the date the current schedule already started means you are correcting that
  * version rather than starting another — the server reads it that way, so a typo spotted an
  * hour later is still fixable without inventing a version that lived for no time at all.
+ *
+ * AND YOU CAN START AGAIN (Phil, 2026-09-09: "for some people it would be easier to just
+ * create a new plan rather than edit the old one"). When a package changes wholesale — a
+ * reablement block ending, four calls dropping to two — unpicking the old one line by line is
+ * more work than writing what is actually happening. Start again empties the builder; it does
+ * not touch anything until Save, and the schedule it replaces is kept and billed up to the day
+ * before the new one starts.
  */
 
+import { useState } from "react";
 import CarePlanEditor from "./care-plan-editor";
 import { updateCarePlan } from "@/lib/service-users/actions";
 import type { CarePlanEntry } from "@/lib/service-users/care-plan-consts";
@@ -42,24 +50,47 @@ export default function CareScheduleEditor({
   backHref: string;
 }) {
   const router = useRouter();
+  const [fromScratch, setFromScratch] = useState(false);
 
   return (
     <div className="space-y-4">
       {hasPlan && currentFrom ? (
-        <p className="text-xs text-white/55">
-          Every change starts on a date, because the invoices either side of it are not the same
-          money. Leave the date as it is to CORRECT the schedule that began then; choose a later
-          date to start a new one and keep the current schedule for invoices already raised.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <p className="max-w-xl text-xs text-white/55">
+            {fromScratch ? (
+              <>
+                Building a new schedule from nothing. The current one is kept and billed up to
+                the day before the date below. Nothing changes until you save.
+              </>
+            ) : (
+              <>
+                Every change starts on a date, because the invoices either side of it are not
+                the same money. Leave the date as it is to CORRECT the schedule that began then;
+                choose a later date to start a new one and keep the current schedule for
+                invoices already raised.
+              </>
+            )}
+          </p>
+          <button
+            type="button"
+            onClick={() => setFromScratch((v) => !v)}
+            className="btn-outline shrink-0 text-xs"
+          >
+            {fromScratch ? "Go back to the current schedule" : "Start again from scratch"}
+          </button>
+        </div>
       ) : null}
 
       <CarePlanEditor
+        /* Remounted when the starting point changes, so the builder reloads from the right
+           lines instead of keeping what was on screen. */
+        key={fromScratch ? "scratch" : "current"}
         mode="update"
         action={updateCarePlan}
         serviceUserId={serviceUserId}
-        initial={initial}
+        initial={fromScratch ? [] : initial}
         servicesWithFixed={servicesWithFixed}
-        today={hasPlan && currentFrom ? currentFrom : today}
+        today={hasPlan && currentFrom && !fromScratch ? currentFrom : today}
         /* Back to the record on save, so the tile you came from shows the week you have just
            written. router.push rather than a location change: the record is a server component
            and this keeps the client navigation the rest of the app uses. */
