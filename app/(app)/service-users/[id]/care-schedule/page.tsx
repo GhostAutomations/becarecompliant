@@ -25,8 +25,9 @@ const MANAGE_ROLES = [
  * history. None of that is what somebody pressing Edit care schedule came for, and all of it
  * made the page wide enough to read badly.
  *
- * `page-form` rather than the full width shell: this is a form, and a form reads better in a
- * column than stretched across a monitor.
+ * A COLUMN, not the full width shell: this is a form, and a form reads better in a column than
+ * stretched across a monitor. The wide column rather than the narrow one, because a care
+ * package line is five controls and a Remove on one row and it wrapped at the narrow width.
  */
 export default async function CareSchedulePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -45,7 +46,7 @@ export default async function CareSchedulePage({ params }: { params: Promise<{ i
   ).map((s) => s.label);
 
   return (
-    <div className="page-shell page-form space-y-6">
+    <div className="page-shell page-form-wide space-y-6">
       <BackLink href={`/service-users/${id}`} label="Back to record" />
 
       <div>

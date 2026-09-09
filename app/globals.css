@@ -224,6 +224,15 @@
     @apply mx-auto w-full max-w-3xl;
   }
 
+  /* A FORM WITH A BUILDER IN IT (Phil, 2026-09-09: "the tiles will need to be wider").
+     .page-form is sized for reading a question and typing an answer. A care package line is
+     five controls and a Remove on one row, and at 3xl it wrapped, which put Times a day under
+     Service instead of beside Carers. Wide enough for the row, still a column rather than the
+     full width of a monitor. */
+  .page-form-wide {
+    @apply mx-auto w-full max-w-5xl;
+  }
+
   /* THE COMPLETE BUTTON ON A TILE (Phil, 2026-09-08: "i like them central but not sure of
      the width"). Full width made sense when the tiles were 500px and two abreast and the
      button anchored a wide card. Now they are 230 to 390px and there are six of them, so six

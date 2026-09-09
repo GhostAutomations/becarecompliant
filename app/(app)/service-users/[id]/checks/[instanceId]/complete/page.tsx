@@ -50,7 +50,7 @@ export default async function CompleteServiceUserCheckPage({
   const version = await getPublishedFormVersion(def.form_id);
   if (!version || !isFormSchema(version.schema)) {
     return (
-      <div className="page-form">
+      <div className="page-form-wide">
         <h1 className="page-title">Complete {def.name}</h1>
         <div className="glass-card mt-6 p-6 text-sm text-white/60">
           This check has no usable form version. Please contact your administrator.
@@ -97,7 +97,7 @@ export default async function CompleteServiceUserCheckPage({
     : undefined;
 
   return (
-    <div className="page-form space-y-6">
+    <div className="page-form-wide space-y-6">
       <div>
         <BackLink href={`/service-users/${id}`} label={`Back to ${serviceUser?.full_name ?? "record"}`} />
         <h1 className="page-title mt-1">{def.name}</h1>

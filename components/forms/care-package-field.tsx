@@ -103,6 +103,9 @@ export default function CarePackageField({
 
       {lines.map((line, i) => (
         <div key={i} className="rounded-xl border border-white/10 p-4">
+          {/* items-end so the labels sit above controls of different heights; the Remove
+              button is pushed to the far right by its own ml-auto. Wrapping is still allowed
+              for a narrow screen, but the page is wide enough that a call is one row. */}
           <div className="flex flex-wrap items-end gap-3">
             <div>
               <label className="form-label" htmlFor={`pkg-${i}-service`}>Service</label>
