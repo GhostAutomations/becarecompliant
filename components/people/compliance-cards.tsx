@@ -50,6 +50,16 @@ const COUNT: Record<string, string> = {
 };
 
 /**
+ * The list inside a box, scrolling within the box's fixed height.
+ *
+ * min-h-0 is what makes the scroll happen at all: a flex child defaults to min-height:auto,
+ * so without it the list grows to fit its content and pushes out of the bottom of the box
+ * instead of scrolling inside it. The spot check box is the one that proves it -- thirteen
+ * names on Phil's own board.
+ */
+const LIST_SCROLL = "min-h-0 flex-1 overflow-y-auto";
+
+/**
  * One of the boxes across the top: the count, what it counts, and the names under it.
  *
  * The names are the point. A count of five overdue supervisions sends a manager to the matrix
@@ -89,7 +99,7 @@ function KpiBox({
       {entries.length === 0 ? (
         <p className="mt-3 text-[12px] text-white/35">Nothing due.</p>
       ) : (
-        <ul className="mt-3 flex-1 space-y-1 overflow-y-auto pr-1 text-[12px]">
+        <ul className={`mt-3 space-y-1 pr-1 text-[12px] ${LIST_SCROLL}`}>
           {entries.map((e) => (
             <li key={`${e.id}-${e.stage}`} className={row}>
               <Link
