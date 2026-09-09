@@ -29,6 +29,41 @@ export default function CreateServiceUserForm({
           </select>
         </div>
 
+        {/* Where the care is delivered, and how to reach them. Asked once, here, because
+            every form that wanted them was asking again and getting a different answer
+            (Phil, 2026-09-09). NOT the invoicing address and phone, which are the bill
+            payer's and are set further down the record. */}
+        <div className="sm:col-span-2">
+          <label htmlFor="address_line1" className="form-label">Address line 1 *</label>
+          <input id="address_line1" name="address_line1" required />
+        </div>
+
+        <div className="sm:col-span-2">
+          <label htmlFor="address_line2" className="form-label">Address line 2</label>
+          <input id="address_line2" name="address_line2" />
+        </div>
+
+        <div>
+          <label htmlFor="address_city" className="form-label">Town or city *</label>
+          <input id="address_city" name="address_city" required />
+        </div>
+
+        <div>
+          <label htmlFor="address_county" className="form-label">County</label>
+          <input id="address_county" name="address_county" />
+        </div>
+
+        <div>
+          <label htmlFor="address_postcode" className="form-label">Postcode *</label>
+          <input id="address_postcode" name="address_postcode" required />
+        </div>
+
+        <div>
+          <label htmlFor="phone" className="form-label">Phone number *</label>
+          <input id="phone" name="phone" type="tel" required />
+          <p className="form-hint">Their own number, not the bill payer's.</p>
+        </div>
+
         <div>
           <label htmlFor="ssid" className="form-label">Social Services ID</label>
           <input id="ssid" name="ssid" />

@@ -5,6 +5,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import { canManageRecord } from "@/lib/auth/manage-scope";
 import { callerBranchIds } from "@/lib/auth/branches";
 import { ukDate } from "@/lib/dates";
+import { formatAddress } from "@/lib/form-schema";
 import { writeAudit } from "@/lib/audit";
 import BackLink from "@/components/back-link";
 import PanelDialog from "@/components/panel-dialog";
@@ -190,6 +191,17 @@ export default async function ServiceUserPage({
           {[serviceUser.ssid ? `SSID ${serviceUser.ssid}` : null, serviceUser.branch_name]
             .filter(Boolean)
             .join(" · ") || "Service user record"}
+        </p>
+        {/* Where the care is delivered and how to reach them, on the record rather than
+            buried in Manage record: it is the first thing anyone picking this record up
+            needs, and a form that prefills from it should never be the only place it shows. */}
+        <p className="page-subtitle mt-1 text-sm">
+          {[
+            serviceUser.address ? formatAddress(serviceUser.address) : null,
+            serviceUser.phone,
+          ]
+            .filter(Boolean)
+            .join(" · ") || "No address or phone on the record yet. Add them in Manage record."}
         </p>
       </div>
 

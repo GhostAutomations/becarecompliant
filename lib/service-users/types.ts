@@ -5,6 +5,8 @@
  * UI and data model.
  */
 
+import type { AddressValue } from "@/lib/form-schema";
+
 import type { Rag } from "@/lib/recurrence";
 
 export type ServiceStatus = "active" | "hospital" | "respite" | "cancelled";
@@ -31,6 +33,12 @@ export type ServiceUserRecord = {
   branch_id: string;
   branch_name?: string | null;
   full_name: string;
+  /** Home address — where the care is delivered. Structured like the form engine's
+   *  `address` answer so a review prefills from it field for field. NOT invoice_address,
+   *  which is where the bill goes. */
+  address?: AddressValue | null;
+  /** Their own contact number, not the bill payer's (invoice_phone). */
+  phone?: string | null;
   ssid: string | null;
   package_start_date: string | null;
   service_status: ServiceStatus;

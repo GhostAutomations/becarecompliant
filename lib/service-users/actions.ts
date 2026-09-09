@@ -40,6 +40,7 @@ import {
 import { initialDueDate, todayIso, addDaysToIso } from "./logic";
 import { carersOf, handedFromCarers } from "./care-plan-consts";
 import { CALL_SLOTS, linesFromRows } from "./care-package";
+import { contactDetailsFromForm } from "./contact-details";
 
 const SLOTS: string[] = CALL_SLOTS.map((s) => s.value);
 import { SU_REGISTER_COLUMNS } from "./types";
@@ -139,6 +140,11 @@ export async function createServiceUser(_prev: ActionState, formData: FormData):
   if (!full_name) return { error: "Enter the service user's name." };
   if (!branch_id) return { error: "Choose a branch." };
 
+  /* Where the care is delivered and how to reach them. Required, and checked HERE as well
+     as in the browser: the register is a regulatory record, not a convenience. */
+  const contact = contactDetailsFromForm((name) => formData.get(name));
+  if (!contact.ok) return { error: contact.error };
+
   const ssid = trimOrNull(formData.get("ssid"));
   const package_start_date = isoDateOrNull(formData.get("package_start_date"));
   /* Private invoicing is no longer asked here (Phil, 2026-09-09: "remove private invoicing as
@@ -156,6 +162,8 @@ export async function createServiceUser(_prev: ActionState, formData: FormData):
       company_id: companyId,
       branch_id,
       full_name,
+      address: contact.values.address,
+      phone: contact.values.phone,
       ssid,
       package_start_date,
       created_by: user.id,
@@ -257,6 +265,10 @@ export async function updateServiceUser(_prev: ActionState, formData: FormData):
 
   const full_name = String(formData.get("full_name") ?? "").trim();
   if (!full_name) return { error: "Enter the service user's name." };
+  /* Same rule as Add, from the same module, so the register cannot be edited into a state
+     it could not have been created in. */
+  const contact = contactDetailsFromForm((name) => formData.get(name));
+  if (!contact.ok) return { error: contact.error };
   const inv = invoicingFieldsFromForm(formData);
   if (inv.error) return { error: inv.error };
 
@@ -265,6 +277,8 @@ export async function updateServiceUser(_prev: ActionState, formData: FormData):
     .from("service_users")
     .update({
       full_name,
+      address: contact.values.address,
+      phone: contact.values.phone,
       ssid: trimOrNull(formData.get("ssid")),
       package_start_date: isoDateOrNull(formData.get("package_start_date")),
       ...inv.values,
@@ -855,6 +869,41 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
         answers[field.key] = linesFromRows(
           await getCarePlanEntries(instance.service_user_id as string),
         );
+      }
+    }
+  }
+
+  /* A phone number corrected at the door is the office finding out. The form prefills it
+     from the record, so anything DIFFERENT coming back is a deliberate correction by the
+     one person standing in front of the service user — write it to the record rather than
+     leaving the new number buried in a PDF nobody opens again. The address is not written
+     back: a move is a bigger event than a form field, and the office should make that
+     change knowingly. */
+  if (isFormSchema(version.schema)) {
+    const phoneField = flattenFields(version.schema as FormSchema).find((f) => f.type === "phone");
+    const answered = phoneField ? String(answers[phoneField.key] ?? "").trim() : "";
+    if (answered) {
+      const { data: current } = await supabase
+        .from("service_users")
+        .select("phone")
+        .eq("id", instance.service_user_id as string)
+        .maybeSingle<{ phone: string | null }>();
+      if ((current?.phone ?? "").trim() !== answered) {
+        await supabase
+          .from("service_users")
+          .update({ phone: answered })
+          .eq("id", instance.service_user_id as string);
+        await writeAudit({
+          companyId: instance.company_id as string,
+          actorId: user.id,
+          actorEmail: profile.email,
+          actorRole: profile.role,
+          action: "service_user.phone_updated",
+          entityType: "service_user",
+          entityId: instance.service_user_id as string,
+          summary: `Phone updated from the ${def.name}.`,
+          metadata: { from: current?.phone ?? null, to: answered, via: def.key },
+        });
       }
     }
   }

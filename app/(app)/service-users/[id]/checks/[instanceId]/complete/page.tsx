@@ -83,6 +83,20 @@ export default async function CompleteServiceUserCheckPage({
     today: formatCivilDate(todayInLondon()),
   });
 
+  /* The record's own address and phone, so no form asks for them again (Phil, 2026-09-09:
+     "should be prefilled from our reocrds. phone number unless the phone number has changed
+     and needs to be updated"). Presets, not read only: the reviewer is at the door and is
+     the one person placed to correct them, and a corrected phone writes back to the record
+     on submit. */
+  for (const field of flattenFields(schema)) {
+    if (field.type === "address" && serviceUser?.address) {
+      presetAnswers[field.key] = serviceUser.address;
+    }
+    if (field.type === "phone" && serviceUser?.phone) {
+      presetAnswers[field.key] = serviceUser.phone;
+    }
+  }
+
   /* A read only care_package field is the schedule we already hold, put in front of the
      reviewer so the form can ask whether it still matches instead of asking them to retype
      it. Seeded here and REWRITTEN on submit (lib/service-users/actions.ts), so the frozen

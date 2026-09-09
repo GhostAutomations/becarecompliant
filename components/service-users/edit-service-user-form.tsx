@@ -20,6 +20,35 @@ export default function EditServiceUserForm({ serviceUser }: { serviceUser: Serv
           <label htmlFor="e_full_name" className="form-label">Full name *</label>
           <input id="e_full_name" name="full_name" required defaultValue={serviceUser.full_name} />
         </div>
+        {/* Home address and phone: where the care is delivered and how to reach them.
+            Asked on Add, corrected here. NOT the invoicing pair below, which is the bill
+            payer's and is often somebody else entirely. */}
+        <div className="sm:col-span-2">
+          <label htmlFor="e_addr1" className="form-label">Address line 1 *</label>
+          <input id="e_addr1" name="address_line1" required defaultValue={serviceUser.address?.line1 ?? ""} />
+        </div>
+        <div className="sm:col-span-2">
+          <label htmlFor="e_addr2" className="form-label">Address line 2</label>
+          <input id="e_addr2" name="address_line2" defaultValue={serviceUser.address?.line2 ?? ""} />
+        </div>
+        <div>
+          <label htmlFor="e_city" className="form-label">Town or city *</label>
+          <input id="e_city" name="address_city" required defaultValue={serviceUser.address?.city ?? ""} />
+        </div>
+        <div>
+          <label htmlFor="e_county" className="form-label">County</label>
+          <input id="e_county" name="address_county" defaultValue={serviceUser.address?.county ?? ""} />
+        </div>
+        <div>
+          <label htmlFor="e_postcode" className="form-label">Postcode *</label>
+          <input id="e_postcode" name="address_postcode" required defaultValue={serviceUser.address?.postcode ?? ""} />
+        </div>
+        <div>
+          <label htmlFor="e_phone" className="form-label">Phone number *</label>
+          <input id="e_phone" name="phone" type="tel" required defaultValue={serviceUser.phone ?? ""} />
+          <p className="form-hint">Their own number, not the bill payer's.</p>
+        </div>
+
         <div>
           <label htmlFor="e_ssid" className="form-label">Social Services ID</label>
           <input id="e_ssid" name="ssid" defaultValue={serviceUser.ssid ?? ""} />
