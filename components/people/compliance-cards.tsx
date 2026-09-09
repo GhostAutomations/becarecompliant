@@ -81,8 +81,10 @@ function KpiBox({
   tone: keyof typeof COUNT | null;
   showStage?: boolean;
 }) {
+  /* Three equal columns when there is a stage, so the stage sits in the MIDDLE of the box
+     rather than crowding the date on the right (Phil, 2026-09-09). Two columns without one. */
   const row = showStage
-    ? "grid grid-cols-[minmax(0,1fr)_3.25rem_auto] items-baseline gap-2"
+    ? "grid grid-cols-3 items-baseline gap-2"
     : "grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-2";
   return (
     <div className="glass-card flex h-56 flex-col p-4">
@@ -108,7 +110,9 @@ function KpiBox({
               >
                 {e.name}
               </Link>
-              {showStage ? <span className="text-white/40">{e.stage}</span> : null}
+              {showStage ? (
+                <span className="text-center text-white/40">{e.stage}</span>
+              ) : null}
               <span className="whitespace-nowrap text-right text-white/40">
                 {formatDisplayDate(e.due)}
               </span>
