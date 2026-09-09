@@ -30,12 +30,13 @@ export default function CarePlanManager({
   servicesWithFixed: string[];
   today: string;
   hasPlan: boolean;
-  /** Arrive with the update chooser already open, for "Edit care schedule" on the record
-   *  (Phil, 2026-09-09: pressing it "takes me to the same place"). Landing on a summary and
-   *  making somebody find Update care plan is three presses to change one call. */
+  /** Arrive IN the editor, for "Edit care schedule" on the record (Phil, 2026-09-09: "i want
+   *  it to take me straight into the editor not have to click another button"). Correcting the
+   *  current plan is what that button means, and the new-version route stays one press away
+   *  inside the editor rather than standing in front of it. */
   startEditing?: boolean;
 }) {
-  const [mode, setMode] = useState<Mode>(startEditing && hasPlan ? "choose" : null);
+  const [mode, setMode] = useState<Mode>(startEditing && hasPlan ? "edit" : null);
 
   return (
     <div className="space-y-3">
@@ -101,8 +102,20 @@ export default function CarePlanManager({
               Cancel
             </button>
           </div>
+          {/* The new-version route is here rather than in a chooser in front of the editor:
+              still one press away, but it no longer stands between somebody and the change
+              they came to make. It matters because a new version leaves past invoices billed
+              on the old plan, and correcting in place does not. */}
           <p className="text-xs text-white/55">
-            This corrects the current plan in place. No new version is created.
+            This corrects the current plan in place. No new version is created.{" "}
+            <button
+              type="button"
+              onClick={() => setMode("new")}
+              className="underline decoration-white/25 underline-offset-2 hover:text-white/80"
+            >
+              Start a new dated version instead
+            </button>
+            , to keep the current plan for past invoices.
           </p>
           <CarePlanEditor
             mode="edit"
