@@ -4,7 +4,9 @@ import "server-only";
  * Be Care Compliant — put a service user on the Invoicing books when the Setup Visit says
  * somebody is paying us directly.
  *
- * Phil, 2026-09-09: "if private, they need to be added to the private invoicing."
+ * Phil, 2026-09-09: "if private, they need to be added to the private invoicing" — and, the
+ * same day, WHICH funding types those are is the company's own tick box in
+ * Settings > Service Users, not a list in the code.
  *
  * The Setup Visit is where the office finds out who is paying, and it is the one moment when
  * somebody definitely knows. Leaving it to be typed into Invoicing later is how a package
@@ -39,7 +41,7 @@ import "server-only";
 
 import { createServiceClient } from "@/lib/supabase/admin";
 import type { Answers } from "@/lib/form-schema";
-import { billsDirectly, payerNameFor, payerNoteFor, payerTypeFor } from "./setup-billing";
+import { billedFunding, payerNameFor, payerNoteFor, type CompanyFunding } from "./setup-billing";
 
 export async function ensurePrivateClientFromSetup(opts: {
   companyId: string;
@@ -50,12 +52,36 @@ export async function ensurePrivateClientFromSetup(opts: {
   /** Today in London, so the note's date agrees with the rest of the product. */
   todayIso: string;
 }): Promise<void> {
-  const funding = opts.answers["funding_source"];
-  if (!billsDirectly(funding)) return;
+  const answer = opts.answers["funding_source"];
+  if (typeof answer !== "string" || !answer) return;
   if (!opts.branchId) return; // private_clients.branch_id is NOT NULL; nothing to attach to.
 
   try {
     const admin = createServiceClient();
+
+    // What THIS company has said it invoices itself. Read through the service role for the
+    // same reason the insert is: a Supervisor completing the visit cannot necessarily read
+    // the company's settings, and a silent empty read would mean nobody is ever billed.
+    const { data: configured } = await admin
+      .from("company_funding_options")
+      .select("option_key, bills_privately, catalogue:funding_option_catalogue(label, payer_type)")
+      .eq("company_id", opts.companyId);
+
+    const options: CompanyFunding[] = (
+      (configured as Array<{
+        option_key: string;
+        bills_privately: boolean;
+        catalogue: { label: string; payer_type: "person" | "organisation" } | null;
+      }> | null) ?? []
+    ).map((row) => ({
+      key: row.option_key,
+      label: row.catalogue?.label ?? row.option_key,
+      payerType: row.catalogue?.payer_type ?? "organisation",
+      billsPrivately: row.bills_privately,
+    }));
+
+    const funding = billedFunding(answer, options);
+    if (!funding) return;
 
     // One payer per service user. Archived ones count too: re-creating a client somebody
     // deliberately archived would quietly put them back on the books.
@@ -75,7 +101,7 @@ export async function ensurePrivateClientFromSetup(opts: {
     const { error } = await admin.from("private_clients").insert({
       company_id: opts.companyId,
       branch_id: opts.branchId,
-      client_type: payerTypeFor(funding),
+      client_type: funding.payerType,
       name: payerNameFor(funding, (su?.full_name as string | null) ?? ""),
       service_user_id: opts.serviceUserId,
       notes: payerNoteFor(funding, opts.todayIso),

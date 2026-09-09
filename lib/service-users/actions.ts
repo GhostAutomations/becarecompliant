@@ -1157,6 +1157,13 @@ export async function setFundingOptions(
     return { error: "Choose at least one. The Setup Visit has to offer something." };
   }
 
+  /* "We invoice this ourselves" is meaningless about funding the company does not take, so an
+     unaccepted key can never carry the billing flag — enforced here as well as greyed out on
+     screen, because the screen is not the enforcement. */
+  const billed = new Set(
+    formData.getAll("bills").map((v) => String(v)).filter((k) => keys.includes(k)),
+  );
+
   const supabase = await createClient();
 
   // Every key must be one the catalogue actually holds, so a hand-made request cannot write
@@ -1176,7 +1183,11 @@ export async function setFundingOptions(
   const { error: insErr } = await supabase
     .from("company_funding_options")
     .upsert(
-      keys.map((option_key) => ({ company_id: companyId, option_key })),
+      keys.map((option_key) => ({
+        company_id: companyId,
+        option_key,
+        bills_privately: billed.has(option_key),
+      })),
       { onConflict: "company_id,option_key" },
     );
   if (insErr) return { error: insErr.message };
@@ -1191,8 +1202,8 @@ export async function setFundingOptions(
     action: "company.funding_options_set",
     entityType: "company",
     entityId: companyId,
-    summary: `Accepts ${keys.length} funding ${keys.length === 1 ? "option" : "options"}`,
-    metadata: { options: keys },
+    summary: `Accepts ${keys.length} funding ${keys.length === 1 ? "option" : "options"}, invoicing ${billed.size} directly`,
+    metadata: { options: keys, bills_privately: [...billed] },
   });
 
   revalidatePath("/settings/service-users");

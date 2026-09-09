@@ -1,67 +1,62 @@
 /**
- * Be Care Compliant — which Setup Visits produce someone to invoice.
+ * Be Care Compliant — turning a Setup Visit's funding answer into someone to invoice.
  *
- * WHY (Phil, 2026-09-09, of the Setup Visit's new funding question): "if private, they need
- * to be added to the private invoicing."
+ * WHY (Phil, 2026-09-09, of the Setup Visit's funding question): "if private, they need to be
+ * added to the private invoicing" — then, the same day, that WHICH funding types we invoice
+ * ourselves is the company's call, not the product's: a second tick box beside each accepted
+ * funding option, reachable only once the option itself is ticked.
  *
- * A package the council commissions is billed through the council's own arrangements and
- * never appears in Invoicing. Two of the ten funding types are billed by us, directly, and
- * they are the two Phil picked:
- *
- *   private   — the person or their family pays. A person to invoice.
- *   nhs_chc   — the health board funds the package and the provider invoices the board.
- *               An organisation to invoice, for care given to one named person.
- *
- * Deliberately NOT included, though a case could be made and Phil was offered both: a Local
- * Authority direct payment (the council's money, invoiced to the individual) and a
- * compensation or Court of Protection package. Add them here if that changes — this list is
- * the only place the rule is written down.
+ * He was right, and the first version of this file was wrong. It hard-coded private and
+ * nhs_chc, and neither is universal: some agencies bill the health board direct for Continuing
+ * Healthcare and some are paid through a framework; a direct payment is invoiced to the
+ * individual by one agency and handled by a broker for another. The rule now lives in
+ * company_funding_options.bills_privately, and this module only decides what to DO with it.
  *
  * Pure and self-contained (no imports) so it can be unit tested.
  */
 
-/** The funding answers that mean somebody gets an invoice from us. */
-export const DIRECT_BILLED_FUNDING = ["private", "nhs_chc"] as const;
-
-export type DirectBilledFunding = (typeof DIRECT_BILLED_FUNDING)[number];
-
-/** Does this Setup Visit answer mean a Private Client record is owed? */
-export function billsDirectly(funding: unknown): funding is DirectBilledFunding {
-  return (
-    typeof funding === "string" &&
-    (DIRECT_BILLED_FUNDING as readonly string[]).includes(funding)
-  );
-}
+/** A funding type as this company has configured it. */
+export type CompanyFunding = {
+  key: string;
+  label: string;
+  /** person for a self-funder or a direct payment, organisation for a council or health board. */
+  payerType: "person" | "organisation";
+  /** Ticked: we invoice this ourselves, so a Setup Visit answering it owes a Private Client. */
+  billsPrivately: boolean;
+};
 
 /**
- * Whether the payer is a person or an organisation.
+ * The funding type this Setup Visit answered with, IF this company invoices it itself.
  *
- * A private client is the person or their family. Continuing Healthcare is invoiced to the
- * health board, so the payer is an organisation even though the care is one person's — which
- * is exactly why private_clients carries BOTH a client_type and a service_user_id.
+ * Returns null for everything else — an answer the company does not bill, an unanswered
+ * question, or an answer that is not in their list at all. Null means do nothing, which is the
+ * right outcome for a council-commissioned package: it is billed through the council's own
+ * arrangements and never appears in Invoicing.
  */
-export function payerTypeFor(funding: DirectBilledFunding): "person" | "organisation" {
-  return funding === "nhs_chc" ? "organisation" : "person";
+export function billedFunding(
+  funding: unknown,
+  options: ReadonlyArray<CompanyFunding>,
+): CompanyFunding | null {
+  if (typeof funding !== "string" || !funding) return null;
+  const match = options.find((o) => o.key === funding);
+  return match && match.billsPrivately ? match : null;
 }
 
 /**
  * What to call the client record when it is created.
  *
- * For a private client the payer is almost always the service user or their family, so their
- * name is the right starting point and usually the finished answer. For Continuing Healthcare
- * we do NOT know which health board, and inventing one would be a screen stating a fact it
- * does not have — so it is named for the person the care is for and the office corrects it.
+ * A person payer is the service user or their family, so their name is the right starting
+ * point and usually the finished answer. An organisation payer is a council, health board or
+ * charity we have NOT been told the name of — inventing one would be a screen stating a fact
+ * it does not have — so the record is named for the person the care is for, tagged with the
+ * funding type, and the office corrects it.
  */
-export function payerNameFor(funding: DirectBilledFunding, serviceUserName: string): string {
+export function payerNameFor(funding: CompanyFunding, serviceUserName: string): string {
   const name = serviceUserName.trim() || "Unnamed service user";
-  return funding === "nhs_chc" ? `${name} (Continuing Healthcare)` : name;
+  return funding.payerType === "organisation" ? `${name} (${funding.label})` : name;
 }
 
 /** The note left on a freshly created record, saying where it came from and what is missing. */
-export function payerNoteFor(funding: DirectBilledFunding, todayIso: string): string {
-  const source =
-    funding === "nhs_chc"
-      ? "NHS Continuing Healthcare — invoice the health board"
-      : "Private / self funded";
-  return `Created from the Setup Visit on ${todayIso}. Funding: ${source}. Billing contact, address and payment terms still to be filled in.`;
+export function payerNoteFor(funding: CompanyFunding, todayIso: string): string {
+  return `Created from the Setup Visit on ${todayIso}. Funding: ${funding.label}. Billing contact, address and payment terms still to be filled in.`;
 }

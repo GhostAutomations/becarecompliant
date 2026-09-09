@@ -704,12 +704,16 @@ export async function listServiceUserEvidence(id: string): Promise<
   }));
 }
 
-/** One way a care package can be paid for, and whether this company accepts it. */
+/** One way a care package can be paid for, and what this company does about it. */
 export type FundingOption = {
   key: string;
   label: string;
   description: string | null;
+  /** Ticked: this company takes packages funded this way, so the Setup Visit offers it. */
   accepted: boolean;
+  /** Ticked: this company invoices this funding itself, so a Setup Visit answering it puts
+   *  the payer on the Invoicing books. Only reachable once `accepted` is ticked. */
+  billsPrivately: boolean;
 };
 
 /**
@@ -728,11 +732,16 @@ export async function listFundingOptions(companyId: string): Promise<FundingOpti
       .from("funding_option_catalogue")
       .select("key, label, description, sort_order")
       .order("sort_order", { ascending: true }),
-    supabase.from("company_funding_options").select("option_key").eq("company_id", companyId),
+    supabase
+      .from("company_funding_options")
+      .select("option_key, bills_privately")
+      .eq("company_id", companyId),
   ]);
 
-  const accepted = new Set(
-    ((chosen.data as Array<{ option_key: string }> | null) ?? []).map((r) => r.option_key),
+  const chosenByKey = new Map(
+    ((chosen.data as Array<{ option_key: string; bills_privately: boolean }> | null) ?? []).map(
+      (r) => [r.option_key, r.bills_privately],
+    ),
   );
 
   return (
@@ -742,7 +751,8 @@ export async function listFundingOptions(companyId: string): Promise<FundingOpti
     key: c.key,
     label: c.label,
     description: c.description,
-    accepted: accepted.has(c.key),
+    accepted: chosenByKey.has(c.key),
+    billsPrivately: chosenByKey.get(c.key) ?? false,
   }));
 }
 
