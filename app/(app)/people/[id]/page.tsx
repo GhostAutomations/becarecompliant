@@ -6,6 +6,7 @@ import { canManageRecord } from "@/lib/auth/manage-scope";
 import { callerBranchIds } from "@/lib/auth/branches";
 import BackLink from "@/components/back-link";
 import PanelDialog from "@/components/panel-dialog";
+import EvidenceHistory from "@/components/people/evidence-history";
 import { checksForTitle } from "@/lib/people/check-scope";
 import ActionForm from "@/components/action-form";
 import RecordHistory from "@/components/reports/record-history";
@@ -671,28 +672,7 @@ export default async function PersonPage({
           to match it. */}
       <section className="grid items-start gap-4 grid-cols-[repeat(auto-fit,minmax(320px,1fr))]">
       <PanelDialog title="Evidence history" count={evidence.length}>
-        {evidence.length === 0 ? (
-          <div className="border-t border-white/10 p-5 text-sm text-white/60">
-            No evidence yet. Completing a check stores its form here as immutable inspection evidence.
-          </div>
-        ) : (
-          <div className="divide-y divide-white/5 border-t border-white/10">
-            {evidence.map((e) => (
-              <div key={e.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm">
-                <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
-                  <span className="w-24 shrink-0 text-white/85">{formatDisplayDate(e.submitted_at.slice(0, 10))}</span>
-                  <span className="text-white/85">{e.form_name ?? "Evidence"}</span>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="w-40 text-right text-white/50">{e.author_name ?? "Unknown"}</span>
-                  <a href={`/evidence/${e.id}`} className="btn-outline px-2.5 py-1 text-[11px]">
-                    View
-                  </a>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <EvidenceHistory rows={evidence} />
       </PanelDialog>
 
       {/* History timeline (Admins only). Oldest at top, newest at bottom. */}
