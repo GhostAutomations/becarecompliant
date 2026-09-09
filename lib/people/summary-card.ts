@@ -99,3 +99,87 @@ export function sortCards(cards: PersonCard[]): PersonCard[] {
       a.name.localeCompare(b.name),
   );
 }
+
+/* ---------------------------------------------------------------------------------------
+ * THE FOUR BOXES ACROSS THE TOP (Phil, 2026-09-09: "where are the top kpi boxes from the
+ * screen shot??").
+ *
+ * His own board opens with counts a manager reads before anything else -- Overdue
+ * Supervisions, due in 14 days, due in 30 days, Spot Checks due in 30 days -- and under each
+ * count the NAMES, so the count is a to-do list rather than a number to go and look up.
+ *
+ * They are derived from the same cards the board below is drawn from, so a box can never
+ * disagree with the card it points at.
+ * ------------------------------------------------------------------------------------- */
+
+/** One line inside a box: who, which stage they are on, and when it is due. */
+export type DueEntry = { id: string; name: string; stage: string; due: string };
+
+/** Soonest first, so the longest overdue is the first name in the box. */
+function bySoonest(a: DueEntry, b: DueEntry): number {
+  return a.due.localeCompare(b.due) || a.name.localeCompare(b.name);
+}
+
+/** The people whose next supervision (or the appraisal that closes their cycle) falls
+ *  between `from` and `to` days from today, both inclusive. */
+function supervisionsBetween(
+  cards: ReadonlyArray<PersonCard>,
+  todayIso: string,
+  from: number,
+  to: number,
+): DueEntry[] {
+  const out: DueEntry[] = [];
+  for (const c of cards) {
+    if (!c.nextLabel || !c.nextDue) continue;
+    const days = daysUntil(c.nextDue, todayIso);
+    if (days === null || days < from || days > to) continue;
+    out.push({ id: c.id, name: c.name, stage: c.nextLabel, due: c.nextDue });
+  }
+  return out.sort(bySoonest);
+}
+
+/** Supervisions whose due date has passed. */
+export function overdueSupervisions(
+  cards: ReadonlyArray<PersonCard>,
+  todayIso: string,
+): DueEntry[] {
+  return supervisionsBetween(cards, todayIso, Number.NEGATIVE_INFINITY, -1);
+}
+
+/**
+ * Supervisions due in the next N days, NOT counting the ones already overdue.
+ *
+ * Overdue has its own box beside these, and a name in two boxes reads as two jobs. The
+ * windows nest instead: everything in the 14 day box is also in the 30 day box, which is what
+ * "due in 30 days" means to the person reading it.
+ */
+export function supervisionsDueWithin(
+  cards: ReadonlyArray<PersonCard>,
+  days: number,
+  todayIso: string,
+): DueEntry[] {
+  return supervisionsBetween(cards, todayIso, 0, days);
+}
+
+/**
+ * A named line -- Spot Check, Manual Handling -- due within N days on each card.
+ *
+ * This one DOES count the overdue, because nothing else on the screen does: a spot check
+ * missed in July would otherwise be in no box at all, and quietly drop off the week.
+ */
+export function lineDueWithin(
+  cards: ReadonlyArray<PersonCard>,
+  label: string,
+  days: number,
+  todayIso: string,
+): DueEntry[] {
+  const out: DueEntry[] = [];
+  for (const c of cards) {
+    const line = c.lines.find((l) => l.label === label);
+    if (!line?.due || line.done) continue;
+    const d = daysUntil(line.due, todayIso);
+    if (d === null || d > days) continue;
+    out.push({ id: c.id, name: c.name, stage: label, due: line.due });
+  }
+  return out.sort(bySoonest);
+}

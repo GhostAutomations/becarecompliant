@@ -16,9 +16,13 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   dueWithin,
+  lineDueWithin,
   matchesSearch,
+  overdueSupervisions,
   sortCards,
+  supervisionsDueWithin,
   type CardRag,
+  type DueEntry,
   type PersonCard,
 } from "@/lib/people/summary-card";
 import { formatDisplayDate } from "@/lib/people/logic";
@@ -37,6 +41,69 @@ const DATE: Record<CardRag, string> = {
   none: "text-white/40",
 };
 
+/** The count at the top of a box. "none" is white rather than the faint grey a date gets:
+ *  the number is the first thing on the screen, not a detail on a card. */
+const COUNT: Record<CardRag, string> = {
+  red: "text-rag-red-soft",
+  amber: "text-rag-amber-soft",
+  green: "text-rag-green-soft",
+  none: "text-white",
+};
+
+/** How many names a box lists before it says how many more there are. Six fits the box
+ *  without making the row of boxes taller than the cards underneath it. */
+const BOX_NAMES = 6;
+
+/**
+ * One of the four boxes across the top: the count, what it counts, and the names.
+ *
+ * The names are the point. A count of five overdue supervisions sends a manager to the matrix
+ * to find out who; five names sends them to the five records.
+ */
+function KpiBox({
+  title,
+  entries,
+  tone,
+}: {
+  title: string;
+  entries: DueEntry[];
+  tone: CardRag;
+}) {
+  const shown = entries.slice(0, BOX_NAMES);
+  return (
+    <div className="glass-card flex flex-col p-4">
+      <p className={`text-3xl font-semibold leading-none ${COUNT[tone]}`}>{entries.length}</p>
+      <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-wide text-white/45">
+        {title}
+      </p>
+      {shown.length === 0 ? (
+        <p className="mt-3 text-[12px] text-white/35">Nothing due.</p>
+      ) : (
+        <ul className="mt-3 space-y-1 text-[12px]">
+          {shown.map((e) => (
+            <li key={`${e.id}-${e.stage}`} className="flex items-baseline justify-between gap-2">
+              <Link
+                href={`/people/${e.id}?from=%2Fpeople%2Fsummary`}
+                className="truncate text-white/70 hover:text-gold-300"
+              >
+                {e.name}
+              </Link>
+              <span className="shrink-0 text-white/40">
+                {e.stage} · {formatDisplayDate(e.due)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {entries.length > shown.length ? (
+        <p className="mt-1.5 text-[11px] text-white/35">
+          and {entries.length - shown.length} more
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 const WINDOWS = [
   { key: "all", label: "All", days: null },
   { key: "14", label: "14 days", days: 14 },
@@ -54,6 +121,19 @@ export default function ComplianceCards({
   const [term, setTerm] = useState("");
   const [window, setWindow] = useState<string>("all");
 
+  /* The boxes count the WHOLE board -- the branch already chosen on the server -- not what
+     the search box has narrowed it to. They are the week's workload; typing a name to find
+     one person should not make the workload appear to shrink. */
+  const boxes = useMemo(
+    () => ({
+      overdue: overdueSupervisions(cards, today),
+      fourteen: supervisionsDueWithin(cards, 14, today),
+      thirty: supervisionsDueWithin(cards, 30, today),
+      spot: lineDueWithin(cards, "Spot Check", 30, today),
+    }),
+    [cards, today],
+  );
+
   const shown = useMemo(() => {
     const days = WINDOWS.find((w) => w.key === window)?.days ?? null;
     return sortCards(
@@ -65,6 +145,13 @@ export default function ComplianceCards({
 
   return (
     <div className="space-y-4">
+      <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(240px,1fr))]">
+        <KpiBox title="Overdue supervisions" entries={boxes.overdue} tone="red" />
+        <KpiBox title="Supervisions due in 14 days" entries={boxes.fourteen} tone="amber" />
+        <KpiBox title="Supervisions due in 30 days" entries={boxes.thirty} tone="none" />
+        <KpiBox title="Spot checks due in 30 days" entries={boxes.spot} tone="none" />
+      </div>
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <input
           type="search"

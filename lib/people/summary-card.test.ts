@@ -6,9 +6,12 @@ import assert from "node:assert/strict";
 import {
   daysUntil,
   dueWithin,
+  lineDueWithin,
   matchesSearch,
+  overdueSupervisions,
   ragFor,
   sortCards,
+  supervisionsDueWithin,
   worseRag,
   type PersonCard,
 } from "./summary-card.ts";
@@ -107,4 +110,63 @@ test("sorting does not mutate what it was given", () => {
   const input = [card({ id: "a", worst: "green" }), card({ id: "b", worst: "red" })];
   sortCards(input);
   assert.deepEqual(input.map((c) => c.id), ["a", "b"]);
+});
+
+/* --- the four boxes across the top ---------------------------------------------------- */
+
+const BOARD: PersonCard[] = [
+  card({ id: "late2", name: "Katie Fraser", nextLabel: "SUP 2", nextDue: "2026-07-30" }),
+  card({ id: "late1", name: "Sophie Ellis", nextLabel: "SUP 1", nextDue: "2026-08-20" }),
+  card({ id: "soon", name: "Aimee Marshall", nextLabel: "SUP 3", nextDue: "2026-09-18" }),
+  card({ id: "month", name: "Naledi Moyo", nextLabel: "AA", nextDue: "2026-10-05" }),
+  card({ id: "far", name: "Frances Coyle", nextLabel: "SUP 1", nextDue: "2026-12-01" }),
+  card({ id: "none", name: "Elsie Pritchard-Lewis", nextLabel: null, nextDue: null }),
+];
+
+test("the overdue box names them, longest overdue first", () => {
+  assert.deepEqual(
+    overdueSupervisions(BOARD, TODAY).map((e) => [e.name, e.stage, e.due]),
+    [
+      ["Katie Fraser", "SUP 2", "2026-07-30"],
+      ["Sophie Ellis", "SUP 1", "2026-08-20"],
+    ],
+  );
+});
+
+test("the 14 and 30 day boxes leave the overdue to the overdue box", () => {
+  /* Phil's board shows 5 overdue, 2 in 14 days and 6 in 30 days -- a name in two boxes reads
+     as two jobs, so overdue is counted once, in its own box. */
+  assert.deepEqual(supervisionsDueWithin(BOARD, 14, TODAY).map((e) => e.id), ["soon"]);
+  assert.deepEqual(supervisionsDueWithin(BOARD, 30, TODAY).map((e) => e.id), ["soon", "month"]);
+});
+
+test("the 30 day box contains the 14 day box, so the windows nest", () => {
+  const fourteen = supervisionsDueWithin(BOARD, 14, TODAY).map((e) => e.id);
+  const thirty = supervisionsDueWithin(BOARD, 30, TODAY).map((e) => e.id);
+  assert.equal(fourteen.every((id) => thirty.includes(id)), true);
+});
+
+test("somebody with nothing due is in no box", () => {
+  const boxes = [
+    ...overdueSupervisions(BOARD, TODAY),
+    ...supervisionsDueWithin(BOARD, 30, TODAY),
+  ];
+  assert.equal(boxes.some((e) => e.id === "none"), false);
+});
+
+test("the spot check box counts the overdue too, because no other box would", () => {
+  const spot = (id: string, due: string | null) =>
+    card({ id, name: id, lines: [{ label: "Spot Check", due, rag: "none" }] });
+  const found = lineDueWithin(
+    [spot("missed", "2026-06-01"), spot("soon", "2026-09-20"), spot("far", "2026-11-01"), spot("never", null)],
+    "Spot Check",
+    30,
+    TODAY,
+  );
+  assert.deepEqual(found.map((e) => e.id), ["missed", "soon"]);
+});
+
+test("a line that is complete is not due", () => {
+  const done = card({ id: "d", lines: [{ label: "Spot Check", due: "2026-09-10", rag: "green", done: true }] });
+  assert.deepEqual(lineDueWithin([done], "Spot Check", 30, TODAY), []);
 });
