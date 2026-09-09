@@ -7,12 +7,14 @@ import CreateCheckTypeForm from "@/components/people/create-check-type-form";
 import SuColumnNamesForm from "@/components/service-users/su-column-names-form";
 import { listCompanyForms } from "@/lib/form-builder/data";
 import BranchTypeForm from "@/components/service-users/branch-type-form";
+import FundingOptionsForm from "@/components/service-users/funding-options-form";
 import OutcomesIntervalForm from "@/components/service-users/outcomes-interval-form";
 import {
   listAllServiceUserCheckDefinitions,
   getServiceUserColumnLabels,
   listBranchTypes,
   getOutcomesReviewMonths,
+  listFundingOptions,
 } from "@/lib/service-users/data";
 import { SU_REGISTER_COLUMNS } from "@/lib/service-users/types";
 
@@ -22,13 +24,15 @@ export default async function SettingsServiceUsersPage() {
   const { profile } = await requireCompanyAdmin();
   if (!profile.company_id) redirect("/founder");
 
-  const [definitions, columnLabels, branchTypes, outcomesMonths, allForms] = await Promise.all([
-    listAllServiceUserCheckDefinitions(profile.company_id),
-    getServiceUserColumnLabels(profile.company_id),
-    listBranchTypes(profile.company_id),
-    getOutcomesReviewMonths(profile.company_id),
-    listCompanyForms(profile.company_id),
-  ]);
+  const [definitions, columnLabels, branchTypes, outcomesMonths, allForms, fundingOptions] =
+    await Promise.all([
+      listAllServiceUserCheckDefinitions(profile.company_id),
+      getServiceUserColumnLabels(profile.company_id),
+      listBranchTypes(profile.company_id),
+      getOutcomesReviewMonths(profile.company_id),
+      listCompanyForms(profile.company_id),
+      listFundingOptions(profile.company_id),
+    ]);
   const publishableForms = allForms
     .filter((f) => f.population === "service_users" && f.currentVersion != null)
     .map((f) => ({ id: f.id, name: f.name }));
@@ -88,6 +92,20 @@ export default async function SettingsServiceUsersPage() {
             the type.
           </p>
           <BranchTypeForm branches={branchTypes} />
+        </div>
+      </details>
+
+      {/* Phil, 2026-09-09: the company says what it accepts, so the Setup Visit does not
+          show every funding type in the country to an agency that takes three of them. */}
+      <details className="glass-card section-card">
+        <summary>Funding options</summary>
+        <div className="space-y-3 border-t border-white/10 p-5">
+          <p className="page-subtitle">
+            The ways a care package can be paid for that this company accepts. Only the ones
+            ticked here appear as answers to &ldquo;Care package funded by&rdquo; on the Setup
+            Visit, so nobody reads past options that are never true for you.
+          </p>
+          <FundingOptionsForm options={fundingOptions} />
         </div>
       </details>
 

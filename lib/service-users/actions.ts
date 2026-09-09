@@ -25,6 +25,7 @@ import { applyRetentionForRecord } from "@/lib/evidence/retention";
 import { type Answers, type FormSchema, firstDateFieldKey, isFormSchema } from "@/lib/form-schema";
 import { formCompletesCheck } from "@/lib/form-validate";
 import { closeBookingsForCheck } from "@/lib/planner/close-booking";
+import { rebakeFormFieldOptions } from "@/lib/forms/rebake-options";
 import type { ActionState } from "@/lib/forms";
 import type { CheckDefinition } from "@/lib/people/types";
 import { parseCivilDate } from "@/lib/recurrence";
@@ -1109,4 +1110,74 @@ export async function setServiceUserRetentionHold(
   revalidatePath(`/service-users/${id}`);
   revalidatePath("/settings/retention");
   return { ok: hold ? "Records held." : "Hold lifted." };
+}
+
+/**
+ * Which ways of paying for care this company accepts.
+ *
+ * Phil, 2026-09-09: "in the actual company settings, when admin sets the company account up,
+ * they can choose what funding options they accept so the whole list isnt visible in the
+ * Service user setup form."
+ *
+ * REFUSES AN EMPTY LIST. "Care package funded by" is a required question on the Setup Visit,
+ * so a company that accepts nothing has a form that cannot be completed and no way to see why
+ * from the screen it is stuck on. Turning them all off is not a state worth supporting.
+ *
+ * The chosen set is then BAKED into the stored forms. It has to be: form-validate checks a
+ * chosen option against the stored published schema, so an option that exists only in the
+ * browser is refused on save.
+ */
+export async function setFundingOptions(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requireCompanyAdmin();
+  const companyId = profile.company_id;
+  if (!companyId) return { error: "Select a company first." };
+
+  const keys = [...new Set(formData.getAll("options").map((v) => String(v)).filter(Boolean))];
+  if (keys.length === 0) {
+    return { error: "Choose at least one. The Setup Visit has to offer something." };
+  }
+
+  const supabase = await createClient();
+
+  // Every key must be one the catalogue actually holds, so a hand-made request cannot write
+  // a funding type nothing else in the product knows about.
+  const { data: catalogue } = await supabase.from("funding_option_catalogue").select("key");
+  const known = new Set(((catalogue as Array<{ key: string }> | null) ?? []).map((c) => c.key));
+  const unknown = keys.filter((k) => !known.has(k));
+  if (unknown.length > 0) return { error: "That is not a funding option we recognise." };
+
+  const { error: delErr } = await supabase
+    .from("company_funding_options")
+    .delete()
+    .eq("company_id", companyId)
+    .not("option_key", "in", `(${keys.join(",")})`);
+  if (delErr) return { error: delErr.message };
+
+  const { error: insErr } = await supabase
+    .from("company_funding_options")
+    .upsert(
+      keys.map((option_key) => ({ company_id: companyId, option_key })),
+      { onConflict: "company_id,option_key" },
+    );
+  if (insErr) return { error: insErr.message };
+
+  await rebakeFormFieldOptions(companyId);
+
+  await writeAudit({
+    companyId,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "company.funding_options_set",
+    entityType: "company",
+    entityId: companyId,
+    summary: `Accepts ${keys.length} funding ${keys.length === 1 ? "option" : "options"}`,
+    metadata: { options: keys },
+  });
+
+  revalidatePath("/settings/service-users");
+  return { ok: "Saved." };
 }

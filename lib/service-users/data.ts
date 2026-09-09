@@ -703,3 +703,45 @@ export async function listServiceUserEvidence(id: string): Promise<
     author_name: e.author_name,
   }));
 }
+
+/** One way a care package can be paid for, and whether this company accepts it. */
+export type FundingOption = {
+  key: string;
+  label: string;
+  description: string | null;
+  accepted: boolean;
+};
+
+/**
+ * The funding catalogue, with this company's own ticks against it.
+ *
+ * Phil, 2026-09-09: "when admin sets the company account up, they can choose what funding
+ * options they accept so the whole list isnt visible in the Service user setup form."
+ *
+ * The CATALOGUE is the product's, so every company spells Local Authority the same way and
+ * two companies can be compared. The TICKS are the company's.
+ */
+export async function listFundingOptions(companyId: string): Promise<FundingOption[]> {
+  const supabase = await createClient();
+  const [catalogue, chosen] = await Promise.all([
+    supabase
+      .from("funding_option_catalogue")
+      .select("key, label, description, sort_order")
+      .order("sort_order", { ascending: true }),
+    supabase.from("company_funding_options").select("option_key").eq("company_id", companyId),
+  ]);
+
+  const accepted = new Set(
+    ((chosen.data as Array<{ option_key: string }> | null) ?? []).map((r) => r.option_key),
+  );
+
+  return (
+    (catalogue.data as Array<{ key: string; label: string; description: string | null }> | null) ??
+    []
+  ).map((c) => ({
+    key: c.key,
+    label: c.label,
+    description: c.description,
+    accepted: accepted.has(c.key),
+  }));
+}
