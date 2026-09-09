@@ -18,7 +18,7 @@ import {
   WORKING_STATUS_LABELS,
 } from "@/lib/people/types";
 import { formatDisplayDate, supervisionSlots, appraisalSlot, dateRag } from "@/lib/people/logic";
-import { setEmploymentStatus, updateTracker } from "@/lib/people/actions";
+import { setEmploymentStatus } from "@/lib/people/actions";
 import { PillSelect, toneClass, type Tone } from "@/components/register/pill-select";
 import { HorizontalScrollbar } from "@/components/register/horizontal-scrollbar";
 import { useRememberedScroll } from "@/components/register/use-remembered-scroll";
@@ -41,12 +41,6 @@ const STATUS_MOVE: Record<string, string> = {
   mat_leave: "Moved to LTS & Mat Leave",
   archive: "Moved to Archive",
 };
-function rtwTone(v: string | null): Tone {
-  if (v === "none") return "green";
-  if (v === "20hrs_term" || v === "20hrs_2nd_job") return "amber";
-  if (v === "visa_expires") return "red";
-  return "neutral";
-}
 function probationTone(v: string | null, dueDate: string | null, amberDays: number): Tone {
   if (v === "passed") return "green";
   if (v === "extended") return "amber";
@@ -62,13 +56,6 @@ function probationTone(v: string | null, dueDate: string | null, amberDays: numb
 const WORKING_STATUS_OPTIONS = (Object.keys(WORKING_STATUS_LABELS) as Array<keyof typeof WORKING_STATUS_LABELS>).map(
   (k) => ({ value: k, label: WORKING_STATUS_LABELS[k] }),
 );
-const RTW_LIMIT_OPTIONS = [
-  { value: "", label: "—" },
-  ...(Object.keys(RTW_LIMIT_LABELS) as Array<keyof typeof RTW_LIMIT_LABELS>).map((k) => ({
-    value: k,
-    label: RTW_LIMIT_LABELS[k],
-  })),
-];
 type MatrixConfig = {
   supInterval: number;
   supAmber: number;
@@ -280,22 +267,15 @@ export default function RegisterMatrix({
                       rag={dateRag(t?.rtw_expiry_date ?? null, config.rtwAmber)}
                     />
                   </td>
+                  {/* READ ONLY ON THE BOARD (Phil, 2026-09-09: "remove that so it can only
+                      be changed in the record page in the right to work tile"). Right to work
+                      limits are the one thing on this matrix that says whether somebody may
+                      legally do the job, and a dropdown in a dense grid of two hundred rows
+                      is a mis-click away from changing the wrong person's. It is set on the
+                      record, beside the expiry date and the document it came from, where
+                      whoever changes it is looking at the evidence for it. */}
                   <td className="text-white/70">
-                    {editable ? (
-                      <PillSelect
-                        recordId={row.person.id}
-                        recordField="person_id"
-                        field="rtw_limits"
-                        value={t?.rtw_limits ?? ""}
-                        options={RTW_LIMIT_OPTIONS}
-                        action={updateTracker}
-                        toneOf={rtwTone}
-                      />
-                    ) : t?.rtw_limits ? (
-                      RTW_LIMIT_LABELS[t.rtw_limits]
-                    ) : (
-                      "—"
-                    )}
+                    {t?.rtw_limits ? RTW_LIMIT_LABELS[t.rtw_limits] : "—"}
                   </td>
                   <td>
                     <RagDate
