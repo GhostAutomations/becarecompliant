@@ -17,11 +17,11 @@
  * version rather than starting another — the server reads it that way, so a typo spotted an
  * hour later is still fixable without inventing a version that lived for no time at all.
  *
- * AND YOU CAN START AGAIN (Phil, 2026-09-09: "for some people it would be easier to just
- * create a new plan rather than edit the old one"). When a package changes wholesale — a
- * reablement block ending, four calls dropping to two — unpicking the old one line by line is
- * more work than writing what is actually happening. Start again empties the builder; it does
- * not touch anything until Save, and the schedule it replaces is kept and billed up to the day
+ * BUILD A NEW SCHEDULE (Phil, 2026-09-09: "for some people it would be easier to just create
+ * a new plan rather than edit the old one"). When a package changes wholesale — a reablement
+ * block ending, four calls dropping to two — unpicking the old one line by line is more work
+ * than writing what is actually happening. It empties the builder and dates it today; it
+ * touches nothing until Save, and the schedule it replaces is kept and billed up to the day
  * before the new one starts.
  */
 
@@ -76,7 +76,7 @@ export default function CareScheduleEditor({
             onClick={() => setFromScratch((v) => !v)}
             className="btn-outline shrink-0 text-xs"
           >
-            {fromScratch ? "Go back to the current schedule" : "Start again from scratch"}
+            {fromScratch ? "Keep the current schedule" : "Build a new schedule"}
           </button>
         </div>
       ) : null}
@@ -89,6 +89,7 @@ export default function CareScheduleEditor({
         action={updateCarePlan}
         serviceUserId={serviceUserId}
         initial={fromScratch ? [] : initial}
+        currentFrom={fromScratch ? currentFrom : currentFrom}
         servicesWithFixed={servicesWithFixed}
         today={hasPlan && currentFrom && !fromScratch ? currentFrom : today}
         /* Back to the record on save, so the tile you came from shows the week you have just

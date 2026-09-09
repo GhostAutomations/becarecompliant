@@ -17,7 +17,8 @@
  * The round trip is unit tested, because it is what stands between an edit and somebody's bill.
  */
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { IDLE_STATE, type ActionState } from "@/lib/forms";
 import { useSavedFlash } from "@/lib/use-saved-flash";
 import CarePackageField from "@/components/forms/care-package-field";
@@ -29,6 +30,7 @@ import {
   type CarePlanEntry,
 } from "@/lib/service-users/care-plan-consts";
 import { linesFromRows, packageRows, parsePackage } from "@/lib/service-users/care-package";
+import { ukDate } from "@/lib/dates";
 import type { PackageLineValue } from "@/lib/form-schema";
 
 type ServerAction = (prev: ActionState, formData: FormData) => Promise<ActionState>;
@@ -40,6 +42,7 @@ export default function CarePlanEditor({
   action,
   mode = "edit",
   today,
+  currentFrom = null,
   onSaved,
 }: {
   serviceUserId: string;
@@ -50,11 +53,19 @@ export default function CarePlanEditor({
   mode?: "edit" | "update";
   /** Default effective date for update mode (today, YYYY-MM-DD). */
   today?: string;
+  /** The date the schedule on screen started, so the confirmation can say whether saving
+   *  corrects that version or supersedes it. Null when there is no schedule yet. */
+  currentFrom?: string | null;
   /** Called after a successful save (used to collapse the editor). */
   onSaved?: () => void;
 }) {
   const [state, formAction, pending] = useActionState(action, IDLE_STATE);
   const [saved, flash, reset] = useSavedFlash();
+  const [effectiveFrom, setEffectiveFrom] = useState(today ?? "");
+  const [asking, setAsking] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const formRef = useRef<HTMLFormElement | null>(null);
+  useEffect(() => setMounted(true), []);
   const [lines, setLines] = useState<PackageLineValue[]>(() =>
     linesFromRows(
       initial.map((e) => ({
@@ -98,8 +109,22 @@ export default function CarePlanEditor({
       ? `${servicesWithFixed.join(", ")} can be billed at a fixed fee: choose Fixed as the length.`
       : null;
 
+  /* WHAT SAVING WILL ACTUALLY DO, said back before it happens (Phil, 2026-09-09: "when
+     clicking save schedule i want a pop up confirming the date the new schedule starts").
+     The same button either corrects the version on screen or supersedes it, and which one
+     depends entirely on a date field further up the page. A confirmation that names the date
+     and says which of the two it is turns a silent difference into a decision. */
+  const correcting = mode === "update" && !!currentFrom && effectiveFrom === currentFrom;
+  const dayBefore = (iso: string): string => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "";
+    const [y, m, d] = iso.split("-").map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    dt.setUTCDate(dt.getUTCDate() - 1);
+    return dt.toISOString().slice(0, 10);
+  };
+
   return (
-    <form action={formAction} className="space-y-4">
+    <form ref={formRef} action={formAction} className="space-y-4">
       <input type="hidden" name="service_user_id" value={serviceUserId} />
       <input type="hidden" name="entries" value={entriesJson} />
 
@@ -112,10 +137,13 @@ export default function CarePlanEditor({
             id="cp-effective"
             name="effective_from"
             type="date"
-            defaultValue={today}
+            value={effectiveFrom}
             required
             className="mt-2 block max-w-[12rem]"
-            onChange={reset}
+            onChange={(e) => {
+              setEffectiveFrom(e.target.value);
+              reset();
+            }}
           />
           <p className="form-hint mt-2">
             Keep the date the current schedule started and this CORRECTS it. Choose a later date
@@ -141,7 +169,15 @@ export default function CarePlanEditor({
       </div>
 
       <div className="flex items-center gap-3">
-        <button type="submit" disabled={pending} className={`btn ${showSaved ? "btn-saved" : "btn-primary"}`}>
+        {/* A confirming button is NOT a submit button (the lesson in components/action-form).
+            It asks, and on Yes it submits the form on purpose, so there is no default path
+            left to replay when the dialog closes. */}
+        <button
+          type={mode === "update" ? "button" : "submit"}
+          disabled={pending}
+          onClick={mode === "update" ? () => setAsking(true) : undefined}
+          className={`btn ${showSaved ? "btn-saved" : "btn-primary"}`}
+        >
           {pending
             ? "Saving…"
             : showSaved
@@ -150,6 +186,69 @@ export default function CarePlanEditor({
         </button>
         {state.error ? <span className="text-xs text-red-300">{state.error}</span> : null}
       </div>
+
+      {/* PORTALLED TO THE BODY, for the reason action-form.tsx records: rendered in place the
+          fixed inset-0 scrim resolves against the nearest ancestor with a backdrop-filter, and
+          .glass-card has one, so the dialog centres itself halfway down the card. */}
+      {asking && mounted
+        ? createPortal(
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Confirm the schedule date"
+              className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+              onClick={() => setAsking(false)}
+            >
+              <div
+                className="w-full max-w-md rounded-2xl border border-white/10 bg-navy-900 p-6 shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h2 className="text-lg font-semibold text-white">
+                  {correcting ? "Correct this schedule?" : "Start this schedule?"}
+                </h2>
+                <p className="mt-2 text-sm text-white/70">
+                  {correcting ? (
+                    <>
+                      This corrects the schedule that started on{" "}
+                      <span className="font-semibold text-white">{ukDate(effectiveFrom)}</span>.
+                      Anything already invoiced on it is recalculated on the corrected schedule.
+                    </>
+                  ) : (
+                    <>
+                      This schedule starts on{" "}
+                      <span className="font-semibold text-white">{ukDate(effectiveFrom)}</span>.
+                      {currentFrom
+                        ? ` The current schedule is kept and billed up to ${ukDate(dayBefore(effectiveFrom))}.`
+                        : ""}
+                    </>
+                  )}
+                </p>
+                <div className="mt-5 flex items-center gap-3">
+                  {/* Deliberately NOT autoFocus: a held Enter on the trigger would repeat
+                      straight onto this one and confirm a date nobody read. */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAsking(false);
+                      formRef.current?.requestSubmit();
+                    }}
+                    className="btn-primary px-4 py-2 text-sm"
+                  >
+                    Yes, save it
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAsking(false)}
+                    className="btn-ghost px-4 py-2 text-sm"
+                  >
+                    No, go back
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </form>
   );
 }
