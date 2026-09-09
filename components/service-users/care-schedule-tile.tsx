@@ -57,7 +57,10 @@ export default function CareScheduleTile({
         {/* The button says what pressing it does to THIS tile, not which page it happens to
             open (Phil, 2026-09-09). Only offered to somebody who can actually change it. */}
         {canManage ? (
-          <Link href={`/service-users/${serviceUserId}/care-plan`} className="btn-outline text-xs">
+          <Link
+            href={`/service-users/${serviceUserId}/care-plan?edit=1`}
+            className="btn-outline text-xs"
+          >
             {callsPerWeek === 0 ? "Add the care schedule" : "Edit care schedule"}
           </Link>
         ) : null}

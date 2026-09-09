@@ -22,6 +22,7 @@ export default function CarePlanManager({
   servicesWithFixed,
   today,
   hasPlan,
+  startEditing = false,
 }: {
   serviceUserId: string;
   serviceUserName: string;
@@ -29,8 +30,12 @@ export default function CarePlanManager({
   servicesWithFixed: string[];
   today: string;
   hasPlan: boolean;
+  /** Arrive with the update chooser already open, for "Edit care schedule" on the record
+   *  (Phil, 2026-09-09: pressing it "takes me to the same place"). Landing on a summary and
+   *  making somebody find Update care plan is three presses to change one call. */
+  startEditing?: boolean;
 }) {
-  const [mode, setMode] = useState<Mode>(null);
+  const [mode, setMode] = useState<Mode>(startEditing && hasPlan ? "choose" : null);
 
   return (
     <div className="space-y-3">

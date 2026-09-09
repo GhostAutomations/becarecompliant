@@ -20,8 +20,15 @@ function fmtDate(iso: string | null): string {
   return `${d}/${m}/${y}`;
 }
 
-export default async function CarePlanPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CarePlanPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ edit?: string }>;
+}) {
   const { id } = await params;
+  const { edit } = await searchParams;
   const { profile } = await requireCompany();
   const su = await getServiceUser(id);
   if (!su) redirect("/service-users");
@@ -44,6 +51,7 @@ export default async function CarePlanPage({ params }: { params: Promise<{ id: s
         servicesWithFixed={servicesWithFixed}
         today={londonToday()}
         hasPlan={entries.length > 0}
+        startEditing={edit === "1"}
       />
 
       {versions.map((v) => (
