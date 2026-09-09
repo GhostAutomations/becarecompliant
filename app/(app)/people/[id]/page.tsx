@@ -5,6 +5,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import { canManageRecord } from "@/lib/auth/manage-scope";
 import { callerBranchIds } from "@/lib/auth/branches";
 import BackLink from "@/components/back-link";
+import PanelDialog from "@/components/panel-dialog";
 import { checksForTitle } from "@/lib/people/check-scope";
 import ActionForm from "@/components/action-form";
 import RecordHistory from "@/components/reports/record-history";
@@ -669,8 +670,7 @@ export default async function PersonPage({
           people who see fewer of them. items-start so opening one does not stretch the others
           to match it. */}
       <section className="grid items-start gap-4 grid-cols-[repeat(auto-fit,minmax(320px,1fr))]">
-      <details className="glass-card section-card">
-        <summary>Evidence history{evidence.length ? ` (${evidence.length})` : ""}</summary>
+      <PanelDialog title="Evidence history" count={evidence.length}>
         {evidence.length === 0 ? (
           <div className="border-t border-white/10 p-5 text-sm text-white/60">
             No evidence yet. Completing a check stores its form here as immutable inspection evidence.
@@ -693,7 +693,7 @@ export default async function PersonPage({
             ))}
           </div>
         )}
-      </details>
+      </PanelDialog>
 
       {/* History timeline (Admins only). Oldest at top, newest at bottom. */}
       {canViewHistory ? (
@@ -702,8 +702,7 @@ export default async function PersonPage({
 
       {/* Management */}
       {canManage ? (
-        <details className="glass-card section-card">
-          <summary>Manage record</summary>
+        <PanelDialog title="Manage record">
           <div className="space-y-6 border-t border-white/10 p-5">
             <EditPersonForm person={person} users={users} />
 
@@ -801,7 +800,7 @@ export default async function PersonPage({
               </div>
             ) : null}
           </div>
-        </details>
+        </PanelDialog>
       ) : null}
       </section>
     </div>

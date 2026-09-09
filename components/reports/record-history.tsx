@@ -11,6 +11,7 @@ import "server-only";
 
 import type { AuditEntry } from "@/lib/audit-log/data";
 import { fmtDateTime } from "@/lib/export/format";
+import PanelDialog from "@/components/panel-dialog";
 
 function actionTone(action: string): string {
   if (action.includes("archived") || action.includes("deleted")) return "pill-red";
@@ -35,8 +36,7 @@ export default function RecordHistory({
   const histBase = `/api/reports/audit?scope=record&type=${recordType}&record=${recordId}`;
 
   return (
-    <details className="glass-card section-card">
-      <summary>History{entries.length > 0 ? ` (${entries.length})` : ""}</summary>
+    <PanelDialog title="History" count={entries.length}>
 
       <div className="space-y-3 border-t border-white/10 p-5">
         <div className="flex flex-wrap items-center justify-end gap-2">
@@ -79,6 +79,6 @@ export default function RecordHistory({
           </ol>
         )}
       </div>
-    </details>
+    </PanelDialog>
   );
 }
