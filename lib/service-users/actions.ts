@@ -27,6 +27,7 @@ import { formCompletesCheck } from "@/lib/form-validate";
 import { closeBookingsForCheck } from "@/lib/planner/close-booking";
 import { rebakeFormFieldOptions } from "@/lib/forms/rebake-options";
 import { ensurePrivateInvoicingFromSetup } from "@/lib/invoicing/ensure-private-invoicing";
+import { seedCarePlanFromSetup } from "./seed-care-plan";
 import type { ActionState } from "@/lib/forms";
 import type { CheckDefinition } from "@/lib/people/types";
 import { parseCivilDate } from "@/lib/recurrence";
@@ -917,6 +918,29 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
       serviceUserId: instance.service_user_id as string,
       answers,
     });
+    /* The calls asked for at the visit ARE the weekly Care Plan, and the Care Plan is what
+       Invoicing bills from. Written from the completion date so the plan bills from the day
+       care actually started, and never written over a plan that already exists. */
+    const plan = await seedCarePlanFromSetup({
+      companyId: instance.company_id as string,
+      serviceUserId: instance.service_user_id as string,
+      answers,
+      effectiveFrom: completedOnIso,
+    });
+    if (plan.seeded > 0) {
+      await writeAudit({
+        companyId: instance.company_id as string,
+        actorId: user.id,
+        actorEmail: profile.email,
+        actorRole: profile.role,
+        action: "service_user.care_plan_seeded",
+        entityType: "service_user",
+        entityId: instance.service_user_id as string,
+        summary: `Care Plan created from the Setup Visit: ${plan.summary}`,
+        metadata: { rows: plan.seeded, calls: plan.summary, evidence_id: result.evidenceId },
+      });
+    }
+
     if (billing.turnedOn) {
       await writeAudit({
         companyId: instance.company_id as string,
