@@ -745,3 +745,19 @@ export async function listFundingOptions(companyId: string): Promise<FundingOpti
     accepted: accepted.has(c.key),
   }));
 }
+
+/** The Private Client that invoices for this service user, if there is one. Created by the
+ *  Setup Visit when the funding is Private or Continuing Healthcare, or by hand in Invoicing. */
+export async function getPrivateClientForServiceUser(
+  serviceUserId: string,
+): Promise<{ id: string; name: string; status: string } | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("private_clients")
+    .select("id, name, status")
+    .eq("service_user_id", serviceUserId)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  return (data as { id: string; name: string; status: string } | null) ?? null;
+}

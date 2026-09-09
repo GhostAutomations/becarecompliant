@@ -26,6 +26,7 @@ import { type Answers, type FormSchema, firstDateFieldKey, isFormSchema } from "
 import { formCompletesCheck } from "@/lib/form-validate";
 import { closeBookingsForCheck } from "@/lib/planner/close-booking";
 import { rebakeFormFieldOptions } from "@/lib/forms/rebake-options";
+import { ensurePrivateClientFromSetup } from "@/lib/invoicing/ensure-private-client";
 import type { ActionState } from "@/lib/forms";
 import type { CheckDefinition } from "@/lib/people/types";
 import { parseCivilDate } from "@/lib/recurrence";
@@ -876,6 +877,22 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
         updated_by: user.id,
       })
       .eq("service_user_id", instance.service_user_id as string);
+  }
+
+  /* The Setup Visit is where the office finds out who is paying, and the one moment somebody
+     definitely knows. Private and Continuing Healthcare are the two funding types we invoice
+     ourselves, so the payer goes onto the Invoicing books now rather than being carried across
+     by hand later — which is how a package runs for months unbilled. Idempotent and best
+     effort: the Evidence must not fail because the billing side did. */
+  if (def.key === "setup") {
+    await ensurePrivateClientFromSetup({
+      companyId: instance.company_id as string,
+      serviceUserId: instance.service_user_id as string,
+      branchId: (instance.branch_id as string | null) ?? null,
+      answers,
+      actorId: user.id,
+      todayIso: todayIso(),
+    });
   }
 
   // The work was booked; it has now been done. Turn the planner task green rather than

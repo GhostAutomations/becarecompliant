@@ -28,6 +28,7 @@ import {
   listServiceUserCheckDefinitions,
   listServiceUserAssignments,
   listServiceUserEvidence,
+  getPrivateClientForServiceUser,
 } from "@/lib/service-users/data";
 import {
   assignServiceUserSupervisor,
@@ -125,11 +126,20 @@ export default async function ServiceUserPage({
     ]);
 
   // History timeline (managers/admins, via the record_audit_trail RPC) + export gate.
-  const [auditTrail, exportsEnabled, outcomesEnabled] = await Promise.all([
+  const [auditTrail, exportsEnabled, outcomesEnabled, invoicingEnabled] = await Promise.all([
     canManage ? getRecordAuditTrail("service_user", id) : Promise.resolve([]),
     featureEnabled(companyId, "reporting_exports"),
     featureEnabled(companyId, "outcomes_satisfaction"),
+    featureEnabled(companyId, "invoicing"),
   ]);
+
+  /* Who invoices this package. The Setup Visit puts a payer on the books when the funding is
+     Private or Continuing Healthcare (lib/invoicing/setup-billing.ts), and this is the link
+     back to it — otherwise the record is created out of sight and the office never learns it
+     is there. Only shown on a tier that HAS Invoicing: the record is written on every tier so
+     nothing is lost on an upgrade, but a link into a department they cannot open is worse
+     than no link. */
+  const privateClient = invoicingEnabled ? await getPrivateClientForServiceUser(id) : null;
 
   const statusByDef = new Map<string, SuCheckStatus>(statuses.map((s) => [s.definition_id, s]));
   const reviewDef = definitions.find((d) => d.key === "care_plan_review");
@@ -189,6 +199,19 @@ export default async function ServiceUserPage({
             .join(" · ") || "Service user record"}
         </p>
       </div>
+
+      {privateClient ? (
+        <p className="text-sm text-white/55">
+          Invoiced privately as{" "}
+          <Link
+            href={`/invoicing/clients/${privateClient.id}`}
+            className="font-medium text-white/80 underline decoration-white/25 underline-offset-2 hover:text-gold-300"
+          >
+            {privateClient.name}
+          </Link>
+          {privateClient.status === "archived" ? " (archived)" : ""}.
+        </p>
+      ) : null}
 
       {completed ? (
         <div className="glass-card border border-rag-green/20 p-4 text-sm text-rag-green-soft">
