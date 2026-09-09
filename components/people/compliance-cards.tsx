@@ -41,65 +41,71 @@ const DATE: Record<CardRag, string> = {
   none: "text-white/40",
 };
 
-/** The count at the top of a box. "none" is white rather than the faint grey a date gets:
- *  the number is the first thing on the screen, not a detail on a card. */
-const COUNT: Record<CardRag, string> = {
-  red: "text-rag-red-soft",
-  amber: "text-rag-amber-soft",
-  green: "text-rag-green-soft",
-  none: "text-white",
+/** The count at the top of a box, in the colour of the thing it counts: red for what has been
+ *  missed, gold for the fortnight, blue for the month ahead. */
+const COUNT: Record<string, string> = {
+  red: "text-rag-red",
+  gold: "text-gold-300",
+  blue: "text-sky-400",
 };
 
-/** How many names a box lists before it says how many more there are. Six fits the box
- *  without making the row of boxes taller than the cards underneath it. */
-const BOX_NAMES = 6;
-
 /**
- * One of the four boxes across the top: the count, what it counts, and the names.
+ * One of the boxes across the top: the count, what it counts, and the names under it.
  *
  * The names are the point. A count of five overdue supervisions sends a manager to the matrix
  * to find out who; five names sends them to the five records.
+ *
+ * Every box is the same height whatever it holds, so the row stays a row; a list longer than
+ * the box scrolls inside it rather than pushing the board down the screen.
  */
 function KpiBox({
   title,
   entries,
   tone,
+  showStage = true,
 }: {
   title: string;
   entries: DueEntry[];
-  tone: CardRag;
+  /** The colour of the count, or null for a box that shows no count -- the spot check box on
+   *  Phil's own board is a list under a heading, not a number. */
+  tone: keyof typeof COUNT | null;
+  showStage?: boolean;
 }) {
-  const shown = entries.slice(0, BOX_NAMES);
+  const row = showStage
+    ? "grid grid-cols-[minmax(0,1fr)_3.25rem_auto] items-baseline gap-2"
+    : "grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-2";
   return (
-    <div className="glass-card flex flex-col p-4">
-      <p className={`text-3xl font-semibold leading-none ${COUNT[tone]}`}>{entries.length}</p>
-      <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-wide text-white/45">
-        {title}
-      </p>
-      {shown.length === 0 ? (
+    <div className="glass-card flex h-56 flex-col p-4">
+      {tone ? (
+        <>
+          <p className={`text-[28px] font-semibold leading-none ${COUNT[tone]}`}>
+            {entries.length}
+          </p>
+          <p className="mt-2 text-[13px] text-white/55">{title}</p>
+        </>
+      ) : (
+        <p className="text-[13px] text-white/55">{title}</p>
+      )}
+      {entries.length === 0 ? (
         <p className="mt-3 text-[12px] text-white/35">Nothing due.</p>
       ) : (
-        <ul className="mt-3 space-y-1 text-[12px]">
-          {shown.map((e) => (
-            <li key={`${e.id}-${e.stage}`} className="flex items-baseline justify-between gap-2">
+        <ul className="mt-3 flex-1 space-y-1 overflow-y-auto pr-1 text-[12px]">
+          {entries.map((e) => (
+            <li key={`${e.id}-${e.stage}`} className={row}>
               <Link
                 href={`/people/${e.id}?from=%2Fpeople%2Fsummary`}
                 className="truncate text-white/70 hover:text-gold-300"
               >
                 {e.name}
               </Link>
-              <span className="shrink-0 text-white/40">
-                {e.stage} · {formatDisplayDate(e.due)}
+              {showStage ? <span className="text-white/40">{e.stage}</span> : null}
+              <span className="whitespace-nowrap text-right text-white/40">
+                {formatDisplayDate(e.due)}
               </span>
             </li>
           ))}
         </ul>
       )}
-      {entries.length > shown.length ? (
-        <p className="mt-1.5 text-[11px] text-white/35">
-          and {entries.length - shown.length} more
-        </p>
-      ) : null}
     </div>
   );
 }
@@ -147,9 +153,14 @@ export default function ComplianceCards({
     <div className="space-y-4">
       <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(240px,1fr))]">
         <KpiBox title="Overdue supervisions" entries={boxes.overdue} tone="red" />
-        <KpiBox title="Supervisions due in 14 days" entries={boxes.fourteen} tone="amber" />
-        <KpiBox title="Supervisions due in 30 days" entries={boxes.thirty} tone="none" />
-        <KpiBox title="Spot checks due in 30 days" entries={boxes.spot} tone="none" />
+        <KpiBox title="Supervisions due in 14 days" entries={boxes.fourteen} tone="gold" />
+        <KpiBox title="Supervisions due in 30 days" entries={boxes.thirty} tone="blue" />
+        <KpiBox
+          title="Spot checks due in 30 days"
+          entries={boxes.spot}
+          tone={null}
+          showStage={false}
+        />
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -212,12 +223,19 @@ export default function ComplianceCards({
                 ) : null}
               </div>
 
+              {/* One equal column per stage, filling the card edge to edge (Phil, 2026-09-09:
+                  "make the little PE S1 S2 S3 AA squares the width of the tile"). Wrapping
+                  left a ragged gap on the right and made the stages look like loose tags
+                  rather than the run of a year. */}
               {c.chips.length > 0 ? (
-                <div className="mt-3 flex flex-wrap gap-1.5">
+                <div
+                  className="mt-3 grid gap-1.5"
+                  style={{ gridTemplateColumns: `repeat(${c.chips.length}, minmax(0, 1fr))` }}
+                >
                   {c.chips.map((chip) => (
                     <span
                       key={chip.label}
-                      className={`rounded-md px-2.5 py-1 text-[11px] font-semibold ${CHIP[chip.rag]}`}
+                      className={`rounded-md py-1 text-center text-[11px] font-semibold ${CHIP[chip.rag]}`}
                     >
                       {chip.label}
                     </span>
