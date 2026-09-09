@@ -22,7 +22,6 @@ export default function CarePlanManager({
   servicesWithFixed,
   today,
   hasPlan,
-  startEditing = false,
 }: {
   serviceUserId: string;
   serviceUserName: string;
@@ -30,13 +29,8 @@ export default function CarePlanManager({
   servicesWithFixed: string[];
   today: string;
   hasPlan: boolean;
-  /** Arrive IN the editor, for "Edit care schedule" on the record (Phil, 2026-09-09: "i want
-   *  it to take me straight into the editor not have to click another button"). Correcting the
-   *  current plan is what that button means, and the new-version route stays one press away
-   *  inside the editor rather than standing in front of it. */
-  startEditing?: boolean;
 }) {
-  const [mode, setMode] = useState<Mode>(startEditing && hasPlan ? "edit" : null);
+  const [mode, setMode] = useState<Mode>(null);
 
   return (
     <div className="space-y-3">

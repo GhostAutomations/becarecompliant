@@ -58,7 +58,7 @@ export default function CareScheduleTile({
             open (Phil, 2026-09-09). Only offered to somebody who can actually change it. */}
         {canManage ? (
           <Link
-            href={`/service-users/${serviceUserId}/care-plan?edit=1`}
+            href={`/service-users/${serviceUserId}/care-schedule`}
             className="btn-outline text-xs"
           >
             {callsPerWeek === 0 ? "Add the care schedule" : "Edit care schedule"}
