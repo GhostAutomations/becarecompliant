@@ -70,11 +70,11 @@ export default async function ServiceUserPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ completed?: string; recorded?: string; from?: string }>;
+  searchParams: Promise<{ completed?: string; recorded?: string; from?: string; warn?: string }>;
 }) {
   const { user, profile } = await requireCompany();
   const { id } = await params;
-  const { completed, recorded, from } = await searchParams;
+  const { completed, recorded, from, warn } = await searchParams;
   const backHref = from && from.startsWith("/service-users") ? from : "/service-users";
 
   const serviceUser = await getServiceUser(id);
@@ -204,6 +204,15 @@ export default async function ServiceUserPage({
             .join(" · ") || "No address or phone on the record yet. Add them in Manage record."}
         </p>
       </div>
+
+      {/* An escalation that did not go must not be left for the audit log to know about
+          on its own: the person who ticked the box is the only one who can pick up the
+          phone instead, and they are looking at this screen right now. */}
+      {warn ? (
+        <div className="glass-card border border-rag-red/30 p-4 text-sm text-rag-red-soft">
+          {warn}
+        </div>
+      ) : null}
 
       {completed ? (
         <div className="glass-card border border-rag-green/20 p-4 text-sm text-rag-green-soft">

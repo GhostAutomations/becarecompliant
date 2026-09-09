@@ -41,6 +41,9 @@ import { initialDueDate, todayIso, addDaysToIso } from "./logic";
 import { carersOf, handedFromCarers } from "./care-plan-consts";
 import { CALL_SLOTS, linesFromRows } from "./care-package";
 import { contactDetailsFromForm } from "./contact-details";
+import { escalateEvidence, wantsEscalation } from "@/lib/evidence/escalate";
+import { siteUrl } from "@/lib/site";
+import { branchName } from "@/lib/people/data";
 
 const SLOTS: string[] = CALL_SLOTS.map((s) => s.value);
 import { SU_REGISTER_COLUMNS } from "./types";
@@ -1053,6 +1056,49 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
     }
   }
 
+  /* "Please tick this box if it needs escalating to the branch manager." Until now that
+     box stored true and told nobody, so somebody could tick it, believe they had escalated
+     and go home. It now emails the completed form — the same immutable PDF that is on file
+     — to the manager of the record's branch. Best effort and never silent: a failure comes
+     back as a sentence on screen so the reviewer knows to pick up the phone instead. */
+  let escalationNote: string | null = null;
+  if (isFormSchema(version.schema) && wantsEscalation(version.schema as FormSchema, answers)) {
+    const { data: co } = await supabase
+      .from("companies")
+      .select("name")
+      .eq("id", instance.company_id as string)
+      .maybeSingle<{ name: string }>();
+    escalationNote = await escalateEvidence({
+      schema: version.schema as FormSchema,
+      answers,
+      evidenceId: result.evidenceId,
+      companyId: instance.company_id as string,
+      companyName: co?.name ?? "Your company",
+      branchId: (instance.branch_id as string | null) ?? null,
+      branchName: await branchName((instance.branch_id as string | null) ?? null),
+      formName: def.name,
+      formVersion: version.version ?? 1,
+      authorName: profile.full_name || profile.email || null,
+      authorEmail: profile.email ?? null,
+      recordType: "service_user",
+      recordId: instance.service_user_id as string,
+      recordUrl: `${siteUrl()}/service-users/${instance.service_user_id}`,
+    });
+    await writeAudit({
+      companyId: instance.company_id as string,
+      actorId: user.id,
+      actorEmail: profile.email,
+      actorRole: profile.role,
+      action: "check.escalated",
+      entityType: "check_instance",
+      entityId: instanceId,
+      summary: escalationNote
+        ? `${def.name} marked for escalation, but the email did not go: ${escalationNote}`
+        : `${def.name} escalated to the branch manager`,
+      metadata: { evidence_id: result.evidenceId, definition_id: def.id, sent: !escalationNote },
+    });
+  }
+
   // The work was booked; it has now been done. Turn the planner task green rather than
   // leaving a month of appointments on the whiteboard that all already happened.
   await closeBookingsForCheck(supabase, instanceId, user.id);
@@ -1073,9 +1119,13 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
   revalidatePath("/service-users");
   // Navigate client-side (see ActionState.redirectTo): a Server Action redirect() to a
   // URL with a query string trips Next.js issue #78396 (React #310).
+  /* An escalation that did not go is the one thing the reviewer must not walk away from,
+     so it is carried on the redirect and shown on the record rather than buried in the audit. */
   return {
     ok: "completed",
-    redirectTo: `/service-users/${instance.service_user_id}?completed=${encodeURIComponent(def.name)}`,
+    redirectTo:
+      `/service-users/${instance.service_user_id}?completed=${encodeURIComponent(def.name)}` +
+      (escalationNote ? `&warn=${encodeURIComponent(escalationNote)}` : ""),
   };
 }
 
