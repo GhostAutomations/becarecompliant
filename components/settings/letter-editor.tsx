@@ -57,6 +57,23 @@ export default function LetterEditor({
   const [pending, startTransition] = useTransition();
   const [saved, flash, resetFlash] = useSavedFlash();
   const [error, setError] = useState<string | null>(null);
+
+  /* FOLLOW THE LETTER WHEN THE SERVER CHANGES IT UNDER US (found in Chrome, 2026-09-09).
+     "Use the standard wording" writes the standard text and revalidates, so the page
+     re-renders with the new letter — but useState only reads its initial value once, so the
+     boxes and the preview carried on showing the wording that had just been thrown away,
+     while the heading above said "Standard wording". A screen disagreeing with itself.
+
+     React's documented way to reset state when a prop changes: compare against what we last
+     took from the props, and adjust during render rather than in an effect (an effect renders
+     the stale text first, then flips it). It only fires when the SERVER's copy moves, so it
+     never eats what somebody is part way through typing. */
+  const [loaded, setLoaded] = useState({ subject: letter.subject, body: letter.body });
+  if (loaded.subject !== letter.subject || loaded.body !== letter.body) {
+    setLoaded({ subject: letter.subject, body: letter.body });
+    setSubject(letter.subject);
+    setBody(letter.body);
+  }
   const bodyRef = useRef<HTMLTextAreaElement | null>(null);
 
   const preview = useMemo(
