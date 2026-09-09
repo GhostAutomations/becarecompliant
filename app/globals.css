@@ -234,6 +234,15 @@
     @apply sm:mr-auto sm:ml-0;
   }
 
+  /* THE TRACKER BUTTONS ARE ONE WIDTH (Phil, 2026-09-09: the Save on Right to Work "doesnt
+     look the same width as the complete button"). Complete and Save are different words, so
+     sized to their content they are different buttons -- and they sit one above the other on
+     the same small tile, where the difference is the first thing the eye finds. A fixed width
+     makes them a pair. 6rem holds "Complete" at this size with room to spare. */
+  .btn-tracker {
+    @apply w-24 justify-center text-xs;
+  }
+
   /* Surfaces */
   .app-bg {
     @apply min-h-dvh bg-gradient-to-br from-navy-950 via-navy-900 to-navy-800;

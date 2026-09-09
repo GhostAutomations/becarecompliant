@@ -246,7 +246,7 @@ export default async function PersonPage({
           {probationStatusPill(tracker?.probation_status ?? null)}
         </div>
         {canManage && !supportMode ? (
-          <Link href={`/people/${person.id}/tracker/probation_review/complete`} className="btn-primary text-xs">
+          <Link href={`/people/${person.id}/tracker/probation_review/complete`} className="btn-primary btn-tracker">
             Complete
           </Link>
         ) : null}
@@ -272,7 +272,7 @@ export default async function PersonPage({
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-[15px] font-semibold text-white">Probation</h2>
         {canManage && !supportMode ? (
-          <Link href={`/people/${person.id}/tracker/probation_review/complete`} className="btn-primary text-xs">
+          <Link href={`/people/${person.id}/tracker/probation_review/complete`} className="btn-primary btn-tracker">
             Complete
           </Link>
         ) : null}
@@ -467,7 +467,7 @@ export default async function PersonPage({
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-[15px] font-semibold text-white">DBS</h2>
                 {canManage && !supportMode ? (
-                  <Link href={`/people/${person.id}/tracker/dbs_renewal/complete`} className="btn-primary text-xs">
+                  <Link href={`/people/${person.id}/tracker/dbs_renewal/complete`} className="btn-primary btn-tracker">
                     Complete
                   </Link>
                 ) : null}
@@ -483,7 +483,7 @@ export default async function PersonPage({
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-[15px] font-semibold text-white">Right to Work</h2>
                 {canManage && !supportMode ? (
-                  <Link href={`/people/${person.id}/tracker/right_to_work/complete`} className="btn-primary text-xs">
+                  <Link href={`/people/${person.id}/tracker/right_to_work/complete`} className="btn-primary btn-tracker">
                     Complete
                   </Link>
                 ) : null}
@@ -506,7 +506,7 @@ export default async function PersonPage({
                     hidden={{ person_id: person.id }}
                     inline
                     inlineTight
-                    buttonClassName="btn-primary text-[13px] sm:px-5"
+                    buttonClassName="btn-primary btn-tracker"
                   >
                     <label htmlFor="rtw_limits" className="form-label">Limits</label>
                     <select id="rtw_limits" name="rtw_limits" className="w-auto" defaultValue={tracker?.rtw_limits ?? ""}>
@@ -558,7 +558,9 @@ export default async function PersonPage({
                       : "Invite them"
                   }
                   savedLabel="Sent"
-                  buttonClassName="btn-primary text-[13px] sm:px-5"
+                  /* NOT btn-tracker: that is a fixed 6rem, sized for the word Complete, and
+                     "Send it again" does not fit in it. Same look, its own width. */
+                  buttonClassName="btn-primary text-xs"
                   className=""
                 />
               ) : null}
