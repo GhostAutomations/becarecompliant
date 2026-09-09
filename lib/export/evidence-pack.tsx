@@ -21,6 +21,7 @@ import { Document, Page, StyleSheet, Text, View, renderToBuffer } from "@react-p
 import { createClient } from "@/lib/supabase/server";
 import { isFormSchema, type Answers, type FormSchema } from "@/lib/form-schema";
 import { EvidenceEntry, type EvidencePdfMeta } from "@/lib/evidence/pdf";
+import { loadEvidenceSubject, notOnFile, type EvidenceSubject } from "@/lib/evidence/subject";
 import { loadEvidenceAttachments } from "@/lib/evidence/images";
 import type { EvidenceAttachments } from "@/lib/evidence/image-format";
 import { buildCsv } from "@/lib/export/csv";
@@ -68,6 +69,9 @@ export type EvidencePackData = {
   companyName: string;
   branchName: string | null;
   recordName: string;
+  /** The same subject printed on every entry inside the pack, so the cover and the
+   *  pages behind it can never name different people. */
+  subject: EvidenceSubject;
   recordKind: "Person" | "Service User";
   evidence: PackEvidence[];
 };
@@ -157,6 +161,7 @@ function PackDocument({ data, attachments }: { data: EvidencePackData; attachmen
 
       {entries.map((e) => {
         const meta: EvidencePdfMeta = {
+          subject: data.subject,
           companyName: data.companyName,
           branchName: e.branches?.name ?? data.branchName,
           formName: e.forms?.name ?? "Form",
@@ -209,6 +214,7 @@ export async function getEvidencePackData(
   const supabase = await createClient();
 
   let recordName = "";
+  let subject: EvidenceSubject | null = null;
   let branchName: string | null = null;
   let companyId: string | null = null;
 
@@ -222,6 +228,7 @@ export async function getEvidencePackData(
     recordName = p.full_name;
     branchName = p.branches?.name ?? null;
     companyId = p.company_id;
+    subject = await loadEvidenceSubject("person", recordId);
   } else {
     const { data: su } = await supabase
       .from("service_users")
@@ -232,6 +239,7 @@ export async function getEvidencePackData(
     recordName = su.full_name;
     branchName = su.branches?.name ?? null;
     companyId = su.company_id;
+    subject = await loadEvidenceSubject("service_user", recordId);
   }
 
   const [{ data: company }, { data: evidence }] = await Promise.all([
@@ -253,6 +261,7 @@ export async function getEvidencePackData(
       companyName: company?.name ?? "Company",
       branchName,
       recordName,
+      subject: subject ?? notOnFile(recordType, recordId),
       recordKind: recordType === "person" ? "Person" : "Service User",
       // Supabase infers the nested to-one relations (form_versions, forms,
       // branches) as arrays in the query type, but at runtime they are single

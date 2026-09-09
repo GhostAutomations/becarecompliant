@@ -1016,6 +1016,8 @@ export async function completeTrackerForm(_prev: ActionState, formData: FormData
     emailNote = await emailEvidenceCopy({
       schema: form.schema as FormSchema,
       answers: visible,
+      recordType: "person",
+      recordId: personId,
       recipientName: (person.full_name as string | null) ?? null,
       recipientEmail: (person.work_email as string | null) ?? null,
       companyName,

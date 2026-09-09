@@ -23,6 +23,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { isFormSchema, type Answers, type FormSchema } from "@/lib/form-schema";
 import { renderEvidencePdf, type EvidencePdfMeta } from "@/lib/evidence/pdf";
+import { loadEvidenceSubject, type EvidenceRecordType } from "@/lib/evidence/subject";
 import { loadEvidenceAttachments } from "@/lib/evidence/images";
 import { drawableFormat } from "@/lib/evidence/image-format";
 import { EVIDENCE_BUCKET, evidenceRenderPath, signEvidenceDownload } from "@/lib/evidence/storage";
@@ -177,10 +178,16 @@ export async function evidenceSignedPdfUrl(input: {
   const { data, error } = await supabase
     .from("evidence")
     .select(
-      "id, company_id, branch_id, schema_snapshot, answers, author_name, author_email, submitted_at, pdf_path, anonymised_at, companies(name), branches(name), form_versions(version), forms(name)",
+      "id, company_id, branch_id, record_type, record_id, schema_snapshot, answers, author_name, author_email, submitted_at, pdf_path, anonymised_at, companies(name), branches(name), form_versions(version), forms(name)",
     )
     .eq("id", input.evidenceId)
-    .maybeSingle<EvidenceRow & { anonymised_at: string | null }>();
+    .maybeSingle<
+      EvidenceRow & {
+        anonymised_at: string | null;
+        record_type: EvidenceRecordType;
+        record_id: string;
+      }
+    >();
 
   if (error) return { ok: false, error: error.message };
   if (!data) return { ok: false, error: "That evidence could not be found, or you cannot access it." };
@@ -210,6 +217,7 @@ export async function evidenceSignedPdfUrl(input: {
   }
 
   const meta: EvidencePdfMeta = {
+    subject: await loadEvidenceSubject(data.record_type, data.record_id),
     companyName: data.companies?.name ?? "Company",
     branchName: data.branches?.name ?? null,
     formName: data.forms?.name ?? "Form",
@@ -264,16 +272,17 @@ export async function renderEvidenceBytes(
   const { data, error } = await supabase
     .from("evidence")
     .select(
-      "id, company_id, branch_id, schema_snapshot, answers, author_name, author_email, submitted_at, pdf_path, companies(name), branches(name), form_versions(version), forms(name)",
+      "id, company_id, branch_id, record_type, record_id, schema_snapshot, answers, author_name, author_email, submitted_at, pdf_path, companies(name), branches(name), form_versions(version), forms(name)",
     )
     .eq("id", evidenceId)
-    .maybeSingle<EvidenceRow>();
+    .maybeSingle<EvidenceRow & { record_type: EvidenceRecordType; record_id: string }>();
   if (error) return { ok: false, error: error.message };
   if (!data) return { ok: false, error: "Evidence not found." };
   if (!isFormSchema(data.schema_snapshot)) {
     return { ok: false, error: "Invalid evidence snapshot." };
   }
   const meta: EvidencePdfMeta = {
+    subject: await loadEvidenceSubject(data.record_type, data.record_id),
     companyName: data.companies?.name ?? "Company",
     branchName: data.branches?.name ?? null,
     formName: data.forms?.name ?? "Form",

@@ -27,6 +27,7 @@ import "server-only";
  */
 
 import { renderEvidencePdf } from "./pdf";
+import { loadEvidenceSubject, type EvidenceRecordType } from "./subject";
 import { sendEmail } from "@/lib/email/resend";
 import { noticeEmailHtml } from "@/lib/email/templates";
 import type { Answers, FormSchema } from "@/lib/form-schema";
@@ -34,6 +35,11 @@ import type { Answers, FormSchema } from "@/lib/form-schema";
 export type EmailCopyInput = {
   schema: FormSchema;
   answers: Answers;
+  /** The record the form is about. The PDF names it at the top of the page, so the
+   *  copy that lands in somebody's inbox says whose check it is exactly as the stored
+   *  evidence does. */
+  recordType: EvidenceRecordType;
+  recordId: string;
   /** The person the form is about, and where to send it. */
   recipientName: string | null;
   recipientEmail: string | null;
@@ -63,6 +69,7 @@ export async function emailEvidenceCopy(input: EmailCopyInput): Promise<string |
   let pdf: Buffer;
   try {
     pdf = await renderEvidencePdf(input.schema, input.answers, {
+      subject: await loadEvidenceSubject(input.recordType, input.recordId),
       companyName: input.companyName,
       branchName: input.branchName,
       formName: input.formName,
