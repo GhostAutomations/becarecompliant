@@ -65,7 +65,7 @@ export default function CareScheduleTile({
           also build it by hand on the care plan.
         </p>
       ) : (
-        <div className="mt-4 grid gap-2 grid-cols-[repeat(auto-fit,minmax(150px,1fr))]">
+        <div className="mt-4 grid gap-2 grid-cols-[repeat(auto-fit,minmax(260px,1fr))]">
           {CARE_PLAN_DAYS.map((day, i) => (
             <div key={day} className="rounded-xl border border-white/10 p-3">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-white/40">
@@ -76,11 +76,14 @@ export default function CareScheduleTile({
               ) : (
                 /* The slot names the call and the detail sits under it, which is how the
                    rota is read: "Morning:" then "Care - 15m - Double Handed". */
-                <ul className="mt-2 space-y-2.5">
+                <ul className="mt-2 space-y-1.5">
                   {byDay[i].map((e) => (
-                    <li key={e.id} className="text-[12px] leading-tight">
-                      <p className="font-semibold text-white/85">{slotLabel(e.slot)}:</p>
-                      <p className="mt-0.5 text-white/55">{callLine(e)}</p>
+                    <li
+                      key={e.id}
+                      className="grid grid-cols-[5rem_1fr] items-baseline gap-2 text-[12px] leading-tight"
+                    >
+                      <span className="font-semibold text-white/85">{slotLabel(e.slot)}:</span>
+                      <span className="text-white/55">{callLine(e)}</span>
                     </li>
                   ))}
                 </ul>

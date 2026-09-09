@@ -209,16 +209,6 @@ export default async function ServiceUserPage({
       ) : null}
 
       {canManage ? (
-        <>
-        {/* The week itself, not a link to it (Phil, 2026-09-09: "i dont like that you cant see
-            it as a rota when it is set up and i dont like that you have to go into history to
-            see it"). The package is captured at the setup visit; this is where it is read. */}
-        <CareScheduleTile
-          serviceUserId={serviceUser.id}
-          entries={carePlanEntries}
-          canManage={canManage}
-        />
-
         <div className={`grid gap-3 ${outcomesEnabled ? "sm:grid-cols-2" : ""}`}>
           <Link
             href={`/service-users/${serviceUser.id}/care-plan`}
@@ -238,7 +228,6 @@ export default async function ServiceUserPage({
             </Link>
           ) : null}
         </div>
-        </>
       ) : null}
 
       {isCancelled ? (
@@ -520,6 +509,16 @@ export default async function ServiceUserPage({
         </PanelDialog>
       ) : null}
       </section>
+
+      {/* The week itself, under the folded sections (Phil, 2026-09-09). The package is captured
+          at the setup visit and this is where it is READ — not by opening a completed form. */}
+      {canManage ? (
+        <CareScheduleTile
+          serviceUserId={serviceUser.id}
+          entries={carePlanEntries}
+          canManage={canManage}
+        />
+      ) : null}
     </div>
   );
 }
