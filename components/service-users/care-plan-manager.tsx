@@ -4,6 +4,7 @@ import { useState } from "react";
 import CarePlanEditor from "./care-plan-editor";
 import { saveCarePlan, updateCarePlan } from "@/lib/service-users/actions";
 import { CARE_PLAN_DAYS, carersLabel, type CarePlanEntry } from "@/lib/service-users/care-plan-consts";
+import { CALL_SLOTS } from "@/lib/service-users/care-package";
 
 /**
  * The "Care Plan: Current" area. The collapsible tile shows a compact
@@ -153,7 +154,10 @@ function CurrentPlanSummary({ entries }: { entries: CarePlanEntry[] }) {
             <span className="min-w-24 text-sm font-medium text-white/80">{day}</span>
             <span className="text-sm text-white/70">
               {list
-                .map((e) => `${e.service} ${e.unit} ${carersLabel(e.carers).toLowerCase()} ×${e.quantity}`)
+                .map((e) => {
+                  const when = CALL_SLOTS.find((sl) => sl.value === e.slot)?.label;
+                  return `${e.service} ${e.unit}${when ? ` ${when.toLowerCase()}` : ""} ${carersLabel(e.carers).toLowerCase()} ×${e.quantity}`;
+                })
                 .join(", ")}
             </span>
           </div>

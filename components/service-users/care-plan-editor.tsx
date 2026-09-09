@@ -11,12 +11,13 @@ import {
   carersOf,
   type CarePlanEntry,
 } from "@/lib/service-users/care-plan-consts";
+import { CALL_SLOTS } from "@/lib/service-users/care-package";
 
 /* Carers replaced the single/double dropdown (Phil, 2026-09-09). Three and four carer calls
    are rare but real, and an agency running one could previously only bill for two. The row no
    longer carries `handed` at all: it is derived from carers on the way to the database, so the
    two can never disagree. */
-type Row = { day_of_week: number; service: string; unit: string; carers: number; quantity: string };
+type Row = { day_of_week: number; service: string; unit: string; slot: string; carers: number; quantity: string };
 type ServerAction = (prev: ActionState, formData: FormData) => Promise<ActionState>;
 
 const DEFAULT_UNIT = "15m";
@@ -49,10 +50,11 @@ export default function CarePlanEditor({
           day_of_week: e.day_of_week,
           service: e.service,
           unit: e.unit,
+          slot: e.slot ?? "",
           carers: carersOf(e.carers, e.handed),
           quantity: String(e.quantity),
         }))
-      : [{ day_of_week: 0, service: "Care", unit: DEFAULT_UNIT, carers: 1, quantity: "1" }],
+      : [{ day_of_week: 0, service: "Care", unit: DEFAULT_UNIT, slot: "", carers: 1, quantity: "1" }],
   );
   const [copyPrompt, setCopyPrompt] = useState<{ source: number; target: number } | null>(null);
 
@@ -65,7 +67,7 @@ export default function CarePlanEditor({
   const showSaved = saved && !pending;
 
   function newRow(): Row {
-    return { day_of_week: 0, service: "Care", unit: DEFAULT_UNIT, carers: 1, quantity: "1" };
+    return { day_of_week: 0, service: "Care", unit: DEFAULT_UNIT, slot: "", carers: 1, quantity: "1" };
   }
 
   function update(i: number, patch: Partial<Row>) {
@@ -143,6 +145,7 @@ export default function CarePlanEditor({
       day_of_week: r.day_of_week,
       service: r.service,
       unit: r.unit,
+      slot: r.slot || null,
       carers: r.carers,
       quantity: Number(r.quantity) || 0,
     })),
@@ -215,6 +218,17 @@ export default function CarePlanEditor({
               >
                 {CARE_PLAN_UNITS.map((u) => (
                   <option key={u} value={u}>{u}</option>
+                ))}
+              </select>
+              <select
+                aria-label="When"
+                value={r.slot}
+                onChange={(e) => update(i, { slot: e.target.value })}
+                className="ctl-sm text-center"
+              >
+                <option value="">Any time</option>
+                {CALL_SLOTS.map((sl) => (
+                  <option key={sl.value} value={sl.value}>{sl.label}</option>
                 ))}
               </select>
               <select

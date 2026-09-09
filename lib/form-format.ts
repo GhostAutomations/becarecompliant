@@ -13,7 +13,10 @@ import {
   addressIsEmpty,
   formatAddress,
   isAddressValue,
+  isPackageValue,
 } from "./form-schema";
+import { CARE_PLAN_SERVICES, CARE_PLAN_UNITS } from "./service-users/care-plan-consts";
+import { describePackage, parsePackage } from "./service-users/care-package";
 import { ukDate } from "./dates";
 
 /** Map an option value to its label, falling back to the raw value. */
@@ -27,6 +30,19 @@ export function formatAnswerForDisplay(field: FormField, value: AnswerValue | un
     case "single_select":
     case "radio":
       return value == null || value === "" ? "Not answered" : optionLabel(field, String(value));
+
+    /* The package in words, one call a line, because the Evidence and the PDF are what somebody
+       reads back in two years. Parsed rather than printed raw so a stored line that no longer
+       makes sense is dropped here exactly as it was dropped on the way in. */
+    case "care_package": {
+      if (!isPackageValue(value)) return "Not answered";
+      const lines = parsePackage(value, {
+        services: CARE_PLAN_SERVICES,
+        units: CARE_PLAN_UNITS,
+      });
+      if (lines.length === 0) return "No calls";
+      return describePackage(lines).split("; ").join("\n");
+    }
 
     case "multi_select":
       return Array.isArray(value) && value.length

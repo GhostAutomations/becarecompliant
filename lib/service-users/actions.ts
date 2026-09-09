@@ -38,6 +38,9 @@ import {
 } from "./data";
 import { initialDueDate, todayIso, addDaysToIso } from "./logic";
 import { carersOf, handedFromCarers } from "./care-plan-consts";
+import { CALL_SLOTS } from "./care-package";
+
+const SLOTS: string[] = CALL_SLOTS.map((s) => s.value);
 import { SU_REGISTER_COLUMNS } from "./types";
 import { uploadCarePlanFile, signCarePlan } from "./care-plan";
 
@@ -287,7 +290,7 @@ export async function updateServiceUser(_prev: ActionState, formData: FormData):
   return { ok: "Saved." };
 }
 
-type CarePlanRow = { day_of_week: number; service: string; unit: string; handed: string; carers: number; quantity: number };
+type CarePlanRow = { day_of_week: number; service: string; unit: string; handed: string; carers: number; slot: string | null; quantity: number };
 
 function parseCarePlanRows(formData: FormData): CarePlanRow[] | null {
   try {
@@ -305,6 +308,7 @@ function parseCarePlanRows(formData: FormData): CarePlanRow[] | null {
              never disagree, and carers is what prices the line. */
           handed: handedFromCarers(carers),
           carers,
+          slot: SLOTS.includes(String(o.slot ?? "")) ? String(o.slot) : null,
           quantity: Math.max(0, Number(o.quantity) || 0),
         };
       })
@@ -369,6 +373,7 @@ export async function saveCarePlan(_prev: ActionState, formData: FormData): Prom
         unit: r.unit,
         handed: r.handed,
         carers: r.carers,
+        slot: r.slot,
         quantity: r.quantity,
         position: i,
         effective_from: effectiveFrom,
@@ -449,6 +454,7 @@ export async function updateCarePlan(_prev: ActionState, formData: FormData): Pr
       unit: r.unit,
       handed: r.handed,
       carers: r.carers,
+      slot: r.slot,
       quantity: r.quantity,
       position: i,
       effective_from: newFrom,

@@ -192,7 +192,7 @@ export async function getCarePlanEntries(
   const supabase = await createClient();
   const { data } = await supabase
     .from("care_plan_entries")
-    .select("id, day_of_week, service, unit, handed, carers, quantity, position")
+    .select("id, day_of_week, service, unit, handed, carers, slot, quantity, position")
     .eq("service_user_id", serviceUserId)
     .is("effective_to", null)
     .order("position", { ascending: true });
@@ -203,6 +203,7 @@ export async function getCarePlanEntries(
     unit: string;
     handed: string;
     carers: number | null;
+    slot: string | null;
     quantity: number;
     position: number;
   }> | null) ?? []).map((r) => ({
@@ -237,14 +238,14 @@ export async function getCarePlanVersions(serviceUserId: string): Promise<CarePl
   const supabase = await createClient();
   const { data } = await supabase
     .from("care_plan_entries")
-    .select("day_of_week, service, unit, handed, carers, quantity, position, effective_from, effective_to")
+    .select("day_of_week, service, unit, handed, carers, slot, quantity, position, effective_from, effective_to")
     .eq("service_user_id", serviceUserId)
     .not("effective_to", "is", null)
     .order("effective_from", { ascending: false })
     .order("position", { ascending: true });
   const rows = (data as Array<{
     day_of_week: number; service: string; unit: string; handed: string; carers: number | null;
-    quantity: number; position: number; effective_from: string; effective_to: string;
+    slot: string | null; quantity: number; position: number; effective_from: string; effective_to: string;
   }> | null) ?? [];
   const byVersion = new Map<string, CarePlanVersion>();
   for (const r of rows) {
@@ -261,6 +262,7 @@ export async function getCarePlanVersions(serviceUserId: string): Promise<CarePl
       unit: r.unit,
       handed: r.handed,
       carers: carersOf(r.carers, r.handed),
+      slot: r.slot,
       quantity: Number(r.quantity),
       position: r.position,
     });

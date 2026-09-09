@@ -28,12 +28,20 @@ import {
   type FieldOption,
   type FormField,
   type FormSchema,
+  type PackageLineValue,
   isAddressValue,
+  isPackageValue,
 } from "@/lib/form-schema";
 import { type FieldError, isFieldVisible, standDown } from "@/lib/form-validate";
 import { computeScores, bandTotal } from "@/lib/forms/compute-scores";
 import { scoreProgress } from "@/lib/forms/scoring";
 import { type LookupChoice, filterChoices, lookupError } from "@/lib/forms/lookup";
+import CarePackageField from "./care-package-field";
+import {
+  CARE_PLAN_SERVICES,
+  CARE_PLAN_UNITS,
+  CARERS_OPTIONS,
+} from "@/lib/service-users/care-plan-consts";
 
 type Props = {
   schema: FormSchema;
@@ -338,6 +346,21 @@ function Field({
         />,
       );
 
+    /* The care package builder. Its lists come from the Care Plan's own constants rather than
+       from the field's options, because a package line has to BE a care plan row — a service
+       or a duration the plan cannot store would price at nothing. */
+    case "care_package":
+      return labelledControl(
+        <CarePackageField
+          value={isPackageValue(value) ? value : []}
+          services={CARE_PLAN_SERVICES}
+          units={CARE_PLAN_UNITS}
+          carersOptions={CARERS_OPTIONS}
+          disabled={disabled}
+          onChange={(lines) => onValue(lines)}
+        />,
+      );
+
     case "address":
       return labelledControl(
         <AddressFields
@@ -400,7 +423,11 @@ function Field({
       );
 
     case "multi_select": {
-      const selected = Array.isArray(value) ? value : [];
+      /* Narrowed to strings on purpose: an answer array can now also be a care package's
+         lines, and multi_select's own options are always strings. */
+      const selected: string[] = Array.isArray(value)
+        ? value.filter((v): v is string => typeof v === "string")
+        : [];
       const toggle = (v: string) =>
         onValue(selected.includes(v) ? selected.filter((x) => x !== v) : [...selected, v]);
       return labelledControl(

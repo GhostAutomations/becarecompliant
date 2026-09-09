@@ -33,6 +33,18 @@ export type FieldType =
   | "file_upload"
   | "address"
   /**
+   * THE CARE PACKAGE (2026-09-09). A builder, not a question: as many lines as the package
+   * needs, each one a recurring call — service, which days, which part of the day, how long,
+   * how many carers. Its answer is an array of those lines, and completing the form turns
+   * them into the weekly Care Plan that Invoicing bills from.
+   *
+   * It is a field rather than a separate screen because Phil asked for the package to be
+   * captured at the setup visit "so it isnt lost": as a form field the answer is frozen into
+   * the Evidence alongside everything else, so what was agreed at the door survives whatever
+   * the office edits afterwards.
+   */
+  | "care_package"
+  /**
    * A type-ahead that picks an EXISTING record (2026-09-07). The answer stores the
    * record's NAME, because evidence is immutable and must still read correctly years
    * later after a rename or an archive; the id travels out of band to the submit
@@ -156,7 +168,24 @@ export const ADDRESS_PARTS: ReadonlyArray<{ key: keyof AddressValue; label: stri
   { key: "postcode", label: "Postcode" },
 ];
 
-export type AnswerValue = string | number | boolean | string[] | AddressValue | null;
+/** One recurring call inside a care_package answer. Structural: the rules about which
+ *  services, units, slots and days are real live in lib/service-users/care-package.ts. */
+export type PackageLineValue = {
+  service?: string;
+  days?: number[];
+  slot?: string;
+  unit?: string;
+  carers?: number;
+};
+
+export type AnswerValue =
+  | string
+  | number
+  | boolean
+  | string[]
+  | AddressValue
+  | PackageLineValue[]
+  | null;
 
 /** All answers for a form, keyed by field key. */
 export type Answers = Record<string, AnswerValue>;
@@ -164,6 +193,11 @@ export type Answers = Record<string, AnswerValue>;
 /** Narrow an answer to a structured address value (object, not array). */
 export function isAddressValue(v: AnswerValue | undefined): v is AddressValue {
   return !!v && typeof v === "object" && !Array.isArray(v);
+}
+
+/** Narrow an answer to a care package (an array of line objects, not of strings). */
+export function isPackageValue(v: AnswerValue | undefined): v is PackageLineValue[] {
+  return Array.isArray(v) && v.every((l) => !!l && typeof l === "object" && !Array.isArray(l));
 }
 
 /** True when an address has no parts filled in. */

@@ -21,7 +21,8 @@ import "server-only";
 
 import { createServiceClient } from "@/lib/supabase/admin";
 import type { Answers } from "@/lib/form-schema";
-import { callsFromSetupAnswers, carePlanRowsFromCalls, describeCalls } from "./setup-calls";
+import { CARE_PLAN_SERVICES, CARE_PLAN_UNITS } from "./care-plan-consts";
+import { describePackage, packageRows, parsePackage } from "./care-package";
 
 export async function seedCarePlanFromSetup(opts: {
   companyId: string;
@@ -32,8 +33,13 @@ export async function seedCarePlanFromSetup(opts: {
 }): Promise<{ seeded: number; summary: string | null }> {
   if (opts.answers["care_plan_in_place"] !== "yes") return { seeded: 0, summary: null };
 
-  const calls = callsFromSetupAnswers(opts.answers);
-  if (calls.length === 0) return { seeded: 0, summary: null };
+  /* Parsed against the Care Plan's own service and unit lists, so a line the plan could not
+     store — and would therefore price at nothing — never reaches the invoice. */
+  const lines = parsePackage(opts.answers["care_package"], {
+    services: CARE_PLAN_SERVICES,
+    units: CARE_PLAN_UNITS,
+  });
+  if (lines.length === 0) return { seeded: 0, summary: null };
 
   try {
     const admin = createServiceClient();
@@ -46,14 +52,14 @@ export async function seedCarePlanFromSetup(opts: {
       .limit(1);
     if (existing && existing.length > 0) return { seeded: 0, summary: null };
 
-    const rows = carePlanRowsFromCalls(calls).map((r) => ({
+    const rows = packageRows(lines).map((r) => ({
       company_id: opts.companyId,
       service_user_id: opts.serviceUserId,
       day_of_week: r.day_of_week,
       service: r.service,
       unit: r.unit,
-      handed: r.handed,
-      carers: r.handed === "double" ? 2 : 1,
+      slot: r.slot,
+      carers: r.carers,
       quantity: r.quantity,
       position: r.position,
       effective_from: opts.effectiveFrom,
@@ -64,7 +70,7 @@ export async function seedCarePlanFromSetup(opts: {
       console.error("[seedCarePlanFromSetup] failed:", error.message);
       return { seeded: 0, summary: null };
     }
-    return { seeded: rows.length, summary: describeCalls(calls) };
+    return { seeded: rows.length, summary: describePackage(lines) };
   } catch (e) {
     console.error("[seedCarePlanFromSetup] failed:", (e as Error).message);
     return { seeded: 0, summary: null };

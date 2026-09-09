@@ -239,6 +239,15 @@ function validateField(field: FormField, value: AnswerValue | undefined): string
       if (typeof value !== "string" || value.trim() === "") return "A file is required.";
       return null;
     }
+    case "care_package": {
+      /* The lines themselves are checked by parsePackage against the schema's own service and
+         unit lists, which is where a made-up service is dropped. All that is left to say here
+         is whether the package is empty, and that only matters when it is required. */
+      if (!Array.isArray(value) || value.length === 0) {
+        return required ? "Add at least one call." : null;
+      }
+      return null;
+    }
     default:
       return null;
   }

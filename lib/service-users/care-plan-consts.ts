@@ -90,6 +90,9 @@ export type CarePlanEntry = {
   handed: string; // 'single' | 'double', derived from carers
   /** How many carers the call needs, 1 to 4. This is what prices the line. */
   carers: number;
+  /** Which part of the day the call is: morning, lunch, afternoon, evening, night. Null on
+   *  rows written before the setup visit started asking. Billing ignores it. */
+  slot: string | null;
   quantity: number;
   position: number;
 };
