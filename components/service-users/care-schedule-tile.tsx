@@ -20,8 +20,15 @@ import Link from "next/link";
 import { CARE_PLAN_DAYS, carersLabel, type CarePlanEntry } from "@/lib/service-users/care-plan-consts";
 import { CALL_SLOTS } from "@/lib/service-users/care-package";
 
-function slotLabel(slot: string | null): string | null {
-  return CALL_SLOTS.find((s) => s.value === slot)?.label ?? null;
+/** "Morning", "Lunch"… or "Any time" for a row written before the slot was asked for. */
+function slotLabel(slot: string | null): string {
+  return CALL_SLOTS.find((s) => s.value === slot)?.label ?? "Any time";
+}
+
+/** How Phil reads a call out loud: "Care - 15m - Double Handed". */
+function callLine(e: CarePlanEntry): string {
+  const parts = [e.service, e.unit, carersLabel(e.carers)];
+  return e.quantity > 1 ? `${parts.join(" - ")} ×${e.quantity}` : parts.join(" - ");
 }
 
 export default function CareScheduleTile({
@@ -67,22 +74,15 @@ export default function CareScheduleTile({
               {byDay[i].length === 0 ? (
                 <p className="mt-2 text-[12px] text-white/30">No calls</p>
               ) : (
-                <ul className="mt-2 space-y-2">
-                  {byDay[i].map((e) => {
-                    const when = slotLabel(e.slot);
-                    return (
-                      <li key={e.id} className="text-[12px] leading-tight">
-                        <p className="font-medium text-white/85">
-                          {e.service} {e.unit}
-                          {e.quantity > 1 ? ` ×${e.quantity}` : ""}
-                        </p>
-                        <p className="text-white/45">
-                          {when ? `${when} · ` : ""}
-                          {carersLabel(e.carers)}
-                        </p>
-                      </li>
-                    );
-                  })}
+                /* The slot names the call and the detail sits under it, which is how the
+                   rota is read: "Morning:" then "Care - 15m - Double Handed". */
+                <ul className="mt-2 space-y-2.5">
+                  {byDay[i].map((e) => (
+                    <li key={e.id} className="text-[12px] leading-tight">
+                      <p className="font-semibold text-white/85">{slotLabel(e.slot)}:</p>
+                      <p className="mt-0.5 text-white/55">{callLine(e)}</p>
+                    </li>
+                  ))}
                 </ul>
               )}
             </div>
