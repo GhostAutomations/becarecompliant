@@ -59,7 +59,25 @@ export async function invitePersonLogin(
   });
 
   if (!outcome.ok) {
-    return { error: outcome.error ?? "The invite could not be sent." };
+    /* A REFUSAL IS NOT A FAILURE, AND IT SHOULD SAY WHICH (Phil, 2026-09-09: clicked Invite
+       them on a record with a sample address and got "The invite could not be sent"). The
+       invite pipeline knows exactly why it stopped and hands the reason back in `skipped`;
+       this fell straight through to a sentence that names no cause and offers no fix, which
+       is the same sentence somebody would get for a dead mailbox or a broken API key. */
+    if (outcome.skipped === "demo_email") {
+      return {
+        error:
+          `${person.work_email} is a sample address, so nothing was sent. Put their real email on the record and invite them again.`,
+      };
+    }
+    if (outcome.skipped === "no_email") {
+      return { error: "Add their personal email to the record first, then invite them." };
+    }
+    return {
+      error:
+        outcome.error ??
+        `The invite could not be sent${outcome.skipped ? ` (${outcome.skipped})` : ""}. Please try again, and tell support if it keeps happening.`,
+    };
   }
   if (outcome.skipped === "already_has_login") {
     return { ok: "They already have a login." };
