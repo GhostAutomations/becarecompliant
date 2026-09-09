@@ -3,7 +3,6 @@
 import { useActionState } from "react";
 import { createServiceUser } from "@/lib/service-users/actions";
 import { IDLE_STATE } from "@/lib/forms";
-import PrivateInvoicingFields from "@/components/service-users/private-invoicing-fields";
 
 export default function CreateServiceUserForm({
   branches,
@@ -54,15 +53,20 @@ export default function CreateServiceUserForm({
             Optional. If you do not have it yet, you can upload it later on the Setup form or the record.
           </p>
         </div>
-
-        <PrivateInvoicingFields />
       </div>
 
       {state.error ? <p className="form-error">{state.error}</p> : null}
 
-      <div className="flex items-center gap-3">
-        <button type="submit" className="btn-primary" disabled={pending}>
+      {/* Two ways out of this form (Phil, 2026-09-09). Adding the record and completing the
+          Setup Visit is one job done in one sitting, and the Setup Visit is where the funding
+          question lives — so going straight there is usually what you actually want. Which
+          button was pressed arrives in the form data as `then`. */}
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="submit" name="then" value="record" className="btn-primary" disabled={pending}>
           {pending ? "Adding…" : "Add service user"}
+        </button>
+        <button type="submit" name="then" value="setup" className="btn-outline" disabled={pending}>
+          {pending ? "Adding…" : "Add service user and complete Setup"}
         </button>
       </div>
     </form>

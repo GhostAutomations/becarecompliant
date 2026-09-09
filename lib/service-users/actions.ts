@@ -26,7 +26,7 @@ import { type Answers, type FormSchema, firstDateFieldKey, isFormSchema } from "
 import { formCompletesCheck } from "@/lib/form-validate";
 import { closeBookingsForCheck } from "@/lib/planner/close-booking";
 import { rebakeFormFieldOptions } from "@/lib/forms/rebake-options";
-import { ensurePrivateClientFromSetup } from "@/lib/invoicing/ensure-private-client";
+import { ensurePrivateInvoicingFromSetup } from "@/lib/invoicing/ensure-private-invoicing";
 import type { ActionState } from "@/lib/forms";
 import type { CheckDefinition } from "@/lib/people/types";
 import { parseCivilDate } from "@/lib/recurrence";
@@ -135,6 +135,11 @@ export async function createServiceUser(_prev: ActionState, formData: FormData):
 
   const ssid = trimOrNull(formData.get("ssid"));
   const package_start_date = isoDateOrNull(formData.get("package_start_date"));
+  /* Private invoicing is no longer asked here (Phil, 2026-09-09: "remove private invoicing as
+     we now have it in funding options"). It is switched on by the Setup Visit's funding
+     answer, which is the moment somebody actually knows who is paying — asking it up front
+     asked the person creating the record to guess. The fields stay on the RECORD so the
+     office can still set it by hand. */
   const inv = invoicingFieldsFromForm(formData);
   if (inv.error) return { error: inv.error };
 
@@ -212,6 +217,28 @@ export async function createServiceUser(_prev: ActionState, formData: FormData):
     summary: `Added ${full_name} to the Service User register`,
     metadata: { branch_id, checks_applied: applyErr ? 0 : (applied ?? 0) },
   });
+
+  /* "Add service user and complete Setup" goes straight to the Setup Visit rather than to the
+     record and a hunt for the tile. The instance only exists once the checks above have been
+     applied, so it is looked up here rather than guessed. If anything is missing — no Setup
+     definition, no form, the apply failed — fall through to the record rather than to a dead
+     URL: the record was still created, and that is the part that matters.
+     No query string on either target, so redirect() is safe here (see lib/forms). */
+  if (String(formData.get("then") ?? "") === "setup" && !applyErr) {
+    const setupDef = definitions.find((d: CheckDefinition) => d.key === "setup");
+    if (setupDef?.form_id) {
+      const { data: instance } = await supabase
+        .from("check_instances")
+        .select("id")
+        .eq("service_user_id", su.id)
+        .eq("definition_id", setupDef.id)
+        .limit(1)
+        .maybeSingle();
+      if (instance?.id) {
+        redirect(`/service-users/${su.id}/checks/${instance.id}/complete`);
+      }
+    }
+  }
 
   redirect(`/service-users/${su.id}`);
 }
@@ -885,14 +912,24 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
      by hand later — which is how a package runs for months unbilled. Idempotent and best
      effort: the Evidence must not fail because the billing side did. */
   if (def.key === "setup") {
-    await ensurePrivateClientFromSetup({
+    const billing = await ensurePrivateInvoicingFromSetup({
       companyId: instance.company_id as string,
       serviceUserId: instance.service_user_id as string,
-      branchId: (instance.branch_id as string | null) ?? null,
       answers,
-      actorId: user.id,
-      todayIso: todayIso(),
     });
+    if (billing.turnedOn) {
+      await writeAudit({
+        companyId: instance.company_id as string,
+        actorId: user.id,
+        actorEmail: profile.email,
+        actorRole: profile.role,
+        action: "service_user.private_invoicing_on",
+        entityType: "service_user",
+        entityId: instance.service_user_id as string,
+        summary: `Private invoicing switched on from the Setup Visit (${billing.fundingLabel})`,
+        metadata: { funding: billing.fundingLabel, evidence_id: result.evidenceId },
+      });
+    }
   }
 
   // The work was booked; it has now been done. Turn the planner task green rather than
