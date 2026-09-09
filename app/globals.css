@@ -78,8 +78,19 @@
     @apply max-w-full cursor-pointer text-sm text-white/70;
   }
 
+  /* ONLY THE BUTTON OPENS THE PICKER (Phil, 2026-09-09: "choose file and no file chosen do
+     the same thing, open finder"). Natively the WHOLE input is one click target, so the grey
+     status text beside the button opens Finder too — it looks like a label and behaves like a
+     button. Making the input itself inert and the button alive again fixes every file input in
+     the app at once, keeps the filename visible after choosing, and leaves keyboard use
+     untouched: pointer-events does not affect focus, so Tab then Space still opens the picker. */
+  input[type="file"] {
+    pointer-events: none;
+  }
+
   input[type="file"]::file-selector-button {
     @apply mr-3 cursor-pointer rounded-lg border-0 px-4 py-2 text-sm font-semibold;
+    pointer-events: auto;
     background-color: var(--color-gold-400);
     color: #0f1424;
     transition: background-color 150ms ease;

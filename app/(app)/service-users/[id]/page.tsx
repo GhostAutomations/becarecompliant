@@ -13,6 +13,7 @@ import ActionForm from "@/components/action-form";
 import RecordHistory from "@/components/reports/record-history";
 import EditServiceUserForm from "@/components/service-users/edit-service-user-form";
 import PlannedReviewCell from "@/components/service-users/planned-review-cell";
+import CareScheduleTile from "@/components/service-users/care-schedule-tile";
 import RecordBookTask from "@/components/planner/record-book-task";
 import { featureEnabled } from "@/lib/billing/tier";
 import { getRecordAuditTrail } from "@/lib/audit-log/data";
@@ -28,6 +29,7 @@ import {
   listServiceUserCheckDefinitions,
   listServiceUserAssignments,
   listServiceUserEvidence,
+  getCarePlanEntries,
 } from "@/lib/service-users/data";
 import {
   assignServiceUserSupervisor,
@@ -125,10 +127,11 @@ export default async function ServiceUserPage({
     ]);
 
   // History timeline (managers/admins, via the record_audit_trail RPC) + export gate.
-  const [auditTrail, exportsEnabled, outcomesEnabled] = await Promise.all([
+  const [auditTrail, exportsEnabled, outcomesEnabled, carePlanEntries] = await Promise.all([
     canManage ? getRecordAuditTrail("service_user", id) : Promise.resolve([]),
     featureEnabled(companyId, "reporting_exports"),
     featureEnabled(companyId, "outcomes_satisfaction"),
+    getCarePlanEntries(id),
   ]);
 
   const statusByDef = new Map<string, SuCheckStatus>(statuses.map((s) => [s.definition_id, s]));
@@ -206,6 +209,16 @@ export default async function ServiceUserPage({
       ) : null}
 
       {canManage ? (
+        <>
+        {/* The week itself, not a link to it (Phil, 2026-09-09: "i dont like that you cant see
+            it as a rota when it is set up and i dont like that you have to go into history to
+            see it"). The package is captured at the setup visit; this is where it is read. */}
+        <CareScheduleTile
+          serviceUserId={serviceUser.id}
+          entries={carePlanEntries}
+          canManage={canManage}
+        />
+
         <div className={`grid gap-3 ${outcomesEnabled ? "sm:grid-cols-2" : ""}`}>
           <Link
             href={`/service-users/${serviceUser.id}/care-plan`}
@@ -225,6 +238,7 @@ export default async function ServiceUserPage({
             </Link>
           ) : null}
         </div>
+        </>
       ) : null}
 
       {isCancelled ? (
