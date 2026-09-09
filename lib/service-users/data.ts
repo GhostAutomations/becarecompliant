@@ -15,6 +15,7 @@ import { createClient } from "@/lib/supabase/server";
 import { completionDate, dateKeysByVersion } from "@/lib/evidence/completion-date";
 import { profilesById, profileName } from "@/lib/auth/company-profiles";
 import { branchScopedRole } from "@/lib/auth/manage-scope";
+import { carersOf } from "./care-plan-consts";
 import type { CheckDefinition } from "@/lib/people/types";
 import type {
   ServiceUserRecord,
@@ -191,7 +192,7 @@ export async function getCarePlanEntries(
   const supabase = await createClient();
   const { data } = await supabase
     .from("care_plan_entries")
-    .select("id, day_of_week, service, unit, handed, quantity, position")
+    .select("id, day_of_week, service, unit, handed, carers, quantity, position")
     .eq("service_user_id", serviceUserId)
     .is("effective_to", null)
     .order("position", { ascending: true });
@@ -201,9 +202,14 @@ export async function getCarePlanEntries(
     service: string;
     unit: string;
     handed: string;
+    carers: number | null;
     quantity: number;
     position: number;
-  }> | null) ?? []).map((r) => ({ ...r, quantity: Number(r.quantity) }));
+  }> | null) ?? []).map((r) => ({
+    ...r,
+    quantity: Number(r.quantity),
+    carers: carersOf(r.carers, r.handed),
+  }));
 }
 
 export type CarePlanVersion = {
@@ -231,13 +237,13 @@ export async function getCarePlanVersions(serviceUserId: string): Promise<CarePl
   const supabase = await createClient();
   const { data } = await supabase
     .from("care_plan_entries")
-    .select("day_of_week, service, unit, handed, quantity, position, effective_from, effective_to")
+    .select("day_of_week, service, unit, handed, carers, quantity, position, effective_from, effective_to")
     .eq("service_user_id", serviceUserId)
     .not("effective_to", "is", null)
     .order("effective_from", { ascending: false })
     .order("position", { ascending: true });
   const rows = (data as Array<{
-    day_of_week: number; service: string; unit: string; handed: string;
+    day_of_week: number; service: string; unit: string; handed: string; carers: number | null;
     quantity: number; position: number; effective_from: string; effective_to: string;
   }> | null) ?? [];
   const byVersion = new Map<string, CarePlanVersion>();
@@ -254,6 +260,7 @@ export async function getCarePlanVersions(serviceUserId: string): Promise<CarePl
       service: r.service,
       unit: r.unit,
       handed: r.handed,
+      carers: carersOf(r.carers, r.handed),
       quantity: Number(r.quantity),
       position: r.position,
     });

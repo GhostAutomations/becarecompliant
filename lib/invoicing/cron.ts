@@ -150,7 +150,7 @@ export async function draftFromSchedule(
       .order("position", { ascending: true }),
     supabase
       .from("care_plan_entries")
-      .select("day_of_week, service, unit, handed, quantity, effective_from, effective_to")
+      .select("day_of_week, service, unit, handed, carers, quantity, effective_from, effective_to")
       .eq("service_user_id", sc.service_user_id)
       .order("position", { ascending: true }),
   ]);

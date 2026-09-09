@@ -3,6 +3,11 @@ import assert from "node:assert/strict";
 import {
   unitPricePence,
   lineAmountPence,
+  unitPriceForCarers,
+  lineAmountForCarers,
+  carersOf,
+  carersLabel,
+  handedFromCarers,
   type ServiceRate,
 } from "../service-users/care-plan-consts.ts";
 import { formatUnitPrice, lineAddsUp, showsUnitPrice } from "./types.ts";
@@ -124,4 +129,68 @@ test("a fractional quantity is charged at the printed price like any other", () 
   assert.equal(unitPricePence(CARE, "45m", "single"), 1913);
   assert.equal(lineAmountPence(CARE, "45m", "single", 1.5), 2870);
   assert.equal(lineAddsUp({ quantity: 1.5, unit_price_pence: 1913, line_total_pence: 2870 }), true);
+});
+
+/* --- carers, 1 to 4 (Phil, 2026-09-09) ------------------------------------------------- */
+
+test("the carer count multiplies the PRINTED rate, so the line still adds up", () => {
+  /* The rounding happens before the multiplication, exactly as it does for double handed:
+     £6.38 x 3 x 7 is a sum a client can do on a calculator. */
+  assert.equal(unitPriceForCarers(CARE, "15m", 1), 638);
+  assert.equal(unitPriceForCarers(CARE, "15m", 2), 1276);
+  assert.equal(unitPriceForCarers(CARE, "15m", 3), 1914);
+  assert.equal(unitPriceForCarers(CARE, "15m", 4), 2552);
+  assert.equal(lineAmountForCarers(CARE, "15m", 3, 7), 13398);
+  assert.equal(13398, 1914 * 7);
+});
+
+test("single and double still price exactly as they always did", () => {
+  /* The old function delegates to the new one. If this ever drifts, every existing invoice
+     for a double handed call changes value. */
+  for (const unit of ["15m", "30m", "45m", "1hr", "2hr"]) {
+    assert.equal(unitPricePence(CARE, unit, "single"), unitPriceForCarers(CARE, unit, 1));
+    assert.equal(unitPricePence(CARE, unit, "double"), unitPriceForCarers(CARE, unit, 2));
+    assert.equal(unitPricePence(ODD, unit, "double"), unitPriceForCarers(ODD, unit, 2));
+  }
+});
+
+test("a fixed fee is multiplied by the carers too", () => {
+  assert.equal(unitPriceForCarers(SLEEP, "Fixed", 1), 18500);
+  assert.equal(unitPriceForCarers(SLEEP, "Fixed", 2), 37000);
+});
+
+test("a carer count is read off whatever the row actually has", () => {
+  assert.equal(carersOf(3), 3);
+  assert.equal(carersOf(null, "double"), 2);
+  assert.equal(carersOf(undefined, "single"), 1);
+  assert.equal(carersOf(undefined, undefined), 1);
+});
+
+test("rubbish never becomes a bigger bill", () => {
+  assert.equal(carersOf(0), 1);
+  assert.equal(carersOf(-4), 1);
+  assert.equal(carersOf("nonsense"), 1);
+  assert.equal(carersOf(99), 4);
+  assert.equal(unitPriceForCarers(CARE, "1hr", 99), 2550 * 4);
+});
+
+test("no rate is no charge, whatever the carer count", () => {
+  assert.equal(unitPriceForCarers(undefined, "1hr", 4), 0);
+  assert.equal(lineAmountForCarers(undefined, "1hr", 4, 10), 0);
+});
+
+test("the words on the invoice: two carers is still Double Handed", () => {
+  /* Every invoice already printed says Double Handed. Renaming it to 2 Carers would make the
+     new ones disagree with the old for the same work. */
+  assert.equal(carersLabel(1), "Single Handed");
+  assert.equal(carersLabel(2), "Double Handed");
+  assert.equal(carersLabel(3), "3 Carers");
+  assert.equal(carersLabel(4), "4 Carers");
+});
+
+test("the legacy handed word stays true to the count", () => {
+  assert.equal(handedFromCarers(1), "single");
+  assert.equal(handedFromCarers(2), "double");
+  assert.equal(handedFromCarers(3), "double");
+  assert.equal(handedFromCarers(4), "double");
 });

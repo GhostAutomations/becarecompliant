@@ -7,11 +7,16 @@ import {
   CARE_PLAN_DAYS,
   CARE_PLAN_SERVICES,
   CARE_PLAN_UNITS,
-  HANDED_OPTIONS,
+  CARERS_OPTIONS,
+  carersOf,
   type CarePlanEntry,
 } from "@/lib/service-users/care-plan-consts";
 
-type Row = { day_of_week: number; service: string; unit: string; handed: string; quantity: string };
+/* Carers replaced the single/double dropdown (Phil, 2026-09-09). Three and four carer calls
+   are rare but real, and an agency running one could previously only bill for two. The row no
+   longer carries `handed` at all: it is derived from carers on the way to the database, so the
+   two can never disagree. */
+type Row = { day_of_week: number; service: string; unit: string; carers: number; quantity: string };
 type ServerAction = (prev: ActionState, formData: FormData) => Promise<ActionState>;
 
 const DEFAULT_UNIT = "15m";
@@ -44,10 +49,10 @@ export default function CarePlanEditor({
           day_of_week: e.day_of_week,
           service: e.service,
           unit: e.unit,
-          handed: e.handed || "single",
+          carers: carersOf(e.carers, e.handed),
           quantity: String(e.quantity),
         }))
-      : [{ day_of_week: 0, service: "Care", unit: DEFAULT_UNIT, handed: "single", quantity: "1" }],
+      : [{ day_of_week: 0, service: "Care", unit: DEFAULT_UNIT, carers: 1, quantity: "1" }],
   );
   const [copyPrompt, setCopyPrompt] = useState<{ source: number; target: number } | null>(null);
 
@@ -60,7 +65,7 @@ export default function CarePlanEditor({
   const showSaved = saved && !pending;
 
   function newRow(): Row {
-    return { day_of_week: 0, service: "Care", unit: DEFAULT_UNIT, handed: "single", quantity: "1" };
+    return { day_of_week: 0, service: "Care", unit: DEFAULT_UNIT, carers: 1, quantity: "1" };
   }
 
   function update(i: number, patch: Partial<Row>) {
@@ -138,7 +143,7 @@ export default function CarePlanEditor({
       day_of_week: r.day_of_week,
       service: r.service,
       unit: r.unit,
-      handed: r.handed,
+      carers: r.carers,
       quantity: Number(r.quantity) || 0,
     })),
   );
@@ -213,13 +218,13 @@ export default function CarePlanEditor({
                 ))}
               </select>
               <select
-                aria-label="Handed"
-                value={r.handed}
-                onChange={(e) => update(i, { handed: e.target.value })}
+                aria-label="Carers"
+                value={r.carers}
+                onChange={(e) => update(i, { carers: Number(e.target.value) })}
                 className="ctl-sm text-center"
               >
-                {HANDED_OPTIONS.map((h) => (
-                  <option key={h.value} value={h.value}>{h.label}</option>
+                {CARERS_OPTIONS.map((c) => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
                 ))}
               </select>
               <input

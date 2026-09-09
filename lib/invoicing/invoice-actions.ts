@@ -173,7 +173,7 @@ export async function carePlanLinesForPeriod(
   const [{ data: entries }, { data: cfg }] = await Promise.all([
     supabase
       .from("care_plan_entries")
-      .select("day_of_week, service, unit, handed, quantity, effective_from, effective_to")
+      .select("day_of_week, service, unit, handed, carers, quantity, effective_from, effective_to")
       .eq("service_user_id", serviceUserId)
       .order("position", { ascending: true }),
     supabase.from("invoicing_config").select("*").eq("company_id", profile.company_id!).maybeSingle(),

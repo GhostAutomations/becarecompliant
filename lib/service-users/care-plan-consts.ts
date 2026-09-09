@@ -43,12 +43,53 @@ export const HANDED_OPTIONS = [
   { value: "double", label: "Double handed" },
 ] as const;
 
+/**
+ * How many carers a call needs (Phil, 2026-09-09: "a number, 1 to 4", which is what Birdie
+ * does — a double up is just the count being 2).
+ *
+ * Three and four carer calls are rare but real — a hoist plus a second pair of hands, a
+ * bariatric package — and an agency running one previously had to bill for two and eat the
+ * third. `carers` is what PRICES a line now; `handed` stays as the single/double word the
+ * older screens print, derived from it.
+ */
+export const CARERS_OPTIONS = [
+  { value: 1, label: "1 carer" },
+  { value: 2, label: "2 carers (double handed)" },
+  { value: 3, label: "3 carers" },
+  { value: 4, label: "4 carers" },
+] as const;
+
+export const MAX_CARERS = 4;
+
+/** Read a carer count off anything: a stored number, a legacy handed word, rubbish. */
+export function carersOf(carers: unknown, handed?: unknown): number {
+  const n = Math.trunc(Number(carers));
+  if (Number.isFinite(n) && n >= 1) return Math.min(n, MAX_CARERS);
+  return handed === "double" ? 2 : 1;
+}
+
+/** The single/double word for a carer count, so screens that print handed stay true. */
+export function handedFromCarers(carers: number): "single" | "double" {
+  return carersOf(carers) >= 2 ? "double" : "single";
+}
+
+/** What an invoice line calls it. Two carers is "Double Handed" because that is what the
+ *  sector says and what every existing invoice already prints; three and four are counted. */
+export function carersLabel(carers: number): string {
+  const n = carersOf(carers);
+  if (n === 1) return "Single Handed";
+  if (n === 2) return "Double Handed";
+  return `${n} Carers`;
+}
+
 export type CarePlanEntry = {
   id: string;
   day_of_week: number; // 0 = Monday
   service: string;
   unit: string;
-  handed: string; // 'single' | 'double'
+  handed: string; // 'single' | 'double', derived from carers
+  /** How many carers the call needs, 1 to 4. This is what prices the line. */
+  carers: number;
   quantity: number;
   position: number;
 };
@@ -86,9 +127,26 @@ export function unitPricePence(
   unit: string,
   handed: string = "single",
 ): number {
+  return unitPriceForCarers(rate, unit, handed === "double" ? 2 : 1);
+}
+
+/**
+ * The same price, said in carers rather than in single/double. THE one place the multiplier
+ * lives: unitPricePence delegates here rather than repeating the arithmetic, for exactly the
+ * reason lineAmountPence does — a second copy is how the recurring cron drifted away from the
+ * builder and billed £89.32 where the builder billed £89.25.
+ *
+ * The rounding still happens BEFORE the multiplication, so the printed rate times the carers
+ * is the billed figure and a client can reproduce it with a calculator.
+ */
+export function unitPriceForCarers(
+  rate: ServiceRate | undefined,
+  unit: string,
+  carers: number,
+): number {
   if (!rate) return 0;
   const base = unit === "Fixed" ? rate.fixed_pence : Math.round(rate.hourly_pence * (UNIT_HOURS[unit] ?? 0));
-  return handed === "double" ? base * 2 : base;
+  return base * carersOf(carers);
 }
 
 /**
@@ -114,4 +172,14 @@ export function lineAmountPence(
   quantity: number,
 ): number {
   return Math.round(quantity * unitPricePence(rate, unit, handed));
+}
+
+/** Line amount for a carer count. Same one maths path. */
+export function lineAmountForCarers(
+  rate: ServiceRate | undefined,
+  unit: string,
+  carers: number,
+  quantity: number,
+): number {
+  return Math.round(quantity * unitPriceForCarers(rate, unit, carers));
 }

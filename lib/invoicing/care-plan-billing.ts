@@ -11,13 +11,21 @@ import { INVOICE_SERVICES } from "./types";
 import {
   unitPricePence,
   lineAmountPence,
+  unitPriceForCarers,
+  lineAmountForCarers,
+  carersOf,
+  carersLabel,
+  handedFromCarers,
   type ServiceRate,
 } from "@/lib/service-users/care-plan-consts";
 
 export type BuilderLine = {
   service: string;
   unit: string;
+  /** The single/double word, kept so every screen and PDF that prints it still works. */
   handed: string;
+  /** What actually prices the line: 1 to 4. */
+  carers: number;
   quantity: number;
   unit_price_pence: number;
   line_total_pence: number;
@@ -32,6 +40,8 @@ export type PlanEntryRow = {
   service: string;
   unit: string;
   handed: string;
+  /** Absent on rows written before carers existed; carersOf reads the handed word instead. */
+  carers?: number | null;
   quantity: number;
   effective_from: string;
   effective_to: string | null;
@@ -102,6 +112,7 @@ export function buildCarePlanLines(
       service: e.service,
       unit: e.unit,
       handed: e.handed,
+      carers: carersOf(e.carers, e.handed),
       quantity: e.quantity,
     });
   }
@@ -131,21 +142,28 @@ export function buildCarePlanLines(
       const occ = counts[e.day_of_week] ?? 0;
       const qty = occ * Number(e.quantity);
       if (qty <= 0) continue;
-      const handed = e.handed === "double" ? "double" : "single";
-      const key = `${e.service}|${e.unit}|${handed}`;
+      /* Lines merge on the CARER COUNT, not on the single/double word. A three carer call and
+         a two carer call are both "double handed" and are not the same money, so merging on
+         the word would quietly bill the three at the two carer rate. */
+      const carers = carersOf(e.carers, e.handed);
+      const handed = handedFromCarers(carers);
+      const key = `${e.service}|${e.unit}|${carers}`;
       const existing = merged.get(key);
       if (existing) {
         existing.quantity += qty;
-        existing.line_total_pence = lineAmountPence(rateFor(e.service), e.unit, handed, existing.quantity);
+        existing.line_total_pence = lineAmountForCarers(
+          rateFor(e.service), e.unit, carers, existing.quantity,
+        );
       } else {
         merged.set(key, {
           service: e.service,
           unit: e.unit,
           handed,
+          carers,
           quantity: qty,
-          unit_price_pence: unitPricePence(rateFor(e.service), e.unit, handed),
-          line_total_pence: lineAmountPence(rateFor(e.service), e.unit, handed, qty),
-          description: `${e.service} - ${e.unit} (${HANDED_SUFFIX[handed]})`,
+          unit_price_pence: unitPriceForCarers(rateFor(e.service), e.unit, carers),
+          line_total_pence: lineAmountForCarers(rateFor(e.service), e.unit, carers, qty),
+          description: `${e.service} - ${e.unit} (${carersLabel(carers)})`,
           period_start: sStart,
           period_end: sEnd,
         });

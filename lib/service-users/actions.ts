@@ -37,6 +37,7 @@ import {
   getPublishedFormVersion,
 } from "./data";
 import { initialDueDate, todayIso, addDaysToIso } from "./logic";
+import { carersOf, handedFromCarers } from "./care-plan-consts";
 import { SU_REGISTER_COLUMNS } from "./types";
 import { uploadCarePlanFile, signCarePlan } from "./care-plan";
 
@@ -286,7 +287,7 @@ export async function updateServiceUser(_prev: ActionState, formData: FormData):
   return { ok: "Saved." };
 }
 
-type CarePlanRow = { day_of_week: number; service: string; unit: string; handed: string; quantity: number };
+type CarePlanRow = { day_of_week: number; service: string; unit: string; handed: string; carers: number; quantity: number };
 
 function parseCarePlanRows(formData: FormData): CarePlanRow[] | null {
   try {
@@ -295,11 +296,15 @@ function parseCarePlanRows(formData: FormData): CarePlanRow[] | null {
     return parsed
       .map((r) => {
         const o = r as Record<string, unknown>;
+        const carers = carersOf(o.carers, o.handed);
         return {
           day_of_week: Math.max(0, Math.min(6, Math.trunc(Number(o.day_of_week)))),
           service: String(o.service ?? "").trim(),
           unit: String(o.unit ?? "").trim(),
-          handed: o.handed === "double" ? "double" : "single",
+          /* handed is kept true to carers rather than trusted from the browser: the two must
+             never disagree, and carers is what prices the line. */
+          handed: handedFromCarers(carers),
+          carers,
           quantity: Math.max(0, Number(o.quantity) || 0),
         };
       })
@@ -363,6 +368,7 @@ export async function saveCarePlan(_prev: ActionState, formData: FormData): Prom
         service: r.service,
         unit: r.unit,
         handed: r.handed,
+        carers: r.carers,
         quantity: r.quantity,
         position: i,
         effective_from: effectiveFrom,
@@ -442,6 +448,7 @@ export async function updateCarePlan(_prev: ActionState, formData: FormData): Pr
       service: r.service,
       unit: r.unit,
       handed: r.handed,
+      carers: r.carers,
       quantity: r.quantity,
       position: i,
       effective_from: newFrom,

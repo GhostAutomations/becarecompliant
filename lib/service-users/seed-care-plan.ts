@@ -53,6 +53,7 @@ export async function seedCarePlanFromSetup(opts: {
       service: r.service,
       unit: r.unit,
       handed: r.handed,
+      carers: r.handed === "double" ? 2 : 1,
       quantity: r.quantity,
       position: r.position,
       effective_from: opts.effectiveFrom,

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import CarePlanEditor from "./care-plan-editor";
 import { saveCarePlan, updateCarePlan } from "@/lib/service-users/actions";
-import { CARE_PLAN_DAYS, type CarePlanEntry } from "@/lib/service-users/care-plan-consts";
+import { CARE_PLAN_DAYS, carersLabel, type CarePlanEntry } from "@/lib/service-users/care-plan-consts";
 
 /**
  * The "Care Plan: Current" area. The collapsible tile shows a compact
@@ -153,7 +153,7 @@ function CurrentPlanSummary({ entries }: { entries: CarePlanEntry[] }) {
             <span className="min-w-24 text-sm font-medium text-white/80">{day}</span>
             <span className="text-sm text-white/70">
               {list
-                .map((e) => `${e.service} ${e.unit} ${e.handed === "double" ? "double" : "single"} ×${e.quantity}`)
+                .map((e) => `${e.service} ${e.unit} ${carersLabel(e.carers).toLowerCase()} ×${e.quantity}`)
                 .join(", ")}
             </span>
           </div>

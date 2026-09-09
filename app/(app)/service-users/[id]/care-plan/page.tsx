@@ -7,7 +7,7 @@ import CarePlanUpload from "@/components/service-users/care-plan-upload";
 import { getServiceUser, getCarePlanEntries, getCarePlanVersions } from "@/lib/service-users/data";
 import { getInvoicingConfig, londonToday } from "@/lib/invoicing/data";
 import { INVOICE_SERVICES, serviceFixedPence } from "@/lib/invoicing/types";
-import { CARE_PLAN_DAYS } from "@/lib/service-users/care-plan-consts";
+import { CARE_PLAN_DAYS, carersLabel } from "@/lib/service-users/care-plan-consts";
 
 export const metadata: Metadata = { title: "Care plan" };
 
@@ -60,7 +60,7 @@ export default async function CarePlanPage({ params }: { params: Promise<{ id: s
                   <td className="py-1 pr-3 text-white/70">{CARE_PLAN_DAYS[e.day_of_week]}</td>
                   <td className="py-1 pr-3 text-white/85">{e.service}</td>
                   <td className="py-1 pr-3 text-white/70">{e.unit}</td>
-                  <td className="py-1 pr-3 text-white/70">{e.handed === "double" ? "Double" : "Single"}</td>
+                  <td className="py-1 pr-3 text-white/70">{carersLabel(e.carers)}</td>
                   <td className="py-1 text-right text-white/70">{e.quantity}</td>
                 </tr>
               ))}
