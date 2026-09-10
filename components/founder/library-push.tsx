@@ -43,11 +43,9 @@ const STATE_COPY: Record<
 
 export default function LibraryPush({
   templateKey,
-  libraryVersion,
   companies,
 }: {
   templateKey: string;
-  libraryVersion: number;
   companies: CompanyFormState[];
 }) {
   const sendable = companies.filter((c) => c.state === "behind");
@@ -109,6 +107,15 @@ export default function LibraryPush({
                     : " · nothing recorded on it yet"}
                   {c.hasOpenDraft ? " · they have a draft open" : ""}
                 </span>
+                {/* Which of the two things a send does to THIS company, said before the
+                    button is pressed rather than discovered afterwards. */}
+                {canSend ? (
+                  <span className="mt-0.5 block text-xs text-white/45">
+                    {c.evidenceCount > 0
+                      ? `Publishes version ${(c.currentVersion ?? 1) + 1} for them. Version ${c.currentVersion ?? 1} is kept, because records were completed on it.`
+                      : `Updates their version ${c.currentVersion ?? 1} in place. Nothing has been recorded on it, so there is no history to keep.`}
+                  </span>
+                ) : null}
               </span>
             </label>
           );
@@ -118,10 +125,11 @@ export default function LibraryPush({
       {/* Said plainly, because it is the thing a founder needs to be sure of before
           pressing a button that reaches other people's companies. */}
       <p className="form-hint">
-        Sending publishes a new version of the form for each company chosen. Their current
-        version is kept exactly as it is, so every record already completed still shows the
-        questions that were actually asked. Their own branches and staff lists are put back
-        into the new version.
+        A company that has recorded something on this form gets a NEW version, and their old
+        one is kept exactly as it is, so every record already completed still shows the
+        questions that were actually asked. A company that has not used it yet has their
+        current version updated in place, because a form nobody has filled in has no history
+        worth keeping. Either way their own branches and staff lists go back in.
       </p>
 
       {state.error ? <p className="form-error">{state.error}</p> : null}
@@ -136,7 +144,7 @@ export default function LibraryPush({
           ? "Sending…"
           : sendable.length === 0
             ? "Nothing to send"
-            : `Send version ${libraryVersion} to ${chosen.size} ${chosen.size === 1 ? "company" : "companies"}`}
+            : `Send to ${chosen.size} ${chosen.size === 1 ? "company" : "companies"}`}
       </button>
     </form>
   );

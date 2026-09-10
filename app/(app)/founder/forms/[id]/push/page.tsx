@@ -36,11 +36,7 @@ export default async function PushTemplatePage({
       </div>
 
       <div className="glass-card p-6">
-        <LibraryPush
-          templateKey={view.templateKey}
-          libraryVersion={view.libraryVersion}
-          companies={view.companies}
-        />
+        <LibraryPush templateKey={view.templateKey} companies={view.companies} />
       </div>
     </div>
   );
