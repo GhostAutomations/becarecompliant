@@ -71,6 +71,15 @@ export function fingerprintSchema(schema: FormSchema): string {
   return createHash("sha256").update(JSON.stringify(comparableSchema(schema))).digest("hex").slice(0, 32);
 }
 
+/*
+ * WHAT IS DELIBERATELY NOT COMPARED: the form's NAME, which lives on the forms row rather
+ * than in the schema. Today no company can rename their copy — the builder edits questions,
+ * not the title — so a push carrying the library's name over is a rename the founder made
+ * and nothing of the company's is lost. THE DAY RENAMING IS ADDED, the name has to join the
+ * comparison, or a company that renamed their form reads as untouched and a push quietly
+ * renames it back.
+ */
+
 export type PushState =
   /** Their copy already matches the library. Nothing to send. */
   | "up_to_date"
