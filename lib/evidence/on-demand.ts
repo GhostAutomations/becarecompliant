@@ -251,7 +251,17 @@ export async function evidenceSignedPdfUrl(input: {
   const path = evidenceRenderPath(data.company_id, data.id);
   const { error: upErr } = await admin.storage
     .from(EVIDENCE_BUCKET)
-    .upload(path, bytes, { contentType: "application/pdf", upsert: true });
+    /* cacheControl "0" ON PURPOSE (2026-09-10). The EVIDENCE is immutable; the RENDERING
+       of it is not — a fix to the renderer changes every document it produces. The render
+       lives at a stable path per evidence row, so the default hour of CDN caching meant a
+       corrected document kept serving the broken one for an hour after the fix, at the one
+       moment somebody is checking whether it is right. Rendering is cheap; a stale evidence
+       PDF in an inspector's hand is not. */
+    .upload(path, bytes, {
+      contentType: "application/pdf",
+      upsert: true,
+      cacheControl: "0",
+    });
   if (upErr) return { ok: false, error: `Could not store the rendered PDF: ${upErr.message}` };
 
   return signEvidenceDownload({
