@@ -215,15 +215,20 @@ export function EvidenceEntry({
         // screen Evidence page filters with the same function.
         const visible = section.fields.filter((f) => shouldShowInEvidence(f, answers, stoodDown));
         if (visible.length === 0) return null;
-        // wrap={false} keeps a section whole on one page, which is right for text but
-        // wrong the moment a section carries photographs: a section taller than an A4
-        // page cannot be kept whole, and forcing it clips the evidence. So a section
-        // holding a drawn image is allowed to flow.
-        const hasDrawnImage = visible.some((f) =>
-          (attachments?.[f.key] ?? []).some((a) => a.drawable),
-        );
+        /* A SECTION ALWAYS FLOWS ACROSS PAGES (2026-09-10).
+           It used to be held whole with wrap={false} unless it carried a photograph, on
+           the reasoning that a check reads better on one page. That works right up until a
+           section is taller than A4 — and then @react-pdf, told it may not break, draws the
+           overflow ON TOP of what came before. Phil's Individual Plan Review has 23 plan
+           area questions in one section, each label three lines long, and the whole of the
+           first page came out as text printed over text: an evidence document nobody could
+           read, which is worse than one spilling onto a second page.
+           The rule that actually matters is finer than a section: never split a QUESTION
+           from its ANSWER. So the row is what is kept whole, below, and the section is free
+           to flow. A row carrying a drawn image is left free too, because a photograph can
+           itself be taller than the page it sits on. */
         return (
-          <View key={section.id} style={styles.section} wrap={hasDrawnImage}>
+          <View key={section.id} style={styles.section}>
             <Text style={styles.sectionTitle}>{section.title}</Text>
             {visible.map((field) => {
               if (isPresentational(field.type)) {
@@ -241,8 +246,9 @@ export function EvidenceEntry({
               // the Evidence page can never drift apart.
               const files = attachments?.[field.key] ?? [];
               const showFiles = !signature && isBinaryField(field.type) && files.length > 0;
+              const hasDrawnImage = files.some((f) => f.drawable);
               return (
-                <View key={field.key} style={styles.fieldRow}>
+                <View key={field.key} style={styles.fieldRow} wrap={hasDrawnImage}>
                   <Text style={styles.fieldLabel}>{field.label}</Text>
                   {signature ? (
                     <View style={styles.fieldValue}>
