@@ -56,13 +56,21 @@ export default function CarePackageSummary({ value }: { value: PackageLineValue[
   return (
     <div className="space-y-2">
       {lines.map((line, i) => (
+        /* ONE LINE PER CALL (Phil, 2026-09-12): "have every day to the right of the double
+           or single handed, this will put everything on one line".
+           The two things a reviewer is checking — WHEN the call is and WHICH DAYS it runs —
+           are white; what the call IS sits between them in grey, because it is the part that
+           rarely changes and never needs scanning. flex-wrap, not a fixed row: a seven day
+           list on a phone drops to a second line rather than running off the card. */
         <div key={i} className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
-          <p className="text-sm text-white/85">
-            <span className="inline-block w-20 text-white/55">{slotLabel(line.slot)}:</span>
-            {line.service} - {line.unit} - {carersLabel(line.carers)}
-            {line.quantity > 1 ? ` - ${line.quantity} times a day` : ""}
+          <p className="flex flex-wrap items-baseline gap-x-2 text-sm">
+            <span className="inline-block w-20 shrink-0 text-white">{slotLabel(line.slot)}:</span>
+            <span className="text-white/45">
+              {line.service} - {line.unit} - {carersLabel(line.carers)}
+              {line.quantity > 1 ? ` - ${line.quantity} times a day` : ""}
+            </span>
+            <span className="text-white">{daysLabel(line.days)}</span>
           </p>
-          <p className="mt-1 text-xs text-white/45">{daysLabel(line.days)}</p>
         </div>
       ))}
     </div>
