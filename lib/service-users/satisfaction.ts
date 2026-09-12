@@ -3,26 +3,39 @@ import "server-only";
 /**
  * Be Care Compliant — Service User satisfaction.
  *
- * Satisfaction is scored from the "Feedback, Call Times and Outcomes" section of the
- * Individual Plan Review (the care_plan_review check's form). Three yes/no questions
- * count, a Yes being a satisfied response:
+ * Scored from the Customer Satisfaction section of the Individual Plan Review (the
+ * care_plan_review form). Three yes/no questions count, a Yes being a satisfied answer:
+ *   - schedule_matches       Does the care schedule match the calls being delivered?
  *   - call_times_suit        Do the call times suit the individual at present?
  *   - review_previous_setup  Do the call times / visit quantities match the setup?
- *   - individuals_feedback   Did the individual give feedback on their care workers?
  *
- * The rate is measured over the PQS reporting window (the same last-6-months window
- * the PQS on-time report uses) so it can feed the PQS customer satisfaction question:
- * across every review completed in the window, the percentage of those answers that
- * were positive. Active service users only, branch scoped by the caller's RLS.
+ * WHAT IS NOT COUNTED, AND WHY (Phil, 2026-09-12, asking whether the PQS tile was right).
+ *
+ * `individuals_feedback` used to be the third question: "Do you wish to give any feedback
+ * on your Care Workers?" — with Yes scored as satisfied and No as dissatisfied. That asks
+ * whether somebody WANTS TO SAY SOMETHING, not whether they are happy. A service user who
+ * wants to complain scored FOR us; a contented one with nothing to add scored AGAINST us.
+ * It was the only thing moving Thistle's figure. It stays on the form, because "would you
+ * like to tell us something" is a good question to ask; it is simply not a measure of
+ * satisfaction and no longer pretends to be.
+ *
+ * `schedule_matches` replaces it and is the honest signal: the review shows the person the
+ * schedule the office holds and asks whether that is what is actually arriving. A No there
+ * is a real service failure, in the individual's own words.
+ *
+ * The rate is measured over the PQS reporting window (the same last-6-months window the PQS
+ * on-time report uses) so it can feed the PQS customer satisfaction question: across every
+ * review completed in the window, the percentage of those answers that were positive.
+ * Active service users only, branch scoped by the caller's RLS.
  */
 
 import { createClient } from "@/lib/supabase/server";
 import { todayInLondon, addMonths, formatCivilDate } from "@/lib/recurrence";
 
 export const SATISFACTION_QUESTIONS: { key: string; label: string }[] = [
+  { key: "schedule_matches", label: "Care schedule matches the calls delivered" },
   { key: "call_times_suit", label: "Call times suit the individual" },
   { key: "review_previous_setup", label: "Call times match the setup" },
-  { key: "individuals_feedback", label: "Gave feedback on care workers" },
 ];
 
 export type SatisfactionWindow = { from: string; to: string };

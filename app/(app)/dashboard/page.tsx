@@ -452,8 +452,12 @@ function ScoreTile({
           <li key={`${m.name}-${m.register}`} className="flex items-baseline justify-between gap-1.5">
             {/* The name takes the slack, so both number columns pin to the right edge and read
                 as columns down the tile instead of drifting with the length of each label. */}
+            {/* The measure, and what it is counted from when that is worth knowing. A
+                percentage off one review reads as authoritative as one off a hundred unless
+                the tile says otherwise (Phil, 2026-09-12). */}
             <span className="min-w-0 flex-1 truncate text-[11px] text-slate-600" title={m.star}>
               {m.name}
+              {m.sample ? <span className="text-slate-400"> · {m.sample}</span> : null}
             </span>
             <span className={`w-11 shrink-0 text-right text-[11px] font-semibold tabular-nums ${ink}`}>
               {m.rate == null ? "n/a" : `${m.rate}%`}

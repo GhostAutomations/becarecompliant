@@ -112,6 +112,16 @@ export type PqsMeasure = {
   rate: number | null;
   band: number | null;
   star: string;
+  /**
+   * How much the figure is built on, in words, when that matters (2026-09-12).
+   *
+   * Phil asked whether the PQS scores were right, and customer satisfaction read 66% off a
+   * SINGLE review out of 28 service users with nothing on the tile to say so. A percentage
+   * carries an air of authority its sample does not always earn, and this one goes to CIW.
+   * Shown for measures counted from responses; left off where the denominator is simply
+   * every member of staff and the reader can see it elsewhere.
+   */
+  sample?: string | null;
 };
 
 type DefRow = {
@@ -469,6 +479,10 @@ async function computeOnTime(input: OnTimeInput) {
       gradedAt: "Plan reviews",
       rate: satisfaction.pct,
       band: bandPct(satisfaction.pct),
+      sample:
+        satisfaction.reviewCount === 0
+          ? null
+          : `${satisfaction.reviewCount} review${satisfaction.reviewCount === 1 ? "" : "s"}`,
       star: "User Experience Q2: percentage customer satisfaction from service user feedback, last 6 months.",
     },
     {
