@@ -25,6 +25,7 @@ import { writeAudit } from "@/lib/audit";
 import { isFormSchema, type FormField, type FormSchema } from "@/lib/form-schema";
 import {
   SATISFACTION_SECTION_TITLE,
+  STANDARD_SATISFACTION_QUESTIONS,
   detailKeyFor,
   isSatisfactionField,
   satisfactionQuestions,
@@ -61,13 +62,20 @@ function yesNoField(key: string, label: string): FormField {
   };
 }
 
-/** Every scored question gets a reason box on No (Phil, 2026-09-12): a score with nothing
- *  behind it tells a manager something is wrong but not what. */
+/**
+ * Every scored question gets a reason box on No (Phil, 2026-09-12): a score with nothing
+ * behind it tells a manager something is wrong but not what.
+ *
+ * REQUIRED (Phil, 2026-09-14: "all questions in the satsfaction section must be manitory").
+ * It costs nothing on a good review, because the validator skips a field nobody was shown,
+ * and it means a bad one always carries its reason.
+ */
 function detailField(key: string): FormField {
   return {
     key: detailKeyFor(key),
     type: "long_text",
     label: "What is wrong?",
+    required: true,
     help: "Say what the individual told you, in their words where you can.",
     visibleWhen: { field: key, in: ["No"] },
   };
@@ -253,4 +261,44 @@ export async function renameSatisfactionQuestion(
     },
   );
   return err ?? { ok: "Saved." };
+}
+
+/**
+ * Put back a standard question that was removed.
+ *
+ * Phil, 2026-09-14, on what was still open: a removed standard question could not be
+ * restored. Retyping it looks like the same question and is not — it gets a new key, so the
+ * history splits in two and the old answers stop belonging to anything. Restoring by KEY is
+ * the only way back that keeps a question's past attached to it.
+ *
+ * Idempotent: a question already present is left exactly as the company has it, wording and
+ * all, so this can never quietly undo a rewording.
+ */
+export async function restoreStandardSatisfactionQuestions(
+  _prev: ActionState,
+  _formData: FormData,
+): Promise<ActionState> {
+  const { profile } = await requireCompanyAdmin();
+  if (!profile.company_id) return { error: "No company context." };
+
+  const form = await loadForm(profile.company_id);
+  if (!form) return { error: "This company has no Individual Plan Review to change." };
+
+  const present = new Set(
+    form.schema.sections.flatMap((s) => s.fields.map((f) => f.key)),
+  );
+  const missing = STANDARD_SATISFACTION_QUESTIONS.filter((q) => !present.has(q.key));
+  if (missing.length === 0) return { ok: "Every standard question is already on the form." };
+
+  let next = form.schema;
+  for (const q of missing) next = withQuestionAdded(next, yesNoField(q.key, q.label));
+
+  const err = await saveSchema(profile.company_id, form.formId, form.versionId, next, {
+    action: "satisfaction.standard_restored",
+    summary: `Standard customer satisfaction question(s) restored: ${missing.map((q) => q.label).join("; ")}`,
+    metadata: { keys: missing.map((q) => q.key) },
+  });
+  return err ?? {
+    ok: `Restored ${missing.length} standard question${missing.length === 1 ? "" : "s"}. Answers recorded against ${missing.length === 1 ? "it" : "them"} before are still attached.`,
+  };
 }

@@ -41,11 +41,15 @@ export type SatisfactionQuestion = {
  * standard rather than the company's own — never to decide what is scored, which is always
  * the flag. Phil chose full control: a company may reword or remove any of them.
  */
-export const STANDARD_SATISFACTION_KEYS: ReadonlySet<string> = new Set([
-  "schedule_matches",
-  "call_times_suit",
-  "review_previous_setup",
-]);
+export const STANDARD_SATISFACTION_QUESTIONS: ReadonlyArray<{ key: string; label: string }> = [
+  { key: "schedule_matches", label: "Does this match the calls being delivered?" },
+  { key: "review_previous_setup", label: "Do the call times and number of visits match what was agreed?" },
+  { key: "call_times_suit", label: "Do the call times suit you at the moment?" },
+];
+
+export const STANDARD_SATISFACTION_KEYS: ReadonlySet<string> = new Set(
+  STANDARD_SATISFACTION_QUESTIONS.map((q) => q.key),
+);
 
 /** Is this field one of the scored questions? */
 export function isSatisfactionField(f: FormField): boolean {

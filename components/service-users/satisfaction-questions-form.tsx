@@ -19,6 +19,7 @@ import {
   addSatisfactionQuestion,
   removeSatisfactionQuestion,
   renameSatisfactionQuestion,
+  restoreStandardSatisfactionQuestions,
 } from "@/lib/service-users/satisfaction-settings";
 import type { SatisfactionQuestion } from "@/lib/service-users/satisfaction-questions";
 
@@ -71,10 +72,17 @@ function QuestionRow({ q }: { q: SatisfactionQuestion }) {
 
 export default function SatisfactionQuestionsForm({
   questions,
+  missingStandard,
 }: {
   questions: SatisfactionQuestion[];
+  /** How many of the questions that ship as standard are not on the form. */
+  missingStandard: number;
 }) {
   const [state, add, adding] = useActionState(addSatisfactionQuestion, IDLE_STATE);
+  const [restoreState, restore, restoring] = useActionState(
+    restoreStandardSatisfactionQuestions,
+    IDLE_STATE,
+  );
 
   return (
     <div className="space-y-4">
@@ -111,6 +119,27 @@ export default function SatisfactionQuestionsForm({
       </form>
       {state.error ? <p className="form-error">{state.error}</p> : null}
       {state.ok ? <p className="text-sm text-rag-green-soft">{state.ok}</p> : null}
+
+      {/* Retyping a removed question looks like the same question and is not: it would get a
+          new key and the answers recorded against the old one would stop belonging to
+          anything. Restoring by key is the only way back that keeps a question's past
+          attached to it (Phil, 2026-09-14). */}
+      {missingStandard > 0 ? (
+        <form action={restore} className="border-t border-white/10 pt-4">
+          <button type="submit" disabled={restoring} className="btn-outline">
+            {restoring
+              ? "Restoring…"
+              : `Put back the ${missingStandard} standard question${missingStandard === 1 ? "" : "s"} you removed`}
+          </button>
+          <p className="form-hint">
+            Restores the original wording and keeps the answers already recorded against
+            {missingStandard === 1 ? " it" : " them"} attached. Questions you have reworded are
+            left exactly as they are.
+          </p>
+          {restoreState.error ? <p className="form-error">{restoreState.error}</p> : null}
+          {restoreState.ok ? <p className="text-sm text-rag-green-soft">{restoreState.ok}</p> : null}
+        </form>
+      ) : null}
 
       <p className="form-hint">
         Changing this list never changes a review already completed. Each review is scored on

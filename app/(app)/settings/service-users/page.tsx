@@ -69,6 +69,11 @@ export default async function SettingsServiceUsersPage() {
               label: q.label,
               custom: !STANDARD_SATISFACTION_KEYS.has(q.key),
             }))}
+            missingStandard={
+              [...STANDARD_SATISFACTION_KEYS].filter(
+                (k) => !satisfactionQs.some((q) => q.key === k),
+              ).length
+            }
           />
         </div>
       </details>

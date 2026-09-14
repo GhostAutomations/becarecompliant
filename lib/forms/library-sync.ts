@@ -51,19 +51,59 @@ function canonical(value: unknown): unknown {
   return value;
 }
 
-/** The schema as it is worth comparing: baked option lists removed. */
+/**
+ * The section a company owns outright.
+ *
+ * Its customer satisfaction questions are theirs to write (Settings, Service users), so a
+ * company that tailors them must NOT thereby read as having edited the whole form and stop
+ * receiving every other improvement to it. Phil, 2026-09-14, on finding exactly that: one
+ * reworded question had cut Thistle off from the library.
+ *
+ * So this section is left out of the comparison AND carried across a push untouched. The
+ * bargain is easy to say: your satisfaction questions are yours, the rest of the form
+ * follows the library.
+ */
+export const OWNED_SECTION_ID = "customer_satisfaction";
+
+/** The schema as it is worth comparing: baked option lists removed, and the section the
+ *  company owns left out entirely. */
 export function comparableSchema(schema: FormSchema): unknown {
   return canonical({
     schemaVersion: schema.schemaVersion,
-    sections: (schema.sections ?? []).map((section) => ({
-      ...section,
-      fields: (section.fields ?? []).map((field) => {
-        if (!BAKED_OPTION_FIELD_KEYS.has((field.key ?? "").toLowerCase())) return field;
-        const { options: _baked, ...rest } = field;
-        return rest;
-      }),
-    })),
+    sections: (schema.sections ?? [])
+      .filter((section) => section.id !== OWNED_SECTION_ID)
+      .map((section) => ({
+        ...section,
+        fields: (section.fields ?? []).map((field) => {
+          if (!BAKED_OPTION_FIELD_KEYS.has((field.key ?? "").toLowerCase())) return field;
+          const { options: _baked, ...rest } = field;
+          return rest;
+        }),
+      })),
   });
+}
+
+/**
+ * The schema to actually PUSH: the library's, with the company's own section kept.
+ *
+ * Without this the comparison would say "safe to send" and the send would then delete the
+ * questions it had just decided not to count. The two halves have to agree, so they live
+ * next to each other.
+ */
+export function schemaToPush(library: FormSchema, companyCurrent: FormSchema): FormSchema {
+  const owned = (companyCurrent.sections ?? []).find((s) => s.id === OWNED_SECTION_ID);
+  if (!owned) return library;
+
+  const sections = (library.sections ?? []).map((s) =>
+    s.id === OWNED_SECTION_ID ? owned : s,
+  );
+  /* The library has no such section (an older template, or one that never had it): keep the
+     company's where it already sat, rather than dropping it on the floor. */
+  if (!sections.some((s) => s.id === OWNED_SECTION_ID)) {
+    const at = (companyCurrent.sections ?? []).findIndex((s) => s.id === OWNED_SECTION_ID);
+    sections.splice(Math.min(at < 0 ? sections.length : at, sections.length), 0, owned);
+  }
+  return { ...library, sections };
 }
 
 /** A short, stable fingerprint of a form, ignoring anything baked per company. */

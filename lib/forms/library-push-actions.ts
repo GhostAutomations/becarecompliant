@@ -26,8 +26,8 @@ import { revalidatePath } from "next/cache";
 import { requirePlatformAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
-import { isFormSchema } from "@/lib/form-schema";
-import { isPushable } from "./library-sync";
+import { isFormSchema, type FormSchema } from "@/lib/form-schema";
+import { isPushable, schemaToPush } from "./library-sync";
 import { libraryPushView } from "./library-push";
 import type { ActionState } from "@/lib/forms";
 
@@ -65,10 +65,23 @@ export async function pushLibraryForm(
       continue;
     }
 
+    /* The library's form, with this company's OWN section carried across. The comparison
+       ignored that section when it decided this company was safe to send to, so the send
+       must not then delete it. */
+    const { data: live } = await supabase
+      .from("form_versions")
+      .select("schema")
+      .eq("form_id", company.formId)
+      .eq("version", company.currentVersion ?? 1)
+      .maybeSingle<{ schema: unknown }>();
+    const schema = isFormSchema(live?.schema)
+      ? schemaToPush(template.schema as FormSchema, live!.schema as FormSchema)
+      : (template.schema as FormSchema);
+
     const { data: version, error } = await supabase.rpc("push_library_form", {
       p_form_id: company.formId,
       p_expect_library_schema: company.expectLibrarySchema,
-      p_schema: template.schema,
+      p_schema: schema,
       p_name: template.name,
       p_library_version: template.version,
     });
