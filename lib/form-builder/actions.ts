@@ -19,6 +19,7 @@ import { requireCompanyAdmin, requirePlatformAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { isFormSchema, type FieldType, type FormSchema } from "@/lib/form-schema";
+import { satisfactionEditsIn, satisfactionRefusal } from "@/lib/forms/satisfaction-guard";
 import { validateSchema, hasBlockingErrors } from "@/lib/form-builder/schema-ops";
 import type { ActionState } from "@/lib/forms";
 import type { Population } from "./types";
@@ -88,6 +89,34 @@ export async function saveDraft(versionId: string, schema: FormSchema): Promise<
   if (!isFormSchema(schema)) return { error: "The form structure is not valid." };
 
   const supabase = await createClient();
+
+  /*
+   * THE SCORING IS NOT THE BUILDER'S TO MOVE (Phil, 2026-09-12).
+   *
+   * A customer satisfaction question looks like any other yes/no in here, so somebody tidying
+   * the Individual Plan Review would reword or delete one and change the percentage that goes
+   * to the regulator without ever being told. Compared against the version this draft was
+   * taken from, and refused with the name of every question it would have moved, plus where
+   * to go instead. Arranging the rest of the form stays entirely theirs.
+   */
+  const { data: versionRow } = await supabase
+    .from("form_versions")
+    .select("form_id, forms(current_version)")
+    .eq("id", versionId)
+    .maybeSingle<{ form_id: string; forms: { current_version: number | null } | null }>();
+  if (versionRow) {
+    const { data: live } = await supabase
+      .from("form_versions")
+      .select("schema")
+      .eq("form_id", versionRow.form_id)
+      .eq("version", versionRow.forms?.current_version ?? 1)
+      .maybeSingle<{ schema: unknown }>();
+    if (live && isFormSchema(live.schema)) {
+      const problems = satisfactionEditsIn(live.schema as FormSchema, schema);
+      if (problems.length > 0) return { error: satisfactionRefusal(problems) };
+    }
+  }
+
   const { error } = await supabase.rpc("save_form_draft", {
     p_version_id: versionId,
     p_schema: schema,

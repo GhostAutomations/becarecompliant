@@ -8,6 +8,7 @@ import SuColumnNamesForm from "@/components/service-users/su-column-names-form";
 import { listCompanyForms } from "@/lib/form-builder/data";
 import BranchTypeForm from "@/components/service-users/branch-type-form";
 import FundingOptionsForm from "@/components/service-users/funding-options-form";
+import SatisfactionQuestionsForm from "@/components/service-users/satisfaction-questions-form";
 import OutcomesIntervalForm from "@/components/service-users/outcomes-interval-form";
 import {
   listAllServiceUserCheckDefinitions,
@@ -16,6 +17,8 @@ import {
   getOutcomesReviewMonths,
   listFundingOptions,
 } from "@/lib/service-users/data";
+import { getSatisfactionQuestions } from "@/lib/service-users/satisfaction";
+import { STANDARD_SATISFACTION_KEYS } from "@/lib/service-users/satisfaction-questions";
 import { SU_REGISTER_COLUMNS } from "@/lib/service-users/types";
 
 export const metadata: Metadata = { title: "Service User checks" };
@@ -24,14 +27,22 @@ export default async function SettingsServiceUsersPage() {
   const { profile } = await requireCompanyAdmin();
   if (!profile.company_id) redirect("/founder");
 
-  const [definitions, columnLabels, branchTypes, outcomesMonths, allForms, fundingOptions] =
-    await Promise.all([
+  const [
+    definitions,
+    columnLabels,
+    branchTypes,
+    outcomesMonths,
+    allForms,
+    fundingOptions,
+    satisfactionQs,
+  ] = await Promise.all([
       listAllServiceUserCheckDefinitions(profile.company_id),
       getServiceUserColumnLabels(profile.company_id),
       listBranchTypes(profile.company_id),
       getOutcomesReviewMonths(profile.company_id),
       listCompanyForms(profile.company_id),
       listFundingOptions(profile.company_id),
+      getSatisfactionQuestions(profile.company_id),
     ]);
   const publishableForms = allForms
     .filter((f) => f.population === "service_users" && f.currentVersion != null)
@@ -44,6 +55,23 @@ export default async function SettingsServiceUsersPage() {
         <h1 className="page-title mt-1">Service User settings</h1>
         <p className="page-subtitle">Configure service user checks and register columns.</p>
       </div>
+
+      {/* CUSTOMER SATISFACTION (Phil, 2026-09-12). The questions that become the PQS
+          percentage live here and nowhere else: in the form builder a scored question looks
+          like any other yes/no, and somebody tidying a form would reword or delete it without
+          knowing they had moved the number the regulator reads. */}
+      <details className="glass-card section-card">
+        <summary>Customer Satisfaction</summary>
+        <div className="space-y-3 border-t border-white/10 p-5">
+          <SatisfactionQuestionsForm
+            questions={satisfactionQs.map((q) => ({
+              key: q.key,
+              label: q.label,
+              custom: !STANDARD_SATISFACTION_KEYS.has(q.key),
+            }))}
+          />
+        </div>
+      </details>
 
       <details className="glass-card section-card">
         <summary>Service User checks</summary>

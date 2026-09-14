@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import SatisfactionRegisterTable from "@/components/service-users/satisfaction-register-table";
-import { getSatisfaction, SATISFACTION_QUESTIONS } from "@/lib/service-users/satisfaction";
+import { getSatisfaction, getSatisfactionQuestions } from "@/lib/service-users/satisfaction";
 import { listAccessibleBranchTypes } from "@/lib/service-users/data";
 import { featureEnabled } from "@/lib/billing/tier";
 
@@ -23,8 +23,9 @@ export default async function SatisfactionPage() {
   if (!ALLOWED.includes(profile.role)) redirect("/service-users");
   if (!(await featureEnabled(profile.company_id, "outcomes_satisfaction"))) redirect("/service-users");
 
-  const [sat, branchTypes] = await Promise.all([
+  const [sat, questions, branchTypes] = await Promise.all([
     getSatisfaction(profile.company_id),
+    getSatisfactionQuestions(profile.company_id),
     listAccessibleBranchTypes(profile.company_id, profile.role, user.id),
   ]);
   const branches = branchTypes.map((b) => ({ id: b.id, name: b.name }));
@@ -44,7 +45,7 @@ export default async function SatisfactionPage() {
         section of each Individual Plan Review completed in this period.
       </p>
 
-      <SatisfactionRegisterTable rows={sat.rows} questions={SATISFACTION_QUESTIONS} branches={branches} />
+      <SatisfactionRegisterTable rows={sat.rows} questions={questions} branches={branches} />
     </div>
   );
 }

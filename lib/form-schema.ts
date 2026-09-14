@@ -115,6 +115,20 @@ export type FormField = {
   label: string;
   required?: boolean;
   /**
+   * This question is part of the CUSTOMER SATISFACTION score in the PQS return (2026-09-12).
+   *
+   * The flag lives in the schema, not in a list in the code, so that every piece of Evidence
+   * freezes it along with the questions themselves. A company that removes a question in March
+   * does not thereby rewrite the figure it reported to CIW in January: a review completed in
+   * January is scored on the questions its own snapshot says were asked. That is the whole
+   * reason this is a field property rather than a constant somewhere.
+   *
+   * A flagged question must offer Yes and No. Yes is the satisfied answer.
+   * Edited in Settings, Service users, Customer Satisfaction — never in the form builder,
+   * because moving the scoring around by hand is how a score stops meaning anything.
+   */
+  satisfaction?: boolean;
+  /**
    * Shown, never asked (2026-09-09). The value comes from the RECORD, not the person
    * filling the form in, and the server rewrites it on submit from the record's own
    * data, so what is frozen into the Evidence is what the system held at that moment

@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { requireCompany } from "@/lib/auth/guards";
 import { buildCsv } from "@/lib/export/csv";
-import { getSatisfaction, SATISFACTION_QUESTIONS } from "@/lib/service-users/satisfaction";
+import { getSatisfaction, getSatisfactionQuestions } from "@/lib/service-users/satisfaction";
 
 const ALLOWED = ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"];
 
@@ -15,8 +15,12 @@ export async function GET(_req: NextRequest) {
   if (!profile.company_id) return new Response("No company", { status: 403 });
   if (!ALLOWED.includes(profile.role)) return new Response("Forbidden", { status: 403 });
 
-  const sat = await getSatisfaction(profile.company_id);
-  const qCols = SATISFACTION_QUESTIONS.map((q) => q.label);
+  /* The company's OWN questions, read from their form: the list is theirs to edit. */
+  const [sat, questions] = await Promise.all([
+    getSatisfaction(profile.company_id),
+    getSatisfactionQuestions(profile.company_id),
+  ]);
+  const qCols = questions.map((q) => q.label);
 
   const rows = sat.rows
     .filter((r) => r.reviewsInWindow > 0)
@@ -24,7 +28,7 @@ export async function GET(_req: NextRequest) {
       r.full_name,
       r.branch_name ?? "",
       fmt(r.latestReviewAt),
-      ...SATISFACTION_QUESTIONS.map((q) => r.latestAnswers[q.key] ?? ""),
+      ...questions.map((q) => r.latestAnswers[q.key] ?? ""),
       r.pct === null ? "" : `${r.pct}%`,
     ]);
 

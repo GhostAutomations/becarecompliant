@@ -31,12 +31,37 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { todayInLondon, addMonths, formatCivilDate } from "@/lib/recurrence";
+import { isFormSchema, type FormSchema } from "@/lib/form-schema";
+import { satisfactionQuestions, scoreAnswers } from "./satisfaction-questions";
 
-export const SATISFACTION_QUESTIONS: { key: string; label: string }[] = [
-  { key: "schedule_matches", label: "Care schedule matches the calls delivered" },
-  { key: "call_times_suit", label: "Call times suit the individual" },
-  { key: "review_previous_setup", label: "Call times match the setup" },
-];
+/**
+ * The questions THIS company currently scores, for the register's columns and its CSV.
+ *
+ * Read from the company's own Individual Plan Review rather than a constant, because the
+ * list is theirs to edit in Settings. Scoring does NOT use this: each review is scored on
+ * the questions frozen into its own Evidence, so the columns on screen show today's
+ * questions while a January review is still scored on January's.
+ */
+export async function getSatisfactionQuestions(
+  companyId: string,
+): Promise<{ key: string; label: string }[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("forms")
+    .select("current_version, form_versions(version, schema)")
+    .eq("company_id", companyId)
+    .eq("key", "care_plan_review")
+    .maybeSingle<{
+      current_version: number | null;
+      form_versions: Array<{ version: number; schema: unknown }> | null;
+    }>();
+  const current = (data?.form_versions ?? []).find((v) => v.version === data?.current_version);
+  if (!current || !isFormSchema(current.schema)) return [];
+  return satisfactionQuestions(current.schema as FormSchema).map((q) => ({
+    key: q.key,
+    label: q.label,
+  }));
+}
 
 export type SatisfactionWindow = { from: string; to: string };
 
@@ -67,13 +92,6 @@ export type SatisfactionResult = {
   reviewCount: number;
   rows: SatisfactionRow[];
 };
-
-function normalise(v: unknown): "Yes" | "No" | null {
-  const s = typeof v === "string" ? v.trim() : "";
-  if (s === "Yes") return "Yes";
-  if (s === "No") return "No";
-  return null;
-}
 
 /** Day after a YYYY-MM-DD date, so we can filter submitted_at < end. */
 function dayAfter(iso: string): string {
@@ -113,7 +131,7 @@ export async function getSatisfaction(
   if (formId) {
     const { data: ev } = await supabase
       .from("evidence")
-      .select("record_id, submitted_at, answers")
+      .select("record_id, submitted_at, answers, schema_snapshot")
       .eq("company_id", companyId)
       .eq("form_id", formId)
       .eq("record_type", "service_user")
@@ -121,22 +139,31 @@ export async function getSatisfaction(
       .lt("submitted_at", dayAfter(window.to))
       .order("submitted_at", { ascending: false });
 
-    for (const e of (ev as Array<{ record_id: string; submitted_at: string; answers: Record<string, unknown> }> | null) ?? []) {
+    for (const e of (ev as Array<{
+      record_id: string;
+      submitted_at: string;
+      answers: Record<string, unknown>;
+      schema_snapshot: unknown;
+    }> | null) ?? []) {
       if (!suById.has(e.record_id)) continue; // active service users only
 
-      // Score this review. Legacy reviews completed before the feedback section
-      // existed answer none of these, so they do not count towards satisfaction.
-      const answers: Record<string, "Yes" | "No" | null> = {};
-      let answered = 0;
-      let positive = 0;
-      for (const q of SATISFACTION_QUESTIONS) {
-        const val = normalise((e.answers ?? {})[q.key]);
-        answers[q.key] = val;
-        if (val !== null) {
-          answered += 1;
-          if (val === "Yes") positive += 1;
-        }
-      }
+      /*
+       * SCORED ON ITS OWN SNAPSHOT, not on today's questions (Phil, 2026-09-12).
+       *
+       * A company may add and remove satisfaction questions in Settings. Scoring every
+       * review against the CURRENT list would mean a question removed in March silently
+       * rewrites the figure reported to CIW in January. Evidence freezes the schema it was
+       * filled in on, so each review is scored on the questions it actually asked, and a
+       * number already reported stays that number.
+       *
+       * A review that answered none of them contributes nothing rather than a zero: a
+       * question nobody was asked is not a question they failed.
+       */
+      if (!isFormSchema(e.schema_snapshot)) continue;
+      const scored = scoreAnswers(e.schema_snapshot as FormSchema, e.answers ?? {});
+      const answers = scored.byKey;
+      const answered = scored.answered;
+      const positive = scored.positive;
       if (answered === 0) continue; // no satisfaction data captured in this review
 
       const rec = acc.get(e.record_id) ?? { reviews: 0, latestAt: null, latestAnswers: {}, positive: 0, answered: 0 };
