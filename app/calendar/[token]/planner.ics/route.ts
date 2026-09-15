@@ -22,10 +22,11 @@ import { buildPlannerFeed } from "@/lib/planner/ics";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export async function GET(_request: Request, { params }: { params: Promise<{ token: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
 
-  const feed = await loadFeedByToken(token);
+  // The agent is recorded so the Share page can say WHICH calendar last looked, and when.
+  const feed = await loadFeedByToken(token, request.headers.get("user-agent"));
   if (!feed) {
     return new NextResponse("Not found", {
       status: 404,

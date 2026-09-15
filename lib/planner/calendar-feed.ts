@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { siteUrl } from "@/lib/site";
 import { bookingHref } from "@/lib/planner/booking-link";
+import { calendarClientFrom, tidyAgent, type CalendarClient } from "@/lib/planner/calendar-client";
 import type { PlannerFeedEvent } from "@/lib/planner/ics";
 
 /**
@@ -187,6 +188,7 @@ function one<T>(v: T[] | T | null | undefined): T | null {
 
 export async function loadFeedByToken(
   token: string,
+  userAgent?: string | null,
 ): Promise<{ subject: FeedSubject; events: PlannerFeedEvent[] } | null> {
   // A token of the wrong shape never reaches the database.
   if (!/^[a-f0-9]{64}$/.test(token)) return null;
@@ -261,15 +263,98 @@ export async function loadFeedByToken(
     };
   });
 
-  // Best effort, and never allowed to fail the fetch: this only powers "last checked" on screen.
+  /*
+   * Best effort, and never allowed to fail the fetch: all of this only powers the diagnostics on
+   * the Share page. If the write fails the person still gets their calendar, which is the thing
+   * they came for.
+   */
+  const now = new Date().toISOString();
   void service
     .from("planner_calendar_feeds")
-    .update({ last_fetched_at: new Date().toISOString() })
+    .update({ last_fetched_at: now })
     .eq("token", token)
     .then(() => undefined, () => undefined);
+
+  void recordFetch(profileId, userAgent, now);
 
   return {
     subject: { profileId, companyId, ownerName: (profile?.full_name as string | null) ?? null },
     events,
   };
+}
+
+
+/**
+ * Note that a calendar app came and looked.
+ *
+ * WHY IT EXISTS: so the Share page can say "Outlook, 12:00 today" rather than only "last
+ * checked", which is the difference between somebody understanding that Outlook simply has not
+ * been back yet and somebody concluding the Planner is broken.
+ *
+ * Read-modify-write rather than an upsert, because the count has to survive: an upsert would
+ * either reset fetch_count to 1 every time or need a database function for one diagnostic line.
+ * A lost increment under a race costs nothing here.
+ */
+async function recordFetch(
+  profileId: string,
+  userAgent: string | null | undefined,
+  whenIso: string,
+): Promise<void> {
+  try {
+    const service = createServiceClient();
+    const client: CalendarClient = calendarClientFrom(userAgent);
+    const agent = tidyAgent(userAgent);
+
+    const { data: existing } = await service
+      .from("planner_calendar_feed_clients")
+      .select("fetch_count")
+      .eq("profile_id", profileId)
+      .eq("client", client)
+      .maybeSingle();
+
+    if (existing) {
+      await service
+        .from("planner_calendar_feed_clients")
+        .update({
+          last_fetched_at: whenIso,
+          user_agent: agent,
+          fetch_count: (existing.fetch_count as number) + 1,
+        })
+        .eq("profile_id", profileId)
+        .eq("client", client);
+    } else {
+      await service.from("planner_calendar_feed_clients").insert({
+        profile_id: profileId,
+        client,
+        user_agent: agent,
+        first_fetched_at: whenIso,
+        last_fetched_at: whenIso,
+        fetch_count: 1,
+      });
+    }
+  } catch {
+    // Diagnostics are never worth failing a calendar fetch over.
+  }
+}
+
+export type FeedClientRow = {
+  client: string;
+  userAgent: string | null;
+  lastFetchedAt: string;
+  fetchCount: number;
+};
+
+/** Which calendars have fetched the caller's own feed. RLS allows only their own rows. */
+export async function getMyFeedClients(): Promise<FeedClientRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("planner_calendar_feed_clients")
+    .select("client, user_agent, last_fetched_at, fetch_count")
+    .order("last_fetched_at", { ascending: false });
+  return ((data ?? []) as Array<Record<string, unknown>>).map((r) => ({
+    client: r.client as string,
+    userAgent: (r.user_agent as string | null) ?? null,
+    lastFetchedAt: r.last_fetched_at as string,
+    fetchCount: (r.fetch_count as number) ?? 0,
+  }));
 }

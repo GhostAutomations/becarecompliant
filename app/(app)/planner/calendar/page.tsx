@@ -5,7 +5,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import { featureEnabled } from "@/lib/billing/tier";
 import BackLink from "@/components/back-link";
 import { PLANNER_ROLES } from "@/lib/planner/data";
-import { getMyFeed, feedUrl, feedWebcalUrl } from "@/lib/planner/calendar-feed";
+import { getMyFeed, getMyFeedClients, feedUrl, feedWebcalUrl } from "@/lib/planner/calendar-feed";
 import CalendarSubscribe from "@/components/planner/calendar-subscribe";
 
 /**
@@ -33,6 +33,7 @@ export default async function PlannerCalendarPage() {
   if (!(await featureEnabled(profile.company_id, "planner"))) redirect("/dashboard");
 
   const feed = await getMyFeed();
+  const clients = feed ? await getMyFeedClients() : [];
 
   // PNG rather than SVG: it renders identically everywhere an <img> does, with none of the
   // SVG-inside-img quirks, and the data URI is allowed by the img-src policy.
@@ -59,6 +60,7 @@ export default async function PlannerCalendarPage() {
         url={feed ? feedUrl(feed.token) : null}
         qrDataUrl={qr}
         lastFetchedAt={feed?.lastFetchedAt ?? null}
+        clients={clients}
       />
     </div>
   );

@@ -38,16 +38,26 @@ function whenText(iso: string | null): string {
   }).format(d);
 }
 
+export type FeedClient = {
+  client: string;
+  userAgent: string | null;
+  lastFetchedAt: string;
+  fetchCount: number;
+};
+
 export default function CalendarSubscribe({
   url,
   qrDataUrl,
   lastFetchedAt,
+  clients,
 }: {
   /** Null when they have not made a link yet. */
   url: string | null;
   /** The webcal form of the same link, drawn as a QR code on the server. */
   qrDataUrl: string | null;
   lastFetchedAt: string | null;
+  /** Which calendar apps have actually fetched, newest first. */
+  clients: FeedClient[];
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -195,6 +205,43 @@ export default function CalendarSubscribe({
             Every calendar checks for changes on its own schedule, usually every few hours and
             occasionally longer. A booking you have just made will not appear straight away.
           </p>
+
+          {/*
+            WHICH CALENDAR LAST LOOKED, AND WHEN.
+            Phil, 2026-09-15: Outlook fetched once when he subscribed, a booking was made five
+            minutes later, and Outlook showed nothing for hours. Nothing was broken, but proving
+            that meant reading server logs. This panel puts the one fact that answers it on the
+            screen, so "why can I not see it yet" stops being a support conversation.
+          */}
+          <div className="mt-4 rounded-lg border border-white/10 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-white/55">
+              Which calendars have checked
+            </p>
+            {clients.length === 0 ? (
+              <p className="mt-2 text-sm text-white/65">
+                Nothing has fetched this link yet. Once you add it to a calendar, that calendar
+                will appear here the first time it looks.
+              </p>
+            ) : (
+              <>
+                <ul className="mt-2 space-y-1.5">
+                  {clients.map((c) => (
+                    <li key={c.client} className="flex flex-wrap items-baseline justify-between gap-x-3">
+                      <span className="text-sm text-white">{c.client}</span>
+                      <span className="text-xs text-white/55">
+                        last checked {whenText(c.lastFetchedAt)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-2 text-xs text-white/45">
+                  If a booking is missing from one of these, compare the time it last checked with
+                  when you made the booking. A calendar that has not looked since cannot know
+                  about it yet, and there is no way to hurry it along.
+                </p>
+              </>
+            )}
+          </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
             {confirmingChange ? (
