@@ -65,9 +65,20 @@ export default function PlannerWhoPicker({
       {canViewIndividuals && people.length > 0 ? (
         <select
           aria-label="Show one person's calendar"
-          /* w-auto because the base select rule is w-full, which stretched this to the width of
-             its container and pushed the whole toolbar onto a second row. */
-          className="ctl-sm w-auto max-w-[11rem] text-xs"
+          /*
+           * inline-cell is the product's existing compact select, the same one the Branch filter
+           * on this very calendar uses, so this is not a one-off control.
+           *
+           * py-1.5 rather than inline-cell's py-1 because the neighbours are buttons at py-1.5
+           * inside a 1px border: 12px of padding plus a 16px line box plus the border is 30px,
+           * and matching that is what makes the three controls sit on one line.
+           *
+           * The width is set here rather than left to the content: inline-cell's own 6.5rem
+           * floor squashed "Someone else…" into an ellipsis, and letting a long name size it
+           * freely would have the toolbar jump about every time the selection changed.
+           */
+          className="inline-cell py-1.5"
+          style={{ minWidth: "10rem", maxWidth: "14rem" }}
           value={who === "mine" || who === "all" ? "" : who}
           onChange={(e) => go(e.target.value === "" ? "mine" : e.target.value)}
         >
