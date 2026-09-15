@@ -42,6 +42,21 @@ export function feedUrl(token: string): string {
 }
 
 /**
+ * The same URL as webcal://, which is what a PHONE should be given.
+ *
+ * WHY BOTH FORMS EXIST. Open an https link to a .ics and the browser DOWNLOADS it, which on a
+ * phone means a one-off import of today's bookings that never updates again. Open the webcal
+ * form and the calendar app offers to SUBSCRIBE. That is the same trap Phil hit on the Mac with
+ * Outlook's "Upload from file", and a QR code pointing at the https form would walk every member
+ * of staff straight back into it.
+ *
+ * https stays the copyable one, because Outlook on the web wants a pasted https URL.
+ */
+export function feedWebcalUrl(token: string): string {
+  return feedUrl(token).replace(/^https?:\/\//, "webcal://");
+}
+
+/**
  * The caller's own feed, or null if they have never made one.
  *
  * RLS on planner_calendar_feeds allows only `profile_id = auth.uid()`, so this cannot return

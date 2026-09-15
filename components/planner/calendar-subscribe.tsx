@@ -4,17 +4,25 @@ import { useState, useTransition } from "react";
 import { enableCalendarFeed, rotateCalendarFeed, disableCalendarFeed } from "@/lib/planner/calendar-feed-actions";
 
 /**
- * "Add my planner to Outlook".
+ * Sharing your planner to a calendar: the link, the QR code, and the way to revoke both.
  *
- * WHAT THIS SCREEN HAS TO BE HONEST ABOUT. Outlook refreshes a subscribed calendar on its own
- * schedule, roughly every three hours and by Microsoft's own account sometimes far longer, and
- * nobody can make it go faster. If we hide that, the first time a booking made this morning is
- * not in Outlook by lunchtime somebody decides the Planner is broken. So it is written on the
- * card, next to the button, before they ever subscribe.
+ * WHAT THIS SCREEN HAS TO BE HONEST ABOUT. A subscribed calendar refreshes on the calendar app's
+ * own schedule, and nobody can make it go faster: Outlook is roughly every three hours and by
+ * Microsoft's own account sometimes far longer, Google is slower still, and only Apple honours
+ * the fifteen minute hint in the file. If we hide that, the first time a booking made this
+ * morning is not in Outlook by lunchtime somebody decides the Planner is broken. So it is next
+ * to the button, before they ever subscribe.
  *
- * AND WHAT THE LINK IS. It is a password, not a bookmark: anyone holding it reads the calendar
- * with no login. The card says so in those words, and Change link is right there, because the
- * fix for a link that went somewhere it should not is one press and no support ticket.
+ * WHY THE LINK AND THE QR ARE BOTH HERE, AND CARRY DIFFERENT FORMS OF THE SAME URL. A computer
+ * needs a pasted https link, because that is what Outlook on the web asks for, and you cannot
+ * scan a code into the browser you are already sitting in front of. A phone needs the webcal
+ * form, which opens the calendar app's SUBSCRIBE prompt: scanned as https it would download a
+ * one-off copy of today's bookings instead, which is the same dead end as Outlook's "Upload from
+ * file". Neither one replaces the other.
+ *
+ * WHY THE QR IS HIDDEN UNTIL ASKED FOR. It is a password drawn as a picture. Care offices are
+ * open plan and people share their screens, and nobody needs it on display while they are doing
+ * something else on this page. One tap to reveal removes the only new risk the QR introduces.
  */
 
 function whenText(iso: string | null): string {
@@ -32,20 +40,25 @@ function whenText(iso: string | null): string {
 
 export default function CalendarSubscribe({
   url,
+  qrDataUrl,
   lastFetchedAt,
 }: {
   /** Null when they have not made a link yet. */
   url: string | null;
+  /** The webcal form of the same link, drawn as a QR code on the server. */
+  qrDataUrl: string | null;
   lastFetchedAt: string | null;
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [showQr, setShowQr] = useState(false);
   const [confirmingChange, setConfirmingChange] = useState(false);
 
   function run(fn: () => Promise<{ ok?: string; error?: string }>) {
     setError(null);
     setCopied(false);
+    setShowQr(false);
     start(async () => {
       const res = await fn();
       if (res.error) setError(res.error);
@@ -66,21 +79,21 @@ export default function CalendarSubscribe({
   return (
     <section className="glass-card p-5">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-[15px] font-semibold text-white">My planner in Outlook</h2>
+        <h2 className="text-[15px] font-semibold text-white">My planner in my calendar</h2>
         {url ? (
-          <span className="text-xs text-white/45">Outlook last checked: {whenText(lastFetchedAt)}</span>
+          <span className="text-xs text-white/45">Last checked: {whenText(lastFetchedAt)}</span>
         ) : null}
       </div>
 
       {!url ? (
         <>
           <p className="text-sm text-white/65">
-            Add your planner to Outlook as a second calendar, so what you have booked shows up
-            alongside everything else in your diary.
+            Add your planner to Outlook, your phone, or any other calendar, so what you have
+            booked shows up alongside everything else in your diary.
           </p>
           <p className="mt-2 text-xs text-white/45">
-            Outlook decides when to check for changes, usually every few hours. Be Care Compliant
-            is always the up to date version.
+            Your calendar decides when to check for changes, usually every few hours. Be Care
+            Compliant is always the up to date version.
           </p>
           <button
             type="button"
@@ -115,19 +128,11 @@ export default function CalendarSubscribe({
             press Change link and the old one stops working straight away.
           </p>
 
+          {/* ON A COMPUTER */}
           <div className="mt-4 rounded-lg border border-white/10 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-white/55">
-              Adding it to Outlook
+              On a computer, for Outlook
             </p>
-            {/*
-              THE APP CANNOT DO THIS, AND SAYING SO FIRST SAVES THE TRAP (Phil, 2026-09-15: he
-              followed the old wording, landed in Add Event, and asked where the link goes).
-              New Outlook for Mac dropped subscribe-by-URL, and its Add calendar button offers
-              Upload from file instead, which imports today's bookings ONCE and never updates
-              them. That fails silently: it looks like it worked and then quietly goes stale.
-              Outlook on the web adds the subscription to the mailbox itself, so it syncs down
-              to every Outlook the person uses, Mac app included.
-            */}
             <p className="mt-2 text-sm text-white/65">
               The Outlook app on a Mac cannot subscribe to a calendar link. Do this once in
               Outlook on the web and it appears in the app afterwards.
@@ -136,26 +141,66 @@ export default function CalendarSubscribe({
               <li>Go to outlook.office.com and sign in.</li>
               <li>Open Calendar from the left-hand side.</li>
               <li>Choose Add calendar, then Subscribe from web.</li>
-              <li>Paste the link above, name it BCC Planner, then Import.</li>
+              <li>Paste the link above, give it a name, then Import.</li>
               <li>It shows in the Outlook app within about ten minutes, under Other calendars.</li>
             </ol>
             <p className="mt-2 text-xs text-amber-200/80">
               Do not use Upload from file. That copies your bookings in once and never updates
               them again.
             </p>
-            <p className="mt-2 text-xs text-white/45">
-              Outlook checks for changes on its own schedule, usually every few hours and
-              occasionally longer. A booking you have just made will not appear straight away.
-              Google Calendar and Apple Calendar work the same way, and both can subscribe to
-              this link directly.
+          </div>
+
+          {/* ON A PHONE */}
+          <div className="mt-3 rounded-lg border border-white/10 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-white/55">
+              On a phone
+            </p>
+            <p className="mt-2 text-sm text-white/65">
+              Point your phone camera at the code and open what it offers. Your calendar app will
+              ask whether to subscribe. On an iPhone this puts the planner straight into the
+              Calendar app, and it updates faster there than anywhere else.
+            </p>
+
+            {qrDataUrl ? (
+              showQr ? (
+                <div className="mt-3">
+                  <div className="inline-block rounded-lg bg-white p-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={qrDataUrl} alt="QR code for your private calendar link" width={200} height={200} />
+                  </div>
+                  <div className="mt-2">
+                    <button type="button" className="btn-outline text-sm" onClick={() => setShowQr(false)}>
+                      Hide code
+                    </button>
+                  </div>
+                  <p className="form-hint mt-2">
+                    This code is your link, so anyone who photographs it has your planner. Hide it
+                    again when you are done.
+                  </p>
+                </div>
+              ) : (
+                <button type="button" className="btn-outline mt-3 text-sm" onClick={() => setShowQr(true)}>
+                  Show QR code
+                </button>
+              )
+            ) : null}
+
+            <p className="mt-3 text-xs text-white/45">
+              A Samsung or other Android phone cannot subscribe on the device. Add the link at
+              calendar.google.com under Other calendars, From URL, and it syncs to the phone.
             </p>
           </div>
+
+          <p className="mt-3 text-xs text-white/45">
+            Every calendar checks for changes on its own schedule, usually every few hours and
+            occasionally longer. A booking you have just made will not appear straight away.
+          </p>
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
             {confirmingChange ? (
               <>
                 <span className="text-sm text-white/70">
-                  Change the link? You will have to add the new one to Outlook again.
+                  Change the link? You will have to add the new one to every calendar again.
                 </span>
                 <button
                   type="button"

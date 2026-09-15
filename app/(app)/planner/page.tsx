@@ -122,7 +122,7 @@ export default async function PlannerPage({
           {/* Set up once and then forgotten, so it is a link out rather than a panel taking up
               room on a page that is mostly calendar. */}
           <Link href="/planner/calendar" className="btn-outline text-xs">
-            Outlook
+            Share
           </Link>
           <BookingForm data={formData} currentUserId={user.id} />
         </div>
