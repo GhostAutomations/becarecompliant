@@ -8,6 +8,7 @@ import { SidebarNav, MobileDock } from "@/components/app-nav";
 import NavyNav from "@/components/navy-nav";
 import ToastHost from "@/components/toast-host";
 import { ROLE_LABELS, navEntriesForRole } from "@/lib/nav";
+import { onCallLabel, withOnCallLabel } from "@/lib/on-call/label";
 import { featureEnabled } from "@/lib/billing/tier";
 import { getCompanyTrialState } from "@/lib/billing/trial-gate";
 import { trialDaysLabel } from "@/lib/billing/trial";
@@ -51,17 +52,25 @@ export default async function AppLayout({
   let readinessEnabled = false;
   let uiTheme = "classic";
   let companyName = "";
+  let onCallName = "On Call";
   if (navCompanyId) {
     const supabase = await createClient();
     const { data: co } = await supabase
       .from("companies")
-      .select("name, framework_enabled, ui_theme")
+      .select("name, framework_enabled, ui_theme, on_call_label")
       .eq("id", navCompanyId)
       .maybeSingle();
-    const c = co as { name?: string | null; framework_enabled?: boolean | null; ui_theme?: string | null } | null;
+    const c = co as {
+      name?: string | null;
+      framework_enabled?: boolean | null;
+      ui_theme?: string | null;
+      on_call_label?: string | null;
+    } | null;
     readinessEnabled = !!c?.framework_enabled;
     uiTheme = c?.ui_theme ?? "classic";
     companyName = c?.name ?? "";
+    // What this company calls the On Call department (0276). Null means the default.
+    onCallName = onCallLabel(c?.on_call_label);
   }
   /**
    * The trial warning bar, from three days out and no earlier (lib/billing/trial.ts).
@@ -96,8 +105,9 @@ export default async function AppLayout({
     .join("")
     .slice(0, 2)
     .toUpperCase();
-  const navEntries = navEntriesForRole(
-    actingCompanyId ? "company_admin" : profile.role,
+  const navEntries = withOnCallLabel(
+    navEntriesForRole(actingCompanyId ? "company_admin" : profile.role),
+    onCallName,
   )
     .filter((e) => e.href !== "/complaints" || complaintsEnabled)
     .filter((e) => e.href !== "/invoicing" || invoicingEnabled)

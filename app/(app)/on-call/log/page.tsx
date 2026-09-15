@@ -2,12 +2,16 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
+import { getOnCallLabel } from "@/lib/on-call/company-label";
 import { featureEnabled } from "@/lib/billing/tier";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import LogRegister from "@/components/on-call/log-register";
 import { listCallLog } from "@/lib/on-call/data";
 
-export const metadata: Metadata = { title: "On Call · Handover" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { profile } = await requireCompany();
+  return { title: `${await getOnCallLabel(profile.company_id)} · Handover` };
+}
 
 const ONCALL_ROLES = [
   "company_admin", "registered_individual", "registered_manager",

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
+import { getOnCallLabel } from "@/lib/on-call/company-label";
 import { featureEnabled } from "@/lib/billing/tier";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import RotaGrid from "@/components/on-call/rota-grid";
@@ -12,7 +13,12 @@ import {
   getCompanyPeopleOptions,
 } from "@/lib/on-call/data";
 
-export const metadata: Metadata = { title: "On Call" };
+/* The tab title follows the company's name for the department (0276), so it cannot be a
+   static export any more. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { profile } = await requireCompany();
+  return { title: await getOnCallLabel(profile.company_id) };
+}
 
 const ONCALL_ROLES = [
   "company_admin", "registered_individual", "registered_manager",

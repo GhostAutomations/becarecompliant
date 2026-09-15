@@ -8,6 +8,7 @@ import RealtimeRefresh from "@/components/realtime-refresh";
 import { getUrgentFollowUps } from "@/lib/on-call/data";
 import { shiftLabel } from "@/lib/on-call/format";
 import { featureEnabled } from "@/lib/billing/tier";
+import { getOnCallLabel } from "@/lib/on-call/company-label";
 import BillingAttention from "@/components/billing/billing-attention";
 import {
   isBillableSeat,
@@ -650,6 +651,9 @@ export default async function DashboardPage() {
   // The report viewer admits exactly these roles, so nothing else is given a link into it.
   const canOpenReports = MANAGER_PLUS_ROLES.includes(profile.role);
   const canSeeOnCall = companyWide && (await featureEnabled(companyId, "on_call"));
+  // The department's name for this company (0276), so the tile does not say "On Call" to a
+  // company whose nav calls it something else.
+  const onCallName = await getOnCallLabel(companyId);
   const canSeePqs = await featureEnabled(companyId, "outcomes_satisfaction");
   // The Planner tile shows THIS user's planner, so it is drawn only for someone who has one:
   // the same roles the Planner page allows, and only when the feature is on.
@@ -1093,12 +1097,12 @@ export default async function DashboardPage() {
               belong at the top of the screen, in the four column slot that runs down both tile
               rows. */}
           <Panel
-            title="On call: urgent follow ups"
+            title={`${onCallName}: urgent follow ups`}
             href="/on-call"
             className="h-full"
           >
           {!canSeeOnCall ? (
-            <p className="text-sm text-white/55">On Call is not switched on for this company.</p>
+            <p className="text-sm text-white/55">{onCallName} is not switched on for this company.</p>
           ) : onCallUrgent.length === 0 ? (
             <p className="text-sm text-white/55">Nothing urgent. Every call has been followed up.</p>
           ) : (

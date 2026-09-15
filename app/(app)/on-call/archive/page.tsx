@@ -1,13 +1,17 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
+import { getOnCallLabel } from "@/lib/on-call/company-label";
 import { featureEnabled } from "@/lib/billing/tier";
 import BackLink from "@/components/back-link";
 import RotaArchive from "@/components/on-call/rota-archive";
 import { threeWeekGrid } from "@/lib/on-call/format";
 import { getRotaScope, getOnCallBranches, getArchiveRota } from "@/lib/on-call/data";
 
-export const metadata: Metadata = { title: "On Call · Archived rota" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { profile } = await requireCompany();
+  return { title: `${await getOnCallLabel(profile.company_id)} · Archived rota` };
+}
 
 const ONCALL_ROLES = [
   "company_admin", "registered_individual", "registered_manager",
