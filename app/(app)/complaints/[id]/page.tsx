@@ -321,6 +321,21 @@ export default async function ComplaintPage({
             </p>
           </div>
           <div>
+            <p className="text-[11px] text-white/45">Team members named</p>
+            <p className="text-sm text-white/85">
+              {namedPeople.length === 0
+                ? "None"
+                : namedPeople.map((p, i) => (
+                    <span key={p.person_id}>
+                      {i > 0 ? ", " : null}
+                      <Link href={`/people/${p.person_id}`} className="text-gold-300 hover:underline">
+                        {p.full_name}
+                      </Link>
+                    </span>
+                  ))}
+            </p>
+          </div>
+          <div>
             <p className="text-[11px] text-white/45">Complaint/Concern</p>
             <p className="text-sm text-white/85">{complaint.concern_type ?? "—"}</p>
           </div>
