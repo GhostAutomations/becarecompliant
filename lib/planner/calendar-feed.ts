@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { siteUrl } from "@/lib/site";
 import { bookingHref } from "@/lib/planner/booking-link";
-import { calendarClientFrom, tidyAgent, type CalendarClient } from "@/lib/planner/calendar-client";
+import { calendarClientFrom, tidyAgent } from "@/lib/planner/calendar-client";
 import type { PlannerFeedEvent } from "@/lib/planner/ics";
 
 /**
@@ -264,18 +264,25 @@ export async function loadFeedByToken(
   });
 
   /*
-   * Best effort, and never allowed to fail the fetch: all of this only powers the diagnostics on
-   * the Share page. If the write fails the person still gets their calendar, which is the thing
-   * they came for.
+   * AWAITED, NOT FIRE AND FORGET (migration 0275, fixing a bug I shipped the same day).
+   *
+   * This started as `void recordFetch(...)`. On a serverless function the process is frozen the
+   * moment the response is returned, so work still in flight never happens: nothing was ever
+   * written and the Share page told Phil no calendar had fetched while his iPhone and Outlook
+   * were both fetching happily. A panel that is confidently wrong is worse than no panel.
+   *
+   * One RPC, awaited, doing both writes inside the database. Still never allowed to fail the
+   * fetch: diagnostics are not worth withholding somebody's calendar over.
    */
-  const now = new Date().toISOString();
-  void service
-    .from("planner_calendar_feeds")
-    .update({ last_fetched_at: now })
-    .eq("token", token)
-    .then(() => undefined, () => undefined);
-
-  void recordFetch(profileId, userAgent, now);
+  try {
+    await service.rpc("record_planner_feed_fetch", {
+      p_token: token,
+      p_client: calendarClientFrom(userAgent),
+      p_agent: tidyAgent(userAgent),
+    });
+  } catch {
+    // Deliberately swallowed. The calendar is the deliverable; this line is a convenience.
+  }
 
   return {
     subject: { profileId, companyId, ownerName: (profile?.full_name as string | null) ?? null },
@@ -283,59 +290,6 @@ export async function loadFeedByToken(
   };
 }
 
-
-/**
- * Note that a calendar app came and looked.
- *
- * WHY IT EXISTS: so the Share page can say "Outlook, 12:00 today" rather than only "last
- * checked", which is the difference between somebody understanding that Outlook simply has not
- * been back yet and somebody concluding the Planner is broken.
- *
- * Read-modify-write rather than an upsert, because the count has to survive: an upsert would
- * either reset fetch_count to 1 every time or need a database function for one diagnostic line.
- * A lost increment under a race costs nothing here.
- */
-async function recordFetch(
-  profileId: string,
-  userAgent: string | null | undefined,
-  whenIso: string,
-): Promise<void> {
-  try {
-    const service = createServiceClient();
-    const client: CalendarClient = calendarClientFrom(userAgent);
-    const agent = tidyAgent(userAgent);
-
-    const { data: existing } = await service
-      .from("planner_calendar_feed_clients")
-      .select("fetch_count")
-      .eq("profile_id", profileId)
-      .eq("client", client)
-      .maybeSingle();
-
-    if (existing) {
-      await service
-        .from("planner_calendar_feed_clients")
-        .update({
-          last_fetched_at: whenIso,
-          user_agent: agent,
-          fetch_count: (existing.fetch_count as number) + 1,
-        })
-        .eq("profile_id", profileId)
-        .eq("client", client);
-    } else {
-      await service.from("planner_calendar_feed_clients").insert({
-        profile_id: profileId,
-        client,
-        user_agent: agent,
-        first_fetched_at: whenIso,
-        last_fetched_at: whenIso,
-        fetch_count: 1,
-      });
-    }
-  } catch {
-    // Diagnostics are never worth failing a calendar fetch over.
-  }
-}
 
 export type FeedClientRow = {
   client: string;
