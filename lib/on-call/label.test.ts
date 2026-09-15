@@ -15,22 +15,28 @@ test("a stored name is used, and trimmed", () => {
   assert.equal(onCallLabel("  Out of Hours  "), "Out of Hours");
 });
 
-test("the On Call entry is renamed wherever it sits, including as a child", () => {
+test("the department is renamed and its pages are NOT", () => {
+  /*
+   * The regression this file exists for. The department's landing page is /on-call, the same
+   * href as the department itself, so an href match that recursed renamed "Rota" too and the
+   * sidebar read Out of Hours > Out of Hours, Handover. Rota is called Rota whatever the section
+   * around it is called.
+   */
   const nav = [
     { href: "/dashboard", label: "Dashboard" },
     {
       href: "/on-call",
       label: "On Call",
       children: [
-        { href: "/on-call", label: "On Call" },
+        { href: "/on-call", label: "Rota" },
         { href: "/on-call/log", label: "Handover" },
       ],
     },
   ];
   const out = withOnCallLabel(nav, "Out of Hours");
   assert.equal(out[1].label, "Out of Hours");
-  assert.equal(out[1].children?.[0].label, "Out of Hours");
-  assert.equal(out[1].children?.[1].label, "Handover", "other children are left alone");
+  assert.equal(out[1].children?.[0].label, "Rota", "the rota keeps its own name");
+  assert.equal(out[1].children?.[1].label, "Handover");
   assert.equal(out[0].label, "Dashboard");
 });
 
@@ -41,7 +47,7 @@ test("it matches on the href, so it survives the default being reworded", () => 
 
 test("the source entries are never mutated, because the nav is shared between requests", () => {
   const nav = [
-    { href: "/on-call", label: "On Call", children: [{ href: "/on-call", label: "On Call" }] },
+    { href: "/on-call", label: "On Call", children: [{ href: "/on-call", label: "Rota" }] },
   ];
   const before = JSON.stringify(nav);
   withOnCallLabel(nav, "Out of Hours");

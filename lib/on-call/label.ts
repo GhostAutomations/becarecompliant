@@ -30,20 +30,24 @@ export function onCallLabel(stored: string | null | undefined): string {
 type Entry = { href: string; label: string; children?: Entry[] };
 
 /**
- * Rename the On Call entry, and any child that repeats it, wherever it appears in the nav.
+ * Rename the DEPARTMENT, and only the department.
  *
- * Keyed on the HREF, not on the current label: matching the text would silently stop working the
- * day somebody edits the default, which is exactly the kind of rename this module exists to
- * survive. Entries are copied rather than edited, because NAV_ENTRIES is a module-level constant
- * shared by every request, and mutating it would rename the department for whoever is served next
+ * WHAT WENT WRONG FIRST TIME (Phil, 2026-09-15: "you renamed rota out of hours? change it back").
+ * This matched every entry whose href was /on-call and recursed into children. The department's
+ * first child is ALSO /on-call, because the rota is the department's landing page, so "Rota"
+ * became "Out of Hours" and the sidebar read Out of Hours > Out of Hours, Handover.
+ *
+ * The children are the PAGES INSIDE the department, not the department. Rota is called Rota
+ * whatever the company calls the section it sits in, exactly as Handover is.
+ *
+ * So: top level only. No recursion, deliberately, and the test says so in as many words.
+ *
+ * Still keyed on the href rather than the current label, so it survives somebody rewording the
+ * default. Entries are copied rather than edited, because NAV_ENTRIES is a module-level constant
+ * shared by every request and mutating it would rename the department for whoever is served next
  * out of the same process.
  */
 export function withOnCallLabel<T extends Entry>(entries: readonly T[], label: string): T[] {
   if (label === DEFAULT_ON_CALL_LABEL) return [...entries];
-  return entries.map((e) => {
-    const children = e.children ? withOnCallLabel(e.children, label) : undefined;
-    const renamed = e.href === "/on-call" ? label : e.label;
-    if (renamed === e.label && children === e.children) return e;
-    return { ...e, label: renamed, ...(children ? { children } : {}) };
-  });
+  return entries.map((e) => (e.href === "/on-call" ? { ...e, label } : e));
 }
