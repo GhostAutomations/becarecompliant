@@ -6,11 +6,13 @@ import type { LoginState } from "@/lib/auth/types";
 
 const initialState: LoginState = { error: null };
 
-export function LoginForm({ notice }: { notice?: string }) {
+export function LoginForm({ notice, next }: { notice?: string; next?: string | null }) {
   const [state, formAction, pending] = useActionState(signIn, initialState);
 
   return (
     <form action={formAction} className="space-y-5">
+      {/* Where they were headed before the sign-in wall. Validated again on the server. */}
+      {next ? <input type="hidden" name="next" value={next} /> : null}
       {notice ? (
         <p
           role="status"

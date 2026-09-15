@@ -119,15 +119,35 @@ export default function CalendarSubscribe({
             <p className="text-xs font-semibold uppercase tracking-wide text-white/55">
               Adding it to Outlook
             </p>
+            {/*
+              THE APP CANNOT DO THIS, AND SAYING SO FIRST SAVES THE TRAP (Phil, 2026-09-15: he
+              followed the old wording, landed in Add Event, and asked where the link goes).
+              New Outlook for Mac dropped subscribe-by-URL, and its Add calendar button offers
+              Upload from file instead, which imports today's bookings ONCE and never updates
+              them. That fails silently: it looks like it worked and then quietly goes stale.
+              Outlook on the web adds the subscription to the mailbox itself, so it syncs down
+              to every Outlook the person uses, Mac app included.
+            */}
+            <p className="mt-2 text-sm text-white/65">
+              The Outlook app on a Mac cannot subscribe to a calendar link. Do this once in
+              Outlook on the web and it appears in the app afterwards.
+            </p>
             <ol className="mt-2 list-decimal space-y-1 pl-4 text-sm text-white/65">
-              <li>Open Outlook and go to Calendar.</li>
+              <li>Go to outlook.office.com and sign in.</li>
+              <li>Open Calendar from the left-hand side.</li>
               <li>Choose Add calendar, then Subscribe from web.</li>
-              <li>Paste the link above, give it a name such as BCC Planner, then Import.</li>
+              <li>Paste the link above, name it BCC Planner, then Import.</li>
+              <li>It shows in the Outlook app within about ten minutes, under Other calendars.</li>
             </ol>
+            <p className="mt-2 text-xs text-amber-200/80">
+              Do not use Upload from file. That copies your bookings in once and never updates
+              them again.
+            </p>
             <p className="mt-2 text-xs text-white/45">
               Outlook checks for changes on its own schedule, usually every few hours and
               occasionally longer. A booking you have just made will not appear straight away.
-              This works the same way in Google Calendar and Apple Calendar.
+              Google Calendar and Apple Calendar work the same way, and both can subscribe to
+              this link directly.
             </p>
           </div>
 

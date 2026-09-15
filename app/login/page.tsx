@@ -1,16 +1,20 @@
 import type { Metadata } from "next";
 import { LoginForm } from "./login-form";
 import { LOGIN_REASON_MESSAGES } from "@/lib/auth/types";
+import { safeNext } from "@/lib/auth/safe-next";
 
 export const metadata: Metadata = { title: "Sign in" };
 
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ reason?: string }>;
+  searchParams: Promise<{ reason?: string; next?: string }>;
 }) {
-  const { reason } = await searchParams;
+  const { reason, next } = await searchParams;
   const notice = reason ? LOGIN_REASON_MESSAGES[reason] : undefined;
+  // Sanitised here so nothing unsafe is ever rendered into the page, and again in signIn,
+  // because the hidden field it becomes is as editable as the URL it came from.
+  const destination = safeNext(next);
 
   return (
     <main className="auth-bg flex items-center justify-center px-4 py-12">
@@ -42,7 +46,7 @@ export default async function LoginPage({
         </div>
 
         <div className="rounded-2xl border border-white/15 bg-white/10 p-8 shadow-2xl backdrop-blur-xl">
-          <LoginForm notice={notice} />
+          <LoginForm notice={notice} next={destination} />
         </div>
 
         <p className="mt-6 text-center text-xs text-white/40">

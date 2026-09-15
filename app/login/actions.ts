@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { MANAGE_AS_COOKIE } from "@/lib/founder/manage-as";
 import { decodeSessionId } from "@/lib/auth/jwt";
 import type { LoginState } from "@/lib/auth/types";
+import { afterSignIn } from "@/lib/auth/safe-next";
 
 export async function signIn(
   _prevState: LoginState,
@@ -44,5 +45,13 @@ export async function signIn(
     }
   }
 
-  redirect("/dashboard");
+  /*
+   * Back to whatever they were trying to open, or the Dashboard when there was nothing.
+   *
+   * Re-validated rather than trusted: `next` reaches here as a form field, which anyone can
+   * edit, and following it unchecked would turn the sign-in screen into an open redirect.
+   * safeNext also strips any query string, so this redirect stays clear of the Next.js 15
+   * Server Action redirect bug the rest of the codebase works around.
+   */
+  redirect(afterSignIn(String(formData.get("next") ?? "")));
 }

@@ -127,7 +127,20 @@ export async function updateSession(request: NextRequest) {
   if (!user && !isPublicPath(pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
+    /*
+     * REMEMBER WHERE THEY WERE GOING (Phil, 2026-09-15). This used to clear the search and send
+     * everyone to the Dashboard after signing in, so every deep link into BCC lost its
+     * destination: a task link from the calendar, a link in an email we sent, a bookmark, a link
+     * a colleague pasted. The person arrived somewhere they had not asked for and had to find
+     * the job by hand, which is the thing the link existed to save them.
+     *
+     * Only the PATH is carried, and signIn validates it again through safeNext before following
+     * it, because a value that arrives in a URL is written by whoever sent the URL.
+     */
     url.search = "";
+    if (pathname !== "/" && !pathname.startsWith("/login")) {
+      url.searchParams.set("next", pathname);
+    }
     return NextResponse.redirect(url);
   }
 
