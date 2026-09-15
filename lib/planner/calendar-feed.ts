@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { siteUrl } from "@/lib/site";
+import { bookingHref } from "@/lib/planner/booking-link";
 import type { PlannerFeedEvent } from "@/lib/planner/ics";
 
 /**
@@ -146,6 +147,11 @@ function isoOffset(days: number): string {
 
 type FeedRow = {
   id: string;
+  population: "people" | "service_users" | null;
+  subject_person_id: string | null;
+  subject_service_user_id: string | null;
+  check_instance_id: string | null;
+  tracker_form_key: string | null;
   check_kind: string | null;
   title: string | null;
   scheduled_date: string;
@@ -186,7 +192,7 @@ export async function loadFeedByToken(
     service
       .from("planner_bookings")
       .select(
-        "id, check_kind, title, scheduled_date, start_time, duration_minutes, status, notes, updated_at, person:people(full_name), service_user:service_users(full_name), branch:branches(name)",
+        "id, population, subject_person_id, subject_service_user_id, check_instance_id, tracker_form_key, check_kind, title, scheduled_date, start_time, duration_minutes, status, notes, updated_at, person:people(full_name), service_user:service_users(full_name), branch:branches(name)",
       )
       .eq("conductor_profile_id", profileId)
       .eq("company_id", companyId)
@@ -200,6 +206,13 @@ export async function loadFeedByToken(
   const events: PlannerFeedEvent[] = ((rows as FeedRow[] | null) ?? []).map((r) => {
     const person = one(r.person);
     const su = one(r.service_user);
+    const href = bookingHref({
+      population: r.population,
+      subjectId: r.subject_person_id ?? r.subject_service_user_id,
+      checkInstanceId: r.check_instance_id,
+      trackerFormKey: r.tracker_form_key,
+      status: r.status,
+    });
     return {
       id: r.id,
       label: r.title?.trim() || r.check_kind?.trim() || "Planner task",
@@ -213,7 +226,22 @@ export async function loadFeedByToken(
       // can name anyone and say anything, and this file travels to a URL with no login on it.
       // The title says what and where; the detail stays behind the login, one click away.
       notes: null,
-      url: `${base}/planner`,
+      /*
+       * STRAIGHT TO THE JOB, not to the Planner.
+       *
+       * Phil, 2026-09-15: "in their outlook will they have a link to the task they need to
+       * complete?" bookingHref is the same rule the Planner list already uses, so the link in
+       * the diary and the link on the screen can never drift apart: a planned task with a check
+       * opens that check's form ready to complete, a tracker task opens its form, and anything
+       * else (ad-hoc, or already completed) opens the record. Null means there is genuinely
+       * nothing to open, and the Planner is the honest fallback.
+       *
+       * The URL carries record ids, which are uuids and not names, and it opens nothing without
+       * a login. That is the deliberate trade: a leaked link gives away that a record exists,
+       * which it already did, and in exchange the person doing the work gets one click instead
+       * of a hunt through a register.
+       */
+      url: href ? `${base}${href}` : `${base}/planner`,
       updatedAt: r.updated_at,
     };
   });

@@ -30,6 +30,15 @@ function ev(over: Partial<PlannerFeedEvent> = {}): PlannerFeedEvent {
   };
 }
 
+/**
+ * Undo the 75-octet folding, so a test can assert on the sentence a calendar will read rather
+ * than on wherever the fold happened to land. Asserting on folded text passes or fails by
+ * accident depending on how long the line before it was.
+ */
+function unfold(ics: string): string {
+  return ics.replace(/\r\n /g, "");
+}
+
 test("initials reduce a name to letters and dots", () => {
   assert.equal(initials("Mary Jones"), "M.J.");
   assert.equal(initials("mary jones"), "M.J.");
@@ -112,7 +121,7 @@ test("a cancelled booking is not in the file at all", () => {
 test("a completed booking stays, and says it is done", () => {
   const ics = buildPlannerFeed([ev({ status: "completed" })], OPTS);
   assert.ok(ics.includes("BEGIN:VEVENT"));
-  assert.ok(ics.includes("Completed in Be Care Compliant."));
+  assert.ok(unfold(ics).includes("Completed in Be Care Compliant."));
 });
 
 test("the uid is the booking id, so a booking that moves updates instead of doubling", () => {
@@ -148,4 +157,33 @@ test("the refresh hints are present for the clients that honour them", () => {
   const ics = buildPlannerFeed([], OPTS);
   assert.ok(ics.includes("X-PUBLISHED-TTL:PT15M"));
   assert.ok(ics.includes("REFRESH-INTERVAL;VALUE=DURATION:PT15M"));
+});
+
+
+test("a planned task carries a labelled link to the form that completes it", () => {
+  const ics = buildPlannerFeed(
+    [ev({ url: "https://www.becarecompliant.com/service-users/su1/checks/c1/complete" })],
+    OPTS,
+  );
+  const text = unfold(ics);
+  assert.ok(text.includes("Open this task in Be Care Compliant:"));
+  assert.ok(text.includes("https://www.becarecompliant.com/service-users/su1/checks/c1/complete"));
+  // Set as a property too, for the clients that surface it, but never the only copy.
+  assert.ok(text.includes("URL:https://www.becarecompliant.com/service-users/su1/checks/c1/complete"));
+});
+
+test("a completed task points at the record, not at completing it again", () => {
+  const ics = buildPlannerFeed(
+    [ev({ status: "completed", url: "https://www.becarecompliant.com/service-users/su1" })],
+    OPTS,
+  );
+  const text = unfold(ics);
+  assert.ok(text.includes("Open the record in Be Care Compliant:"));
+  assert.ok(!text.includes("Open this task in Be Care Compliant:"));
+});
+
+test("a task with no link at all still writes a valid event", () => {
+  const ics = buildPlannerFeed([ev({ url: null })], OPTS);
+  assert.ok(ics.includes("BEGIN:VEVENT"));
+  assert.ok(!ics.includes("URL:"));
 });

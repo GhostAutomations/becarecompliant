@@ -203,10 +203,23 @@ export function buildEvent(e: PlannerFeedEvent, opts: FeedOptions): string[] {
 
   lines.push(`SUMMARY:${escapeText(eventTitle(e))}`);
 
+  /*
+   * THE DESCRIPTION IS WHERE THE LINK HAS TO BE (Phil, 2026-09-15: "will they have a link to
+   * the task they need to complete?"). Outlook shows DESCRIPTION in the appointment and makes
+   * a URL in it clickable; the URL property on its own is not surfaced in most Outlook views,
+   * so it is set as well but never relied on. The line is labelled rather than bare, because
+   * an unexplained link in a diary entry is one nobody presses.
+   */
   const description: string[] = [];
   if (e.status === "completed") description.push("Completed in Be Care Compliant.");
   if (e.notes) description.push(e.notes);
-  if (e.url) description.push(e.url);
+  if (e.url) {
+    description.push(
+      e.status === "planned"
+        ? `Open this task in Be Care Compliant:\n${e.url}`
+        : `Open the record in Be Care Compliant:\n${e.url}`,
+    );
+  }
   if (description.length > 0) lines.push(`DESCRIPTION:${escapeText(description.join("\n\n"))}`);
   if (e.url) lines.push(`URL:${e.url}`);
   if (e.branchName) lines.push(`LOCATION:${escapeText(e.branchName)}`);
