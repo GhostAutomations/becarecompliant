@@ -10,6 +10,8 @@ import BookingForm from "@/components/planner/booking-form";
 import PlannerViewToggle from "@/components/planner/view-toggle";
 import OverdueBookings from "@/components/planner/my-planner-list";
 import WhiteboardCalendar from "@/components/planner/whiteboard-calendar";
+import PlannerWhoPicker from "@/components/planner/who-picker";
+import { plannerWho, whoParam, filterToWho, canViewIndividuals } from "@/lib/planner/who";
 
 export const metadata: Metadata = { title: "My Planner" };
 
@@ -45,12 +47,18 @@ export default async function PlannerPage({
 
   const { month: monthParam, week: weekParam, who } = await searchParams;
   /*
-   * MY CALENDAR / ALL. The grid is the whole company's, which is what it is for, and the viewer's
-   * own chips are gold so they are findable in it without reading every name. This is for when
-   * that is not enough and you want only yours: a filter on what is already loaded, so switching
-   * costs nothing. All is the default because that is the question the calendar answers.
+   * WHOSE CALENDAR (Phil, 2026-09-15). MINE IS NOW THE DEFAULT, for everyone. It used to open on
+   * the whole company, and the note here used to argue that "show me only mine for a moment is a
+   * question you ask, not a way you work". That was wrong: the page is called My Planner, and
+   * somebody opening it is asking where THEY are going.
+   *
+   * Admins, Registered Managers and the Responsible Individual can also single out one colleague,
+   * because "All" answers "who is where this month" and is unreadable when the question is "what
+   * has Rebecca got on". The rule lives in lib/planner/who.ts and is tested there; a role that
+   * may not do this has the parameter refused as well as the control hidden.
    */
-  const mineOnly = who === "mine";
+  const conductorIds = formData.conductors.map((c) => c.id);
+  const selection = plannerWho(who, user.id, profile.role, conductorIds);
   const match = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? monthParam : todayIso.slice(0, 7);
   const [yearStr, monthStr] = match.split("-");
   const year = Number(yearStr);
@@ -81,43 +89,40 @@ export default async function PlannerPage({
     view === "week" ? weekEndIso : monthEnd,
     profile.company_id,
   );
-  const calendarBookings = mineOnly ? everyone.filter((b) => b.conductorId === user.id) : everyone;
+  /* A FILTER, NOT A WIDENING. listCompanyBookings is already RLS scoped, so narrowing it to one
+     person can never show more than All showed this viewer a moment ago. */
+  const calendarBookings = filterToWho(everyone, selection, user.id);
+  const viewingName =
+    selection.kind === "person"
+      ? (formData.conductors.find((c) => c.id === selection.personId)?.name ?? null)
+      : null;
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-6 w-full">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="page-title">My Planner</h1>
+          {/* The subtitle follows the selection. Landing on your own calendar and reading
+              "everybody's work" was the old copy describing the old default. */}
           <p className="page-subtitle">
-            What is overdue for you to carry out, and everybody&apos;s work on the calendar.
+            {selection.kind === "all"
+              ? "What is overdue for you to carry out, and everybody's work on the calendar."
+              : selection.kind === "person"
+                ? `What is overdue for you to carry out, and ${viewingName ?? "their"} work on the calendar.`
+                : "What is overdue for you to carry out, and your own work on the calendar."}{" "}
             Book a new one or manage what is coming up.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Whose, then how long. The span toggle is saved per user; this one is not, because
-              "show me only mine for a moment" is a question you ask, not a way you work. */}
-          <div className="flex overflow-hidden rounded-lg border border-white/15 text-xs">
-            {([
-              { key: "mine", label: "My calendar" },
-              { key: "all", label: "All" },
-            ] as const).map((o) => {
-              const isOn = (o.key === "mine") === mineOnly;
-              const params = new URLSearchParams();
-              if (monthParam) params.set("month", monthParam);
-              if (weekParam) params.set("week", weekParam);
-              if (o.key === "mine") params.set("who", "mine");
-              const qs = params.toString();
-              return (
-                <Link
-                  key={o.key}
-                  href={qs ? `/planner?${qs}` : "/planner"}
-                  className={`px-3 py-1.5 ${isOn ? "bg-white/15 text-white" : "text-white/60 hover:bg-white/10"}`}
-                >
-                  {o.label}
-                </Link>
-              );
-            })}
-          </div>
+              which colleague you are looking at is a question you ask, not a way you work. */}
+          <PlannerWhoPicker
+            who={whoParam(selection) ?? "mine"}
+            people={formData.conductors.filter((c) => c.id !== user.id)}
+            canViewIndividuals={canViewIndividuals(profile.role)}
+            month={monthParam}
+            week={weekParam}
+          />
           <PlannerViewToggle current={view} />
           {/* Set up once and then forgotten, so it is a link out rather than a panel taking up
               room on a page that is mostly calendar. */}
@@ -140,7 +145,7 @@ export default async function PlannerPage({
         todayIso={todayIso}
         bookings={calendarBookings}
         branches={branches}
-        basePath={mineOnly ? "/planner?who=mine" : "/planner"}
+        basePath={whoParam(selection) ? `/planner?who=${whoParam(selection)}` : "/planner"}
         currentUserId={user.id}
       />
     </div>
