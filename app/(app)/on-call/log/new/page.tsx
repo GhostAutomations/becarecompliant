@@ -7,7 +7,7 @@ import LogForm from "@/components/on-call/log-form";
 import { getOnCallBranches, getRotaScope, getLogDraft } from "@/lib/on-call/data";
 import { shiftOptions } from "@/lib/on-call/format";
 
-export const metadata: Metadata = { title: "Log a call" };
+export const metadata: Metadata = { title: "New handover" };
 
 const ONCALL_ROLES = [
   "company_admin", "registered_individual", "registered_manager",
@@ -34,7 +34,7 @@ export default async function NewCallPage() {
   return (
     <div className="page-shell space-y-4">
       <BackLink href="/on-call/log" label="Back to Handover" />
-      <h1 className="text-xl font-bold text-white">Log a call</h1>
+      <h1 className="text-xl font-bold text-white">New Handover</h1>
       <LogForm
         scope={scope}
         branches={branches}

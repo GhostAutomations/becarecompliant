@@ -390,7 +390,7 @@ export async function resolveFollowUp(_prev: ActionState, formData: FormData): P
   return { ok: "Saved." };
 }
 
-/** Autosave the in-progress "Log a call" form (per user, fire-and-forget from the
+/** Autosave the in-progress "New Handover" form (per user, fire-and-forget from the
  *  client). Kept for up to 12 hours; survives logout. Silent on any problem so it
  *  never interrupts typing. */
 export async function saveLogDraft(data: Record<string, string>): Promise<void> {

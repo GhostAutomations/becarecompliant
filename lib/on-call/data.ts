@@ -262,7 +262,7 @@ export async function getLog(id: string): Promise<OnCallLog | null> {
   return data ? toLog(data as LogRow) : null;
 }
 
-/** The caller's in-progress "Log a call" draft, if saved within the last 12 hours.
+/** The caller's in-progress "New Handover" draft, if saved within the last 12 hours.
  *  Restored when they reopen the form; cleared on submit. */
 export async function getLogDraft(userId: string): Promise<Record<string, string> | null> {
   const supabase = await createClient();

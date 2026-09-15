@@ -34,7 +34,7 @@ export default async function CallLogPage() {
           <h1 className="text-xl font-bold text-white">Handover</h1>
           <p className="text-sm text-white/60">Out-of-hours calls and how they were handled, for whoever picks the day up.</p>
         </div>
-        <Link href="/on-call/log/new" className="btn-primary text-sm">Log call</Link>
+        <Link href="/on-call/log/new" className="btn-primary text-sm">New Handover</Link>
       </div>
       <LogRegister rows={rows} />
     </div>
