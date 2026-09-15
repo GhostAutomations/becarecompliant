@@ -52,7 +52,7 @@ export default function PlannerWhoPicker({
   const off = "text-white/60 hover:bg-white/10";
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex items-center gap-2">
       <div className="flex overflow-hidden rounded-lg border border-white/15">
         <button type="button" onClick={() => go("mine")} className={`${base} ${who === "mine" ? on : off}`}>
           My calendar
@@ -65,7 +65,9 @@ export default function PlannerWhoPicker({
       {canViewIndividuals && people.length > 0 ? (
         <select
           aria-label="Show one person's calendar"
-          className="ctl-sm"
+          /* w-auto because the base select rule is w-full, which stretched this to the width of
+             its container and pushed the whole toolbar onto a second row. */
+          className="ctl-sm w-auto max-w-[11rem] text-xs"
           value={who === "mine" || who === "all" ? "" : who}
           onChange={(e) => go(e.target.value === "" ? "mine" : e.target.value)}
         >

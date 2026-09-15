@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { bookingHref } from "@/lib/planner/booking-link";
 import { bookingIsLate } from "@/lib/planner/late";
@@ -94,6 +95,30 @@ export default function WhiteboardCalendar({
     return () => clearInterval(id);
   }, []);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  /* createPortal needs document.body, which does not exist during the server render. */
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  /*
+   * A DAY OPENS IN THE MIDDLE OF THE SCREEN (Phil, 2026-09-15: "when someone clicks on a booking,
+   * instead of it putting the opening below the calendar, make it a pop up"). It used to render
+   * under the grid, which on a tall calendar meant clicking a day scrolled the thing you clicked
+   * out of sight. Same shape as PanelDialog elsewhere in the product: Escape closes, the backdrop
+   * closes, and the body stops scrolling so the page does not slide about underneath.
+   */
+  useEffect(() => {
+    if (!selectedDay) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelectedDay(null);
+    };
+    document.addEventListener("keydown", onKey);
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previous;
+    };
+  }, [selectedDay]);
 
   const sep = basePath.includes("?") ? "&" : "?";
   /* A COMPLETED TASK STAYS ON THE BOARD, GREEN (Phil, 2026-09-08: "when a form is
@@ -138,7 +163,14 @@ export default function WhiteboardCalendar({
   const selectedList = selectedDay ? byDay.get(selectedDay) ?? [] : [];
 
   return (
-    <div className="space-y-4">
+    /*
+      THE CALENDAR TAKES THE SPACE IT IS GIVEN (Phil, 2026-09-15: "the calendar could take up more
+      of the screen to make the boxes deeper"). It used to be a fixed stack of 112px rows with the
+      rest of the page left empty below it. Now the grid is flex-1 inside a full-height column and
+      the rows share what is left, so a tall screen gets deep day boxes instead of dead space, and
+      a short one still gets the minimum that keeps a day readable.
+    */
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Link
@@ -170,7 +202,16 @@ export default function WhiteboardCalendar({
         ) : null}
       </div>
 
-      <div className="grid grid-cols-7 gap-px rounded-xl bg-white/10 text-xs">
+      {/*
+        The row template is COMPUTED, not guessed. "auto" is the weekday heading, then one equal
+        track per week actually rendered: a month is five rows or six depending on where the 1st
+        falls, and hard-coding six leaves a dead strip in the five-row months. minmax(0,1fr) and
+        not 1fr, or a busy day's content sets the floor and the rows stop being equal.
+      */}
+      <div
+        className="grid min-h-0 flex-1 grid-cols-7 gap-px overflow-hidden rounded-xl bg-white/10 text-xs"
+        style={{ gridTemplateRows: `auto repeat(${Math.ceil(cells.length / 7)}, minmax(0, 1fr))` }}
+      >
         {/*
           A WEEK HEADING CARRIES ITS DATE (Phil, 2026-08-16: "why isn't the date next to the day?").
           A month grid repeats the same seven names down six rows, so the date belongs in the
@@ -201,7 +242,10 @@ export default function WhiteboardCalendar({
               /* flex-col + justify-start because a BUTTON centres its content vertically. In a
                  112px month cell that was invisible; in a 320px week cell the appointments
                  floated in the middle of the day with empty space above them. */
-              className={`flex flex-col justify-start ${isWeek ? "min-h-[320px]" : "min-h-[112px]"} bg-slate-900/50 p-1.5 text-left align-top transition hover:bg-slate-800/60 ${isToday ? "ring-1 ring-inset ring-gold-400/60" : ""}`}
+              /* min-h is now a FLOOR, not the height: auto-rows-fr shares the spare height
+                 between the rows, so the boxes grow with the window. overflow-hidden keeps a
+                 busy day from stretching the whole grid. */
+              className={`flex flex-col justify-start overflow-hidden ${isWeek ? "min-h-[320px]" : "min-h-[112px]"} bg-slate-900/50 p-1.5 text-left align-top transition hover:bg-slate-800/60 ${isToday ? "ring-1 ring-inset ring-gold-400/60" : ""}`}
             >
               {isWeek ? null : (
                 <span className={`block text-[11px] font-semibold ${isToday ? "text-gold-300" : "text-white/50"}`}>{cell.day}</span>
@@ -338,8 +382,20 @@ export default function WhiteboardCalendar({
         })}
       </div>
 
-      {selectedDay ? (
-        <div className="glass-card p-4">
+      {mounted && selectedDay
+        ? createPortal(
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center"
+          onClick={() => setSelectedDay(null)}
+          role="presentation"
+        >
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Bookings for the day"
+          onClick={(e) => e.stopPropagation()}
+          className="glass-card my-auto w-full max-w-2xl p-4"
+        >
           <div className="mb-2 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-white">
               {new Date(`${selectedDay}T00:00:00Z`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" })}
@@ -349,7 +405,7 @@ export default function WhiteboardCalendar({
           {selectedList.length === 0 ? (
             <p className="text-sm text-white/50">Nothing booked.</p>
           ) : (
-            <div className="space-y-2">
+            <div className="max-h-[70vh] space-y-2 overflow-y-auto">
               {selectedList.map((b) => {
                 /* THE TASK IS THE WAY IN (Phil, 2026-09-08). A planned check opens the
                    form that completes it, so nobody has to leave the planner, find the
@@ -401,7 +457,10 @@ export default function WhiteboardCalendar({
             </div>
           )}
         </div>
-      ) : null}
+        </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
