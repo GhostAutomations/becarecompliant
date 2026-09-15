@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { loginPath } from "@/lib/auth/safe-next";
+import { deviceKindFrom } from "@/lib/auth/device-kind";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { decodeSessionId } from "@/lib/auth/jwt";
@@ -95,20 +96,35 @@ export async function requireUser(): Promise<User> {
   if (session) {
     const currentSessionId = decodeSessionId(session.access_token);
     if (currentSessionId) {
-      const { data: active } = await supabase
+      /*
+       * ONE DESKTOP SLOT AND ONE MOBILE SLOT (Phil, 2026-09-15; migration 0273). This used to
+       * read a single row and evict anything that did not match it, so a person's own phone and
+       * their own computer fought each other all day. Now a person may hold two rows, and the
+       * question is whether THIS session is still in one of them.
+       *
+       * Still an eviction, just a narrower one: a second phone displaces the first phone and a
+       * second computer displaces the first computer, so a shared password still produces the
+       * tell that made single session worth having.
+       */
+      const { data: slots } = await supabase
         .from("user_sessions")
         .select("session_id")
-        .eq("user_id", user.id)
-        .maybeSingle();
+        .eq("user_id", user.id);
 
-      if (active && active.session_id !== currentSessionId) {
+      const held = slots ?? [];
+      const stillMine = held.some((s) => s.session_id === currentSessionId);
+
+      if (held.length > 0 && !stillMine) {
         await supabase.auth.signOut();
         redirect(await signInHere("signed-out-elsewhere"));
       }
 
-      if (!active) {
-        // Self-heal: claim this session (idempotent upsert).
-        await supabase.rpc("claim_session", { p_session_id: currentSessionId });
+      if (held.length === 0) {
+        // Self-heal: claim the slot for whatever this device is (idempotent upsert).
+        await supabase.rpc("claim_session", {
+          p_session_id: currentSessionId,
+          p_device_kind: deviceKindFrom((await headers()).get("user-agent")),
+        });
       }
     }
   }

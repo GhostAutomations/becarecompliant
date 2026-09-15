@@ -1,12 +1,13 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { MANAGE_AS_COOKIE } from "@/lib/founder/manage-as";
 import { decodeSessionId } from "@/lib/auth/jwt";
 import type { LoginState } from "@/lib/auth/types";
 import { afterSignIn } from "@/lib/auth/safe-next";
+import { deviceKindFrom } from "@/lib/auth/device-kind";
 
 export async function signIn(
   _prevState: LoginState,
@@ -33,11 +34,14 @@ export async function signIn(
   // founder must not follow whoever signs in next. Only the founder can obtain one.
   (await cookies()).delete(MANAGE_AS_COOKIE);
 
-  // Single-session: claiming this session invalidates any other device.
+  /* One desktop session and one mobile session (migration 0273). Claiming a slot invalidates
+     only the other device OF THE SAME KIND, so signing in on a phone no longer signs the person
+     out of their own computer. */
   const sessionId = decodeSessionId(data.session.access_token);
   if (sessionId) {
     const { error: claimError } = await supabase.rpc("claim_session", {
       p_session_id: sessionId,
+      p_device_kind: deviceKindFrom((await headers()).get("user-agent")),
     });
     if (claimError) {
       await supabase.auth.signOut();

@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { deviceKindFrom } from "@/lib/auth/device-kind";
 import { decodeSessionId } from "@/lib/auth/jwt";
 import { MANAGE_AS_COOKIE } from "@/lib/founder/manage-as";
 
@@ -38,10 +39,15 @@ export async function GET(request: NextRequest) {
    */
   (await cookies()).delete(MANAGE_AS_COOKIE);
 
-  // Single-session: make this the active session.
+  /* Claim the slot for THIS kind of device (migration 0273). An invite link is very often
+     opened on a phone, and defaulting to the desktop slot would put them in the wrong one: the
+     next sign-in from their computer would then evict the phone they had just set up. */
   const sessionId = decodeSessionId(data.session.access_token);
   if (sessionId) {
-    await supabase.rpc("claim_session", { p_session_id: sessionId });
+    await supabase.rpc("claim_session", {
+      p_session_id: sessionId,
+      p_device_kind: deviceKindFrom(request.headers.get("user-agent")),
+    });
   }
 
   return NextResponse.redirect(`${origin}${safeNext}`);

@@ -5,6 +5,8 @@ import { requireUser } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
+import { headers } from "next/headers";
+import { deviceKindFrom } from "@/lib/auth/device-kind";
 import { decodeSessionId } from "@/lib/auth/jwt";
 import { syncSeatQuantity } from "@/lib/billing/stripe-sync";
 import { rebakeFormFieldOptions } from "@/lib/forms/rebake-options";
@@ -109,7 +111,10 @@ export async function completeInvite(
   if (session) {
     const sessionId = decodeSessionId(session.access_token);
     if (sessionId) {
-      await supabase.rpc("claim_session", { p_session_id: sessionId });
+      await supabase.rpc("claim_session", {
+        p_session_id: sessionId,
+        p_device_kind: deviceKindFrom((await headers()).get("user-agent")),
+      });
     }
   }
 
