@@ -16,6 +16,10 @@ export const PUBLIC_PATHS = [
   "/api/cron",
   "/meeting-response",
   "/f", // public (no account) forms: /f/<company-slug>/<form-key>
+  // Subscribed planner calendars: /calendar/<token>/planner.ics. Outlook fetches this with
+  // no session and never will have one, so the token in the path IS the authentication. The
+  // route derives everything from that token and takes nothing else from the request.
+  "/calendar",
 ];
 
 export function isPublicPath(pathname: string): boolean {

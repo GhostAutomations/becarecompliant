@@ -119,6 +119,11 @@ export default async function PlannerPage({
             })}
           </div>
           <PlannerViewToggle current={view} />
+          {/* Set up once and then forgotten, so it is a link out rather than a panel taking up
+              room on a page that is mostly calendar. */}
+          <Link href="/planner/calendar" className="btn-outline text-xs">
+            Outlook
+          </Link>
           <BookingForm data={formData} currentUserId={user.id} />
         </div>
       </div>
