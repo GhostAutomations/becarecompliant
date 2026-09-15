@@ -20,7 +20,7 @@ export default function LogRegister({ rows }: { rows: OnCallLog[] }) {
   const hasBranch = rows.some((r) => r.branch_name);
 
   if (rows.length === 0) {
-    return <div className="glass-card p-8 text-center text-sm text-white/50">No shifts logged yet.</div>;
+    return <div className="glass-card p-8 text-center text-sm text-white/50">Nothing logged.</div>;
   }
 
   return (
