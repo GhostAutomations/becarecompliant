@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
+import { loginPath } from "@/lib/auth/safe-next";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { decodeSessionId } from "@/lib/auth/jwt";
@@ -66,12 +68,25 @@ export async function getSessionUser(): Promise<User | null> {
  * elsewhere), the user is signed out with a clear message.
  * Every protected page goes through this.
  */
+
+/**
+ * Where to send somebody who has to sign in, keeping hold of the page they asked for.
+ *
+ * The path comes from the x-pathname header middleware sets, because a Server Component cannot
+ * read its own URL. loginPath sanitises it: this value ends up in a redirect, and a redirect
+ * that follows whatever it is handed is an open redirect.
+ */
+async function signInHere(reason?: string): Promise<string> {
+  const h = await headers();
+  return loginPath(reason, h.get("x-pathname"));
+}
+
 export async function requireUser(): Promise<User> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  if (!user) redirect(await signInHere());
 
   const {
     data: { session },
@@ -88,7 +103,7 @@ export async function requireUser(): Promise<User> {
 
       if (active && active.session_id !== currentSessionId) {
         await supabase.auth.signOut();
-        redirect("/login?reason=signed-out-elsewhere");
+        redirect(await signInHere("signed-out-elsewhere"));
       }
 
       if (!active) {

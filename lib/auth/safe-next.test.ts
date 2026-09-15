@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { safeNext, afterSignIn } from "./safe-next.ts";
+import { safeNext, afterSignIn, loginPath } from "./safe-next.ts";
 
 test("a plain path on this site is kept", () => {
   assert.equal(safeNext("/people/abc/checks/def/complete"), "/people/abc/checks/def/complete");
@@ -62,4 +62,23 @@ test("a real deep link survives the whole way through", () => {
     afterSignIn("/people/d7cccfcd/checks/508d93de/complete"),
     "/people/d7cccfcd/checks/508d93de/complete",
   );
+});
+
+
+test("the sign-in URL carries the reason and the destination together", () => {
+  assert.equal(
+    loginPath("signed-out-elsewhere", "/people/a/checks/b/complete"),
+    "/login?reason=signed-out-elsewhere&next=%2Fpeople%2Fa%2Fchecks%2Fb%2Fcomplete",
+  );
+});
+
+test("either half can be missing", () => {
+  assert.equal(loginPath(null, "/planner"), "/login?next=%2Fplanner");
+  assert.equal(loginPath("signed-out-elsewhere", null), "/login?reason=signed-out-elsewhere");
+  assert.equal(loginPath(), "/login");
+});
+
+test("an unsafe destination is dropped, and the reason still survives", () => {
+  assert.equal(loginPath("signed-out-elsewhere", "//evil.example"), "/login?reason=signed-out-elsewhere");
+  assert.equal(loginPath(null, "https://evil.example"), "/login");
 });

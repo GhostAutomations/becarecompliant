@@ -84,6 +84,9 @@ export async function updateSession(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("Content-Security-Policy", csp);
+  /* The path, for the guards. A Server Component cannot read the URL it is rendering, and
+     requireUser has to know where somebody was headed when it sends them to sign in. */
+  requestHeaders.set("x-pathname", request.nextUrl.pathname);
 
   let supabaseResponse = NextResponse.next({
     request: { headers: requestHeaders },
@@ -106,6 +109,7 @@ export async function updateSession(request: NextRequest) {
           const refreshedHeaders = new Headers(request.headers);
           refreshedHeaders.set("x-nonce", nonce);
           refreshedHeaders.set("Content-Security-Policy", csp);
+          refreshedHeaders.set("x-pathname", request.nextUrl.pathname);
           supabaseResponse = NextResponse.next({
             request: { headers: refreshedHeaders },
           });

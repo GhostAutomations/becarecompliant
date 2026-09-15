@@ -66,3 +66,25 @@ export function safeNext(raw: string | null | undefined): string | null {
 export function afterSignIn(raw: string | null | undefined): string {
   return safeNext(raw) ?? "/dashboard";
 }
+
+/**
+ * The sign-in URL to send somebody to, remembering where they were headed.
+ *
+ * WHY THIS IS HERE AND NOT INLINE (Phil, 2026-09-15, second half of the same bug). The first fix
+ * covered the sign-in WALL: somebody not signed in at all. The case that actually bit him was
+ * different and far more common. BCC is single session, so signing in on a phone evicts the
+ * desktop and the other way round. He was signed in on the phone, tapped the calendar link, and
+ * the eviction check threw him to /login?reason=signed-out-elsewhere, which also dropped the
+ * destination. He signed in again and landed on the Dashboard.
+ *
+ * So the reason and the destination have to travel together, and building that query string in
+ * two places by hand is how one of them quietly loses the next again.
+ */
+export function loginPath(reason?: string | null, next?: string | null): string {
+  const params = new URLSearchParams();
+  if (reason) params.set("reason", reason);
+  const destination = safeNext(next);
+  if (destination) params.set("next", destination);
+  const qs = params.toString();
+  return qs ? `/login?${qs}` : "/login";
+}
