@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import {
   createOutcome,
   editOutcome,
@@ -8,6 +8,7 @@ import {
   completeOutcome,
   reopenOutcome,
   archiveOutcome,
+  setOutcomeTarget,
 } from "@/lib/service-users/outcomes-actions";
 import { IDLE_STATE } from "@/lib/forms";
 import { useSavedFlash } from "@/lib/use-saved-flash";
@@ -154,8 +155,11 @@ function OutcomeCard({
         <div className="min-w-0">
           <h3 className="text-base font-semibold text-white">{outcome.title}</h3>
           {outcome.detail ? <p className="mt-1 text-sm text-white/65">{outcome.detail}</p> : null}
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-white/45">
-            {outcome.target_date ? <span>Target {fmt(outcome.target_date)}</span> : null}
+          <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-white/45">
+            {/* The target date is edited WHERE IT IS SHOWN (Phil, 2026-09-15). It used to be
+                grey text, with the only way to change it three clicks away behind Edit, so it
+                read as something the system had worked out rather than something you set. */}
+            <TargetDate serviceUserId={serviceUserId} outcome={outcome} />
             {outcome.last_update_at ? <span>Last update {fmt(outcome.last_update_at)}</span> : <span>No updates yet</span>}
           </div>
         </div>
@@ -298,6 +302,38 @@ function CompleteForm({ serviceUserId, outcomeId, onDone }: { serviceUserId: str
   );
 }
 
+/**
+ * The target date, on the card, editable in place.
+ *
+ * Saves on change rather than behind a button: there is one value, it is a date, and a Save
+ * button next to a single date box is a step that exists only to be forgotten. Clearing it
+ * removes the target, because an outcome with no date is open ended rather than wrong.
+ */
+function TargetDate({ serviceUserId, outcome }: { serviceUserId: string; outcome: OutcomeRow }) {
+  const [state, formAction] = useActionState(setOutcomeTarget, IDLE_STATE);
+  const [saved, flash] = useSavedFlash();
+  const formRef = useRef<HTMLFormElement>(null);
+  useEffect(() => { if (state.ok) flash(); }, [state, flash]);
+
+  return (
+    <form ref={formRef} action={formAction} className="flex items-center gap-1.5">
+      <input type="hidden" name="service_user_id" value={serviceUserId} />
+      <input type="hidden" name="outcome_id" value={outcome.id} />
+      <label htmlFor={`target-${outcome.id}`} className="text-white/45">Target</label>
+      <input
+        id={`target-${outcome.id}`}
+        type="date"
+        name="target_date"
+        defaultValue={outcome.target_date ?? ""}
+        onChange={() => formRef.current?.requestSubmit()}
+        className="ctl-sm"
+      />
+      {saved ? <span className="text-rag-green-soft">Saved</span> : null}
+      {state.error ? <span className="text-rag-red-soft">{state.error}</span> : null}
+    </form>
+  );
+}
+
 function EditForm({ serviceUserId, outcome, onDone }: { serviceUserId: string; outcome: OutcomeRow; onDone: () => void }) {
   const [state, formAction, pending] = useActionState(editOutcome, IDLE_STATE);
   const [saved, flash, reset] = useSavedFlash();
@@ -320,10 +356,8 @@ function EditForm({ serviceUserId, outcome, onDone }: { serviceUserId: string; o
         <label className="form-label">Detail (optional)</label>
         <textarea name="detail" rows={3} defaultValue={outcome.detail ?? ""} />
       </div>
-      <div className="max-w-[12rem]">
-        <label className="form-label">Target date (optional)</label>
-        <input type="date" name="target_date" defaultValue={outcome.target_date ?? ""} />
-      </div>
+      {/* No target date here: it is edited on the card. Two boxes writing one column is how
+          they end up disagreeing about which was saved last. */}
       <div className="flex items-center gap-3">
         <button type="submit" disabled={pending} className={`btn ${saved ? "btn-saved" : "btn-primary"} text-xs`}>
           {pending ? "Saving…" : saved ? "Saved" : "Save"}

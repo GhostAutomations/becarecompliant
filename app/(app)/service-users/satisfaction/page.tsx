@@ -40,9 +40,15 @@ export default async function SatisfactionPage() {
         </p>
       </div>
 
+      {/* Names the section the questions actually live in, and says the list is the
+          company's own. The old copy still pointed at "Feedback, Call Times and Outcomes",
+          a section that no longer exists — which is how a page starts quietly lying to the
+          person reading it. */}
       <p className="text-xs text-white/45">
-        Period {fmtDate(sat.window.from)} to {fmtDate(sat.window.to)}. Scored from the Feedback, Call Times and Outcomes
-        section of each Individual Plan Review completed in this period.
+        Period {fmtDate(sat.window.from)} to {fmtDate(sat.window.to)}. Scored from the Customer
+        Satisfaction section of each Individual Plan Review completed in this period. Each review
+        is scored on the questions it actually asked, so changing the list in Settings never
+        changes a review already completed.
       </p>
 
       <SatisfactionRegisterTable rows={sat.rows} questions={questions} branches={branches} />

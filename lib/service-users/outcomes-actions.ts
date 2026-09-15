@@ -85,7 +85,60 @@ export async function createOutcome(_prev: ActionState, formData: FormData): Pro
   return { ok: "Outcome added" };
 }
 
-/** Edit an outcome's title / detail / target date. */
+/**
+ * Set just the target date, from the outcome card itself.
+ *
+ * Phil, 2026-09-15: "i was in outcomes and it didnt look like the date was editable".
+ * It was — behind an Edit button, three clicks from where the date is printed. A date shown
+ * as grey text with no control near it reads as something the system worked out, not
+ * something you can change, so nobody tried. The card now carries the date itself, and this
+ * is what it saves to. Clearing the box removes the target, which is a real thing to want:
+ * an outcome with no date is open ended, not broken.
+ */
+export async function setOutcomeTarget(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+  const serviceUserId = String(formData.get("service_user_id") ?? "").trim();
+  const outcomeId = String(formData.get("outcome_id") ?? "").trim();
+  const targetRaw = String(formData.get("target_date") ?? "").trim();
+  if (!serviceUserId || !outcomeId) return { error: "Missing outcome." };
+  if (targetRaw !== "" && !/^\d{4}-\d{2}-\d{2}$/.test(targetRaw)) {
+    return { error: "That is not a date the calendar recognises." };
+  }
+  const target_date = targetRaw === "" ? null : targetRaw;
+
+  const { supabase, companyId } = await loadServiceUser(serviceUserId);
+  if (!companyId) return { error: "Service user not found." };
+
+  const { data: row, error } = await supabase
+    .from("service_user_outcomes")
+    .update({ target_date, updated_by: profile.id, updated_at: nowIso() })
+    .eq("id", outcomeId)
+    .eq("service_user_id", serviceUserId)
+    .select("title")
+    .maybeSingle<{ title: string }>();
+  if (error) return { error: "Could not save the target date. Please try again." };
+
+  await writeAudit({
+    companyId,
+    actorId: profile.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "service_user.outcome_target_set",
+    entityType: "service_user",
+    entityId: serviceUserId,
+    summary: target_date
+      ? `Target date set to ${target_date} for outcome: ${row?.title ?? outcomeId}`
+      : `Target date removed from outcome: ${row?.title ?? outcomeId}`,
+  });
+
+  revalidatePath(`/service-users/${serviceUserId}/outcomes`);
+  revalidatePath(`/service-users/${serviceUserId}`);
+  revalidatePath("/service-users/outcomes");
+  return { ok: target_date ? "Target date saved." : "Target date removed." };
+}
+
+/** Edit an outcome's title / detail. The target date is edited on the card itself. */
 export async function editOutcome(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const { profile } = await requireCompany();
   if (!profile.company_id) return { error: "No company context." };
