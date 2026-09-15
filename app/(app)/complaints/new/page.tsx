@@ -4,7 +4,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import { featureEnabled } from "@/lib/billing/tier";
 import BackLink from "@/components/back-link";
 import CreateComplaintForm from "@/components/complaints/create-complaint-form";
-import { listAccessibleBranchTypes, listServiceUsersLite } from "@/lib/complaints/data";
+import { listAccessibleBranchTypes, listServiceUsersLite, listPeopleLite } from "@/lib/complaints/data";
 import { todayIso } from "@/lib/complaints/logic";
 
 export const metadata: Metadata = { title: "Log a complaint" };
@@ -17,9 +17,10 @@ export default async function NewComplaintPage() {
   if (!(await featureEnabled(profile.company_id, "complaints"))) redirect("/dashboard");
   if (!MANAGE_ROLES.includes(profile.role)) redirect("/complaints");
 
-  const [branches, serviceUsers] = await Promise.all([
+  const [branches, serviceUsers, people] = await Promise.all([
     listAccessibleBranchTypes(profile.company_id, profile.role, user.id),
     listServiceUsersLite(profile.company_id),
+    listPeopleLite(profile.company_id),
   ]);
 
   return (
@@ -37,6 +38,7 @@ export default async function NewComplaintPage() {
         <CreateComplaintForm
           branches={branches.map((b) => ({ id: b.id, name: b.name }))}
           serviceUsers={serviceUsers}
+        people={people}
           todayIso={todayIso()}
         />
       </div>

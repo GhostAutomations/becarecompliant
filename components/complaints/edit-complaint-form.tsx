@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect } from "react";
+import ComplaintPeoplePicker from "@/components/complaints/complaint-people-picker";
 import { updateComplaint } from "@/lib/complaints/actions";
 import { IDLE_STATE } from "@/lib/forms";
 import { useSavedFlash } from "@/lib/use-saved-flash";
@@ -16,9 +17,13 @@ import {
 export default function EditComplaintForm({
   complaint,
   serviceUsers,
+  people,
+  namedPersonIds,
 }: {
   complaint: ComplaintRecord;
   serviceUsers: Array<{ id: string; full_name: string }>;
+  people: Array<{ id: string; full_name: string; branch_id: string | null }>;
+  namedPersonIds: string[];
 }) {
   const [state, formAction, pending] = useActionState(updateComplaint, IDLE_STATE);
   const [saved, flash, reset] = useSavedFlash();
@@ -53,6 +58,15 @@ export default function EditComplaintForm({
               <option key={s.id} value={s.id}>{s.full_name}</option>
             ))}
           </select>
+        </div>
+        <div className="sm:col-span-2">
+          {/* The branch cannot be changed on this form, so the picker is given the
+              complaint's own branch to narrow by. */}
+          <ComplaintPeoplePicker
+            people={people}
+            branchId={complaint.branch_id}
+            initialIds={namedPersonIds}
+          />
         </div>
         <div>
           <label htmlFor="e_concern_type" className="form-label">Complaint/Concern</label>

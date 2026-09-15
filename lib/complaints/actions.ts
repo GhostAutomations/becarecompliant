@@ -59,6 +59,52 @@ function isoDateOrNull(v: FormDataEntryValue | null): string | null {
 
 const RELATIONSHIPS = ["service_user", "relative", "staff", "professional", "public", "anonymous"];
 
+/**
+ * Save which team members a complaint is about.
+ *
+ * Replaces the whole set rather than adding to it, so removing a name on the edit form
+ * actually removes it. Scoped to people in THIS company: a person id from another tenant
+ * arriving in a form post is dropped rather than trusted.
+ *
+ * Best effort by design. The complaint itself is already saved by the time this runs, and a
+ * failure here must not lose the complaint; it is reported to the caller instead.
+ */
+async function saveComplaintPeople(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  input: { companyId: string; complaintId: string; personIds: string[] },
+): Promise<string | null> {
+  const wanted = [...new Set(input.personIds.filter(Boolean))];
+
+  const { data: valid } = await supabase
+    .from("people")
+    .select("id")
+    .eq("company_id", input.companyId)
+    .in("id", wanted.length > 0 ? wanted : ["00000000-0000-0000-0000-000000000000"]);
+  const allowed = new Set(((valid ?? []) as Array<{ id: string }>).map((p) => p.id));
+
+  const { error: delErr } = await supabase
+    .from("complaint_people")
+    .delete()
+    .eq("complaint_id", input.complaintId);
+  if (delErr) return "The complaint was saved, but the team members named on it were not.";
+
+  if (allowed.size === 0) return null;
+  const { error: insErr } = await supabase.from("complaint_people").insert(
+    [...allowed].map((person_id) => ({
+      company_id: input.companyId,
+      complaint_id: input.complaintId,
+      person_id,
+    })),
+  );
+  if (insErr) return "The complaint was saved, but the team members named on it were not.";
+  return null;
+}
+
+/** The team members ticked on a complaint form. */
+function personIdsFrom(formData: FormData): string[] {
+  return formData.getAll("person_ids").map((v) => String(v).trim()).filter(Boolean);
+}
+
 /** Log a complaint. The acknowledgement and response due dates default from the
  *  company timescales (cited CQC/CIW norms), and stay editable on the record. */
 export async function createComplaint(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -106,6 +152,12 @@ export async function createComplaint(_prev: ActionState, formData: FormData): P
 
   if (error) return { error: error.message };
 
+  const peopleNote = await saveComplaintPeople(supabase, {
+    companyId,
+    complaintId: complaint.id,
+    personIds: personIdsFrom(formData),
+  });
+
   await writeAudit({
     companyId,
     actorId: user.id,
@@ -115,8 +167,9 @@ export async function createComplaint(_prev: ActionState, formData: FormData): P
     entityType: "complaint",
     entityId: complaint.id,
     summary: `Logged complaint: ${subject}`,
-    metadata: { branch_id },
+    metadata: { branch_id, team_members: personIdsFrom(formData).length },
   });
+  if (peopleNote) return { error: peopleNote };
 
   redirect(`/complaints/${complaint.id}`);
 }
@@ -171,6 +224,12 @@ export async function updateComplaint(_prev: ActionState, formData: FormData): P
   if (error) return { error: error.message };
   if (!data || data.length === 0) return { error: "No change was saved. You may not have permission." };
 
+  const peopleNote = await saveComplaintPeople(supabase, {
+    companyId: profile.company_id,
+    complaintId: id,
+    personIds: personIdsFrom(formData),
+  });
+
   await writeAudit({
     companyId: profile.company_id,
     actorId: user.id,
@@ -181,6 +240,7 @@ export async function updateComplaint(_prev: ActionState, formData: FormData): P
     entityId: id,
     summary: `Updated complaint: ${subject}`,
   });
+  if (peopleNote) return { error: peopleNote };
 
   revalidatePath(`/complaints/${id}`);
   revalidatePath("/complaints");
@@ -197,13 +257,21 @@ export async function setComplaintStatus(_prev: ActionState, formData: FormData)
   if (!["open", "in_progress", "closed"].includes(status)) return { error: "Choose a valid status." };
 
   const outcome = status === "closed" ? trimOrNull(formData.get("outcome")) : null;
+  /* Was it upheld? Recorded only when closing, and left as null when nobody says, because
+     an open complaint has no finding and "not upheld" is a finding. This is what keeps a
+     team member's record honest: see lib/complaints/person-complaints.ts. */
+  const upheldRaw = status === "closed" ? String(formData.get("upheld") ?? "").trim() : "";
+  const upheld = upheldRaw === "yes" ? true : upheldRaw === "no" ? false : null;
   const update: Record<string, unknown> = {
     status,
     date_closed: status === "closed" ? todayIso() : null,
     updated_by: user.id,
     updated_at: new Date().toISOString(),
   };
-  if (status === "closed") update.outcome = outcome;
+  if (status === "closed") {
+    update.outcome = outcome;
+    update.upheld = upheld;
+  }
 
   const supabase = await createClient();
   const { data, error } = await supabase.from("complaints").update(update).eq("id", id).select("id");

@@ -5,6 +5,8 @@ import { requireCompany } from "@/lib/auth/guards";
 import { canManageRecord } from "@/lib/auth/manage-scope";
 import { callerBranchIds } from "@/lib/auth/branches";
 import BackLink from "@/components/back-link";
+import { listComplaintsForPerson } from "@/lib/complaints/data";
+import { countForPerson, describeCounts, ragForCounts } from "@/lib/complaints/person-complaints";
 import PanelDialog from "@/components/panel-dialog";
 import EvidenceHistory from "@/components/people/evidence-history";
 import { checksForTitle } from "@/lib/people/check-scope";
@@ -55,6 +57,11 @@ import { DEFAULT_AMBER_DAYS } from "@/lib/recurrence";
 export const metadata: Metadata = { title: "Record" };
 
 const MANAGE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "platform_admin"];
+
+/* Exactly who can open the Complaints section. Kept the same on purpose: two lists that can
+   drift is how a tile ends up showing HR sensitive detail to somebody the section itself
+   would turn away. */
+const COMPLAINT_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "on_call", "platform_admin"];
 const COMPLETE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor", "platform_admin"];
 const RAG_RANK: Record<string, number> = { red: 0, amber: 1, green: 2, none: 3 };
 
@@ -161,6 +168,14 @@ export default async function PersonPage({
     canManage ? getRecordAuditTrail("person", id) : Promise.resolve([]),
     featureEnabled(companyId, "reporting_exports"),
   ]);
+
+  /* COMPLAINTS ABOUT THIS PERSON. The role list is the Complaints section's own, not this
+     page's: a supervisor may manage the record and still have no business seeing complaints
+     about the person. RLS refuses them anyway; this stops the tile being drawn at all so
+     there is nothing to wonder about. */
+  const canSeeComplaints =
+    COMPLAINT_ROLES.includes(profile.role) && (await featureEnabled(companyId, "complaints"));
+  const personComplaints = canSeeComplaints ? await listComplaintsForPerson(id) : [];
 
   const supDef = definitions.find((d) => d.key === "supervision");
   const supFormId = supDef?.form_id ?? null;
@@ -288,6 +303,36 @@ export default async function PersonPage({
         <span className="text-white/50">Status</span>
         {probationStatusPill(tracker?.probation_status ?? null)}
       </div>
+    </div>
+  );
+
+  /* Complaints naming this person. The RAG is driven by UPHELD complaints only: being
+     complained about is not the same as having done something wrong, and a tile that goes
+     red on an accusation would say it was. */
+  const complaintCounts = countForPerson(personComplaints);
+  const complaintRag = ragForCounts(complaintCounts);
+  const complaintsTile = (
+    <div className="glass-card p-5">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-[15px] font-semibold text-white">Complaints</h2>
+        {complaintCounts.total > 0 ? (
+          <Link href={`/people/${person.id}/complaints`} className="btn-outline btn-tracker">
+            View
+          </Link>
+        ) : null}
+      </div>
+      <p
+        className={`text-2xl font-semibold ${
+          complaintRag === "red"
+            ? "text-rag-red"
+            : complaintRag === "amber"
+              ? "text-rag-amber"
+              : "text-white/85"
+        }`}
+      >
+        {complaintCounts.total}
+      </p>
+      <p className="mt-1 text-sm text-white/55">{describeCounts(complaintCounts)}</p>
     </div>
   );
 
@@ -526,6 +571,12 @@ export default async function PersonPage({
 
             {/* Probation joins this row only once passed; otherwise it renders above. */}
             {probationPassed ? probationTile : null}
+
+            {/* COMPLAINTS ABOUT THIS PERSON (Phil, 2026-09-15). Shown only to people who can
+                already open the Complaints section: complaints about staff are HR sensitive,
+                and a supervisor who can see this record cannot see the section, so must not
+                see this either. Never a bare count — the outcome is in the same sentence. */}
+            {canSeeComplaints ? complaintsTile : null}
           </section>
         </>
       )}

@@ -77,6 +77,8 @@ export type ComplaintRecord = {
   response_due: string | null;
   date_closed: string | null;
   outcome: string | null;
+  /** Was it upheld? Null until decided; null is not the same as false. */
+  upheld?: boolean | null;
   created_at: string;
 };
 

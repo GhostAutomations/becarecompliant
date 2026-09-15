@@ -9,9 +9,12 @@ import { COMPLAINT_STATUS_LABELS, COMPLAINT_STATUS_ORDER, type ComplaintStatus }
 export default function ComplaintStatusControl({
   complaintId,
   status,
+  upheld,
 }: {
   complaintId: string;
   status: ComplaintStatus;
+  /** Null until somebody decides. Null is not "not upheld". */
+  upheld: boolean | null;
 }) {
   const [state, action, pending] = useActionState(setComplaintStatus, IDLE_STATE);
   const [value, setValue] = useState<ComplaintStatus>(status);
@@ -37,6 +40,29 @@ export default function ComplaintStatusControl({
           ))}
         </select>
       </div>
+      {/* Asked only when closing, because that is the moment there is a finding to record.
+          It decides how the complaint reads on a team member's record: upheld, not upheld,
+          or still open. Leaving it unanswered is allowed and means exactly that. */}
+      {value === "closed" ? (
+        <div>
+          <label htmlFor="complaint_upheld" className="form-label">Was the complaint upheld?</label>
+          <select
+            id="complaint_upheld"
+            name="upheld"
+            defaultValue={upheld === true ? "yes" : upheld === false ? "no" : ""}
+            onChange={reset}
+          >
+            <option value="">Not decided</option>
+            <option value="yes">Yes, upheld</option>
+            <option value="no">No, not upheld</option>
+          </select>
+          <p className="form-hint">
+            This is what a team member named on the complaint sees on their record. A complaint
+            that was not upheld still shows, but never as a mark against them.
+          </p>
+        </div>
+      ) : null}
+
       <div className="flex items-center gap-2">
         <button type="submit" className={`${saved ? "btn-saved" : "btn-primary"} text-sm`} disabled={pending}>
           {pending ? "Saving…" : saved ? "Saved" : "Update status"}

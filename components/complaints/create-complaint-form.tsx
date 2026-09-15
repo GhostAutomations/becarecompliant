@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import ComplaintPeoplePicker from "@/components/complaints/complaint-people-picker";
 import { createComplaint } from "@/lib/complaints/actions";
 import { IDLE_STATE } from "@/lib/forms";
 import {
@@ -14,10 +15,12 @@ import {
 export default function CreateComplaintForm({
   branches,
   serviceUsers,
+  people,
   todayIso,
 }: {
   branches: Array<{ id: string; name: string }>;
   serviceUsers: Array<{ id: string; full_name: string; branch_id: string | null }>;
+  people: Array<{ id: string; full_name: string; branch_id: string | null }>;
   todayIso: string;
 }) {
   const [state, formAction, pending] = useActionState(createComplaint, IDLE_STATE);
@@ -107,6 +110,10 @@ export default function CreateComplaintForm({
               ? "Optional. Service users in the chosen branch."
               : "Optional. Choose a branch first to narrow this list."}
           </p>
+        </div>
+
+        <div>
+          <ComplaintPeoplePicker people={people} branchId={branchId} />
         </div>
 
         <div>

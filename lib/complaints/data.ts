@@ -203,6 +203,64 @@ export async function listServiceUsersLite(
   return (data as Array<{ id: string; full_name: string; branch_id: string | null }> | null) ?? [];
 }
 
+/** Active team members, for the "who is this complaint about" picker. */
+export async function listPeopleLite(
+  companyId: string,
+): Promise<Array<{ id: string; full_name: string; branch_id: string | null }>> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("people")
+    .select("id, full_name, branch_id")
+    .eq("company_id", companyId)
+    .is("archived_at", null)
+    .order("surname_key", { ascending: true });
+  return (data as Array<{ id: string; full_name: string; branch_id: string | null }> | null) ?? [];
+}
+
+/** The team members a complaint names. */
+export async function listComplaintPeople(
+  complaintId: string,
+): Promise<Array<{ person_id: string; full_name: string }>> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("complaint_people")
+    .select("person_id, people(full_name)")
+    .eq("complaint_id", complaintId);
+  return (
+    ((data ?? []) as unknown as Array<{ person_id: string; people: { full_name: string } | null }>)
+      .map((r) => ({ person_id: r.person_id, full_name: r.people?.full_name ?? "Team member" }))
+      .sort((a, b) => a.full_name.localeCompare(b.full_name))
+  );
+}
+
+/**
+ * Every complaint naming THIS person, newest first.
+ *
+ * Read through the caller's own client, so RLS decides whether they may see complaints at
+ * all. A person's record is visible to more people than the Complaints section is, and this
+ * returning nothing for a supervisor is the point rather than an oversight.
+ */
+export async function listComplaintsForPerson(personId: string): Promise<ComplaintRecord[]> {
+  const supabase = await createClient();
+  const { data: links } = await supabase
+    .from("complaint_people")
+    .select("complaint_id")
+    .eq("person_id", personId);
+  const ids = ((links ?? []) as Array<{ complaint_id: string }>).map((r) => r.complaint_id);
+  if (ids.length === 0) return [];
+
+  const { data } = await supabase
+    .from("complaints")
+    .select("*, branches(name), service_users(full_name)")
+    .in("id", ids)
+    .order("date_raised", { ascending: false });
+  return (((data ?? []) as unknown as Array<Record<string, unknown>>).map((r) => ({
+    ...(r as unknown as ComplaintRecord),
+    branch_name: (r.branches as { name: string } | null)?.name ?? null,
+    service_user_name: (r.service_users as { full_name: string } | null)?.full_name ?? null,
+  })) as ComplaintRecord[]);
+}
+
 export type ComplaintResponseRow = {
   id: string;
   method: string;

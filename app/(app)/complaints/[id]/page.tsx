@@ -18,6 +18,8 @@ import {
   listComplaintEvidence,
   listComplaintResponses,
   listServiceUsersLite,
+  listPeopleLite,
+  listComplaintPeople,
   listCompanyBranchNames,
   getComplaintRefPrefix,
   getPublishedFormVersion,
@@ -181,7 +183,7 @@ export default async function ComplaintPage({
     summary: `Viewed complaint: ${complaint.subject}`,
   });
 
-  const [config, forms, evidence, responses, serviceUsers, branchNames, refPrefix] = await Promise.all([
+  const [config, forms, evidence, responses, serviceUsers, branchNames, refPrefix, people, namedPeople] = await Promise.all([
     getComplaintsConfig(companyId),
     listComplaintForms(companyId),
     listComplaintEvidence(id),
@@ -189,6 +191,8 @@ export default async function ComplaintPage({
     listServiceUsersLite(companyId),
     listCompanyBranchNames(companyId),
     getComplaintRefPrefix(companyId),
+    listPeopleLite(companyId),
+    listComplaintPeople(id),
   ]);
 
   // Hide region specific forms that belong to a DIFFERENT branch: on a Cardiff
@@ -402,7 +406,11 @@ export default async function ComplaintPage({
       {/* Status control */}
       <section className="glass-card space-y-3 p-5">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Progress</h2>
-        <ComplaintStatusControl complaintId={complaint.id} status={complaint.status} />
+        <ComplaintStatusControl
+          complaintId={complaint.id}
+          status={complaint.status}
+          upheld={complaint.upheld ?? null}
+        />
       </section>
 
       {/* Evidence history (completed forms + recorded responses) */}
@@ -435,7 +443,12 @@ export default async function ComplaintPage({
       <details className="glass-card section-card">
         <summary>Edit complaint</summary>
         <div className="border-t border-white/10 p-5">
-          <EditComplaintForm complaint={complaint} serviceUsers={serviceUsers} />
+          <EditComplaintForm
+            complaint={complaint}
+            serviceUsers={serviceUsers}
+            people={people}
+            namedPersonIds={namedPeople.map((p) => p.person_id)}
+          />
         </div>
       </details>
     </div>
