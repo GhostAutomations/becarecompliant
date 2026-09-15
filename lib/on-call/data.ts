@@ -3,7 +3,7 @@ import "server-only";
 /**
  * Be Care Compliant — On Call department server data access. All reads go through the RLS-scoped
  * user client. Company-wide seniors and the On Call role see everything; a Manager or Supervisor
- * sees the branches they run, and, since 0203, a company-wide rota and call log as well, because
+ * sees the branches they run, and, since 0203, a company-wide rota and Handover as well, because
  * a company that keeps one out of hours list writes no branch on any row and they were seeing
  * nothing at all. They can record a call on that list but not roster it.
  */
@@ -244,7 +244,7 @@ function toLog(r: LogRow): OnCallLog {
 const LOG_SELECT =
   "id, company_id, branch_id, ref_number, shift_id, occurred_at, shift_date, slot, handler_profile_id, handler_name, caller_name, caller_relationship, service_user_id, category, details, action_taken, outcome, complaints_count, complaints_logged, absences_count, absences_logged, follow_up_required, follow_up_notes, follow_up_action, follow_up_done, finalised, finalised_at, branches(name), profiles:handler_profile_id(full_name, email), service_users:service_user_id(full_name)";
 
-/** The call log, newest call first. RLS scopes rows to the caller. */
+/** The Handover, newest call first. RLS scopes rows to the caller. */
 export async function listCallLog(companyId: string): Promise<OnCallLog[]> {
   const supabase = await createClient();
   const { data } = await supabase

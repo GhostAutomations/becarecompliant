@@ -7,7 +7,7 @@ import RealtimeRefresh from "@/components/realtime-refresh";
 import LogRegister from "@/components/on-call/log-register";
 import { listCallLog } from "@/lib/on-call/data";
 
-export const metadata: Metadata = { title: "On Call · Call log" };
+export const metadata: Metadata = { title: "On Call · Handover" };
 
 const ONCALL_ROLES = [
   "company_admin", "registered_individual", "registered_manager",
@@ -27,8 +27,8 @@ export default async function CallLogPage() {
       <RealtimeRefresh tables={["on_call_logs"]} channel="on-call-log-live" />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-white">Call log</h1>
-          <p className="text-sm text-white/60">Out-of-hours calls and how they were handled.</p>
+          <h1 className="text-xl font-bold text-white">Handover</h1>
+          <p className="text-sm text-white/60">Out-of-hours calls and how they were handled, for whoever picks the day up.</p>
         </div>
         <Link href="/on-call/log/new" className="btn-primary text-sm">Log call</Link>
       </div>

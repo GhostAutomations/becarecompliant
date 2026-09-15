@@ -47,7 +47,7 @@ export default async function CallPage({ params }: { params: Promise<{ id: strin
   return (
     <div className="page-shell space-y-4">
       <LogReadOnLoad logId={log.id} />
-      <BackLink href="/on-call/log" label="Back to call log" />
+      <BackLink href="/on-call/log" label="Back to Handover" />
       <div>
         <h1 className="text-xl font-bold text-white">Shift: {shiftLabel(log.shift_date, log.slot)}</h1>
         {log.branch_name ? <p className="text-sm text-white/60">{log.branch_name}</p> : null}

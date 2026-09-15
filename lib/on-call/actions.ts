@@ -3,10 +3,10 @@
 /**
  * Be Care Compliant — On Call department server actions (Phase 10 Additions).
  *
- * Shifts (the rota) and call logs are plain records, not the recurring check engine. RLS is the
+ * Shifts (the rota) and Handover entries are plain records, not the recurring check engine. RLS is the
  * real guard: Supervisors and above plus the On Call role, scoped by branch where there is a
  * branch. A company that keeps ONE out of hours list writes no branch on any row, and there
- * 0203 lets a Manager or Supervisor read the rota and both read and write the call log, but not
+ * 0203 lets a Manager or Supervisor read the rota and both read and write the Handover, but not
  * roster. The role checks here just give a clean message before the database refuses. Datetimes
  * are stored as entered (wall-clock, normalised to a stable UTC instant) so the rota does not
  * drift across DST.
@@ -244,7 +244,8 @@ export async function setRotaScope(_prev: ActionState, formData: FormData): Prom
 }
 
 // ===========================================================================
-// Call log (per shift)
+// Handover, called the Call log until 2026-09-15 (Phil). The TABLES keep their on_call_log
+// names: renaming a screen is not a reason to migrate live data.
 // ===========================================================================
 function intOrZero(v: FormDataEntryValue | null): number {
   const n = parseInt(String(v ?? "").trim(), 10);

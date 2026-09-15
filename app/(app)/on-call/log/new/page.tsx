@@ -33,7 +33,7 @@ export default async function NewCallPage() {
 
   return (
     <div className="page-shell space-y-4">
-      <BackLink href="/on-call/log" label="Back to call log" />
+      <BackLink href="/on-call/log" label="Back to Handover" />
       <h1 className="text-xl font-bold text-white">Log a call</h1>
       <LogForm
         scope={scope}

@@ -145,7 +145,7 @@ export const NAV_ENTRIES: NavEntry[] = [
     label: "Incidents",
     icon: "incidents",
     group: "Departments",
-    // No On Call: an out of hours caller records the call in the Call log. An incident
+    // No On Call: an out of hours caller records the call in the Handover. An incident
     // is written up by the branch, with the notifiable and safeguarding decisions on it.
     roles: ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"],
     children: [
@@ -182,7 +182,7 @@ export const NAV_ENTRIES: NavEntry[] = [
     activeMatch: ["^/on-call"],
     children: [
       { href: "/on-call", label: "Rota", icon: "onCall" },
-      { href: "/on-call/log", label: "Call log", icon: "onCall" },
+      { href: "/on-call/log", label: "Handover", icon: "onCall" },
     ],
   },
   {
@@ -256,7 +256,7 @@ export function navEntriesForRole(role: string): NavEntry[] {
         activeMatch: ["^/on-call"],
         children: [
           { href: "/on-call", label: "Rota", icon: "onCall" },
-          { href: "/on-call/log", label: "Call log", icon: "onCall" },
+          { href: "/on-call/log", label: "Handover", icon: "onCall" },
         ],
       },
       { href: "/people/absence", label: "Absence", icon: "absence", group: "Departments" },

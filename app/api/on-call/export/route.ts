@@ -65,8 +65,8 @@ export async function GET() {
   await writeAudit({
     companyId: profile.company_id, actorId: profile.id, actorEmail: profile.email, actorRole: profile.role,
     action: "report.exported", entityType: "report", entityId: null,
-    summary: "Exported the on-call call log (CSV)", metadata: { report: "on_call_log" },
+    summary: "Exported the on-call handover (CSV)", metadata: { report: "on_call_log" },
   });
 
-  return csvResponse(lines.join("\n"), "on-call-log");
+  return csvResponse(lines.join("\n"), "on-call-handover");
 }
