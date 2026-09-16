@@ -28,7 +28,7 @@ import {
   todayInLondon,
 } from "@/lib/recurrence";
 import { reschedulesOnCompletion } from "@/lib/people/reschedule";
-import { supervisionsConsumed } from "@/lib/people/supervision-cycle";
+import { previousCycleAt, supervisionsConsumed } from "@/lib/people/supervision-cycle";
 import type { CheckDefinition, SupervisionSlot } from "./types";
 import { nextSupervisionNumber } from "./next-supervision";
 
@@ -321,9 +321,14 @@ export function supervisionSlots(
       due = hasInterval && valid(anchor) ? addI(anchor) : null;
       rag = due ? ragStatus(parseCivilDate(due), today, amberDays) : "none";
     } else {
-      comp = prev[i - 1] ?? null;
-      const anchor = i > 1 ? prev[i - 2] : null;
-      const hd = hasInterval && valid(anchor) ? addI(anchor) : null;
+      /* Slots past the active one keep the PREVIOUS cycle's date until they are redone.
+         This indexed prev by slot number, which only lines up when that cycle held exactly
+         `count` supervisions. Chloe Driscoll's held two, so slot 3 asked for the third of
+         two and showed nothing where the Monday board showed 3 Apr 2026. A short run fills
+         the LAST slots, because that is where the appraisal closed it. */
+      comp = previousCycleAt(prev, i, count);
+      const before = previousCycleAt(prev, i - 1, count);
+      const hd = hasInterval && valid(before) ? addI(before) : null;
       rag = comp ? (hd && comp > hd ? "red" : "green") : "none";
     }
     slots.push({ n: i, due, comp, rag });

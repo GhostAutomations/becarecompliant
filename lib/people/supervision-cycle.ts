@@ -34,3 +34,26 @@ export function supervisionsConsumed(
   }
   return n;
 }
+
+/**
+ * Which of the PREVIOUS cycle's completions belongs in slot `n`.
+ *
+ * The slots after the active one keep last cycle's date until they are redone, so the
+ * record shows what was there before rather than three blanks. They were indexed by slot
+ * number straight into the previous cycle's list, which only lines up when that cycle had
+ * exactly `count` supervisions in it. Chloe Driscoll's previous cycle had two, so slot 3
+ * asked for the third of two and got nothing: her record showed nothing where the board
+ * showed 3 Apr 2026.
+ *
+ * A short previous cycle fills the LAST slots, because the run ends where the appraisal
+ * closed it. Two completions in a cycle of three are slots 2 and 3, not 1 and 2.
+ */
+export function previousCycleAt(
+  prev: readonly string[],
+  n: number,
+  count: number,
+): string | null {
+  const idx = prev.length - (count - n) - 1;
+  return idx >= 0 && idx < prev.length ? prev[idx] : null;
+}
+
