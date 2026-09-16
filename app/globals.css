@@ -521,6 +521,16 @@
     text-align: center;
   }
 
+  /* A FAINT LINE BETWEEN EVERY COLUMN, on every matrix (Phil, 2026-09-16). The table is
+     border-separate with zero spacing, so one border per cell IS the grid line with no
+     doubling and no shifted layout. The last cell in a row is skipped: a line there would
+     sit on the wrap's own rounded edge. white/5 matches the horizontal rule already on td,
+     so the grid reads as one thing rather than two weights crossing. */
+  .matrix th:not(:last-child),
+  .matrix td:not(:last-child) {
+    @apply border-r border-white/5;
+  }
+
   /* Carer column: header centred, but the names stay left-aligned. */
   .matrix th.col-carer {
     text-align: center;
