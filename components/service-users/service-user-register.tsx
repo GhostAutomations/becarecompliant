@@ -428,10 +428,14 @@ export default function ServiceUserRegister({
                                         <RagDate date={s.comp} rag={s.rag} />
                                       ) : s.prevComp ? (
                                         /* Last cycle's review, in the slot the outstanding
-                                           one has come round to. Muted, never RAG: it is
-                                           history, not this slot's answer. */
+                                           one has come round to. PLAIN TEXT, not a pill: in
+                                           a Done column every pill is a judgement, green or
+                                           red, and a grey one there reads as a third verdict
+                                           that does not exist. The completed slots draw their
+                                           own due dates as plain text for the same reason
+                                           (Phil, 2026-09-16). */
                                         <span
-                                          className="rag-cell rag-cell-none"
+                                          className="text-white/40"
                                           title="Completed last cycle. This slot is due again."
                                         >
                                           {formatDisplayDate(s.prevComp)}
