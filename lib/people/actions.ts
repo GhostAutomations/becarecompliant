@@ -28,6 +28,7 @@ import type { ActionState } from "@/lib/forms";
 import type { CheckDefinition } from "./types";
 import { listPeopleCheckDefinitions, getPublishedFormVersion, getCompanyFormByKey, branchName } from "./data";
 import {
+  dueAfterCompletion,
   initialDueDate,
   nextDueAfterCompletion,
   todayIso,
@@ -664,6 +665,31 @@ export async function updateCheckDefinition(formData: FormData): Promise<ActionS
           return { instance_id: i.id, due_date: initialDueDate(def, p?.start_date ?? null) };
         });
       }
+      /*
+       * AND THE RECORDS THAT HAVE COMPLETED IT. The two branches above deliberately ask
+       * only for instances with no last_completed_on, because those have no anchor of
+       * their own and have to be dated from a start date. Everybody who HAS completed the
+       * check keeps a due_date the OLD interval produced, and due_date is stored rather
+       * than derived, so nothing ever corrects it: change the audit from monthly to
+       * quarterly and the only people who move are the ones who have never been audited.
+       * These are dated the way the complete flow dates them, completion plus one
+       * interval, so the register agrees with the setting the moment it is saved.
+       */
+      const { data: doneInsts } = await supabase
+        .from("check_instances")
+        .select("id, due_date, last_completed_on")
+        .eq("definition_id", definitionId)
+        .not("last_completed_on", "is", null);
+      for (const inst of (doneInsts as Array<{
+        id: string;
+        due_date: string | null;
+        last_completed_on: string | null;
+      }> | null) ?? []) {
+        const due = dueAfterCompletion(def, inst.last_completed_on);
+        // Only what actually moves, so saving a screen that changed nothing writes nothing.
+        if (due && due !== inst.due_date) rows.push({ instance_id: inst.id, due_date: due });
+      }
+
       if (rows.length > 0) {
         await supabase.rpc("reschedule_check_instances", { p_definition_id: definitionId, p_rows: rows });
       }

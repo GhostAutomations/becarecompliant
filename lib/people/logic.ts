@@ -27,6 +27,7 @@ import {
   ragStatus,
   todayInLondon,
 } from "@/lib/recurrence";
+import { reschedulesOnCompletion } from "@/lib/people/reschedule";
 import type { CheckDefinition, SupervisionSlot } from "./types";
 import { nextSupervisionNumber } from "./next-supervision";
 
@@ -69,6 +70,31 @@ export function initialDueDate(def: CheckDefinition, startDate: string | null): 
   const rule = ruleOf(def);
   if (!rule) return null;
   return formatCivilDate(addInterval(parseCivilDate(startDate), rule.frequency, rule.interval));
+}
+
+/**
+ * The due date a RECURRING check should carry given when it was last completed:
+ * completion plus one interval, the same rule the complete flow uses.
+ *
+ * WHY THIS EXISTS. Editing a check's cadence in Settings used to reschedule only the
+ * records that had never completed it, because those are the ones with no anchor of
+ * their own. Everybody who HAD completed it kept the due date the old interval gave
+ * them, for ever: change supervision from 80 days to 90 and the only people who move
+ * are the ones who have never had one. The setting said one thing and the register
+ * said another, which is the thing we keep finding.
+ *
+ * Returns null where completion is not what schedules this check: an expiry anchor,
+ * a non-recurring check (a completed Setup Visit is finished, not due again), the
+ * Annual Appraisal running on "after supervision 3" (its own backfill owns that), or
+ * simply no completion yet.
+ */
+export function dueAfterCompletion(def: CheckDefinition, completedOn: string | null): string | null {
+  if (!reschedulesOnCompletion(def)) return null;
+  if (!completedOn || !/^\d{4}-\d{2}-\d{2}$/.test(completedOn)) return null;
+  const rule = ruleOf(def);
+  if (!rule) return null;
+  const next = nextDueDate(rule, { completedOn: parseCivilDate(completedOn) });
+  return next ? formatCivilDate(next) : null;
 }
 
 /** start date + N days as an ISO string. */
