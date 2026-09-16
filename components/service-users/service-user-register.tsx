@@ -86,19 +86,17 @@ function RagDate({ date, rag }: { date: string | null; rag: string }) {
 }
 
 /**
- * A date in the CARE PLAN REVIEW cycle columns: white, bold, no pill.
+ * A COMPLETED date in the Care Plan Review cycle: white, bold, no pill.
  *
- * Phil, 2026-09-16: "make all ... review due done ... text white bold and remove pills from
- * those columns only."
+ * Phil, 2026-09-16: "for reviews, supervisions and appraisals, i only want pills in the due
+ * columns."
  *
- * Those columns are read ACROSS as a sequence - due, done, due, done - and a row of
- * coloured pills turns a sequence into a verdict on every individual cell, which is not
- * what a cycle is. One weight, one colour, so the eye follows the run of dates. Whether
- * the outstanding review is overdue is still said in words, in Review Status.
+ * A DUE date is a deadline and has a state - met, close, missed - which is what a pill says.
+ * A DONE date is a fact, and colouring it only repeats the verdict in the cell beside it. So
+ * the colour runs down one column and the dates read across the row.
  *
- * Last cycle's completion, sitting in the slot the outstanding review has come round to,
- * is drawn the same as any other date: one weight, one colour, across the whole matrix. It
- * carries a tooltip saying which cycle it belongs to rather than a shade of its own.
+ * Last cycle's completion, sitting in the slot the outstanding review has come round to, is
+ * drawn like any other completion and says which cycle it belongs to in its tooltip.
  */
 function CycleDate({ date }: { date: string | null }) {
   return <span>{date ? formatDisplayDate(date) : "—"}</span>;
@@ -431,7 +429,7 @@ export default function ServiceUserRegister({
                               <>
                                 {slots.map((s) => (
                                   <Fragment key={s.n}>
-                                    <td><CycleDate date={s.due} /></td>
+                                    <td><RagDate date={s.due} rag={s.rag} /></td>
                                     <td>
                                       {s.comp ? (
                                         <CycleDate date={s.comp} />
@@ -468,7 +466,7 @@ export default function ServiceUserRegister({
                             {/* Simple mode's pair of review columns follows the same rule
                                 as Complex's four: white, bold, no pill. */}
                             <td><CycleDate date={review?.last_completed_on ?? null} /></td>
-                            <td><CycleDate date={newReviewDue} /></td>
+                            <td><RagDate date={newReviewDue} rag={review?.rag ?? "none"} /></td>
                             <td>
                               <PlannedReviewCell
                                 serviceUserId={su.id}

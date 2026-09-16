@@ -88,14 +88,15 @@ function Plain({ date }: { date: string | null }) {
 }
 
 /**
- * A date in the SUPERVISION and APPRAISAL cycle columns: white, bold, no pill.
+ * A COMPLETED date in the Supervision / Appraisal cycle: white, bold, no pill.
  *
- * Phil, 2026-09-16: "make all supervison due done ... and appraisal due done text white
- * bold and remove pills from those columns only."
+ * Phil, 2026-09-16: "for reviews, supervisions and appraisals, i only want pills in the due
+ * columns."
  *
- * Those columns are read ACROSS as a sequence - due, done, due, done - and a row of
- * coloured pills turns a sequence into a verdict on every individual cell, which is not
- * what a cycle is. One weight, one colour, so the eye follows the run of dates.
+ * The split earns its keep. A DUE date is a deadline, and a deadline has a state - met,
+ * close, missed - which is exactly what a pill says. A DONE date is a fact: it happened, on
+ * that day, and colouring a fact only repeats the verdict already sitting in the cell beside
+ * it. So the colour runs down one column and the dates read across the row.
  */
 function CycleDate({ date }: { date: string | null }) {
   return <span>{date ? formatDisplayDate(date) : "—"}</span>;
@@ -371,21 +372,22 @@ export default function RegisterMatrix({
                   </td>
                   <td><RagDate date={sc?.due_date ?? null} rag={sc?.rag ?? "none"} /></td>
                   <td><Plain date={sc?.last_completed_on ?? null} /></td>
-                  {/* Supervision and Appraisal: one weight, one colour. See CycleDate. */}
-                  <td><CycleDate date={sup[0].due} /></td>
+                  {/* Due carries the RAG, Done is plain. A completed slot's due pill says
+                      whether that deadline was met; an outstanding one says how close it is. */}
+                  <td><RagDate date={sup[0].due} rag={sup[0].rag} /></td>
                   <td><CycleDate date={sup[0].comp} /></td>
-                  <td><CycleDate date={sup[1].due} /></td>
+                  <td><RagDate date={sup[1].due} rag={sup[1].rag} /></td>
                   <td><CycleDate date={sup[1].comp} /></td>
-                  <td><CycleDate date={sup[2].due} /></td>
+                  <td><RagDate date={sup[2].due} rag={sup[2].rag} /></td>
                   <td><CycleDate date={sup[2].comp} /></td>
                   {fourSup ? (
                     <>
-                      <td><CycleDate date={sup[3].due} /></td>
+                      <td><RagDate date={sup[3].due} rag={sup[3].rag} /></td>
                       <td><CycleDate date={sup[3].comp} /></td>
                     </>
                   ) : (
                     <>
-                      <td><CycleDate date={aaSlot.nextDue} /></td>
+                      <td><RagDate date={aaSlot.nextDue} rag={aaSlot.nextDueRag} /></td>
                       <td><CycleDate date={aaSlot.comp} /></td>
                     </>
                   )}
