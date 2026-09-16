@@ -195,11 +195,22 @@ function Tile({
     </div>
   );
   return href ? (
-    <Link href={href} className={`glass-card glass-card-hover block h-full p-4 ${className}`}>
+    /*
+      NO h-full, and it is the opposite trap to the one on Panel (measured 2026-09-16: the score
+      card 256px tall beside seven tiles at 128px, a 128px step of dead space under each).
+      On a FLEX item height:100% resolves against the container, whose height is auto, so it
+      computes to the content height — and being an explicit height it then CANCELS the stretch
+      the container asked for. h-full made these tiles refuse to line up.
+
+      Panel had the same class doing the reverse damage in a grid, where 100% resolved against
+      the row and forced a stretch. Same two words, opposite failure, both invisible in the code
+      and obvious the moment anything is measured.
+    */
+    <Link href={href} className={`glass-card glass-card-hover block p-4 ${className}`}>
       {inner}
     </Link>
   ) : (
-    <div className={`glass-card h-full p-4 ${className}`}>{inner}</div>
+    <div className={`glass-card p-4 ${className}`}>{inner}</div>
   );
 }
 
@@ -307,11 +318,11 @@ function SplitTile({
   const halvesLink = pairs.some((p) => p.href);
   // @container: the figures size themselves off THIS card, not the viewport.
   return href && !halvesLink ? (
-    <Link href={href} className={`glass-card glass-card-hover @container block h-full p-4 ${className}`}>
+    <Link href={href} className={`glass-card glass-card-hover @container block p-4 ${className}`}>
       {inner}
     </Link>
   ) : (
-    <div className={`glass-card @container h-full p-4 ${className}`}>{inner}</div>
+    <div className={`glass-card @container p-4 ${className}`}>{inner}</div>
   );
 }
 
@@ -341,7 +352,7 @@ function MissingTile({
   value?: ReactNode;
 }) {
   return (
-    <div className={`h-full rounded-2xl border border-red-400/25 bg-red-500/[0.07] p-4 ${className}`}>
+    <div className={`rounded-2xl border border-red-400/25 bg-red-500/[0.07] p-4 ${className}`}>
       <div className="flex items-start gap-3">
         <div className="flex h-full min-w-0 flex-1 flex-col">
           <div className="flex items-start justify-between gap-2">
