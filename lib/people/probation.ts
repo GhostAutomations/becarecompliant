@@ -73,3 +73,28 @@ export function probationToRecurrence(period: ProbationPeriod): {
 } {
   return { frequency: period.unit, interval: period.value };
 }
+
+/**
+ * Does the probation END DUE date still count down?
+ *
+ * Phil, 2026-09-16: "why are all the probation end due dates red?" Every one of the
+ * thirteen imported carers showed a red end-due date sitting two columns along from a
+ * green "Passed". The date cell was coloured on the date alone, so a probation that
+ * ended a year ago went red the day after it was due and stayed red for ever. The row
+ * contradicted itself, and on a register that is read at a glance the red is the part
+ * people believe.
+ *
+ * A deadline only counts down while it is still a deadline:
+ *  - DUE, or no status yet, is a probation still running against this date, so the date
+ *    is amber then red as it approaches and passes;
+ *  - PASSED and FAILED are settled. The date is history, not a deadline;
+ *  - EXTENDED has moved the deadline to the extension date, so the original end due is
+ *    no longer the thing being counted down to either.
+ *
+ * Note this is only about the COLOUR. The date itself is always shown: when the review
+ * was due is a fact worth keeping on the record however it turned out.
+ */
+export function probationDueCountsDown(status: string | null | undefined): boolean {
+  const s = (status ?? "").trim().toLowerCase();
+  return s === "" || s === "due";
+}

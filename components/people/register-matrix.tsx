@@ -19,6 +19,7 @@ import {
 } from "@/lib/people/types";
 import { formatDisplayDate, supervisionSlots, appraisalSlot, dateRag } from "@/lib/people/logic";
 import { setEmploymentStatus } from "@/lib/people/actions";
+import { probationDueCountsDown } from "@/lib/people/probation";
 import { PillSelect, toneClass, type Tone } from "@/components/register/pill-select";
 import { HorizontalScrollbar } from "@/components/register/horizontal-scrollbar";
 import { useRememberedScroll } from "@/components/register/use-remembered-scroll";
@@ -278,9 +279,20 @@ export default function RegisterMatrix({
                     {t?.rtw_limits ? RTW_LIMIT_LABELS[t.rtw_limits] : "—"}
                   </td>
                   <td>
+                    {/* A DEADLINE ONLY COUNTS DOWN WHILE IT IS ONE (Phil, 2026-09-16: "why
+                        are all the probation end due dates red?"). This cell was coloured on
+                        the date alone, so a probation that passed months ago drew red for
+                        ever, sitting two columns from a green "Passed" on the same row. On a
+                        register read at a glance, the red is the part people believe. The
+                        date is still shown either way: when the review was due is a fact
+                        worth keeping however it turned out. */}
                     <RagDate
                       date={t?.probation_end_due ?? null}
-                      rag={dateRag(t?.probation_end_due ?? null, config.probationAmber)}
+                      rag={
+                        probationDueCountsDown(t?.probation_status ?? null)
+                          ? dateRag(t?.probation_end_due ?? null, config.probationAmber)
+                          : "none"
+                      }
                     />
                   </td>
                   <td><Plain date={t?.probation_end_actual ?? null} /></td>

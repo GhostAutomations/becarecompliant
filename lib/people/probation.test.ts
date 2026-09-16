@@ -8,6 +8,7 @@ import {
   PROBATION_UNITS,
   isProbationUnit,
   parseProbationPeriod,
+  probationDueCountsDown,
   probationFrom,
   probationLabel,
   probationToRecurrence,
@@ -102,4 +103,28 @@ test("the period hands the recurrence engine its own unit, never days", () => {
     frequency: "week",
     interval: 12,
   });
+});
+
+/*
+ * THE REGRESSION. Thirteen real carers imported with a probation that passed months ago,
+ * and every end-due date drew red beside a green "Passed" on the same row.
+ */
+test("a settled probation stops counting down", () => {
+  assert.equal(probationDueCountsDown("passed"), false);
+  assert.equal(probationDueCountsDown("failed"), false);
+  // Extended has moved the deadline to the extension date.
+  assert.equal(probationDueCountsDown("extended"), false);
+});
+
+test("a probation still running counts down", () => {
+  assert.equal(probationDueCountsDown("due"), true);
+  // No status recorded yet is a probation nobody has concluded, so the date still bites.
+  assert.equal(probationDueCountsDown(null), true);
+  assert.equal(probationDueCountsDown(undefined), true);
+  assert.equal(probationDueCountsDown(""), true);
+});
+
+test("status is read the way a stored value arrives", () => {
+  assert.equal(probationDueCountsDown("  Due  "), true);
+  assert.equal(probationDueCountsDown("Passed"), false);
 });
