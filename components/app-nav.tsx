@@ -90,11 +90,19 @@ export function MobileDock({
     pathname === href || pathname.startsWith(`${href}/`);
 
   const { primary, overflow } = splitMobileNav(role, entries);
-  const overflowActive = overflow.some(
-    (e) =>
-      isActive(e.href) ||
-      (e.children ?? []).some((c) => isActive(c.href)),
-  );
+  /*
+   * MORE IS SHOWN WHENEVER THERE IS ANYTHING BEHIND IT, which now includes sub-pages.
+   *
+   * It used to appear only when departments overflowed the bar. A role with three or four
+   * departments therefore had no More button, and since the sheet is the only place a phone can
+   * reach a sub-page, Handover and the rest stayed unreachable for exactly the roles with the
+   * simplest menus. A bar slot is worth less than a page nobody can open.
+   */
+  const hasChildren = entries.some((e) => (e.children ?? []).length > 0);
+  const showMore = overflow.length > 0 || hasChildren;
+  // Lit when the page you are on is not one of the tabs in the bar, so the bar always shows
+  // where you are.
+  const overflowActive = showMore && !primary.some((e) => isActive(e.href));
 
   /* Tight on purpose. The tab's NATURAL height is what sets the bar's height — the min-height in
      the stylesheet never bound, which is why raising and lowering it changed nothing at all
@@ -130,7 +138,7 @@ export function MobileDock({
             );
           })}
 
-          {overflow.length > 0 && (
+          {showMore && (
             <button
               type="button"
               onClick={() => setMoreOpen(true)}
@@ -151,9 +159,22 @@ export function MobileDock({
         </div>
       </nav>
 
+      {/*
+        THE SHEET GETS THE WHOLE MENU, not just the overflow (Phil, 2026-09-15: "go to out of
+        hours, i can on see rota and not hand over, this is the same for all menu options people
+        service user, you can only see the first page").
+
+        Two separate holes made one bug. The sheet never rendered CHILDREN, so Handover, Absence
+        and the Service User sub-departments had no route to them on a phone at all. And it only
+        ever listed the OVERFLOW, so People and Service Users, which sit in the bottom bar, never
+        appeared in it either: their sub-pages would still have been unreachable even once
+        children were drawn.
+
+        The bar is for the two or three places somebody jumps to all day. The sheet is the map.
+      */}
       {moreOpen && (
         <MoreSheet
-          entries={overflow}
+          entries={entries}
           isActive={isActive}
           onClose={() => setMoreOpen(false)}
         />
@@ -191,7 +212,6 @@ function MoreSheet({
 
   if (!mounted) return null;
 
-  // Flatten each department and its sub-sections into one tappable list.
   return createPortal(
     <div className="mobile-sheet-root md:hidden" role="dialog" aria-modal="true" aria-label="More">
       <button
@@ -211,26 +231,61 @@ function MoreSheet({
             Close
           </button>
         </div>
-        <nav aria-label="More destinations" className="grid grid-cols-3 gap-2">
+        {/*
+          A ROW PER DEPARTMENT, with its sub-pages beneath it. The old three-column grid of icon
+          tiles had nowhere to put a child, which is how they came to be left out: the layout
+          could not express the thing the menu needed to say.
+
+          The department itself stays tappable, because it is a real page (the Rota is On Call's
+          landing page), and its children sit under it as chips rather than as a second grid, so
+          the hierarchy is legible at a glance on a small screen.
+        */}
+        <nav aria-label="All destinations" className="space-y-1">
           {entries.map((entry) => {
-            const active =
-              isActive(entry.href) ||
-              (entry.children ?? []).some((c) => isActive(c.href));
+            const children = entry.children ?? [];
+            const selfActive = isActive(entry.href) && !children.some((c) => c.href !== entry.href && isActive(c.href));
             return (
-              <Link
-                key={entry.href}
-                href={entry.href}
-                onClick={onClose}
-                aria-current={active ? "page" : undefined}
-                className={`flex flex-col items-center gap-1.5 rounded-2xl border px-2 py-3 text-center text-[11px] font-medium transition ${
-                  active
-                    ? "border-gold-400/40 bg-gold-400/10 text-gold-300"
-                    : "border-white/10 bg-white/5 text-white/75 hover:bg-white/10"
-                }`}
-              >
-                <NavIcon icon={entry.icon} className="h-6 w-6" />
-                <span className="max-w-full truncate">{entry.label}</span>
-              </Link>
+              <div key={entry.href} className="rounded-2xl border border-white/10 bg-white/5 p-2">
+                <Link
+                  href={entry.href}
+                  onClick={onClose}
+                  aria-current={selfActive ? "page" : undefined}
+                  className={`flex items-center gap-2.5 rounded-xl px-2 py-2 text-sm font-medium transition ${
+                    selfActive ? "bg-gold-400/10 text-gold-300" : "text-white/85 hover:bg-white/10"
+                  }`}
+                >
+                  <NavIcon icon={entry.icon} className="h-5 w-5 shrink-0" />
+                  <span className="min-w-0 truncate">{entry.label}</span>
+                </Link>
+                {children.length > 0 ? (
+                  <div className="mt-1 flex flex-wrap gap-1.5 pl-9">
+                    {children.map((child) => {
+                      /* A child that shares the department's href IS the department's landing
+                         page, and is already reachable by the row above. Listing it twice reads
+                         as a mistake, so it is only shown when it says something the row does
+                         not: a different name, such as Rota under Out of Hours. */
+                      const childActive = isActive(child.href) && child.href !== entry.href
+                        ? true
+                        : child.href === entry.href && selfActive;
+                      return (
+                        <Link
+                          key={`${entry.href}-${child.href}-${child.label}`}
+                          href={child.href}
+                          onClick={onClose}
+                          aria-current={childActive ? "page" : undefined}
+                          className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition ${
+                            childActive
+                              ? "bg-gold-400/15 text-gold-300"
+                              : "bg-white/5 text-white/70 hover:bg-white/10"
+                          }`}
+                        >
+                          {child.label}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
             );
           })}
         </nav>
