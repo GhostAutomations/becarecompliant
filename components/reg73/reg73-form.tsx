@@ -283,7 +283,7 @@ export default function Reg73Form({
       })}
 
       <p className="text-xs text-white/40">
-        The KPI, previous actions and complaints boxes are pre-filled from the site. Refresh data
+        The KPI and previous actions boxes are pre-filled from the site. Refresh data
         re-pulls them. Draft narrative with AI fills the tagged boxes in gold for you to edit. Choose
         a signature option and save and submit to lock the visit.
       </p>
