@@ -792,7 +792,7 @@ export default async function DashboardPage() {
             (seen live, 17 Aug QA). 2xl keeps the third column through the laptop widths and
             gives it back on big monitors, where two twelfths genuinely is wide enough.
          */}
-        <div className="glass-card dash-span-2 flex flex-col justify-between gap-3 p-5">
+        <div className="glass-card flex flex-col justify-between gap-3 p-5">
           {score.enabled ? (
             <>
               <div className="flex items-center gap-3">
@@ -1083,7 +1083,41 @@ export default async function DashboardPage() {
               },
             ]}
           />
-          {/* On call is a CELL in the tile grid now, two tracks wide. It used to sit outside the
+          {/*
+            THE THREE "DUE IN" TILES LIVE UP HERE NOW (2026-09-16). They are stat tiles: one
+            figure, one caption, the same component as everything around them. They were sitting
+            in the panel grid below, sharing rows with the PQS report, and a row is as tall as
+            its tallest member, so three short tiles were being drawn as 500px boxes with a
+            number floating at the top. Cards of very different heights should not share a grid.
+          */}
+
+          <Tile
+            href="/people"
+            label="Due in 7 days"
+            value={dueSoon.d7}
+            tone={dueSoon.d7 > 0 ? "amber" : "green"}
+            icon="calendar"
+            iconTone="orange"
+            sub="checks falling due"
+          />
+          <Tile
+            href="/people"
+            label="Due in 14 days"
+            value={dueSoon.d14}
+            icon="calendar"
+            iconTone="orange"
+            sub="includes the next 7 days"
+          />
+          <Tile
+            href="/people"
+            label="Due in 30 days"
+            value={dueSoon.d30}
+            icon="calendar"
+            iconTone="orange"
+            sub="includes the next 14 days"
+          />
+
+          {/* On call is a CELL in the tile grid now. It used to sit outside the
               tiles keeping a fixed 21rem, which is precisely what starved them: the panel took
               its width first and the tiles divided what was left. Sharing the grid, it widens
               and narrows with everything else. */}
@@ -1092,7 +1126,7 @@ export default async function DashboardPage() {
               (17 Aug QA). Manager-plus with the feature genuinely off keeps the honest
               message below. */}
           {companyWide ? (
-          <div className="dash-span-2">
+          <div>
         {/* On call and Due in 14 days swapped (Phil, 2026-07-30): the urgent follow ups
               belong at the top of the screen, in the four column slot that runs down both tile
               rows. */}
@@ -1143,10 +1177,11 @@ export default async function DashboardPage() {
       {/*
         THE LOWER PANELS, on the same fluid rule as row one.
         These carry tables, a five day strip and a list rather than single figures, so the floor
-        is wider (.dash-grid-wide) and the ones that need room take two tracks. The old version
-        pinned each to named twelfths with explicit row spans and a col-start, which is why the
-        arrangement fell apart the moment the window was not one of the three widths it was laid
-        out against.
+        is wider (.dash-grid-wide). NO spans and no row spans: three panels of similar height,
+        each taking one track, so auto-fit simply divides the width between them and they are
+        balanced at any size. The old version pinned each to named twelfths with explicit row
+        spans and a col-start, which is why the arrangement fell apart the moment the window was
+        not one of the three widths it had been laid out against.
       */}
       <div className="dash-grid-wide">
         {/* THE PQS REPORT, not Inspection Readiness (Phil, 2026-07-29). Both figures are read
@@ -1161,7 +1196,7 @@ export default async function DashboardPage() {
             that branch's PQS report, and an anchor inside an anchor is invalid HTML that the
             browser silently unnests. */}
         {pqs && pqs.length > 0 ? (
-          <Panel title="PQS report" className="dash-span-2">
+          <Panel title="PQS report">
             {/* Two by two (Phil, 2026-07-29). The white tiles ARE the report now: the bar list
                 that used to sit under them said the same thing twice, so it is gone. More than
                 four scopes and the grid scrolls rather than shrinking the tiles. */}
@@ -1208,7 +1243,7 @@ export default async function DashboardPage() {
             </div>
           </Panel>
         ) : (
-          <div className="dash-span-2">
+          <div>
             <MissingPanel
               title="PQS report"
               needs={
@@ -1228,37 +1263,6 @@ export default async function DashboardPage() {
             will not divide into three equal spans (2, 2, 3 was the closest), and widening the row
             would mean moving the PQS report. This gives three identical tiles and touches nothing
             else. */}
-        {/* NOT a nested grid any more. Three tiles inside a seven twelfths column meant their
-            width was decided twice, by the outer grid and then by their own columns, and they
-            stopped matching the tiles above them. As plain cells they line up with everything
-            else at every width. */}
-        <>
-          <Tile
-            href="/people"
-            label="Due in 7 days"
-            value={dueSoon.d7}
-            tone={dueSoon.d7 > 0 ? "amber" : "green"}
-            icon="calendar"
-            iconTone="orange"
-            sub="checks falling due"
-          />
-          <Tile
-            href="/people"
-            label="Due in 14 days"
-            value={dueSoon.d14}
-            icon="calendar"
-            iconTone="orange"
-            sub="includes the next 7 days"
-          />
-          <Tile
-            href="/people"
-            label="Due in 30 days"
-            value={dueSoon.d30}
-            icon="calendar"
-            iconTone="orange"
-            sub="includes the next 14 days"
-          />
-        </>
 
         {/* THE PLANNER (Phil, 2026-07-29): this user's own booked tasks, the same rows the
             Planner page reads, as five WORKING day columns. Every column is always drawn, empty
@@ -1267,7 +1271,6 @@ export default async function DashboardPage() {
           title="Planner"
           href={canSeePlanner ? "/planner" : undefined}
           linkLabel="View planner"
-          className="dash-span-2"
         >
           {!canSeePlanner ? (
             <p className="text-sm text-white/55">
@@ -1342,7 +1345,7 @@ export default async function DashboardPage() {
             </div>
           )}
         </Panel>
-        <Panel title="Recent activity" href="/reports" linkLabel="View all" className="dash-span-2">
+        <Panel title="Recent activity" href="/reports" linkLabel="View all">
           {activity.length === 0 ? (
             <p className="text-sm text-white/55">Nothing has happened yet today.</p>
           ) : (

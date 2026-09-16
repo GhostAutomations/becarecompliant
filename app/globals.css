@@ -619,7 +619,20 @@
   .dash-grid {
     display: grid;
     gap: 0.75rem;
-    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+    /*
+     * align-items: start, and this is the whole reason the old code carried [&>*]:h-auto.
+     *
+     * A grid cell stretches to its ROW's height by default, and a row is as tall as its tallest
+     * member. Put a panel carrying a five row list next to a tile carrying one number and the
+     * tile becomes a 500px box with a figure floating at the top of it. That is the 548px tile
+     * the previous author documented, and removing their override brought it straight back
+     * (seen on a screenshot, 2026-09-16).
+     *
+     * Saying it once on the container beats an override on every child, which is what made the
+     * old version so easy to break.
+     */
+    align-items: start;
   }
 
   /* For panels carrying tables and lists rather than one figure: a wider floor, so a branch
@@ -627,24 +640,24 @@
   .dash-grid-wide {
     display: grid;
     gap: 0.75rem;
-    grid-template-columns: repeat(auto-fit, minmax(21rem, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(22rem, 1fr));
+    align-items: start;
   }
 
   /*
-   * Two tracks for the cards that carry sentences or a five day strip rather than one number.
+   * NO SPANS. Deliberately, and this is the part that makes it hold at every width.
    *
-   * ONE track below 768px, because a two track span in a one track grid overflows the screen,
-   * and that is the failure the whole rewrite is meant to end. Above it the grid always has at
-   * least two tracks, so the span is always affordable.
+   * My first cut gave the wider cards two tracks. That reintroduced the original disease in a
+   * new form: a two track card and a one track card share a row, the row is as tall as the
+   * bigger, and the leftovers are holes. Worse, whether a hole appears depends on how many
+   * tracks the window happens to give you, so it looked fine at the width I reasoned about and
+   * wrong at the next one along.
+   *
+   * With every card taking exactly one track, auto-fit always divides the width evenly between
+   * however many cards are on the row. There is no arrangement to get wrong, at any width. Cards
+   * that need more room get a wider FLOOR (.dash-grid-wide) rather than more tracks, and cards
+   * of very different heights are kept in different grids rather than made to share a row.
    */
-  .dash-span-2 {
-    grid-column: span 1 / span 1;
-  }
-  @media (min-width: 768px) {
-    .dash-span-2 {
-      grid-column: span 2 / span 2;
-    }
-  }
 
   .ctl-sm {
     @apply rounded-lg px-2.5 py-1 text-sm leading-tight;
