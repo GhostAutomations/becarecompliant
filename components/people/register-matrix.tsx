@@ -87,6 +87,20 @@ function Plain({ date }: { date: string | null }) {
   return <span className="text-white/70">{date ? formatDisplayDate(date) : "—"}</span>;
 }
 
+/**
+ * A date in the SUPERVISION and APPRAISAL cycle columns: white, bold, no pill.
+ *
+ * Phil, 2026-09-16: "make all supervison due done ... and appraisal due done text white
+ * bold and remove pills from those columns only."
+ *
+ * Those columns are read ACROSS as a sequence - due, done, due, done - and a row of
+ * coloured pills turns a sequence into a verdict on every individual cell, which is not
+ * what a cycle is. One weight, one colour, so the eye follows the run of dates.
+ */
+function CycleDate({ date }: { date: string | null }) {
+  return <span className="font-semibold text-white">{date ? formatDisplayDate(date) : "—"}</span>;
+}
+
 function WorkingStatusPill({ status }: { status: string }) {
   const label = WORKING_STATUS_LABELS[status as keyof typeof WORKING_STATUS_LABELS] ?? status;
   return <span className={toneClass(workingTone(status))}>{label}</span>;
@@ -359,24 +373,22 @@ export default function RegisterMatrix({
                   </td>
                   <td><RagDate date={sc?.due_date ?? null} rag={sc?.rag ?? "none"} /></td>
                   <td><Plain date={sc?.last_completed_on ?? null} /></td>
-                  {/* Pill rule: once a slot is completed the DUE clears and the
-                      COMPLETED date carries the pill, green if done on/before the due
-                      date, red if late (sup[n].rag). Outstanding: due carries amber/red. */}
-                  <td>{sup[0].comp ? (sup[0].due ? <Plain date={sup[0].due} /> : <RagDate date={null} rag="none" />) : <RagDate date={sup[0].due} rag={sup[0].rag} />}</td>
-                  <td>{sup[0].comp ? <RagDate date={sup[0].comp} rag={sup[0].rag} /> : <RagDate date={null} rag="none" />}</td>
-                  <td>{sup[1].comp ? (sup[1].due ? <Plain date={sup[1].due} /> : <RagDate date={null} rag="none" />) : <RagDate date={sup[1].due} rag={sup[1].rag} />}</td>
-                  <td>{sup[1].comp ? <RagDate date={sup[1].comp} rag={sup[1].rag} /> : <RagDate date={null} rag="none" />}</td>
-                  <td>{sup[2].comp ? (sup[2].due ? <Plain date={sup[2].due} /> : <RagDate date={null} rag="none" />) : <RagDate date={sup[2].due} rag={sup[2].rag} />}</td>
-                  <td>{sup[2].comp ? <RagDate date={sup[2].comp} rag={sup[2].rag} /> : <RagDate date={null} rag="none" />}</td>
+                  {/* Supervision and Appraisal: one weight, one colour. See CycleDate. */}
+                  <td><CycleDate date={sup[0].due} /></td>
+                  <td><CycleDate date={sup[0].comp} /></td>
+                  <td><CycleDate date={sup[1].due} /></td>
+                  <td><CycleDate date={sup[1].comp} /></td>
+                  <td><CycleDate date={sup[2].due} /></td>
+                  <td><CycleDate date={sup[2].comp} /></td>
                   {fourSup ? (
                     <>
-                      <td>{sup[3].comp ? (sup[3].due ? <Plain date={sup[3].due} /> : <RagDate date={null} rag="none" />) : <RagDate date={sup[3].due} rag={sup[3].rag} />}</td>
-                      <td>{sup[3].comp ? <RagDate date={sup[3].comp} rag={sup[3].rag} /> : <RagDate date={null} rag="none" />}</td>
+                      <td><CycleDate date={sup[3].due} /></td>
+                      <td><CycleDate date={sup[3].comp} /></td>
                     </>
                   ) : (
                     <>
-                      <td><RagDate date={aaSlot.nextDue} rag={aaSlot.nextDueRag} /></td>
-                      <td>{aaSlot.comp ? <RagDate date={aaSlot.comp} rag={aaSlot.compRag} /> : <RagDate date={null} rag="none" />}</td>
+                      <td><CycleDate date={aaSlot.nextDue} /></td>
+                      <td><CycleDate date={aaSlot.comp} /></td>
                     </>
                   )}
                   <td>
