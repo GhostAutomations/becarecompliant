@@ -651,6 +651,16 @@
   .dash-grid-wide > * {
     flex: 1 1 22rem;
     min-width: 22rem;
+    /*
+     * A HEIGHT FLOOR TOO (Phil, 2026-09-16: "its minimum size should be the same as what planner
+     * and recent activity is now"). 11rem is what that line measures today.
+     *
+     * Without it the row's height is whatever the fullest panel happens to hold, so a quiet week
+     * with no bookings and no recent activity would shrink all three and the page would change
+     * shape from one day to the next depending on how busy it had been. A floor makes the row a
+     * fixed part of the furniture; a busy panel still grows past it and the others follow.
+     */
+    min-height: 11rem;
   }
 
   .ctl-sm {

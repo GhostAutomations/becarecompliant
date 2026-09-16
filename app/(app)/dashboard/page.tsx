@@ -1276,7 +1276,14 @@ export default async function DashboardPage() {
           {!canSeeOnCall ? (
             <p className="text-sm text-white/55">{onCallName} is not switched on for this company.</p>
           ) : onCallUrgent.length === 0 ? (
-            <p className="text-sm text-white/55">Nothing urgent. Every call has been followed up.</p>
+            /* CENTRED, not sitting on the ceiling. The panel has a height floor, so one sentence
+               pinned to the top left 85px of measured space beneath it that read as a gap under
+               the text. Centred, the same space is padding around a message, which is what it
+               is. The card is not short of room, it is short of things to say, and that is the
+               honest state when nothing is urgent. */
+            <div className="flex h-full items-center justify-center">
+              <p className="text-sm text-white/55">Nothing urgent. Every call has been followed up.</p>
+            </div>
           ) : (
             /* FIVE, and NOT scrollable (Phil, 2026-07-30). The fifth row goes in the space that
                was sitting empty at the bottom of the panel. The "View all" link in the corner is
