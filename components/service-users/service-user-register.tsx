@@ -102,6 +102,21 @@ function CycleDate({ date }: { date: string | null }) {
   return <span>{date ? formatDisplayDate(date) : "—"}</span>;
 }
 
+/**
+ * A COMPLETED date in the cycle columns: bold, no pill, coloured by whether it was on time.
+ *
+ * Phil, 2026-09-16: "if completed on time - green bold no pill / if completed late - amber
+ * bold no pill."
+ *
+ * Amber for late rather than red, because it did happen. Red in this product means the thing
+ * is not done, and spending it on a supervision that ran a fortnight over is how red stops
+ * meaning anything.
+ */
+function DoneDate({ date, late }: { date: string | null; late: boolean }) {
+  if (!date) return <span>—</span>;
+  return <span className={late ? "done-late" : "done-on-time"}>{formatDisplayDate(date)}</span>;
+}
+
 const VIEW_META: Record<string, { title: string; match: (r: ServiceUserRow) => boolean }> = {
   main: { title: "Compliance", match: (r) => r.service_user.service_status === "active" && !r.service_user.archived_at },
   hospital: { title: "Hospital", match: (r) => r.service_user.service_status === "hospital" && !r.service_user.archived_at },
@@ -429,10 +444,12 @@ export default function ServiceUserRegister({
                               <>
                                 {slots.map((s) => (
                                   <Fragment key={s.n}>
-                                    <td><RagDate date={s.due} rag={s.rag} /></td>
+                                    {/* Outstanding: the pill counts down. Done: plain, because
+                                        the verdict has moved to the Done cell. */}
+                                    <td>{s.comp ? <CycleDate date={s.due} /> : <RagDate date={s.due} rag={s.rag} />}</td>
                                     <td>
                                       {s.comp ? (
-                                        <CycleDate date={s.comp} />
+                                        <DoneDate date={s.comp} late={s.rag === "red"} />
                                       ) : s.prevComp ? (
                                         <span title="Completed last cycle. This slot is due again.">
                                           <CycleDate date={s.prevComp} />

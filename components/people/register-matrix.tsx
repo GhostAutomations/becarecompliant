@@ -102,6 +102,21 @@ function CycleDate({ date }: { date: string | null }) {
   return <span>{date ? formatDisplayDate(date) : "—"}</span>;
 }
 
+/**
+ * A COMPLETED date in the cycle columns: bold, no pill, coloured by whether it was on time.
+ *
+ * Phil, 2026-09-16: "if completed on time - green bold no pill / if completed late - amber
+ * bold no pill."
+ *
+ * Amber for late rather than red, because it did happen. Red in this product means the thing
+ * is not done, and spending it on a supervision that ran a fortnight over is how red stops
+ * meaning anything.
+ */
+function DoneDate({ date, late }: { date: string | null; late: boolean }) {
+  if (!date) return <span>—</span>;
+  return <span className={late ? "done-late" : "done-on-time"}>{formatDisplayDate(date)}</span>;
+}
+
 function WorkingStatusPill({ status }: { status: string }) {
   const label = WORKING_STATUS_LABELS[status as keyof typeof WORKING_STATUS_LABELS] ?? status;
   return <span className={toneClass(workingTone(status))}>{label}</span>;
@@ -372,23 +387,28 @@ export default function RegisterMatrix({
                   </td>
                   <td><RagDate date={sc?.due_date ?? null} rag={sc?.rag ?? "none"} /></td>
                   <td><Plain date={sc?.last_completed_on ?? null} /></td>
-                  {/* Due carries the RAG, Done is plain. A completed slot's due pill says
-                      whether that deadline was met; an outstanding one says how close it is. */}
-                  <td><RagDate date={sup[0].due} rag={sup[0].rag} /></td>
-                  <td><CycleDate date={sup[0].comp} /></td>
-                  <td><RagDate date={sup[1].due} rag={sup[1].rag} /></td>
-                  <td><CycleDate date={sup[1].comp} /></td>
-                  <td><RagDate date={sup[2].due} rag={sup[2].rag} /></td>
-                  <td><CycleDate date={sup[2].comp} /></td>
+                  {/* A DEADLINE ONLY COUNTS DOWN WHILE IT IS ONE. An outstanding slot's Due
+                      carries the pill - green over 14 days away, amber inside 14, red past.
+                      Once the slot is done the Due is plain text, because the verdict has
+                      moved to the Done cell: green on time, amber late. Same rule as the
+                      probation end date (Phil, 2026-09-16). */}
+                  <td>{sup[0].comp ? <CycleDate date={sup[0].due} /> : <RagDate date={sup[0].due} rag={sup[0].rag} />}</td>
+                  <td><DoneDate date={sup[0].comp} late={sup[0].rag === "red"} /></td>
+                  <td>{sup[1].comp ? <CycleDate date={sup[1].due} /> : <RagDate date={sup[1].due} rag={sup[1].rag} />}</td>
+                  <td><DoneDate date={sup[1].comp} late={sup[1].rag === "red"} /></td>
+                  <td>{sup[2].comp ? <CycleDate date={sup[2].due} /> : <RagDate date={sup[2].due} rag={sup[2].rag} />}</td>
+                  <td><DoneDate date={sup[2].comp} late={sup[2].rag === "red"} /></td>
                   {fourSup ? (
                     <>
-                      <td><RagDate date={sup[3].due} rag={sup[3].rag} /></td>
-                      <td><CycleDate date={sup[3].comp} /></td>
+                      <td>{sup[3].comp ? <CycleDate date={sup[3].due} /> : <RagDate date={sup[3].due} rag={sup[3].rag} />}</td>
+                      <td><DoneDate date={sup[3].comp} late={sup[3].rag === "red"} /></td>
                     </>
                   ) : (
                     <>
+                      {/* The Appraisal pair is not one instance: nextDue is the NEXT appraisal,
+                          comp is the LAST one. So the Due always carries the outstanding pill. */}
                       <td><RagDate date={aaSlot.nextDue} rag={aaSlot.nextDueRag} /></td>
-                      <td><CycleDate date={aaSlot.comp} /></td>
+                      <td><DoneDate date={aaSlot.comp} late={aaSlot.compRag === "red"} /></td>
                     </>
                   )}
                   <td>

@@ -631,6 +631,19 @@
     @apply bg-white/5 text-white/45;
   }
 
+  /* A COMPLETED date in the Supervision, Appraisal and Care Plan Review columns.
+     Bold, NO PILL: green if it was done by its due date, amber if it was late
+     (Phil, 2026-09-16). Amber rather than red for late, because it did happen -
+     red in this product means the thing is not done. */
+  .done-on-time {
+    @apply font-semibold;
+    color: #43d99a;
+  }
+  .done-late {
+    @apply font-semibold;
+    color: #f5bd6a;
+  }
+
   .rag-sub {
     @apply text-[10px] font-normal opacity-70;
   }
@@ -797,6 +810,8 @@
 .theme-navy .rag-cell-amber { background: rgba(235, 165, 62, 0.16); color: #f0b65e; }
 .theme-navy .rag-cell-red { background: rgba(239, 97, 82, 0.16); color: #f38a7c; }
 .theme-navy .rag-cell-none { background: transparent; color: rgba(255, 255, 255, 0.35); }
+.theme-navy .done-on-time { color: #43d99a; }
+.theme-navy .done-late { color: #f0b65e; }
 
 /* Navy shell: far-left icon rail + collapsible drawer (rendered only for Acme). */
 .navy-rail {
