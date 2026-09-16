@@ -1192,7 +1192,16 @@ export default async function DashboardPage() {
         spans and a col-start, which is why the arrangement fell apart the moment the window was
         not one of the three widths it had been laid out against.
       */}
-      <div className="dash-grid-wide">
+      {/*
+        THE PQS REPORT IS ITS OWN ROW (Phil, 2026-09-16: "i dont wont any gaps").
+        It is a report; Planner and Recent activity are short lists. Sharing a grid row, one of
+        two things had to happen and both were wrong: stretch the short ones to the report's
+        height and pad them with dead space, or let them take their own height and leave a hole
+        underneath. The answer is not an alignment setting, it is not putting a tall thing and
+        short things in the same row. Full width also lets its branch tiles spread across a wide
+        monitor, which makes the report SHORTER as the screen gets wider.
+      */}
+      <div>
         {/* THE PQS REPORT, not Inspection Readiness (Phil, 2026-07-29). Both figures are read
             from the SAME functions the real PQS report uses, so the two can never quote
             different numbers. The on time completion measures are deliberately not recomputed
@@ -1209,23 +1218,20 @@ export default async function DashboardPage() {
             {/* Two by two (Phil, 2026-07-29). The white tiles ARE the report now: the bar list
                 that used to sit under them said the same thing twice, so it is gone. More than
                 four scopes and the grid scrolls rather than shrinking the tiles. */}
-            <div className="flex h-full flex-col">
-              <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-                <div className="grid grid-cols-2 gap-3">
+            {/* Full width now, so the scroller and the fixed two columns both go: the tiles
+                spread as far as the monitor allows and there is nothing left to scroll. */}
+            <div className="flex flex-col">
+              <div>
+                <div className="dash-grid">
                   {pqsScopes.map((sc, i) => (
                     <ScoreTile
                       key={sc.key}
                       name={sc.name}
                       measures={sc.measures}
-                      /* An ODD number of scopes fills the row rather than leaving a hole. An
-                         Admin gets the company and every branch, so it is usually even and lays
-                         out two by two; a Manager of two branches gets three, and the third used
-                         to sit beside an empty cell. */
-                      className={
-                        pqsScopes.length % 2 === 1 && i === pqsScopes.length - 1
-                          ? "col-span-2"
-                          : ""
-                      }
+                      /* No odd-number span any more. That rule existed because the grid was
+                         pinned at two columns, so three scopes left one beside an empty cell.
+                         auto-fit decides the column count from the width, so three scopes are
+                         three across wherever there is room for them. */
                       /* A link only where it will actually open: the report viewer admits
                          MANAGER_PLUS_ROLES, so a Supervisor following one would be bounced
                          straight back here. The company tile opens the SAME report across all
@@ -1273,6 +1279,9 @@ export default async function DashboardPage() {
             would mean moving the PQS report. This gives three identical tiles and touches nothing
             else. */}
 
+      </div>
+
+      <div className="dash-grid-wide">
         {/* THE PLANNER (Phil, 2026-07-29): this user's own booked tasks, the same rows the
             Planner page reads, as five WORKING day columns. Every column is always drawn, empty
             or not, so the week keeps its shape. */}

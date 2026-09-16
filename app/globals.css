@@ -596,68 +596,55 @@
   /* Compact select/input for dense grids (care plan, invoice lines). Keeps the
      canonical look but shorter, so rows do not feel chunky. */
   /*
-   * FLUID DASHBOARD GRIDS — no breakpoints, on purpose.
+   * FLUID DASHBOARD ROWS — no breakpoints, and no gaps.
    *
    * Phil, 2026-09-16: "i dont want it looking different or squashed for people, it needs to be
-   * perfect every time." He works on a 27 inch, the office is on 32 inch, some of the team are on
-   * 21 and 24, and the iPad Pro 13 is 1366 wide. That is a continuous range, and the old layout
-   * answered it with hand-placed twelfths that changed at 1024, 1280 and 1536.
+   * perfect every time", then twice over: "i dont want any gaps". He is on a 27 inch, the office
+   * is on 32s, the team on 21s and 24s, and the iPad Pro 13 is 1366 wide. A continuous range, so
+   * the layout has to be continuous too.
    *
-   * THE BUG THAT PROVED THE APPROACH WRONG: the wide arrangement switched on at 1280 but needed
-   * about 1500 to fit, because a fixed 21rem panel took its width first and each tile refused to
-   * go under 19rem. Everything from 1280 to 1500 was broken BY CONSTRUCTION, and the iPad landed
-   * in the middle of it. A narrower screen genuinely looked better than a wider one.
+   * WHY FLEX AND NOT GRID, which is the whole point of this rule.
    *
-   * auto-fit + minmax removes the question. The browser fits as many columns as the width allows
-   * and shares what is left equally: four across on the iPad, six on a 27 inch, nine on a 32
-   * inch, and every width in between resolves to one of those without a number being guessed.
-   * Nothing is ever squashed, because a track can never be narrower than the min.
+   * auto-fit grid gives beautifully equal columns and ALWAYS leaves a hole when the number of
+   * cards does not divide by the number of columns: thirteen tiles in eight columns is five on
+   * the second row and three empty slots beside them. A grid cannot stretch its last row.
+   * Flex wrap can: flex-grow shares the leftover width between whatever is on that line, so
+   * every line is full at every width, which is what was actually asked for.
    *
-   * There is no max-width and no height stretching, both Phil's calls: the page takes the width
-   * it is given and is as tall as its content.
+   * The cost, stated plainly: a line with fewer cards has wider cards. That is the trade for
+   * having no gaps, and it is the right way round, because nothing is ever SQUASHED — the basis
+   * is also a floor, so a card can grow but never shrink below a readable width.
+   *
+   * WHAT THIS REPLACED: hand-placed twelfths that changed at 1024, 1280 and 1536. The wide
+   * arrangement switched on at 1280 but needed about 1500, because a fixed 21rem panel took its
+   * width before the tiles divided the rest, so everything between was broken by construction
+   * and the iPad Pro landed in the middle of it.
+   *
+   * align-items: flex-start, NOT stretch. A card must be as tall as its own content. Note this
+   * is necessary but not sufficient: a child carrying h-full resolves 100% against the line's
+   * height and stretches anyway, which is how three activity lines came to be drawn at the
+   * height of a report beside them.
    */
-  .dash-grid {
-    display: grid;
-    gap: 0.75rem;
-    grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
-    /*
-     * align-items: start, and this is the whole reason the old code carried [&>*]:h-auto.
-     *
-     * A grid cell stretches to its ROW's height by default, and a row is as tall as its tallest
-     * member. Put a panel carrying a five row list next to a tile carrying one number and the
-     * tile becomes a 500px box with a figure floating at the top of it. That is the 548px tile
-     * the previous author documented, and removing their override brought it straight back
-     * (seen on a screenshot, 2026-09-16).
-     *
-     * Saying it once on the container beats an override on every child, which is what made the
-     * old version so easy to break.
-     */
-    align-items: start;
-  }
-
-  /* For panels carrying tables and lists rather than one figure: a wider floor, so a branch
-     table is never wrapped into a column it cannot be read in. */
+  .dash-grid,
   .dash-grid-wide {
-    display: grid;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
     gap: 0.75rem;
-    grid-template-columns: repeat(auto-fit, minmax(22rem, 1fr));
-    align-items: start;
   }
 
-  /*
-   * NO SPANS. Deliberately, and this is the part that makes it hold at every width.
-   *
-   * My first cut gave the wider cards two tracks. That reintroduced the original disease in a
-   * new form: a two track card and a one track card share a row, the row is as tall as the
-   * bigger, and the leftovers are holes. Worse, whether a hole appears depends on how many
-   * tracks the window happens to give you, so it looked fine at the width I reasoned about and
-   * wrong at the next one along.
-   *
-   * With every card taking exactly one track, auto-fit always divides the width evenly between
-   * however many cards are on the row. There is no arrangement to get wrong, at any width. Cards
-   * that need more room get a wider FLOOR (.dash-grid-wide) rather than more tracks, and cards
-   * of very different heights are kept in different grids rather than made to share a row.
-   */
+  /* One figure and a caption. */
+  .dash-grid > * {
+    flex: 1 1 17rem;
+    min-width: 17rem;
+  }
+
+  /* Tables and lists, so a wider floor: a branch table is never wrapped into a column it cannot
+     be read in. */
+  .dash-grid-wide > * {
+    flex: 1 1 22rem;
+    min-width: 22rem;
+  }
 
   .ctl-sm {
     @apply rounded-lg px-2.5 py-1 text-sm leading-tight;
