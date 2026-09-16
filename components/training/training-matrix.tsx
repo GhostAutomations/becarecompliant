@@ -365,7 +365,7 @@ export default function TrainingMatrix({
                 return (
                 <tr key={p.id}>
                   <td className={`col-carer ${hasExpired ? "training-expired" : ""}`}>
-                    <div className="font-medium text-white/90">{p.full_name}</div>
+                    <div>{p.full_name}</div>
                   </td>
                   {phases.map((g) => (
                     <td key={g.phase}>

@@ -84,7 +84,7 @@ function RagDate({ date, rag }: { date: string | null; rag: string }) {
 }
 
 function Plain({ date }: { date: string | null }) {
-  return <span className="text-white/70">{date ? formatDisplayDate(date) : "—"}</span>;
+  return <span>{date ? formatDisplayDate(date) : "—"}</span>;
 }
 
 /**
@@ -98,7 +98,7 @@ function Plain({ date }: { date: string | null }) {
  * what a cycle is. One weight, one colour, so the eye follows the run of dates.
  */
 function CycleDate({ date }: { date: string | null }) {
-  return <span className="font-semibold text-white">{date ? formatDisplayDate(date) : "—"}</span>;
+  return <span>{date ? formatDisplayDate(date) : "—"}</span>;
 }
 
 function WorkingStatusPill({ status }: { status: string }) {
@@ -308,7 +308,7 @@ export default function RegisterMatrix({
                         toneOf={() => "neutral"}
                       />
                     ) : (
-                      <span className="text-white/70">{row.person.job_title || "—"}</span>
+                      <span>{row.person.job_title || "—"}</span>
                     )}
                   </td>
                   <td><Plain date={row.person.start_date} /></td>
@@ -329,9 +329,7 @@ export default function RegisterMatrix({
                       is a mis-click away from changing the wrong person's. It is set on the
                       record, beside the expiry date and the document it came from, where
                       whoever changes it is looking at the evidence for it. */}
-                  <td className="text-white/70">
-                    {t?.rtw_limits ? RTW_LIMIT_LABELS[t.rtw_limits] : "—"}
-                  </td>
+                  <td>{t?.rtw_limits ? RTW_LIMIT_LABELS[t.rtw_limits] : "—"}</td>
                   <td>
                     {/* A DEADLINE ONLY COUNTS DOWN WHILE IT IS ONE (Phil, 2026-09-16: "why
                         are all the probation end due dates red?"). This cell was coloured on
@@ -350,7 +348,7 @@ export default function RegisterMatrix({
                     />
                   </td>
                   <td><Plain date={t?.probation_end_actual ?? null} /></td>
-                  <td className="text-white/70">
+                  <td>
                     {/* Read-only: probation status only changes by completing the
                         Probation Review form (Phil, 2026-07-18), never inline. */}
                     {t?.probation_status ? (

@@ -96,15 +96,12 @@ function RagDate({ date, rag }: { date: string | null; rag: string }) {
  * what a cycle is. One weight, one colour, so the eye follows the run of dates. Whether
  * the outstanding review is overdue is still said in words, in Review Status.
  *
- * `muted` is last cycle's completion sitting in the slot the outstanding review has come
- * round to: a real review, but not this slot's answer, so it is dimmed rather than removed.
+ * Last cycle's completion, sitting in the slot the outstanding review has come round to,
+ * is drawn the same as any other date: one weight, one colour, across the whole matrix. It
+ * carries a tooltip saying which cycle it belongs to rather than a shade of its own.
  */
-function CycleDate({ date, muted = false }: { date: string | null; muted?: boolean }) {
-  return (
-    <span className={muted ? "font-semibold text-white/40" : "font-semibold text-white"}>
-      {date ? formatDisplayDate(date) : "—"}
-    </span>
-  );
+function CycleDate({ date }: { date: string | null }) {
+  return <span>{date ? formatDisplayDate(date) : "—"}</span>;
 }
 
 const VIEW_META: Record<string, { title: string; match: (r: ServiceUserRow) => boolean }> = {
@@ -382,7 +379,7 @@ export default function ServiceUserRegister({
                             {su.full_name}
                           </Link>
                         </td>
-                        <td><span className="text-white/70">{su.ssid || "—"}</span></td>
+                        <td>{su.ssid || "—"}</td>
                         <td>
                           {canManage ? (
                             <PillSelect
@@ -401,10 +398,10 @@ export default function ServiceUserRegister({
                             </span>
                           )}
                         </td>
-                        <td><span className="text-white/70">{formatDisplayDate(su.package_start_date) || "—"}</span></td>
+                        <td>{formatDisplayDate(su.package_start_date) || "—"}</td>
                         <td>
                           {setupComp ? (
-                            <span className="text-white/70">{formatDisplayDate(setupDue) || "—"}</span>
+                            <span>{formatDisplayDate(setupDue) || "—"}</span>
                           ) : (
                             <RagDate date={setupDue} rag={setup?.rag ?? "none"} />
                           )}
@@ -440,7 +437,7 @@ export default function ServiceUserRegister({
                                         <CycleDate date={s.comp} />
                                       ) : s.prevComp ? (
                                         <span title="Completed last cycle. This slot is due again.">
-                                          <CycleDate date={s.prevComp} muted />
+                                          <CycleDate date={s.prevComp} />
                                         </span>
                                       ) : (
                                         <CycleDate date={null} />

@@ -516,8 +516,12 @@
     text-align: center;
   }
 
+  /* EVERY MATRIX CELL IS WHITE AND BOLD (Phil, 2026-09-16: "on all matrix any text that
+     isnt a pill make it white bold"). One rule here rather than a class per cell, so a new
+     column cannot arrive in a different weight. Pills are unaffected: .rag-cell and the
+     tone pills set their own colour and weight, which wins over this. */
   .matrix td {
-    @apply whitespace-nowrap border-t border-white/5 px-3 py-1 text-sm text-white/85;
+    @apply whitespace-nowrap border-t border-white/5 px-3 py-1 text-sm font-semibold text-white;
     text-align: center;
   }
 
