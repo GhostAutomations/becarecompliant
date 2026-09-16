@@ -9,6 +9,7 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { buildColumnPlan, type ColumnPlan } from "./columns";
+import { jobTitleOrDefault } from "./job-title";
 
 const RTW_LIMITS = new Set(["none", "20hrs_term", "20hrs_2nd_job", "visa_expires"]);
 const PROBATION_STATUS = new Set(["passed", "failed", "extended", "due"]);
@@ -126,10 +127,13 @@ export async function validateImport(
   }
 
   const supabase = await createClient();
-  const [{ data: branches }, existing] = await Promise.all([
+  const [{ data: branches }, { data: titles }, existing] = await Promise.all([
     supabase.from("branches").select("id, name").eq("company_id", companyId).eq("status", "active"),
+    // Only so a blank Job title can land on the company's OWN spelling of Care Assistant.
+    supabase.from("company_job_titles").select("title").eq("company_id", companyId),
     loadExisting(companyId, population),
   ]);
+  const companyTitles = ((titles as Array<{ title: string }> | null) ?? []).map((t) => t.title);
   const branchByName = new Map<string, string>();
   for (const b of (branches as Array<{ id: string; name: string }> | null) ?? []) {
     branchByName.set(b.name.trim().toLowerCase(), b.id);
@@ -168,6 +172,12 @@ export async function validateImport(
         const iso = toIso(raw);
         if (iso === "INVALID") errors.push(`${f.header} is not a valid date (use DD/MM/YYYY).`);
         else fields[f.field] = iso;
+      } else if (f.field === "job_title" && population === "people") {
+        /* A BLANK JOB TITLE IS WORSE THAN A PLAUSIBLE ONE. checksForTitle scopes a
+           record's checks by title, and a blank matches nothing that names titles at
+           all, so a carer imported without one silently misses those checks. Done here
+           rather than on commit so the preview shows what will actually be written. */
+        fields[f.field] = jobTitleOrDefault(raw, companyTitles);
       } else fields[f.field] = raw || null;
     }
 
