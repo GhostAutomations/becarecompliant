@@ -167,11 +167,18 @@ export default function TrainingMatrix({
    * With nobody in probation there are no headings at all, so an established company sees the
    * plain register it has always seen.
    */
-  /* THE PHASE 1 BAR. Thistle's courses are done in waves; a starter works through Phase 1
+  /* THE PHASE BARS. Thistle's courses are done in waves; a starter works through Phase 1
      before anything else, and one bar answers "how far through are they" where thirty three
-     cells do not. The column only exists when the company has put courses in a phase, so
-     nobody who does not use phases gets an empty column (Phil, 2026-09-16). */
-  const phase1 = useMemo(() => courses.filter((c) => c.phase === 1), [courses]);
+     cells do not. A column appears only for a phase the company has actually put courses in,
+     so nobody who does not use phases gets an empty column, and a company that only uses
+     Phase 1 never sees an empty Phase 2 beside it (Phil, 2026-09-16). */
+  const phases = useMemo(
+    () =>
+      ([1, 2, 3] as const)
+        .map((n) => ({ phase: n, courses: courses.filter((c) => c.phase === n) }))
+        .filter((g) => g.courses.length > 0),
+    [courses],
+  );
 
   const { probation, team } = useMemo(
     () => splitByProbation(shown, (p) => p.probation_status),
@@ -323,7 +330,11 @@ export default function TrainingMatrix({
             <thead>
               <tr>
                 <NameSortHeader label="Carer" mode={mode} onChange={setMode} />
-                {phase1.length > 0 ? <th title={`${phase1.length} courses`}>Phase 1</th> : null}
+                {phases.map((g) => (
+                  <th key={g.phase} title={`${g.courses.length} courses`}>
+                    Phase {g.phase}
+                  </th>
+                ))}
                 {courses.map((c) => (
                   <th key={c.id} title={c.renewal_months ? `Renews every ${c.renewal_months} months` : "One off"}>
                     {c.name}
@@ -343,7 +354,7 @@ export default function TrainingMatrix({
                         {group.label}
                         <span className="matrix-group-count">{group.rows.length}</span>
                       </th>
-                      <td colSpan={courses.length + (phase1.length > 0 ? 1 : 0)} />
+                      <td colSpan={courses.length + phases.length} />
                     </tr>
                   ) : null}
                   {group.rows.map((p) => {
@@ -356,11 +367,11 @@ export default function TrainingMatrix({
                   <td className={`col-carer ${hasExpired ? "training-expired" : ""}`}>
                     <div className="font-medium text-white/90">{p.full_name}</div>
                   </td>
-                  {phase1.length > 0 ? (
-                    <td>
-                      <PhaseBar progress={phaseProgress(phase1.map((c) => p.cells[c.id]))} />
+                  {phases.map((g) => (
+                    <td key={g.phase}>
+                      <PhaseBar progress={phaseProgress(g.courses.map((c) => p.cells[c.id]))} />
                     </td>
-                  ) : null}
+                  ))}
                   {courses.map((c) => {
                     const cell = p.cells[c.id];
                     /* A COURSE THAT IS NOT THEIRS. Scoped courses (Assessing Needs and the
