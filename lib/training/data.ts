@@ -1,5 +1,7 @@
 import "server-only";
 
+import { courseAppliesToTitle } from "@/lib/training/probation-group";
+
 /**
  * Be Care Compliant — Training sub-department data.
  * A company catalogue of courses + a per-person record per course. RAG is driven
@@ -23,6 +25,8 @@ export type TrainingCourse = {
   amber_days: number;
   sort_order: number;
   active: boolean;
+  /** Job titles this course belongs to. NULL or empty means everybody (migration 0281). */
+  job_titles: string[] | null;
 };
 
 export type Rag = "green" | "amber" | "red" | "none";
@@ -61,6 +65,8 @@ export type TrainingPerson = {
   full_name: string;
   branch_id: string | null;
   branch_name: string;
+  /** Scopes which courses belong on this record; see lib/training/probation-group.ts. */
+  job_title: string | null;
   /** 'due' | 'extended' | 'passed' | 'failed' | null. Groups the matrix; see
    *  lib/training/probation-group.ts. */
   probation_status: string | null;
@@ -111,6 +117,7 @@ export type RecordRow = {
 type PersonRow = {
   id: string;
   full_name: string;
+  job_title: string | null;
   branch_id: string | null;
   branches: { name: string } | null;
   /** A carer has at most one tracker row; PostgREST types the embed as an array. */
@@ -203,7 +210,7 @@ export async function listAllCourses(companyId: string): Promise<TrainingCourse[
   const supabase = await createClient();
   const { data } = await supabase
     .from("training_courses")
-    .select("id, name, renewal_months, mandatory, is_safeguarding, amber_days, sort_order, active")
+    .select("id, name, renewal_months, mandatory, is_safeguarding, amber_days, sort_order, active, job_titles")
     .eq("company_id", companyId)
     .order("sort_order", { ascending: true });
   return (data as TrainingCourse[] | null) ?? [];
@@ -258,7 +265,7 @@ const getTrainingMatrixUncached = cache(async function getTrainingMatrix(
 
   const coursesQ = supabase
     .from("training_courses")
-    .select("id, name, renewal_months, mandatory, is_safeguarding, amber_days, sort_order, active")
+    .select("id, name, renewal_months, mandatory, is_safeguarding, amber_days, sort_order, active, job_titles")
     .eq("company_id", companyId)
     .eq("active", true)
     .order("sort_order", { ascending: true });
@@ -269,7 +276,7 @@ const getTrainingMatrixUncached = cache(async function getTrainingMatrix(
     .from("people")
     /* person_trackers carries the probation status, which groups the matrix: a new starter
        is red on nearly every course and that is not the same fact as a lapse. */
-    .select("id, full_name, branch_id, branches(name), person_trackers(probation_status)")
+    .select("id, full_name, job_title, branch_id, branches(name), person_trackers(probation_status)")
     .eq("company_id", companyId)
     .is("archived_at", null)
     .neq("employment_status", "leaver")
@@ -325,6 +332,11 @@ const getTrainingMatrixUncached = cache(async function getTrainingMatrix(
     const recs = byPerson.get(p.id);
     const cells: Record<string, TrainingCell> = {};
     for (const c of courses) {
+      /* A COURSE THAT IS NOT THEIRS IS NOT A GAP. Scoped courses are skipped entirely: no
+         cell, so nothing to colour, and crucially nothing counted. Counting them would score
+         a care assistant against supervisor training and drag mandatory compliance and the
+         PQS measure down for training she is not meant to hold. */
+      if (!courseAppliesToTitle(c.job_titles, p.job_title)) continue;
       const cell = cellFor(c, recs?.get(c.id), todayIso);
       cells[c.id] = cell;
       if (cell.rag === "green") green += 1;
@@ -346,6 +358,7 @@ const getTrainingMatrixUncached = cache(async function getTrainingMatrix(
       full_name: p.full_name,
       branch_id: p.branch_id,
       branch_name: p.branches?.name ?? "",
+      job_title: p.job_title,
       probation_status: tracker?.probation_status ?? null,
       cells,
     };

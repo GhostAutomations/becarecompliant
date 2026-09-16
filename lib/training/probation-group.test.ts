@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { inProbation, splitByProbation } from "./probation-group.ts";
+import { courseAppliesToTitle, inProbation, splitByProbation } from "./probation-group.ts";
 
 test("due and extended are still in probation", () => {
   assert.equal(inProbation("due"), true);
@@ -53,3 +53,33 @@ test("an empty register splits into two empty lists", () => {
   assert.deepEqual(probation, []);
   assert.deepEqual(team, []);
 });
+
+/* COURSE SCOPING BY JOB TITLE (Phil, 2026-09-16). Four courses are for supervisors and
+   above; before this they sat red on all thirteen Cardiff carers. */
+test("a course that names no titles belongs to everybody", () => {
+  assert.equal(courseAppliesToTitle(null, "Care Assistant"), true);
+  assert.equal(courseAppliesToTitle([], "Care Assistant"), true);
+  assert.equal(courseAppliesToTitle(undefined, null), true);
+});
+
+test("a scoped course belongs only to the titles it names", () => {
+  const supAndAbove = ["Supervisor", "Senior Supervisor", "Deputy Manager", "Registered Manager", "Responsible Individual"];
+  assert.equal(courseAppliesToTitle(supAndAbove, "Supervisor"), true);
+  assert.equal(courseAppliesToTitle(supAndAbove, "Registered Manager"), true);
+  assert.equal(courseAppliesToTitle(supAndAbove, "Care Assistant"), false);
+  // Senior Care Assistant is deliberately OUT, unlike the Lead the Leader check.
+  assert.equal(courseAppliesToTitle(supAndAbove, "Senior Care Assistant"), false);
+});
+
+test("a title is matched the way a person types it", () => {
+  assert.equal(courseAppliesToTitle(["Supervisor"], "  supervisor  "), true);
+  assert.equal(courseAppliesToTitle(["  Supervisor "], "SUPERVISOR"), true);
+});
+
+test("no job title gets only the courses that name nobody", () => {
+  // Which is why a blank job title on import now defaults to Care Assistant.
+  assert.equal(courseAppliesToTitle(["Supervisor"], null), false);
+  assert.equal(courseAppliesToTitle(["Supervisor"], "   "), false);
+  assert.equal(courseAppliesToTitle(null, null), true);
+});
+

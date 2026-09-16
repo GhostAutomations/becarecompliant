@@ -327,6 +327,19 @@ export default function TrainingMatrix({
                   </td>
                   {courses.map((c) => {
                     const cell = p.cells[c.id];
+                    /* A COURSE THAT IS NOT THEIRS. Scoped courses (Assessing Needs and the
+                       other three are supervisor and above) have no cell for a care
+                       assistant. A dash, not a red: red here would say she is missing
+                       training she is not meant to hold, and red that means nothing teaches
+                       people to ignore red. Not clickable either, because recording it would
+                       create the very record the scope says should not exist. */
+                    if (!cell) {
+                      return (
+                        <td key={c.id} title={`Not required for ${p.job_title ?? "this job title"}`}>
+                          <span className="rag-cell rag-cell-none">—</span>
+                        </td>
+                      );
+                    }
                     // Show one-off "Done / Not done" as a green tick / red cross.
                     const glyph =
                       cell.label === "Done"

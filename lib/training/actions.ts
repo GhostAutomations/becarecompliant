@@ -620,12 +620,24 @@ export async function saveCourse(_prev: ActionState, formData: FormData): Promis
   const amber = amberRaw === "" ? 30 : Number.parseInt(amberRaw, 10);
   if (!Number.isInteger(amber) || amber < 0) return { error: "Amber days must be zero or more." };
 
+  /*
+   * WHO THE COURSE IS FOR. Blank means everybody, which is what every course was before
+   * migration 0281 and what almost all of them stay. A comma separated list scopes it, and it
+   * is stored as typed: the match is trimmed and case insensitive, so tidying somebody's
+   * capitalisation would only lose their own spelling of their own job title.
+   */
+  const titles = String(formData.get("job_titles") ?? "")
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
+
   const patch = {
     name,
     renewal_months: renewal,
     mandatory: String(formData.get("mandatory") ?? "") === "on",
     is_safeguarding: String(formData.get("is_safeguarding") ?? "") === "on",
     amber_days: amber,
+    job_titles: titles.length > 0 ? titles : null,
     active: String(formData.get("active") ?? "") === "on",
     updated_at: new Date().toISOString(),
   };

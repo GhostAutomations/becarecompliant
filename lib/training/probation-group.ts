@@ -41,3 +41,28 @@ export function splitByProbation<T>(
   for (const i of items) (inProbation(statusOf(i)) ? probation : team).push(i);
   return { probation, team };
 }
+
+/**
+ * Does this COURSE belong on the record of somebody with this job title?
+ *
+ * Phil, 2026-09-16: Assessing Needs, Care Planning, Risk Assessment and Supervision and
+ * Appraisal are done by "supervisors and above". Until courses could be scoped, all four sat
+ * red on every carer: sixty five red cells for training twelve of the thirteen are not meant
+ * to hold. Red that means nothing is worse than no column at all, because it teaches people
+ * to ignore red.
+ *
+ * The SAME rule as checkAppliesToTitle (lib/people/check-scope.ts) and the same as the SQL:
+ * no titles named means everybody, and a title is matched trimmed and case insensitively
+ * because a job title is typed by a person. A person with NO job title gets only the courses
+ * that name nobody, which is why a blank on import now defaults to Care Assistant.
+ */
+export function courseAppliesToTitle(
+  courseJobTitles: readonly string[] | null | undefined,
+  jobTitle: string | null | undefined,
+): boolean {
+  if (!courseJobTitles || courseJobTitles.length === 0) return true;
+  const theirs = (jobTitle ?? "").trim().toLowerCase();
+  if (!theirs) return false;
+  return courseJobTitles.some((t) => (t ?? "").trim().toLowerCase() === theirs);
+}
+

@@ -1,6 +1,8 @@
 import { cellFor, type RecordRow, type TrainingCell, type TrainingCourse } from "@/lib/training/data";
 import "server-only";
 
+import { courseAppliesToTitle } from "@/lib/training/probation-group";
+
 /**
  * Be Care Compliant — what a Team Member sees in their own area.
  *
@@ -149,16 +151,21 @@ export type MyTrainingRow = {
 
 export async function getMyTraining(personId: string): Promise<MyTrainingRow[]> {
   const supabase = await createClient();
-  const [{ data: courses }, { data: records }] = await Promise.all([
+  const [{ data: courses }, { data: records }, { data: me }] = await Promise.all([
     supabase
       .from("training_courses")
-      .select("id, name, renewal_months, mandatory, is_safeguarding, amber_days, sort_order, active")
+      .select("id, name, renewal_months, mandatory, is_safeguarding, amber_days, sort_order, active, job_titles")
       .eq("active", true)
       .order("sort_order", { ascending: true }),
     supabase
       .from("person_training")
       .select("id, person_id, course_id, status, completed_on, expiry_on, certificate_path, booked_for")
       .eq("person_id", personId),
+    /* Their job title, because a course can belong to certain titles (migration 0281). A care
+       assistant looking at her own training must not be shown four supervisor courses as
+       outstanding: this page is the one place the person being chased can look, and chasing
+       somebody for training that is not theirs is worse here than anywhere. */
+    supabase.from("people").select("job_title").eq("id", personId).maybeSingle(),
   ]);
 
   const byCourse = new Map<string, RecordRow>();
@@ -166,10 +173,14 @@ export async function getMyTraining(personId: string): Promise<MyTrainingRow[]> 
 
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
 
-  return ((courses as TrainingCourse[] | null) ?? []).map((course) => ({
-    courseId: course.id,
-    courseName: course.name,
-    mandatory: course.mandatory,
-    cell: cellFor(course, byCourse.get(course.id), today),
-  }));
+  const myTitle = (me as { job_title: string | null } | null)?.job_title ?? null;
+
+  return ((courses as TrainingCourse[] | null) ?? [])
+    .filter((course) => courseAppliesToTitle(course.job_titles, myTitle))
+    .map((course) => ({
+      courseId: course.id,
+      courseName: course.name,
+      mandatory: course.mandatory,
+      cell: cellFor(course, byCourse.get(course.id), today),
+    }));
 }

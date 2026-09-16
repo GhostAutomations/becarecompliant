@@ -50,6 +50,20 @@ function CourseRow({ course }: { course: TrainingCourse | null }) {
           className="max-w-[6rem]"
         />
       </div>
+      <div className="min-w-[14rem] flex-1">
+        {/* WHO IT IS FOR. Blank is everybody, which is what almost every course is. Named
+            titles scope it: Assessing Needs, Care Planning, Risk Assessment and Supervision
+            and Appraisal are supervisor and above (Phil, 2026-09-16), and before this they
+            sat red on every carer for training they are not meant to hold. */}
+        <label className="form-label">Job titles (blank = everyone)</label>
+        <input
+          name="job_titles"
+          type="text"
+          defaultValue={(course?.job_titles ?? []).join(", ")}
+          placeholder="Everyone"
+          className="w-full"
+        />
+      </div>
       <label className="flex items-center gap-2 pb-2 text-xs text-white/80">
         <input type="checkbox" name="mandatory" defaultChecked={course?.mandatory ?? true} />
         Mandatory
