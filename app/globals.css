@@ -595,6 +595,57 @@
 
   /* Compact select/input for dense grids (care plan, invoice lines). Keeps the
      canonical look but shorter, so rows do not feel chunky. */
+  /*
+   * FLUID DASHBOARD GRIDS — no breakpoints, on purpose.
+   *
+   * Phil, 2026-09-16: "i dont want it looking different or squashed for people, it needs to be
+   * perfect every time." He works on a 27 inch, the office is on 32 inch, some of the team are on
+   * 21 and 24, and the iPad Pro 13 is 1366 wide. That is a continuous range, and the old layout
+   * answered it with hand-placed twelfths that changed at 1024, 1280 and 1536.
+   *
+   * THE BUG THAT PROVED THE APPROACH WRONG: the wide arrangement switched on at 1280 but needed
+   * about 1500 to fit, because a fixed 21rem panel took its width first and each tile refused to
+   * go under 19rem. Everything from 1280 to 1500 was broken BY CONSTRUCTION, and the iPad landed
+   * in the middle of it. A narrower screen genuinely looked better than a wider one.
+   *
+   * auto-fit + minmax removes the question. The browser fits as many columns as the width allows
+   * and shares what is left equally: four across on the iPad, six on a 27 inch, nine on a 32
+   * inch, and every width in between resolves to one of those without a number being guessed.
+   * Nothing is ever squashed, because a track can never be narrower than the min.
+   *
+   * There is no max-width and no height stretching, both Phil's calls: the page takes the width
+   * it is given and is as tall as its content.
+   */
+  .dash-grid {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  }
+
+  /* For panels carrying tables and lists rather than one figure: a wider floor, so a branch
+     table is never wrapped into a column it cannot be read in. */
+  .dash-grid-wide {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(auto-fit, minmax(21rem, 1fr));
+  }
+
+  /*
+   * Two tracks for the cards that carry sentences or a five day strip rather than one number.
+   *
+   * ONE track below 768px, because a two track span in a one track grid overflows the screen,
+   * and that is the failure the whole rewrite is meant to end. Above it the grid always has at
+   * least two tracks, so the span is always affordable.
+   */
+  .dash-span-2 {
+    grid-column: span 1 / span 1;
+  }
+  @media (min-width: 768px) {
+    .dash-span-2 {
+      grid-column: span 2 / span 2;
+    }
+  }
+
   .ctl-sm {
     @apply rounded-lg px-2.5 py-1 text-sm leading-tight;
   }
