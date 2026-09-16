@@ -1148,22 +1148,21 @@ export async function setBranchServiceUserType(formData: FormData): Promise<void
     .eq("id", branchId);
   if (error) return;
 
-  // Re-anchor every Service User's Care Plan Review due date in this branch. Both modes
-  // now run on the SAME cadence - the Care Plan Review's own interval - so switching type
-  // changes only how the register draws it. The re-anchor stays because the register
-  // slots recompute from the completion history and this keeps the RAG rollup correct.
-  const { data: def } = await supabase
-    .from("check_definitions")
-    .select("interval")
-    .eq("company_id", profile.company_id ?? "")
-    .eq("population", "service_users")
-    .eq("key", "care_plan_review")
-    .maybeSingle();
-  const intervalDays = (def?.interval as number | null) ?? 90;
-  await supabase.rpc("reschedule_branch_reviews", {
-    p_branch_id: branchId,
-    p_interval_days: intervalDays,
-  });
+  /*
+   * NOTHING IS RE-DATED (Phil, 2026-09-16). This used to call reschedule_branch_reviews,
+   * re-anchoring every Care Plan Review in the branch to "last completion + interval".
+   *
+   * Both modes already run on the SAME cadence - the Care Plan Review's own interval - so
+   * switching type changes only how the register DRAWS the reviews. Re-dating them was
+   * therefore never necessary, and once a company could import its own due dates it became
+   * destructive: switching Cardiff to Complex moved a service user's next review from the
+   * 24 December their own board said to a calculated 5 October, silently, as a side effect
+   * of changing a display setting. A setting that changes how something is drawn must not
+   * change what it says.
+   *
+   * The register's slots read the stored dates now (see reviewSlots), so the RAG rollup the
+   * old re-anchor was protecting stays correct without it.
+   */
 
   await writeAudit({
     companyId: profile.company_id ?? "",
@@ -1174,7 +1173,7 @@ export async function setBranchServiceUserType(formData: FormData): Promise<void
     entityType: "branch",
     entityId: branchId,
     summary: `Set Service User type to ${type}`,
-    metadata: { type, interval_days: intervalDays },
+    metadata: { type },
   });
 
   revalidatePath("/settings/service-users");

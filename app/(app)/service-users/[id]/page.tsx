@@ -147,11 +147,21 @@ export default async function ServiceUserPage({
   // Complex branches run four rolling reviews (Review 1-4), shown as slot cards like
   // People's Supervision. Simple branches keep the single review card.
   const isComplex = branchType.isComplex;
-  const reviewComps = isComplex
+  const reviewHistory = isComplex
     ? await getReviewComps(id, reviewDef?.form_id ?? null, reviewDef?.id ?? null)
-    : [];
+    : { comps: [] as string[], dueByComp: new Map<string, string>() };
+  const reviewComps = reviewHistory.comps;
   const slots = isComplex
-    ? reviewSlots(serviceUser.package_start_date, reviewComps, reviewInterval)
+    ? reviewSlots(
+        serviceUser.package_start_date,
+        reviewComps,
+        reviewInterval,
+        undefined,
+        undefined,
+        undefined,
+        // What the company's own records said, which beats our arithmetic.
+        { dueByComp: reviewHistory.dueByComp, openDue: newReviewDue },
+      )
     : [];
   // Reviews are completed in order, so only the next outstanding slot can be completed.
   const nextReviewN = slots.find((s) => !s.comp)?.n ?? null;

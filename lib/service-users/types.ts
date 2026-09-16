@@ -123,6 +123,9 @@ export type ServiceUserRow = {
   statusByKey: Record<string, SuCheckStatus>;
   tracker: ServiceUserTracker | null;
   reviewComps: string[];
+  /** completion date -> the date it was DUE, where the company's own records said so.
+   *  Empty for a company that never imported, which then falls back to the interval. */
+  reviewDueByComp: ReadonlyMap<string, string>;
 };
 
 /** The Service User register columns that can be given a shorthand label in

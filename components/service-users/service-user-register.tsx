@@ -398,7 +398,16 @@ export default function ServiceUserRegister({
                         </td>
                         {isComplex ? (
                           (() => {
-                            const slots = reviewSlots(su.package_start_date, row.reviewComps, reviewIntervalDays);
+                            const slots = reviewSlots(
+                              su.package_start_date,
+                              row.reviewComps,
+                              reviewIntervalDays,
+                              undefined,
+                              undefined,
+                              undefined,
+                              // What the company's own records said, which beats our arithmetic.
+                              { dueByComp: row.reviewDueByComp, openDue: review?.due_date ?? null },
+                            );
                             return (
                               <>
                                 {slots.map((s) => (

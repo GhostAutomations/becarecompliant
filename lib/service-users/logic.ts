@@ -107,6 +107,26 @@ export function reviewSlots(
   count = 4,
   amberDays = DEFAULT_AMBER_DAYS,
   today: CivilDate = todayInLondon(),
+  /**
+   * WHAT WE WERE TOLD, where we were told it.
+   *
+   * `known.dueByComp` maps a completion date to the date it was actually due, and
+   * `known.openDue` is the outstanding review's own stored due date. Both come from the
+   * company's own records - an import that carried them, in practice - and both BEAT the
+   * arithmetic below.
+   *
+   * Why they have to (Phil, 2026-09-16: "there seems to be a lot of data missing"). This
+   * function used to derive every due date from the completion before it, which has two
+   * consequences on imported history. Slots past the active one got NO due date at all, so
+   * three of the four Due columns were blank on every row. And where a company's own next
+   * review date disagreed with our interval, we showed ours: one Cardiff service user was
+   * due 24 December on their board and 5 October here, and the register is the thing the
+   * office works from.
+   *
+   * Derivation stays as the fallback, because a company that never imported has nothing
+   * else, and because it is right whenever the interval was actually followed.
+   */
+  known: { dueByComp?: ReadonlyMap<string, string>; openDue?: string | null } = {},
 ): ReviewSlot[] {
   const slots: ReviewSlot[] = [];
   const valid = (d: string | null | undefined): d is string => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d);
@@ -114,11 +134,17 @@ export function reviewSlots(
   const comps = orderedComps.filter(valid).slice().sort();
   const n = comps.length;
   const addI = (d: string) => formatCivilDate(addInterval(parseCivilDate(d), "day", interval));
-  // The due a completion was measured against = the previous completion (or package
-  // start for the very first) + interval; used to colour it on time (green) / late (red).
-  const lateOf = (k: number): boolean => {
+  /** The date this completion was due: what we were told, else the interval arithmetic. */
+  const dueFor = (k: number): string | null => {
+    const stored = known.dueByComp?.get(comps[k]);
+    if (valid(stored)) return stored;
     const anchor = k === 0 ? packageStart : comps[k - 1];
-    return valid(anchor) ? comps[k] > addI(anchor) : false;
+    return valid(anchor) ? addI(anchor) : null;
+  };
+  // On time (green) or late (red), measured against whichever due date we just settled on.
+  const lateOf = (k: number): boolean => {
+    const due = dueFor(k);
+    return valid(due) ? comps[k] > due : false;
   };
   // Display model (Phil, 2026-07-18): the next review to do is the active slot (after a
   // full cycle it is slot 1 again, restarting). Slots BEFORE it are this cycle's
@@ -138,16 +164,30 @@ export function reviewSlots(
     if (i < activeSlot) {
       const k = cycleBase + (i - 1);
       comp = comps[k] ?? null;
-      const anchor = i === 1 ? cycleAnchor : comps[cycleBase + i - 2];
-      due = valid(anchor) ? addI(anchor) : null;
+      if (comp) due = dueFor(k);
+      else {
+        const anchor = i === 1 ? cycleAnchor : comps[cycleBase + i - 2];
+        due = valid(anchor) ? addI(anchor) : null;
+      }
       rag = comp ? (lateOf(k) ? "red" : "green") : "none";
     } else if (i === activeSlot) {
-      const anchor = n > 0 ? comps[n - 1] : packageStart;
-      due = valid(anchor) ? addI(anchor) : null;
+      // The outstanding review's date is STORED on the check, so it is the one the whole
+      // app already agrees on: the rollup, the digest and the Review Status all read it.
+      if (valid(known.openDue)) due = known.openDue;
+      else {
+        const anchor = n > 0 ? comps[n - 1] : packageStart;
+        due = valid(anchor) ? addI(anchor) : null;
+      }
       rag = due ? ragStatus(parseCivilDate(due), today, amberDays) : "none";
     } else {
       const k = histIndex(i);
       comp = k >= 0 ? comps[k] : null;
+      /* A PREVIOUS CYCLE'S COMPLETION KEEPS ITS OWN DEADLINE when we were told it. It used
+         to show blank here, which read as "no due date" when the truth was "we never
+         looked it up". Derivation is deliberately NOT used as a fallback in this branch:
+         for a slot this old the previous completion is a cycle away and the arithmetic
+         would invent a deadline nobody ever worked to. */
+      due = comp ? (known.dueByComp?.get(comp) ?? null) : null;
       rag = comp ? (lateOf(k) ? "red" : "green") : "none";
     }
     slots.push({ n: i, due, comp, rag });

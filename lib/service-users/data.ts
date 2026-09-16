@@ -493,11 +493,15 @@ export async function listRegister(
     reviewDefId
       ? supabase
           .from("migrated_completions")
-          .select("record_id, completed_on")
+          // due_on: the date that completion was DUE, when the import supplied it. Without
+          // it the Complex register had to invent every historical deadline.
+          .select("record_id, completed_on, due_on")
           .eq("record_type", "service_user")
           .eq("definition_id", reviewDefId)
           .in("record_id", ids)
-      : Promise.resolve({ data: [] as Array<{ record_id: string; completed_on: string }> }),
+      : Promise.resolve({
+          data: [] as Array<{ record_id: string; completed_on: string; due_on: string | null }>,
+        }),
   ]);
 
   // ALL Care Plan Review completion dates per Service User (oldest first), used to
@@ -524,11 +528,22 @@ export async function listRegister(
     list.push(iso);
     reviewCompsBySu.set(e.record_id, list);
   }
-  // Merge migrated review history (imported companies) alongside real evidence.
-  for (const m of (reviewMigrated as Array<{ record_id: string; completed_on: string }>) ?? []) {
+  // Merge migrated review history (imported companies) alongside real evidence, keeping
+  // the date each one was due where the import carried it.
+  const reviewDueBySu = new Map<string, Map<string, string>>();
+  for (const m of (reviewMigrated as Array<{
+    record_id: string;
+    completed_on: string;
+    due_on: string | null;
+  }>) ?? []) {
     const list = reviewCompsBySu.get(m.record_id) ?? [];
     list.push(m.completed_on);
     reviewCompsBySu.set(m.record_id, list);
+    if (m.due_on) {
+      const dues = reviewDueBySu.get(m.record_id) ?? new Map<string, string>();
+      dues.set(m.completed_on, m.due_on);
+      reviewDueBySu.set(m.record_id, dues);
+    }
   }
   // Keep each list in completion-date order.
   for (const [, list] of reviewCompsBySu) list.sort();
@@ -572,6 +587,7 @@ export async function listRegister(
     statusByKey: statusByKeyBySu.get(service_user.id) ?? {},
     tracker: trackerBySu.get(service_user.id) ?? null,
     reviewComps: reviewCompsBySu.get(service_user.id) ?? [],
+    reviewDueByComp: reviewDueBySu.get(service_user.id) ?? new Map<string, string>(),
   }));
 
   return { definitions, rows };
@@ -614,9 +630,12 @@ export async function getReviewComps(
   serviceUserId: string,
   reviewFormId: string | null,
   reviewDefId: string | null = null,
-): Promise<string[]> {
+): Promise<{ comps: string[]; dueByComp: Map<string, string> }> {
   const supabase = await createClient();
   const out: string[] = [];
+  // completion -> the date it was due, where the import carried one. Real evidence has no
+  // stored due date, so those fall back to the interval, exactly as before.
+  const dueByComp = new Map<string, string>();
   if (reviewFormId) {
     const { data } = await supabase
       .from("evidence")
@@ -639,13 +658,16 @@ export async function getReviewComps(
   if (reviewDefId) {
     const { data } = await supabase
       .from("migrated_completions")
-      .select("completed_on")
+      .select("completed_on, due_on")
       .eq("record_type", "service_user")
       .eq("record_id", serviceUserId)
       .eq("definition_id", reviewDefId);
-    for (const m of (data as Array<{ completed_on: string }>) ?? []) out.push(m.completed_on);
+    for (const m of (data as Array<{ completed_on: string; due_on: string | null }>) ?? []) {
+      out.push(m.completed_on);
+      if (m.due_on) dueByComp.set(m.completed_on, m.due_on);
+    }
   }
-  return out.sort();
+  return { comps: out.sort(), dueByComp };
 }
 
 /** Is a Service User on a Complex branch, and the company Complex review interval. */
