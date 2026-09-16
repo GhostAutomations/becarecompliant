@@ -29,9 +29,9 @@ export default async function ImportPage() {
         <div>
           <h2 className="text-sm font-semibold text-white/80">Step 1. Download a template</h2>
           <p className="mt-1 text-sm text-white/60">
-            The template is built from your own checks, with a column for each of the
-            last completed dates. You only enter completed dates: every next due date
-            is calculated for you.
+            The template is built from your own checks, with a pair of columns for each
+            one: the date it was due and the date it was done. Fill in both if you have
+            both. Any due date you leave blank, we calculate.
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -98,14 +98,24 @@ export default async function ImportPage() {
           <li>One row per person or service user. Columns marked * are required.</li>
           <li>Dates are day/month/year, for example 04/03/2026.</li>
           <li>
-            Most checks have a single column: enter the most recent completed date.
+            Most checks have a pair of columns: the date it was due and the date it was
+            done. Enter the most recent.
           </li>
           <li>
-            Supervision and Care Plan Review have several columns for their history.
-            Put the most recent in column 1, then work backwards (2, 3 and so on).
-            Leave the rest blank.
+            Supervision and Care Plan Review have several pairs for their history. Put the
+            most recent in column 1, then work backwards (2, 3 and so on). Leave the rest
+            blank.
           </li>
-          <li>Leave a check blank if it has never been done: it will start as due.</li>
+          <li>
+            A recurring check also has a <span className="text-white/90">next due date</span>{" "}
+            column. Fill it in when your own system already says when the next one falls
+            due, and we will use your date rather than ours. Leave it blank and we work it
+            out from the last completed date.
+          </li>
+          <li>
+            Leave a check blank if it has never been done: it will start as due. Filling in
+            only its next due date schedules it without claiming it was ever done.
+          </li>
           <li>
             The Branch column must exactly match one of your branches:{" "}
             <span className="text-white/90">

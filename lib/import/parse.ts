@@ -5,6 +5,9 @@ import "server-only";
  * Parses the uploaded CSV against the shared column plan, resolves branches,
  * parses dates (DD/MM/YYYY or YYYY-MM-DD), and flags duplicates so the preview can
  * show exactly what will happen before anything is committed.
+ *
+ * Each check reads as (due, completed) PAIRS plus an optional next due, so a migration
+ * reproduces the history it came from instead of re-deriving it from our own rules.
  */
 
 import { createClient } from "@/lib/supabase/server";
@@ -21,7 +24,17 @@ export type ParsedRow = {
   branchId: string | null;
   fields: Record<string, string | null>;
   docs: Record<string, string | null>;
-  checks: Array<{ definitionId: string; name: string; dates: string[] }>;
+  checks: Array<{
+    definitionId: string;
+    name: string;
+    /** Completion dates, newest first. */
+    dates: string[];
+    /** The date each completion was DUE, aligned with `dates`. Absent on the training
+     *  importer, which has no due dates of its own. */
+    dues?: Array<string | null>;
+    /** The open check's due date as SUPPLIED, which beats the calculated one. */
+    nextDue?: string | null;
+  }>;
   status: "new" | "duplicate" | "error";
   errors: string[];
 };
@@ -199,17 +212,54 @@ export async function validateImport(
       } else docs[d.column] = raw;
     }
 
-    // Check completion dates: parse each column, keep valid dates newest-first.
+    /*
+     * CHECK DATES. Each slot is a PAIR: the date it was due and the date it was done, kept
+     * together so the pair survives the sort. Sorting the two columns independently is how
+     * a completion ends up wearing another completion's deadline.
+     *
+     * A ONE OFF has no next due column, because it has exactly one instance ever: its due
+     * date IS the record's due date, done or not. A recurring check takes the open date
+     * from its own "next due date" column, and falls back to the calculated one when that
+     * is blank, so a sheet that ignores the new columns behaves exactly as before.
+     */
+    const readDate = (h: string): string | null => {
+      const iso = toIso(cell(cols, h));
+      if (iso === "INVALID") {
+        errors.push(`${h} is not a valid date (use DD/MM/YYYY).`);
+        return null;
+      }
+      return iso;
+    };
+
     const checks: ParsedRow["checks"] = [];
     for (const c of plan.checks) {
-      const dates: string[] = [];
-      for (const h of c.headers) {
-        const iso = toIso(cell(cols, h));
-        if (iso === "INVALID") errors.push(`${h} is not a valid date (use DD/MM/YYYY).`);
-        else if (iso) dates.push(iso);
+      const pairs: Array<{ done: string; due: string | null }> = [];
+      for (const slot of c.slots) {
+        const due = readDate(slot.dueHeader);
+        const done = readDate(slot.doneHeader);
+        if (done) pairs.push({ done, due });
       }
-      const unique = Array.from(new Set(dates)).sort((a, b) => (a < b ? 1 : -1));
-      if (unique.length > 0) checks.push({ definitionId: c.definitionId, name: c.name, dates: unique });
+      pairs.sort((a, b) => (a.done < b.done ? 1 : a.done > b.done ? -1 : 0));
+
+      // The same completion twice is one completion. Keep the first, which is the one
+      // whose due date we already read.
+      const seen = new Set<string>();
+      const dates: string[] = [];
+      const dues: Array<string | null> = [];
+      for (const pr of pairs) {
+        if (seen.has(pr.done)) continue;
+        seen.add(pr.done);
+        dates.push(pr.done);
+        dues.push(pr.due);
+      }
+
+      const nextDue = c.nextDueHeader
+        ? readDate(c.nextDueHeader)
+        : readDate(c.slots[0].dueHeader);
+
+      if (dates.length > 0 || nextDue) {
+        checks.push({ definitionId: c.definitionId, name: c.name, dates, dues, nextDue });
+      }
     }
 
     // Duplicate detection: within the file and against existing records.

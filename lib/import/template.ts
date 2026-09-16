@@ -3,8 +3,10 @@ import "server-only";
 /**
  * Be Care Compliant — bulk onboarding import: CSV template generation.
  * The columns come from the shared column plan (lib/import/columns) so the template
- * and the parser stay in lock-step. Only completed dates are collected (DD/MM/YYYY);
- * the recurrence engine calculates every next-due.
+ * and the parser stay in lock-step. Every check contributes a (due, completed) pair per
+ * remembered completion (DD/MM/YYYY), and a recurring one also a "next due date". A due
+ * date left blank is calculated by the recurrence engine, which is how this behaved
+ * before the due columns existed.
  */
 
 import { buildColumnPlan } from "./columns";

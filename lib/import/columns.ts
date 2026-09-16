@@ -10,37 +10,11 @@ import "server-only";
  */
 
 import { createClient } from "@/lib/supabase/server";
+/* The header shapes live in an importless module so they can be unit tested without a
+   database. See that file for why every completion now carries a due date beside it. */
+import { HISTORY_CAP, checkHeaderPlan, intervalDays, type CheckSlot } from "./check-columns";
 
-export const HISTORY_CAP = 8;
-const HISTORY_KEYS = new Set(["supervision", "care_plan_review"]);
-
-export function intervalDays(frequency: string | null, interval: number | null): number {
-  const n = interval && interval > 0 ? interval : 0;
-  switch (frequency) {
-    case "week":
-      return n * 7;
-    case "month":
-      return n * 30;
-    case "year":
-      return n * 365;
-    default:
-      return n;
-  }
-}
-
-/** Column headers for one check (1 = most recent for the multi-history checks). */
-export function checkHeaders(
-  key: string,
-  name: string,
-  recurring: boolean,
-  days: number,
-): string[] {
-  if (recurring && days > 0 && HISTORY_KEYS.has(key)) {
-    const n = Math.min(Math.max(1, Math.ceil(730 / days)), HISTORY_CAP);
-    if (n > 1) return Array.from({ length: n }, (_, i) => `${name} ${i + 1}`);
-  }
-  return [`${name} completed date`];
-}
+export { HISTORY_CAP, intervalDays };
 
 export type IdentityField = {
   header: string;
@@ -53,6 +27,11 @@ export type CheckColumn = {
   definitionId: string;
   key: string;
   name: string;
+  /** The open check's due date, supplied instead of calculated. Null for a one off. */
+  nextDueHeader: string | null;
+  /** One (due, completed) pair per remembered completion, newest first. */
+  slots: CheckSlot[];
+  /** Every header this check contributes, in file order. */
   headers: string[];
 };
 
@@ -113,12 +92,10 @@ export async function buildColumnPlan(
     recurring: boolean;
     frequency: string | null;
     interval: number | null;
-  }> | null) ?? []).map((d) => ({
-    definitionId: d.id,
-    key: d.key,
-    name: d.name,
-    headers: checkHeaders(d.key, d.name, d.recurring, intervalDays(d.frequency, d.interval)),
-  }));
+  }> | null) ?? []).map((d) => {
+    const plan = checkHeaderPlan(d.key, d.name, d.recurring, intervalDays(d.frequency, d.interval));
+    return { definitionId: d.id, key: d.key, name: d.name, ...plan };
+  });
 
   const identity = population === "people" ? PEOPLE_IDENTITY : SU_IDENTITY;
   const documents = population === "people" ? PEOPLE_DOCUMENTS : [];

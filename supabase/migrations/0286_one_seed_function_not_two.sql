@@ -1,0 +1,22 @@
+-- ONE SEED FUNCTION, NOT TWO.
+--
+-- MY MISTAKE, and what it cost. Migration 0285 added p_due_on with a DEFAULT and used
+-- CREATE OR REPLACE. A different argument list is a different function in Postgres, so that
+-- did not replace anything: it created an OVERLOAD. From that moment a six argument call -
+-- which is every call the deployed app makes - matched the old function exactly AND the new
+-- one through its default, and Postgres refused it as ambiguous.
+--
+-- The first real service user import ran straight into it: twelve records created, and not
+-- one completion date seeded, because lib/import/commit.ts never looked at the rpc result.
+-- Phil found it in thirty seconds by opening the register - "there is nothing in Setup Visit
+-- Completed but there is in monday" - which the import had just told him had worked.
+--
+-- Dropping the six argument version leaves one function. The default then serves the old
+-- callers, which is what 0285 intended in the first place.
+--
+-- The lesson worth keeping: adding a defaulted argument to an existing function is never a
+-- replace. Drop the old signature in the same migration or do not change the signature.
+--
+-- Applied to the becarecompliant project ONLY (ref bgrtcvyjuwopunpnudeu).
+
+drop function if exists public.seed_migrated_completion(text, uuid, uuid, date, date, boolean);

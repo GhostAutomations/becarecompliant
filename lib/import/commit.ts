@@ -7,7 +7,10 @@ import "server-only";
  * as the one-at-a-time flow), stamp tracker/document dates, then seed each check's
  * completed dates via seed_migrated_completion (newest date advances the check with
  * a recurrence-calculated next due and no evidence = "migrated, no form on file";
- * older dates are recorded as history). Existing rows are skipped and errored rows
+ * older dates are recorded as history, each with the date it was due). A due date the
+ * sheet supplies beats the calculated one, for the open instance and for every historical
+ * completion: a migration reproduces a history rather than re-deriving it. Existing rows
+ * are skipped and errored rows
  * are reported (both surfaced in the in-app summary + admin email). Checks that
  * legitimately carry no due date (e.g. an appraisal scheduled off the supervision
  * cycle) are left as-is, not flagged, since that is normal for this company.
@@ -42,6 +45,10 @@ export type CommitResult = { created: number } & ImportFlags & {
   policiesGiven?: number;
   /** People we could not invite, so a Manager can follow them up. */
   inviteFailed?: Array<{ name: string; error: string }>;
+  /** Dates the database refused AFTER the record was created. Reported loudly: the whole
+   *  point of an import is the history, and a run that creates twelve records and seeds no
+   *  dates must never read as a clean import (2026-09-16). */
+  dateFailed?: Array<{ name: string; error: string }>;
 };
 
 /** Seed a record's migrated check dates. The newest date advances the check (with a
@@ -55,23 +62,49 @@ async function seedRowChecks(
   row: ParsedRow,
   defById: Map<string, CheckDefinition>,
   supInterval: number,
-): Promise<void> {
+): Promise<string[]> {
+  /* EVERY rpc RESULT IS READ. This used to fire and forget, and on 2026-09-16 an ambiguous
+     function signature made every one of these calls fail while the import went on to
+     report twelve records created. A write whose result nobody looks at is a write that can
+     stop happening without anybody being told. */
+  const failures: string[] = [];
   for (const c of row.checks) {
     const def = defById.get(c.definitionId);
     if (!def || c.dates.length === 0) continue;
-    // c.dates is newest-first. The newest advances the check; all are kept as history.
-    const { nextDue } = nextDueAfterCompletion(def, {}, supInterval, parseCivilDate(c.dates[0]));
+    /* THE SUPPLIED DUE DATE WINS. A migration is copying a history, not deriving one: if
+       the sheet says the next review is due on a date our recurrence rule disagrees with,
+       the sheet is right, because that is the date the office is working to. With nothing
+       supplied we calculate exactly as before. */
+    const nextDue =
+      c.nextDue ?? nextDueAfterCompletion(def, {}, supInterval, parseCivilDate(c.dates[0])).nextDue;
     for (let i = 0; i < c.dates.length; i++) {
-      await supabase.rpc("seed_migrated_completion", {
+      const { error } = await supabase.rpc("seed_migrated_completion", {
         p_record_type: recordType,
         p_record_id: recordId,
         p_definition_id: def.id,
         p_completed_on: c.dates[i],
+        p_due_on: c.dues?.[i] ?? null,
         p_next_due: i === 0 ? nextDue : null,
         p_is_latest: i === 0,
       });
+      // One sentence per check, not per date: thirteen identical messages tell nobody more
+      // than one does.
+      if (error) {
+        failures.push(`${c.name}: ${error.message}`);
+        break;
+      }
     }
   }
+  return failures;
+}
+
+/** The due date the sheet supplied for each check, by definition id. Used for the OPEN
+ *  instance, including for a check the sheet scheduled but never completed - which is a
+ *  real state (a first review that has not happened yet) and used to import as blank. */
+function suppliedDueByDefinition(row: ParsedRow): Map<string, string> {
+  const m = new Map<string, string>();
+  for (const c of row.checks) if (c.nextDue) m.set(c.definitionId, c.nextDue);
+  return m;
 }
 
 export async function commitPeople(
@@ -98,6 +131,7 @@ export async function commitPeople(
   let notInvited = 0;
   let policiesGiven = 0;
   const inviteFailed: Array<{ name: string; error: string }> = [];
+  const dateFailed: Array<{ name: string; error: string }> = [];
   const flags: ImportFlags = { skipped: [], errored: [] };
 
   for (const row of rows) {
@@ -136,9 +170,10 @@ export async function commitPeople(
       continue;
     }
 
+    const suppliedDue = suppliedDueByDefinition(row);
     const applyRows = defs.map((def) => ({
       definition_id: def.id,
-      due_date: peopleInitialDue(def, row.fields.start_date ?? null),
+      due_date: suppliedDue.get(def.id) ?? peopleInitialDue(def, row.fields.start_date ?? null),
       expiry_date: null,
     }));
     await supabase.rpc("apply_person_checks", { p_person_id: person.id, p_rows: applyRows });
@@ -149,7 +184,8 @@ export async function commitPeople(
       await supabase.from("person_trackers").update(patch).eq("person_id", person.id);
     }
 
-    await seedRowChecks(supabase, "person", person.id, row, defById, supInterval);
+    const seedErrors = await seedRowChecks(supabase, "person", person.id, row, defById, supInterval);
+    for (const e of seedErrors) dateFailed.push({ name: label, error: e });
     created += 1;
 
     // Their Team Member login goes out as the import completes (Phil, 2026-07-26).
@@ -168,7 +204,7 @@ export async function commitPeople(
       else if (!res.ok) inviteFailed.push({ name: label, error: res.error ?? "unknown" });
     }
   }
-  return { created, ...flags, invited, notInvited, policiesGiven, inviteFailed };
+  return { created, ...flags, invited, notInvited, policiesGiven, inviteFailed, dateFailed };
 }
 
 export async function commitServiceUsers(
@@ -181,6 +217,7 @@ export async function commitServiceUsers(
   const defById = new Map(defs.map((d) => [d.id, d]));
 
   let created = 0;
+  const dateFailed: Array<{ name: string; error: string }> = [];
   const flags: ImportFlags = { skipped: [], errored: [] };
 
   for (const row of rows) {
@@ -215,15 +252,17 @@ export async function commitServiceUsers(
       continue;
     }
 
+    const suppliedDue = suppliedDueByDefinition(row);
     const applyRows = defs.map((def) => ({
       definition_id: def.id,
-      due_date: suInitialDue(def, row.fields.package_start_date ?? null),
+      due_date: suppliedDue.get(def.id) ?? suInitialDue(def, row.fields.package_start_date ?? null),
       expiry_date: null,
     }));
     await supabase.rpc("apply_service_user_checks", { p_service_user_id: su.id, p_rows: applyRows });
 
-    await seedRowChecks(supabase, "service_user", su.id, row, defById, 90);
+    const seedErrors = await seedRowChecks(supabase, "service_user", su.id, row, defById, 90);
+    for (const e of seedErrors) dateFailed.push({ name: label, error: e });
     created += 1;
   }
-  return { created, ...flags };
+  return { created, ...flags, dateFailed };
 }

@@ -89,7 +89,11 @@ export async function commitImportAction(
     skipped: result.skipped,
     errored: result.errored,
   };
-  const flagCount = flags.skipped.length + flags.errored.length;
+  /* A DATE THE DATABASE REFUSED IS A FLAG, not a footnote. The record exists but its
+     history does not, which is the worst of the three outcomes because the register looks
+     populated. It counts towards the summary email for exactly that reason. */
+  const dateFailed = result.dateFailed ?? [];
+  const flagCount = flags.skipped.length + flags.errored.length + dateFailed.length;
 
   await writeAudit({
     companyId: profile.company_id,
@@ -108,6 +112,7 @@ export async function commitImportAction(
       not_invited: result.notInvited ?? 0,
       logins_held: holdEmail,
       invite_failed: result.inviteFailed?.length ?? 0,
+      dates_failed: dateFailed.length,
     },
   });
 
@@ -125,7 +130,13 @@ export async function commitImportAction(
       companyName: (co?.name as string | null) ?? "your company",
       population: pop,
       created: result.created,
-      flags,
+      flags: {
+        ...flags,
+        errored: [
+          ...flags.errored,
+          ...dateFailed.map((d) => ({ name: d.name, errors: [`Dates not saved. ${d.error}`] })),
+        ],
+      },
     });
     if (!resendConfigured()) {
       emailNote = "Summary email not sent: email is not set up for this environment yet.";
@@ -155,6 +166,12 @@ export async function commitImportAction(
   }
   if (flags.skipped.length) parts.push(`skipped ${flags.skipped.length} existing`);
   if (flags.errored.length) parts.push(`${flags.errored.length} could not be added`);
+  if (dateFailed.length) {
+    const names = Array.from(new Set(dateFailed.map((d) => d.name)));
+    parts.push(
+      `${names.length} ${names.length === 1 ? "record" : "records"} were created but their dates could not be saved (${dateFailed[0].error})`,
+    );
+  }
   return { ok: true, message: `${parts.join(", ")}.`, flags, emailNote };
 }
 
