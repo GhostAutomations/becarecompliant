@@ -140,11 +140,17 @@ export default function PeopleRegister({
         ) : null}
       </div>
 
+      {/* THE PAGE TOOLBAR IS NOT A REGISTER ROW. These two used inline-cell, which is the
+          dense in grid control: 26px tall, 12px type, made to sit inside a matrix cell. Up
+          here it shared a row with a 42px search box and a 42px Columns button, so the two
+          things you actually filter by were the smallest controls on the line, and half the
+          size of the identical pair on Training. Same fix on the Service Users register and
+          on both view navs (Phil, 2026-09-16). */}
       <div className="flex flex-wrap items-center gap-4">
         {branchOptions.length > 1 ? (
           <label className="flex items-center gap-2 text-sm font-bold text-white">
             Branches
-            <select className="inline-cell" value={branchId} onChange={(e) => changeBranch(e.target.value)}>
+            <select className="w-48" value={branchId} onChange={(e) => changeBranch(e.target.value)}>
               <option value="">All branches</option>
               {branchOptions.map((b) => (
                 <option key={b.id} value={b.id}>{b.name}</option>
@@ -155,7 +161,7 @@ export default function PeopleRegister({
 
         <label className="flex items-center gap-2 text-sm font-bold text-white">
           View
-          <select className="inline-cell" value={view} onChange={(e) => changeView(e.target.value)}>
+          <select className="w-44" value={view} onChange={(e) => changeView(e.target.value)}>
             <option value="main">Matrix</option>
             <option value="summary">Compliance</option>
             <option value="leavers">Leavers</option>

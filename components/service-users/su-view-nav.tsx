@@ -52,7 +52,7 @@ export default function SuViewNav({
         <label className="flex items-center gap-2 text-sm font-bold text-white">
           Branches
           <select
-            className="inline-cell"
+            className="w-48"
             value={shownBranch}
             onChange={(e) => {
               setPendingBranch(e.target.value);
@@ -70,7 +70,7 @@ export default function SuViewNav({
       <label className="flex items-center gap-2 text-sm font-bold text-white">
         View
         <select
-          className="inline-cell"
+          className="w-44"
           value={shownView}
           onChange={(e) => {
             setPendingView(e.target.value);

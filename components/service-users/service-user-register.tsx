@@ -216,7 +216,7 @@ export default function ServiceUserRegister({
           ) : (
             <label className="flex items-center gap-2 text-sm font-bold text-white">
               Branches
-              <select className="inline-cell" value={branchId} onChange={(e) => changeBranch(e.target.value)}>
+              <select className="w-48" value={branchId} onChange={(e) => changeBranch(e.target.value)}>
                 {branchOptions.map((b) => (
                   <option key={b.id} value={b.id}>{b.name}</option>
                 ))}
@@ -227,7 +227,7 @@ export default function ServiceUserRegister({
 
         <label className="flex items-center gap-2 text-sm font-bold text-white">
           View
-          <select className="inline-cell" value={view} onChange={(e) => changeView(e.target.value)}>
+          <select className="w-44" value={view} onChange={(e) => changeView(e.target.value)}>
             <option value="main">Matrix</option>
             <option value="summary">Compliance</option>
             <option value="hospital">Hospital</option>
