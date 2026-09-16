@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { updatePerson } from "@/lib/people/actions";
 import { IDLE_STATE } from "@/lib/forms";
 import { useSavedFlash } from "@/lib/use-saved-flash";
@@ -21,10 +21,31 @@ export default function EditPersonForm({
   const eligible = users.filter((u) => canBeLineManager(u.role));
   const [state, formAction, pending] = useActionState(updatePerson, IDLE_STATE);
   const [saved, flash, reset] = useSavedFlash();
-  useEffect(() => { if (state.ok && !pending) flash(); }, [state, pending, flash]);
+  /*
+   * UNSAVED CHANGES, SAID OUT LOUD (Phil, 2026-09-16). This form shares the Manage record
+   * panel with two others, each with its own save. Changing the job title here and pressing
+   * one of THOSE saves writes their field and throws this one away without a word: the audit
+   * log recorded four working status saves in a row from somebody trying to change a job
+   * title who reported that nothing was happening. Nothing can stop a person pressing the
+   * wrong button, but a form that has been edited and not saved should say so.
+   */
+  const [dirty, setDirty] = useState(false);
+  useEffect(() => {
+    if (state.ok && !pending) {
+      flash();
+      setDirty(false);
+    }
+  }, [state, pending, flash]);
 
   return (
-    <form action={formAction} className="space-y-5" onChange={reset}>
+    <form
+      action={formAction}
+      className="space-y-5"
+      onChange={() => {
+        reset();
+        setDirty(true);
+      }}
+    >
       <input type="hidden" name="person_id" value={person.id} />
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="sm:col-span-2">
@@ -105,13 +126,18 @@ export default function EditPersonForm({
 
       {state.error ? <p className="form-error">{state.error}</p> : null}
 
-      <button
-        type="submit"
-        disabled={pending}
-        className={`btn ${saved ? "btn-saved" : "btn-primary"}`}
-      >
-        {pending ? "Saving…" : saved ? "Saved" : "Save details"}
-      </button>
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="submit"
+          disabled={pending}
+          className={`btn ${saved ? "btn-saved" : "btn-primary"}`}
+        >
+          {pending ? "Saving…" : saved ? "Saved" : "Save details"}
+        </button>
+        {dirty && !pending && !saved ? (
+          <span className="pill-amber">Unsaved changes</span>
+        ) : null}
+      </div>
     </form>
   );
 }

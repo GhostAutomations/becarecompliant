@@ -760,8 +760,24 @@ export default async function PersonPage({
       {/* Management */}
       {canManage ? (
         <PanelDialog title="Manage record">
+          {/*
+           * THREE FORMS, SAID OUT LOUD (Phil, 2026-09-16). This panel holds three independent
+           * actions with three save buttons, and nothing on screen said so. Changing the job
+           * title at the top and then pressing the save at the bottom saves the WORKING STATUS
+           * and silently discards the job title: four times in a row the audit log recorded
+           * "Set working status to active" for somebody who was trying to change a job title
+           * and reported that nothing was happening.
+           *
+           * Each one now says what its button saves and is fenced off from the next, so the
+           * button belonging to what you just edited is the one beside it.
+           */}
           <div className="space-y-6 border-t border-white/10 p-5">
-            <EditPersonForm person={person} users={users} jobTitles={jobTitles} />
+            <section>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-white/50">
+                Details
+              </h3>
+              <EditPersonForm person={person} users={users} jobTitles={jobTitles} />
+            </section>
 
             {/* TRANSFER ALONE. The Supervisors picker that used to sit beside it wrote to
                 person_assignments, a table migration 0078 abandoned: a Supervisor sees
@@ -769,8 +785,11 @@ export default async function PersonPage({
                 has read that table since. It was a control that looked like it decided who
                 could see a carer and decided nothing (Phil, 2026-09-08: "i dont think we
                 need Supervisor caseload"). */}
-            <div className="grid gap-5 sm:grid-cols-2">
+            <div className="grid gap-5 border-t border-white/10 pt-4 sm:grid-cols-2">
               <ActionForm action={transferPerson} hidden={{ person_id: person.id }} label="Transfer" buttonClassName="btn-outline text-xs">
+                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-white/50">
+                  Branch
+                </h3>
                 <label htmlFor="transfer_branch" className="form-label">Transfer to branch</label>
                 <select id="transfer_branch" name="branch_id" defaultValue={person.branch_id}>
                   {branchOptions.map((b) => (<option key={b.id} value={b.id}>{b.name}</option>))}
@@ -781,7 +800,12 @@ export default async function PersonPage({
 
             <div className="flex flex-wrap items-end gap-3 border-t border-white/10 pt-4">
               <ActionForm action={setEmploymentStatus} hidden={{ person_id: person.id }} inline label="Save status">
-                <label htmlFor="working_status" className="form-label">Working status</label>
+                <label htmlFor="working_status" className="form-label">
+                  Working status
+                  <span className="ml-2 font-normal text-white/40">
+                    (this button saves the status only)
+                  </span>
+                </label>
                 <select id="working_status" name="status" defaultValue={person.employment_status}>
                   {(Object.keys(WORKING_STATUS_LABELS) as EmploymentStatus[]).map((k) => (
                     <option key={k} value={k}>{WORKING_STATUS_LABELS[k]}</option>
