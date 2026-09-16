@@ -1138,60 +1138,6 @@ export default async function DashboardPage() {
             sub="includes the next 14 days"
           />
 
-          {/* On call is a CELL in the tile grid now. It used to sit outside the
-              tiles keeping a fixed 21rem, which is precisely what starved them: the panel took
-              its width first and the tiles divided what was left. Sharing the grid, it widens
-              and narrows with everything else. */}
-          {/* Hidden below manager level: those roles can never read on-call data, and
-              the old fallback message wrongly told a Supervisor the feature was off
-              (17 Aug QA). Manager-plus with the feature genuinely off keeps the honest
-              message below. */}
-          {companyWide ? (
-          <div>
-        {/* On call and Due in 14 days swapped (Phil, 2026-07-30): the urgent follow ups
-              belong at the top of the screen, in the four column slot that runs down both tile
-              rows. */}
-          <Panel
-            title={`${onCallName}: urgent follow ups`}
-            href="/on-call"
-          >
-          {!canSeeOnCall ? (
-            <p className="text-sm text-white/55">{onCallName} is not switched on for this company.</p>
-          ) : onCallUrgent.length === 0 ? (
-            <p className="text-sm text-white/55">Nothing urgent. Every call has been followed up.</p>
-          ) : (
-            /* FIVE, and NOT scrollable (Phil, 2026-07-30). The fifth row goes in the space that
-               was sitting empty at the bottom of the panel. The "View all" link in the corner is
-               the way to the rest. */
-            <ul className="space-y-2">
-              {onCallUrgent.slice(0, 5).map((u) => (
-                <li key={u.id}>
-                  <Link
-                    href={`/on-call/log/${u.id}`}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-white/10 px-3 py-2 transition hover:bg-white/[0.06]"
-                  >
-                    <span className="pill-amber shrink-0">
-                      <span className="pill-dot" /> Urgent
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-sm text-white/80">
-                      {shiftLabel(u.shift_date, u.slot)}
-                    </span>
-                    {u.branch_name ? (
-                      <span className="shrink-0 text-xs text-white/45">{u.branch_name}</span>
-                    ) : null}
-                  </Link>
-                </li>
-              ))}
-              {onCallUrgent.length > 5 ? (
-                <li className="pt-0.5 text-[11px] text-white/45">
-                  {onCallUrgent.length - 5} more waiting
-                </li>
-              ) : null}
-            </ul>
-          )}
-        </Panel>
-          </div>
-          ) : null}
       </div>
 
       {/*
@@ -1293,6 +1239,69 @@ export default async function DashboardPage() {
       </div>
 
       <div className="dash-grid-wide">
+        {/*
+          URGENT FOLLOW UPS SITS WITH THE OTHER PANELS (Phil, 2026-09-16: "still a gap under Out
+          of Hours: urgent follow ups").
+
+          The cards on that line were all measured level at 128px, so nothing was ragged. The
+          space was INSIDE this card, and it was inside it because it is the wrong shape for the
+          company it was keeping: a title and a sentence sat in a line of big numbers, stretched
+          to their height. Level bottoms and a card with less content in it cannot both be
+          satisfied by an alignment rule; the card simply belongs with the other lists.
+
+          Here it is one of three panels of the same kind, and the line has a shape it can fill.
+        */}
+          {/* Hidden below manager level: those roles can never read on-call data, and
+              the old fallback message wrongly told a Supervisor the feature was off
+              (17 Aug QA). Manager-plus with the feature genuinely off keeps the honest
+              message below. */}
+          {companyWide ? (
+          <div>
+        {/* On call and Due in 14 days swapped (Phil, 2026-07-30): the urgent follow ups
+              belong at the top of the screen, in the four column slot that runs down both tile
+              rows. */}
+          <Panel
+            title={`${onCallName}: urgent follow ups`}
+            href="/on-call"
+          >
+          {!canSeeOnCall ? (
+            <p className="text-sm text-white/55">{onCallName} is not switched on for this company.</p>
+          ) : onCallUrgent.length === 0 ? (
+            <p className="text-sm text-white/55">Nothing urgent. Every call has been followed up.</p>
+          ) : (
+            /* FIVE, and NOT scrollable (Phil, 2026-07-30). The fifth row goes in the space that
+               was sitting empty at the bottom of the panel. The "View all" link in the corner is
+               the way to the rest. */
+            <ul className="space-y-2">
+              {onCallUrgent.slice(0, 5).map((u) => (
+                <li key={u.id}>
+                  <Link
+                    href={`/on-call/log/${u.id}`}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-white/10 px-3 py-2 transition hover:bg-white/[0.06]"
+                  >
+                    <span className="pill-amber shrink-0">
+                      <span className="pill-dot" /> Urgent
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-sm text-white/80">
+                      {shiftLabel(u.shift_date, u.slot)}
+                    </span>
+                    {u.branch_name ? (
+                      <span className="shrink-0 text-xs text-white/45">{u.branch_name}</span>
+                    ) : null}
+                  </Link>
+                </li>
+              ))}
+              {onCallUrgent.length > 5 ? (
+                <li className="pt-0.5 text-[11px] text-white/45">
+                  {onCallUrgent.length - 5} more waiting
+                </li>
+              ) : null}
+            </ul>
+          )}
+        </Panel>
+          </div>
+          ) : null}
+
         {/* THE PLANNER (Phil, 2026-07-29): this user's own booked tasks, the same rows the
             Planner page reads, as five WORKING day columns. Every column is always drawn, empty
             or not, so the week keeps its shape. */}
