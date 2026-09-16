@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 /** RELATIVE, EXTENSIONED: node --experimental-strip-types resolves neither aliases nor
  *  extensionless files. name-sort.ts has no runtime imports for exactly this reason. */
-import { surnameSortKey, bySurname } from "./name-sort.ts";
+import { surnameSortKey, bySurname, givenNameSortKey, byGivenName } from "./name-sort.ts";
 
 test("THE COMPLAINT: a carer files under their surname, not their first name", () => {
   assert.equal(surnameSortKey("Bethan Hughes"), "hughes bethan");
@@ -66,3 +66,41 @@ test("the register order is surname first, and stable", () => {
     ["Zara Ahmed", "Bethan Hughes", "Aled Price", "Anna van der Berg"],
   );
 });
+
+/* FIRST NAME ORDER, the other half of the register's Carer menu (Phil, 2026-09-16).
+   It is the name as written, which is how the names read on screen. */
+test("first name order files a person under the name they are written by", () => {
+  assert.equal(givenNameSortKey("Bethan Hughes"), "bethan hughes");
+  // Surname order files the same person under H; the two must genuinely differ.
+  assert.equal(surnameSortKey("Bethan Hughes"), "hughes bethan");
+});
+
+test("first name order tidies spacing and case without reordering anything", () => {
+  assert.equal(givenNameSortKey("  Taiye   Emmanuella  Aladesuyi "), "taiye emmanuella aladesuyi");
+  assert.equal(givenNameSortKey(null), "");
+  assert.equal(givenNameSortKey(undefined), "");
+});
+
+test("the two orders sort a real branch differently", () => {
+  const names = ["Vera Asanimor", "Chloe Driscoll", "Asim Riaz", "Mary Ikpi-Ubi"];
+  assert.deepEqual(byGivenName(names, (n) => n), [
+    "Asim Riaz",
+    "Chloe Driscoll",
+    "Mary Ikpi-Ubi",
+    "Vera Asanimor",
+  ]);
+  assert.deepEqual(bySurname(names, (n) => n), [
+    "Vera Asanimor",
+    "Chloe Driscoll",
+    "Mary Ikpi-Ubi",
+    "Asim Riaz",
+  ]);
+});
+
+test("neither order mutates the list it is given", () => {
+  const names = ["Vera Asanimor", "Chloe Driscoll"];
+  byGivenName(names, (n) => n);
+  bySurname(names, (n) => n);
+  assert.deepEqual(names, ["Vera Asanimor", "Chloe Driscoll"]);
+});
+

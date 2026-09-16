@@ -115,7 +115,7 @@ export default function TrainingMatrix({
     [branch, readable],
   );
 
-  const { dir, toggle } = useNameSort();
+  const { mode, setMode } = useNameSort();
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     const matched = inBranch.filter(
@@ -123,8 +123,8 @@ export default function TrainingMatrix({
         (q === "" || p.full_name.toLowerCase().includes(q)) &&
         matchesNarrow(p.cells, courses, narrow),
     );
-    return sortByName(matched, (p) => p.full_name, dir);
-  }, [inBranch, query, narrow, courses, dir]);
+    return sortByName(matched, (p) => p.full_name, mode);
+  }, [inBranch, query, narrow, courses, mode]);
 
   /**
    * The headline, counted HERE rather than taken from the server's summary, because the server
@@ -263,7 +263,7 @@ export default function TrainingMatrix({
               <table className="matrix">
             <thead>
               <tr>
-                <NameSortHeader label="Carer" dir={dir} onToggle={toggle} />
+                <NameSortHeader label="Carer" mode={mode} onChange={setMode} />
                 {courses.map((c) => (
                   <th key={c.id} title={c.renewal_months ? `Renews every ${c.renewal_months} months` : "One off"}>
                     {c.name}

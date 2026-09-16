@@ -61,3 +61,27 @@ export function bySurname<T>(items: readonly T[], nameOf: (item: T) => unknown):
     surnameSortKey(nameOf(a)).localeCompare(surnameSortKey(nameOf(b)), "en-GB"),
   );
 }
+
+/**
+ * A key to sort by the name AS WRITTEN: "Bethan Hughes" stays "bethan hughes", so she
+ * files under B.
+ *
+ * Both orders are offered on the registers (Phil, 2026-09-16) because the two answer
+ * different questions. Surname order is how a manager looks somebody up against a paper
+ * file or a rota. First name order is how the team talks about each other, and it is the
+ * order the names are actually written in on screen, so scanning for "Bethan" works.
+ */
+export function givenNameSortKey(fullName: unknown): string {
+  return String(fullName ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
+/** Sort a list of records by the name as written, first name first. */
+export function byGivenName<T>(items: readonly T[], nameOf: (item: T) => unknown): T[] {
+  return [...items].sort((a, b) =>
+    givenNameSortKey(nameOf(a)).localeCompare(givenNameSortKey(nameOf(b)), "en-GB"),
+  );
+}
+

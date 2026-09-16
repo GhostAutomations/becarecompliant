@@ -172,7 +172,7 @@ export default function ServiceUserRegister({
     window.history.replaceState(null, "", urlFor(view, b));
   }
 
-  const { dir, toggle } = useNameSort();
+  const { mode, setMode } = useNameSort();
   const filtered = useMemo(() => {
     let list = rows.filter((r) => (!branchId || r.service_user.branch_id === branchId) && meta.match(r));
     const term = search.trim().toLowerCase();
@@ -186,14 +186,14 @@ export default function ServiceUserRegister({
     /* Name order first, then worst first on top of it. Array.sort is stable, so with
        "worst first" on you get the red ones grouped and still A to Z inside each group,
        rather than the two sorts fighting each other. */
-    list = sortByName(list, (r) => r.service_user.full_name, dir);
+    list = sortByName(list, (r) => r.service_user.full_name, mode);
     if (worstFirst) {
       list = [...list].sort(
         (a, b) => (RAG_ORDER[a.rollup?.rag ?? "none"] ?? 3) - (RAG_ORDER[b.rollup?.rag ?? "none"] ?? 3),
       );
     }
     return list;
-  }, [rows, branchId, meta, search, worstFirst, dir]);
+  }, [rows, branchId, meta, search, worstFirst, mode]);
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-6">
@@ -301,7 +301,7 @@ export default function ServiceUserRegister({
               <table className="matrix">
                 <thead>
                   <tr>
-                    <NameSortHeader label="Service User" dir={dir} onToggle={toggle} />
+                    <NameSortHeader label="Service User" mode={mode} onChange={setMode} />
                     <th>{col("ssid", "SSID")}</th>
                     <th>{col("status", "Status")}</th>
                     <th>{col("package_start_date", "Package Start Date")}</th>

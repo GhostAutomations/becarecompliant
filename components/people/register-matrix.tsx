@@ -146,8 +146,8 @@ export default function RegisterMatrix({
   const unsorted = oneBranch && branchId ? rows.filter((r) => r.person.branch_id === branchId) : rows;
   // Sorted HERE rather than left to the server so pressing the header reorders what is already
   // on screen, with no round trip and nothing to lose in a filter.
-  const { dir, toggle } = useNameSort();
-  const filtered = useMemo(() => sortByName(unsorted, (r) => r.person.full_name, dir), [unsorted, dir]);
+  const { mode, setMode } = useNameSort();
+  const filtered = useMemo(() => sortByName(unsorted, (r) => r.person.full_name, mode), [unsorted, mode]);
   // Four-supervisions mode: show a Sup 4 column pair and no Annual Appraisal columns.
   const fourSup = config.cycleMode === "four_supervisions";
 
@@ -179,7 +179,7 @@ export default function RegisterMatrix({
             <table className="matrix">
           <thead>
             <tr>
-              <NameSortHeader label="Carer" dir={dir} onToggle={toggle} />
+              <NameSortHeader label="Carer" mode={mode} onChange={setMode} />
               <th>{col("status", "Status")}</th>
               <th>{col("start_date", "Start date")}</th>
               <th>{col("manual_handling", "Manual Handling")}</th>
