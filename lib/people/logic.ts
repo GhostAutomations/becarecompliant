@@ -28,6 +28,7 @@ import {
   todayInLondon,
 } from "@/lib/recurrence";
 import { reschedulesOnCompletion } from "@/lib/people/reschedule";
+import { supervisionsConsumed } from "@/lib/people/supervision-cycle";
 import type { CheckDefinition, SupervisionSlot } from "./types";
 import { nextSupervisionNumber } from "./next-supervision";
 
@@ -290,10 +291,15 @@ export function supervisionSlots(
     dueAnchor = consumed > 0 ? all[consumed - 1] : (valid(probationEndActual) ? probationEndActual : null);
   } else {
     const appraisals = appraisalCompDates.filter(valid).slice().sort();
-    const appraisalCount = appraisals.length;
-    const lastAppraisal = appraisalCount > 0 ? appraisals[appraisalCount - 1] : null;
+    const lastAppraisal = appraisals.length > 0 ? appraisals[appraisals.length - 1] : null;
     dueAnchor = supervisionCycleAnchor(lastAppraisal, probationEndActual);
-    consumed = count * appraisalCount;
+    /* SPLIT ON THE DATE, NOT ON A COUNT. This was `count * appraisals.length`, which assumes
+       every appraisal was preceded by exactly `count` supervisions. Real history is not that
+       regular, and imported history certainly is not: Vera Asanimor has one appraisal and
+       three supervisions, only ONE of them before it. The count claimed all three were spent,
+       so her current cycle came out empty and her record showed Supervision 1 as not yet done
+       while slots 2 and 3 held the two she had completed since. */
+    consumed = supervisionsConsumed(all, lastAppraisal);
   }
   const cycle = all.slice(consumed);
   const prev = all.slice(Math.max(0, consumed - count), consumed);
