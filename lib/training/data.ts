@@ -61,6 +61,9 @@ export type TrainingPerson = {
   full_name: string;
   branch_id: string | null;
   branch_name: string;
+  /** 'due' | 'extended' | 'passed' | 'failed' | null. Groups the matrix; see
+   *  lib/training/probation-group.ts. */
+  probation_status: string | null;
   cells: Record<string, TrainingCell>; // keyed by course id
 };
 
@@ -110,6 +113,8 @@ type PersonRow = {
   full_name: string;
   branch_id: string | null;
   branches: { name: string } | null;
+  /** A carer has at most one tracker row; PostgREST types the embed as an array. */
+  person_trackers: { probation_status: string | null } | { probation_status: string | null }[] | null;
 };
 
 /** Compute one cell's RAG from the course + the person's record (if any). */
@@ -262,7 +267,9 @@ const getTrainingMatrixUncached = cache(async function getTrainingMatrix(
   // share a name.
   let peopleQ = supabase
     .from("people")
-    .select("id, full_name, branch_id, branches(name)")
+    /* person_trackers carries the probation status, which groups the matrix: a new starter
+       is red on nearly every course and that is not the same fact as a lapse. */
+    .select("id, full_name, branch_id, branches(name), person_trackers(probation_status)")
     .eq("company_id", companyId)
     .is("archived_at", null)
     .neq("employment_status", "leaver")
@@ -333,11 +340,13 @@ const getTrainingMatrixUncached = cache(async function getTrainingMatrix(
         if (compliant) safeOk += 1;
       }
     }
+    const tracker = Array.isArray(p.person_trackers) ? p.person_trackers[0] : p.person_trackers;
     return {
       id: p.id,
       full_name: p.full_name,
       branch_id: p.branch_id,
       branch_name: p.branches?.name ?? "",
+      probation_status: tracker?.probation_status ?? null,
       cells,
     };
   });

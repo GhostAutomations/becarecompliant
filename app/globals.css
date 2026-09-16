@@ -521,6 +521,27 @@
     text-align: center;
   }
 
+  /* A GROUP HEADING ROW inside the matrix (Training: In probation / Team). Its own row rather
+     than a second table, so the matrix keeps ONE sticky header, one horizontal scroll and one
+     set of column widths. The label rides in the sticky Carer column so it stays readable
+     however far the courses are scrolled. */
+  .matrix tr.matrix-group th {
+    @apply sticky left-0 z-20 whitespace-nowrap bg-navy-950 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-gold-300;
+    text-align: left;
+    top: auto;
+  }
+  .matrix tr.matrix-group td {
+    @apply border-t-0 bg-navy-950/60;
+  }
+  .matrix .matrix-group-count {
+    @apply ml-2 rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-white/70;
+  }
+  /* A heading row is a label, not a record: it must not light up like one. */
+  .matrix tbody tr.matrix-group:hover td,
+  .matrix tbody tr.matrix-group:hover th {
+    @apply bg-navy-950;
+  }
+
   /* A FAINT LINE BETWEEN EVERY COLUMN, on every matrix (Phil, 2026-09-16). The table is
      border-separate with zero spacing, so one border per cell IS the grid line with no
      doubling and no shifted layout. The last cell in a row is skipped: a line there would

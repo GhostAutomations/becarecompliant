@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type {
   TrainingCourse,
   TrainingPerson,
@@ -14,6 +14,7 @@ import { HorizontalScrollbar } from "@/components/register/horizontal-scrollbar"
 import { useRememberedScroll } from "@/components/register/use-remembered-scroll";
 import { VerticalScrollbar } from "@/components/register/vertical-scrollbar";
 import { NameSortHeader, sortByName, useNameSort, type SortMode } from "@/components/register/name-sort-header";
+import { splitByProbation } from "@/lib/training/probation-group";
 
 type BranchLite = { id: string; name: string };
 
@@ -128,6 +129,31 @@ export default function TrainingMatrix({
     );
     return sortByName(matched, (p) => p.full_name, mode);
   }, [inBranch, query, narrow, courses, mode]);
+
+  /*
+   * IN PROBATION SITS ON TOP, AND ONLY WHEN SOMEBODY IS IN IT (Phil, 2026-09-16, of the Monday
+   * board). A new starter is red on nearly every course for their first weeks, which is not a
+   * failure, it is somebody who started on Monday. Mixed in with the established team that red
+   * drags the eye and hides the reds that are real.
+   *
+   * Derived from probation_status, so passing probation moves the row on its own. Monday's
+   * groups are dragged by hand and go stale: their board still lists a carer under In Probation
+   * whose probation passed months ago.
+   *
+   * With nobody in probation there are no headings at all, so an established company sees the
+   * plain register it has always seen.
+   */
+  const { probation, team } = useMemo(
+    () => splitByProbation(shown, (p) => p.probation_status),
+    [shown],
+  );
+  const groups = probation.length
+    ? [
+        { key: "probation", label: "In probation", rows: probation },
+        { key: "team", label: "Team", rows: team },
+      ]
+    : [{ key: "team", label: "", rows: team }];
+  const showGroupHeadings = probation.length > 0;
 
   /**
    * The headline, counted HERE rather than taken from the server's summary, because the server
@@ -276,7 +302,20 @@ export default function TrainingMatrix({
               </tr>
             </thead>
             <tbody>
-              {shown.map((p) => {
+              {groups.map((group) => (
+                <Fragment key={group.key}>
+                  {showGroupHeadings ? (
+                    <tr className="matrix-group">
+                      {/* The label is sticky-left with the Carer column, so it stays readable
+                          however far the courses are scrolled. */}
+                      <th scope="rowgroup" className="col-carer">
+                        {group.label}
+                        <span className="matrix-group-count">{group.rows.length}</span>
+                      </th>
+                      <td colSpan={courses.length} />
+                    </tr>
+                  ) : null}
+                  {group.rows.map((p) => {
                 // Navy theme: if any course is expired, flag the name cell instead of
                 // adding an "Expired" line to the date cell (which made rows uneven).
                 const hasExpired = navy && courses.some((c) => p.cells[c.id]?.sub === "Expired");
@@ -350,6 +389,8 @@ export default function TrainingMatrix({
                 </tr>
                 );
               })}
+                </Fragment>
+              ))}
             </tbody>
               </table>
             </div>
