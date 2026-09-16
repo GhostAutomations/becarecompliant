@@ -50,6 +50,18 @@ function CourseRow({ course }: { course: TrainingCourse | null }) {
           className="max-w-[6rem]"
         />
       </div>
+      <div>
+        {/* THE INDUCTION PHASE. Thistle's courses are done in waves and a percentage against
+            the wave answers what a manager asks about a starter: how far through are they.
+            Blank is no phase, which is what most courses are. */}
+        <label className="form-label">Phase</label>
+        <select name="phase" defaultValue={course?.phase == null ? "" : String(course.phase)} className="max-w-[6rem]">
+          <option value="">None</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+        </select>
+      </div>
       <div className="min-w-[14rem] flex-1">
         {/* WHO IT IS FOR. Blank is everybody, which is what almost every course is. Named
             titles scope it: Assessing Needs, Care Planning, Risk Assessment and Supervision

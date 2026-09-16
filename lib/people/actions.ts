@@ -353,6 +353,70 @@ export async function transferPerson(
 }
 
 /** Mark a Record as a leaver (excluded from the active register) or reactivate it. */
+/**
+ * Set one person's JOB TITLE from the register, inline.
+ *
+ * WHY IT IS HERE AND NOT ONLY ON THE RECORD (Phil, 2026-09-16). The job title decides which
+ * checks and which TRAINING COURSES a person is measured against, and the only way to change
+ * it was four clicks deep inside Manage record, beside two other forms with their own save
+ * buttons. Five attempts in a row saved the working status instead and threw the title away.
+ * A field that changes what somebody is judged on belongs where the judging is displayed.
+ *
+ * A PROMOTION BRINGS ITS CHECKS WITH IT, the same as updatePerson: some checks belong to
+ * certain titles, and they are applied from the title the record had when it was created.
+ * Applied, never removed, because an instance can hold completed Evidence.
+ */
+export async function setJobTitle(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { user, profile } = await requireCompany();
+  const personId = String(formData.get("person_id") ?? "");
+  const title = trimOrNull(formData.get("job_title"));
+  if (!personId) return { error: "Missing record." };
+
+  const supabase = await createClient();
+  const { data: before } = await supabase
+    .from("people")
+    .select("company_id, start_date, job_title")
+    .eq("id", personId)
+    .maybeSingle();
+  if (!before) return { error: "That record could not be found." };
+  if ((before.job_title ?? null) === title) return { ok: "Saved." };
+
+  /* .select() so a refusal is REPORTED. An RLS no-op returns no error and no rows, and a
+     silent no-op on a pill is exactly the failure this action exists to end. */
+  const { data, error } = await supabase
+    .from("people")
+    .update({ job_title: title, updated_at: new Date().toISOString() })
+    .eq("id", personId)
+    .select("id");
+  if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "No change was saved. You may not have permission." };
+
+  const definitions = await listPeopleCheckDefinitions(before.company_id as string);
+  const rows = definitions.map((def: CheckDefinition) => ({
+    definition_id: def.id,
+    due_date: initialDueDate(def, (before.start_date as string | null) ?? null),
+    expiry_date: null,
+  }));
+  await supabase.rpc("apply_person_checks", { p_person_id: personId, p_rows: rows });
+
+  await writeAudit({
+    companyId: profile.company_id ?? "",
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "person.job_title_changed",
+    entityType: "person",
+    entityId: personId,
+    summary: `Job title set to ${title ?? "not set"}`,
+    metadata: { from: before.job_title ?? null, to: title },
+  });
+
+  revalidatePath(`/people/${personId}`);
+  revalidatePath("/people");
+  revalidatePath("/people/training");
+  return { ok: "Saved." };
+}
+
 export async function setEmploymentStatus(
   _prev: ActionState,
   formData: FormData,

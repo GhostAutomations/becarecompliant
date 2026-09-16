@@ -631,8 +631,18 @@ export async function saveCourse(_prev: ActionState, formData: FormData): Promis
     .map((t) => t.trim())
     .filter(Boolean);
 
+  /* Which induction phase, or none. Blank is no phase, which is what almost every course is. */
+  const phaseRaw = String(formData.get("phase") ?? "").trim();
+  let phase: number | null = null;
+  if (phaseRaw !== "") {
+    const n = Number.parseInt(phaseRaw, 10);
+    if (!Number.isInteger(n) || n < 1 || n > 3) return { error: "Phase must be 1, 2, 3, or blank." };
+    phase = n;
+  }
+
   const patch = {
     name,
+    phase,
     renewal_months: renewal,
     mandatory: String(formData.get("mandatory") ?? "") === "on",
     is_safeguarding: String(formData.get("is_safeguarding") ?? "") === "on",

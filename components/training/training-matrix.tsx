@@ -15,6 +15,7 @@ import { useRememberedScroll } from "@/components/register/use-remembered-scroll
 import { VerticalScrollbar } from "@/components/register/vertical-scrollbar";
 import { NameSortHeader, sortByName, useNameSort, type SortMode } from "@/components/register/name-sort-header";
 import { splitByProbation } from "@/lib/training/probation-group";
+import { phaseProgress } from "@/lib/training/phase";
 
 type BranchLite = { id: string; name: string };
 
@@ -45,6 +46,29 @@ function matchesNarrow(cells: Record<string, TrainingCell>, courses: TrainingCou
     if (n === "booked") return cell.booking === "booked";
     return cell.status === n;
   });
+}
+
+/**
+ * One phase's progress as a bar with its percentage.
+ *
+ * A dash, not an empty bar, when the phase holds nothing for this person: an empty phase is
+ * not a finished one, and a full green bar because nothing was asked of somebody is the kind
+ * of green that gets a company inspected.
+ */
+function PhaseBar({ progress }: { progress: ReturnType<typeof phaseProgress> }) {
+  if (!progress) return <span className="rag-cell rag-cell-none">—</span>;
+  const { done, total, pct } = progress;
+  return (
+    <span className="phase-bar" title={`${done} of ${total} in date`}>
+      <span className="phase-bar-track">
+        <span
+          className={`phase-bar-fill ${pct === 100 ? "is-full" : ""}`}
+          style={{ width: `${pct}%` }}
+        />
+      </span>
+      <span className="phase-bar-pct">{pct}%</span>
+    </span>
+  );
 }
 
 function ragClass(rag: Rag): string {
@@ -143,6 +167,12 @@ export default function TrainingMatrix({
    * With nobody in probation there are no headings at all, so an established company sees the
    * plain register it has always seen.
    */
+  /* THE PHASE 1 BAR. Thistle's courses are done in waves; a starter works through Phase 1
+     before anything else, and one bar answers "how far through are they" where thirty three
+     cells do not. The column only exists when the company has put courses in a phase, so
+     nobody who does not use phases gets an empty column (Phil, 2026-09-16). */
+  const phase1 = useMemo(() => courses.filter((c) => c.phase === 1), [courses]);
+
   const { probation, team } = useMemo(
     () => splitByProbation(shown, (p) => p.probation_status),
     [shown],
@@ -293,6 +323,7 @@ export default function TrainingMatrix({
             <thead>
               <tr>
                 <NameSortHeader label="Carer" mode={mode} onChange={setMode} />
+                {phase1.length > 0 ? <th title={`${phase1.length} courses`}>Phase 1</th> : null}
                 {courses.map((c) => (
                   <th key={c.id} title={c.renewal_months ? `Renews every ${c.renewal_months} months` : "One off"}>
                     {c.name}
@@ -312,7 +343,7 @@ export default function TrainingMatrix({
                         {group.label}
                         <span className="matrix-group-count">{group.rows.length}</span>
                       </th>
-                      <td colSpan={courses.length} />
+                      <td colSpan={courses.length + (phase1.length > 0 ? 1 : 0)} />
                     </tr>
                   ) : null}
                   {group.rows.map((p) => {
@@ -325,6 +356,11 @@ export default function TrainingMatrix({
                   <td className={`col-carer ${hasExpired ? "training-expired" : ""}`}>
                     <div className="font-medium text-white/90">{p.full_name}</div>
                   </td>
+                  {phase1.length > 0 ? (
+                    <td>
+                      <PhaseBar progress={phaseProgress(phase1.map((c) => p.cells[c.id]))} />
+                    </td>
+                  ) : null}
                   {courses.map((c) => {
                     const cell = p.cells[c.id];
                     /* A COURSE THAT IS NOT THEIRS. Scoped courses (Assessing Needs and the

@@ -18,13 +18,14 @@ import {
   WORKING_STATUS_LABELS,
 } from "@/lib/people/types";
 import { formatDisplayDate, supervisionSlots, appraisalSlot, dateRag } from "@/lib/people/logic";
-import { setEmploymentStatus } from "@/lib/people/actions";
+import { setEmploymentStatus, setJobTitle } from "@/lib/people/actions";
 import { probationDueCountsDown } from "@/lib/people/probation";
 import { PillSelect, toneClass, type Tone } from "@/components/register/pill-select";
 import { HorizontalScrollbar } from "@/components/register/horizontal-scrollbar";
 import { useRememberedScroll } from "@/components/register/use-remembered-scroll";
 import { VerticalScrollbar } from "@/components/register/vertical-scrollbar";
 import { NameSortHeader, sortByName, useNameSort, type SortMode } from "@/components/register/name-sort-header";
+import type { JobTitle } from "@/lib/people/data";
 import ExtraCheckCell from "@/components/register/extra-check-cell";
 import { cellText, type RegisterCheckColumn } from "@/lib/register/custom-columns";
 
@@ -101,6 +102,7 @@ export default function RegisterMatrix({
   returnTo = "/people",
   scope = "active",
   initialSort,
+  jobTitles = [],
 }: {
   rows: RegisterRow[];
   config: MatrixConfig;
@@ -116,10 +118,22 @@ export default function RegisterMatrix({
   scope?: string;
   /** The name order this user chose last time, read from their profile by the page. */
   initialSort: SortMode;
+  /** The company's job titles, for the inline Job title pill. */
+  jobTitles?: JobTitle[];
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   useRememberedScroll(wrapRef, `people:${scope}`);
   const col = (key: string, def: string) => columnLabels[key] || def;
+  /* THE JOB TITLE IS A REGISTER FIELD (Phil, 2026-09-16). It decides which checks and which
+     training courses a person is measured against, and it lived four clicks deep inside
+     Manage record beside two other forms with their own save buttons. A field that changes
+     what somebody is judged on belongs where the judging is shown. "Not set" is offered
+     because a record can genuinely have none, and hiding that would hide why their checks
+     look thin. */
+  const titleOptions = [
+    { value: "", label: "Not set" },
+    ...jobTitles.map((t) => ({ value: t.title, label: t.title })),
+  ];
   const fromQuery = `?from=${encodeURIComponent(returnTo)}`;
   // Archive is offered on the Status pill only when viewing Leavers (to clear them out).
   const statusOptions =
@@ -184,6 +198,7 @@ export default function RegisterMatrix({
             <tr>
               <NameSortHeader label="Carer" mode={mode} onChange={setMode} />
               <th>{col("status", "Status")}</th>
+              <th>{col("job_title", "Job Title")}</th>
               <th>{col("start_date", "Start date")}</th>
               <th>{col("manual_handling", "Manual Handling")}</th>
               <th>{col("medication_competency", "Medication Competency")}</th>
@@ -263,6 +278,23 @@ export default function RegisterMatrix({
                       />
                     ) : (
                       <WorkingStatusPill status={row.person.employment_status} />
+                    )}
+                  </td>
+                  <td>
+                    {editable && titleOptions.length > 1 ? (
+                      <PillSelect
+                        recordId={row.person.id}
+                        recordField="person_id"
+                        field="job_title"
+                        value={row.person.job_title}
+                        options={titleOptions}
+                        action={setJobTitle}
+                        /* No RAG: a job title is a fact about somebody, not a state of
+                           compliance, so every option reads the same. */
+                        toneOf={() => "neutral"}
+                      />
+                    ) : (
+                      <span className="text-white/70">{row.person.job_title || "—"}</span>
                     )}
                   </td>
                   <td><Plain date={row.person.start_date} /></td>

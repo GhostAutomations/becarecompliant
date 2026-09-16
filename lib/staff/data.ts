@@ -154,7 +154,7 @@ export async function getMyTraining(personId: string): Promise<MyTrainingRow[]> 
   const [{ data: courses }, { data: records }, { data: me }] = await Promise.all([
     supabase
       .from("training_courses")
-      .select("id, name, renewal_months, mandatory, is_safeguarding, amber_days, sort_order, active, job_titles")
+      .select("id, name, renewal_months, mandatory, is_safeguarding, amber_days, sort_order, active, job_titles, phase")
       .eq("active", true)
       .order("sort_order", { ascending: true }),
     supabase

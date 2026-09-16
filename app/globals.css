@@ -552,6 +552,29 @@
     @apply border-r border-white/5;
   }
 
+  /* PHASE PROGRESS BAR (Training matrix). One phase's courses for one person, as a bar plus
+     its percentage. Amber until every course in the phase is in date, green only at 100%:
+     the same language the RAG cells beside it already speak, so a part-done phase never
+     reads as a finished one. Fixed track width so the column does not jump as percentages
+     change, and the percentage is tabular so the digits line up down the column. */
+  .phase-bar {
+    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap;
+  }
+  .phase-bar-track {
+    @apply relative inline-block h-1.5 w-16 overflow-hidden rounded-full bg-white/10;
+  }
+  .phase-bar-fill {
+    @apply block h-full rounded-full;
+    background: #f5bd6a;
+    transition: width 200ms ease;
+  }
+  .phase-bar-fill.is-full {
+    background: #43d99a;
+  }
+  .phase-bar-pct {
+    @apply text-[11px] font-semibold tabular-nums text-white/65;
+  }
+
   /* Carer column: header centred, but the names stay left-aligned. */
   .matrix th.col-carer {
     text-align: center;

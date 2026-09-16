@@ -27,6 +27,8 @@ export type TrainingCourse = {
   active: boolean;
   /** Job titles this course belongs to. NULL or empty means everybody (migration 0281). */
   job_titles: string[] | null;
+  /** Induction phase (1, 2 or 3), or null for no phase (migration 0282). */
+  phase: number | null;
 };
 
 export type Rag = "green" | "amber" | "red" | "none";
@@ -210,7 +212,7 @@ export async function listAllCourses(companyId: string): Promise<TrainingCourse[
   const supabase = await createClient();
   const { data } = await supabase
     .from("training_courses")
-    .select("id, name, renewal_months, mandatory, is_safeguarding, amber_days, sort_order, active, job_titles")
+    .select("id, name, renewal_months, mandatory, is_safeguarding, amber_days, sort_order, active, job_titles, phase")
     .eq("company_id", companyId)
     .order("sort_order", { ascending: true });
   return (data as TrainingCourse[] | null) ?? [];
@@ -265,7 +267,7 @@ const getTrainingMatrixUncached = cache(async function getTrainingMatrix(
 
   const coursesQ = supabase
     .from("training_courses")
-    .select("id, name, renewal_months, mandatory, is_safeguarding, amber_days, sort_order, active, job_titles")
+    .select("id, name, renewal_months, mandatory, is_safeguarding, amber_days, sort_order, active, job_titles, phase")
     .eq("company_id", companyId)
     .eq("active", true)
     .order("sort_order", { ascending: true });
