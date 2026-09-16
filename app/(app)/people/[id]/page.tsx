@@ -606,9 +606,15 @@ export default async function PersonPage({
                   action={invitePersonLogin}
                   hidden={{ person_id: id }}
                   label={
-                    login.invite_status === "pending" || login.login_status === "invited"
+                    /* THREE STATES, NOT TWO. "Send it again" is a lie about an invite whose
+                       email was held and never went: there is no again. Settings > Users has
+                       said "Send invite" against a held invite and "Resend" against a sent one
+                       since it was built; this screen now agrees with it. */
+                    login.email_sent_at
                       ? "Send it again"
-                      : "Invite them"
+                      : login.invite_status === "pending" || login.login_status === "invited"
+                        ? "Send invite"
+                        : "Invite them"
                   }
                   savedLabel="Sent"
                   /* NOT btn-tracker: that is a fixed 6rem, sized for the word Complete, and
@@ -632,21 +638,28 @@ export default async function PersonPage({
               </div>
             ) : login.invite_status === "pending" || login.login_status === "invited" ? (
               <div className="flex flex-wrap items-center gap-2">
-                <span className="pill-amber">Invited</span>
-                {/* HELD IS NOT SENT. The bulk import can create the login and deliberately
-                    hold the email; this used to read the invite's created_at and announce it
-                    as sent, which told an administrator thirteen emails had gone out when
-                    none had. email_sent_at is the only thing that means sent. */}
+                {/* HELD IS NOT SENT, AND INVITED IS NOT WRITTEN TO. The bulk import can create
+                    the login and deliberately hold the email; this screen used to read the
+                    invite's created_at and announce it as sent, so an administrator who held
+                    thirteen invites was told all thirteen had reached real carers.
+                    email_sent_at is the only thing that means sent, and the pill says which
+                    of the two states this is, exactly as Settings > Users does. */}
                 {login.email_sent_at ? (
-                  <span className="text-sm text-white/60">
-                    Sent {formatDisplayDate(String(login.email_sent_at).slice(0, 10))}, not
-                    opened yet.
-                  </span>
+                  <>
+                    <span className="pill-amber">Invited</span>
+                    <span className="text-sm text-white/60">
+                      Sent {formatDisplayDate(String(login.email_sent_at).slice(0, 10))}, not
+                      opened yet.
+                    </span>
+                  </>
                 ) : (
-                  <span className="text-sm text-white/60">
-                    Their login is ready and the email is being held. Press Send it again to
-                    send it, or send them all from Settings, Users.
-                  </span>
+                  <>
+                    <span className="pill pill-neutral">Not sent yet</span>
+                    <span className="text-sm text-white/60">
+                      Their login is ready, but nobody has emailed it to them. Send it from
+                      here, or send them together from Settings, Users.
+                    </span>
+                  </>
                 )}
               </div>
             ) : (
