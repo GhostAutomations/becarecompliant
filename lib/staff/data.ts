@@ -109,6 +109,9 @@ export type PersonLoginStatus = {
   login_status: string | null;
   login_role: string | null;
   invited_at: string | null;
+  /** When the invite email actually went. NULL when it was held (import tick) or the
+   *  send failed: an invitation nobody received is not a sent invitation. */
+  email_sent_at: string | null;
   invite_status: string | null;
 };
 

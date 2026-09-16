@@ -633,12 +633,21 @@ export default async function PersonPage({
             ) : login.invite_status === "pending" || login.login_status === "invited" ? (
               <div className="flex flex-wrap items-center gap-2">
                 <span className="pill-amber">Invited</span>
-                {login.invited_at ? (
+                {/* HELD IS NOT SENT. The bulk import can create the login and deliberately
+                    hold the email; this used to read the invite's created_at and announce it
+                    as sent, which told an administrator thirteen emails had gone out when
+                    none had. email_sent_at is the only thing that means sent. */}
+                {login.email_sent_at ? (
                   <span className="text-sm text-white/60">
-                    Sent {formatDisplayDate(String(login.invited_at).slice(0, 10))}, not
+                    Sent {formatDisplayDate(String(login.email_sent_at).slice(0, 10))}, not
                     opened yet.
                   </span>
-                ) : null}
+                ) : (
+                  <span className="text-sm text-white/60">
+                    Their login is ready and the email is being held. Press Send it again to
+                    send it, or send them all from Settings, Users.
+                  </span>
+                )}
               </div>
             ) : (
               <div className="flex flex-wrap items-center gap-2">
