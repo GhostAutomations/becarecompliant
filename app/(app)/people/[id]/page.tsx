@@ -27,6 +27,7 @@ import {
   listSupervisoryUsers,
   listPeopleCheckDefinitions,
   listPersonEvidence,
+  listJobTitles,
 } from "@/lib/people/data";
 import { listPersonHolidays } from "@/lib/holidays/data";
 import { getPersonLoginStatus } from "@/lib/staff/data";
@@ -164,9 +165,12 @@ export default async function PersonPage({
 
   // The history timeline uses the record_audit_trail RPC (guarded by
   // can_manage_person), so only fetch it for managers/admins. Exports are Pro+.
-  const [auditTrail, exportsEnabled] = await Promise.all([
+  const [auditTrail, exportsEnabled, jobTitles] = await Promise.all([
     canManage ? getRecordAuditTrail("person", id) : Promise.resolve([]),
     featureEnabled(companyId, "reporting_exports"),
+    // The same list Add a person offers, so a job title is chosen the same way whether it
+    // is being set for the first time or corrected afterwards.
+    canManage ? listJobTitles(companyId) : Promise.resolve([]),
   ]);
 
   /* COMPLAINTS ABOUT THIS PERSON. The role list is the Complaints section's own, not this
@@ -757,7 +761,7 @@ export default async function PersonPage({
       {canManage ? (
         <PanelDialog title="Manage record">
           <div className="space-y-6 border-t border-white/10 p-5">
-            <EditPersonForm person={person} users={users} />
+            <EditPersonForm person={person} users={users} jobTitles={jobTitles} />
 
             {/* TRANSFER ALONE. The Supervisors picker that used to sit beside it wrote to
                 person_assignments, a table migration 0078 abandoned: a Supervisor sees

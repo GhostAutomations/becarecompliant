@@ -5,15 +5,17 @@ import { updatePerson } from "@/lib/people/actions";
 import { IDLE_STATE } from "@/lib/forms";
 import { useSavedFlash } from "@/lib/use-saved-flash";
 import type { PersonRecord } from "@/lib/people/types";
-import type { ProfileLite as UserLite } from "@/lib/people/data";
+import type { ProfileLite as UserLite, JobTitle } from "@/lib/people/data";
 import { canBeLineManager } from "@/lib/people/roles";
 
 export default function EditPersonForm({
   person,
   users,
+  jobTitles,
 }: {
   person: PersonRecord;
   users: UserLite[];
+  jobTitles: JobTitle[];
 }) {
   // One shared rule with Add a person (lib/people/roles.ts).
   const eligible = users.filter((u) => canBeLineManager(u.role));
@@ -31,7 +33,36 @@ export default function EditPersonForm({
         </div>
         <div>
           <label htmlFor="e_job_title" className="form-label">Job title</label>
-          <input id="e_job_title" name="job_title" defaultValue={person.job_title ?? ""} />
+          {/*
+            THE SAME DROPDOWN AS ADD A PERSON. Correcting a job title on the record was a
+            free text box while setting it in the first place was a list, so a title typed
+            here ("Care worker", "Senior Carer ") quietly stopped matching the company's own
+            list, and checksForTitle scopes a person's checks BY TITLE.
+
+            THE STORED VALUE IS ALWAYS AN OPTION, for the same reason it is on the line
+            manager below: a select whose value is not among its options falls back to the
+            first one, and Save would then rewrite a title nobody touched. A title that has
+            since been removed from Settings is kept and marked, rather than silently
+            becoming somebody else's job.
+          */}
+          {jobTitles.length === 0 ? (
+            <>
+              <input id="e_job_title" name="job_title" defaultValue={person.job_title ?? ""} />
+              <p className="form-hint">
+                Tip: add your company&rsquo;s job titles in Settings, People to get a dropdown here.
+              </p>
+            </>
+          ) : (
+            <select id="e_job_title" name="job_title" defaultValue={person.job_title ?? ""}>
+              <option value="">Not set</option>
+              {jobTitles.map((t) => (
+                <option key={t.id} value={t.title}>{t.title}</option>
+              ))}
+              {person.job_title && !jobTitles.some((t) => t.title === person.job_title) ? (
+                <option value={person.job_title}>{person.job_title} (not in your list)</option>
+              ) : null}
+            </select>
+          )}
         </div>
         <div>
           <label htmlFor="e_start_date" className="form-label">Start date</label>
