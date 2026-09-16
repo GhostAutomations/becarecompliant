@@ -34,6 +34,7 @@ import {
   SERVICE_STATUS_LABELS,
   REVIEW_STATUS_LABELS,
 } from "@/lib/service-users/types";
+import { NameSortHeader, sortByName, useNameSort } from "@/components/register/name-sort-header";
 import type { BranchType, ProfileLite } from "@/lib/service-users/data";
 
 const RAG_ORDER: Record<string, number> = { red: 0, amber: 1, green: 2, none: 3 };
@@ -171,6 +172,7 @@ export default function ServiceUserRegister({
     window.history.replaceState(null, "", urlFor(view, b));
   }
 
+  const { dir, toggle } = useNameSort();
   const filtered = useMemo(() => {
     let list = rows.filter((r) => (!branchId || r.service_user.branch_id === branchId) && meta.match(r));
     const term = search.trim().toLowerCase();
@@ -181,13 +183,17 @@ export default function ServiceUserRegister({
           (r.service_user.ssid ?? "").toLowerCase().includes(term),
       );
     }
+    /* Name order first, then worst first on top of it. Array.sort is stable, so with
+       "worst first" on you get the red ones grouped and still A to Z inside each group,
+       rather than the two sorts fighting each other. */
+    list = sortByName(list, (r) => r.service_user.full_name, dir);
     if (worstFirst) {
       list = [...list].sort(
         (a, b) => (RAG_ORDER[a.rollup?.rag ?? "none"] ?? 3) - (RAG_ORDER[b.rollup?.rag ?? "none"] ?? 3),
       );
     }
     return list;
-  }, [rows, branchId, meta, search, worstFirst]);
+  }, [rows, branchId, meta, search, worstFirst, dir]);
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-6">
@@ -295,7 +301,7 @@ export default function ServiceUserRegister({
               <table className="matrix">
                 <thead>
                   <tr>
-                    <th className="col-carer">Service User</th>
+                    <NameSortHeader label="Service User" dir={dir} onToggle={toggle} />
                     <th>{col("ssid", "SSID")}</th>
                     <th>{col("status", "Status")}</th>
                     <th>{col("package_start_date", "Package Start Date")}</th>

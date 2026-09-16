@@ -13,6 +13,7 @@ import { canManageRecord, canManageAnything } from "@/lib/auth/manage-scope";
 import { HorizontalScrollbar } from "@/components/register/horizontal-scrollbar";
 import { useRememberedScroll } from "@/components/register/use-remembered-scroll";
 import { VerticalScrollbar } from "@/components/register/vertical-scrollbar";
+import { NameSortHeader, sortByName, useNameSort } from "@/components/register/name-sort-header";
 
 type BranchLite = { id: string; name: string };
 
@@ -114,14 +115,16 @@ export default function TrainingMatrix({
     [branch, readable],
   );
 
+  const { dir, toggle } = useNameSort();
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return inBranch.filter(
+    const matched = inBranch.filter(
       (p) =>
         (q === "" || p.full_name.toLowerCase().includes(q)) &&
         matchesNarrow(p.cells, courses, narrow),
     );
-  }, [inBranch, query, narrow, courses]);
+    return sortByName(matched, (p) => p.full_name, dir);
+  }, [inBranch, query, narrow, courses, dir]);
 
   /**
    * The headline, counted HERE rather than taken from the server's summary, because the server
@@ -260,7 +263,7 @@ export default function TrainingMatrix({
               <table className="matrix">
             <thead>
               <tr>
-                <th className="col-carer">Carer</th>
+                <NameSortHeader label="Carer" dir={dir} onToggle={toggle} />
                 {courses.map((c) => (
                   <th key={c.id} title={c.renewal_months ? `Renews every ${c.renewal_months} months` : "One off"}>
                     {c.name}

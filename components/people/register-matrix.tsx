@@ -24,6 +24,7 @@ import { PillSelect, toneClass, type Tone } from "@/components/register/pill-sel
 import { HorizontalScrollbar } from "@/components/register/horizontal-scrollbar";
 import { useRememberedScroll } from "@/components/register/use-remembered-scroll";
 import { VerticalScrollbar } from "@/components/register/vertical-scrollbar";
+import { NameSortHeader, sortByName, useNameSort } from "@/components/register/name-sort-header";
 import ExtraCheckCell from "@/components/register/extra-check-cell";
 import { cellText, type RegisterCheckColumn } from "@/lib/register/custom-columns";
 
@@ -142,7 +143,11 @@ export default function RegisterMatrix({
     }
   }, [navy, branches, branchId]);
   const oneBranch = navy && branches.length > 1;
-  const filtered = oneBranch && branchId ? rows.filter((r) => r.person.branch_id === branchId) : rows;
+  const unsorted = oneBranch && branchId ? rows.filter((r) => r.person.branch_id === branchId) : rows;
+  // Sorted HERE rather than left to the server so pressing the header reorders what is already
+  // on screen, with no round trip and nothing to lose in a filter.
+  const { dir, toggle } = useNameSort();
+  const filtered = useMemo(() => sortByName(unsorted, (r) => r.person.full_name, dir), [unsorted, dir]);
   // Four-supervisions mode: show a Sup 4 column pair and no Annual Appraisal columns.
   const fourSup = config.cycleMode === "four_supervisions";
 
@@ -174,7 +179,7 @@ export default function RegisterMatrix({
             <table className="matrix">
           <thead>
             <tr>
-              <th className="col-carer">Carer</th>
+              <NameSortHeader label="Carer" dir={dir} onToggle={toggle} />
               <th>{col("status", "Status")}</th>
               <th>{col("start_date", "Start date")}</th>
               <th>{col("manual_handling", "Manual Handling")}</th>
