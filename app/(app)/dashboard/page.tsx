@@ -390,7 +390,17 @@ function Panel({
   className?: string;
 }) {
   return (
-    <section className={`glass-card flex h-full flex-col p-4 ${className}`} aria-label={title}>
+    /*
+      NO h-full IN THE BASE (2026-09-16, measured: PQS, Planner and Recent activity all came back
+      at exactly 498px). This is the trap the old code documented and I walked into anyway:
+      height:100% on a grid item resolves against its GRID AREA, which is the row, so it stretches
+      even under align-items: start. The container saying "start" and the child saying "100%" is
+      the child winning, and the result is a panel of three activity lines padded out to the
+      height of a report beside it.
+
+      A caller that genuinely wants to fill its row passes h-full itself.
+    */
+    <section className={`glass-card flex flex-col p-4 ${className}`} aria-label={title}>
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">{title}</h2>
         {href ? (
@@ -1133,7 +1143,6 @@ export default async function DashboardPage() {
           <Panel
             title={`${onCallName}: urgent follow ups`}
             href="/on-call"
-            className="h-full"
           >
           {!canSeeOnCall ? (
             <p className="text-sm text-white/55">{onCallName} is not switched on for this company.</p>
