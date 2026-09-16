@@ -426,6 +426,16 @@ export default function ServiceUserRegister({
                                     <td>
                                       {s.comp ? (
                                         <RagDate date={s.comp} rag={s.rag} />
+                                      ) : s.prevComp ? (
+                                        /* Last cycle's review, in the slot the outstanding
+                                           one has come round to. Muted, never RAG: it is
+                                           history, not this slot's answer. */
+                                        <span
+                                          className="rag-cell rag-cell-none"
+                                          title="Completed last cycle. This slot is due again."
+                                        >
+                                          {formatDisplayDate(s.prevComp)}
+                                        </span>
                                       ) : (
                                         <span className="rag-cell rag-cell-none">—</span>
                                       )}

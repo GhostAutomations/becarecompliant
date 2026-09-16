@@ -159,6 +159,7 @@ export function reviewSlots(
   };
   for (let i = 1; i <= count; i++) {
     let comp: string | null = null;
+    let prevComp: string | null = null;
     let due: string | null = null;
     let rag: Rag | "none" = "none";
     if (i < activeSlot) {
@@ -179,6 +180,14 @@ export function reviewSlots(
         due = valid(anchor) ? addI(anchor) : null;
       }
       rag = due ? ragStatus(parseCivilDate(due), today, amberDays) : "none";
+      /* THE COMPLETION THIS SLOT IS DISPLACING (Phil, 2026-09-16: "still data missing").
+         After a full cycle the active slot comes round to a position that already holds a
+         completion, and that completion had nowhere to go: a service user with exactly four
+         reviews showed three. It is not this slot's completion - the slot is outstanding -
+         so it is carried separately and drawn as history, which is also how the board this
+         copies shows it. */
+      const prevK = histIndex(i);
+      if (prevK >= 0 && prevK < cycleBase) prevComp = comps[prevK];
     } else {
       const k = histIndex(i);
       comp = k >= 0 ? comps[k] : null;
@@ -190,7 +199,7 @@ export function reviewSlots(
       due = comp ? (known.dueByComp?.get(comp) ?? null) : null;
       rag = comp ? (lateOf(k) ? "red" : "green") : "none";
     }
-    slots.push({ n: i, due, comp, rag });
+    slots.push({ n: i, due, comp, prevComp, rag });
   }
   return slots;
 }

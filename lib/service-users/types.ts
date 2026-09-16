@@ -111,6 +111,11 @@ export type ReviewSlot = {
   n: number;
   due: string | null;
   comp: string | null;
+  /** The PREVIOUS cycle's completion in this slot, shown only when the slot is the
+   *  outstanding one. It is a real review that happened; without it a company on a full
+   *  cycle of four loses its oldest completion from the register entirely. Kept separate
+   *  from `comp` so an outstanding slot never renders as done. */
+  prevComp?: string | null;
   rag: Rag | "none";
 };
 
