@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
+import { getRegisterNameSort } from "@/lib/register/name-sort-pref";
 import ServiceUserRegister from "@/components/service-users/service-user-register";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import {
@@ -43,6 +44,7 @@ export default async function ServiceUsersPage({
 
   // Load EVERY Service User once (all statuses, all the viewer's branches). Branches
   // and View are then switched instantly on the client with no server round trip.
+  const nameSort = await getRegisterNameSort(user.id);
   const [branches, register, reviewers, columnLabels, reviewIntervalDays, checkColumns] = await Promise.all([
     listAccessibleBranchTypes(companyId, profile.role, user.id),
     listRegister(companyId, null, "all"),
@@ -89,6 +91,7 @@ export default async function ServiceUsersPage({
         isAdmin={isAdmin}
         initialView={view ?? "main"}
         initialBranch={branch ?? ""}
+        initialSort={nameSort}
       />
     </div>
   );

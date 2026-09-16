@@ -13,7 +13,7 @@ import { canManageRecord, canManageAnything } from "@/lib/auth/manage-scope";
 import { HorizontalScrollbar } from "@/components/register/horizontal-scrollbar";
 import { useRememberedScroll } from "@/components/register/use-remembered-scroll";
 import { VerticalScrollbar } from "@/components/register/vertical-scrollbar";
-import { NameSortHeader, sortByName, useNameSort } from "@/components/register/name-sort-header";
+import { NameSortHeader, sortByName, useNameSort, type SortMode } from "@/components/register/name-sort-header";
 
 type BranchLite = { id: string; name: string };
 
@@ -62,12 +62,15 @@ export default function TrainingMatrix({
   branches,
   viewerRole,
   viewerBranchIds,
+  initialSort,
 }: {
   courses: TrainingCourse[];
   people: TrainingPerson[];
   branches: BranchLite[];
   viewerRole: string;
   viewerBranchIds: string[];
+  /** The name order this user chose last time, read from their profile by the page. */
+  initialSort: SortMode;
 }) {
   /*
    * TWO DIFFERENT QUESTIONS, and they used to be one boolean.
@@ -115,7 +118,7 @@ export default function TrainingMatrix({
     [branch, readable],
   );
 
-  const { mode, setMode } = useNameSort();
+  const { mode, setMode } = useNameSort(initialSort);
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     const matched = inBranch.filter(

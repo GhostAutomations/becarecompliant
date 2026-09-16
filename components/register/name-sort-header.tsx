@@ -15,19 +15,22 @@
  * about each other and how the names are actually written on screen, so scanning for
  * "Bethan" works. Both use the tested rules in lib/people/name-sort.
  *
- * A to Z Surname is the default, so a register looks exactly as it always has until
- * somebody chooses otherwise. The choice is not remembered: it is a question you ask while
- * you are looking, not a way you work.
+ * A to Z First Name is the default (Phil, 2026-09-16), and the choice IS remembered: it is
+ * saved on the user's profile by migration 0280, so it survives a page change, a sign out and
+ * a different machine. It is set optimistically here so the rows reorder the instant you
+ * choose, with the save going off behind it.
  *
  * The menu is rendered in a PORTAL, the same as PillSelect, because the header sits inside
  * the matrix's scrolling area and anything positioned normally would be clipped by it.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { bySurname, byGivenName } from "@/lib/people/name-sort";
+import { setRegisterNameSort } from "@/lib/register/name-sort-actions";
+import type { SortMode } from "@/lib/register/name-sort-pref";
 
-export type SortMode = "first_az" | "first_za" | "surname_az" | "surname_za";
+export type { SortMode };
 
 export const SORT_OPTIONS: ReadonlyArray<{ value: SortMode; label: string }> = [
   { value: "first_az", label: "A-Z First Name" },
@@ -36,9 +39,23 @@ export const SORT_OPTIONS: ReadonlyArray<{ value: SortMode; label: string }> = [
   { value: "surname_za", label: "Z-A Surname" },
 ];
 
-export function useNameSort(initial: SortMode = "surname_az") {
+/**
+ * The chosen order, held here so the rows reorder immediately, and written to the profile so
+ * it is still chosen tomorrow. `initial` comes from the server, which has already read it.
+ */
+export function useNameSort(initial: SortMode) {
   const [mode, setMode] = useState<SortMode>(initial);
-  return { mode, setMode };
+  const [, startTransition] = useTransition();
+  function choose(next: SortMode) {
+    if (next === mode) return;
+    setMode(next);
+    // Saved behind the reorder, never in front of it: the rows must not wait on a round trip,
+    // and a failed save is a preference that reverts next time, not an error on the screen.
+    startTransition(async () => {
+      await setRegisterNameSort(next);
+    });
+  }
+  return { mode, setMode: choose };
 }
 
 /** Order rows by the chosen mode. Never mutates the list it is given. */

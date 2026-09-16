@@ -34,7 +34,7 @@ import {
   SERVICE_STATUS_LABELS,
   REVIEW_STATUS_LABELS,
 } from "@/lib/service-users/types";
-import { NameSortHeader, sortByName, useNameSort } from "@/components/register/name-sort-header";
+import { NameSortHeader, sortByName, useNameSort, type SortMode } from "@/components/register/name-sort-header";
 import type { BranchType, ProfileLite } from "@/lib/service-users/data";
 
 const RAG_ORDER: Record<string, number> = { red: 0, amber: 1, green: 2, none: 3 };
@@ -104,6 +104,7 @@ export default function ServiceUserRegister({
   isAdmin = false,
   initialView,
   initialBranch,
+  initialSort,
 }: {
   rows: ServiceUserRow[];
   branches: BranchType[];
@@ -119,6 +120,8 @@ export default function ServiceUserRegister({
   isAdmin?: boolean;
   initialView: string;
   initialBranch: string;
+  /** The name order this user chose last time, read from their profile by the page. */
+  initialSort: SortMode;
 }) {
   const router = useRouter();
   const [view, setView] = useState(VIEW_META[initialView] ? initialView : "main");
@@ -172,7 +175,7 @@ export default function ServiceUserRegister({
     window.history.replaceState(null, "", urlFor(view, b));
   }
 
-  const { mode, setMode } = useNameSort();
+  const { mode, setMode } = useNameSort(initialSort);
   const filtered = useMemo(() => {
     let list = rows.filter((r) => (!branchId || r.service_user.branch_id === branchId) && meta.match(r));
     const term = search.trim().toLowerCase();

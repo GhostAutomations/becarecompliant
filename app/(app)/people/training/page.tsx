@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
+import { getRegisterNameSort } from "@/lib/register/name-sort-pref";
 import BackLink from "@/components/back-link";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import { listBranches } from "@/lib/people/data";
@@ -13,7 +14,7 @@ export const metadata: Metadata = { title: "Training" };
 const ALLOWED = ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"];
 
 export default async function TrainingPage() {
-  const { profile } = await requireCompany();
+  const { user, profile } = await requireCompany();
   if (!ALLOWED.includes(profile.role)) redirect("/people");
 
   if (!profile.company_id) {
@@ -29,6 +30,7 @@ export default async function TrainingPage() {
   }
 
   const companyId = profile.company_id;
+  const nameSort = await getRegisterNameSort(user.id);
   const [branches, matrix, viewerBranchIds] = await Promise.all([
     listBranches(companyId, profile),
     getTrainingMatrix(companyId, null),
@@ -47,6 +49,7 @@ export default async function TrainingPage() {
           /* The ROLE and the BRANCHES, not a boolean. The matrix decides per carer, because a
              manager can now see a carer outside her branches (0183, booked conductor) and every
              write on that carer is refused. See lib/auth/manage-scope.ts. */
+          initialSort={nameSort}
           viewerRole={profile.role}
           viewerBranchIds={viewerBranchIds}
         />

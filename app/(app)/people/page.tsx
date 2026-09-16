@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
+import { getRegisterNameSort } from "@/lib/register/name-sort-pref";
 import PeopleRegister from "@/components/people/people-register";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import { listBranches, listRegister, getColumnLabels, getSupervisionCycleMode } from "@/lib/people/data";
@@ -16,7 +17,7 @@ export default async function PeoplePage({
 }: {
   searchParams: Promise<{ branch?: string; view?: string }>;
 }) {
-  const { profile } = await requireCompany();
+  const { user, profile } = await requireCompany();
   // A Team Member (staff) login has one destination: their own area.
   if (profile.role === "staff") redirect("/my");
   // The On Call role has no People compliance department; send them home.
@@ -39,6 +40,7 @@ export default async function PeoplePage({
 
   // Load EVERY person once (all statuses, all the viewer's branches). Branches and
   // View are then switched instantly on the client with no server round trip.
+  const nameSort = await getRegisterNameSort(user.id);
   const [branches, register, columnLabels, checkColumns, cycleMode] = await Promise.all([
     listBranches(companyId, profile),
     listRegister(companyId, null, "all"),
@@ -90,6 +92,7 @@ export default async function PeoplePage({
         isAdmin={isAdmin}
         initialView={view ?? "main"}
         initialBranch={branch ?? ""}
+        initialSort={nameSort}
       />
     </div>
   );

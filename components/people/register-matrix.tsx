@@ -24,7 +24,7 @@ import { PillSelect, toneClass, type Tone } from "@/components/register/pill-sel
 import { HorizontalScrollbar } from "@/components/register/horizontal-scrollbar";
 import { useRememberedScroll } from "@/components/register/use-remembered-scroll";
 import { VerticalScrollbar } from "@/components/register/vertical-scrollbar";
-import { NameSortHeader, sortByName, useNameSort } from "@/components/register/name-sort-header";
+import { NameSortHeader, sortByName, useNameSort, type SortMode } from "@/components/register/name-sort-header";
 import ExtraCheckCell from "@/components/register/extra-check-cell";
 import { cellText, type RegisterCheckColumn } from "@/lib/register/custom-columns";
 
@@ -100,6 +100,7 @@ export default function RegisterMatrix({
   columnText = {},
   returnTo = "/people",
   scope = "active",
+  initialSort,
 }: {
   rows: RegisterRow[];
   config: MatrixConfig;
@@ -113,6 +114,8 @@ export default function RegisterMatrix({
   returnTo?: string;
   /** Which view this is; the Status pill offers Archive only in the Leavers view. */
   scope?: string;
+  /** The name order this user chose last time, read from their profile by the page. */
+  initialSort: SortMode;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   useRememberedScroll(wrapRef, `people:${scope}`);
@@ -146,7 +149,7 @@ export default function RegisterMatrix({
   const unsorted = oneBranch && branchId ? rows.filter((r) => r.person.branch_id === branchId) : rows;
   // Sorted HERE rather than left to the server so pressing the header reorders what is already
   // on screen, with no round trip and nothing to lose in a filter.
-  const { mode, setMode } = useNameSort();
+  const { mode, setMode } = useNameSort(initialSort);
   const filtered = useMemo(() => sortByName(unsorted, (r) => r.person.full_name, mode), [unsorted, mode]);
   // Four-supervisions mode: show a Sup 4 column pair and no Annual Appraisal columns.
   const fourSup = config.cycleMode === "four_supervisions";
