@@ -620,16 +620,23 @@
    * width before the tiles divided the rest, so everything between was broken by construction
    * and the iPad Pro landed in the middle of it.
    *
-   * align-items: flex-start, NOT stretch. A card must be as tall as its own content. Note this
-   * is necessary but not sufficient: a child carrying h-full resolves 100% against the line's
-   * height and stretches anyway, which is how three activity lines came to be drawn at the
-   * height of a report beside them.
+   * align-items: stretch, so cards on the SAME LINE end level with each other.
+   *
+   * This was flex-start for one deploy and it was wrong. Measured, row one held cards 146px,
+   * 128px and 90px tall side by side: every short one left a ragged step of empty space under
+   * it, and a ragged bottom edge reads as a gap, which is exactly what Phil was still seeing
+   * after the trailing space was gone (measured at 0px on every row).
+   *
+   * Stretch is only safe because flex stretches PER LINE, and because the tall outlier was moved
+   * out first. The PQS report has a row to itself: while it shared a line with two short lists,
+   * stretch padded them to the height of a report and flex-start left a hole under them. Neither
+   * setting could fix that, because it was never an alignment problem.
    */
   .dash-grid,
   .dash-grid-wide {
     display: flex;
     flex-wrap: wrap;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 0.75rem;
   }
 
