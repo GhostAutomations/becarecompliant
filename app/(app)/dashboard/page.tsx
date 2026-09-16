@@ -449,10 +449,19 @@ function ScoreTile({
 }) {
   const body = (
     <>
-      <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-navy-900" title={name}>
+      {/*
+        BIGGER TYPE SINCE THE TILE WENT FULL WIDTH (Phil, 2026-09-16: "make the taxt bigged so
+        there isnt so much of a gap inbetween the score tile and the score number").
+
+        These were sized at 11px for a tile that was a quarter of the screen. The tile is now
+        about 750px across, and 11px text left the measure name marooned on the left with the
+        rate and the band pinned right and a corridor of white between them. The gap was never
+        spacing, it was type too small for the width it had been given.
+      */}
+      <p className="truncate text-sm font-semibold uppercase tracking-wide text-navy-900" title={name}>
         {name}
       </p>
-      <ul className="mt-2 space-y-1">
+      <ul className="mt-3 space-y-1.5">
         {measures.map((m) => {
           /*
            * ONE rag decision per line, shared by the rate and the score, so the two numbers can
@@ -477,18 +486,18 @@ function ScoreTile({
             {/* The measure, and what it is counted from when that is worth knowing. A
                 percentage off one review reads as authoritative as one off a hundred unless
                 the tile says otherwise (Phil, 2026-09-12). */}
-            <span className="min-w-0 flex-1 truncate text-[11px] text-slate-600" title={m.star}>
+            <span className="min-w-0 flex-1 truncate text-sm text-slate-600" title={m.star}>
               {m.name}
               {m.sample ? <span className="text-slate-400"> · {m.sample}</span> : null}
             </span>
-            <span className={`w-11 shrink-0 text-right text-[11px] font-semibold tabular-nums ${ink}`}>
+            <span className={`w-14 shrink-0 text-right text-sm font-semibold tabular-nums ${ink}`}>
               {m.rate == null ? "n/a" : `${m.rate}%`}
             </span>
             {/* The PQS score (the band Cardiff awards: 0, 2, 5, 7 or 10) sits to the RIGHT of the
                 rate and carries the SAME ink as it (Phil, 2026-07-30), so a line reads as one
                 judgement rather than two. */}
             <span
-              className={`w-5 shrink-0 text-right text-[11px] font-bold tabular-nums ${ink}`}
+              className={`w-6 shrink-0 text-right text-sm font-bold tabular-nums ${ink}`}
               title="PQS score"
             >
               {m.band == null ? "" : m.band}
@@ -500,7 +509,7 @@ function ScoreTile({
     </>
   );
 
-  const skin = `rounded-xl bg-white p-3 shadow-lg shadow-black/20 ${className}`;
+  const skin = `rounded-xl bg-white p-4 shadow-lg shadow-black/20 ${className}`;
   return href ? (
     <Link
       href={href}
