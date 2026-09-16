@@ -1264,11 +1264,19 @@ export default async function DashboardPage() {
               the old fallback message wrongly told a Supervisor the feature was off
               (17 Aug QA). Manager-plus with the feature genuinely off keeps the honest
               message below. */}
+          {/*
+            NO WRAPPER DIV. It is the reason the gap survived four attempts (Phil, four times:
+            "still a gap under Out of Hours: urgent follow ups").
+
+            The Panel used to sit inside a plain <div>, left over from when it lived in a fixed
+            width column. That div was the flex child, so the height floor and the stretch applied
+            to IT: the div measured 176px and the visible card inside it measured 90px, leaving
+            86px of empty space UNDER the card. Not inside it, under it, exactly as Phil kept
+            saying while I kept measuring the wrapper and reporting the line as level.
+
+            The Panel is the flex child now, so what stretches is the thing you can see.
+          */}
           {companyWide ? (
-          <div>
-        {/* On call and Due in 14 days swapped (Phil, 2026-07-30): the urgent follow ups
-              belong at the top of the screen, in the four column slot that runs down both tile
-              rows. */}
           <Panel
             title={`${onCallName}: urgent follow ups`}
             href="/on-call"
@@ -1315,7 +1323,6 @@ export default async function DashboardPage() {
             </ul>
           )}
         </Panel>
-          </div>
           ) : null}
 
         {/* THE PLANNER (Phil, 2026-07-29): this user's own booked tasks, the same rows the
