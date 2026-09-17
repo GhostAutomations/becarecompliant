@@ -11,11 +11,14 @@ import TrainingMatrix from "@/components/training/training-matrix";
 
 export const metadata: Metadata = { title: "Training" };
 
-const ALLOWED = ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"];
-
+/*
+ * NO ROLE GUARD (Phil, 2026-09-17): "Supervisors cant see training, anyone that can see people
+ * should see training". People has none either. Who sees WHICH carers is RLS, and what anybody
+ * may CHANGE is decided per row by lib/auth/manage-scope.ts from the role and branches passed to
+ * the matrix, so a Supervisor gets the register read only rather than a redirect.
+ */
 export default async function TrainingPage() {
   const { user, profile } = await requireCompany();
-  if (!ALLOWED.includes(profile.role)) redirect("/people");
 
   if (!profile.company_id) {
     return (

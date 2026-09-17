@@ -87,12 +87,52 @@ test("0165 does NOT widen who can change the course catalogue", () => {
   assert.match(actions, /Only Admins can change training courses/);
 });
 
-test("the app and the database admit the same roles to Training", () => {
-  // The page, the nav entry and the save action all name the Registered roles. If one of them
-  // ever stops, this test says so rather than a Registered Manager finding a blank screen.
+test("saveTraining still names the Registered roles", () => {
+  // WRITING is still a role decision, and this is the half of the original assertion that
+  // survives. If saveTraining ever stops naming them, a Registered Manager gets a register she
+  // can read and cannot save, which is the same class of fault as the blank page above.
   for (const role of REGISTERED) {
-    assert.ok(page.includes(role), `the Training page's ALLOWED list no longer names ${role}`);
-    assert.ok(nav.includes(role), `lib/nav.ts no longer names ${role}`);
     assert.ok(actions.includes(role), `saveTraining no longer names ${role}`);
+  }
+});
+
+test("Training is not gated by a role list of its own", () => {
+  /*
+   * THE RULE REPLACED THE LISTS (Phil, 2026-09-17): "Supervisors cant see training, anyone that
+   * can see people should see training."
+   *
+   * Training was gated in three places that all had to agree: this test's own subject, the page's
+   * ALLOWED redirect and the nav entry's roles, plus the RLS policy underneath. A Supervisor
+   * failed the first two and would have met an empty matrix anyway. Three lists is how a role
+   * ends up allowed in two of them and shown a blank screen, which is the fault at the top of
+   * this file wearing different clothes.
+   *
+   * So VISIBILITY is no longer a list anywhere: the page has no guard, the nav entry inherits
+   * People's, and 0289 defers to people_select. What a role may CHANGE is still decided, per row,
+   * by lib/auth/manage-scope.ts.
+   */
+  assert.ok(!page.includes("ALLOWED"), "the Training page has grown a role guard again");
+  const entry = nav.slice(nav.indexOf('href: "/people/training"'));
+  const entryEnd = entry.indexOf("},");
+  assert.ok(
+    !entry.slice(0, entryEnd === -1 ? 200 : entryEnd).includes("roles:"),
+    "the Training nav entry has grown a role list again",
+  );
+});
+
+test("0289 defers to people_select rather than naming roles", () => {
+  const p0289 = readFileSync(
+    new URL("../../supabase/migrations/0289_seeing_a_carer_means_seeing_their_training.sql", import.meta.url),
+    "utf8",
+  );
+  // The subquery IS the rule: reading `people` as the caller means people_select decides, so the
+  // two cannot drift apart the way the three role lists did.
+  assert.match(p0289, /from public\.people p/);
+  assert.match(p0289, /person_training\.person_id/);
+  for (const role of ["supervisor", "manager", "registered_manager"]) {
+    assert.ok(
+      !new RegExp(`'${role}'`).test(p0289),
+      `0289 names ${role}: it is meant to defer to people_select, not start a fourth list`,
+    );
   }
 });

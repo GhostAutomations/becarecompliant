@@ -76,12 +76,11 @@ export const NAV_ENTRIES: NavEntry[] = [
     group: "Departments",
     children: [
       { href: "/people", label: "Compliance", icon: "compliance" },
-      {
-        href: "/people/training",
-        label: "Training",
-        icon: "training",
-        roles: ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"],
-      },
+      /* NO ROLE LIST (Phil, 2026-09-17): "anyone that can see people should see training". It
+         inherits People's own visibility, which is the whole point: Training is the same register
+         in another view, and a separate list of roles here is a third place to keep in step with
+         the page guard and the RLS policy. A Supervisor passed none of the three. */
+      { href: "/people/training", label: "Training", icon: "training" },
       { href: "/people/holiday", label: "Holiday", icon: "holiday", roles: NOT_VIEWER },
       {
         href: "/people/absence",
