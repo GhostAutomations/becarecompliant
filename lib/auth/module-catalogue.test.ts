@@ -80,3 +80,50 @@ test("every module key is unique and every ceiling names real roles", () => {
     for (const r of m.roles) assert.ok(known.has(r), `${m.key} names an unknown role: ${r}`);
   }
 });
+
+/*
+ * THE SAVE, as the action computes it: the form posts the ticks that are ON, and the OFF rows are
+ * what is left of the ceiling. Worked out here rather than trusted from the form, because a form
+ * that posted the off list would, on a dropped field, quietly switch a department ON for a role.
+ */
+function offRowsFor(role: string, ticked: string[]): string[] {
+  const on = new Set(ticked);
+  return MODULES
+    .filter((m) => m.roles.includes(role) && !isLocked(m.key, role) && !on.has(m.key))
+    .map((m) => m.key);
+}
+
+test("saving with everything ticked stores nothing at all", () => {
+  const all = MODULES.filter((m) => m.roles.includes("manager")).map((m) => m.key);
+  assert.deepEqual(offRowsFor("manager", all), []);
+});
+
+test("saving with one unticked stores exactly that one", () => {
+  const all = MODULES.filter((m) => m.roles.includes("supervisor")).map((m) => m.key);
+  const off = offRowsFor("supervisor", all.filter((k) => k !== "incidents"));
+  assert.deepEqual(off, ["incidents"]);
+  assert.equal(canUseModule("incidents", "supervisor", asDisabled("supervisor", off)), false);
+  assert.equal(canUseModule("complaints", "supervisor", asDisabled("supervisor", off)), true);
+});
+
+/* TWO SHAPES, and they are easy to confuse: the action works in module KEYS, the runtime check
+   works in `role|module` pairs. Writing this test the wrong way round was the first thing it
+   caught, so the conversion lives here rather than being done by hand in each assertion. */
+const asDisabled = (role: string, keys: string[]) => new Set(keys.map((k) => disabledKey(role, k)));
+
+test("a tick outside the ceiling cannot widen anything", () => {
+  // A stale page, or somebody poking at the form. Invoicing is not in a Supervisor's ceiling, so
+  // ticking it neither stores anything nor grants anything.
+  const off = offRowsFor("supervisor", ["invoicing"]);
+  assert.ok(!off.includes("invoicing"));
+  assert.equal(canUseModule("invoicing", "supervisor", asDisabled("supervisor", off)), false);
+});
+
+test("an empty post switches everything off, and Settings survives it", () => {
+  // The Admin tile with every box cleared: Settings is locked, so it is not in the off list and
+  // canUseModule still lets them back in.
+  const off = offRowsFor("company_admin", []);
+  assert.ok(!off.includes("settings"));
+  assert.equal(canUseModule("settings", "company_admin", asDisabled("company_admin", off)), true);
+  assert.equal(canUseModule("people", "company_admin", asDisabled("company_admin", off)), false);
+});

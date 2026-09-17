@@ -1,5 +1,7 @@
 import { PUBLIC_FORMS_ENABLED } from "@/lib/public-forms/flag";
 import { COMPLAINTS_ROLES, INCIDENTS_ROLES } from "@/lib/auth/module-roles";
+import { canUseModule } from "@/lib/auth/module-catalogue";
+import { moduleForPath } from "@/lib/auth/module-paths";
 
 export type Role =
   | "platform_admin"
@@ -238,7 +240,12 @@ export const NAV_ENTRIES: NavEntry[] = [
 ];
 
 /** Nav entries (and their children) visible to a given role. */
-export function navEntriesForRole(role: string): NavEntry[] {
+/**
+ * @param disabled `role|module` pairs this company has switched off (lib/auth/module-catalogue).
+ *        The nav is the same answer as the middleware gate, from the same function, so a tab can
+ *        never lead somewhere the gate will bounce them straight back out of.
+ */
+export function navEntriesForRole(role: string, disabled: ReadonlySet<string> = new Set()): NavEntry[] {
   // The founder (platform admin) has no company context of their own: their home
   // is the Founder console. The care sections (Dashboard, People, Service Users,
   // Reports) are reached only by entering a company via Manage as company, at
@@ -281,7 +288,11 @@ export function navEntriesForRole(role: string): NavEntry[] {
     return [{ href: "/my", label: "My area", icon: "people" as const, group: "Departments" }];
   }
   const allowed = (entry: NavEntry) =>
-    !entry.roles || entry.roles.includes(role as Role);
+    (!entry.roles || entry.roles.includes(role as Role)) &&
+    // A department the company has switched off for this role does not appear at all. Its own
+    // `roles` list stays as the first filter, because the two answer different questions: what
+    // the product allows, and what this company chose.
+    (!moduleForPath(entry.href) || canUseModule(moduleForPath(entry.href)!, role, disabled));
   return NAV_ENTRIES.filter(allowed).map((entry) =>
     entry.children
       ? { ...entry, children: entry.children.filter(allowed) }

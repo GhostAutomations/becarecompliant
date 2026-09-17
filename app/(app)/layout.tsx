@@ -8,6 +8,7 @@ import { SidebarNav, MobileDock } from "@/components/app-nav";
 import NavyNav from "@/components/navy-nav";
 import ToastHost from "@/components/toast-host";
 import { ROLE_LABELS, navEntriesForRole } from "@/lib/nav";
+import { disabledModules } from "@/lib/auth/module-access";
 import { onCallLabel, withOnCallLabel } from "@/lib/on-call/label";
 import { featureEnabled } from "@/lib/billing/tier";
 import { getCompanyTrialState } from "@/lib/billing/trial-gate";
@@ -105,8 +106,11 @@ export default async function AppLayout({
     .join("")
     .slice(0, 2)
     .toUpperCase();
+  /* The departments this company has switched off for this role. The nav asks the same function
+     the middleware gate asks, so a tab can never lead somewhere the gate bounces them out of. */
+  const disabledForRole = await disabledModules(navCompanyId);
   const navEntries = withOnCallLabel(
-    navEntriesForRole(actingCompanyId ? "company_admin" : profile.role),
+    navEntriesForRole(actingCompanyId ? "company_admin" : profile.role, disabledForRole),
     onCallName,
   )
     .filter((e) => e.href !== "/complaints" || complaintsEnabled)

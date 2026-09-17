@@ -207,6 +207,12 @@ export default async function SettingsPage() {
             Invite your team, set roles and branches, and manage pending invites.
           </p>
         </Link>
+        <Link href="/settings/access" className="app-tile">
+          <h2 className="text-base font-semibold text-white">User access</h2>
+          <p className="text-sm text-white/60">
+            Choose which departments each role opens. Untick one and it leaves that role&apos;s menu.
+          </p>
+        </Link>
       </section>
     </div>
   );

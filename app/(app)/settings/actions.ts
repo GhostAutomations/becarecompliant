@@ -25,6 +25,8 @@ import { picksABranch, mayChooseAllBranches, ALL_BRANCHES } from "@/lib/people/r
 import { trialState } from "@/lib/billing/trial";
 import { trialInviteRefusal } from "@/lib/billing/trial-limits";
 import { isBillableSeat } from "@/lib/billing/seats";
+import { MODULES, isLocked } from "@/lib/auth/module-catalogue";
+import { ROLE_LABELS } from "@/lib/nav";
 
 const INVITABLE_ROLES: InviteRole[] = [
   "registered_individual",
@@ -705,5 +707,75 @@ export async function renameBranch(
   // (best-effort, see rebake-options.ts).
   await rebakeFormFieldOptions(ctx.companyId);
   revalidatePath("/settings/branches");
+  return { ok: "Saved." };
+}
+
+
+/**
+ * Save which departments a role opens (Phil, 2026-09-17).
+ *
+ * WHAT IS POSTED is the ticks that are ON, one `role|module` per checkbox, exactly as the browser
+ * sends checkboxes: unticked boxes send nothing. So the OFF rows are worked out here by
+ * subtracting what arrived from the ceiling, rather than trusting the form to tell us what to
+ * switch off. A form that posted the off list would, on a dropped field, quietly switch a
+ * department ON for a role.
+ *
+ * THE CEILING IS APPLIED AGAIN, server side. A tick for something outside a role's ceiling is
+ * ignored rather than refused: the screen greys those out, so a post carrying one is either a
+ * stale page or somebody poking at the form, and neither should be able to widen anything.
+ *
+ * One role at a time, so a save touches only that role's rows and two Admins on two tiles cannot
+ * overwrite each other.
+ */
+export async function saveRoleModules(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { user, profile } = await requireCompanyAdmin();
+  const companyId = profile.company_id;
+  if (!companyId) return { error: "No company context." };
+
+  const role = String(formData.get("role") ?? "").trim();
+  if (!role) return { error: "Missing role." };
+  if (!MODULES.some((m) => m.roles.includes(role))) {
+    return { error: "That is not a role we recognise." };
+  }
+
+  const ticked = new Set(formData.getAll("modules").map((v) => String(v)));
+  const offKeys = MODULES
+    .filter((m) => m.roles.includes(role) && !isLocked(m.key, role) && !ticked.has(m.key))
+    .map((m) => m.key);
+
+  const supabase = await createClient();
+  const { error: delErr } = await supabase
+    .from("company_role_modules")
+    .delete()
+    .eq("company_id", companyId)
+    .eq("role", role);
+  if (delErr) return { error: delErr.message };
+
+  if (offKeys.length > 0) {
+    const { error: insErr } = await supabase.from("company_role_modules").insert(
+      offKeys.map((module_key) => ({
+        company_id: companyId,
+        role,
+        module_key,
+        disabled_by: user.id,
+      })),
+    );
+    if (insErr) return { error: insErr.message };
+  }
+
+  await writeAudit({
+    companyId,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "company.role_access_set",
+    entityType: "company",
+    entityId: companyId,
+    summary: `${ROLE_LABELS[role] ?? role}: ${offKeys.length === 0 ? "every department" : `${offKeys.length} switched off`}`,
+    metadata: { role, switched_off: offKeys },
+  });
+
+  revalidatePath("/settings/access");
+  revalidatePath("/", "layout");
   return { ok: "Saved." };
 }
