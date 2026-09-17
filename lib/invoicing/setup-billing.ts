@@ -32,14 +32,34 @@ export type CompanyFunding = {
  * question, or an answer that is not in their list at all. Null means do nothing, which is the
  * right outcome for a council-commissioned package: it is billed through the council's own
  * arrangements and never appears in Invoicing.
+ *
+ * SEVERAL FUNDERS, ONE INVOICE (Phil, 2026-09-17): "the council me pay for their main serivce but
+ * them might add one or tw o private calls or a respite call that the council wont pay for", and
+ * "if they have two or more funding sources, private will also be the last option so that all
+ * calls will be primary funding, private will just be adhoc calls".
+ *
+ * So the answer is now a list: a primary funder that pays for the package, and possibly private
+ * money for ad hoc calls on top. The private invoicing client exists for the money THIS company
+ * collects, so any one billable funder in the list is reason enough to create it — a council
+ * funded package with a Friday shop the family pays for still needs somebody to send that bill
+ * to, and under the old single answer it got nobody.
+ *
+ * The company's own catalogue order decides which one, not the order the boxes were ticked, so
+ * the same package cannot produce two different payer records depending on what somebody clicked
+ * first. Private sorts last in that catalogue on purpose, so where a package is both council
+ * funded and private, it is the council's arrangement that names the record.
  */
 export function billedFunding(
   funding: unknown,
   options: ReadonlyArray<CompanyFunding>,
 ): CompanyFunding | null {
-  if (typeof funding !== "string" || !funding) return null;
-  const match = options.find((o) => o.key === funding);
-  return match && match.billsPrivately ? match : null;
+  const chosen = new Set(
+    (Array.isArray(funding) ? funding : [funding]).filter(
+      (v): v is string => typeof v === "string" && v !== "",
+    ),
+  );
+  if (chosen.size === 0) return null;
+  return options.find((o) => chosen.has(o.key) && o.billsPrivately) ?? null;
 }
 
 /**

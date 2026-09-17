@@ -41,7 +41,11 @@ test("an unanswered or nonsense funding question bills nobody", () => {
   assert.equal(billedFunding("", OPTIONS), null);
   assert.equal(billedFunding(42, OPTIONS), null);
   assert.equal(billedFunding("PRIVATE", OPTIONS), null);
-  assert.equal(billedFunding(["private"], OPTIONS), null);
+  /* A LIST IS NO LONGER NONSENSE (2026-09-17). This line asserted the opposite until the funding
+     question became a multi_select, and it is kept rather than deleted because the reason it
+     changed is the change: ["private"] is now the ordinary shape of an answer, not a malformed
+     one. A list of things that are not funding keys still bills nobody. */
+  assert.equal(billedFunding([42, {}], OPTIONS), null);
 });
 
 test("a company that has ticked nothing bills nobody", () => {
@@ -73,4 +77,41 @@ test("the note says where the record came from and what is still missing", () =>
   assert.match(note, /Setup Visit on 2026-09-09/);
   assert.match(note, /Private \/ self funded/);
   assert.match(note, /still to be filled in/);
+});
+
+/*
+ * MORE THAN ONE FUNDER (Phil, 2026-09-17): "the council me pay for their main serivce but them
+ * might add one or tw o private calls or a respite call that the council wont pay for". The
+ * answer is a list now. Private sits last in the catalogue because it is the money on top, not
+ * the package.
+ */
+test("a council funded package with private calls on top is still billed", () => {
+  // The case that had nowhere to go before: one answer meant one funder, so the private calls
+  // either went unrecorded or the whole package was recorded as private.
+  assert.equal(billedFunding(["local_authority", "private"], OPTIONS)?.key, "private");
+});
+
+test("a list of funders the company does not invoice is not billed", () => {
+  const framework = OPTIONS.map((o) => (o.key === "nhs_chc" ? { ...o, billsPrivately: false } : o));
+  assert.equal(billedFunding(["local_authority", "nhs_chc"], framework), null);
+});
+
+test("the catalogue's order decides, not the order the boxes were ticked", () => {
+  /* Otherwise the same package produces two different payer records depending on what somebody
+     clicked first. OPTIONS runs local_authority, nhs_chc, private. */
+  assert.equal(billedFunding(["private", "nhs_chc"], OPTIONS)?.key, "nhs_chc");
+  assert.equal(billedFunding(["nhs_chc", "private"], OPTIONS)?.key, "nhs_chc");
+});
+
+test("a single answer still works, because old evidence holds one", () => {
+  // Evidence is immutable: a Setup Visit submitted before this change stored a string.
+  assert.equal(billedFunding("private", OPTIONS)?.key, "private");
+  assert.equal(billedFunding("local_authority", OPTIONS), null);
+});
+
+test("an empty list, or nothing at all, is not billed", () => {
+  assert.equal(billedFunding([], OPTIONS), null);
+  assert.equal(billedFunding(["", null], OPTIONS), null);
+  assert.equal(billedFunding(null, OPTIONS), null);
+  assert.equal(billedFunding(undefined, OPTIONS), null);
 });

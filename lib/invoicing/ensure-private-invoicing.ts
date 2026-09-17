@@ -48,29 +48,44 @@ export async function ensurePrivateInvoicingFromSetup(opts: {
   serviceUserId: string;
   answers: Answers;
 }): Promise<{ turnedOn: boolean; fundingLabel: string | null }> {
+  /*
+   * A STRING OR A LIST. The funding question became a multi_select on 2026-09-17 so a package can
+   * name its primary funder AND private money for ad hoc calls. This guard read `typeof answer
+   * !== "string"` and would have thrown every multi answer away without a word, which is the
+   * silent no-op this whole module exists to avoid. billedFunding takes either shape; all that is
+   * needed here is to stop early when there is nothing at all.
+   */
   const answer = opts.answers["funding_source"];
-  if (typeof answer !== "string" || !answer) return { turnedOn: false, fundingLabel: null };
+  const answered = Array.isArray(answer) ? answer.length > 0 : typeof answer === "string" && answer !== "";
+  if (!answered) return { turnedOn: false, fundingLabel: null };
 
   try {
     const admin = createServiceClient();
 
     const { data: configured } = await admin
       .from("company_funding_options")
-      .select("option_key, bills_privately, catalogue:funding_option_catalogue(label, payer_type)")
+      .select("option_key, bills_privately, catalogue:funding_option_catalogue(label, payer_type, sort_order)")
       .eq("company_id", opts.companyId);
 
+    /* SORTED BY THE CATALOGUE, because with more than one funder billedFunding picks the first
+       billable one and an unordered read would make that depend on what PostgREST happened to
+       return. Private sorts last on purpose, so a package that is both council funded and private
+       is named for the council's arrangement. */
     const options: CompanyFunding[] = (
       (configured as Array<{
         option_key: string;
         bills_privately: boolean;
-        catalogue: { label: string; payer_type: "person" | "organisation" } | null;
+        catalogue: { label: string; payer_type: "person" | "organisation"; sort_order: number | null } | null;
       }> | null) ?? []
-    ).map((row) => ({
-      key: row.option_key,
-      label: row.catalogue?.label ?? row.option_key,
-      payerType: row.catalogue?.payer_type ?? "organisation",
-      billsPrivately: row.bills_privately,
-    }));
+    )
+      .slice()
+      .sort((a, b) => (a.catalogue?.sort_order ?? 0) - (b.catalogue?.sort_order ?? 0))
+      .map((row) => ({
+        key: row.option_key,
+        label: row.catalogue?.label ?? row.option_key,
+        payerType: row.catalogue?.payer_type ?? "organisation",
+        billsPrivately: row.bills_privately,
+      }));
 
     const funding = billedFunding(answer, options);
     if (!funding) return { turnedOn: false, fundingLabel: null };
