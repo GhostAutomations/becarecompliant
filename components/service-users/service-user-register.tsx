@@ -452,7 +452,7 @@ export default function ServiceUserRegister({
                                         <DoneDate date={s.comp} late={s.rag === "red"} />
                                       ) : s.prevComp ? (
                                         <span title="Completed last cycle. This slot is due again.">
-                                          <CycleDate date={s.prevComp} />
+                                          <DoneDate date={s.prevComp} late={!!s.prevLate} />
                                         </span>
                                       ) : (
                                         <CycleDate date={null} />

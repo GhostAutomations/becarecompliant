@@ -160,6 +160,7 @@ export function reviewSlots(
   for (let i = 1; i <= count; i++) {
     let comp: string | null = null;
     let prevComp: string | null = null;
+    let prevLate = false;
     let due: string | null = null;
     let rag: Rag | "none" = "none";
     if (i < activeSlot) {
@@ -187,7 +188,16 @@ export function reviewSlots(
          so it is carried separately and drawn as history, which is also how the board this
          copies shows it. */
       const prevK = histIndex(i);
-      if (prevK >= 0 && prevK < cycleBase) prevComp = comps[prevK];
+      if (prevK >= 0 && prevK < cycleBase) {
+        prevComp = comps[prevK];
+        /* JUDGED ONLY WHEN WE WERE TOLD THE DEADLINE. This slot's due date has since been
+           rolled forward, so deriving one would anchor on the completion before it - for
+           the oldest review, the package start, which can be years back - and brand a
+           punctual review late. No stored due means not late, the same rule appraisalSlot
+           already uses when there is no closed cycle to judge an appraisal against. */
+        const storedDue = known.dueByComp?.get(prevComp);
+        prevLate = valid(storedDue) ? prevComp > storedDue : false;
+      }
     } else {
       const k = histIndex(i);
       comp = k >= 0 ? comps[k] : null;
@@ -199,7 +209,7 @@ export function reviewSlots(
       due = comp ? (known.dueByComp?.get(comp) ?? null) : null;
       rag = comp ? (lateOf(k) ? "red" : "green") : "none";
     }
-    slots.push({ n: i, due, comp, prevComp, rag });
+    slots.push({ n: i, due, comp, prevComp, prevLate, rag });
   }
   return slots;
 }

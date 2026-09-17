@@ -116,6 +116,10 @@ export type ReviewSlot = {
    *  cycle of four loses its oldest completion from the register entirely. Kept separate
    *  from `comp` so an outstanding slot never renders as done. */
   prevComp?: string | null;
+  /** Was prevComp late? Only ever true when we KNOW the date it was due, because the slot
+   *  it sits in has since been rolled forward and the arithmetic would anchor on a package
+   *  start years back and call a perfectly punctual review late. */
+  prevLate?: boolean;
   rag: Rag | "none";
 };
 
