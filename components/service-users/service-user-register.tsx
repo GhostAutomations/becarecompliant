@@ -9,33 +9,28 @@
  * The URL is kept in sync for refresh/back.
  *
  * The table is a fixed set of review columns (not a per-check matrix): Service User,
- * Package Start Date, SSID, Status, Most Recent Review, New Review Due, Planned
- * Review Date, Review Status. Any other check a company adds of its own lives in the
- * record drill-down.
+ * SSID, Status, Package Start Date, the Setup Visit pair and the review cycle. Any other
+ * check a company adds of its own lives in the record drill-down.
+ *
+ * Planned Review Date and Review Status were removed on 2026-09-17 (Phil: "we dont need to
+ * see Planned Review Date or Review Status, they can be deleted"). Booking a review still
+ * lives on the Service User's own record, where it is done rather than watched.
  */
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { NavIcon } from "@/components/nav-icon";
-import { PillSelect, toneClass, type Tone } from "@/components/register/pill-select";
+import { toneClass, type Tone } from "@/components/register/pill-select";
 import { HorizontalScrollbar } from "@/components/register/horizontal-scrollbar";
 import { useRememberedScroll } from "@/components/register/use-remembered-scroll";
 import ColumnsPanel from "@/components/register/columns-panel";
 import ExtraCheckCell from "@/components/register/extra-check-cell";
 import { cellText, MAX_REGISTER_COLUMNS, type RegisterCheckColumn } from "@/lib/register/custom-columns";
-import PlannedReviewCell from "./planned-review-cell";
-import { setServiceStatus } from "@/lib/service-users/actions";
-import { formatDisplayDate, reviewStatus, reviewSlots } from "@/lib/service-users/logic";
-import {
-  type ServiceUserRow,
-  type ServiceStatus,
-  type ReviewStatus,
-  SERVICE_STATUS_LABELS,
-  REVIEW_STATUS_LABELS,
-} from "@/lib/service-users/types";
+import { formatDisplayDate, reviewSlots } from "@/lib/service-users/logic";
+import { type ServiceUserRow, SERVICE_STATUS_LABELS } from "@/lib/service-users/types";
 import { NameSortHeader, sortByName, useNameSort, type SortMode } from "@/components/register/name-sort-header";
-import type { BranchType, ProfileLite } from "@/lib/service-users/data";
+import type { BranchType } from "@/lib/service-users/data";
 
 const RAG_ORDER: Record<string, number> = { red: 0, amber: 1, green: 2, none: 3 };
 
@@ -49,26 +44,6 @@ function serviceStatusTone(v: string | null): Tone {
   if (v === "cancelled") return "red";
   return "neutral";
 }
-
-function reviewStatusTone(v: ReviewStatus): Tone {
-  if (v === "overdue") return "red";
-  if (v === "booked") return "green";
-  return "neutral";
-}
-
-/** Toast shown when a Status change moves a Service User to another view. */
-const STATUS_MOVE: Record<string, string> = {
-  active: "Moved to Main",
-  hospital: "Moved to Hospital",
-  respite: "Moved to Respite",
-  cancelled: "Moved to Cancelled",
-  archive: "Moved to Archive",
-};
-
-const SERVICE_STATUS_OPTIONS = (Object.keys(SERVICE_STATUS_LABELS) as ServiceStatus[]).map((k) => ({
-  value: k,
-  label: SERVICE_STATUS_LABELS[k],
-}));
 
 function ragClass(rag: string): string {
   return rag === "red"
@@ -127,7 +102,6 @@ const VIEW_META: Record<string, { title: string; match: (r: ServiceUserRow) => b
 export default function ServiceUserRegister({
   rows,
   branches,
-  reviewers,
   columnLabels,
   checkColumns = [],
   columnText = {},
@@ -140,7 +114,6 @@ export default function ServiceUserRegister({
 }: {
   rows: ServiceUserRow[];
   branches: BranchType[];
-  reviewers: ProfileLite[];
   columnLabels: Record<string, string>;
   /** All custom (non-curated) check columns for this register, including hidden. */
   checkColumns?: RegisterCheckColumn[];
@@ -180,9 +153,6 @@ export default function ServiceUserRegister({
   // more than the limit an Admin was allowed to choose.
   const shownColumns = checkColumns.filter((c) => c.show).slice(0, MAX_REGISTER_COLUMNS);
   const isComplex = branchOptions.find((b) => b.id === branchId)?.service_user_type === "complex";
-  const statusOptions =
-    view === "cancelled" ? [...SERVICE_STATUS_OPTIONS, { value: "archive", label: "Archive" }] : SERVICE_STATUS_OPTIONS;
-
   function urlFor(v: string, b: string) {
     const params = new URLSearchParams();
     if (v !== "main") params.set("view", v);
@@ -352,15 +322,11 @@ export default function ServiceUserRegister({
                         <th>{col("rev3_comp", "Review 3 Done")}</th>
                         <th>{col("rev4_due", "Review 4 Due")}</th>
                         <th>{col("rev4_comp", "Review 4 Done")}</th>
-                        <th>{col("planned_review_date", "Planned Review Date")}</th>
-                        <th>{col("review_status", "Review Status")}</th>
                       </>
                     ) : (
                       <>
                         <th>{col("most_recent_review", "Most Recent Review")}</th>
                         <th>{col("new_review_due", "New Review Due")}</th>
-                        <th>{col("planned_review_date", "Planned Review Date")}</th>
-                        <th>{col("review_status", "Review Status")}</th>
                       </>
                     )}
                     <th>{col("audit", "Audit")}</th>
@@ -380,8 +346,6 @@ export default function ServiceUserRegister({
                     // due date, otherwise late (red).
                     const setupLate = !!setupComp && !!setupDue && setupComp > setupDue;
                     const newReviewDue = review?.due_date ?? null;
-                    const planned = row.tracker?.planned_review_date ?? null;
-                    const rs = reviewStatus(newReviewDue, planned);
                     return (
                       <tr key={su.id}>
                         <td className="col-carer">
@@ -393,23 +357,14 @@ export default function ServiceUserRegister({
                           </Link>
                         </td>
                         <td>{su.ssid || "—"}</td>
+                        {/* READ ONLY (Phil, 2026-09-17). Service status decides which VIEW a
+                            record lives in, so a stray click on a compliance matrix moves
+                            somebody to Cancelled. It is changed, with Archive beside it, under
+                            Manage record. */}
                         <td>
-                          {canManage ? (
-                            <PillSelect
-                              recordId={su.id}
-                              recordField="service_user_id"
-                              field="status"
-                              value={su.service_status}
-                              options={statusOptions}
-                              action={setServiceStatus}
-                              toneOf={serviceStatusTone}
-                              moveToast={STATUS_MOVE}
-                            />
-                          ) : (
-                            <span className={toneClass(serviceStatusTone(su.service_status))}>
-                              {SERVICE_STATUS_LABELS[su.service_status]}
-                            </span>
-                          )}
+                          <span className={toneClass(serviceStatusTone(su.service_status))}>
+                            {SERVICE_STATUS_LABELS[su.service_status]}
+                          </span>
                         </td>
                         <td>{formatDisplayDate(su.package_start_date) || "—"}</td>
                         <td>
@@ -455,21 +410,6 @@ export default function ServiceUserRegister({
                                     <td>{s.comp ? <DoneDate date={s.comp} late={s.rag === "red"} /> : <CycleDate date={null} />}</td>
                                   </Fragment>
                                 ))}
-                                <td>
-                                  <PlannedReviewCell
-                                    serviceUserId={su.id}
-                                    plannedDate={planned}
-                                    plannedTime={row.tracker?.planned_review_time ?? null}
-                                    plannedDuration={row.tracker?.planned_review_duration_minutes ?? null}
-                                    reviewerId={row.tracker?.planned_reviewer_id ?? null}
-                                    reviewerName={row.tracker?.planned_reviewer_name ?? null}
-                                    reviewers={reviewers}
-                                    editable={canManage}
-                                  />
-                                </td>
-                                <td>
-                                  <span className={toneClass(reviewStatusTone(rs))}>{REVIEW_STATUS_LABELS[rs]}</span>
-                                </td>
                               </>
                             );
                           })()
@@ -479,19 +419,6 @@ export default function ServiceUserRegister({
                                 as Complex's four: white, bold, no pill. */}
                             <td><CycleDate date={review?.last_completed_on ?? null} /></td>
                             <td><RagDate date={newReviewDue} rag={review?.rag ?? "none"} /></td>
-                            <td>
-                              <PlannedReviewCell
-                                serviceUserId={su.id}
-                                plannedDate={planned}
-                                plannedTime={row.tracker?.planned_review_time ?? null}
-                                plannedDuration={row.tracker?.planned_review_duration_minutes ?? null}
-                                reviewerId={row.tracker?.planned_reviewer_id ?? null}
-                                reviewerName={row.tracker?.planned_reviewer_name ?? null}
-                                reviewers={reviewers}
-                                editable={canManage}
-                              />
-                            </td>
-                            <td><span className={toneClass(reviewStatusTone(rs))}>{REVIEW_STATUS_LABELS[rs]}</span></td>
                           </>
                         )}
                         <td>

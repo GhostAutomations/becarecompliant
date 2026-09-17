@@ -18,9 +18,8 @@ import {
   WORKING_STATUS_LABELS,
 } from "@/lib/people/types";
 import { formatDisplayDate, supervisionSlots, appraisalSlot, dateRag } from "@/lib/people/logic";
-import { setEmploymentStatus } from "@/lib/people/actions";
 import { probationDueCountsDown } from "@/lib/people/probation";
-import { PillSelect, toneClass, type Tone } from "@/components/register/pill-select";
+import { toneClass, type Tone } from "@/components/register/pill-select";
 import { HorizontalScrollbar } from "@/components/register/horizontal-scrollbar";
 import { useRememberedScroll } from "@/components/register/use-remembered-scroll";
 import { VerticalScrollbar } from "@/components/register/vertical-scrollbar";
@@ -35,14 +34,6 @@ function workingTone(v: string | null): Tone {
   return "neutral";
 }
 
-/** Toast message shown when a Status change moves a person to another view. */
-const STATUS_MOVE: Record<string, string> = {
-  active: "Moved to Main",
-  leaver: "Moved to Leavers",
-  lts: "Moved to LTS & Mat Leave",
-  mat_leave: "Moved to LTS & Mat Leave",
-  archive: "Moved to Archive",
-};
 function probationTone(v: string | null, dueDate: string | null, amberDays: number): Tone {
   if (v === "passed") return "green";
   if (v === "extended") return "amber";
@@ -55,9 +46,6 @@ function probationTone(v: string | null, dueDate: string | null, amberDays: numb
   return "neutral";
 }
 
-const WORKING_STATUS_OPTIONS = (Object.keys(WORKING_STATUS_LABELS) as Array<keyof typeof WORKING_STATUS_LABELS>).map(
-  (k) => ({ value: k, label: WORKING_STATUS_LABELS[k] }),
-);
 type MatrixConfig = {
   supInterval: number;
   supAmber: number;
@@ -151,12 +139,6 @@ export default function RegisterMatrix({
   useRememberedScroll(wrapRef, `people:${scope}`);
   const col = (key: string, def: string) => columnLabels[key] || def;
   const fromQuery = `?from=${encodeURIComponent(returnTo)}`;
-  // Archive is offered on the Status pill only when viewing Leavers (to clear them out).
-  const statusOptions =
-    scope === "leaver"
-      ? [...WORKING_STATUS_OPTIONS, { value: "archive", label: "Archive" }]
-      : WORKING_STATUS_OPTIONS;
-
   // Acme "navy" theme only: show one branch at a time with a switcher.
   const [navy, setNavy] = useState(false);
   useEffect(() => {
@@ -291,22 +273,11 @@ export default function RegisterMatrix({
                       {row.person.full_name}
                     </Link>
                   </td>
-                  <td>
-                    {editable ? (
-                      <PillSelect
-                        recordId={row.person.id}
-                        recordField="person_id"
-                        field="status"
-                        value={row.person.employment_status}
-                        options={statusOptions}
-                        action={setEmploymentStatus}
-                        toneOf={workingTone}
-                        moveToast={STATUS_MOVE}
-                      />
-                    ) : (
-                      <WorkingStatusPill status={row.person.employment_status} />
-                    )}
-                  </td>
+                  {/* READ ONLY (Phil, 2026-09-17), for the same reason as Job Title beside it.
+                      Working status decides which VIEW a record lives in, so a stray click on a
+                      compliance matrix moves somebody to Leavers. It is changed, with Archive
+                      beside it, under Manage record. */}
+                  <td><WorkingStatusPill status={row.person.employment_status} /></td>
                   {/* READ ONLY (Phil, 2026-09-17). It was an inline pill so the field that
                       decides which checks and which courses somebody is measured against sat
                       where the judging is shown. Read only is the other half of that argument:

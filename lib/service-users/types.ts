@@ -147,8 +147,6 @@ export const SU_REGISTER_COLUMNS: Array<{ key: string; name: string }> = [
   { key: "setup_completed", name: "Setup Visit Completed" },
   { key: "most_recent_review", name: "Most Recent Review" },
   { key: "new_review_due", name: "New Review Due" },
-  { key: "planned_review_date", name: "Planned Review Date" },
-  { key: "review_status", name: "Review Status" },
   // Complex branches only (shown instead of the four Simple review columns above).
   { key: "rev1_due", name: "Review 1 Due" },
   { key: "rev1_comp", name: "Review 1 Done" },
