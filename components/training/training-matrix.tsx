@@ -111,19 +111,24 @@ export default function TrainingMatrix({
     canManageRecord({ role: viewerRole, branchIds: viewerBranchIds, recordBranchId: person.branch_id });
 
   /*
-   * A CARER WHOSE TRAINING RECORDS THIS VIEWER CANNOT READ IS LEFT OFF ENTIRELY.
+   * EVERY CARER THIS VIEWER CAN SEE. The register is what the database handed us.
    *
-   * Caught in review, and it was worse than a cosmetic problem. `people_select` was widened by
-   * 0183 so a booked conductor can see the carer they are booked with, but `person_training_select`
-   * still needs the branch. So an out of branch carer arrived here with NO training rows, and no
-   * record renders as "Not done": thirty three red cells against somebody who is fully trained.
-   * She then counted in the headline percentage, appeared under "Never recorded", and made the
-   * branch look non compliant on the strength of data the screen was not allowed to see.
+   * WHAT THIS USED TO BE, and why it changed (Phil, 2026-09-17: "They can now see training but
+   * there are none of the cardiff people showing why??"). It was `people.filter(canEdit)`, and
+   * canEdit is canManageRecord, which is about WRITING. That was the same conflation the comment
+   * above warns about, one line below it: a Supervisor can write to nobody, so every row was
+   * filtered out and the whole register rendered empty on data it had already read.
    *
-   * Filtering, not greying out. A row we cannot read is not a row with bad news in it, it is a
-   * row with no news in it, and there is no honest way to colour that.
+   * THE FAULT IT WAS WRITTEN FOR IS FIXED AT SOURCE. 0183 let a booked conductor see a carer in a
+   * branch she does not run, while person_training_select still wanted the branch, so that carer
+   * arrived with NO training rows and no record renders as "Not done": thirty three red cells
+   * against somebody fully trained, counted in the headline and listed under "Never recorded".
+   * Since 0289 the training follows the person, so a carer who reaches this component brings
+   * their records with her and there is nothing left to filter out.
+   *
+   * canEdit stays, and is still what decides every button, cell dialog and Save.
    */
-  const readable = useMemo(() => people.filter(canEdit), [people, viewerRole, viewerBranchIds]);
+  const readable = people;
   const [branch, setBranch] = useState<string>("all");
   const [query, setQuery] = useState("");
   const [narrow, setNarrow] = useState<Narrow>("all");
@@ -507,17 +512,14 @@ export default function TrainingMatrix({
         {" "}A booking under a cell is the date the training is arranged for. It does not make the
         course compliant: it counts as outstanding until the training itself is recorded.
         {canManage ? " Click any cell to record, book or update it." : ""}
-        {canManage && people.length !== readable.length
-          ? " Carers in branches you do not run are left off: their training records are not yours to see."
-          : ""}
       </p>
 
       {bulkOpen ? (
         <BulkTrainingDialog
           courses={courses}
-          /* inBranch is already only carers this manager can write to, but the filter stays:
-             a bulk record that silently drops half the ticked list is worse than not offering
-             them, and this is the last line before the write. */
+          /* LOAD BEARING since the register stopped being filtered by canEdit: inBranch now holds
+             every carer this viewer can SEE, and a bulk record that silently drops half the ticked
+             list is worse than not offering them. This is the last line before the write. */
           people={inBranch
             .filter(canEdit)
             .map((p) => ({ id: p.id, full_name: p.full_name, branch_name: p.branch_name }))}
