@@ -4,16 +4,27 @@
  * Be Care Compliant — which team members a complaint is about.
  *
  * Phil, 2026-09-15: "if it is about a team member, we need to be able to select that staff
- * member". Several, not one: a badly handled visit can involve two carers, and forcing a
- * choice means the second is never recorded.
+ * member". Several, not one: a badly handled visit can involve two carers, and forcing a choice
+ * means the second is never recorded.
  *
- * Narrowed to the chosen branch, like the service user picker beside it, because a complaint
- * about a Cardiff visit is not about somebody who works in Newport and a list of everybody
- * is a list nobody reads. The names already chosen stay visible even if the branch changes,
- * so switching branch cannot silently drop somebody who was already named.
+ * TYPE THE NAME (Phil, 2026-09-17): "i dont like the Team members this is about, lets have that
+ * box where we type the carers name and they appear, we built a field like the previosly". It was
+ * a scrolling list of tick boxes, which is fine at thirteen carers and unusable at two hundred:
+ * the manager already knows the name, and a list makes them hunt for it. It now uses
+ * RecordTypeahead, the same control and the same matching rule as the record lookup on a Spot
+ * Check form, so "obrien" finds O'Brien in both places.
+ *
+ * Each pick becomes a chip with the id beside it, so more than one carer can be named and any one
+ * of them removed without disturbing the others.
+ *
+ * Narrowed to the chosen branch, because a complaint about a Cardiff visit is not about somebody
+ * who works in Newport. Anyone already named stays named whatever the branch is changed to: a
+ * name quietly disappearing because somebody changed the branch is how a record loses a person.
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import RecordTypeahead from "@/components/register/record-typeahead";
+import type { LookupChoice } from "@/lib/forms/lookup";
 
 export type PersonOption = { id: string; full_name: string; branch_id: string | null };
 
@@ -26,59 +37,72 @@ export default function ComplaintPeoplePicker({
   branchId: string;
   initialIds?: string[];
 }) {
-  const [chosen, setChosen] = useState<Set<string>>(() => new Set(initialIds));
+  const [chosenIds, setChosenIds] = useState<string[]>(() =>
+    initialIds.filter((id) => people.some((p) => p.id === id)),
+  );
+  const [query, setQuery] = useState("");
 
-  function toggle(id: string) {
-    setChosen((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
+  const byId = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
 
-  const inBranch = branchId ? people.filter((p) => p.branch_id === branchId) : people;
-  /* Anyone already named is shown whatever branch is selected: a name quietly disappearing
-     because somebody changed the branch is how a record loses a person. */
-  const shown = [
-    ...inBranch,
-    ...people.filter((p) => chosen.has(p.id) && !inBranch.some((q) => q.id === p.id)),
-  ];
+  /* The list offers the chosen branch, minus anyone already named: a name that is already a chip
+     is not a choice, and leaving it there invites a second click that does nothing. */
+  const choices: LookupChoice[] = useMemo(() => {
+    const inBranch = branchId ? people.filter((p) => p.branch_id === branchId) : people;
+    return inBranch
+      .filter((p) => !chosenIds.includes(p.id))
+      .map((p) => ({ id: p.id, label: p.full_name }));
+  }, [people, branchId, chosenIds]);
+
+  const chosen = chosenIds.map((id) => byId.get(id)).filter((p): p is PersonOption => !!p);
 
   return (
     <div>
-      <span className="form-label">Team members this is about</span>
-      {shown.length === 0 ? (
-        <p className="form-hint">
-          {branchId
-            ? "No team members in the chosen branch yet."
-            : "Choose a branch first to narrow this list."}
-        </p>
-      ) : (
-        <div className="mt-1 max-h-52 space-y-1 overflow-y-auto rounded-xl border border-white/10 p-2">
-          {shown.map((p) => (
-            <label
-              key={p.id}
-              className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-white/80 hover:bg-white/5"
-            >
-              <input
-                type="checkbox"
-                name="person_ids"
-                value={p.id}
-                checked={chosen.has(p.id)}
-                onChange={() => toggle(p.id)}
-                className="shrink-0"
-              />
-              <span className="min-w-0 truncate">{p.full_name}</span>
-              {p.branch_id !== branchId && branchId ? (
-                <span className="shrink-0 text-xs text-white/40">another branch</span>
-              ) : null}
-            </label>
+      <label htmlFor="complaint_person_search" className="form-label">
+        Team members this is about
+      </label>
+
+      {chosen.length > 0 ? (
+        <ul className="mb-2 mt-1 flex flex-wrap gap-2">
+          {chosen.map((p) => (
+            <li key={p.id}>
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-sm text-white/85">
+                <span>{p.full_name}</span>
+                {branchId && p.branch_id !== branchId ? (
+                  <span className="text-xs text-white/40">another branch</span>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => setChosenIds((prev) => prev.filter((id) => id !== p.id))}
+                  aria-label={`Remove ${p.full_name}`}
+                  className="text-white/50 hover:text-white"
+                >
+                  ×
+                </button>
+              </span>
+              {/* The value the form posts. One hidden input per chip, so removing a chip removes
+                  exactly one name and never renumbers the rest. */}
+              <input type="hidden" name="person_ids" value={p.id} />
+            </li>
           ))}
-        </div>
-      )}
+        </ul>
+      ) : null}
+
+      <RecordTypeahead
+        id="complaint_person_search"
+        query={query}
+        choices={choices}
+        onQueryChange={setQuery}
+        onChoose={(choice) => {
+          setChosenIds((prev) => (prev.includes(choice.id) ? prev : [...prev, choice.id]));
+          setQuery("");
+        }}
+        placeholder={branchId ? "Start typing a name" : "Choose a branch first"}
+        disabled={!branchId}
+        noMatchText="Nobody in this branch matches that name."
+      />
+
       <p className="form-hint">
-        Optional, and more than one can be named. A complaint shows on a team member's record
+        Optional, and more than one can be named. A complaint shows on a team member&apos;s record
         alongside whether it was upheld, never as a bare count.
       </p>
     </div>

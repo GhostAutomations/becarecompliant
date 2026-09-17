@@ -35,7 +35,8 @@ import {
 import { type FieldError, isFieldVisible, standDown } from "@/lib/form-validate";
 import { computeScores, bandTotal } from "@/lib/forms/compute-scores";
 import { scoreProgress } from "@/lib/forms/scoring";
-import { type LookupChoice, filterChoices, lookupError } from "@/lib/forms/lookup";
+import { type LookupChoice, lookupError } from "@/lib/forms/lookup";
+import RecordTypeahead from "@/components/register/record-typeahead";
 import CarePackageField from "./care-package-field";
 import CarePackageSummary from "@/components/forms/care-package-summary";
 import {
@@ -727,16 +728,20 @@ function AddressFields({
 }
 
 /**
- * Type-ahead that picks an existing record (2026-09-07).
+ * The record lookup answer: a type-ahead over the records this form may link to.
  *
- * A Spot Check happens in a Service User's home and the carer's record cannot imply
- * which one; free text would give three spellings of one person and a dropdown of two
- * hundred names is unusable. The choices are handed in by the server component that
- * renders the form, so who may see which records is decided under RLS and never here.
+ * WHY IT EXISTS (Phil, 2026-09-07). A Spot Check happens in a Service User's home, and the
+ * carer's record cannot imply which one. Free text gives you "Mrs Jones", "Jones" and "mrs
+ * jones" as three different service users; a dropdown of every service user is unusable once a
+ * company has two hundred.
  *
- * Keyboard first: down/up move, Enter picks, Escape closes. A name that matches nobody
- * is refused as it is typed rather than at submit, because the moment to say "she is
- * not on the list, add her first" is while the person is still looking at the list.
+ * The control itself is RecordTypeahead, shared with the complaint form's team member picker so
+ * a name typed in one place matches exactly as it does in the other. What stays here is what a
+ * pick MEANS to a form answer: the label is the answer, the id travels out of band, and typing
+ * after a pick unlinks the record so evidence can never carry a stale id.
+ *
+ * A name that matches nobody is refused as it is typed rather than at submit, because the moment
+ * to say "she is not on the list, add her first" is while the person is still looking at the list.
  */
 function LookupField({
   id,
@@ -752,136 +757,35 @@ function LookupField({
   onPick: (choice: LookupChoice | null, typed: string) => void;
 }) {
   const [query, setQuery] = useState(value);
-  const [open, setOpen] = useState(false);
-  const [active, setActive] = useState(0);
-  const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
-  const boxRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const menuRef = useRef<HTMLUListElement>(null);
-
-  // The list follows what is typed, never the other way round.
-  const shown = useMemo(() => filterChoices(choices, query), [choices, query]);
-  const problem = open ? null : lookupError(choices, query, false);
-
-  /* The list is rendered into the body, positioned over the page, because every form
-     section is a .section-card with overflow:hidden -- in flow, a list longer than the
-     gap to the card's edge is cut off and the matches below the fold cannot be seen or
-     clicked. Same approach as HintSelect. */
-  const place = useCallback(() => {
-    const r = inputRef.current?.getBoundingClientRect();
-    if (r) setCoords({ top: r.bottom + 4, left: r.left, width: r.width });
-  }, []);
-
-  function show() {
-    place();
-    setOpen(true);
-  }
-
-  // Clicking away closes the list. Without this the list can sit over the next field.
-  useEffect(() => {
-    if (!open) return;
-    function onDown(e: MouseEvent) {
-      const t = e.target as Node;
-      if (boxRef.current?.contains(t) || menuRef.current?.contains(t)) return;
-      setOpen(false);
-    }
-    function onScroll() {
-      place();
-    }
-    document.addEventListener("mousedown", onDown);
-    window.addEventListener("scroll", onScroll, true);
-    window.addEventListener("resize", onScroll);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      window.removeEventListener("scroll", onScroll, true);
-      window.removeEventListener("resize", onScroll);
-    };
-  }, [open, place]);
-
-  function choose(choice: LookupChoice) {
-    setQuery(choice.label);
-    setOpen(false);
-    onPick(choice, choice.label);
-  }
+  /* The "pick a name from the list" message waits until the list is CLOSED. lookupError fires on
+     any partial string, so shown while typing it flashes after every keystroke, telling somebody
+     off for a name they are halfway through. */
+  const [listOpen, setListOpen] = useState(false);
+  const problem = listOpen ? null : lookupError(choices, query, false);
 
   return (
-    <div ref={boxRef} className="relative">
-      <input
-        ref={inputRef}
+    <div>
+      <RecordTypeahead
         id={id}
-        type="text"
-        role="combobox"
-        aria-expanded={open}
-        aria-autocomplete="list"
-        autoComplete="off"
-        value={query}
+        query={query}
+        choices={choices}
         disabled={disabled}
-        placeholder="Start typing a name"
-        onChange={(e) => {
-          const next = e.target.value;
+        onOpenChange={setListOpen}
+        onQueryChange={(next) => {
           setQuery(next);
-          setActive(0);
-          show();
-          /* Typing after a pick clears the link: the answer is no longer a record until
-             one is chosen again, so the evidence can never carry a stale id. */
+          /* Typing after a pick clears the link: the answer is no longer a record until one is
+             chosen again, so the evidence can never carry a stale id. */
           onPick(null, next);
         }}
-        onFocus={() => show()}
-        onKeyDown={(e) => {
-          if (e.key === "ArrowDown") {
-            e.preventDefault();
-            show();
-            setActive((i) => Math.min(i + 1, Math.max(shown.length - 1, 0)));
-          } else if (e.key === "ArrowUp") {
-            e.preventDefault();
-            setActive((i) => Math.max(i - 1, 0));
-          } else if (e.key === "Enter" && open && shown[active]) {
-            e.preventDefault();
-            choose(shown[active]);
-          } else if (e.key === "Escape") {
-            setOpen(false);
-          }
+        onChoose={(choice) => {
+          setQuery(choice.label);
+          onPick(choice, choice.label);
         }}
       />
-
-      {open && shown.length > 0
-        ? createPortal(
-        <ul
-          ref={menuRef}
-          role="listbox"
-          className="z-50 max-h-64 overflow-auto rounded-xl border border-white/15 bg-navy-900 py-1 shadow-2xl"
-          style={{ position: "fixed", top: coords.top, left: coords.left, width: coords.width }}
-        >
-          {shown.map((c, i) => (
-            <li key={c.id} role="option" aria-selected={i === active}>
-              <button
-                type="button"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => choose(c)}
-                onMouseEnter={() => setActive(i)}
-                className={`flex w-full items-baseline justify-between gap-3 px-3.5 py-2 text-left text-sm ${
-                  i === active ? "bg-white/10 text-white" : "text-white/80"
-                }`}
-              >
-                <span>{c.label}</span>
-                {c.hint ? <span className="text-xs text-white/45">{c.hint}</span> : null}
-              </button>
-            </li>
-          ))}
-        </ul>,
-            document.body,
-          )
-        : null}
-
-      {open && query.trim() !== "" && shown.length === 0 ? (
-        <p className="form-hint">No record matches that. Add the record first.</p>
-      ) : null}
-
       {problem ? <p className="form-error">{problem}</p> : null}
     </div>
   );
 }
-
 /** Styled file picker (file inputs are intentionally not styled in globals.css). */
 function FileField({
   id,
