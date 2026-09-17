@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { checkHeaderPlan, intervalDays, HISTORY_CAP } from "./check-columns.ts";
+import { checkHeaderPlan, intervalDays, HISTORY_CAP, ROTATION_SLOTS } from "./check-columns.ts";
 
 test("a history check carries the slot of its most recent completion", () => {
   // One number fixes the whole rotation; it cannot be derived from the dates.
@@ -17,6 +17,17 @@ test("a history check carries the slot of its most recent completion", () => {
 test("a check with one slot has nothing to rotate, so no slot column", () => {
   assert.equal(checkHeaderPlan("audit", "Audit", true, 90).slotHeader, null);
   assert.equal(checkHeaderPlan("setup", "Setup Visit", false, 0).slotHeader, null);
+});
+
+test("the rotation is four slots, not the eight history columns", () => {
+  // The template keeps eight completions; the board cycles through four. Using the column
+  // count as the modulus put the oldest review in slot 8, which does not exist.
+  const rot = ROTATION_SLOTS;
+  const back = (latest: number, i: number) => ((((latest - 1 - i) % rot) + rot) % rot) + 1;
+  assert.equal(rot, 4);
+  assert.deepEqual([0, 1, 2].map((i) => back(2, i)), [2, 1, 4]);
+  assert.deepEqual([0, 1, 2, 3].map((i) => back(1, i)), [1, 4, 3, 2]);
+  assert.deepEqual([0, 1, 2, 3].map((i) => back(4, i)), [4, 3, 2, 1]);
 });
 
 test("a one off check has no next due column", () => {

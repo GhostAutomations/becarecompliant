@@ -30,6 +30,16 @@
 
 export const HISTORY_CAP = 8;
 
+/**
+ * How many slots the ROTATION has, for a check whose history arrives from a board that
+ * cycles through fixed slots.
+ *
+ * NOT the same as the number of history columns, which is HISTORY_CAP: the template keeps up
+ * to eight completions, while the board rotates through four. Using the column count as the
+ * modulus is what put Amanda Ford's oldest review in slot 8, a slot that does not exist.
+ */
+export const ROTATION_SLOTS = 4;
+
 /** The checks whose history is worth more than one column. */
 const HISTORY_KEYS = new Set(["supervision", "care_plan_review"]);
 

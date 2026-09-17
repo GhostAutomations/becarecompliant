@@ -12,6 +12,7 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { buildColumnPlan, type ColumnPlan } from "./columns";
+import { ROTATION_SLOTS } from "./check-columns";
 import { jobTitleOrDefault } from "./job-title";
 
 const RTW_LIMITS = new Set(["none", "20hrs_term", "20hrs_2nd_job", "visa_expires"]);
@@ -263,16 +264,18 @@ export async function validateImport(
       /* THE SLOT OF THE MOST RECENT COMPLETION FIXES THEM ALL. The slots rotate, so the one
          before it is one slot back, wrapping round. Supplied once because it cannot be
          derived: two records with identical intervals can sit on different phases. */
-      const count = c.slots.length;
+      const rot = ROTATION_SLOTS;
       let slotNos: Array<number | null> = dates.map(() => null);
       if (c.slotHeader) {
         const raw = cell(cols, c.slotHeader);
         if (raw) {
           const n = Number(raw);
-          if (!Number.isInteger(n) || n < 1 || n > count) {
-            errors.push(`${c.slotHeader} must be a whole number from 1 to ${count}.`);
+          if (!Number.isInteger(n) || n < 1 || n > rot) {
+            errors.push(`${c.slotHeader} must be a whole number from 1 to ${rot}.`);
           } else {
-            slotNos = dates.map((_, i) => (((n - 1 - i) % count) + count) % count + 1);
+            // Modulo the ROTATION, not the number of history columns. The template keeps
+            // eight completions; the board cycles through four.
+            slotNos = dates.map((_, i) => ((((n - 1 - i) % rot) + rot) % rot) + 1);
           }
         }
       }
