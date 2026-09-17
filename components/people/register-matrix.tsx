@@ -18,14 +18,13 @@ import {
   WORKING_STATUS_LABELS,
 } from "@/lib/people/types";
 import { formatDisplayDate, supervisionSlots, appraisalSlot, dateRag } from "@/lib/people/logic";
-import { setEmploymentStatus, setJobTitle } from "@/lib/people/actions";
+import { setEmploymentStatus } from "@/lib/people/actions";
 import { probationDueCountsDown } from "@/lib/people/probation";
 import { PillSelect, toneClass, type Tone } from "@/components/register/pill-select";
 import { HorizontalScrollbar } from "@/components/register/horizontal-scrollbar";
 import { useRememberedScroll } from "@/components/register/use-remembered-scroll";
 import { VerticalScrollbar } from "@/components/register/vertical-scrollbar";
 import { NameSortHeader, sortByName, useNameSort, type SortMode } from "@/components/register/name-sort-header";
-import type { JobTitle } from "@/lib/people/data";
 import ExtraCheckCell from "@/components/register/extra-check-cell";
 import { cellText, type RegisterCheckColumn } from "@/lib/register/custom-columns";
 
@@ -132,7 +131,6 @@ export default function RegisterMatrix({
   returnTo = "/people",
   scope = "active",
   initialSort,
-  jobTitles = [],
 }: {
   rows: RegisterRow[];
   config: MatrixConfig;
@@ -148,22 +146,10 @@ export default function RegisterMatrix({
   scope?: string;
   /** The name order this user chose last time, read from their profile by the page. */
   initialSort: SortMode;
-  /** The company's job titles, for the inline Job title pill. */
-  jobTitles?: JobTitle[];
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   useRememberedScroll(wrapRef, `people:${scope}`);
   const col = (key: string, def: string) => columnLabels[key] || def;
-  /* THE JOB TITLE IS A REGISTER FIELD (Phil, 2026-09-16). It decides which checks and which
-     training courses a person is measured against, and it lived four clicks deep inside
-     Manage record beside two other forms with their own save buttons. A field that changes
-     what somebody is judged on belongs where the judging is shown. "Not set" is offered
-     because a record can genuinely have none, and hiding that would hide why their checks
-     look thin. */
-  const titleOptions = [
-    { value: "", label: "Not set" },
-    ...jobTitles.map((t) => ({ value: t.title, label: t.title })),
-  ];
   const fromQuery = `?from=${encodeURIComponent(returnTo)}`;
   // Archive is offered on the Status pill only when viewing Leavers (to clear them out).
   const statusOptions =
@@ -321,23 +307,12 @@ export default function RegisterMatrix({
                       <WorkingStatusPill status={row.person.employment_status} />
                     )}
                   </td>
-                  <td>
-                    {editable && titleOptions.length > 1 ? (
-                      <PillSelect
-                        recordId={row.person.id}
-                        recordField="person_id"
-                        field="job_title"
-                        value={row.person.job_title}
-                        options={titleOptions}
-                        action={setJobTitle}
-                        /* No RAG: a job title is a fact about somebody, not a state of
-                           compliance, so every option reads the same. */
-                        toneOf={() => "neutral"}
-                      />
-                    ) : (
-                      <span>{row.person.job_title || "—"}</span>
-                    )}
-                  </td>
+                  {/* READ ONLY (Phil, 2026-09-17). It was an inline pill so the field that
+                      decides which checks and which courses somebody is measured against sat
+                      where the judging is shown. Read only is the other half of that argument:
+                      a stray click on a compliance matrix should not quietly change what a
+                      carer is judged on. It is still changed on Edit person, deliberately. */}
+                  <td><span>{row.person.job_title || "—"}</span></td>
                   <td><Plain date={row.person.start_date} /></td>
                   <td><RagDate date={mh?.due_date ?? null} rag={mh?.rag ?? "none"} /></td>
                   <td><RagDate date={mc?.due_date ?? null} rag={mc?.rag ?? "none"} /></td>

@@ -16,7 +16,7 @@ import RegisterMatrix from "./register-matrix";
 import ColumnsPanel from "@/components/register/columns-panel";
 import { toneClass, type Tone } from "@/components/register/pill-select";
 import { WORKING_STATUS_LABELS, type RegisterRow } from "@/lib/people/types";
-import type { BranchLite, JobTitle } from "@/lib/people/data";
+import type { BranchLite } from "@/lib/people/data";
 import { MAX_REGISTER_COLUMNS, type RegisterCheckColumn } from "@/lib/register/custom-columns";
 import type { SortMode } from "@/lib/register/name-sort-pref";
 
@@ -70,7 +70,6 @@ export default function PeopleRegister({
   initialView,
   initialBranch,
   initialSort,
-  jobTitles = [],
 }: {
   rows: RegisterRow[];
   branches: BranchLite[];
@@ -88,7 +87,6 @@ export default function PeopleRegister({
   /** The name order this user chose last time, read from their profile by the page. */
   initialSort: SortMode;
   /** The company's job titles, for the inline Job title pill on the matrix. */
-  jobTitles?: JobTitle[];
 }) {
   const router = useRouter();
   const [view, setView] = useState(VIEW_META[initialView] ? initialView : "main");
@@ -231,7 +229,6 @@ export default function PeopleRegister({
                 scope={meta.scope}
                 returnTo={urlFor(view, branchId)}
                 initialSort={initialSort}
-                jobTitles={jobTitles}
               />
             </div>
             {/* Mobile: one stacked card per person — scroll DOWN, never sideways.

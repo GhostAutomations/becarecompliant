@@ -9,7 +9,6 @@ import {
   listRegister,
   getColumnLabels,
   getSupervisionCycleMode,
-  listJobTitles,
 } from "@/lib/people/data";
 import { listRegisterCheckColumns, getRegisterColumnText } from "@/lib/register/data";
 import { DEFAULT_AMBER_DAYS } from "@/lib/recurrence";
@@ -47,14 +46,12 @@ export default async function PeoplePage({
   // Load EVERY person once (all statuses, all the viewer's branches). Branches and
   // View are then switched instantly on the client with no server round trip.
   const nameSort = await getRegisterNameSort(user.id);
-  const [branches, register, columnLabels, checkColumns, cycleMode, jobTitles] = await Promise.all([
+  const [branches, register, columnLabels, checkColumns, cycleMode] = await Promise.all([
     listBranches(companyId, profile),
     listRegister(companyId, null, "all"),
     getColumnLabels(companyId),
     listRegisterCheckColumns(companyId, "people"),
     getSupervisionCycleMode(companyId),
-    // For the inline Job title pill on the matrix: the same list Add a person offers.
-    listJobTitles(companyId),
   ]);
   const { definitions, rows } = register;
 
@@ -101,7 +98,6 @@ export default async function PeoplePage({
         initialView={view ?? "main"}
         initialBranch={branch ?? ""}
         initialSort={nameSort}
-        jobTitles={jobTitles}
       />
     </div>
   );
