@@ -139,6 +139,17 @@ export type FormField = {
   /** Small helper text shown under the control. */
   help?: string;
   placeholder?: string;
+  /**
+   * date only: THIS is when the thing was done, and it is what the register shows.
+   *
+   * Without it the completion date is the form's FIRST date question, which is a rule about
+   * order rather than meaning. The Individual Plan Review's only date question was "Date of Last
+   * Review" -- the previous one -- so every completed review was stamped with the date of the
+   * review before it, both in the Done column and in the next due date worked out from it.
+   *
+   * Optional, and unmarked forms keep the old rule, so marking one form cannot change another.
+   */
+  completionDate?: boolean;
   /** For single_select, multi_select and radio. */
   options?: FieldOption[];
   /** For record_lookup: which register to search. Defaults to service_user. */
@@ -271,7 +282,11 @@ export function findField(schema: FormSchema, key: string): FormField | undefine
  * assessment / training), used to stamp the completion date instead of submit time.
  */
 export function firstDateFieldKey(schema: FormSchema): string | null {
-  return flattenFields(schema).find((f) => f.type === "date")?.key ?? null;
+  const dates = flattenFields(schema).filter((f) => f.type === "date");
+  /* A field MARKED as the completion date wins, wherever it sits. See lib/evidence/completion
+     -date.ts for why order alone was not safe: a form whose first date question asks about the
+     PREVIOUS event stamped every completion with it. Unmarked forms keep the old rule. */
+  return dates.find((f) => f.completionDate === true)?.key ?? dates[0]?.key ?? null;
 }
 
 /** Return a copy of the schema with the field of the given key removed from every

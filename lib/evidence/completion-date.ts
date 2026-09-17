@@ -26,7 +26,7 @@
 /** A field as it appears in a stored form schema. Structural, so this module needs no
  *  import of the form types and stays testable on its own. */
 type SchemaLike = {
-  sections?: Array<{ fields?: Array<{ key?: unknown; type?: unknown }> }>;
+  sections?: Array<{ fields?: Array<{ key?: unknown; type?: unknown; completionDate?: unknown }> }>;
 };
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -41,14 +41,25 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 export function dateKeyOf(schema: unknown): string | null {
   const sections = (schema as SchemaLike | null)?.sections;
   if (!Array.isArray(sections)) return null;
+  const dates: string[] = [];
   for (const section of sections) {
     const fields = section?.fields;
     if (!Array.isArray(fields)) continue;
     for (const field of fields) {
-      if (field?.type === "date" && typeof field.key === "string" && field.key) return field.key;
+      if (field?.type !== "date" || typeof field.key !== "string" || !field.key) continue;
+      /* MARKED WINS, wherever it sits (Phil, 2026-09-17: "For supervisions, appraisals, reviews
+         and probations, ask for date of completion ... and that is the date that should go into
+         the matrix"). First-date-field is a rule about ORDER, and order is not a promise anybody
+         made: the Individual Plan Review's only date question was "Date of Last Review", the
+         PREVIOUS one, so every completed review was being stamped with the date of the review
+         before it, on the register and on the next due date worked out from it. */
+      if (field.completionDate === true) return field.key;
+      dates.push(field.key);
     }
   }
-  return null;
+  // Nothing marked: the first date question, which is what every form meant before the marker
+  // existed and still means on a form nobody has marked.
+  return dates[0] ?? null;
 }
 
 /**
