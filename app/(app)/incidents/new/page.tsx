@@ -9,16 +9,10 @@ import {
   listPeopleLite,
 } from "@/lib/incidents/data";
 import { todayIso } from "@/lib/incidents/logic";
+import { INCIDENTS_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
 
 export const metadata: Metadata = { title: "Record an incident" };
 
-const MANAGE_ROLES = [
-  "company_admin",
-  "registered_individual",
-  "registered_manager",
-  "manager",
-  "platform_admin",
-];
 
 export default async function NewIncidentPage() {
   const { user, profile } = await requireCompany();

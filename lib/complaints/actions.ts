@@ -28,8 +28,8 @@ import type { ActionState } from "@/lib/forms";
 import { getComplaintsConfig, getCompanyFormByKey, getInvestigationEvidence, getComplaintRefPrefix } from "./data";
 import { addBusinessOrCalendarDays, formatComplaintRef, formatDisplayDate, isFormalComplaint, todayIso } from "./logic";
 import { CONCERN_TYPES, FORMALITY_TYPES, RELATIONSHIP_LABELS, type ComplaintRelationship } from "./types";
+import { COMPLAINTS_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
 
-const MANAGE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "on_call", "platform_admin"];
 
 /** Parse the log-time intake fields (Complaint/Concern, Type, contact method) into a
  *  validated shape shared by create and update. */

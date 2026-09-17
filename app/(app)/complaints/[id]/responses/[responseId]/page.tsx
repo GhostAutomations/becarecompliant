@@ -4,10 +4,10 @@ import { requireCompany } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import { getComplaintResponse } from "@/lib/complaints/data";
 import { formatUkDate } from "@/lib/complaints/logic";
+import { COMPLAINTS_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
 
 export const metadata: Metadata = { title: "Response" };
 
-const MANAGE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "on_call", "platform_admin"];
 
 function fmtDateTime(iso: string): string {
   return new Intl.DateTimeFormat("en-GB", {

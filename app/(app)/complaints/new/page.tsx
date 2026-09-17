@@ -6,10 +6,10 @@ import BackLink from "@/components/back-link";
 import CreateComplaintForm from "@/components/complaints/create-complaint-form";
 import { listAccessibleBranchTypes, listServiceUsersLite, listPeopleLite } from "@/lib/complaints/data";
 import { todayIso } from "@/lib/complaints/logic";
+import { COMPLAINTS_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
 
 export const metadata: Metadata = { title: "Log a complaint" };
 
-const MANAGE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "on_call", "platform_admin"];
 
 export default async function NewComplaintPage() {
   const { user, profile } = await requireCompany();

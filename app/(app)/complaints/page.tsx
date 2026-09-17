@@ -10,10 +10,10 @@ import {
   getComplaintRefPrefix,
   listAccessibleBranchTypes,
 } from "@/lib/complaints/data";
+import { COMPLAINTS_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
 
 export const metadata: Metadata = { title: "Complaints" };
 
-const MANAGE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "on_call", "platform_admin"];
 
 export default async function ComplaintsPage() {
   const { user, profile } = await requireCompany();

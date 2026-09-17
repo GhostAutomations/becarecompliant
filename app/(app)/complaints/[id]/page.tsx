@@ -27,10 +27,10 @@ import {
 import type { ComplaintRecord } from "@/lib/complaints/types";
 import { responseRag, formatUkDate as formatDisplayDate, isFormalComplaint, formatComplaintRef } from "@/lib/complaints/logic";
 import { COMPLAINT_STATUS_LABELS, RELATIONSHIP_LABELS } from "@/lib/complaints/types";
+import { COMPLAINTS_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
 
 export const metadata: Metadata = { title: "Complaint" };
 
-const MANAGE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "on_call", "platform_admin"];
 
 function ragPill(rag: string) {
   if (rag === "red") return <span className="pill-red"><span className="pill-dot" /> Overdue</span>;

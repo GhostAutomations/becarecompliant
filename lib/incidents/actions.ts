@@ -3,10 +3,12 @@
 /**
  * Be Care Compliant — Incidents & Safeguarding server actions (THE LIST item 21).
  *
- * RLS (incidents_insert / incidents_update, migration 0174) is the real guard. The
- * role check here exists only so a Supervisor gets a sentence instead of a database
- * error. Available on EVERY tier including Business: recording an incident is a legal
- * duty for any provider regardless of what they pay us, so there is no feature gate.
+ * RLS (incidents_insert / incidents_update, 0174 and 0290) is the real guard. The role check
+ * here exists only so somebody who may not record an incident gets a sentence instead of a
+ * database error, and it now reads INCIDENTS_ROLES rather than keeping its own copy of the list.
+ * A Supervisor is on it since 0290: she is usually the one who attended. Available on EVERY tier
+ * including Business: recording an incident is a legal duty for any provider regardless of what
+ * they pay us, so there is no feature gate.
  */
 
 import { revalidatePath } from "next/cache";
@@ -16,14 +18,8 @@ import { writeAudit } from "@/lib/audit";
 import type { ActionState } from "@/lib/forms";
 import { INCIDENT_STATUSES, type IncidentStatus } from "./types";
 import { todayIso } from "./logic";
+import { INCIDENTS_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
 
-const MANAGE_ROLES = [
-  "company_admin",
-  "registered_individual",
-  "registered_manager",
-  "manager",
-  "platform_admin",
-];
 
 function trimOrNull(v: FormDataEntryValue | null): string | null {
   const s = String(v ?? "").trim();

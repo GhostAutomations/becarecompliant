@@ -1,4 +1,5 @@
 import { PUBLIC_FORMS_ENABLED } from "@/lib/public-forms/flag";
+import { COMPLAINTS_ROLES, INCIDENTS_ROLES } from "@/lib/auth/module-roles";
 
 export type Role =
   | "platform_admin"
@@ -133,7 +134,10 @@ export const NAV_ENTRIES: NavEntry[] = [
     label: "Complaints",
     icon: "complaints",
     group: "Departments",
-    roles: ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager", "on_call"],
+    // ONE list, shared with the pages and the server actions (lib/auth/module-roles.ts). Adding
+    // the Supervisor here meant editing the same array in thirteen places, and the nav is the one
+    // that decides whether anybody ever finds the page.
+    roles: COMPLAINTS_ROLES as Role[],
     children: [
       { href: "/complaints", label: "Open", icon: "complaints" },
       { href: "/complaints/closed", label: "Closed", icon: "complaints" },
@@ -146,7 +150,7 @@ export const NAV_ENTRIES: NavEntry[] = [
     group: "Departments",
     // No On Call: an out of hours caller records the call in the Handover. An incident
     // is written up by the branch, with the notifiable and safeguarding decisions on it.
-    roles: ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"],
+    roles: INCIDENTS_ROLES as Role[],
     children: [
       { href: "/incidents", label: "Open", icon: "incidents" },
       { href: "/incidents/closed", label: "Closed", icon: "incidents" },

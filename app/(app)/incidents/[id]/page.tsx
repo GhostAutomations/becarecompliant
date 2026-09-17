@@ -11,16 +11,10 @@ import {
 } from "@/lib/incidents/data";
 import { INCIDENT_STATUS_LABELS } from "@/lib/incidents/types";
 import { formatUkDate, formatTime, todayIso } from "@/lib/incidents/logic";
+import { INCIDENTS_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
 
 export const metadata: Metadata = { title: "Incident" };
 
-const MANAGE_ROLES = [
-  "company_admin",
-  "registered_individual",
-  "registered_manager",
-  "manager",
-  "platform_admin",
-];
 
 export default async function IncidentPage({ params }: { params: Promise<{ id: string }> }) {
   const { profile } = await requireCompany();
