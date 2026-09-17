@@ -307,7 +307,10 @@ export default async function ServiceUserPage({
                       </dl>
                       {s.n === nextReviewN && reviewStatusCheck && reviewDef?.form_id && canComplete ? (
                         <Link
-                          href={`/service-users/${serviceUser.id}/checks/${reviewStatusCheck.instance_id}/complete`}
+                          /* WHICH review, passed like the supervision tile passes ?sup= . The
+                             page can then fill the Review number in rather than asking a
+                             question the record already knows the answer to. */
+                          href={`/service-users/${serviceUser.id}/checks/${reviewStatusCheck.instance_id}/complete?rev=${s.n}`}
                           className="btn-primary btn-tile btn-tile-left text-[13px]"
                         >
                           Complete

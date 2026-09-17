@@ -10,7 +10,7 @@ import { getServiceUser, getPublishedFormVersion } from "@/lib/service-users/dat
 import { branchName } from "@/lib/people/data";
 import { recordFormPresets } from "@/lib/forms/record-presets";
 import { todayInLondon, formatCivilDate } from "@/lib/recurrence";
-import { fieldToNameSelect, findField, flattenFields, isFormSchema, removeField, type Answers, type FormSchema } from "@/lib/form-schema";
+import { fieldToNameSelect, findField, flattenFields, isFormSchema, type Answers, type FormSchema } from "@/lib/form-schema";
 import { getCarePlanEntries } from "@/lib/service-users/data";
 import { linesFromRows } from "@/lib/service-users/care-package";
 import type { CheckDefinition } from "@/lib/people/types";
@@ -21,11 +21,14 @@ const COMPLETE_ROLES = ["company_admin", "registered_individual", "registered_ma
 
 export default async function CompleteServiceUserCheckPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string; instanceId: string }>;
+  searchParams: Promise<{ rev?: string }>;
 }) {
   const { profile } = await requireCompany();
   const { id, instanceId } = await params;
+  const { rev } = await searchParams;
   if (!COMPLETE_ROLES.includes(profile.role)) redirect(`/service-users/${id}`);
   if (profile.actingAsCompanyId) {
     return (
@@ -62,11 +65,26 @@ export default async function CompleteServiceUserCheckPage({
   }
 
   let schema = version.schema as FormSchema;
-  // The Care Plan Review slot (Review 1-4) is derived positionally from the completion
-  // history, so the "which review" field is never shown; a completion just adds the
-  // next review.
-  if (def.key === "care_plan_review") {
-    schema = removeField(schema, "review_number");
+  /*
+   * WHICH REVIEW THIS IS (Phil, 2026-09-17: "On the SU review form type of review is not
+   * required, it should say review number and be pre filled").
+   *
+   * This used to removeField(schema, "review_number"), on the grounds that the slot is derived
+   * from the history so the question need not be asked. The field is called type_of_review. So
+   * the removal has never once fired: the question was asked on every review, unlabelled as a
+   * number, optional, and left blank.
+   *
+   * SHOWN AND FILLED IN, rather than removed like the supervision equivalent. Reviews have a
+   * Setup in the same list, so there is a real answer that is not simply the next number, and a
+   * reviewer at the door should be able to see what it is about to be recorded as and correct
+   * it. The record card passes it; arriving without it, from a bookmark or a planner task, the
+   * question is asked, which is the honest thing to do when nothing knows the answer.
+   */
+  let reviewHeading: string | null = null;
+  let presetReview: string | null = null;
+  if (def.key === "care_plan_review" && /^[1-4]$/.test(rev ?? "")) {
+    presetReview = `Review ${rev}`;
+    reviewHeading = presetReview;
   }
 
   // Pre-fill the service user's own details (name + branch) into whatever form this
@@ -82,6 +100,8 @@ export default async function CompleteServiceUserCheckPage({
     authorName: profile.full_name || profile.email || null,
     today: formatCivilDate(todayInLondon()),
   });
+  // The review number the record card told us, filled in and still editable.
+  if (presetReview) presetAnswers["type_of_review"] = presetReview;
 
   /* The record's own address and phone, so no form asks for them again (Phil, 2026-09-09:
      "should be prefilled from our reocrds. phone number unless the phone number has changed
@@ -126,7 +146,9 @@ export default async function CompleteServiceUserCheckPage({
     <div className="page-form-wide space-y-6">
       <div>
         <BackLink href={`/service-users/${id}`} label={`Back to ${serviceUser?.full_name ?? "record"}`} />
-        <h1 className="page-title mt-1">{def.name}</h1>
+        {/* The heading names WHICH review, so the reviewer can see it before scrolling to the
+            field, the same as the Supervision page saying "Supervision 2". */}
+        <h1 className="page-title mt-1">{reviewHeading ? `${def.name}: ${reviewHeading}` : def.name}</h1>
         <p className="page-subtitle">
           Completing this form stores it as inspection evidence and schedules the next
           due date automatically.
