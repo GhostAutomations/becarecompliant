@@ -73,10 +73,20 @@ async function seedRowChecks(
     if (!def || c.dates.length === 0) continue;
     /* THE SUPPLIED DUE DATE WINS. A migration is copying a history, not deriving one: if
        the sheet says the next review is due on a date our recurrence rule disagrees with,
-       the sheet is right, because that is the date the office is working to. With nothing
-       supplied we calculate exactly as before. */
-    const nextDue =
-      c.nextDue ?? nextDueAfterCompletion(def, {}, supInterval, parseCivilDate(c.dates[0])).nextDue;
+       the sheet is right, because that is the date the office is working to.
+
+       AND A SUPPLIED BLANK IS AN ANSWER TOO. Where the sheet laid the cycle out slot by slot
+       it has described the whole of it, including what comes next - so an empty Due on the
+       outstanding slot means nothing is scheduled, not "work it out for us". Mary Ikpi-Ubi's
+       Supervision 1 is blank on the board because her next event is the APPRAISAL, not a
+       supervision; we filled it with last completion plus eighty days and put a supervision
+       in her diary that nobody had booked.
+
+       With no slots supplied at all we calculate exactly as before. */
+    const slotsSupplied = (c.slots ?? []).some((s) => s != null);
+    const nextDue = slotsSupplied
+      ? c.nextDue ?? null
+      : c.nextDue ?? nextDueAfterCompletion(def, {}, supInterval, parseCivilDate(c.dates[0])).nextDue;
     for (let i = 0; i < c.dates.length; i++) {
       const { error } = await supabase.rpc("seed_migrated_completion", {
         p_record_type: recordType,
@@ -102,9 +112,15 @@ async function seedRowChecks(
 /** The due date the sheet supplied for each check, by definition id. Used for the OPEN
  *  instance, including for a check the sheet scheduled but never completed - which is a
  *  real state (a first review that has not happened yet) and used to import as blank. */
-function suppliedDueByDefinition(row: ParsedRow): Map<string, string> {
-  const m = new Map<string, string>();
-  for (const c of row.checks) if (c.nextDue) m.set(c.definitionId, c.nextDue);
+function suppliedDueByDefinition(row: ParsedRow): Map<string, string | null> {
+  const m = new Map<string, string | null>();
+  for (const c of row.checks) {
+    const slotsSupplied = (c.slots ?? []).some((s) => s != null);
+    // A laid-out cycle with a blank next Due says "nothing scheduled", which the initial
+    // due date must respect too, or the calculation puts it straight back.
+    if (c.nextDue) m.set(c.definitionId, c.nextDue);
+    else if (slotsSupplied) m.set(c.definitionId, null);
+  }
   return m;
 }
 
@@ -174,7 +190,9 @@ export async function commitPeople(
     const suppliedDue = suppliedDueByDefinition(row);
     const applyRows = defs.map((def) => ({
       definition_id: def.id,
-      due_date: suppliedDue.get(def.id) ?? peopleInitialDue(def, row.fields.start_date ?? null),
+      due_date: suppliedDue.has(def.id)
+        ? suppliedDue.get(def.id)
+        : peopleInitialDue(def, row.fields.start_date ?? null),
       expiry_date: null,
     }));
     await supabase.rpc("apply_person_checks", { p_person_id: person.id, p_rows: applyRows });
@@ -256,7 +274,9 @@ export async function commitServiceUsers(
     const suppliedDue = suppliedDueByDefinition(row);
     const applyRows = defs.map((def) => ({
       definition_id: def.id,
-      due_date: suppliedDue.get(def.id) ?? suInitialDue(def, row.fields.package_start_date ?? null),
+      due_date: suppliedDue.has(def.id)
+        ? suppliedDue.get(def.id)
+        : suInitialDue(def, row.fields.package_start_date ?? null),
       expiry_date: null,
     }));
     await supabase.rpc("apply_service_user_checks", { p_service_user_id: su.id, p_rows: applyRows });
