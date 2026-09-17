@@ -29,9 +29,9 @@ export default async function ImportPage() {
         <div>
           <h2 className="text-sm font-semibold text-white/80">Step 1. Download a template</h2>
           <p className="mt-1 text-sm text-white/60">
-            The template is built from your own checks, with a pair of columns for each
-            one: the date it was due and the date it was done. Fill in both if you have
-            both. Any due date you leave blank, we calculate.
+            Each template has the same columns as the matrix it fills, in the same order.
+            Every check is a pair - the date it was due and the date it was done - so a
+            filled sheet reads straight across against the register it is about to become.
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -98,23 +98,27 @@ export default async function ImportPage() {
           <li>One row per person or service user. Columns marked * are required.</li>
           <li>Dates are day/month/year, for example 04/03/2026.</li>
           <li>
-            Most checks have a pair of columns: the date it was due and the date it was
-            done. Enter the most recent.
+            Most checks are one pair: <span className="text-white/90">Due</span> is when the
+            next one falls due, <span className="text-white/90">Done</span> is when the last
+            one happened.
           </li>
           <li>
-            Supervision and Care Plan Review have several pairs for their history. Put the
-            most recent in column 1, then work backwards (2, 3 and so on). Leave the rest
-            blank.
+            Supervision and Review are numbered, one pair per slot, exactly as the matrix
+            shows them. Put each one in its own slot and leave it there. The slot that is
+            next has a Due and no Done.
           </li>
           <li>
-            A recurring check also has a <span className="text-white/90">next due date</span>{" "}
-            column. Fill it in when your own system already says when the next one falls
-            due, and we will use your date rather than ours. Leave it blank and we work it
-            out from the last completed date.
+            Any due date you fill in is the one we use. Leave it blank and we work it out
+            from the last completed date.
           </li>
           <li>
             Leave a check blank if it has never been done: it will start as due. Filling in
-            only its next due date schedules it without claiming it was ever done.
+            only a Due schedules it without claiming it was ever done.
+          </li>
+          <li>
+            On the Training sheet each column is a course. A recurring course wants its{" "}
+            <span className="text-white/90">renewal date</span>; a one off wants{" "}
+            <span className="text-white/90">Completed</span>, or the date if you have it.
           </li>
           <li>
             The Branch column must exactly match one of your branches:{" "}

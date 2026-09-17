@@ -20,9 +20,9 @@ import {
 
 test("the header says what the cell should hold, so nobody has to guess", () => {
   // A matrix kept by a registered manager records when a certificate RUNS OUT.
-  assert.equal(trainingHeader("Fire Training", 24), "Fire Training renewal date");
+  assert.equal(trainingHeader("Fire Training", 24), "Fire Training");
   // A one off cannot run out, so it asks for the opposite.
-  assert.equal(trainingHeader("Welcome to the Company", null), "Welcome to the Company (completed)");
+  assert.equal(trainingHeader("Welcome to the Company", null), "Welcome to the Company");
 });
 
 test("a renewal date and a completion are each other's inverse", () => {
@@ -102,7 +102,8 @@ test("an empty trailing column is not reported as junk", () => {
 test("a one off course asks for the opposite of a recurring one", () => {
   // The heading is the only thing telling a manager which date to type, and getting it the wrong
   // way round would put every certificate out by the length of its own renewal.
-  assert.equal(trainingHeader("Manual Handling", 12), "Manual Handling renewal date");
-  assert.equal(trainingHeader("Induction", null), "Induction (completed)");
-  assert.notEqual(normaliseHeader(trainingHeader("X", 12)), normaliseHeader(trainingHeader("X", null)));
+  assert.equal(trainingHeader("Manual Handling", 12), "Manual Handling");
+  assert.equal(trainingHeader("Induction", null), "Induction");
+  // A course that switches between recurring and one off keeps the same column.
+  assert.equal(normaliseHeader(trainingHeader("X", 12)), normaliseHeader(trainingHeader("X", null)));
 });

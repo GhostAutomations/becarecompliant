@@ -4,46 +4,40 @@
  * Pure and deliberately IMPORTLESS, like lib/training/renewal.ts, so the header plan the
  * template writes and the parser reads can be unit tested without a database or a session.
  *
- * WHY A DUE DATE BESIDE EVERY COMPLETION (Phil, 2026-09-16: "add in and due and comp
- * columns"). We used to collect completions only and recalculate every due date from our
- * own recurrence rule. Real data broke that twice in a week: the rules disagree with the
- * board a company arrives from (Spot Check is 30 days here, 28 there), so the imported
- * register contradicts the system it was copied from on day one; and a completion with no
- * due date beside it can never answer "was it done on time". A history that cannot be
- * judged late reads as a history where nothing ever was.
+ * THE TEMPLATE IS THE MATRIX (Phil, 2026-09-17: "when some presses the download template,
+ * the columns on the template match the columns in the matrix").
  *
- * THE THREE SHAPES, and why they differ:
+ * Every check contributes a DUE column and a DONE column, named as the register names them,
+ * in the order the register shows them. A history check - Supervision, Care Plan Review -
+ * contributes one pair per slot in its rotation, numbered exactly as the register numbers
+ * them. Nothing else.
  *
- *   ONE OFF check. Exactly one instance ever exists, so its due date IS the record's due
- *   date whether or not it has been done. Two columns, no "next due": a column that can
- *   never be filled is a column somebody eventually fills wrongly.
+ * WHAT THAT DELETED, and why it is worth it. The old template had three inventions that
+ * existed only because its shape did not match the register: a "next due date" column, a
+ * "slot" column saying which slot the most recent completion sat in, and a most-recent-first
+ * numbering that meant Care Plan Review 1 was a different review for every person. All three
+ * are now implied by WHERE a date sits:
  *
- *   RECURRING check. "<name> next due date" carries the OPEN check's date, then one
- *   (due, completed) pair for the history.
+ *   - the slot IS the column, so nothing has to be carried or rotated;
+ *   - the outstanding review is the slot after the newest completion, so its Due needs no
+ *     column of its own;
+ *   - a review stays in its own slot, so Review 1 means the same thing on every row and
+ *     against the board it came from.
  *
- *   RECURRING check with history (Supervision, Care Plan Review). As above, but the pair
- *   repeats, numbered, 1 = most recent. Enough slots for two years, capped at eight.
- *
- * The completed headers are byte for byte what they were before this file existed, so a
- * template somebody downloaded last week still imports.
+ * One rule, no conventions to remember, and a filled sheet you can read straight across
+ * against the register it will become.
  */
 
-export const HISTORY_CAP = 8;
-
-/**
- * How many slots the ROTATION has, for a check whose history arrives from a board that
- * cycles through fixed slots.
- *
- * NOT the same as the number of history columns, which is HISTORY_CAP: the template keeps up
- * to eight completions, while the board rotates through four. Using the column count as the
- * modulus is what put Amanda Ford's oldest review in slot 8, a slot that does not exist.
- */
+/** How many slots a rotating history check has. The register draws four. */
 export const ROTATION_SLOTS = 4;
 
-/** The checks whose history is worth more than one column. */
+/** The checks whose history runs as numbered, rotating slots. */
 const HISTORY_KEYS = new Set(["supervision", "care_plan_review"]);
 
-/** How many days one recurrence interval is, for deciding how many history slots fit. */
+/** What the REGISTER calls a check, where that differs from the check's own name. */
+const MATRIX_LABEL: Record<string, string> = { care_plan_review: "Review" };
+
+/** How many days one recurrence interval is, used only to tell a real cycle from a stub. */
 export function intervalDays(frequency: string | null, interval: number | null): number {
   const n = interval && interval > 0 ? interval : 0;
   switch (frequency) {
@@ -58,56 +52,41 @@ export function intervalDays(frequency: string | null, interval: number | null):
   }
 }
 
-/** One completion and the date it was due. */
+/** One slot: the date it was due and the date it was done, as the register shows them. */
 export type CheckSlot = { dueHeader: string; doneHeader: string };
 
 export type CheckHeaderPlan = {
+  /** Numbered, rotating slots (Supervision, Care Plan Review) rather than a single pair. */
+  isHistory: boolean;
   /**
-   * The column carrying which SLOT the most recent completion occupied on the system this
-   * history came from. Only for a history check, and only meaningful for a company migrating
-   * from a board that runs fixed, rotating slots.
-   *
-   * The slots rotate, so one number fixes them all: the completion before the most recent is
-   * one slot back, and the outstanding one is the slot after. It cannot be worked out from
-   * the dates - two records with identical intervals can sit on different phases of the
-   * rotation - so it is carried or it is lost.
+   * A ONE OFF check has exactly one instance ever, so the date in its Due column IS that
+   * instance's deadline, done or not. For anything recurring the Due column is the NEXT
+   * one, exactly as the register draws it.
    */
-  slotHeader: string | null;
-  /** The open check's due date. Null for a one off, which has no next. */
-  nextDueHeader: string | null;
-  /** Newest first. */
+  isOneOff: boolean;
   slots: CheckSlot[];
-  /** Every header this check contributes, in file order. */
   headers: string[];
 };
-
-/** How many history slots this check gets. One unless it is a history check with room. */
-function slotCount(key: string, recurring: boolean, days: number): number {
-  if (!recurring || days <= 0 || !HISTORY_KEYS.has(key)) return 1;
-  return Math.min(Math.max(1, Math.ceil(730 / days)), HISTORY_CAP);
-}
 
 export function checkHeaderPlan(
   key: string,
   name: string,
   recurring: boolean,
   days: number,
+  rotation = ROTATION_SLOTS,
 ): CheckHeaderPlan {
-  const n = slotCount(key, recurring, days);
-  const slots: CheckSlot[] =
-    n > 1
-      ? Array.from({ length: n }, (_, i) => ({
-          dueHeader: `${name} ${i + 1} due date`,
-          doneHeader: `${name} ${i + 1}`,
-        }))
-      : [{ dueHeader: `${name} due date`, doneHeader: `${name} completed date` }];
-
-  const nextDueHeader = recurring ? `${name} next due date` : null;
-  const slotHeader = n > 1 ? `${name} 1 slot` : null;
-  const headers = [
-    ...(nextDueHeader ? [nextDueHeader] : []),
-    ...(slotHeader ? [slotHeader] : []),
-    ...slots.flatMap((s) => [s.dueHeader, s.doneHeader]),
-  ];
-  return { nextDueHeader, slotHeader, slots, headers };
+  const isHistory = recurring && days > 0 && HISTORY_KEYS.has(key) && rotation > 1;
+  const label = MATRIX_LABEL[key] ?? name;
+  const slots: CheckSlot[] = isHistory
+    ? Array.from({ length: rotation }, (_, i) => ({
+        dueHeader: `${label} ${i + 1} Due`,
+        doneHeader: `${label} ${i + 1} Done`,
+      }))
+    : [{ dueHeader: `${label} Due`, doneHeader: `${label} Done` }];
+  return {
+    isHistory,
+    isOneOff: !recurring,
+    slots,
+    headers: slots.flatMap((s) => [s.dueHeader, s.doneHeader]),
+  };
 }

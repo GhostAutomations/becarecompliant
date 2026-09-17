@@ -12,7 +12,6 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { buildColumnPlan, type ColumnPlan } from "./columns";
-import { ROTATION_SLOTS } from "./check-columns";
 import { jobTitleOrDefault } from "./job-title";
 
 const RTW_LIMITS = new Set(["none", "20hrs_term", "20hrs_2nd_job", "visa_expires"]);
@@ -217,14 +216,19 @@ export async function validateImport(
     }
 
     /*
-     * CHECK DATES. Each slot is a PAIR: the date it was due and the date it was done, kept
-     * together so the pair survives the sort. Sorting the two columns independently is how
-     * a completion ends up wearing another completion's deadline.
+     * CHECK DATES, READ STRAIGHT OFF THE MATRIX SHAPE.
      *
-     * A ONE OFF has no next due column, because it has exactly one instance ever: its due
-     * date IS the record's due date, done or not. A recurring check takes the open date
-     * from its own "next due date" column, and falls back to the calculated one when that
-     * is blank, so a sheet that ignores the new columns behaves exactly as before.
+     * Each slot is a column pair, so the slot number IS the column and nothing has to be
+     * carried, rotated or remembered. Three things fall out of that for free:
+     *
+     *   - a completion's own deadline is the Due cell beside it;
+     *   - the OUTSTANDING slot is the one after the newest completion, so its Due is the
+     *     next due date, with no column of its own;
+     *   - a review stays in its slot, so Review 1 means the same thing on every row and
+     *     against the board it was copied from.
+     *
+     * A ONE OFF has a single instance, so its Due is that instance's deadline whether or not
+     * it is done. Anything recurring draws the NEXT due there, exactly as the register does.
      */
     const readDate = (h: string): string | null => {
       const iso = toIso(cell(cols, h));
@@ -237,47 +241,40 @@ export async function validateImport(
 
     const checks: ParsedRow["checks"] = [];
     for (const c of plan.checks) {
-      const pairs: Array<{ done: string; due: string | null }> = [];
-      for (const slot of c.slots) {
-        const due = readDate(slot.dueHeader);
-        const done = readDate(slot.doneHeader);
-        if (done) pairs.push({ done, due });
-      }
-      pairs.sort((a, b) => (a.done < b.done ? 1 : a.done > b.done ? -1 : 0));
+      const cells = c.slots.map((slot) => ({
+        due: readDate(slot.dueHeader),
+        done: readDate(slot.doneHeader),
+      }));
 
-      // The same completion twice is one completion. Keep the first, which is the one
-      // whose due date we already read.
+      const filled = cells
+        .map((cell_, i) => ({ ...cell_, slot: i + 1 }))
+        .filter((x): x is { due: string | null; done: string; slot: number } => !!x.done);
+
+      // Newest first, which is the order the commit seeds them in.
+      const ordered = filled.slice().sort((a, b) => (a.done < b.done ? 1 : a.done > b.done ? -1 : 0));
       const seen = new Set<string>();
       const dates: string[] = [];
       const dues: Array<string | null> = [];
-      for (const pr of pairs) {
-        if (seen.has(pr.done)) continue;
-        seen.add(pr.done);
-        dates.push(pr.done);
-        dues.push(pr.due);
+      const slotNos: Array<number | null> = [];
+      for (const x of ordered) {
+        if (seen.has(x.done)) continue;
+        seen.add(x.done);
+        dates.push(x.done);
+        dues.push(x.due);
+        slotNos.push(c.isHistory ? x.slot : null);
       }
 
-      const nextDue = c.nextDueHeader
-        ? readDate(c.nextDueHeader)
-        : readDate(c.slots[0].dueHeader);
-
-      /* THE SLOT OF THE MOST RECENT COMPLETION FIXES THEM ALL. The slots rotate, so the one
-         before it is one slot back, wrapping round. Supplied once because it cannot be
-         derived: two records with identical intervals can sit on different phases. */
-      const rot = ROTATION_SLOTS;
-      let slotNos: Array<number | null> = dates.map(() => null);
-      if (c.slotHeader) {
-        const raw = cell(cols, c.slotHeader);
-        if (raw) {
-          const n = Number(raw);
-          if (!Number.isInteger(n) || n < 1 || n > rot) {
-            errors.push(`${c.slotHeader} must be a whole number from 1 to ${rot}.`);
-          } else {
-            // Modulo the ROTATION, not the number of history columns. The template keeps
-            // eight completions; the board cycles through four.
-            slotNos = dates.map((_, i) => ((((n - 1 - i) % rot) + rot) % rot) + 1);
-          }
-        }
+      let nextDue: string | null = null;
+      if (c.isHistory) {
+        // The slot after the newest completion is the one now outstanding.
+        const newest = ordered[0];
+        if (newest) nextDue = cells[newest.slot % c.slots.length]?.due ?? null;
+        else nextDue = cells.find((x) => x.due)?.due ?? null;
+      } else {
+        nextDue = cells[0].due;
+        // A one off's Due belongs to its own completion as well as to the instance.
+        if (c.isOneOff && dues.length > 0) dues[0] = cells[0].due;
+        else if (dues.length > 0) dues[0] = null;
       }
 
       if (dates.length > 0 || nextDue) {

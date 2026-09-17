@@ -145,8 +145,17 @@ export function renewalPhrase(days: number): string {
  * built from. A one off cannot run out, so it asks for the opposite. Saying so in the heading is
  * the difference between an unambiguous file and a year of certificates being a year out.
  */
-export function trainingHeader(name: string, renewalMonths: number | null): string {
-  return renewalMonths == null ? `${name} (completed)` : `${name} renewal date`;
+export function trainingHeader(name: string, _renewalMonths: number | null): string {
+  /* THE COLUMN IS THE COURSE (Phil, 2026-09-17: "the columns on the template match the
+     columns in the matrix"). The training matrix heads each column with the course name and
+     nothing else, so the template does too.
+
+     It used to append "renewal date" or "(completed)" to say which date the cell wanted.
+     That guidance now lives on the import page, where it can be read once instead of thirty
+     three times, and the parser never needed it: it already knows whether a course recurs.
+     The suffix also meant a course that changed from recurring to one off silently renamed
+     its own column. */
+  return name;
 }
 
 /** How an import header is compared: trimmed, case insensitive, inner spacing collapsed. A
