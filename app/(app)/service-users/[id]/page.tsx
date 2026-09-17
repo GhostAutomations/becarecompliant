@@ -149,7 +149,7 @@ export default async function ServiceUserPage({
   const isComplex = branchType.isComplex;
   const reviewHistory = isComplex
     ? await getReviewComps(id, reviewDef?.form_id ?? null, reviewDef?.id ?? null)
-    : { comps: [] as string[], dueByComp: new Map<string, string>() };
+    : { comps: [] as string[], dueByComp: new Map<string, string>(), migrated: new Set<string>() };
   const reviewComps = reviewHistory.comps;
   const slots = isComplex
     ? reviewSlots(
@@ -160,7 +160,11 @@ export default async function ServiceUserPage({
         undefined,
         undefined,
         // What the company's own records said, which beats our arithmetic.
-        { dueByComp: reviewHistory.dueByComp, openDue: newReviewDue },
+        {
+          dueByComp: reviewHistory.dueByComp,
+          openDue: newReviewDue,
+          migrated: reviewHistory.migrated,
+        },
       )
     : [];
   // Reviews are completed in order, so only the next outstanding slot can be completed.

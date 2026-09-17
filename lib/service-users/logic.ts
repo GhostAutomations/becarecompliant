@@ -126,7 +126,13 @@ export function reviewSlots(
    * Derivation stays as the fallback, because a company that never imported has nothing
    * else, and because it is right whenever the interval was actually followed.
    */
-  known: { dueByComp?: ReadonlyMap<string, string>; openDue?: string | null } = {},
+  known: {
+    dueByComp?: ReadonlyMap<string, string>;
+    openDue?: string | null;
+    /** Completions that arrived by IMPORT. Their deadline is knowable only if the import
+     *  carried it; see dueFor for why we must not work one out instead. */
+    migrated?: ReadonlySet<string>;
+  } = {},
 ): ReviewSlot[] {
   const slots: ReviewSlot[] = [];
   const valid = (d: string | null | undefined): d is string => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d);
@@ -134,10 +140,25 @@ export function reviewSlots(
   const comps = orderedComps.filter(valid).slice().sort();
   const n = comps.length;
   const addI = (d: string) => formatCivilDate(addInterval(parseCivilDate(d), "day", interval));
-  /** The date this completion was due: what we were told, else the interval arithmetic. */
+  /**
+   * The date this completion was due: what we were told, else the interval arithmetic.
+   *
+   * AN IMPORTED COMPLETION IS NEVER GIVEN A DERIVED DEADLINE (Phil, 2026-09-17: "Amanda Ford
+   * Monday REV1-DUE 14/06/2026 BCC Review 1 Due 04/07/24"). An import carries the last few
+   * completions, not the whole history, so the completion before this one may not be the one
+   * it was actually measured against - and for the oldest, the anchor falls back to the
+   * package start, which for Amanda Ford is two years before the review happened. The
+   * arithmetic then produced 04/07/2024 as the deadline for a review done on 26/03/2026 and
+   * called it late by twenty months.
+   *
+   * Null is the honest answer: the board rolled that slot forward and the deadline is gone.
+   * Derivation is kept for completions recorded IN the product, where the history is whole
+   * and the previous completion really is the anchor.
+   */
   const dueFor = (k: number): string | null => {
     const stored = known.dueByComp?.get(comps[k]);
     if (valid(stored)) return stored;
+    if (known.migrated?.has(comps[k])) return null;
     const anchor = k === 0 ? packageStart : comps[k - 1];
     return valid(anchor) ? addI(anchor) : null;
   };
@@ -171,6 +192,7 @@ export function reviewSlots(
         const anchor = i === 1 ? cycleAnchor : comps[cycleBase + i - 2];
         due = valid(anchor) ? addI(anchor) : null;
       }
+      // With no deadline there is nothing to be late against.
       rag = comp ? (lateOf(k) ? "red" : "green") : "none";
     } else if (i === activeSlot) {
       // The outstanding review's date is STORED on the check, so it is the one the whole

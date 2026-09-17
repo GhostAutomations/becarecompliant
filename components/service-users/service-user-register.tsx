@@ -438,7 +438,11 @@ export default function ServiceUserRegister({
                               undefined,
                               undefined,
                               // What the company's own records said, which beats our arithmetic.
-                              { dueByComp: row.reviewDueByComp, openDue: review?.due_date ?? null },
+                              {
+                                dueByComp: row.reviewDueByComp,
+                                openDue: review?.due_date ?? null,
+                                migrated: row.reviewMigrated,
+                              },
                             );
                             return (
                               <>

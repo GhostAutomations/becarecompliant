@@ -135,6 +135,8 @@ export type ServiceUserRow = {
   /** completion date -> the date it was DUE, where the company's own records said so.
    *  Empty for a company that never imported, which then falls back to the interval. */
   reviewDueByComp: ReadonlyMap<string, string>;
+  /** Completions that arrived by import, whose deadline must never be worked out for them. */
+  reviewMigrated: ReadonlySet<string>;
 };
 
 /** The Service User register columns that can be given a shorthand label in

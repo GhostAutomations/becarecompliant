@@ -531,6 +531,8 @@ export async function listRegister(
   // Merge migrated review history (imported companies) alongside real evidence, keeping
   // the date each one was due where the import carried it.
   const reviewDueBySu = new Map<string, Map<string, string>>();
+  // Which completions came from an import, so their deadline is never invented.
+  const reviewMigratedBySu = new Map<string, Set<string>>();
   for (const m of (reviewMigrated as Array<{
     record_id: string;
     completed_on: string;
@@ -539,6 +541,9 @@ export async function listRegister(
     const list = reviewCompsBySu.get(m.record_id) ?? [];
     list.push(m.completed_on);
     reviewCompsBySu.set(m.record_id, list);
+    const mig = reviewMigratedBySu.get(m.record_id) ?? new Set<string>();
+    mig.add(m.completed_on);
+    reviewMigratedBySu.set(m.record_id, mig);
     if (m.due_on) {
       const dues = reviewDueBySu.get(m.record_id) ?? new Map<string, string>();
       dues.set(m.completed_on, m.due_on);
@@ -588,6 +593,7 @@ export async function listRegister(
     tracker: trackerBySu.get(service_user.id) ?? null,
     reviewComps: reviewCompsBySu.get(service_user.id) ?? [],
     reviewDueByComp: reviewDueBySu.get(service_user.id) ?? new Map<string, string>(),
+    reviewMigrated: reviewMigratedBySu.get(service_user.id) ?? new Set<string>(),
   }));
 
   return { definitions, rows };
@@ -630,12 +636,13 @@ export async function getReviewComps(
   serviceUserId: string,
   reviewFormId: string | null,
   reviewDefId: string | null = null,
-): Promise<{ comps: string[]; dueByComp: Map<string, string> }> {
+): Promise<{ comps: string[]; dueByComp: Map<string, string>; migrated: Set<string> }> {
   const supabase = await createClient();
   const out: string[] = [];
   // completion -> the date it was due, where the import carried one. Real evidence has no
   // stored due date, so those fall back to the interval, exactly as before.
   const dueByComp = new Map<string, string>();
+  const migrated = new Set<string>();
   if (reviewFormId) {
     const { data } = await supabase
       .from("evidence")
@@ -664,10 +671,11 @@ export async function getReviewComps(
       .eq("definition_id", reviewDefId);
     for (const m of (data as Array<{ completed_on: string; due_on: string | null }>) ?? []) {
       out.push(m.completed_on);
+      migrated.add(m.completed_on);
       if (m.due_on) dueByComp.set(m.completed_on, m.due_on);
     }
   }
-  return { comps: out.sort(), dueByComp };
+  return { comps: out.sort(), dueByComp, migrated };
 }
 
 /** Is a Service User on a Complex branch, and the company Complex review interval. */
