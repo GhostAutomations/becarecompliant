@@ -84,6 +84,7 @@ async function seedRowChecks(
         p_definition_id: def.id,
         p_completed_on: c.dates[i],
         p_due_on: c.dues?.[i] ?? null,
+        p_slot: c.slots?.[i] ?? null,
         p_next_due: i === 0 ? nextDue : null,
         p_is_latest: i === 0,
       });

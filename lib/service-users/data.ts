@@ -495,12 +495,17 @@ export async function listRegister(
           .from("migrated_completions")
           // due_on: the date that completion was DUE, when the import supplied it. Without
           // it the Complex register had to invent every historical deadline.
-          .select("record_id, completed_on, due_on")
+          .select("record_id, completed_on, due_on, slot")
           .eq("record_type", "service_user")
           .eq("definition_id", reviewDefId)
           .in("record_id", ids)
       : Promise.resolve({
-          data: [] as Array<{ record_id: string; completed_on: string; due_on: string | null }>,
+          data: [] as Array<{
+            record_id: string;
+            completed_on: string;
+            due_on: string | null;
+            slot: number | null;
+          }>,
         }),
   ]);
 
@@ -533,10 +538,12 @@ export async function listRegister(
   const reviewDueBySu = new Map<string, Map<string, string>>();
   // Which completions came from an import, so their deadline is never invented.
   const reviewMigratedBySu = new Map<string, Set<string>>();
+  const reviewSlotBySu = new Map<string, Map<string, number>>();
   for (const m of (reviewMigrated as Array<{
     record_id: string;
     completed_on: string;
     due_on: string | null;
+    slot: number | null;
   }>) ?? []) {
     const list = reviewCompsBySu.get(m.record_id) ?? [];
     list.push(m.completed_on);
@@ -548,6 +555,11 @@ export async function listRegister(
       const dues = reviewDueBySu.get(m.record_id) ?? new Map<string, string>();
       dues.set(m.completed_on, m.due_on);
       reviewDueBySu.set(m.record_id, dues);
+    }
+    if (m.slot) {
+      const sl = reviewSlotBySu.get(m.record_id) ?? new Map<string, number>();
+      sl.set(m.completed_on, m.slot);
+      reviewSlotBySu.set(m.record_id, sl);
     }
   }
   // Keep each list in completion-date order.
@@ -594,6 +606,7 @@ export async function listRegister(
     reviewComps: reviewCompsBySu.get(service_user.id) ?? [],
     reviewDueByComp: reviewDueBySu.get(service_user.id) ?? new Map<string, string>(),
     reviewMigrated: reviewMigratedBySu.get(service_user.id) ?? new Set<string>(),
+    reviewSlotByComp: reviewSlotBySu.get(service_user.id) ?? new Map<string, number>(),
   }));
 
   return { definitions, rows };
@@ -636,13 +649,19 @@ export async function getReviewComps(
   serviceUserId: string,
   reviewFormId: string | null,
   reviewDefId: string | null = null,
-): Promise<{ comps: string[]; dueByComp: Map<string, string>; migrated: Set<string> }> {
+): Promise<{
+  comps: string[];
+  dueByComp: Map<string, string>;
+  migrated: Set<string>;
+  slotByComp: Map<string, number>;
+}> {
   const supabase = await createClient();
   const out: string[] = [];
   // completion -> the date it was due, where the import carried one. Real evidence has no
   // stored due date, so those fall back to the interval, exactly as before.
   const dueByComp = new Map<string, string>();
   const migrated = new Set<string>();
+  const slotByComp = new Map<string, number>();
   if (reviewFormId) {
     const { data } = await supabase
       .from("evidence")
@@ -665,17 +684,22 @@ export async function getReviewComps(
   if (reviewDefId) {
     const { data } = await supabase
       .from("migrated_completions")
-      .select("completed_on, due_on")
+      .select("completed_on, due_on, slot")
       .eq("record_type", "service_user")
       .eq("record_id", serviceUserId)
       .eq("definition_id", reviewDefId);
-    for (const m of (data as Array<{ completed_on: string; due_on: string | null }>) ?? []) {
+    for (const m of (data as Array<{
+      completed_on: string;
+      due_on: string | null;
+      slot: number | null;
+    }>) ?? []) {
       out.push(m.completed_on);
       migrated.add(m.completed_on);
       if (m.due_on) dueByComp.set(m.completed_on, m.due_on);
+      if (m.slot) slotByComp.set(m.completed_on, m.slot);
     }
   }
-  return { comps: out.sort(), dueByComp, migrated };
+  return { comps: out.sort(), dueByComp, migrated, slotByComp };
 }
 
 /** Is a Service User on a Complex branch, and the company Complex review interval. */

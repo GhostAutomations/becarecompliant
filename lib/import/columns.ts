@@ -29,6 +29,8 @@ export type CheckColumn = {
   name: string;
   /** The open check's due date, supplied instead of calculated. Null for a one off. */
   nextDueHeader: string | null;
+  /** Which slot the most recent completion occupied on the system it came from. */
+  slotHeader: string | null;
   /** One (due, completed) pair per remembered completion, newest first. */
   slots: CheckSlot[];
   /** Every header this check contributes, in file order. */

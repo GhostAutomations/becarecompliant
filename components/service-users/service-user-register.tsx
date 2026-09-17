@@ -442,6 +442,7 @@ export default function ServiceUserRegister({
                                 dueByComp: row.reviewDueByComp,
                                 openDue: review?.due_date ?? null,
                                 migrated: row.reviewMigrated,
+                                slotByComp: row.reviewSlotByComp,
                               },
                             );
                             return (

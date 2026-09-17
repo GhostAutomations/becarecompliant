@@ -132,6 +132,16 @@ export function reviewSlots(
     /** Completions that arrived by IMPORT. Their deadline is knowable only if the import
      *  carried it; see dueFor for why we must not work one out instead. */
     migrated?: ReadonlySet<string>;
+    /**
+     * completion date -> the slot it occupied on the system it came from.
+     *
+     * CARBON COPY (Phil, 2026-09-17: "copy the data and disply it exactly in BCC as it is in
+     * monday"). When this is known the layout below is not used at all: each review is drawn
+     * in the slot it really occupied, and the outstanding one takes the slot after the most
+     * recent. Our own cycle takes over the moment a review is completed in the product,
+     * because that completion has no board slot.
+     */
+    slotByComp?: ReadonlyMap<string, number>;
   } = {},
 ): ReviewSlot[] {
   const slots: ReviewSlot[] = [];
@@ -139,6 +149,42 @@ export function reviewSlots(
   const interval = intervalDays >= 1 ? intervalDays : 80;
   const comps = orderedComps.filter(valid).slice().sort();
   const n = comps.length;
+
+  /*
+   * CARBON COPY. Every completion knows its slot, so there is nothing to work out: slot i
+   * holds the latest completion that sat in slot i, with the deadline it was given. The
+   * outstanding slot is the one after the most recent completion, and it carries the stored
+   * due date plus whatever it is displacing, exactly as the source board draws it.
+   */
+  const known2 = known.slotByComp;
+  if (n > 0 && known2 && comps.every((c) => known2.has(c))) {
+    const latest = comps[n - 1];
+    const nextSlot = (known2.get(latest)! % count) + 1;
+    for (let i = 1; i <= count; i++) {
+      const inSlot = comps.filter((c) => known2.get(c) === i);
+      const comp = inSlot.length > 0 ? inSlot[inSlot.length - 1] : null;
+      const storedDue = comp ? known.dueByComp?.get(comp) ?? null : null;
+      if (i === nextSlot) {
+        const due = valid(known.openDue) ? known.openDue : null;
+        slots.push({
+          n: i,
+          due,
+          comp: null,
+          prevComp: comp,
+          prevLate: !!(comp && valid(storedDue) && comp > storedDue),
+          rag: due ? ragStatus(parseCivilDate(due), today, amberDays) : "none",
+        });
+      } else {
+        slots.push({
+          n: i,
+          due: storedDue,
+          comp,
+          rag: comp ? (valid(storedDue) && comp > storedDue ? "red" : "green") : "none",
+        });
+      }
+    }
+    return slots;
+  }
   const addI = (d: string) => formatCivilDate(addInterval(parseCivilDate(d), "day", interval));
   /**
    * The date this completion was due: what we were told, else the interval arithmetic.

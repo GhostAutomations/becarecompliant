@@ -34,6 +34,9 @@ export type ParsedRow = {
     dues?: Array<string | null>;
     /** The open check's due date as SUPPLIED, which beats the calculated one. */
     nextDue?: string | null;
+    /** Which slot each completion occupied on the system it came from, aligned with
+     *  `dates`. Rotated backwards from the one supplied for the most recent. */
+    slots?: Array<number | null>;
   }>;
   status: "new" | "duplicate" | "error";
   errors: string[];
@@ -257,8 +260,32 @@ export async function validateImport(
         ? readDate(c.nextDueHeader)
         : readDate(c.slots[0].dueHeader);
 
+      /* THE SLOT OF THE MOST RECENT COMPLETION FIXES THEM ALL. The slots rotate, so the one
+         before it is one slot back, wrapping round. Supplied once because it cannot be
+         derived: two records with identical intervals can sit on different phases. */
+      const count = c.slots.length;
+      let slotNos: Array<number | null> = dates.map(() => null);
+      if (c.slotHeader) {
+        const raw = cell(cols, c.slotHeader);
+        if (raw) {
+          const n = Number(raw);
+          if (!Number.isInteger(n) || n < 1 || n > count) {
+            errors.push(`${c.slotHeader} must be a whole number from 1 to ${count}.`);
+          } else {
+            slotNos = dates.map((_, i) => (((n - 1 - i) % count) + count) % count + 1);
+          }
+        }
+      }
+
       if (dates.length > 0 || nextDue) {
-        checks.push({ definitionId: c.definitionId, name: c.name, dates, dues, nextDue });
+        checks.push({
+          definitionId: c.definitionId,
+          name: c.name,
+          dates,
+          dues,
+          nextDue,
+          slots: slotNos,
+        });
       }
     }
 

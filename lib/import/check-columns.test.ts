@@ -2,6 +2,23 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { checkHeaderPlan, intervalDays, HISTORY_CAP } from "./check-columns.ts";
 
+test("a history check carries the slot of its most recent completion", () => {
+  // One number fixes the whole rotation; it cannot be derived from the dates.
+  const p = checkHeaderPlan("care_plan_review", "Care Plan Review", true, 80);
+  assert.equal(p.slotHeader, "Care Plan Review 1 slot");
+  assert.deepEqual(p.headers.slice(0, 4), [
+    "Care Plan Review next due date",
+    "Care Plan Review 1 slot",
+    "Care Plan Review 1 due date",
+    "Care Plan Review 1",
+  ]);
+});
+
+test("a check with one slot has nothing to rotate, so no slot column", () => {
+  assert.equal(checkHeaderPlan("audit", "Audit", true, 90).slotHeader, null);
+  assert.equal(checkHeaderPlan("setup", "Setup Visit", false, 0).slotHeader, null);
+});
+
 test("a one off check has no next due column", () => {
   // Setup Visit: one instance ever, so its due date IS the record's due date.
   const p = checkHeaderPlan("setup", "Setup Visit", false, 0);
@@ -20,7 +37,7 @@ test("a history check repeats the pair, numbered, newest first", () => {
   const p = checkHeaderPlan("care_plan_review", "Care Plan Review", true, 80);
   assert.equal(p.slots.length, HISTORY_CAP);
   assert.equal(p.headers[0], "Care Plan Review next due date");
-  assert.deepEqual(p.headers.slice(1, 5), [
+  assert.deepEqual(p.headers.slice(2, 6), [
     "Care Plan Review 1 due date",
     "Care Plan Review 1",
     "Care Plan Review 2 due date",

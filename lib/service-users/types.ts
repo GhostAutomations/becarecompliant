@@ -137,6 +137,8 @@ export type ServiceUserRow = {
   reviewDueByComp: ReadonlyMap<string, string>;
   /** Completions that arrived by import, whose deadline must never be worked out for them. */
   reviewMigrated: ReadonlySet<string>;
+  /** completion date -> the slot it occupied on the system it was imported from. */
+  reviewSlotByComp: ReadonlyMap<string, number>;
 };
 
 /** The Service User register columns that can be given a shorthand label in

@@ -52,6 +52,17 @@ export function intervalDays(frequency: string | null, interval: number | null):
 export type CheckSlot = { dueHeader: string; doneHeader: string };
 
 export type CheckHeaderPlan = {
+  /**
+   * The column carrying which SLOT the most recent completion occupied on the system this
+   * history came from. Only for a history check, and only meaningful for a company migrating
+   * from a board that runs fixed, rotating slots.
+   *
+   * The slots rotate, so one number fixes them all: the completion before the most recent is
+   * one slot back, and the outstanding one is the slot after. It cannot be worked out from
+   * the dates - two records with identical intervals can sit on different phases of the
+   * rotation - so it is carried or it is lost.
+   */
+  slotHeader: string | null;
   /** The open check's due date. Null for a one off, which has no next. */
   nextDueHeader: string | null;
   /** Newest first. */
@@ -82,9 +93,11 @@ export function checkHeaderPlan(
       : [{ dueHeader: `${name} due date`, doneHeader: `${name} completed date` }];
 
   const nextDueHeader = recurring ? `${name} next due date` : null;
+  const slotHeader = n > 1 ? `${name} 1 slot` : null;
   const headers = [
     ...(nextDueHeader ? [nextDueHeader] : []),
+    ...(slotHeader ? [slotHeader] : []),
     ...slots.flatMap((s) => [s.dueHeader, s.doneHeader]),
   ];
-  return { nextDueHeader, slots, headers };
+  return { nextDueHeader, slotHeader, slots, headers };
 }

@@ -149,7 +149,12 @@ export default async function ServiceUserPage({
   const isComplex = branchType.isComplex;
   const reviewHistory = isComplex
     ? await getReviewComps(id, reviewDef?.form_id ?? null, reviewDef?.id ?? null)
-    : { comps: [] as string[], dueByComp: new Map<string, string>(), migrated: new Set<string>() };
+    : {
+        comps: [] as string[],
+        dueByComp: new Map<string, string>(),
+        migrated: new Set<string>(),
+        slotByComp: new Map<string, number>(),
+      };
   const reviewComps = reviewHistory.comps;
   const slots = isComplex
     ? reviewSlots(
@@ -164,6 +169,7 @@ export default async function ServiceUserPage({
           dueByComp: reviewHistory.dueByComp,
           openDue: newReviewDue,
           migrated: reviewHistory.migrated,
+          slotByComp: reviewHistory.slotByComp,
         },
       )
     : [];
