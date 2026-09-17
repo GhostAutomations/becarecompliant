@@ -218,6 +218,33 @@ export default function TrainingMatrix({
     return { green, amber, red, pct, people: inBranch.length };
   }, [inBranch, courses]);
 
+  /*
+   * THE THREE PHASE SCORES FOR THE BRANCH (Phil, 2026-09-17): "add the 3 phase scores as well
+   * that total up the phase 1, 2, 3 scores, they cannot not be an average needs to be the actual
+   * score for each phase."
+   *
+   * POOLED, NOT AVERAGED. Every phase 1 cell in the branch goes into one pile and the score is
+   * the share of that pile which is in date. Averaging the per person bars would weight a carer
+   * with two applicable courses the same as one with thirteen, so a single new starter sitting at
+   * 0% would drag the branch down further than the thirteen courses she has not done can justify.
+   *
+   * Counted through phaseProgress, the same function the per person bars use, so a column and
+   * the headline above it cannot tell two different stories. A course with no phase, and a course
+   * that is not this person's, are in neither.
+   */
+  const phaseStats = useMemo(() => {
+    const byPhase = new Map<number, { rag: string }[]>([[1, []], [2, []], [3, []]]);
+    for (const p of inBranch) {
+      for (const c of courses) {
+        const pile = c.phase == null ? undefined : byPhase.get(c.phase);
+        if (!pile) continue;
+        const cell = p.cells[c.id];
+        if (cell) pile.push(cell);
+      }
+    }
+    return [1, 2, 3].map((n) => ({ n, progress: phaseProgress(byPhase.get(n) ?? []) }));
+  }, [inBranch, courses]);
+
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -305,6 +332,17 @@ export default function TrainingMatrix({
           <span className="text-white/55">
             <span className="font-semibold text-rag-red-soft">{stats.red}</span> expired or not done
           </span>
+          {/* The count is shown beside each score, not hidden in a tooltip, because it is the
+              thing that says this is a real score and not an average of averages. */}
+          {phaseStats.map(({ n, progress }) => (
+            <span key={n} className="text-white/55">
+              <span className="font-semibold text-white">{progress ? `${progress.pct}%` : "—"}</span>{" "}
+              phase {n}
+              {progress ? (
+                <span className="text-white/35"> ({progress.done}/{progress.total})</span>
+              ) : null}
+            </span>
+          ))}
           <span className="ml-auto text-white/40">
             {stats.people} {stats.people === 1 ? "carer" : "carers"}
             {shown.length !== inBranch.length ? `, ${shown.length} shown` : ""}

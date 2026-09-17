@@ -38,3 +38,28 @@ test("rounded down, never up", () => {
   const oneOfThree = [g, r, r];
   assert.equal(phaseProgress(oneOfThree)?.pct, 33);
 });
+
+/*
+ * POOLED, NOT AVERAGED (Phil, 2026-09-17): "they cannot not be an average needs to be the actual
+ * score for each phase." The branch headline pools every cell in the phase and scores the pile,
+ * which is why phaseProgress takes cells rather than percentages.
+ */
+test("a branch score pools cells, it does not average people", () => {
+  // One carer with 13 phase 1 courses, 12 in date. One new starter with 2, none in date.
+  const veteran = Array.from({ length: 13 }, (_, i) => ({ rag: i < 12 ? "green" : "red" }));
+  const starter = [{ rag: "red" }, { rag: "red" }];
+
+  const pooled = phaseProgress([...veteran, ...starter]);
+  assert.equal(pooled?.done, 12);
+  assert.equal(pooled?.total, 15);
+  assert.equal(pooled?.pct, 80);
+
+  // Averaging the two bars would read 46%, which is the figure this test exists to rule out.
+  const averaged = Math.floor(((phaseProgress(veteran)!.pct + phaseProgress(starter)!.pct) / 2));
+  assert.equal(averaged, 46);
+  assert.notEqual(pooled?.pct, averaged);
+});
+
+test("a pooled phase nobody has any courses in is a dash, not zero", () => {
+  assert.equal(phaseProgress([]), null);
+});
