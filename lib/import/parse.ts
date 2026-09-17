@@ -268,8 +268,15 @@ export async function validateImport(
       if (c.isHistory) {
         // The slot after the newest completion is the one now outstanding.
         const newest = ordered[0];
-        if (newest) nextDue = cells[newest.slot % c.slots.length]?.due ?? null;
+        const openSlot = newest ? (newest.slot % c.slots.length) + 1 : null;
+        if (openSlot) nextDue = cells[openSlot - 1]?.due ?? null;
         else nextDue = cells.find((x) => x.due)?.due ?? null;
+        /* THE OPEN SLOT'S DUE IS THE NEXT REVIEW'S, NOT ITS COMPLETION'S. That slot still
+           holds last cycle's completion until it is redone, and its Due has already rolled
+           forward - so pairing the two would give a review done in December 2025 a deadline
+           in December 2026 and record it as comfortably on time. We were not told when that
+           one was due, so we do not claim to know. */
+        for (let i = 0; i < slotNos.length; i++) if (slotNos[i] === openSlot) dues[i] = null;
       } else {
         nextDue = cells[0].due;
         // A one off's Due belongs to its own completion as well as to the instance.
