@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import ComplaintPeoplePicker from "@/components/complaints/complaint-people-picker";
+import ComplaintPeoplePicker, { type PersonOption } from "@/components/complaints/complaint-people-picker";
 import { createComplaint } from "@/lib/complaints/actions";
 import { IDLE_STATE } from "@/lib/forms";
 import {
@@ -20,7 +20,7 @@ export default function CreateComplaintForm({
 }: {
   branches: Array<{ id: string; name: string }>;
   serviceUsers: Array<{ id: string; full_name: string; branch_id: string | null }>;
-  people: Array<{ id: string; full_name: string; branch_id: string | null }>;
+  people: PersonOption[];
   todayIso: string;
 }) {
   const [state, formAction, pending] = useActionState(createComplaint, IDLE_STATE);
@@ -113,7 +113,7 @@ export default function CreateComplaintForm({
         </div>
 
         <div>
-          <ComplaintPeoplePicker people={people} branchId={branchId} />
+          <ComplaintPeoplePicker people={people} />
         </div>
 
         <div>

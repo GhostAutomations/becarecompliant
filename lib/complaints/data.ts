@@ -206,15 +206,24 @@ export async function listServiceUsersLite(
 /** Active team members, for the "who is this complaint about" picker. */
 export async function listPeopleLite(
   companyId: string,
-): Promise<Array<{ id: string; full_name: string; branch_id: string | null }>> {
+): Promise<Array<{ id: string; full_name: string; branch_name: string | null }>> {
   const supabase = await createClient();
+  /* The BRANCH NAME, not the id. The complaint's team member search is company wide (Phil,
+     2026-09-17: "it could be that a people from another branch is working in another area"), so
+     the branch is no longer a filter. It earns its place as the line that tells two carers with
+     the same name apart. */
   const { data } = await supabase
     .from("people")
-    .select("id, full_name, branch_id")
+    .select("id, full_name, branches(name)")
     .eq("company_id", companyId)
     .is("archived_at", null)
     .order("surname_key", { ascending: true });
-  return (data as Array<{ id: string; full_name: string; branch_id: string | null }> | null) ?? [];
+  type Row = { id: string; full_name: string; branches: { name: string } | { name: string }[] | null };
+  return ((data as unknown as Row[] | null) ?? []).map((r) => ({
+    id: r.id,
+    full_name: r.full_name,
+    branch_name: Array.isArray(r.branches) ? r.branches[0]?.name ?? null : r.branches?.name ?? null,
+  }));
 }
 
 /** The team members a complaint names. */

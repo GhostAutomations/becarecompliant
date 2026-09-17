@@ -14,27 +14,29 @@
  * RecordTypeahead, the same control and the same matching rule as the record lookup on a Spot
  * Check form, so "obrien" finds O'Brien in both places.
  *
+ * EVERY CARER IN THE COMPANY, not the complaint's branch (Phil, 2026-09-17): "i dont want it to
+ * be branch specific because it could be that a people from another branch is working in another
+ * area, thats why i want this search as apposed tp a drop down that relates to a branch". Cover
+ * shifts cross branches, and a complaint naming nobody because the carer who was there is
+ * registered in Newport is a complaint that loses the one fact it was logged for. The branch is
+ * shown beside each name instead, where it tells two carers with the same name apart rather than
+ * deciding who may be named.
+ *
  * Each pick becomes a chip with the id beside it, so more than one carer can be named and any one
  * of them removed without disturbing the others.
- *
- * Narrowed to the chosen branch, because a complaint about a Cardiff visit is not about somebody
- * who works in Newport. Anyone already named stays named whatever the branch is changed to: a
- * name quietly disappearing because somebody changed the branch is how a record loses a person.
  */
 
 import { useMemo, useState } from "react";
 import RecordTypeahead from "@/components/register/record-typeahead";
 import type { LookupChoice } from "@/lib/forms/lookup";
 
-export type PersonOption = { id: string; full_name: string; branch_id: string | null };
+export type PersonOption = { id: string; full_name: string; branch_name: string | null };
 
 export default function ComplaintPeoplePicker({
   people,
-  branchId,
   initialIds = [],
 }: {
   people: PersonOption[];
-  branchId: string;
   initialIds?: string[];
 }) {
   const [chosenIds, setChosenIds] = useState<string[]>(() =>
@@ -44,14 +46,15 @@ export default function ComplaintPeoplePicker({
 
   const byId = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
 
-  /* The list offers the chosen branch, minus anyone already named: a name that is already a chip
-     is not a choice, and leaving it there invites a second click that does nothing. */
-  const choices: LookupChoice[] = useMemo(() => {
-    const inBranch = branchId ? people.filter((p) => p.branch_id === branchId) : people;
-    return inBranch
-      .filter((p) => !chosenIds.includes(p.id))
-      .map((p) => ({ id: p.id, label: p.full_name }));
-  }, [people, branchId, chosenIds]);
+  /* Anyone already named leaves the suggestions: a name that is already a chip is not a choice,
+     and leaving it there invites a second click that does nothing. */
+  const choices: LookupChoice[] = useMemo(
+    () =>
+      people
+        .filter((p) => !chosenIds.includes(p.id))
+        .map((p) => ({ id: p.id, label: p.full_name, hint: p.branch_name ?? undefined })),
+    [people, chosenIds],
+  );
 
   const chosen = chosenIds.map((id) => byId.get(id)).filter((p): p is PersonOption => !!p);
 
@@ -67,9 +70,7 @@ export default function ComplaintPeoplePicker({
             <li key={p.id}>
               <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-sm text-white/85">
                 <span>{p.full_name}</span>
-                {branchId && p.branch_id !== branchId ? (
-                  <span className="text-xs text-white/40">another branch</span>
-                ) : null}
+                {p.branch_name ? <span className="text-xs text-white/40">{p.branch_name}</span> : null}
                 <button
                   type="button"
                   onClick={() => setChosenIds((prev) => prev.filter((id) => id !== p.id))}
@@ -96,14 +97,12 @@ export default function ComplaintPeoplePicker({
           setChosenIds((prev) => (prev.includes(choice.id) ? prev : [...prev, choice.id]));
           setQuery("");
         }}
-        placeholder={branchId ? "Start typing a name" : "Choose a branch first"}
-        disabled={!branchId}
-        noMatchText="Nobody in this branch matches that name."
+        noMatchText="Nobody on the team matches that name."
       />
 
       <p className="form-hint">
-        Optional, and more than one can be named. A complaint shows on a team member&apos;s record
-        alongside whether it was upheld, never as a bare count.
+        Optional, and more than one can be named, from any branch. A complaint shows on a team
+        member&apos;s record alongside whether it was upheld, never as a bare count.
       </p>
     </div>
   );
