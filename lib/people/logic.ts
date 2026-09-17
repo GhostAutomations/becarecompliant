@@ -425,15 +425,21 @@ export function appraisalSlot(
   amberDays: number,
   today: CivilDate = todayInLondon(),
   /**
-   * The appraisal's OWN stored due date, which beats the one worked out below.
+   * THE DATE IN THE SUPERVISION 3 DONE CELL, which is what the appraisal hangs off.
    *
-   * Phil, 2026-09-17: "Annual Appraisal Due ... empty in bcc but not monday". We only ever
-   * derived it, and only once three supervisions were done in the current cycle, so a company
-   * arriving with an appraisal already scheduled had nowhere to put that date and the column
-   * sat empty on every row. Same rule as the reviews: a date we were told beats a date we can
-   * work out, and the derivation stays for everyone who never told us one.
+   * Phil, 2026-09-17: "calculate the real appraisal due date 80 days after the supervison 3 done
+   * date." That is the check's own schedule_mode, after_sup3, said plainly.
+   *
+   * It replaces a stored due date taken from the company's old system. That was this morning's
+   * answer to "Annual Appraisal Due ... empty in bcc but not monday", and it pinned dates that
+   * were already spent: Janet Oladunni's read 03/07/2026, the deadline her appraisal had MET, so
+   * the register showed red for overdue beside a green completed on the same day. The column was
+   * empty because the derivation below was wrong, not because the date was missing.
+   *
+   * Null when Supervision 3 has not been done in the current cycle: nothing anchors the appraisal
+   * yet, and a blank is the truth rather than a date worked back from somewhere else.
    */
-  storedNextDue: string | null = null,
+  thirdSupDone: string | null = null,
 ): AppraisalSlot {
   const isDate = (d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d);
   const hasInterval = !!intervalDays && intervalDays >= 1;
@@ -457,18 +463,28 @@ export function appraisalSlot(
     }
   }
 
-  // Next appraisal due once three supervisions are done in the CURRENT (open) cycle.
+  /*
+   * The appraisal falls due one supervision interval after Supervision 3.
+   *
+   * The caller passes the date that is actually IN the Supervision 3 Done cell, so the register
+   * reads across the row: the appraisal is due 80 days after the supervision the reader can see.
+   * Where no caller supplied one, the count based cycle below still applies, which is what the
+   * scheduler has always used.
+   */
+  const currentCycleSups = sups.slice(consumed);
+  const anchor = thirdSupDone && isDate(thirdSupDone)
+    ? thirdSupDone
+    : currentCycleSups.length >= 3
+      ? currentCycleSups[2]
+      : null;
   let nextDue: string | null = null;
   let nextDueRag: Rag | "none" = "none";
-  const currentCycleSups = sups.slice(consumed);
-  if (storedNextDue && isDate(storedNextDue)) {
-    nextDue = storedNextDue;
-  } else if (hasInterval && currentCycleSups.length >= 3) {
-    nextDue = addI(currentCycleSups[2]);
-  }
-  // A due date the last appraisal already met is not outstanding, so it carries no pill. See
-  // appraisalDueMet, which is pure and unit tested.
-  const nextDueMet = appraisalDueMet(nextDue, comp);
+  if (hasInterval && anchor) nextDue = addI(anchor);
+
+  // An appraisal done SINCE the supervision that set this deadline has discharged it, so the Due
+  // cell carries no pill: Phil, "they have pills in them when they shouldnt as the text is green
+  // in the done column". Pure and unit tested in appraisal-due.ts.
+  const nextDueMet = appraisalDueMet(anchor, comp);
   if (nextDue && !nextDueMet) nextDueRag = ragStatus(parseCivilDate(nextDue), today, amberDays);
 
   return { nextDue, nextDueRag, comp, compRag, nextDueMet };

@@ -294,8 +294,9 @@ export default function RegisterMatrix({
                 config.supInterval,
                 config.supAmber,
                 undefined,
-                // The date the company gave us, which beats the one we would work out.
-                row.statusByKey["appraisal"]?.due_date ?? null,
+                // The date in this row's own Supervision 3 Done cell: the appraisal is due one
+                // supervision interval after it, so the row reads across.
+                sup[2]?.comp ?? null,
               );
               return (
                 <tr key={row.person.id}>

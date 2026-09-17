@@ -157,7 +157,7 @@ export async function buildPeopleRegisterReport(
         cycleMode,
       );
       const lastSup = [...sup].reverse().find((s) => s.comp) ?? null;
-      const aa = appraisalSlot(r.appraisalCompDates, r.supCompDates, supInterval, supAmber);
+      const aa = appraisalSlot(r.appraisalCompDates, r.supCompDates, supInterval, supAmber, undefined, sup[2]?.comp ?? null);
       return { name: r.person.full_name, lastSup, aa };
     })
     .filter((x) => (x.lastSup && x.lastSup.comp) || x.aa.comp);

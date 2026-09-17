@@ -76,7 +76,7 @@ export default async function PeopleSummaryPage({
       supCount,
       cycleMode,
     );
-    const aa = appraisalSlot(row.appraisalCompDates, row.supCompDates, supInterval, supAmber);
+    const aa = appraisalSlot(row.appraisalCompDates, row.supCompDates, supInterval, supAmber, undefined, slots[2]?.comp ?? null);
 
     /* The stage chips, left to right as the year runs: probation end, then each supervision,
        then the appraisal that closes the cycle. Green once done, otherwise the colour of what

@@ -226,7 +226,7 @@ export default async function PersonPage({
 
      Both now derive it the same way, from the same function and the same inputs, so they
      cannot disagree. Untouched in four-supervisions mode, where there is no appraisal. */
-  const aaSlot = appraisalSlot(appraisalCompDates, supCompDates, supInterval, supAmber);
+  const aaSlot = appraisalSlot(appraisalCompDates, supCompDates, supInterval, supAmber, undefined, slots[2]?.comp ?? null);
 
   const statusByDef = new Map<string, CheckStatus>(statuses.map((s) => [s.definition_id, s]));
   const supStatus = statuses.find((s) => s.check_key === "supervision") ?? null;
