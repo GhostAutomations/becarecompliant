@@ -76,7 +76,13 @@ const MANAGEMENT = [
 const ADMIN_ONLY = ["platform_admin", "company_admin"] as const;
 
 export const MODULES: readonly ModuleDef[] = [
-  { key: "dashboard", label: "Dashboard", roles: OFFICE },
+  {
+    key: "dashboard",
+    label: "Dashboard",
+    // On Call since 2026-09-17: an urgent follow up is theirs to chase, and it is shown on the
+    // Dashboard, so a role that could not open the Dashboard could not see the thing it raised.
+    roles: [...OFFICE, "on_call"],
+  },
   {
     key: "people",
     label: "People",

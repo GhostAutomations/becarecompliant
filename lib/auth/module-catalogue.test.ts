@@ -136,3 +136,15 @@ test("an empty post switches everything off, and Settings survives it", () => {
   assert.equal(canUseModule("settings", "company_admin", asDisabled("company_admin", off)), true);
   assert.equal(canUseModule("people", "company_admin", asDisabled("company_admin", off)), false);
 });
+
+test("On Call reaches the Dashboard, because the follow ups they raise are shown there", () => {
+  /* Phil, 2026-09-17: "when 'needs urgent follow up' is ticked, it goes to on call and above on
+     the dash". The role that raises them was the one role that could not see them: the page
+     redirected On Call away and the panel was gated on manager and above. */
+  assert.equal(canUseModule("dashboard", "on_call"), true);
+  // Still nothing else. The Dashboard's other panels are gated on companyWide, which On Call is
+  // not, so widening this one department does not hand them the compliance score.
+  for (const key of ["people", "service_users", "training", "invoicing", "reports", "settings"]) {
+    assert.equal(canUseModule(key, "on_call"), false, `On Call must not reach ${key}`);
+  }
+});

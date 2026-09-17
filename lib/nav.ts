@@ -253,11 +253,16 @@ export function navEntriesForRole(role: string, disabled: ReadonlySet<string> = 
   if (role === "platform_admin") {
     return NAV_ENTRIES.filter((entry) => entry.href === "/founder");
   }
-  // The On Call role is a focused out-of-hours role: its ONLY departments are On
-  // Call, Absence and Complaints (all branches). A flat, bespoke nav avoids
-  // showing the People parent (whose /people compliance page it cannot access).
+  // The On Call role is a focused out-of-hours role: its departments are the Dashboard, On
+  // Call, Absence and Complaints (all branches). A flat, bespoke nav avoids showing the People
+  // parent (whose /people compliance page it cannot access).
+  //
+  // THE DASHBOARD ARRIVED LAST (Phil, 2026-09-17: "when 'needs urgent follow up' is ticked, it
+  // goes to on call and above on the dash"). Urgent follow ups are shown there and nowhere else,
+  // so the role that raises them was the one role that could not see them.
   if (role === "on_call") {
     return [
+      { href: "/dashboard", label: "Dashboard", icon: "dashboard" as const, group: "Departments" },
       {
         href: "/on-call",
         label: "On Call",

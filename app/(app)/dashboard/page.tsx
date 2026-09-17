@@ -617,7 +617,10 @@ export default async function DashboardPage() {
   const { user, profile } = await requireCompany();
   if (!profile.company_id) redirect("/founder");
   if (profile.role === "team_member") redirect("/people");
-  if (profile.role === "on_call") redirect("/on-call");
+  /* On Call used to be sent straight to /on-call from here. It was reasonable while the Dashboard
+     held nothing for them; it stopped being reasonable when the urgent follow ups they raise are
+     shown on the Dashboard and nowhere else (Phil, 2026-09-17). Everything else on the page is
+     gated on companyWide, which they are not, so what they get is their own follow ups. */
   if (profile.role === "staff") redirect("/my");
 
   const supabase = await createClient();
@@ -680,7 +683,17 @@ export default async function DashboardPage() {
   const companyWide = MANAGER_PLUS_ROLES.includes(profile.role);
   // The report viewer admits exactly these roles, so nothing else is given a link into it.
   const canOpenReports = MANAGER_PLUS_ROLES.includes(profile.role);
-  const canSeeOnCall = companyWide && (await featureEnabled(companyId, "on_call"));
+  /*
+   * ON CALL AND ABOVE (Phil, 2026-09-17): "when 'needs urgent follow up' is ticked, it goes to on
+   * call and above on the dash".
+   *
+   * It was manager and above, which left out the one role that raises them. An out of hours
+   * caller ticks Needs Urgent Follow Up at 3am and then could not see, on their next shift,
+   * whether anybody had picked it up. companyWide stays as it is: it gates the compliance score,
+   * training and policy coverage, and none of those are an On Call caller's business.
+   */
+  const onCallPlus = companyWide || profile.role === "on_call";
+  const canSeeOnCall = onCallPlus && (await featureEnabled(companyId, "on_call"));
   // The department's name for this company (0276), so the tile does not say "On Call" to a
   // company whose nav calls it something else.
   const onCallName = await getOnCallLabel(companyId);
@@ -1260,9 +1273,9 @@ export default async function DashboardPage() {
 
           Here it is one of three panels of the same kind, and the line has a shape it can fill.
         */}
-          {/* Hidden below manager level: those roles can never read on-call data, and
+          {/* Hidden below On Call level: the roles beneath it can never read on-call data, and
               the old fallback message wrongly told a Supervisor the feature was off
-              (17 Aug QA). Manager-plus with the feature genuinely off keeps the honest
+              (17 Aug QA). On Call and above with the feature genuinely off keeps the honest
               message below. */}
           {/*
             NO WRAPPER DIV. It is the reason the gap survived four attempts (Phil, four times:
@@ -1276,7 +1289,7 @@ export default async function DashboardPage() {
 
             The Panel is the flex child now, so what stretches is the thing you can see.
           */}
-          {companyWide ? (
+          {onCallPlus ? (
           <Panel
             title={`${onCallName}: urgent follow ups`}
             href="/on-call"
