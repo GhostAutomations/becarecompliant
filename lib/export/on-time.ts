@@ -78,6 +78,10 @@ export function defaultOnTimeWindow(now: Date = new Date()): OnTimeWindow {
   return { from: formatCivilDate(addMonths(today, -6)), to: formatCivilDate(today) };
 }
 
+/** Runaway backstop for an outstanding deadline repeating forward. Same purpose as
+ *  MAX_CYCLES_PER_GAP: the loop terminates on its own, this only stops a future bug hanging a page. */
+const MAX_OUTSTANDING_CYCLES = 50000;
+
 const ISO_RE = /^\d{4}-\d{2}-\d{2}$/;
 export function resolveOnTimeWindow(from: string | null, to: string | null): OnTimeWindow {
   const def = defaultOnTimeWindow();
@@ -292,6 +296,8 @@ async function computeOnTime(input: OnTimeInput) {
   const formIds = Array.from(new Set(defs.map((d) => d.form_id)));
   const recordIds = records.map((r) => r.id);
   const completionsByKey = new Map<string, CivilDate[]>(); // key = formId|recordId
+  /** Migrated history WITH the deadline each completion was measured against. key = formId|recordId */
+  const migratedCyclesByKey = new Map<string, { completed: CivilDate; due: CivilDate | null }[]>();
   if (recordIds.length > 0) {
     /*
      * PAGED, and sorted with a unique tiebreak (2026-07-30).
@@ -340,15 +346,20 @@ async function computeOnTime(input: OnTimeInput) {
      *
      * Keyed exactly as evidence is (form + record), so the two sources become one list.
      */
-    type MigRow = { id: string; definition_id: string; record_id: string; completed_on: string };
+    type MigRow = {
+      id: string;
+      definition_id: string;
+      record_id: string;
+      completed_on: string;
+      due_on: string | null;
+    };
     const formByDefinition = new Map(defs.map((d) => [d.id, d.form_id]));
     const definitionIds = defs.map((d) => d.id);
-    const migratedByKey = new Map<string, CivilDate[]>();
     for (let i = 0; i < recordIds.length; i += IDS_PER_REQUEST) {
       const idChunk = recordIds.slice(i, i + IDS_PER_REQUEST);
       const migQ = supabase
         .from("migrated_completions")
-        .select("id, definition_id, record_id, completed_on")
+        .select("id, definition_id, record_id, completed_on, due_on")
         .eq("company_id", input.companyId)
         .in("definition_id", definitionIds)
         .in("record_id", idChunk)
@@ -358,9 +369,12 @@ async function computeOnTime(input: OnTimeInput) {
         const formId = formByDefinition.get(m.definition_id);
         if (!formId) continue;
         const k = `${formId}|${m.record_id}`;
-        const list = migratedByKey.get(k) ?? [];
-        list.push(parseCivilDate(m.completed_on));
-        migratedByKey.set(k, list);
+        const list = migratedCyclesByKey.get(k) ?? [];
+        list.push({
+          completed: parseCivilDate(m.completed_on),
+          due: m.due_on ? parseCivilDate(m.due_on) : null,
+        });
+        migratedCyclesByKey.set(k, list);
       }
     }
     /*
@@ -369,8 +383,83 @@ async function computeOnTime(input: OnTimeInput) {
      * submitted in the app, so concatenating them leaves the list out of order and the cycle walk
      * reads anchors strictly ascending.
      */
-    for (const [k, migrated] of migratedByKey) {
-      completionsByKey.set(k, mergeCompletions(completionsByKey.get(k) ?? [], migrated));
+    for (const [k, migrated] of migratedCyclesByKey) {
+      migrated.sort((a, b) => compareCivil(a.completed, b.completed));
+      completionsByKey.set(
+        k,
+        mergeCompletions(completionsByKey.get(k) ?? [], migrated.map((m) => m.completed)),
+      );
+    }
+  }
+
+  /*
+   * THE REGISTER'S OWN NEXT DUE DATE, per check per record.
+   *
+   * Needed for the two ends of a migrated record that the history cannot supply: the cycle
+   * currently running, and a record that has never had the check done. Derived from a start date
+   * these were both wrong. See the walk below.
+   */
+  type InstanceRow = { definition_id: string; person_id: string | null; service_user_id: string | null; due_date: string | null };
+  const openDueByKey = new Map<string, CivilDate>();
+  if (recordIds.length > 0) {
+    const IDS_PER_INSTANCE_REQUEST = 200;
+    for (let i = 0; i < recordIds.length; i += IDS_PER_INSTANCE_REQUEST) {
+      const idChunk = recordIds.slice(i, i + IDS_PER_INSTANCE_REQUEST);
+      const instQ = supabase
+        .from("check_instances")
+        .select("definition_id, person_id, service_user_id, due_date")
+        .eq("company_id", input.companyId)
+        .eq("active", true)
+        .in("definition_id", defs.map((d) => d.id))
+        .or(`person_id.in.(${idChunk.join(",")}),service_user_id.in.(${idChunk.join(",")})`)
+        .order("definition_id", { ascending: true });
+      for (const row of await readAll<InstanceRow>(instQ, "the check register")) {
+        if (!row.due_date) continue;
+        const recId = row.person_id ?? row.service_user_id;
+        if (!recId) continue;
+        openDueByKey.set(`${row.definition_id}|${recId}`, parseCivilDate(row.due_date));
+      }
+    }
+  }
+
+  /*
+   * PROBATION COUNTS AS A SUPERVISION, FOR THIS REPORT ONLY (Phil, 2026-09-17).
+   *
+   * The probation review IS a supervision in everything but name: a sit down with the carer
+   * against a date the company committed to. Leaving it out understated the measure for exactly
+   * the people who had had the most contact, the new starters. It is added to the supervision
+   * measure here and nowhere else: the People register keeps its own probation tracker and its
+   * own supervision cycle, unchanged.
+   *
+   * Graded against the EXTENSION where one was agreed. An extension is the deadline moving, and
+   * grading a carer against a date their manager formally replaced is the same mistake as
+   * deriving a due date over a supplied one.
+   */
+  type ProbationRow = {
+    person_id: string;
+    probation_end_due: string | null;
+    probation_end_actual: string | null;
+    probation_extension_date: string | null;
+  };
+  const probationByPerson = new Map<string, { due: CivilDate; done: CivilDate | null }>();
+  if (staff.length > 0) {
+    const staffIds = staff.map((p) => p.id);
+    const IDS_PER_PROBATION_REQUEST = 200;
+    for (let i = 0; i < staffIds.length; i += IDS_PER_PROBATION_REQUEST) {
+      const probQ = supabase
+        .from("person_trackers")
+        .select("person_id, probation_end_due, probation_end_actual, probation_extension_date")
+        .eq("company_id", input.companyId)
+        .in("person_id", staffIds.slice(i, i + IDS_PER_PROBATION_REQUEST))
+        .order("person_id", { ascending: true });
+      for (const t of await readAll<ProbationRow>(probQ, "the probation tracker")) {
+        const dueIso = t.probation_extension_date ?? t.probation_end_due;
+        if (!dueIso) continue;
+        probationByPerson.set(t.person_id, {
+          due: parseCivilDate(dueIso),
+          done: t.probation_end_actual ? parseCivilDate(t.probation_end_actual) : null,
+        });
+      }
     }
   }
 
@@ -407,38 +496,124 @@ async function computeOnTime(input: OnTimeInput) {
     };
     const recs = records.filter((r) => r.population === def.population);
     for (const rec of recs) {
+      const key = `${def.form_id}|${rec.id}`;
+      const comps = completionsByKey.get(key) ?? []; // ascending, ordered by the query
+      const supplied = migratedCyclesByKey.get(key) ?? []; // ascending by completion
+      const openDue = openDueByKey.get(`${def.id}|${rec.id}`) ?? null;
+
+      const count = (due: CivilDate, settledOn: CivilDate | null, onTime: boolean) => {
+        if (!inWindow(due)) return;
+        stat.dueInPeriod += 1;
+        if (onTime) stat.onTime += 1;
+        cycles.push({
+          checkKey: def.key,
+          checkName: def.name,
+          recordName: rec.name,
+          branchName: rec.branch,
+          dueDate: formatCivilDate(due),
+          completedOn: settledOn ? formatCivilDate(settledOn) : null,
+          onTime,
+        });
+      };
+
+      /** The derived walk: cycles reconstructed from real anchors, for the period after them. */
+      const walk = (origin: CivilDate, after: CivilDate[]) => {
+        const anchors: CivilDate[] = buildAnchors(origin, after);
+        for (let k = 0; k < anchors.length; k++) {
+          const next = k + 1 < anchors.length ? anchors[k + 1] : null;
+          // EVERY cycle that came due in this gap, not just the first. The walk itself is pure
+          // and unit tested in on-time-cycles.ts, which explains why this changed.
+          const dues = dueDatesInGap({ anchor: anchors[k], next, today, from: fromC, step: dueFrom });
+          for (let i = 0; i < dues.length; i++) {
+            const { settled, onTime } = cycleOnTime(dues, i, next);
+            // `settled` already implies next is set; the extra check is for the type checker.
+            count(dues[i], settled && next ? next : null, onTime);
+          }
+        }
+      };
+
+      /** Every repeat of an outstanding deadline that is already past. Nothing has been done. */
+      const walkOutstanding = (firstDue: CivilDate) => {
+        let due = firstDue;
+        for (let guard = 0; guard < MAX_OUTSTANDING_CYCLES && compareCivil(due, today) < 0; guard++) {
+          count(due, null, false);
+          due = dueFrom(due);
+        }
+      };
+
+      /*
+       * A MIGRATED RECORD IS GRADED AGAINST THE DEADLINES THAT CAME WITH IT (2026-09-17).
+       *
+       * Phil, on Jamie Meredith: "in the last six months that the pqs is scoring jamie is only
+       * due one supervision which was done on the day it was due". The walk was deriving his
+       * deadlines from his start date, 06/01/2026, and inventing cycles at 06/04 and 05/07 that
+       * his register never had. His supervision came across from the old system carrying its own
+       * due date, 06/08/2026, and he did it that day.
+       *
+       * A supplied due date still in the FUTURE is not graded: it has not fallen due yet. That is
+       * the same rule the derived walk already applies, and it is what a rotating slot looks like
+       * once it has been completed and rolled round to its next turn.
+       *
+       * A supplied blank is an answer, not a gap to fill: no deadline came across, so there is
+       * nothing to grade that cycle against and it is not counted either way.
+       */
+      if (supplied.length > 0) {
+        for (const m of supplied) {
+          if (!m.due) continue;
+          if (compareCivil(m.due, today) >= 0) continue;
+          count(m.due, m.completed, compareCivil(m.completed, m.due) <= 0);
+        }
+        const last = supplied[supplied.length - 1].completed;
+        const since = comps.filter((c) => compareCivil(c, last) > 0);
+        // Nothing done since the migration: the cycle now running is the register's own next due
+        // date, not one worked forward from the last completion. Once there IS a completion after
+        // the migration the anchors are real again and the ordinary walk takes over.
+        if (since.length === 0) {
+          if (openDue) walkOutstanding(openDue);
+        } else {
+          walk(last, since);
+        }
+        continue;
+      }
+
+      /*
+       * Never done, and nothing on the register says it is due (Phil, 2026-09-17): "if someone
+       * has just started and they have not had a supervision, then they would not be counted in
+       * the score". Smith Tacho Azang, in post since April and still in probation, was being
+       * failed for a supervision his own register does not ask for. A record with a due date that
+       * has passed is still counted: never done is not the same as not due.
+       */
+      if (comps.length === 0) {
+        if (openDue) walkOutstanding(openDue);
+        continue;
+      }
       if (!rec.start) continue; // no anchor to start cycles from
-      const comps = completionsByKey.get(`${def.form_id}|${rec.id}`) ?? []; // ascending, ordered by the query
       // The origin, then every completion, ascending and deduped. A start date must NEVER act
       // as the settlement of a cycle: see buildAnchors, which is unit tested.
-      const anchors: CivilDate[] = buildAnchors(parseCivilDate(rec.start), comps);
-
-      for (let k = 0; k < anchors.length; k++) {
-        const next = k + 1 < anchors.length ? anchors[k + 1] : null;
-
-        // EVERY cycle that came due in this gap, not just the first. The walk itself is pure
-        // and unit tested in on-time-cycles.ts, which explains why this changed.
-        const dues = dueDatesInGap({ anchor: anchors[k], next, today, from: fromC, step: dueFrom });
-
-        for (let i = 0; i < dues.length; i++) {
-          const d = dues[i];
-          if (!inWindow(d)) continue;
-          const { settled, onTime } = cycleOnTime(dues, i, next);
-          stat.dueInPeriod += 1;
-          if (onTime) stat.onTime += 1;
-          cycles.push({
-            checkKey: def.key,
-            checkName: def.name,
-            recordName: rec.name,
-            branchName: rec.branch,
-            dueDate: formatCivilDate(d),
-            // `settled` already implies next is set; the extra check is for the type checker.
-            completedOn: settled && next ? formatCivilDate(next) : null,
-            onTime,
-          });
-        }
+      walk(parseCivilDate(rec.start), comps);
+    }
+    if (def.key === "supervision" && def.population === "people") {
+      for (const rec of records) {
+        if (rec.population !== "people") continue;
+        const prob = probationByPerson.get(rec.id);
+        if (!prob) continue;
+        if (compareCivil(prob.due, today) >= 0 && prob.done === null) continue; // not late yet
+        if (!inWindow(prob.due)) continue;
+        const onTime = prob.done !== null && compareCivil(prob.done, prob.due) <= 0;
+        stat.dueInPeriod += 1;
+        if (onTime) stat.onTime += 1;
+        cycles.push({
+          checkKey: def.key,
+          checkName: def.name,
+          recordName: `${rec.name} (probation review)`,
+          branchName: rec.branch,
+          dueDate: formatCivilDate(prob.due),
+          completedOn: prob.done ? formatCivilDate(prob.done) : null,
+          onTime,
+        });
       }
     }
+
     stat.ratePct = floorPct(stat.onTime, stat.dueInPeriod);
     stat.band = pqsBand(stat.onTime, stat.dueInPeriod);
     statById.set(def.id, stat);
@@ -486,7 +661,7 @@ async function computeOnTime(input: OnTimeInput) {
   // star those rows. The other three are not checks, so they are appended as their
   // own starred rows. Everything sits in the one On time completion rates box.
   const pqsStars: Record<string, string> = {
-    supervision: "Quality Compliance Q2: three-monthly supervision completed by the due date.",
+    supervision: "Quality Compliance Q2: three-monthly supervision completed by the due date. A probation review counts as a supervision.",
     care_plan_review: "User Experience Q1: three-monthly personal plan reviews completed by the due date.",
   };
   const extraMeasures: PqsMeasure[] = [
