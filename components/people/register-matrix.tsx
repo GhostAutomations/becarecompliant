@@ -286,6 +286,9 @@ export default function RegisterMatrix({
                 row.supCompDates,
                 config.supInterval,
                 config.supAmber,
+                undefined,
+                // The date the company gave us, which beats the one we would work out.
+                row.statusByKey["appraisal"]?.due_date ?? null,
               );
               return (
                 <tr key={row.person.id}>

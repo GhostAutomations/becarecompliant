@@ -360,6 +360,16 @@ export function appraisalSlot(
   intervalDays: number | null,
   amberDays: number,
   today: CivilDate = todayInLondon(),
+  /**
+   * The appraisal's OWN stored due date, which beats the one worked out below.
+   *
+   * Phil, 2026-09-17: "Annual Appraisal Due ... empty in bcc but not monday". We only ever
+   * derived it, and only once three supervisions were done in the current cycle, so a company
+   * arriving with an appraisal already scheduled had nowhere to put that date and the column
+   * sat empty on every row. Same rule as the reviews: a date we were told beats a date we can
+   * work out, and the derivation stays for everyone who never told us one.
+   */
+  storedNextDue: string | null = null,
 ): AppraisalSlot {
   const isDate = (d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d);
   const hasInterval = !!intervalDays && intervalDays >= 1;
@@ -387,10 +397,12 @@ export function appraisalSlot(
   let nextDue: string | null = null;
   let nextDueRag: Rag | "none" = "none";
   const currentCycleSups = sups.slice(consumed);
-  if (hasInterval && currentCycleSups.length >= 3) {
+  if (storedNextDue && isDate(storedNextDue)) {
+    nextDue = storedNextDue;
+  } else if (hasInterval && currentCycleSups.length >= 3) {
     nextDue = addI(currentCycleSups[2]);
-    nextDueRag = ragStatus(parseCivilDate(nextDue), today, amberDays);
   }
+  if (nextDue) nextDueRag = ragStatus(parseCivilDate(nextDue), today, amberDays);
 
   return { nextDue, nextDueRag, comp, compRag };
 }

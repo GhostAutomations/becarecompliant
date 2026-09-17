@@ -70,6 +70,11 @@ const PEOPLE_DOCUMENTS: DocumentField[] = [
   { header: "Probation End Due", column: "probation_end_due", kind: "date" },
   { header: "Probation End Actual", column: "probation_end_actual", kind: "date" },
   { header: "Probation Status", column: "probation_status", kind: "text" },
+  /* The register has drawn this column since probation was built, the record shows it and
+     both reports print it - but the template never asked for it, so every imported carer
+     arrived with it blank and no way to fill it except one record at a time (Phil,
+     2026-09-17: "i can see Probation Extension ... empty in bcc but not monday"). */
+  { header: "Probation Extension", column: "probation_extension_date", kind: "date" },
 ];
 
 const SU_IDENTITY: IdentityField[] = [
