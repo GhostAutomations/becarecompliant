@@ -29,9 +29,16 @@ test("a prefix only matches on a segment boundary", () => {
 test("what is not a department is not gated", () => {
   /* A gate that guessed at these would lock people out of pages this feature was never asked to
      govern, and /no-access most of all: a gate that redirects into a gated page is a loop. */
-  for (const p of ["/my", "/welcome", "/login", "/evidence/abc", "/api/reports/training", "/", NO_ACCESS_PATH]) {
+  for (const p of ["/welcome", "/login", "/evidence/abc", "/api/reports/training", "/", NO_ACCESS_PATH]) {
     assert.equal(moduleForPath(p), null, `${p} must not be gated`);
   }
+});
+
+test("the Team Portal is a department like any other", () => {
+  // It was ungated until 2026-09-17, when it earned a tile: a company that is not ready to hand
+  // carers a login switches it off rather than leaving the logins pointing at a live page.
+  assert.equal(moduleForPath("/my"), "team_portal");
+  assert.equal(moduleForPath("/my/concern"), "team_portal");
 });
 
 test("every department in the catalogue has a path, and every path a department", () => {
@@ -40,7 +47,7 @@ test("every department in the catalogue has a path, and every path a department"
   const reachable = new Set(
     ["/dashboard", "/people", "/people/training", "/people/holiday", "/people/absence",
      "/service-users", "/complaints", "/incidents", "/whistleblowing", "/briefings",
-     "/on-call", "/planner", "/invoicing", "/readiness", "/reports", "/settings"]
+     "/on-call", "/planner", "/invoicing", "/readiness", "/reports", "/settings", "/my"]
       .map((p) => moduleForPath(p)),
   );
   for (const m of MODULES) {

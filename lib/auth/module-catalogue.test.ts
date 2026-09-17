@@ -51,11 +51,20 @@ test("an unknown department, or an unknown role, is refused rather than allowed"
   assert.equal(canUseModule("complaints", "auditor"), false);
 });
 
-test("a carer's own login reaches no department here", () => {
-  // `staff` has one destination, /my, and it is not a department. Everything else is closed to
-  // them by RLS as well as by the nav, and this must not be the thing that opens one.
+test("a carer's own login reaches the Team Portal and nothing else", () => {
+  /* `staff` has one destination. Everything else is closed to them by RLS as well as by the nav,
+     and this must not be the thing that opens one. The Portal itself became a department on
+     2026-09-17 so a company can switch it off. */
+  assert.equal(canUseModule("team_portal", "staff"), true);
   for (const m of MODULES) {
+    if (m.key === "team_portal") continue;
     assert.equal(canUseModule(m.key, "staff"), false, `staff must not reach ${m.key}`);
+  }
+});
+
+test("nobody but a carer reaches the Team Portal", () => {
+  for (const role of ["company_admin", "registered_manager", "manager", "supervisor", "team_member", "on_call"]) {
+    assert.equal(canUseModule("team_portal", role), false, `${role} must not reach the Team Portal`);
   }
 });
 

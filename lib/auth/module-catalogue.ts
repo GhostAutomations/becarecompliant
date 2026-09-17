@@ -41,7 +41,8 @@ export type ModuleKey =
   | "invoicing"
   | "readiness"
   | "reports"
-  | "settings";
+  | "settings"
+  | "team_portal";
 
 export type ModuleDef = {
   key: ModuleKey;
@@ -120,6 +121,24 @@ export const MODULES: readonly ModuleDef[] = [
     label: "Settings",
     roles: ADMIN_ONLY,
     note: "Fixed. An Admin who could switch off their own Settings would have no way back in.",
+  },
+  /*
+   * THE TEAM PORTAL (Phil, 2026-09-17: "need the team portal on the access settings as well").
+   *
+   * A carer's own area: their training, their checks, raising a concern. `staff` is the only role
+   * that has it, and it is the only thing `staff` has, which is exactly why it belongs here. A
+   * company that is not ready to hand carers a login of their own switches it off in one tick
+   * instead of leaving the logins created and pointing at a page they were not meant to see yet.
+   *
+   * Switching it off leaves a carer with nowhere to go, and that is the honest outcome rather
+   * than a bug: their login exists and their company has closed the door. The page that says so
+   * names the role and who can reopen it.
+   */
+  {
+    key: "team_portal",
+    label: "Team Portal",
+    roles: ["staff"],
+    note: "A carer's own area, and the only thing a Team Member login opens.",
   },
 ];
 

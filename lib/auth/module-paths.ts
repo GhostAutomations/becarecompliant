@@ -14,9 +14,9 @@
  * LONGEST PREFIX WINS, so /people/training is Training and not People. Order in the table does
  * not matter, which means nobody has to remember to keep it sorted.
  *
- * A PATH THAT MATCHES NOTHING IS NOT GATED. /my, /welcome, /evidence, /settings' own children and
- * every API route are not departments, and a gate that guessed at them would lock people out of
- * pages this feature was never asked to govern.
+ * A PATH THAT MATCHES NOTHING IS NOT GATED. /welcome, /evidence and every API route are not
+ * departments, and a gate that guessed at them would lock people out of pages this feature was
+ * never asked to govern.
  */
 
 import type { ModuleKey } from "./module-catalogue";
@@ -39,6 +39,7 @@ const PATHS: ReadonlyArray<readonly [string, ModuleKey]> = [
   ["/readiness", "readiness"],
   ["/reports", "reports"],
   ["/settings", "settings"],
+  ["/my", "team_portal"],
 ];
 
 /** Where somebody is sent when a department is switched off for their role. Never gated itself,

@@ -17,8 +17,8 @@ export const metadata: Metadata = { title: "User access" };
  * ADMINS ONLY (requireCompanyAdmin). It decides who reaches safeguarding records, which is an
  * owner's decision rather than a manager's.
  *
- * A ROLE WITH NOTHING TO OFFER IS NOT SHOWN. `staff` is a carer's own login with one destination
- * and no departments, and a tile of greyed boxes would only invite somebody to try.
+ * A ROLE WITH NOTHING TO OFFER IS NOT SHOWN: the filter below drops any role the catalogue never
+ * names, so a tile of nothing but greyed boxes cannot appear and invite somebody to try.
  */
 const ROLE_ORDER = [
   "company_admin",
@@ -28,6 +28,9 @@ const ROLE_ORDER = [
   "supervisor",
   "on_call",
   "team_member",
+  // The carer's own login, last: it opens one thing, and the tile exists so a company that is
+  // not ready to hand carers a login can switch that one thing off (Phil, 2026-09-17).
+  "staff",
 ];
 
 export default async function AccessSettingsPage() {
