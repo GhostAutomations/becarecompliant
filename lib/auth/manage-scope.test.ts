@@ -6,8 +6,7 @@ import {
   canManageAnything,
   canManageRecord,
   isCompanyWideRole,
-  mayConductInBranch,
-} from "./manage-scope.ts";
+  mayConductInBranch, canRecordTraining, canRecordTrainingAnywhere } from "./manage-scope.ts";
 
 /**
  * These tests are the contract between this file and the RLS policy it transcribes. If a policy
@@ -211,4 +210,49 @@ test("isCompanyWideRole matches the policy's is_company_wide, and nothing else",
   assert.equal(isCompanyWideRole("manager"), false);
   assert.equal(isCompanyWideRole("supervisor"), false);
   assert.equal(isCompanyWideRole("staff"), false);
+});
+
+/*
+ * TRAINING IS A DIFFERENT POLICY (Phil, 2026-09-17): "we have given supervisors access to
+ * training but they cant change anything or enter any training?" 0289 widened the read and
+ * nobody widened the write, so a Supervisor got a register she could look at and not touch.
+ */
+test("a Supervisor records training in her own branches", () => {
+  assert.equal(
+    canRecordTraining({ role: "supervisor", branchIds: ["cardiff"], recordBranchId: "cardiff" }),
+    true,
+  );
+  assert.equal(
+    canRecordTraining({ role: "supervisor", branchIds: ["cardiff"], recordBranchId: "newport" }),
+    false,
+  );
+});
+
+test("recording training does NOT mean editing the person record", () => {
+  /* The two functions transcribe two different policies, and this is why they are two. A
+     Supervisor may write training and may not touch the record beside it; one boolean cannot say
+     both, and the version that tried would put the Manage record button back on her screen. */
+  const her = { role: "supervisor", branchIds: ["cardiff"], recordBranchId: "cardiff" };
+  assert.equal(canRecordTraining(her), true);
+  assert.equal(canManageRecord(her), false);
+});
+
+test("a carer with no branch is refused, for a Supervisor as for a Manager", () => {
+  // A row with no branch cannot match is_branch_supervisor, so offering the cell would repeat
+  // exactly the lie this module exists to stop.
+  assert.equal(
+    canRecordTraining({ role: "supervisor", branchIds: ["cardiff"], recordBranchId: null }),
+    false,
+  );
+});
+
+test("company wide roles record training anywhere, a Viewer nowhere", () => {
+  for (const role of ["company_admin", "registered_individual", "registered_manager", "platform_admin"]) {
+    assert.equal(canRecordTraining({ role, branchIds: [], recordBranchId: null }), true);
+    assert.equal(canRecordTrainingAnywhere(role), true);
+  }
+  for (const role of ["team_member", "on_call", "staff"]) {
+    assert.equal(canRecordTraining({ role, branchIds: ["cardiff"], recordBranchId: "cardiff" }), false);
+    assert.equal(canRecordTrainingAnywhere(role), false);
+  }
 });

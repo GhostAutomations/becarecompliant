@@ -12,6 +12,7 @@ import { deriveRenewalDate } from "@/lib/training/renewal";
 import { trainingWritePlan } from "@/lib/training/booking";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
+import { canRecordTrainingAnywhere } from "@/lib/auth/manage-scope";
 import { uploadTrainingCertificate, deleteTrainingCertificate } from "@/lib/training/storage";
 import type { ActionState } from "@/lib/forms";
 
@@ -20,7 +21,7 @@ const ISO_RE = /^\d{4}-\d{2}-\d{2}$/;
 export async function saveTraining(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const { profile } = await requireCompany();
   if (!profile.company_id) return { error: "No company context." };
-  if (!["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"].includes(profile.role)) {
+  if (!canRecordTrainingAnywhere(profile.role)) {
     return { error: "Only Admins and Managers can record training." };
   }
 
@@ -273,7 +274,7 @@ export async function removeTrainingCertificate(
 ): Promise<ActionState> {
   const { profile } = await requireCompany();
   if (!profile.company_id) return { error: "No company context." };
-  if (!["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"].includes(profile.role)) {
+  if (!canRecordTrainingAnywhere(profile.role)) {
     return { error: "Only Admins and Managers can change training records." };
   }
 
@@ -373,7 +374,7 @@ function courseWord(names: string[]): string {
 export async function saveTrainingBulk(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const { profile } = await requireCompany();
   if (!profile.company_id) return { error: "No company context." };
-  if (!["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"].includes(profile.role)) {
+  if (!canRecordTrainingAnywhere(profile.role)) {
     return { error: "Only Admins and Managers can record training." };
   }
 

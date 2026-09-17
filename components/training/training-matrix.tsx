@@ -9,7 +9,7 @@ import type {
 } from "@/lib/training/data";
 import TrainingCellDialog from "@/components/training/training-cell-dialog";
 import BulkTrainingDialog from "@/components/training/bulk-training-dialog";
-import { canManageRecord, canManageAnything } from "@/lib/auth/manage-scope";
+import { canRecordTraining, canRecordTrainingAnywhere } from "@/lib/auth/manage-scope";
 import { HorizontalScrollbar } from "@/components/register/horizontal-scrollbar";
 import { useRememberedScroll } from "@/components/register/use-remembered-scroll";
 import { VerticalScrollbar } from "@/components/register/vertical-scrollbar";
@@ -106,9 +106,14 @@ export default function TrainingMatrix({
    * is booked to conduct a check on, in a branch she does not run; every cell on that row opens
    * a dialog whose Save the database refuses.
    */
-  const canManage = canManageAnything(viewerRole);
+  /* TRAINING, not the person record (Phil, 2026-09-17: "they cant change anything or enter any
+     training?"). These used to ask canManageRecord, which transcribes people_update and refuses a
+     Supervisor: she could read the register and touch nothing. person_training_write is a
+     different policy and canRecordTraining is its transcription. She still cannot edit the record
+     beside it, which is why they are two functions. */
+  const canManage = canRecordTrainingAnywhere(viewerRole);
   const canEdit = (person: TrainingPerson) =>
-    canManageRecord({ role: viewerRole, branchIds: viewerBranchIds, recordBranchId: person.branch_id });
+    canRecordTraining({ role: viewerRole, branchIds: viewerBranchIds, recordBranchId: person.branch_id });
 
   /*
    * EVERY CARER THIS VIEWER CAN SEE. The register is what the database handed us.

@@ -163,3 +163,39 @@ export function mayConductInBranch(opts: {
   if (!branchScopedRole(opts.role)) return false;
   return !!opts.recordBranchId && opts.branchIds.includes(opts.recordBranchId);
 }
+
+/**
+ * Can this caller RECORD TRAINING on a carer in this branch?
+ *
+ * A SECOND FUNCTION rather than a looser canManageRecord, because they transcribe two different
+ * policies and folding them together would be the lie this module exists to stop, in reverse: a
+ * Supervisor may write training and may NOT edit the person record beside it, and one boolean
+ * cannot say both.
+ *
+ * THIS IS A TRANSCRIPTION OF person_training_write (0294):
+ *
+ *   is_platform_admin() OR is_company_wide(company_id)
+ *   OR (branch_id is not null AND (is_branch_manager(branch_id) OR is_branch_supervisor(branch_id)))
+ *
+ * WHY IT EXISTS (Phil, 2026-09-17): "we have given supervisors access to training but they cant
+ * change anything or enter any training?" 0289 widened the read and nobody widened the write, so
+ * a Supervisor got a register she could look at and not touch.
+ *
+ * A null branch is refused for the branch scoped roles, as it is for a Manager above: a row with
+ * no branch cannot match is_branch_supervisor either, so offering the cell would repeat the lie.
+ */
+export function canRecordTraining(opts: {
+  role: string;
+  branchIds: string[];
+  recordBranchId: string | null | undefined;
+}): boolean {
+  if (COMPANY_WIDE.has(opts.role)) return true;
+  if (opts.role !== "manager" && opts.role !== "supervisor") return false;
+  return !!opts.recordBranchId && opts.branchIds.includes(opts.recordBranchId);
+}
+
+/** Could this role record training on ANYTHING, ignoring which carer? Decides whether the
+ *  toolbar buttons exist at all, the same question canManageAnything answers for records. */
+export function canRecordTrainingAnywhere(role: string): boolean {
+  return COMPANY_WIDE.has(role) || role === "manager" || role === "supervisor";
+}

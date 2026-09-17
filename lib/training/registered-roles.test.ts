@@ -26,6 +26,7 @@ const page = readFileSync(
 );
 const nav = readFileSync(new URL("../nav.ts", import.meta.url), "utf8");
 const actions = readFileSync(new URL("./actions.ts", import.meta.url), "utf8");
+import { canRecordTrainingAnywhere } from "../auth/manage-scope.ts";
 
 /** The body of one `create policy <name> ... ;` statement, so an assertion cannot be satisfied
  *  by a different policy that happens to sit in the same file. */
@@ -87,13 +88,25 @@ test("0165 does NOT widen who can change the course catalogue", () => {
   assert.match(actions, /Only Admins can change training courses/);
 });
 
-test("saveTraining still names the Registered roles", () => {
-  // WRITING is still a role decision, and this is the half of the original assertion that
-  // survives. If saveTraining ever stops naming them, a Registered Manager gets a register she
-  // can read and cannot save, which is the same class of fault as the blank page above.
+test("saveTraining admits the Registered roles, through the shared rule", () => {
+  /* It used to name them in a literal array in three places, and this test grepped for the
+     string. Since 0294 it asks canRecordTrainingAnywhere, which is a transcription of
+     person_training_write and can actually be EXECUTED, so the assertion stops being about text
+     and becomes about behaviour. If it ever stops admitting them, a Registered Manager gets a
+     register she can read and cannot save, which is the same class of fault as the blank page
+     above. */
+  assert.ok(actions.includes("canRecordTrainingAnywhere"), "saveTraining no longer defers to the shared rule");
   for (const role of REGISTERED) {
-    assert.ok(actions.includes(role), `saveTraining no longer names ${role}`);
+    assert.ok(canRecordTrainingAnywhere(role), `canRecordTrainingAnywhere refuses ${role}`);
   }
+});
+
+test("a Supervisor may record training, a Viewer may not", () => {
+  // Phil, 2026-09-17: "we have given supervisors access to training but they cant change anything
+  // or enter any training?" 0289 widened the read; the write stayed where it was.
+  assert.equal(canRecordTrainingAnywhere("supervisor"), true);
+  assert.equal(canRecordTrainingAnywhere("team_member"), false);
+  assert.equal(canRecordTrainingAnywhere("staff"), false);
 });
 
 test("Training is not gated by a role list of its own", () => {
