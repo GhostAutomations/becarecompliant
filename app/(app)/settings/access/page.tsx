@@ -57,7 +57,10 @@ export default async function AccessSettingsPage() {
         </p>
       </div>
 
-      <section className="mt-6 grid gap-4 md:grid-cols-2">
+      {/* ONE TILE PER ROW now that a tile is three columns wide and six rows tall. Two tiles
+          side by side would put six columns of tick boxes across the page, which reads as a
+          spreadsheet rather than as one role at a time. */}
+      <section className="mt-6 space-y-4">
         {roles.map((role) => (
           <RoleAccessTile
             key={role}
