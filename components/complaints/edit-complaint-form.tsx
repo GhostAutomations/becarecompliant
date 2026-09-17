@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect } from "react";
 import ComplaintPeoplePicker, { type PersonOption } from "@/components/complaints/complaint-people-picker";
+import ComplaintServiceUserPicker, { type ServiceUserOption } from "@/components/complaints/complaint-service-user-picker";
 import { updateComplaint } from "@/lib/complaints/actions";
 import { IDLE_STATE } from "@/lib/forms";
 import { useSavedFlash } from "@/lib/use-saved-flash";
@@ -21,7 +22,7 @@ export default function EditComplaintForm({
   namedPersonIds,
 }: {
   complaint: ComplaintRecord;
-  serviceUsers: Array<{ id: string; full_name: string }>;
+  serviceUsers: ServiceUserOption[];
   people: PersonOption[];
   namedPersonIds: string[];
 }) {
@@ -51,13 +52,11 @@ export default function EditComplaintForm({
           </select>
         </div>
         <div>
-          <label htmlFor="e_service_user" className="form-label">Related service user</label>
-          <select id="e_service_user" name="service_user_id" defaultValue={complaint.service_user_id ?? ""}>
-            <option value="">None</option>
-            {serviceUsers.map((s) => (
-              <option key={s.id} value={s.id}>{s.full_name}</option>
-            ))}
-          </select>
+          <ComplaintServiceUserPicker
+            serviceUsers={serviceUsers}
+            initialId={complaint.service_user_id ?? null}
+            fieldId="e_service_user"
+          />
         </div>
         <div className="sm:col-span-2">
           <ComplaintPeoplePicker people={people} initialIds={namedPersonIds} />

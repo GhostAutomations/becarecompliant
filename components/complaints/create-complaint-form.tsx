@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import ComplaintPeoplePicker, { type PersonOption } from "@/components/complaints/complaint-people-picker";
+import ComplaintServiceUserPicker, { type ServiceUserOption } from "@/components/complaints/complaint-service-user-picker";
 import { createComplaint } from "@/lib/complaints/actions";
 import { IDLE_STATE } from "@/lib/forms";
 import {
@@ -19,7 +20,7 @@ export default function CreateComplaintForm({
   todayIso,
 }: {
   branches: Array<{ id: string; name: string }>;
-  serviceUsers: Array<{ id: string; full_name: string; branch_id: string | null }>;
+  serviceUsers: ServiceUserOption[];
   people: PersonOption[];
   todayIso: string;
 }) {
@@ -28,9 +29,6 @@ export default function CreateComplaintForm({
   const [branchId, setBranchId] = useState("");
 
   // Once a branch is chosen, only its service users are selectable.
-  const visibleServiceUsers = branchId
-    ? serviceUsers.filter((s) => s.branch_id === branchId)
-    : serviceUsers;
 
   return (
     <form action={formAction} className="space-y-5">
@@ -98,18 +96,7 @@ export default function CreateComplaintForm({
         </div>
 
         <div>
-          <label htmlFor="service_user_id" className="form-label">Related service user</label>
-          <select id="service_user_id" name="service_user_id" defaultValue="">
-            <option value="">Not about a specific service user</option>
-            {visibleServiceUsers.map((s) => (
-              <option key={s.id} value={s.id}>{s.full_name}</option>
-            ))}
-          </select>
-          <p className="form-hint">
-            {branchId
-              ? "Optional. Service users in the chosen branch."
-              : "Optional. Choose a branch first to narrow this list."}
-          </p>
+          <ComplaintServiceUserPicker serviceUsers={serviceUsers} />
         </div>
 
         <div>
