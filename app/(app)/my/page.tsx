@@ -13,6 +13,8 @@ import {
 } from "@/lib/assignments/data";
 import { POLICY_ACK_FORM_KEY } from "@/lib/assignments/types";
 import MyHolidays from "@/components/staff/my-holidays";
+import { disabledModules } from "@/lib/auth/module-access";
+import { canUsePortalForm } from "@/lib/auth/portal-forms";
 import AssignedToMe from "@/components/staff/assigned-to-me";
 import MySection from "@/components/staff/my-section";
 import FormEvidenceDialog from "@/components/forms/form-evidence-dialog";
@@ -129,8 +131,22 @@ export default async function MyAreaPage() {
   for (const [formId, v] of Object.entries(published)) {
     if (isFormSchema(v.schema)) schemas[formId] = v.schema as FormSchema;
   }
+  /*
+   * WHAT THIS COMPANY LETS A CARER FILL IN (Phil, 2026-09-17). The ticks live in Settings, User
+   * access, on the Team Member tile. Switched off means the section is not here at all: a form
+   * shown and then refused on save is worse than one that was never offered.
+   *
+   * Raising a concern is deliberately NOT gated. See lib/auth/portal-forms.ts: a route for
+   * raising a concern that the employer can switch off is not a route for raising a concern.
+   */
+  const portalDisabled = await disabledModules(profile.company_id);
+  const canHoliday = canUsePortalForm("holiday_requests", portalDisabled);
+  const canMoney = canUsePortalForm("financial_transaction", portalDisabled);
+
   const requestSchema: FormSchema | null =
-    requestForm && isFormSchema(requestForm.schema) ? (requestForm.schema as FormSchema) : null;
+    canHoliday && requestForm && isFormSchema(requestForm.schema)
+      ? (requestForm.schema as FormSchema)
+      : null;
   const ackSchema: FormSchema | null =
     ackForm && isFormSchema(ackForm.schema) ? (ackForm.schema as FormSchema) : null;
 
@@ -226,7 +242,7 @@ export default async function MyAreaPage() {
           Nothing falls due and nothing goes red -- shopping happens when it happens -- so it
           is a form with no check behind it. It files Evidence on their own record, which is
           where a question about somebody's money is answered from. */}
-      {record && moneySchema ? (
+      {record && moneySchema && canMoney ? (
         <section className="space-y-3">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
             Money I have handled

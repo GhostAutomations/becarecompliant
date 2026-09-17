@@ -5,6 +5,8 @@ import { ROLE_LABELS } from "@/lib/nav";
 import { MODULES, isLocked, disabledKey } from "@/lib/auth/module-catalogue";
 import { disabledModules } from "@/lib/auth/module-access";
 import RoleAccessTile from "@/components/settings/role-access-tile";
+import PortalFormsTile from "@/components/settings/portal-forms-tile";
+import { PORTAL_FORMS, portalFormKey } from "@/lib/auth/portal-forms";
 
 export const metadata: Metadata = { title: "User access" };
 
@@ -28,9 +30,6 @@ const ROLE_ORDER = [
   "supervisor",
   "on_call",
   "team_member",
-  // The carer's own login, last: it opens one thing, and the tile exists so a company that is
-  // not ready to hand carers a login can switch that one thing off (Phil, 2026-09-17).
-  "staff",
 ];
 
 export default async function AccessSettingsPage() {
@@ -85,6 +84,18 @@ export default async function AccessSettingsPage() {
             }))}
           />
         ))}
+
+        {/* THE TEAM MEMBER TILE IS NOT A LIST OF DEPARTMENTS (Phil, 2026-09-17): "instead of
+            access to departments it should be controlling access to forms as that is all they can
+            see". Fifteen greyed departments and one tick was an honest tile answering the wrong
+            question. A carer's portal is a short list of things they may fill in. */}
+        <PortalFormsTile
+          portalOn={!disabled.has("staff|team_portal")}
+          forms={PORTAL_FORMS}
+          onByKey={Object.fromEntries(
+            PORTAL_FORMS.map((f) => [f.key, !disabled.has(`staff|${portalFormKey(f.key)}`)]),
+          )}
+        />
       </section>
     </div>
   );

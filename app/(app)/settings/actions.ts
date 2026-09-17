@@ -26,6 +26,7 @@ import { trialState } from "@/lib/billing/trial";
 import { trialInviteRefusal } from "@/lib/billing/trial-limits";
 import { isBillableSeat } from "@/lib/billing/seats";
 import { MODULES, isLocked } from "@/lib/auth/module-catalogue";
+import { PORTAL_FORMS, portalFormKey } from "@/lib/auth/portal-forms";
 import { ROLE_LABELS } from "@/lib/nav";
 
 const INVITABLE_ROLES: InviteRole[] = [
@@ -777,5 +778,73 @@ export async function saveRoleModules(_prev: ActionState, formData: FormData): P
 
   revalidatePath("/settings/access");
   revalidatePath("/", "layout");
+  return { ok: "Saved." };
+}
+
+
+/**
+ * Save what a Team Member may fill in from their portal (Phil, 2026-09-17).
+ *
+ * A SECOND ACTION rather than a flag on saveRoleModules, because it is a different question with
+ * different rules: departments have a ceiling per role, portal forms have availability and a lock,
+ * and folding them together would mean one function where half the arguments are ignored
+ * depending on the other half.
+ *
+ * Same subtraction as the departments: the form posts what is ON, and what is switched off is
+ * whatever is left. A form that posted the off list would, on a dropped field, quietly switch
+ * something on.
+ */
+export async function savePortalForms(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { user, profile } = await requireCompanyAdmin();
+  const companyId = profile.company_id;
+  if (!companyId) return { error: "No company context." };
+
+  const ticked = new Set(formData.getAll("forms").map((v) => String(v)));
+  const offKeys = PORTAL_FORMS
+    .filter((f) => f.available && !f.locked && !ticked.has(f.key))
+    .map((f) => portalFormKey(f.key));
+
+  const supabase = await createClient();
+  /* The whole area, which is a DEPARTMENT row rather than a form row. One tile owns both, so one
+     save owns both: clearing only the form rows would leave the portal switched off with every
+     form ticked, which is a state no screen would explain. */
+  const portalOn = String(formData.get("portal") ?? "") === "on";
+  const { error: delErr } = await supabase
+    .from("company_role_modules")
+    .delete()
+    .eq("company_id", companyId)
+    .eq("role", "staff");
+  if (delErr) return { error: delErr.message };
+
+  if (!portalOn) offKeys.push("team_portal");
+
+  if (offKeys.length > 0) {
+    const { error: insErr } = await supabase.from("company_role_modules").insert(
+      offKeys.map((module_key) => ({
+        company_id: companyId,
+        role: "staff",
+        module_key,
+        disabled_by: user.id,
+      })),
+    );
+    if (insErr) return { error: insErr.message };
+  }
+
+  await writeAudit({
+    companyId,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "company.portal_forms_set",
+    entityType: "company",
+    entityId: companyId,
+    summary: portalOn
+      ? `Team Portal: ${offKeys.length === 0 ? "every form" : `${offKeys.length} switched off`}`
+      : "Team Portal switched off",
+    metadata: { switched_off: offKeys },
+  });
+
+  revalidatePath("/settings/access");
+  revalidatePath("/my");
   return { ok: "Saved." };
 }
