@@ -304,14 +304,6 @@ export default async function ServiceUserPage({
                       <dl className="mt-2 space-y-1 text-[12px] text-white/55">
                         <div className="flex justify-between"><dt>Due</dt><dd className="text-white/80">{formatDisplayDate(s.due) || "—"}</dd></div>
                         <div className="flex justify-between"><dt>Completed</dt><dd className="text-white/80">{formatDisplayDate(s.comp) || "Not yet"}</dd></div>
-                        {/* The review this slot is displacing. Real and worth seeing, but
-                            plainly last cycle's, so it cannot read as this one being done. */}
-                        {!s.comp && s.prevComp ? (
-                          <div className="flex justify-between">
-                            <dt>Last cycle</dt>
-                            <dd className="text-white/45">{formatDisplayDate(s.prevComp)}</dd>
-                          </div>
-                        ) : null}
                       </dl>
                       {s.n === nextReviewN && reviewStatusCheck && reviewDef?.form_id && canComplete ? (
                         <Link

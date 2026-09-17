@@ -117,10 +117,6 @@ export type PersonTracker = {
 
 /** A derived Supervision slot (Sup 1/2/3): scheduled due + its completion, if done. */
 export type SupervisionSlot = {
-  /** The previous cycle's completion, when this slot is the outstanding one. Real, and
-   *  drawn as history, rather than disappearing because the cycle came round to it. */
-  prevComp?: string | null;
-  prevLate?: boolean;
   n: number;
   due: string | null;
   comp: string | null;

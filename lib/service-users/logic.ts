@@ -170,8 +170,6 @@ export function reviewSlots(
           n: i,
           due,
           comp: null,
-          prevComp: comp,
-          prevLate: !!(comp && valid(storedDue) && comp > storedDue),
           rag: due ? ragStatus(parseCivilDate(due), today, amberDays) : "none",
         });
       } else {
@@ -217,6 +215,13 @@ export function reviewSlots(
   // full cycle it is slot 1 again, restarting). Slots BEFORE it are this cycle's
   // completions and keep both their due and completed date. Slots AFTER it keep the
   // previous cycle's completed date as history (no due) until that slot is redone.
+  //
+  // THE ACTIVE SLOT IS EMPTY (Phil, 2026-09-17): "when an appraisal, supervision and review
+  // becomes due clean the corresponding done date. Example for reviews Lilwen is due review 3 on
+  // 03/12/26 so remove the date for review 3 done." A slot that has come round is waiting to be
+  // done, and the completion standing in it belongs to the cycle that just closed: drawn beside
+  // the new deadline it reads as though that deadline had already been met. It is still stored,
+  // still counts toward the on time rates, and reappears the moment the review is done.
   const activeSlot = (n % count) + 1;
   const cycleBase = n - (n % count);
   const cycleAnchor = cycleBase > 0 ? comps[cycleBase - 1] : packageStart;
@@ -226,8 +231,6 @@ export function reviewSlots(
   };
   for (let i = 1; i <= count; i++) {
     let comp: string | null = null;
-    let prevComp: string | null = null;
-    let prevLate = false;
     let due: string | null = null;
     let rag: Rag | "none" = "none";
     if (i < activeSlot) {
@@ -249,23 +252,8 @@ export function reviewSlots(
         due = valid(anchor) ? addI(anchor) : null;
       }
       rag = due ? ragStatus(parseCivilDate(due), today, amberDays) : "none";
-      /* THE COMPLETION THIS SLOT IS DISPLACING (Phil, 2026-09-16: "still data missing").
-         After a full cycle the active slot comes round to a position that already holds a
-         completion, and that completion had nowhere to go: a service user with exactly four
-         reviews showed three. It is not this slot's completion - the slot is outstanding -
-         so it is carried separately and drawn as history, which is also how the board this
-         copies shows it. */
-      const prevK = histIndex(i);
-      if (prevK >= 0 && prevK < cycleBase) {
-        prevComp = comps[prevK];
-        /* JUDGED ONLY WHEN WE WERE TOLD THE DEADLINE. This slot's due date has since been
-           rolled forward, so deriving one would anchor on the completion before it - for
-           the oldest review, the package start, which can be years back - and brand a
-           punctual review late. No stored due means not late, the same rule appraisalSlot
-           already uses when there is no closed cycle to judge an appraisal against. */
-        const storedDue = known.dueByComp?.get(prevComp);
-        prevLate = valid(storedDue) ? prevComp > storedDue : false;
-      }
+      // comp stays null: the slot is outstanding, so its Done cell is empty. The completion it
+      // displaced belongs to the closed cycle and is not drawn against this slot's new deadline.
     } else {
       const k = histIndex(i);
       comp = k >= 0 ? comps[k] : null;
@@ -277,7 +265,7 @@ export function reviewSlots(
       due = comp ? (known.dueByComp?.get(comp) ?? null) : null;
       rag = comp ? (lateOf(k) ? "red" : "green") : "none";
     }
-    slots.push({ n: i, due, comp, prevComp, prevLate, rag });
+    slots.push({ n: i, due, comp, rag });
   }
   return slots;
 }

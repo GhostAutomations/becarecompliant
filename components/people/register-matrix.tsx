@@ -403,15 +403,15 @@ export default function RegisterMatrix({
                       moved to the Done cell: green on time, amber late. Same rule as the
                       probation end date (Phil, 2026-09-16). */}
                   <td>{sup[0].comp ? <CycleDate date={sup[0].due} /> : <RagDate date={sup[0].due} rag={sup[0].rag} />}</td>
-                  <td>{sup[0].comp ? <DoneDate date={sup[0].comp} late={sup[0].rag === "red"} /> : sup[0].prevComp ? <DoneDate date={sup[0].prevComp} late={!!sup[0].prevLate} /> : <CycleDate date={null} />}</td>
+                  <td>{sup[0].comp ? <DoneDate date={sup[0].comp} late={sup[0].rag === "red"} /> : <CycleDate date={null} />}</td>
                   <td>{sup[1].comp ? <CycleDate date={sup[1].due} /> : <RagDate date={sup[1].due} rag={sup[1].rag} />}</td>
-                  <td>{sup[1].comp ? <DoneDate date={sup[1].comp} late={sup[1].rag === "red"} /> : sup[1].prevComp ? <DoneDate date={sup[1].prevComp} late={!!sup[1].prevLate} /> : <CycleDate date={null} />}</td>
+                  <td>{sup[1].comp ? <DoneDate date={sup[1].comp} late={sup[1].rag === "red"} /> : <CycleDate date={null} />}</td>
                   <td>{sup[2].comp ? <CycleDate date={sup[2].due} /> : <RagDate date={sup[2].due} rag={sup[2].rag} />}</td>
-                  <td>{sup[2].comp ? <DoneDate date={sup[2].comp} late={sup[2].rag === "red"} /> : sup[2].prevComp ? <DoneDate date={sup[2].prevComp} late={!!sup[2].prevLate} /> : <CycleDate date={null} />}</td>
+                  <td>{sup[2].comp ? <DoneDate date={sup[2].comp} late={sup[2].rag === "red"} /> : <CycleDate date={null} />}</td>
                   {fourSup ? (
                     <>
                       <td>{sup[3].comp ? <CycleDate date={sup[3].due} /> : <RagDate date={sup[3].due} rag={sup[3].rag} />}</td>
-                      <td>{sup[3].comp ? <DoneDate date={sup[3].comp} late={sup[3].rag === "red"} /> : sup[3].prevComp ? <DoneDate date={sup[3].prevComp} late={!!sup[3].prevLate} /> : <CycleDate date={null} />}</td>
+                      <td>{sup[3].comp ? <DoneDate date={sup[3].comp} late={sup[3].rag === "red"} /> : <CycleDate date={null} />}</td>
                     </>
                   ) : (
                     <>

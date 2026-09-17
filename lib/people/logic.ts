@@ -309,12 +309,20 @@ export function supervisionSlots(
       const storedDue = comp ? known.dueByComp?.get(comp) ?? null : null;
       if (i === openSlot) {
         const due = valid(known.openDue) ? known.openDue : null;
+        /*
+         * THE OUTSTANDING SLOT'S DONE CELL IS EMPTY (Phil, 2026-09-17): "when an appraisal,
+         * supervision and review becomes due clean the corresponding done date. Example - Joan
+         * Jepkosgei is due Supervision 3 on 15/10/26 so clear the date out of Supervision 3
+         * done." The completion sitting in this slot belongs to the cycle that has just closed,
+         * and drawn beside the new deadline it reads as though that deadline had been met. It
+         * stays stored, still counts toward the on time rates, and reappears the moment the
+         * supervision is done. The date matching the board was how we PROVED the migration; the
+         * board keeping a spent completion against a live due date is not a rule worth copying.
+         */
         slots.push({
           n: i,
           due,
           comp: null,
-          prevComp: comp,
-          prevLate: !!(comp && valid(storedDue) && comp > storedDue),
           rag: due ? ragStatus(parseCivilDate(due), today, amberDays) : "none",
         });
       } else {

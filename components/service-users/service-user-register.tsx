@@ -452,17 +452,7 @@ export default function ServiceUserRegister({
                                     {/* Outstanding: the pill counts down. Done: plain, because
                                         the verdict has moved to the Done cell. */}
                                     <td>{s.comp ? <CycleDate date={s.due} /> : <RagDate date={s.due} rag={s.rag} />}</td>
-                                    <td>
-                                      {s.comp ? (
-                                        <DoneDate date={s.comp} late={s.rag === "red"} />
-                                      ) : s.prevComp ? (
-                                        <span title="Completed last cycle. This slot is due again.">
-                                          <DoneDate date={s.prevComp} late={!!s.prevLate} />
-                                        </span>
-                                      ) : (
-                                        <CycleDate date={null} />
-                                      )}
-                                    </td>
+                                    <td>{s.comp ? <DoneDate date={s.comp} late={s.rag === "red"} /> : <CycleDate date={null} />}</td>
                                   </Fragment>
                                 ))}
                                 <td>

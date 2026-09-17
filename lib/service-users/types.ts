@@ -110,16 +110,11 @@ export type ServiceUserRollup = {
 export type ReviewSlot = {
   n: number;
   due: string | null;
+  /** This slot's completion. NULL while the slot is the outstanding one: a slot that has come
+   *  round is waiting to be done, and the completion it displaced belongs to the cycle that just
+   *  closed. That completion is still stored and still counts; it is simply not drawn against a
+   *  deadline it was never measured for. */
   comp: string | null;
-  /** The PREVIOUS cycle's completion in this slot, shown only when the slot is the
-   *  outstanding one. It is a real review that happened; without it a company on a full
-   *  cycle of four loses its oldest completion from the register entirely. Kept separate
-   *  from `comp` so an outstanding slot never renders as done. */
-  prevComp?: string | null;
-  /** Was prevComp late? Only ever true when we KNOW the date it was due, because the slot
-   *  it sits in has since been rolled forward and the arithmetic would anchor on a package
-   *  start years back and call a perfectly punctual review late. */
-  prevLate?: boolean;
   rag: Rag | "none";
 };
 
