@@ -5,7 +5,7 @@ import { getOnCallLabel } from "@/lib/on-call/company-label";
 import { featureEnabled } from "@/lib/billing/tier";
 import BackLink from "@/components/back-link";
 import RotaArchive from "@/components/on-call/rota-archive";
-import { threeWeekGrid } from "@/lib/on-call/format";
+import { rotaWeekGrid } from "@/lib/on-call/format";
 import { getRotaScope, getOnCallBranches, getArchiveRota } from "@/lib/on-call/data";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -41,7 +41,7 @@ export default async function ArchivedRotaPage({
       : null;
 
   const todayIso = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
-  const currentMonday = threeWeekGrid(todayIso)[0].days[0];
+  const currentMonday = rotaWeekGrid(todayIso)[0].days[0];
   const weeks = await getArchiveRota(companyId, scope, selectedBranchId, currentMonday);
 
   return (

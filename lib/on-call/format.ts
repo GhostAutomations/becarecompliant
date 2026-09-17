@@ -36,15 +36,29 @@ export function toLocalInput(iso: string | null): string {
   return new Date(iso).toISOString().slice(0, 16);
 }
 
-/** The three rota weeks (Current / +1 / +2), each Monday->Sunday, from a
- *  YYYY-MM-DD "today". Pure date maths in UTC so it round-trips the wall-clock. */
-export function threeWeekGrid(todayIso: string): { label: string; days: string[] }[] {
+/**
+ * The rota weeks (Current / +1 / +2 / +3), each Monday->Sunday, from a YYYY-MM-DD "today".
+ *
+ * FOUR SINCE 2026-09-17 (Phil: "on the oncall rota, we need to add a 4th week, called +3").
+ * Three weeks is under a month of visible rota, and an on-call rota is agreed further out than
+ * that: somebody asking in the first week of the month to swap a weekend at the end of it was
+ * asking about a week the screen did not draw.
+ *
+ * The count is a constant and the labels are derived from it, so a fifth week is one number.
+ * The label was a hand written array beside a hand written length, which is how a grid comes to
+ * draw four weeks and label three.
+ *
+ * Pure date maths in UTC so it round-trips the wall-clock.
+ */
+export const ROTA_WEEKS = 4;
+
+export function rotaWeekGrid(todayIso: string): { label: string; days: string[] }[] {
   const [y, m, d] = todayIso.split("-").map(Number);
   const base = new Date(Date.UTC(y, m - 1, d));
   const dow = base.getUTCDay(); // 0 Sun .. 6 Sat
   const monday = new Date(base);
   monday.setUTCDate(base.getUTCDate() + (dow === 0 ? -6 : 1 - dow));
-  const labels = ["Current", "+1", "+2"];
+  const labels = Array.from({ length: ROTA_WEEKS }, (_, w) => (w === 0 ? "Current" : `+${w}`));
   return labels.map((label, w) => ({
     label,
     days: Array.from({ length: 7 }, (_, i) => {

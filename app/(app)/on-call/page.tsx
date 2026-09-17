@@ -5,7 +5,7 @@ import { getOnCallLabel } from "@/lib/on-call/company-label";
 import { featureEnabled } from "@/lib/billing/tier";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import RotaGrid from "@/components/on-call/rota-grid";
-import { threeWeekGrid } from "@/lib/on-call/format";
+import { rotaWeekGrid } from "@/lib/on-call/format";
 import {
   getRotaScope,
   getRotaGrid,
@@ -59,9 +59,12 @@ export default async function OnCallPage({
   const todayIso = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
   const hour = Number(new Intl.DateTimeFormat("en-GB", { hour: "2-digit", hour12: false, timeZone: "Europe/London" }).format(new Date()));
   const currentSlot: "am" | "pm" = hour < 12 ? "am" : "pm";
-  const weeks = threeWeekGrid(todayIso);
+  const weeks = rotaWeekGrid(todayIso);
   const first = weeks[0].days[0];
-  const last = weeks[2].days[6];
+  /* The LAST week, not the third. This read weeks[2] while the grid drew as many weeks as the
+     grid function returned, so adding a fourth week would have drawn it empty for ever: the
+     assignments were fetched for three weeks and the fourth had nothing to show. */
+  const last = weeks[weeks.length - 1].days[6];
 
   /*
    * On a branch rota, rostering needs a branch to roster INTO. A Manager whose only branch is a
