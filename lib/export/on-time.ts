@@ -25,7 +25,7 @@ import "server-only";
 
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
-import { dueDatesInGap, cycleOnTime, buildAnchors, floorPct } from "./on-time-cycles";
+import { dueDatesInGap, cycleOnTime, buildAnchors, floorPct, mergeCompletions } from "./on-time-cycles";
 import {
   type CivilDate,
   type Frequency,
@@ -327,8 +327,51 @@ async function computeOnTime(input: OnTimeInput) {
         completionsByKey.set(k, list);
       }
     }
-    // Chunking means the per record lists are built chunk by chunk. Each list only ever receives
-    // rows for its own record, and those arrive ordered, so nothing needs re sorting.
+    /*
+     * MIGRATED HISTORY IS COMPLETION HISTORY (2026-09-17).
+     *
+     * A company moving onto BCC brings its completed supervisions and personal plan reviews with
+     * it, and they land in `migrated_completions`: there is no form submission behind a
+     * supervision that happened on the old system, so `evidence` holds nothing for them. This
+     * read only ever looked at `evidence`, so a freshly migrated branch had NO completion history
+     * here at all. Every cycle read as never done and the PQS return went to the council saying
+     * 0 percent on time for supervision and care plan review, while the registers on screen showed
+     * the very same completions sitting there. Two surfaces, two histories, two different numbers.
+     *
+     * Keyed exactly as evidence is (form + record), so the two sources become one list.
+     */
+    type MigRow = { id: string; definition_id: string; record_id: string; completed_on: string };
+    const formByDefinition = new Map(defs.map((d) => [d.id, d.form_id]));
+    const definitionIds = defs.map((d) => d.id);
+    const migratedByKey = new Map<string, CivilDate[]>();
+    for (let i = 0; i < recordIds.length; i += IDS_PER_REQUEST) {
+      const idChunk = recordIds.slice(i, i + IDS_PER_REQUEST);
+      const migQ = supabase
+        .from("migrated_completions")
+        .select("id, definition_id, record_id, completed_on")
+        .eq("company_id", input.companyId)
+        .in("definition_id", definitionIds)
+        .in("record_id", idChunk)
+        .order("completed_on", { ascending: true })
+        .order("id", { ascending: true });
+      for (const m of await readAll<MigRow>(migQ, "migrated history")) {
+        const formId = formByDefinition.get(m.definition_id);
+        if (!formId) continue;
+        const k = `${formId}|${m.record_id}`;
+        const list = migratedByKey.get(k) ?? [];
+        list.push(parseCivilDate(m.completed_on));
+        migratedByKey.set(k, list);
+      }
+    }
+    /*
+     * Merged and re sorted, because the lists now come from two places. Each source arrives
+     * ordered on its own, but a migrated completion is almost always OLDER than anything
+     * submitted in the app, so concatenating them leaves the list out of order and the cycle walk
+     * reads anchors strictly ascending.
+     */
+    for (const [k, migrated] of migratedByKey) {
+      completionsByKey.set(k, mergeCompletions(completionsByKey.get(k) ?? [], migrated));
+    }
   }
 
   // 4. Reconstruct cycles per definition per record and count.

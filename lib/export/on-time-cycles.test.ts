@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { parseCivilDate, formatCivilDate, addInterval, type CivilDate } from "../recurrence.ts";
-import { dueDatesInGap, cycleOnTime, buildAnchors } from "./on-time-cycles.ts";
+import { dueDatesInGap, cycleOnTime, buildAnchors, mergeCompletions } from "./on-time-cycles.ts";
 
 const d = (iso: string) => parseCivilDate(iso);
 const isoOf = (c: CivilDate) => formatCivilDate(c);
@@ -125,4 +125,38 @@ test("every anchor after the first is a completion, so only evidence can close a
     "2026-05-02",
     "2026-06-20",
   ]);
+});
+
+/*
+ * Migrated history (2026-09-17). Thistle's Cardiff branch moved onto BCC with 31 supervisions and
+ * 45 personal plan reviews behind it. None of them were form submissions, so the PQS engine saw
+ * no completions at all and scored both measures 0 percent on a return that goes to the council.
+ */
+test("migrated completions merge into the evidence history, ascending", () => {
+  const evidence = [d("2026-07-31")];
+  const migrated = [d("2026-01-02"), d("2026-04-03")];
+  const merged = mergeCompletions(evidence, migrated).map(isoOf);
+  assert.deepEqual(merged, ["2026-01-02", "2026-04-03", "2026-07-31"]);
+});
+
+test("a merged history produces the cycles the register already shows", () => {
+  // Chloe Driscoll, as migrated: started 04/07/2025, supervised 02/01, 03/04 and 31/07/2026.
+  // Read from evidence alone her history is empty and every cycle is a miss.
+  const start = d("2025-07-04");
+  const none = buildAnchors(start, mergeCompletions([], []));
+  assert.equal(none.length, 1, "no history means the start date is the only anchor");
+
+  const anchors = buildAnchors(start, mergeCompletions([], [d("2026-01-02"), d("2026-04-03"), d("2026-07-31")]));
+  assert.deepEqual(anchors.map(isoOf), ["2025-07-04", "2026-01-02", "2026-04-03", "2026-07-31"]);
+
+  // The cycle 02/01 opened came due 02/04 and was met on 03/04: one day late, and counted.
+  const dues = dueDatesInGap({ anchor: d("2026-01-02"), next: d("2026-04-03"), today: TODAY, from: ALL, step: every90 });
+  assert.deepEqual(dues.map(isoOf), ["2026-04-02"]);
+  assert.deepEqual(cycleOnTime(dues, 0, d("2026-04-03")), { settled: true, onTime: false });
+});
+
+test("merging is order independent: the source a completion came from cannot change the walk", () => {
+  const a = mergeCompletions([d("2026-05-08")], [d("2026-02-10")]).map(isoOf);
+  const b = mergeCompletions([d("2026-02-10")], [d("2026-05-08")]).map(isoOf);
+  assert.deepEqual(a, b);
 });

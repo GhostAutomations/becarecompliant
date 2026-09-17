@@ -161,3 +161,20 @@ export function cycleOnTime(
   const settled = next !== null && i === dues.length - 1;
   return { settled, onTime: settled && compareCivil(next, dues[i]) <= 0 };
 }
+
+/**
+ * One completion history out of two sources, ascending.
+ *
+ * A company that moves onto BCC brings its completed supervisions and reviews with it. Those land
+ * in `migrated_completions`; what is submitted in the app lands in `evidence`. Both are
+ * completions, and the walk above reads anchors STRICTLY ascending, so the two lists are merged
+ * and sorted here rather than appended in read order. A migrated completion is almost always
+ * older than anything submitted in the app, so appending it unsorted makes a gap run backwards
+ * and its cycles never come due.
+ *
+ * Nothing is deduped here: buildAnchors already drops a date that does not advance, and two
+ * genuine completions on the same day should not silently become one before it sees them.
+ */
+export function mergeCompletions(...sources: CivilDate[][]): CivilDate[] {
+  return sources.flat().sort(compareCivil);
+}
