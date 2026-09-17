@@ -289,6 +289,23 @@ export function firstDateFieldKey(schema: FormSchema): string | null {
   return dates.find((f) => f.completionDate === true)?.key ?? dates[0]?.key ?? null;
 }
 
+/**
+ * Return a copy of the schema with the named field marked read only.
+ *
+ * RENDER SIDE ONLY, the same pattern as removeField: the STORED form is untouched, and a caller
+ * that knows the answer says so for this one rendering. Used where a question has a right answer
+ * the page already holds -- which review this is -- so it is shown rather than asked.
+ */
+export function makeFieldReadOnly(schema: FormSchema, key: string): FormSchema {
+  return {
+    ...schema,
+    sections: schema.sections.map((s) => ({
+      ...s,
+      fields: s.fields.map((f) => (f.key === key ? { ...f, readOnly: true } : f)),
+    })),
+  };
+}
+
 /** Return a copy of the schema with the field of the given key removed from every
  *  section. Used to hide a field that is being supplied another way (e.g. the
  *  supervision number, set by which Complete button was clicked). */

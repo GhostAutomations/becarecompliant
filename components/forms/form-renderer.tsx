@@ -381,6 +381,24 @@ function Field({
 
     case "single_select": {
       const opts = field.options ?? [];
+      /*
+       * SHOWN, NOT ASKED (Phil, 2026-09-17: "its still a drop down, i dont want it selectable").
+       *
+       * A read only select is not a select. The value is already in the answers, so it submits
+       * exactly as it would have done; what goes is the invitation to change it. Rendered as the
+       * option's LABEL rather than its stored value, because the stored value is ours.
+       *
+       * readOnly was honoured on care_package only, which is why marking this field did nothing
+       * the first time. Any single_select can carry it now.
+       */
+      if (field.readOnly) {
+        const chosen = opts.find((o) => o.value === value);
+        return labelledControl(
+          <p className="text-sm font-semibold text-white">
+            {chosen?.label ?? (typeof value === "string" && value ? value : "—")}
+          </p>,
+        );
+      }
       // When any option carries a right-aligned hint (e.g. per-record due dates),
       // use the custom dropdown so label sits left and hint sits right; otherwise
       // the canonical native select.

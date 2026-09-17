@@ -10,7 +10,7 @@ import { getServiceUser, getPublishedFormVersion } from "@/lib/service-users/dat
 import { branchName } from "@/lib/people/data";
 import { recordFormPresets } from "@/lib/forms/record-presets";
 import { todayInLondon, formatCivilDate } from "@/lib/recurrence";
-import { fieldToNameSelect, findField, flattenFields, isFormSchema, type Answers, type FormSchema } from "@/lib/form-schema";
+import { fieldToNameSelect, findField, flattenFields, isFormSchema, makeFieldReadOnly, type Answers, type FormSchema } from "@/lib/form-schema";
 import { getCarePlanEntries } from "@/lib/service-users/data";
 import { linesFromRows } from "@/lib/service-users/care-package";
 import type { CheckDefinition } from "@/lib/people/types";
@@ -74,17 +74,19 @@ export default async function CompleteServiceUserCheckPage({
    * the removal has never once fired: the question was asked on every review, unlabelled as a
    * number, optional, and left blank.
    *
-   * SHOWN AND FILLED IN, rather than removed like the supervision equivalent. Reviews have a
-   * Setup in the same list, so there is a real answer that is not simply the next number, and a
-   * reviewer at the door should be able to see what it is about to be recorded as and correct
-   * it. The record card passes it; arriving without it, from a bookmark or a planner task, the
-   * question is asked, which is the honest thing to do when nothing knows the answer.
+   * SHOWN, NOT ASKED (Phil: "i dont want it selectable"). The record card knows which review it
+   * is, so the field is filled in and read only: it still submits, it simply stops inviting a
+   * different answer to a question that already has one.
+   *
+   * Arriving WITHOUT it, from a bookmark or a planner task, the dropdown stays. Nothing knows
+   * the answer then, and asking is the honest thing to do.
    */
   let reviewHeading: string | null = null;
   let presetReview: string | null = null;
   if (def.key === "care_plan_review" && /^[1-4]$/.test(rev ?? "")) {
     presetReview = `Review ${rev}`;
     reviewHeading = presetReview;
+    schema = makeFieldReadOnly(schema, "type_of_review");
   }
 
   // Pre-fill the service user's own details (name + branch) into whatever form this
