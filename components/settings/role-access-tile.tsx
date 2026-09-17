@@ -60,9 +60,14 @@ export default function RoleAccessTile({
         className="mt-3"
       >
         {/*
-          THREE COLUMNS (Phil, 2026-09-17: "those tiles are way to big put 3 columns of of tick
-          boxes in each tile"). Sixteen departments in one column made a tile taller than the
-          screen, and seven of those on a page meant scrolling past a role to reach the next.
+          COLUMNS, not a list of sixteen (Phil, 2026-09-17: "those tiles are way to big put 3
+          columns of of tick boxes in each tile"). One column made a tile taller than the screen,
+          and seven of those meant scrolling past a whole role to reach the next.
+
+          TWO columns inside, not three, now that three TILES share a row: at a third of the page
+          a third column leaves about 130px per tick, and "Whistleblowing" and "Service Users"
+          truncate to nothing. Sixteen in two columns is eight short rows, which is what makes
+          three tiles fit across without either of them being unreadable.
 
           The REASON moves to the tick's title rather than sitting under it: a note under a label
           in a narrow column wraps to four lines and undoes the columns. It is still there on
@@ -72,7 +77,7 @@ export default function RoleAccessTile({
           Two columns on a phone, one below that: three columns of checkboxes at 360px is
           unreadable, and this screen has to work on the phone an owner actually carries.
         */}
-        <div className="grid grid-cols-1 gap-x-3 gap-y-0.5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-x-3 gap-y-0.5 sm:grid-cols-2">
           {modules.map((m) => {
             const why = !m.allowed
               ? m.note ?? `Not available to the ${roleLabel} role.`

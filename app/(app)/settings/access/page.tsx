@@ -57,10 +57,16 @@ export default async function AccessSettingsPage() {
         </p>
       </div>
 
-      {/* ONE TILE PER ROW now that a tile is three columns wide and six rows tall. Two tiles
-          side by side would put six columns of tick boxes across the page, which reads as a
-          spreadsheet rather than as one role at a time. */}
-      <section className="mt-6 space-y-4">
+      {/*
+        THREE TILES TO A ROW (Phil, 2026-09-17: "have the tiles in columns of three, admin, RI and
+        RM on one line cascading down"). ROLE_ORDER above is what makes that come out as he
+        described it: Admin, Responsible Individual and Registered Manager on the first line, then
+        Branch Manager, Supervisor and On Call, then Viewer. The order is the seniority of the
+        role, so the line somebody reads first is the one that can do the most.
+
+        `items-start` so a short tile does not stretch to match a tall one beside it.
+      */}
+      <section className="mt-6 grid items-start gap-4 md:grid-cols-2 lg:grid-cols-3">
         {roles.map((role) => (
           <RoleAccessTile
             key={role}
