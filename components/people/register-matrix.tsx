@@ -416,8 +416,10 @@ export default function RegisterMatrix({
                   ) : (
                     <>
                       {/* The Appraisal pair is not one instance: nextDue is the NEXT appraisal,
-                          comp is the LAST one. So the Due always carries the outstanding pill. */}
-                      <td><RagDate date={aaSlot.nextDue} rag={aaSlot.nextDueRag} /></td>
+                          comp is the LAST one, so the Due normally carries the outstanding pill.
+                          NOT when the stored due date is one the last appraisal already met: that
+                          cycle is closed and the cell reads like a completed supervision slot. */}
+                      <td>{aaSlot.nextDueMet ? <CycleDate date={aaSlot.nextDue} /> : <RagDate date={aaSlot.nextDue} rag={aaSlot.nextDueRag} />}</td>
                       <td><DoneDate date={aaSlot.comp} late={aaSlot.compRag === "red"} /></td>
                     </>
                   )}

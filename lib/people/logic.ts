@@ -12,6 +12,7 @@ import {
   type AnswerValue,
   type FormSchema,
 } from "@/lib/form-schema";
+import { appraisalDueMet } from "./appraisal-due";
 import {
   type ProbationPeriod,
   probationToRecurrence,
@@ -394,6 +395,13 @@ export type AppraisalSlot = {
   /** Pill for the completed appraisal: green if it was done on/before the due it was
    *  set against (the supervision that triggered it + interval), red if late. */
   compRag: Rag | "none";
+  /**
+   * The stored due date is one the last appraisal already MET, so the cycle is closed.
+   *
+   * The Due cell then reads like a completed supervision slot: the date, plain, no pill. Without
+   * this the row said red for overdue beside a green completed on the very same day.
+   */
+  nextDueMet: boolean;
 };
 
 /**
@@ -450,9 +458,12 @@ export function appraisalSlot(
   } else if (hasInterval && currentCycleSups.length >= 3) {
     nextDue = addI(currentCycleSups[2]);
   }
-  if (nextDue) nextDueRag = ragStatus(parseCivilDate(nextDue), today, amberDays);
+  // A due date the last appraisal already met is not outstanding, so it carries no pill. See
+  // appraisalDueMet, which is pure and unit tested.
+  const nextDueMet = appraisalDueMet(nextDue, comp);
+  if (nextDue && !nextDueMet) nextDueRag = ragStatus(parseCivilDate(nextDue), today, amberDays);
 
-  return { nextDue, nextDueRag, comp, compRag };
+  return { nextDue, nextDueRag, comp, compRag, nextDueMet };
 }
 
 /**
