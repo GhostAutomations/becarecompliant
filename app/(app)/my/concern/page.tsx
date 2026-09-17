@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
+import { disabledModules } from "@/lib/auth/module-access";
+import { canUsePortalForm } from "@/lib/auth/portal-forms";
 import BackLink from "@/components/back-link";
 import RaiseConcern from "@/components/staff/raise-concern";
 
@@ -17,6 +19,11 @@ export const metadata: Metadata = { title: "Raise a concern" };
 export default async function RaiseConcernPage() {
   const { profile } = await requireCompany();
   if (!profile.company_id) redirect("/dashboard");
+  /* The page as well as the link, because the link being gone is not the same as the page being
+     closed: /my/concern is exactly the address somebody would have bookmarked. */
+  if (!canUsePortalForm("whistleblowing", await disabledModules(profile.company_id))) {
+    redirect("/my");
+  }
 
   return (
     <div className="page-form space-y-6">

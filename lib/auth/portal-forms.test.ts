@@ -13,12 +13,18 @@ test("switching one off leaves the others alone", () => {
   assert.equal(canUsePortalForm("financial_transaction", off), true);
 });
 
-test("raising a concern cannot be switched off", () => {
-  /* The one that matters. A route for raising a concern that the employer can remove is not a
-     route for raising a concern, and the companies that would most want it gone are exactly the
-     ones whose carers need it. */
+test("raising a concern is a tick like any other", () => {
+  /* It shipped locked on and Phil asked for it selectable the same day. The argument for locking
+     it has not gone away, so it lives in the note the tile shows instead of in a refusal. */
+  assert.equal(canUsePortalForm("whistleblowing"), true);
   const off = new Set([`staff|${portalFormKey("whistleblowing")}`]);
-  assert.equal(canUsePortalForm("whistleblowing", off), true);
+  assert.equal(canUsePortalForm("whistleblowing", off), false);
+});
+
+test("a switchable form still has to say what switching it off costs", () => {
+  const concern = PORTAL_FORMS.find((f) => f.key === "whistleblowing")!;
+  assert.equal(concern.locked, false);
+  assert.ok(concern.note, "unticking this one needs a warning, not silence");
 });
 
 test("something not built yet is never usable, ticked or not", () => {

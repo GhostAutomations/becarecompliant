@@ -142,6 +142,7 @@ export default async function MyAreaPage() {
   const portalDisabled = await disabledModules(profile.company_id);
   const canHoliday = canUsePortalForm("holiday_requests", portalDisabled);
   const canMoney = canUsePortalForm("financial_transaction", portalDisabled);
+  const canConcern = canUsePortalForm("whistleblowing", portalDisabled);
 
   const requestSchema: FormSchema | null =
     canHoliday && requestForm && isFormSchema(requestForm.schema)
@@ -278,6 +279,7 @@ export default async function MyAreaPage() {
           usually looking for it once, in a hurry, and should not have to hunt. It carries no
           count and no history, because a record of "you raised a concern" sitting in a
           carer's own portal is a trail on the person who did the right thing. */}
+      {canConcern ? (
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
           Something wrong at work
@@ -296,6 +298,7 @@ export default async function MyAreaPage() {
           <span aria-hidden className="text-white/40">&rsaquo;</span>
         </Link>
       </section>
+      ) : null}
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">

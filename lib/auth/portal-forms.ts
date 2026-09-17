@@ -41,20 +41,23 @@ export const PORTAL_FORMS: readonly PortalForm[] = [
   },
   {
     /*
-     * LOCKED ON, and this is a decision rather than an oversight.
+     * SELECTABLE (Phil, 2026-09-17: "have raise a concern slectable"), having first shipped
+     * locked on. Recorded rather than quietly changed, because the argument for locking it is
+     * still true and the next person to read this file will wonder: the people most likely to
+     * have something to disclose are the ones whose employer would most want the box unticked,
+     * and this is the only way a carer reaches the Admin and the Responsible Individual without
+     * going through their own manager.
      *
-     * A route for raising a concern that the employer can switch off is not a route for raising a
-     * concern. The people most likely to have something to disclose are the ones whose employer
-     * would most want the box unticked, and a company that could remove it has removed the only
-     * way a carer reaches the Admin and the Responsible Individual without going through their
-     * own manager.
+     * So it is a tick like the others, and the tile says what unticking it costs rather than
+     * refusing. A company that has its own route can switch ours off; a company that has not is
+     * told what it has just removed.
      */
     key: "whistleblowing",
     label: "Raise a concern",
     hint: "Goes to the Admin and the Responsible Individual only, never to their manager.",
     available: true,
-    locked: true,
-    note: "Always on. A concern route an employer can switch off is not a concern route.",
+    locked: false,
+    note: "Switching this off leaves a carer no way to raise a concern except through their own manager.",
   },
   {
     /*

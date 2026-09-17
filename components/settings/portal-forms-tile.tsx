@@ -7,9 +7,13 @@
  * access to forms as that is all they can see."
  *
  * TWO KINDS OF GREY, and they must not read as the same thing:
- *   "always on"  — built, working, and not switchable. Raising a concern.
+ *   "always on"  — built, working, and not switchable. Nothing today.
  *   "not yet"    — asked for, not built. Reporting an incident.
  * A single grey would have an Admin ticking the second one and waiting for something to happen.
+ *
+ * And a third state that is not grey at all: a normal tick carrying an amber line, for one whose
+ * cost is not obvious from its label. Raising a concern is the only one, since Phil asked for it
+ * selectable: the tile says what unticking it removes rather than refusing to let him.
  *
  * The Team Portal tick at the top is the whole area: untick it and the carer has no portal at
  * all, whatever the forms below say. It is kept from the department tile it came from, because
@@ -58,6 +62,10 @@ export default function PortalFormsTile({
         <div className="space-y-0.5">
           {forms.map((f) => {
             const why = f.locked || !f.available ? f.note : undefined;
+            /* A tick that is switchable but costly says so, in amber, under the label. Raising a
+               concern is the only one today: it is a normal tick, and unticking it leaves a carer
+               no route except through their own manager. */
+            const caution = !f.locked && f.available ? f.note : undefined;
             return (
               <label
                 key={f.key}
@@ -84,6 +92,9 @@ export default function PortalFormsTile({
                     <span className="ml-2 text-xs text-white/40">not yet</span>
                   ) : null}
                   <span className="block text-xs text-white/45">{why ?? f.hint}</span>
+                  {caution ? (
+                    <span className="block text-xs text-rag-amber-soft/80">{caution}</span>
+                  ) : null}
                 </span>
               </label>
             );
