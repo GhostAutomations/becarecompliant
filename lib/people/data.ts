@@ -290,11 +290,21 @@ export async function listRegister(
     supDefId
       ? supabase
           .from("migrated_completions")
-          .select("record_id, completed_on")
+          // slot and due_on: which supervision it was and when it was due, where the import
+          // carried them. Without those the slots have to be re-derived and a completion the
+          // current cycle has come round to is drawn nowhere at all.
+          .select("record_id, completed_on, due_on, slot")
           .eq("record_type", "person")
           .eq("definition_id", supDefId)
           .in("record_id", ids)
-      : Promise.resolve({ data: [] as Array<{ record_id: string; completed_on: string }> }),
+      : Promise.resolve({
+          data: [] as Array<{
+            record_id: string;
+            completed_on: string;
+            due_on: string | null;
+            slot: number | null;
+          }>,
+        }),
     appraisalFormId
       ? supabase
           .from("evidence")
@@ -364,8 +374,25 @@ export async function listRegister(
       completionDate(e.answers, e.submitted_at, supDateKeys.get(e.form_version_id ?? "") ?? null),
     );
   }
-  for (const m of (supMigrated as Array<{ record_id: string; completed_on: string }>) ?? []) {
+  const supSlotByPerson = new Map<string, Map<string, number>>();
+  const supDueByPerson = new Map<string, Map<string, string>>();
+  for (const m of (supMigrated as Array<{
+    record_id: string;
+    completed_on: string;
+    due_on: string | null;
+    slot: number | null;
+  }>) ?? []) {
     pushSupDate(m.record_id, m.completed_on);
+    if (m.slot) {
+      const sl = supSlotByPerson.get(m.record_id) ?? new Map<string, number>();
+      sl.set(m.completed_on, m.slot);
+      supSlotByPerson.set(m.record_id, sl);
+    }
+    if (m.due_on) {
+      const du = supDueByPerson.get(m.record_id) ?? new Map<string, string>();
+      du.set(m.completed_on, m.due_on);
+      supDueByPerson.set(m.record_id, du);
+    }
   }
 
   // All appraisal completion dates per person (evidence + migrated). The count of
@@ -403,6 +430,8 @@ export async function listRegister(
     statusByKey: statusByKeyByPerson.get(person.id) ?? {},
     tracker: trackerByPerson.get(person.id) ?? null,
     supCompDates: supDatesByPerson.get(person.id) ?? [],
+    supSlotByComp: supSlotByPerson.get(person.id) ?? new Map<string, number>(),
+    supDueByComp: supDueByPerson.get(person.id) ?? new Map<string, string>(),
     appraisalCompDates: appraisalDatesByPerson.get(person.id) ?? [],
   }));
 

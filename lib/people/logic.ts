@@ -273,12 +273,60 @@ export function supervisionSlots(
   today: CivilDate = todayInLondon(),
   count = 3,
   mode: "appraisal" | "four_supervisions" = "appraisal",
+  /**
+   * WHICH SUPERVISION EACH ONE WAS, and when it was due, where a migration carried them.
+   *
+   * Phil, 2026-09-17: "Monday Sup 3 comp column has 8 dates in it, BCC supervision 3 done as
+   * 4 dates in it." All eight were imported and all eight are stored. The four that vanished
+   * belong to people whose current cycle has come round to slot 3: that slot is now the
+   * outstanding one, so the completion sitting in it was drawn nowhere at all.
+   *
+   * With the slots known there is nothing to derive. Each supervision is drawn where it
+   * actually happened, the outstanding one keeps its own stored due date, and the completion
+   * it displaces is carried beside it instead of disappearing.
+   */
+  known: {
+    slotByComp?: ReadonlyMap<string, number>;
+    dueByComp?: ReadonlyMap<string, string>;
+    openDue?: string | null;
+  } = {},
 ): SupervisionSlot[] {
   const slots: SupervisionSlot[] = [];
   const valid = (d: string | null | undefined): d is string => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d);
   const hasInterval = !!intervalDays && intervalDays >= 1;
   const addI = (d: string) => formatCivilDate(addInterval(parseCivilDate(d), "day", intervalDays!));
   const all = compDates.filter(valid).slice().sort();
+
+  // CARBON COPY: every completion knows which supervision it was, so draw it there.
+  const bySlot = known.slotByComp;
+  if (all.length > 0 && bySlot && all.every((d) => bySlot.has(d))) {
+    const newest = all[all.length - 1];
+    const openSlot = (bySlot.get(newest)! % count) + 1;
+    for (let i = 1; i <= count; i++) {
+      const inSlot = all.filter((d) => bySlot.get(d) === i);
+      const comp = inSlot.length > 0 ? inSlot[inSlot.length - 1] : null;
+      const storedDue = comp ? known.dueByComp?.get(comp) ?? null : null;
+      if (i === openSlot) {
+        const due = valid(known.openDue) ? known.openDue : null;
+        slots.push({
+          n: i,
+          due,
+          comp: null,
+          prevComp: comp,
+          prevLate: !!(comp && valid(storedDue) && comp > storedDue),
+          rag: due ? ragStatus(parseCivilDate(due), today, amberDays) : "none",
+        });
+      } else {
+        slots.push({
+          n: i,
+          due: storedDue,
+          comp,
+          rag: comp ? (valid(storedDue) && comp > storedDue ? "red" : "green") : "none",
+        });
+      }
+    }
+    return slots;
+  }
   // What closes and restarts a cycle:
   //  - appraisal mode: a completed Annual Appraisal (each ends a cycle of `count`).
   //    Sup 1 anchors on the LATER of the last appraisal completion and the probation end.

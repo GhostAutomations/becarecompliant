@@ -117,6 +117,10 @@ export type PersonTracker = {
 
 /** A derived Supervision slot (Sup 1/2/3): scheduled due + its completion, if done. */
 export type SupervisionSlot = {
+  /** The previous cycle's completion, when this slot is the outstanding one. Real, and
+   *  drawn as history, rather than disappearing because the cycle came round to it. */
+  prevComp?: string | null;
+  prevLate?: boolean;
   n: number;
   due: string | null;
   comp: string | null;
@@ -133,6 +137,10 @@ export type RegisterRow = {
   /** All supervision completion dates (ISO), from real evidence and migrated history.
    *  The cycle slots (Sup 1/2/3) are derived from these in date order. */
   supCompDates: string[];
+  /** completion date -> which supervision it was, where the import carried it. */
+  supSlotByComp: ReadonlyMap<string, number>;
+  /** completion date -> the date it was due, where the import carried it. */
+  supDueByComp: ReadonlyMap<string, string>;
   /** All appraisal completion dates (ISO). Their COUNT resets the supervision cycle
    *  (each completed appraisal ends a 3-supervision cycle). */
   appraisalCompDates: string[];
