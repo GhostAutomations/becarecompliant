@@ -541,6 +541,48 @@ export async function getSupervisionCompDates(
   return dates;
 }
 
+/**
+ * The two Health Check conversations, by the week they were for.
+ *
+ * The probation Health Check (0299) is one ad-hoc check completed TWICE -- week 4 and week 8 --
+ * so "last completed" is the wrong question to ask it: the one thing a manager wants to know is
+ * which of the two is still outstanding. The week is an answer on the form, and the date is the
+ * form's own completionDate, so the tile prints the day the conversation happened rather than
+ * the day it was typed up.
+ *
+ * Returns the LATEST date for each week. Doing one again replaces what the tile shows; both
+ * pieces of Evidence are kept, as all Evidence is.
+ */
+export async function getHealthCheckDates(
+  personId: string,
+  formId: string | null,
+): Promise<{ week4: string | null; week8: string | null }> {
+  const out: { week4: string | null; week8: string | null } = { week4: null, week8: null };
+  if (!formId) return out;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("evidence")
+    .select("submitted_at, answers, form_version_id")
+    .eq("record_type", "person")
+    .eq("record_id", personId)
+    .eq("form_id", formId)
+    .order("submitted_at", { ascending: true });
+  const rows =
+    (data as Array<{
+      submitted_at: string;
+      answers: Record<string, unknown>;
+      form_version_id: string | null;
+    }>) ?? [];
+  const keys = await dateKeysFor(supabase, rows);
+  for (const e of rows) {
+    const when = completionDate(e.answers, e.submitted_at, keys.get(e.form_version_id ?? "") ?? null);
+    const week = String(e.answers?.week ?? "").trim();
+    if (week === "4") out.week4 = when;
+    else if (week === "8") out.week8 = when;
+  }
+  return out;
+}
+
 export async function getPersonChecks(personId: string): Promise<CheckStatus[]> {
   const supabase = await createClient();
   const { data } = await supabase

@@ -22,6 +22,7 @@ import {
   getPersonTracker,
   getSupervisionCompDates,
   getAppraisalCompDates,
+  getHealthCheckDates,
   getSupervisionCycleMode,
   listBranches,
   listSupervisoryUsers,
@@ -184,9 +185,11 @@ export default async function PersonPage({
   const supDef = definitions.find((d) => d.key === "supervision");
   const supFormId = supDef?.form_id ?? null;
   const appraisalDef = definitions.find((d) => d.key === "appraisal");
-  const [supCompDates, appraisalCompDates] = await Promise.all([
+  const healthDef = definitions.find((d) => d.key === "health_check");
+  const [supCompDates, appraisalCompDates, healthDates] = await Promise.all([
     getSupervisionCompDates(id, supFormId, supDef?.id ?? null),
     getAppraisalCompDates(id, appraisalDef?.form_id ?? null, appraisalDef?.id ?? null),
+    getHealthCheckDates(id, healthDef?.form_id ?? null),
   ]);
   const supInterval = supDef?.interval ?? 90;
   const supAmber = supDef?.amber_days ?? DEFAULT_AMBER_DAYS;
@@ -360,6 +363,39 @@ export default async function PersonPage({
     const nextDue = derived ? aaSlot.nextDue : st?.due_date ?? null;
     const lastComp = derived ? aaSlot.comp : st?.last_completed_on ?? null;
     const rag = derived ? aaSlot.nextDueRag : st?.rag ?? "none";
+    /*
+     * THE PROBATION HEALTH CHECK IS TWO CONVERSATIONS, NOT ONE (Phil, 2026-09-18). It is
+     * completed at week 4 and again at week 8, so "Last completed" answers the wrong
+     * question: what a manager wants is which of the two is still owed. And the way IN
+     * closes when probation is passed, while everything already recorded stays put -- the
+     * Evidence is filed for good and both dates keep showing.
+     */
+    if (def.key === "health_check") {
+      const rowClass = "flex justify-between";
+      return (
+        <div key={def.id} className="glass-card p-4">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <h3 className="text-[15px] font-semibold text-white">{def.name}</h3>
+              <p className="text-[12px] text-white/45">During probation</p>
+            </div>
+          </div>
+          <dl className="mt-3 space-y-1 text-[13px] text-white/60">
+            <div className={rowClass}>
+              <dt>Week 4</dt>
+              <dd className="text-white/85">{healthDates.week4 ? formatDisplayDate(healthDates.week4) : "—"}</dd>
+            </div>
+            <div className={rowClass}>
+              <dt>Week 8</dt>
+              <dd className="text-white/85">{healthDates.week8 ? formatDisplayDate(healthDates.week8) : "—"}</dd>
+            </div>
+          </dl>
+          {st && def.form_id && canComplete && !probationPassed ? (
+            <Link href={`/people/${person.id}/checks/${st.instance_id}/complete`} className="btn-primary btn-tile text-[13px]">Complete</Link>
+          ) : null}
+        </div>
+      );
+    }
     return (
       <div key={def.id} className="glass-card p-4">
         <div className="flex items-start justify-between gap-2">
