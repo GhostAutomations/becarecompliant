@@ -13,6 +13,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { buildColumnPlan, type ColumnPlan } from "./columns";
 import { jobTitleOrDefault } from "./job-title";
+import { settleSuppliedDue } from "./supplied-due";
 
 const RTW_LIMITS = new Set(["none", "20hrs_term", "20hrs_2nd_job", "visa_expires"]);
 const PROBATION_STATUS = new Set(["passed", "failed", "extended", "due"]);
@@ -277,11 +278,22 @@ export async function validateImport(
            in December 2026 and record it as comfortably on time. We were not told when that
            one was due, so we do not claim to know. */
         for (let i = 0; i < slotNos.length; i++) if (slotNos[i] === openSlot) dues[i] = null;
-      } else {
+      } else if (c.isOneOff) {
         nextDue = cells[0].due;
         // A one off's Due belongs to its own completion as well as to the instance.
-        if (c.isOneOff && dues.length > 0) dues[0] = cells[0].due;
-        else if (dues.length > 0) dues[0] = null;
+        if (dues.length > 0) dues[0] = cells[0].due;
+      } else {
+        /* ONE Due AND ONE Done FOR THE SAME EVENT. A board pair reading "Due 03/07/2026 /
+           Done 03/07/2026" is not telling us an appraisal is outstanding on the day it was
+           signed off -- it is telling us when that one was due. A due its own completion has
+           already met is kept as that completion's due date, and what comes next is left to
+           the check's own rule (see settleSuppliedDue, and lib/import/commit.ts, which falls
+           back to nextDueAfterCompletion when no next due is supplied). For an appraisal
+           scheduled after Supervision 3 the rule says nothing is due until the next
+           Supervision 3 is completed, which is what completing one in the app produces. */
+        const settled = settleSuppliedDue(cells[0].due, dates[0] ?? null);
+        nextDue = settled.nextDue;
+        if (dues.length > 0) dues[0] = settled.completionDue;
       }
 
       if (dates.length > 0 || nextDue) {

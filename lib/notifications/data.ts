@@ -3,6 +3,7 @@ import { DEFAULT_NOTIFICATION_SETTINGS } from "@/lib/notifications/defaults";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { COMPLIANCE_RECIPIENT_ROLES, normaliseRecipientRole } from "@/lib/notifications/roles";
 import { todayInLondon, formatCivilDate } from "@/lib/recurrence";
+import { reportableCheck } from "@/lib/notifications/reportable";
 
 /**
  * Service-role reads for the notification cron. RLS is bypassed here (the cron
@@ -240,6 +241,11 @@ function addDaysIso(iso: string, days: number): string {
  * Checks due on or before today + 14 days (so overdue AND due soon), per
  * population, plus whether the company has active records of each population.
  * The overdue / due soon split is done in the pure logic layer.
+ *
+ * SETTLED CHECKS ARE NOT REPORTED. A past due date on a check that has been done is
+ * history, not an outstanding job -- see lib/notifications/reportable.ts. Without that
+ * test every completed one-off Service User check (the Setup Visit) was reported overdue
+ * every morning for the rest of time.
  */
 export async function getReportingData(companyId: string): Promise<ReportingData> {
   const supabase = createServiceClient();
@@ -249,13 +255,13 @@ export async function getReportingData(companyId: string): Promise<ReportingData
     await Promise.all([
       supabase
         .from("person_check_status")
-        .select("person_id, branch_id, check_name, due_date")
+        .select("person_id, branch_id, check_name, due_date, recurring, last_completed_on")
         .eq("company_id", companyId)
         .not("due_date", "is", null)
         .lte("due_date", horizon),
       supabase
         .from("service_user_check_status")
-        .select("service_user_id, branch_id, check_name, due_date")
+        .select("service_user_id, branch_id, check_name, due_date, recurring, last_completed_on")
         .eq("company_id", companyId)
         .not("due_date", "is", null)
         .lte("due_date", horizon),
@@ -285,8 +291,18 @@ export async function getReportingData(companyId: string): Promise<ReportingData
   const suName = new Map((sus.data ?? []).map((s) => [s.id, s.full_name]));
   const branchName = new Map((branches.data ?? []).map((b) => [b.id, b.name]));
 
+  /* A DATE IN THE PAST IS NOT THE SAME AS SOMETHING STILL TO DO. See
+     lib/notifications/reportable.ts: a one-off that has been done, and a check whose own
+     completion has already met its due date, are finished and are not reported. */
+  const outstanding = (r: { recurring: boolean | null; due_date: string | null; last_completed_on: string | null }) =>
+    reportableCheck({
+      recurring: r.recurring === true,
+      dueDate: r.due_date,
+      lastCompletedOn: r.last_completed_on,
+    });
+
   const peopleOut: ReportingCheck[] = (peopleChecks.data ?? [])
-    .filter((r) => r.due_date)
+    .filter(outstanding)
     .map((r) => ({
       population: "people" as const,
       recordId: r.person_id,
@@ -297,7 +313,7 @@ export async function getReportingData(companyId: string): Promise<ReportingData
       dueDate: r.due_date as string,
     }));
   const suOut: ReportingCheck[] = (suChecks.data ?? [])
-    .filter((r) => r.due_date)
+    .filter(outstanding)
     .map((r) => ({
       population: "service_users" as const,
       recordId: r.service_user_id,
