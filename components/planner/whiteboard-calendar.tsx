@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { bookingHref } from "@/lib/planner/booking-link";
 import BookingForm, { toEditableBooking } from "./booking-form";
+import { useRouter } from "next/navigation";
+import { cancelBooking } from "@/lib/planner/actions";
 import { bookingIsLate } from "@/lib/planner/late";
 import type { PlannerBookingView, PlannerFormData } from "@/lib/planner/data";
 // Pure and tested in lib/planner/week.test.ts: month ends, year ends, leap days and the clocks
@@ -81,6 +83,26 @@ export default function WhiteboardCalendar({
    */
   currentUserId?: string;
 }) {
+  const router = useRouter();
+  const [cancelling, startCancel] = useTransition();
+
+  /* Taking a booking off the calendar. The Whiteboard chip has had this since it was built
+     and the Planner never did (Phil, 2026-09-18: "you can in whiteboard but not in planner
+     view"), so a visit booked by mistake could be moved and edited but not got rid of.
+     Cancelling is what the Whiteboard does too: every Planner view and the Outlook feed
+     read only non-cancelled bookings, so it disappears from all of them, while the row
+     stays for the audit and the check goes back to "to book". */
+  function removeBooking(bookingId: string) {
+    if (!confirm("Cancel this booking? It comes off the calendar and goes back to 'to book'.")) return;
+    const fd = new FormData();
+    fd.set("booking_id", bookingId);
+    startCancel(async () => {
+      const res = await cancelBooking(fd);
+      if (res.error) alert(res.error);
+      router.refresh();
+    });
+  }
+
   const isWeek = span === "week";
   const [branchId, setBranchId] = useState("");
 
@@ -479,15 +501,25 @@ export default function WhiteboardCalendar({
                         })}
                       </ul>
                     ) : null}
-                    {formData && b.status === "planned" ? (
-                      <div className="mt-2 flex justify-end">
-                        <BookingForm
-                          data={formData}
-                          currentUserId={currentUserId ?? ""}
-                          booking={toEditableBooking(b)}
-                          buttonLabel="Edit"
-                          buttonClassName="btn-outline px-2.5 py-1 text-[11px]"
-                        />
+                    {b.status === "planned" ? (
+                      <div className="mt-2 flex justify-end gap-1.5">
+                        {formData ? (
+                          <BookingForm
+                            data={formData}
+                            currentUserId={currentUserId ?? ""}
+                            booking={toEditableBooking(b)}
+                            buttonLabel="Edit"
+                            buttonClassName="btn-outline px-2.5 py-1 text-[11px]"
+                          />
+                        ) : null}
+                        <button
+                          type="button"
+                          disabled={cancelling}
+                          onClick={() => removeBooking(b.id)}
+                          className="btn-outline px-2.5 py-1 text-[11px] text-red-300"
+                        >
+                          Cancel
+                        </button>
                       </div>
                     ) : null}
                   </>
