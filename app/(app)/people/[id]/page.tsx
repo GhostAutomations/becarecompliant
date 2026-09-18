@@ -416,11 +416,12 @@ export default async function PersonPage({
      due date two different ways. */
   const checkTile = (def: (typeof definitions)[number]) => {
     const st = statusByDef.get(def.id);
-    // The appraisal's dates come from the cycle, not the stored instance.
-    const derived = def.key === "appraisal" && cycleMode === "appraisal";
-    const nextDue = derived ? aaSlot.nextDue : st?.due_date ?? null;
-    const lastComp = derived ? aaSlot.comp : st?.last_completed_on ?? null;
-    const rag = derived ? aaSlot.nextDueRag : st?.rag ?? "none";
+    /* No appraisal special case here any more: in appraisal mode it is the fourth box of the
+       supervision card (appraisalBox), and in four-supervisions mode there is no appraisal in
+       the cycle at all, so it is an ordinary check and reads its own stored instance. */
+    const nextDue = st?.due_date ?? null;
+    const lastComp = st?.last_completed_on ?? null;
+    const rag = st?.rag ?? "none";
     /*
      * THE PROBATION HEALTH CHECK IS TWO CONVERSATIONS, NOT ONE (Phil, 2026-09-18). It is
      * completed at week 4 and again at week 8, so "Last completed" answers the wrong
@@ -474,6 +475,45 @@ export default async function PersonPage({
     );
   };
 
+  /*
+   * THE APPRAISAL AS THE FOURTH BOX OF THE CYCLE, built in the supervision slot's shape rather
+   * than as a check tile, because that is what it is: the thing that closes the three.
+   *
+   * AND IT CANNOT BE COMPLETED BEFORE SUPERVISION 3 (Phil, 2026-09-18: "the annual appraisal
+   * should only be active one supervison 3 has been completed"). The button used to show on
+   * every record, including one whose Supervision 3 read "Not yet" and whose appraisal read
+   * "Not scheduled" -- an invitation to record an appraisal for a cycle that had not finished,
+   * which then re-anchored the supervisions off it.
+   *
+   * The test is aaSlot.nextDue, not a second reading of slot 3: appraisalSlot schedules the
+   * appraisal from the third supervision's COMPLETION, so a date exists only once that
+   * supervision has been done. One rule, asked once.
+   */
+  const appraisalStatus = appraisalTileDef ? statusByDef.get(appraisalTileDef.id) : undefined;
+  const appraisalReady = aaSlot.nextDue != null;
+  const appraisalBox = appraisalTileDef ? (
+    <div className="flex flex-col rounded-xl border border-white/10 p-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[13px] font-semibold text-white/70">Annual Appraisal</span>
+        <span className={`rag-cell ${slotPill(aaSlot.nextDueRag)}`}>
+          {aaSlot.comp ? "Done" : aaSlot.nextDue ? formatDisplayDate(aaSlot.nextDue) : "—"}
+        </span>
+      </div>
+      <dl className="mt-2 space-y-1 text-[12px] text-white/55">
+        <div className="flex justify-between"><dt>Due</dt><dd className="text-white/80">{formatDisplayDate(aaSlot.nextDue) || "—"}</dd></div>
+        <div className="flex justify-between"><dt>Completed</dt><dd className="text-white/80">{formatDisplayDate(aaSlot.comp) || "Not yet"}</dd></div>
+      </dl>
+      {appraisalStatus && appraisalTileDef.form_id && canComplete && appraisalReady ? (
+        <Link
+          href={`/people/${person.id}/checks/${appraisalStatus.instance_id}/complete`}
+          className="btn-primary btn-tile btn-tile-left text-[13px]"
+        >
+          Complete
+        </Link>
+      ) : null}
+    </div>
+  ) : null;
+
   return (
     <div className="page-shell space-y-6">
       {/* The record's actions live in the corner, not in a card of their own further down,
@@ -525,13 +565,16 @@ export default async function PersonPage({
         </div>
       ) : (
         <>
-          {/* Supervision, and beside it the appraisal that closes the cycle. Four columns so
-              the appraisal tile is exactly the width of one supervision slot; on a narrow
-              screen it drops underneath rather than squeezing four into a phone. */}
-          <div className={appraisalTileDef ? "grid items-start gap-4 lg:grid-cols-4" : ""}>
-          <section className={`space-y-3 ${appraisalTileDef ? "lg:col-span-3" : ""}`}>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Supervision</h2>
-            <div className={`glass-card grid gap-3 p-4 ${supCount === 4 ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3"}`}>
+          {/* ONE CARD, ONE CYCLE (Phil, 2026-09-18: "supervision is a tile with 3 inner boxes
+              and then annual appraisal next to it join them together"). They were two cards
+              with two headings and two footnotes, side by side, describing one thing: three
+              supervisions and the appraisal that closes them. The appraisal is now the fourth
+              box in the same card, so the cycle reads left to right in the order it happens. */}
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
+              {appraisalTileDef ? "Supervision and Annual Appraisal" : "Supervision"}
+            </h2>
+            <div className={`glass-card grid gap-3 p-4 ${supCount === 4 || appraisalTileDef ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3"}`}>
               {slots.map((s) => (
                 <div key={s.n} className="flex flex-col rounded-xl border border-white/10 p-3">
                   <div className="flex items-center justify-between">
@@ -554,25 +597,17 @@ export default async function PersonPage({
                   ) : null}
                 </div>
               ))}
+              {appraisalTileDef ? appraisalBox : null}
             </div>
             <p className="text-[11px] text-white/40">
               Supervision 1 is due {supInterval} days after successful probation end, then
               {" "}{supInterval} days after {supCount === 4 ? `every ${supCount} supervisions (which restarts the cycle)` : "each Annual Appraisal (which restarts the cycle)"}.
               {" "}Each further supervision is due {supInterval} days after the previous one is completed.
+              {appraisalTileDef
+                ? ` The Annual Appraisal is due ${supInterval} days after Supervision ${supCount}, and cannot be completed until that supervision has been. Completing it starts the next ${supCount}.`
+                : ""}
             </p>
           </section>
-          {appraisalTileDef ? (
-            <section className="space-y-3">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
-                Annual Appraisal
-              </h2>
-              {checkTile(appraisalTileDef)}
-              <p className="text-[11px] text-white/40">
-                Due {supInterval} days after Supervision 3. Completing it starts the next three.
-              </p>
-            </section>
-          ) : null}
-          </div>
 
           {/* Probation shows here (above Checks) until the employee passes, full
               width to match the Supervision card above (Phil, 2026-07-18). */}
