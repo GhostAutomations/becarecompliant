@@ -104,18 +104,19 @@ export default async function PlannerPage({
           <h1 className="page-title">My Planner</h1>
           {/* The subtitle follows the selection. Landing on your own calendar and reading
               "everybody's work" was the old copy describing the old default. */}
-          {/* The page is two bands and the subtitle now says which is which. It used to run
-              "What is overdue for you to carry out, and your own work on the calendar. Book a
-              new one or manage what is coming up." -- a new WHAT, and managing what, next to a
-              New booking button that already says it (Phil, 2026-09-18: "this doesn't make a
-              lot of sense"). The overdue band is always YOURS whoever the calendar is showing,
-              which is the part the old copy buried. */}
+          {/* SIX WORDS ABOUT WHAT A PLANNER IS (Phil, 2026-09-18). It used to run "What is
+              overdue for you to carry out, and your own work on the calendar. Book a new one
+              or manage what is coming up." -- a new WHAT, and managing what, beside a New
+              booking button already saying it. Describing the two bands instead was no better:
+              a subtitle that explains the layout is a subtitle doing the layout's job. The
+              Overdue band labels itself in red, so this only has to say what the page is for,
+              and follow whose diary is on screen. */}
           <p className="page-subtitle">
             {selection.kind === "all"
-              ? "Your overdue tasks above, everybody's bookings on the calendar below."
+              ? "Where everyone is going, and when."
               : selection.kind === "person"
-                ? `Your overdue tasks above, ${viewingName ? `${viewingName}'s` : "their"} bookings on the calendar below.`
-                : "Your overdue tasks above, your own bookings on the calendar below."}
+                ? `Where ${viewingName ?? "they"} ${viewingName ? "is" : "are"} going, and when.`
+                : "Where you are going, and when."}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
