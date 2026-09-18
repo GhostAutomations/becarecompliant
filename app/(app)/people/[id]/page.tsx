@@ -534,14 +534,13 @@ export default async function PersonPage({
                 />
               ) : null}
             </div>
-            {/* ALL THE CHECKS ON ONE LINE (Phil, 2026-09-08: "narrow the tiles and put them
-                all on one line keep height the same only change width"). Fixed column counts
-                cannot do that: the number of checks varies by company and by job title, so
-                any number picked is wrong for somebody. auto-fit with a 230px floor fits as
-                many as the screen allows and shares the rest out - six checks on a wide
-                monitor land in one row, and a narrow screen wraps rather than shrinking them
-                to nothing. Only the width changes; the tile's own content sets its height. */}
-            <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(230px,1fr))]">
+            {/* FIVE IN A ROW (Phil, 2026-09-18). It was auto-fit with a 230px floor, which put
+                as many as would go on one line: fine at six, and by the time One to One and
+                Health Check joined it was seven narrow slivers with the names wrapping. Five
+                is a width a check tile reads at, and the rest wrap onto a second row rather
+                than squeezing the first. It steps down on narrower screens; the tile's own
+                content still sets its height. */}
+            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               {otherDefs.map((def) => checkTile(def))}
             </div>
           </section>
