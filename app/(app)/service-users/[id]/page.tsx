@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import CycleBox from "@/components/records/cycle-box";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import { canManageRecord } from "@/lib/auth/manage-scope";
@@ -146,6 +147,7 @@ export default async function ServiceUserPage({
 
   // Complex branches run four rolling reviews (Review 1-4), shown as slot cards like
   // People's Supervision. Simple branches keep the single review card.
+  const todayIso = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
   const isComplex = branchType.isComplex;
   const reviewHistory = isComplex
     ? await getReviewComps(id, reviewDef?.form_id ?? null, reviewDef?.id ?? null)
@@ -284,6 +286,11 @@ export default async function ServiceUserPage({
             <section className="space-y-3">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Care Plan Reviews</h2>
               <div className="glass-card grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
+                {/* THE SAME BOX AS A PERSON'S SUPERVISIONS (Phil, 2026-09-18). It was a copy
+                    of that markup that had already drifted from it; it is now the one shared
+                    component, so the two records read identically and can only change
+                    together. The one that is due is gold, is itself the link, and counts down
+                    the days; the Complete button inside it has gone with it. */}
                 {slots.map((s) => {
                   const slotCls =
                     s.rag === "red"
@@ -294,29 +301,22 @@ export default async function ServiceUserPage({
                           ? "rag-cell-green"
                           : "rag-cell-none";
                   return (
-                    <div key={s.n} className="flex flex-col rounded-xl border border-white/10 p-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[13px] font-semibold text-white/70">{s.n}</span>
-                        <span className={`rag-cell ${slotCls}`}>
-                          {s.comp ? "Done" : s.due ? formatDisplayDate(s.due) : "—"}
-                        </span>
-                      </div>
-                      <dl className="mt-2 space-y-1 text-[12px] text-white/55">
-                        <div className="flex justify-between"><dt>Due</dt><dd className="text-white/80">{formatDisplayDate(s.due) || "—"}</dd></div>
-                        <div className="flex justify-between"><dt>Completed</dt><dd className="text-white/80">{formatDisplayDate(s.comp) || "Not yet"}</dd></div>
-                      </dl>
-                      {s.n === nextReviewN && reviewStatusCheck && reviewDef?.form_id && canComplete ? (
-                        <Link
-                          /* WHICH review, passed like the supervision tile passes ?sup= . The
-                             page can then fill the Review number in rather than asking a
-                             question the record already knows the answer to. */
-                          href={`/service-users/${serviceUser.id}/checks/${reviewStatusCheck.instance_id}/complete?rev=${s.n}`}
-                          className="btn-primary btn-tile btn-tile-left text-[13px]"
-                        >
-                          Complete
-                        </Link>
-                      ) : null}
-                    </div>
+                    <CycleBox
+                      key={s.n}
+                      title={`Review ${s.n}`}
+                      due={s.due}
+                      comp={s.comp}
+                      ragClass={slotCls}
+                      /* WHICH review, passed like the supervision box passes ?sup= . The page
+                         can then fill the Review number in rather than asking a question the
+                         record already knows the answer to. */
+                      href={
+                        s.n === nextReviewN && reviewStatusCheck && reviewDef?.form_id && canComplete
+                          ? `/service-users/${serviceUser.id}/checks/${reviewStatusCheck.instance_id}/complete?rev=${s.n}`
+                          : null
+                      }
+                      todayIso={todayIso}
+                    />
                   );
                 })}
               </div>

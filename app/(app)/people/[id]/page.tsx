@@ -11,6 +11,7 @@ import PanelDialog from "@/components/panel-dialog";
 import EvidenceHistory from "@/components/people/evidence-history";
 import { checksForTitle } from "@/lib/people/check-scope";
 import ActionForm from "@/components/action-form";
+import CycleBox from "@/components/records/cycle-box";
 import RecordHistory from "@/components/reports/record-history";
 import EditPersonForm from "@/components/people/edit-person-form";
 import RecordBookTask from "@/components/planner/record-book-task";
@@ -475,104 +476,23 @@ export default async function PersonPage({
     );
   };
 
-  /*
-   * ONE BOX OF THE CYCLE, AND THE ONE THAT IS DUE IS THE BUTTON (Phil, 2026-09-18: "remove the
-   * complete but and make that square the button, example for Asim 3 is due now so make the 3
-   * gold as it is due").
-   *
-   * Every box used to be the same grey, with a small gold Complete button inside whichever one
-   * was due -- a button inside a box, when the box is already the thing you are pointing at.
-   * The box that is due is now gold and is itself the link, so what to do next is the loudest
-   * thing in the card and there is nothing else to aim at. The others are unchanged and inert:
-   * a supervision that is done, or not its turn yet, is a fact rather than an offer.
-   */
-  const cycleBox = (opts: {
-    id: string | number;
-    title: string;
-    due: string | null;
-    comp: string | null;
-    ragClass: string;
-    /** Set only on the one that is due now, and only for somebody who may complete it. */
-    href: string | null;
-  }) => {
-    const live = !!opts.href;
-    const body = (
-      <>
-        {/* EVERY SIZE IN HERE IS FOUR POINTS UP (Phil, 2026-09-18). The boxes are a quarter of
-            the page wide and were carrying 12 to 15 pixel type, so they read as mostly empty
-            card. The pill goes up with the rest: "all text inside the boxes". */}
-        <div className="flex items-center justify-between gap-2">
-          <span className={`text-[19px] font-semibold ${live ? "text-navy-950" : "text-white/75"}`}>
-            {opts.title}
-          </span>
-          {live ? (
-            <span className="text-[17px] font-semibold text-navy-900/70">Due now</span>
-          ) : (
-            <span className={`rag-cell text-[16px] ${opts.ragClass}`}>
-              {opts.comp ? "Done" : opts.due ? formatDisplayDate(opts.due) : "—"}
-            </span>
-          )}
-        </div>
-        {/* THE WHOLE BOX READS AT ONE WEIGHT (Phil, 2026-09-18: "Due and completed should be
-            bold white like 1 2 3 and do the same for the dates in those boxes"). The labels
-            were a dimmer grey than their own values and both were lighter than the title,
-            which put three weights in a box with four words in it. */}
-        <dl className={`mt-3 space-y-1.5 text-[18px] font-semibold ${live ? "text-navy-950" : "text-white/75"}`}>
-          <div className="flex justify-between">
-            <dt>Due</dt>
-            <dd>{formatDisplayDate(opts.due) || "—"}</dd>
-          </div>
-          <div className="flex justify-between">
-            <dt>Completed</dt>
-            <dd>{formatDisplayDate(opts.comp) || "Not yet"}</dd>
-          </div>
-        </dl>
-      </>
-    );
-    return opts.href ? (
-      <Link
-        key={opts.id}
-        href={opts.href}
-        className="flex flex-col rounded-xl border border-gold-400 bg-gold-400 p-4 shadow-sm transition hover:bg-gold-300"
-      >
-        {body}
-      </Link>
-    ) : (
-      <div key={opts.id} className="flex flex-col rounded-xl border border-white/10 p-4">
-        {body}
-      </div>
-    );
-  };
-
-  /*
-   * THE APPRAISAL AS THE FOURTH BOX OF THE CYCLE, built in the supervision slot's shape rather
-   * than as a check tile, because that is what it is: the thing that closes the three.
-   *
-   * AND IT CANNOT BE COMPLETED BEFORE SUPERVISION 3 (Phil, 2026-09-18: "the annual appraisal
-   * should only be active one supervison 3 has been completed"). The button used to show on
-   * every record, including one whose Supervision 3 read "Not yet" and whose appraisal read
-   * "Not scheduled" -- an invitation to record an appraisal for a cycle that had not finished,
-   * which then re-anchored the supervisions off it.
-   *
-   * The test is aaSlot.nextDue, not a second reading of slot 3: appraisalSlot schedules the
-   * appraisal from the third supervision's COMPLETION, so a date exists only once that
-   * supervision has been done. One rule, asked once.
-   */
+  const todayIso = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
   const appraisalStatus = appraisalTileDef ? statusByDef.get(appraisalTileDef.id) : undefined;
   const appraisalReady = aaSlot.nextDue != null;
-  const appraisalBox = appraisalTileDef
-    ? cycleBox({
-        id: "appraisal",
-        title: "Annual Appraisal",
-        due: aaSlot.nextDue,
-        comp: aaSlot.comp,
-        ragClass: slotPill(aaSlot.nextDueRag),
-        href:
-          appraisalStatus && appraisalTileDef.form_id && canComplete && appraisalReady && !aaSlot.comp
-            ? `/people/${person.id}/checks/${appraisalStatus.instance_id}/complete`
-            : null,
-      })
-    : null;
+  const appraisalBox = appraisalTileDef ? (
+    <CycleBox
+      title="Annual Appraisal"
+      due={aaSlot.nextDue}
+      comp={aaSlot.comp}
+      ragClass={slotPill(aaSlot.nextDueRag)}
+      href={
+        appraisalStatus && appraisalTileDef.form_id && canComplete && appraisalReady && !aaSlot.comp
+          ? `/people/${person.id}/checks/${appraisalStatus.instance_id}/complete`
+          : null
+      }
+      todayIso={todayIso}
+    />
+  ) : null;
 
   return (
     <div className="page-shell space-y-6">
@@ -635,22 +555,24 @@ export default async function PersonPage({
               {appraisalTileDef ? "Supervision and Annual Appraisal" : "Supervision"}
             </h2>
             <div className={`glass-card grid gap-3 p-4 ${supCount === 4 || appraisalTileDef ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3"}`}>
-              {slots.map((s) =>
-                cycleBox({
-                  id: s.n,
+              {slots.map((s) => (
+                <CycleBox
+                  key={s.n}
                   /* Named, not numbered. A bare "3" in a box needs the heading above the card
                      to mean anything, and the card is now headed "Supervision and Annual
                      Appraisal", so the number on its own read as a count of nothing. */
-                  title: `Supervision ${s.n}`,
-                  due: s.due,
-                  comp: s.comp,
-                  ragClass: slotPill(s.rag),
-                  href:
+                  title={`Supervision ${s.n}`}
+                  due={s.due}
+                  comp={s.comp}
+                  ragClass={slotPill(s.rag)}
+                  href={
                     supStatus && supFormId && canComplete && s.n === dueSupN
                       ? `/people/${person.id}/checks/${supStatus.instance_id}/complete?sup=${s.n}`
-                      : null,
-                }),
-              )}
+                      : null
+                  }
+                  todayIso={todayIso}
+                />
+              ))}
               {appraisalTileDef ? appraisalBox : null}
             </div>
             <p className="text-[11px] text-white/40">
