@@ -498,19 +498,22 @@ export default async function PersonPage({
     const live = !!opts.href;
     const body = (
       <>
+        {/* EVERY SIZE IN HERE IS FOUR POINTS UP (Phil, 2026-09-18). The boxes are a quarter of
+            the page wide and were carrying 12 to 15 pixel type, so they read as mostly empty
+            card. The pill goes up with the rest: "all text inside the boxes". */}
         <div className="flex items-center justify-between gap-2">
-          <span className={`text-[15px] font-semibold ${live ? "text-navy-950" : "text-white/75"}`}>
+          <span className={`text-[19px] font-semibold ${live ? "text-navy-950" : "text-white/75"}`}>
             {opts.title}
           </span>
           {live ? (
-            <span className="text-[13px] font-semibold text-navy-900/70">Due now</span>
+            <span className="text-[17px] font-semibold text-navy-900/70">Due now</span>
           ) : (
-            <span className={`rag-cell ${opts.ragClass}`}>
+            <span className={`rag-cell text-[16px] ${opts.ragClass}`}>
               {opts.comp ? "Done" : opts.due ? formatDisplayDate(opts.due) : "—"}
             </span>
           )}
         </div>
-        <dl className={`mt-3 space-y-1.5 text-[14px] ${live ? "text-navy-900/70" : "text-white/60"}`}>
+        <dl className={`mt-3 space-y-1.5 text-[18px] ${live ? "text-navy-900/70" : "text-white/60"}`}>
           <div className="flex justify-between">
             <dt>Due</dt>
             <dd className={live ? "font-semibold text-navy-950" : "text-white/90"}>{formatDisplayDate(opts.due) || "—"}</dd>
@@ -631,7 +634,10 @@ export default async function PersonPage({
               {slots.map((s) =>
                 cycleBox({
                   id: s.n,
-                  title: String(s.n),
+                  /* Named, not numbered. A bare "3" in a box needs the heading above the card
+                     to mean anything, and the card is now headed "Supervision and Annual
+                     Appraisal", so the number on its own read as a count of nothing. */
+                  title: `Supervision ${s.n}`,
                   due: s.due,
                   comp: s.comp,
                   ragClass: slotPill(s.rag),
