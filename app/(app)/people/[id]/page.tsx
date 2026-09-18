@@ -423,6 +423,10 @@ export default async function PersonPage({
     const nextDue = st?.due_date ?? null;
     const lastComp = st?.last_completed_on ?? null;
     const rag = st?.rag ?? "none";
+    /* A ONE-OFF THAT HAS BEEN DONE IS FINISHED, and does not go on offering itself. Its due
+       date stayed where it was and has meant nothing since the day it was done -- the same
+       rule the daily report now follows. */
+    const settledOneOff = !def.recurring && !!lastComp;
     /*
      * THE PROBATION HEALTH CHECK IS TWO CONVERSATIONS, NOT ONE (Phil, 2026-09-18). It is
      * completed at week 4 and again at week 8, so "Last completed" answers the wrong
@@ -466,10 +470,10 @@ export default async function PersonPage({
           {st ? ragPill(rag) : <span className="pill-neutral">Not applied</span>}
         </div>
         <dl className="mt-3 space-y-1 text-[13px] text-white/60">
-          <div className="flex justify-between"><dt>Next due</dt><dd className="text-white/85">{nextDue ? formatDisplayDate(nextDue) : "—"}</dd></div>
+          <div className="flex justify-between"><dt>Next due</dt><dd className="text-white/85">{!settledOneOff && nextDue ? formatDisplayDate(nextDue) : "—"}</dd></div>
           <div className="flex justify-between"><dt>Last completed</dt><dd className="text-white/85">{lastComp ? formatDisplayDate(lastComp) : "Never"}</dd></div>
         </dl>
-        {st && def.form_id && canComplete ? (
+        {st && def.form_id && canComplete && !settledOneOff ? (
           <Link href={`/people/${person.id}/checks/${st.instance_id}/complete`} className="btn-primary btn-tile text-[13px]">Complete</Link>
         ) : null}
       </div>

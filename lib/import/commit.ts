@@ -17,7 +17,7 @@ import "server-only";
  */
 
 import { createClient } from "@/lib/supabase/server";
-import { parseCivilDate } from "@/lib/recurrence";
+import { parseCivilDate, daysBetween } from "@/lib/recurrence";
 import type { CheckDefinition } from "@/lib/people/types";
 import { listPeopleCheckDefinitions } from "@/lib/people/data";
 import { listServiceUserCheckDefinitions } from "@/lib/service-users/data";
@@ -26,6 +26,7 @@ import {
   nextDueAfterCompletion,
 } from "@/lib/people/logic";
 import { initialDueDate as suInitialDue } from "@/lib/service-users/logic";
+import { dueBelongsToCompletion } from "./supplied-due";
 import type { ParsedRow } from "./parse";
 import { inviteStaffForPerson } from "@/lib/staff/invite";
 import { assignStandingPolicies } from "@/lib/assignments/new-starters";
@@ -87,13 +88,27 @@ async function seedRowChecks(
     const nextDue = slotsSupplied
       ? c.nextDue ?? null
       : c.nextDue ?? nextDueAfterCompletion(def, {}, supInterval, parseCivilDate(c.dates[0])).nextDue;
+    /* HOW LONG THIS CHECK'S CYCLE IS, asked of the check itself rather than written down here,
+       and used to tell a due date that belongs to a completion from one that has already rolled
+       forward to the next time round (see dueBelongsToCompletion). */
+    const cycleDays = (() => {
+      const from = parseCivilDate(c.dates[0]);
+      const next = nextDueAfterCompletion(def, {}, supInterval, from).nextDue;
+      return next ? daysBetween(from, parseCivilDate(next)) : null;
+    })();
     for (let i = 0; i < c.dates.length; i++) {
+      const suppliedDue = c.dues?.[i] ?? null;
+      /* A DUE A WHOLE CYCLE AHEAD OF ITS OWN COMPLETION IS NOT THAT COMPLETION'S. The board
+         keeps last cycle's date in a slot while the slot's Due has moved on; pairing them told
+         PQS a review done in March was due in November. We were not told when that one was
+         due, so we record the completion and no due date. */
+      const keepDue = dueBelongsToCompletion(suppliedDue, c.dates[i], cycleDays);
       const { error } = await supabase.rpc("seed_migrated_completion", {
         p_record_type: recordType,
         p_record_id: recordId,
         p_definition_id: def.id,
         p_completed_on: c.dates[i],
-        p_due_on: c.dues?.[i] ?? null,
+        p_due_on: keepDue ? suppliedDue : null,
         p_slot: c.slots?.[i] ?? null,
         p_next_due: i === 0 ? nextDue : null,
         p_is_latest: i === 0,

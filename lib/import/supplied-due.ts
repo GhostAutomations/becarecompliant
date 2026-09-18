@@ -39,3 +39,43 @@ export function settleSuppliedDue(
   if (due <= done) return { nextDue: null, completionDue: due };
   return { nextDue: due, completionDue: null };
 }
+
+/** Whole days from one ISO date to another. Positive = the second is later. */
+function daysApart(fromIso: string, toIso: string): number {
+  const a = Date.UTC(Number(fromIso.slice(0, 4)), Number(fromIso.slice(5, 7)) - 1, Number(fromIso.slice(8, 10)));
+  const b = Date.UTC(Number(toIso.slice(0, 4)), Number(toIso.slice(5, 7)) - 1, Number(toIso.slice(8, 10)));
+  return Math.round((b - a) / 86400000);
+}
+
+/**
+ * Does a supplied Due belong to the completion beside it, or has it already rolled forward?
+ *
+ * WHY (found on Amanda Ford's record, 2026-09-18). A board laid out slot by slot keeps last
+ * cycle's completion in a slot until it is redone, while that slot's Due has already moved on
+ * to the next time round. Pairing the two says a review done in March was due in November --
+ * on time by eight months. Eleven supervisions and three care plan reviews came in that way,
+ * with gaps of 231 to 369 days, and PQS grades a migrated completion against exactly this date.
+ *
+ * The parser already tried to catch it by nulling the Due of the slot it worked out was open,
+ * as (newest completed slot % slots) + 1. On Amanda that was Review 3; the slot that needed it
+ * was Review 4. Guessing WHICH slot is open cannot be made reliable -- but the dates say it
+ * outright, so ask them instead:
+ *
+ *   - a Due on or before the Done was met by it, late or on the day. It belongs.
+ *   - a Due AFTER the Done by less than a full cycle is that same event, done early. It belongs.
+ *   - a Due a whole cycle or more after the Done is the NEXT one. We were not told when this
+ *     completion was due, so we do not claim to know.
+ */
+export function dueBelongsToCompletion(
+  suppliedDue: string | null | undefined,
+  completedOn: string | null | undefined,
+  cycleDays: number | null | undefined,
+): boolean {
+  const due = suppliedDue ?? null;
+  const done = completedOn ?? null;
+  if (!due || !done) return false;
+  if (due <= done) return true;
+  // No fixed cadence to judge by (an ad hoc check): take the sheet at its word.
+  if (cycleDays == null || cycleDays <= 0) return true;
+  return daysApart(done, due) < cycleDays;
+}

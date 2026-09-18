@@ -389,9 +389,18 @@ export default async function ServiceUserPage({
                 />
               ) : null}
             </div>
-            <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(230px,1fr))]">
+            {/* FIVE IN A ROW, as on the People record (Phil, 2026-09-18). It was auto-fit with
+                a 230px floor, which on a record with two checks stretched them across half the
+                page each. The two records lay their checks out the same way now. */}
+            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               {otherDefs.map((def) => {
                 const s = statusByDef.get(def.id);
+                /* A ONE-OFF THAT HAS BEEN DONE IS FINISHED (Phil, 2026-09-18). The Setup Visit
+                   read "One off", "Compliant", completed in April 2024 -- and still offered a
+                   gold Complete button, beside a Next due from the same week in 2024 that has
+                   meant nothing since. Same rule the daily report now follows: the date in the
+                   past is history, not a job. */
+                const settledOneOff = !def.recurring && !!s?.last_completed_on;
                 return (
                   <div key={def.id} className="glass-card p-4">
                     <div className="flex items-start justify-between gap-2">
@@ -402,10 +411,10 @@ export default async function ServiceUserPage({
                       {s ? ragPill(s.rag) : <span className="pill-neutral">Not applied</span>}
                     </div>
                     <dl className="mt-3 space-y-1 text-[13px] text-white/60">
-                      <div className="flex justify-between"><dt>Next due</dt><dd className="text-white/85">{s?.due_date ? formatDisplayDate(s.due_date) : "—"}</dd></div>
+                      <div className="flex justify-between"><dt>Next due</dt><dd className="text-white/85">{!settledOneOff && s?.due_date ? formatDisplayDate(s.due_date) : "—"}</dd></div>
                       <div className="flex justify-between"><dt>Last completed</dt><dd className="text-white/85">{s?.last_completed_on ? formatDisplayDate(s.last_completed_on) : "Never"}</dd></div>
                     </dl>
-                    {s && def.form_id && canComplete ? (
+                    {s && def.form_id && canComplete && !settledOneOff ? (
                       <Link href={`/service-users/${serviceUser.id}/checks/${s.instance_id}/complete`} className="btn-primary btn-tile text-[13px]">Complete</Link>
                     ) : null}
                   </div>
