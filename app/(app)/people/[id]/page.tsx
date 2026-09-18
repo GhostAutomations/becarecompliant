@@ -291,26 +291,99 @@ export default async function PersonPage({
       </div>
     </div>
   );
-  const probationTile = (
-    <div className="glass-card p-5">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-[15px] font-semibold text-white">Probation</h2>
-        {canManage && !supportMode ? (
-          <Link href={`/people/${person.id}/tracker/probation_review/complete`} className="btn-primary btn-tracker">
-            Complete
-          </Link>
-        ) : null}
+  /*
+   * THE DOCUMENTS SIT WITH THE CHECKS (Phil, 2026-09-18: "put DBS Right to work and
+   * prbation to the right of health check and make the tiles to came size as health
+   * check"). They were a row of three wide cards below, in a different size and a
+   * different type scale, for no reason other than that they were added separately. They
+   * are the same thing to the person reading the record -- something with a date on it
+   * that has to be kept up -- so they are the same tile, in the same grid, and the row
+   * runs on from Health Check instead of starting again underneath.
+   */
+  const trackerTile = (
+    title: string,
+    sub: string,
+    rows: Array<{ label: string; value: string }>,
+    href: string | null,
+    extra?: React.ReactNode,
+    badge?: React.ReactNode,
+  ) => (
+    <div key={title} className="glass-card p-4">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h3 className="text-[15px] font-semibold text-white">{title}</h3>
+          <p className="text-[12px] text-white/45">{sub}</p>
+        </div>
+        {badge}
       </div>
-      <dl className="space-y-1 text-[15px]">
-        <div className="flex justify-between"><dt className="text-white/50">End due</dt><dd className="text-white/85">{formatDisplayDate(tracker?.probation_end_due ?? null) || "—"}</dd></div>
-        <div className="flex justify-between"><dt className="text-white/50">End actual</dt><dd className="text-white/85">{formatDisplayDate(tracker?.probation_end_actual ?? null) || "—"}</dd></div>
-        <div className="flex justify-between"><dt className="text-white/50">Extension</dt><dd className="text-white/85">{formatDisplayDate(tracker?.probation_extension_date ?? null) || "—"}</dd></div>
+      <dl className="mt-3 space-y-1 text-[13px] text-white/60">
+        {rows.map((r) => (
+          <div key={r.label} className="flex justify-between">
+            <dt>{r.label}</dt>
+            <dd className="text-white/85">{r.value}</dd>
+          </div>
+        ))}
       </dl>
-      <div className="mt-3 flex items-center justify-between text-sm">
-        <span className="text-white/50">Status</span>
-        {probationStatusPill(tracker?.probation_status ?? null)}
-      </div>
+      {extra}
+      {href ? (
+        <Link href={href} className="btn-primary btn-tile text-[13px]">Complete</Link>
+      ) : null}
     </div>
+  );
+
+  const probationTile = trackerTile(
+    "Probation",
+    "Document",
+    [
+      { label: "End due", value: formatDisplayDate(tracker?.probation_end_due ?? null) || "—" },
+      { label: "End actual", value: formatDisplayDate(tracker?.probation_end_actual ?? null) || "—" },
+      { label: "Extension", value: formatDisplayDate(tracker?.probation_extension_date ?? null) || "—" },
+    ],
+    canManage && !supportMode ? `/people/${person.id}/tracker/probation_review/complete` : null,
+    undefined,
+    probationStatusPill(tracker?.probation_status ?? null),
+  );
+
+  const dbsTile = trackerTile(
+    "DBS",
+    "Document",
+    [
+      { label: "DBS", value: formatDisplayDate(tracker?.dbs_date ?? null) || "—" },
+      { label: "Enhanced DBS", value: formatDisplayDate(tracker?.enhanced_dbs_date ?? null) || "—" },
+    ],
+    canManage && !supportMode ? `/people/${person.id}/tracker/dbs_renewal/complete` : null,
+  );
+
+  /* Right to Work carries an editable Limits dropdown. At a fifth of the row it stacks
+     under the dates rather than sitting on one line with them, which is the one thing
+     about this tile that is not identical to its neighbours. */
+  const rtwTile = trackerTile(
+    "Right to Work",
+    "Document",
+    [{ label: "Expiry", value: formatDisplayDate(tracker?.rtw_expiry_date ?? null) || "—" }],
+    canManage && !supportMode ? `/people/${person.id}/tracker/right_to_work/complete` : null,
+    canManage ? (
+      <div className="mt-2">
+        <ActionForm
+          action={updateTracker}
+          hidden={{ person_id: person.id }}
+          buttonClassName="btn-primary btn-tile text-[13px]"
+        >
+          <label htmlFor="rtw_limits" className="form-label text-[12px]">Limits</label>
+          <select id="rtw_limits" name="rtw_limits" className="w-full" defaultValue={tracker?.rtw_limits ?? ""}>
+            <option value="">Not set</option>
+            {(Object.keys(RTW_LIMIT_LABELS) as RtwLimit[]).map((k) => (
+              <option key={k} value={k}>{RTW_LIMIT_LABELS[k]}</option>
+            ))}
+          </select>
+        </ActionForm>
+      </div>
+    ) : (
+      <div className="mt-2 flex justify-between text-[13px] text-white/60">
+        <span>Limits</span>
+        <span className="text-white/85">{tracker?.rtw_limits ? RTW_LIMIT_LABELS[tracker.rtw_limits] : "—"}</span>
+      </div>
+    ),
   );
 
   /* Complaints naming this person. The RAG is driven by UPHELD complaints only: being
@@ -542,81 +615,26 @@ export default async function PersonPage({
                 content still sets its height. */}
             <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               {otherDefs.map((def) => checkTile(def))}
+              {/* Straight on from Health Check, in the order Phil asked for. Probation only
+                  joins them once it is passed; before that it keeps its wide tile above the
+                  Checks, where somebody still on probation needs to see it. */}
+              {dbsTile}
+              {rtwTile}
+              {probationPassed ? probationTile : null}
             </div>
           </section>
 
-          {/* Trackers: DBS, Right to Work, and Probation (only once passed; before
-              that it sits above the Checks). Dates are fed by completing a form. */}
-          <section className={`grid gap-3 ${probationPassed ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}>
-            {/* DBS */}
-            <div className="glass-card p-5">
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-[15px] font-semibold text-white">DBS</h2>
-                {canManage && !supportMode ? (
-                  <Link href={`/people/${person.id}/tracker/dbs_renewal/complete`} className="btn-primary btn-tracker">
-                    Complete
-                  </Link>
-                ) : null}
-              </div>
-              <dl className="space-y-1 text-[15px]">
-                <div className="flex justify-between"><dt className="text-white/50">DBS</dt><dd className="text-white/85">{formatDisplayDate(tracker?.dbs_date ?? null) || "—"}</dd></div>
-                <div className="flex justify-between"><dt className="text-white/50">Enhanced DBS</dt><dd className="text-white/85">{formatDisplayDate(tracker?.enhanced_dbs_date ?? null) || "—"}</dd></div>
-              </dl>
-            </div>
+          {/* WHAT IS LEFT OF THE TRACKER ROW. DBS, Right to Work and Probation moved up into
+              the Checks grid (2026-09-18); complaints about this person were never a tracker
+              and simply stayed behind.
 
-            {/* Right to Work */}
-            <div className="glass-card p-5">
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-[15px] font-semibold text-white">Right to Work</h2>
-                {canManage && !supportMode ? (
-                  <Link href={`/people/${person.id}/tracker/right_to_work/complete`} className="btn-primary btn-tracker">
-                    Complete
-                  </Link>
-                ) : null}
-              </div>
-              <dl className="space-y-1 text-[15px]">
-                <div className="flex justify-between"><dt className="text-white/50">Expiry</dt><dd className="text-white/85">{formatDisplayDate(tracker?.rtw_expiry_date ?? null) || "—"}</dd></div>
-              </dl>
-              {canManage ? (
-                <div className="mt-3">
-                  {/* Default gold save button: an outline base on a SAVE broke the
-                      standing save-button rule (17 Aug QA).
-
-                      inlineTight (Phil, 2026-09-08: "it doesnt need to be the width of the
-                      tile"). A dropdown whose longest option is a few words was stretched
-                      across the whole tile because inline forms give the control flex-1. It
-                      now takes its own width and stays where it was, on the left, with Save
-                      beside it at the size of a Complete button. */}
-                  <ActionForm
-                    action={updateTracker}
-                    hidden={{ person_id: person.id }}
-                    inline
-                    inlineTight
-                    buttonClassName="btn-primary btn-tracker"
-                  >
-                    <label htmlFor="rtw_limits" className="form-label">Limits</label>
-                    <select id="rtw_limits" name="rtw_limits" className="w-auto" defaultValue={tracker?.rtw_limits ?? ""}>
-                      <option value="">Not set</option>
-                      {(Object.keys(RTW_LIMIT_LABELS) as RtwLimit[]).map((k) => (
-                        <option key={k} value={k}>{RTW_LIMIT_LABELS[k]}</option>
-                      ))}
-                    </select>
-                  </ActionForm>
-                </div>
-              ) : (
-                <div className="mt-2 flex justify-between text-sm"><span className="text-white/50">Limits</span><span className="text-white/85">{tracker?.rtw_limits ? RTW_LIMIT_LABELS[tracker.rtw_limits] : "—"}</span></div>
-              )}
-            </div>
-
-            {/* Probation joins this row only once passed; otherwise it renders above. */}
-            {probationPassed ? probationTile : null}
-
-            {/* COMPLAINTS ABOUT THIS PERSON (Phil, 2026-09-15). Shown only to people who can
-                already open the Complaints section: complaints about staff are HR sensitive,
-                and a supervisor who can see this record cannot see the section, so must not
-                see this either. Never a bare count — the outcome is in the same sentence. */}
-            {canSeeComplaints ? complaintsTile : null}
-          </section>
+              Shown only to people who can already open the Complaints section: complaints
+              about staff are HR sensitive, and a supervisor who can see this record cannot see
+              the section, so must not see this either. Never a bare count -- the outcome is in
+              the same sentence. */}
+          {canSeeComplaints ? (
+            <section className="grid gap-3 lg:grid-cols-3">{complaintsTile}</section>
+          ) : null}
         </>
       )}
 
