@@ -14,7 +14,6 @@ import EvidenceHistory from "@/components/people/evidence-history";
 import ActionForm from "@/components/action-form";
 import RecordHistory from "@/components/reports/record-history";
 import EditServiceUserForm from "@/components/service-users/edit-service-user-form";
-import PlannedReviewCell from "@/components/service-users/planned-review-cell";
 import CareScheduleTile from "@/components/service-users/care-schedule-tile";
 import RecordBookTask from "@/components/planner/record-book-task";
 import { featureEnabled } from "@/lib/billing/tier";
@@ -24,7 +23,6 @@ import {
   getServiceUserChecks,
   getServiceUserTracker,
   getReviewComps,
-  getServiceUserBranchType,
   getReviewIntervalDays,
   listBranches,
   listSupervisoryUsers,
@@ -41,12 +39,11 @@ import {
   setServiceUserRetentionHold,
   transferServiceUser,
 } from "@/lib/service-users/actions";
-import { formatDisplayDate, recurrenceLabel, reviewStatus, reviewSlots } from "@/lib/service-users/logic";
+import { formatDisplayDate, recurrenceLabel, reviewSlots } from "@/lib/service-users/logic";
 import {
   type SuCheckStatus,
   type ServiceStatus,
   SERVICE_STATUS_LABELS,
-  REVIEW_STATUS_LABELS,
 } from "@/lib/service-users/types";
 
 export const metadata: Metadata = { title: "Service User" };
@@ -115,7 +112,9 @@ export default async function ServiceUserPage({
     summary: `Viewed ${serviceUser.full_name}`,
   });
 
-  const [statuses, definitions, evidence, users, assignments, branches, tracker, branchType, reviewInterval] =
+  /* getServiceUserBranchType has gone with the second view: it existed to decide which of the
+     two review layouts to draw, and there is only one now. */
+  const [statuses, definitions, evidence, users, assignments, branches, tracker, reviewInterval] =
     await Promise.all([
       getServiceUserChecks(id),
       listServiceUserCheckDefinitions(companyId),
@@ -124,7 +123,6 @@ export default async function ServiceUserPage({
       canManage ? listServiceUserAssignments(id) : Promise.resolve([]),
       canManage ? listBranches(companyId, profile) : Promise.resolve([]),
       getServiceUserTracker(id),
-      getServiceUserBranchType(id),
       getReviewIntervalDays(companyId),
     ]);
 
@@ -142,39 +140,37 @@ export default async function ServiceUserPage({
   const otherDefs = definitions.filter((d) => d.key !== "care_plan_review");
 
   const newReviewDue = reviewStatusCheck?.due_date ?? null;
-  const plannedDate = tracker?.planned_review_date ?? null;
-  const rs = reviewStatus(newReviewDue, plannedDate);
 
-  // Complex branches run four rolling reviews (Review 1-4), shown as slot cards like
-  // People's Supervision. Simple branches keep the single review card.
+  /*
+   * ONE VIEW OF THE REVIEWS, WHATEVER THE BRANCH (Phil, 2026-09-18: "there shouldnt be 2
+   * different views in the service user record, i want the one we just made with the gold
+   * box").
+   *
+   * A complex branch showed four rolling slots; a simple one showed a single card with a
+   * full-width gold "Complete a review" button and a different set of facts on it. The
+   * reviews themselves are the same event on the same cadence either way -- the split was a
+   * presentation choice, and it meant two service users on one screen could not be read the
+   * same way. Every record now reads as the four slots, which is also how a person's
+   * supervisions read (CycleBox).
+   */
   const todayIso = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
-  const isComplex = branchType.isComplex;
-  const reviewHistory = isComplex
-    ? await getReviewComps(id, reviewDef?.form_id ?? null, reviewDef?.id ?? null)
-    : {
-        comps: [] as string[],
-        dueByComp: new Map<string, string>(),
-        migrated: new Set<string>(),
-        slotByComp: new Map<string, number>(),
-      };
+  const reviewHistory = await getReviewComps(id, reviewDef?.form_id ?? null, reviewDef?.id ?? null);
   const reviewComps = reviewHistory.comps;
-  const slots = isComplex
-    ? reviewSlots(
-        serviceUser.package_start_date,
-        reviewComps,
-        reviewInterval,
-        undefined,
-        undefined,
-        undefined,
-        // What the company's own records said, which beats our arithmetic.
-        {
-          dueByComp: reviewHistory.dueByComp,
-          openDue: newReviewDue,
-          migrated: reviewHistory.migrated,
-          slotByComp: reviewHistory.slotByComp,
-        },
-      )
-    : [];
+  const slots = reviewSlots(
+    serviceUser.package_start_date,
+    reviewComps,
+    reviewInterval,
+    undefined,
+    undefined,
+    undefined,
+    // What the company's own records said, which beats our arithmetic.
+    {
+      dueByComp: reviewHistory.dueByComp,
+      openDue: newReviewDue,
+      migrated: reviewHistory.migrated,
+      slotByComp: reviewHistory.slotByComp,
+    },
+  );
   // Reviews are completed in order, so only the next outstanding slot can be completed.
   const nextReviewN = slots.find((s) => !s.comp)?.n ?? null;
 
@@ -282,9 +278,8 @@ export default async function ServiceUserPage({
         <>
           {/* Care Plan Review workflow. Complex branches: four rolling Review slots
               (like People's Supervision). Simple branches: a single review card. */}
-          {isComplex ? (
-            <section className="space-y-3">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Care Plan Reviews</h2>
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Care Plan Reviews</h2>
               <div className="glass-card grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
                 {/* THE SAME BOX AS A PERSON'S SUPERVISIONS (Phil, 2026-09-18). It was a copy
                     of that markup that had already drifted from it; it is now the one shared
@@ -320,59 +315,11 @@ export default async function ServiceUserPage({
                   );
                 })}
               </div>
-              <p className="text-[11px] text-white/40">
-                Review 1 is due {reviewInterval} days after the package start; each further
-                review is due {reviewInterval} days after the previous one is completed.
-              </p>
-            </section>
-          ) : (
-          <section className="space-y-3">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Care Plan Review</h2>
-            <div className="glass-card space-y-4 p-5">
-              <div className="grid gap-4 sm:grid-cols-4">
-                <div>
-                  <p className="text-[12px] text-white/45">Most recent review</p>
-                  <p className="text-sm text-white/85">{formatDisplayDate(reviewStatusCheck?.last_completed_on ?? null) || "None yet"}</p>
-                </div>
-                <div>
-                  <p className="text-[12px] text-white/45">New review due</p>
-                  <p className="text-sm text-white/85">{formatDisplayDate(newReviewDue) || "—"}</p>
-                </div>
-                <div>
-                  <p className="text-[12px] text-white/45">Planned review date</p>
-                  <div className="text-sm text-white/85">
-                    <PlannedReviewCell
-                      serviceUserId={serviceUser.id}
-                      plannedDate={plannedDate}
-                      plannedTime={tracker?.planned_review_time ?? null}
-                      plannedDuration={tracker?.planned_review_duration_minutes ?? null}
-                      reviewerId={tracker?.planned_reviewer_id ?? null}
-                      reviewerName={tracker?.planned_reviewer_name ?? null}
-                      reviewers={users}
-                      editable={canManage}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <p className="text-[12px] text-white/45">Review status</p>
-                  <p className="mt-1">
-                    <span className={rs === "overdue" ? "pill-red" : rs === "booked" ? "pill-green" : "pill-neutral"}>
-                      {REVIEW_STATUS_LABELS[rs]}
-                    </span>
-                  </p>
-                </div>
-              </div>
-              {reviewStatusCheck && reviewDef?.form_id && canComplete ? (
-                <Link
-                  href={`/service-users/${serviceUser.id}/checks/${reviewStatusCheck.instance_id}/complete`}
-                  className="btn-primary w-full justify-center text-xs"
-                >
-                  Complete a review
-                </Link>
-              ) : null}
-            </div>
+            <p className="text-[11px] text-white/40">
+              Review 1 is due {reviewInterval} days after the package start; each further
+              review is due {reviewInterval} days after the previous one is completed.
+            </p>
           </section>
-          )}
 
           {/* Every check on this record: the seeded Setup Visit and Care Plan Review,
               plus any the company has added of its own. */}
