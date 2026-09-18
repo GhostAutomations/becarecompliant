@@ -513,14 +513,18 @@ export default async function PersonPage({
             </span>
           )}
         </div>
-        <dl className={`mt-3 space-y-1.5 text-[18px] ${live ? "text-navy-900/70" : "text-white/60"}`}>
+        {/* THE WHOLE BOX READS AT ONE WEIGHT (Phil, 2026-09-18: "Due and completed should be
+            bold white like 1 2 3 and do the same for the dates in those boxes"). The labels
+            were a dimmer grey than their own values and both were lighter than the title,
+            which put three weights in a box with four words in it. */}
+        <dl className={`mt-3 space-y-1.5 text-[18px] font-semibold ${live ? "text-navy-950" : "text-white/75"}`}>
           <div className="flex justify-between">
             <dt>Due</dt>
-            <dd className={live ? "font-semibold text-navy-950" : "text-white/90"}>{formatDisplayDate(opts.due) || "—"}</dd>
+            <dd>{formatDisplayDate(opts.due) || "—"}</dd>
           </div>
           <div className="flex justify-between">
             <dt>Completed</dt>
-            <dd className={live ? "font-semibold text-navy-950" : "text-white/90"}>{formatDisplayDate(opts.comp) || "Not yet"}</dd>
+            <dd>{formatDisplayDate(opts.comp) || "Not yet"}</dd>
           </div>
         </dl>
       </>
