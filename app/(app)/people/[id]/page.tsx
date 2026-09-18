@@ -492,16 +492,16 @@ export default async function PersonPage({
   const appraisalStatus = appraisalTileDef ? statusByDef.get(appraisalTileDef.id) : undefined;
   const appraisalReady = aaSlot.nextDue != null;
   const appraisalBox = appraisalTileDef ? (
-    <div className="flex flex-col rounded-xl border border-white/10 p-3">
+    <div className="flex flex-col rounded-xl border border-white/10 p-4">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[13px] font-semibold text-white/70">Annual Appraisal</span>
+        <span className="text-[15px] font-semibold text-white/75">Annual Appraisal</span>
         <span className={`rag-cell ${slotPill(aaSlot.nextDueRag)}`}>
           {aaSlot.comp ? "Done" : aaSlot.nextDue ? formatDisplayDate(aaSlot.nextDue) : "—"}
         </span>
       </div>
-      <dl className="mt-2 space-y-1 text-[12px] text-white/55">
-        <div className="flex justify-between"><dt>Due</dt><dd className="text-white/80">{formatDisplayDate(aaSlot.nextDue) || "—"}</dd></div>
-        <div className="flex justify-between"><dt>Completed</dt><dd className="text-white/80">{formatDisplayDate(aaSlot.comp) || "Not yet"}</dd></div>
+      <dl className="mt-3 space-y-1.5 text-[14px] text-white/60">
+        <div className="flex justify-between"><dt>Due</dt><dd className="text-white/90">{formatDisplayDate(aaSlot.nextDue) || "—"}</dd></div>
+        <div className="flex justify-between"><dt>Completed</dt><dd className="text-white/90">{formatDisplayDate(aaSlot.comp) || "Not yet"}</dd></div>
       </dl>
       {appraisalStatus && appraisalTileDef.form_id && canComplete && appraisalReady ? (
         <Link
@@ -576,16 +576,21 @@ export default async function PersonPage({
             </h2>
             <div className={`glass-card grid gap-3 p-4 ${supCount === 4 || appraisalTileDef ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3"}`}>
               {slots.map((s) => (
-                <div key={s.n} className="flex flex-col rounded-xl border border-white/10 p-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[13px] font-semibold text-white/70">{s.n}</span>
+                /* THE TYPE FILLS THE BOX (Phil, 2026-09-18: "lets make the text in the
+                   Supervision and Annual Appraisal bigger to the boxes dont look so empty").
+                   These were 12 and 13 pixels inside a box the width of a quarter of the
+                   page, which left a lot of card around very little writing. The appraisal
+                   box carries the same sizes, so the four still read as one row. */
+                <div key={s.n} className="flex flex-col rounded-xl border border-white/10 p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[15px] font-semibold text-white/75">{s.n}</span>
                     <span className={`rag-cell ${slotPill(s.rag)}`}>
                       {s.comp ? "Done" : s.due ? formatDisplayDate(s.due) : "—"}
                     </span>
                   </div>
-                  <dl className="mt-2 space-y-1 text-[12px] text-white/55">
-                    <div className="flex justify-between"><dt>Due</dt><dd className="text-white/80">{formatDisplayDate(s.due) || "—"}</dd></div>
-                    <div className="flex justify-between"><dt>Completed</dt><dd className="text-white/80">{formatDisplayDate(s.comp) || "Not yet"}</dd></div>
+                  <dl className="mt-3 space-y-1.5 text-[14px] text-white/60">
+                    <div className="flex justify-between"><dt>Due</dt><dd className="text-white/90">{formatDisplayDate(s.due) || "—"}</dd></div>
+                    <div className="flex justify-between"><dt>Completed</dt><dd className="text-white/90">{formatDisplayDate(s.comp) || "Not yet"}</dd></div>
                   </dl>
                   {supStatus && supFormId && canComplete && s.n === dueSupN ? (
                     <Link
