@@ -5,6 +5,13 @@
  * renderer, validates with the shared validator, and submits through the
  * completeCheck action, which stores Evidence and advances the Check. Files are
  * sent as `file:<key>`; signatures travel inside the answers.
+ *
+ * Interrupted halfway through, this form is not lost: every answer is kept as a
+ * draft against the person filling it in and handed back for twelve hours (see
+ * lib/forms/draft-key.ts). The draft is read on the SERVER and passed in, so the
+ * form opens already filled in. completeCheck throws it away when the Evidence is
+ * filed -- not when the form is submitted, so a submit that comes back with an
+ * error still has everything they typed.
  */
 
 import { useEffect, useState } from "react";
@@ -17,6 +24,8 @@ import { focusFirstError } from "@/components/forms/focus-first-error";
 import { useActionState } from "react";
 import { useRouter } from "next/navigation";
 import { completeCheck } from "@/lib/people/actions";
+import { checkDraftKey, mergeDraft } from "@/lib/forms/draft-key";
+import { useFormDraft } from "@/components/forms/use-form-draft";
 import { IDLE_STATE } from "@/lib/forms";
 
 export default function CompleteCheck({
@@ -24,9 +33,13 @@ export default function CompleteCheck({
   instanceId,
   presetAnswers,
   lookupChoices,
+  draft,
 }: {
   schema: FormSchema;
   instanceId: string;
+  /** What this user had already typed into this check, read on the server. Omit the
+   *  prop entirely to turn drafting off. */
+  draft?: Answers | null;
   /** Records a record_lookup field may pick from, read server side under RLS. */
   lookupChoices?: Partial<Record<string, LookupChoice[]>>;
   /** Answers supplied outside the form (e.g. the supervision number from the button
@@ -35,7 +48,12 @@ export default function CompleteCheck({
 }) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState(completeCheck, IDLE_STATE);
-  const [answers, setAnswers] = useState<Answers>(presetAnswers ?? {});
+  const drafting = useFormDraft({
+    key: draft === undefined ? null : checkDraftKey("people", instanceId),
+    initial: draft ?? null,
+  });
+  const opening = mergeDraft(presetAnswers, drafting.restored ?? undefined);
+  const [answers, setAnswers] = useState<Answers>(opening ?? {});
   const [files, setFiles] = useState<Record<string, File | null>>({});
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [missing, setMissing] = useState<string | null>(null);
@@ -81,10 +99,14 @@ export default function CompleteCheck({
   return (
     <form onSubmit={onSubmit} className="space-y-6">
       <FormRenderer
+        key={drafting.version}
         schema={schema}
-        defaultValue={presetAnswers}
+        defaultValue={opening}
         errors={errors}
-        onChange={setAnswers}
+        onChange={(next) => {
+          setAnswers(next);
+          drafting.record(next);
+        }}
         onFileSelect={(key, file) => setFiles((prev) => ({ ...prev, [key]: file }))}
         lookupChoices={lookupChoices}
       />
@@ -97,6 +119,12 @@ export default function CompleteCheck({
           {busy ? "Saving…" : "Complete and save evidence"}
         </button>
       </div>
+      {draft !== undefined ? (
+        <p className="text-xs text-white/40">
+          This saves as you go and waits for you for up to 12 hours, so you can stop and come
+          back to it. Any file you attach has to be chosen again.
+        </p>
+      ) : null}
     </form>
   );
 }

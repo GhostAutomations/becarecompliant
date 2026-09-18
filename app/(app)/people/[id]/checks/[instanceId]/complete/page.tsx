@@ -6,6 +6,8 @@ import BackLink from "@/components/back-link";
 import { choicesForSchema } from "@/lib/forms/lookup-data";
 import SupportModeNotice from "@/components/support-mode-notice";
 import CompleteCheck from "@/components/people/complete-check";
+import { readDraft } from "@/lib/forms/draft-store";
+import { checkDraftKey } from "@/lib/forms/draft-key";
 import {
   getPerson,
   getPublishedFormVersion,
@@ -152,6 +154,10 @@ export default async function CompleteCheckPage({
     ? await choicesForSchema(profile.company_id, schema)
     : undefined;
 
+  /* What this user had already typed into this check, if they were interrupted in the
+     last twelve hours. Read here, on the server, so the form opens filled in with
+     nothing to wait for. */
+  const draft = await readDraft(checkDraftKey("people", instanceId));
   return (
     <div className="page-form space-y-6">
       <div>
@@ -169,6 +175,7 @@ export default async function CompleteCheckPage({
           instanceId={instanceId}
           presetAnswers={presetAnswers}
           lookupChoices={lookupChoices}
+          draft={draft}
         />
       </div>
     </div>

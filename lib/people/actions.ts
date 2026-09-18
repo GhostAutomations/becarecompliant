@@ -15,6 +15,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireCompany, requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
+import { dropDraft } from "@/lib/forms/draft-store";
+import { checkDraftKey, trackerDraftKey } from "@/lib/forms/draft-key";
 import { writeAudit } from "@/lib/audit";
 import { inviteStaffForPerson } from "@/lib/staff/invite";
 import { assignStandingPolicies } from "@/lib/assignments/new-starters";
@@ -1068,6 +1070,9 @@ export async function completeTrackerForm(_prev: ActionState, formData: FormData
     metadata: { form_key: formKey, evidence_id: result.evidenceId },
   });
 
+  // Filed: discard the part-finished copy.
+  await dropDraft(trackerDraftKey(personId, formKey));
+
   revalidatePath(`/people/${personId}`);
   revalidatePath("/people");
   /* A copy that did not send is worth stopping for. The Evidence is saved either way, so
@@ -1250,6 +1255,11 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
       }
     }
   }
+
+  // The Check is filed: the part-finished copy has done its job. Discarded HERE, on
+  // success, and not when the form was submitted -- a submit that comes back with an
+  // error must still have everything they typed.
+  await dropDraft(checkDraftKey("people", instanceId));
 
   revalidatePath(`/people/${instance.person_id}`);
   revalidatePath("/people");

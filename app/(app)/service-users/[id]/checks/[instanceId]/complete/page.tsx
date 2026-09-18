@@ -6,6 +6,8 @@ import BackLink from "@/components/back-link";
 import { choicesForSchema } from "@/lib/forms/lookup-data";
 import SupportModeNotice from "@/components/support-mode-notice";
 import CompleteCheck from "@/components/service-users/complete-check";
+import { readDraft } from "@/lib/forms/draft-store";
+import { checkDraftKey } from "@/lib/forms/draft-key";
 import { getServiceUser, getPublishedFormVersion } from "@/lib/service-users/data";
 import { branchName } from "@/lib/people/data";
 import { recordFormPresets } from "@/lib/forms/record-presets";
@@ -144,6 +146,9 @@ export default async function CompleteServiceUserCheckPage({
     ? await choicesForSchema(profile.company_id, schema)
     : undefined;
 
+  /* What this user had already typed into this review, if they were interrupted in the
+     last twelve hours (see lib/forms/draft-key.ts). */
+  const draft = await readDraft(checkDraftKey("service_users", instanceId));
   return (
     <div className="page-form-wide space-y-6">
       <div>
@@ -163,6 +168,7 @@ export default async function CompleteServiceUserCheckPage({
           instanceId={instanceId}
           presetAnswers={presetAnswers}
           lookupChoices={lookupChoices}
+          draft={draft}
         />
       </div>
     </div>

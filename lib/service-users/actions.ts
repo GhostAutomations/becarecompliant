@@ -16,6 +16,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireCompany, requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
+import { dropDraft } from "@/lib/forms/draft-store";
+import { checkDraftKey } from "@/lib/forms/draft-key";
 import { profilesById } from "@/lib/auth/company-profiles";
 import { writeAudit } from "@/lib/audit";
 import { sendCalendarInvite } from "@/lib/notifications/invites";
@@ -1114,6 +1116,9 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
     summary: `Completed ${def.name}`,
     metadata: { evidence_id: result.evidenceId, next_due: nextDue, definition_id: def.id, record_type: "service_user" },
   });
+
+  // Filed: discard the part-finished copy (see lib/forms/draft-key.ts).
+  await dropDraft(checkDraftKey("service_users", instanceId));
 
   revalidatePath(`/service-users/${instance.service_user_id}`);
   revalidatePath("/service-users");

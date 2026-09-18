@@ -3,7 +3,9 @@
 /**
  * Complete a document/tracker Form (DBS, Right to Work, Probation). Same shared
  * renderer + validator as check completion; submits to completeTrackerForm, which
- * stores Evidence and stamps the dates into the record.
+ * stores Evidence and stamps the dates into the record. Drafting works exactly as it
+ * does on a Check: what has been typed is kept for twelve hours against this person
+ * and this form, and thrown away once the Evidence is filed.
  */
 
 import { useEffect, useState } from "react";
@@ -15,20 +17,31 @@ import { validateAnswers, type FieldError } from "@/lib/form-validate";
 import { describeValidationErrors } from "@/lib/forms/validation-message";
 import { focusFirstError } from "@/components/forms/focus-first-error";
 import { completeTrackerForm } from "@/lib/people/actions";
+import { mergeDraft, trackerDraftKey } from "@/lib/forms/draft-key";
+import { useFormDraft } from "@/components/forms/use-form-draft";
 import { IDLE_STATE } from "@/lib/forms";
 
 export default function CompleteTracker({
   schema,
   personId,
   formKey,
+  draft,
 }: {
   schema: FormSchema;
   personId: string;
   formKey: string;
+  /** What this user had already typed into this form, read on the server. Omit the
+   *  prop entirely to turn drafting off. */
+  draft?: Answers | null;
 }) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState(completeTrackerForm, IDLE_STATE);
-  const [answers, setAnswers] = useState<Answers>({});
+  const drafting = useFormDraft({
+    key: draft === undefined ? null : trackerDraftKey(personId, formKey),
+    initial: draft ?? null,
+  });
+  const opening = mergeDraft(undefined, drafting.restored ?? undefined);
+  const [answers, setAnswers] = useState<Answers>(opening ?? {});
   const [files, setFiles] = useState<Record<string, File | null>>({});
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [missing, setMissing] = useState<string | null>(null);
@@ -74,9 +87,14 @@ export default function CompleteTracker({
   return (
     <form onSubmit={onSubmit} className="space-y-6">
       <FormRenderer
+        key={drafting.version}
         schema={schema}
+        defaultValue={opening}
         errors={errors}
-        onChange={setAnswers}
+        onChange={(next) => {
+          setAnswers(next);
+          drafting.record(next);
+        }}
         onFileSelect={(key, file) => setFiles((prev) => ({ ...prev, [key]: file }))}
       />
       {missing ? <p className="form-error">{missing}</p> : null}
@@ -86,6 +104,12 @@ export default function CompleteTracker({
           {busy ? "Saving…" : "Complete and save evidence"}
         </button>
       </div>
+      {draft !== undefined ? (
+        <p className="text-xs text-white/40">
+          This saves as you go and waits for you for up to 12 hours, so you can stop and come
+          back to it. Any file you attach has to be chosen again.
+        </p>
+      ) : null}
     </form>
   );
 }

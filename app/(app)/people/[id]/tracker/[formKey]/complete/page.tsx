@@ -4,6 +4,8 @@ import { requireCompany } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import SupportModeNotice from "@/components/support-mode-notice";
 import CompleteTracker from "@/components/people/complete-tracker";
+import { readDraft } from "@/lib/forms/draft-store";
+import { trackerDraftKey } from "@/lib/forms/draft-key";
 import { getPerson, getCompanyFormByKey } from "@/lib/people/data";
 import { TRACKER_FORMS } from "@/lib/people/logic";
 import { isFormSchema, type FormSchema } from "@/lib/form-schema";
@@ -51,6 +53,10 @@ export default async function CompleteTrackerPage({
     );
   }
 
+  /* What this user had already typed into this form, if they were interrupted in the
+     last twelve hours (see lib/forms/draft-key.ts). */
+  const draft = await readDraft(trackerDraftKey(id, formKey));
+
   return (
     <div className="page-form space-y-6">
       <div>
@@ -62,7 +68,7 @@ export default async function CompleteTrackerPage({
         </p>
       </div>
       <div className="glass-card p-6">
-        <CompleteTracker schema={form.schema as FormSchema} personId={id} formKey={formKey} />
+        <CompleteTracker schema={form.schema as FormSchema} personId={id} formKey={formKey} draft={draft} />
       </div>
     </div>
   );

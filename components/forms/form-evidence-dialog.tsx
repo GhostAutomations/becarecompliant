@@ -12,6 +12,13 @@
  * Client-redirect rule: a Server Action must never redirect() to a ?query URL
  * (Next.js #78396 / React #310), so the action returns redirectTo and we
  * router.replace it here.
+ *
+ * Drafting: a half-written form is kept for twelve hours and handed back, the same
+ * as a Check and the On Call Handover. A slide-over has no server render of its own,
+ * so the draft is fetched when it OPENS and the form is held back until it lands --
+ * otherwise someone could type into a form that is about to be replaced. The key
+ * includes the hidden fields, because they are what says WHICH person this dialog was
+ * opened about (see lib/forms/draft-key.ts).
  */
 
 import { useEffect, useState } from "react";
@@ -23,6 +30,8 @@ import type { Answers, FormSchema } from "@/lib/form-schema";
 import { validateAnswers, type FieldError } from "@/lib/form-validate";
 import { describeValidationErrors } from "@/lib/forms/validation-message";
 import { focusFirstError } from "@/components/forms/focus-first-error";
+import { dialogDraftKey, mergeDraft } from "@/lib/forms/draft-key";
+import { useFormDraft } from "@/components/forms/use-form-draft";
 import {
   IDLE_STATE,
   parseAiQuestions,
@@ -44,6 +53,7 @@ export default function FormEvidenceDialog({
   presetAnswers,
   hideFields,
   aiDraft,
+  keepDraft = true,
 }: {
   title: string;
   schema: FormSchema;
@@ -55,6 +65,9 @@ export default function FormEvidenceDialog({
   presetAnswers?: Answers;
   /** Field keys to hide (e.g. name/email when the person is already chosen). */
   hideFields?: string[];
+  /** Keep a part-finished copy of this form and hand it back for 12 hours. On by
+   *  default; pass false for a dialog that is a decision rather than a form. */
+  keepDraft?: boolean;
   /** Optional AI assist. The action returns { data } of field key to text, which is
    *  merged into the answers for the user to EDIT before saving. Nothing is stored by
    *  drafting, so a draft they dislike costs a credit and leaves no record.
@@ -79,6 +92,12 @@ export default function FormEvidenceDialog({
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const [state, formAction, pending] = useActionState(action, IDLE_STATE);
+  /* WHICH form this is: the title plus the hidden fields the dialog posts. The same
+     dialog opened about someone else is a different draft. */
+  const held = useFormDraft({
+    key: keepDraft ? dialogDraftKey(title, extraFields) : null,
+    active: open,
+  });
   const [answers, setAnswers] = useState<Answers>(presetAnswers ?? {});
   const [files, setFiles] = useState<Record<string, File | null>>({});
   const [errors, setErrors] = useState<FieldError[]>([]);
@@ -141,7 +160,16 @@ export default function FormEvidenceDialog({
     setSubmitting(false);
   }, [state]);
 
+  // A draft has landed: the renderer is remounted on it by its key, and the answers we
+  // will submit have to be brought up to the same place.
   useEffect(() => {
+    if (held.restored) setAnswers((prev) => ({ ...prev, ...held.restored }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [held.restored]);
+
+  useEffect(() => {
+    // Filed: the part-finished copy has done its job.
+    if (state.ok || state.redirectTo) held.discard();
     if (state.redirectTo) router.replace(state.redirectTo);
     else if (state.ok && open) {
       setOpen(false);
@@ -325,16 +353,23 @@ export default function FormEvidenceDialog({
                 </section>
               ) : null}
 
-              <FormRenderer
-                key={formKey}
-                schema={effectiveSchema}
-                defaultValue={draftDefaults ?? presetAnswers}
-                errors={errors}
-                onChange={setAnswers}
-                onFileSelect={(key, file) =>
-                  setFiles((prev) => ({ ...prev, [key]: file }))
-                }
-              />
+              {held.ready ? (
+                <FormRenderer
+                  key={`${formKey}:${held.version}`}
+                  schema={effectiveSchema}
+                  defaultValue={draftDefaults ?? mergeDraft(presetAnswers, held.restored ?? undefined)}
+                  errors={errors}
+                  onChange={(next) => {
+                    setAnswers(next);
+                    held.record(next);
+                  }}
+                  onFileSelect={(key, file) =>
+                    setFiles((prev) => ({ ...prev, [key]: file }))
+                  }
+                />
+              ) : (
+                <p className="text-sm text-white/50">Opening…</p>
+              )}
 
               {missing ? <p className="form-error">{missing}</p> : null}
       {state.error ? <p className="form-error">{state.error}</p> : null}
@@ -352,6 +387,12 @@ export default function FormEvidenceDialog({
                   Cancel
                 </button>
               </div>
+              {keepDraft ? (
+                <p className="text-xs text-white/40">
+                  This saves as you go and waits for you for up to 12 hours, so you can close it
+                  and come back. Any file you attach has to be chosen again.
+                </p>
+              ) : null}
             </form>
           </div>
         </div>,
