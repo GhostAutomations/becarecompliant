@@ -93,13 +93,13 @@ export default function WhiteboardCalendar({
      read only non-cancelled bookings, so it disappears from all of them, while the row
      stays for the audit and the check goes back to "to book".
 
-     AND THE PANEL GOES WITH THE LAST BOOKING IN IT (Phil, 2026-09-18: "it gives a confirm
-     pop up them one showing no booking, thats too much"). Cancelling the only thing booked
-     that day left the panel sitting there reading "Nothing booked" -- a second dialog to
-     dismiss, telling you what you had just done. When something is still booked that day the
-     panel stays, because the next thing you do is usually to the booking underneath. */
+     NO CONFIRM, AND NO DEAD PANEL (Phil, 2026-09-18: "it gives a confirm pop up them one
+     showing no booking, thats too much" -- then "no steps"). Cancelling one booking used to
+     cost two dialogs: a question, then the panel sitting there reading "Nothing booked",
+     telling you what you had just done. Both are gone. Press Cancel and it is cancelled; the
+     panel closes with the last booking in it, and stays open while something else is booked
+     that day, because the next thing you do is usually to the booking underneath. */
   function removeBooking(bookingId: string, lastOnTheDay: boolean) {
-    if (!confirm("Cancel this booking? It comes off the calendar and goes back to 'to book'.")) return;
     const fd = new FormData();
     fd.set("booking_id", bookingId);
     if (lastOnTheDay) setSelectedDay(null);
