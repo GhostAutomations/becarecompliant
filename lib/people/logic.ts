@@ -175,6 +175,10 @@ export const TRACKER_FORMS: Record<
   right_to_work: {
     title: "Right to Work",
     dateFields: { rtw_expiry: "rtw_expiry_date" },
+    /* Limits used to be a dropdown edited on the tile, with a Save button of its own and no
+       Evidence behind it (Phil, 2026-09-18). It is established by the check, so the check
+       asks it (0300) and the answer stamps the record, exactly as the expiry date does. */
+    statusFrom: { answer: "limits", column: "rtw_limits" },
   },
   probation_review: {
     title: "Probation",

@@ -40,7 +40,6 @@ import {
   setEmploymentStatus,
   setRetentionHold,
   transferPerson,
-  updateTracker,
 } from "@/lib/people/actions";
 import { appraisalSlot, formatDisplayDate, recurrenceLabel, supervisionSlots } from "@/lib/people/logic";
 import { nextSupervisionNumber } from "@/lib/people/next-supervision";
@@ -50,7 +49,6 @@ import {
   RTW_LIMIT_LABELS,
   PROBATION_STATUS_LABELS,
   WORKING_STATUS_LABELS,
-  type RtwLimit,
   type ProbationStatus,
   type EmploymentStatus,
 } from "@/lib/people/types";
@@ -359,36 +357,18 @@ export default async function PersonPage({
     canManage && !supportMode ? `/people/${person.id}/tracker/dbs_renewal/complete` : null,
   );
 
-  /* Right to Work carries an editable Limits dropdown. At a fifth of the row it stacks
-     under the dates rather than sitting on one line with them, which is the one thing
-     about this tile that is not identical to its neighbours. */
+  /* LIMITS IS READ HERE AND ANSWERED ON THE FORM (Phil, 2026-09-18). It was a dropdown and a
+     Save button on this tile, which made it the only value on the record that could be changed
+     without any Evidence saying who changed it or why. The right to work check establishes it,
+     so the check asks it (0300) and it prints here like every other value. */
   const rtwTile = trackerTile(
     "Right to Work",
     "Document",
-    [{ label: "Expiry", value: formatDisplayDate(tracker?.rtw_expiry_date ?? null) || "—" }],
+    [
+      { label: "Expiry", value: formatDisplayDate(tracker?.rtw_expiry_date ?? null) || "—" },
+      { label: "Limits", value: tracker?.rtw_limits ? RTW_LIMIT_LABELS[tracker.rtw_limits] : "—" },
+    ],
     canManage && !supportMode ? `/people/${person.id}/tracker/right_to_work/complete` : null,
-    canManage ? (
-      <div className="mt-2">
-        <ActionForm
-          action={updateTracker}
-          hidden={{ person_id: person.id }}
-          buttonClassName="btn-primary btn-tile text-[13px]"
-        >
-          <label htmlFor="rtw_limits" className="form-label text-[12px]">Limits</label>
-          <select id="rtw_limits" name="rtw_limits" className="w-full" defaultValue={tracker?.rtw_limits ?? ""}>
-            <option value="">Not set</option>
-            {(Object.keys(RTW_LIMIT_LABELS) as RtwLimit[]).map((k) => (
-              <option key={k} value={k}>{RTW_LIMIT_LABELS[k]}</option>
-            ))}
-          </select>
-        </ActionForm>
-      </div>
-    ) : (
-      <div className="mt-2 flex justify-between text-[13px] text-white/60">
-        <span>Limits</span>
-        <span className="text-white/85">{tracker?.rtw_limits ? RTW_LIMIT_LABELS[tracker.rtw_limits] : "—"}</span>
-      </div>
-    ),
   );
 
   /* Complaints naming this person. The RAG is driven by UPHELD complaints only: being
