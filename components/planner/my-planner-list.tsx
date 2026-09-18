@@ -5,9 +5,9 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { bookingHref } from "@/lib/planner/booking-link";
 import { useRouter } from "next/navigation";
-import { rescheduleBooking, completeBooking, cancelBooking } from "@/lib/planner/actions";
-import TimeSelect from "./time-select";
-import type { PlannerBookingView } from "@/lib/planner/data";
+import { completeBooking, cancelBooking } from "@/lib/planner/actions";
+import BookingForm, { toEditableBooking } from "./booking-form";
+import type { PlannerBookingView, PlannerFormData } from "@/lib/planner/data";
 
 function fmtDate(iso: string): string {
   // See lib/dates.ts: the toggle used to change the spelling of September between views.
@@ -33,10 +33,18 @@ function timeLabel(b: PlannerBookingView): string {
  * am I going". Everything that was implied is dropped: these are all overdue, so nothing says
  * "Overdue" on each row, and they are all planned, so there is no status line.
  */
-function BookingCard({ b }: { b: PlannerBookingView }) {
+function BookingCard({
+  b,
+  formData,
+  currentUserId,
+}: {
+  b: PlannerBookingView;
+  formData: PlannerFormData;
+  currentUserId: string;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [rescheduling, setRescheduling] = useState(false);
+  const several = b.tasks.length > 1;
 
   function run(fn: (fd: FormData) => Promise<{ ok?: string; error?: string }>, fd: FormData) {
     startTransition(async () => {
@@ -54,6 +62,7 @@ function BookingCard({ b }: { b: PlannerBookingView }) {
         <span className="min-w-0 flex-1 truncate text-sm">
           <span className="font-medium text-white">{b.subjectName ?? b.label}</span>
           {b.subjectName ? <span className="text-white/45"> · {b.label}</span> : null}
+          {several ? <span className="text-white/35"> · {b.doneCount} of {b.tasks.length} done</span> : null}
           {b.branchName ? <span className="text-white/35"> · {b.branchName}</span> : null}
         </span>
         <span className="shrink-0 text-xs text-red-300">
@@ -61,7 +70,9 @@ function BookingCard({ b }: { b: PlannerBookingView }) {
           {timeLabel(b) ? <span className="text-white/40"> · {timeLabel(b)}</span> : null}
         </span>
         <span className="flex shrink-0 items-center gap-1.5">
-          {(b.checkInstanceId || b.trackerFormKey) && b.subjectId && b.population ? (
+          {/* SEVERAL JOBS MEANS SEVERAL FORMS, so one Complete button would have to choose
+              one of them for you. The jobs are listed below with a link each instead. */}
+          {several ? null : (b.checkInstanceId || b.trackerFormKey) && b.subjectId && b.population ? (
             // Linked to a check: completing the check closes this booking (see
             // lib/planner/close-booking.ts), so send the user to the check's form rather
             // than marking it done here. One source of truth for the URL: the day panel
@@ -78,14 +89,15 @@ function BookingCard({ b }: { b: PlannerBookingView }) {
               <button type="submit" disabled={pending} className={`btn-primary ${btn}`}>Done</button>
             </form>
           )}
-          <button
-            type="button"
-            disabled={pending}
-            className={`btn-outline ${btn}`}
-            onClick={() => setRescheduling((v) => !v)}
-          >
-            Move
-          </button>
+          {/* Edit, not Move. Moving it was the only change you could make; this one also
+              changes who is going, who it is for and what is being done. */}
+          <BookingForm
+            data={formData}
+            currentUserId={currentUserId}
+            booking={toEditableBooking(b)}
+            buttonLabel="Edit"
+            buttonClassName={`btn-outline ${btn}`}
+          />
           <form
             action={(fd) => {
               if (!confirm("Cancel this booking?")) return;
@@ -98,29 +110,32 @@ function BookingCard({ b }: { b: PlannerBookingView }) {
         </span>
       </div>
 
-      {b.notes ? <p className="mt-1 truncate text-xs text-white/45">{b.notes}</p> : null}
-
-      {rescheduling ? (
-        <form
-          action={(fd) => { run(rescheduleBooking, fd); setRescheduling(false); }}
-          className="mt-2 flex flex-wrap items-end gap-2 border-t border-white/10 pt-2"
-        >
-          <input type="hidden" name="booking_id" value={b.id} />
-          <label className="text-xs text-white/70">
-            Date
-            <input type="date" name="scheduled_date" defaultValue={b.scheduledDate} className="ml-2" required />
-          </label>
-          <label className="text-xs text-white/70">
-            Time
-            <span className="mt-1 block"><TimeSelect defaultValue={b.startTime ?? undefined} /></span>
-          </label>
-          <label className="text-xs text-white/70">
-            Min
-            <input type="number" name="duration_minutes" min={5} step={5} defaultValue={b.durationMinutes ?? 30} className="ml-2 w-20" />
-          </label>
-          <button type="submit" disabled={pending} className={`btn-primary ${btn}`}>Save</button>
-        </form>
+      {several ? (
+        <ul className="mt-1.5 space-y-1 border-t border-white/10 pt-1.5">
+          {b.tasks.map((t) => {
+            const href = bookingHref({
+              population: b.population,
+              subjectId: b.subjectId,
+              checkInstanceId: t.checkInstanceId,
+              trackerFormKey: t.trackerFormKey,
+              status: t.status,
+            });
+            const done = t.status === "completed";
+            return (
+              <li key={t.id} className="flex items-center justify-between gap-3 text-xs">
+                <span className={done ? "text-emerald-300 line-through" : "text-white/70"}>{t.label}</span>
+                {done ? (
+                  <span className="shrink-0 text-emerald-300">Done</span>
+                ) : (
+                  <Link href={href ?? "#"} className={`btn-primary ${btn} shrink-0`}>Complete</Link>
+                )}
+              </li>
+            );
+          })}
+        </ul>
       ) : null}
+
+      {b.notes ? <p className="mt-1 truncate text-xs text-white/45">{b.notes}</p> : null}
     </div>
   );
 }
@@ -149,9 +164,14 @@ const OVERDUE_SHOWN = 4;
 export default function OverdueBookings({
   bookings,
   todayIso,
+  formData,
+  currentUserId,
 }: {
   bookings: PlannerBookingView[];
   todayIso: string;
+  /** Passed through so a row can open the edit panel without its own round trip. */
+  formData: PlannerFormData;
+  currentUserId: string;
 }) {
   const [showAll, setShowAll] = useState(false);
   const overdue = bookings.filter((b) => b.status === "planned" && b.scheduledDate < todayIso);
@@ -165,7 +185,9 @@ export default function OverdueBookings({
         Overdue ({overdue.length})
       </h2>
       <div className="glass-card divide-y divide-white/10">
-        {shown.map((b) => <BookingCard key={b.id} b={b} />)}
+        {shown.map((b) => (
+          <BookingCard key={b.id} b={b} formData={formData} currentUserId={currentUserId} />
+        ))}
         {hidden > 0 || showAll ? (
           <button
             type="button"

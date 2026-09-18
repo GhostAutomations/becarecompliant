@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { createBooking } from "@/lib/planner/actions";
+import { createBooking, updateBooking } from "@/lib/planner/actions";
 import TimeSelect from "./time-select";
 import type { PlannerFormData, PlannerSubject } from "@/lib/planner/data";
 import { mayConductInBranch } from "@/lib/auth/manage-scope";
@@ -16,15 +16,66 @@ function fmtDue(iso: string): string {
 
 
 
+/** An existing booking being edited. */
+export type EditableBooking = {
+  id: string;
+  population: "people" | "service_users" | null;
+  subjectId: string | null;
+  conductorId: string;
+  scheduledDate: string;
+  startTime: string | null;
+  durationMinutes: number | null;
+  notes: string | null;
+  /** The jobs already on it: a check instance id, or "tracker:<key>". */
+  taskTargets: string[];
+};
+
+/** A booking as the edit panel needs it. One place builds this, so every screen that
+ *  offers Edit opens the same panel filled in the same way. */
+export function toEditableBooking(b: {
+  id: string;
+  population: "people" | "service_users" | null;
+  subjectId: string | null;
+  conductorId: string;
+  scheduledDate: string;
+  startTime: string | null;
+  durationMinutes: number | null;
+  notes: string | null;
+  tasks: Array<{ checkInstanceId: string | null; trackerFormKey: string | null }>;
+}): EditableBooking {
+  return {
+    id: b.id,
+    population: b.population,
+    subjectId: b.subjectId,
+    conductorId: b.conductorId,
+    scheduledDate: b.scheduledDate,
+    startTime: b.startTime,
+    durationMinutes: b.durationMinutes,
+    notes: b.notes,
+    taskTargets: b.tasks
+      .map((t) => t.checkInstanceId ?? (t.trackerFormKey ? `tracker:${t.trackerFormKey}` : ""))
+      .filter(Boolean),
+  };
+}
+
 /**
- * Book a task. Pick the department, branch and name (or, on a record page, that
- * record is fixed), then the check it is for, who carries it out and when. The
- * check defines what the task is, so there is no free-text title.
+ * Book a visit. Pick the department, branch and name (or, on a record page, that record is
+ * fixed), then WHICH JOBS are being done, who carries them out and when. The checks define
+ * what the work is, so there is no free-text title.
+ *
+ * SEVERAL JOBS, ONE VISIT (Phil, 2026-09-18: "if they are at a house they may want to
+ * complete 2 or 3 tasks in one visit"). The checks are ticked, not chosen one at a time, and
+ * the visit is one appointment carrying all of them.
+ *
+ * The same panel EDITS one. Everything is changeable -- including who it is for, because a
+ * visit put against the wrong name should be corrected, not cancelled and retyped. A job
+ * already completed keeps its status; the server only adds and removes.
  */
 export default function BookingForm({
   data,
   currentUserId,
   preset,
+  booking,
   buttonLabel = "New booking",
   buttonClassName = "btn-primary text-xs",
 }: {
@@ -33,6 +84,8 @@ export default function BookingForm({
   currentUserId: string;
   /** When opened from a record, lock the subject to that record. */
   preset?: { population: "people" | "service_users"; id: string; name: string; branchId: string | null; checks: PlannerSubject["checks"] };
+  /** Editing an existing booking rather than making a new one. */
+  booking?: EditableBooking;
   buttonLabel?: string;
   /** The trigger's classes. Defaults to what every other caller already had. */
   buttonClassName?: string;
@@ -65,12 +118,19 @@ export default function BookingForm({
     };
   }, [open]);
 
-  const [department, setDepartment] = useState<"" | "people" | "service_users">(preset ? preset.population : "");
+  const editing = !!booking;
+  const [department, setDepartment] = useState<"" | "people" | "service_users">(
+    booking?.population ?? (preset ? preset.population : ""),
+  );
   const [branchId, setBranchId] = useState(preset?.branchId ?? "");
-  const [subjectId, setSubjectId] = useState(preset ? preset.id : "");
-  /* One dropdown, two kinds of target. A check is its instance id; a tracker form has no
-     instance, so it is "tracker:<key>" and the action pulls the key back off it. */
-  const [checkTarget, setCheckTarget] = useState("");
+  const [subjectId, setSubjectId] = useState(booking?.subjectId ?? (preset ? preset.id : ""));
+  /* The ticked jobs. A check is its instance id; a tracker form has no instance, so it is
+     "tracker:<key>" and the action pulls the key back off it. */
+  const [checkTargets, setCheckTargets] = useState<string[]>(booking?.taskTargets ?? []);
+
+  function toggleTarget(value: string) {
+    setCheckTargets((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]));
+  }
 
   /** The branch of whoever the task is for. From the preset on a record page, or the picker. */
   const subjectBranchId = preset
@@ -107,10 +167,10 @@ export default function BookingForm({
   const checks = selected?.checks ?? [];
 
   function resetAll() {
-    setDepartment(preset ? preset.population : "");
+    setDepartment(booking?.population ?? (preset ? preset.population : ""));
     setBranchId(preset?.branchId ?? "");
-    setSubjectId(preset ? preset.id : "");
-    setCheckTarget("");
+    setSubjectId(booking?.subjectId ?? (preset ? preset.id : ""));
+    setCheckTargets(booking?.taskTargets ?? []);
     setError(null);
   }
 
@@ -118,22 +178,17 @@ export default function BookingForm({
     e.preventDefault();
     setError(null);
     if (!department || !subjectId) { setError("Choose a department, branch and name."); return; }
-    if (!checkTarget) { setError("Choose the check this task is for."); return; }
+    if (checkTargets.length === 0) { setError("Tick at least one check for this visit."); return; }
     const fd = new FormData(e.currentTarget);
     fd.set("subject_kind", department === "people" ? "person" : "service_user");
     fd.set("subject_id", subjectId);
-    if (checkTarget.startsWith("tracker:")) {
-      fd.set("tracker_form_key", checkTarget.slice("tracker:".length));
-      fd.set("check_instance_id", "");
-    } else {
-      fd.set("check_instance_id", checkTarget);
-      fd.set("tracker_form_key", "");
-    }
+    for (const t of checkTargets) fd.append("check_targets", t);
+    if (booking) fd.set("booking_id", booking.id);
     startTransition(async () => {
-      const res = await createBooking(fd);
+      const res = await (booking ? updateBooking(fd) : createBooking(fd));
       if (res.error) { setError(res.error); return; }
       setOpen(false);
-      resetAll();
+      if (!booking) resetAll();
       router.refresh();
     });
   }
@@ -156,11 +211,11 @@ export default function BookingForm({
       onSubmit={submit}
       role="dialog"
       aria-modal="true"
-      aria-label="Book a task"
+      aria-label={editing ? "Edit booking" : "Book a visit"}
       className="glass-card my-auto w-[30rem] max-w-full space-y-4 p-5"
     >
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-white">Book a task</h3>
+        <h3 className="text-sm font-semibold text-white">{editing ? "Edit booking" : "Book a visit"}</h3>
         <button type="button" className="text-xs text-white/50 hover:text-white" onClick={() => { setOpen(false); resetAll(); }}>
           Cancel
         </button>
@@ -181,7 +236,7 @@ export default function BookingForm({
                 setDepartment(e.target.value as "" | "people" | "service_users");
                 setBranchId("");
                 setSubjectId("");
-                setCheckTarget("");
+                setCheckTargets([]);
               }}
               required
             >
@@ -195,7 +250,7 @@ export default function BookingForm({
             <select
               className="w-full"
               value={branchId}
-              onChange={(e) => { setBranchId(e.target.value); setSubjectId(""); setCheckTarget(""); }}
+              onChange={(e) => { setBranchId(e.target.value); setSubjectId(""); setCheckTargets([]); }}
               disabled={!department}
             >
               <option value="">All branches</option>
@@ -209,7 +264,7 @@ export default function BookingForm({
             <select
               className="w-full"
               value={subjectId}
-              onChange={(e) => { setSubjectId(e.target.value); setCheckTarget(""); }}
+              onChange={(e) => { setSubjectId(e.target.value); setCheckTargets([]); }}
               disabled={!department}
               required
             >
@@ -226,25 +281,32 @@ export default function BookingForm({
         checks.length === 0 ? (
           <p className="text-sm text-amber-200">This record has no checks to book.</p>
         ) : (
-          <label className="block text-sm">
-            <span className="mb-1 block font-medium text-white/80">Check</span>
-            <select
-              className="w-full"
-              value={checkTarget}
-              onChange={(e) => setCheckTarget(e.target.value)}
-              required
-            >
-              <option value="">Choose…</option>
+          <div className="text-sm">
+            {/* TICKS, NOT A DROPDOWN. A carer at one house does the supervision and the spot
+                check on the same trip, and a list you can only pick one of from made that
+                two visits at the same minute -- which the clash rule refuses outright. */}
+            <span className="mb-1 block font-medium text-white/80">
+              What is being done{checkTargets.length > 1 ? ` — ${checkTargets.length} on this visit` : ""}
+            </span>
+            <div className="max-h-44 space-y-1 overflow-y-auto rounded-lg border border-white/10 bg-white/5 p-2">
               {checks.map((c) => {
                 const value = c.trackerKey ? `tracker:${c.trackerKey}` : c.instanceId;
                 return (
-                  <option key={value} value={value}>
-                    {c.name}{c.dueDate ? ` — due ${fmtDue(c.dueDate)}` : ""}
-                  </option>
+                  <label key={value} className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 hover:bg-white/5">
+                    <input
+                      type="checkbox"
+                      checked={checkTargets.includes(value)}
+                      onChange={() => toggleTarget(value)}
+                    />
+                    <span className="text-white/85">
+                      {c.name}
+                      {c.dueDate ? <span className="text-white/45"> — due {fmtDue(c.dueDate)}</span> : null}
+                    </span>
+                  </label>
                 );
               })}
-            </select>
-          </label>
+            </div>
+          </div>
         )
       ) : null}
 
@@ -261,8 +323,8 @@ export default function BookingForm({
         <select
           className="w-full"
           name="conductor_id"
-          defaultValue={mayConductSelf ? currentUserId : ""}
-          key={mayConductSelf ? "self" : "others"}
+          defaultValue={booking?.conductorId ?? (mayConductSelf ? currentUserId : "")}
+          key={`${booking?.id ?? "new"}:${mayConductSelf ? "self" : "others"}`}
           required
         >
           <option value="">Choose…</option>
@@ -281,28 +343,28 @@ export default function BookingForm({
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <label className="block text-sm">
           <span className="mb-1 block font-medium text-white/80">Date</span>
-          <input type="date" name="scheduled_date" className="w-full" required />
+          <input type="date" name="scheduled_date" className="w-full" defaultValue={booking?.scheduledDate} required />
         </label>
         <label className="block text-sm">
           <span className="mb-1 block font-medium text-white/80">Time</span>
-          <TimeSelect />
+          <TimeSelect defaultValue={booking?.startTime ?? undefined} />
         </label>
         <label className="block text-sm">
           <span className="mb-1 block font-medium text-white/80">Minutes</span>
-          <input type="number" name="duration_minutes" min={5} step={5} defaultValue={30} className="w-full" />
+          <input type="number" name="duration_minutes" min={5} step={5} defaultValue={booking?.durationMinutes ?? 30} className="w-full" />
         </label>
       </div>
 
       <label className="block text-sm">
         <span className="mb-1 block font-medium text-white/80">Notes (optional)</span>
-        <textarea name="notes" rows={2} className="w-full" />
+        <textarea name="notes" rows={2} className="w-full" defaultValue={booking?.notes ?? ""} />
       </label>
 
       {error ? <p className="text-sm text-red-300">{error}</p> : null}
 
       <div className="flex justify-end">
         <button type="submit" disabled={pending} className="btn-primary text-sm">
-          {pending ? "Booking…" : "Book task"}
+          {pending ? "Saving…" : editing ? "Save changes" : "Book visit"}
         </button>
       </div>
     </form>

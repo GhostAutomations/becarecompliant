@@ -104,13 +104,18 @@ export default async function PlannerPage({
           <h1 className="page-title">My Planner</h1>
           {/* The subtitle follows the selection. Landing on your own calendar and reading
               "everybody's work" was the old copy describing the old default. */}
+          {/* The page is two bands and the subtitle now says which is which. It used to run
+              "What is overdue for you to carry out, and your own work on the calendar. Book a
+              new one or manage what is coming up." -- a new WHAT, and managing what, next to a
+              New booking button that already says it (Phil, 2026-09-18: "this doesn't make a
+              lot of sense"). The overdue band is always YOURS whoever the calendar is showing,
+              which is the part the old copy buried. */}
           <p className="page-subtitle">
             {selection.kind === "all"
-              ? "What is overdue for you to carry out, and everybody's work on the calendar."
+              ? "Your overdue tasks above, everybody's bookings on the calendar below."
               : selection.kind === "person"
-                ? `What is overdue for you to carry out, and ${viewingName ?? "their"} work on the calendar.`
-                : "What is overdue for you to carry out, and your own work on the calendar."}{" "}
-            Book a new one or manage what is coming up.
+                ? `Your overdue tasks above, ${viewingName ? `${viewingName}'s` : "their"} bookings on the calendar below.`
+                : "Your overdue tasks above, your own bookings on the calendar below."}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -135,7 +140,12 @@ export default async function PlannerPage({
 
       {/* Overdue first, always, whichever span is showing: a job from last month is not on this
           month's grid, and a calendar on its own is where those go to be forgotten. */}
-      <OverdueBookings bookings={bookings} todayIso={todayIso} />
+      <OverdueBookings
+        bookings={bookings}
+        todayIso={todayIso}
+        formData={formData}
+        currentUserId={user.id}
+      />
 
       <WhiteboardCalendar
         span={view}
@@ -147,6 +157,7 @@ export default async function PlannerPage({
         branches={branches}
         basePath={whoParam(selection) ? `/planner?who=${whoParam(selection)}` : "/planner"}
         currentUserId={user.id}
+        formData={formData}
       />
     </div>
   );

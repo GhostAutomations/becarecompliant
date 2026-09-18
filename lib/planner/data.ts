@@ -1,4 +1,5 @@
 import "server-only";
+import { visitLabel } from "@/lib/planner/visit";
 import { createClient } from "@/lib/supabase/server";
 import { profilesById, listStaff } from "@/lib/auth/company-profiles";
 import { branchScopedRole } from "@/lib/auth/manage-scope";
@@ -107,7 +108,10 @@ export async function getWhiteboardBoard(companyId: string, todayIso: string): P
     companyId,
   );
   for (const v of bookedViews) {
-    if (v.checkInstanceId) bookedInstanceIds.add(v.checkInstanceId);
+    /* EVERY task on the visit, not just the first. A spot check booked as the second job
+       of a three-task visit is booked, and offering it again in the to-book list is how
+       the same job gets put in two diaries. */
+    for (const t of v.tasks) if (t.checkInstanceId) bookedInstanceIds.add(t.checkInstanceId);
     booked.push({
       bookingId: v.id,
       population: (v.population ?? "people") as "people" | "service_users",
@@ -173,6 +177,18 @@ export async function getWhiteboardBoard(companyId: string, todayIso: string): P
 
 export type BookingStatus = "planned" | "completed" | "cancelled";
 
+/** One job on a visit. A carer at a house does two or three of these in one go, so a
+ *  booking carries a LIST of them (planner_booking_tasks, migration 0298) rather than
+ *  one check of its own. */
+export type PlannerBookingTask = {
+  id: string;
+  checkInstanceId: string | null;
+  /** Set instead of checkInstanceId for a tracker form (Probation, DBS, Right to Work). */
+  trackerFormKey: string | null;
+  label: string;
+  status: BookingStatus;
+};
+
 export type PlannerBookingView = {
   id: string;
   branchId: string;
@@ -180,10 +196,16 @@ export type PlannerBookingView = {
   population: "people" | "service_users" | null;
   subjectId: string | null;
   subjectName: string | null;
+  /** Every job on this visit, in the order they were added. */
+  tasks: PlannerBookingTask[];
+  /** How many of them are done. The visit is finished only when all of them are. */
+  doneCount: number;
+  /** The FIRST task's check, for the places that still ask about one. Never used to
+   *  decide whether a check is booked -- that question is asked of `tasks`. */
   checkInstanceId: string | null;
-  /** The tracker form this task is for, when it is not a check. Never both. */
+  /** The first task's tracker form, on the same terms. */
   trackerFormKey: string | null;
-  /** The label to show: ad-hoc title, or the check name it was booked against. */
+  /** The label to show: ad-hoc title, or the first task, or "3 tasks". */
   label: string;
   conductorId: string;
   conductorName: string | null;
@@ -192,6 +214,16 @@ export type PlannerBookingView = {
   durationMinutes: number | null;
   status: BookingStatus;
   notes: string | null;
+};
+
+type TaskRow = {
+  id: string;
+  check_instance_id: string | null;
+  tracker_form_key: string | null;
+  check_kind: string | null;
+  status: BookingStatus;
+  position: number | null;
+  instance: { definition: { active: boolean }[] | { active: boolean } | null }[] | { definition: { active: boolean }[] | { active: boolean } | null } | null;
 };
 
 type Row = {
@@ -203,6 +235,7 @@ type Row = {
   check_instance_id: string | null;
   tracker_form_key: string | null;
   check_kind: string | null;
+  tasks: TaskRow[] | null;
   title: string | null;
   conductor_profile_id: string;
   scheduled_date: string;
@@ -224,7 +257,7 @@ type Row = {
 const CONDUCTOR_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor"];
 
 const SELECT =
-  "id, branch_id, population, subject_person_id, subject_service_user_id, check_instance_id, tracker_form_key, check_kind, title, conductor_profile_id, scheduled_date, start_time, duration_minutes, status, notes, conductor:profiles(full_name), person:people(full_name), service_user:service_users(full_name), branch:branches(name), linked_check:check_instances(definition:check_definitions(active))";
+  "id, branch_id, population, subject_person_id, subject_service_user_id, check_instance_id, tracker_form_key, check_kind, title, conductor_profile_id, scheduled_date, start_time, duration_minutes, status, notes, conductor:profiles(full_name), person:people(full_name), service_user:service_users(full_name), branch:branches(name), linked_check:check_instances(definition:check_definitions(active)), tasks:planner_booking_tasks(id, check_instance_id, tracker_form_key, check_kind, status, position, instance:check_instances(definition:check_definitions(active)))";
 
 /**
  * Fill in the conductor names the embedded join could not read.
@@ -262,9 +295,37 @@ function checkStillBookable(r: Row): boolean {
   return !def || def.active !== false;
 }
 
+/** A task whose check DEFINITION has since been turned off is not shown, the same rule
+ *  checkStillBookable applies to a whole booking. A visit does not lose its other jobs
+ *  because one of them stopped being a check the company runs. */
+function taskStillBookable(t: TaskRow): boolean {
+  const inst = relOne(t.instance);
+  if (!inst) return true;
+  const def = relOne(inst.definition);
+  return !def || def.active !== false;
+}
+
+function toTasks(r: Row): PlannerBookingTask[] {
+  return (r.tasks ?? [])
+    .filter(taskStillBookable)
+    .slice()
+    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+    .map((t) => ({
+      id: t.id,
+      checkInstanceId: t.check_instance_id,
+      trackerFormKey: t.tracker_form_key,
+      label: t.check_kind?.trim() || "Task",
+      status: t.status,
+    }));
+}
+
 function toView(r: Row): PlannerBookingView {
   const subjectName = r.person?.full_name ?? r.service_user?.full_name ?? null;
-  const label = r.title?.trim() || r.check_kind?.trim() || "Task";
+  const tasks = toTasks(r);
+  const first = tasks[0] ?? null;
+  /* One rule for what a visit is called, shared with the server (lib/planner/visit.ts),
+     so the chip and the audit line can never disagree. */
+  const label = visitLabel(r.title, tasks.map((t) => t.label));
   const startTime = r.start_time ? r.start_time.slice(0, 5) : null;
   return {
     id: r.id,
@@ -273,8 +334,10 @@ function toView(r: Row): PlannerBookingView {
     population: r.population,
     subjectId: r.subject_person_id ?? r.subject_service_user_id ?? null,
     subjectName,
-    checkInstanceId: r.check_instance_id,
-    trackerFormKey: r.tracker_form_key,
+    tasks,
+    doneCount: tasks.filter((t) => t.status === "completed").length,
+    checkInstanceId: first?.checkInstanceId ?? null,
+    trackerFormKey: first?.trackerFormKey ?? null,
     label,
     conductorId: r.conductor_profile_id,
     conductorName: r.conductor?.full_name ?? null,

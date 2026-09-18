@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { siteUrl } from "@/lib/site";
 import { bookingHref } from "@/lib/planner/booking-link";
+import { visitLabel } from "@/lib/planner/visit";
 import { calendarClientFrom, tidyAgent } from "@/lib/planner/calendar-client";
 import type { PlannerFeedEvent } from "@/lib/planner/ics";
 
@@ -166,9 +167,12 @@ type FeedRow = {
   population: "people" | "service_users" | null;
   subject_person_id: string | null;
   subject_service_user_id: string | null;
-  check_instance_id: string | null;
-  tracker_form_key: string | null;
-  check_kind: string | null;
+  tasks: Array<{
+    check_instance_id: string | null;
+    tracker_form_key: string | null;
+    check_kind: string | null;
+    position: number | null;
+  }> | null;
   title: string | null;
   scheduled_date: string;
   start_time: string | null;
@@ -209,7 +213,7 @@ export async function loadFeedByToken(
     service
       .from("planner_bookings")
       .select(
-        "id, population, subject_person_id, subject_service_user_id, check_instance_id, tracker_form_key, check_kind, title, scheduled_date, start_time, duration_minutes, status, notes, updated_at, person:people(full_name), service_user:service_users(full_name), branch:branches(name)",
+        "id, population, subject_person_id, subject_service_user_id, title, scheduled_date, start_time, duration_minutes, status, notes, updated_at, tasks:planner_booking_tasks(check_instance_id, tracker_form_key, check_kind, position), person:people(full_name), service_user:service_users(full_name), branch:branches(name)",
       )
       .eq("conductor_profile_id", profileId)
       .eq("company_id", companyId)
@@ -223,16 +227,22 @@ export async function loadFeedByToken(
   const events: PlannerFeedEvent[] = ((rows as FeedRow[] | null) ?? []).map((r) => {
     const person = one(r.person);
     const su = one(r.service_user);
+    const tasks = (r.tasks ?? []).slice().sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+    /* ONE EVENT, and it opens the FIRST job on it. A visit with three jobs is still one
+       appointment in somebody's Outlook; the link lands them on the record's first form and
+       the other two are a click away on the visit. Sending three calendar entries for one
+       trip to one house would be worse than a link that stops one step short. */
+    const first = tasks[0] ?? null;
     const href = bookingHref({
       population: r.population,
       subjectId: r.subject_person_id ?? r.subject_service_user_id,
-      checkInstanceId: r.check_instance_id,
-      trackerFormKey: r.tracker_form_key,
+      checkInstanceId: first?.check_instance_id ?? null,
+      trackerFormKey: first?.tracker_form_key ?? null,
       status: r.status,
     });
     return {
       id: r.id,
-      label: r.title?.trim() || r.check_kind?.trim() || "Planner task",
+      label: visitLabel(r.title, tasks.map((t) => t.check_kind ?? "Task")),
       subjectName: person?.full_name ?? su?.full_name ?? null,
       branchName: one(r.branch)?.name ?? null,
       scheduledDate: r.scheduled_date,

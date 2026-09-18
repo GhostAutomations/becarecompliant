@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { bookingHref } from "@/lib/planner/booking-link";
+import BookingForm, { toEditableBooking } from "./booking-form";
 import { bookingIsLate } from "@/lib/planner/late";
-import type { PlannerBookingView } from "@/lib/planner/data";
+import type { PlannerBookingView, PlannerFormData } from "@/lib/planner/data";
 // Pure and tested in lib/planner/week.test.ts: month ends, year ends, leap days and the clocks
 // going back are exactly where week arithmetic quietly goes wrong.
 import { mondayOf, shiftWeek, weekLabel, weekDays } from "@/lib/planner/week";
@@ -51,6 +52,7 @@ export default function WhiteboardCalendar({
   branches,
   basePath = "/planner/whiteboard",
   currentUserId,
+  formData,
 }: {
   /** A month grid, or one week across. ONE component on purpose: the chip, the tooltip and the
    *  day panel are the same in both, and two copies would drift the first time either changed. */
@@ -64,6 +66,9 @@ export default function WhiteboardCalendar({
   branches: Array<{ id: string; name: string }>;
   /** Where the prev/next links point (so the calendar works on both pages). */
   basePath?: string;
+  /** Supplied on My Planner so the day panel can offer Edit. Left out elsewhere, and the
+   *  panel simply does not offer it rather than opening a form it cannot fill. */
+  formData?: PlannerFormData;
   /**
    * Whose chips are MINE. The calendar is the whole company's work, so the viewer's own
    * appointments have to be findable in it at a glance rather than by reading every name: theirs
@@ -412,7 +417,10 @@ export default function WhiteboardCalendar({
                    register, find the person and find the check to do the thing the
                    planner just told them to do. bookingHref decides where each one
                    goes; a task with nothing attached is not a link at all. */
-                const href = bookingHref(b);
+                /* SEVERAL JOBS ON ONE VISIT cannot be one link: each has its own form. The
+                   row stops being a link and the jobs are listed under it with a link each. */
+                const several = b.tasks.length > 1;
+                const href = several ? null : bookingHref(b);
                 const body = (
                   <>
                     <div className="min-w-0">
@@ -434,23 +442,69 @@ export default function WhiteboardCalendar({
                       ) : bookingIsLate(b, todayIso, nowMinutes) ? (
                         <span className="pill-red">Missed</span>
                       ) : null}
+                      {several ? (
+                        <span className="text-white/50">{b.doneCount} of {b.tasks.length}</span>
+                      ) : null}
                       <span className="text-white/70">{b.startTime ?? "—"}</span>
                     </div>
                   </>
                 );
+                const extras = (
+                  <>
+                    {several ? (
+                      <ul className="mt-2 space-y-1 border-t border-white/10 pt-2">
+                        {b.tasks.map((t) => {
+                          const taskHref = bookingHref({
+                            population: b.population,
+                            subjectId: b.subjectId,
+                            checkInstanceId: t.checkInstanceId,
+                            trackerFormKey: t.trackerFormKey,
+                            status: t.status,
+                          });
+                          const done = t.status === "completed";
+                          return (
+                            <li key={t.id} className="flex items-center justify-between gap-3 text-xs">
+                              <span className={done ? "text-emerald-300 line-through" : "text-white/70"}>
+                                {t.label}
+                              </span>
+                              {done ? (
+                                <span className="shrink-0 text-emerald-300">Done</span>
+                              ) : taskHref ? (
+                                <Link href={taskHref} className="btn-primary shrink-0 px-2.5 py-1 text-[11px]">
+                                  Complete
+                                </Link>
+                              ) : null}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : null}
+                    {formData && b.status === "planned" ? (
+                      <div className="mt-2 flex justify-end">
+                        <BookingForm
+                          data={formData}
+                          currentUserId={currentUserId ?? ""}
+                          booking={toEditableBooking(b)}
+                          buttonLabel="Edit"
+                          buttonClassName="btn-outline px-2.5 py-1 text-[11px]"
+                        />
+                      </div>
+                    ) : null}
+                  </>
+                );
                 const rowClass =
-                  "flex items-start justify-between gap-3 border-t border-white/10 pt-2 text-sm first:border-t-0 first:pt-0";
-                return href ? (
-                  <Link
-                    key={b.id}
-                    href={href}
-                    className={`${rowClass} -mx-2 rounded-lg px-2 hover:bg-white/5`}
-                  >
-                    {body}
-                  </Link>
-                ) : (
-                  <div key={b.id} className={rowClass}>
-                    {body}
+                  "flex items-start justify-between gap-3 text-sm";
+                const wrapClass = "border-t border-white/10 pt-2 first:border-t-0 first:pt-0";
+                return (
+                  <div key={b.id} className={wrapClass}>
+                    {href ? (
+                      <Link href={href} className={`${rowClass} -mx-2 rounded-lg px-2 hover:bg-white/5`}>
+                        {body}
+                      </Link>
+                    ) : (
+                      <div className={rowClass}>{body}</div>
+                    )}
+                    {extras}
                   </div>
                 );
               })}

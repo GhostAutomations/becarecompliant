@@ -11,6 +11,8 @@ import { ukDate } from "@/lib/dates";
 import { normaliseStartTime } from "@/lib/planner/booking-time";
 import { BOOKABLE_TRACKERS } from "@/lib/planner/data";
 import { bookingsOverlap, clashMessage, displayTime } from "@/lib/planner/overlap";
+import { parseBookingTargets, visitLabel, type BookingTarget } from "@/lib/planner/visit";
+import { rollUpVisit } from "@/lib/planner/roll-up";
 
 function revalidatePlanner() {
   revalidatePath("/planner");
@@ -63,7 +65,7 @@ async function findClash(
   const { data } = await supabase
     .from("planner_bookings")
     .select(
-      "id, start_time, duration_minutes, check_kind, title, conductor_profile_id, subject_person_id, subject_service_user_id",
+      "id, start_time, duration_minutes, title, conductor_profile_id, subject_person_id, subject_service_user_id, tasks:planner_booking_tasks(check_kind, position)",
     )
     .eq("company_id", companyId)
     .eq("scheduled_date", scheduledDate)
@@ -74,11 +76,11 @@ async function findClash(
     id: string;
     start_time: string | null;
     duration_minutes: number | null;
-    check_kind: string | null;
     title: string | null;
     conductor_profile_id: string | null;
     subject_person_id: string | null;
     subject_service_user_id: string | null;
+    tasks: Array<{ check_kind: string | null; position: number | null }> | null;
   }> | null) ?? [];
 
   for (const row of rows) {
@@ -92,7 +94,8 @@ async function findClash(
       continue;
     }
 
-    const what = row.check_kind || row.title || "another task";
+    const firstTask = (row.tasks ?? []).slice().sort((a, b) => (a.position ?? 0) - (b.position ?? 0))[0];
+    const what = row.title || firstTask?.check_kind || "another task";
     const when = displayTime(row.start_time);
 
     // Conductor first: it is the commonest clash and the easiest to act on.
@@ -127,6 +130,86 @@ async function findClash(
   return null;
 }
 
+/** One job on a visit, as it is written to planner_booking_tasks. */
+type ResolvedTask = {
+  check_instance_id: string | null;
+  tracker_form_key: string | null;
+  check_kind: string | null;
+};
+
+/**
+ * The task list a form posted. `check_targets` is the list the booking panel sends, one
+ * entry per ticked check; the two single fields are the older shape the Whiteboard's
+ * quick-book and the record buttons still use, and they mean a visit with one job on it.
+ */
+function postedTargets(formData: FormData): BookingTarget[] {
+  const tracker = String(formData.get("tracker_form_key") ?? "").trim();
+  return parseBookingTargets([
+    ...formData.getAll("check_targets").map((v) => String(v)),
+    String(formData.get("check_instance_id") ?? ""),
+    tracker ? `tracker:${tracker}` : "",
+  ]);
+}
+
+/**
+ * Check every job belongs to the record the visit is for, and name it.
+ *
+ * Done for EACH target, not once for the visit: three jobs at one house are three chances
+ * to book somebody else's check against this person, and a list is exactly where a wrong
+ * id stops being obvious.
+ */
+async function resolveTargets(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  companyId: string,
+  subjectKind: "person" | "service_user",
+  subjectId: string,
+  targets: BookingTarget[],
+): Promise<{ error: string } | { tasks: ResolvedTask[] }> {
+  const tasks: ResolvedTask[] = [];
+  for (const t of targets) {
+    if (t.instanceId) {
+      const { data: inst } = await supabase
+        .from("check_instances")
+        .select("id, company_id, person_id, service_user_id, check_definitions(name)")
+        .eq("id", t.instanceId)
+        .maybeSingle();
+      if (!inst || inst.company_id !== companyId) return { error: "That check was not found." };
+      const belongs =
+        (subjectKind === "person" && inst.person_id === subjectId) ||
+        (subjectKind === "service_user" && inst.service_user_id === subjectId);
+      if (!belongs) return { error: "That check does not belong to this record." };
+      const defRaw = (inst as unknown as {
+        check_definitions: { name: string }[] | { name: string } | null;
+      }).check_definitions;
+      const def = Array.isArray(defRaw) ? defRaw[0] ?? null : defRaw;
+      tasks.push({ check_instance_id: t.instanceId, tracker_form_key: null, check_kind: def?.name ?? null });
+      continue;
+    }
+    /* A tracker form belongs to a PERSON. Booking one against a Service User would make a
+       task whose form does not exist for that record. */
+    const bookable = BOOKABLE_TRACKERS.find((b) => b.key === t.trackerKey) ?? null;
+    if (!bookable) return { error: "That form cannot be booked." };
+    if (subjectKind !== "person") return { error: "That form is only on a team member's record." };
+    tasks.push({ check_instance_id: null, tracker_form_key: bookable.key, check_kind: bookable.name });
+  }
+  return { tasks };
+}
+
+/** Write a visit's jobs, in the order they were chosen. Returns a message on failure. */
+async function writeTasks(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  bookingId: string,
+  companyId: string,
+  tasks: ResolvedTask[],
+  from = 1,
+): Promise<string | null> {
+  if (tasks.length === 0) return null;
+  const { error } = await supabase.from("planner_booking_tasks").insert(
+    tasks.map((t, i) => ({ ...t, booking_id: bookingId, company_id: companyId, position: from + i })),
+  );
+  return error ? error.message : null;
+}
+
 export async function createBooking(formData: FormData): Promise<ActionState> {
   const { user, profile } = await requireCompany();
   if (!profile.company_id) return { error: "No company context." };
@@ -137,13 +220,7 @@ export async function createBooking(formData: FormData): Promise<ActionState> {
 
   const subjectKind = String(formData.get("subject_kind") ?? "").trim(); // person | service_user | adhoc
   const subjectId = String(formData.get("subject_id") ?? "").trim();
-  const checkInstanceId = String(formData.get("check_instance_id") ?? "").trim();
-  /* A task is for a check OR a tracker form, never both: the database says so too
-     (0243). Probation, DBS and Right to Work have no check instance to point at. */
-  const trackerFormKeyRaw = String(formData.get("tracker_form_key") ?? "").trim();
-  const bookableTracker = BOOKABLE_TRACKERS.find((t) => t.key === trackerFormKeyRaw) ?? null;
-  const trackerFormKey = bookableTracker?.key ?? "";
-  if (trackerFormKeyRaw && !trackerFormKey) return { error: "That form cannot be booked." };
+  const targets = postedTargets(formData);
   const title = String(formData.get("title") ?? "").trim();
   const conductorId = String(formData.get("conductor_id") ?? "").trim();
   const scheduledDate = String(formData.get("scheduled_date") ?? "").trim();
@@ -163,7 +240,7 @@ export async function createBooking(formData: FormData): Promise<ActionState> {
   let population: "people" | "service_users" | null = null;
   let subjectPersonId: string | null = null;
   let subjectServiceUserId: string | null = null;
-  let checkKind: string | null = null;
+  let tasks: ResolvedTask[] = [];
 
   if (subjectKind === "person" || subjectKind === "service_user") {
     if (!subjectId) return { error: "Choose who the task is for." };
@@ -184,30 +261,10 @@ export async function createBooking(formData: FormData): Promise<ActionState> {
       subjectServiceUserId = subjectId;
     }
 
-    if (checkInstanceId) {
-      const { data: inst } = await supabase
-        .from("check_instances")
-        .select("id, company_id, person_id, service_user_id, check_definitions(name)")
-        .eq("id", checkInstanceId)
-        .maybeSingle();
-      if (!inst || inst.company_id !== companyId) return { error: "That check was not found." };
-      const belongs =
-        (subjectKind === "person" && inst.person_id === subjectId) ||
-        (subjectKind === "service_user" && inst.service_user_id === subjectId);
-      if (!belongs) return { error: "That check does not belong to this record." };
-      const defRaw = (inst as unknown as {
-        check_definitions: { name: string }[] | { name: string } | null;
-      }).check_definitions;
-      const def = Array.isArray(defRaw) ? defRaw[0] ?? null : defRaw;
-      checkKind = def?.name ?? null;
-    }
-
-    /* A tracker form belongs to a PERSON. Booking one against a Service User would make a
-       task whose form does not exist for that record. */
-    if (trackerFormKey) {
-      if (subjectKind !== "person") return { error: "That form is only on a team member's record." };
-      checkKind = bookableTracker?.name ?? null;
-    }
+    const resolved = await resolveTargets(supabase, companyId, subjectKind, subjectId, targets);
+    if ("error" in resolved) return resolved;
+    tasks = resolved.tasks;
+    if (tasks.length === 0) return { error: "Choose at least one check for this visit." };
   } else {
     // Ad-hoc: needs a title and an explicit branch.
     if (!title) return { error: "Enter a title for the task." };
@@ -241,9 +298,6 @@ export async function createBooking(formData: FormData): Promise<ActionState> {
       population,
       subject_person_id: subjectPersonId,
       subject_service_user_id: subjectServiceUserId,
-      check_instance_id: checkInstanceId || null,
-      tracker_form_key: trackerFormKey || null,
-      check_kind: checkKind,
       title: title || null,
       conductor_profile_id: conductorId,
       scheduled_date: scheduledDate,
@@ -256,6 +310,15 @@ export async function createBooking(formData: FormData): Promise<ActionState> {
     .single();
   if (error) return { error: error.message };
 
+  /* THE JOBS, and a visit that could not get them is not a visit. Written second because
+     they point at the booking; if they will not write, the empty booking goes with them
+     rather than sitting on the whiteboard as a visit with nothing to do. */
+  const written = await writeTasks(supabase, inserted.id, companyId, tasks);
+  if (written) {
+    await supabase.from("planner_bookings").delete().eq("id", inserted.id);
+    return { error: written };
+  }
+
   await writeAudit({
     companyId,
     actorId: user.id,
@@ -264,7 +327,7 @@ export async function createBooking(formData: FormData): Promise<ActionState> {
     action: "planner.booking_created",
     entityType: "planner_booking",
     entityId: inserted.id,
-    summary: `Booked ${checkKind || title || "a task"} for ${ukDate(scheduledDate)}`,
+    summary: `Booked ${visitLabel(title, tasks.map((t) => t.check_kind ?? "Task"))} for ${ukDate(scheduledDate)}`,
   });
 
   revalidatePlanner();
@@ -312,6 +375,172 @@ async function loadBooking(bookingId: string, companyId: string) {
   if (!data || data.company_id !== companyId) return null;
   return data;
 }
+
+/**
+ * Edit a booking that already exists: who it is for, who is carrying it out, when, the
+ * notes, and which jobs are on it.
+ *
+ * WHY (Phil, 2026-09-18): "booking isnt editable". The only changes that existed were the
+ * date, the time and the duration. Everything else -- the wrong colleague, the wrong
+ * person, a job that turned out not to be needed -- meant cancelling the visit and booking
+ * it again, which loses the visit and puts a cancelled ghost on the whiteboard.
+ *
+ * A JOB ALREADY DONE KEEPS ITS STATUS. Re-saving a visit does not reopen a check that was
+ * completed this morning: tasks still on the list are left exactly as they are, only the
+ * ones taken off are removed and the ones added come in as planned.
+ */
+export async function updateBooking(formData: FormData): Promise<ActionState> {
+  const { user, profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+  const gate = await requireFeature(profile.company_id, "planner");
+  if (gate) return { error: gate };
+  const companyId = profile.company_id;
+  const supabase = await createClient();
+
+  const bookingId = String(formData.get("booking_id") ?? "").trim();
+  if (!bookingId) return { error: "Missing booking." };
+  const existing = await loadBooking(bookingId, companyId);
+  if (!existing) return { error: "Booking not found." };
+
+  const subjectKind = String(formData.get("subject_kind") ?? "").trim();
+  const subjectId = String(formData.get("subject_id") ?? "").trim();
+  const conductorId = String(formData.get("conductor_id") ?? "").trim();
+  const scheduledDate = String(formData.get("scheduled_date") ?? "").trim();
+  const startTimeResult = normaliseStartTime(formData.get("start_time"));
+  if (!startTimeResult.ok) return { error: startTimeResult.error };
+  const startTime = startTimeResult.value;
+  const durationRaw = String(formData.get("duration_minutes") ?? "").trim();
+  const duration = durationRaw ? Math.max(5, Number(durationRaw) || 30) : 30;
+  const notes = String(formData.get("notes") ?? "").trim();
+  const title = String(formData.get("title") ?? "").trim();
+  const targets = postedTargets(formData);
+
+  if (!conductorId) return { error: "Choose who will carry out the task." };
+  if (!scheduledDate) return { error: "Choose a date." };
+
+  let population: "people" | "service_users" | null = null;
+  let subjectPersonId: string | null = null;
+  let subjectServiceUserId: string | null = null;
+  let branchId = "";
+  let tasks: ResolvedTask[] = [];
+
+  if (subjectKind === "person" || subjectKind === "service_user") {
+    if (!subjectId) return { error: "Choose who the task is for." };
+    const table = subjectKind === "person" ? "people" : "service_users";
+    const { data: subj } = await supabase
+      .from(table)
+      .select("id, branch_id, company_id")
+      .eq("id", subjectId)
+      .maybeSingle();
+    if (!subj || subj.company_id !== companyId) return { error: "That record was not found." };
+    branchId = (subj.branch_id as string | null) ?? "";
+    if (!branchId) return { error: "That record has no branch set." };
+    population = subjectKind === "person" ? "people" : "service_users";
+    if (subjectKind === "person") subjectPersonId = subjectId;
+    else subjectServiceUserId = subjectId;
+
+    const resolved = await resolveTargets(supabase, companyId, subjectKind, subjectId, targets);
+    if ("error" in resolved) return resolved;
+    tasks = resolved.tasks;
+    if (tasks.length === 0) return { error: "Choose at least one check for this visit." };
+  } else {
+    if (!title) return { error: "Enter a title for the task." };
+    branchId = String(formData.get("branch_id") ?? "").trim();
+    if (!branchId) return { error: "Choose a branch." };
+    const { data: br } = await supabase
+      .from("branches")
+      .select("id, company_id")
+      .eq("id", branchId)
+      .maybeSingle();
+    if (!br || br.company_id !== companyId) return { error: "That branch was not found." };
+  }
+
+  /* The same three-dimensional clash test as booking, ignoring this booking's own slot --
+     otherwise an edit that leaves the time alone collides with itself. */
+  const clash = await findClash(
+    supabase,
+    companyId,
+    scheduledDate,
+    startTime,
+    duration,
+    { conductorId, personId: subjectPersonId, serviceUserId: subjectServiceUserId },
+    bookingId,
+  );
+  if (clash) return { error: clash };
+
+  const { data: saved, error } = await supabase
+    .from("planner_bookings")
+    .update({
+      branch_id: branchId,
+      population,
+      subject_person_id: subjectPersonId,
+      subject_service_user_id: subjectServiceUserId,
+      title: title || null,
+      conductor_profile_id: conductorId,
+      scheduled_date: scheduledDate,
+      start_time: startTime,
+      duration_minutes: duration,
+      notes: notes || null,
+      updated_by: user.id,
+    })
+    .eq("id", bookingId)
+    .select("id");
+  if (error) return { error: error.message };
+  if (!saved || saved.length === 0) return { error: "No change was saved." };
+
+  const taskError = await syncTasks(supabase, bookingId, companyId, tasks);
+  if (taskError) return { error: taskError };
+  await rollUpVisit(supabase, bookingId, user.id);
+
+  await writeAudit({
+    companyId,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "planner.booking_updated",
+    entityType: "planner_booking",
+    entityId: bookingId,
+    summary: `Changed a booking to ${ukDate(scheduledDate)}`,
+  });
+
+  revalidatePlanner();
+  for (const id of [existing.subject_person_id, subjectPersonId]) {
+    if (id) revalidatePath(`/people/${id}`);
+  }
+  for (const id of [existing.subject_service_user_id, subjectServiceUserId]) {
+    if (id) revalidatePath(`/service-users/${id}`);
+  }
+  return { ok: "Saved." };
+}
+
+/** Bring a visit's job list up to what was chosen, without disturbing what is already done. */
+async function syncTasks(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  bookingId: string,
+  companyId: string,
+  wanted: ResolvedTask[],
+): Promise<string | null> {
+  const { data: current } = await supabase
+    .from("planner_booking_tasks")
+    .select("id, check_instance_id, tracker_form_key")
+    .eq("booking_id", bookingId);
+  const rows = (current as Array<{ id: string; check_instance_id: string | null; tracker_form_key: string | null }> | null) ?? [];
+  const keyOf = (t: { check_instance_id: string | null; tracker_form_key: string | null }) =>
+    t.check_instance_id ? `c:${t.check_instance_id}` : `t:${t.tracker_form_key}`;
+
+  const wantedKeys = new Set(wanted.map(keyOf));
+  const goneIds = rows.filter((r) => !wantedKeys.has(keyOf(r))).map((r) => r.id);
+  if (goneIds.length > 0) {
+    const { error } = await supabase.from("planner_booking_tasks").delete().in("id", goneIds);
+    if (error) return error.message;
+  }
+
+  const haveKeys = new Set(rows.filter((r) => wantedKeys.has(keyOf(r))).map(keyOf));
+  const added = wanted.filter((t) => !haveKeys.has(keyOf(t)));
+  if (added.length === 0) return null;
+  return writeTasks(supabase, bookingId, companyId, added, rows.length + 1);
+}
+
 
 /** Reschedule a booking (date, time, duration). */
 export async function rescheduleBooking(formData: FormData): Promise<ActionState> {
@@ -396,6 +625,16 @@ async function setBookingStatus(
     .select("id");
   if (error) return { error: error.message };
   if (!data || data.length === 0) return { error: "No change was saved." };
+
+  /* THE JOBS GO WITH THE VISIT. Ticking a visit off by hand, or calling it off, has to
+     settle the work on it too, or the board says the visit is done while its jobs still
+     read as outstanding. Only the planned ones: a Check already completed keeps its own
+     record of when. */
+  await supabase
+    .from("planner_booking_tasks")
+    .update(status === "completed" ? { status, completed_at: new Date().toISOString() } : { status })
+    .eq("booking_id", bookingId)
+    .eq("status", "planned");
 
   await writeAudit({
     companyId: profile.company_id,
