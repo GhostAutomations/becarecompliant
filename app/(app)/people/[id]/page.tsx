@@ -470,7 +470,11 @@ export default async function PersonPage({
           {st ? ragPill(rag) : <span className="pill-neutral">Not applied</span>}
         </div>
         <dl className="mt-3 space-y-1 text-[13px] text-white/60">
-          <div className="flex justify-between"><dt>Next due</dt><dd className="text-white/85">{!settledOneOff && nextDue ? formatDisplayDate(nextDue) : "—"}</dd></div>
+          {/* A finished one-off has no next due, so the row goes rather than printing a dash
+              at it (Phil, 2026-09-18). */}
+          {settledOneOff ? null : (
+            <div className="flex justify-between"><dt>Next due</dt><dd className="text-white/85">{nextDue ? formatDisplayDate(nextDue) : "—"}</dd></div>
+          )}
           <div className="flex justify-between"><dt>Last completed</dt><dd className="text-white/85">{lastComp ? formatDisplayDate(lastComp) : "Never"}</dd></div>
         </dl>
         {st && def.form_id && canComplete && !settledOneOff ? (

@@ -411,7 +411,11 @@ export default async function ServiceUserPage({
                       {s ? ragPill(s.rag) : <span className="pill-neutral">Not applied</span>}
                     </div>
                     <dl className="mt-3 space-y-1 text-[13px] text-white/60">
-                      <div className="flex justify-between"><dt>Next due</dt><dd className="text-white/85">{!settledOneOff && s?.due_date ? formatDisplayDate(s.due_date) : "—"}</dd></div>
+                      {/* A finished one-off has no next due, so the row goes rather than
+                          printing a dash at it (Phil, 2026-09-18). */}
+                      {settledOneOff ? null : (
+                        <div className="flex justify-between"><dt>Next due</dt><dd className="text-white/85">{s?.due_date ? formatDisplayDate(s.due_date) : "—"}</dd></div>
+                      )}
                       <div className="flex justify-between"><dt>Last completed</dt><dd className="text-white/85">{s?.last_completed_on ? formatDisplayDate(s.last_completed_on) : "Never"}</dd></div>
                     </dl>
                     {s && def.form_id && canComplete && !settledOneOff ? (
