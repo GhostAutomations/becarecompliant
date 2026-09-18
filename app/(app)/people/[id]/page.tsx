@@ -339,7 +339,12 @@ export default async function PersonPage({
       { label: "End actual", value: formatDisplayDate(tracker?.probation_end_actual ?? null) || "—" },
       { label: "Extension", value: formatDisplayDate(tracker?.probation_extension_date ?? null) || "—" },
     ],
-    canManage && !supportMode ? `/people/${person.id}/tracker/probation_review/complete` : null,
+    /* NO WAY IN ONCE IT IS PASSED (Phil, 2026-09-18). This tile only renders at all once
+       probation has been passed, so the button on it was offering to hold a probation review
+       for somebody whose probation is over. The dates and the status stay, and so does every
+       review already filed; only the button goes. While probation is still running the WIDE
+       tile above the Checks carries the button, which is where it belongs. */
+    null,
     undefined,
     probationStatusPill(tracker?.probation_status ?? null),
   );
