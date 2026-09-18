@@ -6,7 +6,7 @@
  * the reading from the database and hands the result to the PDF.
  */
 
-export type EvidenceRecordType = "person" | "service_user" | "complaint";
+export type EvidenceRecordType = "person" | "service_user" | "complaint" | "incident";
 
 export type EvidenceSubject = {
   kind: EvidenceRecordType;
@@ -24,6 +24,7 @@ export type EvidenceSubject = {
 export function labelFor(kind: EvidenceRecordType): string {
   if (kind === "person") return "Care Worker";
   if (kind === "service_user") return "Service User";
+  if (kind === "incident") return "Incident";
   return "Complaint";
 }
 

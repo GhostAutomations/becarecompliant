@@ -46,7 +46,7 @@ export type SubmitEvidenceInput = {
   branchId: string | null;
   answers: Answers;
   files?: EvidenceFileInput[];
-  recordType?: "person" | "service_user" | "complaint" | null;
+  recordType?: "person" | "service_user" | "complaint" | "incident" | null;
   recordId?: string | null;
   /** Optional stable id for idempotent retries. */
   evidenceId?: string;

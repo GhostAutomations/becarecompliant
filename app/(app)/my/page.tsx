@@ -143,6 +143,7 @@ export default async function MyAreaPage() {
   const canHoliday = canUsePortalForm("holiday_requests", portalDisabled);
   const canMoney = canUsePortalForm("financial_transaction", portalDisabled);
   const canConcern = canUsePortalForm("whistleblowing", portalDisabled);
+  const canIncident = canUsePortalForm("incident_report", portalDisabled);
 
   const requestSchema: FormSchema | null =
     canHoliday && requestForm && isFormSchema(requestForm.schema)
@@ -279,6 +280,30 @@ export default async function MyAreaPage() {
           usually looking for it once, in a hurry, and should not have to hunt. It carries no
           count and no history, because a record of "you raised a concern" sitting in a
           carer's own portal is a trail on the person who did the right thing. */}
+      {canIncident ? (
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
+          Something happened on a call
+        </h2>
+        {/* THE PERSON WHO SAW IT WRITES IT DOWN (Phil, 2026-09-18). Until now a carer could
+            not report an incident at all: the Incidents module opens to Supervisor and above,
+            so incidents were told to somebody and typed up by somebody who was not there. */}
+        <Link
+          href="/incidents/new"
+          className="glass-card flex items-center justify-between gap-4 p-5 hover:bg-white/5"
+        >
+          <span>
+            <span className="block text-sm font-semibold text-white">Report an incident</span>
+            <span className="block text-xs text-white/55">
+              An accident, a near miss, or anything that went wrong. Write it while it is
+              fresh — filing it opens a case and the branch takes it from there.
+            </span>
+          </span>
+          <span aria-hidden className="text-white/40">&rsaquo;</span>
+        </Link>
+      </section>
+      ) : null}
+
       {canConcern ? (
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">

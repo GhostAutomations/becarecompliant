@@ -4,6 +4,11 @@ import { requireCompany } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import EditIncidentForm from "@/components/incidents/edit-incident-form";
 import IncidentStatusControl from "@/components/incidents/incident-status-control";
+import IncidentStages from "@/components/incidents/incident-stages";
+import { getCompanyFormByKey } from "@/lib/people/data";
+import { isFormSchema, type FormSchema } from "@/lib/form-schema";
+import { INCIDENT_INVESTIGATION_FORM, INCIDENT_OUTCOME_FORM } from "@/lib/incidents/report-actions";
+import { whatIsOutstanding, type IncidentCaseState } from "@/lib/incidents/stages";
 import {
   getIncident,
   listServiceUsersLite,
@@ -27,12 +32,30 @@ export default async function IncidentPage({ params }: { params: Promise<{ id: s
   const incident = await getIncident(id);
   if (!incident) notFound();
 
-  const [serviceUsers, people] = await Promise.all([
+  const [serviceUsers, people, investigationForm, outcomeForm] = await Promise.all([
     listServiceUsersLite(profile.company_id),
     listPeopleLite(profile.company_id),
+    getCompanyFormByKey(profile.company_id, INCIDENT_INVESTIGATION_FORM),
+    getCompanyFormByKey(profile.company_id, INCIDENT_OUTCOME_FORM),
   ]);
 
+  /* THE CASE'S OWN STATE, read once and handed to the one module that decides what a case is
+     waiting for. The screen and the server action must not each have their own idea of it. */
+  const caseState: IncidentCaseState = {
+    investigationCompleted: incident.investigation_completed ?? null,
+    noFurtherAction: incident.no_further_action ?? null,
+    outcomeRecordedOn: incident.outcome_recorded_on ?? null,
+  };
+  const waitingFor = whatIsOutstanding(caseState);
+
   const outstanding: string[] = [];
+  if (waitingFor) {
+    outstanding.push(
+      waitingFor === "Investigation"
+        ? "Reported, and not yet investigated."
+        : "Investigated, and the outcome has not been recorded.",
+    );
+  }
   if (incident.notifiable && !incident.notified_on) {
     outstanding.push("Flagged as notifiable to the regulator, but no notification date recorded.");
   }
@@ -74,6 +97,31 @@ export default async function IncidentPage({ params }: { params: Promise<{ id: s
           </p>
         </div>
       ) : null}
+
+      {/* THE CASE, IN ORDER. Reported (the form that opened it), investigated, answered. The
+          Outcome is offered only when the investigation asked for it. */}
+      <section className="glass-card space-y-3 p-5">
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">The case</h2>
+          <span className="text-xs text-white/45">
+            Reported {formatUkDate(incident.reported_on ?? incident.occurred_on)}
+            {incident.investigation_completed ? ` · investigated ${formatUkDate(incident.investigation_completed)}` : ""}
+            {incident.outcome_recorded_on ? ` · answered ${formatUkDate(incident.outcome_recorded_on)}` : ""}
+          </span>
+        </div>
+        <IncidentStages
+          incidentId={incident.id}
+          caseState={caseState}
+          investigationSchema={
+            investigationForm && isFormSchema(investigationForm.schema)
+              ? (investigationForm.schema as FormSchema)
+              : null
+          }
+          outcomeSchema={
+            outcomeForm && isFormSchema(outcomeForm.schema) ? (outcomeForm.schema as FormSchema) : null
+          }
+        />
+      </section>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_260px]">
         <div className="glass-card p-6">

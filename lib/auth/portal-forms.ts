@@ -61,18 +61,17 @@ export const PORTAL_FORMS: readonly PortalForm[] = [
   },
   {
     /*
-     * NOT BUILT YET. Phil asked for it in the same breath as the other two, and there is no
-     * incident form anywhere in the product: incidents are written up through the Incidents
-     * module's own pages, which a carer cannot reach. Shown greyed and saying so, rather than
-     * left off, because a tick that is missing looks like the screen forgot it and a tick that
-     * does nothing is worse than either.
+     * BUILT, 2026-09-18. It was greyed out here for months with the note "Incidents are written
+     * up by the branch today" -- which was the whole problem: the person who saw the incident
+     * could not report it, so Thistle's staff filled in a form on another system and the branch
+     * typed up a record from what they were told. Filing this opens a real case (0301/0302).
      */
     key: "incident_report",
     label: "Report an incident",
-    hint: "What happened, when, and who was there.",
-    available: false,
+    hint: "What happened, when, and who was there. Filing it opens a case for the branch.",
+    available: true,
     locked: false,
-    note: "Not in the portal yet. Incidents are written up by the branch today.",
+    note: "Switching this off leaves a carer no way to report an incident except by telling somebody.",
   },
 ];
 

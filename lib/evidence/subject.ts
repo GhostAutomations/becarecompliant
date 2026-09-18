@@ -72,6 +72,25 @@ export async function loadEvidenceSubject(
       };
     }
 
+    if (kind === "incident") {
+      /* An incident has no "subject" line of its own: what it is, is its category, and the
+         date it happened is what anybody reading the paperwork looks for next. The reference
+         is the per-company number the case was given (0301). */
+      const { data } = await admin
+        .from("incidents")
+        .select("category, occurred_on, ref_number")
+        .eq("id", recordId)
+        .maybeSingle<{ category: string | null; occurred_on: string | null; ref_number: number | null }>();
+      if (!data?.category) return notOnFile(kind, recordId);
+      return {
+        kind,
+        label: labelFor(kind),
+        name: data.category,
+        reference: data.ref_number ? `Incident ${data.ref_number}` : null,
+        detail: data.occurred_on,
+      };
+    }
+
     const { data } = await admin
       .from("complaints")
       .select("subject")

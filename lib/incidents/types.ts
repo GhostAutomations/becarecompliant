@@ -111,5 +111,16 @@ export type IncidentRecord = {
   closed_on: string | null;
   lessons_learnt: string | null;
 
+  /* THE CASE (0301). A report opens it, an investigation follows, and an outcome answers it --
+     unless the investigation found no further action, which finishes it there. The rules that
+     read these live in lib/incidents/stages.ts; nothing else should work them out for itself. */
+  ref_number: number | null;
+  reported_on: string | null;
+  investigation_completed: string | null;
+  /** True when the investigation found nothing further to do. Null before it is filed. */
+  no_further_action: boolean | null;
+  outcome_recorded_on: string | null;
+  recommendations: string | null;
+
   created_at: string;
 };
