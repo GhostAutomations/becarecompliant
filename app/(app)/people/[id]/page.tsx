@@ -476,6 +476,68 @@ export default async function PersonPage({
   };
 
   /*
+   * ONE BOX OF THE CYCLE, AND THE ONE THAT IS DUE IS THE BUTTON (Phil, 2026-09-18: "remove the
+   * complete but and make that square the button, example for Asim 3 is due now so make the 3
+   * gold as it is due").
+   *
+   * Every box used to be the same grey, with a small gold Complete button inside whichever one
+   * was due -- a button inside a box, when the box is already the thing you are pointing at.
+   * The box that is due is now gold and is itself the link, so what to do next is the loudest
+   * thing in the card and there is nothing else to aim at. The others are unchanged and inert:
+   * a supervision that is done, or not its turn yet, is a fact rather than an offer.
+   */
+  const cycleBox = (opts: {
+    id: string | number;
+    title: string;
+    due: string | null;
+    comp: string | null;
+    ragClass: string;
+    /** Set only on the one that is due now, and only for somebody who may complete it. */
+    href: string | null;
+  }) => {
+    const live = !!opts.href;
+    const body = (
+      <>
+        <div className="flex items-center justify-between gap-2">
+          <span className={`text-[15px] font-semibold ${live ? "text-navy-950" : "text-white/75"}`}>
+            {opts.title}
+          </span>
+          {live ? (
+            <span className="text-[13px] font-semibold text-navy-900/70">Due now</span>
+          ) : (
+            <span className={`rag-cell ${opts.ragClass}`}>
+              {opts.comp ? "Done" : opts.due ? formatDisplayDate(opts.due) : "—"}
+            </span>
+          )}
+        </div>
+        <dl className={`mt-3 space-y-1.5 text-[14px] ${live ? "text-navy-900/70" : "text-white/60"}`}>
+          <div className="flex justify-between">
+            <dt>Due</dt>
+            <dd className={live ? "font-semibold text-navy-950" : "text-white/90"}>{formatDisplayDate(opts.due) || "—"}</dd>
+          </div>
+          <div className="flex justify-between">
+            <dt>Completed</dt>
+            <dd className={live ? "font-semibold text-navy-950" : "text-white/90"}>{formatDisplayDate(opts.comp) || "Not yet"}</dd>
+          </div>
+        </dl>
+      </>
+    );
+    return opts.href ? (
+      <Link
+        key={opts.id}
+        href={opts.href}
+        className="flex flex-col rounded-xl border border-gold-400 bg-gold-400 p-4 shadow-sm transition hover:bg-gold-300"
+      >
+        {body}
+      </Link>
+    ) : (
+      <div key={opts.id} className="flex flex-col rounded-xl border border-white/10 p-4">
+        {body}
+      </div>
+    );
+  };
+
+  /*
    * THE APPRAISAL AS THE FOURTH BOX OF THE CYCLE, built in the supervision slot's shape rather
    * than as a check tile, because that is what it is: the thing that closes the three.
    *
@@ -491,28 +553,19 @@ export default async function PersonPage({
    */
   const appraisalStatus = appraisalTileDef ? statusByDef.get(appraisalTileDef.id) : undefined;
   const appraisalReady = aaSlot.nextDue != null;
-  const appraisalBox = appraisalTileDef ? (
-    <div className="flex flex-col rounded-xl border border-white/10 p-4">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-[15px] font-semibold text-white/75">Annual Appraisal</span>
-        <span className={`rag-cell ${slotPill(aaSlot.nextDueRag)}`}>
-          {aaSlot.comp ? "Done" : aaSlot.nextDue ? formatDisplayDate(aaSlot.nextDue) : "—"}
-        </span>
-      </div>
-      <dl className="mt-3 space-y-1.5 text-[14px] text-white/60">
-        <div className="flex justify-between"><dt>Due</dt><dd className="text-white/90">{formatDisplayDate(aaSlot.nextDue) || "—"}</dd></div>
-        <div className="flex justify-between"><dt>Completed</dt><dd className="text-white/90">{formatDisplayDate(aaSlot.comp) || "Not yet"}</dd></div>
-      </dl>
-      {appraisalStatus && appraisalTileDef.form_id && canComplete && appraisalReady ? (
-        <Link
-          href={`/people/${person.id}/checks/${appraisalStatus.instance_id}/complete`}
-          className="btn-primary btn-tile btn-tile-left text-[13px]"
-        >
-          Complete
-        </Link>
-      ) : null}
-    </div>
-  ) : null;
+  const appraisalBox = appraisalTileDef
+    ? cycleBox({
+        id: "appraisal",
+        title: "Annual Appraisal",
+        due: aaSlot.nextDue,
+        comp: aaSlot.comp,
+        ragClass: slotPill(aaSlot.nextDueRag),
+        href:
+          appraisalStatus && appraisalTileDef.form_id && canComplete && appraisalReady && !aaSlot.comp
+            ? `/people/${person.id}/checks/${appraisalStatus.instance_id}/complete`
+            : null,
+      })
+    : null;
 
   return (
     <div className="page-shell space-y-6">
@@ -575,33 +628,19 @@ export default async function PersonPage({
               {appraisalTileDef ? "Supervision and Annual Appraisal" : "Supervision"}
             </h2>
             <div className={`glass-card grid gap-3 p-4 ${supCount === 4 || appraisalTileDef ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3"}`}>
-              {slots.map((s) => (
-                /* THE TYPE FILLS THE BOX (Phil, 2026-09-18: "lets make the text in the
-                   Supervision and Annual Appraisal bigger to the boxes dont look so empty").
-                   These were 12 and 13 pixels inside a box the width of a quarter of the
-                   page, which left a lot of card around very little writing. The appraisal
-                   box carries the same sizes, so the four still read as one row. */
-                <div key={s.n} className="flex flex-col rounded-xl border border-white/10 p-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[15px] font-semibold text-white/75">{s.n}</span>
-                    <span className={`rag-cell ${slotPill(s.rag)}`}>
-                      {s.comp ? "Done" : s.due ? formatDisplayDate(s.due) : "—"}
-                    </span>
-                  </div>
-                  <dl className="mt-3 space-y-1.5 text-[14px] text-white/60">
-                    <div className="flex justify-between"><dt>Due</dt><dd className="text-white/90">{formatDisplayDate(s.due) || "—"}</dd></div>
-                    <div className="flex justify-between"><dt>Completed</dt><dd className="text-white/90">{formatDisplayDate(s.comp) || "Not yet"}</dd></div>
-                  </dl>
-                  {supStatus && supFormId && canComplete && s.n === dueSupN ? (
-                    <Link
-                      href={`/people/${person.id}/checks/${supStatus.instance_id}/complete?sup=${s.n}`}
-                      className="btn-primary btn-tile btn-tile-left text-[13px]"
-                    >
-                      Complete
-                    </Link>
-                  ) : null}
-                </div>
-              ))}
+              {slots.map((s) =>
+                cycleBox({
+                  id: s.n,
+                  title: String(s.n),
+                  due: s.due,
+                  comp: s.comp,
+                  ragClass: slotPill(s.rag),
+                  href:
+                    supStatus && supFormId && canComplete && s.n === dueSupN
+                      ? `/people/${person.id}/checks/${supStatus.instance_id}/complete?sup=${s.n}`
+                      : null,
+                }),
+              )}
               {appraisalTileDef ? appraisalBox : null}
             </div>
             <p className="text-[11px] text-white/40">
