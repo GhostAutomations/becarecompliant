@@ -7,7 +7,8 @@ import IncidentStatusControl from "@/components/incidents/incident-status-contro
 import IncidentStages from "@/components/incidents/incident-stages";
 import { getCompanyFormByKey } from "@/lib/people/data";
 import { isFormSchema, type FormSchema } from "@/lib/form-schema";
-import { INCIDENT_INVESTIGATION_FORM, INCIDENT_OUTCOME_FORM } from "@/lib/incidents/report-actions";
+import { INCIDENT_INVESTIGATION_FORM, INCIDENT_OUTCOME_FORM } from "@/lib/incidents/form-keys";
+
 import { whatIsOutstanding, type IncidentCaseState } from "@/lib/incidents/stages";
 import {
   getIncident,
