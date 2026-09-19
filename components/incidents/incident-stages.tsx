@@ -18,10 +18,11 @@ import {
   submitIncidentEvidence,
   draftIncidentQuestions,
   draftIncidentOutcome,
-  INCIDENT_INVESTIGATION_FORM,
-  INCIDENT_OUTCOME_FORM,
+  
 } from "@/lib/incidents/report-actions";
 import { outcomeDue, investigationDue, type IncidentCaseState } from "@/lib/incidents/stages";
+import { INCIDENT_INVESTIGATION_FORM, INCIDENT_OUTCOME_FORM } from "@/lib/incidents/form-keys";
+
 
 export default function IncidentStages({
   incidentId,
