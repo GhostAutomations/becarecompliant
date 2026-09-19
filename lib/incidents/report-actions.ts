@@ -32,9 +32,7 @@ import { stripJsonFence, toAiQuestions, type ActionState } from "@/lib/forms";
 import type { Answers } from "@/lib/form-schema";
 import { todayIso } from "./logic";
 
-export const INCIDENT_REPORT_FORM = "incident_report";
-export const INCIDENT_INVESTIGATION_FORM = "incident_investigation";
-export const INCIDENT_OUTCOME_FORM = "incident_outcome";
+import { INCIDENT_REPORT_FORM, INCIDENT_INVESTIGATION_FORM, INCIDENT_OUTCOME_FORM } from "./form-keys";
 
 function str(answers: Answers, key: string): string | null {
   const v = answers[key];
