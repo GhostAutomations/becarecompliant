@@ -7,7 +7,8 @@ import { getCompanyFormByKey } from "@/lib/people/data";
 import { readDraft } from "@/lib/forms/draft-store";
 import { draftKey } from "@/lib/forms/draft-key";
 import { isFormSchema, type FormSchema } from "@/lib/form-schema";
-import { INCIDENT_REPORT_FORM } from "@/lib/incidents/report-actions";
+import { INCIDENT_REPORT_FORM } from "@/lib/incidents/form-keys";
+
 
 export const metadata: Metadata = { title: "Report an incident" };
 
