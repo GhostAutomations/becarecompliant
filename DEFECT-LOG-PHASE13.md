@@ -1010,3 +1010,70 @@ covers person_assignments and service_user_assignments, which are written throug
 **The lesson, and it is the same one as DEF-023:** widening a permission means following the WHOLE
 write path, not the table the screen is named after. The grep that finds them is for the helper
 functions, not for the policy names.
+
+---
+
+## DEF-032 — Holiday and Absence ticked for a Supervisor, refused by the database  ·  FIXED
+
+**2026-09-21**, Phil: *"They need access to this, if the boxes are checked in the access tiles
+they should be able to do it. I don't want to have to keep coming back to fix things. This looks
+bad when Thistle is reporting issues."*
+
+He is right, and it was the same fault for the fourth time (DEF-023, DEF-028, DEF-031). The
+ceiling in `lib/auth/module-catalogue.ts` has said for weeks that a Supervisor opens Holiday and
+Absence. The policies underneath let her write only for a carer on her own CASELOAD
+(`is_person_supervisor`), so recording a sickness for anybody else in her branch was refused
+*after* she had filled the form in.
+
+**0312** puts Absence and Holiday on `is_branch_lead` — Manager, Supervisor and, since 0310,
+Recruiter — which is the question the two registers already ask: `absence_events`
+select/insert/update, `absence_meetings` select/insert/update/delete, `can_manage_holiday`, and
+`holiday_requests_select`. The caseload clauses stay, so a Supervisor keeps her own people
+wherever they sit, and a meeting with Evidence against it is still never deleted.
+
+**What deliberately did NOT move, and is ticked that way too, so the screen and the policy agree:**
+Invoicing, Readiness, Reports, Whistleblowing, Settings and inviting a user. Money, the
+regulator's return, and who may log in.
+
+---
+
+## DEF-033 — The thing that stops this being a fifth time  ·  BUILT
+
+Four defects of one shape, every one found by a person filling in a form and being told no.
+Reading the policies is how they were missed four times, so the fix is not more reading.
+
+**`scripts/access-probe.sql`** signs in as a real Supervisor — as `authenticated`, carrying her
+user id, exactly as the browser does — and TRIES each thing her tiles promise: add a person, open
+a tracker on someone off her caseload, record training, book someone else's holiday, record a
+sickness, book the return to work meeting, add a service user, raise a complaint, write up an
+incident, send a briefing, log an out of hours call, book a Planner visit, submit a Check through
+`submit_evidence`. Every attempt runs in its own exception block and a sentinel exception is
+raised the moment the statement succeeds, so nothing survives: the worst it can do is bump a
+sequence, and it is safe against live. It also tries three things she must NOT have — Invoicing,
+Whistleblowing, inviting a user — because a probe that only ever expects "allowed" would pass with
+RLS switched off altogether. A read of an empty table reports "nothing to judge by" rather than a
+false pass.
+
+**`lib/auth/access-probe-coverage.test.ts`** is the part that cannot be forgotten: add a
+department to the ceiling for a branch scoped role and `npm test` fails until the probe has an
+attempt for it.
+
+**Run against Thistle, 2026-09-21.** Supervisor (Chloe): 18 judgeable attempts, all as the tiles
+promise. Recruiter (Lucy): one mismatch, below.
+
+---
+
+## DEF-034 — A Recruiter offered on the Planner who could not be given the visit  ·  FIXED
+
+Found by the probe rather than by Thistle, which is the point of it. The Planner's "who is doing
+it" list has named Recruiters since 0310 (`CONDUCTOR_ROLES` in `lib/planner/data.ts`), and the
+trigger underneath refused them: *"A task can only be given to somebody who carries checks out: an
+Admin, a Registered role, a Manager or a Supervisor."* A name in a dropdown that cannot be chosen
+is the same defect as a ticked box that does nothing.
+
+**0313** adds the Recruiter to `is_company_conductor`. Phil, twice, on what a Recruiter is: *"same
+as a supervisor"* — and a Supervisor conducts.
+
+**Not changed, and not an oversight:** who may hold a formal ABSENCE meeting stays with Managers
+and Admins. The screen there offers exactly who the code accepts, so nothing is promised and then
+refused, and a stage meeting that can end in a warning is a Manager's to hold.
