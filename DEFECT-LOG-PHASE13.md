@@ -1137,3 +1137,65 @@ its list from the same source the invite form uses.
 name twice is refused; a department can be switched off; a Supervisor's role given to a Manager
 is refused by the trigger; given to a Supervisor it is allowed; and deleting a role somebody is
 on is refused.
+
+---
+
+## DEF-036 — Add a person assumed everybody was a new starter  ·  BUILT
+
+**2026-09-21**, Phil: *"in people we have add a person, this assumes that it is always a new
+person, i want an option on the add a person page, tick it and all the column names are visible
+with boxes for the required data to be added, along with the current boxes that are on add a
+person, then when the add person button is pressed, it adds them to the matrix with all the data
+just entered."*
+
+Somebody joining a company that already runs has a history: a DBS from two years ago, three
+supervisions, a spot check last month. Add a person could only make a new starter, so that
+history had to be loaded by hand — which is literally what happened to Thistle's 86 spot checks
+(DEF-024), and why "the import screen cannot add history to existing staff" has been on the list
+since.
+
+**THE TICK: "They already work here."** Hidden until it is ticked, because most adds really are
+new starters and twenty empty date boxes in front of somebody adding their first carer is a worse
+screen for the common case. Ticked, it shows their documents — DBS, Enhanced DBS, RTW expiry and
+limits, probation end due, end actual, status and extension — and a "when was it last done" box
+for every recurring check, in the order the matrix draws its columns and under the names that
+company has given them. Filling it in is reading across a row of their own register.
+
+**Supervisions are asked one at a time**, because that is what a supervision cycle is: three
+deadlines in a year, not three names for one thing. Each is stored with the slot it occupied,
+which is what lets the register draw a carer's history where it actually happened.
+
+**Every date goes through `seed_migrated_completion`, the same call the bulk import uses**, so a
+carer typed in one at a time and a carer loaded from a spreadsheet are identical in the database:
+completions stored as history, the newest one moving the check on, none carrying evidence because
+none of them happened in here. One difference, deliberately: the NEXT DUE DATE IS CALCULATED
+rather than copied. An import reproduces a history a spreadsheet already describes, including
+what comes next; a person typed in has no spreadsheet behind them, so what comes next is what
+this company's own cycle says, counted from the last time it was done. Historical completions are
+stored with NO due date — we were told when each one happened, not when it was due, and inventing
+one would tell the on time report that a supervision done in March was late against a deadline
+nobody ever set.
+
+**Three answers Phil gave:** all the columns, done dates only (a due date follows from a
+completion and the cycle, so asking for both invites two answers to one question); a blank box
+means never done and that check schedules itself as it does for a new starter; and the panel goes
+on Add a person only for now — existing records still cannot be back-filled from a screen.
+
+**0315, and it was found before a customer found it.** `seed_migrated_completion` asked for a
+Company Admin, which was right when only an import used it. Add a person is open to Managers,
+Supervisors and Recruiters (0309, 0311), so a Supervisor ticking the box would have filled the
+whole form in and been refused at the last step — DEF-032 all over again. It now also accepts
+`is_branch_lead(branch)`, the same question the People register asks of whoever is adding the
+record. Somebody who may create the carer, set their DBS date and complete their checks is not
+made more powerful by being allowed to say when the last one happened. `scripts/access-probe.sql`
+has a new attempt for it, so it cannot drift back.
+
+**A history that does not save is said out loud.** The record exists by then, so the action names
+what could not be written and tells them not to press Add person again. Redirecting to a record
+with an empty matrix row would look exactly like a clean add — which is how twelve people were
+imported with none of their dates on 2026-09-16.
+
+**Proved against the live database as Thistle's Supervisor, rolled back afterwards:** she adds
+the person, her checks are applied, her history is recorded (0315), four completions stored, the
+supervision moves to last done 21/06 and next due 09/09, the spot check to 30/08 and 27/09, and
+all three supervisions still know which one they were.

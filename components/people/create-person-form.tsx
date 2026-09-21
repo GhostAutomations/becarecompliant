@@ -7,17 +7,28 @@ import { useActionState, useState } from "react";
 import { createPerson } from "@/lib/people/actions";
 import { IDLE_STATE } from "@/lib/forms";
 import type { BranchLite, ProfileLite, BranchStaff, JobTitle } from "@/lib/people/data";
+import AlreadyHerePanel, {
+  type HistoryBoxView,
+  type TrackerBoxView,
+} from "@/components/people/already-here-panel";
 
 export default function CreatePersonForm({
   branches,
   users,
   branchStaff,
   jobTitles,
+  historyFlag,
+  trackerBoxes,
+  historyBoxes,
 }: {
   branches: BranchLite[];
   users: ProfileLite[];
   branchStaff: BranchStaff;
   jobTitles: JobTitle[];
+  /** The tick that turns this into "add somebody with a history" (2026-09-21). */
+  historyFlag: string;
+  trackerBoxes: TrackerBoxView[];
+  historyBoxes: HistoryBoxView[];
 }) {
   const [state, formAction, pending] = useActionState(createPerson, IDLE_STATE);
   // One shared rule with the Edit form on the record (lib/people/roles.ts): the two screens
@@ -160,6 +171,14 @@ export default function CreatePersonForm({
           <p className="form-hint">Auto filled from the branch. Tick or untick as needed.</p>
         </div>
       </div>
+
+      {/* Everything above is who they are. This is what they have already done, and it is the
+          last thing on the form because most adds are new starters and never open it. */}
+      <AlreadyHerePanel
+        flagName={historyFlag}
+        trackerBoxes={trackerBoxes}
+        historyBoxes={historyBoxes}
+      />
 
       {state.error ? <p className="form-error">{state.error}</p> : null}
 

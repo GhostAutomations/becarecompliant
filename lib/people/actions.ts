@@ -46,6 +46,14 @@ import {
   probationLabel,
 } from "@/lib/people/probation";
 import { parseCivilDate } from "@/lib/recurrence";
+import {
+  HISTORY_FLAG,
+  historyBoxes,
+  historyEntries,
+  trackerPatch,
+} from "@/lib/people/history-boxes";
+import { seedPersonHistory } from "@/lib/people/history";
+import { getColumnLabels, getSupervisionCycleMode } from "@/lib/people/data";
 
 function trimOrNull(v: FormDataEntryValue | null): string | null {
   const s = String(v ?? "").trim();
@@ -113,6 +121,22 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
     p_rows: rows,
   });
 
+  /*
+   * THEY ALREADY WORK HERE (Phil, 2026-09-21). The tick on the form turns Add a person into
+   * "add somebody with a history": the tracker columns and a "when was it last done" box for
+   * every recurring check, under the names this company uses on its own matrix. What was typed
+   * is read here from ONE list shared with the screen (lib/people/history-boxes.ts), so a box
+   * that appears is a box that is saved.
+   */
+  const alreadyHere = String(formData.get(HISTORY_FLAG) ?? "") === "1";
+  const typed: Record<string, string> = {};
+  if (alreadyHere) {
+    for (const [k, v] of formData.entries()) {
+      if (typeof v === "string" && (k.startsWith("done_") || k.startsWith("t_"))) typed[k] = v;
+    }
+  }
+  const tracker = alreadyHere ? trackerPatch(typed) : {};
+
   // Probation: end due = start date + the company Probationary Period, in the unit
   // the company set (days, weeks or months); status = Due.
   const { data: company } = await supabase
@@ -124,10 +148,44 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
     start_date,
     probationFrom(company?.probation_period_value, company?.probation_period_unit),
   );
+  /* WHAT WAS TYPED WINS over what would be calculated. Somebody who finished their probation
+     two years ago must not be given a fresh one because the form worked it out from a start
+     date: that is the whole difference between a new starter and somebody who already works
+     here. Anything left blank still gets the calculated answer. */
   await supabase
     .from("person_trackers")
-    .update({ probation_end_due: probEndDue, probation_status: "due", updated_by: user.id })
+    .update({
+      probation_end_due: probEndDue,
+      probation_status: "due",
+      ...tracker,
+      updated_by: user.id,
+    })
     .eq("person_id", person.id);
+
+  /* Their history, through the same call the bulk import uses: stored as completions with the
+     slot each one occupied, the newest moving the check on, none of them carrying evidence
+     because none of them happened in here. */
+  let historySeeded = 0;
+  let historyFailed: string[] = [];
+  if (alreadyHere) {
+    const [labels, cycleMode] = await Promise.all([
+      getColumnLabels(companyId),
+      getSupervisionCycleMode(companyId),
+    ]);
+    const entries = historyEntries(
+      historyBoxes(definitions, labels, cycleMode),
+      typed,
+      definitions,
+    );
+    historySeeded = entries.reduce((n, e) => n + e.dates.length, 0);
+    historyFailed = await seedPersonHistory(
+      supabase,
+      person.id,
+      entries,
+      definitions,
+      definitions.find((d: CheckDefinition) => d.key === "supervision")?.interval ?? null,
+    );
+  }
 
   // Assign the chosen supervisors to the caseload (auto-filled from the branch).
   const supervisorIds = formData.getAll("supervisor_ids").map(String).filter(Boolean);
@@ -179,8 +237,31 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
       checks_applied: applyErr ? 0 : (applied ?? 0),
       staff_invite: inviteOutcome,
       standing_policies: standingPolicies,
+      already_here: alreadyHere,
+      history_recorded: historySeeded,
+      /* A date the database refused is reported, never swallowed. The record was created, so
+         this cannot fail the add — but an add that quietly wrote none of the history would
+         look exactly like one that wrote all of it. */
+      history_failed: historyFailed,
     },
   });
+
+  /*
+   * A HISTORY THAT DID NOT SAVE IS SAID OUT LOUD, and the record is not abandoned either.
+   *
+   * The person exists by this point — the insert succeeded — so the honest thing is to name
+   * what did not get written and tell them not to press the button again. Redirecting to a
+   * record whose matrix row is empty would look exactly like a clean add, which is how we
+   * ended up importing twelve people and none of their dates on 2026-09-16.
+   */
+  if (historyFailed.length > 0) {
+    return {
+      error:
+        `${full_name} has been added, but their history could not be recorded ` +
+        `(${historyFailed.join("; ")}). Do NOT press Add person again — open ${full_name} ` +
+        `from the People register and record those dates on their record.`,
+    };
+  }
 
   redirect(`/people/${person.id}`);
 }

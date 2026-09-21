@@ -61,6 +61,7 @@ declare
   v_course uuid;
   v_form uuid;
   v_version uuid;
+  v_definition uuid;
   v_role text;
   v_email text;
 
@@ -101,6 +102,10 @@ begin
 
   select tc.id into v_course from public.training_courses tc where tc.company_id = v_company limit 1;
 
+  select cd.id into v_definition from public.check_definitions cd
+   where cd.company_id = v_company and cd.population = 'people' and cd.active and cd.recurring
+   order by cd.sort_order limit 1;
+
   select f.id, fv.id into v_form, v_version
     from public.forms f join public.form_versions fv on fv.form_id = f.id
    where f.company_id = v_company and fv.status = 'published'
@@ -119,6 +124,11 @@ begin
       ('People', 'see the register', 'read',
         format('select count(*) from public.people where company_id = %L', v_company),
         format('select count(*) from public.people where company_id = %L', v_company), 'allowed'),
+      -- "They already work here" on Add a person (0315) goes through this, and so does the bulk
+      -- import. A Supervisor who may add the carer may say when their last check was.
+      ('People', 'record a check done before they joined', 'write',
+        format('select public.seed_migrated_completion(%L, %L, %L, current_date - 30, current_date + 30, true, null, null)',
+               'person', v_person, v_definition), null, 'allowed'),
       ('Training', 'record training for somebody in their branch', 'write',
         format('insert into public.person_training (company_id, branch_id, person_id, course_id, status, completed_on) values (%L, %L, %L, %L, %L, current_date)',
                v_company, v_branch, v_person, v_course, 'completed'), null, 'allowed'),
