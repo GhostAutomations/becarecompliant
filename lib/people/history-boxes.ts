@@ -52,21 +52,83 @@ export type HistoryEntry = {
 
 export const HISTORY_FLAG = "already_here";
 
-/** The tracker boxes, which are columns on the matrix too. */
+/**
+ * The tracker boxes, which are columns on the matrix too.
+ *
+ * EVERY ONE SAYS WHICH DATE IT WANTS (Phil, 2026-09-21: "under Their documents, have a bit of
+ * text that shows if it the completion date or exp date"). Four date boxes in a column, all
+ * labelled with a document name, is four chances to put the wrong date in — and a DBS issued in
+ * March typed into a box that wanted an expiry is not a mistake anything downstream can catch.
+ *
+ * The wording matches what the product does with each one: DBS is recorded plainly and never
+ * goes red, because it is the date on the certificate; RTW expiry and the probation dates are
+ * deadlines and DO colour as they approach. The hint says which, in the words the forms
+ * themselves use.
+ */
 export const TRACKER_BOXES: ReadonlyArray<{
   name: string;
   column: string;
   fallback: string;
   kind: "date" | "rtw_limits" | "probation_status";
+  /** One line under the box saying which date belongs in it. */
+  hint: string;
 }> = [
-  { name: "t_dbs_date", column: "dbs", fallback: "DBS", kind: "date" },
-  { name: "t_enhanced_dbs_date", column: "enhanced_dbs", fallback: "Enhanced DBS", kind: "date" },
-  { name: "t_rtw_expiry_date", column: "rtw_expiry", fallback: "RTW Expiry", kind: "date" },
-  { name: "t_rtw_limits", column: "rtw_limits", fallback: "RTW Limits", kind: "rtw_limits" },
-  { name: "t_probation_end_due", column: "probation_end_due", fallback: "Probation End Due", kind: "date" },
-  { name: "t_probation_end_actual", column: "probation_end_actual", fallback: "Probation End Actual", kind: "date" },
-  { name: "t_probation_status", column: "probation_status", fallback: "Probation Status", kind: "probation_status" },
-  { name: "t_probation_extension_date", column: "probation_extension", fallback: "Probation Extension", kind: "date" },
+  {
+    name: "t_dbs_date",
+    column: "dbs",
+    fallback: "DBS",
+    kind: "date",
+    hint: "Completion date — the date on their certificate.",
+  },
+  {
+    name: "t_enhanced_dbs_date",
+    column: "enhanced_dbs",
+    fallback: "Enhanced DBS",
+    kind: "date",
+    hint: "Completion date — the date on their certificate.",
+  },
+  {
+    name: "t_rtw_expiry_date",
+    column: "rtw_expiry",
+    fallback: "RTW Expiry",
+    kind: "date",
+    hint: "Expiry date — when their permission to work runs out. Leave blank if there is no time limit.",
+  },
+  {
+    name: "t_rtw_limits",
+    column: "rtw_limits",
+    fallback: "RTW Limits",
+    kind: "rtw_limits",
+    hint: "Any limit on the hours they may work.",
+  },
+  {
+    name: "t_probation_end_due",
+    column: "probation_end_due",
+    fallback: "Probation End Due",
+    kind: "date",
+    hint: "Due date — when probation is due to end. Left blank, it is worked out from their start date.",
+  },
+  {
+    name: "t_probation_end_actual",
+    column: "probation_end_actual",
+    fallback: "Probation End Actual",
+    kind: "date",
+    hint: "Completion date — the day probation actually ended. Their first supervision falls due from this date.",
+  },
+  {
+    name: "t_probation_status",
+    column: "probation_status",
+    fallback: "Probation Status",
+    kind: "probation_status",
+    hint: "Passed, failed, extended, or still due.",
+  },
+  {
+    name: "t_probation_extension_date",
+    column: "probation_extension",
+    fallback: "Probation Extension",
+    kind: "date",
+    hint: "Expiry date — the day the extended probation now runs to.",
+  },
 ];
 
 /** The database column each tracker box writes to. */

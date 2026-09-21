@@ -98,6 +98,19 @@ test("only the tracker boxes that were filled in are written", () => {
   );
 });
 
+test("every document box says which date it wants", () => {
+  for (const b of TRACKER_BOXES) {
+    assert.ok(b.hint.length > 10, `${b.name} has no hint`);
+  }
+  // The three date kinds are named in the words a manager would use, not ours.
+  const byName = Object.fromEntries(TRACKER_BOXES.map((b) => [b.name, b.hint]));
+  assert.match(byName.t_dbs_date, /^Completion date/);
+  assert.match(byName.t_rtw_expiry_date, /^Expiry date/);
+  assert.match(byName.t_probation_end_due, /^Due date/);
+  assert.match(byName.t_probation_end_actual, /^Completion date/);
+  assert.match(byName.t_probation_extension_date, /^Expiry date/);
+});
+
 test("every tracker box names a column to write to", () => {
   const patch = trackerPatch(
     Object.fromEntries(

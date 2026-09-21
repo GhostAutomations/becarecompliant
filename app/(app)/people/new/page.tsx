@@ -46,6 +46,7 @@ export default async function NewPersonPage() {
     name: b.name,
     label: columnLabels[b.column] || b.fallback,
     kind: b.kind,
+    hint: b.hint,
   }));
 
   return (

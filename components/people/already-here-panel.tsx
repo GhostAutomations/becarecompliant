@@ -27,7 +27,13 @@ import { useState } from "react";
 import { RTW_LIMIT_LABELS, PROBATION_STATUS_LABELS } from "@/lib/people/types";
 
 export type HistoryBoxView = { name: string; label: string };
-export type TrackerBoxView = { name: string; label: string; kind: "date" | "rtw_limits" | "probation_status" };
+export type TrackerBoxView = {
+  name: string;
+  label: string;
+  kind: "date" | "rtw_limits" | "probation_status";
+  /** Which date belongs in this box: a completion, an expiry or a deadline. */
+  hint: string;
+};
 
 export default function AlreadyHerePanel({
   flagName,
@@ -65,6 +71,10 @@ export default function AlreadyHerePanel({
         <div className="mt-4 space-y-5">
           <div>
             <h3 className="text-sm font-semibold text-white">Their documents</h3>
+            {/* Four date boxes in a column, every one labelled with a document name, is four
+                chances to put the wrong date in — and a DBS issued in March typed into a box
+                that wanted an expiry is not a mistake anything downstream can catch. So each
+                one says which date it wants (Phil, 2026-09-21). */}
             <div className="mt-2 grid gap-4 sm:grid-cols-2">
               {trackerBoxes.map((b) => (
                 <div key={b.name}>
@@ -86,6 +96,7 @@ export default function AlreadyHerePanel({
                       ))}
                     </select>
                   )}
+                  <p className="form-hint">{b.hint}</p>
                 </div>
               ))}
             </div>
