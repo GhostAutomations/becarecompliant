@@ -1077,3 +1077,63 @@ as a supervisor"* — and a Supervisor conducts.
 **Not changed, and not an oversight:** who may hold a formal ABSENCE meeting stays with Managers
 and Admins. The screen there offers exactly who the code accepts, so nothing is promised and then
 refused, and a stage meeting that can end in a warning is a Manager's to hold.
+
+---
+
+## DEF-035 — A company could not make a role of its own  ·  BUILT
+
+**2026-09-21**, Phil: *"lets add the roles to users and access, called that setting tile Roles,
+users and access."* The second half of what he asked for that morning ("both, in that order"):
+the two Settings screens joined first, now a company naming its own role.
+
+The Recruiter is why it had to exist. He asked for one role and it took a code change, a
+migration and a deploy. Nobody outside this repo could have done it.
+
+**WHAT A CUSTOM ROLE IS: a named narrowing of a built-in one.** A company names it, picks the
+built-in role it copies, and unticks departments it must not open. The person carries the
+BUILT-IN role in `profiles.role` — which is what every policy reads and what decides their branch
+reach — and the custom role beside it, for its name and for what it takes away.
+
+**WHY IT CANNOT GRANT.** Every policy in this database names roles. "Care Coordinator" is a name
+the database has never heard of, so somebody carrying only that would be refused everywhere.
+Narrowing needs no policy to change; widening would mean every policy reading a table instead of
+naming a role — the security model rewritten, not a settings screen. Phil chose narrowing knowing
+that (asked and answered, 2026-09-21), and it is written into 0314 and into
+`lib/auth/custom-roles.ts` so the next person to wonder finds the answer rather than the gap.
+
+**0314**: `company_roles` (name, the role it copies, one name per company however it is
+capitalised), `company_role_modules_off` (absence means on, exactly as 0291),
+`profiles.company_role_id` and `invites.company_role_id` — both ON DELETE RESTRICT — and a
+trigger that refuses a pair that disagrees, so a person's screen and a person's permissions can
+never come from two different places.
+
+**The screen** is now **Roles, users and access**, with Roles as its first section, because a
+role has to exist before somebody can be invited onto it. The same tile of tick boxes serves a
+built-in role and a company's own, so there is one way to answer the question rather than two,
+and a company's own role carries a rename and a delete underneath it.
+
+**Three answers Phil gave, and what each one is in the code:**
+
+- *Narrowing only* — `COPYABLE_ROLES`, and the base role's ceiling applied again server side in
+  `saveCompanyRoleModules`.
+- *The name shows everywhere* — `displayRoleLabel`, used on the user list, the pending invites,
+  the role pill in the header and the invitation email itself. The built-in role it copies is
+  shown only in Settings, in brackets, where somebody is deciding about roles rather than about
+  a person.
+- *Refuse to delete a role in use* — counted and named in `deleteRefusal`, and refused by the
+  database as well, which is the half that cannot be forgotten.
+
+**What is deliberately not editable:** the role a custom role copies. Changing it would change
+what everybody on that role can reach, from a control that looks like a rename.
+
+**Found while building it, and fixed in the same commit:** the user editor has offered "Team
+Member" in its role list for months while the check behind it used `INVITABLE_ROLES`, which does
+not contain `staff` — so saving any change to a carer's login came back *"Choose a valid role."*
+An option offered and then refused is the same defect as a ticked box that does nothing
+(DEF-032). `EDITABLE_ROLES` is the invitable list plus the carer login, and the editor now builds
+its list from the same source the invite form uses.
+
+**Proved against the live database**, rolled back afterwards: an Admin can make a role; the same
+name twice is refused; a department can be switched off; a Supervisor's role given to a Manager
+is refused by the trigger; given to a Supervisor it is allowed; and deleting a role somebody is
+on is refused.

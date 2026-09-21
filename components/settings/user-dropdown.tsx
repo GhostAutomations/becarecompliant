@@ -14,18 +14,21 @@
 
 import { useEffect, useRef, useState } from "react";
 import UserPopup, { type BranchOption, type UserListItem } from "@/components/settings/user-popup";
+import type { RoleOption } from "@/components/settings/team-member-controls";
 
 export default function UserDropdown({
   title,
   subtitle,
   users,
   branches,
+  roleOptions,
   emptyText,
 }: {
   title: string;
   subtitle: string;
   users: UserListItem[];
   branches: BranchOption[];
+  roleOptions: RoleOption[];
   emptyText: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -97,7 +100,12 @@ export default function UserDropdown({
       ) : null}
 
       {selected ? (
-        <UserPopup user={selected} branches={branches} onClose={() => setSelected(null)} />
+        <UserPopup
+          user={selected}
+          branches={branches}
+          roleOptions={roleOptions}
+          onClose={() => setSelected(null)}
+        />
       ) : null}
     </div>
   );

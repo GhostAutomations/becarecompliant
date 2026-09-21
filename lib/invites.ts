@@ -21,6 +21,29 @@ export type InviteRole =
   /** Carer self-service login, shown as "Team Member". Free seat (0131). */
   | "staff";
 
+/**
+ * What the invitation email calls their role.
+ *
+ * Phil, asked and answered 2026-09-21: a company's own role shows its name EVERYWHERE, and an
+ * invitation is the first thing the person ever reads about the job they are being given. A
+ * missing or unreadable row falls back to the built-in label rather than failing the send.
+ */
+async function inviteRoleLabel(
+  client: Awaited<ReturnType<typeof createClient>> | ReturnType<typeof createServiceClient>,
+  role: string,
+  companyRoleId: string | null | undefined,
+): Promise<string> {
+  const builtIn = ROLE_LABELS[role] ?? role;
+  if (!companyRoleId) return builtIn;
+  const { data } = await client
+    .from("company_roles")
+    .select("name")
+    .eq("id", companyRoleId)
+    .maybeSingle();
+  const name = ((data as { name?: string } | null)?.name ?? "").trim();
+  return name || builtIn;
+}
+
 export type Actor = {
   id: string;
   name: string;
@@ -35,6 +58,12 @@ export type InviteParams = {
   email: string;
   fullName: string;
   role: InviteRole;
+  /**
+   * The company's own role they are being invited onto (0314), if any. `role` above is still the
+   * built-in role it copies, and that is what the profile carries and what RLS reads; this is
+   * the name the company gave it and the departments it narrows.
+   */
+  companyRoleId?: string | null;
   inviter: Actor;
   /**
    * The company's optional invite email domain allowlist (0149), passed ONLY by
@@ -246,6 +275,7 @@ export async function createAndSendInvite(
       email,
       full_name: fullName,
       role: p.role,
+      company_role_id: p.companyRoleId ?? null,
       invited_by: p.inviter.id,
     })
     .select("id")
@@ -265,6 +295,7 @@ export async function createAndSendInvite(
     .update({
       company_id: p.companyId,
       role: p.role,
+      company_role_id: p.companyRoleId ?? null,
       status: "invited",
       full_name: fullName,
     })
@@ -330,7 +361,7 @@ export async function createAndSendInvite(
         html: inviteEmailHtml({
           companyName: p.companyName,
           inviterName: p.inviter.name || "Your administrator",
-          roleLabel: ROLE_LABELS[p.role] ?? p.role,
+          roleLabel: await inviteRoleLabel(supabase, p.role, p.companyRoleId),
           actionUrl: link.url,
         }),
       });
@@ -380,7 +411,7 @@ export async function resendInvite(
   const supabase = await createClient();
   const { data: invite } = await supabase
     .from("invites")
-    .select("id, company_id, email, full_name, role, status, resend_count")
+    .select("id, company_id, email, full_name, role, company_role_id, status, resend_count")
     .eq("id", inviteId)
     .maybeSingle();
   if (!invite || invite.status !== "pending") {
@@ -436,7 +467,7 @@ export async function resendInvite(
     html: inviteEmailHtml({
       companyName: company?.name ?? "your company",
       inviterName: actor.name || "Your administrator",
-      roleLabel: ROLE_LABELS[invite.role] ?? invite.role,
+      roleLabel: await inviteRoleLabel(supabase, invite.role, invite.company_role_id),
       actionUrl: link.url,
     }),
   });
@@ -546,7 +577,7 @@ export async function resendStaffInviteByEmail(
   }
   const { data: invite } = await admin
     .from("invites")
-    .select("id, full_name, role, status, resend_count")
+    .select("id, full_name, role, company_role_id, status, resend_count")
     .eq("company_id", companyId)
     .eq("email", address)
     .eq("status", "pending")
@@ -586,7 +617,11 @@ export async function resendStaffInviteByEmail(
     html: inviteEmailHtml({
       companyName: (company?.name as string | null) ?? "your company",
       inviterName: actor.name || "Your manager",
-      roleLabel: ROLE_LABELS[invite.role as string] ?? (invite.role as string),
+      roleLabel: await inviteRoleLabel(
+        admin,
+        invite.role as string,
+        (invite.company_role_id as string | null) ?? null,
+      ),
       actionUrl: link.url,
     }),
   });

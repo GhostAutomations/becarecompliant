@@ -6,15 +6,32 @@ import { IDLE_STATE } from "@/lib/forms";
 import { picksABranch, mayChooseAllBranches, ALL_BRANCHES } from "@/lib/people/roles";
 
 type BranchOption = { id: string; name: string; kind: string };
+/** value is what the form posts ("supervisor", or "custom:<id>"); baseRole is the built-in role
+ *  underneath it, which every branch rule is asked of. */
+type RoleOption = { value: string; label: string; baseRole: string };
 
-export function InviteForm({ branches }: { branches: BranchOption[] }) {
+export function InviteForm({
+  branches,
+  roleOptions,
+}: {
+  branches: BranchOption[];
+  roleOptions: RoleOption[];
+}) {
   const [state, formAction, pending] = useActionState(inviteUser, IDLE_STATE);
   /* THE BRANCH FIELD WAS TELLING A LIE (Phil, 2026-08-19). A Responsible Individual and a
      Registered Manager are company wide in the database — is_company_wide covers both, so they
      reach every branch whatever is picked here. Forcing a branch implied they belonged to one,
      and for an RM who runs the lot it read as a demotion. Now the field says what is true. */
   const [role, setRole] = useState("team_member");
-  const noBranch = !picksABranch(role);
+  /* A company's own role travels as "custom:<id>" (0314), and every question about a BRANCH is
+     about the built-in role underneath it. The options carry both, so the branch rules are
+     asked of the base role rather than of a name the rules have never heard of. */
+  const baseOf = (value: string) =>
+    value.startsWith("custom:")
+      ? roleOptions.find((o) => o.value === value)?.baseRole ?? value
+      : value;
+  const baseRole = baseOf(role);
+  const noBranch = !picksABranch(baseRole);
 
   return (
     <form action={formAction} className="space-y-4">
@@ -50,13 +67,11 @@ export function InviteForm({ branches }: { branches: BranchOption[] }) {
             value={role}
             onChange={(e) => setRole(e.target.value)}
           >
-            <option value="registered_individual">Responsible Individual</option>
-            <option value="registered_manager">Registered Manager</option>
-            <option value="manager">Branch Manager</option>
-            <option value="supervisor">Supervisor</option>
-            <option value="recruiter">Recruiter</option>
-            <option value="on_call">On Call</option>
-            <option value="team_member">Viewer</option>
+            {roleOptions.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
           </select>
         </div>
         <div>
@@ -88,7 +103,7 @@ export function InviteForm({ branches }: { branches: BranchOption[] }) {
               {/* Offered to a Registered Manager, deliberately NOT selected for them: some run
                   every branch, some run one registered service, and the product should not
                   assume which (Phil, 2026-08-19). */}
-              {mayChooseAllBranches(role) ? (
+              {mayChooseAllBranches(baseRole) ? (
                 <option value={ALL_BRANCHES}>All branches</option>
               ) : null}
               {branches.map((b) => (
@@ -99,7 +114,7 @@ export function InviteForm({ branches }: { branches: BranchOption[] }) {
               ))}
             </select>
           )}
-          {mayChooseAllBranches(role) ? (
+          {mayChooseAllBranches(baseRole) ? (
             <p className="form-hint">
               Pick one branch, or All branches for somebody who covers every site. You can change
               it later on this screen.

@@ -26,6 +26,8 @@ import { trialState } from "@/lib/billing/trial";
 import { trialInviteRefusal } from "@/lib/billing/trial-limits";
 import { isBillableSeat } from "@/lib/billing/seats";
 import { MODULES, isLocked } from "@/lib/auth/module-catalogue";
+import { canCopyRole, deleteRefusal, parseRoleChoice } from "@/lib/auth/custom-roles";
+import { companyRoles } from "@/lib/auth/module-access";
 import { PORTAL_FORMS, portalFormKey } from "@/lib/auth/portal-forms";
 import { ROLE_LABELS } from "@/lib/nav";
 
@@ -38,6 +40,39 @@ const INVITABLE_ROLES: InviteRole[] = [
   "on_call",
   "team_member",
 ];
+
+/**
+ * The roles an Admin may move an EXISTING user onto: the invitable ones, plus the carer login.
+ *
+ * 'staff' is here and not in INVITABLE_ROLES because the two questions differ. A Team Member
+ * account is CREATED from the People register when a carer is added with an email
+ * (lib/staff/invite.ts), never typed into the invite form — but the user editor has offered
+ * "Team Member" in its role list for months while the check behind it used INVITABLE_ROLES, so
+ * saving any change to a carer's login came back "Choose a valid role." An option offered and
+ * then refused is the same defect as a ticked box that does nothing (DEF-032).
+ */
+const EDITABLE_ROLES: InviteRole[] = [...INVITABLE_ROLES, "staff"];
+
+/**
+ * ONE `role` FIELD, whether they picked a built-in role or one their company named (0314).
+ *
+ * Every role picker on the product posts a single value: "supervisor", or "custom:<id>" for a
+ * company's own role. It is split here into the built-in role — which is what goes in
+ * profiles.role and what every policy reads — and the custom role beside it.
+ *
+ * A value naming a custom role this company does not have comes back null and is refused, rather
+ * than being quietly treated as the built-in role it looked like.
+ */
+async function chooseRole(
+  raw: string,
+  companyId: string,
+  allowed: InviteRole[] = INVITABLE_ROLES,
+): Promise<{ role: InviteRole; companyRoleId: string | null } | null> {
+  const parsed = parseRoleChoice(raw, await companyRoles(companyId));
+  if (!parsed) return null;
+  if (!allowed.includes(parsed.role as InviteRole)) return null;
+  return { role: parsed.role as InviteRole, companyRoleId: parsed.companyRoleId };
+}
 
 async function adminContext(): Promise<
   | { ok: true; companyId: string; actor: Actor }
@@ -98,7 +133,6 @@ export async function inviteUser(
 
   const email = String(formData.get("email") ?? "").trim();
   const fullName = String(formData.get("full_name") ?? "").trim();
-  const role = String(formData.get("role") ?? "") as InviteRole;
   const branchId = String(formData.get("branch_id") ?? "").trim();
   // Delayed invites (Phil, 2026-08-19): create it, tell them later.
   const holdEmail = String(formData.get("hold_email") ?? "") === "1";
@@ -106,9 +140,11 @@ export async function inviteUser(
   if (!fullName) {
     return { error: "Enter their full name. It appears on the records and reports they sign." };
   }
-  if (!INVITABLE_ROLES.includes(role)) {
+  const chosen = await chooseRole(String(formData.get("role") ?? ""), ctx.companyId);
+  if (!chosen) {
     return { error: "Only the Founder can create Company Admins. Choose one of the available roles." };
   }
+  const { role, companyRoleId } = chosen;
   /* Company wide roles (Responsible Individual, Registered Manager — and Company Admin, which
      only the founder can invite) reach every branch in RLS, so a branch is not merely optional
      for them, it is meaningless. Requiring one wrote a primary branch that made an RI look like
@@ -199,6 +235,7 @@ export async function inviteUser(
     email,
     fullName,
     role,
+    companyRoleId,
     inviter: ctx.actor,
     enforceEmailDomains: readInviteDomains(company?.invite_email_domains),
     sendEmail: !holdEmail,
@@ -475,12 +512,13 @@ export async function saveTeamMember(_prev: ActionState, formData: FormData): Pr
   if (!ctx.ok) return { error: ctx.error };
 
   const userId = String(formData.get("user_id") ?? "");
-  const role = String(formData.get("role") ?? "") as InviteRole;
   const primary = String(formData.get("primary_branch_id") ?? "").trim();
   const additional = formData.getAll("additional_branch_ids").map(String).filter(Boolean);
 
   if (!userId) return { error: "Missing user." };
-  if (!INVITABLE_ROLES.includes(role)) return { error: "Choose a valid role." };
+  const chosen = await chooseRole(String(formData.get("role") ?? ""), ctx.companyId, EDITABLE_ROLES);
+  if (!chosen) return { error: "Choose a valid role." };
+  const { role, companyRoleId } = chosen;
   if (userId === ctx.actor.id) return { error: "You cannot edit your own account here." };
   if (!primary) return { error: "Choose a primary branch." };
 
@@ -508,8 +546,14 @@ export async function saveTeamMember(_prev: ActionState, formData: FormData): Pr
   if (!validSet.has(primary)) return { error: "Choose a valid primary branch." };
   const cleanAdditional = additional.filter((id) => id !== primary && validSet.has(id));
 
-  // Role.
-  const { error: roleErr } = await supabase.from("profiles").update({ role }).eq("id", userId);
+  /* Role, and the company's own role beside it. Both in ONE update, because the trigger in 0314
+     refuses a pair that disagrees: setting them one at a time would fail halfway through on any
+     move between two roles. Moving to a built-in role clears the custom one rather than leaving
+     a name pointing at something they no longer are. */
+  const { error: roleErr } = await supabase
+    .from("profiles")
+    .update({ role, company_role_id: companyRoleId })
+    .eq("id", userId);
   if (roleErr) return { error: roleErr.message };
 
   // Replace the branch rows: one primary + the additional views.
@@ -611,8 +655,9 @@ export async function changeUserRole(formData: FormData): Promise<void> {
   const ctx = await adminContext();
   if (!ctx.ok) return;
   const userId = String(formData.get("user_id") ?? "");
-  const role = String(formData.get("role") ?? "") as InviteRole;
-  if (!userId || !INVITABLE_ROLES.includes(role)) return;
+  const chosen = await chooseRole(String(formData.get("role") ?? ""), ctx.companyId, EDITABLE_ROLES);
+  if (!userId || !chosen) return;
+  const { role, companyRoleId } = chosen;
   if (userId === ctx.actor.id) return;
 
   const supabase = await createClient();
@@ -626,7 +671,7 @@ export async function changeUserRole(formData: FormData): Promise<void> {
 
   const { error } = await supabase
     .from("profiles")
-    .update({ role })
+    .update({ role, company_role_id: companyRoleId })
     .eq("id", userId);
   if (error) return;
 
@@ -780,6 +825,232 @@ export async function saveRoleModules(_prev: ActionState, formData: FormData): P
   revalidatePath("/settings/users");
   revalidatePath("/", "layout");
   return { ok: "Saved." };
+}
+
+
+/* ===========================================================================
+ * A COMPANY'S OWN ROLES (0314). Phil, 2026-09-21: "lets add the roles to users and access."
+ *
+ * A custom role is a NAMED NARROWING of a built-in role: the person keeps the built-in role in
+ * profiles.role, which is what every policy reads and what decides their branch reach, and
+ * carries the custom role beside it for its name and the departments it switches off. Nothing
+ * here can widen anything, by construction — see lib/auth/custom-roles.ts.
+ * =========================================================================== */
+
+/** Make a role: a name, and the built-in role it copies. */
+export async function createCompanyRole(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const ctx = await adminContext();
+  if (!ctx.ok) return { error: ctx.error };
+
+  const name = String(formData.get("name") ?? "").trim();
+  const baseRole = String(formData.get("base_role") ?? "").trim();
+  if (name.length < 2) return { error: "Give the role a name of at least two letters." };
+  if (name.length > 40) return { error: "That name is too long. Forty characters at most." };
+  if (!canCopyRole(baseRole)) {
+    return { error: "Choose the role it starts from. Admins and carer logins cannot be copied." };
+  }
+
+  const supabase = await createClient();
+  const { data: created, error } = await supabase
+    .from("company_roles")
+    .insert({ company_id: ctx.companyId, name, base_role: baseRole, created_by: ctx.actor.id })
+    .select("id")
+    .single();
+  if (error) {
+    if (error.code === "23505") return { error: `You already have a role called ${name}.` };
+    return { error: error.message };
+  }
+
+  await writeAudit({
+    companyId: ctx.companyId,
+    actorId: ctx.actor.id,
+    actorEmail: ctx.actor.email,
+    actorRole: ctx.actor.role,
+    action: "company.role_created",
+    entityType: "company_role",
+    entityId: (created as { id: string }).id,
+    summary: `Created the role ${name}, copied from ${ROLE_LABELS[baseRole] ?? baseRole}`,
+    metadata: { name, base_role: baseRole },
+  });
+
+  revalidatePath("/settings/users");
+  revalidatePath("/", "layout");
+  return { ok: `${name} created. It starts with everything ${ROLE_LABELS[baseRole] ?? baseRole} has — untick what it must not reach.` };
+}
+
+/**
+ * Rename one. THE ROLE IT COPIES IS NOT EDITABLE, on purpose: changing it would change what
+ * every person on that role can reach, from a screen that looks like it is changing a word.
+ */
+export async function renameCompanyRole(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const ctx = await adminContext();
+  if (!ctx.ok) return { error: ctx.error };
+
+  const id = String(formData.get("company_role_id") ?? "").trim();
+  const name = String(formData.get("name") ?? "").trim();
+  if (!id) return { error: "Missing role." };
+  if (name.length < 2) return { error: "Give the role a name of at least two letters." };
+  if (name.length > 40) return { error: "That name is too long. Forty characters at most." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("company_roles")
+    .update({ name })
+    .eq("id", id)
+    .eq("company_id", ctx.companyId);
+  if (error) {
+    if (error.code === "23505") return { error: `You already have a role called ${name}.` };
+    return { error: error.message };
+  }
+
+  await writeAudit({
+    companyId: ctx.companyId,
+    actorId: ctx.actor.id,
+    actorEmail: ctx.actor.email,
+    actorRole: ctx.actor.role,
+    action: "company.role_renamed",
+    entityType: "company_role",
+    entityId: id,
+    summary: `Renamed a role to ${name}`,
+    metadata: { name },
+  });
+
+  revalidatePath("/settings/users");
+  revalidatePath("/", "layout");
+  return { ok: "Saved." };
+}
+
+/**
+ * Save which departments one of the company's own roles opens.
+ *
+ * The same subtraction as saveRoleModules: the form posts what is ON and the OFF rows are worked
+ * out by taking those away from the ceiling, so a dropped field can only switch something OFF,
+ * never on. The ceiling is the BASE ROLE'S ceiling, applied again server side: a tick for
+ * something the base role never had is ignored.
+ */
+export async function saveCompanyRoleModules(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const ctx = await adminContext();
+  if (!ctx.ok) return { error: ctx.error };
+
+  const id = String(formData.get("company_role_id") ?? "").trim();
+  if (!id) return { error: "Missing role." };
+
+  const supabase = await createClient();
+  const { data: roleRow } = await supabase
+    .from("company_roles")
+    .select("id, name, base_role")
+    .eq("id", id)
+    .eq("company_id", ctx.companyId)
+    .maybeSingle();
+  if (!roleRow) return { error: "That role was not found." };
+  const base = (roleRow as { base_role: string }).base_role;
+
+  const ticked = new Set(formData.getAll("modules").map((v) => String(v)));
+  const offKeys = MODULES
+    .filter((m) => m.roles.includes(base) && !isLocked(m.key, base) && !ticked.has(m.key))
+    .map((m) => m.key);
+
+  const { error: delErr } = await supabase
+    .from("company_role_modules_off")
+    .delete()
+    .eq("company_role_id", id);
+  if (delErr) return { error: delErr.message };
+
+  if (offKeys.length > 0) {
+    const { error: insErr } = await supabase.from("company_role_modules_off").insert(
+      offKeys.map((module_key) => ({
+        company_role_id: id,
+        module_key,
+        disabled_by: ctx.actor.id,
+      })),
+    );
+    if (insErr) return { error: insErr.message };
+  }
+
+  await writeAudit({
+    companyId: ctx.companyId,
+    actorId: ctx.actor.id,
+    actorEmail: ctx.actor.email,
+    actorRole: ctx.actor.role,
+    action: "company.role_access_set",
+    entityType: "company_role",
+    entityId: id,
+    summary: `${(roleRow as { name: string }).name}: ${offKeys.length === 0 ? "every department its base role has" : `${offKeys.length} switched off`}`,
+    metadata: { company_role_id: id, base_role: base, switched_off: offKeys },
+  });
+
+  revalidatePath("/settings/users");
+  revalidatePath("/", "layout");
+  return { ok: "Saved." };
+}
+
+/**
+ * Delete one. REFUSED WHILE ANYBODY IS ON IT (Phil, asked and answered 2026-09-21): deleting it
+ * and letting those people fall back to the built-in role would hand them back every department
+ * the role had switched off, silently, which is the opposite of what Delete means.
+ *
+ * The database says the same thing — profiles.company_role_id is ON DELETE RESTRICT — so the
+ * count here is for the message, not for the safety.
+ */
+export async function deleteCompanyRole(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const ctx = await adminContext();
+  if (!ctx.ok) return { error: ctx.error };
+
+  const id = String(formData.get("company_role_id") ?? "").trim();
+  if (!id) return { error: "Missing role." };
+
+  const supabase = await createClient();
+  const { data: roleRow } = await supabase
+    .from("company_roles")
+    .select("id, name")
+    .eq("id", id)
+    .eq("company_id", ctx.companyId)
+    .maybeSingle();
+  if (!roleRow) return { error: "That role was not found." };
+  const name = (roleRow as { name: string }).name;
+
+  const { count } = await supabase
+    .from("profiles")
+    .select("id", { count: "exact", head: true })
+    .eq("company_id", ctx.companyId)
+    .eq("company_role_id", id);
+  const refusal = deleteRefusal(name, count ?? 0);
+  if (refusal) return { error: refusal };
+
+  const { error } = await supabase
+    .from("company_roles")
+    .delete()
+    .eq("id", id)
+    .eq("company_id", ctx.companyId);
+  if (error) return { error: error.message };
+
+  await writeAudit({
+    companyId: ctx.companyId,
+    actorId: ctx.actor.id,
+    actorEmail: ctx.actor.email,
+    actorRole: ctx.actor.role,
+    action: "company.role_deleted",
+    entityType: "company_role",
+    entityId: id,
+    summary: `Deleted the role ${name}`,
+    metadata: { name },
+  });
+
+  revalidatePath("/settings/users");
+  revalidatePath("/", "layout");
+  return { ok: `${name} deleted.` };
 }
 
 

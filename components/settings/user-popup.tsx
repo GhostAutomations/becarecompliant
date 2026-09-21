@@ -10,7 +10,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import TeamMemberControls from "@/components/settings/team-member-controls";
+import TeamMemberControls, { type RoleOption } from "@/components/settings/team-member-controls";
 
 export type BranchOption = { id: string; name: string };
 
@@ -34,10 +34,12 @@ export type UserListItem = {
 export default function UserPopup({
   user,
   branches,
+  roleOptions,
   onClose,
 }: {
   user: UserListItem;
   branches: BranchOption[];
+  roleOptions: RoleOption[];
   onClose: () => void;
 }) {
   const [mounted, setMounted] = useState(false);
@@ -79,6 +81,7 @@ export default function UserPopup({
 
         {user.canManage ? (
           <TeamMemberControls
+            roleOptions={roleOptions}
             userId={user.id}
             userLabel={user.fullName || user.email}
             role={user.role}

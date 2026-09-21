@@ -159,8 +159,9 @@ export async function updateSession(request: NextRequest) {
    * the others. One gate, and a page added tomorrow under an existing department is covered the
    * moment it exists.
    *
-   * IT COSTS TWO SMALL QUERIES, and only on a path that IS a department: not on /my, not on
-   * /welcome, not on any API route. Both are primary key or single column index reads.
+   * IT COSTS TWO SMALL QUERIES — three for somebody on a role their company made (0314) — and
+   * only on a path that IS a department: not on /my, not on /welcome, not on any API route.
+   * Every one is a primary key or single column index read.
    *
    * IT CANNOT WIDEN ANYTHING. canUseModule refuses anything outside the role's ceiling and the
    * ceiling is in code, so the worst this gate can do is hide a page somebody was entitled to.
@@ -170,11 +171,13 @@ export async function updateSession(request: NextRequest) {
   if (user && moduleKey) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role, company_id")
+      .select("role, company_id, company_role_id")
       .eq("id", user.id)
       .maybeSingle();
     const role = (profile as { role?: string } | null)?.role ?? "";
     const companyId = (profile as { company_id?: string | null } | null)?.company_id ?? null;
+    const companyRoleId =
+      (profile as { company_role_id?: string | null } | null)?.company_role_id ?? null;
     /* No profile yet means sign up is still in flight; requireProfile handles that properly a
        moment later, and guessing here would bounce somebody mid-onboarding. */
     if (role) {
@@ -186,6 +189,17 @@ export async function updateSession(request: NextRequest) {
           .eq("company_id", companyId);
         for (const r of ((rows as Array<{ role: string; module_key: string }> | null) ?? [])) {
           disabled.add(disabledKey(r.role, r.module_key));
+        }
+      }
+      /* Their own role, if their company made one (0314). Keyed on the BUILT-IN role, because
+         that is the key canUseModule asks with -- and this set is only ever this one person's. */
+      if (companyRoleId) {
+        const { data: offRows } = await supabase
+          .from("company_role_modules_off")
+          .select("module_key")
+          .eq("company_role_id", companyRoleId);
+        for (const r of ((offRows as Array<{ module_key: string }> | null) ?? [])) {
+          disabled.add(disabledKey(role, r.module_key));
         }
       }
       if (!canUseModule(moduleKey, role, disabled)) {

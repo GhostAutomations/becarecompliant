@@ -8,7 +8,8 @@ import { SidebarNav, MobileDock } from "@/components/app-nav";
 import NavyNav from "@/components/navy-nav";
 import ToastHost from "@/components/toast-host";
 import { ROLE_LABELS, navEntriesForRole } from "@/lib/nav";
-import { disabledModules } from "@/lib/auth/module-access";
+import { companyRoles, disabledModulesFor } from "@/lib/auth/module-access";
+import { displayRoleLabel } from "@/lib/auth/custom-roles";
 import { onCallLabel, withOnCallLabel } from "@/lib/on-call/label";
 import { featureEnabled } from "@/lib/billing/tier";
 import { getCompanyTrialState } from "@/lib/billing/trial-gate";
@@ -108,7 +109,16 @@ export default async function AppLayout({
     .toUpperCase();
   /* The departments this company has switched off for this role. The nav asks the same function
      the middleware gate asks, so a tab can never lead somewhere the gate bounces them out of. */
-  const disabledForRole = await disabledModules(navCompanyId);
+  /* The name THEY chose for the role, where there is one (0314). Phil, 2026-09-21: the custom
+     name shows everywhere, and the built-in role it copies is a Settings detail. */
+  const myCustomRole = profile.company_role_id
+    ? (await companyRoles(navCompanyId)).find((r) => r.id === profile.company_role_id) ?? null
+    : null;
+  const disabledForRole = await disabledModulesFor(
+    navCompanyId,
+    actingCompanyId ? "company_admin" : profile.role,
+    actingCompanyId ? null : profile.company_role_id ?? null,
+  );
   const navEntries = withOnCallLabel(
     navEntriesForRole(actingCompanyId ? "company_admin" : profile.role, disabledForRole),
     onCallName,
@@ -220,7 +230,7 @@ export default async function AppLayout({
                 need to do". */}
             {isStaff ? null : (
               <span className="pill-neutral">
-                {ROLE_LABELS[profile.role] ?? profile.role}
+                {displayRoleLabel(ROLE_LABELS[profile.role] ?? profile.role, myCustomRole?.name ?? null)}
               </span>
             )}
             <form action="/auth/signout" method="post">

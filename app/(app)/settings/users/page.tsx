@@ -23,12 +23,15 @@ import {
 import { listInviteDomains, readInviteDomains } from "@/lib/invite-domains";
 import SettingsSection from "@/components/settings/settings-section";
 import { MODULES, isLocked, disabledKey } from "@/lib/auth/module-catalogue";
-import { disabledModules } from "@/lib/auth/module-access";
+import { companyRoles, disabledModules } from "@/lib/auth/module-access";
+import { COPYABLE_ROLES, displayRoleLabel, roleChoiceValue } from "@/lib/auth/custom-roles";
+import { isCompanyWideRole } from "@/lib/people/roles";
 import RoleAccessTile from "@/components/settings/role-access-tile";
+import NewRoleForm from "@/components/settings/new-role-form";
 import PortalFormsTile from "@/components/settings/portal-forms-tile";
 import { PORTAL_FORMS, portalFormKey } from "@/lib/auth/portal-forms";
 
-export const metadata: Metadata = { title: "Users and access" };
+export const metadata: Metadata = { title: "Roles, users and access" };
 
 /**
  * ONE SCREEN, FOLDED (Phil, 2026-09-21): "i think we should join those 2 settings together and
@@ -85,6 +88,7 @@ export default async function UsersPage() {
 
   const supabase = await createClient();
   const disabled = await disabledModules(companyId);
+  const ownRoles = await companyRoles(companyId);
   const accessRoles = ROLE_ORDER.filter((role) => MODULES.some((m) => m.roles.includes(role)));
   const [{ data: branches }, { data: users }, { data: invites }, { data: company }] =
     await Promise.all([
@@ -95,12 +99,12 @@ export default async function UsersPage() {
         .order("kind", { ascending: true }),
       supabase
         .from("profiles")
-        .select("id, full_name, email, role, status")
+        .select("id, full_name, email, role, status, company_role_id")
         .eq("company_id", companyId)
         .neq("role", "platform_admin"),
       supabase
         .from("invites")
-        .select("id, email, full_name, role, branch_id, last_sent_at, resend_count, email_sent_at")
+        .select("id, email, full_name, role, company_role_id, branch_id, last_sent_at, resend_count, email_sent_at")
         .eq("company_id", companyId)
         .eq("status", "pending")
         .order("created_at", { ascending: false }),
@@ -136,6 +140,22 @@ export default async function UsersPage() {
       if (row.is_primary) primaryByUser.set(row.user_id, row.branch_id);
       else additionalByUser.set(row.user_id, [...(additionalByUser.get(row.user_id) ?? []), row.branch_id]);
     }
+  }
+
+  /* A company's own roles (0314): the name to show beside a person, and how many are on each,
+     which is what the delete refusal counts. */
+  const ownRoleById = new Map(ownRoles.map((r) => [r.id, r]));
+  const peopleOnRole = new Map<string, number>();
+  for (const u of (users ?? []) as Array<{ company_role_id?: string | null }>) {
+    if (u.company_role_id) {
+      peopleOnRole.set(u.company_role_id, (peopleOnRole.get(u.company_role_id) ?? 0) + 1);
+    }
+  }
+  function roleNameFor(role: string, companyRoleId: string | null | undefined): string {
+    return displayRoleLabel(
+      ROLE_LABELS[role] ?? role,
+      companyRoleId ? ownRoleById.get(companyRoleId)?.name ?? null : null,
+    );
   }
 
   const userList = (users ?? []).sort(
@@ -212,6 +232,7 @@ export default async function UsersPage() {
     email: string;
     role: string;
     status: string;
+    company_role_id?: string | null;
   }): UserListItem {
     const isSelf = u.id === user.id;
     const isAdmin = u.role === "company_admin";
@@ -222,8 +243,10 @@ export default async function UsersPage() {
       id: u.id,
       fullName: u.full_name,
       email: u.email,
-      role: u.role,
-      roleLabel: ROLE_LABELS[u.role] ?? u.role,
+      /* The value the role picker posts: their company's own role travels as "custom:<id>", so
+         one field carries either kind and the two can never disagree (lib/auth/custom-roles). */
+      role: roleChoiceValue(u.role, u.company_role_id ?? null),
+      roleLabel: roleNameFor(u.role, u.company_role_id),
       status: u.status,
       isSelf,
       canManage: !isSelf && !isAdmin,
@@ -241,6 +264,43 @@ export default async function UsersPage() {
     };
   }
 
+  /* What a new role may start from, with its reach said in words rather than implied: somebody
+     naming a role needs to know before they choose that the reach comes from the role underneath
+     and not from anything on this screen. */
+  const copyableRoles = COPYABLE_ROLES.map((value) => ({
+    value,
+    label: ROLE_LABELS[value] ?? value,
+    reach: isCompanyWideRole(value)
+      ? "every branch in the company."
+      : "only the branches each person on it is assigned to.",
+  }));
+
+  /* Every role picker on this screen is built from ONE list: the built-in roles, then the ones
+     this company has made. One list, so an invite and a role change cannot offer different
+     answers to the same question, and a role added later appears in both at once.
+
+     A company's own role is shown with the role it copies in brackets, because that is what
+     decides its branch reach and an Admin choosing between "Care Coordinator" and "Supervisor"
+     is entitled to know they are the same thing underneath.
+
+     NOT company_admin: only the Founder creates those. */
+  const roleOptions = [
+    ...ROLE_ORDER.filter((r) => r !== "company_admin").map((value) => ({
+      value,
+      label: ROLE_LABELS[value] ?? value,
+      baseRole: value,
+    })),
+    { value: "staff", label: ROLE_LABELS.staff ?? "Team Member", baseRole: "staff" },
+    ...ownRoles.map((r) => ({
+      value: roleChoiceValue(r.baseRole, r.id),
+      label: `${r.name} (${ROLE_LABELS[r.baseRole] ?? r.baseRole})`,
+      baseRole: r.baseRole,
+    })),
+  ];
+  /* An INVITE does not offer the carer login: a Team Member account is created from the People
+     register when a carer is added with an email (lib/staff/invite.ts), not typed in here. */
+  const inviteRoleOptions = roleOptions.filter((o) => o.value !== "staff");
+
   return (
     <div className="page-shell space-y-4">
       {/* Live refresh: the pending and team lists update the instant an invite is
@@ -248,10 +308,11 @@ export default async function UsersPage() {
       <RealtimeRefresh tables={["invites", "profiles"]} channel="users-live" />
       <div>
         <BackLink href="/settings" label="Back to Settings" />
-        <h1 className="page-title mt-1">Users and access</h1>
+        <h1 className="page-title mt-1">Roles, users and access</h1>
         <p className="page-subtitle">
-          Who is in your company, what their role opens, and what a carer sees in the team portal.
-          Only Admins can invite, change a role or change what a role reaches.
+          The roles your company uses, who is on them, what each one opens, and what a carer sees
+          in the team portal. Only Admins can make a role, invite somebody, change a role or
+          change what a role reaches.
         </p>
       </div>
 
@@ -271,6 +332,60 @@ export default async function UsersPage() {
         </div>
       ) : null}
 
+      {/*
+        ROLES OF YOUR OWN (Phil, 2026-09-21: "lets add the roles to users and access, called that
+        setting tile Roles, users and access").
+
+        A role a company makes is a NAMED NARROWING of a built-in one: it keeps the built-in
+        role's branch reach and everything the database lets that role do, and unticks
+        departments it must not open. That is why it can never reach further than the role it
+        starts from, and why no policy had to change to allow it — the person still carries the
+        built-in role underneath, which is what every rule reads.
+
+        It is the first section on the page on purpose: a role has to exist before somebody can
+        be invited onto it.
+      */}
+      <SettingsSection
+        title="Roles"
+        summary="Roles your company has made: a built-in role, renamed, with departments taken off."
+        count={ownRoles.length}
+      >
+        <div className="space-y-5">
+          <NewRoleForm roles={copyableRoles} />
+          {ownRoles.length > 0 ? (
+            <div className="grid items-start gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {ownRoles.map((r) => (
+                <RoleAccessTile
+                  key={r.id}
+                  role={r.baseRole}
+                  roleLabel={r.name}
+                  companyRole={{
+                    id: r.id,
+                    baseLabel: ROLE_LABELS[r.baseRole] ?? r.baseRole,
+                    people: peopleOnRole.get(r.id) ?? 0,
+                  }}
+                  modules={MODULES.map((m) => ({
+                    key: m.key,
+                    label: m.label,
+                    note: m.note ?? null,
+                    allowed: m.roles.includes(r.baseRole),
+                    locked: isLocked(m.key, r.baseRole),
+                    on:
+                      m.roles.includes(r.baseRole) &&
+                      !disabled.has(disabledKey(r.baseRole, m.key)) &&
+                      !r.off.includes(m.key),
+                  }))}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-white/50">
+              You have not made any roles yet. Everyone is on one of the built-in roles below.
+            </p>
+          )}
+        </div>
+      </SettingsSection>
+
       <SettingsSection
         title="Invite a person"
         summary="Send an invitation, with their role and branches."
@@ -282,7 +397,7 @@ export default async function UsersPage() {
           </p>
         ) : null}
         <div className="mt-4">
-          <InviteForm branches={activeBranches} />
+          <InviteForm branches={activeBranches} roleOptions={inviteRoleOptions} />
         </div>
       </SettingsSection>
 
@@ -398,7 +513,7 @@ export default async function UsersPage() {
                   {invite.full_name || invite.email}
                 </p>
                 <p className="text-xs text-white/50">
-                  {invite.email} · {ROLE_LABELS[invite.role] ?? invite.role} ·{" "}
+                  {invite.email} · {roleNameFor(invite.role, invite.company_role_id)} ·{" "}
                   {inviteBranchSummary(invite)}
                   {invite.resend_count > 0
                     ? ` · sent ${invite.resend_count}x`
@@ -449,6 +564,7 @@ export default async function UsersPage() {
           subtitle="Admins, Managers and Supervisors: the people who run the service"
           users={activeUsers.map(toItem)}
           branches={branchOptions}
+          roleOptions={roleOptions}
           emptyText="No Admins or Managers yet. Invite one above."
         />
       </SettingsSection>
@@ -463,6 +579,7 @@ export default async function UsersPage() {
           subtitle="Team Members: their own area only, and free of charge"
           users={passiveUsers.map(toItem)}
           branches={branchOptions}
+          roleOptions={roleOptions}
           emptyText="No Team Member logins yet. They are created when a person is added with an email."
         />
       </SettingsSection>

@@ -22,6 +22,14 @@ import DeleteUserDialog from "@/components/settings/delete-user-dialog";
 
 type Branch = { id: string; name: string };
 
+/**
+ * The roles this Admin may put somebody on: the built-in ones, then any their company has made
+ * (0314). It is passed in rather than listed here because the list is a QUESTION ABOUT THIS
+ * COMPANY now, not a constant — and because one list handed to every picker is what stops an
+ * invite and a role change offering different answers.
+ */
+export type RoleOption = { value: string; label: string; baseRole: string };
+
 export default function TeamMemberControls({
   userId,
   userLabel,
@@ -30,6 +38,7 @@ export default function TeamMemberControls({
   primaryBranchId,
   additionalBranchIds,
   branches,
+  roleOptions,
 }: {
   userId: string;
   userLabel: string;
@@ -38,6 +47,7 @@ export default function TeamMemberControls({
   primaryBranchId: string | null;
   additionalBranchIds: string[];
   branches: Branch[];
+  roleOptions: RoleOption[];
 }) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState(saveTeamMember, IDLE_STATE);
@@ -97,13 +107,11 @@ export default function TeamMemberControls({
               value={roleValue}
               onChange={(e) => setRoleValue(e.target.value)}
             >
-              <option value="registered_individual">Responsible Individual</option>
-              <option value="registered_manager">Registered Manager</option>
-              <option value="manager">Branch Manager</option>
-              <option value="supervisor">Supervisor</option>
-              <option value="recruiter">Recruiter</option>
-              <option value="team_member">Viewer</option>
-              <option value="staff">Team Member</option>
+              {roleOptions.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
             </select>
           </div>
 

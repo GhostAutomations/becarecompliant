@@ -202,9 +202,10 @@ export default async function SettingsPage() {
           </p>
         </Link>
         <Link href="/settings/users" className="app-tile">
-          <h2 className="text-base font-semibold text-white">Users and access</h2>
+          <h2 className="text-base font-semibold text-white">Roles, users and access</h2>
           <p className="text-sm text-white/60">
-            Invite your team, set roles and branches, and choose which departments each role opens.
+            Make a role of your own, invite your team, set roles and branches, and choose which
+            departments each role opens.
           </p>
         </Link>
       </section>

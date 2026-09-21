@@ -32,6 +32,12 @@ export type Profile = {
      *  same as 'team_member', which is the older read-only Viewer role. */
     | "staff";
   status: "invited" | "active" | "disabled";
+  /**
+   * The company's OWN role this person carries, if any (0314). `role` above is still the
+   * built-in role it copies, and that is what every policy reads: this only narrows which
+   * departments they are shown, and gives the role the name their company chose.
+   */
+  company_role_id?: string | null;
   /** Set when a platform admin is operating inside a tenant via manage-as. The
    *  profile is shadowed to that company with a company_admin role for scoping;
    *  this flag lets callers know the real user is the founder impersonating. */
@@ -143,7 +149,7 @@ export async function requireProfile(): Promise<{
   const supabase = await createClient();
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, company_id, full_name, email, role, status")
+    .select("id, company_id, full_name, email, role, status, company_role_id")
     .eq("id", user.id)
     .maybeSingle();
 

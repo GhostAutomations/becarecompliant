@@ -16,6 +16,11 @@
 -- file into the Supabase SQL editor, and read the last two columns. Probe one role at a time: a
 -- Supervisor and a Recruiter after any change to policies, to roles, or to the access tiles.
 --
+-- IT PROBES A PERSON, not a role name, so somebody on a role their own company made (0314) is
+-- probed exactly the same way. Their custom role narrows which departments they are SHOWN; what
+-- the database allows comes from the built-in role underneath, which is what these attempts
+-- test, so a pass here means the tile can only be hiding something, never promising it.
+--
 -- HOW TO READ IT. "as the tile promises" is a pass. "DOES NOT MATCH THE TILE" is a defect:
 -- either the policy is wrong or the tick is a lie, and which of the two it is is a decision
 -- rather than a guess -- Phil decides which way round it gets put right. "nothing to judge by"

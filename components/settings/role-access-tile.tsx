@@ -22,7 +22,12 @@
  */
 
 import ActionForm from "@/components/action-form";
-import { saveRoleModules } from "@/app/(app)/settings/actions";
+import {
+  deleteCompanyRole,
+  renameCompanyRole,
+  saveCompanyRoleModules,
+  saveRoleModules,
+} from "@/app/(app)/settings/actions";
 
 export type ModuleTick = {
   key: string;
@@ -33,14 +38,26 @@ export type ModuleTick = {
   on: boolean;
 };
 
+/**
+ * ONE TILE FOR BOTH KINDS OF ROLE (0314). A built-in role and a company's own role are the same
+ * question with the same tick boxes, so they are the same tile: only the action behind Save
+ * differs, and a company's own role carries a rename and a delete underneath.
+ *
+ * The rename and the delete are SIBLINGS of the ticks form, never nested inside it: a form
+ * inside a form is invalid HTML and the browser drops the inner one, which would have made
+ * Rename quietly save the ticks instead.
+ */
 export default function RoleAccessTile({
   role,
   roleLabel,
   modules,
+  companyRole = null,
 }: {
   role: string;
   roleLabel: string;
   modules: ModuleTick[];
+  /** Set when this is a role the company made: what it copies, and who is on it. */
+  companyRole?: { id: string; baseLabel: string; people: number } | null;
 }) {
   const offered = modules.filter((m) => m.allowed).length;
 
@@ -52,10 +69,20 @@ export default function RoleAccessTile({
           {offered} {offered === 1 ? "department" : "departments"} available
         </span>
       </div>
+      {companyRole ? (
+        <p className="mt-1 text-xs text-white/45">
+          Starts from {companyRole.baseLabel}, and reaches the same branches.{" "}
+          {companyRole.people === 0
+            ? "Nobody is on it yet."
+            : companyRole.people === 1
+              ? "One person is on it."
+              : `${companyRole.people} people are on it.`}
+        </p>
+      ) : null}
 
       <ActionForm
-        action={saveRoleModules}
-        hidden={{ role }}
+        action={companyRole ? saveCompanyRoleModules : saveRoleModules}
+        hidden={companyRole ? { company_role_id: companyRole.id } : { role }}
         label="Save"
         className="mt-3"
       >
@@ -110,6 +137,40 @@ export default function RoleAccessTile({
           })}
         </div>
       </ActionForm>
+
+      {companyRole ? (
+        <div className="mt-4 space-y-2 border-t border-white/10 pt-3">
+          <ActionForm
+            action={renameCompanyRole}
+            hidden={{ company_role_id: companyRole.id }}
+            label="Rename"
+          >
+            <label htmlFor={`name-${companyRole.id}`} className="form-label">
+              Name
+            </label>
+            <input
+              id={`name-${companyRole.id}`}
+              name="name"
+              defaultValue={roleLabel}
+              maxLength={40}
+              required
+            />
+            {/* WHAT IT COPIES IS NOT EDITABLE, on purpose: changing it would change what
+                everybody on the role can reach, from a control that looks like a rename. */}
+          </ActionForm>
+          <ActionForm
+            action={deleteCompanyRole}
+            hidden={{ company_role_id: companyRole.id }}
+            label="Delete this role"
+            buttonClassName="rounded-lg bg-red-500/90 px-3 py-2 text-xs font-semibold text-white"
+            confirm="Delete this role? Anyone on it must be moved first, and nothing else changes."
+          >
+            <p className="text-xs text-white/40">
+              A role with people on it cannot be deleted. Move them first.
+            </p>
+          </ActionForm>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -24,7 +24,12 @@ export default async function NoAccessPage() {
    * to go at all, and offering them a Dashboard button would send them straight back here. Better
    * to say plainly that there is nothing for them yet than to hand them a door into a wall.
    */
-  const canGoToDashboard = await canOpenModule("dashboard", profile.role, profile.company_id ?? null);
+  const canGoToDashboard = await canOpenModule(
+    "dashboard",
+    profile.role,
+    profile.company_id ?? null,
+    profile.company_role_id ?? null,
+  );
   return (
     <div className="page-shell">
       <h1 className="page-title mt-1">That area is switched off</h1>

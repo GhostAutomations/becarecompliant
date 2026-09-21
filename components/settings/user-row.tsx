@@ -14,7 +14,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import TeamMemberControls from "@/components/settings/team-member-controls";
+import TeamMemberControls, { type RoleOption } from "@/components/settings/team-member-controls";
 
 type Branch = { id: string; name: string };
 
@@ -31,6 +31,7 @@ export default function UserRow({
   additionalBranchIds,
   branchSummary,
   branches,
+  roleOptions,
 }: {
   userId: string;
   fullName: string;
@@ -45,6 +46,7 @@ export default function UserRow({
   additionalBranchIds: string[];
   branchSummary: string;
   branches: Branch[];
+  roleOptions: RoleOption[];
 }) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -112,6 +114,7 @@ export default function UserRow({
                     primaryBranchId={primaryBranchId}
                     additionalBranchIds={additionalBranchIds}
                     branches={branches}
+                    roleOptions={roleOptions}
                   />
                 ) : (
                   <p className="text-sm text-white/60">
