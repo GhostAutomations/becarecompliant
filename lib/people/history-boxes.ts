@@ -80,12 +80,20 @@ export const TRACKER_BOXES: ReadonlyArray<{
     kind: "date",
     hint: "Completion date — the date on their certificate.",
   },
+  /*
+   * NOT a second certificate date (Phil, 2026-09-21: "thistle care monday matrix displays the
+   * exp date for Enhanced DBS"). Thistle's own data says the same thing out loud: every one of
+   * the fourteen carers has a DBS date in the past and an Enhanced DBS date in the future, and
+   * it is the certificate date plus their renewal period almost to the day -- three years for
+   * most, six for two of them. The column that came across from the board holds the renewal
+   * deadline, and the box has to say so or somebody types the certificate date into it.
+   */
   {
     name: "t_enhanced_dbs_date",
     column: "enhanced_dbs",
     fallback: "Enhanced DBS",
     kind: "date",
-    hint: "Completion date — the date on their certificate.",
+    hint: "Expiry date — when their DBS has to be renewed by.",
   },
   {
     name: "t_rtw_expiry_date",

@@ -105,6 +105,9 @@ test("every document box says which date it wants", () => {
   // The three date kinds are named in the words a manager would use, not ours.
   const byName = Object.fromEntries(TRACKER_BOXES.map((b) => [b.name, b.hint]));
   assert.match(byName.t_dbs_date, /^Completion date/);
+  /* Enhanced DBS is the RENEWAL DEADLINE, not a second certificate date: that is how the board
+     it came from uses it, and how all fourteen of Thistle's carers are stored. */
+  assert.match(byName.t_enhanced_dbs_date, /^Expiry date/);
   assert.match(byName.t_rtw_expiry_date, /^Expiry date/);
   assert.match(byName.t_probation_end_due, /^Due date/);
   assert.match(byName.t_probation_end_actual, /^Completion date/);
