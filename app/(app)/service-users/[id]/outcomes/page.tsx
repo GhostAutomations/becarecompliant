@@ -6,10 +6,10 @@ import OutcomesManager from "@/components/service-users/outcomes-manager";
 import { getServiceUser, getServiceUserOutcomes, getOutcomesReviewMonths } from "@/lib/service-users/data";
 import { isOutcomeAchievingOrProgressing } from "@/lib/service-users/outcome-consts";
 import { featureEnabled } from "@/lib/billing/tier";
+import { REGISTER_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
 
 export const metadata: Metadata = { title: "Personal outcomes" };
 
-const MANAGE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "platform_admin"];
 
 export default async function ServiceUserOutcomesPage({
   params,

@@ -57,9 +57,13 @@ test("the roles that can SEE more than they can WRITE are refused", () => {
    * supervisor reads her whole branch (0078), on call reads the whole company, a viewer reads
    * their branch, a team member reads their own record. Not one of them may write.
    */
-  for (const role of ["supervisor", "on_call", "viewer", "team_member"]) {
+  for (const role of ["on_call", "viewer", "team_member"]) {
     assert.equal(canManageRecord({ role, branchIds: [CARDIFF], recordBranchId: CARDIFF }), false, role);
   }
+  // A SUPERVISOR runs her own branch since 0309 (is_branch_lead), and only her own.
+  assert.equal(canManageRecord({ role: "supervisor", branchIds: [CARDIFF], recordBranchId: CARDIFF }), true);
+  assert.equal(canManageRecord({ role: "supervisor", branchIds: [CARDIFF], recordBranchId: NEWPORT }), false);
+  assert.equal(canManageRecord({ role: "supervisor", branchIds: [CARDIFF], recordBranchId: null }), false);
 });
 
 test("an unknown role is refused rather than allowed", () => {
@@ -68,15 +72,15 @@ test("an unknown role is refused rather than allowed", () => {
 });
 
 test("the coarse check is for pages and toolbars, and agrees with the per record one", () => {
-  for (const role of ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"]) {
+  for (const role of ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager", "supervisor"]) {
     assert.equal(canManageAnything(role), true, role);
   }
-  for (const role of ["supervisor", "on_call", "viewer", "team_member", "auditor"]) {
+  for (const role of ["on_call", "viewer", "team_member", "auditor"]) {
     assert.equal(canManageAnything(role), false, role);
   }
   // Anyone the coarse check refuses must be refused per record too, or a page would open and
   // then deny every control on it.
-  for (const role of ["supervisor", "on_call", "viewer", "team_member", "auditor"]) {
+  for (const role of ["on_call", "viewer", "team_member", "auditor"]) {
     assert.equal(canManageRecord({ role, branchIds: [CARDIFF], recordBranchId: CARDIFF }), false, role);
   }
 });
@@ -101,12 +105,11 @@ test("anyone whose branch list is narrowed can only manage inside those branches
     const inside = canManageRecord({ role, branchIds, recordBranchId: "b-cardiff" });
     const outside = canManageRecord({ role, branchIds, recordBranchId: "b-caerphilly" });
     assert.equal(outside, false, `${role} outside`);
-    // A supervisor manages nothing at all, which is stricter, never looser.
-    if (role === "manager") assert.equal(inside, true);
+    assert.equal(inside, true, `${role} inside`);
   }
 });
 
-test("a SUPERVISOR may conduct in their own branch even though they may not manage the record", () => {
+test("a SUPERVISOR may conduct in their own branch, and since 0309 manages the records there too", () => {
   /*
    * The reason booking is a separate rule. planner_bookings_insert ORs in is_branch_supervisor,
    * which people_update does not, so reusing canManageRecord here would hide a control from
@@ -118,6 +121,11 @@ test("a SUPERVISOR may conduct in their own branch even though they may not mana
   );
   assert.equal(
     canManageRecord({ role: "supervisor", branchIds: [CARDIFF], recordBranchId: CARDIFF }),
+    true,
+  );
+  // And not one branch further, which is the point of both rules.
+  assert.equal(
+    canManageRecord({ role: "supervisor", branchIds: [CARDIFF], recordBranchId: CAERPHILLY }),
     false,
   );
 });
@@ -228,13 +236,19 @@ test("a Supervisor records training in her own branches", () => {
   );
 });
 
-test("recording training does NOT mean editing the person record", () => {
-  /* The two functions transcribe two different policies, and this is why they are two. A
-     Supervisor may write training and may not touch the record beside it; one boolean cannot say
-     both, and the version that tried would put the Manage record button back on her screen. */
+test("training and the record are still two policies, and both now reach a Supervisor", () => {
+  /* They were written apart because they said different things: 0294 gave a Supervisor training
+     and nothing else, so one boolean could not answer both. 0309 gave her the record in her own
+     branch as well, and they now agree there -- but they are still two transcriptions of two
+     policies, and the day one changes is the day that matters. */
   const her = { role: "supervisor", branchIds: ["cardiff"], recordBranchId: "cardiff" };
   assert.equal(canRecordTraining(her), true);
-  assert.equal(canManageRecord(her), false);
+  assert.equal(canManageRecord(her), true);
+
+  // Another branch: both refuse, for the same reason in two different policies.
+  const elsewhere = { role: "supervisor", branchIds: ["cardiff"], recordBranchId: "newport" };
+  assert.equal(canRecordTraining(elsewhere), false);
+  assert.equal(canManageRecord(elsewhere), false);
 });
 
 test("a carer with no branch is refused, for a Supervisor as for a Manager", () => {

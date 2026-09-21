@@ -918,3 +918,29 @@ The failed visit counts as done — it happened — but the next one is due in a
 written on the question itself (`retestWithin` on "Has the carer passed the spot check?", 0308),
 not in code about spot checks, so it is part of the form for every company and any other form can
 use it. `lib/forms/retest.ts` is the whole rule and it is unit tested.
+
+---
+
+## DEF-028 — A Supervisor could not add a carer, or a service user  ·  FIXED
+
+**2026-09-21**, Phil: *"supervisor and above need to be able to add people, service users and
+update training."* Training was already hers (0294). Both registers were not: `people_*` and
+`service_users_*` asked `is_branch_manager` for select, insert AND update, so a Supervisor saw
+only the records assigned to her and could create neither.
+
+Adding the insert alone would have been worse than useless — she would have saved a carer and
+watched the record leave her own register, because the SELECT was the narrower rule.
+
+**0309 introduces `is_branch_lead(bid)`** — a Manager or a Supervisor assigned to that branch —
+and every policy for the two registers and what hangs off them (checks, trackers, training
+register, care plan, outcomes, assignments, evidence and its files, migrated history) now asks
+that one question instead of naming roles. Widening or narrowing who runs a branch is one edit.
+
+**Her reach is her own branches and not one further**, which is the same rule as before; what
+changed is which roles count as running a branch. **Deliberately not widened:** invoicing,
+absence, holidays, invites and the public enquiry inbox.
+
+**In the app**, the same list had been copied into NINE page files. They now import
+`REGISTER_ROLES` from `lib/auth/module-roles.ts`, and `canManageRecord` / `canManageAnything`
+follow `branchScopedRole`, so the screen and the policy say the same thing about a Supervisor —
+which is the whole purpose of manage-scope.ts, and the fault it was written for in the first place.

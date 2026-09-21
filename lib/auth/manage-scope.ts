@@ -17,7 +17,9 @@
  * THIS FUNCTION IS A TRANSCRIPTION OF THE RLS POLICY, and nothing more:
  *
  *   people_update USING/WITH CHECK =
- *     is_platform_admin() OR is_company_admin(company_id) OR is_branch_manager(branch_id)
+ *     is_platform_admin() OR is_company_admin(company_id) OR is_branch_lead(branch_id)
+ *
+ *   is_branch_lead(bid) = is_branch_manager(bid) OR is_branch_supervisor(bid)    -- 0309
  *
  *   is_branch_manager(bid) =
  *     (role 'manager' AND active AND bid IN user_branches)
@@ -52,7 +54,11 @@ export function canManageRecord(opts: {
   recordBranchId: string | null | undefined;
 }): boolean {
   if (COMPANY_WIDE.has(opts.role)) return true;
-  if (opts.role !== "manager") return false;
+  /* A SUPERVISOR RUNS HER OWN BRANCH (Phil, 2026-09-21). people_update and service_users_update
+     ask is_branch_lead since 0309 -- a Manager OR a Supervisor assigned to that branch -- so this
+     asks the same. Before it, she could not add a carer at all, and a record she did create would
+     have left her own register the moment it saved. */
+  if (!branchScopedRole(opts.role)) return false;
   return !!opts.recordBranchId && opts.branchIds.includes(opts.recordBranchId);
 }
 
@@ -64,7 +70,7 @@ export function canManageRecord(opts: {
  * using this instead is the defect.
  */
 export function canManageAnything(role: string): boolean {
-  return COMPANY_WIDE.has(role) || role === "manager";
+  return COMPANY_WIDE.has(role) || branchScopedRole(role);
 }
 
 /**
@@ -145,6 +151,10 @@ export function branchScopedRole(role: string): boolean {
  * use the Planner can book anybody in the company. The restriction is narrower than a branch and
  * sits on the CONDUCTOR, because being the conductor of a live booking is what grants sight of
  * that one carer's record (0183). What must not happen is somebody granting that to themselves.
+ *
+ * Since 0309 canManageRecord answers the same question for the two registers, so this rule and
+ * that one now agree for a Supervisor. It stays its own function because it transcribes its own
+ * policy, and the day one of them changes is the day that matters.
  *
  * A THIRD RULE, because it is a third policy. `planner_bookings_insert` is:
  *

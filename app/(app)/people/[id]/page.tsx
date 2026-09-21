@@ -54,10 +54,10 @@ import {
   type EmploymentStatus,
 } from "@/lib/people/types";
 import { DEFAULT_AMBER_DAYS } from "@/lib/recurrence";
+import { REGISTER_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
 
 export const metadata: Metadata = { title: "Record" };
 
-const MANAGE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "platform_admin"];
 
 /* Exactly who can open the Complaints section. Kept the same on purpose: two lists that can
    drift is how a tile ends up showing HR sensitive detail to somebody the section itself

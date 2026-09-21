@@ -42,3 +42,22 @@ export const INCIDENTS_ROLES: readonly string[] = [
   "manager",
   "supervisor",
 ];
+
+/**
+ * The two REGISTERS: People and Service Users, and everything that hangs off a record.
+ *
+ * Phil, 2026-09-21: "supervisor and above need to be able to add people, service users and update
+ * training." A Supervisor runs the branches she is assigned to, so she belongs on the same list as
+ * a Manager, and RLS (0309, is_branch_lead) says exactly the same thing. This list had been copied
+ * into NINE page files, which is the fault module-roles.ts exists to stop.
+ *
+ * Which records she then sees, and which she may change, is RLS and is her branches only.
+ */
+export const REGISTER_ROLES: readonly string[] = [
+  "platform_admin",
+  "company_admin",
+  "registered_individual",
+  "registered_manager",
+  "manager",
+  "supervisor",
+];

@@ -12,10 +12,10 @@ import {
 } from "@/lib/people/data";
 import { listRegisterCheckColumns, getRegisterColumnText } from "@/lib/register/data";
 import { DEFAULT_AMBER_DAYS } from "@/lib/recurrence";
+import { REGISTER_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
 
 export const metadata: Metadata = { title: "People" };
 
-const MANAGE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "platform_admin"];
 
 export default async function PeoplePage({
   searchParams,

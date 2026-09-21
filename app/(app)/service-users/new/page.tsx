@@ -4,10 +4,10 @@ import { requireCompany } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import CreateServiceUserForm from "@/components/service-users/create-service-user-form";
 import { listAccessibleBranchTypes } from "@/lib/service-users/data";
+import { REGISTER_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
 
 export const metadata: Metadata = { title: "Add service user" };
 
-const MANAGE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "platform_admin"];
 
 export default async function NewServiceUserPage() {
   const { user, profile } = await requireCompany();

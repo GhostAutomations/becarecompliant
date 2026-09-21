@@ -9,10 +9,10 @@ import { getInvoicingConfig, londonToday } from "@/lib/invoicing/data";
 import { INVOICE_SERVICES, serviceFixedPence } from "@/lib/invoicing/types";
 import { CARE_PLAN_DAYS, carersLabel } from "@/lib/service-users/care-plan-consts";
 import { CALL_SLOTS } from "@/lib/service-users/care-package";
+import { REGISTER_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
 
 export const metadata: Metadata = { title: "Care plan" };
 
-const MANAGE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "platform_admin"];
 
 function fmtDate(iso: string | null): string {
   if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "";

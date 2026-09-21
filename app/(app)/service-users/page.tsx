@@ -11,10 +11,10 @@ import {
   getReviewIntervalDays,
 } from "@/lib/service-users/data";
 import { listRegisterCheckColumns, getRegisterColumnText } from "@/lib/register/data";
+import { REGISTER_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
 
 export const metadata: Metadata = { title: "Service Users" };
 
-const MANAGE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "platform_admin"];
 
 export default async function ServiceUsersPage({
   searchParams,

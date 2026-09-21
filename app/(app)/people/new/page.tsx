@@ -4,10 +4,10 @@ import { requireCompany } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import CreatePersonForm from "@/components/people/create-person-form";
 import { listBranches, listSupervisoryUsers, getBranchStaffMap, listJobTitles } from "@/lib/people/data";
+import { REGISTER_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
 
 export const metadata: Metadata = { title: "Add person" };
 
-const MANAGE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "platform_admin"];
 
 export default async function NewPersonPage() {
   const { profile } = await requireCompany();
