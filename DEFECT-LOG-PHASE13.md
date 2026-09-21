@@ -993,3 +993,20 @@ in that order", so custom roles are the next piece: a company names a role, pick
 role it starts from, and unticks what it must not reach. Narrowing only — a tick can never GRANT
 past the built-in role, because every policy in the database names roles, and a setting that
 appeared to widen one would be a lie the database would refuse.
+
+---
+
+## DEF-031 — A Supervisor pressing Add person: "new row violates row-level security policy"  ·  FIXED
+
+**2026-09-21**, the first time a Supervisor used what DEF-028 gave her. Adding a carer writes TWO
+rows: `people`, and a `person_trackers` row holding the DBS, right to work and probation dates.
+0309 widened the registers and everything that READS off a record, and missed the two little write
+helpers underneath — `can_manage_person` and `can_manage_service_user` — which still asked
+`is_branch_manager`. So the insert got half way and was refused.
+
+0311 points both helpers at `is_branch_lead`, the question everything else now asks. That also
+covers person_assignments and service_user_assignments, which are written through the same two.
+
+**The lesson, and it is the same one as DEF-023:** widening a permission means following the WHOLE
+write path, not the table the screen is named after. The grep that finds them is for the helper
+functions, not for the policy names.
