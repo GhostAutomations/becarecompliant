@@ -270,3 +270,20 @@ test("company wide roles record training anywhere, a Viewer nowhere", () => {
     assert.equal(canRecordTrainingAnywhere(role), false);
   }
 });
+
+
+test("a RECRUITER is a Supervisor without the branch, and the database agrees", () => {
+  /* Phil, 2026-09-21: "same as a supervisor", company wide. 0310 makes is_branch_supervisor answer
+     true for a Recruiter anywhere in her own company, so every rule here that asks the Supervisor
+     question must answer yes for her in every branch -- including one she holds no user_branches
+     row for, which is the whole point. */
+  const anywhere = { role: "recruiter", branchIds: [] as string[], recordBranchId: CAERPHILLY };
+  assert.equal(canManageRecord(anywhere), true);
+  assert.equal(canRecordTraining(anywhere), true);
+  assert.equal(mayConductInBranch(anywhere), true);
+  assert.equal(canManageAnything("recruiter"), true);
+  assert.equal(canRecordTrainingAnywhere("recruiter"), true);
+
+  // Her branch pickers are NOT narrowed, because she reaches every branch.
+  assert.equal(branchScopedRole("recruiter"), false);
+});

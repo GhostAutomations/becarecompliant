@@ -26,6 +26,7 @@ export const COMPLAINTS_ROLES: readonly string[] = [
   "registered_manager",
   "manager",
   "supervisor",
+  "recruiter",
   "on_call",
 ];
 
@@ -41,6 +42,7 @@ export const INCIDENTS_ROLES: readonly string[] = [
   "registered_manager",
   "manager",
   "supervisor",
+  "recruiter",
 ];
 
 /**
@@ -60,4 +62,5 @@ export const REGISTER_ROLES: readonly string[] = [
   "registered_manager",
   "manager",
   "supervisor",
+  "recruiter",
 ];

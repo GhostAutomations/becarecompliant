@@ -49,7 +49,7 @@ import { REGISTER_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
 
 export const metadata: Metadata = { title: "Service User" };
 
-const COMPLETE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor", "platform_admin"];
+const COMPLETE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor", "recruiter", "platform_admin"];
 const RAG_RANK: Record<string, number> = { red: 0, amber: 1, green: 2, none: 3 };
 
 function ragPill(rag: string, size = "") {

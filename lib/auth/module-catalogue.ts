@@ -62,6 +62,9 @@ const OFFICE = [
   "registered_manager",
   "manager",
   "supervisor",
+  /* A Recruiter is a Supervisor without the branch (0310), so the ceiling is the same one. A
+     company that does not want them in a department unticks it, exactly as for any other role. */
+  "recruiter",
 ] as const;
 
 /** Company wide roles plus Branch Managers: the people who run a branch or the company. */

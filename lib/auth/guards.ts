@@ -24,6 +24,8 @@ export type Profile = {
     | "registered_manager"
     | "manager"
     | "supervisor"
+    /** Recruiter: a Supervisor without the branch, company wide (0310). */
+    | "recruiter"
     | "team_member"
     | "on_call"
     /** Carer self-service login, shown as "Team Member" (migration 0131). NOT the

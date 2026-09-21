@@ -66,7 +66,7 @@ export default async function AbsencePage() {
   const rtwSchema: FormSchema | null =
     rtwForm && isFormSchema(rtwForm.schema) ? (rtwForm.schema as FormSchema) : null;
 
-  const canManage = ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor", "on_call", "platform_admin"].includes(
+  const canManage = ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor", "recruiter", "on_call", "platform_admin"].includes(
     profile.role,
   );
 

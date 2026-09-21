@@ -18,6 +18,7 @@ const ALLOWED = [
   "registered_manager",
   "manager",
   "supervisor",
+  "recruiter",
 ];
 
 export default async function WhiteboardPage({

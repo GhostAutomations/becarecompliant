@@ -31,6 +31,7 @@ function roleRank(role: string): number {
     "registered_manager",
     "manager",
     "supervisor",
+    "recruiter",
     "on_call",
     "team_member",
     "staff",

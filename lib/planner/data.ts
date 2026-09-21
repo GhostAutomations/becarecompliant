@@ -254,7 +254,7 @@ type Row = {
 
 /** Who may be given a task to carry out. Passed to list_company_staff, and mirrored by
  *  is_company_conductor in migration 0192, which is what actually enforces it. */
-const CONDUCTOR_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor"];
+const CONDUCTOR_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor", "recruiter"];
 
 const SELECT =
   "id, branch_id, population, subject_person_id, subject_service_user_id, check_instance_id, tracker_form_key, check_kind, title, conductor_profile_id, scheduled_date, start_time, duration_minutes, status, notes, conductor:profiles(full_name), person:people(full_name), service_user:service_users(full_name), branch:branches(name), linked_check:check_instances(definition:check_definitions(active)), tasks:planner_booking_tasks(id, check_instance_id, tracker_form_key, check_kind, status, position, instance:check_instances(definition:check_definitions(active)))";
@@ -361,6 +361,7 @@ export const PLANNER_ROLES = [
   "registered_manager",
   "manager",
   "supervisor",
+  "recruiter",
 ];
 
 /** Bookings the given user conducts (their personal planner). */

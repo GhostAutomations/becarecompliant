@@ -28,6 +28,7 @@ const ROLE_ORDER = [
   "registered_manager",
   "manager",
   "supervisor",
+  "recruiter",
   "on_call",
   "team_member",
 ];

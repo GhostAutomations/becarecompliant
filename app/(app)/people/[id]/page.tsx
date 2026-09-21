@@ -63,7 +63,7 @@ export const metadata: Metadata = { title: "Record" };
    drift is how a tile ends up showing HR sensitive detail to somebody the section itself
    would turn away. */
 const COMPLAINT_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "on_call", "platform_admin"];
-const COMPLETE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor", "platform_admin"];
+const COMPLETE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor", "recruiter", "platform_admin"];
 const RAG_RANK: Record<string, number> = { red: 0, amber: 1, green: 2, none: 3 };
 
 function ragPill(rag: string, size = "") {

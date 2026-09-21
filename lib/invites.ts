@@ -15,6 +15,7 @@ export type InviteRole =
   | "registered_manager"
   | "manager"
   | "supervisor"
+  | "recruiter"
   | "on_call"
   | "team_member"
   /** Carer self-service login, shown as "Team Member". Free seat (0131). */

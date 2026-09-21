@@ -32,6 +32,17 @@
 
 /** Roles whose reach is the whole company, so no branch check applies. Mirrors is_company_wide
  *  plus platform_admin, which the policies always OR in separately. */
+/**
+ * A RECRUITER IS A SUPERVISOR WITHOUT THE BRANCH (Phil, 2026-09-21), and the database says the
+ * same: is_branch_supervisor answers true for a Recruiter anywhere in her own company (0310). So
+ * everywhere below that asks "is this a Supervisor in this branch", a Recruiter answers yes for
+ * every branch of the company she is in.
+ *
+ * She is NOT in COMPANY_WIDE, because that set transcribes is_company_wide(), which she is not:
+ * a policy with no branch clause at all still refuses her, and that is the intent.
+ */
+const RECRUITER = "recruiter";
+
 const COMPANY_WIDE = new Set([
   "platform_admin",
   "company_admin",
@@ -54,6 +65,7 @@ export function canManageRecord(opts: {
   recordBranchId: string | null | undefined;
 }): boolean {
   if (COMPANY_WIDE.has(opts.role)) return true;
+  if (opts.role === RECRUITER) return true;
   /* A SUPERVISOR RUNS HER OWN BRANCH (Phil, 2026-09-21). people_update and service_users_update
      ask is_branch_lead since 0309 -- a Manager OR a Supervisor assigned to that branch -- so this
      asks the same. Before it, she could not add a carer at all, and a record she did create would
@@ -70,7 +82,7 @@ export function canManageRecord(opts: {
  * using this instead is the defect.
  */
 export function canManageAnything(role: string): boolean {
-  return COMPANY_WIDE.has(role) || branchScopedRole(role);
+  return COMPANY_WIDE.has(role) || branchScopedRole(role) || role === RECRUITER;
 }
 
 /**
@@ -141,6 +153,8 @@ export function branchSummary(opts: {
  * are unaffected by definition. Widening this set is a decision about RLS, not about a dropdown.
  */
 export function branchScopedRole(role: string): boolean {
+  /* NOT the Recruiter: she reaches every branch of her company, so narrowing her branch pickers
+     would take away branches the database lets her write to. */
   return role === "manager" || role === "supervisor";
 }
 
@@ -170,6 +184,7 @@ export function mayConductInBranch(opts: {
   recordBranchId: string | null | undefined;
 }): boolean {
   if (COMPANY_WIDE.has(opts.role)) return true;
+  if (opts.role === RECRUITER) return true;
   if (!branchScopedRole(opts.role)) return false;
   return !!opts.recordBranchId && opts.branchIds.includes(opts.recordBranchId);
 }
@@ -200,6 +215,7 @@ export function canRecordTraining(opts: {
   recordBranchId: string | null | undefined;
 }): boolean {
   if (COMPANY_WIDE.has(opts.role)) return true;
+  if (opts.role === RECRUITER) return true;
   if (opts.role !== "manager" && opts.role !== "supervisor") return false;
   return !!opts.recordBranchId && opts.branchIds.includes(opts.recordBranchId);
 }
@@ -207,5 +223,5 @@ export function canRecordTraining(opts: {
 /** Could this role record training on ANYTHING, ignoring which carer? Decides whether the
  *  toolbar buttons exist at all, the same question canManageAnything answers for records. */
 export function canRecordTrainingAnywhere(role: string): boolean {
-  return COMPANY_WIDE.has(role) || role === "manager" || role === "supervisor";
+  return COMPANY_WIDE.has(role) || role === "manager" || role === "supervisor" || role === RECRUITER;
 }

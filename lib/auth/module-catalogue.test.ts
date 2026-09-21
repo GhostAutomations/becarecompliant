@@ -82,7 +82,7 @@ test("every module key is unique and every ceiling names real roles", () => {
   assert.equal(new Set(keys).size, keys.length, "two modules share a key");
   const known = new Set([
     "platform_admin", "company_admin", "registered_individual", "registered_manager",
-    "manager", "supervisor", "team_member", "on_call", "staff",
+    "manager", "supervisor", "recruiter", "team_member", "on_call", "staff",
   ]);
   for (const m of MODULES) {
     assert.ok(m.roles.length > 0, `${m.key} has an empty ceiling`);

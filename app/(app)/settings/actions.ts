@@ -34,6 +34,7 @@ const INVITABLE_ROLES: InviteRole[] = [
   "registered_manager",
   "manager",
   "supervisor",
+  "recruiter",
   "on_call",
   "team_member",
 ];

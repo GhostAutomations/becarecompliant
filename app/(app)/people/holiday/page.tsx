@@ -44,7 +44,7 @@ export default async function HolidayPage() {
   // not theirs to decide and can_manage_holiday refuses it. listBranches already
   // returns exactly their branches, and every branch for a company wide role.
   const companyWideApprover = isCompanyWideRole(profile.role) || profile.role === "platform_admin";
-  const canBookForPerson = canApprove || profile.role === "supervisor";
+  const canBookForPerson = canApprove || profile.role === "supervisor" || profile.role === "recruiter";
   const [branches, requests, people, requestForm] = await Promise.all([
     listBranches(companyId, profile),
     listHolidayRequests(companyId, null),

@@ -10,6 +10,7 @@ export type Role =
   | "registered_manager"
   | "manager"
   | "supervisor"
+  | "recruiter"
   | "team_member"
   | "on_call"
   | "staff";
@@ -68,6 +69,7 @@ const NOT_VIEWER: Role[] = [
   "registered_manager",
   "manager",
   "supervisor",
+  "recruiter",
 ];
 
 export const NAV_ENTRIES: NavEntry[] = [
@@ -323,6 +325,7 @@ export const MOBILE_PRIMARY_BY_ROLE: Record<string, string[]> = {
   registered_manager: ["/dashboard", "/people", "/service-users"],
   manager: ["/dashboard", "/people", "/service-users"],
   supervisor: ["/dashboard", "/people", "/service-users"],
+  recruiter: ["/dashboard", "/people", "/service-users"],
   team_member: ["/people", "/service-users"],
   on_call: ["/on-call", "/people/absence", "/complaints"],
   staff: ["/my"],
@@ -371,6 +374,7 @@ export const ROLE_LABELS: Record<string, string> = {
   registered_manager: "Registered Manager",
   manager: "Branch Manager",
   supervisor: "Supervisor",
+  recruiter: "Recruiter",
   team_member: "Viewer",
   on_call: "On Call",
   staff: "Team Member",

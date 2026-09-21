@@ -944,3 +944,28 @@ absence, holidays, invites and the public enquiry inbox.
 `REGISTER_ROLES` from `lib/auth/module-roles.ts`, and `canManageRecord` / `canManageAnything`
 follow `branchScopedRole`, so the screen and the policy say the same thing about a Supervisor —
 which is the whole purpose of manage-scope.ts, and the fault it was written for in the first place.
+
+---
+
+## DEF-029 — A new role: the Recruiter  ·  BUILT
+
+**2026-09-21**, Phil: *"i need to create a recruiter role"*, and, asked what it may do and what it
+must not see: *"same as a supervisor"*, reaching the **whole company** rather than assigned
+branches. Recruiting is central; a recruiter takes a starter on for whichever branch needs them.
+
+**Defined once, in the database.** 0310 makes `is_branch_supervisor(bid)` answer true for a
+Supervisor assigned to that branch OR a **Recruiter anywhere in that branch's company**. Every
+policy that already ORs it — complaints, incidents, planner, the training register, evidence, and
+through `is_branch_lead` (0309) the two registers and everything under them — covers a Recruiter
+without being edited. The alternative was naming one more role in some thirty policies, which is
+the mistake this project has paid for twice.
+
+**In the app**: the role is in the unions, the nav, the module ceiling (so a company can untick
+departments for it in Settings, User access), the invite and role-change pickers, and
+manage-scope, where she is deliberately NOT in COMPANY_WIDE — that set transcribes
+`is_company_wide()`, which she is not, so a policy with no branch clause still refuses her. She
+counts as a paid seat like any other active login.
+
+**Deliberately not given, one line each if Phil wants them:** the on call rota, invoicing, the
+daily digest, and being choosable as the Supervisor who conducts a carer's supervision — a
+recruiter is not their supervisor.

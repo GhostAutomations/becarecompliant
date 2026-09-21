@@ -101,6 +101,7 @@ export default function TeamMemberControls({
               <option value="registered_manager">Registered Manager</option>
               <option value="manager">Branch Manager</option>
               <option value="supervisor">Supervisor</option>
+              <option value="recruiter">Recruiter</option>
               <option value="team_member">Viewer</option>
               <option value="staff">Team Member</option>
             </select>
