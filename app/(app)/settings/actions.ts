@@ -777,7 +777,7 @@ export async function saveRoleModules(_prev: ActionState, formData: FormData): P
     metadata: { role, switched_off: offKeys },
   });
 
-  revalidatePath("/settings/access");
+  revalidatePath("/settings/users");
   revalidatePath("/", "layout");
   return { ok: "Saved." };
 }
@@ -845,7 +845,7 @@ export async function savePortalForms(_prev: ActionState, formData: FormData): P
     metadata: { switched_off: offKeys },
   });
 
-  revalidatePath("/settings/access");
+  revalidatePath("/settings/users");
   revalidatePath("/my");
   return { ok: "Saved." };
 }

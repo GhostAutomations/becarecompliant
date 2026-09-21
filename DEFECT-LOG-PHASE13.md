@@ -969,3 +969,27 @@ counts as a paid seat like any other active login.
 **Deliberately not given, one line each if Phil wants them:** the on call rota, invoicing, the
 daily digest, and being choosable as the Supervisor who conducts a carer's supervision — a
 recruiter is not their supervisor.
+
+---
+
+## DEF-030 — Two Settings tiles asking the same question, both open at once  ·  DONE
+
+**2026-09-21**, Phil: *"in settings we have Users and Invites then another call User Access ...
+i think we should join those 2 settings together and lets have things minimised inside so its not
+all open and messy."*
+
+Users and invites and User access were the same subject from two directions: who is in the
+company, and what their role opens. They are now **Settings, Users and access**, one page of
+folded sections, every one closed until it is wanted, with the count on the heading so a section
+says what is in it without being opened: Invite a person, Allowed email domains, Pending invites,
+Active users, Team Member logins, Role access, Team portal forms.
+
+`/settings/access` redirects rather than 404s, because it is in browser histories and bookmarks.
+The fold is a plain `<details>`: no JavaScript, keyboard and screen readers behave, and the
+browser's own Find on Page still opens a closed section.
+
+**Asked for at the same time and NOT built yet:** creating a role from Settings. Phil chose "both,
+in that order", so custom roles are the next piece: a company names a role, picks the built-in
+role it starts from, and unticks what it must not reach. Narrowing only — a tick can never GRANT
+past the built-in role, because every policy in the database names roles, and a setting that
+appeared to widen one would be a lie the database would refuse.

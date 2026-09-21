@@ -479,6 +479,21 @@
     @apply flex cursor-pointer items-center justify-between px-5 py-4 text-sm font-semibold text-white/90 hover:bg-white/5;
   }
 
+  /* A foldable Settings section (components/settings/settings-section.tsx). The marker is our
+     own chevron, which turns as it opens, because the browser's default triangle sits outside
+     the card and reads as a bullet. */
+  .fold > summary {
+    list-style: none;
+  }
+
+  .fold > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .fold[open] > summary .fold-chevron {
+    @apply rotate-90;
+  }
+
   /* Typography helpers */
   .page-title {
     @apply text-2xl font-bold tracking-tight text-white;

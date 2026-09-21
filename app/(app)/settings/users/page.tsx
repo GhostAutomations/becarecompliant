@@ -21,8 +21,37 @@ import {
   sendHeldInvitesAction,
 } from "../actions";
 import { listInviteDomains, readInviteDomains } from "@/lib/invite-domains";
+import SettingsSection from "@/components/settings/settings-section";
+import { MODULES, isLocked, disabledKey } from "@/lib/auth/module-catalogue";
+import { disabledModules } from "@/lib/auth/module-access";
+import RoleAccessTile from "@/components/settings/role-access-tile";
+import PortalFormsTile from "@/components/settings/portal-forms-tile";
+import { PORTAL_FORMS, portalFormKey } from "@/lib/auth/portal-forms";
 
-export const metadata: Metadata = { title: "Users and invites" };
+export const metadata: Metadata = { title: "Users and access" };
+
+/**
+ * ONE SCREEN, FOLDED (Phil, 2026-09-21): "i think we should join those 2 settings together and
+ * lets have things minimised inside so its not all open and messy."
+ *
+ * Users and invites and User access were two tiles asking the same question from two directions:
+ * who is in the company, and what their role opens. They are one page now, every section closed
+ * until it is wanted, with the count on the heading so a section says what is in it unopened.
+ *
+ * A ROLE WITH NOTHING TO OFFER IS NOT SHOWN in Role access: the filter drops any role the
+ * catalogue never names, so a tile of nothing but greyed boxes cannot appear and invite somebody
+ * to try.
+ */
+const ROLE_ORDER = [
+  "company_admin",
+  "registered_individual",
+  "registered_manager",
+  "manager",
+  "supervisor",
+  "recruiter",
+  "on_call",
+  "team_member",
+];
 
 function roleRank(role: string): number {
   return [
@@ -55,6 +84,8 @@ export default async function UsersPage() {
   const companyId = profile.company_id;
 
   const supabase = await createClient();
+  const disabled = await disabledModules(companyId);
+  const accessRoles = ROLE_ORDER.filter((role) => MODULES.some((m) => m.roles.includes(role)));
   const [{ data: branches }, { data: users }, { data: invites }, { data: company }] =
     await Promise.all([
       supabase
@@ -211,16 +242,16 @@ export default async function UsersPage() {
   }
 
   return (
-    <div className="page-shell space-y-8">
+    <div className="page-shell space-y-4">
       {/* Live refresh: the pending and team lists update the instant an invite is
           accepted or a user changes, no manual refresh. RLS scopes events. */}
       <RealtimeRefresh tables={["invites", "profiles"]} channel="users-live" />
       <div>
         <BackLink href="/settings" label="Back to Settings" />
-        <h1 className="page-title mt-1">Users and invites</h1>
+        <h1 className="page-title mt-1">Users and access</h1>
         <p className="page-subtitle">
-          Invite your team and manage roles and branches. Only Admins can invite
-          or change roles.
+          Who is in your company, what their role opens, and what a carer sees in the team portal.
+          Only Admins can invite, change a role or change what a role reaches.
         </p>
       </div>
 
@@ -240,8 +271,10 @@ export default async function UsersPage() {
         </div>
       ) : null}
 
-      <section className="glass-card p-6">
-        <h2 className="text-base font-semibold text-white">Invite a person</h2>
+      <SettingsSection
+        title="Invite a person"
+        summary="Send an invitation, with their role and branches."
+      >
         {inviteDomains.length > 0 ? (
           <p className="mt-1 text-xs text-white/50">
             Invites sent from this screen can only go to {listInviteDomains(inviteDomains)}.
@@ -251,13 +284,16 @@ export default async function UsersPage() {
         <div className="mt-4">
           <InviteForm branches={activeBranches} />
         </div>
-      </section>
+      </SettingsSection>
 
       {/* The allowlist sits on this screen because this screen is where it takes
           effect, and nowhere else. See lib/invite-domains.ts and migration 0149. */}
-      <section className="glass-card p-6">
-        <h2 className="text-base font-semibold text-white">Allowed email domains</h2>
-        <p className="mt-2 text-sm text-white/60">
+      <SettingsSection
+        title="Allowed email domains"
+        summary="Optional. Restrict who the invites above can be sent to."
+        count={inviteDomains.length > 0 ? inviteDomains.length : null}
+      >
+        <p className="text-sm text-white/60">
           Optional. Leave this empty and any email address can be invited, which is
           how it works today. Add one or more domains and the invite form above will
           only send to an address ending in one of them, so a personal address or a
@@ -323,13 +359,14 @@ export default async function UsersPage() {
             </div>
           </ActionForm>
         </div>
-      </section>
+      </SettingsSection>
 
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-white/80">
-            Pending invites ({pending.length})
-          </h2>
+      <SettingsSection
+        title="Pending invites"
+        summary="People invited who have not signed in yet."
+        count={pending.length}
+      >
+        <div className="flex flex-wrap items-center justify-end gap-3">
           {heldCount > 0 ? (
             <div className="flex items-center gap-3">
               <span className="text-xs text-white/60">
@@ -349,11 +386,9 @@ export default async function UsersPage() {
           ) : null}
         </div>
         {pending.length === 0 ? (
-          <div className="glass-card px-5 py-8 text-center text-sm text-white/50">
-            No pending invites.
-          </div>
+          <p className="py-2 text-sm text-white/50">No pending invites.</p>
         ) : (
-          pending.map((invite) => (
+          <div className="mt-3 space-y-3">{pending.map((invite) => (
             <div
               key={invite.id}
               className="glass-card flex flex-wrap items-center justify-between gap-3 p-4"
@@ -400,12 +435,15 @@ export default async function UsersPage() {
                 />
               </div>
             </div>
-          ))
+          ))}</div>
         )}
-      </section>
+      </SettingsSection>
 
-      {/* Two dropdowns side by side, each half the width of the tiles above. */}
-      <div className="grid gap-4 sm:grid-cols-2">
+      <SettingsSection
+        title="Active users"
+        summary="Admins, Managers, Supervisors and Recruiters: the people who run the service."
+        count={activeUsers.length}
+      >
         <UserDropdown
           title="Active users"
           subtitle="Admins, Managers and Supervisors: the people who run the service"
@@ -413,6 +451,13 @@ export default async function UsersPage() {
           branches={branchOptions}
           emptyText="No Admins or Managers yet. Invite one above."
         />
+      </SettingsSection>
+
+      <SettingsSection
+        title="Team Member logins"
+        summary="Carers: their own area only, and free of charge."
+        count={passiveUsers.length}
+      >
         <UserDropdown
           title="Passive users"
           subtitle="Team Members: their own area only, and free of charge"
@@ -420,7 +465,57 @@ export default async function UsersPage() {
           branches={branchOptions}
           emptyText="No Team Member logins yet. They are created when a person is added with an email."
         />
-      </div>
+      </SettingsSection>
+
+      {/*
+        WAS ITS OWN SCREEN (Settings, User access) until 2026-09-21. It answers the other half of
+        the same question and belongs beside the people it applies to.
+
+        A greyed tick is one that role can never have, with the reason beside it: those are fixed
+        by the product, because a setting must not hand somebody a department the rest of the
+        system would refuse them anyway. And this is about DEPARTMENTS, not records -- a
+        Supervisor with Complaints ticked still sees only her own branches.
+      */}
+      <SettingsSection
+        title="Role access"
+        summary="Which departments each role opens. Untick one and it leaves that role's menu."
+        count={accessRoles.length}
+      >
+        <div className="grid items-start gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {accessRoles.map((role) => (
+            <RoleAccessTile
+              key={role}
+              role={role}
+              roleLabel={ROLE_LABELS[role] ?? role}
+              modules={MODULES.map((m) => ({
+                key: m.key,
+                label: m.label,
+                note: m.note ?? null,
+                allowed: m.roles.includes(role),
+                locked: isLocked(m.key, role),
+                on: m.roles.includes(role) && !disabled.has(disabledKey(role, m.key)),
+              }))}
+            />
+          ))}
+        </div>
+      </SettingsSection>
+
+      {/* A carer's portal is a short list of things they may fill in, not fifteen greyed
+          departments and one tick (Phil, 2026-09-17). */}
+      <SettingsSection
+        title="Team portal forms"
+        summary="What a carer can open and fill in from their own area."
+      >
+        <div className="max-w-md">
+          <PortalFormsTile
+            portalOn={!disabled.has("staff|team_portal")}
+            forms={PORTAL_FORMS}
+            onByKey={Object.fromEntries(
+              PORTAL_FORMS.map((f) => [f.key, !disabled.has(`staff|${portalFormKey(f.key)}`)]),
+            )}
+          />
+        </div>
+      </SettingsSection>
     </div>
   );
 }

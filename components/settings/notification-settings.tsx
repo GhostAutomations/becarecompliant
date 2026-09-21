@@ -170,7 +170,7 @@ export default function NotificationSettings({
         </p>
         {users.length === 0 ? (
           <p className="mt-4 text-sm text-white/50">
-            No recipients yet. Invite Managers, Admins or Registered roles in Users and invites.
+            No recipients yet. Invite Managers, Admins or Registered roles in Users and access.
           </p>
         ) : (
           <ul className="mt-4 space-y-3">
