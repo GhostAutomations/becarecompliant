@@ -35,7 +35,7 @@ import {
 import { type FieldError, isFieldVisible, standDown } from "@/lib/form-validate";
 import { computeScores, bandTotal } from "@/lib/forms/compute-scores";
 import { scoreProgress } from "@/lib/forms/scoring";
-import { type LookupChoice, lookupError } from "@/lib/forms/lookup";
+import { type LookupChoice, exactChoice, lookupError, scopeChoices } from "@/lib/forms/lookup";
 import RecordTypeahead from "@/components/register/record-typeahead";
 import CarePackageField from "./care-package-field";
 import CarePackageSummary from "@/components/forms/care-package-summary";
@@ -70,6 +70,8 @@ type Props = {
    * same out-of-band route file_upload uses for the File itself.
    */
   onLookupSelect?: (key: string, choice: LookupChoice | null) => void;
+  /** A record_lookup with `multiple`: told the full set of records picked, every time it changes. */
+  onLookupMany?: (key: string, choices: LookupChoice[]) => void;
 };
 
 // React 19 note: useCallback is imported individually above to match the repo's
@@ -84,6 +86,7 @@ export default function FormRenderer({
   onFileSelect,
   lookupChoices,
   onLookupSelect,
+  onLookupMany,
 }: Props) {
   const [answers, setAnswers] = useState<Answers>(defaultValue ?? {});
   // Mirror the latest answers in a ref so `update` can build the next value
@@ -162,6 +165,14 @@ export default function FormRenderer({
                   onFileSelect={onFileSelect}
                   lookupChoices={lookupChoices}
                   onLookupSelect={onLookupSelect}
+                  onLookupMany={onLookupMany}
+                  scope={
+                    field.scopeField
+                      ? typeof answers[field.scopeField] === "string"
+                        ? (answers[field.scopeField] as string)
+                        : ""
+                      : undefined
+                  }
                 />
             ))}
           </div>
@@ -193,6 +204,8 @@ function Field({
   onFileSelect,
   lookupChoices,
   onLookupSelect,
+  onLookupMany,
+  scope,
 }: {
   field: FormField;
   value: AnswerValue | undefined;
@@ -207,6 +220,9 @@ function Field({
   onFileSelect?: (key: string, file: File | null) => void;
   lookupChoices?: Partial<Record<string, LookupChoice[]>>;
   onLookupSelect?: (key: string, choice: LookupChoice | null) => void;
+  onLookupMany?: (key: string, choices: LookupChoice[]) => void;
+  /** record_lookup with scopeField: the branch answered on the form ("" when not yet). */
+  scope?: string;
 }) {
   const id = `${idPrefix}-${field.key}`;
 
@@ -509,12 +525,28 @@ function Field({
         />,
       );
 
-    case "record_lookup":
+    case "record_lookup": {
+      const offered = scopeChoices(lookupChoices?.[field.lookup ?? "service_user"] ?? [], scope);
+      if (field.multiple) {
+        return labelledControl(
+          <MultiLookupField
+            id={id}
+            value={Array.isArray(value) ? (value as string[]) : []}
+            choices={offered}
+            disabled={disabled}
+            onPick={(picked) => {
+              onValue(picked.map((c) => c.label));
+              onLookupMany?.(field.key, picked);
+            }}
+          />,
+        );
+      }
       return labelledControl(
         <LookupField
           id={id}
           value={typeof value === "string" ? value : ""}
-          choices={lookupChoices?.[field.lookup ?? "service_user"] ?? []}
+          choices={offered}
+          placeholder={scope === "" ? "Choose the branch first" : undefined}
           disabled={disabled}
           onPick={(choice, typed) => {
             /* The ANSWER is the name, so the evidence still reads correctly after a
@@ -524,6 +556,7 @@ function Field({
           }}
         />,
       );
+    }
 
     /* WORKED OUT, NOT TYPED. Read only by design: the whole point of computing a score is
        that it cannot be got wrong at the end of a long meeting, and cannot be nudged. */
@@ -767,11 +800,13 @@ function LookupField({
   choices,
   disabled,
   onPick,
+  placeholder,
 }: {
   id: string;
   value: string;
   choices: LookupChoice[];
   disabled: boolean;
+  placeholder?: string;
   onPick: (choice: LookupChoice | null, typed: string) => void;
 }) {
   const [query, setQuery] = useState(value);
@@ -788,6 +823,7 @@ function LookupField({
         query={query}
         choices={choices}
         disabled={disabled}
+        placeholder={placeholder}
         onOpenChange={setListOpen}
         onQueryChange={(next) => {
           setQuery(next);
@@ -804,6 +840,87 @@ function LookupField({
     </div>
   );
 }
+/**
+ * A record lookup that takes MORE THAN ONE record (Phil, 2026-09-19: "staff member should be a
+ * searchable field and be able to select more than one option"). Each pick becomes a chip, the
+ * same as the complaint's team member picker; the answer is the list of names, and the picked
+ * records go to the caller out of band so the case can be linked to each of them.
+ */
+function MultiLookupField({
+  id,
+  value,
+  choices,
+  disabled,
+  onPick,
+}: {
+  id: string;
+  value: string[];
+  choices: LookupChoice[];
+  disabled: boolean;
+  onPick: (picked: LookupChoice[]) => void;
+}) {
+  /* A restored draft carries names only. Each is matched back to its record; a name that no
+     longer matches anyone is dropped rather than kept as a chip that links to nobody. */
+  const [picked, setPicked] = useState<LookupChoice[]>(() =>
+    value.map((name) => exactChoice(choices, name)).filter((c): c is LookupChoice => !!c),
+  );
+  const [query, setQuery] = useState("");
+  const offered = useMemo(
+    () => choices.filter((c) => !picked.some((p) => p.id === c.id)),
+    [choices, picked],
+  );
+
+  useEffect(() => {
+    // Hand the restored set up once, so the caller has the ids before anything is touched.
+    if (picked.length > 0) onPick(picked);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function change(next: LookupChoice[]) {
+    setPicked(next);
+    onPick(next);
+  }
+
+  return (
+    <div>
+      {picked.length > 0 ? (
+        <ul className="mb-2 mt-1 flex flex-wrap gap-2">
+          {picked.map((c) => (
+            <li key={c.id}>
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-sm text-white/85">
+                <span>{c.label}</span>
+                {c.hint ? <span className="text-xs text-white/40">{c.hint}</span> : null}
+                {!disabled ? (
+                  <button
+                    type="button"
+                    onClick={() => change(picked.filter((p) => p.id !== c.id))}
+                    aria-label={`Remove ${c.label}`}
+                    className="text-white/50 hover:text-white"
+                  >
+                    ×
+                  </button>
+                ) : null}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <RecordTypeahead
+        id={id}
+        query={query}
+        choices={offered}
+        disabled={disabled}
+        onQueryChange={setQuery}
+        onChoose={(choice) => {
+          change(picked.some((p) => p.id === choice.id) ? picked : [...picked, choice]);
+          setQuery("");
+        }}
+        noMatchText="Nobody matches that name."
+      />
+    </div>
+  );
+}
+
 /** Styled file picker (file inputs are intentionally not styled in globals.css). */
 function FileField({
   id,

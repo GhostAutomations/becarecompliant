@@ -23,7 +23,28 @@ export type LookupChoice = {
   label: string;
   /** Optional second line, e.g. a branch, to tell two same-named records apart. */
   hint?: string;
+  /** The record's branch, for a field that only offers records in a branch chosen elsewhere
+   *  on the form (FormField.scopeField). */
+  branchId?: string;
 };
+
+/**
+ * The choices a SCOPED lookup may offer (Phil, 2026-09-19: the service user on an incident
+ * report comes from "the branch they select").
+ *
+ * `scope` is the answer to the field named by scopeField. Not scoped (undefined): everything.
+ * Scoped but nothing chosen yet: nothing, because offering every branch's service users before
+ * the branch is known is the list the scope exists to avoid.
+ */
+export function scopeChoices(
+  choices: readonly LookupChoice[],
+  scope: string | undefined,
+): LookupChoice[] {
+  if (scope === undefined) return [...choices];
+  const s = scope.trim();
+  if (s === "") return [];
+  return choices.filter((c) => c.branchId === s);
+}
 
 /** Case and accent insensitive, so "sian" finds "Siân" and "O'BRIEN" finds "O'Brien". */
 export function normalise(s: string): string {

@@ -32,7 +32,21 @@ import { stripJsonFence, toAiQuestions, type ActionState } from "@/lib/forms";
 import type { Answers } from "@/lib/form-schema";
 import { todayIso } from "./logic";
 
-import { INCIDENT_REPORT_FORM, INCIDENT_INVESTIGATION_FORM, INCIDENT_OUTCOME_FORM } from "./form-keys";
+import {
+  INCIDENT_REPORT_FORM,
+  INCIDENT_INVESTIGATION_FORM,
+  INCIDENT_OUTCOME_FORM,
+} from "./form-keys";
+import { INCIDENTS_ROLES } from "@/lib/auth/module-roles";
+import { createServiceClient } from "@/lib/supabase/admin";
+import {
+  categoryFrom,
+  eventTypeFrom,
+  officeQuestionsMissing,
+  withoutOfficeAnswers,
+  yesNo,
+} from "./report-answers";
+import { checkReportLinks } from "./report-choices";
 
 function str(answers: Answers, key: string): string | null {
   const v = answers[key];
@@ -80,8 +94,17 @@ export async function submitIncidentReport(_prev: ActionState, formData: FormDat
   if (!profile.company_id) return { error: "No company context." };
   const companyId = profile.company_id;
 
-  const answers = readAnswers(formData);
-  if (!answers) return { error: "Could not read the form answers." };
+  const posted = readAnswers(formData);
+  if (!posted) return { error: "Could not read the form answers." };
+
+  /* NOTIFIABLE AND SAFEGUARDING ARE THE OFFICE'S TO DECIDE (Phil, 2026-09-19). Office staff
+     must answer both; from anybody else they are dropped, whatever was posted. */
+  const office = INCIDENTS_ROLES.includes(profile.role);
+  const answers = office ? posted : withoutOfficeAnswers(posted);
+  if (office) {
+    const missing = officeQuestionsMissing(answers);
+    if (missing.length > 0) return { error: `Answer ${missing.join(" and ")}.` };
+  }
 
   const branchId = str(answers, "branch");
   if (!branchId) return { error: "Choose the branch this happened in." };
@@ -97,11 +120,27 @@ export async function submitIncidentReport(_prev: ActionState, formData: FormDat
   if (!branch || branch.company_id !== companyId) return { error: "That branch was not found." };
 
   const occurredOn = isoDate(answers, "occurred_on");
-  const category = str(answers, "category");
+  const category = categoryFrom(answers);
   const description = str(answers, "description");
   if (!occurredOn) return { error: "Enter the date it happened." };
   if (!category) return { error: "Choose what kind of event it was." };
   if (!description) return { error: "Describe what happened." };
+
+  /* Who was involved, as records. The names are in the answers; the ids came alongside and are
+     checked here against this company and this branch before anything is linked. */
+  let postedStaff: string[] = [];
+  try {
+    const raw = JSON.parse(String(formData.get("staff_ids") ?? "[]")) as unknown;
+    postedStaff = Array.isArray(raw) ? raw.filter((v): v is string => typeof v === "string") : [];
+  } catch {
+    postedStaff = [];
+  }
+  const links = await checkReportLinks(
+    companyId,
+    branchId,
+    String(formData.get("service_user_id") ?? "").trim() || null,
+    postedStaff,
+  );
 
   const form = await getCompanyFormByKey(companyId, INCIDENT_REPORT_FORM);
   if (!form) return { error: "The incident report form is not available. Import the latest templates from Settings." };
@@ -114,7 +153,13 @@ export async function submitIncidentReport(_prev: ActionState, formData: FormDat
       occurred_on: occurredOn,
       occurred_at: hhmm(answers, "occurred_at"),
       category,
+      event_type: eventTypeFrom(answers),
       description,
+      immediate_action: str(answers, "immediate_action"),
+      service_user_id: links.serviceUserId,
+      person_id: links.personIds[0] ?? null,
+      notifiable: office ? yesNo(answers, "notifiable") === true : false,
+      safeguarding: office ? yesNo(answers, "safeguarding") === true : false,
       reported_on: todayIso(),
       status: "open",
       created_by: user.id,
@@ -135,6 +180,14 @@ export async function submitIncidentReport(_prev: ActionState, formData: FormDat
   if (!result.ok) {
     await supabase.from("incidents").delete().eq("id", incident.id);
     return { error: result.error };
+  }
+
+  /* EVERY member of staff named, linked to the case. Written with the service role because the
+     reporter may be a carer who cannot write links under RLS; every id was checked above. */
+  if (links.personIds.length > 0) {
+    await createServiceClient()
+      .from("incident_people")
+      .insert(links.personIds.map((pid) => ({ incident_id: incident.id, person_id: pid, company_id: companyId })));
   }
 
   await writeAudit({
@@ -303,7 +356,14 @@ function describeReport(ctx: ReportContext): string {
   const a = ctx.answers;
   const line = (label: string, key: string) => {
     const v = a[key];
-    const s = typeof v === "string" ? v.trim() : typeof v === "boolean" ? (v ? "yes" : "no") : "";
+    const s =
+      typeof v === "string"
+        ? v.trim()
+        : typeof v === "boolean"
+          ? v ? "yes" : "no"
+          : Array.isArray(v)
+            ? v.filter((x) => typeof x === "string").join(", ")
+            : "";
     return s ? `${label}: ${s}` : null;
   };
   return [
@@ -312,7 +372,10 @@ function describeReport(ctx: ReportContext): string {
     line("Type of event", "event_type"),
     line("Where", "location"),
     `What was reported: ${ctx.description}`,
+    line("What was done straight away", "immediate_action"),
+    line("Service user involved", "service_user"),
     line("Service user involved", "service_user_name"),
+    line("Staff involved", "staff"),
     line("Staff member involved", "staff_name"),
     line("Others involved", "others_involved"),
     line("Potential harm", "potential_harm"),
@@ -354,7 +417,7 @@ export async function draftIncidentQuestions(_prev: ActionState, formData: FormD
     "Write the lines of enquiry a manager should work through to establish what happened and why.",
     "Ask only what this report leaves genuinely open. Where the report already answers something, do not ask it again.",
     "At least one question must be about whether anything in the way the service is arranged made this more likely.",
-    'Return ONLY valid JSON: {"questions":[{"label":"...","type":"text"}]}.',
+    'Return ONLY valid JSON: {"questions":[{"question":"...","type":"text"}]}.',
     'type is "text", "yes_no" or "choice"; a "choice" question also carries "options":["..."].',
     "At most 8 questions.",
   ].join("\n");
@@ -376,6 +439,11 @@ export async function draftIncidentQuestions(_prev: ActionState, formData: FormD
       : toAiQuestions((parsed as { questions?: unknown } | null)?.questions);
   } catch {
     questions = [];
+  }
+  if (questions.length === 0 && /^\s*[\[{]/.test(stripJsonFence(result.ok))) {
+    /* JSON came back but held nothing usable. Pasting it into the box is what Phil saw on
+       2026-09-19 -- raw braces where questions should be -- so say so instead. */
+    return { error: "The questions could not be read. Press the button again." };
   }
   if (questions.length === 0) {
     /* Nothing usable as JSON. The prose still helps, so it goes into the field rather than

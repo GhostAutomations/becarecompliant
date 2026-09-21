@@ -18,14 +18,20 @@ type IncidentRow = Omit<IncidentRecord, "branch_name" | "service_user_name" | "p
   branches: { name: string } | null;
   service_users: { full_name: string } | null;
   people: { full_name: string } | null;
+  incident_people?: Array<{ people: { full_name: string } | { full_name: string }[] | null }> | null;
 };
 
 const INCIDENT_SELECT =
-  "*, branches(name), service_users:service_user_id(full_name), people:person_id(full_name)";
+  "*, branches(name), service_users:service_user_id(full_name), people:person_id(full_name), incident_people(people(full_name))";
 
 function toIncident(row: IncidentRow): IncidentRecord {
-  const { branches, service_users, people, ...rest } = row;
+  const { branches, service_users, people, incident_people, ...rest } = row;
+  /* Everyone named on the report (0303). A case from before then has only person_id. */
+  const staff = (incident_people ?? [])
+    .map((l) => (Array.isArray(l.people) ? l.people[0] : l.people)?.full_name)
+    .filter((n): n is string => !!n);
   return {
+    staff_names: staff.length > 0 ? staff : people?.full_name ? [people.full_name] : [],
     ...rest,
     branch_name: branches?.name ?? null,
     service_user_name: service_users?.full_name ?? null,

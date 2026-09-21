@@ -8,7 +8,6 @@ import IncidentStages from "@/components/incidents/incident-stages";
 import { getCompanyFormByKey } from "@/lib/people/data";
 import { isFormSchema, type FormSchema } from "@/lib/form-schema";
 import { INCIDENT_INVESTIGATION_FORM, INCIDENT_OUTCOME_FORM } from "@/lib/incidents/form-keys";
-
 import { whatIsOutstanding, type IncidentCaseState } from "@/lib/incidents/stages";
 import {
   getIncident,
@@ -64,7 +63,7 @@ export default async function IncidentPage({ params }: { params: Promise<{ id: s
     outstanding.push("Raised as a safeguarding matter, but no referral date recorded.");
   }
 
-  const who = [incident.service_user_name, incident.person_name].filter(Boolean).join(" and ");
+  const who = [incident.service_user_name, ...(incident.staff_names ?? [])].filter(Boolean).join(", ");
 
   return (
     <div className="page-shell space-y-6">

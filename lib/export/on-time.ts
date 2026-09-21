@@ -766,6 +766,20 @@ export async function getOnTimeRatesByCheckId(
   return new Map(r.stats.map((s) => [s.checkId, s.ratePct]));
 }
 
+/**
+ * The COUNTS behind each check's rate: how many fell due in the window and how many were done by
+ * then. Readiness adds these up across a theme's checks, so every item that fell due counts once
+ * (Phil, 2026-09-19): averaging the rates instead let one late Medication Competency weigh as much
+ * as 27 Care Plan Reviews.
+ */
+export async function getOnTimeCountsByCheckId(
+  companyId: string,
+): Promise<Map<string, { onTime: number; due: number }>> {
+  const win = defaultOnTimeWindow();
+  const r = await runFor({ companyId, companyName: "", branchId: null, branchName: null, window: win });
+  return new Map(r.stats.map((s) => [s.checkId, { onTime: s.onTime, due: s.dueInPeriod }]));
+}
+
 export async function buildOnTimeReport(
   input: OnTimeInput,
 ): Promise<{ doc: ReportDoc; csv: string; base: string }> {

@@ -540,45 +540,6 @@ function MissingPanel({ title, needs }: { title: string; needs: string }) {
   );
 }
 
-function ScoreDial({ score }: { score: number | null }) {
-  const pct = score ?? 0;
-  const r = 54;
-  const c = 2 * Math.PI * r;
-  const stroke =
-    score == null ? "#94a3b8" : score >= 85 ? "#43d99a" : score >= 50 ? "#f5bd6a" : "#f18196";
-  return (
-    <svg viewBox="0 0 140 140" className="h-20 w-20 shrink-0" aria-hidden>
-      <circle cx="70" cy="70" r={r} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="11" />
-      <circle
-        cx="70"
-        cy="70"
-        r={r}
-        fill="none"
-        stroke={stroke}
-        strokeWidth="11"
-        strokeLinecap="round"
-        strokeDasharray={`${(pct / 100) * c} ${c}`}
-        transform="rotate(-90 70 70)"
-      />
-      {/* The shield sits inside the ring, as in the design. It carries the score's colour, so
-          the whole mark reads as one object rather than a ring with a logo dropped in it. */}
-      <g transform="translate(70 70)" stroke={stroke} fill="none" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.9">
-        <path d="M0 -22 L16 -16 V-2 C16 10 0 20 0 20 C0 20 -16 10 -16 -2 V-16 Z" />
-        <path d="M-7 -3 L-2 2 L7 -7" />
-      </g>
-    </svg>
-  );
-}
-
-/** "12 Jul", London. The score movement names the day it is measured from, never "yesterday". */
-function fmtShortDate(iso: string): string {
-  return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    timeZone: "Europe/London",
-  });
-}
-
 function fmtDay(iso: string): { day: string; date: string } {
   const d = new Date(`${iso}T00:00:00Z`);
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
@@ -838,64 +799,60 @@ export default async function DashboardPage() {
         <div className="glass-card flex flex-col justify-between gap-3 p-5">
           {score.enabled ? (
             <>
-              <div className="flex items-center gap-3">
-                <div className="min-w-0">
-                  <p className="text-xs uppercase tracking-wide text-white/50">Compliance score</p>
-                  <p className="mt-1 text-[44px] font-bold leading-none text-white">
-                    {score.score == null ? "Not scored" : `${score.score}%`}
-                  </p>
-                  <p className="mt-2 text-sm font-semibold text-emerald-300">{score.label}</p>
-                  {/* What the number is measured OVER. "Inspection ready" used to sit here, which
-                      claimed a great deal more than an average of the mapped requirements can
-                      carry, and said nothing about the checks with no due date that the score
-                      cannot see. */}
-                  {score.score != null ? (
-                    <>
-                      <p className="text-xs text-white/55">
-                        Over {score.coverage.scored} scheduled{" "}
-                        {score.coverage.scored === 1 ? "check" : "checks"}
-                      </p>
-                      {score.coverage.unscheduled > 0 ? (
-                        <p className="text-xs text-amber-300">
-                          {score.coverage.unscheduled} not scheduled, so not scored
-                        </p>
-                      ) : null}
-                    </>
-                  ) : (
-                    <p className="text-xs text-white/55">Nothing is mapped to score yet</p>
-                  )}
-                  {/* Never "since yesterday": snapshots are written when the readiness report is
-                      opened, so the line names the day it actually measures from. */}
-                  {score.score != null && score.delta != null && score.deltaFrom ? (
-                    <p
-                      className={`mt-1 text-xs ${
-                        score.delta > 0
-                          ? "text-emerald-300"
-                          : score.delta < 0
-                            ? "text-amber-300"
-                            : "text-white/45"
-                      }`}
-                    >
-                      {score.delta === 0
-                        ? "No change"
-                        : `${score.delta > 0 ? "Up" : "Down"} ${Math.abs(score.delta)}`}{" "}
-                      since {fmtShortDate(score.deltaFrom)}
-                    </p>
-                  ) : null}
-                </div>
-                <ScoreDial score={score.score} />
+              {/*
+                THEMES, NOT ONE NUMBER (Phil, 2026-09-19, after reading CIW's inspection framework).
+                CIW rates each theme by an inspector's judgement and gives no overall rating, so one
+                averaged percentage was a figure nobody would ever be judged on, and it let a weak
+                theme hide behind two good ones. Each theme, where its evidence stands, and why.
+                Our words, not the regulator's: this is readiness, not a predicted rating.
+              */}
+              <div>
+                <p className="text-xs uppercase tracking-wide text-white/50">
+                  {score.regulator === "cqc" ? "CQC readiness" : "CIW readiness"}
+                </p>
+                <ul className="mt-3 space-y-2.5">
+                  {score.requirements
+                    .filter((r) => r.mapped)
+                    .map((r) => (
+                      <li key={r.code} className="min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate text-sm font-semibold text-white">{r.title}</span>
+                          <span
+                            className={`shrink-0 text-[11px] font-semibold ${
+                              r.status === "red"
+                                ? "text-rag-red"
+                                : r.status === "amber"
+                                  ? "text-amber-300"
+                                  : r.status === "green"
+                                    ? "text-emerald-300"
+                                    : "text-white/45"
+                            }`}
+                          >
+                            {r.status === "red"
+                              ? "Action needed"
+                              : r.status === "amber"
+                                ? "Attention"
+                                : r.status === "green"
+                                  ? "On track"
+                                  : "Not started"}
+                          </span>
+                        </div>
+                        <p className="truncate text-xs text-white/55">{r.reason}</p>
+                      </li>
+                    ))}
+                </ul>
               </div>
               <Link
                 href="/readiness"
                 className="flex w-full items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-gold-300 transition hover:bg-white/[0.08]"
               >
-                Score breakdown
+                Readiness breakdown
                 <span aria-hidden>&rsaquo;</span>
               </Link>
             </>
           ) : (
             <div>
-              <p className="text-xs uppercase tracking-wide text-white/50">Compliance score</p>
+              <p className="text-xs uppercase tracking-wide text-white/50">Readiness</p>
               {/* Two different reasons land here and they must not share a sentence: a
                   Supervisor was told the feature is "not switched on for this company"
                   while the Admin was looking at a live score (17 Aug QA). */}

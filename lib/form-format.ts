@@ -80,6 +80,10 @@ export function formatAnswerForDisplay(field: FormField, value: AnswerValue | un
     /* The stored answer IS the record's name, so it reads back as itself for ever -
        after that record is renamed, archived or deleted. */
     case "record_lookup":
+      if (Array.isArray(value)) {
+        const names = value.filter((v): v is string => typeof v === "string" && v.trim() !== "");
+        return names.length > 0 ? names.join(", ") : "Not answered";
+      }
       return typeof value === "string" && value.trim() !== "" ? value : "Not answered";
 
     /* Worked out by the form, and stored with its denominator ("48 of 48") so it still

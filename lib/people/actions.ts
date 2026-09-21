@@ -11,6 +11,7 @@
  * never advances a check twice.
  */
 
+import { retestDue, withRetest } from "@/lib/forms/retest";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireCompany, requireCompanyAdmin } from "@/lib/auth/guards";
@@ -1189,7 +1190,14 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
   const dateAnswer = dateKey ? answers[dateKey] : undefined;
   const completedOnIso =
     typeof dateAnswer === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateAnswer) ? dateAnswer : todayIso();
-  const { nextDue, expiry } = nextDueAfterCompletion(def, answers, supInterval, parseCivilDate(completedOnIso));
+  const advanced = nextDueAfterCompletion(def, answers, supInterval, parseCivilDate(completedOnIso));
+  /* A FAILED SPOT CHECK IS DUE AGAIN IN A WEEK (Phil, 2026-09-19): the form says so on the
+     question (retestWithin), and the sooner date wins. */
+  const nextDue = withRetest(
+    advanced.nextDue,
+    isFormSchema(version.schema) ? retestDue(version.schema as FormSchema, answers, completedOnIso) : null,
+  );
+  const expiry = advanced.expiry;
   const { error: advanceErr } = await supabase.rpc("complete_check", {
     p_instance_id: instanceId,
     p_completed_on: completedOnIso,

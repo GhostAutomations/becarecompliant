@@ -93,6 +93,10 @@ export type IncidentRecord = {
   service_user_name?: string | null;
   person_id: string | null;
   person_name?: string | null;
+  /** Every member of staff named on the report (incident_people), else the one person_id. */
+  staff_names?: string[];
+  /** accident, near_miss, incident or dangerous_occurrence, from the report. Null before 0303. */
+  event_type?: string | null;
 
   description: string;
   immediate_action: string | null;

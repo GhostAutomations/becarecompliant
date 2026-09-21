@@ -798,3 +798,123 @@ send), DEF-018 (an unrecorded fetch) and this one are all the same shape — an 
 outcome was assumed rather than checked. The cure is the same each time: report what actually
 happened to the row.
 
+
+---
+
+## DEF-020 — A "use server" file exported three constants, and Vercel would not build  ·  FIXED
+
+**Found 2026-09-19**, Phil: *"thats red in vercel."*
+
+`lib/incidents/report-actions.ts` is a `"use server"` module, and it exported the three incident
+form keys alongside its actions. Such a module may export async functions and nothing else. `tsc`
+does not know that rule, so the type check passed locally and the BUILD failed. The keys moved to
+`lib/incidents/form-keys.ts`, which is a plain module.
+
+**The lesson, recorded because it will happen again:** a green `npx tsc --noEmit` is not a green
+build. Anything added to a `"use server"` file has to be an async function.
+
+---
+
+## DEF-021 — The incident report contradicted itself, and asked the reporter the office's questions  ·  FIXED
+
+**Found 2026-09-19** by Phil filling the new form in: type of event and kind of event were two
+free-standing lists, so "Accident" could be filed with "Abuse or allegation of abuse".
+
+- The kind is now **four questions, one per type of event** (0303), each shown only for its own
+  type, so the kinds on offer are the kinds that fit. `incidents.event_type` stores the type.
+- **Service user** and **staff** were free text. They are type-ahead lookups now: the service user
+  scoped to the branch chosen on the form, staff company-wide and **as many as were involved**
+  (`incident_people`). A record_lookup field gained `multiple` and `scopeField` for this.
+- Reading those lists needs the service role, deliberately and only for this form: a carer on the
+  team portal can see neither register under RLS and would be handed two empty boxes.
+- **Immediate action** was a field on the record nobody was asked for. It is on the form, required.
+- **Notifiable** and **safeguarding** were ticks nobody was asked about. They are a "For the
+  office" section: office staff must answer both, the team portal never sees them, and the server
+  drops them if they are posted anyway (Phil: *"the office staff need to decide"*).
+
+---
+
+## DEF-022 — AI drafted investigation questions were pasted into the box as raw JSON  ·  FIXED
+
+**Found 2026-09-19**: pressing "Draft the lines of enquiry" filled the field with `{"questions":
+[{"label": ...`.
+
+The prompt asked the model for `label`; `toAiQuestions` reads `question`. Every question was
+dropped, and the fallback — *the prose still helps, so put it in the field* — pasted the JSON.
+The prompt now asks for `question`, the parser accepts either, and unusable JSON returns "The
+questions could not be read. Press the button again." rather than a box of braces.
+
+---
+
+## DEF-023 — Readiness scored the whole company against nothing at all  ·  FIXED
+
+**Found 2026-09-19**, Phil: the dashboard said *"Nothing is mapped to score yet."*
+
+`seed_requirement_map()` (0154) is called by `provision_company()`. The founder's **Create company**
+screen does not use it: it inserts the company and seeds forms and checks itself. Every company
+made that way — Thistle and Bevan — had **no mapping at all**, so the score measured nothing.
+
+- 0304 teaches the default mapping the checks added since (Health Check, One to One, Lead the
+  Leader) and tells the two Audits apart by population, backfills every company, and **seeds the
+  map from a trigger** on `check_definitions` insert and on a company's regulator changing. No
+  screen can leave a company unscored again.
+- 0307 adds complaints and incidents as sources (CIW: complaints to Leadership and Management,
+  incidents to Well-being; CQC: Responsive and Safe), scored on **how they were handled** — the
+  deadlines met — never on how many there were.
+
+---
+
+## DEF-024 — Twelve finished Setup Visits were reported overdue on Readiness  ·  FIXED
+
+**Found 2026-09-19** on the Readiness page: Robert Owen's setup, due 03/02/2021 and **done**
+25/01/2021, was listed as outstanding, and the same for eleven others.
+
+The daily report learnt on 2026-09-18 that a one-off with a completion is settled
+(`reportableCheck`). The readiness roll-up never did. 0305 gives the RPC the same rule and
+`getFrameworkItems`/`framework/ai.ts` call `reportableCheck` directly. Care and Support went from
+13 overdue to 1 the moment it was applied.
+
+---
+
+## DEF-025 — The one compliance score was a figure nobody is ever judged on  ·  CHANGED BY DECISION
+
+**2026-09-19.** Phil asked how CIW would score it. CIW's framework (March 2025) rates **each theme
+separately, by an inspector's judgement, with no overall rating**, and has exactly one fixed rule:
+an open **Priority Action Notice** makes its theme *Requires significant improvement*.
+
+- The dashboard tile is now **CIW / CQC readiness**: each theme with our own status (On track /
+  Attention / Action needed) and the reason. No averaged percentage, and a theme nothing feeds is
+  not shown (Environment is not rated for a domiciliary service).
+- `inspection_notices` (0306) records Priority Action Notices and Areas for Improvement against a
+  theme, with the date they are due to be put right. The PAN rule is honoured exactly; an Area for
+  Improvement raises a theme to Attention at most, because CIW says a theme with one can still be
+  good.
+- The six-month on time figure is averaged **by items that fell due**, not by check type. One late
+  Medication Competency was weighing as much as 27 Care Plan Reviews.
+
+---
+
+## DEF-026 — The on time rate was 0% for a check that happens monthly  ·  FIXED (data)
+
+**Found 2026-09-19**, Phil: *"There would be more than 7 spot checks done in 6 months, it would be
+6 x the number of staff."* Exactly. The migration brought across **only the latest spot check per
+carer**, so the engine could see 7 cycles, every one of them late, and nothing else.
+
+The history was read off Thistle's Monday board and imported for the 13 staff in BCC — 86 dates,
+each with the deadline it was measured against. Spot checks on time over six months went from 0%
+to about 61%. Five missing supervisions were found the same way.
+
+**The product gap this exposed, still to build:** the import screen only creates NEW staff. There
+is no way to add history to a record that already exists, which is why this had to be done as a
+data load rather than through the product.
+
+---
+
+## DEF-027 — A failed spot check was treated as a whole cycle done  ·  FIXED
+
+**2026-09-19**, Phil: *"If a spot check is failed a new one should be done within 7 days."*
+
+The failed visit counts as done — it happened — but the next one is due in a week. The rule is
+written on the question itself (`retestWithin` on "Has the carer passed the spot check?", 0308),
+not in code about spot checks, so it is part of the form for every company and any other form can
+use it. `lib/forms/retest.ts` is the whole rule and it is unit tested.

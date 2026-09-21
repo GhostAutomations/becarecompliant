@@ -20,13 +20,17 @@ import { useFormDraft } from "@/components/forms/use-form-draft";
 import { draftKey, mergeDraft } from "@/lib/forms/draft-key";
 import { submitIncidentReport } from "@/lib/incidents/report-actions";
 import { IDLE_STATE } from "@/lib/forms";
+import { exactChoice, scopeChoices, type LookupChoice } from "@/lib/forms/lookup";
 
 export default function IncidentReportForm({
   schema,
   presetAnswers,
   draft,
+  lookupChoices,
 }: {
   schema: FormSchema;
+  /** The service users and staff the lookups offer, read on the server (report-choices.ts). */
+  lookupChoices?: Partial<Record<string, LookupChoice[]>>;
   presetAnswers?: Answers;
   /** What this user had already typed, read on the server. Omit to turn drafting off. */
   draft?: Answers | null;
@@ -43,6 +47,10 @@ export default function IncidentReportForm({
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [missing, setMissing] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  /* The records picked in the lookups. The ANSWERS keep the names, for the Evidence; these
+     ids are what the case is linked to. */
+  const [serviceUserId, setServiceUserId] = useState<string | null>(null);
+  const [staffIds, setStaffIds] = useState<string[]>([]);
 
   useEffect(() => {
     setSubmitting(false);
@@ -70,6 +78,19 @@ export default function IncidentReportForm({
     setSubmitting(true);
     const fd = new FormData();
     fd.set("answers", JSON.stringify(answers));
+    /* A service user restored from a draft has a name and no id yet: match it back to the
+       branch's list, the same rule the field itself uses. */
+    const suName = typeof answers.service_user === "string" ? answers.service_user : "";
+    const suId =
+      serviceUserId ??
+      (suName
+        ? exactChoice(
+            scopeChoices(lookupChoices?.service_user ?? [], String(answers.branch ?? "")),
+            suName,
+          )?.id ?? null
+        : null);
+    if (suName && suId) fd.set("service_user_id", suId);
+    fd.set("staff_ids", JSON.stringify(staffIds));
     for (const [key, file] of Object.entries(files)) {
       if (file) fd.append(`file:${key}`, file);
     }
@@ -90,6 +111,13 @@ export default function IncidentReportForm({
           drafting.record(next);
         }}
         onFileSelect={(key, file) => setFiles((prev) => ({ ...prev, [key]: file }))}
+        lookupChoices={lookupChoices}
+        onLookupSelect={(key, choice) => {
+          if (key === "service_user") setServiceUserId(choice?.id ?? null);
+        }}
+        onLookupMany={(key, picked) => {
+          if (key === "staff") setStaffIds(picked.map((c) => c.id));
+        }}
       />
 
       {missing ? <p className="form-error">{missing}</p> : null}

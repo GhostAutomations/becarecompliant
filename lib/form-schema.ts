@@ -154,6 +154,12 @@ export type FormField = {
   options?: FieldOption[];
   /** For record_lookup: which register to search. Defaults to service_user. */
   lookup?: LookupSource;
+  /** record_lookup: more than one record may be picked. The answer is then a list of names,
+   *  each shown as a chip (Phil, 2026-09-19: staff on an incident, "more than one option"). */
+  multiple?: boolean;
+  /** record_lookup: only offer records in the branch chosen in THIS field (a branch
+   *  single_select whose values are branch ids). Nothing is offered until it is answered. */
+  scopeField?: string;
   /** score_total: the keys of the scored questions it adds up. */
   sum?: string[];
   /** score_total and score_band: points a single question is marked out of. Default 3. */
@@ -168,6 +174,9 @@ export type FormField = {
   visibleWhen?: VisibleWhen;
   /** Answering this field with one of `when` stands down every field after it. */
   standsDown?: StandsDown;
+  /** Answered with one of `when`, the next one is due `days` after this completion instead of
+   *  the usual interval (a failed spot check is due again in 7 days). See lib/forms/retest.ts. */
+  retestWithin?: { when: string[]; days: number };
 };
 
 export type FormSection = {

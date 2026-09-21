@@ -3,7 +3,16 @@ import { createClient } from "@/lib/supabase/server";
 import { getOutcomesRegister } from "@/lib/service-users/data";
 import { getSatisfaction } from "@/lib/service-users/satisfaction";
 import { getTrainingMatrix } from "@/lib/training/data";
-import { getOnTimeRatesByCheckId } from "@/lib/export/on-time";
+import { getOnTimeCountsByCheckId } from "@/lib/export/on-time";
+import { themeStatus, themeReason } from "@/lib/framework/theme-status";
+import {
+  complaintHandling,
+  incidentHandling,
+  handlingPct,
+  type ComplaintRow,
+  type IncidentRow,
+} from "@/lib/framework/case-handling";
+import { reportableCheck } from "@/lib/notifications/reportable";
 
 /**
  * Inspection readiness against a regulator's framework. Each requirement (CIW
@@ -40,6 +49,14 @@ export type RequirementReadiness = {
     unscheduled: number;
   };
   metrics: ReadinessMetric[];
+  /** On time over the last six months, every item that fell due counted once. Null when none did. */
+  onTimePct: number | null;
+  /** The regulator's own open notices against this theme (inspection_notices, 0306). */
+  notices: { priority: number; improvement: number };
+  /** The single most important reason for the status, for a one line tile. */
+  reason: string;
+  /** Something feeds this theme: a mapped check, a metric or a notice. */
+  mapped: boolean;
 };
 
 export type FrameworkItem = {
@@ -86,6 +103,19 @@ export async function getFrameworkReadiness(
       .eq("company_id", companyId),
     supabase.rpc("get_framework_check_readiness", { p_company: companyId, p_regulator: regulator }),
   ]);
+  const { data: noticeRows } = await supabase
+    .from("inspection_notices")
+    .select("requirement_code, kind")
+    .eq("company_id", companyId)
+    .eq("regulator", regulator)
+    .is("resolved_on", null);
+  const noticesByCode = new Map<string, { priority: number; improvement: number }>();
+  for (const n of (noticeRows as Array<{ requirement_code: string; kind: string }> | null) ?? []) {
+    const cur = noticesByCode.get(n.requirement_code) ?? { priority: 0, improvement: 0 };
+    if (n.kind === "priority_action") cur.priority += 1;
+    else cur.improvement += 1;
+    noticesByCode.set(n.requirement_code, cur);
+  }
 
 
   type Req = { id: string; code: string; key_area: string; title: string; description: string };
@@ -117,6 +147,35 @@ export async function getFrameworkReadiness(
   const needsOutcomes = [...sourcesByReq.values()].some((s) => s.has("outcomes"));
   const needsSatisfaction = [...sourcesByReq.values()].some((s) => s.has("satisfaction"));
   const needsTraining = [...sourcesByReq.values()].some((s) => s.has("training"));
+  const needsComplaints = [...sourcesByReq.values()].some((s) => s.has("complaints"));
+  const needsIncidents = [...sourcesByReq.values()].some((s) => s.has("incidents"));
+  /* Complaints and incidents: their HANDLING, over the same six months the on time figure uses
+     (lib/framework/case-handling.ts). Read through RLS like everything else here. */
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
+  const [ty, tm, td] = today.split("-").map(Number);
+  const sixMonthsAgo = new Date(Date.UTC(ty, tm - 7, td)).toISOString().slice(0, 10);
+  const [complaintRes, incidentRes] = await Promise.all([
+    needsComplaints
+      ? supabase
+          .from("complaints")
+          .select("status, acknowledgement_due, date_acknowledged, response_due, date_closed")
+          .eq("company_id", companyId)
+      : Promise.resolve({ data: [] as ComplaintRow[] }),
+    needsIncidents
+      ? supabase
+          .from("incidents")
+          .select(
+            "status, reported_on, occurred_on, investigation_completed, no_further_action, outcome_recorded_on, closed_on, notifiable, notified_on, safeguarding, safeguarding_referred_on",
+          )
+          .eq("company_id", companyId)
+      : Promise.resolve({ data: [] as IncidentRow[] }),
+  ]);
+  const complaints = needsComplaints
+    ? complaintHandling((complaintRes.data as ComplaintRow[] | null) ?? [], today, sixMonthsAgo)
+    : null;
+  const incidents = needsIncidents
+    ? incidentHandling((incidentRes.data as IncidentRow[] | null) ?? [], today, sixMonthsAgo)
+    : null;
   const [outcomes, satisfaction, training, onTimeById] = await Promise.all([
     needsOutcomes ? getOutcomesRegister(companyId) : Promise.resolve(null),
     needsSatisfaction ? getSatisfaction(companyId) : Promise.resolve(null),
@@ -126,8 +185,8 @@ export async function getFrameworkReadiness(
     // Skipped entirely when nothing is mapped, so a company with no mapping does not pay for a
     // six month engine run to learn that.
     checkIdsByReq.size > 0
-      ? getOnTimeRatesByCheckId(companyId)
-      : Promise.resolve(new Map<string, number | null>()),
+      ? getOnTimeCountsByCheckId(companyId)
+      : Promise.resolve(new Map<string, { onTime: number; due: number }>()),
   ]);
 
   const out: RequirementReadiness[] = requirements.map((r) => {
@@ -165,12 +224,17 @@ export async function getFrameworkReadiness(
      * over the checks mapped to THIS requirement, so the two surfaces can never disagree.
      * A check with nothing due in the window contributes nothing rather than a zero.
      */
-    const rates = [...(checkIdsByReq.get(r.id) ?? [])]
-      .map((id) => onTimeById.get(id))
-      .filter((x): x is number => x != null);
-    const onTimePct = rates.length
-      ? Math.floor(rates.reduce((a, b) => a + b, 0) / rates.length)
-      : null;
+    /* Every item that fell due counts once, across all of this theme's checks (Phil,
+       2026-09-19). The PQS report still shows each check on its own line. */
+    let due = 0;
+    let onTime = 0;
+    for (const id of checkIdsByReq.get(r.id) ?? []) {
+      const c = onTimeById.get(id);
+      if (!c) continue;
+      due += c.due;
+      onTime += c.onTime;
+    }
+    const onTimePct = due > 0 ? Math.floor((100 * onTime) / due) : null;
     if (onTimePct != null) {
       metrics.push({
         label: "Completed by the due date, last six months",
@@ -178,14 +242,34 @@ export async function getFrameworkReadiness(
       });
     }
 
-    // Status: worst of the check rollup and the metric statuses.
-    let status: Rag = "none";
-    if (checks.total > 0) {
-      status = worst(status, checks.overdue > 0 ? "red" : checks.dueSoon > 0 ? "amber" : "green");
+    const caseOverdue: Array<{ singular: string; plural: string; count: number }> = [];
+    if (sources.has("complaints") && complaints) {
+      metrics.push({ label: "Complaints answered on time, last six months", pct: handlingPct(complaints) });
+      caseOverdue.push({ singular: "complaint", plural: "complaints", count: complaints.overdue });
     }
-    for (const m of metrics) status = worst(status, pctToRag(m.pct));
+    if (sources.has("incidents") && incidents) {
+      metrics.push({ label: "Incidents handled on time, last six months", pct: handlingPct(incidents) });
+      caseOverdue.push({ singular: "incident step", plural: "incident steps", count: incidents.overdue });
+    }
 
-    // Score: % of checks not overdue, averaged with any metric percentages.
+    const notices = noticesByCode.get(r.code) ?? { priority: 0, improvement: 0 };
+    const inputs = {
+      overdue: checks.overdue,
+      dueSoon: checks.dueSoon,
+      total: checks.total,
+      onTimePct,
+      metrics: metrics.filter((m) => m.label !== "Completed by the due date, last six months"),
+      priorityOpen: notices.priority,
+      improvementOpen: notices.improvement,
+      caseOverdue,
+    };
+    const status: Rag = themeStatus(inputs);
+    const reason = themeReason(inputs, regulator.toUpperCase());
+    const mapped =
+      checks.total > 0 || checks.unscheduled > 0 || sources.size > 0 || notices.priority + notices.improvement > 0;
+
+    // Score: % of checks not overdue, averaged with any metric percentages. Kept for the
+    // snapshots and the inspection pack; the dashboard no longer shows it (see theme-status.ts).
     const signals: number[] = [];
     // Every percentage on a compliance surface is rounded DOWN, never up (Phil, 2026-07-30).
     if (checks.total > 0) signals.push(Math.floor((100 * (checks.total - checks.overdue)) / checks.total));
@@ -201,6 +285,10 @@ export async function getFrameworkReadiness(
       score,
       checks,
       metrics,
+      onTimePct,
+      notices,
+      reason,
+      mapped,
     };
   });
 
@@ -239,7 +327,7 @@ export async function getFrameworkItems(
 
   const { data: inst } = await supabase
     .from("check_instances")
-    .select("id, definition_id, due_date, record_type, person_id, service_user_id, check_definitions(name), people(full_name, employment_status, archived_at), service_users(full_name, service_status, archived_at)")
+    .select("id, definition_id, due_date, last_completed_on, record_type, person_id, service_user_id, check_definitions(name, recurring), people(full_name, employment_status, archived_at), service_users(full_name, service_status, archived_at)")
     .eq("company_id", companyId)
     .eq("active", true)
     .not("due_date", "is", null)
@@ -248,13 +336,16 @@ export async function getFrameworkItems(
 
   for (const raw of (inst as unknown[]) ?? []) {
     const r = raw as {
-      id: string; definition_id: string; due_date: string; record_type: string;
+      id: string; definition_id: string; due_date: string; last_completed_on: string | null; record_type: string;
       person_id: string | null; service_user_id: string | null;
-      check_definitions: { name: string } | { name: string }[] | null;
+      check_definitions: { name: string; recurring: boolean } | { name: string; recurring: boolean }[] | null;
       people: { full_name: string; employment_status: string; archived_at: string | null } | { full_name: string; employment_status: string; archived_at: string | null }[] | null;
       service_users: { full_name: string; service_status: string; archived_at: string | null } | { full_name: string; service_status: string; archived_at: string | null }[] | null;
     };
     const def = relOne(r.check_definitions);
+    /* DONE IS DONE (Phil, 2026-09-19): twelve completed Setup Visits were listed here as overdue.
+       The same rule as the daily report and the readiness roll-up (0305). */
+    if (!reportableCheck({ recurring: def?.recurring ?? true, dueDate: r.due_date, lastCompletedOn: r.last_completed_on })) continue;
     let recordName: string | null = null;
     let recordId: string | null = null;
     let population: "people" | "service_users";

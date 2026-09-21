@@ -77,7 +77,10 @@ export function toAiQuestions(value: unknown): AiQuestion[] {
     if (out.length >= AI_QUESTION_LIMIT) break;
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
     const row = entry as Record<string, unknown>;
-    const question = typeof row.question === "string" ? row.question.trim() : "";
+    /* "label" is accepted too: a prompt that asked for it once had every question dropped
+       and the raw JSON pasted into the answer box (incident investigation, 2026-09-19). */
+    const raw = typeof row.question === "string" ? row.question : typeof row.label === "string" ? row.label : "";
+    const question = raw.trim();
     if (!question) continue;
     const rawType = typeof row.type === "string" ? row.type.trim().toLowerCase() : "";
     let type: AiQuestionType =

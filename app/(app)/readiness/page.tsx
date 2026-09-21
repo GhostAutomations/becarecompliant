@@ -6,13 +6,12 @@ import { createClient } from "@/lib/supabase/server";
 import {
   getFrameworkReadiness,
   getFrameworkItems,
-  getReadinessTrend,
-  overallScore,
   type Rag,
   type FrameworkItem,
 } from "@/lib/framework/data";
 import AssistantPanel from "@/components/framework/assistant-panel";
 import SnapshotOnLoad from "@/components/framework/snapshot-on-load";
+import NoticesPanel, { type NoticeRow } from "@/components/framework/notices-panel";
 
 export const metadata: Metadata = { title: "Inspection Readiness" };
 
@@ -34,11 +33,6 @@ const STATUS_TEXT: Record<Rag, string> = { red: "Action needed", amber: "Attenti
 function fmt(iso: string): string {
   const [y, m, d] = iso.split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
-}
-function barColour(score: number): string {
-  if (score >= 85) return "bg-rag-green";
-  if (score >= 50) return "bg-rag-amber";
-  return "bg-rag-red";
 }
 
 function ItemRow({ item, overdue }: { item: FrameworkItem; overdue: boolean }) {
@@ -73,17 +67,20 @@ export default async function ReadinessPage() {
   if (!company?.framework_enabled) redirect("/dashboard");
   const regulator = (company.regulator ?? "ciw") as "cqc" | "ciw";
 
-  const [{ requirements }, items, trend] = await Promise.all([
+  const [{ requirements: allRequirements }, items, noticesRes] = await Promise.all([
     getFrameworkReadiness(profile.company_id, regulator),
     getFrameworkItems(profile.company_id, regulator),
-    getReadinessTrend(profile.company_id),
+    supabase
+      .from("inspection_notices")
+      .select("id, requirement_code, kind, regulation, description, issued_on, due_by, resolved_on")
+      .eq("company_id", profile.company_id)
+      .eq("regulator", regulator)
+      .order("issued_on", { ascending: false }),
   ]);
-
-  const overall = overallScore(requirements);
-  const overallRag: Rag = requirements.reduce<Rag>((acc, r) => {
-    const rank = { none: 0, green: 1, amber: 2, red: 3 };
-    return rank[r.status] > rank[acc] ? r.status : acc;
-  }, "green");
+  const notices = (noticesRes.data as NoticeRow[] | null) ?? [];
+  /* A theme nothing feeds is not shown: Environment is for services with accommodation, and CIW
+     does not rate a domiciliary service on it. */
+  const requirements = allRequirements.filter((r) => r.mapped);
 
   return (
     <div className="page-shell space-y-6">
@@ -93,20 +90,13 @@ export default async function ReadinessPage() {
         <div>
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="page-title">Inspection Readiness</h1>
-            <span className={`pill ${PILL[overallRag]}`}>{STATUS_TEXT[overallRag]}</span>
           </div>
           <p className="page-subtitle">
-            How your live compliance maps to {REGULATOR_LABEL[regulator]}. Click an area to see and fix the
+            Where your evidence stands against each {REGULATOR_LABEL[regulator]} theme. The regulator rates each theme separately, with no overall rating. Click an area to see and fix the
             outstanding items.
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {overall != null ? (
-            <div className="text-right">
-              <div className="text-3xl font-bold text-white">{overall}%</div>
-              <div className="text-[11px] uppercase tracking-wide text-white/40">Readiness</div>
-            </div>
-          ) : null}
           <a href="/api/reports/readiness-pack" download className="btn-primary text-sm">Inspection pack</a>
         </div>
       </div>
@@ -115,8 +105,6 @@ export default async function ReadinessPage() {
         {requirements.map((r) => {
           const it = items.get(r.code) ?? { overdue: [], dueSoon: [] };
           const outstanding = it.overdue.length + it.dueSoon.length;
-          const prev = trend.get(r.code);
-          const delta = r.score != null && prev != null ? r.score - prev : null;
           return (
             <div key={r.code} className="glass-card p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -127,30 +115,28 @@ export default async function ReadinessPage() {
                 <span className={`pill ${PILL[r.status]} shrink-0`}>{STATUS_TEXT[r.status]}</span>
               </div>
 
-              {r.score != null ? (
-                <div className="mt-3">
-                  <div className="flex items-center justify-between text-xs text-white/60">
-                    <span>
-                      Score {r.score}%
-                      {delta != null && delta !== 0 ? (
-                        <span className={delta > 0 ? "text-rag-green" : "text-rag-red"}>
-                          {" "}{delta > 0 ? "▲" : "▼"} {Math.abs(delta)}
-                        </span>
-                      ) : delta === 0 ? <span className="text-white/40"> no change</span> : null}
-                    </span>
-                    {r.checks.total > 0 ? (
-                      <span>
-                        {`${r.checks.overdue} overdue · ${r.checks.dueSoon} due soon · ${r.checks.onTrack} on track`}
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="mt-1 h-2 overflow-hidden rounded-full bg-white/10">
-                    <div className={`h-full ${barColour(r.score)}`} style={{ width: `${r.score}%` }} />
-                  </div>
-                </div>
-              ) : (
-                <p className="mt-3 text-sm text-white/40">No evidence mapped to this area yet.</p>
-              )}
+              {/* THE PARTS, NOT A BLENDED SCORE (Phil, 2026-09-19): CIW rates a theme by
+                  judgement, so the page shows what the judgement would be looking at. */}
+              <p className="mt-3 text-sm text-white/80">{r.reason}</p>
+              {r.checks.total > 0 ? (
+                <p className="mt-1 text-xs text-white/60">
+                  {`${r.checks.overdue} overdue · ${r.checks.dueSoon} due soon · ${r.checks.onTrack} on track`}
+                </p>
+              ) : null}
+              {r.notices.priority + r.notices.improvement > 0 ? (
+                <p className="mt-1 text-xs text-amber-300">
+                  {[
+                    r.notices.priority > 0
+                      ? `${r.notices.priority} Priority Action ${r.notices.priority === 1 ? "Notice" : "Notices"} open`
+                      : null,
+                    r.notices.improvement > 0
+                      ? `${r.notices.improvement} ${r.notices.improvement === 1 ? "Area" : "Areas"} for Improvement open`
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              ) : null}
 
               {/* OUTSIDE the score block on purpose. Checks with no due date are not in the score,
                   and a requirement whose only evidence is unscheduled scores nothing at all, so
@@ -158,7 +144,7 @@ export default async function ReadinessPage() {
               {r.checks.unscheduled > 0 ? (
                 <p className="mt-2 text-xs text-amber-300">
                   {r.checks.unscheduled} {r.checks.unscheduled === 1 ? "check has" : "checks have"} no
-                  due date, so {r.checks.unscheduled === 1 ? "it is" : "they are"} not in the score.
+                  due date, so {r.checks.unscheduled === 1 ? "it is" : "they are"} not counted here.
                 </p>
               ) : null}
 
@@ -183,6 +169,12 @@ export default async function ReadinessPage() {
           );
         })}
       </div>
+
+      <NoticesPanel
+        regulatorName={regulator.toUpperCase()}
+        themes={requirements.map((r) => ({ code: r.code, title: r.title }))}
+        notices={notices}
+      />
 
       <AssistantPanel requirements={requirements.map((r) => ({ code: r.code, title: r.title }))} />
 

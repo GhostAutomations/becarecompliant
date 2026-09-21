@@ -189,6 +189,12 @@ function validateField(field: FormField, value: AnswerValue | undefined): string
       return null;
 
     case "record_lookup": {
+      /* A multiple lookup holds a list of names. Emptiness was dealt with above. */
+      if (Array.isArray(value)) {
+        return value.every((v) => typeof v === "string" && v.trim() !== "")
+          ? null
+          : "Choose each record from the list.";
+      }
       const s = String(value).trim();
       if (s === "") return required ? "Choose a record from the list." : null;
       return null;

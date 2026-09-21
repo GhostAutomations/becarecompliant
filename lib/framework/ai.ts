@@ -1,6 +1,7 @@
 "use server";
 
 import { requireCompany } from "@/lib/auth/guards";
+import { reportableCheck } from "@/lib/notifications/reportable";
 import { createClient } from "@/lib/supabase/server";
 import { getFrameworkReadiness, type RequirementReadiness } from "@/lib/framework/data";
 import { runAi } from "@/lib/ai/anthropic";
@@ -64,7 +65,7 @@ async function buildContext(
   if (defIds.length > 0) {
     const { data: inst } = await supabase
       .from("check_instances")
-      .select("definition_id, due_date, record_type, check_definitions(name), people(full_name, employment_status, archived_at), service_users(full_name, service_status, archived_at)")
+      .select("definition_id, due_date, last_completed_on, record_type, check_definitions(name, recurring), people(full_name, employment_status, archived_at), service_users(full_name, service_status, archived_at)")
       .eq("company_id", companyId)
       .eq("active", true)
       .lt("due_date", today)
@@ -73,12 +74,14 @@ async function buildContext(
       .limit(60);
     for (const raw of (inst as unknown[] ?? [])) {
       const r = raw as {
-        definition_id: string; due_date: string; record_type: string;
-        check_definitions: { name: string } | { name: string }[] | null;
+        definition_id: string; due_date: string; last_completed_on: string | null; record_type: string;
+        check_definitions: { name: string; recurring: boolean } | { name: string; recurring: boolean }[] | null;
         people: { full_name: string; employment_status: string; archived_at: string | null } | { full_name: string; employment_status: string; archived_at: string | null }[] | null;
         service_users: { full_name: string; service_status: string; archived_at: string | null } | { full_name: string; service_status: string; archived_at: string | null }[] | null;
       };
       const def = relOne(r.check_definitions);
+      // A completed one-off is not overdue, whatever its old due date says (0305).
+      if (!reportableCheck({ recurring: def?.recurring ?? true, dueDate: r.due_date, lastCompletedOn: r.last_completed_on })) continue;
       let recordName: string | null = null;
       if (r.record_type === "person") {
         const p = relOne(r.people);

@@ -12,6 +12,7 @@
  * logged in the pages that render them (writeAudit), not just writes here.
  */
 
+import { retestDue, withRetest } from "@/lib/forms/retest";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireCompany, requireCompanyAdmin } from "@/lib/auth/guards";
@@ -957,6 +958,11 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
     );
     if (ctx.isComplex) nextDue = addDaysToIso(completedOnIso, ctx.intervalDays);
   }
+  // An answer that calls for a sooner retest wins (lib/forms/retest.ts).
+  nextDue = withRetest(
+    nextDue,
+    isFormSchema(version.schema) ? retestDue(version.schema as FormSchema, answers, completedOnIso) : null,
+  );
   // Did it actually happen? A Form whose gate has been tripped records the attempt and
   // the reason as Evidence, but the Check is NOT advanced: it stays due on the register
   // exactly as it was. Crediting a visit that never happened is the one thing a

@@ -9,6 +9,7 @@ import {
   filterChoices,
   lookupError,
   normalise,
+  scopeChoices,
 } from "./lookup.ts";
 
 const PEOPLE: LookupChoice[] = [
@@ -106,4 +107,16 @@ test("a picked record passes, and an optional field may be left empty", () => {
 test("a required field says what to do when it is empty", () => {
   assert.equal(lookupError(PEOPLE, "", true), "Choose a record from the list.");
   assert.equal(lookupError(PEOPLE, null, true), "Choose a record from the list.");
+});
+
+
+test("a scoped lookup offers only the chosen branch, and nothing before one is chosen", () => {
+  const all: LookupChoice[] = [
+    { id: "a", label: "Ann", branchId: "b1" },
+    { id: "b", label: "Bob", branchId: "b2" },
+    { id: "c", label: "Cat" },
+  ];
+  assert.deepEqual(scopeChoices(all, undefined).map((c) => c.id), ["a", "b", "c"]);
+  assert.deepEqual(scopeChoices(all, "").map((c) => c.id), []);
+  assert.deepEqual(scopeChoices(all, "b2").map((c) => c.id), ["b"]);
 });

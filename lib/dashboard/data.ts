@@ -204,6 +204,9 @@ export type ComplianceScore =
   | { enabled: false }
   | {
       enabled: true;
+      /** Which framework the score is measured against, so the tile can say so: a CIW score
+       *  for Wales, a CQC score for England. Not the PQS, which the councils use and is separate. */
+      regulator: "cqc" | "ciw";
       score: number | null;
       /** Whole points of movement since the comparison date, or null when it cannot be trusted. */
       delta: number | null;
@@ -317,6 +320,7 @@ export async function getComplianceScore(
 
   return {
     enabled: true,
+    regulator,
     score,
     delta: score != null && prevOverall != null ? score - prevOverall : null,
     deltaFrom: usable ? days[0] : null,
