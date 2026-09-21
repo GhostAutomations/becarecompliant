@@ -263,7 +263,21 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
     };
   }
 
-  redirect(`/people/${person.id}`);
+  /*
+   * A LOGIN THAT COULD NOT BE MADE IS SAID ON THE RECORD (2026-09-21).
+   *
+   * Adding a carer with an email also creates their Team Member login. When that failed it went
+   * into the audit metadata and nowhere else, so on 21/09 a Supervisor added somebody, the
+   * invites row was refused by RLS (0316 fixes the refusal), and the only sign was an account
+   * belonging to no company that nobody would ever look at. The record now says so, and says
+   * what to press.
+   */
+  const loginFailed =
+    inviteOutcome.attempted === true &&
+    inviteOutcome.ok === false &&
+    inviteOutcome.skipped !== "demo_email";
+
+  redirect(`/people/${person.id}${loginFailed ? "?login=failed" : ""}`);
 }
 
 /** Edit a Record's identity / employment fields. */

@@ -19,14 +19,21 @@ import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import type { ActionState } from "@/lib/forms";
 import { inviteOrResendForPerson } from "@/lib/staff/invite";
+import { REGISTER_ROLES } from "@/lib/auth/module-roles";
 
-const MANAGER_PLUS = [
-  "company_admin",
-  "registered_individual",
-  "registered_manager",
-  "manager",
-  "platform_admin",
-];
+/*
+ * WHOEVER MAY ADD THE CARER MAY GIVE THEM THEIR LOGIN (2026-09-21, with 0316).
+ *
+ * This was a Manager-and-above list of its own while the People register moved to Supervisors
+ * and Recruiters (0309, 0311). Adding a person with an email creates their login as part of the
+ * add, so a Supervisor was already doing this every time — she simply could not press the button
+ * when it did not work first time. One list, the register's, so the two cannot drift apart
+ * again; the policy underneath asks the same question (is_branch_lead).
+ *
+ * This is a CARER'S OWN AREA, not an invitation to run the service. Inviting a Manager or a
+ * Supervisor is still Settings, still Company Admins only.
+ */
+const CAN_INVITE_A_CARER = REGISTER_ROLES;
 
 export async function invitePersonLogin(
   _prev: ActionState,
@@ -34,8 +41,8 @@ export async function invitePersonLogin(
 ): Promise<ActionState> {
   const { user, profile } = await requireCompany();
   if (!profile.company_id) return { error: "No company context." };
-  if (!MANAGER_PLUS.includes(profile.role)) {
-    return { error: "Only a Manager or an Admin can send a login invite." };
+  if (!CAN_INVITE_A_CARER.includes(profile.role)) {
+    return { error: "You do not have permission to give this person a login." };
   }
   const personId = String(formData.get("person_id") ?? "");
   if (!personId) return { error: "Missing person." };

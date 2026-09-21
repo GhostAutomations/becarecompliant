@@ -1199,3 +1199,52 @@ imported with none of their dates on 2026-09-16.
 the person, her checks are applied, her history is recorded (0315), four completions stored, the
 supervision moves to last done 21/06 and next due 09/09, the spot check to 30/08 and 27/09, and
 all three supervisions still know which one they were.
+
+---
+
+## DEF-037 — A Supervisor adding a carer could not create that carer's login  ·  FIXED
+
+**2026-09-21**, Phil, of a carer added that morning: *"fix the below, we are not sending logins
+yet."*
+
+The audit row for the add says it outright:
+
+    "staff_invite": { "ok": false,
+                      "error": "new row violates row-level security policy for table \"invites\"" }
+
+Hayley is a Supervisor. She added the carer, which 0309 and 0311 allow. Adding somebody with an
+email also creates their Team Member login, and `invites_insert` let a BRANCH MANAGER write a
+staff invite but not a Supervisor. So the auth account was created, the invites row was refused,
+and what was left behind was an account belonging to no company, a carer with no login, and
+nothing at all on the screen to say so.
+
+**The fifth of this shape** — DEF-023, 028, 031, 032 — and the first one the access probe did not
+catch, because the probe asks whether a Supervisor can invite a USER, and the right answer to
+that is still no. A carer's own login is a different question that lives in the same table.
+
+**0316** splits the two properly. `role = 'staff'` — a carer's own area: their training, their
+checks, raising a concern, free of charge — is now written by whoever may add that carer in that
+branch (`is_branch_lead`, the same question the register asks). Inviting somebody who READS other
+people's records — a Manager, a Supervisor, a Recruiter — stays with Company Admins on the
+Settings screen, exactly as before.
+
+**And the Recruiter had never been added to the Admin's list** when the role was created (0310).
+Settings offered "Recruiter" in the invite dropdown and the database refused it. Found one line
+away from the fault above, while reading the policy.
+
+**`lib/staff/actions.ts`** had its own Manager-and-above list for the Invite them button on a
+record, so the Supervisor could not press the button to put it right either. It now uses
+`REGISTER_ROLES` — whoever may add the carer may give them their login — which is the list the
+policy underneath agrees with.
+
+**The silence is fixed too.** A failed login went into the audit metadata and nowhere else. Add a
+person now redirects to `?login=failed` and the record carries an amber strip: the person was
+added, nothing was emailed, press Invite them, and tell us if it refuses twice rather than adding
+them again.
+
+**Proved as Hayley against the live database, rolled back:** she creates a carer login (allowed),
+she invites a Branch Manager (refused, as it should be), and an Admin invites a Recruiter
+(allowed, where it was refused before).
+
+**Left behind by the original fault, and cleaned up:** one `profiles` row and one auth account
+with no company on them, for the carer Phil asked to delete. Deleted with her.

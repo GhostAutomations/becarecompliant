@@ -102,11 +102,17 @@ export default async function PersonPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ completed?: string; recorded?: string; from?: string }>;
+  searchParams: Promise<{
+    completed?: string;
+    recorded?: string;
+    from?: string;
+    /** "failed" when their Team Member login could not be created as they were added. */
+    login?: string;
+  }>;
 }) {
   const { profile } = await requireCompany();
   const { id } = await params;
-  const { completed, recorded, from } = await searchParams;
+  const { completed, recorded, from, login: loginBanner } = await searchParams;
   // Back returns to the view the record was opened from (Main, Leavers, Archive, ...);
   // only accept in-app /people paths to avoid an open redirect.
   const backHref = from && from.startsWith("/people") ? from : "/people";
@@ -543,6 +549,17 @@ export default async function PersonPage({
         <div className="glass-card border border-rag-amber/25 p-4 text-sm text-rag-amber-soft">
           {recorded} recorded as not completed. Evidence stored with the reason, and the
           check is still due.
+        </div>
+      ) : null}
+
+      {/* THE LOGIN THAT DID NOT GET MADE (2026-09-21). It used to go into the audit log and
+          nowhere else, so the only sign was a carer who never heard anything. The record was
+          created either way — this is one thing left to do, not a failure of the add. */}
+      {loginBanner === "failed" ? (
+        <div className="glass-card border border-rag-amber/25 p-4 text-sm text-rag-amber-soft">
+          {person.full_name} has been added, but their Team Member login could not be created.
+          Nothing has been emailed to them. Press Invite them on this record to try again — and
+          if it refuses a second time, tell us rather than adding them again.
         </div>
       ) : null}
 
