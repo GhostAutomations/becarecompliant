@@ -230,6 +230,8 @@ export async function GET(request: NextRequest) {
           checkName: c.checkName,
           dueDate: c.dueDate,
           daysOverdue: daysOverdue(c.dueDate),
+          // Whether anybody has been sent to do it (Phil, 2026-09-22). Null renders a red cross.
+          planned: c.planned ?? null,
         });
         const reportRecipients = recipients.filter(
           (r) => r.role === "company_admin" || r.role === "manager",

@@ -1248,3 +1248,43 @@ she invites a Branch Manager (refused, as it should be), and an Admin invites a 
 
 **Left behind by the original fault, and cleaned up:** one `profiles` row and one auth account
 with no company on them, for the carer Phil asked to delete. Deleted with her.
+
+---
+
+## DEF-038 — The daily report said what was due, never whether anybody was going  ·  BUILT
+
+**2026-09-22**, Phil: *"on the daily email add a 4th column to the right of date, call it
+something like planner, scheduled, planned - if it is not planned in, have a red X if it is
+planned in, have the name of the person doing it and the date, you will need to widen the tile in
+the email so it isnt squashed, this needs to be done for people and serivce user emails."*
+
+Four care plan reviews due in a fortnight reads like a problem when three of them are already
+booked in, and reads like nothing at all when none of them are. The report has always answered
+"what is due" and never the question a manager asks next.
+
+**The column.** Booked: the conductor's name and the date, on two lines so a quarter-width column
+does not break "Hayley Davies" across three. Not booked: a red cross. **The cross is a character
+and not an image** — Outlook and Gmail block remote images by default, and an icon that fails to
+load is a blank cell reading as "planned", the exact opposite of what it means.
+
+**Only what is still to happen counts:** status `planned`, dated today or later. A visit booked
+for last Tuesday that never happened is not an answer to a deadline, and drawing it would say the
+job was covered when it is not. Where a check is booked more than once the EARLIEST wins: a
+manager reading "due 24/09" wants the next time somebody is going out, not the last.
+
+**The match is on the record and the check's NAME**, not on ids, and that is deliberate: the row
+comes from `person_check_status` while the booking hangs off a task row. The name is what both
+agree on and what the reader sees in the Task column, so a match they can see is a match we can
+explain. Compared case and space insensitively (`lib/notifications/planned.ts`, eight tests).
+
+**Reading the diary is four small indexed reads, not one clever join.** A booking carries its
+checks as TASK rows, so the join would be booking → tasks → instances → definitions → conductor,
+four embeds deep with two different foreign keys into `check_instances` to disambiguate. Both the
+task shape and the older booking-level `check_instance_id` are read, so neither kind of booking
+is invisible.
+
+**The card is 680px wide for these two emails only** (`maxWidth` on the shell, default 520).
+Every other email — invites, calendar invitations, holiday notices — is untouched.
+
+**A booking whose conductor has left** still shows as booked, with the date and the word Booked
+rather than a name. It IS in the diary; showing a cross would be a lie about the harder half.

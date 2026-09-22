@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/supabase/admin";
 import { COMPLIANCE_RECIPIENT_ROLES, normaliseRecipientRole } from "@/lib/notifications/roles";
 import { todayInLondon, formatCivilDate } from "@/lib/recurrence";
 import { reportableCheck } from "@/lib/notifications/reportable";
+import { plannedFor, plannedIndex, type PlannedSource, type PlannedVisit } from "@/lib/notifications/planned";
 
 /**
  * Service-role reads for the notification cron. RLS is bypassed here (the cron
@@ -214,6 +215,12 @@ export type ReportingCheck = {
   branchName: string;
   checkName: string;
   dueDate: string; // ISO date
+  /**
+   * The next visit booked for this check on the Planner, or null where nothing is in the diary
+   * (Phil, 2026-09-22). The report has always said what is due; this is what says whether
+   * anybody has been sent to do it.
+   */
+  planned?: PlannedVisit | null;
 };
 
 /** Horizon for the "due soon" section of the reporting emails: the next N days. */
@@ -237,6 +244,101 @@ function addDaysIso(iso: string, days: number): string {
   return dt.toISOString().slice(0, 10);
 }
 
+
+/**
+ * What is IN THE DIARY: every check with a planned visit against it, for one company.
+ *
+ * Phil, 2026-09-22: the daily report says what is due; this is what says whether anybody has
+ * been sent to do it. Four care plan reviews due in a fortnight reads very differently when
+ * three of them are already booked.
+ *
+ * FOUR SMALL READS BY ID rather than one clever join. A booking carries its checks as TASK rows
+ * (planner_booking_tasks), not on the booking itself, so the join would be a booking to its
+ * tasks to their instances to their definitions to the conductor's profile — four embeds deep,
+ * with two different foreign keys into check_instances to disambiguate. Read plainly it is four
+ * indexed reads once per company per morning, and anybody can see what it does.
+ *
+ * ONLY WHAT IS STILL TO HAPPEN: status 'planned' (not cancelled, not completed) and dated today
+ * or later. A visit that was booked for last Tuesday and never happened is not an answer to a
+ * deadline, and drawing it in the Planned column would say the job was covered when it is not.
+ */
+async function getPlannedVisits(
+  supabase: ReturnType<typeof createServiceClient>,
+  companyId: string,
+  todayIso: string,
+): Promise<Map<string, PlannedVisit>> {
+  const { data: bookings } = await supabase
+    .from("planner_bookings")
+    .select("id, scheduled_date, subject_person_id, subject_service_user_id, conductor_profile_id, check_instance_id")
+    .eq("company_id", companyId)
+    .eq("status", "planned")
+    .gte("scheduled_date", todayIso);
+  const bookingRows = (bookings ?? []) as Array<{
+    id: string;
+    scheduled_date: string;
+    subject_person_id: string | null;
+    subject_service_user_id: string | null;
+    conductor_profile_id: string | null;
+    check_instance_id: string | null;
+  }>;
+  if (bookingRows.length === 0) return new Map();
+
+  const { data: taskRows } = await supabase
+    .from("planner_booking_tasks")
+    .select("booking_id, check_instance_id")
+    .in("booking_id", bookingRows.map((b) => b.id));
+
+  /* The booking's own check_instance_id is the older shape, still on live rows; the tasks are
+     the current one. Both are read so neither kind of booking is invisible. */
+  const pairs: Array<{ bookingId: string; instanceId: string }> = [];
+  for (const b of bookingRows) {
+    if (b.check_instance_id) pairs.push({ bookingId: b.id, instanceId: b.check_instance_id });
+  }
+  for (const t of ((taskRows ?? []) as Array<{ booking_id: string; check_instance_id: string | null }>)) {
+    if (t.check_instance_id) pairs.push({ bookingId: t.booking_id, instanceId: t.check_instance_id });
+  }
+  if (pairs.length === 0) return new Map();
+
+  const [{ data: instances }, { data: conductors }] = await Promise.all([
+    supabase
+      .from("check_instances")
+      .select("id, definition_id")
+      .in("id", Array.from(new Set(pairs.map((p) => p.instanceId)))),
+    supabase
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", Array.from(new Set(bookingRows.map((b) => b.conductor_profile_id).filter(Boolean) as string[]))),
+  ]);
+  const instanceRows = (instances ?? []) as Array<{ id: string; definition_id: string }>;
+  const { data: definitions } = await supabase
+    .from("check_definitions")
+    .select("id, name")
+    .in("id", Array.from(new Set(instanceRows.map((i) => i.definition_id))));
+
+  const defName = new Map(((definitions ?? []) as Array<{ id: string; name: string }>).map((d) => [d.id, d.name]));
+  const instanceCheck = new Map(instanceRows.map((i) => [i.id, defName.get(i.definition_id) ?? ""]));
+  const conductorName = new Map(
+    ((conductors ?? []) as Array<{ id: string; full_name: string | null }>).map((c) => [c.id, c.full_name]),
+  );
+  const bookingById = new Map(bookingRows.map((b) => [b.id, b]));
+
+  const sources: PlannedSource[] = [];
+  for (const pair of pairs) {
+    const b = bookingById.get(pair.bookingId);
+    const checkName = instanceCheck.get(pair.instanceId) ?? "";
+    if (!b || !checkName) continue;
+    const recordId = b.subject_person_id ?? b.subject_service_user_id;
+    if (!recordId) continue;
+    sources.push({
+      recordId,
+      checkName,
+      scheduledDate: b.scheduled_date,
+      conductorName: b.conductor_profile_id ? conductorName.get(b.conductor_profile_id) ?? null : null,
+    });
+  }
+  return plannedIndex(sources);
+}
+
 /**
  * Checks due on or before today + 14 days (so overdue AND due soon), per
  * population, plus whether the company has active records of each population.
@@ -249,7 +351,10 @@ function addDaysIso(iso: string, days: number): string {
  */
 export async function getReportingData(companyId: string): Promise<ReportingData> {
   const supabase = createServiceClient();
-  const horizon = addDaysIso(formatCivilDate(todayInLondon()), REPORTING_HORIZON_DAYS);
+  const todayIso = formatCivilDate(todayInLondon());
+  const horizon = addDaysIso(todayIso, REPORTING_HORIZON_DAYS);
+  // What is already in the diary, so each row can say whether anybody has been sent to do it.
+  const planned = await getPlannedVisits(supabase, companyId, todayIso);
 
   const [peopleChecks, suChecks, people, sus, branches, activePeople, activeSus] =
     await Promise.all([
@@ -311,6 +416,7 @@ export async function getReportingData(companyId: string): Promise<ReportingData
       branchName: branchName.get(r.branch_id) ?? "",
       checkName: r.check_name,
       dueDate: r.due_date as string,
+      planned: plannedFor(planned, r.person_id, r.check_name),
     }));
   const suOut: ReportingCheck[] = (suChecks.data ?? [])
     .filter(outstanding)
@@ -322,6 +428,7 @@ export async function getReportingData(companyId: string): Promise<ReportingData
       branchName: branchName.get(r.branch_id) ?? "",
       checkName: r.check_name,
       dueDate: r.due_date as string,
+      planned: plannedFor(planned, r.service_user_id, r.check_name),
     }));
 
   return {

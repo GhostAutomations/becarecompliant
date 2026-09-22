@@ -31,7 +31,16 @@ function shell(opts: {
   ctaLabel?: string;
   ctaUrl?: string;
   footerNote: string;
+  /**
+   * How wide the card is. 520 suits a sentence and a button, which is every email here except
+   * the daily reports: those carry a four column table and at 520 the Planned column squeezed
+   * the name and the date into two words a line (Phil, 2026-09-22: "you will need to widen the
+   * tile in the email so it isnt squashed"). Only the reports pass a different number, so no
+   * other email moves.
+   */
+  maxWidth?: number;
 }): string {
+  const cardWidth = opts.maxWidth ?? 520;
   const ctaRow =
     opts.ctaLabel && opts.ctaUrl
       ? `<tr><td style="padding:24px 32px 8px 32px;">
@@ -52,7 +61,7 @@ function shell(opts: {
 <span style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(opts.preheader)}</span>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${NAVY};padding:32px 16px;">
   <tr><td align="center">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:${NAVY_CARD};border:1px solid rgba(255,255,255,0.10);border-radius:18px;overflow:hidden;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:${cardWidth}px;background:${NAVY_CARD};border:1px solid rgba(255,255,255,0.10);border-radius:18px;overflow:hidden;">
       <tr><td style="padding:28px 32px 8px 32px;">
         <div style="font-size:15px;font-weight:700;color:#ffffff;letter-spacing:0.2px;">
           Be Care <span style="color:${GOLD};">Compliant</span>
@@ -67,7 +76,7 @@ function shell(opts: {
         <p style="margin:0;font-size:12px;line-height:1.6;color:${MUTED};">${escapeHtml(opts.footerNote)}</p>
       </td></tr>
     </table>
-    <p style="max-width:520px;margin:16px auto 0 auto;font-size:11px;color:${MUTED};text-align:center;">
+    <p style="max-width:${cardWidth}px;margin:16px auto 0 auto;font-size:11px;color:${MUTED};text-align:center;">
       Be Care Compliant, compliance management for UK care providers.
     </p>
   </td></tr>
@@ -182,7 +191,13 @@ export type ReportingRow = {
   /** Whole days overdue as of today; used to flag escalations in the overdue
    *  section (folded in from the old separate chaser emails). */
   daysOverdue?: number;
+  /** The next visit booked for this check on the Planner, or null/absent when nothing is in
+   *  the diary for it (Phil, 2026-09-22). */
+  planned?: { conductorName: string | null; scheduledDate: string } | null;
 };
+
+/** The width the daily reports need for four columns. Everything else stays at the default. */
+const REPORT_CARD_WIDTH = 680;
 
 const REPORTING_MAX_ROWS = 100;
 
@@ -209,8 +224,33 @@ function distinctRecords(rows: ReportingRow[]): string[] {
   return order;
 }
 
-/** One section (Overdue or Due in the next 14 days) as a three column table:
- *  Name, Task, Date. One row per check. Empty renders a calm all clear line. */
+/**
+ * The Planned cell: who is going out and when, or a red cross when nobody is (Phil, 2026-09-22:
+ * "if it is not planned in, have a red X if it is planned in, have the name of the person doing
+ * it and the date").
+ *
+ * THE CROSS IS A CHARACTER, NOT AN IMAGE. Outlook and Gmail both strip or block remote images by
+ * default, and an icon that does not load is a blank cell that reads as "planned" — the exact
+ * opposite of what it means. A heavy multiplication sign renders in every client.
+ *
+ * The name and the date sit on two lines, so a column a quarter of the email wide does not
+ * break "Hayley Davies" across three of them.
+ */
+function plannedCellHtml(planned: ReportingRow["planned"]): string {
+  if (!planned) {
+    return `<span style="color:${RED_PILL};font-size:16px;font-weight:700;line-height:1;" aria-label="Not planned">&#10005;</span>`;
+  }
+  const who = (planned.conductorName ?? "").trim();
+  const when = `<span style="color:${MUTED};white-space:nowrap;">${escapeHtml(formatDateShort(planned.scheduledDate))}</span>`;
+  /* A booking whose conductor has left the company still has a date, and the date is the half
+     that matters: it is booked. Saying so without a name beats showing a cross. */
+  return who
+    ? `<span style="color:#ffffff;">${escapeHtml(who)}</span><br />${when}`
+    : `<span style="color:${MUTED};">Booked</span><br />${when}`;
+}
+
+/** One section (Overdue or Due in the next 14 days) as a four column table:
+ *  Name, Task, Date, Planned. One row per check. Empty renders a calm all clear line. */
 function reportingSectionHtml(
   title: string,
   rows: ReportingRow[],
@@ -226,9 +266,10 @@ function reportingSectionHtml(
   const th = `font-size:11px;font-weight:700;color:${MUTED};text-transform:uppercase;letter-spacing:0.3px;text-align:left;padding:0 8px 6px 0;border-bottom:1px solid rgba(255,255,255,0.16);`;
   const cell = `padding:7px 8px 7px 0;font-size:13px;vertical-align:top;border-bottom:1px solid rgba(255,255,255,0.07);`;
   const header = `<tr>
-    <th style="${th}width:40%;">Name</th>
-    <th style="${th}width:34%;">Task</th>
-    <th style="${th}width:26%;">Date</th>
+    <th style="${th}width:28%;">Name</th>
+    <th style="${th}width:24%;">Task</th>
+    <th style="${th}width:20%;">Date</th>
+    <th style="${th}width:28%;">Planned</th>
   </tr>`;
   const body = shown
     .map((r) => {
@@ -246,6 +287,7 @@ function reportingSectionHtml(
         <td style="${cell}color:#ffffff;font-weight:600;">${escapeHtml(r.recordName)}</td>
         <td style="${cell}color:${TEXT};">${escapeHtml(r.checkName)}</td>
         <td style="${cell}color:${accent};white-space:nowrap;${weight}">${dateCell}</td>
+        <td style="${cell}">${plannedCellHtml(r.planned ?? null)}</td>
       </tr>`;
     })
     .join("");
@@ -300,6 +342,7 @@ export function reportingEmailHtml(opts: {
     ${reportingSectionHtml("Records due in the next 14 days", opts.dueSoon, false, "Nothing due in the next 14 days.")}`;
 
   return shell({
+    maxWidth: REPORT_CARD_WIDTH,
     preheader: reportingSubject(opts.population, overdueRecords, dueSoonRecords),
     heading: `Daily ${label} compliance report`,
     bodyHtml: body,
