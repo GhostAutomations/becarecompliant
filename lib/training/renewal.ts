@@ -78,6 +78,67 @@ export function deriveCompletedDate(renewalIso: string, renewalMonths: number | 
   return addMonthsIso(renewalIso, -renewalMonths);
 }
 
+/** A plain UK date for a message a manager reads. Local, because this module imports nothing. */
+function ukDate(iso: string): string {
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+/**
+ * Refuse a training date that says something has already happened when it has not.
+ *
+ * WHY IT EXISTS (Phil, item 5 of Operation Thistle). Two Safeguarding rows on the live Thistle
+ * register carried a completion date in 2027 and one in 2028. Nothing in the app invented them:
+ * the import reads a RENEWAL date and works the completion back from the course period, so a
+ * twelve month course carrying a renewal date two years out can only mean a completion a year
+ * from now. The board was wrong and the import copied it faithfully, which is exactly the shape
+ * of error nobody spots, because a green tick is what a future completion looks like.
+ *
+ * THE RULE IS THE IMPOSSIBLE ONE, not "beyond the course period" (Phil, popup 2026-09-22).
+ * On the import the two are the same thing: the cell holds a renewal date, so a renewal further
+ * out than the period ALWAYS derives a completion that has not happened. On the dialog, where a
+ * manager types both dates, they are not the same: a course configured at twelve months can quite
+ * properly carry a three year certificate, and refusing that would destroy the override the
+ * dialog exists to offer. What cannot be argued with is a completion in the future.
+ *
+ * A BOOKING IS NOT A COMPLETION and is untouched here. Booking a carer onto next month's course
+ * is the normal case and lives in its own column.
+ *
+ * Returns the sentence to show, or null when the dates are possible.
+ */
+export function impossibleTrainingDate(opts: {
+  /** The course as the person reading this knows it, e.g. "Safeguarding of Vulnerable Adults". */
+  courseName: string;
+  /** A typed completion date, when there is one. */
+  completedIso: string | null;
+  /** A renewal date, typed or read from an import cell. */
+  expiryIso: string | null;
+  /** The course's own renewal period. Null for a one off, which cannot derive anything. */
+  renewalMonths: number | null;
+  todayIso: string;
+}): string | null {
+  if (!ISO.test(opts.todayIso)) return null;
+
+  /*
+   * A TYPED COMPLETION WINS. It is the stronger statement of the two, and it is the one that
+   * decides whether the renewal date needs questioning at all: a certificate completed last
+   * March that runs for three years is somebody's real certificate, not a mistake.
+   */
+  if (opts.completedIso && ISO.test(opts.completedIso)) {
+    if (opts.completedIso > opts.todayIso) {
+      return `${opts.courseName} cannot have been completed on ${ukDate(opts.completedIso)}, because that date has not happened yet.`;
+    }
+    return null;
+  }
+
+  if (!opts.expiryIso || !ISO.test(opts.expiryIso)) return null;
+  const derived = deriveCompletedDate(opts.expiryIso, opts.renewalMonths);
+  if (!derived || derived <= opts.todayIso) return null;
+
+  const months = opts.renewalMonths as number;
+  return `${opts.courseName} renews every ${months} ${months === 1 ? "month" : "months"}, so a renewal date of ${ukDate(opts.expiryIso)} means it was completed on ${ukDate(derived)}, which has not happened yet. Check the date on the certificate.`;
+}
+
 export type TrainingStatus = "valid" | "due_soon" | "expired" | "missing";
 
 /**

@@ -8,7 +8,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireCompany } from "@/lib/auth/guards";
-import { deriveRenewalDate } from "@/lib/training/renewal";
+import { deriveRenewalDate, impossibleTrainingDate } from "@/lib/training/renewal";
 import { trainingWritePlan } from "@/lib/training/booking";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
@@ -17,6 +17,11 @@ import { uploadTrainingCertificate, deleteTrainingCertificate } from "@/lib/trai
 import type { ActionState } from "@/lib/forms";
 
 const ISO_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Today in Europe/London, the same idiom the rest of the app dates by. */
+function londonToday(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
+}
 
 export async function saveTraining(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const { profile } = await requireCompany();
@@ -109,6 +114,26 @@ export async function saveTraining(_prev: ActionState, formData: FormData): Prom
    */
   const expiry =
     typedExpiry ?? (completed ? deriveRenewalDate(completed, course.renewal_months as number | null) : null);
+
+  /*
+   * A COMPLETION THAT HAS NOT HAPPENED IS REFUSED (Phil, item 5 of Operation Thistle).
+   *
+   * The override above is about a certificate that runs a different length than the course rule,
+   * which is real and common. It is NOT a licence to record training as done in 2027. A renewal
+   * date typed on its own derives its completion from the course period, so a twelve month course
+   * given a renewal two years out is claiming a completion next year, and it shows on the matrix
+   * as a green tick nobody questions. The typed completion is judged directly.
+   *
+   * The booking date is deliberately not judged: booking next month's course is the normal case.
+   */
+  const impossible = impossibleTrainingDate({
+    courseName: course.name as string,
+    completedIso: completed,
+    expiryIso: typedExpiry,
+    renewalMonths: course.renewal_months as number | null,
+    todayIso: londonToday(),
+  });
+  if (impossible) return { error: impossible };
 
   /*
    * A BOOKING ON ITS OWN IS NOT A COMPLETION, AND MUST NOT UNDO ONE (Phil, 2026-08-14).
@@ -391,6 +416,22 @@ export async function saveTrainingBulk(_prev: ActionState, formData: FormData): 
   }
   const completed = booking ? "" : completedRaw;
   const bookedFor = booking ? bookedRaw : null;
+
+  /*
+   * The same impossible date guard as the single dialog, before anything is read or written.
+   * Courses are not loaded yet here, so it is judged on the completion date alone, which is what
+   * this screen collects: one date applied to every course ticked.
+   */
+  if (!booking) {
+    const impossible = impossibleTrainingDate({
+      courseName: "Training",
+      completedIso: completed,
+      expiryIso: null,
+      renewalMonths: null,
+      todayIso: londonToday(),
+    });
+    if (impossible) return { error: impossible };
+  }
 
   const personIds = formData.getAll("person_ids").map((v) => String(v)).filter(Boolean);
   if (personIds.length === 0) return { error: "Tick at least one carer." };

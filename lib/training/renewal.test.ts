@@ -1,6 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { deriveRenewalDate, trainingStatus, daysUntilRenewal, renewalPhrase } from "./renewal.ts";
+import {
+  deriveRenewalDate,
+  trainingStatus,
+  daysUntilRenewal,
+  renewalPhrase,
+  impossibleTrainingDate,
+} from "./renewal.ts";
 import { parseCivilDate, formatCivilDate, addMonths, daysBetween } from "../recurrence.ts";
 
 /**
@@ -176,5 +182,162 @@ test("the day counting here agrees with lib/recurrence too", () => {
   ];
   for (const [a, b] of pairs) {
     assert.equal(daysUntilRenewal(b, a), daysBetween(parseCivilDate(a), parseCivilDate(b)), `${a} to ${b}`);
+  }
+});
+
+/**
+ * THE IMPOSSIBLE DATE GUARD. Two Safeguarding rows reached the live Thistle register showing a
+ * completion in 2027 and 2028, copied faithfully from a board that was wrong. A future completion
+ * looks like a green tick, so nothing on screen argues with it.
+ */
+
+const TODAY = "2026-09-22";
+
+test("a renewal further out than the course period is refused, because it derives a future completion", () => {
+  // The real Thistle rows: a twelve month course carrying renewals in 2027 and 2028.
+  const asim = impossibleTrainingDate({
+    courseName: "Safeguarding of Vulnerable Adults",
+    completedIso: null,
+    expiryIso: "2027-12-21",
+    renewalMonths: 12,
+    todayIso: TODAY,
+  });
+  assert.ok(asim);
+  assert.match(asim, /renews every 12 months/);
+  assert.match(asim, /21\/12\/2026/);
+
+  const mohammad = impossibleTrainingDate({
+    courseName: "Safeguarding of Vulnerable Adults",
+    completedIso: null,
+    expiryIso: "2028-01-31",
+    renewalMonths: 12,
+    todayIso: TODAY,
+  });
+  assert.ok(mohammad);
+  assert.match(mohammad, /31\/01\/2027/);
+});
+
+test("a renewal exactly one period out is allowed: that is training completed today", () => {
+  assert.equal(
+    impossibleTrainingDate({
+      courseName: "Fire Safety",
+      completedIso: null,
+      expiryIso: "2027-09-22",
+      renewalMonths: 12,
+      todayIso: TODAY,
+    }),
+    null,
+  );
+  // One day further is a completion tomorrow.
+  assert.ok(
+    impossibleTrainingDate({
+      courseName: "Fire Safety",
+      completedIso: null,
+      expiryIso: "2027-09-23",
+      renewalMonths: 12,
+      todayIso: TODAY,
+    }),
+  );
+});
+
+test("a typed completion in the past keeps a long certificate legal, which is the override", () => {
+  // A course configured at twelve months, certificate genuinely running three years.
+  assert.equal(
+    impossibleTrainingDate({
+      courseName: "Moving and Handling",
+      completedIso: "2026-03-01",
+      expiryIso: "2029-03-01",
+      renewalMonths: 12,
+      todayIso: TODAY,
+    }),
+    null,
+  );
+});
+
+test("a typed completion in the future is refused whatever the renewal date says", () => {
+  const msg = impossibleTrainingDate({
+    courseName: "Moving and Handling",
+    completedIso: "2026-09-23",
+    expiryIso: null,
+    renewalMonths: 12,
+    todayIso: TODAY,
+  });
+  assert.ok(msg);
+  assert.match(msg, /23\/09\/2026/);
+  assert.match(msg, /has not happened yet/);
+});
+
+test("completing today is fine, because a carer can do a course this morning", () => {
+  assert.equal(
+    impossibleTrainingDate({
+      courseName: "Fire Safety",
+      completedIso: TODAY,
+      expiryIso: "2027-09-22",
+      renewalMonths: 12,
+      todayIso: TODAY,
+    }),
+    null,
+  );
+});
+
+test("a one off course derives nothing, so a renewal date alone cannot be judged", () => {
+  assert.equal(
+    impossibleTrainingDate({
+      courseName: "Induction",
+      completedIso: null,
+      expiryIso: "2099-01-01",
+      renewalMonths: null,
+      todayIso: TODAY,
+    }),
+    null,
+  );
+});
+
+test("missing or malformed dates are not refusals: other checks own those", () => {
+  for (const bad of [null, "", "not a date", "21/12/2027"]) {
+    assert.equal(
+      impossibleTrainingDate({
+        courseName: "Fire Safety",
+        completedIso: null,
+        expiryIso: bad,
+        renewalMonths: 12,
+        todayIso: TODAY,
+      }),
+      null,
+      `expiry ${String(bad)}`,
+    );
+  }
+  assert.equal(
+    impossibleTrainingDate({
+      courseName: "Fire Safety",
+      completedIso: null,
+      expiryIso: "2028-01-31",
+      renewalMonths: 12,
+      todayIso: "rubbish",
+    }),
+    null,
+  );
+});
+
+test("the message says months singularly when the course renews monthly", () => {
+  const msg = impossibleTrainingDate({
+    courseName: "Spot Check",
+    completedIso: null,
+    expiryIso: "2026-11-30",
+    renewalMonths: 1,
+    todayIso: TODAY,
+  });
+  assert.ok(msg);
+  assert.match(msg, /renews every 1 month,/);
+});
+
+test("no dashes in anything a customer reads", () => {
+  const msgs = [
+    impossibleTrainingDate({ courseName: "Fire Safety", completedIso: null, expiryIso: "2028-01-31", renewalMonths: 12, todayIso: TODAY }),
+    impossibleTrainingDate({ courseName: "Fire Safety", completedIso: "2027-01-01", expiryIso: null, renewalMonths: 12, todayIso: TODAY }),
+  ];
+  for (const m of msgs) {
+    assert.ok(m);
+    assert.ok(!/[\u2013\u2014]/.test(m), m);
   }
 });

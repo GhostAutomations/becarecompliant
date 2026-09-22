@@ -1402,3 +1402,57 @@ a duplicate has just been added.
 
 **Proved on the live database, rolled back:** an Admin adds a record; a Supervisor's delete is
 refused; the Admin's succeeds; migrated history is removable. Thistle's register is untouched.
+
+
+---
+
+## DEF-041 - Training could be recorded as completed on a date that has not happened
+
+**Where it came from.** Two rows on Thistle's live register: Asim Riaz showing Safeguarding
+completed 21/12/2026 and Mohammad Mahbubul Islam showing it completed 31/01/2027. Neither date
+has happened. Nothing in the app invented them. The training import reads a RENEWAL date, because
+that is the date a registered manager keeps a matrix in, and works the completion back from the
+course's own renewal period. Safeguarding renews every twelve months, so a board carrying a
+renewal in December 2027 is asserting a completion in December 2026. The import copied the board
+faithfully and the board was wrong.
+
+**Why it is the worst kind of wrong.** A future completion does not look like an error. It looks
+like a green tick. The matrix shows compliant, the digest says nothing, and the carer is in fact
+untrained until the day the spreadsheet claims. An inspector reading the evidence pack sees a date
+in the future next to a tick.
+
+**The rule, agreed by popup 2026-09-22: the impossible one, not "beyond the course period".**
+On the import the two are the same thing, because the cell holds a renewal date and the completion
+is always derived: a renewal further out than the period can only mean a completion that has not
+happened. On the cell dialog they are NOT the same. A manager types both dates there, and a course
+configured at twelve months can properly carry a three year certificate; refusing that would
+destroy the override the dialog deliberately offers ("a date that arrives is taken as given",
+because courses get re-accredited early). What cannot be argued with is a completion in the
+future, so that is what is refused.
+
+**One rule, one place, three doors.** `impossibleTrainingDate` in `lib/training/renewal.ts`, the
+importless pure module, judged by nine tests including both real Thistle rows and the boundary
+either side of it. Wired into every path that can write a training date:
+
+- the training import preview, per cell, naming the course and both dates on the row before a
+  single record is written,
+- `saveTraining`, the cell dialog, before it reads or writes anything,
+- `saveTrainingBulk`, the "record for several carers" dialog, on the one completion date it
+  collects.
+
+**Deliberately not judged: the booking date.** Booking a carer onto next month's course is the
+normal case and lives in its own column, invisible to the status rule.
+
+**The two live rows are left alone.** They are item 6, the Monday board is the source and Phil
+corrects it there first. This is the guard that stops the next one arriving.
+
+**No migration.** Nothing about the schema was wrong.
+
+**Not yet proved in the browser.** The logic is covered by tests and the three call sites are
+traced, but no file has been uploaded and no dialog submitted against the deployed build. Test
+checklist to run after deploy: import a file with a renewal date more than the course period out
+(refused on the preview, message names the derived completion); import a one off course column
+with a future date (refused); cell dialog with a future completion (refused); cell dialog with a
+past completion and a renewal date three years out on a twelve month course (ALLOWED, the
+override still works); cancel a booking by clearing the date on a record with no dates (still
+works, the guard does not touch it); bulk record with a future date (refused).

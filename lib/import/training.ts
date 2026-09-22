@@ -30,6 +30,7 @@ import {
   trainingHeader,
   normaliseHeader,
   classifyHeaders,
+  impossibleTrainingDate,
 } from "@/lib/training/renewal";
 
 export const TRAINING_IDENTITY = ["Full name*", "Branch*"] as const;
@@ -186,6 +187,13 @@ export async function validateTrainingImport(
     return idx === undefined ? "" : (cols[idx] ?? "").trim();
   };
 
+  /*
+   * THE IMPOSSIBLE DATE GUARD needs a today, and the preview is the only place it can run: the
+   * commit writes what the preview accepted. Read once, so every row in a file is judged against
+   * the same day even if the upload straddles midnight.
+   */
+  const todayIso = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
+
   const rows: ParsedRow[] = [];
   /*
    * A carer listed twice in the same file. Both rows would flat map into one upsert carrying the
@@ -236,6 +244,17 @@ export async function validateTrainingImport(
           }
           checks.push({ definitionId: c.id, name: c.name, dates: [] });
         } else if (iso) {
+          const impossible = impossibleTrainingDate({
+            courseName: c.header,
+            completedIso: iso,
+            expiryIso: null,
+            renewalMonths: null,
+            todayIso,
+          });
+          if (impossible) {
+            errors.push(impossible);
+            continue;
+          }
           checks.push({ definitionId: c.id, name: c.name, dates: [iso] });
         }
         continue;
@@ -246,7 +265,27 @@ export async function validateTrainingImport(
         errors.push(`${c.header} is not a valid date (use DD/MM/YYYY).`);
         continue;
       }
-      if (iso) checks.push({ definitionId: c.id, name: c.name, dates: [iso] });
+      if (!iso) continue;
+
+      /*
+       * THIS IS WHERE THE THISTLE ROWS CAME IN. The cell holds a renewal date and the completion
+       * is worked back from the course period, so a renewal further out than that period is a
+       * completion that has not happened, and it lands on the matrix as a green tick. Named on
+       * the row, before a single record is written.
+       */
+      const impossible = impossibleTrainingDate({
+        courseName: c.header,
+        completedIso: null,
+        expiryIso: iso,
+        renewalMonths: c.renewalMonths,
+        todayIso,
+      });
+      if (impossible) {
+        errors.push(impossible);
+        continue;
+      }
+
+      checks.push({ definitionId: c.id, name: c.name, dates: [iso] });
     }
 
     if (errors.length === 0 && checks.length === 0) {
