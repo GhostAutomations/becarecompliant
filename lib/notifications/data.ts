@@ -5,6 +5,7 @@ import { COMPLIANCE_RECIPIENT_ROLES, normaliseRecipientRole } from "@/lib/notifi
 import { todayInLondon, formatCivilDate } from "@/lib/recurrence";
 import { reportableCheck } from "@/lib/notifications/reportable";
 import { plannedFor, plannedIndex, type PlannedSource, type PlannedVisit } from "@/lib/notifications/planned";
+import { DBS_AMBER_DAYS } from "@/lib/people/logic";
 
 /**
  * Service-role reads for the notification cron. RLS is bypassed here (the cron
@@ -221,6 +222,9 @@ export type ReportingCheck = {
    * anybody has been sent to do it.
    */
   planned?: PlannedVisit | null;
+  /** False for a row the Planner cannot book, such as a DBS renewal: its Planned cell is blank
+   *  rather than a red cross that would mean nothing. */
+  plannable?: boolean;
 };
 
 /** Horizon for the "due soon" section of the reporting emails: the next N days. */
@@ -229,6 +233,16 @@ export const REPORTING_HORIZON_DAYS = 14;
 export type ReportingData = {
   people: ReportingCheck[];
   serviceUsers: ReportingCheck[];
+  /**
+   * DBS renewals that are amber or already past (Phil, 2026-09-22: "Should appear on the people
+   * email as well when amber").
+   *
+   * A SECTION OF THEIR OWN, and not folded in with the checks, for one reason: the checks
+   * sections are headed "overdue" and "due in the next 14 days", and a DBS goes amber at ninety.
+   * Dropping a renewal due in eighty days under a fourteen day heading would make the heading a
+   * lie. They are scoped and drawn like everything else, under a heading that says what they are.
+   */
+  dbsRenewals: ReportingCheck[];
   /** The company has at least one active person / service user (so the report
    *  is worth sending even on an all clear day; a people only company gets no
    *  Service User report). */
@@ -244,6 +258,85 @@ function addDaysIso(iso: string, days: number): string {
   return dt.toISOString().slice(0, 10);
 }
 
+
+
+/**
+ * DBS renewals worth saying something about: amber, or already past.
+ *
+ * WHY THIS IS HERE AT ALL (Phil, 2026-09-22). The renewal date started colouring on the register
+ * the same morning (DEF-039), and a colour only helps somebody who opens the screen. Nothing
+ * chased it: the daily reports read person_check_status, which is CHECK instances, and a DBS is
+ * a tracker date. So a certificate could lapse with the product having said nothing to anybody.
+ *
+ * THE WINDOW IS THE COMPANY'S OWN, read from a 'dbs_renewal' check definition where they have
+ * given themselves one, falling back to ninety days — the identical rule the register colours
+ * by, so the email and the screen can never disagree about what amber means.
+ */
+async function getDbsRenewals(
+  supabase: ReturnType<typeof createServiceClient>,
+  companyId: string,
+  todayIso: string,
+): Promise<ReportingCheck[]> {
+  const [{ data: def }, { data: trackers }] = await Promise.all([
+    supabase
+      .from("check_definitions")
+      .select("amber_days")
+      .eq("company_id", companyId)
+      .eq("population", "people")
+      .eq("key", "dbs_renewal")
+      .maybeSingle(),
+    supabase
+      .from("person_trackers")
+      .select("person_id, branch_id, enhanced_dbs_date")
+      .eq("company_id", companyId)
+      .not("enhanced_dbs_date", "is", null),
+  ]);
+  const amberDays = (def as { amber_days?: number | null } | null)?.amber_days ?? DBS_AMBER_DAYS;
+  const rows = (trackers ?? []) as Array<{
+    person_id: string;
+    branch_id: string | null;
+    enhanced_dbs_date: string;
+  }>;
+  if (rows.length === 0) return [];
+
+  const horizon = addDaysIso(todayIso, amberDays);
+  const wanted = rows.filter((r) => r.enhanced_dbs_date <= horizon);
+  if (wanted.length === 0) return [];
+
+  /* Names and branches are read here rather than passed in, because this runs for a company
+     whose people list the caller may have narrowed. A leaver's DBS is nobody's problem, so
+     archived and left records are dropped. */
+  const [{ data: people }, { data: branches }] = await Promise.all([
+    supabase
+      .from("people")
+      .select("id, full_name, employment_status, archived_at")
+      .in("id", wanted.map((r) => r.person_id)),
+    supabase.from("branches").select("id, name").eq("company_id", companyId),
+  ]);
+  const branchName = new Map(((branches ?? []) as Array<{ id: string; name: string }>).map((b) => [b.id, b.name]));
+  const active = new Map(
+    ((people ?? []) as Array<{ id: string; full_name: string; employment_status: string | null; archived_at: string | null }>)
+      .filter((p) => p.archived_at === null && p.employment_status !== "leaver")
+      .map((p) => [p.id, p.full_name]),
+  );
+
+  return wanted
+    .filter((r) => active.has(r.person_id))
+    .map((r) => ({
+      population: "people" as const,
+      recordId: r.person_id,
+      recordName: active.get(r.person_id) as string,
+      branchId: r.branch_id,
+      branchName: r.branch_id ? branchName.get(r.branch_id) ?? "" : "",
+      checkName: "DBS renewal",
+      dueDate: r.enhanced_dbs_date,
+      /* A DBS cannot be booked on the Planner, so the Planned column would show a red cross
+         against every one of them and mean nothing. It is left blank instead. */
+      planned: null,
+      plannable: false,
+    }))
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+}
 
 /**
  * What is IN THE DIARY: every check with a planned visit against it, for one company.
@@ -355,6 +448,7 @@ export async function getReportingData(companyId: string): Promise<ReportingData
   const horizon = addDaysIso(todayIso, REPORTING_HORIZON_DAYS);
   // What is already in the diary, so each row can say whether anybody has been sent to do it.
   const planned = await getPlannedVisits(supabase, companyId, todayIso);
+  const dbsRenewals = await getDbsRenewals(supabase, companyId, todayIso);
 
   const [peopleChecks, suChecks, people, sus, branches, activePeople, activeSus] =
     await Promise.all([
@@ -434,6 +528,7 @@ export async function getReportingData(companyId: string): Promise<ReportingData
   return {
     people: peopleOut,
     serviceUsers: suOut,
+    dbsRenewals,
     hasPeople: (activePeople.data ?? []).length > 0,
     hasServiceUsers: (activeSus.data ?? []).length > 0,
   };

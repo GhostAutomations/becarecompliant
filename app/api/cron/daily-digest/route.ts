@@ -232,6 +232,8 @@ export async function GET(request: NextRequest) {
           daysOverdue: daysOverdue(c.dueDate),
           // Whether anybody has been sent to do it (Phil, 2026-09-22). Null renders a red cross.
           planned: c.planned ?? null,
+          // A DBS renewal is not something the Planner can book, so its cell stays blank.
+          plannable: c.plannable !== false,
         });
         const reportRecipients = recipients.filter(
           (r) => r.role === "company_admin" || r.role === "manager",
@@ -255,6 +257,13 @@ export async function GET(request: NextRequest) {
             if (!pop.has) continue;
             const scoped = scopeReporting(recipient, pop.checks);
             const { overdue, dueSoon } = splitReporting(scoped);
+            /* DBS renewals ride in the People report, scoped exactly like everything else, in a
+               section of their own (2026-09-22). They amber at ninety days, so they cannot sit
+               under a heading that says fourteen. */
+            const dbsRenewals =
+              pop.key === "people"
+                ? scopeReporting(recipient, reporting.dbsRenewals).map(toRow)
+                : [];
             const overdueRecords = new Set(overdue.map((c) => c.recordId)).size;
             const dueSoonRecords = new Set(dueSoon.map((c) => c.recordId)).size;
             const subject = reportingSubject(pop.key, overdueRecords, dueSoonRecords);
@@ -282,6 +291,7 @@ export async function GET(request: NextRequest) {
                 population: pop.key,
                 overdue: overdue.map(toRow),
                 dueSoon: dueSoon.map(toRow),
+                dbsRenewals,
                 actionUrl: appUrl,
               }),
             });

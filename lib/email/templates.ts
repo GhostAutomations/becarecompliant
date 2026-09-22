@@ -194,6 +194,9 @@ export type ReportingRow = {
   /** The next visit booked for this check on the Planner, or null/absent when nothing is in
    *  the diary for it (Phil, 2026-09-22). */
   planned?: { conductorName: string | null; scheduledDate: string } | null;
+  /** False for a row the Planner cannot book, such as a DBS renewal. Its Planned cell is left
+   *  blank rather than showing a red cross that would mean nothing. */
+  plannable?: boolean;
 };
 
 /** The width the daily reports need for four columns. Everything else stays at the default. */
@@ -236,7 +239,12 @@ function distinctRecords(rows: ReportingRow[]): string[] {
  * The name and the date sit on two lines, so a column a quarter of the email wide does not
  * break "Hayley Davies" across three of them.
  */
-function plannedCellHtml(planned: ReportingRow["planned"]): string {
+function plannedCellHtml(planned: ReportingRow["planned"], plannable = true): string {
+  /* NOT EVERY ROW CAN BE BOOKED. A DBS renewal is an application to a third party, not a visit
+     somebody goes out on, so a cross against it would be answering a question nobody asked. */
+  if (!plannable) {
+    return `<span style="color:${MUTED};">&ndash;</span>`;
+  }
   if (!planned) {
     return `<span style="color:${RED_PILL};font-size:16px;font-weight:700;line-height:1;" aria-label="Not planned">&#10005;</span>`;
   }
@@ -297,7 +305,7 @@ function reportingSectionHtml(
         <td style="${cell}color:#ffffff;font-weight:600;">${escapeHtml(r.recordName)}</td>
         <td style="${cell}color:${TEXT};">${escapeHtml(r.checkName)}</td>
         <td style="${cell}color:${accent};white-space:nowrap;${weight}">${dateCell}</td>
-        <td style="${lastCell}">${plannedCellHtml(r.planned ?? null)}</td>
+        <td style="${lastCell}">${plannedCellHtml(r.planned ?? null, r.plannable !== false)}</td>
       </tr>`;
     })
     .join("");
@@ -306,6 +314,29 @@ function reportingSectionHtml(
       ? `<p style="margin:8px 0 0 0;font-size:12px;color:${MUTED};">Plus ${rows.length - shown.length} more in the app.</p>`
       : "";
   return `${heading}<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${header}${body}</table>${more}`;
+}
+
+/**
+ * DBS renewals coming up, or already past.
+ *
+ * ITS OWN SECTION, and that is the whole reason it exists separately (Phil, 2026-09-22: "Should
+ * appear on the people email as well when amber"). The two sections above are headed "overdue"
+ * and "due in the next 14 days". A DBS goes amber at NINETY days, because that is how long one
+ * takes to come back, so putting a renewal due in eighty days under a fourteen day heading would
+ * make the heading a lie. A heading that says what it is costs four lines and tells the truth.
+ *
+ * NOTHING AT ALL IS DRAWN when there is none due: a manager with no DBS coming up should not
+ * read a line about DBS every morning for a year.
+ */
+function dbsSectionHtml(rows: ReportingRow[]): string {
+  if (rows.length === 0) return "";
+  const past = rows.filter((r) => r.daysOverdue != null && r.daysOverdue > 0);
+  const soon = rows.filter((r) => !(r.daysOverdue != null && r.daysOverdue > 0));
+  return `${past.length > 0 ? reportingSectionHtml("DBS renewals overdue", past, true, "") : ""}${
+    soon.length > 0
+      ? reportingSectionHtml("DBS renewals coming up", soon, false, "")
+      : ""
+  }`;
 }
 
 export function reportingSubject(
@@ -331,6 +362,11 @@ export function reportingEmailHtml(opts: {
   population: "people" | "service_users";
   overdue: ReportingRow[];
   dueSoon: ReportingRow[];
+  /**
+   * DBS renewals that are amber or already past (Phil, 2026-09-22: "Should appear on the people
+   * email as well when amber"). People only; a service user has no DBS.
+   */
+  dbsRenewals?: ReportingRow[];
   actionUrl: string;
 }): string {
   const label = populationLabel(opts.population);
@@ -349,7 +385,8 @@ export function reportingEmailHtml(opts: {
     <p style="margin:0 0 4px 0;">Good morning ${escapeHtml(opts.recipientName)}. Your ${escapeHtml(label)} compliance position for
     <strong style="color:#ffffff;">${escapeHtml(opts.companyName)}</strong> on ${escapeHtml(formatDateUk(opts.dateIso))}: ${summary}.</p>
     ${reportingSectionHtml("Records overdue", opts.overdue, true, "Nothing overdue.")}
-    ${reportingSectionHtml("Records due in the next 14 days", opts.dueSoon, false, "Nothing due in the next 14 days.")}`;
+    ${reportingSectionHtml("Records due in the next 14 days", opts.dueSoon, false, "Nothing due in the next 14 days.")}
+    ${dbsSectionHtml(opts.dbsRenewals ?? [])}`;
 
   return shell({
     maxWidth: REPORT_CARD_WIDTH,

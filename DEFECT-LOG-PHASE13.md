@@ -1329,3 +1329,28 @@ reports read `person_check_status`, which is check instances; `rtw_expiry_date` 
 `enhanced_dbs_date` appear in no email, no export and no inspection pack. So a DBS now goes amber
 on a screen somebody has to open. Right to Work has always had the same gap and nobody has
 noticed because nobody has lapsed yet. That is its own defect and it is Phil's to schedule.
+
+**And then chased, the same day** (Phil, 2026-09-22: *"Should appear on the people email as well
+when amber"*). He is right that a colour on a screen somebody has to open is half a fix. DBS
+renewals now ride in the People report.
+
+**A SECTION OF THEIR OWN, and that is the point.** The two sections above it are headed "overdue"
+and "due in the next 14 days". A DBS ambers at NINETY, because that is how long one takes to come
+back, so a renewal due in eighty days under a fourteen day heading would make the heading a lie.
+"DBS renewals coming up" and "DBS renewals overdue" cost four lines and tell the truth. Nothing is
+drawn at all when none are due: a manager with no DBS coming up should not read a line about DBS
+every morning for a year.
+
+**The window is the company's own**, read from a `dbs_renewal` definition where they have given
+themselves one and falling back to ninety — the identical rule the register colours by, so the
+email and the screen can never disagree about what amber means.
+
+**The Planned cell is blank, not a cross.** A DBS is an application to a third party, not a visit
+somebody goes out on. A red cross against it would be answering a question nobody asked.
+
+**Leavers are dropped.** A DBS belonging to somebody who has left is nobody's problem.
+
+**Right to Work still has the identical gap** and is not fixed here: it colours on the register
+and appears in no email. Said out loud rather than quietly widened, because Phil decides what is
+in a phase.
+
