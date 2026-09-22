@@ -199,8 +199,15 @@ export type ReportingRow = {
   plannable?: boolean;
 };
 
-/** The width the daily reports need for four columns. Everything else stays at the default. */
-const REPORT_CARD_WIDTH = 680;
+/**
+ * The width the daily reports need for four columns. Everything else stays at the default.
+ *
+ * 880 since 2026-09-23 (Phil: "make the tile wider as i want all info on one line"). At 680 the
+ * Date and Planned cells each had to stack onto two lines to fit; at 880 every row reads across
+ * on one line on a desktop. A phone narrower than the card scrolls a long row sideways a little
+ * rather than wrapping it, which was agreed by popup.
+ */
+const REPORT_CARD_WIDTH = 880;
 
 const REPORTING_MAX_ROWS = 100;
 
@@ -236,8 +243,9 @@ function distinctRecords(rows: ReportingRow[]): string[] {
  * default, and an icon that does not load is a blank cell that reads as "planned" — the exact
  * opposite of what it means. A heavy multiplication sign renders in every client.
  *
- * The name and the date sit on two lines, so a column a quarter of the email wide does not
- * break "Hayley Davies" across three of them.
+ * ONE LINE, "Lauren Morgan, 02/10/2026" (Phil, 2026-09-23: "i want all info on one line"). It
+ * sat on two lines while the card was 680 wide; at 880 there is room, and nowrap stops a long
+ * name breaking across lines.
  */
 function plannedCellHtml(planned: ReportingRow["planned"], plannable = true): string {
   /* NOT EVERY ROW CAN BE BOOKED. A DBS renewal is an application to a third party, not a visit
@@ -253,8 +261,8 @@ function plannedCellHtml(planned: ReportingRow["planned"], plannable = true): st
   /* A booking whose conductor has left the company still has a date, and the date is the half
      that matters: it is booked. Saying so without a name beats showing a cross. */
   return who
-    ? `<span style="color:#ffffff;">${escapeHtml(who)}</span><br />${when}`
-    : `<span style="color:${MUTED};">Booked</span><br />${when}`;
+    ? `<span style="color:#ffffff;">${escapeHtml(who)}</span>, ${when}`
+    : `<span style="color:${MUTED};">Booked</span>, ${when}`;
 }
 
 /** One section (Overdue or Due in the next 14 days) as a four column table:
@@ -281,31 +289,32 @@ function reportingSectionHtml(
   const lastTh = th.replace("padding:0 18px 8px 0;", "padding:0 0 8px 0;");
   const lastCell = cell.replace("padding:10px 18px 10px 0;", "padding:10px 0 10px 0;");
   const header = `<tr>
-    <th style="${th}width:26%;">Name</th>
-    <th style="${th}width:22%;">Task</th>
-    <th style="${th}width:24%;">Date</th>
-    <th style="${lastTh}width:28%;">Planned</th>
+    <th style="${th}width:24%;">Name</th>
+    <th style="${th}width:20%;">Task</th>
+    <th style="${th}width:30%;">Date</th>
+    <th style="${lastTh}width:26%;">Planned</th>
   </tr>`;
   const body = shown
     .map((r) => {
-      /* Overdue rows lead with how many days overdue (the escalation signal that used to be a
-         separate chaser email), then the due date — on TWO LINES since 2026-09-22. In one line
-         "43 days overdue · 10/08/2026" is far wider than any other cell, and because it cannot
-         wrap it stretched the Date column and squeezed the names beside it. Stacked, every
-         column keeps the width its heading says it has. */
+      /* ONE LINE, DATE FIRST (Phil, 2026-09-23: "the date is under the days overdue", and he
+         wanted all of it on one line; date first agreed by popup). "04/02/2026, 231 days overdue"
+         lines the dates up down the column the same way the Due soon section does, and the days
+         overdue, the escalation signal that used to be a separate chaser email, keeps its colour
+         and weight. It stacked onto two lines on 2026-09-22 only because the card was 680 wide;
+         at 880 there is room. */
+      const lateness =
+        r.daysOverdue != null && r.daysOverdue > 0
+          ? `${r.daysOverdue} ${r.daysOverdue === 1 ? "day" : "days"} overdue`
+          : "overdue";
       const dateCell = overdue
-        ? `${
-            r.daysOverdue != null && r.daysOverdue > 0
-              ? `${r.daysOverdue} ${r.daysOverdue === 1 ? "day" : "days"} overdue`
-              : "Overdue"
-          }<br /><span style="color:${MUTED};font-weight:400;">${escapeHtml(formatDateShort(r.dueDate))}</span>`
+        ? `<span style="color:${TEXT};font-weight:400;">${escapeHtml(formatDateShort(r.dueDate))}</span>, ${lateness}`
         : escapeHtml(formatDateShort(r.dueDate));
       const weight = overdue && r.daysOverdue != null && r.daysOverdue >= 7 ? "font-weight:700;" : "";
       return `<tr>
         <td style="${cell}color:#ffffff;font-weight:600;">${escapeHtml(r.recordName)}</td>
         <td style="${cell}color:${TEXT};">${escapeHtml(r.checkName)}</td>
         <td style="${cell}color:${accent};white-space:nowrap;${weight}">${dateCell}</td>
-        <td style="${lastCell}">${plannedCellHtml(r.planned ?? null, r.plannable !== false)}</td>
+        <td style="${lastCell}white-space:nowrap;">${plannedCellHtml(r.planned ?? null, r.plannable !== false)}</td>
       </tr>`;
     })
     .join("");

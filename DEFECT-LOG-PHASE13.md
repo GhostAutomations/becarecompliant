@@ -1571,3 +1571,26 @@ together. The empty rows cascade with the person.
 **Fixed:** the Add a person intro, the "Don't send their login yet" tickbox, the Delete this record
 explanation (written 2026-09-22, against the standing rule), the import page's "Every check is a
 pair" line, and the bulk training dialog's "1 records".
+
+
+---
+
+## DEF-047 - The daily report rows now read on one line
+
+**Phil, 2026-09-23, looking at the Bevan preview:** "make the tile wider as i want all info on one
+line, the date is under the days overdue".
+
+**Changed, agreed by popup (date first):** the report card is 880px wide instead of 680, and every
+row reads across on one line on a desktop.
+
+- Overdue Date cell: "04/02/2026, 231 days overdue", the date in plain text and the lateness in
+  the section colour, bold from seven days, as before.
+- Planned cell: "Gabbie Thomas, 25/09/2026" on one line, never broken across lines.
+- Columns rebalanced: Name 24%, Task 20%, Date 30%, Planned 26%.
+- Both the People and the Service User reports, and the DBS sections, which share the table.
+
+**Agreed trade off:** a phone narrower than the card scrolls a long row sideways a little instead
+of wrapping it.
+
+**Checked by rendering the real template:** Bevan's live data, and Thistle's two real Planner
+bookings for the Planned column. Nothing was sent. The 7am email is the proof on a real inbox.

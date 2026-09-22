@@ -11,7 +11,7 @@ sent). The record was deleted at the end; Bevan is back to 0 people and Thistle 
 |---|---|---|
 | 1.1 | Register: DBS certificate date drawn plain, Enhanced DBS coloured (Thistle, all green) | PASS |
 | 1.2 | Register: Enhanced DBS 45 days out draws amber (Bevan, ZZ TEST) | PASS (rag-cell-amber) |
-| 1.3 | DBS renewal section appears in the daily People email when amber or red | NOT TESTED, logged to Final Testing (needs the cron run) |
+| 1.3 | DBS renewal section appears in the daily People email when amber or red | OUTSTANDING, set up for the 7am run on 23/09/2026: ZZ TEST DBS Amber (renewal 06/11/2026) and ZZ TEST DBS Red (01/09/2026) on Bevan; the People report goes to ppdavies+cob. |
 
 ## Item 2, DEF-042: both DBS dates on the carer card
 
@@ -42,7 +42,7 @@ sent). The record was deleted at the end; Bevan is back to 0 people and Thistle 
 | 3.1 | Refused while training exists, with a sentence naming what is in the way | PASS |
 | 3.2 | Allowed once training is cleared; person, tracker, training and migrated history gone; audited; redirected to People | PASS |
 | 3.3 | The button does nothing until the name is typed | FAIL: focus the button with the keyboard and press Enter, the confirmation opens with the name untyped. The arming is a CSS pointer-events style only, the button is not disabled, and the server never checks the typed name. FIXED as DEF-043, retest after deploy. |
-| 3.4 | A Supervisor cannot delete | NOT TESTED in the browser (proved by live RLS probe when built), logged to Final Testing |
+| 3.4 | A non Admin cannot delete | PASS (2026-09-23, Bevan, signed in as ZZ Test Supervisor, ppdavies+bccsup): Manage record opens with details, transfer and working status, and NO Delete this record section. A hand built delete request carrying the correct name was refused: Vercel logged POST 303 from the serverless action (the Admin guard's redirect to the dashboard), the record is still there, and no person.deleted is in the audit log. |
 
 ## Found while testing, queued to fix after these tests (Phil, 2026-09-22)
 
@@ -60,11 +60,21 @@ sent). The record was deleted at the end; Bevan is back to 0 people and Thistle 
 | D2 | Name box empty: Tab and Enter do nothing | PASS |
 | D3 | A hand built submit with no name is refused by the server ("Type ZZ TEST Delete Me in the box...") | PASS |
 | D4 | Typing the name (in lower case) arms the button red, and the delete goes through | PASS |
-| A1 | Card dates and chips use the register colours: red rgb(241,129,150), amber rgb(245,189,106), green rgb(67,217,154) | PASS, with one follow up: red measured 4.4:1 on the lightest part of the card, just under AA. Lightened to #f4909f (4.7 to 5.4). Retest after that deploy. |
+| A1 | Card dates and chips use the register colours: red rgb(241,129,150), amber rgb(245,189,106), green rgb(67,217,154) | PASS, with one follow up: red measured 4.4:1 on the lightest part of the card, just under AA. Lightened to #f4909f (4.7 to 5.4). Retested live: rgb(244,144,159). PASS |
 | B1 | Book a course, cancel the booking (empty row left behind), then Delete person: goes through, the empty row cascades | PASS |
 | C1 | Add a person intro and the hold login tickbox have no dashes | PASS |
 | C2 | Delete this record explanation has no dashes | PASS |
 | C3 | Import page "Every check is a pair" line has no dashes | PASS |
-| C4 | Bulk training says "1 record" | NOT TESTED in the browser (Bevan had no carer to tick at the time); the change is one pluralisation, traced in code |
+| C4 | Bulk training says "1 record" | PASS: one course reads "1 carer ticked, 1 record.", two read "2 records." (nothing submitted) |
 
 Bevan back to 0 people after the tests. Thistle untouched at 14.
+
+## Standing rule from 2026-09-22
+
+Final Testing (Phase 11) is passed. Nothing untested is logged there any more: it is tested now,
+in the same piece of work (Phil: "we are passed final testing so it needs to be tested now").
+
+## Found while setting up 3.4, not yet fixed (2026-09-23)
+
+- The user popup in Settings, Roles, users and access goes stale after "Enable this login" or "Disable this login": the database changes, the popup still shows the old status and the old button. Close and reopen shows the truth. A manager would press it again.
+- BCC has no "Forgot password" on the sign in page, and an Admin cannot send a reset to an active user. A manager who forgets their password can only get back in through the Founder in Supabase.
