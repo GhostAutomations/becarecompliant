@@ -1,6 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { canDeletePerson, deleteRefusalReason, nameConfirmed, type PersonFootprint } from "./deletable.ts";
+import {
+  canDeletePerson,
+  deleteRefusalReason,
+  nameConfirmed,
+  trainingRowHoldsSomething,
+  TRAINING_HOLDS_SOMETHING_FILTER,
+  type PersonFootprint,
+} from "./deletable.ts";
 
 const CLEAN: PersonFootprint = {
   evidence: 0,
@@ -86,4 +93,35 @@ test("a different or partial name does not", () => {
 test("a record with no name can never be confirmed, so it cannot be deleted by typing nothing", () => {
   assert.equal(nameConfirmed("", ""), false);
   assert.equal(nameConfirmed("", "   "), false);
+});
+
+/*
+ * AN EMPTY TRAINING ROW IS NOT A TRAINING RECORD (2026-09-22). A cancelled booking left one
+ * behind and Delete person called it evidence.
+ */
+const EMPTY = { status: "not_done", completed_on: null, expiry_on: null, booked_for: null, certificate_path: null };
+
+test("the row a cancelled booking leaves behind holds nothing", () => {
+  assert.equal(trainingRowHoldsSomething(EMPTY), false);
+});
+
+test("anything real on the row counts", () => {
+  assert.equal(trainingRowHoldsSomething({ ...EMPTY, status: "completed" }), true); // a one off ticked Completed, no dates
+  assert.equal(trainingRowHoldsSomething({ ...EMPTY, completed_on: "2026-03-01" }), true);
+  assert.equal(trainingRowHoldsSomething({ ...EMPTY, expiry_on: "2027-03-01" }), true);
+  assert.equal(trainingRowHoldsSomething({ ...EMPTY, booked_for: "2026-10-15" }), true); // a live booking
+  assert.equal(trainingRowHoldsSomething({ ...EMPTY, certificate_path: "c/x.pdf" }), true);
+});
+
+test("the database filter asks about exactly the same things as the function", () => {
+  for (const part of [
+    "status.eq.completed",
+    "completed_on.not.is.null",
+    "expiry_on.not.is.null",
+    "booked_for.not.is.null",
+    "certificate_path.not.is.null",
+  ]) {
+    assert.ok(TRAINING_HOLDS_SOMETHING_FILTER.split(",").includes(part), part);
+  }
+  assert.equal(TRAINING_HOLDS_SOMETHING_FILTER.split(",").length, 5);
 });

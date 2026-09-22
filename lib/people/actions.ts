@@ -53,7 +53,12 @@ import {
   trackerPatch,
 } from "@/lib/people/history-boxes";
 import { seedPersonHistory } from "@/lib/people/history";
-import { deleteRefusalReason, nameConfirmed, type PersonFootprint } from "@/lib/people/deletable";
+import {
+  deleteRefusalReason,
+  nameConfirmed,
+  TRAINING_HOLDS_SOMETHING_FILTER,
+  type PersonFootprint,
+} from "@/lib/people/deletable";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { getColumnLabels, getSupervisionCycleMode } from "@/lib/people/data";
 
@@ -368,7 +373,15 @@ export async function deletePerson(_prev: ActionState, formData: FormData): Prom
       .eq("person_id", personId)
       .not("last_completed_on", "is", null)
       .then((r) => r.count ?? 0),
-    count("person_training", "person_id"),
+    // Only rows that hold something. A cancelled booking leaves an empty row, and counting it
+    // refused a delete as "destroying evidence" when there was none (2026-09-22). The empty
+    // rows cascade with the person.
+    supabase
+      .from("person_training")
+      .select("*", { count: "exact", head: true })
+      .eq("person_id", personId)
+      .or(TRAINING_HOLDS_SOMETHING_FILTER)
+      .then((r) => r.count ?? 0),
     count("absence_events", "person_id"),
     count("absence_meetings", "person_id"),
     count("holiday_requests", "person_id"),

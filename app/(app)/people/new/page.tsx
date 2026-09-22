@@ -56,7 +56,7 @@ export default async function NewPersonPage() {
         <h1 className="page-title mt-1">Add a person</h1>
         <p className="page-subtitle">
           Identity and employment. Their compliance checks are applied and scheduled
-          automatically — and if they already work here, tick the box at the bottom to record
+          automatically. If they already work here, tick the box at the bottom to record
           what they have already done.
         </p>
       </div>

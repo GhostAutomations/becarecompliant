@@ -1534,3 +1534,40 @@ booking row that blocks a delete, and the dashes and "1 records" copy. All still
 
 **Retest after deploy:** type nothing, Tab to the button, press Enter: nothing happens. Type the
 name: the button arms and the delete works.
+
+
+---
+
+## DEF-044 - RAG colours on the carer card were too pale to tell apart
+
+**Found in browser testing, 2026-09-22.** On the Compliance Summary, Taiye's overdue spot check
+(17 Sep) looked exactly like her in date manual handling. The card coloured its dates and stage
+chips with the `-soft` tokens, which are 100 level tints built as pill BACKGROUNDS for light
+surfaces: red rgb(254,226,226), green rgb(209,250,229). As text on a navy card both read as white.
+
+**Fixed.** New `.rag-text-green/amber/red` in globals.css carrying the register's own pill colours
+(#43d99a, #f5bd6a, #f18196), and the chips use the register's `.rag-cell-*` directly. One carer is
+now the same red on the card as on the matrix. The tokens themselves are untouched, because they
+are correct where they are used as backgrounds.
+
+**Not changed, noted for Phil:** the same pale tint is used as text in other places, most visibly
+the "in date / due soon / expired" counts across the top of the Training matrix. Banners and error
+messages use it too, with a coloured border that carries the meaning.
+
+## DEF-045 - A cancelled booking left an empty row that blocked Delete person
+
+**Found in browser testing, 2026-09-22.** Book a carer onto a course, cancel the booking, and a
+row stays behind: not_done, no dates, no booking, no certificate. Delete person counted every
+training row, so it refused with "2 training records against it, so deleting it would destroy
+evidence an inspector may ask for" when one of them held nothing at all.
+
+**Fixed.** `trainingRowHoldsSomething` in lib/people/deletable.ts says what a real row is: completed
+(a one off imported as "Completed" has no dates and is still real), or any date, or a certificate.
+The count uses the same rule as a PostgREST filter kept beside it, and a test holds the two
+together. The empty rows cascade with the person.
+
+## DEF-046 - Dashes in customer copy, and "1 records"
+
+**Fixed:** the Add a person intro, the "Don't send their login yet" tickbox, the Delete this record
+explanation (written 2026-09-22, against the standing rule), the import page's "Every check is a
+pair" line, and the bulk training dialog's "1 records".

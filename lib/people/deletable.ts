@@ -109,3 +109,37 @@ export function nameConfirmed(typed: string | null | undefined, fullName: string
   if (!want) return false;
   return norm(typed ?? "") === want;
 }
+
+/**
+ * Does this training row hold anything at all?
+ *
+ * FOUND IN BROWSER TESTING (2026-09-22). Cancelling a booking on a course somebody has never
+ * done leaves a row behind: status not_done, no completion, no renewal, no booking, no
+ * certificate. It is nothing. But Delete person counted every row, so a record with one
+ * cancelled booking was refused with "deleting it would destroy evidence an inspector may ask
+ * for", which was untrue, and left the manager hunting for evidence that did not exist.
+ *
+ * A row counts if it is completed (a one off imported as "Completed" carries no dates and is
+ * still a real record), or carries any date, or a certificate. The empty rows go with the
+ * person anyway: person_training cascades on delete.
+ */
+export function trainingRowHoldsSomething(row: {
+  status: string | null;
+  completed_on: string | null;
+  expiry_on: string | null;
+  booked_for: string | null;
+  certificate_path: string | null;
+}): boolean {
+  return (
+    row.status === "completed" ||
+    row.completed_on != null ||
+    row.expiry_on != null ||
+    row.booked_for != null ||
+    row.certificate_path != null
+  );
+}
+
+/** The same rule as a PostgREST filter, for counting without reading the rows. Kept beside the
+ *  function it mirrors, and a test holds the two together. */
+export const TRAINING_HOLDS_SOMETHING_FILTER =
+  "status.eq.completed,completed_on.not.is.null,expiry_on.not.is.null,booked_for.not.is.null,certificate_path.not.is.null";

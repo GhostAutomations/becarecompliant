@@ -30,7 +30,7 @@ export default async function ImportPage() {
           <h2 className="text-sm font-semibold text-white/80">Step 1. Download a template</h2>
           <p className="mt-1 text-sm text-white/60">
             Each template has the same columns as the matrix it fills, in the same order.
-            Every check is a pair - the date it was due and the date it was done - so a
+            Every check is a pair, the date it was due and the date it was done, so a
             filled sheet reads straight across against the register it is about to become.
           </p>
         </div>

@@ -254,7 +254,7 @@ export default function BulkTrainingDialog({
             {picked.size === 0
               ? "Nobody ticked yet."
               : chosenCourses.size > 0
-                ? `${picked.size} ${picked.size === 1 ? "carer" : "carers"} ticked, ${picked.size * chosenCourses.size} records.`
+                ? `${picked.size} ${picked.size === 1 ? "carer" : "carers"} ticked, ${picked.size * chosenCourses.size} ${picked.size * chosenCourses.size === 1 ? "record" : "records"}.`
                 : `${picked.size} ${picked.size === 1 ? "carer" : "carers"} ticked.`}
           </p>
         </ActionForm>

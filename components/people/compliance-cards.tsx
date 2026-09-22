@@ -27,17 +27,26 @@ import {
 } from "@/lib/people/summary-card";
 import { formatDisplayDate } from "@/lib/people/logic";
 
+/*
+ * THE REGISTER'S COLOURS, NOT THE PILL TINTS (Phil, 2026-09-22: "fix" the pale card colours).
+ *
+ * These used the -soft tokens, which are 100 level tints built as pill backgrounds for light
+ * surfaces. As text on a navy card, red and green both came out near white: an overdue spot
+ * check and an in date one looked the same, which is the one thing a RAG colour exists to stop.
+ * The chips and dates now use the matrix's own pill colours (globals.css .rag-cell-* and
+ * .rag-text-*), so a carer is the same red on this card as on the register.
+ */
 const CHIP: Record<CardRag, string> = {
-  red: "bg-rag-red/20 text-rag-red-soft",
-  amber: "bg-rag-amber/20 text-rag-amber-soft",
-  green: "bg-rag-green/20 text-rag-green-soft",
+  red: "rag-cell-red",
+  amber: "rag-cell-amber",
+  green: "rag-cell-green",
   none: "bg-white/10 text-white/45",
 };
 
 const DATE: Record<CardRag, string> = {
-  red: "text-rag-red-soft",
-  amber: "text-rag-amber-soft",
-  green: "text-rag-green-soft",
+  red: "rag-text-red",
+  amber: "rag-text-amber",
+  green: "rag-text-green",
   none: "text-white/40",
 };
 

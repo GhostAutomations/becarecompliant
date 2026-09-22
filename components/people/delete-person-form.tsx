@@ -42,7 +42,7 @@ export default function DeletePersonForm({
         Delete this record
       </h3>
       <p className="mb-3 text-sm text-white/60">
-        For a record added by mistake — a duplicate, a wrong name, somebody added to the wrong
+        For a record added by mistake: a duplicate, a wrong name, somebody added to the wrong
         company. <strong className="text-white/80">Not for somebody who has left:</strong> mark
         them as a leaver instead, so their evidence is kept. A record with anything at all
         against it cannot be deleted, and this will say what is in the way.
