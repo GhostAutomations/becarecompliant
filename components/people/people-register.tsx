@@ -20,7 +20,7 @@ import type { BranchLite } from "@/lib/people/data";
 import { MAX_REGISTER_COLUMNS, type RegisterCheckColumn } from "@/lib/register/custom-columns";
 import type { SortMode } from "@/lib/register/name-sort-pref";
 
-type MatrixConfig = { supInterval: number; supAmber: number; rtwAmber: number; probationAmber: number; cycleMode: "appraisal" | "four_supervisions" };
+type MatrixConfig = { supInterval: number; supAmber: number; rtwAmber: number; probationAmber: number; dbsAmber: number; cycleMode: "appraisal" | "four_supervisions" };
 
 // Custom check register columns are parked as a later feature (Phil, 2026-07-16):
 // the code + migrations stay, but the Columns panel and the extra columns are hidden.

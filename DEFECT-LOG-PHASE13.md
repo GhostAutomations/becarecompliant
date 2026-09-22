@@ -1295,3 +1295,37 @@ the overdue date, though: "43 days overdue · 10/08/2026" on one unwrappable lin
 than any other cell, so it stretched the Date column and squeezed the names beside it. Stacked on
 two lines, every column keeps the width its heading claims.
 
+---
+
+## DEF-039 — A DBS renewal date that never changed colour  ·  FIXED
+
+**2026-09-22.** Found while reading Thistle's data for something else, not reported by anybody —
+which is the point: nobody would have reported it until a certificate had already lapsed.
+
+The People matrix draws two DBS columns. The first is the date on the certificate, a fact. The
+second is the RENEWAL date, a deadline — and it was drawn exactly like the fact beside it: plain
+text that never went amber and never went red. Right to Work expiry colours. Probation colours.
+Supervision, appraisal, spot checks, audits all colour. The one column an inspector always asks
+to see did not.
+
+Thistle's earliest runs out in December 2027, so nothing has lapsed yet. The first one to come
+round would have passed in silence.
+
+**NINETY DAYS, NOT FOURTEEN** (Phil, asked and answered 2026-09-22). Every other date column here
+ambers at a fortnight, which is right for a supervision you can book on Tuesday. A DBS takes six
+to eight weeks to come back, so a fortnight's warning is a deadline nobody can meet: by the time
+the cell changed colour the certificate would already be going to lapse. `DBS_AMBER_DAYS = 90`.
+
+**A company can change it** by giving itself a check definition keyed `dbs_renewal` and setting
+its amber days, exactly as Right to Work and Probation already work. The ninety is only the
+fallback. Phil chose settable over fixed, so there is nothing new to learn: it is the pattern
+already on the screen.
+
+**The certificate date stays plain**, deliberately. It happened, it cannot come due, and
+colouring it would say something about it that is not true.
+
+**WHAT THIS DOES NOT DO, and it is the bigger half.** Nothing CHASES a tracker date. The daily
+reports read `person_check_status`, which is check instances; `rtw_expiry_date` and
+`enhanced_dbs_date` appear in no email, no export and no inspection pack. So a DBS now goes amber
+on a screen somebody has to open. Right to Work has always had the same gap and nobody has
+noticed because nobody has lapsed yet. That is its own defect and it is Phil's to schedule.

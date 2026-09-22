@@ -51,6 +51,8 @@ type MatrixConfig = {
   supAmber: number;
   rtwAmber: number;
   probationAmber: number;
+  /** Notice a DBS renewal gets before it ambers. Ninety days by default: see DBS_AMBER_DAYS. */
+  dbsAmber: number;
   cycleMode: "appraisal" | "four_supervisions";
 };
 
@@ -287,8 +289,21 @@ export default function RegisterMatrix({
                   <td><Plain date={row.person.start_date} /></td>
                   <td><RagDate date={mh?.due_date ?? null} rag={mh?.rag ?? "none"} /></td>
                   <td><RagDate date={mc?.due_date ?? null} rag={mc?.rag ?? "none"} /></td>
+                  {/* THE CERTIFICATE DATE IS A FACT, so it is drawn plainly: it happened, it
+                      cannot come due, and colouring it would say something about it that is not
+                      true. */}
                   <td><Plain date={t?.dbs_date ?? null} /></td>
-                  <td><Plain date={t?.enhanced_dbs_date ?? null} /></td>
+                  {/* THE RENEWAL DATE IS A DEADLINE, and until 2026-09-22 it was drawn exactly
+                      like the fact beside it — plain black text that never changed colour.
+                      Thistle's earliest runs out in December 2027 and nothing anywhere would
+                      have said a word about it. It is the one column on this matrix an
+                      inspector asks to see, so it colours like every other deadline here. */}
+                  <td>
+                    <RagDate
+                      date={t?.enhanced_dbs_date ?? null}
+                      rag={dateRag(t?.enhanced_dbs_date ?? null, config.dbsAmber)}
+                    />
+                  </td>
                   <td>
                     <RagDate
                       date={t?.rtw_expiry_date ?? null}

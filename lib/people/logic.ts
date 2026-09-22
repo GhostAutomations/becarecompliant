@@ -539,6 +539,21 @@ export function annotateSupervisionOptions(
 }
 
 /** RAG for a directly-recorded date treated as a due/expiry (amber before, red after). */
+/**
+ * How much notice a DBS renewal gets before it turns amber.
+ *
+ * WHY NINETY AND NOT FOURTEEN (Phil, asked and answered 2026-09-22). Every other date column on
+ * the matrix ambers at a fortnight, which is right for a supervision you can book on Tuesday. A
+ * DBS takes six to eight weeks to come back, so a fortnight's warning is a deadline nobody can
+ * meet: by the time the cell changes colour the certificate is already going to lapse. Three
+ * months is the window a manager can actually act inside.
+ *
+ * A COMPANY CAN CHANGE IT by giving itself a check definition keyed 'dbs_renewal' and setting
+ * its amber days, the same way Right to Work and Probation already work. This is only the
+ * fallback for the companies that have not.
+ */
+export const DBS_AMBER_DAYS = 90;
+
 export function dateRag(
   date: string | null,
   amberDays: number,
