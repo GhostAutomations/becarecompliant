@@ -1456,3 +1456,49 @@ with a future date (refused); cell dialog with a future completion (refused); ce
 past completion and a renewal date three years out on a twelve month course (ALLOWED, the
 override still works); cancel a booking by clearing the date on a record with no dates (still
 works, the guard does not touch it); bulk record with a future date (refused).
+
+
+---
+
+## DEF-042 - The carer card showed the DBS certificate date and nothing about the renewal
+
+**What Phil asked for.** "2 show both", then "i meant all dbs dates". The Compliance Summary card
+carried one line called DBS holding the date on the certificate, and said nothing at all about
+when that certificate runs out. The renewal date is the one an inspector asks for and the one
+Thistle's board keeps.
+
+**Both lines now.** "DBS" keeps the certificate date and is drawn plainly, exactly as on the
+matrix: it happened, it cannot come due, and colouring it would say something untrue about it.
+"DBS renewal" carries the Enhanced DBS date and colours like every other deadline on the card,
+amber at ninety days because that is how long a DBS takes to come back, red once past. Agreed by
+popup: it counts towards the card's colour, so an expired DBS turns the card red and lifts that
+carer to the top of the board. The amber window is read with the SAME expression the register
+uses (`defByKey["dbs_renewal"]?.amber_days ?? DBS_AMBER_DAYS`), so the card and the matrix cannot
+colour one carer's DBS differently.
+
+**TWO REAL DEFECTS FOUND WHILE DOING IT**, both caused by a fact being treated as a deadline.
+
+1. **The "due in N days" filter matched every carer holding a DBS.** It asks whether any line's
+   date falls within N days, and a certificate issued in 2023 is inside every window there is.
+   Pick "due in 7 days" on Thistle and all fourteen came back. The filter has not narrowed
+   anything since the board shipped.
+2. **The "in date out of scheduled" count read one short for everybody.** The certificate date
+   was in the denominator and, being a fact, never turned green, so it was never in the numerator.
+
+`CardLine` now carries `fact`, `dueWithin`, `lineDueWithin` and the score all skip it, and five
+tests pin it. Nobody would have found either of these by reading the code; they show the moment
+you use the screen.
+
+**What Thistle sees today.** All fourteen renewal dates are green (earliest 10/12/2027), so no
+card changes colour. Every card's in date count goes UP by one, which is the second defect being
+corrected, and the due in N days filter starts actually filtering.
+
+**Service Users unchanged.** They hold no DBS.
+
+**Also corrected here: six em dashes** in the hints under the document boxes on Add a person,
+shipped 2026-09-21 against the standing no dashes rule. A test now fails if one comes back.
+
+**No migration. Not yet proved in the browser:** open the Compliance Summary, confirm two DBS
+lines on a card, confirm the certificate date is white and the renewal date coloured, confirm the
+in date count moved up by one, and confirm "due in 7 days" now returns a short list rather than
+everybody.

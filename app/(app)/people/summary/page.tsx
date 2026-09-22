@@ -5,7 +5,7 @@ import RealtimeRefresh from "@/components/realtime-refresh";
 import ViewNav from "@/components/people/view-nav";
 import ComplianceCards from "@/components/people/compliance-cards";
 import { listBranches, listRegister, getSupervisionCycleMode } from "@/lib/people/data";
-import { supervisionSlots, appraisalSlot } from "@/lib/people/logic";
+import { supervisionSlots, appraisalSlot, DBS_AMBER_DAYS } from "@/lib/people/logic";
 import { DEFAULT_AMBER_DAYS } from "@/lib/recurrence";
 import { todayInLondon, formatCivilDate } from "@/lib/recurrence";
 import { ragFor, worseRag, type CardLine, type CardRag, type PersonCard } from "@/lib/people/summary-card";
@@ -61,6 +61,9 @@ export default async function PeopleSummaryPage({
   const supAmber = defByKey["supervision"]?.amber_days ?? DEFAULT_AMBER_DAYS;
   const rtwAmber = defByKey["right_to_work"]?.amber_days ?? DEFAULT_AMBER_DAYS;
   const probationAmber = defByKey["probation_review"]?.amber_days ?? 14;
+  /* The SAME expression the register uses, so the card and the matrix cannot colour one
+     carer's DBS differently. See app/(app)/people/page.tsx. */
+  const dbsAmber = defByKey["dbs_renewal"]?.amber_days ?? DBS_AMBER_DAYS;
   const supCount = cycleMode === "four_supervisions" ? 4 : 3;
   const today = formatCivilDate(todayInLondon());
 
@@ -99,11 +102,18 @@ export default async function PeopleSummaryPage({
     ];
 
     const byKey = row.statusByKey;
-    const line = (label: string, due: string | null, rag: CardRag, done = false): CardLine => ({
+    const line = (
+      label: string,
+      due: string | null,
+      rag: CardRag,
+      done = false,
+      fact = false,
+    ): CardLine => ({
       label,
       due,
       rag,
       done,
+      fact,
     });
 
     const lines: CardLine[] = [
@@ -111,7 +121,26 @@ export default async function PeopleSummaryPage({
       line("Manual Handling", byKey["manual_handling"]?.due_date ?? null, (byKey["manual_handling"]?.rag as CardRag) ?? "none"),
       line("Medication Competency", byKey["competency"]?.due_date ?? null, (byKey["competency"]?.rag as CardRag) ?? "none"),
       line("Audit", byKey["audit"]?.due_date ?? null, (byKey["audit"]?.rag as CardRag) ?? "none"),
-      line("DBS", t?.dbs_date ?? null, "none"),
+      /*
+       * BOTH DBS DATES (Phil, 2026-09-22: "2 show both", then "i meant all dbs dates").
+       *
+       * The card carried one line called DBS holding the date on the certificate, and nothing at
+       * all about when that certificate runs out. The renewal date is the one an inspector asks
+       * for, it is the one Thistle's board keeps, and until last week the register did not colour
+       * it either: Thistle's earliest expires in December 2027 and no screen in the product said
+       * a word about it.
+       *
+       * The certificate date is a FACT and is drawn plainly, exactly as on the matrix: it
+       * happened, it cannot come due, and colouring it would say something untrue about it.
+       * The renewal is a DEADLINE and colours like every other deadline on the card, so an
+       * expired DBS turns the card red and lifts that carer to the top of the board.
+       */
+      line("DBS", t?.dbs_date ?? null, "none", false, true),
+      line(
+        "DBS renewal",
+        t?.enhanced_dbs_date ?? null,
+        ragFor(t?.enhanced_dbs_date ?? null, today, dbsAmber),
+      ),
       line("RTW expiry", t?.rtw_expiry_date ?? null, ragFor(t?.rtw_expiry_date ?? null, today, rtwAmber)),
       probationDone
         ? line("Probation", null, "green", true)
@@ -127,8 +156,12 @@ export default async function PeopleSummaryPage({
       ? ((active.rag as CardRag) ?? "none")
       : ((aa.nextDueRag as CardRag) ?? "none");
 
-    const scheduledLines = lines.filter((l) => l.due || l.done);
-    const worst = [...chips.map((c) => c.rag), ...lines.map((l) => l.rag)].reduce<CardRag>(
+    // Facts are shown, never scored. See CardLine.fact.
+    const scheduledLines = lines.filter((l) => !l.fact && (l.due || l.done));
+    const worst = [
+      ...chips.map((c) => c.rag),
+      ...lines.filter((l) => !l.fact).map((l) => l.rag),
+    ].reduce<CardRag>(
       (acc, r) => worseRag(acc, r),
       "none",
     );

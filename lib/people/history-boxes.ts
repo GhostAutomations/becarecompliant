@@ -78,7 +78,7 @@ export const TRACKER_BOXES: ReadonlyArray<{
     column: "dbs",
     fallback: "DBS",
     kind: "date",
-    hint: "Completion date — the date on their certificate.",
+    hint: "Completion date. The date on their certificate.",
   },
   /*
    * NOT a second certificate date (Phil, 2026-09-21: "thistle care monday matrix displays the
@@ -93,14 +93,14 @@ export const TRACKER_BOXES: ReadonlyArray<{
     column: "enhanced_dbs",
     fallback: "Enhanced DBS",
     kind: "date",
-    hint: "Expiry date — when their DBS has to be renewed by.",
+    hint: "Expiry date. When their DBS has to be renewed by.",
   },
   {
     name: "t_rtw_expiry_date",
     column: "rtw_expiry",
     fallback: "RTW Expiry",
     kind: "date",
-    hint: "Expiry date — when their permission to work runs out. Leave blank if there is no time limit.",
+    hint: "Expiry date. When their permission to work runs out. Leave blank if there is no time limit.",
   },
   {
     name: "t_rtw_limits",
@@ -114,14 +114,14 @@ export const TRACKER_BOXES: ReadonlyArray<{
     column: "probation_end_due",
     fallback: "Probation End Due",
     kind: "date",
-    hint: "Due date — when probation is due to end. Left blank, it is worked out from their start date.",
+    hint: "Due date. When probation is due to end. Left blank, it is worked out from their start date.",
   },
   {
     name: "t_probation_end_actual",
     column: "probation_end_actual",
     fallback: "Probation End Actual",
     kind: "date",
-    hint: "Completion date — the day probation actually ended. Their first supervision falls due from this date.",
+    hint: "Completion date. The day probation actually ended. Their first supervision falls due from this date.",
   },
   {
     name: "t_probation_status",
@@ -135,7 +135,7 @@ export const TRACKER_BOXES: ReadonlyArray<{
     column: "probation_extension",
     fallback: "Probation Extension",
     kind: "date",
-    hint: "Expiry date — the day the extended probation now runs to.",
+    hint: "Expiry date. The day the extended probation now runs to.",
   },
 ];
 

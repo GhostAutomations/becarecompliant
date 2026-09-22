@@ -122,3 +122,11 @@ test("every tracker box names a column to write to", () => {
   );
   assert.equal(Object.keys(patch).length, TRACKER_BOXES.length);
 });
+
+test("no dashes in the hints, which is copy a manager reads", () => {
+  // Phil's standing rule for all customer facing copy. Six of these shipped with em dashes on
+  // 2026-09-21 and were corrected on 2026-09-22.
+  for (const b of TRACKER_BOXES) {
+    assert.ok(!/[\u2013\u2014]/.test(b.hint), `${b.name}: ${b.hint}`);
+  }
+});

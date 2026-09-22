@@ -170,3 +170,61 @@ test("a line that is complete is not due", () => {
   const done = card({ id: "d", lines: [{ label: "Spot Check", due: "2026-09-10", rag: "green", done: true }] });
   assert.deepEqual(lineDueWithin([done], "Spot Check", 30, TODAY), []);
 });
+
+/**
+ * FACTS ARE SHOWN, NEVER SCORED (2026-09-22, found while putting the DBS renewal date on the
+ * card beside the certificate date). A DBS certificate is dated 2023. It cannot be in date, out
+ * of date or due, and the screen was treating it as all three.
+ */
+
+test("a fact never satisfies a due within filter, whatever window is asked for", () => {
+  const withDbs = card({
+    lines: [{ label: "DBS", due: "2023-04-11", rag: "none", fact: true }],
+  });
+  // The certificate was issued three years ago, so without the guard this matched every window.
+  assert.equal(dueWithin(withDbs, 7, TODAY), false);
+  assert.equal(dueWithin(withDbs, 30, TODAY), false);
+  assert.equal(dueWithin(withDbs, 365, TODAY), false);
+});
+
+test("a real deadline on the same card still matches", () => {
+  const both = card({
+    lines: [
+      { label: "DBS", due: "2023-04-11", rag: "none", fact: true },
+      { label: "DBS renewal", due: "2026-09-20", rag: "amber" },
+    ],
+  });
+  assert.equal(dueWithin(both, 30, TODAY), true);
+  assert.equal(dueWithin(both, 7, TODAY), false);
+});
+
+test("a fact is not chased by the boxes across the top either", () => {
+  const cards = [
+    card({
+      id: "a",
+      lines: [{ label: "DBS", due: "2023-04-11", rag: "none", fact: true }],
+    }),
+  ];
+  assert.deepEqual(lineDueWithin(cards, "DBS", 30, TODAY), []);
+});
+
+test("a deadline line with the same shape IS chased", () => {
+  const cards = [
+    card({
+      id: "a",
+      name: "Joe Bloggs",
+      lines: [{ label: "DBS renewal", due: "2026-09-20", rag: "amber" }],
+    }),
+  ];
+  assert.deepEqual(lineDueWithin(cards, "DBS renewal", 30, TODAY), [
+    { id: "a", name: "Joe Bloggs", stage: "DBS renewal", due: "2026-09-20" },
+  ]);
+});
+
+test("the DBS renewal colours on the card exactly as it does on the register", () => {
+  // Ninety days, because that is how long a DBS takes to come back.
+  assert.equal(ragFor("2027-09-01", TODAY, 90), "green");
+  assert.equal(ragFor("2026-11-01", TODAY, 90), "amber");
+  assert.equal(ragFor("2026-09-08", TODAY, 90), "red");
+  assert.equal(ragFor(null, TODAY, 90), "none");
+});

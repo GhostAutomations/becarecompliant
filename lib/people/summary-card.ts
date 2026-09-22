@@ -23,6 +23,20 @@ export type CardLine = {
   rag: CardRag;
   /** True when this is done and has nothing outstanding, e.g. probation passed. */
   done?: boolean;
+  /**
+   * A DATE THAT HAPPENED, not a deadline: the date on a DBS certificate, the day a probation
+   * review was actually held. It is shown because a manager wants to see it, and it is kept out
+   * of every judgement, because it cannot be in date, out of date or due.
+   *
+   * IT WAS NOT KEPT OUT, and two things on this screen were wrong because of it (found
+   * 2026-09-22 while adding the DBS renewal line beside it). The "in date out of scheduled"
+   * count put the DBS certificate date in the denominator and, since a fact never turns green,
+   * never in the numerator: every carer holding a DBS read one short of the truth. Worse, the
+   * "due in N days" filter asks whether any line's date is within N days, and a certificate
+   * issued in 2023 is within every window there is, so the filter matched EVERY carer with a
+   * DBS and narrowed nothing at all.
+   */
+  fact?: boolean;
 };
 
 /** One stage chip: PE, S1, S2, S3, AA. */
@@ -77,6 +91,9 @@ export function ragFor(
  *  that was due last month is more urgent than something due next week, not less. */
 export function dueWithin(card: PersonCard, days: number, todayIso: string): boolean {
   return card.lines.some((l) => {
+    // A fact is never due. See CardLine.fact: without this the filter matched every carer
+    // holding a DBS certificate, whatever window was asked for.
+    if (l.fact) return false;
     const d = daysUntil(l.due, todayIso);
     return d !== null && d <= days;
   });
@@ -176,7 +193,7 @@ export function lineDueWithin(
   const out: DueEntry[] = [];
   for (const c of cards) {
     const line = c.lines.find((l) => l.label === label);
-    if (!line?.due || line.done) continue;
+    if (!line?.due || line.done || line.fact) continue;
     const d = daysUntil(line.due, todayIso);
     if (d === null || d > days) continue;
     out.push({ id: c.id, name: c.name, stage: label, due: line.due });
