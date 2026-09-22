@@ -37,6 +37,7 @@ export default function ActionForm({
   confirm,
   onDone,
   onDoneDelayMs = 1200,
+  disabled = false,
 }: {
   action: ServerAction;
   hidden?: Record<string, string>;
@@ -64,6 +65,16 @@ export default function ActionForm({
    *  then close the send a briefing tile"). */
   onDone?: () => void;
   onDoneDelayMs?: number;
+  /**
+   * The button cannot be pressed at all, by mouse OR keyboard.
+   *
+   * Added 2026-09-22 for Delete person, whose "type the name first" guard was a CSS
+   * pointer-events rule: it stopped the mouse and nothing else. Tab to the button, press
+   * Enter, and the confirmation opened with the name untyped. A real disabled attribute is
+   * the only thing that stops every way of pressing a button. Opt in; every existing form is
+   * untouched.
+   */
+  disabled?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(action, IDLE_STATE);
   const [saved, setSaved] = useState(false);
@@ -143,8 +154,8 @@ export default function ActionForm({
       <div className={inline ? "flex items-center gap-2" : "flex items-center gap-2"}>
         <button
           type={confirm ? "button" : "submit"}
-          disabled={pending}
-          onClick={confirm ? () => setAsking(true) : undefined}
+          disabled={pending || disabled}
+          onClick={confirm ? () => { if (!disabled) setAsking(true); } : undefined}
           className={showSaved ? "btn-saved text-xs" : buttonClassName}
         >
           {btnLabel}

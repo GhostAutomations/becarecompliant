@@ -22,6 +22,7 @@
 import { useState } from "react";
 import ActionForm from "@/components/action-form";
 import { deletePerson } from "@/lib/people/actions";
+import { nameConfirmed } from "@/lib/people/deletable";
 
 export default function DeletePersonForm({
   personId,
@@ -31,7 +32,9 @@ export default function DeletePersonForm({
   fullName: string;
 }) {
   const [typed, setTyped] = useState("");
-  const matches = typed.trim().toLowerCase() === fullName.trim().toLowerCase();
+  /* The SAME rule the server applies, from the same function, so the button and the action can
+     never disagree about whether the name was typed. */
+  const matches = nameConfirmed(typed, fullName);
 
   return (
     <div className="border-t border-white/10 pt-4">
@@ -52,15 +55,17 @@ export default function DeletePersonForm({
         buttonClassName={
           matches
             ? "rounded-lg bg-red-500/90 px-3 py-2 text-xs font-semibold text-white"
-            : "pointer-events-none rounded-lg bg-white/10 px-3 py-2 text-xs font-semibold text-white/30"
+            : "cursor-not-allowed rounded-lg bg-white/10 px-3 py-2 text-xs font-semibold text-white/30"
         }
         confirm={`Delete ${fullName}? This cannot be undone.`}
+        disabled={!matches}
       >
         <label htmlFor={`confirm-${personId}`} className="form-label">
           Type <span className="text-white/80">{fullName}</span> to confirm
         </label>
         <input
           id={`confirm-${personId}`}
+          name="confirm_name"
           value={typed}
           onChange={(e) => setTyped(e.target.value)}
           autoComplete="off"

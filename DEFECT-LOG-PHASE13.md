@@ -1502,3 +1502,35 @@ shipped 2026-09-21 against the standing no dashes rule. A test now fails if one 
 lines on a card, confirm the certificate date is white and the renewal date coloured, confirm the
 in date count moved up by one, and confirm "due in 7 days" now returns a short list rather than
 everybody.
+
+
+---
+
+## DEF-043 - Delete person's "type the name first" guard stopped a mouse and nothing else
+
+**Found in browser testing, 2026-09-22 (TEST-CHECKLIST-PHASE13.md, check 3.3).** On a throwaway
+record on Bevan, with the confirmation box EMPTY: focus the Delete this record button, press
+Enter, and "Are you sure?" opened. One more Enter would have deleted the record.
+
+**Why.** The arming was a class, `pointer-events-none`, which greys the button out and stops
+clicks. It does not disable the button, so the keyboard walked straight past it. And the server
+never saw the typed name at all: the form sent only the person id. The guard lived entirely in
+the page's styling, on the one control in the product that destroys a record.
+
+**Fixed in both places.**
+
+- **The server refuses** unless `confirm_name` comes with the request and matches the record,
+  checked before anything is counted or read. No route to the button, and no hand built request,
+  can skip it now.
+- **The button is really disabled** until the name matches, through a new opt in `disabled` prop
+  on the shared ActionForm, which stops mouse, keyboard and anything else. Every other form in the
+  app is untouched.
+- **One rule, one function.** `nameConfirmed` in `lib/people/deletable.ts` decides it for both
+  the button and the action, so they cannot disagree. Forgiving of case and stray spaces, nothing
+  else. Four tests.
+
+**Deliberately not in this change** (Phil's popup, 2026-09-22): the pale card colours, the empty
+booking row that blocks a delete, and the dashes and "1 records" copy. All still queued.
+
+**Retest after deploy:** type nothing, Tab to the button, press Enter: nothing happens. Type the
+name: the button arms and the delete works.

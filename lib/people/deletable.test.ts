@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { canDeletePerson, deleteRefusalReason, type PersonFootprint } from "./deletable.ts";
+import { canDeletePerson, deleteRefusalReason, nameConfirmed, type PersonFootprint } from "./deletable.ts";
 
 const CLEAN: PersonFootprint = {
   evidence: 0,
@@ -57,4 +57,33 @@ test("every kind of footprint blocks", () => {
       `${key} should stop a delete`,
     );
   }
+});
+
+/*
+ * TYPING THE NAME (2026-09-22). Found in the browser: the guard was a greyed out style, and a
+ * keyboard went straight past it. The server now asks the same question as the form.
+ */
+
+test("nothing typed is not a confirmation", () => {
+  assert.equal(nameConfirmed("", "ZZ TEST Delete Me"), false);
+  assert.equal(nameConfirmed(null, "ZZ TEST Delete Me"), false);
+  assert.equal(nameConfirmed(undefined, "ZZ TEST Delete Me"), false);
+  assert.equal(nameConfirmed("   ", "ZZ TEST Delete Me"), false);
+});
+
+test("the exact name confirms, forgiving case and stray spaces", () => {
+  assert.equal(nameConfirmed("ZZ TEST Delete Me", "ZZ TEST Delete Me"), true);
+  assert.equal(nameConfirmed("zz test delete me", "ZZ TEST Delete Me"), true);
+  assert.equal(nameConfirmed("  ZZ  TEST Delete   Me ", "ZZ TEST Delete Me"), true);
+});
+
+test("a different or partial name does not", () => {
+  assert.equal(nameConfirmed("ZZ TEST", "ZZ TEST Delete Me"), false);
+  assert.equal(nameConfirmed("Mary Ikpi-Ubi", "Mary Ikpi Ubi"), false);
+  assert.equal(nameConfirmed("ZZ TEST Delete Me2", "ZZ TEST Delete Me"), false);
+});
+
+test("a record with no name can never be confirmed, so it cannot be deleted by typing nothing", () => {
+  assert.equal(nameConfirmed("", ""), false);
+  assert.equal(nameConfirmed("", "   "), false);
 });

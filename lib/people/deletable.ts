@@ -89,3 +89,23 @@ export function deleteRefusalReason(f: PersonFootprint): string | null {
 export function canDeletePerson(f: PersonFootprint): boolean {
   return deleteRefusalReason(f) === null;
 }
+
+/**
+ * Has the person deleting this typed the name of the record they are deleting?
+ *
+ * THE SERVER ASKS THIS, NOT ONLY THE FORM (found in browser testing, 2026-09-22). The first
+ * version checked the typed name in the browser and nowhere else, and the browser check was a
+ * style that greyed the button out for a mouse. Tab and Enter went straight past it. A guard
+ * that lives only in the page is a suggestion; the action now refuses unless the name comes
+ * with the request, so no route to the button, and no hand built request, skips it.
+ *
+ * Forgiving of case, of stray spaces at either end and of doubled spaces inside, because a
+ * manager retyping "Mary  Ikpi-Ubi" has confirmed who she means. Not forgiving of anything
+ * else: the point is that the two names in front of her are hard to tell apart.
+ */
+export function nameConfirmed(typed: string | null | undefined, fullName: string): boolean {
+  const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+  const want = norm(fullName ?? "");
+  if (!want) return false;
+  return norm(typed ?? "") === want;
+}

@@ -53,7 +53,7 @@ import {
   trackerPatch,
 } from "@/lib/people/history-boxes";
 import { seedPersonHistory } from "@/lib/people/history";
-import { deleteRefusalReason, type PersonFootprint } from "@/lib/people/deletable";
+import { deleteRefusalReason, nameConfirmed, type PersonFootprint } from "@/lib/people/deletable";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { getColumnLabels, getSupervisionCycleMode } from "@/lib/people/data";
 
@@ -320,6 +320,16 @@ export async function deletePerson(_prev: ActionState, formData: FormData): Prom
     return { error: "That record was not found." };
   }
   const fullName = person.full_name as string;
+
+  /*
+   * THE NAME HAS TO COME WITH THE REQUEST (found in browser testing, 2026-09-22). The form's
+   * "type the name first" guard was a style that stopped a mouse and nothing else: Tab and
+   * Enter opened the confirmation with the box empty. Checked here, before anything is counted
+   * or read, so no route to the button and no hand built request can skip it.
+   */
+  if (!nameConfirmed(String(formData.get("confirm_name") ?? ""), fullName)) {
+    return { error: `Type ${fullName} in the box to confirm which record you are deleting.` };
+  }
 
   /* Counted with head requests: we want the number, never the rows. */
   const count = async (
