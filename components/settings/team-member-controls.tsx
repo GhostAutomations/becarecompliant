@@ -15,7 +15,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useActionState } from "react";
 import { useRouter } from "next/navigation";
-import { saveTeamMember, setUserStatus } from "@/app/(app)/settings/actions";
+import { saveTeamMember, setUserStatus, sendUserPasswordReset } from "@/app/(app)/settings/actions";
 import { IDLE_STATE } from "@/lib/forms";
 import { useSavedFlash } from "@/lib/use-saved-flash";
 import DeleteUserDialog from "@/components/settings/delete-user-dialog";
@@ -52,6 +52,7 @@ export default function TeamMemberControls({
   const router = useRouter();
   const [state, formAction, pending] = useActionState(saveTeamMember, IDLE_STATE);
   const [statusState, statusAction, statusPending] = useActionState(setUserStatus, IDLE_STATE);
+  const [resetState, resetAction, resetPending] = useActionState(sendUserPasswordReset, IDLE_STATE);
 
   useEffect(() => {
     if (statusState.ok) router.refresh();
@@ -186,9 +187,22 @@ export default function TeamMemberControls({
                 : "Enable this login"}
           </button>
         </form>
+        {/* THE ADMIN'S WAY TO LET SOMEBODY BACK IN (2026-09-23). Only for a live login: an
+            invitation has its own resend, and a switched off login should stay off. */}
+        {status === "active" ? (
+          <form action={resetAction}>
+            <input type="hidden" name="user_id" value={userId} />
+            <button type="submit" disabled={resetPending} className="btn-outline px-3 py-2 text-xs">
+              {resetPending ? "Sending…" : "Send password reset"}
+            </button>
+          </form>
+        ) : null}
         <DeleteUserDialog userId={userId} userLabel={userLabel} />
-        {statusState.error ? <p className="form-error">{statusState.error}</p> : null}
       </div>
+      {statusState.error ? <p className="form-error">{statusState.error}</p> : null}
+      {statusState.ok ? <p className="text-xs text-emerald-200">{statusState.ok}</p> : null}
+      {resetState.error ? <p className="form-error">{resetState.error}</p> : null}
+      {resetState.ok ? <p className="text-xs text-emerald-200">{resetState.ok}</p> : null}
     </div>
   );
 }

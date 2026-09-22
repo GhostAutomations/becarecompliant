@@ -28,6 +28,8 @@ import { isBillableSeat } from "@/lib/billing/seats";
 import { MODULES, isLocked } from "@/lib/auth/module-catalogue";
 import { canCopyRole, deleteRefusal, parseRoleChoice } from "@/lib/auth/custom-roles";
 import { companyRoles } from "@/lib/auth/module-access";
+import { sendPasswordReset } from "@/lib/auth/password-reset";
+import { RESET_THROTTLE_MINUTES } from "@/lib/auth/password-reset-rules";
 import { PORTAL_FORMS, portalFormKey } from "@/lib/auth/portal-forms";
 import { ROLE_LABELS } from "@/lib/nav";
 
@@ -1119,4 +1121,52 @@ export async function savePortalForms(_prev: ActionState, formData: FormData): P
   revalidatePath("/settings/users");
   revalidatePath("/my");
   return { ok: "Saved." };
+}
+
+/**
+ * An Admin sends somebody a password reset (2026-09-23). The same email and the same one door as
+ * the "Forgot your password?" link. Unlike that public form, the Admin is told what happened,
+ * because they can already see the person in their own list.
+ */
+export async function sendUserPasswordReset(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const ctx = await adminContext();
+  if (!ctx.ok) return { error: ctx.error };
+  const userId = String(formData.get("user_id") ?? "");
+  if (!userId) return { error: "Missing user." };
+
+  const supabase = await createClient();
+  const { data: target } = await supabase
+    .from("profiles")
+    .select("id, company_id, email, status")
+    .eq("id", userId)
+    .maybeSingle();
+  // Same company only, read through the Admin's own client, so RLS answers the question too.
+  if (!target || target.company_id !== ctx.companyId) return { error: "User not found." };
+  if (target.status !== "active") {
+    return {
+      error:
+        target.status === "invited"
+          ? "They have not accepted their invitation yet. Resend the invitation instead."
+          : "This login is switched off. Enable it first if they should have access.",
+    };
+  }
+
+  const outcome = await sendPasswordReset({
+    email: target.email as string,
+    sentBy: { ...ctx.actor, companyId: ctx.companyId },
+  });
+  if (outcome.sent) return { ok: `Reset email sent to ${outcome.email}.` };
+  switch (outcome.reason) {
+    case "throttled":
+      return { error: `A reset was sent to them in the last ${RESET_THROTTLE_MINUTES} minutes. Ask them to check their inbox and junk folder.` };
+    case "email_not_configured":
+      return { error: "Email is not set up on this system, so nothing was sent. Contact support." };
+    case "unsendable":
+      return { error: "That address cannot receive email. Correct it before sending a reset." };
+    default:
+      return { error: `The reset email could not be sent${outcome.detail ? `: ${outcome.detail}` : "."}` };
+  }
 }

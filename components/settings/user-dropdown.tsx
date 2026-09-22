@@ -32,7 +32,16 @@ export default function UserDropdown({
   emptyText: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState<UserListItem | null>(null);
+  /*
+   * THE POPUP FOLLOWS THE LIVE LIST, NOT A COPY (found in testing, 2026-09-23). It used to hold
+   * the person as they were when their name was clicked, so after "Disable this login" the
+   * database had changed, the list behind had refreshed, and the popup still said "active" with
+   * the Disable button still showing. A manager would press it again, and turn them back on.
+   * Holding the id and reading the person from the refreshed list makes every change show at
+   * once. The copy is kept only as a fallback for the moment a person leaves this list.
+   */
+  const [picked, setSelected] = useState<UserListItem | null>(null);
+  const selected = picked ? users.find((u) => u.id === picked.id) ?? picked : null;
   const wrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

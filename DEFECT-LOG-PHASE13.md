@@ -1594,3 +1594,48 @@ of wrapping it.
 
 **Checked by rendering the real template:** Bevan's live data, and Thistle's two real Planner
 bookings for the Planned column. Nothing was sent. The 7am email is the proof on a real inbox.
+
+
+---
+
+## DEF-048 - The user popup went stale after Enable or Disable this login
+
+**Found in testing, 2026-09-23.** Press "Disable this login" and the database changed, the list
+behind refreshed, and the popup still said "active" with the Disable button still showing. The
+same the other way round. A manager would press it again and undo what they had just done.
+
+**Fixed.** The dropdown held a copy of the person taken when their name was clicked. It now holds
+the id and reads the person from the live list on every render, so the refreshed status, the right
+button and the new "User enabled" / "User disabled" confirmation all show at once.
+
+## DEF-049 - No way back in after a forgotten password
+
+**Found in testing, 2026-09-23**, when the Founder could not sign in as his own test Manager: there
+was no "Forgot password" on the sign in page and no reset an Admin could send. A locked out
+manager could only get back in through the Founder in the Supabase dashboard.
+
+**Built, both routes agreed by popup:**
+
+- **"Forgot your password?"** on the sign in page, to /login/forgot. One answer for every outcome,
+  so the form cannot be used to learn who has an account.
+- **"Send password reset"** for Admins in the user popup and on Team Member logins, which IS told
+  what happened (sent, already sent in the last 10 minutes, switched off, not accepted yet).
+- **One door, lib/auth/password-reset.ts.** A Supabase recovery token put into our own
+  /auth/confirm link, sent through Resend with the branded button, exactly like invitations.
+  Only a live account gets one: an open invitation has its own resend, and a switched off login
+  stays off. One per account per 10 minutes, throttled on the audit trail so it holds for the
+  Founder's account too. Missing email configuration is logged and told to the Admin, never
+  silent.
+- **/login/reset** sets the new password (same rule as an invitation: 8 or more, typed twice) and,
+  as agreed, **signs them out everywhere else**: Supabase revokes the other refresh tokens and the
+  app's own session slots are cleared to this one, so the other device is turned away on its next
+  page.
+- A used or expired reset link lands on the forgot page saying so, not on "no access".
+- Audited both ends: password.reset_sent and password.reset_completed.
+
+Rules in lib/auth/password-reset-rules.ts, six tests.
+
+## DEF-050 - Training matrix counts in the pale colours
+
+The in date, due soon and expired counts across the top of the Training matrix used the same pale
+-soft tints DEF-044 took off the carer cards. Now the register's colours.

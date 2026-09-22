@@ -333,14 +333,16 @@ export default function TrainingMatrix({
             </span>{" "}
             <span className="text-white/55">mandatory training in date</span>
           </span>
+          {/* THE REGISTER'S COLOURS (2026-09-23), not the pale -soft pill tints, which read as white
+              on this bar exactly as they did on the carer cards (DEF-044). */}
           <span className="text-white/55">
-            <span className="font-semibold text-rag-green-soft">{stats.green}</span> in date
+            <span className="font-semibold rag-text-green">{stats.green}</span> in date
           </span>
           <span className="text-white/55">
-            <span className="font-semibold text-rag-amber-soft">{stats.amber}</span> due soon
+            <span className="font-semibold rag-text-amber">{stats.amber}</span> due soon
           </span>
           <span className="text-white/55">
-            <span className="font-semibold text-rag-red-soft">{stats.red}</span> expired or not done
+            <span className="font-semibold rag-text-red">{stats.red}</span> expired or not done
           </span>
           {/* The count is shown beside each score, not hidden in a tooltip, because it is the
               thing that says this is a real score and not an average of averages. */}

@@ -561,6 +561,41 @@ export function companyInvoiceEmailHtml(opts: {
 
 export { escapeHtml, formatDateUk };
 
+/** Subject for a password reset. Plain, so it is recognised in a crowded inbox. */
+export function passwordResetSubject(): string {
+  return "Reset your Be Care Compliant password";
+}
+
+/**
+ * Password reset email (2026-09-23). The same branded shell and CTA button as the invitation:
+ * never a bare link in a customer email. Says who asked for it when an Admin did, because an
+ * unexpected reset email with no explanation is exactly what a phishing email looks like.
+ */
+export function passwordResetEmailHtml(opts: {
+  recipientName: string;
+  actionUrl: string;
+  /** Set when an Admin sent it from Settings rather than the person asking themselves. */
+  sentByName?: string | null;
+}): string {
+  const who = opts.sentByName
+    ? `${escapeHtml(opts.sentByName)} has sent you a link to set a new password for Be Care Compliant.`
+    : "Somebody, hopefully you, asked to reset the password for your Be Care Compliant account.";
+  const body = `
+    <p style="margin:0 0 12px 0;">Hello ${escapeHtml(opts.recipientName)},</p>
+    <p style="margin:0 0 12px 0;">${who}</p>
+    <p style="margin:0;">Use the button below to choose a new one. Setting it signs you out of Be Care
+    Compliant everywhere else, so if anybody else knew your old password they no longer have access.</p>`;
+  return shell({
+    preheader: "Set a new password for Be Care Compliant.",
+    heading: "Reset your password",
+    bodyHtml: body,
+    ctaLabel: "Set a new password",
+    ctaUrl: opts.actionUrl,
+    footerNote:
+      "If you did not ask for this you can ignore this email and your password stays as it is. The link works once and expires for your security.",
+  });
+}
+
 export function inviteSubject(companyName: string): string {
   return `You have been invited to ${companyName} on Be Care Compliant`;
 }

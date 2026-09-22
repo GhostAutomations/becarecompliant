@@ -37,9 +37,16 @@ export function LoginForm({ notice, next }: { notice?: string; next?: string | n
       </div>
 
       <div>
-        <label htmlFor="password" className="form-label text-white/90">
-          Password
-        </label>
+        <div className="flex items-baseline justify-between gap-3">
+          <label htmlFor="password" className="form-label text-white/90">
+            Password
+          </label>
+          {/* THE WAY BACK IN (2026-09-23). Before this a forgotten password could only be put
+              right by the Founder in the Supabase dashboard. */}
+          <a href="/login/forgot" className="text-xs text-gold-300 hover:text-gold-200">
+            Forgot your password?
+          </a>
+        </div>
         <input
           id="password"
           name="password"
