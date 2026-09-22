@@ -263,31 +263,41 @@ function reportingSectionHtml(
     return `${heading}<p style="margin:0;font-size:13px;color:${MUTED};">${escapeHtml(emptyText)}</p>`;
   }
   const shown = rows.slice(0, REPORTING_MAX_ROWS);
-  const th = `font-size:11px;font-weight:700;color:${MUTED};text-transform:uppercase;letter-spacing:0.3px;text-align:left;padding:0 8px 6px 0;border-bottom:1px solid rgba(255,255,255,0.16);`;
-  const cell = `padding:7px 8px 7px 0;font-size:13px;vertical-align:top;border-bottom:1px solid rgba(255,255,255,0.07);`;
+  /* ROOM BETWEEN THE COLUMNS (Phil, 2026-09-22: "maybe space the columns out a little more").
+     18px of gutter rather than 8, and a little more air above and below each row: four columns
+     of dates butting up against each other is a wall of numbers, and the eye needs the gap to
+     tell which date belongs to which heading. The last column carries no right padding, so the
+     extra gutter never pushes the table wider than the card. */
+  const th = `font-size:11px;font-weight:700;color:${MUTED};text-transform:uppercase;letter-spacing:0.3px;text-align:left;padding:0 18px 8px 0;border-bottom:1px solid rgba(255,255,255,0.16);`;
+  const cell = `padding:10px 18px 10px 0;font-size:13px;vertical-align:top;border-bottom:1px solid rgba(255,255,255,0.07);`;
+  const lastTh = th.replace("padding:0 18px 8px 0;", "padding:0 0 8px 0;");
+  const lastCell = cell.replace("padding:10px 18px 10px 0;", "padding:10px 0 10px 0;");
   const header = `<tr>
-    <th style="${th}width:28%;">Name</th>
-    <th style="${th}width:24%;">Task</th>
-    <th style="${th}width:20%;">Date</th>
-    <th style="${th}width:28%;">Planned</th>
+    <th style="${th}width:26%;">Name</th>
+    <th style="${th}width:22%;">Task</th>
+    <th style="${th}width:24%;">Date</th>
+    <th style="${lastTh}width:28%;">Planned</th>
   </tr>`;
   const body = shown
     .map((r) => {
-      // Overdue rows lead with how many days overdue (the escalation signal that
-      // used to be a separate chaser email), then the due date.
+      /* Overdue rows lead with how many days overdue (the escalation signal that used to be a
+         separate chaser email), then the due date — on TWO LINES since 2026-09-22. In one line
+         "43 days overdue · 10/08/2026" is far wider than any other cell, and because it cannot
+         wrap it stretched the Date column and squeezed the names beside it. Stacked, every
+         column keeps the width its heading says it has. */
       const dateCell = overdue
         ? `${
             r.daysOverdue != null && r.daysOverdue > 0
-              ? `${r.daysOverdue} ${r.daysOverdue === 1 ? "day" : "days"} overdue · `
-              : "Overdue "
-          }${escapeHtml(formatDateShort(r.dueDate))}`
+              ? `${r.daysOverdue} ${r.daysOverdue === 1 ? "day" : "days"} overdue`
+              : "Overdue"
+          }<br /><span style="color:${MUTED};font-weight:400;">${escapeHtml(formatDateShort(r.dueDate))}</span>`
         : escapeHtml(formatDateShort(r.dueDate));
       const weight = overdue && r.daysOverdue != null && r.daysOverdue >= 7 ? "font-weight:700;" : "";
       return `<tr>
         <td style="${cell}color:#ffffff;font-weight:600;">${escapeHtml(r.recordName)}</td>
         <td style="${cell}color:${TEXT};">${escapeHtml(r.checkName)}</td>
         <td style="${cell}color:${accent};white-space:nowrap;${weight}">${dateCell}</td>
-        <td style="${cell}">${plannedCellHtml(r.planned ?? null)}</td>
+        <td style="${lastCell}">${plannedCellHtml(r.planned ?? null)}</td>
       </tr>`;
     })
     .join("");

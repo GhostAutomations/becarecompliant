@@ -1288,3 +1288,10 @@ Every other email — invites, calendar invitations, holiday notices — is unto
 
 **A booking whose conductor has left** still shows as booked, with the date and the word Booked
 rather than a name. It IS in the diary; showing a cross would be a lie about the harder half.
+
+**Spaced out the same day** (Phil, 2026-09-22: *"i like them maybe space the columns out a little
+more"*). The gutter went from 8px to 18px and the rows from 7px to 10px of air. The real fix was
+the overdue date, though: "43 days overdue · 10/08/2026" on one unwrappable line was far wider
+than any other cell, so it stretched the Date column and squeezed the names beside it. Stacked on
+two lines, every column keeps the width its heading claims.
+
