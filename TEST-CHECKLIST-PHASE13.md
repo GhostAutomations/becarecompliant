@@ -51,3 +51,20 @@ sent). The record was deleted at the end; Bevan is back to 0 people and Thistle 
 - A cancelled booking leaves an empty not_done training row, which then counts as a training record and blocks Delete person ("2 training records ... evidence") although it holds nothing.
 - Dashes in customer copy: Add a person intro, the hold login checkbox, the Delete this record explanation, the import page ("Every check is a pair - the date it was due").
 - Bulk training dialog says "1 records".
+
+## Retest after DEF-043 to DEF-046 (deployed dpl_H1U2RHfoPPi2JDUoTjFxnxJ1DVxy), 2026-09-22, Bevan
+
+| # | Check | Result |
+|---|---|---|
+| D1 | Name box empty: Delete this record is disabled and cannot take keyboard focus | PASS |
+| D2 | Name box empty: Tab and Enter do nothing | PASS |
+| D3 | A hand built submit with no name is refused by the server ("Type ZZ TEST Delete Me in the box...") | PASS |
+| D4 | Typing the name (in lower case) arms the button red, and the delete goes through | PASS |
+| A1 | Card dates and chips use the register colours: red rgb(241,129,150), amber rgb(245,189,106), green rgb(67,217,154) | PASS, with one follow up: red measured 4.4:1 on the lightest part of the card, just under AA. Lightened to #f4909f (4.7 to 5.4). Retest after that deploy. |
+| B1 | Book a course, cancel the booking (empty row left behind), then Delete person: goes through, the empty row cascades | PASS |
+| C1 | Add a person intro and the hold login tickbox have no dashes | PASS |
+| C2 | Delete this record explanation has no dashes | PASS |
+| C3 | Import page "Every check is a pair" line has no dashes | PASS |
+| C4 | Bulk training says "1 record" | NOT TESTED in the browser (Bevan had no carer to tick at the time); the change is one pluralisation, traced in code |
+
+Bevan back to 0 people after the tests. Thistle untouched at 14.

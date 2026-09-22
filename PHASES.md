@@ -1396,6 +1396,7 @@ TWO THINGS DELIBERATELY NOT FIXED HERE, both now on the list:
 
 - **DBS renewals in the daily People email (DEF-039).** With a carer whose Enhanced DBS is within 90 days (amber) and one past (red), run the daily digest cron from Vercel and confirm the People email carries a DBS renewals section listing both, amber and red, with the date. Could not be run cold: the cron is secret gated and emails real admins.
 - **A Supervisor cannot delete a person (DEF-040).** Signed in as a Supervisor, open a record added by mistake: the Delete this record control must be absent, and a forged request to the action must be refused. Proved at the database by live RLS probe on 2026-09-22, never through the browser.
+- **Bulk Record training says "1 record" (DEF-046).** Open Record training, tick one course and one carer: the count line reads "1 carer ticked, 1 record." Tick two courses: "2 records."
 
 ## Phase 12 — Marketing & Launch
 

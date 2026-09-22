@@ -966,7 +966,10 @@
    carer is the same red on the card as on the matrix. */
 .rag-text-green { color: #43d99a; }
 .rag-text-amber { color: #f5bd6a; }
-.rag-text-red { color: #f18196; }
+/* Red is a touch lighter than the register pill's #f18196. As bare text on the card that measured
+   4.4:1 on the lighter part of the navy gradient, just under WCAG AA's 4.5:1 for normal text;
+   #f4909f measures 4.7 to 5.4 across the card and is still plainly red beside the green. */
+.rag-text-red { color: #f4909f; }
 
 /* ===========================================================================
    THE EMAIL SCREEN (Founder > Email) — a light mail client inside a dark app.
