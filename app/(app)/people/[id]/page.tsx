@@ -14,6 +14,7 @@ import ActionForm from "@/components/action-form";
 import CycleBox from "@/components/records/cycle-box";
 import RecordHistory from "@/components/reports/record-history";
 import EditPersonForm from "@/components/people/edit-person-form";
+import DeletePersonForm from "@/components/people/delete-person-form";
 import RecordBookTask from "@/components/planner/record-book-task";
 import { featureEnabled } from "@/lib/billing/tier";
 import { getRecordAuditTrail } from "@/lib/audit-log/data";
@@ -134,6 +135,9 @@ export default async function PersonPage({
       branchIds: await callerBranchIds(profile.id),
       recordBranchId: person.branch_id,
     });
+  /* DELETING A RECORD IS AN ADMIN'S, and only theirs (Phil, asked and answered 2026-09-22).
+     Everything else on the Manage panel is reversible; that one is not. */
+  const isAdmin = profile.role === "company_admin" || profile.role === "platform_admin";
   /* SUPPORT MODE CANNOT COMPLETE A CHECK, so it must not offer to. Completing writes signed
      compliance evidence, and evidence signed by the founder impersonating a manager is worse
      than no evidence. Until 2026-08-19 the buttons rendered, the form filled in, and the save
@@ -898,6 +902,15 @@ export default async function PersonPage({
                 />
               ) : null}
             </div>
+
+            {/* DELETE, ADMINS ONLY (Phil, 2026-09-22, and he chose the ceiling himself).
+                A Supervisor who adds somebody by mistake asks an Admin to remove it: one more
+                person looks at it before a record disappears, which is worth the friction on the
+                only irreversible control here. The server refuses anything with a history
+                against it whatever this panel shows. */}
+            {isAdmin ? (
+              <DeletePersonForm personId={person.id} fullName={person.full_name} />
+            ) : null}
 
             {/* RETENTION HOLD (item 18). Offered once a person is a Leaver, because that is
                 when the eight year clock starts and their records become destructible, and

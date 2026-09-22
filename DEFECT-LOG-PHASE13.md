@@ -1354,3 +1354,51 @@ somebody goes out on. A red cross against it would be answering a question nobod
 and appears in no email. Said out loud rather than quietly widened, because Phil decides what is
 in a phase.
 
+---
+
+## DEF-040 — There was no way to delete a person  ·  BUILT
+
+**2026-09-22**, Phil's pick from the list. The product had Leaver and Archive, which are both
+right for somebody who has left and both wrong for a record created by mistake — a duplicate, a
+typo, somebody added to the wrong company. Removing the one carer added in error that morning
+took hand written SQL, and by the rule this phase runs on, anything that can only be put right
+with SQL is a defect.
+
+**ONLY A CLEAN RECORD** (Phil, asked and answered). A carer's supervisions, spot checks and
+safeguarding evidence are records CIW expects the provider to hold. Deleting somebody who has any
+of that is destroying evidence, and no confirmation dialog makes that acceptable. Delete is
+refused the moment anything exists against them, and the refusal NAMES what is in the way — "2
+completed checks and a holiday request" tells a manager at once that this is a real person with a
+history, not a mistake. A retention hold refuses on its own, whatever else is true.
+
+**ADMINS ONLY** (his choice too). A Supervisor who adds somebody by mistake asks an Admin. One
+more person looks at it before a record disappears, which is worth the friction on the only
+irreversible control on the record.
+
+**WHAT DELIBERATELY DOES NOT COUNT**, because counting it would mean nobody could ever be
+deleted: the checks applied to every new starter automatically, the standing policies handed to
+every new starter unless one has been signed, the tracker row a trigger creates, and history
+typed into "They already work here" at the moment of creation. That last one is a judgement:
+typed history carries NO evidence — nobody signed anything, there is no form and no PDF — and it
+was typed in the same breath as the record it belongs to. Refusing to delete a record because of
+dates somebody mistyped into it while creating it would recreate the problem this fixes. A
+completion recorded AFTERWARDS, through a check, is evidence and does block.
+
+**0317, AND IT WAS FOUND BEFORE IT SHIPPED.** `migrated_completions` has no foreign key to
+people — like Evidence it finds a record through record_type and record_id — so the delete has to
+remove that history by hand. It could not: the table had exactly one policy, a select. The delete
+would have removed nothing, returned no error, and left rows about a person who no longer exists
+feeding the on time report. **A refused delete is not an error under RLS, it is zero rows**, which
+is the worst shape a failure can take. Now an Admin can remove it, matching who may delete the
+person.
+
+**The login goes with the record.** A Team Member account belongs to the person, not the company;
+left behind it is an account attached to nobody, which is the orphan that made re-adding this
+morning's carer confusing (DEF-037).
+
+**Typing the name is not theatre.** Everything else on the Manage panel is reversible. The record
+being deleted and the record somebody meant to delete are, by definition, hard to tell apart when
+a duplicate has just been added.
+
+**Proved on the live database, rolled back:** an Admin adds a record; a Supervisor's delete is
+refused; the Admin's succeeds; migrated history is removable. Thistle's register is untouched.

@@ -53,6 +53,8 @@ import {
   trackerPatch,
 } from "@/lib/people/history-boxes";
 import { seedPersonHistory } from "@/lib/people/history";
+import { deleteRefusalReason, type PersonFootprint } from "@/lib/people/deletable";
+import { createServiceClient } from "@/lib/supabase/admin";
 import { getColumnLabels, getSupervisionCycleMode } from "@/lib/people/data";
 
 function trimOrNull(v: FormDataEntryValue | null): string | null {
@@ -278,6 +280,159 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
     inviteOutcome.skipped !== "demo_email";
 
   redirect(`/people/${person.id}${loginFailed ? "?login=failed" : ""}`);
+}
+
+
+/**
+ * Delete a person's record, when there is nothing against it.
+ *
+ * WHY THIS EXISTS (Phil, 2026-09-22). There was no way to delete a person anywhere in the
+ * product — only Leaver and Archive, which are both right for somebody who has left and both
+ * wrong for a record created by mistake. Removing the one carer added in error that morning took
+ * hand written SQL, and anything that can only be put right with SQL is a defect.
+ *
+ * ADMINS ONLY (Phil, asked and answered). A Supervisor who adds somebody by mistake asks an
+ * Admin to remove it. One more person looks at it before a record disappears, which is worth the
+ * friction on something that cannot be undone.
+ *
+ * WHAT IS CHECKED, and why it is checked HERE rather than trusted to the database: most of the
+ * tables that point at a person cascade, so the database would happily take their absences and
+ * their planner bookings with them and say nothing. Evidence does not even have a foreign key —
+ * it finds a person through record_type and record_id — so a cascade would leave signed
+ * submissions pointing at a record that no longer exists. The footprint is counted first and the
+ * delete is refused before anything is touched (lib/people/deletable.ts explains every line of
+ * what counts and what deliberately does not).
+ */
+export async function deletePerson(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { user, profile } = await requireCompanyAdmin();
+  if (!profile.company_id) return { error: "No company context." };
+  const companyId = profile.company_id;
+  const personId = String(formData.get("person_id") ?? "").trim();
+  if (!personId) return { error: "Missing record." };
+
+  const supabase = await createClient();
+  const { data: person } = await supabase
+    .from("people")
+    .select("id, company_id, full_name, profile_id, retention_hold")
+    .eq("id", personId)
+    .maybeSingle();
+  if (!person || person.company_id !== companyId) {
+    return { error: "That record was not found." };
+  }
+  const fullName = person.full_name as string;
+
+  /* Counted with head requests: we want the number, never the rows. */
+  const count = async (
+    table: string,
+    column: string,
+    extra?: (q: ReturnType<typeof supabase.from>) => unknown,
+  ): Promise<number> => {
+    let q = supabase.from(table).select("*", { count: "exact", head: true }).eq(column, personId);
+    if (extra) q = extra(q as never) as typeof q;
+    const { count: n } = await q;
+    return n ?? 0;
+  };
+
+  const [
+    evidence,
+    completedChecks,
+    training,
+    absences,
+    meetings,
+    holidays,
+    incidents,
+    complaints,
+    plannerBookings,
+    formSubmissions,
+    signedAssignments,
+  ] = await Promise.all([
+    supabase
+      .from("evidence")
+      .select("*", { count: "exact", head: true })
+      .eq("record_type", "person")
+      .eq("record_id", personId)
+      .then((r) => r.count ?? 0),
+    supabase
+      .from("check_instances")
+      .select("*", { count: "exact", head: true })
+      .eq("person_id", personId)
+      .not("last_completed_on", "is", null)
+      .then((r) => r.count ?? 0),
+    count("person_training", "person_id"),
+    count("absence_events", "person_id"),
+    count("absence_meetings", "person_id"),
+    count("holiday_requests", "person_id"),
+    count("incidents", "person_id"),
+    count("complaint_people", "person_id"),
+    count("planner_bookings", "subject_person_id"),
+    count("public_form_submissions", "person_id"),
+    supabase
+      .from("assignments")
+      .select("*", { count: "exact", head: true })
+      .eq("person_id", personId)
+      .not("evidence_id", "is", null)
+      .then((r) => r.count ?? 0),
+  ]);
+
+  const footprint: PersonFootprint = {
+    evidence,
+    completedChecks,
+    training,
+    absences: absences + meetings,
+    holidays,
+    incidents,
+    complaints,
+    plannerBookings,
+    formSubmissions,
+    signedAssignments,
+    retentionHold: person.retention_hold === true,
+  };
+  const refusal = deleteRefusalReason(footprint);
+  if (refusal) return { error: refusal };
+
+  /*
+   * MIGRATED HISTORY GOES BY HAND, because it has no foreign key to hang off: it finds a record
+   * through record_type and record_id, exactly as Evidence does. Left behind it would be rows
+   * about a person who no longer exists, and they feed the on time report.
+   */
+  await supabase.from("migrated_completions").delete().eq("record_id", personId);
+
+  const { error: delErr } = await supabase.from("people").delete().eq("id", personId);
+  if (delErr) return { error: `The record could not be deleted: ${delErr.message}` };
+
+  /*
+   * THEIR LOGIN GOES WITH THEM. A Team Member account belongs to the record, not to the company:
+   * left behind it is an account attached to nobody, which is exactly the orphan that made
+   * re-adding this morning's carer confusing (DEF-037). Best effort — the record is already
+   * gone, and a login that outlives it is untidy, not dangerous.
+   */
+  let loginRemoved = false;
+  if (person.profile_id) {
+    try {
+      const admin = createServiceClient();
+      const { error } = await admin.auth.admin.deleteUser(person.profile_id as string);
+      loginRemoved = !error;
+      if (error) console.error("[deletePerson] login not removed:", error.message);
+    } catch (e) {
+      console.error("[deletePerson] login not removed:", (e as Error).message);
+    }
+  }
+
+  await writeAudit({
+    companyId,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "person.deleted",
+    entityType: "person",
+    entityId: personId,
+    summary: `Deleted ${fullName} from the People register`,
+    /* The audit row is what is left of them, so it carries the proof the record was empty. */
+    metadata: { full_name: fullName, footprint, login_removed: loginRemoved },
+  });
+
+  revalidatePath("/people");
+  return { ok: `${fullName} has been deleted.`, redirectTo: "/people" };
 }
 
 /** Edit a Record's identity / employment fields. */
