@@ -95,3 +95,21 @@ in the same piece of work (Phil: "we are passed final testing so it needs to be 
 | 1.3 | Bevan 7am People email carries the DBS sections and one line rows | SENT at 07:00 (notification_log, "2 overdue, 0 due in 14 days"); the email itself not yet looked at. |
 | 1.4 | Bevan People email at 7am: DBS sections and one line rows | PASS (Phil's screenshots) |
 | D1 | Supervisor digest matches the People report: wide card, Name, Task, Date, Planned on one line, grey branch headings (DEF-055) | Preview PASS from Thistle's live checks (not sent). Real email: next 7am run to a Thistle Supervisor, Phil to screenshot. |
+
+## Paper upload, 2026-09-23 (DEF-056), tested live on Bevan
+
+| # | Check | Result |
+|---|---|---|
+| P1 | Registered Manager, Supervisor and another company's Admin refused by the database (submit_paper_evidence), Thistle untouched (rolled back) | PASS |
+| P2 | Future date and a page from outside the upload's own folder refused by the database | PASS |
+| P3 | Complete page shows "Done on paper? Upload it instead" to an Admin; swaps to date, supervision number, files | PASS |
+| P4 | Screen refuses no date and a .docx; lists pages with sizes and Remove | PASS |
+| P5 | Paper Supervision 1 dated 10/02/2026 (photo + PDF): tile Done 10 Feb, Supervision 2 due 01 May (80 days), both pages stored with size and fingerprint | PASS |
+| P6 | Evidence screen: "Completed on paper on 10 February 2026", Uploaded by / Uploaded at, photo drawn, PDF listed | PASS |
+| P7 | Evidence PDF: Completed on paper section, Uploaded by / at, photo embedded | PASS |
+| P8 | Spot check 01/06/2026 moves the check (next due 01 Jul); older one 01/03/2026 goes to history and moves nothing, with its own banner | PASS |
+| P9 | Evidence history on the record: three rows, Paper copy pill, newest first by the paper date | PASS |
+| P10 | Service User: Care Plan Review 1 by paper dated 15/04/2026, Review 2 due 04 Jul (80 days) | PASS |
+| P11 | Setup Visit offers no paper upload | PASS |
+| P12 | Abandoned upload (save cut off on purpose after the page was uploaded) is removed by the retention run | PASS: Phil ran /api/cron/retention 09:49 (200). The pending row and the abandoned page are gone; the 5 pages of the 4 filed uploads are untouched. |
+| P13 | Clean up | Test person made a leaver and archived, test Service User cancelled and archived, the Team Member invite to ppdavies+papertest revoked (login disabled). The 4 test uploads stay as evidence on the archived records. |
