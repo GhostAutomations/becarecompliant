@@ -154,3 +154,14 @@ in the same piece of work (Phil: "we are passed final testing so it needs to be 
 | W5 | Save anyway on Add person creates the record with the dates as entered (ZZ TEST DBS Warn, logins held, tracker 2025-06-01 / 2031-06-01) | PASS |
 | W6 | Import preview with the same bad dates shows amber "Check DBS:" with both reasons; preview cleared, nothing imported | PASS |
 | W7 | Unit tests: 5 in dbs-check.test.ts, including the real Thistle rows | PASS |
+
+## Checks with no due date, 2026-09-23 (DEF-060, DEF-061)
+
+| # | Check | Result |
+|---|---|---|
+| U1 | Readiness roll-up on Thistle (database, read only): 1 no due date, 5 waiting for Supervision 3, 1 for an appraisal, 2 for probation, 105 scored as before | PASS |
+| U2 | Unit tests: waiting sentence (4), dated from start (2), interval unit (3) | PASS |
+| U3 | Settings, People, Audit card on Bevan reads "Every (months)" 3; Save keeps it every 3 months | |
+| U4 | That Save dates ZZ TEST DBS Warn's never done Audit from their start date (01/01/2025 to 01/04/2025) | |
+| U5 | Add a new starter on Bevan: Audit due start date plus 3 months | |
+| U6 | Readiness page on Thistle shows 1 no due date and the waiting line | |

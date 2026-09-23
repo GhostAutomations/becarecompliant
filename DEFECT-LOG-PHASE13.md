@@ -1880,3 +1880,58 @@ run longer.
 
 - The People import preview marks the same rows "Check DBS: ..." in amber. They still import:
   a warning, not an error.
+
+
+---
+
+## DEF-060 - "No due date" counted checks that were never meant to have one (item 10)
+
+**Found 2026-09-23** checking item 10 ("checks with no due date") on Thistle. The readiness page
+said 49 checks had no due date and were left out of the score. Looking at each one:
+
+- **40 were ad hoc checks** (Mentoring, One to One, Health Check, Lead the Leader). They are done
+  when needed and never have a date. Phil: leave them out of the count for now, and ask him about
+  them again on Friday 25/09 (added to the scheduled reminder).
+- **8 were waiting on an earlier check**: five Annual Appraisals on "after Supervision 3" waiting
+  for Supervision 3 (Asim Riaz, Damilola Quadri-Eleruja, Jamie Meredith, Janet Oladunni, Smith
+  Tacho Azang), Mary Ikpi-Ubi's supervision waiting for her appraisal (due 12/11/2026), and two new
+  starters' first supervision waiting for probation to be signed off (Damilola, and Smith, whose
+  probation was due 10/07/2026 and is still open). Phil: show them as waiting, not as missing.
+- **1 was a real gap**: Damilola's Audit. When a person is added only Spot Check was dated from the
+  start date, so a new starter's Audit had no date until the first one was done, and nothing would
+  ever prompt the first one.
+
+**Fixed**
+
+- Migration 0321: get_framework_check_readiness sorts every undated check into ad hoc (not
+  counted), waiting for Supervision 3, waiting for an appraisal, waiting for probation, or no due
+  date. The score is unchanged (none of these were in it). Thistle after: 1 no due date, 8 waiting
+  (5, 1, 2), 105 scored, as before.
+- The readiness page shows the waiting ones on their own line, not amber, saying what each waits
+  for (lib/framework/waiting.ts, four tests). The readiness pack PDF and the AI narrative say the
+  same.
+- A new starter's Audit is dated from the start date plus the Audit interval, like Spot Check
+  (lib/people/start-dated.ts, tested), for People on every company. Service Users already dated
+  every recurring check from the package start. Every path that dates a record from its start
+  date follows: Add a person, the import, a moved start date, a new job title, and saving the
+  check in Settings, which is how existing records pick it up.
+
+**Also seen, not changed:** Medication Competency, Manual Handling and a yearly appraisal still
+start blank for a new starter, by Phil's rule of 2026-07-09, so they show as "no due date" until
+done. Smith Tacho Azang's open probation belongs with item 8 (he is on the register twice).
+
+
+---
+
+## DEF-061 - Saving the Audit in Settings would have made it due every 3 days
+
+**Found 2026-09-23** while tracing how existing records would pick up DEF-060. The check cards
+in Settings (People and Service Users) asked "Every (days)" for every check and always saved
+frequency "day". The Audit is stored as every 3 MONTHS (0279), so its card showed 3, and pressing
+Save on it, even to change nothing, would have set it to every 3 days, for every company with an
+Audit. Nobody had saved it yet: all four Audit checks (Thistle and Bevan, People and Service Users)
+are still every 3 months.
+
+**Fixed:** the card says the unit the check is stored in ("Every (months)") and sends that unit
+back, and the server keeps it (lib/people/interval-unit.ts, tested). The buffer note under the
+reporting deadline, which compares days with days, only shows for checks counted in days.

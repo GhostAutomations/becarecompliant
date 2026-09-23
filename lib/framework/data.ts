@@ -5,6 +5,7 @@ import { getSatisfaction } from "@/lib/service-users/satisfaction";
 import { getTrainingMatrix } from "@/lib/training/data";
 import { getOnTimeCountsByCheckId } from "@/lib/export/on-time";
 import { themeStatus, themeReason } from "@/lib/framework/theme-status";
+import { type WaitingCounts, waitingTotal } from "@/lib/framework/waiting";
 import {
   complaintHandling,
   incidentHandling,
@@ -47,6 +48,10 @@ export type RequirementReadiness = {
     /** Instances with NO due date. They cannot be overdue, so leaving them silently out of the
      *  total could only ever flatter the score. Counted, and shown to the reader. */
     unscheduled: number;
+    /** Instances with no due date YET because they wait on an earlier check (0321): an
+     *  appraisal waiting for Supervision 3, a supervision waiting for an appraisal or for
+     *  probation to be signed off. Not gaps, and not in the score either. */
+    waiting: WaitingCounts;
   };
   metrics: ReadinessMetric[];
   /** On time over the last six months, every item that fell due counted once. Null when none did. */
@@ -121,7 +126,17 @@ export async function getFrameworkReadiness(
   type Req = { id: string; code: string; key_area: string; title: string; description: string };
   const requirements = (reqRes.data as Req[] | null) ?? [];
   const mapRows = (mapRes.data as Array<{ requirement_id: string; check_definition_id: string | null; source_kind: string | null }> | null) ?? [];
-  const checkRows = (checkRes.data as Array<{ requirement_id: string; overdue: number; due_soon: number; on_track: number; total: number; unscheduled: number }> | null) ?? [];
+  const checkRows = (checkRes.data as Array<{
+    requirement_id: string;
+    overdue: number;
+    due_soon: number;
+    on_track: number;
+    total: number;
+    unscheduled: number;
+    waiting_sup3: number;
+    waiting_appraisal: number;
+    waiting_probation: number;
+  }> | null) ?? [];
 
   const checksByReq = new Map(checkRows.map((c) => [c.requirement_id, c]));
   const sourcesByReq = new Map<string, Set<string>>();
@@ -190,13 +205,27 @@ export async function getFrameworkReadiness(
   ]);
 
   const out: RequirementReadiness[] = requirements.map((r) => {
-    const c = checksByReq.get(r.id) ?? { overdue: 0, due_soon: 0, on_track: 0, total: 0, unscheduled: 0 };
+    const c = checksByReq.get(r.id) ?? {
+      overdue: 0,
+      due_soon: 0,
+      on_track: 0,
+      total: 0,
+      unscheduled: 0,
+      waiting_sup3: 0,
+      waiting_appraisal: 0,
+      waiting_probation: 0,
+    };
     const checks = {
       overdue: c.overdue,
       dueSoon: c.due_soon,
       onTrack: c.on_track,
       total: c.total,
       unscheduled: c.unscheduled ?? 0,
+      waiting: {
+        sup3: c.waiting_sup3 ?? 0,
+        appraisal: c.waiting_appraisal ?? 0,
+        probation: c.waiting_probation ?? 0,
+      },
     };
 
     const metrics: ReadinessMetric[] = [];
@@ -266,7 +295,7 @@ export async function getFrameworkReadiness(
     const status: Rag = themeStatus(inputs);
     const reason = themeReason(inputs, regulator.toUpperCase());
     const mapped =
-      checks.total > 0 || checks.unscheduled > 0 || sources.size > 0 || notices.priority + notices.improvement > 0;
+      checks.total > 0 || checks.unscheduled > 0 || waitingTotal(checks.waiting) > 0 || sources.size > 0 || notices.priority + notices.improvement > 0;
 
     // Score: % of checks not overdue, averaged with any metric percentages. Kept for the
     // snapshots and the inspection pack; the dashboard no longer shows it (see theme-status.ts).

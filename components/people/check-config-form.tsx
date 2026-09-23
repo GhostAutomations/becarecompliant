@@ -9,6 +9,7 @@ import { useSavedFlash } from "@/lib/use-saved-flash";
 import type { CheckDefinition } from "@/lib/people/types";
 import { bufferNote } from "@/lib/people/reporting-buffer";
 import { DEFAULT_AMBER_DAYS } from "@/lib/recurrence";
+import { intervalUnit } from "@/lib/people/interval-unit";
 
 /**
  * One slot in the card grid. Every check renders the SAME four slots in the same
@@ -74,6 +75,11 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
   const [scheduleMode, setScheduleMode] = useState<string>(def.schedule_mode);
 
   const isExpiry = def.anchor === "expiry";
+  /* THE BOX KEEPS ITS UNIT (DEF-061, 2026-09-23). The Audit runs every 3 MONTHS, and this card
+     showed "Every (days): 3" and saved frequency "day" whatever the check used, so pressing Save
+     on it, even to change nothing, would have made the Audit due every 3 days. The label now
+     says the unit the check is stored in and the save sends that unit back. */
+  const unit = intervalUnit(def.frequency);
   const isAppraisal = def.key === "appraisal" && !isExpiry;
   const afterSup3 = isAppraisal && scheduleMode === "after_sup3";
 
@@ -86,6 +92,7 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
       fd.set("flag_days", flagDays);
     } else {
       fd.set("days", def.recurring ? days : String(-Math.abs(Number.parseInt(days, 10) || 1)));
+      fd.set("frequency", def.recurring ? unit.frequency : "day");
       fd.set("amber_days", amber);
       fd.set("reporting_days", reportingDays);
       fd.set("schedule_mode", scheduleMode);
@@ -144,7 +151,7 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
     </Field>
   ) : (
     <Field
-      label={def.recurring ? "Every (days)" : "Due before start (days)"}
+      label={def.recurring ? `Every (${unit.plural})` : "Due before start (days)"}
       htmlFor={`days-${def.id}`}
     >
       <input
@@ -217,7 +224,7 @@ export default function CheckConfigForm({ def }: { def: CheckDefinition }) {
      in the boxes right now, so changing 80 to 85 changes the note to 5 days as it is
      typed, and a deadline sooner than the plan is called out rather than saved quietly. */
   const buffer =
-    !isExpiry && def.recurring
+    !isExpiry && def.recurring && unit.frequency === "day"
       ? bufferNote(Number.parseInt(days, 10), Number.parseInt(reportingDays, 10))
       : null;
 

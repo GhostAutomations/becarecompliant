@@ -13,6 +13,7 @@ import {
   type FormSchema,
 } from "@/lib/form-schema";
 import { appraisalDueMet } from "./appraisal-due";
+import { datedFromStart } from "./start-dated";
 import {
   type ProbationPeriod,
   probationToRecurrence,
@@ -59,14 +60,11 @@ function answerDate(answers: Answers, key: string | null): string | null {
  * Returned as an ISO string for the RPC, or null.
  */
 /**
- * Which checks get a due date auto-filled when a carer is added. Everything else
- * (supervision, appraisal, manual handling, medication competency) starts blank and
- * is scheduled through completion or manually. Spot Check is dated from the start.
+ * Which checks are dated from the start date lives in start-dated.ts (Spot Check and, since
+ * 2026-09-23, Audit). Everything else starts blank.
  */
-const AUTO_SCHEDULE_ON_ADD = new Set(["spot_check"]);
-
 export function initialDueDate(def: CheckDefinition, startDate: string | null): string | null {
-  if (!AUTO_SCHEDULE_ON_ADD.has(def.key)) return null;
+  if (!datedFromStart(def.key)) return null;
   if (def.anchor === "expiry") return null;
   if (!startDate || !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return null;
   const rule = ruleOf(def);

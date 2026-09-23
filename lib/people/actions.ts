@@ -62,6 +62,7 @@ import {
 } from "@/lib/people/deletable";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { getColumnLabels, getSupervisionCycleMode } from "@/lib/people/data";
+import { intervalUnit } from "@/lib/people/interval-unit";
 
 function trimOrNull(v: FormDataEntryValue | null): string | null {
   const s = String(v ?? "").trim();
@@ -116,7 +117,7 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
 
   if (error) return { error: error.message };
 
-  // Auto-apply active definitions. Only Spot Check gets a due date on add; the rest
+  // Auto-apply active definitions. Spot Check and Audit get a due date on add; the rest
   // (supervision, appraisal, manual handling, medication competency) start blank.
   const definitions = await listPeopleCheckDefinitions(companyId);
   const rows = definitions.map((def: CheckDefinition) => ({
@@ -1000,7 +1001,9 @@ export async function updateCheckDefinition(formData: FormData): Promise<ActionS
     const recurring = String(formData.get("recurring") ?? "1") === "1";
     const days = Number.parseInt(String(formData.get("days") ?? "").trim(), 10);
     if (Number.isInteger(days) && days !== 0 && (recurring ? days >= 1 : true)) {
-      patch.frequency = "day";
+      /* The unit the check is stored in comes back with the number (DEF-061): an Audit every
+         3 months must not be saved as every 3 days. A one off is always a day offset. */
+      patch.frequency = recurring ? intervalUnit(String(formData.get("frequency") ?? "day")).frequency : "day";
       patch.interval = recurring ? days : -Math.abs(days);
     }
     const amberRaw = String(formData.get("amber_days") ?? "").trim();

@@ -5,6 +5,7 @@ import { getFrameworkReadiness, getFrameworkItems, overallScore, type Rag } from
 import { draftReadinessNarrative } from "@/lib/framework/ai";
 import { renderReportPdf, type ReportBlock, type ReportDoc, type RagTone } from "@/lib/export/pdf";
 import { pdfResponse, exportError } from "@/lib/export/deliver";
+import { waitingParts, waitingTotal } from "@/lib/framework/waiting";
 
 const REG_LABEL: Record<string, string> = {
   ciw: "Care Inspectorate Wales (CIW)",
@@ -51,6 +52,9 @@ export async function GET() {
       { label: "Score", value: r.score != null ? `${r.score}%` : "Not mapped" },
       ...(r.checks.unscheduled > 0
         ? [{ label: "Not scheduled", value: `${r.checks.unscheduled} checks have no due date, so they are not in the score` }]
+        : []),
+      ...(waitingTotal(r.checks.waiting) > 0
+        ? [{ label: "Waiting", value: `${waitingTotal(r.checks.waiting)} waiting on an earlier check: ${waitingParts(r.checks.waiting).join(", ")}` }]
         : []),
       ...(r.checks.total > 0
         ? [{ label: "Checks", value: `${r.checks.overdue} overdue, ${r.checks.dueSoon} due soon, ${r.checks.onTrack} on track` }]

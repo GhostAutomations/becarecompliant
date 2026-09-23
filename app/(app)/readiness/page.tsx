@@ -12,6 +12,7 @@ import {
 import AssistantPanel from "@/components/framework/assistant-panel";
 import SnapshotOnLoad from "@/components/framework/snapshot-on-load";
 import NoticesPanel, { type NoticeRow } from "@/components/framework/notices-panel";
+import { waitingSentence } from "@/lib/framework/waiting";
 
 export const metadata: Metadata = { title: "Inspection Readiness" };
 
@@ -146,6 +147,12 @@ export default async function ReadinessPage() {
                   {r.checks.unscheduled} {r.checks.unscheduled === 1 ? "check has" : "checks have"} no
                   due date, so {r.checks.unscheduled === 1 ? "it is" : "they are"} not counted here.
                 </p>
+              ) : null}
+
+              {/* Checks waiting on an earlier one (Phil, 2026-09-23): not a gap, so not amber,
+                  and each says what it is waiting for. */}
+              {waitingSentence(r.checks.waiting) ? (
+                <p className="mt-1 text-xs text-white/60">{waitingSentence(r.checks.waiting)}</p>
               ) : null}
 
               {r.metrics.length > 0 ? (

@@ -5,6 +5,7 @@ import { reportableCheck } from "@/lib/notifications/reportable";
 import { createClient } from "@/lib/supabase/server";
 import { getFrameworkReadiness, type RequirementReadiness } from "@/lib/framework/data";
 import { runAi } from "@/lib/ai/anthropic";
+import { waitingParts, waitingTotal } from "@/lib/framework/waiting";
 
 type Result = { ok: string } | { error: string };
 
@@ -101,6 +102,9 @@ async function buildContext(
     const parts: string[] = [];
     if (r.checks.total > 0) parts.push(`checks ${r.checks.overdue} overdue, ${r.checks.dueSoon} due soon, ${r.checks.onTrack} on track`);
     if (r.checks.unscheduled > 0) parts.push(`${r.checks.unscheduled} checks with no due date, not scored`);
+    if (waitingTotal(r.checks.waiting) > 0) {
+      parts.push(`${waitingTotal(r.checks.waiting)} waiting on an earlier check (${waitingParts(r.checks.waiting).join(", ")}), not scored`);
+    }
     for (const m of r.metrics) parts.push(`${m.label} ${m.pct != null ? `${m.pct}%` : (m.note ?? "n/a")}`);
     return `- ${r.title} [${r.status}]: ${parts.length ? parts.join("; ") : "no evidence mapped"}`;
   });
