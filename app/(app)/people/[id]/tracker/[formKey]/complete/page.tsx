@@ -68,7 +68,7 @@ export default async function CompleteTrackerPage({
         </p>
       </div>
       <div className="glass-card p-6">
-        <CompleteTracker schema={form.schema as FormSchema} personId={id} formKey={formKey} draft={draft} />
+        <CompleteTracker schema={form.schema as FormSchema} personId={id} formKey={formKey} draft={draft} startDate={person.start_date} />
       </div>
     </div>
   );

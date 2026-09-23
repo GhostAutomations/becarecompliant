@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { canBeLineManager } from "@/lib/people/roles";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
+import { dbsWarnings } from "@/lib/people/dbs-check";
+import DbsWarning from "@/components/people/dbs-warning";
 import { createPerson } from "@/lib/people/actions";
 import { IDLE_STATE } from "@/lib/forms";
 import type { BranchLite, ProfileLite, BranchStaff, JobTitle } from "@/lib/people/data";
@@ -36,6 +38,29 @@ export default function CreatePersonForm({
   const managers = users.filter((u) => canBeLineManager(u.role));
   const supervisors = users.filter((u) => u.role === "supervisor");
 
+  /* DBS dates typed into "They already work here" that look wrong ask once (DEF-059). */
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const confirmedRef = useRef(false);
+  const [warnings, setWarnings] = useState<string[]>([]);
+
+  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    if (confirmedRef.current) {
+      confirmedRef.current = false;
+      return;
+    }
+    const fd = new FormData(e.currentTarget);
+    if (!fd.get(historyFlag)) return;
+    const found = dbsWarnings({
+      certificateDate: String(fd.get("t_dbs_date") ?? ""),
+      renewalDate: String(fd.get("t_enhanced_dbs_date") ?? ""),
+      startDate: String(fd.get("start_date") ?? ""),
+    });
+    if (found.length > 0) {
+      e.preventDefault();
+      setWarnings(found);
+    }
+  }
+
   const [branchId, setBranchId] = useState("");
   const [managerId, setManagerId] = useState("");
   const [supervisorIds, setSupervisorIds] = useState<string[]>([]);
@@ -52,7 +77,7 @@ export default function CreatePersonForm({
   }
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form ref={formRef} action={formAction} onSubmit={onSubmit} onChange={() => setWarnings([])} className="space-y-5">
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <label htmlFor="full_name" className="form-label">Full name *</label>
@@ -181,6 +206,15 @@ export default function CreatePersonForm({
       />
 
       {state.error ? <p className="form-error">{state.error}</p> : null}
+      <DbsWarning
+        warnings={warnings}
+        onConfirm={() => {
+          confirmedRef.current = true;
+          setWarnings([]);
+          formRef.current?.requestSubmit();
+        }}
+        onBack={() => setWarnings([])}
+      />
 
       <div className="flex items-center gap-3">
         <button type="submit" className="btn-primary" disabled={pending}>

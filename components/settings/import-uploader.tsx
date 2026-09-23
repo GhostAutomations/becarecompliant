@@ -262,6 +262,10 @@ export default function ImportUploader() {
                       {r.errors.length > 0 ? (
                         <span className="ml-2 text-xs text-red-200">{r.errors.join(" ")}</span>
                       ) : null}
+                      {/* Imported as they are, but worth a second look (DEF-059). */}
+                      {r.warnings && r.warnings.length > 0 ? (
+                        <span className="ml-2 text-xs text-amber-200">Check DBS: {r.warnings.join(" ")}</span>
+                      ) : null}
                     </td>
                   </tr>
                 ))}

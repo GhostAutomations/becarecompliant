@@ -141,4 +141,4 @@ in the same piece of work (Phil: "we are passed final testing so it needs to be 
 | L5 | Future date 10/10/2026: stays active, amber "Leaving on 10 October 2026" note; setting Active calls it off (row cancelled) | PASS |
 | L6 | Today's date: stays active, row planned. Date moved to 22/09 on the test row, Phil ran the retention job: leaver dated 22/09, invite revoked, login disabled, audit "Became a leaver at the end of 2026-09-22, as planned; login closed" | PASS |
 | L7 | Who can read the answers: the leaver's own login 0 rows, another company's Admin 0 rows, Bevan's Admin all 3 (rolled back) | PASS |
-| L8 | Leaver's login card offers no invite; "Send it again" only while an invite is waiting | Fixed after L3/L4, to confirm after this deploy |
+| L8 | Leaver's login card offers no invite; "Send it again" only while an invite is waiting | PASS after deploy: leaver card "Closed, their login closed when they left", no button; back to Active shows "Invite them", not "Send it again". Test person left as a leaver (22/09). |

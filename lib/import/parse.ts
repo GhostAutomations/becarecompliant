@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/server";
 import { buildColumnPlan, type ColumnPlan } from "./columns";
 import { jobTitleOrDefault } from "./job-title";
 import { settleSuppliedDue } from "./supplied-due";
+import { dbsWarnings } from "@/lib/people/dbs-check";
 
 const RTW_LIMITS = new Set(["none", "20hrs_term", "20hrs_2nd_job", "visa_expires"]);
 const PROBATION_STATUS = new Set(["passed", "failed", "extended", "due"]);
@@ -41,6 +42,9 @@ export type ParsedRow = {
   }>;
   status: "new" | "duplicate" | "error";
   errors: string[];
+  /** Things that look typed wrong but may be right, shown on the preview and never blocking
+   *  (DEF-059: DBS dates). */
+  warnings?: string[];
 };
 
 export type ValidateResult =
@@ -325,7 +329,12 @@ export async function validateImport(
     }
     counts[status] += 1;
 
-    rows.push({ row: r + 1, name, branchName, branchId, fields, docs, checks, status, errors });
+    const warnings = dbsWarnings({
+      certificateDate: docs.dbs_date ?? null,
+      renewalDate: docs.enhanced_dbs_date ?? null,
+      startDate: fields.start_date ?? null,
+    });
+    rows.push({ row: r + 1, name, branchName, branchId, fields, docs, checks, status, errors, warnings });
   }
 
   return { ok: true, population, rows, counts };

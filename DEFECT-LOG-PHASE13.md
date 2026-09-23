@@ -1856,3 +1856,27 @@ deleted; they are not yet part of the eight year anonymisation, which today cove
 left. The card now says the login closed when they left, offers nothing, and the invite action
 itself refuses a leaver. And a rejoiner whose old invite was revoked was offered "Send it again"
 for an invite that no longer existed; "again" now only shows while an invite is waiting.
+
+
+---
+
+## DEF-059 - DBS dates that are almost certainly typed wrong went in without a word (item 7)
+
+**Found 2026-09-23** checking item 7 ("DBS gaps") on Thistle. No DBS dates are missing any more:
+all 13 active staff have a certificate date and a renewal date. Three look wrong: Asim Riaz renews
+six years after his certificate, Taiye Emmanuella Aladesuyi five, where everyone else is three;
+Jamie Meredith's certificate is dated seven months after he started. Phil will give the right
+dates on Friday (a scheduled reminder is set for 25/09).
+
+**Agreed by popup: warn, but allow**, because a certificate on the DBS Update Service can properly
+run longer.
+
+- One rule, dbsWarnings (lib/people/dbs-check.ts, five tests including the three real rows): the
+  renewal more than three years after the certificate, the renewal on or before it, or the
+  certificate dated after the start date.
+- The DBS form on a record, and the DBS boxes under "They already work here" on Add a person, both
+  stop before saving with "Are these DBS dates right?", the reasons in plain words, and Save anyway
+  or Go back and check.
+
+- The People import preview marks the same rows "Check DBS: ..." in amber. They still import:
+  a warning, not an error.

@@ -20,16 +20,21 @@ import { completeTrackerForm } from "@/lib/people/actions";
 import { mergeDraft, trackerDraftKey } from "@/lib/forms/draft-key";
 import { useFormDraft } from "@/components/forms/use-form-draft";
 import { IDLE_STATE } from "@/lib/forms";
+import { dbsWarnings } from "@/lib/people/dbs-check";
+import DbsWarning from "@/components/people/dbs-warning";
 
 export default function CompleteTracker({
   schema,
   personId,
   formKey,
   draft,
+  startDate,
 }: {
   schema: FormSchema;
   personId: string;
   formKey: string;
+  /** The person's start date, for the DBS "are you sure" (DEF-059). */
+  startDate?: string | null;
   /** What this user had already typed into this form, read on the server. Omit the
    *  prop entirely to turn drafting off. */
   draft?: Answers | null;
@@ -56,8 +61,15 @@ export default function CompleteTracker({
     if (state.redirectTo) router.replace(state.redirectTo);
   }, [state.redirectTo, router]);
 
-  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+  // DBS dates that look typed wrong ask once before saving (DEF-059). Warn, never refuse.
+  const [warnings, setWarnings] = useState<string[]>([]);
+
+  function onSubmit(e: React.FormEvent<HTMLFormElement>, confirmed = false) {
     e.preventDefault();
+    submit(confirmed);
+  }
+
+  function submit(confirmed: boolean) {
     const result = validateAnswers(schema, answers);
     if (!result.ok) {
       setErrors(result.errors);
@@ -70,6 +82,18 @@ export default function CompleteTracker({
     }
     setErrors([]);
     setMissing(null);
+    if (formKey === "dbs_renewal" && !confirmed) {
+      const found = dbsWarnings({
+        certificateDate: typeof answers.dbs_date === "string" ? answers.dbs_date : null,
+        renewalDate: typeof answers.enhanced_dbs_date === "string" ? answers.enhanced_dbs_date : null,
+        startDate,
+      });
+      if (found.length > 0) {
+        setWarnings(found);
+        return;
+      }
+    }
+    setWarnings([]);
     setSubmitting(true);
     const fd = new FormData();
     fd.set("person_id", personId);
@@ -93,12 +117,14 @@ export default function CompleteTracker({
         errors={errors}
         onChange={(next) => {
           setAnswers(next);
+          setWarnings([]);
           drafting.record(next);
         }}
         onFileSelect={(key, file) => setFiles((prev) => ({ ...prev, [key]: file }))}
       />
       {missing ? <p className="form-error">{missing}</p> : null}
       {state.error ? <p className="form-error">{state.error}</p> : null}
+      <DbsWarning warnings={warnings} onConfirm={() => submit(true)} onBack={() => setWarnings([])} />
       <div className="flex items-center gap-3">
         <button type="submit" className="btn-primary" disabled={busy}>
           {busy ? "Saving…" : "Complete and save evidence"}
