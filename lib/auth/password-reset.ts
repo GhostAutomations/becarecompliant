@@ -72,7 +72,9 @@ export async function sendPasswordReset(opts: {
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (resetThrottled((last as { created_at?: string } | null)?.created_at, Date.now())) {
+  /* AN ADMIN IS NEVER HELD BACK (Phil, 2026-09-23). The wait exists so a stranger cannot use the
+     public form to fill somebody's inbox; an Admin in Settings is not a stranger. */
+  if (!opts.sentBy && resetThrottled((last as { created_at?: string } | null)?.created_at, Date.now())) {
     return { sent: false, reason: "throttled" };
   }
 

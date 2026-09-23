@@ -37,7 +37,8 @@ test("only a live account can be sent a reset", () => {
 test("one reset per account per throttle window", () => {
   const now = Date.parse("2026-09-23T10:00:00Z");
   assert.equal(resetThrottled(null, now), false);
-  assert.equal(resetThrottled("2026-09-23T09:55:00Z", now), true);
+  // A minute ago: still inside the two minute wait.
+  assert.equal(resetThrottled("2026-09-23T09:59:00Z", now), true);
   const edge = new Date(now - RESET_THROTTLE_MINUTES * 60_000).toISOString();
   assert.equal(resetThrottled(edge, now), false);
   assert.equal(resetThrottled("rubbish", now), false);
@@ -82,4 +83,9 @@ test("a reset link session is recognised, an ordinary one is not", () => {
   assert.equal(isRecoverySession([{ method: "password" }]), false);
   assert.equal(isRecoverySession([{ method: "invite" }]), false);
   assert.equal(isRecoverySession([]), false);
+});
+
+test("the public form waits two minutes, and says so on the screen", () => {
+  assert.equal(RESET_THROTTLE_MINUTES, 2);
+  assert.match(FORGOT_REPLY, /another link in 2 minutes/);
 });

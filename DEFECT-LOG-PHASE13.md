@@ -1710,3 +1710,22 @@ dashboard. Anybody who abandoned the reset form was simply in the app.
 
 **Also confirmed from the same data:** the Mac (07:42:29) and the iPhone (07:43:40) held a computer
 slot and a phone slot at the same time, so one computer plus one phone now holds (DEF-052).
+
+
+---
+
+## DEF-054 - The 10 minute wait between reset emails
+
+**Phil, 2026-09-23:** "i dont like the 10 minute wait", then "no wait for admins, 2 mins for
+everyone else but they need to be told that on the screen other wise they will keep checking email
+and requestiong more".
+
+**Changed.**
+
+- An Admin's "Send password reset" in Settings is never held back.
+- The public "Forgot your password?" form waits 2 minutes between emails to the same account (was
+  10), so it still cannot be used to fill somebody's inbox.
+- The screen says so. The answer now reads "It can take a minute or two to arrive, so check your
+  junk folder too. You can ask for another link in 2 minutes." with a live countdown, and "Send
+  another link" appears only when the wait is over. The same answer and countdown show whatever
+  address was typed, so the page still does not reveal who has an account.

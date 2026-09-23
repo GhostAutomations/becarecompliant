@@ -13,8 +13,13 @@
  * out everywhere else, because a reset is often because somebody else may know the old one.
  */
 
-/** One reset email per account per this many minutes, however many times the form is sent. */
-export const RESET_THROTTLE_MINUTES = 10;
+/**
+ * One reset email per account per this many minutes, from the PUBLIC form only (Phil, 2026-09-23:
+ * "no wait for admins, 2 mins for everyone else but they need to be told that on the screen other
+ * wise they will keep checking email and requesting more"). It was 10 minutes, which left somebody
+ * who had lost the first email stuck. An Admin pressing the button in Settings is never held back.
+ */
+export const RESET_THROTTLE_MINUTES = 2;
 
 /**
  * What the public form says, WHATEVER happened.
@@ -24,7 +29,7 @@ export const RESET_THROTTLE_MINUTES = 10;
  * care company, which is a list of names worth having for somebody running a phishing campaign.
  */
 export const FORGOT_REPLY =
-  "If that address has a Be Care Compliant account, a reset link is on its way. Check your inbox, and your junk folder. The link works once.";
+  "If that address has a Be Care Compliant account, a reset link is on its way. It can take a minute or two to arrive, so check your junk folder too. You can ask for another link in 2 minutes. The link works once.";
 
 /** Trim and lower case, the way every address is stored. */
 export function normaliseEmail(raw: string | null | undefined): string {
