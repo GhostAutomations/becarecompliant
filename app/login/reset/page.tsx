@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { RESET_EXPIRED_PATH, cameFromRecovery } from "@/lib/auth/password-reset-rules";
-import { decodeAmr } from "@/lib/auth/jwt";
+import { RESET_EXPIRED_PATH, amrFromAccessToken, cameFromRecovery } from "@/lib/auth/password-reset-rules";
 import { ResetForm } from "./reset-form";
 
 export const metadata: Metadata = { title: "Set a new password" };
@@ -25,7 +24,7 @@ export default async function ResetPage() {
   const {
     data: { session },
   } = await supabase.auth.getSession();
-  if (!session || !cameFromRecovery(decodeAmr(session.access_token), Date.now())) {
+  if (!session || !cameFromRecovery(amrFromAccessToken(session.access_token), Date.now())) {
     redirect(RESET_EXPIRED_PATH);
   }
 

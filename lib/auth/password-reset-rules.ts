@@ -96,3 +96,38 @@ export function cameFromRecovery(
       a.timestamp * 1000 <= nowMs + 60_000,
   );
 }
+
+/**
+ * How a session was signed in: the access token's amr claim, e.g. [{ method: "recovery", ... }].
+ *
+ * Decoded with atob, not Buffer, because the middleware runs on the edge where Buffer is not
+ * guaranteed. Only ever read after supabase.auth.getUser() (or the middleware's own getUser) has
+ * accepted the same token, which is what checks the signature.
+ */
+export function amrFromAccessToken(
+  accessToken: string | null | undefined,
+): Array<{ method: string; timestamp: number }> {
+  try {
+    const part = (accessToken ?? "").split(".")[1] ?? "";
+    const b64 = part.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(part.length / 4) * 4, "=");
+    const payload = JSON.parse(atob(b64)) as { amr?: Array<{ method?: unknown; timestamp?: unknown }> };
+    return (payload.amr ?? [])
+      .filter((a) => typeof a.method === "string" && typeof a.timestamp === "number")
+      .map((a) => ({ method: a.method as string, timestamp: a.timestamp as number }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Is this a session made by opening a reset link?
+ *
+ * SUCH A SESSION CAN DO ONE THING: set a new password (Phil, popup 2026-09-23). Opening a reset
+ * email used to sign the person fully in before they had chosen a password, so "Back to sign in"
+ * dropped him on the dashboard and anybody who abandoned the form was simply in the app. Now every
+ * app page sends a reset session back to the form, and saving the password ends it: they sign in
+ * fresh with the new one.
+ */
+export function isRecoverySession(amr: ReadonlyArray<{ method: string }>): boolean {
+  return amr.some((a) => a.method === "recovery");
+}

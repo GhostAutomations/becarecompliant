@@ -5,6 +5,8 @@ import {
   RESET_THROTTLE_MINUTES,
   canReceiveReset,
   cameFromRecovery,
+  amrFromAccessToken,
+  isRecoverySession,
   RECOVERY_WINDOW_MINUTES,
   looksLikeEmail,
   newPasswordProblem,
@@ -64,4 +66,20 @@ test("the new password form is only for a session that has just come from a rese
   // A reset link opened long ago does not stay a licence to change the password.
   const stale = new Date(now - (RECOVERY_WINDOW_MINUTES + 1) * 60_000).toISOString();
   assert.equal(cameFromRecovery([{ method: "recovery", timestamp: secs(stale) }], now), false);
+});
+
+test("the sign in method is read out of a real shaped token", () => {
+  const b64url = (o: unknown) =>
+    btoa(JSON.stringify(o)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const token = `${b64url({ alg: "HS256" })}.${b64url({ amr: [{ method: "recovery", timestamp: 1790000000 }], sub: "x" })}.sig`;
+  assert.deepEqual(amrFromAccessToken(token), [{ method: "recovery", timestamp: 1790000000 }]);
+  assert.deepEqual(amrFromAccessToken("not a token"), []);
+  assert.deepEqual(amrFromAccessToken(null), []);
+});
+
+test("a reset link session is recognised, an ordinary one is not", () => {
+  assert.equal(isRecoverySession([{ method: "recovery" }]), true);
+  assert.equal(isRecoverySession([{ method: "password" }]), false);
+  assert.equal(isRecoverySession([{ method: "invite" }]), false);
+  assert.equal(isRecoverySession([]), false);
 });

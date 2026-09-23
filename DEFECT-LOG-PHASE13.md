@@ -1684,3 +1684,29 @@ app has no scope.
 
 **Retest after deploy:** Mac and iPhone signed in as the same person; sign out on the iPhone, the
 Mac stays in. Then sign the iPhone back in: the Mac stays in.
+
+
+---
+
+## DEF-053 - Opening a reset email signed the person into the app before they set a password
+
+**Phil, 2026-09-23:** "when you do reset password, when you click back to sign in, it took me to
+the dash on the iphone". He had signed out first. The audit trail shows it: reset requested at
+07:43:20, the email link claimed a phone session at 07:43:40, no password was ever set. Tapping
+the link had signed him fully in, so "Back to sign in" found a signed in person and sent him to the
+dashboard. Anybody who abandoned the reset form was simply in the app.
+
+**Fixed, agreed by popup (the link only opens the reset form):**
+
+- A session made by a reset link can do one thing. requireUser sends it to /login/reset from every
+  app page, and the middleware shows the sign in page, not the dashboard, for "Back to sign in".
+- Saving the new password ends every session including the reset one, and lands on sign in with
+  "Your password has been changed, and you have been signed out everywhere." They sign in fresh,
+  which is also when a phone offers to save the new password.
+- Tapping a reset link no longer takes a session slot, so it cannot sign out the person's real
+  phone or computer before they have changed anything.
+- One edge safe token reader (atob, not Buffer) shared by the middleware, the guard, the page and
+  the action. Two tests.
+
+**Also confirmed from the same data:** the Mac (07:42:29) and the iPhone (07:43:40) held a computer
+slot and a phone slot at the same time, so one computer plus one phone now holds (DEF-052).

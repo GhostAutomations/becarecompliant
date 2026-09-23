@@ -4,14 +4,19 @@ import { redirect } from "next/navigation";
 import { cookies, headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { MANAGE_AS_COOKIE } from "@/lib/founder/manage-as";
-import { decodeAmr, decodeSessionId } from "@/lib/auth/jwt";
+import { decodeSessionId } from "@/lib/auth/jwt";
 import type { LoginState } from "@/lib/auth/types";
 import { afterSignIn } from "@/lib/auth/safe-next";
 import { deviceKindFrom } from "@/lib/auth/device-kind";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
 import { sendPasswordReset } from "@/lib/auth/password-reset";
-import { FORGOT_REPLY, cameFromRecovery, newPasswordProblem } from "@/lib/auth/password-reset-rules";
+import {
+  FORGOT_REPLY,
+  amrFromAccessToken,
+  cameFromRecovery,
+  newPasswordProblem,
+} from "@/lib/auth/password-reset-rules";
 import type { ActionState } from "@/lib/forms";
 
 export async function signIn(
@@ -116,7 +121,7 @@ export async function setNewPassword(
   const {
     data: { session: current },
   } = await supabase.auth.getSession();
-  if (!current || !cameFromRecovery(decodeAmr(current.access_token), Date.now())) {
+  if (!current || !cameFromRecovery(amrFromAccessToken(current.access_token), Date.now())) {
     return { error: "This reset has expired. Ask for a new link from the sign in page." };
   }
 
@@ -145,21 +150,9 @@ export async function setNewPassword(
   // 1. Supabase: revoke every other session's refresh token.
   await supabase.auth.signOut({ scope: "others" });
 
-  // 2. The app's own slots: keep only this session, so the other device fails its next check.
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const currentId = session ? decodeSessionId(session.access_token) : null;
-  if (currentId) {
-    await admin.from("user_sessions").delete().eq("user_id", user.id).neq("session_id", currentId);
-    await supabase.rpc("claim_session", {
-      p_session_id: currentId,
-      p_device_kind: deviceKindFrom((await headers()).get("user-agent")),
-    });
-  } else {
-    // No readable session id: clear every slot rather than leave another device holding one.
-    await admin.from("user_sessions").delete().eq("user_id", user.id);
-  }
+  // 2. The app's own slots: all of them. This session is about to end too (step 3), and an empty
+  //    slot table is fine: the next real sign in claims its slot as it always does.
+  await admin.from("user_sessions").delete().eq("user_id", user.id);
 
   await writeAudit({
     companyId: (profile.company_id as string | null) ?? null,
@@ -172,5 +165,11 @@ export async function setNewPassword(
     summary: "Set a new password from a reset link and signed out everywhere else",
   });
 
-  redirect("/dashboard");
+  /*
+   * 3. END THE RESET SESSION TOO (Phil, popup 2026-09-23). It came from an email link and was only
+   * ever allowed to reach this form. They sign in fresh with the new password, which is also the
+   * moment a phone or browser offers to save it.
+   */
+  await supabase.auth.signOut({ scope: "local" });
+  redirect("/login?reason=password-changed");
 }

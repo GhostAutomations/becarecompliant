@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { canUseModule, disabledKey } from "@/lib/auth/module-catalogue";
 import { moduleForPath, NO_ACCESS_PATH } from "@/lib/auth/module-paths";
+import { amrFromAccessToken, isRecoverySession } from "@/lib/auth/password-reset-rules";
 
 /**
  * Paths reachable without a session. Webhook paths MUST be added here
@@ -211,7 +212,13 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  if (user && pathname === "/login") {
+  /* A session made by a reset link is not a signed in person yet (Phil, popup 2026-09-23): "Back to
+     sign in" must show the sign in page, not bounce them into the dashboard it cannot reach. */
+  const resetOnly =
+    user && pathname === "/login"
+      ? isRecoverySession(amrFromAccessToken((await supabase.auth.getSession()).data.session?.access_token))
+      : false;
+  if (user && pathname === "/login" && !resetOnly) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     url.search = "";

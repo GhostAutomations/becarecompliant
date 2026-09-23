@@ -5,6 +5,11 @@ import { deviceKindFrom } from "@/lib/auth/device-kind";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { decodeSessionId } from "@/lib/auth/jwt";
+import {
+  RESET_FORM_PATH,
+  amrFromAccessToken,
+  isRecoverySession,
+} from "@/lib/auth/password-reset-rules";
 import { readActingCompanyId } from "@/lib/founder/manage-as";
 import { isCompanyLapsed, isCompanyLocked } from "@/lib/billing/trial-gate";
 
@@ -102,6 +107,12 @@ export async function requireUser(): Promise<User> {
   } = await supabase.auth.getSession();
 
   if (session) {
+    /* A SESSION MADE BY A RESET LINK CAN ONLY SET A PASSWORD (Phil, popup 2026-09-23). Every page
+       that asks for a user sends it back to the form, so nobody gets into the app from a reset
+       email without choosing a password. getUser above has already checked this token. */
+    if (isRecoverySession(amrFromAccessToken(session.access_token))) {
+      redirect(RESET_FORM_PATH);
+    }
     const currentSessionId = decodeSessionId(session.access_token);
     if (currentSessionId) {
       /*

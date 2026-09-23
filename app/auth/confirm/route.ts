@@ -47,7 +47,11 @@ export async function GET(request: NextRequest) {
      opened on a phone, and defaulting to the desktop slot would put them in the wrong one: the
      next sign-in from their computer would then evict the phone they had just set up. */
   const sessionId = decodeSessionId(data.session.access_token);
-  if (sessionId) {
+  /* A RESET LINK DOES NOT TAKE A SLOT (2026-09-23). Its session can only reach the new password
+     form, and claiming a slot here would sign out the person's real phone or computer the moment
+     they tapped the email, before they had changed anything. Saving the password ends every
+     session anyway, and the next real sign in claims its slot as normal. */
+  if (sessionId && type !== "recovery") {
     await supabase.rpc("claim_session", {
       p_session_id: sessionId,
       p_device_kind: deviceKindFrom(request.headers.get("user-agent")),
