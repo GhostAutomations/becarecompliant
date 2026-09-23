@@ -136,13 +136,22 @@ export async function createCompany(
     return { error: companyErr.message };
   }
 
-  // Seed the included Team (office) and first Branch.
+  // Seed the included Team (office) and first Branch. The office never shares an address with
+  // itself (0222); said here as well as by the trigger in 0322 (DEF-063).
   const { error: branchErr } = await supabase.from("branches").insert([
-    { company_id: company.id, name: `${name} Office`, kind: "team" },
+    { company_id: company.id, name: `${name} Office`, kind: "team", uses_office_address: false },
     { company_id: company.id, name: branchName, kind: "branch" },
   ]);
   if (branchErr) {
-    return { error: `Company created, but seeding branches failed: ${branchErr.message}` };
+    /* DEF-063: this used to return with the company row left behind, no branches, no forms and
+       no Admin, and the slug taken, so pressing Create again said "That slug is already taken".
+       Nothing else hangs off the company yet, so take it back out and let the founder retry. */
+    const { error: undoErr } = await supabase.from("companies").delete().eq("id", company.id);
+    return {
+      error: undoErr
+        ? `The company could not be set up (${branchErr.message}), and the half made company could not be removed: ${undoErr.message}. Delete it from Companies before trying again.`
+        : `The company could not be set up, so nothing was created: ${branchErr.message}`,
+    };
   }
 
   // Seed the founder-curated starter forms so the company has usable forms on

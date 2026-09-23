@@ -2000,3 +2000,37 @@ fix while there: Google's DMARC reports arrive as a subject and a zip with no te
 said "the content has not been collected yet" about a message that HAD been collected. It now says
 "The content was collected, so the sender sent only a subject and attachments", and the
 attachments line lost its dash.
+
+
+---
+
+## DEF-063 - No company could be created since early September
+
+**Found 2026-09-23** creating a test company for DEF-009. Create a company stopped with "Company
+created, but seeding branches failed: new row for relation "branches" violates check constraint
+"branches_office_address_share_check"".
+
+**Cause:** 0222 gave branches.uses_office_address a default of TRUE and a check that the office
+(kind team) can never share an address with itself. Both ways a company is made, the founder's
+Create a company and provision_company (trial provisioning), insert the office row without
+naming that column, so it took TRUE and broke the check. Every company creation since 0222 would
+have failed. None was attempted: the last company before today was made in August.
+
+**And it failed badly:** the action returned with the company row left behind, with no branches,
+forms, checks or Admin, and its slug taken, so trying again said the slug was in use.
+
+**Fixed:**
+
+- Migration 0322: a trigger sets uses_office_address to false on any office row inserted (or
+  turned into an office), so every path gets it right, including ones added later. Proven in a
+  rolled back insert: office false, branch true.
+- The founder's action names the column for the office row as well, and if seeding branches ever
+  fails again it removes the half made company and says nothing was created, so the founder can
+  simply try again.
+- Proven live: ZZ Test Three created with its office, first branch, 26 forms, 6 People checks, 3
+  Service User checks and 33 training courses. ZZ Test Two, the half made one from the failure,
+  was deleted and erased through the founder console.
+
+**Not provable live:** the clean up branch of the action, because the cause is fixed and the
+failure cannot be made to happen now. Traced: it runs only on a branch insert error, deletes by
+the id it has just created (companies_delete allows the founder), and reports either outcome.

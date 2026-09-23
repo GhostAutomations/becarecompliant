@@ -190,7 +190,9 @@ in the same piece of work (Phil: "we are passed final testing so it needs to be 
 |---|---|---|
 | E1 | Unit tests: one account per email (4), manage as rules (2) | PASS |
 | E2 | DEF-018: every received message since 05/09 has its content, none has body_error (database) | PASS |
-| E3 | Founder inbox: the Google DMARC report of 23/09 says the content was collected, subject and attachments only | |
-| E4 | DEF-009: founder creates a test company whose Admin is an address Bevan holds (ppdavies+dbswarn): refused with the one account message, Bevan's invite untouched | |
-| E5 | DEF-013: founder manages as the test company, deletes it: back on the founder console, no ghost banner | |
-| E6 | DEF-013: purge the test company; Manage as on a deleted company is refused | |
+| E3 | Founder inbox: the Google DMARC report of 23/09 says the content was collected, subject and attachments only | PASS ("No text on this message. The content was collected, so the sender sent only a subject and attachments." and "1 attachment, not downloaded.") |
+| E4 | DEF-009: founder creates a test company whose Admin is an address Bevan holds (ppdavies+dbswarn): refused with the one account message, Bevan's invite untouched | PASS (ZZ Test Three created; "The Admin invite could not be sent: That email address already has an account with another company..."; the account still belongs to Bevan, no invite on ZZ Test Three) |
+| E5 | DEF-013: founder manages as the test company, deletes it: back on the founder console, no ghost banner | PASS (banner "Managing as ZZ Test Three" before; after Delete no banner, and /dashboard went to the Founder console) |
+| E6 | DEF-013: purge the test company; Manage as on a deleted company is refused | PASS ("This company has been deleted, so it cannot be managed. Restore it first."; ZZ Test Three and ZZ Test Two then erased with Purge now, none left) |
+| E7 | DEF-063: Create a company works again (office, first branch, forms, checks, courses) | PASS (ZZ Test Three) |
+| E8 | DEF-063: office rows are inserted with uses_office_address false, branches true (rolled back insert) | PASS |
