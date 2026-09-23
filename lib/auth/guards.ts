@@ -123,7 +123,11 @@ export async function requireUser(): Promise<User> {
       const stillMine = held.some((s) => s.session_id === currentSessionId);
 
       if (held.length > 0 && !stillMine) {
-        await supabase.auth.signOut();
+        /* LOCAL, and this one matters most. The session being turned away here is the one that
+           was DISPLACED. Signing it out globally ended every session the person had, including the
+           new one that displaced it and their other kind of device: sign in on a second phone and
+           the old phone's next click signed out the new phone and the computer as well. */
+        await supabase.auth.signOut({ scope: "local" });
         redirect(await signInHere("signed-out-elsewhere"));
       }
 
@@ -154,7 +158,8 @@ export async function requireProfile(): Promise<{
     .maybeSingle();
 
   if (!profile || profile.status === "disabled") {
-    await supabase.auth.signOut();
+    // GLOBAL on purpose: a switched off login is ended on every device it holds.
+    await supabase.auth.signOut({ scope: "global" });
     redirect("/login?reason=no-access");
   }
 

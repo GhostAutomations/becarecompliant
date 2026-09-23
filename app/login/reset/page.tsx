@@ -37,7 +37,7 @@ export default async function ResetPage() {
   // Somebody whose invitation is still open sets their first password on Welcome, not here.
   if (profile?.status === "invited") redirect("/welcome");
   if (profile?.status !== "active") {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: "local" });
     redirect("/login?reason=no-access");
   }
 

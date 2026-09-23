@@ -49,7 +49,8 @@ export async function signIn(
       p_device_kind: deviceKindFrom((await headers()).get("user-agent")),
     });
     if (claimError) {
-      await supabase.auth.signOut();
+      // Only the session this sign in just made. Their other device did nothing wrong.
+      await supabase.auth.signOut({ scope: "local" });
       return { error: "Could not start your session. Please try again." };
     }
   }

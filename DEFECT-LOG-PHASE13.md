@@ -1658,3 +1658,29 @@ page lands on "That reset link has expired" with a box to ask for a new one. One
 **Must be proved live:** a real reset from an email still reaches the form and saves. If the amr
 method were not "recovery", every genuine reset would be refused, so this is tested straight after
 deploy, not assumed.
+
+
+---
+
+## DEF-052 - Signing out on one device signed the person out of both
+
+**Phil, 2026-09-23:** "i signed in on mac, then on iphone, signed out of iphone and both mac and
+iphone signed out". He had seen it earlier in the night too.
+
+**Cause.** Supabase's auth.signOut() with no argument uses scope "global": it ends every session
+the person has. Harmless while BCC allowed one session; since 0273 (2026-09-15) allowed one computer
+and one phone, it quietly undid that decision in two places:
+
+- **The Sign out button** ended the person's other device too.
+- **Eviction** was worse. The session turned away for being displaced signed out GLOBALLY, so a
+  second phone signing in made the old phone's next click end the new phone AND the computer.
+
+**Fixed.** The Sign out button, eviction, a failed session claim and the reset page's turn away
+all end only their own session (scope "local"). A switched off login is still ended everywhere,
+now explicitly (scope "global"). The new password keeps "others".
+
+**Cannot come back:** lib/auth/signout-scope.test.ts fails npm test if any auth.signOut() in the
+app has no scope.
+
+**Retest after deploy:** Mac and iPhone signed in as the same person; sign out on the iPhone, the
+Mac stays in. Then sign the iPhone back in: the Mac stays in.
