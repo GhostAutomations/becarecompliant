@@ -166,3 +166,20 @@ in the same piece of work (Phil: "we are passed final testing so it needs to be 
 | U5 | Add a new starter on Bevan: Audit due start date plus 3 months | PASS (ZZ TEST Audit Starter, start 23/09/2026, Audit 23/12/2026, Spot Check 23/10/2026, logins held) |
 | U6 | Readiness page on Thistle shows the waiting line (Bevan has no readiness mapping, so Phil checked it on Thistle) | PASS (Phil's screenshot: "8 checks are waiting on an earlier check ... 5 appraisals, 1 supervision waiting for an appraisal, 2 waiting for probation"; no "no due date" line) |
 | U7 | Phil saved Thistle's Audit card: still every 3 months, Damilola's Audit now due 16/12/2026; Thistle roll-up 0 no due date, 8 waiting, 106 scored | PASS (database checked) |
+
+## Item 11, DEF-014 and DEF-015 proven live, 2026-09-23
+
+| # | Check | Result |
+|---|---|---|
+| I1 | Thistle invite form (looked at only): Responsible Individual shows "All branches, this role sees and manages every branch", no picker | PASS |
+| I2 | Thistle invite form: Registered Manager, Branch Manager, Supervisor, Recruiter, On Call, Viewer each open on "Choose a branch" with All branches offered, not preselected | PASS |
+| I3 | Thistle Add a person, every branch: Line manager lists Charlotte Davies (RM) and Phil Davies (Admin) only; RI, Supervisors and Recruiter not offered | PASS |
+| I4 | Thistle record Edit form (Janet Oladunni, not saved): the same two | PASS |
+| I5 | Bevan: Branch Manager on All branches gets both active branches, Swansea primary | PASS |
+| I6 | Bevan: Registered Manager on All branches and Responsible Individual get no branch rows | PASS |
+| I7 | Bevan: Supervisor on Swansea gets Swansea, primary | PASS |
+| I8 | Bevan seat notice, 1 active and 4 invited on 4 included: 1 extra user, £5.00 a month, billing not set up so nothing charged | PASS |
+| I9 | Bevan dashboard (Business, no billing): "Billing is not set up for this account yet."; Thistle (Black): no bar | PASS |
+| I10 | Settings, Branches states £7.50 per branch per month; no "later phase" copy | PASS |
+| I11 | All four test invites held (no email sent) and revoked from Pending invites; profiles disabled | PASS |
+| I12 | DEF-062: no dashes in the seat notice or any trial message (unit tests) | PASS |

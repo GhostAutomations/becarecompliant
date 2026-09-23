@@ -54,7 +54,7 @@ test("a trial covers one branch and refuses a second, naming the way out", () =>
   const refusal = trialBranchRefusal({ onTrial: true, branchCount: 1 });
   assert.match(String(refusal), /covers 1 branch/);
   assert.match(String(refusal), /Add a card/);
-  assert.match(String(refusal), /nothing already recorded is affected/);
+  assert.match(String(refusal), /Nothing already recorded is affected/);
 });
 
 test("the trial notice says it is a trial, what it covers, and that a card is needed", () => {
@@ -68,6 +68,16 @@ test("the trial notice says it is a trial, what it covers, and that a card is ne
 test("one day left reads as a day, and an ended trial says nothing is deleted", () => {
   assert.match(trialNotice(1), /1 day left/);
   assert.match(trialNotice(0), /has ended/);
-  assert.match(trialNotice(0), /nothing has been deleted/);
+  assert.match(trialNotice(0), /Nothing has been deleted/);
   assert.equal(trialNotice(null), "");
+});
+
+test("no dashes in any trial message (customer copy rule)", () => {
+  const msgs = [
+    trialInviteRefusal({ onTrial: true, activeBillable: 3, pendingBillable: 0 }),
+    trialBranchRefusal({ onTrial: true, branchCount: 1 }),
+    trialNotice(0),
+    trialNotice(5),
+  ];
+  for (const m of msgs) assert.ok(m && !/[–—]/.test(m), String(m));
 });

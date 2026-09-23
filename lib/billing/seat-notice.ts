@@ -82,7 +82,7 @@ export function seatNotice(input: SeatNoticeInput): SeatNotice {
       costWhenAcceptedPence,
       message:
         `Your plan includes ${included} users. With ${active} active and ${pending} invited, ` +
-        `you will be paying for ${seats} — ${money} a month — once everyone has accepted.`,
+        `you will be paying for ${seats}, ${money} a month, once everyone has accepted.`,
     };
   }
 

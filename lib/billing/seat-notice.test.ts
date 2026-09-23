@@ -32,7 +32,8 @@ test("THE THISTLE CASE: 1 active, 6 invited, 4 included, no subscription", () =>
 
 test("with billing live, a pending invite is described as what it WILL cost", () => {
   const n = seatNotice({ ...base, activeUsers: 4, pendingInvites: 1 });
-  assert.match(n.message, /1 extra user — £5\.00 a month — once everyone has accepted/);
+  assert.match(n.message, /1 extra user, £5\.00 a month, once everyone has accepted/);
+  assert.ok(!/[\u2013\u2014]/.test(n.message), "no dashes in customer copy");
 });
 
 test("with billing live and nobody pending, it states what is being paid now", () => {

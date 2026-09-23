@@ -472,7 +472,7 @@ into a ghost tenant. **Not fixed** — logged.
 
 ---
 
-## DEF-014 — The invite form forced a branch on roles that run every branch, and the two Line manager lists disagreed  ·  FIXED (not yet proven)
+## DEF-014 — The invite form forced a branch on roles that run every branch, and the two Line manager lists disagreed  ·  FIXED, proven live 2026-09-23 (item 11)
 
 **Raised by Phil 2026-08-19** while inviting Thistle's office team: *"for a registered manager some
 companies will have them run all branches, and for responsible individual they are kind of a
@@ -543,7 +543,7 @@ Planner, authors the Reg 73 visit report.
 
 ---
 
-## DEF-015 — A company can run over its allowance, with no subscription, and nothing ever says so  ·  FIXED (not yet proven)
+## DEF-015 — A company can run over its allowance, with no subscription, and nothing ever says so  ·  FIXED, proven live 2026-09-23 (item 11)
 
 **Found by Phil 2026-08-20**, doing the real thing: *"i have added 6 office team members and with
 myself as admin, that is 7, so far i have not setup the subscription or had any challenge about
@@ -1935,3 +1935,37 @@ are still every 3 months.
 **Fixed:** the card says the unit the check is stored in ("Every (months)") and sends that unit
 back, and the server keeps it (lib/people/interval-unit.ts, tested). The buffer note under the
 reporting deadline, which compares days with days, only shows for checks counted in days.
+
+
+---
+
+## Item 11 - DEF-014 and DEF-015 proven live, 2026-09-23
+
+Looked at on Thistle without saving anything, and written on Bevan (tests I1 to I10 in the
+checklist). Everything both defects promised is there:
+
+- Invite form: the Responsible Individual gets a flat "All branches" with no picker; every other
+  role gets a picker that opens on "Choose a branch" and offers All branches.
+- Line manager, on Add a person and on a record's Edit form, offers the same people: Thistle's
+  Company Admin and Registered Manager. The Responsible Individual, the four Supervisors and the
+  Recruiter are not offered.
+- On Bevan: a Branch Manager on All branches got a row for both active branches, Swansea primary
+  over the office; a Registered Manager on All branches and a Responsible Individual got none; a
+  Supervisor on Swansea got Swansea. All four invites were held (no email) and then revoked.
+- Seat notice with 1 active and 4 invited on a 4 user plan: "that is 1 extra user once everyone
+  accepts, and £5.00 a month. Billing is not set up yet, so nothing is being charged."
+- Dashboard bar on Bevan (Business, no billing): "Billing is not set up for this account yet."
+  Not shown on Thistle, which is now Black. Settings, Branches states £7.50 per branch per month.
+
+**Seen while proving it:** 12 of Thistle's 13 active carers have no line manager on their record
+(only one points at the Registered Manager). Not a defect in the form, a gap in the data.
+
+---
+
+## DEF-062 - Dashes in billing and trial messages a customer reads
+
+**Found 2026-09-23** proving DEF-015. The seat notice for a subscribed company read "you will be
+paying for 1 extra user — £5.00 a month — once everyone has accepted", and all four trial messages
+(invite limit, branch limit, the running banner and the ended banner) used dashes too. Customer
+copy carries no dashes. **Fixed:** commas and full stops instead, with a test on each file that
+fails if a dash comes back.

@@ -50,7 +50,7 @@ export function trialInviteRefusal(input: TrialLimitInput): string | null {
   if (taken < allowed) return null;
   return (
     `A trial includes you and ${TRIAL_INVITES} colleagues, and you have used all ${allowed}. ` +
-    `Add a card to invite the rest of your team — everything you have set up so far stays exactly as it is.`
+    `Add a card to invite the rest of your team. Everything you have set up so far stays exactly as it is.`
   );
 }
 
@@ -59,8 +59,8 @@ export function trialBranchRefusal(input: { onTrial: boolean; branchCount: numbe
   if (!input.onTrial) return null;
   if (input.branchCount < TRIAL_BRANCHES) return null;
   return (
-    `A trial covers ${TRIAL_BRANCHES} branch. Add a card to run more than one — ` +
-    `nothing already recorded is affected.`
+    `A trial covers ${TRIAL_BRANCHES} branch. Add a card to run more than one. ` +
+    `Nothing already recorded is affected.`
   );
 }
 
@@ -75,12 +75,12 @@ export function trialBranchRefusal(input: { onTrial: boolean; branchCount: numbe
 export function trialNotice(daysLeft: number | null): string {
   if (daysLeft === null) return "";
   if (daysLeft <= 0) {
-    return "Your trial has ended. Add a card to carry on — nothing has been deleted.";
+    return "Your trial has ended. Add a card to carry on. Nothing has been deleted.";
   }
   const days = `${daysLeft} ${daysLeft === 1 ? "day" : "days"}`;
   return (
     `You are on a free trial with ${days} left. It covers ${TRIAL_BRANCHES} branch and ` +
-    `${TRIAL_INVITES} colleagues besides you. Payment details are needed to carry on afterwards ` +
-    `— nothing is charged until you add them.`
+    `${TRIAL_INVITES} colleagues besides you. Payment details are needed to carry on afterwards, ` +
+    `and nothing is charged until you add them.`
   );
 }
