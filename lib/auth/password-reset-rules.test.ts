@@ -4,6 +4,8 @@ import {
   FORGOT_REPLY,
   RESET_THROTTLE_MINUTES,
   canReceiveReset,
+  cameFromRecovery,
+  RECOVERY_WINDOW_MINUTES,
   looksLikeEmail,
   newPasswordProblem,
   normaliseEmail,
@@ -49,4 +51,17 @@ test("the public reply gives nothing away and has no dashes", () => {
   // One sentence for every outcome, so the form cannot be used to find out who has an account.
   assert.ok(!/not found|no account|disabled|too many/i.test(FORGOT_REPLY));
   assert.ok(!/[–—]/.test(FORGOT_REPLY));
+});
+
+test("the new password form is only for a session that has just come from a reset link", () => {
+  const now = Date.parse("2026-09-23T01:00:00Z");
+  const secs = (iso: string) => Math.floor(Date.parse(iso) / 1000);
+  // Just opened the link.
+  assert.equal(cameFromRecovery([{ method: "recovery", timestamp: secs("2026-09-23T00:58:00Z") }], now), true);
+  // An ordinary sign in: somebody at an unlocked computer must not be able to take the account over.
+  assert.equal(cameFromRecovery([{ method: "password", timestamp: secs("2026-09-23T00:59:00Z") }], now), false);
+  assert.equal(cameFromRecovery([], now), false);
+  // A reset link opened long ago does not stay a licence to change the password.
+  const stale = new Date(now - (RECOVERY_WINDOW_MINUTES + 1) * 60_000).toISOString();
+  assert.equal(cameFromRecovery([{ method: "recovery", timestamp: secs(stale) }], now), false);
 });

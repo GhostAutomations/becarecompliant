@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { RESET_EXPIRED_PATH } from "@/lib/auth/password-reset-rules";
+import { RESET_EXPIRED_PATH, cameFromRecovery } from "@/lib/auth/password-reset-rules";
+import { decodeAmr } from "@/lib/auth/jwt";
 import { ResetForm } from "./reset-form";
 
 export const metadata: Metadata = { title: "Set a new password" };
@@ -17,6 +18,16 @@ export default async function ResetPage() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect(RESET_EXPIRED_PATH);
+
+  /* ONLY STRAIGHT FROM A RESET LINK. Signed in the ordinary way, this page would let anybody at an
+     unlocked computer change the password without knowing it. getUser above checked this token;
+     here we read how it was signed in. */
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session || !cameFromRecovery(decodeAmr(session.access_token), Date.now())) {
+    redirect(RESET_EXPIRED_PATH);
+  }
 
   const { data: profile } = await supabase
     .from("profiles")

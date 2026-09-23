@@ -1639,3 +1639,22 @@ Rules in lib/auth/password-reset-rules.ts, six tests.
 
 The in date, due soon and expired counts across the top of the Training matrix used the same pale
 -soft tints DEF-044 took off the carer cards. Now the register's colours.
+
+
+---
+
+## DEF-051 - The new password page worked for any signed in session
+
+**Found reading the logs while checking the reset test, 2026-09-23.** /login/reset only asked
+"is somebody signed in?". So anybody at an unlocked, signed in computer could open it, set a new
+password without knowing the old one, and (by DEF-049's own design) sign the real owner out
+everywhere. A takeover in two clicks, caught before it reached a customer.
+
+**Fixed.** The page and the action both require the session to have come from a reset link in
+the last 15 minutes: Supabase records that in the token's amr claim as method "recovery" with a
+timestamp, read only after getUser has checked the same token. An ordinary session sent to the
+page lands on "That reset link has expired" with a box to ask for a new one. One test.
+
+**Must be proved live:** a real reset from an email still reaches the form and saves. If the amr
+method were not "recovery", every genuine reset would be refused, so this is tested straight after
+deploy, not assumed.

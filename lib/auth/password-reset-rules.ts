@@ -72,3 +72,27 @@ export const RESET_EXPIRED_PATH = "/login/forgot?reason=expired";
 
 /** Where the reset link sends somebody once the token is accepted. */
 export const RESET_FORM_PATH = "/login/reset";
+
+/** How long after opening a reset link the new password form stays usable. */
+export const RECOVERY_WINDOW_MINUTES = 15;
+
+/**
+ * Did THIS session come from a reset link, recently?
+ *
+ * FOUND IN TESTING, 2026-09-23. /login/reset worked for anybody already signed in, whatever way
+ * they had signed in. So anybody at an unlocked, signed in computer could open it, set a new
+ * password without knowing the old one, and sign the real owner out everywhere: a takeover in two
+ * clicks. The form is only for somebody who has just proved they own the inbox, which the session
+ * records as an amr entry with method "recovery" and the time it happened.
+ */
+export function cameFromRecovery(
+  amr: ReadonlyArray<{ method: string; timestamp: number }>,
+  nowMs: number,
+): boolean {
+  return amr.some(
+    (a) =>
+      a.method === "recovery" &&
+      nowMs - a.timestamp * 1000 <= RECOVERY_WINDOW_MINUTES * 60_000 &&
+      a.timestamp * 1000 <= nowMs + 60_000,
+  );
+}

@@ -4,14 +4,14 @@ import { redirect } from "next/navigation";
 import { cookies, headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { MANAGE_AS_COOKIE } from "@/lib/founder/manage-as";
-import { decodeSessionId } from "@/lib/auth/jwt";
+import { decodeAmr, decodeSessionId } from "@/lib/auth/jwt";
 import type { LoginState } from "@/lib/auth/types";
 import { afterSignIn } from "@/lib/auth/safe-next";
 import { deviceKindFrom } from "@/lib/auth/device-kind";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
 import { sendPasswordReset } from "@/lib/auth/password-reset";
-import { FORGOT_REPLY, newPasswordProblem } from "@/lib/auth/password-reset-rules";
+import { FORGOT_REPLY, cameFromRecovery, newPasswordProblem } from "@/lib/auth/password-reset-rules";
 import type { ActionState } from "@/lib/forms";
 
 export async function signIn(
@@ -109,6 +109,15 @@ export async function setNewPassword(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "Your reset link has expired. Ask for a new one from the sign in page." };
+
+  /* The same test as the page, because a form post does not have to come from the page: only a
+     session that has just come from a reset link may set a password without the old one. */
+  const {
+    data: { session: current },
+  } = await supabase.auth.getSession();
+  if (!current || !cameFromRecovery(decodeAmr(current.access_token), Date.now())) {
+    return { error: "This reset has expired. Ask for a new link from the sign in page." };
+  }
 
   const problem = newPasswordProblem(
     String(formData.get("password") ?? ""),
