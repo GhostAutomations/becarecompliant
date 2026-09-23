@@ -161,7 +161,7 @@ in the same piece of work (Phil: "we are passed final testing so it needs to be 
 |---|---|---|
 | U1 | Readiness roll-up on Thistle (database, read only): 1 no due date, 5 waiting for Supervision 3, 1 for an appraisal, 2 for probation, 105 scored as before | PASS |
 | U2 | Unit tests: waiting sentence (4), dated from start (2), interval unit (3) | PASS |
-| U3 | Settings, People, Audit card on Bevan reads "Every (months)" 3; Save keeps it every 3 months | |
-| U4 | That Save dates ZZ TEST DBS Warn's never done Audit from their start date (01/01/2025 to 01/04/2025) | |
-| U5 | Add a new starter on Bevan: Audit due start date plus 3 months | |
-| U6 | Readiness page on Thistle shows 1 no due date and the waiting line | |
+| U3 | Settings, People, Audit card on Bevan reads "Every (months)" 3; Save keeps it every 3 months | PASS (still month / 3 after Save) |
+| U4 | That Save dates ZZ TEST DBS Warn's never done Audit from their start date (01/01/2025 to 01/04/2025) | PASS |
+| U5 | Add a new starter on Bevan: Audit due start date plus 3 months | PASS (ZZ TEST Audit Starter, start 23/09/2026, Audit 23/12/2026, Spot Check 23/10/2026, logins held) |
+| U6 | Readiness page on Thistle shows 1 no due date and the waiting line (Bevan has no readiness mapping, so this needs Phil signed in on Thistle) | |
