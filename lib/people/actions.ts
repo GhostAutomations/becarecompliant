@@ -11,7 +11,6 @@
  * never advances a check twice.
  */
 
-import { retestDue, withRetest } from "@/lib/forms/retest";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireCompany, requireCompanyAdmin } from "@/lib/auth/guards";
@@ -33,9 +32,7 @@ import { listPeopleCheckDefinitions, getPublishedFormVersion, getCompanyFormByKe
 import {
   dueAfterCompletion,
   initialDueDate,
-  nextDueAfterCompletion,
   todayIso,
-  addDaysIso,
   probationEndDue,
   TRACKER_FORMS,
   REGISTER_COLUMNS,
@@ -45,7 +42,6 @@ import {
   probationFrom,
   probationLabel,
 } from "@/lib/people/probation";
-import { parseCivilDate } from "@/lib/recurrence";
 import {
   HISTORY_FLAG,
   historyBoxes,
@@ -53,6 +49,7 @@ import {
   trackerPatch,
 } from "@/lib/people/history-boxes";
 import { seedPersonHistory } from "@/lib/people/history";
+import { advancePersonCheck } from "@/lib/people/advance-check";
 import {
   deleteRefusalReason,
   nameConfirmed,
@@ -1445,44 +1442,27 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
     };
   }
 
-  // 3. Advance the Check: next due computed by the shared recurrence engine. For an
-  // "after Supervision 3" appraisal, the interval comes from the Supervision box.
-  const { data: supDef } = await supabase
-    .from("check_definitions")
-    .select("interval")
-    .eq("company_id", instance.company_id as string)
-    .eq("population", "people")
-    .eq("key", "supervision")
-    .maybeSingle();
-  const supInterval = (supDef?.interval as number | null) ?? 90;
-  // Completion date = the activity date captured on the form (the first date field,
-  // e.g. Date of supervision / assessment / training) when present, else today. It
-  // stamps last_completed and anchors the next due date, so a back-dated completion
-  // schedules the next one correctly. Applies to every check, not just supervision.
+  // 3. Advance the Check. The completion date is the activity date captured on the form
+  // (the marked or first date field, e.g. Date of supervision) when present, else today.
+  // It stamps last_completed and anchors the next due date, so a back-dated completion
+  // schedules the next one correctly. The scheduling itself is shared with the paper
+  // upload (lib/people/advance-check.ts), so the two can never schedule differently.
   const dateKey = isFormSchema(version.schema) ? firstDateFieldKey(version.schema as FormSchema) : null;
   const dateAnswer = dateKey ? answers[dateKey] : undefined;
   const completedOnIso =
     typeof dateAnswer === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateAnswer) ? dateAnswer : todayIso();
-  const advanced = nextDueAfterCompletion(def, answers, supInterval, parseCivilDate(completedOnIso));
-  /* A FAILED SPOT CHECK IS DUE AGAIN IN A WEEK (Phil, 2026-09-19): the form says so on the
-     question (retestWithin), and the sooner date wins. */
-  const nextDue = withRetest(
-    advanced.nextDue,
-    isFormSchema(version.schema) ? retestDue(version.schema as FormSchema, answers, completedOnIso) : null,
-  );
-  const expiry = advanced.expiry;
-  const { error: advanceErr } = await supabase.rpc("complete_check", {
-    p_instance_id: instanceId,
-    p_completed_on: completedOnIso,
-    p_evidence_id: result.evidenceId,
-    p_next_due: nextDue,
-    p_expiry_date: expiry,
+  const advanced = await advancePersonCheck({
+    supabase,
+    instanceId,
+    personId: instance.person_id as string,
+    companyId: instance.company_id as string,
+    def,
+    schema: isFormSchema(version.schema) ? (version.schema as FormSchema) : null,
+    answers,
+    completedOnIso,
+    evidenceId: result.evidenceId,
   });
-  if (advanceErr) {
-    return {
-      error: `Evidence was saved, but the check could not be advanced: ${advanceErr.message}`,
-    };
-  }
+  if (!advanced.ok) return { error: advanced.error };
 
   // The work was booked; it has now been done. Turn the planner task green rather than
   // leaving a month of appointments on the whiteboard that all already happened.
@@ -1497,45 +1477,8 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
     entityType: "check_instance",
     entityId: instanceId,
     summary: `Completed ${def.name}`,
-    metadata: { evidence_id: result.evidenceId, next_due: nextDue, definition_id: def.id },
+    metadata: { evidence_id: result.evidenceId, next_due: advanced.nextDue, definition_id: def.id },
   });
-
-  // Completing an Annual Appraisal restarts the supervision cycle: re-anchor the
-  // supervision check so its RAG reflects the new cycle (Sup 1 due = appraisal
-  // completion + supervision interval, none completed yet). The display slots use
-  // the same anchor (supervisionCycleAnchor), so screen and RAG stay in step.
-  if (def.key === "appraisal") {
-    const supDue = addDaysIso(completedOnIso, supInterval);
-    if (supDue) {
-      await supabase.rpc("reanchor_supervision_cycle", {
-        p_person_id: instance.person_id as string,
-        p_due_date: supDue,
-      });
-    }
-  }
-
-  // Completing Supervision 3 schedules an "After Supervision 3" appraisal: due one
-  // supervision interval after the Sup 3 completion, keeping the cycle on cadence.
-  if (def.key === "supervision" && String(answers.supervision_type ?? "") === "3") {
-    const { data: apprDef } = await supabase
-      .from("check_definitions")
-      .select("schedule_mode")
-      .eq("company_id", instance.company_id as string)
-      .eq("population", "people")
-      .eq("key", "appraisal")
-      .eq("active", true)
-      .maybeSingle();
-    if ((apprDef?.schedule_mode as string | null) === "after_sup3") {
-      const apprDue = addDaysIso(completedOnIso, supInterval);
-      if (apprDue) {
-        await supabase.rpc("set_person_check_due", {
-          p_person_id: instance.person_id as string,
-          p_check_key: "appraisal",
-          p_due_date: apprDue,
-        });
-      }
-    }
-  }
 
   // The Check is filed: the part-finished copy has done its job. Discarded HERE, on
   // success, and not when the form was submitted -- a submit that comes back with an

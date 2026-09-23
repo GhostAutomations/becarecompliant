@@ -60,6 +60,9 @@ export type EvidencePdfMeta = {
   authorName?: string | null;
   authorEmail?: string | null;
   submittedAt: Date;
+  /** Set when this Evidence is the uploaded scan of a Check completed on paper (DEF-056). The
+   *  person and time on it are then the UPLOAD, and are labelled so. */
+  paperCompletedOn?: string | null;
   /** Short evidence id shown as a reference on the document. */
   evidenceRef: string;
 };
@@ -192,11 +195,11 @@ export function EvidenceEntry({
           <Text style={styles.metaValue}>{meta.branchName || "Not set"}</Text>
         </View>
         <View style={styles.metaCell}>
-          <Text style={styles.metaLabel}>Completed by</Text>
+          <Text style={styles.metaLabel}>{meta.paperCompletedOn ? "Uploaded by" : "Completed by"}</Text>
           <Text style={styles.metaValue}>{author}</Text>
         </View>
         <View style={styles.metaCell}>
-          <Text style={styles.metaLabel}>Completed at (Europe/London)</Text>
+          <Text style={styles.metaLabel}>{meta.paperCompletedOn ? "Uploaded at (Europe/London)" : "Completed at (Europe/London)"}</Text>
           <Text style={styles.metaValue}>{formatWhen(meta.submittedAt)}</Text>
         </View>
         <View style={styles.metaCell}>

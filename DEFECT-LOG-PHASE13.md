@@ -1749,3 +1749,40 @@ with "Person, Swansea" under it, and "Overdue" with the date under that.
   Service Users"), instead of under every name.
 - Sections "Overdue" and "Due soon", sorted branch, then People before Service Users, then oldest
   date first.
+
+
+---
+
+## DEF-056 - No way to put a Check done on paper, or an existing record's past history, into the app
+
+**Phil, 2026-09-23** (item 4, back-fill history on an existing record): "lets create an upload
+button where evidence can be uploaded, this will be handy if anything ever has to be completed on
+paper and can be uploaded as evidence", then "it should only be active for admin".
+
+**Agreed by popup:** on the Complete page; dated the day it was done on paper (may be past); the
+newest completion moves the due date, an older one goes into the history and moves nothing; a file
+is required; People and Service Users.
+
+**Built.**
+
+- Complete page, Admins only: a slim bar "Done on paper? Upload it instead". It swaps the Form for
+  the date it was done, which supervision (or Health Check week) where that matters, and the pages
+  (PDF or photos, up to 10, 20 MB each).
+- Pages go from the browser straight into the private evidence bucket on single use signed upload
+  links (a request to the app stops at 4.5 MB, a phone photo can be more). The server reads each
+  page back, records its real size and fingerprint, and files the Evidence through
+  submit_paper_evidence (migration 0318), which refuses anybody who is not a Company Admin,
+  archived records, leavers, the Setup Visit, future dates and pages from outside the upload.
+- The Check moves on through the SAME scheduling code as a Form completed on screen: the
+  People and Service User scheduling was lifted out of completeCheck into
+  lib/people/advance-check.ts and lib/service-users/advance-check.ts and both doors call it.
+- The paper date is the completion date everywhere: the matrix slots, Last completed, the
+  Evidence list on the record (with a "Paper copy" pill, newest first by that date), the on time
+  figures in the PQS and reporting exports, and the Evidence screen and PDF ("Completed on paper
+  on ...", "Uploaded by", "Uploaded at").
+- Pages uploaded and never filed (tab closed half way) are removed by the nightly retention run a
+  day later.
+
+**Not carried by a paper copy, by design:** satisfaction answers (a paper review adds nothing to
+the satisfaction score rather than a zero), and the Setup Visit (its answers are the care package
+and invoicing, so it stays an in app Form).

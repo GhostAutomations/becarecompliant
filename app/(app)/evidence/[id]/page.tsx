@@ -111,7 +111,9 @@ export default async function EvidenceViewPage({
           <p className="page-subtitle">
             {ev.anonymisedAt
               ? "This record has been anonymised under the retention policy."
-              : "Completed evidence, stored unchanged as your inspection record."}
+              : ev.paperCompletedOn
+                ? `Completed on paper on ${ukDate(ev.paperCompletedOn)}. The scanned copy is stored unchanged as your inspection record.`
+                : "Completed evidence, stored unchanged as your inspection record."}
           </p>
         </div>
         {/* No PDF for an anonymised record: it would render as a form with every answer
@@ -142,11 +144,11 @@ export default async function EvidenceViewPage({
 
       <div className="glass-card grid gap-3 p-5 sm:grid-cols-4">
         <div>
-          <p className="text-[11px] uppercase text-white/40">Completed by</p>
+          <p className="text-[11px] uppercase text-white/40">{ev.paperCompletedOn ? "Uploaded by" : "Completed by"}</p>
           <p className="text-sm text-white/85">{ev.authorName ?? "Unknown"}</p>
         </div>
         <div>
-          <p className="text-[11px] uppercase text-white/40">Completed at</p>
+          <p className="text-[11px] uppercase text-white/40">{ev.paperCompletedOn ? "Uploaded at" : "Completed at"}</p>
           <p className="text-sm text-white/85">{fmtDateTime(ev.submittedAt)}</p>
         </div>
         <div>

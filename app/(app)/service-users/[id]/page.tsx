@@ -68,11 +68,11 @@ export default async function ServiceUserPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ completed?: string; recorded?: string; from?: string; warn?: string }>;
+  searchParams: Promise<{ completed?: string; recorded?: string; history?: string; from?: string; warn?: string }>;
 }) {
   const { user, profile } = await requireCompany();
   const { id } = await params;
-  const { completed, recorded, from, warn } = await searchParams;
+  const { completed, recorded, history, from, warn } = await searchParams;
   const backHref = from && from.startsWith("/service-users") ? from : "/service-users";
 
   const serviceUser = await getServiceUser(id);
@@ -240,6 +240,15 @@ export default async function ServiceUserPage({
 
       {/* It could not be done, so nothing was credited. Saying so is the whole point:
           the green banner above would be a lie about a check that is still due. */}
+      {/* A paper completion OLDER than the one already on file (DEF-056): filed as history and
+          shown in its place, but the next due date is left where the newer one put it. */}
+      {history ? (
+        <div className="glass-card border border-rag-green/20 p-4 text-sm text-rag-green-soft">
+          {history} from paper added to the history. It is older than the one already on file,
+          so the next due date has not changed.
+        </div>
+      ) : null}
+
       {recorded ? (
         <div className="glass-card border border-rag-amber/25 p-4 text-sm text-rag-amber-soft">
           {recorded} recorded as not completed. Evidence stored with the reason, and the

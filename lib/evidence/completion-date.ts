@@ -75,6 +75,12 @@ export function completionDate(
   submittedAt: string,
   dateKey: string | null,
 ): string {
+  /* COMPLETED ON PAPER (DEF-056). An Admin uploading the scan of a Form done by hand types the
+     date it was done, and it is kept under this key (lib/evidence/paper.ts PAPER_DATE_KEY; a
+     test holds the two spellings together). It wins over the form's own date question, which a
+     paper completion never answered, and over the upload day, which is not when it happened. */
+  const paper = answers?.["__completed_on"];
+  if (typeof paper === "string" && ISO_DATE.test(paper)) return paper;
   if (dateKey) {
     const answer = answers?.[dateKey];
     if (typeof answer === "string" && ISO_DATE.test(answer)) return answer;

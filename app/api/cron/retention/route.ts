@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { runRetentionExpiry } from "@/lib/evidence/retention";
 import { runCompanyPurge } from "@/lib/companies/delete-apply";
 import { backfillMissingBodies } from "@/lib/founder/inbox-store";
+import { removeAbandonedPaperUploads } from "@/lib/evidence/paper-cleanup";
 
 /**
  * Daily evidence retention: anonymise evidence that is past its retention date.
@@ -50,6 +51,12 @@ export async function GET(request: NextRequest) {
      things whose time is running out, and a second schedule is a second thing to notice has
      stopped. */
   const emailBodies = await backfillMissingBodies();
+  /* PAGES OF A PAPER UPLOAD NOBODY FINISHED (DEF-056): special category data in the bucket with
+     no Evidence pointing at it, removed a day after the upload was started. */
+  const paperUploads = await removeAbandonedPaperUploads();
+  if (paperUploads.errors.length) {
+    console.error("[cron/retention] paper uploads:", paperUploads.errors.join(" | "));
+  }
   // A FAILED RUN MUST NOT LOOK LIKE A QUIET ONE. Found live 2026-08-11: the function raised
   // "column reference evidence_id is ambiguous", this route swallowed it into a JSON field
   // and answered 200, so Vercel showed a healthy cron and nothing was ever anonymised. For a
@@ -57,19 +64,19 @@ export async function GET(request: NextRequest) {
   // broken for months" must never look the same from the outside.
   if (retention.error) {
     console.error("[cron/retention] run failed:", retention.error);
-    return NextResponse.json({ retention, companies, emailBodies }, { status: 500 });
+    return NextResponse.json({ retention, companies, emailBodies, paperUploads }, { status: 500 });
   }
   // Same rule for the purge half: a company that was due to be erased and was not is a failed
   // run, and a failed run must not answer 200. A purge that half-completed reports its error
   // here rather than only in the tombstone nobody is watching.
   if (companies.errors.length) {
     console.error("[cron/retention] company purge failed:", companies.errors.join(" | "));
-    return NextResponse.json({ retention, companies, emailBodies }, { status: 500 });
+    return NextResponse.json({ retention, companies, emailBodies, paperUploads }, { status: 500 });
   }
   /* A body we could not collect is reported, never silent — but it does not fail the run,
      because retention and the purge did their work and a 500 here would hide that. */
   if (emailBodies.errors.length) {
     console.error("[cron/retention] email bodies:", emailBodies.errors.join(" | "));
   }
-  return NextResponse.json({ retention, companies, emailBodies });
+  return NextResponse.json({ retention, companies, emailBodies, paperUploads });
 }

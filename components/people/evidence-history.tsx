@@ -22,12 +22,25 @@ export type EvidenceRow = {
   submitted_at: string;
   form_name: string | null;
   author_name: string | null;
+  /** The date a Check completed on paper was done, when this Evidence is its uploaded scan
+   *  (DEF-056). Shown as the date, because the upload day is not when it happened. */
+  paper_on?: string | null;
 };
+
+/** The day this Evidence is about: the paper date for an upload, else the day it was filed. */
+function shownDate(e: EvidenceRow): string {
+  return e.paper_on && /^\d{4}-\d{2}-\d{2}$/.test(e.paper_on) ? e.paper_on : e.submitted_at.slice(0, 10);
+}
 
 export default function EvidenceHistory({ rows }: { rows: EvidenceRow[] }) {
   const [form, setForm] = useState(ALL_FORMS);
   const options = useMemo(() => formOptions(rows), [rows]);
-  const shown = useMemo(() => filterByForm(rows, form), [rows, form]);
+  /* Newest first BY THE DATE SHOWN. A supervision from March uploaded today is March's, and
+     sorting by upload day would put it above June's. */
+  const shown = useMemo(
+    () => [...filterByForm(rows, form)].sort((a, b) => shownDate(b).localeCompare(shownDate(a))),
+    [rows, form],
+  );
 
   if (rows.length === 0) {
     return (
@@ -81,9 +94,10 @@ export default function EvidenceHistory({ rows }: { rows: EvidenceRow[] }) {
           >
             <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
               <span className="w-24 shrink-0 text-white/85">
-                {formatDisplayDate(e.submitted_at.slice(0, 10))}
+                {formatDisplayDate(shownDate(e))}
               </span>
               <span className="text-white/85">{e.form_name ?? "Evidence"}</span>
+              {e.paper_on ? <span className="pill pill-neutral">Paper copy</span> : null}
             </div>
             <div className="flex items-center gap-4">
               <span className="w-40 text-right text-white/50">{e.author_name ?? "Unknown"}</span>

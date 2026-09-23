@@ -308,7 +308,10 @@ async function computeOnTime(input: OnTimeInput) {
      * months. `submitted_at` alone is also not a stable sort, so two runs could keep different
      * rows at the cut and produce two different numbers on the same day. Id is the tiebreak.
      */
-    type EvRow = { id: string; form_id: string; record_id: string; submitted_at: string };
+    /* paper_on: the date a Check completed on paper was done (DEF-056, lib/evidence/paper.ts).
+       Its upload day is not when the supervision happened, and a history upload is usually
+       months after it. */
+    type EvRow = { id: string; form_id: string; record_id: string; submitted_at: string; paper_on: string | null };
     /*
      * CHUNKED as well as paged. `.in("record_id", ids)` puts every id in the query string, and
      * now that the register is no longer capped at 1000 that list can run to a few thousand
@@ -320,7 +323,7 @@ async function computeOnTime(input: OnTimeInput) {
       const idChunk = recordIds.slice(i, i + IDS_PER_REQUEST);
       const evQ = supabase
         .from("evidence")
-        .select("id, form_id, record_id, submitted_at")
+        .select("id, form_id, record_id, submitted_at, paper_on:answers->>__completed_on")
         .eq("company_id", input.companyId)
         .in("form_id", formIds)
         .in("record_id", idChunk)
@@ -329,10 +332,15 @@ async function computeOnTime(input: OnTimeInput) {
       for (const e of await readAll<EvRow>(evQ, "evidence")) {
         const k = `${e.form_id}|${e.record_id}`;
         const list = completionsByKey.get(k) ?? [];
-        list.push(tsToCivil(e.submitted_at));
+        list.push(
+          e.paper_on && /^\d{4}-\d{2}-\d{2}$/.test(e.paper_on) ? parseCivilDate(e.paper_on) : tsToCivil(e.submitted_at),
+        );
         completionsByKey.set(k, list);
       }
     }
+    /* A paper completion is dated when it was DONE, not when it was uploaded, so the upload
+       order is no longer date order. The walk reads anchors strictly ascending. */
+    for (const list of completionsByKey.values()) list.sort(compareCivil);
     /*
      * MIGRATED HISTORY IS COMPLETION HISTORY (2026-09-17).
      *

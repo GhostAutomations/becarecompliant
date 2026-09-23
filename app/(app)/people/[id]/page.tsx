@@ -106,6 +106,8 @@ export default async function PersonPage({
   searchParams: Promise<{
     completed?: string;
     recorded?: string;
+    /** A check uploaded from paper that was older than the latest: history only (DEF-056). */
+    history?: string;
     from?: string;
     /** "failed" when their Team Member login could not be created as they were added. */
     login?: string;
@@ -113,7 +115,7 @@ export default async function PersonPage({
 }) {
   const { profile } = await requireCompany();
   const { id } = await params;
-  const { completed, recorded, from, login: loginBanner } = await searchParams;
+  const { completed, recorded, history, from, login: loginBanner } = await searchParams;
   // Back returns to the view the record was opened from (Main, Leavers, Archive, ...);
   // only accept in-app /people paths to avoid an open redirect.
   const backHref = from && from.startsWith("/people") ? from : "/people";
@@ -544,6 +546,15 @@ export default async function PersonPage({
       {completed ? (
         <div className="glass-card border border-rag-green/20 p-4 text-sm text-rag-green-soft">
           {completed} completed. Evidence stored and the next due date scheduled.
+        </div>
+      ) : null}
+
+      {/* A paper completion OLDER than the one already on file (DEF-056): filed as history and
+          shown in its place, but the next due date is left where the newer one put it. */}
+      {history ? (
+        <div className="glass-card border border-rag-green/20 p-4 text-sm text-rag-green-soft">
+          {history} from paper added to the history. It is older than the one already on file,
+          so the next due date has not changed.
         </div>
       ) : null}
 

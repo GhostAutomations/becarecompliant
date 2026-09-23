@@ -6,6 +6,8 @@ import BackLink from "@/components/back-link";
 import { choicesForSchema } from "@/lib/forms/lookup-data";
 import SupportModeNotice from "@/components/support-mode-notice";
 import CompleteCheck from "@/components/people/complete-check";
+import PaperOrForm, { type PaperUploadProps } from "@/components/evidence/paper-upload";
+import { paperOffered } from "@/lib/evidence/paper";
 import { readDraft } from "@/lib/forms/draft-store";
 import { checkDraftKey } from "@/lib/forms/draft-key";
 import {
@@ -90,6 +92,8 @@ export default async function CompleteCheckPage({
   let schema = version.schema as FormSchema;
   let presetAnswers: Answers | undefined;
   let heading = def.name;
+  // The choices a paper upload offers when the record cannot say which supervision it is.
+  let supOptions = ["1", "2", "3"];
   if (def.key === "supervision") {
     if (sup === "1" || sup === "2" || sup === "3" || sup === "4") {
       schema = removeField(schema, "supervision_type");
@@ -113,6 +117,7 @@ export default async function CompleteCheckPage({
         cycleMode === "four_supervisions" ? 4 : 3,
         cycleMode,
       );
+      if (cycleMode === "four_supervisions") supOptions = ["1", "2", "3", "4"];
       const nextN = nextSupervisionNumber(slots);
       if (nextN !== null) {
         schema = removeField(schema, "supervision_type");
@@ -158,6 +163,26 @@ export default async function CompleteCheckPage({
      last twelve hours. Read here, on the server, so the form opens filled in with
      nothing to wait for. */
   const draft = await readDraft(checkDraftKey("people", instanceId));
+
+  /* DONE ON PAPER (DEF-056): the other way of completing this Check, Admins only. The
+     database refuses everybody else too (submit_paper_evidence). */
+  const paper: PaperUploadProps | null = paperOffered({
+    role: profile.role,
+    supportMode: !!profile.actingAsCompanyId,
+    population: "people",
+    checkKey: def.key,
+    anchor: def.anchor ?? null,
+  })
+    ? {
+        instanceId,
+        todayIso: formatCivilDate(todayInLondon()),
+        supervision:
+          def.key === "supervision"
+            ? { preset: typeof presetAnswers?.supervision_type === "string" ? presetAnswers.supervision_type : null, options: supOptions }
+            : null,
+        healthCheck: def.key === "health_check",
+      }
+    : null;
   return (
     <div className="page-form space-y-6">
       <div>
@@ -169,15 +194,17 @@ export default async function CompleteCheckPage({
         </p>
       </div>
 
-      <div className="glass-card p-6">
-        <CompleteCheck
-          schema={schema}
-          instanceId={instanceId}
-          presetAnswers={presetAnswers}
-          lookupChoices={lookupChoices}
-          draft={draft}
-        />
-      </div>
+      <PaperOrForm paper={paper}>
+        <div className="glass-card p-6">
+          <CompleteCheck
+            schema={schema}
+            instanceId={instanceId}
+            presetAnswers={presetAnswers}
+            lookupChoices={lookupChoices}
+            draft={draft}
+          />
+        </div>
+      </PaperOrForm>
     </div>
   );
 }

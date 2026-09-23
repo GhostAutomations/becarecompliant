@@ -28,6 +28,7 @@ import { loadEvidenceAttachments } from "@/lib/evidence/images";
 import { drawableFormat } from "@/lib/evidence/image-format";
 import { EVIDENCE_BUCKET, evidenceRenderPath, signEvidenceDownload } from "@/lib/evidence/storage";
 import { writeAudit } from "@/lib/audit";
+import { paperCompletedOn } from "@/lib/evidence/paper";
 
 export type EvidenceActor = { id: string; email: string; role: string };
 
@@ -55,6 +56,8 @@ export type EvidenceView = {
    *  looks like a check somebody filled in badly, which on a regulator's file is worse than
    *  saying plainly that the detail was removed on purpose. */
   anonymisedAt: string | null;
+  /** The date a Check completed on paper was done, when this is its uploaded scan (DEF-056). */
+  paperCompletedOn: string | null;
   schema: FormSchema;
   answers: Answers;
   /** Uploaded files / signatures, keyed by field key, for signed download links. */
@@ -138,6 +141,7 @@ export async function getEvidenceView(
       recordType: data.record_type,
       recordId: data.record_id,
       anonymisedAt: data.anonymised_at ?? null,
+      paperCompletedOn: paperCompletedOn(data.answers),
       schema: data.schema_snapshot as FormSchema,
       answers: (data.answers ?? {}) as Answers,
       files,
@@ -225,6 +229,7 @@ export async function evidenceSignedPdfUrl(input: {
     authorName: data.author_name,
     authorEmail: data.author_email,
     submittedAt: new Date(data.submitted_at),
+    paperCompletedOn: paperCompletedOn(data.answers),
     evidenceRef: shortRef(data.id),
   };
 
@@ -300,6 +305,7 @@ export async function renderEvidenceBytes(
     authorName: data.author_name,
     authorEmail: data.author_email,
     submittedAt: new Date(data.submitted_at),
+    paperCompletedOn: paperCompletedOn(data.answers),
     evidenceRef: shortRef(data.id),
   };
   const attachments = await loadEvidenceAttachments(data.id);

@@ -12,7 +12,6 @@
  * logged in the pages that render them (writeAudit), not just writes here.
  */
 
-import { retestDue, withRetest } from "@/lib/forms/retest";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireCompany, requireCompanyAdmin } from "@/lib/auth/guards";
@@ -31,10 +30,9 @@ import { closeBookingsForCheck } from "@/lib/planner/close-booking";
 import { rebakeFormFieldOptions } from "@/lib/forms/rebake-options";
 import { ensurePrivateInvoicingFromSetup } from "@/lib/invoicing/ensure-private-invoicing";
 import { seedCarePlanFromSetup } from "./seed-care-plan";
+import { advanceServiceUserCheck, complexReviewContext, serviceUserNextDue } from "./advance-check";
 import type { ActionState } from "@/lib/forms";
 import type { CheckDefinition } from "@/lib/people/types";
-import { parseCivilDate } from "@/lib/recurrence";
-import { nextDueAfterCompletion } from "@/lib/people/logic";
 import {
   listServiceUserCheckDefinitions,
   getPublishedFormVersion,
@@ -51,31 +49,6 @@ import { branchName } from "@/lib/people/data";
 const SLOTS: string[] = CALL_SLOTS.map((s) => s.value);
 import { SU_REGISTER_COLUMNS } from "./types";
 import { uploadCarePlanFile, signCarePlan } from "./care-plan";
-
-/** The branch Service User type + company Complex review interval, so care plan
- *  reviews on a Complex branch schedule at the Complex cadence (default 80 days). */
-async function complexReviewContext(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  companyId: string,
-  branchId: string,
-): Promise<{ isComplex: boolean; intervalDays: number }> {
-  const [{ data: branch }, { data: def }] = await Promise.all([
-    supabase.from("branches").select("service_user_type").eq("id", branchId).maybeSingle(),
-    supabase
-      .from("check_definitions")
-      .select("interval")
-      .eq("company_id", companyId)
-      .eq("population", "service_users")
-      .eq("key", "care_plan_review")
-      .maybeSingle(),
-  ]);
-  const days = def?.interval as number | null;
-  return {
-    isComplex: (branch?.service_user_type as string | null) === "complex",
-    /* ONE cadence for both views (Phil, 2026-09-04): the Care Plan Review's own. */
-    intervalDays: typeof days === "number" && days >= 1 ? days : 90,
-  };
-}
 
 function trimOrNull(v: FormDataEntryValue | null): string | null {
   const s = String(v ?? "").trim();
@@ -945,24 +918,15 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
   const dateAnswer = dateKey ? answers[dateKey] : undefined;
   const completedOnIso =
     typeof dateAnswer === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateAnswer) ? dateAnswer : todayIso();
-  const advance = nextDueAfterCompletion(def, answers, null, parseCivilDate(completedOnIso));
-  let nextDue = advance.nextDue;
-  const expiry = advance.expiry;
-  // On a Complex branch, the Care Plan Review advances at the Complex cadence (default
-  // 80 days), so the next REV slot / rollup RAG is scheduled correctly.
-  if (def.key === "care_plan_review") {
-    const ctx = await complexReviewContext(
-      supabase,
-      instance.company_id as string,
-      (instance.branch_id as string | null) ?? "",
-    );
-    if (ctx.isComplex) nextDue = addDaysToIso(completedOnIso, ctx.intervalDays);
-  }
-  // An answer that calls for a sooner retest wins (lib/forms/retest.ts).
-  nextDue = withRetest(
-    nextDue,
-    isFormSchema(version.schema) ? retestDue(version.schema as FormSchema, answers, completedOnIso) : null,
-  );
+  const { nextDue, expiry } = await serviceUserNextDue({
+    supabase,
+    companyId: instance.company_id as string,
+    branchId: (instance.branch_id as string | null) ?? null,
+    def,
+    schema: isFormSchema(version.schema) ? (version.schema as FormSchema) : null,
+    answers,
+    completedOnIso,
+  });
   // Did it actually happen? A Form whose gate has been tripped records the attempt and
   // the reason as Evidence, but the Check is NOT advanced: it stays due on the register
   // exactly as it was. Crediting a visit that never happened is the one thing a
@@ -990,30 +954,18 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
     };
   }
 
-  const { error: advanceErr } = await supabase.rpc("complete_check", {
-    p_instance_id: instanceId,
-    p_completed_on: completedOnIso,
-    p_evidence_id: result.evidenceId,
-    p_next_due: nextDue,
-    p_expiry_date: expiry,
+  const advanced = await advanceServiceUserCheck({
+    supabase,
+    instanceId,
+    serviceUserId: instance.service_user_id as string,
+    def,
+    completedOnIso,
+    evidenceId: result.evidenceId,
+    nextDue,
+    expiry,
+    actorId: user.id,
   });
-  if (advanceErr) {
-    return { error: `Evidence was saved, but the check could not be advanced: ${advanceErr.message}` };
-  }
-
-  // Completing the Care Plan Review fulfils any booking, so clear the Planned Review
-  // Date; Review Status then derives from the new New Review Due date.
-  if (def.key === "care_plan_review") {
-    await supabase
-      .from("service_user_trackers")
-      .update({
-        planned_review_date: null,
-        planned_reviewer_id: null,
-        planned_review_booked_at: null,
-        updated_by: user.id,
-      })
-      .eq("service_user_id", instance.service_user_id as string);
-  }
+  if (!advanced.ok) return { error: advanced.error };
 
   /* The Setup Visit is where the office finds out who is paying, and the one moment somebody
      definitely knows. Private and Continuing Healthcare are the two funding types we invoice

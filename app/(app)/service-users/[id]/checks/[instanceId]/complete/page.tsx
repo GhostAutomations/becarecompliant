@@ -6,6 +6,8 @@ import BackLink from "@/components/back-link";
 import { choicesForSchema } from "@/lib/forms/lookup-data";
 import SupportModeNotice from "@/components/support-mode-notice";
 import CompleteCheck from "@/components/service-users/complete-check";
+import PaperOrForm, { type PaperUploadProps } from "@/components/evidence/paper-upload";
+import { paperOffered } from "@/lib/evidence/paper";
 import { readDraft } from "@/lib/forms/draft-store";
 import { checkDraftKey } from "@/lib/forms/draft-key";
 import { getServiceUser, getPublishedFormVersion } from "@/lib/service-users/data";
@@ -149,6 +151,18 @@ export default async function CompleteServiceUserCheckPage({
   /* What this user had already typed into this review, if they were interrupted in the
      last twelve hours (see lib/forms/draft-key.ts). */
   const draft = await readDraft(checkDraftKey("service_users", instanceId));
+
+  /* DONE ON PAPER (DEF-056): the other way of completing this Check, Admins only, and never
+     the Setup Visit (paperOffered says why). The database refuses everybody else too. */
+  const paper: PaperUploadProps | null = paperOffered({
+    role: profile.role,
+    supportMode: !!profile.actingAsCompanyId,
+    population: "service_users",
+    checkKey: def.key,
+    anchor: def.anchor ?? null,
+  })
+    ? { instanceId, todayIso: formatCivilDate(todayInLondon()), supervision: null, healthCheck: false }
+    : null;
   return (
     <div className="page-form-wide space-y-6">
       <div>
@@ -162,15 +176,17 @@ export default async function CompleteServiceUserCheckPage({
         </p>
       </div>
 
-      <div className="glass-card p-6">
-        <CompleteCheck
-          schema={schema}
-          instanceId={instanceId}
-          presetAnswers={presetAnswers}
-          lookupChoices={lookupChoices}
-          draft={draft}
-        />
-      </div>
+      <PaperOrForm paper={paper}>
+        <div className="glass-card p-6">
+          <CompleteCheck
+            schema={schema}
+            instanceId={instanceId}
+            presetAnswers={presetAnswers}
+            lookupChoices={lookupChoices}
+            draft={draft}
+          />
+        </div>
+      </PaperOrForm>
     </div>
   );
 }
