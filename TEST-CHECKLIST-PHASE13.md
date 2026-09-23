@@ -113,3 +113,12 @@ in the same piece of work (Phil: "we are passed final testing so it needs to be 
 | P11 | Setup Visit offers no paper upload | PASS |
 | P12 | Abandoned upload (save cut off on purpose after the page was uploaded) is removed by the retention run | PASS: Phil ran /api/cron/retention 09:49 (200). The pending row and the abandoned page are gone; the 5 pages of the 4 filed uploads are untouched. |
 | P13 | Clean up | Test person made a leaver and archived, test Service User cancelled and archived, the Team Member invite to ppdavies+papertest revoked (login disabled). The 4 test uploads stay as evidence on the archived records. |
+
+## Older completion never moves a check back, 2026-09-23 (DEF-057), tested live on Bevan
+
+| # | Check | Result |
+|---|---|---|
+| B1 | Database: complete_check with a date before the one on file leaves the check alone; a later date moves it (rolled back) | PASS (01/06, due 01/07 unchanged by 01/02; moved to 01/09 by 01/09) |
+| B2 | One to One filled in on screen dated 01/08/2026: check completed 01/08, green banner | PASS |
+| B3 | Second One to One dated 01/05/2026: Evidence stored (2 rows), check still 01/08, "added to the history" banner, audit check.completed_history | PASS |
+| D1 | Supervisor digest in the new layout, real 7am email | Scheduled check 07:20 24/09, then Phil's screenshot |
