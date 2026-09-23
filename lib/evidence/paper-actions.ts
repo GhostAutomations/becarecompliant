@@ -32,13 +32,13 @@ import { advanceServiceUserCheck, serviceUserNextDue } from "@/lib/service-users
 import type { CheckDefinition } from "@/lib/people/types";
 import { todayInLondon, formatCivilDate } from "@/lib/recurrence";
 import { EVIDENCE_BUCKET, evidenceFilePath, sha256Hex } from "./storage";
+import { completionMovesCheck } from "./completion-date";
 import {
   PAPER_MAX_BYTES,
   paperDateProblem,
   paperFieldKey,
   paperFileProblem,
   paperFilesProblem,
-  paperMovesCheck,
   paperOffered,
   paperPathPrefix,
 } from "./paper";
@@ -216,7 +216,7 @@ export async function finishPaperUpload(input: {
 
   /* ONLY THE NEWEST MOVES THE CHECK ON (agreed 2026-09-23). A supervision from March uploaded
      after June's has been done goes into the history, in its place, and moves nothing. */
-  if (!paperMovesCheck(completedOn, instance.last_completed_on)) {
+  if (!completionMovesCheck(completedOn, instance.last_completed_on)) {
     revalidatePath(base);
     revalidatePath(population === "people" ? "/people" : "/service-users");
     return { ok: true, redirectTo: `${base}?history=${encodeURIComponent(label)}` };

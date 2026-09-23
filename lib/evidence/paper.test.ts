@@ -10,11 +10,10 @@ import {
   paperFieldKey,
   paperFileProblem,
   paperFilesProblem,
-  paperMovesCheck,
   paperOffered,
   paperPathPrefix,
 } from "./paper.ts";
-import { completionDate } from "./completion-date.ts";
+import { completionDate, completionMovesCheck } from "./completion-date.ts";
 
 const TODAY = "2026-09-23";
 
@@ -50,10 +49,10 @@ test("a file is required, and there is a ceiling", () => {
 });
 
 test("only the newest completion moves the Check; older ones are history", () => {
-  assert.equal(paperMovesCheck("2026-03-01", null), true);
-  assert.equal(paperMovesCheck("2026-03-01", "2026-06-01"), false);
-  assert.equal(paperMovesCheck("2026-06-01", "2026-06-01"), true);
-  assert.equal(paperMovesCheck("2026-07-01", "2026-06-01"), true);
+  assert.equal(completionMovesCheck("2026-03-01", null), true);
+  assert.equal(completionMovesCheck("2026-03-01", "2026-06-01"), false);
+  assert.equal(completionMovesCheck("2026-06-01", "2026-06-01"), true);
+  assert.equal(completionMovesCheck("2026-07-01", "2026-06-01"), true);
 });
 
 test("the paper date is the completion date wherever Evidence is dated", () => {

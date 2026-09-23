@@ -111,3 +111,20 @@ export function completionDates(
     completionDate(row.answers, row.submitted_at, keysByVersion.get(row.form_version_id ?? "") ?? null),
   );
 }
+
+/**
+ * Does a completion on this date move the Check on, or only go into its history?
+ *
+ * ONE RULE FOR EVERY DOOR (DEF-056 for paper, DEF-057 for a Form filled in on screen). A
+ * completion OLDER than the one already on file moves nothing: filing March's supervision after
+ * June's has been done must not drag the Check back to March and turn it red. The Evidence is
+ * still filed, and every screen that reads the history still shows it in its place. The same
+ * date as the latest counts as the latest, so filing the same day twice is harmless.
+ *
+ * The database holds the same line (complete_check, migration 0319), so no caller can get round
+ * it by forgetting to ask.
+ */
+export function completionMovesCheck(completedOnIso: string, lastCompletedOn: string | null): boolean {
+  if (!lastCompletedOn) return true;
+  return completedOnIso >= lastCompletedOn.slice(0, 10);
+}

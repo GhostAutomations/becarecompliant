@@ -1786,3 +1786,27 @@ is required; People and Service Users.
 **Not carried by a paper copy, by design:** satisfaction answers (a paper review adds nothing to
 the satisfaction score rather than a zero), and the Setup Visit (its answers are the care package
 and invoicing, so it stays an in app Form).
+
+
+---
+
+## DEF-057 - A Form back-dated to before the last completion dragged the Check backwards
+
+**Found 2026-09-23** while building DEF-056, fixed on Phil's go ahead ("both").
+
+complete_check overwrote the last completion and the due date with whatever it was given. A
+supervision typed up late and dated before the one already on file moved the Check back to that
+date, worked the next due date out from it, and could turn a compliant record red.
+
+**Fixed, for Forms on screen the same as paper uploads.**
+
+- One rule, completionMovesCheck (lib/evidence/completion-date.ts): a completion dated before the
+  one on file goes into the history and moves nothing; the same date or later moves the Check on.
+- People and Service User completeCheck both ask it first. An older completion files its
+  Evidence, writes check.completed_history to the audit log, and lands on the record with
+  "Supervision added to the history. It is dated before the one already on file, so the next due
+  date has not changed." Nothing that follows a completion is repeated for it: no due date, no
+  Planner booking closed, no appraisal cycle restarted, no Setup Visit invoicing or care plan.
+  The escalation box on a Service User form still goes, because that is about what the form says.
+- The database holds the same line: complete_check leaves the Check alone for an older date
+  (migration 0319), so no caller can get round it.

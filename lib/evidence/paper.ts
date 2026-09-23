@@ -85,18 +85,6 @@ export function paperFilesProblem(files: ReadonlyArray<{ name: string; size: num
   return null;
 }
 
-/**
- * Does this paper completion move the Check on, or only go into the history?
- *
- * An OLDER completion than the one already on file moves nothing: uploading a supervision from
- * March must not drag a Check completed in June back to March and make it overdue. The same
- * date as the latest counts as the latest, so re-filing the same day is harmless.
- */
-export function paperMovesCheck(completedOnIso: string, lastCompletedOn: string | null): boolean {
-  if (!lastCompletedOn) return true;
-  return completedOnIso >= lastCompletedOn.slice(0, 10);
-}
-
 /** The paper date on a piece of Evidence, or null when it was filled in on screen. */
 export function paperCompletedOn(answers: Record<string, unknown> | null | undefined): string | null {
   const v = answers?.[PAPER_DATE_KEY];

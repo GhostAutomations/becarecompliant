@@ -31,6 +31,7 @@ import { rebakeFormFieldOptions } from "@/lib/forms/rebake-options";
 import { ensurePrivateInvoicingFromSetup } from "@/lib/invoicing/ensure-private-invoicing";
 import { seedCarePlanFromSetup } from "./seed-care-plan";
 import { advanceServiceUserCheck, complexReviewContext, serviceUserNextDue } from "./advance-check";
+import { completionMovesCheck } from "@/lib/evidence/completion-date";
 import type { ActionState } from "@/lib/forms";
 import type { CheckDefinition } from "@/lib/people/types";
 import {
@@ -827,7 +828,7 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
   const supabase = await createClient();
   const { data: instance } = await supabase
     .from("check_instances")
-    .select("id, service_user_id, branch_id, company_id, definition:check_definitions(*)")
+    .select("id, service_user_id, branch_id, company_id, last_completed_on, definition:check_definitions(*)")
     .eq("id", instanceId)
     .maybeSingle();
 
@@ -954,25 +955,32 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
     };
   }
 
-  const advanced = await advanceServiceUserCheck({
-    supabase,
-    instanceId,
-    serviceUserId: instance.service_user_id as string,
-    def,
-    completedOnIso,
-    evidenceId: result.evidenceId,
-    nextDue,
-    expiry,
-    actorId: user.id,
-  });
-  if (!advanced.ok) return { error: advanced.error };
+  /* OLDER THAN THE ONE ON FILE (DEF-057): filed as history, the Check left where the newer
+     completion put it, and nothing that follows from a completion (the Setup Visit's
+     invoicing and care plan, a booked review being cleared, the Planner) is done again. The
+     escalation box below still goes: it is about what the form says, not when it was done. */
+  const moves = completionMovesCheck(completedOnIso, (instance.last_completed_on as string | null) ?? null);
+  if (moves) {
+    const advanced = await advanceServiceUserCheck({
+      supabase,
+      instanceId,
+      serviceUserId: instance.service_user_id as string,
+      def,
+      completedOnIso,
+      evidenceId: result.evidenceId,
+      nextDue,
+      expiry,
+      actorId: user.id,
+    });
+    if (!advanced.ok) return { error: advanced.error };
+  }
 
   /* The Setup Visit is where the office finds out who is paying, and the one moment somebody
      definitely knows. Private and Continuing Healthcare are the two funding types we invoice
      ourselves, so the payer goes onto the Invoicing books now rather than being carried across
      by hand later — which is how a package runs for months unbilled. Idempotent and best
      effort: the Evidence must not fail because the billing side did. */
-  if (def.key === "setup") {
+  if (moves && def.key === "setup") {
     const billing = await ensurePrivateInvoicingFromSetup({
       companyId: instance.company_id as string,
       serviceUserId: instance.service_user_id as string,
@@ -1061,18 +1069,20 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
 
   // The work was booked; it has now been done. Turn the planner task green rather than
   // leaving a month of appointments on the whiteboard that all already happened.
-  await closeBookingsForCheck(supabase, instanceId, user.id);
+  if (moves) await closeBookingsForCheck(supabase, instanceId, user.id);
 
   await writeAudit({
     companyId: instance.company_id as string,
     actorId: user.id,
     actorEmail: profile.email,
     actorRole: profile.role,
-    action: "check.completed",
+    action: moves ? "check.completed" : "check.completed_history",
     entityType: "check_instance",
     entityId: instanceId,
-    summary: `Completed ${def.name}`,
-    metadata: { evidence_id: result.evidenceId, next_due: nextDue, definition_id: def.id, record_type: "service_user" },
+    summary: moves
+      ? `Completed ${def.name}`
+      : `${def.name} dated ${completedOnIso} added to the history; the check was not moved`,
+    metadata: { evidence_id: result.evidenceId, next_due: moves ? nextDue : null, completed_on: completedOnIso, definition_id: def.id, record_type: "service_user" },
   });
 
   // Filed: discard the part-finished copy (see lib/forms/draft-key.ts).
@@ -1087,7 +1097,7 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
   return {
     ok: "completed",
     redirectTo:
-      `/service-users/${instance.service_user_id}?completed=${encodeURIComponent(def.name)}` +
+      `/service-users/${instance.service_user_id}?${moves ? "completed" : "history"}=${encodeURIComponent(def.name)}` +
       (escalationNote ? `&warn=${encodeURIComponent(escalationNote)}` : ""),
   };
 }

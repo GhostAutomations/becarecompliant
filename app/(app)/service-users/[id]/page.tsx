@@ -240,12 +240,12 @@ export default async function ServiceUserPage({
 
       {/* It could not be done, so nothing was credited. Saying so is the whole point:
           the green banner above would be a lie about a check that is still due. */}
-      {/* A paper completion OLDER than the one already on file (DEF-056): filed as history and
-          shown in its place, but the next due date is left where the newer one put it. */}
+      {/* A completion OLDER than the one already on file, on paper (DEF-056) or on screen
+          (DEF-057): filed as history and shown in its place, the due date left where it was. */}
       {history ? (
         <div className="glass-card border border-rag-green/20 p-4 text-sm text-rag-green-soft">
-          {history} from paper added to the history. It is older than the one already on file,
-          so the next due date has not changed.
+          {history} added to the history. It is dated before the one already on file, so the
+          next due date has not changed.
         </div>
       ) : null}
 

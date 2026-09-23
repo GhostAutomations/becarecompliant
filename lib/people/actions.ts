@@ -50,6 +50,7 @@ import {
 } from "@/lib/people/history-boxes";
 import { seedPersonHistory } from "@/lib/people/history";
 import { advancePersonCheck } from "@/lib/people/advance-check";
+import { completionMovesCheck } from "@/lib/evidence/completion-date";
 import {
   deleteRefusalReason,
   nameConfirmed,
@@ -1376,7 +1377,7 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
   // Load the instance + its definition (RLS scopes what the user can see).
   const { data: instance } = await supabase
     .from("check_instances")
-    .select("id, person_id, branch_id, company_id, definition:check_definitions(*)")
+    .select("id, person_id, branch_id, company_id, last_completed_on, definition:check_definitions(*)")
     .eq("id", instanceId)
     .maybeSingle();
 
@@ -1451,6 +1452,28 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
   const dateAnswer = dateKey ? answers[dateKey] : undefined;
   const completedOnIso =
     typeof dateAnswer === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateAnswer) ? dateAnswer : todayIso();
+
+  /* OLDER THAN THE ONE ON FILE (DEF-057): filed as history, and the Check is left exactly
+     where the newer completion put it. Before this a Form back-dated to before the last
+     completion dragged the Check backwards and could turn it red. */
+  if (!completionMovesCheck(completedOnIso, (instance.last_completed_on as string | null) ?? null)) {
+    await writeAudit({
+      companyId: instance.company_id as string,
+      actorId: user.id,
+      actorEmail: profile.email,
+      actorRole: profile.role,
+      action: "check.completed_history",
+      entityType: "check_instance",
+      entityId: instanceId,
+      summary: `${def.name} dated ${completedOnIso} added to the history; the check was not moved`,
+      metadata: { evidence_id: result.evidenceId, completed_on: completedOnIso, definition_id: def.id },
+    });
+    await dropDraft(checkDraftKey("people", instanceId));
+    revalidatePath(`/people/${instance.person_id}`);
+    revalidatePath("/people");
+    return { ok: "recorded", redirectTo: `/people/${instance.person_id}?history=${encodeURIComponent(def.name)}` };
+  }
+
   const advanced = await advancePersonCheck({
     supabase,
     instanceId,
