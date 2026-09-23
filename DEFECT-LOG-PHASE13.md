@@ -327,7 +327,7 @@ back exactly as they were."*
 
 ---
 
-## DEF-009 — An invite silently moves an account out of another company  ·  OPEN (low, but decide before real customers)
+## DEF-009 — An invite silently moves an account out of another company  ·  FIXED 2026-09-23 (item 13)
 
 **Found 2026-08-19**, checking whether Phil can use his Thistle address as Thistle's first Admin.
 
@@ -453,7 +453,7 @@ URLs people have bookmarked and in nothing a customer reads.
 
 ---
 
-## DEF-013 — Deleting or purging a company leaves the founder still "managing as" it  ·  OPEN (low)
+## DEF-013 — Deleting or purging a company leaves the founder still "managing as" it  ·  FIXED 2026-09-23 (item 13)
 
 **Found 2026-08-19**, immediately after purging Invite Test Ltd.
 
@@ -734,7 +734,7 @@ DEF-017 is **CLOSED**.
 
 ---
 
-## DEF-018 — A received email lost its body, and said nothing about it  ·  PARTLY FIXED (needs an API key change)
+## DEF-018 — A received email lost its body, and said nothing about it  ·  FIXED (key changed by Phil, proven 2026-09-23, item 14)
 
 **Found 2026-09-03**, on the first real message through the new founder inbox — an hour after
 building it.
@@ -1969,3 +1969,34 @@ paying for 1 extra user — £5.00 a month — once everyone has accepted", and 
 (invite limit, branch limit, the running banner and the ended banner) used dashes too. Customer
 copy carries no dashes. **Fixed:** commas and full stops instead, with a test on each file that
 fails if a dash comes back.
+
+
+---
+
+## Items 13 and 14 - DEF-009, DEF-013 and DEF-018 closed, 2026-09-23
+
+**DEF-009, decided by Phil:** *"only one account per email, if they want to be on 2 companies, they
+must use a seperate email."* An address that belongs to another company in any state (invited,
+active, or a closed leaver's login) is now refused with "That email address already has an
+account with another company. One email address can only belong to one company, so please use a
+different email address for this person." It is checked before a sign in link is made, so a held
+account is never touched, and again on the account the link resolves to. The one exception is a
+company that has been deleted or purged, where nobody is left to lose the account (which is how
+Phil's own Thistle address came across from the deleted Acme). lib/invite-one-account.ts, four
+tests. It covers every invite path: Settings, Users; the Team Member login; and the founder's
+Create a company Admin invite. A carer moving agencies with the same personal email will now be
+refused and needs a second address, which is what the rule says.
+
+**DEF-013:** readActingCompanyId now checks the company still exists and is not deleted, so a
+manage as cookie for a purged or deleted company counts as no cookie: the guards, the banner, the
+name lookups and the audit tag all fall back to the founder's own console. Deleting or purging the
+company being managed also clears the cookie there and then, and Manage as refuses a deleted
+company. The nightly purge cannot reach the founder's browser, which is why the check is on every
+read. lib/founder/manage-as-rules.ts, tested.
+
+**DEF-018:** the Full access key is in place. Every received message since 05/09 has its content
+collected with no error (checked in the database: 11 received messages, all collected, none with body_error). One more
+fix while there: Google's DMARC reports arrive as a subject and a zip with no text, and the inbox
+said "the content has not been collected yet" about a message that HAD been collected. It now says
+"The content was collected, so the sender sent only a subject and attachments", and the
+attachments line lost its dash.

@@ -43,6 +43,8 @@ export type EmailRow = {
   body_text: string | null;
   body_html: string | null;
   body_error: string | null;
+  /** When the content was last collected from Resend (0213). Set means we asked and got it. */
+  body_fetched_at?: string | null;
   deleted_at: string | null;
   attachments: unknown;
   trial_request_id: string | null;
@@ -669,6 +671,16 @@ export default function EmailClient({
                     This message was sent as HTML only. The original is kept in full; there is no
                     plain text to show.
                   </span>
+                ) : selected.body_fetched_at ? (
+                  /* DEF-018 follow up (2026-09-23): the content WAS collected and there is none,
+                     so say that rather than "may not have been collected yet". Google's DMARC
+                     reports arrive exactly like this: a subject and a zip, no text at all. */
+                  <span className="mailx-meta">
+                    No text on this message. The content was collected, so the sender sent only a
+                    subject{Array.isArray(selected.attachments) && selected.attachments.length > 0
+                      ? " and attachments"
+                      : ""}.
+                  </span>
                 ) : (
                   <span className="mailx-meta">
                     No text on this message. That can mean the sender wrote only a subject, or
@@ -680,7 +692,7 @@ export default function EmailClient({
               {Array.isArray(selected.attachments) && selected.attachments.length > 0 ? (
                 <p className="mailx-meta" style={{ marginTop: "0.75rem" }}>
                   {selected.attachments.length}{" "}
-                  {selected.attachments.length === 1 ? "attachment" : "attachments"} — not
+                  {selected.attachments.length === 1 ? "attachment" : "attachments"}, not
                   downloaded.
                 </p>
               ) : null}

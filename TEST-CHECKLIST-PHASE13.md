@@ -183,3 +183,14 @@ in the same piece of work (Phil: "we are passed final testing so it needs to be 
 | I10 | Settings, Branches states £7.50 per branch per month; no "later phase" copy | PASS |
 | I11 | All four test invites held (no email sent) and revoked from Pending invites; profiles disabled | PASS |
 | I12 | DEF-062: no dashes in the seat notice or any trial message (unit tests) | PASS |
+
+## Items 13 and 14, DEF-009, DEF-013, DEF-018, 2026-09-23
+
+| # | Check | Result |
+|---|---|---|
+| E1 | Unit tests: one account per email (4), manage as rules (2) | PASS |
+| E2 | DEF-018: every received message since 05/09 has its content, none has body_error (database) | PASS |
+| E3 | Founder inbox: the Google DMARC report of 23/09 says the content was collected, subject and attachments only | |
+| E4 | DEF-009: founder creates a test company whose Admin is an address Bevan holds (ppdavies+dbswarn): refused with the one account message, Bevan's invite untouched | |
+| E5 | DEF-013: founder manages as the test company, deletes it: back on the founder console, no ghost banner | |
+| E6 | DEF-013: purge the test company; Manage as on a deleted company is refused | |

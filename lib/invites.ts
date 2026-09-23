@@ -8,6 +8,7 @@ import { writeAudit } from "@/lib/audit";
 import { picksABranch, isCompanyWideRole } from "@/lib/people/roles";
 import { siteUrl } from "@/lib/site";
 import { ROLE_LABELS } from "@/lib/nav";
+import { belongsToAnotherCompany, ONE_ACCOUNT_REFUSAL } from "@/lib/invite-one-account";
 
 export type InviteRole =
   | "company_admin"
@@ -119,6 +120,36 @@ function confirmUrl(tokenHash: string, type: string): string {
  * token. We embed the token_hash in our own confirm URL, not the raw Supabase
  * action link, so verifyOtp can complete the sign in server side.
  */
+/** Does an account with this address already belong to another live company? (DEF-009) */
+async function addressHeldElsewhere(
+  admin: ServiceClient,
+  email: string,
+  targetCompanyId: string,
+): Promise<boolean> {
+  const { data: rows } = await admin
+    .from("profiles")
+    .select("company_id")
+    .ilike("email", email.replace(/[\\%_]/g, (c) => `\\${c}`));
+  for (const r of ((rows as Array<{ company_id: string | null }> | null) ?? [])) {
+    if (!r.company_id || r.company_id === targetCompanyId) continue;
+    const { data: other } = await admin
+      .from("companies")
+      .select("status")
+      .eq("id", r.company_id)
+      .maybeSingle();
+    if (
+      belongsToAnotherCompany({
+        existingCompanyId: r.company_id,
+        existingCompanyStatus: (other?.status as string | null | undefined) ?? null,
+        targetCompanyId,
+      })
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 async function generateConfirmUrl(
   admin: ServiceClient,
   email: string,
@@ -246,23 +277,44 @@ export async function createAndSendInvite(
 
   const supabase = await createClient();
 
+  /* ONE ACCOUNT PER EMAIL, checked BEFORE a link is made (DEF-009). generateLink on an address
+     that already has an account mints a sign in token for it and can rewrite its name, and
+     neither should happen for a person another company holds. The same check runs again below
+     on the account the link resolved to, in case the address was stored differently. */
+  if (await addressHeldElsewhere(admin, email, p.companyId)) {
+    return { ok: false, error: ONE_ACCOUNT_REFUSAL };
+  }
+
   const link = await generateConfirmUrl(admin, email, fullName);
   if (link.error || !link.userId || !link.url) {
     return { ok: false, error: link.error ?? "Could not create the invitation link." };
   }
 
-  // Guard: the person must not already belong to a different active company.
+  /* Guard: ONE ACCOUNT PER EMAIL (DEF-009, Phil 2026-09-23). An address that belongs to another
+     company in any state, invited, active or closed, is refused; it used to be refused only when
+     active, and an invited one was silently moved. See lib/invite-one-account.ts. */
   const { data: existing } = await admin
     .from("profiles")
     .select("company_id, status")
     .eq("id", link.userId)
     .maybeSingle();
+  let existingCompanyStatus: string | null = null;
+  if (existing?.company_id && existing.company_id !== p.companyId) {
+    const { data: other } = await admin
+      .from("companies")
+      .select("status")
+      .eq("id", existing.company_id as string)
+      .maybeSingle();
+    existingCompanyStatus = (other?.status as string | null | undefined) ?? null;
+  }
   if (
-    existing?.company_id &&
-    existing.company_id !== p.companyId &&
-    existing.status === "active"
+    belongsToAnotherCompany({
+      existingCompanyId: (existing?.company_id as string | null | undefined) ?? null,
+      existingCompanyStatus,
+      targetCompanyId: p.companyId,
+    })
   ) {
-    return { ok: false, error: "That person already belongs to another company." };
+    return { ok: false, error: ONE_ACCOUNT_REFUSAL };
   }
 
   // Record the invite. RLS re-checks that the caller is an admin (and that a

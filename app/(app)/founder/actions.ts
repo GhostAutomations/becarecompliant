@@ -15,9 +15,11 @@ import {
   MANAGE_AS_COOKIE,
   MANAGE_AS_TTL_SECONDS,
   signManageAs,
+  verifyManageAs,
   readActingCompanyId,
 } from "@/lib/founder/manage-as";
 import { writeAudit } from "@/lib/audit";
+import { actingCompanyGone } from "@/lib/founder/manage-as-rules";
 import { importCompanyTemplates, importSummary } from "@/lib/templates/import";
 import { rebakeFormFieldOptions } from "@/lib/forms/rebake-options";
 import { REGISTER_COLUMNS } from "@/lib/people/logic";
@@ -654,6 +656,9 @@ export async function enterManageAs(
     .eq("id", companyId)
     .maybeSingle();
   if (!company) return { error: "Company not found." };
+  if (actingCompanyGone((company as { status: string | null }).status)) {
+    return { error: "This company has been deleted, so it cannot be managed. Restore it first." };
+  }
 
   const token = signManageAs(companyId);
   if (!token) {
@@ -682,6 +687,18 @@ export async function enterManageAs(
   });
 
   redirect("/dashboard");
+}
+
+/**
+ * DEF-013: deleting or purging the company the founder is managing ends manage as there and then,
+ * rather than leaving him inside a tenant that no longer exists. Reads the signed cookie directly
+ * (not readActingCompanyId, which by now already treats the company as gone).
+ */
+async function stopManagingIf(companyId: string): Promise<void> {
+  const store = await cookies();
+  if (verifyManageAs(store.get(MANAGE_AS_COOKIE)?.value) === companyId) {
+    store.delete(MANAGE_AS_COOKIE);
+  }
 }
 
 /** Founder: stop managing as a company. Clears the cookie and returns to the
@@ -1229,6 +1246,7 @@ export async function deleteCompany(
     isFounder: true,
   });
   if (!outcome.ok) return { error: outcome.error };
+  await stopManagingIf(companyId);
 
   revalidatePath(`/founder/companies/${companyId}`);
   revalidatePath("/founder/companies");
@@ -1277,6 +1295,7 @@ export async function purgeCompanyNow(
     force: true,
   });
   if (!outcome.ok) return { error: outcome.error };
+  await stopManagingIf(companyId);
 
   /* THE PAGE THIS WAS PRESSED ON NO LONGER EXISTS, and that is not a hypothetical: pressing
      Purge now put a "404 page not found" in front of Phil on 2026-08-19 (live test). The button
