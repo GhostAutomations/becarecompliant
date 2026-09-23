@@ -45,6 +45,7 @@ import { OUT_OF_SMS_CREDITS } from "@/lib/billing/sms-credits";
 import { tierHasFeature } from "@/lib/billing/tier";
 import type { Tier } from "@/lib/stripe/config";
 import { siteUrl } from "@/lib/site";
+import { plannedFor, type PlannedVisit } from "@/lib/notifications/planned";
 
 /**
  * Daily compliance digest (Supervisor branch digest) + the two People / Service User
@@ -63,14 +64,24 @@ import { siteUrl } from "@/lib/site";
  */
 export const dynamic = "force-dynamic";
 
-const asEmailItem = (i: AttentionItem): DigestEmailItem => ({
-  recordName: i.recordName,
-  checkName: i.checkName,
-  branchName: i.branchName,
-  population: i.population,
-  dueDate: i.dueDate,
-  rag: i.rag,
-});
+/**
+ * One digest row, carrying what the People report rows carry (DEF-055): how many days late it is
+ * and who, if anybody, is booked to do it. The planned visits come from getReportingData's read,
+ * so the digest and the reports can never disagree about what is in the diary.
+ */
+const asEmailItem =
+  (planned: ReadonlyMap<string, PlannedVisit>) =>
+  (i: AttentionItem): DigestEmailItem => ({
+    recordId: i.recordId,
+    recordName: i.recordName,
+    checkName: i.checkName,
+    branchName: i.branchName,
+    population: i.population,
+    dueDate: i.dueDate,
+    rag: i.rag,
+    daysOverdue: i.rag === "red" ? daysOverdue(i.dueDate) : undefined,
+    planned: plannedFor(planned, i.recordId, i.checkName),
+  });
 
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
@@ -203,7 +214,7 @@ export async function GET(request: NextRequest) {
               recipientName: digest.recipient.fullName,
               companyName: company.name,
               dateIso: today,
-              items: digest.items.map(asEmailItem),
+              items: digest.items.map(asEmailItem(reporting.plannedVisits)),
               actionUrl: appUrl,
             }),
           });

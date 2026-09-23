@@ -243,6 +243,13 @@ export type ReportingData = {
    * lie. They are scoped and drawn like everything else, under a heading that says what they are.
    */
   dbsRenewals: ReportingCheck[];
+  /**
+   * Every visit in the diary for this company from today on, keyed by plannedKey(recordId,
+   * checkName). Handed out so the Supervisor digest can fill its Planned column from the SAME
+   * read the People and Service User reports use (DEF-055), rather than a second query that
+   * could disagree with them.
+   */
+  plannedVisits: ReadonlyMap<string, PlannedVisit>;
   /** The company has at least one active person / service user (so the report
    *  is worth sending even on an all clear day; a people only company gets no
    *  Service User report). */
@@ -529,6 +536,7 @@ export async function getReportingData(companyId: string): Promise<ReportingData
     people: peopleOut,
     serviceUsers: suOut,
     dbsRenewals,
+    plannedVisits: planned,
     hasPeople: (activePeople.data ?? []).length > 0,
     hasServiceUsers: (activeSus.data ?? []).length > 0,
   };

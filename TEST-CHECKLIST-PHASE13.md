@@ -78,3 +78,20 @@ in the same piece of work (Phil: "we are passed final testing so it needs to be 
 
 - The user popup in Settings, Roles, users and access goes stale after "Enable this login" or "Disable this login": the database changes, the popup still shows the old status and the old button. Close and reopen shows the truth. A manager would press it again.
 - BCC has no "Forgot password" on the sign in page, and an Admin cannot send a reset to an active user. A manager who forgets their password can only get back in through the Founder in Supabase.
+
+## Password reset, sign out and email, 2026-09-23 (Phil stopped testing here)
+
+| # | Check | Result |
+|---|---|---|
+| R1 | Admin "Send password reset" sends the branded email; audited | PASS |
+| R2 | Reset from the email sets a password and signs out other devices (iPhone reset, Mac signed out) | PASS (database: only the iPhone slot left) |
+| R3 | Expired or fake reset link lands on "That reset link has expired" | PASS |
+| R4 | Forgot form gives the same answer for an address with no account, sends nothing | PASS |
+| R5 | One computer plus one phone at the same time (Mac 07:42, iPhone 07:43) | PASS (database) |
+| R6 | Sign out on the iPhone leaves the Mac signed in (DEF-052) | NOT TESTED after the fix. Phil stopped testing. |
+| R7 | A reset link only opens the reset form; Back to sign in shows sign in; saving signs out everywhere and lands on the password changed message (DEF-053) | NOT TESTED. Phil stopped testing. |
+| R8 | Two minute wait with countdown on the forgot page, no wait for Admins (DEF-054) | NOT TESTED. |
+| R9 | /login/reset opened directly on a normal session says expired (DEF-051) | NOT TESTED in the browser; logic covered by tests. |
+| 1.3 | Bevan 7am People email carries the DBS sections and one line rows | SENT at 07:00 (notification_log, "2 overdue, 0 due in 14 days"); the email itself not yet looked at. |
+| 1.4 | Bevan People email at 7am: DBS sections and one line rows | PASS (Phil's screenshots) |
+| D1 | Supervisor digest matches the People report: wide card, Name, Task, Date, Planned on one line, grey branch headings (DEF-055) | Preview PASS from Thistle's live checks (not sent). Real email: next 7am run to a Thistle Supervisor, Phil to screenshot. |

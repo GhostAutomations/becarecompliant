@@ -99,12 +99,17 @@ function formatDuration(minutes: number): string {
 const formatDateUk = ukDate;
 
 export type DigestEmailItem = {
+  recordId: string;
   recordName: string;
   checkName: string;
   branchName: string;
   population: "people" | "service_users";
   dueDate: string; // ISO
   rag: "red" | "amber";
+  /** Whole days late, for the "04/02/2026, 231 days overdue" date cell (DEF-055). */
+  daysOverdue?: number;
+  /** The visit booked for it on the Planner, or null for a red cross (DEF-055). */
+  planned?: { conductorName: string | null; scheduledDate: string } | null;
 };
 
 const RED_PILL = "#fca5a5";
@@ -139,6 +144,41 @@ function itemsTableHtml(items: DigestEmailItem[], moreCount: number): string {
 
 const DIGEST_MAX_ROWS = 40;
 
+/**
+ * The grey heading a digest row sits under: "Swansea, People". A supervisor's digest can span
+ * branches and both populations, and saying the branch once above its rows replaces saying it
+ * under every single name (DEF-055).
+ */
+function digestGroup(r: ReportingRow): string {
+  const population = r.population === "service_users" ? "Service Users" : "People";
+  return r.branchName ? `${r.branchName}, ${population}` : population;
+}
+
+/** One section's rows, grouped by branch then population, oldest date first inside a group. */
+function digestRows(items: DigestEmailItem[], rag: "red" | "amber"): ReportingRow[] {
+  const popOrder = (p: "people" | "service_users") => (p === "people" ? 0 : 1);
+  return items
+    .filter((i) => i.rag === rag)
+    .slice()
+    .sort(
+      (a, b) =>
+        a.branchName.localeCompare(b.branchName) ||
+        popOrder(a.population) - popOrder(b.population) ||
+        a.dueDate.localeCompare(b.dueDate) ||
+        a.recordName.localeCompare(b.recordName),
+    )
+    .map((i) => ({
+      recordId: i.recordId,
+      recordName: i.recordName,
+      branchName: i.branchName,
+      population: i.population,
+      checkName: i.checkName,
+      dueDate: i.dueDate,
+      daysOverdue: i.daysOverdue,
+      planned: i.planned ?? null,
+    }));
+}
+
 export function digestSubject(overdue: number, dueSoon: number): string {
   if (overdue > 0) {
     return `Compliance digest: ${overdue} overdue, ${dueSoon} due soon`;
@@ -156,7 +196,6 @@ export function digestEmailHtml(opts: {
 }): string {
   const overdue = opts.items.filter((i) => i.rag === "red").length;
   const dueSoon = opts.items.length - overdue;
-  const shown = opts.items.slice(0, DIGEST_MAX_ROWS);
   const summary =
     overdue > 0
       ? `<strong style="color:${RED_PILL};">${overdue} overdue</strong> and <strong style="color:${AMBER_PILL};">${dueSoon} due soon</strong>`
@@ -164,8 +203,14 @@ export function digestEmailHtml(opts: {
   const body = `
     <p style="margin:0 0 12px 0;">Good morning ${escapeHtml(opts.recipientName)}. Here is your compliance position for
     <strong style="color:#ffffff;">${escapeHtml(opts.companyName)}</strong> on ${escapeHtml(formatDateUk(opts.dateIso))}: ${summary}.</p>
-    ${itemsTableHtml(shown, opts.items.length - shown.length)}`;
+    ${reportingSectionHtml("Overdue", digestRows(opts.items, "red"), true, "Nothing overdue.", digestGroup)}
+    ${reportingSectionHtml("Due soon", digestRows(opts.items, "amber"), false, "Nothing due soon.", digestGroup)}`;
+  /* THE SAME CARD AS THE PEOPLE REPORT (DEF-055, Phil 2026-09-23, agreed by popup). The digest
+     used to stack every row onto three lines: name, then "Person, Swansea" under it, then the
+     date under "Overdue". It now reads exactly like the People report: 880 wide, four columns,
+     one line a row, with the branch said once in a grey heading above its rows. */
   return shell({
+    maxWidth: REPORT_CARD_WIDTH,
     preheader: `${overdue} overdue, ${dueSoon} due soon at ${opts.companyName}.`,
     heading: "Your daily compliance digest",
     bodyHtml: body,
@@ -197,6 +242,8 @@ export type ReportingRow = {
   /** False for a row the Planner cannot book, such as a DBS renewal. Its Planned cell is left
    *  blank rather than showing a red cross that would mean nothing. */
   plannable?: boolean;
+  /** Only the Supervisor digest reads this, for its branch headings (DEF-055). */
+  population?: "people" | "service_users";
 };
 
 /**
@@ -272,6 +319,9 @@ function reportingSectionHtml(
   rows: ReportingRow[],
   overdue: boolean,
   emptyText: string,
+  /** When given, a small grey heading row goes in wherever this changes (the digest's branch
+   *  headings, DEF-055). Rows must already be sorted by it. The reports pass nothing. */
+  groupOf?: (r: ReportingRow) => string,
 ): string {
   const accent = overdue ? RED_PILL : AMBER_PILL;
   const heading = `<p style="margin:22px 0 8px 0;font-size:13px;font-weight:700;color:${accent};text-transform:uppercase;letter-spacing:0.4px;">${escapeHtml(title)}</p>`;
@@ -294,8 +344,18 @@ function reportingSectionHtml(
     <th style="${th}width:30%;">Date</th>
     <th style="${lastTh}width:26%;">Planned</th>
   </tr>`;
+  const groupTd = `padding:14px 0 6px 0;font-size:11px;font-weight:700;color:${MUTED};text-transform:uppercase;letter-spacing:0.3px;border-bottom:1px solid rgba(255,255,255,0.07);`;
+  let lastGroup: string | null = null;
   const body = shown
     .map((r) => {
+      let groupRow = "";
+      if (groupOf) {
+        const g = groupOf(r);
+        if (g !== lastGroup) {
+          groupRow = `<tr><td colspan="4" style="${groupTd}">${escapeHtml(g)}</td></tr>`;
+          lastGroup = g;
+        }
+      }
       /* ONE LINE, DATE FIRST (Phil, 2026-09-23: "the date is under the days overdue", and he
          wanted all of it on one line; date first agreed by popup). "04/02/2026, 231 days overdue"
          lines the dates up down the column the same way the Due soon section does, and the days
@@ -310,7 +370,7 @@ function reportingSectionHtml(
         ? `<span style="color:${TEXT};font-weight:400;">${escapeHtml(formatDateShort(r.dueDate))}</span>, ${lateness}`
         : escapeHtml(formatDateShort(r.dueDate));
       const weight = overdue && r.daysOverdue != null && r.daysOverdue >= 7 ? "font-weight:700;" : "";
-      return `<tr>
+      return `${groupRow}<tr>
         <td style="${cell}color:#ffffff;font-weight:600;">${escapeHtml(r.recordName)}</td>
         <td style="${cell}color:${TEXT};">${escapeHtml(r.checkName)}</td>
         <td style="${cell}color:${accent};white-space:nowrap;${weight}">${dateCell}</td>

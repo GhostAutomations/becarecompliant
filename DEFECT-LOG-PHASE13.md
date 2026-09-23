@@ -1729,3 +1729,23 @@ and requestiong more".
   junk folder too. You can ask for another link in 2 minutes." with a live countdown, and "Send
   another link" appears only when the wait is over. The same answer and countdown show whatever
   address was typed, so the page still does not reveal who has an account.
+
+
+---
+
+## DEF-055 - The Supervisor digest stacked every row onto three lines
+
+**Phil, 2026-09-23**, with screenshots of the 7am emails: "One line?". The People report had gone
+to one line a row that morning (DEF-047); the Supervisor digest had not. Each row was the name
+with "Person, Swansea" under it, and "Overdue" with the date under that.
+
+**Changed (agreed by popup: match the People report).**
+
+- Same 880 wide card and the same four columns as the People report: Name, Task, Date, Planned.
+- One line a row. Overdue rows read "17/09/2026, 6 days overdue"; due soon rows read the date.
+- Planned shows who is booked and when, or a red cross, read from the same diary lookup the People
+  and Service User reports use, so the three emails cannot disagree.
+- The branch is said once, in a small grey heading above its rows ("Cardiff, People", "Cardiff,
+  Service Users"), instead of under every name.
+- Sections "Overdue" and "Due soon", sorted branch, then People before Service Users, then oldest
+  date first.
