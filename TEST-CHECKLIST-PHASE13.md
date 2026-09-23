@@ -142,3 +142,15 @@ in the same piece of work (Phil: "we are passed final testing so it needs to be 
 | L6 | Today's date: stays active, row planned. Date moved to 22/09 on the test row, Phil ran the retention job: leaver dated 22/09, invite revoked, login disabled, audit "Became a leaver at the end of 2026-09-22, as planned; login closed" | PASS |
 | L7 | Who can read the answers: the leaver's own login 0 rows, another company's Admin 0 rows, Bevan's Admin all 3 (rolled back) | PASS |
 | L8 | Leaver's login card offers no invite; "Send it again" only while an invite is waiting | PASS after deploy: leaver card "Closed, their login closed when they left", no button; back to Active shows "Invite them", not "Send it again". Test person left as a leaver (22/09). |
+
+## DBS date warnings, 2026-09-23 (DEF-059), tested live on Bevan
+
+| # | Check | Result |
+|---|---|---|
+| W1 | DBS form on ZZ TEST Leaver A (start 05/01/2026), certificate 01/02/2026, renewal 01/02/2032: "Are these DBS dates right?" lists the more than 3 years reason | PASS |
+| W2 | Save anyway on the DBS form saves the dates as entered (tracker 2026-02-01 / 2032-02-01) | PASS |
+| W3 | Add person, "They already work here", start 01/01/2025, certificate 01/06/2025, renewal 01/06/2031: both reasons shown, nothing saved | PASS |
+| W4 | Go back and check closes the panel; submitting again shows it again | PASS |
+| W5 | Save anyway on Add person creates the record with the dates as entered (ZZ TEST DBS Warn, logins held, tracker 2025-06-01 / 2031-06-01) | PASS |
+| W6 | Import preview with the same bad dates shows amber "Check DBS:" with both reasons; preview cleared, nothing imported | PASS |
+| W7 | Unit tests: 5 in dbs-check.test.ts, including the real Thistle rows | PASS |
