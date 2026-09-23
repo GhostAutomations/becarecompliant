@@ -39,7 +39,6 @@ import { listPersonAbsences, listPersonMeetings } from "@/lib/absence/data";
 import {
   applyMissingChecks,
   setArchived,
-  setEmploymentStatus,
   setRetentionHold,
   transferPerson,
 } from "@/lib/people/actions";
@@ -54,7 +53,10 @@ import {
   type ProbationStatus,
   type EmploymentStatus,
 } from "@/lib/people/types";
-import { DEFAULT_AMBER_DAYS } from "@/lib/recurrence";
+import { DEFAULT_AMBER_DAYS, formatCivilDate, todayInLondon } from "@/lib/recurrence";
+import WorkingStatusForm from "@/components/people/working-status-form";
+import { createClient as createServerClient } from "@/lib/supabase/server";
+import { LEAVING_SCORES, competitorLabel, reasonLabel } from "@/lib/people/leaving";
 import { REGISTER_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
 
 export const metadata: Metadata = { title: "Record" };
@@ -140,6 +142,19 @@ export default async function PersonPage({
   /* DELETING A RECORD IS AN ADMIN'S, and only theirs (Phil, asked and answered 2026-09-22).
      Everything else on the Manage panel is reversible; that one is not. */
   const isAdmin = profile.role === "company_admin" || profile.role === "platform_admin";
+  /* THE LATEST LEAVING (DEF-058): a planned one still to come, or the answers from when they
+     left. Read under RLS, which only shows it to an Admin or the branch lead. */
+  const { data: leavingRows } = await (await createServerClient())
+    .from("person_leavings")
+    .select("*")
+    .eq("person_id", id)
+    .order("recorded_at", { ascending: false })
+    .limit(1);
+  const leaving = (leavingRows?.[0] ?? null) as
+    | ({ leaving_date: string; reason: string; reason_other: string | null; re_employ: boolean; competitor: string; competitor_name: string | null; applied_at: string | null; cancelled_at: string | null; rejoined_at: string | null; recorded_at: string } & Record<string, unknown>)
+    | null;
+  const plannedLeaving = leaving && !leaving.applied_at && !leaving.cancelled_at ? leaving : null;
+  const leftWith = leaving && leaving.applied_at && !leaving.rejoined_at ? leaving : null;
   /* SUPPORT MODE CANNOT COMPLETE A CHECK, so it must not offer to. Completing writes signed
      compliance evidence, and evidence signed by the founder impersonating a manager is worse
      than no evidence. Until 2026-08-19 the buttons rendered, the form filled in, and the save
@@ -578,10 +593,34 @@ export default async function PersonPage({
         </div>
       ) : null}
 
+      {/* A PLANNED LEAVING (DEF-058): still working, still on the register and in the emails
+          until 23:59 of their leaving day, then the nightly run makes them a leaver. */}
+      {plannedLeaving ? (
+        <div className="glass-card border border-rag-amber/25 p-4 text-sm text-rag-amber-soft">
+          Leaving on {ukDate(plannedLeaving.leaving_date)}. They stay on the register and in the
+          emails until the end of that day, then become a leaver and their login closes. To call
+          it off, set Working status back to Active in Manage record.
+        </div>
+      ) : null}
+
       {isLeaver ? (
-        <div className="glass-card p-6 text-sm text-white/60">
-          This person is a leaver, so their checks are excluded from the active
-          register and reminders. Their evidence history is kept below.
+        <div className="glass-card space-y-3 p-6 text-sm text-white/60">
+          <p>
+            This person is a leaver
+            {person.leaver_date ? `, left ${ukDate(person.leaver_date)}` : ""}, so their checks
+            are excluded from the active register and reminders. Their evidence history is kept
+            below.
+          </p>
+          {leftWith ? (
+            <dl className="grid gap-x-6 gap-y-2 border-t border-white/10 pt-3 sm:grid-cols-2">
+              <div className="flex justify-between gap-3"><dt>Reason</dt><dd className="text-white/85">{reasonLabel(leftWith.reason, leftWith.reason_other)}</dd></div>
+              <div className="flex justify-between gap-3"><dt>Would re-employ</dt><dd className="text-white/85">{leftWith.re_employ ? "Yes" : "No"}</dd></div>
+              <div className="flex justify-between gap-3"><dt>Moving to a competitor</dt><dd className="text-white/85">{competitorLabel(leftWith.competitor, leftWith.competitor_name)}</dd></div>
+              {LEAVING_SCORES.map((s) => (
+                <div key={s.key} className="flex justify-between gap-3"><dt>{s.label}</dt><dd className="text-white/85">{String(leftWith[s.key] ?? "")} / 10</dd></div>
+              ))}
+            </dl>
+          ) : null}
         </div>
       ) : (
         <>
@@ -888,19 +927,11 @@ export default async function PersonPage({
             </div>
 
             <div className="flex flex-wrap items-end gap-3 border-t border-white/10 pt-4">
-              <ActionForm action={setEmploymentStatus} hidden={{ person_id: person.id }} inline label="Save status">
-                <label htmlFor="working_status" className="form-label">
-                  Working status
-                  <span className="ml-2 font-normal text-white/40">
-                    (this button saves the status only)
-                  </span>
-                </label>
-                <select id="working_status" name="status" defaultValue={person.employment_status}>
-                  {(Object.keys(WORKING_STATUS_LABELS) as EmploymentStatus[]).map((k) => (
-                    <option key={k} value={k}>{WORKING_STATUS_LABELS[k]}</option>
-                  ))}
-                </select>
-              </ActionForm>
+              <WorkingStatusForm
+                personId={person.id}
+                current={person.employment_status}
+                todayIso={formatCivilDate(todayInLondon())}
+              />
               {/* Archive is only offered once a person is a Leaver; Restore shows for
                   an archived record. Active/LTS/Mat Leave staff cannot be archived. */}
               {person.archived_at || person.employment_status === "leaver" ? (

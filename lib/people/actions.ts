@@ -50,6 +50,9 @@ import {
 } from "@/lib/people/history-boxes";
 import { seedPersonHistory } from "@/lib/people/history";
 import { advancePersonCheck } from "@/lib/people/advance-check";
+import { parseLeaving, leavingTakesEffectNow } from "@/lib/people/leaving";
+import { applyLeaving } from "@/lib/people/leaving-apply";
+import { ukDate } from "@/lib/dates";
 import { completionMovesCheck } from "@/lib/evidence/completion-date";
 import {
   deleteRefusalReason,
@@ -667,46 +670,176 @@ export async function setEmploymentStatus(
     return { error: "Choose a valid status." };
   }
 
-  const leaver_date = status === "leaver" ? todayIso() : null;
+  const { data: person } = await supabase
+    .from("people")
+    .select("id, company_id, employment_status, start_date, profile_id")
+    .eq("id", personId)
+    .maybeSingle<{ id: string; company_id: string; employment_status: string; start_date: string | null; profile_id: string | null }>();
+  if (!person) return { error: "That record could not be found." };
+  const companyId = person.company_id;
+  const { data: planned } = await supabase
+    .from("person_leavings")
+    .select("id, leaving_date")
+    .eq("person_id", personId)
+    .is("applied_at", null)
+    .is("cancelled_at", null)
+    .maybeSingle<{ id: string; leaving_date: string }>();
+
+  /* LEAVING (DEF-058, Phil 2026-09-23). The date, the reason, re-employ, competitor and six
+     scores are all required. A date already gone takes effect now; today or later waits for the
+     nightly run after the day ends, because they are still working until 23:59 of it. */
+  if (status === "leaver") {
+    if (person.employment_status === "leaver") return { error: "They are already a leaver." };
+    const parsed = parseLeaving((name) => formData.get(name), { startDate: person.start_date });
+    if (!parsed.ok) return { error: parsed.error };
+    const answers = parsed.value;
+
+    // A new answer replaces a leaving that was planned but has not happened yet.
+    if (planned) {
+      await supabase.from("person_leavings").update({ cancelled_at: new Date().toISOString() }).eq("id", planned.id);
+    }
+    const { data: leaving, error: leavingErr } = await supabase
+      .from("person_leavings")
+      .insert({ company_id: companyId, person_id: personId, ...answers, recorded_by: user.id })
+      .select("id")
+      .single<{ id: string }>();
+    if (leavingErr || !leaving) return { error: leavingErr?.message ?? "The leaving could not be saved." };
+
+    if (leavingTakesEffectNow(answers.leaving_date, todayIso())) {
+      const applied = await applyLeaving({
+        db: supabase,
+        leavingId: leaving.id,
+        personId,
+        companyId,
+        leavingDate: answers.leaving_date,
+      });
+      if (applied.error) return { error: applied.error };
+      await writeAudit({
+        companyId,
+        actorId: user.id,
+        actorEmail: profile.email,
+        actorRole: profile.role,
+        action: "person.status_changed",
+        entityType: "person",
+        entityId: personId,
+        summary: `Made a leaver, left ${answers.leaving_date}${applied.login.closed ? "; login closed" : ""}`,
+        metadata: {
+          status,
+          leaving_id: leaving.id,
+          leaving_date: answers.leaving_date,
+          login: applied.login,
+          ...(applied.retentionError ? { retention_error: applied.retentionError } : {}),
+        },
+      });
+      revalidatePath(`/people/${personId}`);
+      revalidatePath("/people");
+      return {
+        ok:
+          applied.login.closed
+            ? "Saved. They are now a leaver and their login is closed."
+            : applied.login.reason === "is_admin"
+              ? "Saved. They are now a leaver. They are an Admin, so close their login in Settings if they should no longer sign in."
+              : "Saved. They are now a leaver.",
+      };
+    }
+
+    await writeAudit({
+      companyId,
+      actorId: user.id,
+      actorEmail: profile.email,
+      actorRole: profile.role,
+      action: "person.leaving_planned",
+      entityType: "person",
+      entityId: personId,
+      summary: `Leaving on ${answers.leaving_date}; stays active until the end of that day`,
+      metadata: { leaving_id: leaving.id, leaving_date: answers.leaving_date },
+    });
+    revalidatePath(`/people/${personId}`);
+    revalidatePath("/people");
+    return {
+      ok: `Saved. They stay active until the end of ${ukDate(answers.leaving_date)}, then become a leaver and their login closes.`,
+    };
+  }
+
+  // Any other status calls off a leaving that has not happened yet.
+  if (planned) {
+    await supabase.from("person_leavings").update({ cancelled_at: new Date().toISOString() }).eq("id", planned.id);
+  }
+  const wasLeaver = person.employment_status === "leaver";
+
   // Setting a working status also un-archives: changing the Status pill (e.g. back to
   // Active) brings an archived person back into the relevant view, not stuck in Archive.
   const { data, error } = await supabase
     .from("people")
-    .update({ employment_status: status, leaver_date, archived_at: null })
+    .update({ employment_status: status, leaver_date: null, archived_at: null })
     .eq("id", personId)
     .select("id");
   if (error) return { error: error.message };
   if (!data || data.length === 0) return { error: "No change was saved. You may not have permission." };
 
-  // ITEM 18: end of care is what starts the eight year retention clock, and this is the one
-  // place a Person's ends. Passing null when they are NOT a leaver clears the date again, so
-  // somebody put back to Active does not keep counting down from a leaving that was undone.
+  // ITEM 18: end of care is what starts the eight year retention clock. Passing null when they
+  // are NOT a leaver clears the date again, so somebody put back to Active does not keep
+  // counting down from a leaving that was undone.
   const retention = await applyRetentionForRecord({
-    companyId: profile.company_id ?? "",
+    companyId,
     recordType: "person",
     recordId: personId,
-    endOfCare: leaver_date,
+    endOfCare: null,
   });
 
+  /* COMING BACK (Phil, 2026-09-23: "new login but data is restored"). Everything on file is
+     already theirs again. The old login stays closed: the record is unlinked from it, so Send
+     login on the record gives them a fresh one to the address held for them now. */
+  if (wasLeaver) {
+    const admin = createServiceClient();
+    await admin
+      .from("person_leavings")
+      .update({ rejoined_at: new Date().toISOString() })
+      .eq("person_id", personId)
+      .not("applied_at", "is", null)
+      .is("rejoined_at", null);
+    if (person.profile_id) {
+      const { data: login } = await admin
+        .from("profiles")
+        .select("status")
+        .eq("id", person.profile_id)
+        .maybeSingle<{ status: string }>();
+      if (login?.status === "disabled") {
+        await admin.from("people").update({ profile_id: null }).eq("id", personId);
+      }
+    }
+  }
+
   await writeAudit({
-    companyId: profile.company_id ?? "",
+    companyId,
     actorId: user.id,
     actorEmail: profile.email,
     actorRole: profile.role,
     action: "person.status_changed",
     entityType: "person",
     entityId: personId,
-    summary: `Set working status to ${status}`,
+    summary: wasLeaver
+      ? `Back from leaver to ${status}`
+      : planned
+        ? `Set working status to ${status}; planned leaving on ${planned.leaving_date} cancelled`
+        : `Set working status to ${status}`,
     metadata: {
       status,
       retention_rows_updated: retention.updated,
+      ...(planned ? { cancelled_leaving_id: planned.id } : {}),
       ...(retention.error ? { retention_error: retention.error } : {}),
     },
   });
 
   revalidatePath(`/people/${personId}`);
   revalidatePath("/people");
-  return { ok: "Saved." };
+  return {
+    ok: wasLeaver
+      ? "Saved. Their records are back on the register. Use Send login on their record to give them a new login."
+      : planned
+        ? `Saved. The planned leaving on ${ukDate(planned.leaving_date)} is cancelled.`
+        : "Saved.",
+  };
 }
 
 /** Archive or restore a Record. */

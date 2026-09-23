@@ -122,3 +122,10 @@ in the same piece of work (Phil: "we are passed final testing so it needs to be 
 | B2 | One to One filled in on screen dated 01/08/2026: check completed 01/08, green banner | PASS |
 | B3 | Second One to One dated 01/05/2026: Evidence stored (2 rows), check still 01/08, "added to the history" banner, audit check.completed_history | PASS |
 | D1 | Supervisor digest in the new layout, real 7am email | Scheduled check 07:20 24/09, then Phil's screenshot |
+
+## Item 6, future Safeguarding dates on Thistle, 2026-09-23
+
+| # | Check | Result |
+|---|---|---|
+| S1 | Phil corrected both in the app (Training, cell dialog): Asim Riaz completed 21/12/2025, renews 21/12/2026; Mohammad Mahbubul Islam completed 29/01/2026, renews 29/01/2027 | PASS (database checked) |
+| S2 | No training on Thistle left with a completion date in the future | PASS (0 rows) |

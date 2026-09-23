@@ -1810,3 +1810,43 @@ date, worked the next due date out from it, and could turn a compliant record re
   The escalation box on a Service User form still goes, because that is about what the form says.
 - The database holds the same line: complete_check leaves the Check alone for an older date
   (migration 0319), so no caller can get round it.
+
+
+---
+
+## DEF-058 - Making somebody a leaver: no real leaving date, login left open, nothing asked
+
+**Found 2026-09-23** making Mohammad Mahbubul Islam a leaver at Thistle.
+
+- The leaving date was always today, with nowhere to say otherwise. It starts the eight year
+  retention clock, so a late entry started it late.
+- His Team Member invite stayed live until it was revoked by hand in Settings.
+- Nothing was asked about why he went.
+
+**Agreed with Phil by popup (2026-09-23).** Leaving date past, today or future, and with today or
+a future date they stay active until 23:59 of it. Leaving closes the login; coming back gets a new
+login with all their data restored. Fixed questions on the leaver screen, all required: reason
+(Resigned, Dismissed, End of contract, Failed probation, Retired, Other with a reason), would you
+re-employ, moving to a competitor (Yes with the name, No, Don't know), and scores out of ten for
+attitude, attendance, lateness, professionalism, privacy and team work.
+
+**Built.**
+
+- Manage record: choosing Leaver opens the questions under Working status; the button reads Save
+  leaver. One rule on both sides (lib/people/leaving.ts parseLeaving, seven tests).
+- person_leavings (migration 0320): one row per leaving, so a second leaving never overwrites the
+  first. Read and written by an Admin or the branch lead only, never a Team Member.
+- A date already gone takes effect on save. Today or later is a planned leaving, shown on the
+  record in amber ("Leaving on ... They stay on the register and in the emails until the end of
+  that day"), and made real by the nightly retention run after the day ends, before the 07:00
+  emails. Setting any other status calls a planned leaving off.
+- Taking effect (lib/people/leaving-apply.ts, one function for both paths): leaver dated the day
+  they left, retention clock from that date, login closed (pending invites revoked, account
+  disabled, signed in devices dropped at their next page). An Admin's own login is left alone and
+  the screen says so, so a company cannot lock itself out by mistake.
+- The record of a leaver shows the answers (reason, re-employ, competitor, six scores).
+- Coming back: set to Active. Everything on file is back on the register, the retention clock
+  stops, the old login stays closed and is unlinked, so Send login gives them a new one.
+
+**Not in this change:** the leaving answers are kept with the record and go when the record is
+deleted; they are not yet part of the eight year anonymisation, which today covers Evidence only.
