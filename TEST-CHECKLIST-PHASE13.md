@@ -164,4 +164,5 @@ in the same piece of work (Phil: "we are passed final testing so it needs to be 
 | U3 | Settings, People, Audit card on Bevan reads "Every (months)" 3; Save keeps it every 3 months | PASS (still month / 3 after Save) |
 | U4 | That Save dates ZZ TEST DBS Warn's never done Audit from their start date (01/01/2025 to 01/04/2025) | PASS |
 | U5 | Add a new starter on Bevan: Audit due start date plus 3 months | PASS (ZZ TEST Audit Starter, start 23/09/2026, Audit 23/12/2026, Spot Check 23/10/2026, logins held) |
-| U6 | Readiness page on Thistle shows 1 no due date and the waiting line (Bevan has no readiness mapping, so this needs Phil signed in on Thistle) | |
+| U6 | Readiness page on Thistle shows the waiting line (Bevan has no readiness mapping, so Phil checked it on Thistle) | PASS (Phil's screenshot: "8 checks are waiting on an earlier check ... 5 appraisals, 1 supervision waiting for an appraisal, 2 waiting for probation"; no "no due date" line) |
+| U7 | Phil saved Thistle's Audit card: still every 3 months, Damilola's Audit now due 16/12/2026; Thistle roll-up 0 no due date, 8 waiting, 106 scored | PASS (database checked) |
