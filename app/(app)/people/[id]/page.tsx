@@ -733,7 +733,7 @@ export default async function PersonPage({
               <h2 className="text-sm font-semibold uppercase tracking-wide text-white">
                 Team Member login
               </h2>
-              {login?.has_email && !(login.has_login && login.login_status === "active") ? (
+              {login?.has_email && !isLeaver && !(login.has_login && login.login_status === "active") ? (
                 <ActionForm
                   action={invitePersonLogin}
                   hidden={{ person_id: id }}
@@ -742,7 +742,10 @@ export default async function PersonPage({
                        email was held and never went: there is no again. Settings > Users has
                        said "Send invite" against a held invite and "Resend" against a sent one
                        since it was built; this screen now agrees with it. */
-                    login.email_sent_at
+                    /* AGAIN ONLY WHILE AN INVITE IS WAITING. A revoked one (somebody who left
+                       and came back, DEF-058) still has a sent date, and "Send it again" would
+                       then name an invite that no longer exists. */
+                    login.email_sent_at && login.invite_status === "pending"
                       ? "Send it again"
                       : login.invite_status === "pending" || login.login_status === "invited"
                         ? "Send invite"
@@ -756,7 +759,14 @@ export default async function PersonPage({
                 />
               ) : null}
             </div>
-            {!login?.has_email ? (
+            {isLeaver ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="pill pill-neutral">Closed</span>
+                <span className="text-sm text-white/60">
+                  Their login closed when they left. Set them back to Active to give them a new one.
+                </span>
+              </div>
+            ) : !login?.has_email ? (
               <p className="text-sm text-white/50">
                 No personal email on this record, so they cannot be given a login. Add one
                 above and the invite goes out automatically.

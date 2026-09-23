@@ -50,10 +50,15 @@ export async function invitePersonLogin(
   const supabase = await createClient();
   const { data: person } = await supabase
     .from("people")
-    .select("id, full_name, work_email")
+    .select("id, full_name, work_email, employment_status")
     .eq("id", personId)
     .maybeSingle();
   if (!person) return { error: "That person could not be found." };
+  /* A LEAVER IS NOT INVITED BACK IN BY ACCIDENT (DEF-058). Leaving closed their login; this
+     button would open it again. Coming back is setting them to Active first. */
+  if (person.employment_status === "leaver") {
+    return { error: "They have left, so they cannot be given a login. Set them back to Active first." };
+  }
   if (!person.work_email) {
     return { error: "Add their personal email to the record first, then invite them." };
   }

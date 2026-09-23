@@ -1850,3 +1850,9 @@ attitude, attendance, lateness, professionalism, privacy and team work.
 
 **Not in this change:** the leaving answers are kept with the record and go when the record is
 deleted; they are not yet part of the eight year anonymisation, which today covers Evidence only.
+
+**Found in the live test the same day, fixed in the same defect.** A leaver's record still offered
+"Send it again" on the Team Member login card, which would have re-invited somebody who had just
+left. The card now says the login closed when they left, offers nothing, and the invite action
+itself refuses a leaver. And a rejoiner whose old invite was revoked was offered "Send it again"
+for an invite that no longer existed; "again" now only shows while an invite is waiting.

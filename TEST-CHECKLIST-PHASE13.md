@@ -129,3 +129,16 @@ in the same piece of work (Phil: "we are passed final testing so it needs to be 
 |---|---|---|
 | S1 | Phil corrected both in the app (Training, cell dialog): Asim Riaz completed 21/12/2025, renews 21/12/2026; Mohammad Mahbubul Islam completed 29/01/2026, renews 29/01/2027 | PASS (database checked) |
 | S2 | No training on Thistle left with a completion date in the future | PASS (0 rows) |
+
+## Leaving, 2026-09-23 (DEF-058), tested live on Bevan (ZZ TEST Leaver A)
+
+| # | Check | Result |
+|---|---|---|
+| L1 | Choosing Leaver opens every question, all required; button reads Save leaver | PASS |
+| L2 | Saving with answers missing is refused by the server ("Choose the reason for leaving.") | PASS |
+| L3 | Past date 20/09/2026 with Other and a competitor: leaver at once, left 20/09, answers shown on the record, invite revoked, login disabled, audit "login closed" | PASS |
+| L4 | Back to Active: 9 checks live again, old login unlinked, leaving row marked rejoined; Send login re-invited them (new invite pending) | PASS |
+| L5 | Future date 10/10/2026: stays active, amber "Leaving on 10 October 2026" note; setting Active calls it off (row cancelled) | PASS |
+| L6 | Today's date: stays active, row planned. Date moved to 22/09 on the test row, Phil ran the retention job: leaver dated 22/09, invite revoked, login disabled, audit "Became a leaver at the end of 2026-09-22, as planned; login closed" | PASS |
+| L7 | Who can read the answers: the leaver's own login 0 rows, another company's Admin 0 rows, Bevan's Admin all 3 (rolled back) | PASS |
+| L8 | Leaver's login card offers no invite; "Send it again" only while an invite is waiting | Fixed after L3/L4, to confirm after this deploy |
