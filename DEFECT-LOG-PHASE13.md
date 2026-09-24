@@ -2146,3 +2146,21 @@ narratives ever drafted hit the old 1800 limit. Budgets raised to 3000 for quest
 the narrative; only tokens used are charged. Other AI features (Return to Work, Regulation 73,
 incident reports) keep their budgets, have never hit them in usage_events, and would now say so if
 they did.
+
+
+---
+
+## DEF-068 - The Readiness card said "11 due soon" and listed 18
+
+**Found 2026-09-24** in the assistant's "What needs booking" answer ("1 overdue, 18 due soon"),
+then on the page itself: Care and Support read "1 overdue · 11 due soon · 63 on track" above
+"Outstanding checks (19)", and Leadership and Management "1 due soon" above five supervisions.
+
+**Cause:** the counts use each check's own amber window, as every register does (Thistle: 14
+days). The list under them used a flat 30 days, so it called seven Care and Support checks and
+four supervisions "due soon" that the register, the dashboard and the count above all call on
+track. The pack printed the same list, and the assistant read it.
+
+**Fixed:** the list uses the same window as the count (lib/framework/due-soon.ts, three tests:
+Thistle's own dates, the window's edge, month, year and leap year ends). Page, pack and assistant
+all read that one list, so all three now agree with the count.

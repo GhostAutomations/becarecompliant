@@ -14,6 +14,7 @@ import {
   type IncidentRow,
 } from "@/lib/framework/case-handling";
 import { reportableCheck } from "@/lib/notifications/reportable";
+import { amberWindow, isDueSoon } from "@/lib/framework/due-soon";
 
 /**
  * Inspection readiness against a regulator's framework. Each requirement (CIW
@@ -354,9 +355,16 @@ export async function getFrameworkItems(
   const byCode = new Map<string, { overdue: FrameworkItem[]; dueSoon: FrameworkItem[] }>();
   if (defIds.length === 0) return byCode;
 
+  const { data: companyRow } = await supabase
+    .from("companies")
+    .select("amber_days_default")
+    .eq("id", companyId)
+    .maybeSingle();
+  const companyAmber = (companyRow?.amber_days_default as number | null | undefined) ?? null;
+
   const { data: inst } = await supabase
     .from("check_instances")
-    .select("id, definition_id, due_date, last_completed_on, record_type, person_id, service_user_id, check_definitions(name, recurring), people(full_name, employment_status, archived_at), service_users(full_name, service_status, archived_at)")
+    .select("id, definition_id, due_date, last_completed_on, record_type, person_id, service_user_id, check_definitions(name, recurring, amber_days), people(full_name, employment_status, archived_at), service_users(full_name, service_status, archived_at)")
     .eq("company_id", companyId)
     .eq("active", true)
     .not("due_date", "is", null)
@@ -367,7 +375,7 @@ export async function getFrameworkItems(
     const r = raw as {
       id: string; definition_id: string; due_date: string; last_completed_on: string | null; record_type: string;
       person_id: string | null; service_user_id: string | null;
-      check_definitions: { name: string; recurring: boolean } | { name: string; recurring: boolean }[] | null;
+      check_definitions: { name: string; recurring: boolean; amber_days: number | null } | { name: string; recurring: boolean; amber_days: number | null }[] | null;
       people: { full_name: string; employment_status: string; archived_at: string | null } | { full_name: string; employment_status: string; archived_at: string | null }[] | null;
       service_users: { full_name: string; service_status: string; archived_at: string | null } | { full_name: string; service_status: string; archived_at: string | null }[] | null;
     };
@@ -394,12 +402,9 @@ export async function getFrameworkItems(
     const item: FrameworkItem = { instanceId: r.id, recordId, recordName: recordName!, checkName: def?.name ?? "check", dueDate: r.due_date, population };
     const bucket = byCode.get(code) ?? { overdue: [], dueSoon: [] };
     if (r.due_date < today) bucket.overdue.push(item);
-    else {
-      // due soon: within 30 days
-      const [ty, tm, td] = today.split("-").map(Number);
-      const in30 = new Date(Date.UTC(ty, tm - 1, td + 30)).toISOString().slice(0, 10);
-      if (r.due_date <= in30) bucket.dueSoon.push(item);
-    }
+    /* The check's own amber window, as the count above the list uses (DEF-068). It was a flat
+       30 days, so Thistle's card said "11 due soon" and listed 18. */
+    else if (isDueSoon(r.due_date, today, amberWindow(def?.amber_days, companyAmber))) bucket.dueSoon.push(item);
     byCode.set(code, bucket);
   }
   return byCode;
