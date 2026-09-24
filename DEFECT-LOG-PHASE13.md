@@ -2137,3 +2137,12 @@ usage for Thistle (eight rows in usage_events). Four faults:
 
 Also: the model tends to put a theme and its status on separate lines ("Well-being:" then "On
 track"); they are now joined into one heading (narrative-text.ts, two more tests).
+
+**Retest after deploy, 2026-09-24:** A1, A6 and A7 pass. A3 failed again, differently: "What needs
+booking" used all 900 of its output tokens and showed one line, then the new "This reply was cut
+short" notice (which proved the notice works). The model spends a large part of its budget before
+any text appears: a 4,451 character narrative used 2,718 output tokens, and four of the nine
+narratives ever drafted hit the old 1800 limit. Budgets raised to 3000 for questions and 6000 for
+the narrative; only tokens used are charged. Other AI features (Return to Work, Regulation 73,
+incident reports) keep their budgets, have never hit them in usage_events, and would now say so if
+they did.

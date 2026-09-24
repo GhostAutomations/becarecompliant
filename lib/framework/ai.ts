@@ -111,6 +111,12 @@ function ukDate(iso: string): string {
 const SYSTEM = (regulator: string) =>
   `You are an experienced UK care compliance adviser helping a provider prepare for a ${regulator === "ciw" ? "Care Inspectorate Wales (CIW)" : "Care Quality Commission (CQC)"} inspection. Use ONLY the data you are given. Never invent people, facts or figures. Use UK spelling and plain English. Be honest about weaknesses. Make clear this is a preparation aid based on the provider's own live data, not a regulatory rating or legal advice. ${regulator === "ciw" ? "CIW rates each theme separately, by judgement, so never give an overall score, percentage rating or grade for the service. " : ""}Call the things that fall due "checks", never "items". Do not use dashes as punctuation: use commas, colons and full stops. Write plain text, not markdown: no asterisks, no underscores, no # signs. Write dates as they are given to you, for example 17 September 2026. Describe a theme by its status words (On track, Attention, Action needed), never as a colour. Where a figure has no data yet, say "no data yet", never "n/a".`;
 
+/* TOKEN BUDGETS (2026-09-24, measured on Thistle). The model spends a good part of its budget
+   before any text appears: a narrative of 4,451 characters used 2,718 output tokens, and "What
+   needs booking" used all 900 of its tokens and returned one line. Of nine narratives, four hit
+   the old limit and stopped mid sentence. So the budgets are set well above the text wanted; only
+   tokens actually used are charged, and a reply that still runs out now says so (anthropic.ts). */
+
 /** Draft an inspection readiness narrative + prioritised gaps and actions. */
 export async function draftReadinessNarrative(pre?: RequirementReadiness[]): Promise<Result> {
   const ctx = await resolve();
@@ -120,7 +126,7 @@ export async function draftReadinessNarrative(pre?: RequirementReadiness[]): Pro
      starts straight at the first section, and headings go on a line of their own marked with ##
      so the pack can tell them apart. Anything else markdown is cleaned off by narrative-text. */
   const prompt = `${context}\n\nWrite two sections. Do not add a title, provider, date or disclaimer of your own: the document already has them. Put each section heading on its own line starting with "## ", and each ${ctx.regulator === "ciw" ? "theme" : "key question"} name on its own line followed by a colon and its status.\n## Readiness summary: for each ${ctx.regulator === "ciw" ? "theme" : "key question"}, 2 to 4 sentences on what is strong and what needs attention.\n## Gaps and actions: a numbered list, most urgent first, each action specific and tied to the data above (name the records and checks where relevant).`;
-  return runAi({ companyId: ctx.companyId, feature: "framework_narrative", system: SYSTEM(ctx.regulator), prompt, maxTokens: 3500 });
+  return runAi({ companyId: ctx.companyId, feature: "framework_narrative", system: SYSTEM(ctx.regulator), prompt, maxTokens: 6000 });
 }
 
 /** Answer a manager's question grounded in the readiness data. */
@@ -131,5 +137,5 @@ export async function askReadiness(question: string): Promise<Result> {
   if (!ctx) return { error: "Inspection Readiness is not enabled for this company." };
   const context = await buildContext(ctx.companyId, ctx.regulator, ctx.name);
   const prompt = `${context}\n\nThe manager asks: "${q}"\nAnswer using ONLY the data above. If the answer is not in the data, say you do not have that information. Be concise and specific, and refer to the exact records or checks where relevant.`;
-  return runAi({ companyId: ctx.companyId, feature: "framework_qa", system: SYSTEM(ctx.regulator), prompt, maxTokens: 900 });
+  return runAi({ companyId: ctx.companyId, feature: "framework_qa", system: SYSTEM(ctx.regulator), prompt, maxTokens: 3000 });
 }

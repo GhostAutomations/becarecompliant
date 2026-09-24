@@ -214,11 +214,11 @@ in the same piece of work (Phil: "we are passed final testing so it needs to be 
 
 | # | Check | Result |
 |---|---|---|
-| A1 | Empty question: says what to do | FAIL (did nothing), fixed; retest |
+| A1 | Empty question: says what to do | PASS on retest: "Type a question first, or pick one of the buttons above." |
 | A2 | Biggest risk: names Taiye Emmanuella Aladesuyi's overdue Spot Check (17 September 2026), plain text | PASS (11 seconds) |
-| A3 | What needs booking: lists the overdue AND due soon checks by name | FAIL (said it did not have the 11 due soon), fixed; retest |
+| A3 | What needs booking: lists the overdue AND due soon checks by name | FAIL again on retest: the reply used all 900 tokens and showed one line plus "This reply was cut short" (the new notice worked). Budget raised to 3000; retest |
 | A4 | Theme button (Leadership and Management): status, counts, the waiting line, signals, plain text | PASS (9 seconds) |
 | A5 | Typed question the data cannot answer (staff turnover): says it does not have that information | PASS |
-| A6 | Draft inspection narrative: "Drafting…", plain text, no title block, editable, note "Draft, edit before you use it" | PASS, but cut off at the token limit and theme status split over two lines, fixed; retest |
-| A7 | Asking a question after drafting keeps the draft | FAIL (draft wiped), fixed; retest |
+| A6 | Draft inspection narrative: "Drafting…", plain text, no title block, editable, note "Draft, edit before you use it" | PASS on retest: 4,451 characters, finished (eleven actions, no cut short notice), "Well-being: On track" on one line, no symbols, 27 seconds |
+| A7 | Asking a question after drafting keeps the draft | PASS on retest (draft and its edit still there after What needs booking) |
 | A8 | Every use recorded as AI usage for the company | PASS (usage_events, feature framework_narrative and framework_qa) |
