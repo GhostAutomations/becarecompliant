@@ -62,6 +62,9 @@ export type ReportDoc = {
   /** Extra line in the footer, e.g. the exclusion note. */
   footerNote?: string;
   landscape?: boolean;
+  /** The line under the brand. "Compliance report" unless the document is something else,
+   *  such as a subject access export, which is not a compliance report. */
+  kicker?: string;
 };
 
 const styles = StyleSheet.create({
@@ -162,7 +165,7 @@ function ReportDocument({ doc }: { doc: ReportDoc }) {
         <View style={styles.brandBar}>
           <View>
             <Text style={styles.brand}>Be Care Compliant</Text>
-            <Text style={styles.brandSub}>Compliance report</Text>
+            <Text style={styles.brandSub}>{doc.kicker ?? "Compliance report"}</Text>
           </View>
           {doc.reference ? (
             <Text style={styles.refTag}>Reference{"\n"}{doc.reference}</Text>

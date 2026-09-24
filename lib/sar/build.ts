@@ -26,8 +26,13 @@ import { renderReportPdf, type ReportBlock } from "@/lib/export/pdf";
 import { buildCsv, type CsvCell } from "@/lib/export/csv";
 import { fmtDate, fmtDateTime, generatedAt } from "@/lib/export/format";
 import { readmeText, safeFileName, uniquePath, type SarKind } from "./layout";
+import { WORKING_STATUS_LABELS, PROBATION_STATUS_LABELS, RTW_LIMIT_LABELS } from "@/lib/people/types";
+import { SERVICE_STATUS_LABELS } from "@/lib/service-users/types";
+import { competitorLabel, reasonLabel } from "@/lib/people/leaving";
 
-type Section = { title: string; file: string; headers: string[]; rows: CsvCell[][]; empty: string };
+/** "cards" prints each row as its own set of labelled values: for a section too wide for a table
+ *  (a leaving has sixteen answers, and their headings ran into each other on the page). */
+type Section = { title: string; file: string; headers: string[]; rows: CsvCell[][]; empty: string; pdf?: "table" | "cards" };
 type Attachment = { bucket: string; path: string; folder: string; name: string };
 
 export type SarResult = {
@@ -84,14 +89,14 @@ export async function buildSubjectAccessExport(input: {
     kind === "person"
       ? [
           ["Name", rec.full_name], ["Branch", branchName], ["Job title", rec.job_title], ["Team", rec.team],
-          ["Working status", rec.employment_status], ["Start date", fmtDate(rec.start_date as string)],
+          ["Working status", WORKING_STATUS_LABELS[rec.employment_status as keyof typeof WORKING_STATUS_LABELS] ?? rec.employment_status], ["Start date", fmtDate(rec.start_date as string)],
           ["Leaving date", fmtDate(rec.leaver_date as string)], ["Work email", rec.work_email], ["Mobile", rec.mobile],
           ["Social Care Wales registration", rec.scw_registration_number], ["Archived", fmtDate(rec.archived_at as string)],
           ["Record created", fmtDateTime(rec.created_at as string)],
         ]
       : [
           ["Name", rec.full_name], ["Branch", branchName], ["SSID", rec.ssid], ["Package start", fmtDate(rec.package_start_date as string)],
-          ["Status", rec.service_status], ["Discharge date", fmtDate(rec.discharge_date as string)], ["Address", rec.address],
+          ["Status", SERVICE_STATUS_LABELS[rec.service_status as keyof typeof SERVICE_STATUS_LABELS] ?? rec.service_status], ["Discharge date", fmtDate(rec.discharge_date as string)], ["Address", rec.address],
           ["Phone", rec.phone], ["Archived", fmtDate(rec.archived_at as string)],
           ["Private invoicing", yes(rec.private_invoicing as boolean)], ["Invoice to", rec.invoice_to],
           ["Invoice contact", rec.invoice_contact_name], ["Invoice address", rec.invoice_address],
@@ -104,9 +109,9 @@ export async function buildSubjectAccessExport(input: {
     const x = (tr ?? {}) as Record<string, unknown>;
     recordPairs.push(
       ["DBS date", fmtDate(x.dbs_date as string)], ["Enhanced DBS date", fmtDate(x.enhanced_dbs_date as string)],
-      ["Right to Work expiry", fmtDate(x.rtw_expiry_date as string)], ["Right to Work limits", x.rtw_limits],
+      ["Right to Work expiry", fmtDate(x.rtw_expiry_date as string)], ["Right to Work limits", x.rtw_limits ? RTW_LIMIT_LABELS[x.rtw_limits as keyof typeof RTW_LIMIT_LABELS] ?? x.rtw_limits : null],
       ["Probation end due", fmtDate(x.probation_end_due as string)], ["Probation ended", fmtDate(x.probation_end_actual as string)],
-      ["Probation status", x.probation_status], ["Probation extended to", fmtDate(x.probation_extension_date as string)],
+      ["Probation status", x.probation_status ? PROBATION_STATUS_LABELS[x.probation_status as keyof typeof PROBATION_STATUS_LABELS] ?? x.probation_status : null], ["Probation extended to", fmtDate(x.probation_extension_date as string)],
     );
   } else {
     const { data: tr } = await db.from("service_user_trackers").select("*").eq("service_user_id", recordId).maybeSingle();
@@ -245,11 +250,13 @@ export async function buildSubjectAccessExport(input: {
       file: "leaving.csv",
       headers: ["Leaving date", "Reason", "Other reason", "Would re-employ", "Moving to a competitor", "Competitor", "Attitude", "Attendance", "Lateness", "Professionalism", "Privacy", "Teamwork", "Recorded", "Took effect", "Called off", "Rejoined"],
       rows: ((leave ?? []) as Array<Record<string, unknown>>).map((l) => [
-        fmtDate(l.leaving_date as string), t(l.reason), t(l.reason_other), yes(l.re_employ as boolean), t(l.competitor), t(l.competitor_name),
+        fmtDate(l.leaving_date as string), l.reason ? reasonLabel(String(l.reason), (l.reason_other as string | null) ?? null) : "", t(l.reason_other), yes(l.re_employ as boolean),
+        l.competitor ? competitorLabel(String(l.competitor), (l.competitor_name as string | null) ?? null) : "", t(l.competitor_name),
         t(l.score_attitude), t(l.score_attendance), t(l.score_lateness), t(l.score_professionalism), t(l.score_privacy), t(l.score_teamwork),
         fmtDateTime(l.recorded_at as string), fmtDateTime(l.applied_at as string), fmtDateTime(l.cancelled_at as string), fmtDateTime(l.rejoined_at as string),
       ]),
       empty: "No leaving recorded.",
+      pdf: "cards",
     });
   } else {
     // ---- Care plan file and care schedule
@@ -363,6 +370,16 @@ export async function buildSubjectAccessExport(input: {
     blocks.push({ kind: "heading", text: s.title });
     if (s.title === "Record") {
       blocks.push({ kind: "keyvalues", pairs: s.rows.map((r) => ({ label: String(r[0]), value: String(r[1] ?? "") })) });
+    } else if (s.pdf === "cards") {
+      if (s.rows.length === 0) blocks.push({ kind: "paragraph", text: s.empty });
+      for (const r of s.rows) {
+        blocks.push({
+          kind: "keyvalues",
+          pairs: s.headers
+            .map((h, i) => ({ label: h, value: r[i] == null ? "" : String(r[i]) }))
+            .filter((p) => p.value !== ""),
+        });
+      }
     } else {
       blocks.push({
         kind: "table",
@@ -376,9 +393,13 @@ export async function buildSubjectAccessExport(input: {
   blocks.push({ kind: "heading", text: "Evidence" });
   blocks.push({
     kind: "paragraph",
-    text: pack.ok
-      ? `${pack.data.evidence.length} completed ${pack.data.evidence.length === 1 ? "form is" : "forms are"} in evidence.pdf, each in full, with an index in evidence.csv. Original uploads are in files/evidence.`
-      : "The evidence could not be read.",
+    text: !pack.ok
+      ? "The evidence could not be read."
+      : pack.data.evidence.length === 0
+        ? "No completed forms on this record."
+        : `${pack.data.evidence.length} completed ${pack.data.evidence.length === 1 ? "form is" : "forms are"} in evidence.pdf, each in full, with an index in evidence.csv.${
+            attachments.some((a) => a.folder === "files/evidence") ? " Original uploads are in files/evidence." : ""
+          }`,
   });
 
   const made = generatedAt();
@@ -394,6 +415,7 @@ export async function buildSubjectAccessExport(input: {
     blocks,
     footerNote: "Read before sending: remove or redact other people's details. See README.txt.",
     landscape: true,
+    kicker: "Subject access export",
   });
   put("summary.pdf", new Uint8Array(summary));
 
