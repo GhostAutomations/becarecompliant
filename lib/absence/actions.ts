@@ -40,6 +40,7 @@ import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
 import type { Answers } from "@/lib/form-schema";
 import type { ActionState } from "@/lib/forms";
 import { getCompanyFormByKey } from "@/lib/people/data";
+import { stageFrom, unbookedMeetingProblem } from "@/lib/absence/record-meeting";
 
 function isoOrNull(v: unknown): string | null {
   return typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
@@ -237,16 +238,6 @@ export async function recordAbsenceMeeting(
     };
   }
 
-  const result = await submitEvidence({
-    formVersionId: form.versionId,
-    branchId: (person.branch_id as string | null) ?? null,
-    answers,
-    files: await collectFiles(formData),
-    recordType: "person",
-    recordId: personId,
-  });
-  if (!result.ok) return { error: result.error };
-
   // Stage from the "Meeting Type (tick as appropriate)" answer, e.g. "Stage 2".
   const rawStage = String(answers["meeting_type"] ?? "");
   const stageMatch = rawStage.match(/(\d)/);
@@ -269,6 +260,28 @@ export async function recordAbsenceMeeting(
     .limit(1);
   if (validStage) bookingQuery = bookingQuery.eq("stage", validStage);
   const { data: openBooking } = await bookingQuery.maybeSingle();
+
+  /* A MEETING WITH NO BOOKING BEHIND IT (DEF-072, Phil 2026-09-24: "Allow a meeting already
+     held"). Checked BEFORE the Evidence is filed, so a refused meeting leaves nothing behind.
+     No letters or invites are sent from here in either case: recording is after the event. */
+  if (!openBooking) {
+    const problem = unbookedMeetingProblem({
+      stage: stageFrom(answers["meeting_type"]),
+      dateIso: meetingDate,
+      todayIso: formatCivilDate(todayInLondon()),
+    });
+    if (problem) return { error: problem };
+  }
+
+  const result = await submitEvidence({
+    formVersionId: form.versionId,
+    branchId: (person.branch_id as string | null) ?? null,
+    answers,
+    files: await collectFiles(formData),
+    recordType: "person",
+    recordId: personId,
+  });
+  if (!result.ok) return { error: result.error };
 
   let meetingId: string | null = null;
   let attachedToBooking = false;

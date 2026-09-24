@@ -2225,3 +2225,36 @@ the next People report to Thistle's admins lists Smith Tacho Azang and Deborah O
 "Right to Work expiring".
 **Live (dpl_8ThiHUp9, READY):** Phil confirmed Smith Tacho Azang's RTW Expiry (30/10/2026) is now
 amber on Thistle's register. PASS. The email section is seen in the next People report.
+
+## Absence history copied from monday for Cardiff (2026-09-24)
+
+Phil: "look for any names that match our cardiff people names and copy all the absence info over."
+From the monday Absence board export: 9 Cardiff people matched, 17 single day absences recorded
+through the app's own Record absence form as Phil (Evidence plus absence row each, audited).
+Decisions by popup: Mohammad Mahbubul Islam (leaver) left out; Janet Oladunni's 21/09 already
+recorded, not doubled; Jamie Meredith's 07/09 reason copied word for word. Joan's two monday rows
+(Jepkosgie / Jepkosgei) and Damilola's two (Quadri-Eleruj / Quadri-Eleruja) merged by email;
+Smith Azang is Smith Tacho Azang (same email). Single days with no last date raise no Return to
+Work. **What it showed:** the stage rule works on real data. Joan, Jamie and Janet each reach 3
+occasions and show "A Stage 1 meeting is due". monday had Joan at no stage, because her
+absences were split across two rows with different spellings. Damilola sits in monday's Leavers
+group but is active here: correct, Phil confirmed she has come back.
+
+## DEF-072 - A meeting that was never booked here could not be recorded
+
+**Found 2026-09-24** copying Thistle's Absence Management Meeting board from monday. Two Cardiff
+meetings (Asim Riaz and Jamie Meredith, both Stage 1, held by Charlotte Davies in June and July)
+could not go in: Record meeting only offered the stages booked through Book meeting (the July
+rule), neither had been booked here, so Meeting Type was empty. Booking them now would have sent
+both men formal letters and calendar invites for meetings that were already over.
+
+Phil: *"Allow a meeting already held."* **Fixed:** when nothing is booked, Meeting Type offers
+Stage 1 to 4, the date's help says a meeting still to come is booked instead, and the server
+refuses a missing stage, a missing date or a date after today BEFORE the Evidence is filed. No
+letter or invite is sent from recording in either case. A booked meeting works exactly as before
+(lib/absence/record-meeting.ts, three tests).
+
+**Also asked for, next on Operation Thistle:** a way to discount absences or restart the triggers.
+Charlotte disallowed two of Asim's absences and two of Jamie's in these meetings; the product has
+no way to say an absence does not count, so it would keep calling for meetings Thistle would not
+hold.

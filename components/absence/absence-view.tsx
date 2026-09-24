@@ -20,6 +20,7 @@ import type { AbsenceMethod, StageThreshold } from "@/lib/absence/logic";
 import type { AbsencePersonRow, PersonLite, AbsenceEventRow, OpenBookingRow, ConductorLite, MeetingOffice } from "@/lib/absence/data";
 import type { BranchLite } from "@/lib/people/data";
 import { recordAbsence, recordAbsenceMeeting } from "@/lib/absence/actions";
+import { recordableStages } from "@/lib/absence/record-meeting";
 import { draftReturnToWork, recordReturnToWork } from "@/lib/absence/rtw-actions";
 import type { OutstandingRtw } from "@/lib/absence/rtw";
 
@@ -133,8 +134,12 @@ export default function AbsenceView({
       .filter((s): s is number => s !== null);
     const earliest = bookings[0];
 
-    // The Record meeting button ALWAYS shows (Phil, 2026-07-12). When nothing
-    // is booked in, the Meeting Type dropdown simply has no stages to pick.
+    // The Record meeting button ALWAYS shows (Phil, 2026-07-12). When something is booked,
+    // Meeting Type offers the booked stages. When NOTHING is booked it offers all four, for a
+    // meeting that was held without being booked here (DEF-072, Phil 2026-09-24: "Allow a
+    // meeting already held"); the server then insists the date is today or earlier, and no
+    // letter or invite is sent.
+    const nothingBooked = bookedStages.length === 0;
     const schema: FormSchema = {
       ...meetingSchema,
       sections: meetingSchema.sections.map((s) => ({
@@ -143,12 +148,14 @@ export default function AbsenceView({
           f.key === "meeting_type" && "options" in f
             ? {
                 ...f,
-                options: bookedStages.map((st) => ({
+                options: recordableStages(bookedStages).map((st) => ({
                   label: `Stage ${st}`,
                   value: `Stage ${st}`,
                 })),
               }
-            : f,
+            : f.key === "date_of_meeting" && nothingBooked
+              ? { ...f, help: "The date the meeting was held. A meeting still to come is booked with Book meeting, so the employee gets their letter." }
+              : f,
         ),
       })),
     };
