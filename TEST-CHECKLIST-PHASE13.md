@@ -222,4 +222,4 @@ in the same piece of work (Phil: "we are passed final testing so it needs to be 
 | A6 | Draft inspection narrative: "Drafting…", plain text, no title block, editable, note "Draft, edit before you use it" | PASS on retest: 4,451 characters, finished (eleven actions, no cut short notice), "Well-being: On track" on one line, no symbols, 27 seconds |
 | A7 | Asking a question after drafting keeps the draft | PASS on retest (draft and its edit still there after What needs booking) |
 | A8 | Every use recorded as AI usage for the company | PASS (usage_events, feature framework_narrative and framework_qa) |
-| A9 | DEF-068: each theme's Outstanding checks list matches its count (Thistle 24/09: Care and Support 1 overdue and 11 due soon listed, not 18; Leadership and Management 1 due soon, not 5) | |
+| A9 | DEF-068: each theme's Outstanding checks list matches its count (Thistle 24/09: Care and Support 1 overdue and 11 due soon listed, not 18; Leadership and Management 1 due soon, not 5) | PASS (Care and Support: 1 overdue, 11 due soon, list of 12; Leadership and Management: 1 due soon, list of 1) |
