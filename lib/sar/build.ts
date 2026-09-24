@@ -248,10 +248,12 @@ export async function buildSubjectAccessExport(input: {
     sections.push({
       title: "Leaving",
       file: "leaving.csv",
-      headers: ["Leaving date", "Reason", "Other reason", "Would re-employ", "Moving to a competitor", "Competitor", "Attitude", "Attendance", "Lateness", "Professionalism", "Privacy", "Teamwork", "Recorded", "Took effect", "Called off", "Rejoined"],
+      headers: ["Leaving date", "Reason", "Would re-employ", "Moving to a competitor", "Attitude", "Attendance", "Lateness", "Professionalism", "Privacy", "Teamwork", "Recorded", "Took effect", "Called off", "Rejoined"],
       rows: ((leave ?? []) as Array<Record<string, unknown>>).map((l) => [
-        fmtDate(l.leaving_date as string), l.reason ? reasonLabel(String(l.reason), (l.reason_other as string | null) ?? null) : "", t(l.reason_other), yes(l.re_employ as boolean),
-        l.competitor ? competitorLabel(String(l.competitor), (l.competitor_name as string | null) ?? null) : "", t(l.competitor_name),
+        // The free text "other" reason and the competitor's name are already inside these two
+        // labels ("Other: moved away", "Yes, Acme Care"), so they are not printed twice.
+        fmtDate(l.leaving_date as string), l.reason ? reasonLabel(String(l.reason), (l.reason_other as string | null) ?? null) : "", yes(l.re_employ as boolean),
+        l.competitor ? competitorLabel(String(l.competitor), (l.competitor_name as string | null) ?? null) : "",
         t(l.score_attitude), t(l.score_attendance), t(l.score_lateness), t(l.score_professionalism), t(l.score_privacy), t(l.score_teamwork),
         fmtDateTime(l.recorded_at as string), fmtDateTime(l.applied_at as string), fmtDateTime(l.cancelled_at as string), fmtDateTime(l.rejoined_at as string),
       ]),
@@ -397,7 +399,7 @@ export async function buildSubjectAccessExport(input: {
       ? "The evidence could not be read."
       : pack.data.evidence.length === 0
         ? "No completed forms on this record."
-        : `${pack.data.evidence.length} completed ${pack.data.evidence.length === 1 ? "form is" : "forms are"} in evidence.pdf, each in full, with an index in evidence.csv.${
+        : `${pack.data.evidence.length === 1 ? "1 completed form is in evidence.pdf in full" : `${pack.data.evidence.length} completed forms are in evidence.pdf, each in full`}, with an index in evidence.csv.${
             attachments.some((a) => a.folder === "files/evidence") ? " Original uploads are in files/evidence." : ""
           }`,
   });
