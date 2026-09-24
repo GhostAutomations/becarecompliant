@@ -2083,3 +2083,28 @@ the server is shown under the button instead of downloading an error page. The f
 the server gives it (lib/export/download-name.ts, three tests). The Readiness page's Inspection
 pack uses it. It is there for any other slow download; the pack is the only export that calls the
 AI, so it is the only one that needs it today.
+
+
+---
+
+## DEF-066 - The AI narrative in the pack printed markdown symbols and its own title block
+
+**Found 2026-09-24** in Phil's first pack after DEF-064. The top of the pack was right (no score,
+the same themes as the page, CIW notices, outstanding checks). The AI narrative at the end was not
+fit to hand an inspector:
+
+- markdown printed as it came: "**Provider:** Thistle Care Ltd", "**Well-being (green)**", a
+  paragraph wrapped in single asterisks, every action in the numbered list in double asterisks;
+- its own title, provider, date and disclaimer, repeating the cover;
+- dates as 2026-09-17, statuses as colours ("red", "amber"), and "n/a" for a figure with no data.
+
+The on screen Readiness assistant showed the same symbols.
+
+**Fixed:**
+
+- lib/framework/narrative-text.ts (four tests) takes the narrative apart into headings and
+  paragraphs and removes every emphasis symbol, so the pack and the on screen assistant print clean
+  text whatever the model sends.
+- The model is given dates as 17 September 2026, statuses as On track, Attention and Action
+  needed, and "no data yet" instead of "n/a", and is asked for plain text with no title, provider,
+  date or disclaimer of its own, headings on their own line.

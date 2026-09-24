@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { draftReadinessNarrative, askReadiness } from "@/lib/framework/ai";
+import { narrativePlainText } from "@/lib/framework/narrative-text";
 
 /**
  * The Inspection Readiness assistant. Quick actions and free-text questions
@@ -25,7 +26,7 @@ export default function AssistantPanel({ requirements }: { requirements: Array<{
     startTransition(async () => {
       const res = await askReadiness(q);
       if ("error" in res) setError(res.error);
-      else setAnswer(res.ok);
+      else setAnswer(narrativePlainText(res.ok));
     });
   }
 
@@ -37,7 +38,7 @@ export default function AssistantPanel({ requirements }: { requirements: Array<{
     startTransition(async () => {
       const res = await draftReadinessNarrative();
       if ("error" in res) setError(res.error);
-      else setNarrative(res.ok);
+      else setNarrative(narrativePlainText(res.ok));
     });
   }
 

@@ -7,6 +7,7 @@ import { renderReportPdf, type ReportBlock, type ReportDoc, type RagTone } from 
 import { pdfResponse, exportError } from "@/lib/export/deliver";
 import { waitingSentence } from "@/lib/framework/waiting";
 import { packThemeHeading, packThemePairs } from "@/lib/framework/pack-lines";
+import { narrativeLines } from "@/lib/framework/narrative-text";
 
 const REG_LABEL: Record<string, string> = {
   ciw: "Care Inspectorate Wales (CIW)",
@@ -134,11 +135,9 @@ export async function GET() {
   // AI narrative, rendered as headings + paragraphs.
   blocks.push({ kind: "heading", text: "Readiness narrative and gaps (AI draft)" });
   if ("ok" in narrativeRes) {
-    for (const line of narrativeRes.ok.split("\n")) {
-      const t = line.trim();
-      if (!t) continue;
-      if (t.startsWith("#")) blocks.push({ kind: "heading", text: t.replace(/^#+\s*/, "") });
-      else blocks.push({ kind: "paragraph", text: t.replace(/^[-*]\s+/, "•  ") });
+    // No markdown symbols in a document for an inspector (DEF-066): lib/framework/narrative-text.
+    for (const line of narrativeLines(narrativeRes.ok)) {
+      blocks.push({ kind: line.kind, text: line.text });
     }
   } else {
     blocks.push({ kind: "paragraph", text: `The narrative could not be generated: ${narrativeRes.error}` });

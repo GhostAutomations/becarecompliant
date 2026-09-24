@@ -202,9 +202,10 @@ in the same piece of work (Phil: "we are passed final testing so it needs to be 
 | # | Check | Result |
 |---|---|---|
 | K1 | Unit tests: pack lines (5) | PASS |
-| K2 | Thistle pack: no "Score" and no "Overall readiness"; cover says each theme is rated separately | |
-| K3 | Thistle pack: the same three themes as the page, each with Summary, Checks, Waiting and signals matching the page | |
-| K4 | Thistle pack: CIW notices section reads "No notices recorded." | |
-| K5 | Thistle pack: "Outstanding checks" tables, no dashes in headings, narrative gives no overall score | |
+| K2 | Thistle pack: no "Score" and no "Overall readiness"; cover says each theme is rated separately | PASS (Phil's pack, 24/09) |
+| K3 | Thistle pack: the same three themes as the page, each with Summary, Checks, Waiting and signals matching the page | PASS (Well-being On track; Care and Support Action needed, 1 overdue, 11 due soon, 63 on track; Leadership and Management Attention with the waiting line) |
+| K4 | Thistle pack: CIW notices section reads "No notices recorded." | PASS |
+| K5 | Thistle pack: "Outstanding checks" tables, no dashes in headings, narrative gives no overall score | PASS, but the narrative printed markdown asterisks, ISO dates, "n/a", colours for statuses and its own title block: DEF-066 |
 | K6 | Readiness page: "Outstanding checks (n)", and "No data yet" where a signal has no data | PASS after reload (Phil first saw "Outstanding items" on a page loaded before the deploy went live; reloaded 24/09: "Outstanding checks (19)" and "(5)", intro "outstanding checks", three signals "No data yet") |
-| K7 | DEF-065: Inspection pack pressed once shows "Preparing the pack…" and the 20 second note, further presses do nothing, one PDF downloads | |
+| K7 | DEF-065: Inspection pack pressed once shows "Preparing the pack…" and the 20 second note, further presses do nothing, one PDF downloads | PASS (Phil, 24/09) |
+| K8 | DEF-066: the next pack's narrative has no asterisks or # signs, no title or provider block of its own, dates like 17 September 2026, statuses in words, "no data yet" not "n/a" | |

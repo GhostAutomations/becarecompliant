@@ -93,7 +93,7 @@ async function buildContext(
         if (!su || su.service_status !== "active" || su.archived_at) continue;
         recordName = su.full_name;
       }
-      overdueLines.push(`- ${recordName}; ${def?.name ?? "check"}; due ${r.due_date}; ${defToArea.get(r.definition_id) ?? "?"}`);
+      overdueLines.push(`- ${recordName}; ${def?.name ?? "check"}; due ${ukDate(r.due_date)}; ${defToArea.get(r.definition_id) ?? "?"}`);
       if (overdueLines.length >= 40) break;
     }
   }
@@ -105,12 +105,12 @@ async function buildContext(
     if (waitingTotal(r.checks.waiting) > 0) {
       parts.push(`${waitingTotal(r.checks.waiting)} waiting on an earlier check (${waitingParts(r.checks.waiting).join(", ")}), not scored`);
     }
-    for (const m of r.metrics) parts.push(`${m.label} ${m.pct != null ? `${m.pct}%` : (m.note ?? "n/a")}`);
-    return `- ${r.title} [${r.status}]: ${parts.length ? parts.join("; ") : "no evidence mapped"}`;
+    for (const m of r.metrics) parts.push(`${m.label} ${m.pct != null ? `${m.pct}%` : (m.note ?? "no data yet")}`);
+    return `- ${r.title} [status: ${STATUS_WORDS[r.status]}]: ${parts.length ? parts.join("; ") : "no evidence mapped"}`;
   });
 
   return [
-    `Regulator: ${REG_LABEL[regulator]}. Provider: ${name}. Date: ${today}.`,
+    `Regulator: ${REG_LABEL[regulator]}. Provider: ${name}. Date: ${ukDate(today)}.`,
     `Readiness by ${regulator === "ciw" ? "theme" : "key question"}:`,
     ...reqLines,
     overdueLines.length ? `Overdue checks (record; check; due date; area):` : `No overdue checks.`,
@@ -118,15 +118,37 @@ async function buildContext(
   ].join("\n");
 }
 
+const STATUS_WORDS: Record<string, string> = {
+  red: "Action needed",
+  amber: "Attention",
+  green: "On track",
+  none: "Not mapped",
+};
+
+/** 2026-09-17 -> 17 September 2026, for what the model is given and so what it writes. */
+function ukDate(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  if (!m) return iso;
+  return new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 const SYSTEM = (regulator: string) =>
-  `You are an experienced UK care compliance adviser helping a provider prepare for a ${regulator === "ciw" ? "Care Inspectorate Wales (CIW)" : "Care Quality Commission (CQC)"} inspection. Use ONLY the data you are given. Never invent people, facts or figures. Use UK spelling and plain English. Be honest about weaknesses. Make clear this is a preparation aid based on the provider's own live data, not a regulatory rating or legal advice. ${regulator === "ciw" ? "CIW rates each theme separately, by judgement, so never give an overall score, percentage rating or grade for the service. " : ""}Call the things that fall due "checks", never "items". Do not use dashes as punctuation: use commas, colons and full stops.`;
+  `You are an experienced UK care compliance adviser helping a provider prepare for a ${regulator === "ciw" ? "Care Inspectorate Wales (CIW)" : "Care Quality Commission (CQC)"} inspection. Use ONLY the data you are given. Never invent people, facts or figures. Use UK spelling and plain English. Be honest about weaknesses. Make clear this is a preparation aid based on the provider's own live data, not a regulatory rating or legal advice. ${regulator === "ciw" ? "CIW rates each theme separately, by judgement, so never give an overall score, percentage rating or grade for the service. " : ""}Call the things that fall due "checks", never "items". Do not use dashes as punctuation: use commas, colons and full stops. Write plain text, not markdown: no asterisks, no underscores, no # signs. Write dates as they are given to you, for example 17 September 2026. Describe a theme by its status words (On track, Attention, Action needed), never as a colour. Where a figure has no data yet, say "no data yet", never "n/a".`;
 
 /** Draft an inspection readiness narrative + prioritised gaps and actions. */
 export async function draftReadinessNarrative(pre?: RequirementReadiness[]): Promise<Result> {
   const ctx = await resolve();
   if (!ctx) return { error: "Inspection Readiness is not enabled for this company." };
   const context = await buildContext(ctx.companyId, ctx.regulator, ctx.name, pre);
-  const prompt = `${context}\n\nWrite two sections in markdown:\n1. "Readiness summary": for each ${ctx.regulator === "ciw" ? "theme" : "key question"}, 2 to 4 sentences on what is strong and what needs attention.\n2. "Gaps and actions": a prioritised list, most urgent first, each action specific and tied to the data above (name the records/checks where relevant).`;
+  /* DEF-066: the pack already prints the provider, regulator and date on its cover, so the model
+     starts straight at the first section, and headings go on a line of their own marked with ##
+     so the pack can tell them apart. Anything else markdown is cleaned off by narrative-text. */
+  const prompt = `${context}\n\nWrite two sections. Do not add a title, provider, date or disclaimer of your own: the document already has them. Put each section heading on its own line starting with "## ", and each ${ctx.regulator === "ciw" ? "theme" : "key question"} name on its own line followed by a colon and its status.\n## Readiness summary: for each ${ctx.regulator === "ciw" ? "theme" : "key question"}, 2 to 4 sentences on what is strong and what needs attention.\n## Gaps and actions: a numbered list, most urgent first, each action specific and tied to the data above (name the records and checks where relevant).`;
   return runAi({ companyId: ctx.companyId, feature: "framework_narrative", system: SYSTEM(ctx.regulator), prompt, maxTokens: 1800 });
 }
 
