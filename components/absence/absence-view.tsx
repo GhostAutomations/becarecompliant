@@ -455,7 +455,11 @@ export default function AbsenceView({
           once an absence is logged against them.
         </div>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
+        /* THREE ACROSS on a desktop (Phil, 2026-09-24: "this page is too much, each tile needs
+           to be narrower, lets have 3 tiles per line"). Same text and button sizes, the cards are
+           simply a third of the width instead of a half: two across on a laptop or tablet, one
+           on a phone. */
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {visibleRows.map((r) => {
             const s = r.status;
             const pill =
