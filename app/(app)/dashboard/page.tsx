@@ -1346,7 +1346,10 @@ export default async function DashboardPage() {
                           {r.branchName ? ` · ${r.branchName}` : ""}
                         </span>
                       </span>
-                      <span className={`${r.overdue ? "pill-red" : "pill-amber"} shrink-0`}>
+                      {/* Overdue pulses like an urgent follow up over 24 hours (Phil, 2026-09-24:
+                          "have that pill flash as well"). The word Overdue carries it without the
+                          motion; reduced motion gets a steady red pill. */}
+                      <span className={`${r.overdue ? "pill-red pill-pulse" : "pill-amber"} shrink-0`}>
                         {rtwDueLabel(r)}
                       </span>
                     </Link>

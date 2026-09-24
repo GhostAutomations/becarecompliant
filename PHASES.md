@@ -3520,3 +3520,5 @@ Phil: "in the dash in out of hours urgent follow ups, the urgent pill should be 
 when the handover was first saved (created_at); a slow red pulse, not a hard blink, with the words
 "Urgent, over 24h" so the state never rests on the animation; reduced motion gets a steady red
 pill. lib/on-call/format.ts urgentIsOverdue, one test; .pill-pulse in globals.css.
+Then: "have that pill flash as well". An overdue Return to Work on the dashboard pulses the same
+way (pill-red pill-pulse), steady for reduced motion.
