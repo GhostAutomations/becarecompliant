@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mondayOf, shiftWeek, weekLabel, weekDays } from "./week.ts";
+import { mondayOf, shiftWeek, weekLabel, weekDays, boardWeeks, boardSpan, boardWeekIndex, shortRange } from "./week.ts";
 import { ukShortDate } from "../dates.ts";
 
 test("the week starts on Monday, and Sunday belongs to the week it ends", () => {
@@ -88,4 +88,44 @@ test("THE MONTH IS SPELLED ONE WAY ACROSS THE APP", () => {
   }
   assert.equal(ukShortDate("2026-09-06"), "6 Sep 2026");
   assert.doesNotMatch(weekLabel("2026-08-31"), /Sept\b/);
+});
+
+test("the whiteboard's four tiles are fixed Monday to Sunday weeks (Phil, 2026-09-24)", () => {
+  // Thursday 24 Sep 2026: the first tile is 21 to 27 Sep, not 24 Sep to 30 Sep.
+  assert.deepEqual(boardWeeks("2026-09-24").map((w) => w.label), [
+    "21 to 27 Sep",
+    "28 Sep to 4 Oct",
+    "5 to 11 Oct",
+    "12 to 18 Oct",
+  ]);
+  // Every day of the same week gives the same tiles; they move on the Monday.
+  assert.deepEqual(boardWeeks("2026-09-21"), boardWeeks("2026-09-27"));
+  assert.equal(boardWeeks("2026-09-28")[0].label, "28 Sep to 4 Oct");
+});
+
+test("the board covers this Monday to the fourth Sunday", () => {
+  assert.deepEqual(boardSpan("2026-09-24"), { from: "2026-09-21", to: "2026-10-18" });
+  assert.equal(boardSpan("nonsense"), null);
+});
+
+test("a due date lands in its week's tile, earlier this week included", () => {
+  assert.equal(boardWeekIndex("2026-09-24", "2026-09-21"), 0); // Monday, already past: overdue in tile 1
+  assert.equal(boardWeekIndex("2026-09-24", "2026-09-27"), 0); // Sunday
+  assert.equal(boardWeekIndex("2026-09-24", "2026-09-28"), 1);
+  assert.equal(boardWeekIndex("2026-09-24", "2026-10-18"), 3);
+  assert.equal(boardWeekIndex("2026-09-24", "2026-10-19"), -1);
+  assert.equal(boardWeekIndex("2026-09-24", "2026-09-20"), -1); // before this week: off the board
+});
+
+test("the tiles cross the year and the clocks going back", () => {
+  assert.deepEqual(boardWeeks("2026-12-31").map((w) => w.label), [
+    "28 Dec to 3 Jan",
+    "4 to 10 Jan",
+    "11 to 17 Jan",
+    "18 to 24 Jan",
+  ]);
+  // Clocks go back on Sunday 25 Oct 2026: still seven days a tile.
+  assert.equal(boardWeeks("2026-10-22")[0].label, "19 to 25 Oct");
+  assert.equal(boardWeeks("2026-10-22")[1].label, "26 Oct to 1 Nov");
+  assert.equal(shortRange("x", "y"), "");
 });

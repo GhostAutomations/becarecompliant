@@ -16,3 +16,11 @@ Run as popups, one at a time: Pass / Fail / Not tested. Bevan Care Ltd (Swansea)
 | U10 | Supervisor login: can read and post on a Swansea record; no Remove button | |
 | U11 | Phone width: tile and popup usable, Write box visible | |
 | DB | scripts/updates-probe.sql: eight roles plus edit, idempotency, mentions, file path, empty, reply depth, trash | PASS 2026-09-24 |
+
+## Whiteboard weeks (2026-09-24)
+
+| # | Test | Result |
+|---|------|--------|
+| W1 | Four tiles read 21 to 27 Sep, 28 Sep to 4 Oct, 5 to 11 Oct, 12 to 18 Oct (on 24/09/2026); heading "To book, this week and the next three"; no dashes | |
+| W2 | A check due Mon to Wed this week and not booked shows in the first tile with its date in red | |
+| W3 | Clicking a check still opens the booking popup and booking it moves it onto the board | |

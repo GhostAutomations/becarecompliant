@@ -1,18 +1,13 @@
 "use client";
 
 import { ukShortDayMonth } from "@/lib/dates";
+import { boardWeeks } from "@/lib/planner/week";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createBooking, cancelBooking } from "@/lib/planner/actions";
 import TimeSelect from "./time-select";
 import type { WhiteboardBoard, BoardToBook } from "@/lib/planner/data";
 
-const pad2 = (n: number) => String(n).padStart(2, "0");
-function addDays(iso: string, n: number): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  const dt = new Date(Date.UTC(y, m - 1, d + n));
-  return `${dt.getUTCFullYear()}-${pad2(dt.getUTCMonth() + 1)}-${pad2(dt.getUTCDate())}`;
-}
 function fmtShort(iso: string): string {
   // See lib/dates.ts: one spelling of a month across the whole app.
   return ukShortDayMonth(iso);
@@ -77,7 +72,8 @@ export default function WhiteboardBoard({
   const booked = board.booked.filter(inBranch);
   // Only the whiteboard checks appear above (and only their to-book items are clickable).
   const toBook = board.toBook.filter(inBranch).filter((t) => ALLOWED[t.population].includes(t.checkName));
-  const blocks = [0, 1, 2, 3];
+  // Four fixed Monday to Sunday weeks, this one first (Phil, 2026-09-24). They move on Mondays.
+  const weeks = boardWeeks(todayIso);
 
   function headingBlock(population: "people" | "service_users", h: string) {
       const items = booked.filter((b) => b.population === population && b.checkName === h);
@@ -129,18 +125,16 @@ export default function WhiteboardBoard({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
-      {/* To book: the next 28 days in four 7-day blocks. Click a check to book it. */}
+      {/* To book: this week and the next three, Monday to Sunday. Click a check to book it. */}
       <div>
-        <h3 className="mb-2 text-sm font-semibold text-white/80">To book, next 28 days</h3>
+        <h3 className="mb-2 text-sm font-semibold text-white/80">To book, this week and the next three</h3>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {blocks.map((i) => {
-            const start = addDays(todayIso, i * 7);
-            const end = addDays(todayIso, i * 7 + 6);
+          {weeks.map((w, i) => {
             const items = toBook.filter((t) => t.block === i);
             return (
-              <div key={i} className="glass-card p-3">
+              <div key={w.start} className="glass-card p-3">
                 <p className="mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-white/50">
-                  <span>{fmtShort(start)} – {fmtShort(end)}</span>
+                  <span>{w.label}</span>
                   <span className="rounded-full bg-white/10 px-2 py-0.5 text-white/70">{items.length}</span>
                 </p>
                 {items.length === 0 ? (
@@ -156,7 +150,16 @@ export default function WhiteboardBoard({
                         className="flex w-full items-center justify-between gap-2 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-left text-[11px] text-white/80 hover:border-gold-400/50 hover:bg-gold-400/10"
                       >
                         <span className="min-w-0 truncate font-semibold text-white">{t.recordName}</span>
-                        <span className="shrink-0 whitespace-nowrap text-white/50">{t.checkName} · {fmtShort(t.dueDate)}</span>
+                        {/* A day already gone this week is overdue: its date goes red, and it is still
+                            here to be booked rather than dropping off the board. */}
+                        <span className="shrink-0 whitespace-nowrap text-white/50">
+                          {t.checkName} ·{" "}
+                          {t.dueDate < todayIso ? (
+                            <span className="font-semibold text-red-300" title="Overdue">{fmtShort(t.dueDate)}</span>
+                          ) : (
+                            fmtShort(t.dueDate)
+                          )}
+                        </span>
                       </button>
                     ))}
                   </div>

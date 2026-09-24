@@ -82,3 +82,52 @@ function shiftDays(iso: string, days: number): string {
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
 }
+
+/*
+ * THE WHITEBOARD'S FOUR WEEKS (Phil, 2026-09-24: "I want set dates. I don't want it rolling...
+ * they should all be Monday to Sunday... the first tile should be the 21st to the 27th").
+ *
+ * They were four seven day blocks counted from today, so on a Thursday the first tile ran
+ * Thursday to Wednesday and every tile moved a day each morning. Now the first tile is THIS
+ * week, Monday to Sunday, the next three follow it, and they only move on a Monday. A check due
+ * earlier this week and still not booked stays in the first tile, marked overdue: it is this
+ * week's work and the first thing to book.
+ */
+export const BOARD_WEEKS = 4;
+
+export type BoardWeek = { start: string; end: string; label: string };
+
+/** "21 to 27 Sep", "28 Sep to 4 Oct", "29 Dec to 4 Jan". No year: the board is four weeks. */
+export function shortRange(startIso: string, endIso: string): string {
+  if (!ISO.test(startIso) || !ISO.test(endIso)) return "";
+  const from = new Date(`${startIso}T00:00:00Z`);
+  const to = new Date(`${endIso}T00:00:00Z`);
+  const sameMonth = from.getUTCMonth() === to.getUTCMonth() && from.getUTCFullYear() === to.getUTCFullYear();
+  const left = sameMonth ? `${from.getUTCDate()}` : `${from.getUTCDate()} ${MONTHS_SHORT[from.getUTCMonth()]}`;
+  return `${left} to ${to.getUTCDate()} ${MONTHS_SHORT[to.getUTCMonth()]}`;
+}
+
+/** This week and the three after it, each Monday to Sunday. Empty for anything not a date. */
+export function boardWeeks(todayIso: string): BoardWeek[] {
+  if (!ISO.test(todayIso)) return [];
+  const monday = mondayOf(todayIso);
+  return Array.from({ length: BOARD_WEEKS }, (_, i) => {
+    const start = shiftWeek(monday, i);
+    const end = shiftDays(start, 6);
+    return { start, end, label: shortRange(start, end) };
+  });
+}
+
+/** The first and last day the board covers: this Monday to the Sunday four weeks on. */
+export function boardSpan(todayIso: string): { from: string; to: string } | null {
+  const weeks = boardWeeks(todayIso);
+  if (weeks.length === 0) return null;
+  return { from: weeks[0].start, to: weeks[weeks.length - 1].end };
+}
+
+/** Which of the four tiles a due date belongs in (0 to 3), or -1 when it is off the board. */
+export function boardWeekIndex(todayIso: string, dueIso: string): number {
+  if (!ISO.test(todayIso) || !ISO.test(dueIso)) return -1;
+  const weeks = boardWeeks(todayIso);
+  return weeks.findIndex((w) => dueIso >= w.start && dueIso <= w.end);
+}

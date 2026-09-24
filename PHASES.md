@@ -3444,3 +3444,12 @@ user... I think update section is a better option." Agreed by popup the same day
   across eight roles in a rolled back run. Files of deleted records and abandoned uploads are
   removed by the nightly retention run; a company purge now covers the new bucket.
 - NOT YET COVERED: retention anonymisation and a SAR export of updates. Raised with Phil.
+
+### 2026-09-24 — the Whiteboard's four weeks stop rolling
+
+Phil: "I want set dates. I don't want it rolling... they should all be Monday to Sunday." The four
+To book tiles were seven day blocks counted from today, so on a Thursday the first ran Thursday to
+Wednesday and all four moved every morning. They are now this week and the three after it, Monday
+to Sunday, moving only on a Monday (lib/planner/week.ts boardWeeks, tested across the year end and
+the clock change). A check due earlier this week and still unbooked stays in the first tile with
+its date in red (Phil's choice by popup). The tile labels lost their dash: "21 to 27 Sep".

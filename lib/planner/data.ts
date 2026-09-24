@@ -1,5 +1,6 @@
 import "server-only";
 import { visitLabel } from "@/lib/planner/visit";
+import { boardSpan, boardWeekIndex } from "@/lib/planner/week";
 import { createClient } from "@/lib/supabase/server";
 import { profilesById, listStaff } from "@/lib/auth/company-profiles";
 import { branchScopedRole } from "@/lib/auth/manage-scope";
@@ -17,11 +18,6 @@ function addDaysIso(iso: string, n: number): string {
   const dt = new Date(Date.UTC(y, m - 1, d + n));
   return `${dt.getUTCFullYear()}-${pad2(dt.getUTCMonth() + 1)}-${pad2(dt.getUTCDate())}`;
 }
-function daysBetweenIso(from: string, to: string): number {
-  const [ay, am, ad] = from.split("-").map(Number);
-  const [by, bm, bd] = to.split("-").map(Number);
-  return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86400000);
-}
 
 export type BoardToBook = {
   instanceId: string;
@@ -31,7 +27,8 @@ export type BoardToBook = {
   checkName: string;
   dueDate: string;
   branchId: string | null;
-  block: number; // 0..3 (which 7-day block of the next 28 days)
+  /** 0..3: which of the four Monday to Sunday weeks it falls in (lib/planner/week.ts). */
+  block: number;
 };
 export type BoardBooked = {
   bookingId: string;
@@ -55,14 +52,16 @@ export type WhiteboardBoard = {
 };
 
 /**
- * The Whiteboard board view. Above the board: checks due in the next 28 days that
- * are not yet booked, in four 7-day blocks. On the board: planned bookings grouped
+ * The Whiteboard board view. Above the board: checks not yet booked that fall due this
+ * week or the three after it, in four fixed Monday to Sunday weeks (2026-09-24; they were four
+ * rolling seven day blocks from today). A check due earlier this week is included, overdue. On the board: planned bookings grouped
  * by population and by their check heading. Headings are the company's active check
  * definitions (plus any heading a booking already uses). RLS scopes every read.
  */
 export async function getWhiteboardBoard(companyId: string, todayIso: string): Promise<WhiteboardBoard> {
   const supabase = await createClient();
-  const horizon = addDaysIso(todayIso, 28);
+  // This Monday to the fourth Sunday. Not from today: this week's overdue checks belong in it.
+  const span = boardSpan(todayIso) ?? { from: todayIso, to: addDaysIso(todayIso, 27) };
 
   const [defsRes, bookedRows, instRes] = await Promise.all([
     supabase
@@ -83,8 +82,8 @@ export async function getWhiteboardBoard(companyId: string, todayIso: string): P
       .eq("company_id", companyId)
       .eq("active", true)
       .not("due_date", "is", null)
-      .gte("due_date", todayIso)
-      .lte("due_date", horizon),
+      .gte("due_date", span.from)
+      .lte("due_date", span.to),
   ]);
 
   const peopleHeadings: string[] = [];
@@ -145,7 +144,7 @@ export async function getWhiteboardBoard(companyId: string, todayIso: string): P
         checkName: def.name,
         dueDate,
         branchId: (raw.branch_id as string | null) ?? null,
-        block: Math.min(3, Math.max(0, Math.floor(daysBetweenIso(todayIso, dueDate) / 7))),
+        block: boardWeekIndex(todayIso, dueDate),
       });
     } else if (raw.record_type === "service_user") {
       const su = relOne((raw as { service_users: { full_name: string; service_status: string; archived_at: string | null }[] | { full_name: string; service_status: string; archived_at: string | null } | null }).service_users);
@@ -158,7 +157,7 @@ export async function getWhiteboardBoard(companyId: string, todayIso: string): P
         checkName: def.name,
         dueDate,
         branchId: (raw.branch_id as string | null) ?? null,
-        block: Math.min(3, Math.max(0, Math.floor(daysBetweenIso(todayIso, dueDate) / 7))),
+        block: boardWeekIndex(todayIso, dueDate),
       });
     }
   }

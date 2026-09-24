@@ -62,7 +62,7 @@ export default async function WhiteboardPage({
         <div>
           <h1 className="page-title">Whiteboard</h1>
           <p className="page-subtitle">
-            What needs booking in over the next 28 days, and {mineOnly ? "what you are booked to carry out" : "everything booked in"} on the board.
+            What needs booking in this week and the next three, and {mineOnly ? "what you are booked to carry out" : "everything booked in"} on the board.
           </p>
         </div>
         {/* THE CALENDAR IS GONE FROM HERE (Phil, 2026-08-17). The Whiteboard answers one
