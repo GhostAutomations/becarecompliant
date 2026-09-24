@@ -400,7 +400,7 @@ export default async function ServiceUserPage({
                   </div>
                 );
               })}
-              {updatesTile ? <div className="sm:col-span-2 lg:col-start-3 lg:row-start-1">{updatesTile}</div> : null}
+              {updatesTile ? <div className="h-full sm:col-span-2 lg:col-start-3 lg:row-start-1">{updatesTile}</div> : null}
             </div>
           </section>
         </>

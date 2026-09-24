@@ -69,7 +69,10 @@ export default function UpdatesTile({
   const label = `Updates${data.count > 0 ? ` (${data.count})` : ""}`;
 
   return (
-    <div className="glass-card p-5">
+    /* h-full: the tile takes the height of its row, so it matches the Audit tile beside it on a
+       Service User and the Complaints tile on a Person (Phil, 2026-09-24: "same height as the
+       audit tile so that it is uniform"). */
+    <div className="glass-card h-full p-5">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-[15px] font-semibold text-white">Updates</h2>
         <button type="button" className="btn-outline btn-tracker" onClick={() => setOpen(true)} aria-haspopup="dialog">
