@@ -9,6 +9,7 @@ import { getUrgentFollowUps } from "@/lib/on-call/data";
 import { shiftLabel } from "@/lib/on-call/format";
 import { featureEnabled } from "@/lib/billing/tier";
 import { getOnCallLabel } from "@/lib/on-call/company-label";
+import { rtwAbsenceDates, rtwDueLabel, rtwHref } from "@/lib/absence/rtw-list";
 import BillingAttention from "@/components/billing/billing-attention";
 import {
   isBillableSeat,
@@ -98,6 +99,21 @@ const INCIDENT_ROLES = [
   "registered_individual",
   "registered_manager",
   "manager",
+  "platform_admin",
+];
+
+/**
+ * Who sees the Return to Work list (Phil, 2026-09-24: "supervisors and above", then "List the
+ * names"). On Call too, because Absence is part of its remit. RLS decides WHICH absences each one
+ * gets: a Supervisor or a Manager their own branches, the company wide roles all of them.
+ */
+const RTW_LIST_ROLES = [
+  "company_admin",
+  "registered_individual",
+  "registered_manager",
+  "manager",
+  "supervisor",
+  "on_call",
   "platform_admin",
 ];
 
@@ -1294,6 +1310,46 @@ export default async function DashboardPage() {
           )}
         </Panel>
           ) : null}
+
+        {/* RETURN TO WORK, by name (Phil, 2026-09-24). The Absences tile says how many; this says
+            who, for which absence and by when, overdue first. Each row opens that interview's
+            form on the Absence page. Five and no scroll, like the urgent follow ups beside it. */}
+        {RTW_LIST_ROLES.includes(profile.role) ? (
+          <Panel title="Return to Work due" href="/people/absence" linkLabel="Open Absence">
+            {absenceActions.rtwList.length === 0 ? (
+              <div className="flex h-full items-center justify-center">
+                <p className="text-sm text-white/55">No Return to Work interviews are waiting.</p>
+              </div>
+            ) : (
+              <ul className="space-y-2">
+                {absenceActions.rtwList.slice(0, 5).map((r) => (
+                  <li key={r.absenceEventId}>
+                    <Link
+                      href={rtwHref(r.absenceEventId)}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-white/10 px-3 py-2 transition hover:bg-white/[0.06]"
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm text-white/85">{r.personName}</span>
+                        <span className="block truncate text-[11px] text-white/45">
+                          Off {rtwAbsenceDates(r.startDate, r.endDate)}
+                          {r.branchName ? ` · ${r.branchName}` : ""}
+                        </span>
+                      </span>
+                      <span className={`${r.overdue ? "pill-red" : "pill-amber"} shrink-0`}>
+                        {rtwDueLabel(r)}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+                {absenceActions.rtwList.length > 5 ? (
+                  <li className="pt-0.5 text-[11px] text-white/45">
+                    {absenceActions.rtwList.length - 5} more waiting
+                  </li>
+                ) : null}
+              </ul>
+            )}
+          </Panel>
+        ) : null}
 
         {/* THE PLANNER (Phil, 2026-07-29): this user's own booked tasks, the same rows the
             Planner page reads, as five WORKING day columns. Every column is always drawn, empty

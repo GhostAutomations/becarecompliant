@@ -55,6 +55,7 @@ export default function FormEvidenceDialog({
   aiDraft,
   keepDraft = true,
   onSaved,
+  openOnMount = false,
 }: {
   title: string;
   schema: FormSchema;
@@ -72,6 +73,8 @@ export default function FormEvidenceDialog({
   /** Called once the action has saved (state.ok), after the dialog closes. Lets a caller offer
    *  a follow up step, e.g. discounting absences straight after a meeting is recorded. */
   onSaved?: (state: ActionState) => void;
+  /** Open straight away, e.g. when a dashboard link asked for this form by id. */
+  openOnMount?: boolean;
   /** Optional AI assist. The action returns { data } of field key to text, which is
    *  merged into the answers for the user to EDIT before saving. Nothing is stored by
    *  drafting, so a draft they dislike costs a credit and leaves no record.
@@ -95,6 +98,9 @@ export default function FormEvidenceDialog({
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    if (openOnMount) setOpen(true);
+  }, [openOnMount]);
   const [state, formAction, pending] = useActionState(action, IDLE_STATE);
   /* WHICH form this is: the title plus the hidden fields the dialog posts. The same
      dialog opened about someone else is a different draft. */

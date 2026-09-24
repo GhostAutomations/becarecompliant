@@ -3500,3 +3500,15 @@ happened, it just does not count. The card's third box is now labelled "last mee
 "met. stage" label read as blank).
 
 0327 is DEF-073: the view had been running as its owner since 0223, readable without signing in.
+
+### 2026-09-24 — Return to Work, by name, on the dashboard
+
+Phil: "also need to add return to works on to supervisors and above dashboards", then "List the
+names". A "Return to Work due" panel sits with the other lists on the dashboard (beside the out of
+hours follow ups and the Planner): up to five rows, overdue first, each with the person, the
+absence dates, the branch and a red Overdue or amber Due date, and "N more waiting" beyond five.
+Each row opens the Absence page with that interview's form already open (?rtw=<absence id>, which
+is dropped from the address once used). Drawn for Supervisor and above and On Call; RLS decides
+which absences each sees, so a Supervisor or Manager gets their branches and the company wide
+roles all of them. Outstanding Return to Works now leave out leavers and archived records, on the
+Absence page as well as the dashboard. lib/absence/rtw-list.ts, three tests.

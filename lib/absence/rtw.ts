@@ -33,15 +33,19 @@ function londonToday(): string {
 }
 
 /** Every Return to Work still to be done, soonest due first. RLS scopes this to the
- *  branches the caller can see, so a Branch Manager gets their own and no more. */
+ *  branches the caller can see, so a Branch Manager gets their own and no more.
+ *  Active people only (2026-09-24): a leaver's unfinished interview is not work anyone can
+ *  do any more, and it was about to be listed by name on the dashboard. */
 export async function listOutstandingRtw(companyId: string): Promise<OutstandingRtw[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("absence_events")
     .select(
-      "id, person_id, start_date, end_date, return_date, days, reason, rtw_due_date, people(full_name), branches(name)",
+      "id, person_id, start_date, end_date, return_date, days, reason, rtw_due_date, people!inner(full_name, employment_status, archived_at), branches(name)",
     )
     .eq("company_id", companyId)
+    .eq("people.employment_status", "active")
+    .is("people.archived_at", null)
     .is("rtw_evidence_id", null)
     .not("rtw_due_date", "is", null)
     .order("rtw_due_date", { ascending: true })

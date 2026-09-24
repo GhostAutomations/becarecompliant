@@ -17,7 +17,8 @@ import {
   listActivePeople,
 } from "@/lib/absence/data";
 import { listMyBookings } from "@/lib/planner/data";
-import { listOutstandingRtw } from "@/lib/absence/rtw";
+import { listOutstandingRtw, type OutstandingRtw } from "@/lib/absence/rtw";
+import { sortRtwForDashboard } from "@/lib/absence/rtw-list";
 
 /** Today in Europe/London as an ISO yyyy-mm-dd string (dates compare lexically). */
 function londonTodayIso(): string {
@@ -390,6 +391,8 @@ export type AbsenceActions = {
   rtw: number;
   /** Return to Works already past their due date. These are what make the tile red. */
   rtwOverdue: number;
+  /** The outstanding Return to Works themselves, overdue first, for the list under the tile. */
+  rtwList: OutstandingRtw[];
 };
 
 export async function getAbsenceActions(companyId: string): Promise<AbsenceActions> {
@@ -403,6 +406,7 @@ export async function getAbsenceActions(companyId: string): Promise<AbsenceActio
     invites: rows.filter((r) => r.status.meetingDue && !booked.has(r.personId)).length,
     rtw: rtw.length,
     rtwOverdue: rtw.filter((r) => r.overdue).length,
+    rtwList: sortRtwForDashboard(rtw),
   };
 }
 

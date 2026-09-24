@@ -8,7 +8,7 @@
  * completes the matching founder Form and stores immutable Evidence.
  */
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import FormEvidenceDialog from "@/components/forms/form-evidence-dialog";
 import AbsenceDetailDialog from "@/components/absence/absence-detail-dialog";
@@ -25,6 +25,7 @@ import { recordableStages } from "@/lib/absence/record-meeting";
 import { absenceCountState, countedAbsences, meetingDiscountReason } from "@/lib/absence/discount";
 import { draftReturnToWork, recordReturnToWork } from "@/lib/absence/rtw-actions";
 import type { OutstandingRtw } from "@/lib/absence/rtw";
+import { rtwFromSearch } from "@/lib/absence/rtw-list";
 
 /** The card shows the office NAME, not the full address (Phil, 2026-07-12):
  *  "Cardiff Branch Office", "Acme Care Company Office" or "Teams". The full
@@ -108,6 +109,22 @@ export default function AbsenceView({
     { personId: string; personName: string; stage: number | null; date: string | null } | null
   >(null);
   const closeAfterMeeting = useCallback(() => setAfterMeeting(null), []);
+
+  /* A dashboard Return to Work row links here with ?rtw=<absence id>: open that interview's
+     form, then drop the parameter so a refresh does not open it again. */
+  const [openRtwId, setOpenRtwId] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      const id = rtwFromSearch(window.location.search);
+      if (!id) return;
+      setOpenRtwId(id);
+      const url = new URL(window.location.href);
+      url.searchParams.delete("rtw");
+      window.history.replaceState(null, "", url.pathname + url.search);
+    } catch {
+      // No window: nothing to open.
+    }
+  }, []);
 
   const eventsByPerson = useMemo(() => {
     const map: Record<string, AbsenceEventRow[]> = {};
@@ -345,6 +362,7 @@ export default function AbsenceView({
                     extraFields={{ absence_event_id: r.absenceEventId }}
                     triggerLabel="Record"
                     triggerClassName="btn-outline px-3 py-1.5 text-xs"
+                    openOnMount={openRtwId === r.absenceEventId}
                     submitLabel="Save the interview"
                     presetAnswers={{
                       absence_dates: `${fmtDay(r.startDate)}${r.endDate ? ` to ${fmtDay(r.endDate)}` : ""}`,
