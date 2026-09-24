@@ -94,7 +94,7 @@ export default async function ReadinessPage() {
           </div>
           <p className="page-subtitle">
             Where your evidence stands against each {REGULATOR_LABEL[regulator]} theme. The regulator rates each theme separately, with no overall rating. Click an area to see and fix the
-            outstanding items.
+            outstanding checks.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -158,14 +158,14 @@ export default async function ReadinessPage() {
               {r.metrics.length > 0 ? (
                 <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm text-white/70">
                   {r.metrics.map((m) => (
-                    <span key={m.label}>{m.label}: <span className="text-white/90">{m.pct != null ? `${m.pct}%` : (m.note ?? "—")}</span></span>
+                    <span key={m.label}>{m.label}: <span className="text-white/90">{m.pct != null ? `${m.pct}%` : (m.note ?? "No data yet")}</span></span>
                   ))}
                 </div>
               ) : null}
 
               {outstanding > 0 ? (
                 <details className="section-card mt-3">
-                  <summary>Outstanding items ({outstanding})</summary>
+                  <summary>Outstanding checks ({outstanding})</summary>
                   <div className="space-y-1 border-t border-white/10 p-3">
                     {it.overdue.map((i) => <ItemRow key={i.instanceId} item={i} overdue />)}
                     {it.dueSoon.map((i) => <ItemRow key={i.instanceId} item={i} overdue={false} />)}

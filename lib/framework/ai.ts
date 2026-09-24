@@ -93,7 +93,7 @@ async function buildContext(
         if (!su || su.service_status !== "active" || su.archived_at) continue;
         recordName = su.full_name;
       }
-      overdueLines.push(`- ${recordName} — ${def?.name ?? "check"} — due ${r.due_date} (${defToArea.get(r.definition_id) ?? "?"})`);
+      overdueLines.push(`- ${recordName}; ${def?.name ?? "check"}; due ${r.due_date}; ${defToArea.get(r.definition_id) ?? "?"}`);
       if (overdueLines.length >= 40) break;
     }
   }
@@ -113,13 +113,13 @@ async function buildContext(
     `Regulator: ${REG_LABEL[regulator]}. Provider: ${name}. Date: ${today}.`,
     `Readiness by ${regulator === "ciw" ? "theme" : "key question"}:`,
     ...reqLines,
-    overdueLines.length ? `Overdue items (record — check — due date — area):` : `No overdue items.`,
+    overdueLines.length ? `Overdue checks (record; check; due date; area):` : `No overdue checks.`,
     ...overdueLines,
   ].join("\n");
 }
 
 const SYSTEM = (regulator: string) =>
-  `You are an experienced UK care compliance adviser helping a provider prepare for a ${regulator === "ciw" ? "Care Inspectorate Wales (CIW)" : "Care Quality Commission (CQC)"} inspection. Use ONLY the data you are given. Never invent people, facts or figures. Use UK spelling and plain English. Be honest about weaknesses. Make clear this is a preparation aid based on the provider's own live data, not a regulatory rating or legal advice.`;
+  `You are an experienced UK care compliance adviser helping a provider prepare for a ${regulator === "ciw" ? "Care Inspectorate Wales (CIW)" : "Care Quality Commission (CQC)"} inspection. Use ONLY the data you are given. Never invent people, facts or figures. Use UK spelling and plain English. Be honest about weaknesses. Make clear this is a preparation aid based on the provider's own live data, not a regulatory rating or legal advice. ${regulator === "ciw" ? "CIW rates each theme separately, by judgement, so never give an overall score, percentage rating or grade for the service. " : ""}Call the things that fall due "checks", never "items". Do not use dashes as punctuation: use commas, colons and full stops.`;
 
 /** Draft an inspection readiness narrative + prioritised gaps and actions. */
 export async function draftReadinessNarrative(pre?: RequirementReadiness[]): Promise<Result> {

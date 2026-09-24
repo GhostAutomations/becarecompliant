@@ -2034,3 +2034,31 @@ forms, checks or Admin, and its slug taken, so trying again said the slug was in
 **Not provable live:** the clean up branch of the action, because the cause is fixed and the
 failure cannot be made to happen now. Traced: it runs only on a branch insert error, deletes by
 the id it has just created (companies_delete allows the founder), and reports either outcome.
+
+
+---
+
+## DEF-064 - The Inspection Readiness Pack still printed the old score (list 15)
+
+**Found 2026-09-23.** On 2026-09-19 the Readiness page stopped showing a score (Phil: CIW rates
+each theme separately, by judgement, with no overall rating) and started showing the parts: the
+status, a one line reason, the check counts and the other signals. The pack a manager hands an
+inspector was never changed. It still printed "Score: N%" under every theme and "Overall
+readiness: N%" on the cover, a figure the product no longer stands behind, beside a status the
+screen might describe quite differently. It also listed themes nothing feeds (Environment) as
+"Not mapped", left the CIW notices out altogether, put dashes in every theme heading, and headed
+its tables "Outstanding items".
+
+**Fixed:**
+
+- The pack says what the page says, in the same order (lib/framework/pack-lines.ts, five tests):
+  the theme and its status as the heading, then Summary (the page's reason), Checks, Not
+  scheduled, Waiting, the other signals, and any open notices. No score and no overall figure;
+  the cover says "Rating: Each theme is rated separately, with no overall rating".
+- Only the themes the page shows, so nothing reads as a gap the provider does not have.
+- A CIW (or CQC) notices section: each notice, its theme, what it says, when issued, and whether
+  it is open (with its due date) or resolved. "No notices recorded." when there are none.
+- The AI narrative is told not to give an overall score or grade for a CIW service, to call them
+  checks, and not to use dashes; the overdue list it is given no longer uses dashes either.
+- "Outstanding items" became "Outstanding checks" on the page and in the pack, and a metric with
+  no data reads "No data yet" instead of a dash, on both.

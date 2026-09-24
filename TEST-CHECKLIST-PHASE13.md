@@ -196,3 +196,14 @@ in the same piece of work (Phil: "we are passed final testing so it needs to be 
 | E6 | DEF-013: purge the test company; Manage as on a deleted company is refused | PASS ("This company has been deleted, so it cannot be managed. Restore it first."; ZZ Test Three and ZZ Test Two then erased with Purge now, none left) |
 | E7 | DEF-063: Create a company works again (office, first branch, forms, checks, courses) | PASS (ZZ Test Three) |
 | E8 | DEF-063: office rows are inserted with uses_office_address false, branches true (rolled back insert) | PASS |
+
+## List 15, the Inspection Readiness Pack, 2026-09-23 (DEF-064)
+
+| # | Check | Result |
+|---|---|---|
+| K1 | Unit tests: pack lines (5) | PASS |
+| K2 | Thistle pack: no "Score" and no "Overall readiness"; cover says each theme is rated separately | |
+| K3 | Thistle pack: the same three themes as the page, each with Summary, Checks, Waiting and signals matching the page | |
+| K4 | Thistle pack: CIW notices section reads "No notices recorded." | |
+| K5 | Thistle pack: "Outstanding checks" tables, no dashes in headings, narrative gives no overall score | |
+| K6 | Readiness page: "Outstanding checks (n)", and "No data yet" where a signal has no data | |
