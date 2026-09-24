@@ -209,3 +209,16 @@ in the same piece of work (Phil: "we are passed final testing so it needs to be 
 | K6 | Readiness page: "Outstanding checks (n)", and "No data yet" where a signal has no data | PASS after reload (Phil first saw "Outstanding items" on a page loaded before the deploy went live; reloaded 24/09: "Outstanding checks (19)" and "(5)", intro "outstanding checks", three signals "No data yet") |
 | K7 | DEF-065: Inspection pack pressed once shows "Preparing the pack…" and the 20 second note, further presses do nothing, one PDF downloads | PASS (Phil, 24/09) |
 | K8 | DEF-066: the next pack's narrative has no asterisks or # signs, no title or provider block of its own, dates like 17 September 2026, statuses in words, "no data yet" not "n/a" | |
+
+## Readiness assistant, tested live on Thistle (read only), 2026-09-24 (DEF-067)
+
+| # | Check | Result |
+|---|---|---|
+| A1 | Empty question: says what to do | FAIL (did nothing), fixed; retest |
+| A2 | Biggest risk: names Taiye Emmanuella Aladesuyi's overdue Spot Check (17 September 2026), plain text | PASS (11 seconds) |
+| A3 | What needs booking: lists the overdue AND due soon checks by name | FAIL (said it did not have the 11 due soon), fixed; retest |
+| A4 | Theme button (Leadership and Management): status, counts, the waiting line, signals, plain text | PASS (9 seconds) |
+| A5 | Typed question the data cannot answer (staff turnover): says it does not have that information | PASS |
+| A6 | Draft inspection narrative: "Drafting…", plain text, no title block, editable, note "Draft, edit before you use it" | PASS, but cut off at the token limit and theme status split over two lines, fixed; retest |
+| A7 | Asking a question after drafting keeps the draft | FAIL (draft wiped), fixed; retest |
+| A8 | Every use recorded as AI usage for the company | PASS (usage_events, feature framework_narrative and framework_qa) |

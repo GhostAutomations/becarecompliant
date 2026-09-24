@@ -2108,3 +2108,32 @@ The on screen Readiness assistant showed the same symbols.
 - The model is given dates as 17 September 2026, statuses as On track, Attention and Action
   needed, and "no data yet" instead of "n/a", and is asked for plain text with no title, provider,
   date or disclaimer of its own, headings on their own line.
+
+
+---
+
+## DEF-067 - The Readiness assistant, tested for the first time (2026-09-24)
+
+Phil: *"We haven't tested the draft inspection narrative or anything else to do with the
+readiness assistant."* Tested live on Thistle (read only, as Phil chose): Draft inspection
+narrative, Biggest risk, What needs booking, a theme button, a typed question the data cannot
+answer, an empty question, and editing the draft. What worked: every answer was plain text with
+no symbols, dashes, ISO dates, colours or "n/a"; the unanswerable question was answered "I do not
+have that information in the data provided"; the draft is editable; each use is metered as AI
+usage for Thistle (eight rows in usage_events). Four faults:
+
+1. **"What needs booking" could not name the due soon checks.** It answered "I do not have the
+   individual names, check types or due dates for these 11 checks" about a list the page shows in
+   full, because the assistant was only ever given the overdue ones. It now reads the page's own
+   outstanding list (overdue and due soon) for every theme. It also mentioned Environment, a theme
+   the page does not show; it now gets only the themes the page shows.
+2. **The draft narrative was cut off mid sentence and said nothing.** It hit its 1800 token limit
+   (usage_events: 1800 output tokens exactly). The limit is now 3500, and any AI reply that runs
+   out of room now ends by saying it was cut short, for every AI feature (lib/ai/anthropic.ts).
+3. **Asking a question wiped the draft narrative**, including any edits, with no way back. A
+   question now leaves the draft where it is.
+4. **An empty question did nothing at all.** It now says "Type a question first, or pick one of
+   the buttons above."
+
+Also: the model tends to put a theme and its status on separate lines ("Well-being:" then "On
+track"); they are now joined into one heading (narrative-text.ts, two more tests).

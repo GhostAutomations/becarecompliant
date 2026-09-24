@@ -18,10 +18,15 @@ export default function AssistantPanel({ requirements }: { requirements: Array<{
   const [error, setError] = useState<string | null>(null);
 
   function runAsk(q: string) {
-    if (!q.trim()) return;
+    /* An empty question said nothing at all (tested 2026-09-24): the button simply did not respond. */
+    if (!q.trim()) {
+      setError("Type a question first, or pick one of the buttons above.");
+      return;
+    }
     setError(null);
     setAnswer(null);
-    setNarrative(null);
+    /* The draft narrative is NOT cleared by a question (tested 2026-09-24): asking something wiped
+       a draft the manager had just edited, with no way back. Both stay on screen. */
     setMode("ask");
     startTransition(async () => {
       const res = await askReadiness(q);
@@ -33,7 +38,6 @@ export default function AssistantPanel({ requirements }: { requirements: Array<{
   function draft() {
     setError(null);
     setNarrative(null);
-    setAnswer(null);
     setMode("draft");
     startTransition(async () => {
       const res = await draftReadinessNarrative();

@@ -44,6 +44,32 @@ export function narrativeLines(text: string): NarrativeLine[] {
     const bullet = /^[-*•]\s+(.*)$/.exec(t);
     out.push({ kind: "paragraph", text: bullet ? `•  ${stripEmphasis(bullet[1])}` : stripEmphasis(t) });
   }
+  return joinThemeStatus(out);
+}
+
+const STATUS_WORDS = new Set(["on track", "attention", "action needed", "not mapped"]);
+
+/**
+ * "Well-being:" on one line and "On track" on the next is one heading, "Well-being: On track".
+ * The model splits them more often than not (tested on Thistle, 2026-09-24), which reads as a
+ * theme with no status followed by a stray phrase.
+ */
+export function joinThemeStatus(lines: NarrativeLine[]): NarrativeLine[] {
+  const out: NarrativeLine[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const cur = lines[i];
+    const next = lines[i + 1];
+    if (
+      cur.text.endsWith(":") &&
+      next &&
+      STATUS_WORDS.has(next.text.replace(/[.:]$/, "").trim().toLowerCase())
+    ) {
+      out.push({ kind: "heading", text: `${cur.text} ${next.text.replace(/[.:]$/, "").trim()}` });
+      i++;
+      continue;
+    }
+    out.push(cur);
+  }
   return out;
 }
 

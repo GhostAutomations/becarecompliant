@@ -75,5 +75,14 @@ export async function runAi(opts: {
       error: `The AI returned nothing (${stop}${kinds === "none" ? "" : `, blocks: ${kinds}`}). Your credit has been returned. Try again.`,
     };
   }
+  /* A REPLY THAT RAN OUT OF ROOM SAYS SO (2026-09-24). The readiness narrative hit its 1800 token
+     limit on Thistle and stopped mid sentence, and nothing said it had: a manager could have
+     handed an inspector a draft that simply ends. */
+  if (json.stop_reason === "max_tokens") {
+    console.warn("[ai] reply cut short at max_tokens", { feature: opts.feature });
+    return {
+      ok: `${text}\n\n(This reply was cut short because it reached its length limit. Ask about one theme at a time for the rest.)`,
+    };
+  }
   return { ok: text };
 }

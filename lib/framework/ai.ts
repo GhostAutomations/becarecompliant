@@ -1,18 +1,12 @@
 "use server";
 
 import { requireCompany } from "@/lib/auth/guards";
-import { reportableCheck } from "@/lib/notifications/reportable";
 import { createClient } from "@/lib/supabase/server";
-import { getFrameworkReadiness, type RequirementReadiness } from "@/lib/framework/data";
+import { getFrameworkReadiness, getFrameworkItems, type RequirementReadiness } from "@/lib/framework/data";
 import { runAi } from "@/lib/ai/anthropic";
 import { waitingParts, waitingTotal } from "@/lib/framework/waiting";
 
 type Result = { ok: string } | { error: string };
-
-function relOne<T>(v: T[] | T | null | undefined): T | null {
-  if (Array.isArray(v)) return v[0] ?? null;
-  return v ?? null;
-}
 
 const REG_LABEL: Record<string, string> = {
   ciw: "Care Inspectorate Wales (CIW), Wales",
@@ -33,8 +27,8 @@ async function resolve(): Promise<{ companyId: string; regulator: "cqc" | "ciw";
   return { companyId: profile.company_id, regulator: (data.regulator ?? "ciw") as "cqc" | "ciw", name: data.name as string };
 }
 
-/** Build a compact, grounded context: readiness per requirement plus a capped
- *  list of overdue items. RLS scopes everything to the caller. */
+/** Build a compact, grounded context: readiness per theme plus the page's own list of overdue
+ *  and due soon checks. RLS scopes everything to the caller. */
 async function buildContext(
   companyId: string,
   regulator: "cqc" | "ciw",
@@ -44,59 +38,31 @@ async function buildContext(
    *  React's cache() does not help here: a route handler sits outside the component tree. */
   pre?: RequirementReadiness[],
 ): Promise<string> {
-  const supabase = await createClient();
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
 
-  const requirements = pre ?? (await getFrameworkReadiness(companyId, regulator)).requirements;
+  /* THE SAME THEMES AND THE SAME LIST AS THE PAGE (2026-09-24, tested live on Thistle). The
+     assistant was given only the OVERDUE checks, so "What needs booking" answered "I do not have
+     the individual names, check types or due dates for these 11 checks" about a list the page
+     shows in full, and it was given themes nothing feeds, so it reported Environment as having
+     no evidence. It now reads the page's own outstanding list (getFrameworkItems), overdue and
+     due soon, for the themes the page shows. */
+  const requirements = (pre ?? (await getFrameworkReadiness(companyId, regulator)).requirements).filter(
+    (r) => r.mapped,
+  );
+  const items = await getFrameworkItems(companyId, regulator);
 
-  // Map of check definition id -> requirement title, for labelling overdue items.
-  const { data: mapRows } = await supabase
-    .from("requirement_evidence_map")
-    .select("check_definition_id, framework_requirements!inner(regulator, title)")
-    .eq("company_id", companyId)
-    .not("check_definition_id", "is", null);
-  const defToArea = new Map<string, string>();
-  for (const m of (mapRows as Array<{ check_definition_id: string; framework_requirements: { regulator: string; title: string } | { regulator: string; title: string }[] }> | null) ?? []) {
-    const fr = relOne(m.framework_requirements);
-    if (fr && fr.regulator === regulator && m.check_definition_id) defToArea.set(m.check_definition_id, fr.title);
-  }
-  const defIds = [...defToArea.keys()];
-
-  const overdueLines: string[] = [];
-  if (defIds.length > 0) {
-    const { data: inst } = await supabase
-      .from("check_instances")
-      .select("definition_id, due_date, last_completed_on, record_type, check_definitions(name, recurring), people(full_name, employment_status, archived_at), service_users(full_name, service_status, archived_at)")
-      .eq("company_id", companyId)
-      .eq("active", true)
-      .lt("due_date", today)
-      .in("definition_id", defIds)
-      .order("due_date", { ascending: true })
-      .limit(60);
-    for (const raw of (inst as unknown[] ?? [])) {
-      const r = raw as {
-        definition_id: string; due_date: string; last_completed_on: string | null; record_type: string;
-        check_definitions: { name: string; recurring: boolean } | { name: string; recurring: boolean }[] | null;
-        people: { full_name: string; employment_status: string; archived_at: string | null } | { full_name: string; employment_status: string; archived_at: string | null }[] | null;
-        service_users: { full_name: string; service_status: string; archived_at: string | null } | { full_name: string; service_status: string; archived_at: string | null }[] | null;
-      };
-      const def = relOne(r.check_definitions);
-      // A completed one-off is not overdue, whatever its old due date says (0305).
-      if (!reportableCheck({ recurring: def?.recurring ?? true, dueDate: r.due_date, lastCompletedOn: r.last_completed_on })) continue;
-      let recordName: string | null = null;
-      if (r.record_type === "person") {
-        const p = relOne(r.people);
-        if (!p || p.employment_status !== "active" || p.archived_at) continue;
-        recordName = p.full_name;
-      } else {
-        const su = relOne(r.service_users);
-        if (!su || su.service_status !== "active" || su.archived_at) continue;
-        recordName = su.full_name;
-      }
-      overdueLines.push(`- ${recordName}; ${def?.name ?? "check"}; due ${ukDate(r.due_date)}; ${defToArea.get(r.definition_id) ?? "?"}`);
-      if (overdueLines.length >= 40) break;
+  const outstandingLines: string[] = [];
+  for (const r of requirements) {
+    const it = items.get(r.code);
+    if (!it) continue;
+    for (const i of it.overdue) {
+      outstandingLines.push(`- ${r.title}; ${i.recordName}; ${i.checkName}; due ${ukDate(i.dueDate)}; OVERDUE`);
+    }
+    for (const i of it.dueSoon) {
+      outstandingLines.push(`- ${r.title}; ${i.recordName}; ${i.checkName}; due ${ukDate(i.dueDate)}; due soon`);
     }
   }
+  const shown = outstandingLines.slice(0, 80);
 
   const reqLines = requirements.map((r) => {
     const parts: string[] = [];
@@ -113,8 +79,13 @@ async function buildContext(
     `Regulator: ${REG_LABEL[regulator]}. Provider: ${name}. Date: ${ukDate(today)}.`,
     `Readiness by ${regulator === "ciw" ? "theme" : "key question"}:`,
     ...reqLines,
-    overdueLines.length ? `Overdue checks (record; check; due date; area):` : `No overdue checks.`,
-    ...overdueLines,
+    shown.length
+      ? `Outstanding checks, overdue and due soon (area; record; check; due date; state):`
+      : `No overdue or due soon checks.`,
+    ...shown,
+    ...(outstandingLines.length > shown.length
+      ? [`(${outstandingLines.length - shown.length} more due soon are not listed here.)`]
+      : []),
   ].join("\n");
 }
 
@@ -149,7 +120,7 @@ export async function draftReadinessNarrative(pre?: RequirementReadiness[]): Pro
      starts straight at the first section, and headings go on a line of their own marked with ##
      so the pack can tell them apart. Anything else markdown is cleaned off by narrative-text. */
   const prompt = `${context}\n\nWrite two sections. Do not add a title, provider, date or disclaimer of your own: the document already has them. Put each section heading on its own line starting with "## ", and each ${ctx.regulator === "ciw" ? "theme" : "key question"} name on its own line followed by a colon and its status.\n## Readiness summary: for each ${ctx.regulator === "ciw" ? "theme" : "key question"}, 2 to 4 sentences on what is strong and what needs attention.\n## Gaps and actions: a numbered list, most urgent first, each action specific and tied to the data above (name the records and checks where relevant).`;
-  return runAi({ companyId: ctx.companyId, feature: "framework_narrative", system: SYSTEM(ctx.regulator), prompt, maxTokens: 1800 });
+  return runAi({ companyId: ctx.companyId, feature: "framework_narrative", system: SYSTEM(ctx.regulator), prompt, maxTokens: 3500 });
 }
 
 /** Answer a manager's question grounded in the readiness data. */
