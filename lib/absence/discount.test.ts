@@ -6,7 +6,6 @@ import {
   countedAbsences,
   discountReasonProblem,
   meetingDiscountReason,
-  restartProblem,
   windowStartIso,
 } from "./discount.ts";
 
@@ -25,14 +24,6 @@ test("a discount needs a reason", () => {
   assert.equal(discountReasonProblem("Car broke down"), null);
 });
 
-test("a restart needs a past or present date and a reason", () => {
-  const todayIso = "2026-09-24";
-  assert.equal(restartProblem({ fromIso: "", todayIso, reason: "Good review" }), "Choose the date the count restarts from.");
-  assert.equal(restartProblem({ fromIso: "2026-09-25", todayIso, reason: "Good review" }), "The count can only restart from today or an earlier date.");
-  assert.equal(restartProblem({ fromIso: "2026-09-24", todayIso, reason: "no" }), "Say why the count is being restarted.");
-  assert.equal(restartProblem({ fromIso: "2026-09-24", todayIso, reason: "Good review" }), null);
-});
-
 test("the after meeting reason names the stage and date", () => {
   assert.equal(meetingDiscountReason(1, "2026-06-09"), "Discounted at the Stage 1 meeting held on 09/06/2026");
   assert.equal(meetingDiscountReason(null, null), "Discounted at the absence meeting");
@@ -47,16 +38,16 @@ test("the window starts where Postgres says it does", () => {
   assert.equal(windowStartIso("2026-03-01", { value: 1, unit: "day" }), "2026-02-28");
 });
 
-test("what counts: discounted, before a restart and outside the window do not", () => {
-  const opts = { restartFrom: "2026-06-01", windowStart: "2026-03-24" };
+test("what counts: discounted and outside the window do not", () => {
+  const opts = { windowStart: "2026-03-24" };
   const evs = [
     { id: "a", start_date: "2026-07-01", discounted_at: null },
-    { id: "b", start_date: "2026-05-01", discounted_at: null },
+    { id: "b", start_date: "2026-01-01", discounted_at: null },
     { id: "c", start_date: "2026-06-10", discounted_at: "2026-09-24T10:00:00Z" },
-    { id: "d", start_date: "2026-06-01", discounted_at: null },
+    { id: "d", start_date: "2026-03-24", discounted_at: null },
   ];
-  assert.equal(absenceCountState(evs[1], opts), "before_restart");
+  assert.equal(absenceCountState(evs[1], opts), "outside_window");
   assert.equal(absenceCountState(evs[2], opts), "discounted");
-  assert.equal(absenceCountState({ start_date: "2026-01-01", discounted_at: null }, { restartFrom: null, windowStart: "2026-03-24" }), "outside_window");
+  assert.equal(absenceCountState(evs[3], opts), "counted");
   assert.deepEqual(countedAbsences(evs, opts).map((e) => e.id), ["d", "a"]);
 });

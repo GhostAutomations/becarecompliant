@@ -63,7 +63,7 @@ export function zipFileName(recordName: string, dateIso: string): string {
 /** The sections a kind of record carries, in the order they are printed. */
 export function sarSections(kind: SarKind): string[] {
   return kind === "person"
-    ? ["Record", "Checks", "Updates", "Training", "Holiday", "Absence", "Absence count restarts", "Absence meetings", "Leaving", "Evidence"]
+    ? ["Record", "Checks", "Updates", "Training", "Holiday", "Absence", "Absence meetings", "Leaving", "Evidence"]
     : ["Record", "Checks", "Updates", "Care schedule", "Outcomes", "Outcome notes", "Outcome reviews", "Evidence"];
 }
 

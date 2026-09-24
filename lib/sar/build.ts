@@ -224,21 +224,6 @@ export async function buildSubjectAccessExport(input: {
       ]),
       empty: "No absences recorded.",
     });
-    const { data: restarts } = await db
-      .from("absence_count_restarts")
-      .select("from_date, reason, set_by_name, set_at, cleared_at, cleared_by_name")
-      .eq("person_id", recordId)
-      .order("set_at", { ascending: true });
-    sections.push({
-      title: "Absence count restarts",
-      file: "absence-count-restarts.csv",
-      headers: ["Counts from", "Why", "Set by", "Set", "Undone", "Undone by"],
-      rows: ((restarts ?? []) as Array<Record<string, unknown>>).map((x) => [
-        fmtDate(x.from_date as string), t(x.reason), t(x.set_by_name), fmtDateTime(x.set_at as string),
-        fmtDateTime(x.cleared_at as string), t(x.cleared_by_name),
-      ]),
-      empty: "The absence count has never been restarted.",
-    });
     const { data: meet } = await db
       .from("absence_meetings")
       .select("stage, meeting_date, meeting_time, duration_minutes, location, response, response_reason, responded_at")

@@ -1,7 +1,9 @@
 -- Absence discounting permission and behaviour probe (0328). Runs on Bevan Care Ltd test data and
 -- ROLLS EVERYTHING BACK: the final raise aborts the block, so nothing it writes survives.
 -- Run it with execute_sql; the report comes back as the error text "__probe_report__ ...".
--- Last run 2026-09-24 after 0328: ALL PASS (18 checks).
+-- Last run 2026-09-24 after 0329: ALL PASS (12 checks). The 0328 run passed 18, six of them for the
+-- restart feature 0329 withdrew.
+-- The DELETE below only ever removes the probe's own meeting, inside the rolled back block.
 do $$
 declare
   c_company constant uuid := '84172279-54e4-4d5b-94b4-c92dc05c6baa';
@@ -12,7 +14,7 @@ declare
   r text := '';
   fails int := 0;
   a1 uuid; a2 uuid; a3 uuid;
-  v_occ int; v_nc int; v_stage int; v_from date;
+  v_start int; v_occ int; v_nc int; v_stage int;
   ok boolean;
 begin
   -- Three recent single day absences and a Stage 1 meeting, written as the service (no user).
@@ -25,10 +27,11 @@ begin
   insert into public.absence_meetings (company_id, branch_id, person_id, stage, meeting_date)
   values (c_company, c_branch, c_person, 1, current_date - 5);
 
-  select occasions into v_occ from public.person_absence_summary where person_id = c_person;
-  r := r || format('start occasions=%s; ', v_occ);
+  -- The person may already hold real test absences, so every count below is relative to this.
+  select occasions into v_start from public.person_absence_summary where person_id = c_person;
+  r := r || format('start occasions=%s; ', v_start);
 
-  -- 1. Supervisor: can read, cannot discount, cannot edit the columns directly, cannot restart.
+  -- 1. Supervisor: can read, cannot discount, cannot edit the columns directly.
   perform set_config('request.jwt.claims', json_build_object('sub', c_sup, 'role', 'authenticated')::text, true);
   set local role authenticated;
   begin perform public.discount_absence(a1, 'supervisor tries'); r := r || 'SUP discount ALLOWED (FAIL); '; fails := fails + 1;
@@ -37,8 +40,6 @@ begin
         if found then r := r || 'SUP direct column edit ALLOWED (FAIL); '; fails := fails + 1;
         else r := r || 'SUP direct edit touched nothing (PASS); '; end if;
   exception when others then r := r || 'SUP direct column edit refused (PASS); '; end;
-  begin perform public.restart_absence_count(c_person, current_date, 'supervisor tries'); r := r || 'SUP restart ALLOWED (FAIL); '; fails := fails + 1;
-  exception when others then r := r || 'SUP restart refused (PASS); '; end;
   begin update public.absence_events set end_date = end_date where id = a1;
         r := r || 'SUP last date edit still works (PASS); ';
   exception when others then r := r || 'SUP last date edit BROKEN (FAIL): ' || sqlerrm || '; '; fails := fails + 1; end;
@@ -59,8 +60,8 @@ begin
 
   select occasions, not_counted into v_occ, v_nc from public.person_absence_summary where person_id = c_person;
   r := r || format('after one discount occasions=%s not_counted=%s (%s); ', v_occ, v_nc,
-                   case when v_occ = 2 and v_nc = 1 then 'PASS' else 'FAIL' end);
-  if not (v_occ = 2 and v_nc = 1) then fails := fails + 1; end if;
+                   case when v_occ = v_start - 1 and v_nc = 1 then 'PASS' else 'FAIL' end);
+  if not (v_occ = v_start - 1 and v_nc = 1) then fails := fails + 1; end if;
   select discount_reason is not distinct from 'Car broke down, disallowed at Stage 1' and discounted_by = c_sup and discounted_by_name is not null
     into ok from public.absence_events where id = a1;
   r := r || format('reason and who kept, first reason not overwritten (%s); ', case when ok then 'PASS' else 'FAIL' end);
@@ -71,58 +72,32 @@ begin
   perform public.restore_absence(a1);
   set local role none;
   select occasions into v_occ from public.person_absence_summary where person_id = c_person;
-  r := r || format('restored occasions=%s (%s); ', v_occ, case when v_occ = 3 then 'PASS' else 'FAIL' end);
-  if v_occ <> 3 then fails := fails + 1; end if;
+  r := r || format('restored occasions=%s (%s); ', v_occ, case when v_occ = v_start then 'PASS' else 'FAIL' end);
+  if v_occ <> v_start then fails := fails + 1; end if;
 
-  -- 4. Restart from 15 days ago: two absences and the Stage 1 meeting stop counting.
-  set local role authenticated;
-  begin perform public.restart_absence_count(c_person, current_date + 1, 'future date'); r := r || 'future restart ALLOWED (FAIL); '; fails := fails + 1;
-  exception when others then r := r || 'future restart refused (PASS); '; end;
-  perform public.restart_absence_count(c_person, current_date - 40, 'first restart');
-  perform public.restart_absence_count(c_person, current_date - 15, 'Good attendance review, count starts again');
-  perform public.restart_absence_count(c_person, current_date - 15, 'same again');
-  set local role none;
-  select count(*) filter (where cleared_at is null), count(*) into v_occ, v_nc from public.absence_count_restarts where person_id = c_person;
-  r := r || format('restarts active=%s total=%s (%s); ', v_occ, v_nc, case when v_occ = 1 and v_nc = 2 then 'PASS' else 'FAIL' end);
-  if not (v_occ = 1 and v_nc = 2) then fails := fails + 1; end if;
-  select occasions, latest_meeting_stage, count_restarted_from into v_occ, v_stage, v_from from public.person_absence_summary where person_id = c_person;
-  r := r || format('after restart occasions=%s stage=%s from=%s (%s); ', v_occ, coalesce(v_stage::text, 'none'), v_from,
-                   case when v_occ = 1 and v_stage = 1 and v_from = current_date - 15 then 'PASS' else 'CHECK' end);
-  -- The Stage 1 meeting was 5 days ago, AFTER the restart, so it still counts. Move the restart past it.
-  set local role authenticated;
-  perform public.restart_absence_count(c_person, current_date - 2, 'After the meeting');
-  set local role none;
-  select occasions, latest_meeting_stage into v_occ, v_stage from public.person_absence_summary where person_id = c_person;
-  r := r || format('restart after meeting occasions=%s stage=%s (%s); ', v_occ, coalesce(v_stage::text, 'none'),
-                   case when v_occ = 0 and v_stage is null then 'PASS' else 'FAIL' end);
-  if not (v_occ = 0 and v_stage is null) then fails := fails + 1; end if;
+  -- 4. Meetings age out with the rolling window (0329): the Stage 1 meeting above is 5 days old and
+  --    counts; one 240 days old on its own would not.
+  select latest_meeting_stage into v_stage from public.person_absence_summary where person_id = c_person;
+  r := r || format('recent meeting stage=%s (%s); ', coalesce(v_stage::text, 'none'), case when v_stage = 1 then 'PASS' else 'FAIL' end);
+  if v_stage is distinct from 1 then fails := fails + 1; end if;
+  delete from public.absence_meetings where person_id = c_person and meeting_date = current_date - 5;
+  insert into public.absence_meetings (company_id, branch_id, person_id, stage, meeting_date)
+  values (c_company, c_branch, c_person, 1, current_date - 240);
+  select latest_meeting_stage into v_stage from public.person_absence_summary where person_id = c_person;
+  r := r || format('old meeting stage=%s (%s); ', coalesce(v_stage::text, 'none'), case when v_stage is null then 'PASS' else 'FAIL' end);
+  if v_stage is not null then fails := fails + 1; end if;
 
-  -- 5. Supervisor can SEE the restart; team member of another company cannot.
+  -- 5. Put the supervisor back; the Company Admin can discount; anon sees nothing.
   perform set_config('request.jwt.claims', '', true);
   update public.profiles set role = 'supervisor' where id = c_sup;
-  perform set_config('request.jwt.claims', json_build_object('sub', c_sup, 'role', 'authenticated')::text, true);
-  set local role authenticated;
-  select count(*) into v_occ from public.absence_count_restarts where person_id = c_person;
-  begin perform public.clear_absence_restart(c_person); r := r || 'SUP clear ALLOWED (FAIL); '; fails := fails + 1;
-  exception when others then r := r || 'SUP clear refused (PASS); '; end;
-  begin insert into public.absence_count_restarts (company_id, person_id, from_date, reason) values (c_company, c_person, current_date, 'direct');
-        r := r || 'SUP direct insert ALLOWED (FAIL); '; fails := fails + 1;
-  exception when others then r := r || 'SUP direct insert refused (PASS); '; end;
-  set local role none;
-  r := r || format('SUP sees restarts=%s (%s); ', v_occ, case when v_occ = 3 then 'PASS' else 'FAIL' end);
-  if v_occ <> 3 then fails := fails + 1; end if;
-
-  -- 6. Company Admin clears it; anon sees nothing.
   perform set_config('request.jwt.claims', json_build_object('sub', c_admin, 'role', 'authenticated')::text, true);
   set local role authenticated;
-  perform public.clear_absence_restart(c_person);
+  begin perform public.discount_absence(a2, 'Admin discount check'); r := r || 'ADMIN discount allowed (PASS); ';
+  exception when others then r := r || 'ADMIN discount REFUSED (FAIL): ' || sqlerrm || '; '; fails := fails + 1; end;
   set local role none;
-  select occasions, latest_meeting_stage into v_occ, v_stage from public.person_absence_summary where person_id = c_person;
-  r := r || format('ADMIN cleared: occasions=%s stage=%s (%s); ', v_occ, v_stage, case when v_occ = 3 and v_stage = 1 then 'PASS' else 'FAIL' end);
-  if not (v_occ = 3 and v_stage = 1) then fails := fails + 1; end if;
   perform set_config('request.jwt.claims', '', true);
-  begin set local role anon; select count(*) into v_occ from public.absence_count_restarts;
-        r := r || 'anon read restarts (FAIL); '; fails := fails + 1;
+  begin set local role anon; select count(*) into v_occ from public.person_absence_summary;
+        r := r || 'anon read the summary (FAIL); '; fails := fails + 1;
   exception when insufficient_privilege then r := r || 'anon refused (PASS); '; end;
   set local role none;
 

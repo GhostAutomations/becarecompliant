@@ -3475,25 +3475,28 @@ The ZIP is too big for a web response, so it goes to a private subject-access bu
 storage policies, comes back as a five minute link, and the nightly retention run removes it a
 day later (sar_exports keeps the row). Support mode cannot make one. fflate added for the ZIP.
 
-### 2026-09-24 — Absence discounting (migrations 0327 and 0328)
+### 2026-09-24 — Absence discounting (migrations 0327, 0328 and 0329)
 
 Phil, when the Thistle meetings showed Charlotte had disallowed absences: "we need a away to reset
-abences or restart triggers is some are discounted". Agreed by popup: all three, Managers and
-above only (Company Admin, the Registered roles, a Manager of the person's branch).
+abences or restart triggers is some are discounted". Managers and above only (Company Admin, the
+Registered roles, a Manager of the person's branch).
 
 - **Discount one absence** from View absence. A reason is required. It stays on the record,
   struck through, with who, when and why, and stops counting towards occasions, days, Bradford
   and the stage triggers. "Count it again" undoes it.
-- **Restart the count from a date**, with a reason. Absences AND meetings before that date stop
-  counting, so the person starts again at no stage. One restart per person; a new one replaces
-  it; "Undo restart" clears it. Every restart is kept for the history and the SAR export.
 - **After a meeting** is recorded, a Manager or above is asked which absences it discounted: tick
   boxes, nothing ticked to begin with, the reason filled in from the meeting.
+- **Meeting stages age out with the rolling window (0329).** 0328 also built "Restart the count
+  from a date", because a meeting's stage never expired. Testing it, Phil: "i dont think we need
+  this" and "i think it needs to be automatic". So it was taken out, and a meeting now sets the
+  stage only while it is inside the rolling window, the same as the absences. At Thistle (six
+  months) a Stage 1 meeting in June stops counting in December, and three new absences then call
+  for Stage 1 again.
 
-The counting stays in person_absence_summary, which now also returns not_counted and
-count_restarted_from. The discount columns can only change through the functions (a trigger
-refuses a direct edit, because Supervisors can update absence_events for the last date). A
-discounted absence still raises its Return to Work: it happened, it just does not count.
-Probe: scripts/absence-discount-probe.sql, 18 checks, all pass.
+The counting stays in person_absence_summary, which also returns not_counted. The discount columns
+can only change through the functions (a trigger refuses a direct edit, because Supervisors can
+update absence_events for the last date). A discounted absence still raises its Return to Work: it
+happened, it just does not count. The card's third box is now labelled "last meeting" (Phil: the
+"met. stage" label read as blank).
 
 0327 is DEF-073: the view had been running as its owner since 0223, readable without signing in.

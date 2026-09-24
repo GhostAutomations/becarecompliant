@@ -8,8 +8,8 @@
  * backdrop-filter can never trap the overlay.
  *
  * Discounting (0328, Phil 2026-09-24): a Manager or above can discount an absence (it stays here,
- * struck through, with who, when and why, and stops counting), count it again, and restart the
- * person's count from a date. Supervisors see all of it and can still edit the last date.
+ * struck through, with who, when and why, and stops counting) and count it again. Supervisors see
+ * it and can still edit the last date.
  */
 
 import { useEffect, useState } from "react";
@@ -18,15 +18,10 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { IDLE_STATE, type ActionState } from "@/lib/forms";
 import { updateAbsenceEndDate } from "@/lib/absence/actions";
-import {
-  clearAbsenceRestart,
-  discountAbsences,
-  restartAbsenceCount,
-  restoreAbsence,
-} from "@/lib/absence/discount-actions";
+import { discountAbsences, restoreAbsence } from "@/lib/absence/discount-actions";
 import { absenceCountState } from "@/lib/absence/discount";
 import { useSavedFlash } from "@/lib/use-saved-flash";
-import type { AbsenceEventRow, AbsenceRestartRow } from "@/lib/absence/data";
+import type { AbsenceEventRow } from "@/lib/absence/data";
 
 function fmt(d: string | null): string {
   if (!d) return "";
@@ -57,14 +52,12 @@ function RowEditor({
   n,
   canEdit,
   canDiscount,
-  restartFrom,
   windowStart,
 }: {
   ev: AbsenceEventRow;
   n: number;
   canEdit: boolean;
   canDiscount: boolean;
-  restartFrom: string | null;
   windowStart: string;
 }) {
   const router = useRouter();
@@ -101,7 +94,7 @@ function RowEditor({
   }
 
   const busy = submitting || pending;
-  const countState = absenceCountState(ev, { restartFrom, windowStart });
+  const countState = absenceCountState(ev, { windowStart });
   const discounted = countState === "discounted";
 
   return (
@@ -109,7 +102,6 @@ function RowEditor({
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <p className="text-xs font-semibold uppercase tracking-wide text-gold-300">Absence {n}</p>
         {discounted && <span className="pill pill-neutral">Discounted</span>}
-        {countState === "before_restart" && <span className="pill pill-neutral">Before the restart</span>}
         {countState === "outside_window" && <span className="pill pill-neutral">Outside the window</span>}
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
@@ -205,133 +197,22 @@ function RowEditor({
   );
 }
 
-function RestartPanel({
-  personId,
-  restart,
-  canDiscount,
-  todayIso,
-}: {
-  personId: string;
-  restart: AbsenceRestartRow | null;
-  canDiscount: boolean;
-  todayIso: string;
-}) {
-  const start = useRun(restartAbsenceCount);
-  const undo = useRun(clearAbsenceRestart);
-  const [asking, setAsking] = useState(false);
-  const [from, setFrom] = useState(todayIso);
-  const [reason, setReason] = useState("");
-
-  useEffect(() => {
-    if (start.state.ok) {
-      setAsking(false);
-      setReason("");
-    }
-  }, [start.state]);
-
-  if (!restart && !canDiscount) return null;
-
-  return (
-    <div className="mb-4 rounded-xl border border-white/10 p-3">
-      {restart ? (
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div className="min-w-0 text-xs text-white/75">
-            <p className="text-sm font-semibold text-white">Count restarted from {fmt(restart.from_date)}</p>
-            <p className="mt-1">
-              Absences and meetings before this date no longer count. Set by {restart.set_by_name ?? "a manager"} on{" "}
-              {fmt(restart.set_at)}: {restart.reason}
-            </p>
-          </div>
-          {canDiscount && (
-            <button
-              type="button"
-              className="btn-outline px-3 py-1.5 text-xs"
-              disabled={undo.busy}
-              onClick={() => undo.go({ person_id: personId })}
-            >
-              {undo.busy ? "Saving…" : "Undo restart"}
-            </button>
-          )}
-        </div>
-      ) : !asking ? (
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs text-white/60">Every absence in the window counts.</p>
-          <button type="button" className="btn-outline px-3 py-1.5 text-xs" onClick={() => setAsking(true)}>
-            Restart the count
-          </button>
-        </div>
-      ) : null}
-
-      {asking && !restart && (
-        <div className="space-y-2">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className="form-label text-[11px]" htmlFor={`restart-from-${personId}`}>Count from</label>
-              <input
-                id={`restart-from-${personId}`}
-                type="date"
-                value={from}
-                max={todayIso}
-                onChange={(e) => setFrom(e.target.value)}
-              />
-            </div>
-          </div>
-          <label className="form-label text-[11px]" htmlFor={`restart-reason-${personId}`}>Why is the count restarting?</label>
-          <textarea
-            id={`restart-reason-${personId}`}
-            rows={2}
-            value={reason}
-            maxLength={500}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="For example: attendance review passed, count starts again"
-          />
-          <p className="form-hint">
-            Absences and meetings before this date stop counting, so the stage starts again from none. They all stay on
-            the record, and you can undo this.
-          </p>
-          <div className="flex justify-end gap-2">
-            <button type="button" className="btn-ghost px-3 py-1.5 text-xs" onClick={() => setAsking(false)}>
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="btn-primary px-3 py-1.5 text-xs"
-              disabled={start.busy}
-              onClick={() => start.go({ person_id: personId, from_date: from, reason })}
-            >
-              {start.busy ? "Saving…" : "Restart count"}
-            </button>
-          </div>
-        </div>
-      )}
-      {start.state.error && <p className="form-error mt-1 text-xs">{start.state.error}</p>}
-      {undo.state.error && <p className="form-error mt-1 text-xs">{undo.state.error}</p>}
-    </div>
-  );
-}
-
 export default function AbsenceDetailDialog({
-  personId,
   personName,
   events,
   canEdit,
   canDiscount = false,
-  restart = null,
   windowStart,
-  todayIso,
   triggerLabel = "View absence",
   triggerClassName = "btn-outline px-3 py-1.5 text-xs",
 }: {
-  personId: string;
   personName: string;
   events: AbsenceEventRow[];
   canEdit: boolean;
-  /** Managers and above: discount, count again, restart. */
+  /** Managers and above: discount and count again. */
   canDiscount?: boolean;
-  restart?: AbsenceRestartRow | null;
   /** First date inside the rolling window, to label absences that have aged out. */
   windowStart: string;
-  todayIso: string;
   triggerLabel?: string;
   triggerClassName?: string;
 }) {
@@ -359,8 +240,6 @@ export default function AbsenceDetailDialog({
               </button>
             </div>
 
-            <RestartPanel personId={personId} restart={restart} canDiscount={canDiscount} todayIso={todayIso} />
-
             {events.length === 0 ? (
               <p className="text-sm text-white/60">No absences recorded.</p>
             ) : (
@@ -374,7 +253,6 @@ export default function AbsenceDetailDialog({
                       n={i + 1}
                       canEdit={canEdit}
                       canDiscount={canDiscount}
-                      restartFrom={restart?.from_date ?? null}
                       windowStart={windowStart}
                     />
                   ))}

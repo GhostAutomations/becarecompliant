@@ -55,10 +55,8 @@ export type AbsencePersonRow = {
   firstAbsence: string | null;
   lastAbsence: string | null;
   status: AbsenceStatus;
-  /** Absences in the window that do NOT count: discounted, or before a count restart (0328). */
+  /** Absences in the window that do NOT count, because they were discounted (0328). */
   notCounted: number;
-  /** The date an active count restart runs from, if there is one. */
-  restartedFrom: string | null;
 };
 
 type SummaryRow = {
@@ -72,7 +70,6 @@ type SummaryRow = {
   last_absence: string | null;
   latest_meeting_stage: number | null;
   not_counted: number | null;
-  count_restarted_from: string | null;
 };
 
 /** The Absence register: only active people who HAVE absences in the window. */
@@ -111,7 +108,6 @@ export async function listAbsenceRegister(
       config,
     ),
     notCounted: r.not_counted ?? 0,
-    restartedFrom: r.count_restarted_from ?? null,
   }));
 
   return { config, rows };
@@ -222,26 +218,6 @@ export async function listPersonAbsences(
     .eq("person_id", personId)
     .order("start_date", { ascending: false });
   return (data as AbsenceEventRow[] | null) ?? [];
-}
-
-export type AbsenceRestartRow = {
-  id: string;
-  person_id: string;
-  from_date: string;
-  reason: string;
-  set_by_name: string | null;
-  set_at: string;
-};
-
-/** Active count restarts (one per person at most), RLS scoped like the absences themselves. */
-export async function listAbsenceRestarts(companyId: string): Promise<AbsenceRestartRow[]> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("absence_count_restarts")
-    .select("id, person_id, from_date, reason, set_by_name, set_at")
-    .eq("company_id", companyId)
-    .is("cleared_at", null);
-  return (data as AbsenceRestartRow[] | null) ?? [];
 }
 
 export type AbsenceMeetingRow = {

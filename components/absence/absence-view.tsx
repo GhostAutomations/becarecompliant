@@ -18,7 +18,7 @@ import DiscountAfterMeeting from "@/components/absence/discount-after-meeting";
 import type { FormSchema } from "@/lib/form-schema";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import type { AbsenceMethod, StageThreshold } from "@/lib/absence/logic";
-import type { AbsencePersonRow, PersonLite, AbsenceEventRow, AbsenceRestartRow, OpenBookingRow, ConductorLite, MeetingOffice } from "@/lib/absence/data";
+import type { AbsencePersonRow, PersonLite, AbsenceEventRow, OpenBookingRow, ConductorLite, MeetingOffice } from "@/lib/absence/data";
 import type { BranchLite } from "@/lib/people/data";
 import { recordAbsence, recordAbsenceMeeting } from "@/lib/absence/actions";
 import { recordableStages } from "@/lib/absence/record-meeting";
@@ -69,7 +69,6 @@ export default function AbsenceView({
   offices,
   canManage,
   canDiscount,
-  restarts,
   windowStart,
 }: {
   method: AbsenceMethod;
@@ -96,21 +95,13 @@ export default function AbsenceView({
   conductors: ConductorLite[];
   offices: MeetingOffice[];
   canManage: boolean;
-  /** Managers and above: discount absences and restart the count (0328). */
+  /** Managers and above: discount absences (0328). */
   canDiscount: boolean;
-  /** Active count restarts, one per person at most. */
-  restarts: AbsenceRestartRow[];
   /** First date inside the rolling window (Europe/London today less the window). */
   windowStart: string;
 }) {
   const [branch, setBranch] = useState("");
   const [pickPerson, setPickPerson] = useState("");
-
-  const restartByPerson = useMemo(() => {
-    const map: Record<string, AbsenceRestartRow> = {};
-    for (const r of restarts) map[r.person_id] = r;
-    return map;
-  }, [restarts]);
 
   /* After a meeting is saved, a Manager or above is asked which absences it discounted. */
   const [afterMeeting, setAfterMeeting] = useState<
@@ -189,14 +180,10 @@ export default function AbsenceView({
     // A Stage N meeting only discusses ITS absences (Phil): Stage 1 covers the
     // occasions up to its trigger threshold; each later stage covers the new
     // absences since the previous stage's threshold. Numbers stay absolute.
-    // Discounted absences, and any before a count restart, are not what a meeting discusses
-    // (0328). They stay on the record but leave this list and its numbering.
-    const restartFrom = restartByPerson[r.personId]?.from_date ?? null;
+    // Discounted absences are not what a meeting discusses (0328). They stay on the record
+    // but leave this list and its numbering.
     const chronological = [...(eventsByPerson[r.personId] ?? [])]
-      .filter((e) => {
-        const st = absenceCountState(e, { restartFrom, windowStart });
-        return st !== "discounted" && st !== "before_restart";
-      })
+      .filter((e) => absenceCountState(e, { windowStart }) !== "discounted")
       .sort((a, b) => a.start_date.localeCompare(b.start_date));
     let discussed = chronological.map((e, i) => ({ e, n: i + 1 }));
     const bookedStage = earliest?.stage ?? null;
@@ -490,18 +477,14 @@ export default function AbsenceView({
                       {method === "bradford" ? s.bradfordScore : s.meetingStage ?? "—"}
                     </div>
                     <div className="text-white/50">
-                      {method === "bradford" ? "Bradford" : "met. stage"}
+                      {method === "bradford" ? "Bradford" : "last meeting"}
                     </div>
                   </div>
                 </div>
 
-                {(r.notCounted > 0 || r.restartedFrom) && (
+                {r.notCounted > 0 && (
                   <p className="text-xs text-white/50">
-                    {r.notCounted > 0
-                      ? `${r.notCounted} ${r.notCounted === 1 ? "absence does" : "absences do"} not count.`
-                      : ""}
-                    {r.notCounted > 0 && r.restartedFrom ? " " : ""}
-                    {r.restartedFrom ? `Count restarted from ${fmtDay(r.restartedFrom)}.` : ""}
+                    {r.notCounted} discounted {r.notCounted === 1 ? "absence does" : "absences do"} not count.
                   </p>
                 )}
                 {s.action && <p className="text-xs text-white/70">Action: {s.action}</p>}
@@ -554,14 +537,11 @@ export default function AbsenceView({
                       />
                     ) : null}
                   <AbsenceDetailDialog
-                    personId={r.personId}
                     personName={r.fullName}
                     events={eventsByPerson[r.personId] ?? []}
                     canEdit={canManage}
                     canDiscount={canDiscount}
-                    restart={restartByPerson[r.personId] ?? null}
                     windowStart={windowStart}
-                    todayIso={londonToday}
                   />
                   {canManage ? (
                     <BookMeetingDialog
@@ -620,10 +600,7 @@ export default function AbsenceView({
       {afterMeeting ? (
         <DiscountAfterMeeting
           personName={afterMeeting.personName}
-          absences={countedAbsences(eventsByPerson[afterMeeting.personId] ?? [], {
-            restartFrom: restartByPerson[afterMeeting.personId]?.from_date ?? null,
-            windowStart,
-          })}
+          absences={countedAbsences(eventsByPerson[afterMeeting.personId] ?? [], { windowStart })}
           defaultReason={meetingDiscountReason(afterMeeting.stage, afterMeeting.date)}
           onClose={closeAfterMeeting}
         />

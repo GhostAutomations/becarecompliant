@@ -3,10 +3,11 @@
  *
  * Phil, 2026-09-24: "we need a away to reset abences or restart triggers is some are discounted".
  * A Manager or above can discount one absence (it stays on the record, struck through, and stops
- * counting), restart a person's count from a date (absences AND meetings before it stop counting),
- * and tick the absences a meeting discounted straight after recording it.
+ * counting) and tick the absences a meeting discounted straight after recording it. There is no
+ * "restart the count": meetings age out with the rolling window on their own (0329, Phil: "i think
+ * it needs to be automatic").
  *
- * The database decides what counts (person_absence_summary, 0328) and who may change it
+ * The database decides what counts (person_absence_summary, 0329) and who may change it
  * (can_discount_absence). These helpers only mirror it so the screens can say the same thing
  * before anyone presses a button.
  */
@@ -28,18 +29,6 @@ const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
 export function discountReasonProblem(reason: string | null | undefined): string | null {
   return (reason ?? "").trim().length < 3 ? "Say why this absence is being discounted." : null;
-}
-
-export function restartProblem(input: {
-  fromIso: string | null | undefined;
-  todayIso: string;
-  reason: string | null | undefined;
-}): string | null {
-  const from = (input.fromIso ?? "").trim();
-  if (!ISO.test(from)) return "Choose the date the count restarts from.";
-  if (from > input.todayIso) return "The count can only restart from today or an earlier date.";
-  if ((input.reason ?? "").trim().length < 3) return "Say why the count is being restarted.";
-  return null;
 }
 
 function slash(iso: string): string {
@@ -77,14 +66,13 @@ export function windowStartIso(todayIso: string, window: WindowLike): string {
   return t.toISOString().slice(0, 10);
 }
 
-export type CountState = "counted" | "discounted" | "before_restart" | "outside_window";
+export type CountState = "counted" | "discounted" | "outside_window";
 
 export function absenceCountState(
   ev: { start_date: string; discounted_at: string | null },
-  opts: { restartFrom: string | null; windowStart: string },
+  opts: { windowStart: string },
 ): CountState {
   if (ev.discounted_at) return "discounted";
-  if (opts.restartFrom && ev.start_date < opts.restartFrom) return "before_restart";
   if (ev.start_date < opts.windowStart) return "outside_window";
   return "counted";
 }
@@ -92,7 +80,7 @@ export function absenceCountState(
 /** The absences that count today, oldest first: what a meeting can discount. */
 export function countedAbsences<T extends { start_date: string; discounted_at: string | null }>(
   events: T[],
-  opts: { restartFrom: string | null; windowStart: string },
+  opts: { windowStart: string },
 ): T[] {
   return events
     .filter((e) => absenceCountState(e, opts) === "counted")
