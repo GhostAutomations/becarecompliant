@@ -13,6 +13,7 @@ import AssistantPanel from "@/components/framework/assistant-panel";
 import SnapshotOnLoad from "@/components/framework/snapshot-on-load";
 import NoticesPanel, { type NoticeRow } from "@/components/framework/notices-panel";
 import { waitingSentence } from "@/lib/framework/waiting";
+import DownloadButton from "@/components/download-button";
 
 export const metadata: Metadata = { title: "Inspection Readiness" };
 
@@ -98,7 +99,13 @@ export default async function ReadinessPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <a href="/api/reports/readiness-pack" download className="btn-primary text-sm">Inspection pack</a>
+          <DownloadButton
+            href="/api/reports/readiness-pack"
+            label="Inspection pack"
+            busyLabel="Preparing the pack…"
+            busyNote="This takes about 20 seconds. The download starts on its own."
+            fallbackName="inspection-readiness-pack.pdf"
+          />
         </div>
       </div>
 

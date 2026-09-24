@@ -206,4 +206,5 @@ in the same piece of work (Phil: "we are passed final testing so it needs to be 
 | K3 | Thistle pack: the same three themes as the page, each with Summary, Checks, Waiting and signals matching the page | |
 | K4 | Thistle pack: CIW notices section reads "No notices recorded." | |
 | K5 | Thistle pack: "Outstanding checks" tables, no dashes in headings, narrative gives no overall score | |
-| K6 | Readiness page: "Outstanding checks (n)", and "No data yet" where a signal has no data | |
+| K6 | Readiness page: "Outstanding checks (n)", and "No data yet" where a signal has no data | PASS after reload (Phil first saw "Outstanding items" on a page loaded before the deploy went live; reloaded 24/09: "Outstanding checks (19)" and "(5)", intro "outstanding checks", three signals "No data yet") |
+| K7 | DEF-065: Inspection pack pressed once shows "Preparing the pack…" and the 20 second note, further presses do nothing, one PDF downloads | |

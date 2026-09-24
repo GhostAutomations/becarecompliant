@@ -2062,3 +2062,24 @@ its tables "Outstanding items".
   checks, and not to use dashes; the overdue list it is given no longer uses dashes either.
 - "Outstanding items" became "Outstanding checks" on the page and in the pack, and a metric with
   no data reads "No data yet" instead of a dash, on both.
+
+
+---
+
+## DEF-065 - The Inspection pack gave no sign it was working, so it was pressed three times
+
+**Found by Phil 2026-09-24:** *"I pressed inspection pack and it actually takes fifteen to twenty
+seconds to download something. So I ended up pressing it two or three times and now I have had
+multiple downloads."*
+
+The button was a plain link. The pack takes that long because the AI writes the narrative before
+the PDF is drawn, and a link shows nothing while it waits, so pressing again looked like the right
+thing to do. Each press made a whole new pack (and a new AI call and audit line).
+
+**Fixed:** a shared DownloadButton (components/download-button.tsx) fetches the file itself. While
+it works the button reads "Preparing the pack…", is greyed out and ignores further presses, and a
+line underneath says "This takes about 20 seconds. The download starts on its own." A refusal from
+the server is shown under the button instead of downloading an error page. The file keeps the name
+the server gives it (lib/export/download-name.ts, three tests). The Readiness page's Inspection
+pack uses it. It is there for any other slow download; the pack is the only export that calls the
+AI, so it is the only one that needs it today.
