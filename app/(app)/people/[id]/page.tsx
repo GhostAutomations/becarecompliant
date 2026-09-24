@@ -887,7 +887,7 @@ export default async function PersonPage({
                     </div>
                     {/* Written out, not hidden in a hover (Phil, 2026-09-24). */}
                     {a.discounted_at && a.discount_reason ? (
-                      <p className="mt-0.5 text-xs text-white/50">Discounted: {a.discount_reason}</p>
+                      <p className="mt-0.5 text-xs text-white/50">{a.discount_reason}</p>
                     ) : null}
                   </li>
                 ))}

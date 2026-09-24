@@ -25,8 +25,8 @@ test("a discount needs a reason", () => {
 });
 
 test("the after meeting reason names the stage and date", () => {
-  assert.equal(meetingDiscountReason(1, "2026-06-09"), "Discounted at the Stage 1 meeting held on 09/06/2026");
-  assert.equal(meetingDiscountReason(null, null), "Discounted at the absence meeting");
+  assert.equal(meetingDiscountReason(1, "2026-06-09"), "Agreed at the Stage 1 meeting held on 09/06/2026");
+  assert.equal(meetingDiscountReason(null, null), "Agreed at the absence meeting");
 });
 
 test("the window starts where Postgres says it does", () => {

@@ -36,12 +36,13 @@ function slash(iso: string): string {
   return `${d}/${m}/${y}`;
 }
 
-/** The reason offered, and editable, when absences are discounted straight after a meeting. */
+/** The reason offered, and editable, when absences are discounted straight after a meeting.
+ *  Not "Discounted at...": it is always shown beside the word Discounted, so it said it twice. */
 export function meetingDiscountReason(stage: number | null, dateIso: string | null): string {
   const what = stage ? `the Stage ${stage} meeting` : "the absence meeting";
   return dateIso && ISO.test(dateIso)
-    ? `Discounted at ${what} held on ${slash(dateIso)}`
-    : `Discounted at ${what}`;
+    ? `Agreed at ${what} held on ${slash(dateIso)}`
+    : `Agreed at ${what}`;
 }
 
 export type WindowLike = { value: number; unit: "day" | "week" | "month" };
