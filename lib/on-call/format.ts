@@ -111,3 +111,22 @@ export function slotInstants(dateIso: string, slot: "am" | "pm"): { startsAt: st
   const next = new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
   return { startsAt: `${dateIso}T12:00:00Z`, endsAt: `${next}T00:00:00Z` };
 }
+
+/**
+ * Who completed a finalised handover, from the logins that saved it (DEF-074, Phil 2026-09-24:
+ * "it should be logged by the the login"). The finaliser is who completed it; the handler (the
+ * last login to save) stands in for a handover finalised before finalised_by was kept. When
+ * someone else started it, both names are given, because two people wrote it.
+ */
+export function completedByLine(log: {
+  finalised_by_name: string | null;
+  created_by_name: string | null;
+  handler_person_name: string | null;
+}): string {
+  const completer = log.finalised_by_name || log.handler_person_name;
+  if (!completer) return "Who completed it was not recorded.";
+  if (log.created_by_name && log.created_by_name !== completer) {
+    return `Started by ${log.created_by_name}, completed by ${completer}`;
+  }
+  return `Completed by ${completer}`;
+}

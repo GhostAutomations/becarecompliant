@@ -30,6 +30,7 @@ export default function LogRegister({ rows }: { rows: OnCallLog[] }) {
           <tr className="border-b border-white/10 text-left text-xs uppercase tracking-wide text-white/45">
             <th className="px-3 py-2">Shift</th>
             {hasBranch ? <th className="px-3 py-2">Branch</th> : null}
+            <th className="px-3 py-2">Completed by</th>
             <th className="px-3 py-2">Complaints</th>
             <th className="px-3 py-2">Absences</th>
             <th className="px-3 py-2">Urgent</th>
@@ -42,6 +43,15 @@ export default function LogRegister({ rows }: { rows: OnCallLog[] }) {
                 <Link href={`/on-call/log/${r.id}`} className="font-medium text-gold-300">{shiftLabel(r.shift_date, r.slot)}</Link>
               </td>
               {hasBranch ? <td className="px-3 py-2 text-white/70">{r.branch_name ?? "—"}</td> : null}
+              <td className="px-3 py-2 text-white/80">
+                {r.finalised ? (
+                  r.finalised_by_name || r.handler_person_name || ""
+                ) : (
+                  <span className="text-white/50">
+                    {r.created_by_name ? `${r.created_by_name}, not finalised` : "Not finalised"}
+                  </span>
+                )}
+              </td>
               <td className="px-3 py-2 text-white/80">{loggedPill(r.complaints_count, r.complaints_logged)}</td>
               <td className="px-3 py-2 text-white/80">{loggedPill(r.absences_count, r.absences_logged)}</td>
               <td className="px-3 py-2">

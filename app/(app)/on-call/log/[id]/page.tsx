@@ -8,7 +8,7 @@ import LogForm from "@/components/on-call/log-form";
 import LogReadOnLoad from "@/components/on-call/log-read-on-load";
 import { getLog, getOnCallBranches, getRotaScope, getLogReads } from "@/lib/on-call/data";
 import { resolveFollowUp } from "@/lib/on-call/actions";
-import { shiftOptions, shiftLabel } from "@/lib/on-call/format";
+import { shiftOptions, shiftLabel, completedByLine } from "@/lib/on-call/format";
 
 export const metadata: Metadata = { title: "On-call shift" };
 
@@ -55,7 +55,12 @@ export default async function CallPage({ params }: { params: Promise<{ id: strin
 
       {log.finalised ? (
         <div className="glass-card space-y-4 p-5">
-          <span className="pill-neutral">Finalised{log.finalised_at ? ` · ${fmtRead(log.finalised_at)}` : ""}</span>
+          {/* WHO, from the login (DEF-074, Phil 2026-09-24: "this doesnt show who complete the
+              on call notes, it should be logged by the the login"). Nobody types a name. */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="pill-neutral">Finalised{log.finalised_at ? ` · ${fmtRead(log.finalised_at)}` : ""}</span>
+            <span className="text-sm text-white/75">{completedByLine(log)}</span>
+          </div>
           <div>
             <p className="form-label">On Call Notes</p>
             <p className="whitespace-pre-wrap text-sm text-white/85">{log.details}</p>
@@ -82,6 +87,10 @@ export default async function CallPage({ params }: { params: Promise<{ id: strin
           </div>
         </div>
       ) : (
+        <>
+        {log.created_by_name ? (
+          <p className="text-sm text-white/60">Started by {log.created_by_name}. Not finalised yet.</p>
+        ) : null}
         <LogForm
           scope={scope}
           branches={branches}
@@ -89,6 +98,7 @@ export default async function CallPage({ params }: { params: Promise<{ id: strin
           defaultShift={logShift}
           log={log}
         />
+        </>
       )}
       {log.follow_up_required ? (
         <div className="glass-card space-y-3 p-5">
@@ -106,6 +116,12 @@ export default async function CallPage({ params }: { params: Promise<{ id: strin
             <div>
               <p className="form-label">Action notes</p>
               <p className="whitespace-pre-wrap text-sm text-white/85">{log.follow_up_action || "No notes recorded."}</p>
+              {log.follow_up_done_by_name ? (
+                <p className="mt-2 text-xs text-white/55">
+                  Completed by {log.follow_up_done_by_name}
+                  {log.follow_up_done_at ? `, ${fmtRead(log.follow_up_done_at)}` : ""}
+                </p>
+              ) : null}
             </div>
           ) : (
             <ActionForm action={resolveFollowUp} hidden={{ log_id: log.id }} buttonClassName="btn-primary text-sm" className="space-y-3">

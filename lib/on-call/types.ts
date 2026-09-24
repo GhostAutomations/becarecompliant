@@ -67,6 +67,15 @@ export type OnCallLog = {
   follow_up_done: boolean;
   finalised: boolean;
   finalised_at: string | null;
+  /** WHO, from the login that saved it (DEF-074, Phil 2026-09-24: "it should be logged by the
+   *  login"). The ids were always stored; these are the names, resolved for display. */
+  created_by_name: string | null;
+  finalised_by_name: string | null;
+  follow_up_done_by_name: string | null;
+  follow_up_done_at: string | null;
+  created_by: string | null;
+  finalised_by: string | null;
+  follow_up_done_by: string | null;
 };
 
 export type BranchOption = { id: string; name: string };

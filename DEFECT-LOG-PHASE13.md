@@ -2296,3 +2296,15 @@ UK GDPR expects a processor to tell the controller about a personal data breach 
 delay. With no sign that anyone outside the app read it, this may be a closed weakness rather than
 a breach, but that is your judgement to make (with advice if you want it), and the facts above are
 what Thistle would need if you tell them.
+
+## DEF-074 - A handover did not say who wrote it
+
+**Found 2026-09-24** by Phil on Thistle's PM handover for 22/09: "this doesnt show who complete the
+con call notes, it should be logged by the the login". The logins were always stored (created_by,
+handler, finalised_by, follow_up_done_by; that one was Lauren Morgan for all three) but nothing on
+the Handover screens printed them. **Fixed:** a finalised handover reads "Completed by Lauren
+Morgan" beside the Finalised pill, or "Started by X, completed by Y" when two people wrote it; a
+draft reads "Started by X. Not finalised yet."; a completed urgent follow up reads "Completed by X"
+with the time; the Handover register has a Completed by column. All from the login, nobody types
+a name. Names resolve through the definer path so On Call and Supervisor users see them too.
+lib/on-call/format.ts completedByLine, one test.

@@ -89,14 +89,21 @@ async function fillShiftNames(shifts: OnCallShift[], companyId?: string): Promis
   );
 }
 
+/** Names for every login a log records: the handler (the last person to save it), who started
+ *  it, who finalised it and who completed the follow up. Through the definer path, because a
+ *  Supervisor or On Call user can read only their own profile row. */
 async function fillLogNames(logs: OnCallLog[]): Promise<OnCallLog[]> {
-  const byId = await profilesById(logs.filter((x) => !x.handler_person_name).map((x) => x.handler_profile_id));
-  if (byId.size === 0) return logs;
-  return logs.map((x) =>
-    x.handler_person_name
-      ? x
-      : { ...x, handler_person_name: (x.handler_profile_id && byId.get(x.handler_profile_id)?.name) || null },
+  const byId = await profilesById(
+    logs.flatMap((x) => [x.handler_profile_id, x.created_by, x.finalised_by, x.follow_up_done_by]),
   );
+  const name = (id: string | null) => (id && byId.get(id)?.name) || null;
+  return logs.map((x) => ({
+    ...x,
+    handler_person_name: x.handler_person_name || name(x.handler_profile_id),
+    created_by_name: name(x.created_by),
+    finalised_by_name: name(x.finalised_by),
+    follow_up_done_by_name: name(x.follow_up_done_by),
+  }));
 }
 
 function toShift(r: ShiftRow): OnCallShift {
@@ -216,6 +223,7 @@ type LogRow = {
   complaints_count: number; complaints_logged: boolean; absences_count: number; absences_logged: boolean;
   follow_up_required: boolean; follow_up_notes: string | null; follow_up_action: string | null; follow_up_done: boolean;
   finalised: boolean; finalised_at: string | null;
+  created_by: string | null; finalised_by: string | null; follow_up_done_by: string | null; follow_up_done_at: string | null;
   branches: { name: string } | { name: string }[] | null;
   profiles: { full_name: string | null; email: string | null } | { full_name: string | null; email: string | null }[] | null;
   service_users: { full_name: string } | { full_name: string }[] | null;
@@ -238,11 +246,14 @@ function toLog(r: LogRow): OnCallLog {
     absences_count: r.absences_count, absences_logged: r.absences_logged,
     follow_up_required: r.follow_up_required, follow_up_notes: r.follow_up_notes, follow_up_action: r.follow_up_action, follow_up_done: r.follow_up_done,
     finalised: r.finalised, finalised_at: r.finalised_at,
+    created_by: r.created_by, finalised_by: r.finalised_by,
+    follow_up_done_by: r.follow_up_done_by, follow_up_done_at: r.follow_up_done_at,
+    created_by_name: null, finalised_by_name: null, follow_up_done_by_name: null,
   };
 }
 
 const LOG_SELECT =
-  "id, company_id, branch_id, ref_number, shift_id, occurred_at, shift_date, slot, handler_profile_id, handler_name, caller_name, caller_relationship, service_user_id, category, details, action_taken, outcome, complaints_count, complaints_logged, absences_count, absences_logged, follow_up_required, follow_up_notes, follow_up_action, follow_up_done, finalised, finalised_at, branches(name), profiles:handler_profile_id(full_name, email), service_users:service_user_id(full_name)";
+  "id, company_id, branch_id, ref_number, shift_id, occurred_at, shift_date, slot, handler_profile_id, handler_name, caller_name, caller_relationship, service_user_id, category, details, action_taken, outcome, complaints_count, complaints_logged, absences_count, absences_logged, follow_up_required, follow_up_notes, follow_up_action, follow_up_done, finalised, finalised_at, created_by, finalised_by, follow_up_done_by, follow_up_done_at, branches(name), profiles:handler_profile_id(full_name, email), service_users:service_user_id(full_name)";
 
 /** The Handover, newest call first. RLS scopes rows to the caller. */
 export async function listCallLog(companyId: string): Promise<OnCallLog[]> {
@@ -259,7 +270,9 @@ export async function listCallLog(companyId: string): Promise<OnCallLog[]> {
 export async function getLog(id: string): Promise<OnCallLog | null> {
   const supabase = await createClient();
   const { data } = await supabase.from("on_call_logs").select(LOG_SELECT).eq("id", id).maybeSingle();
-  return data ? toLog(data as LogRow) : null;
+  if (!data) return null;
+  const [log] = await fillLogNames([toLog(data as LogRow)]);
+  return log;
 }
 
 /** The caller's in-progress "New Handover" draft, if saved within the last 12 hours.
