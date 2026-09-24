@@ -154,3 +154,49 @@ begin
   raise exception using errcode = 'P0001', message = '__probe_report__' || v_report;
 end;
 $probe$;
+
+-- PART TWO (0325): Updates follow the record's retention clock. Same pattern: one DO block that
+-- raises its report, so every fixture is rolled back. Expect four PASS lines.
+do $probe$
+declare
+  c constant uuid := '84172279-54e4-4d5b-94b4-c92dc05c6baa';
+  b constant uuid := '8deb438e-98dd-4426-b6e7-fc1e6e19fc7b';
+  a constant uuid := 'ca13390c-ed11-49e8-b5f8-025036859b42';
+  p_old uuid := gen_random_uuid(); p_young uuid := gen_random_uuid(); p_hold uuid := gen_random_uuid(); p_active uuid := gen_random_uuid();
+  s_old uuid := gen_random_uuid(); s_hosp uuid := gen_random_uuid();
+  u1 uuid := gen_random_uuid();
+  r text := ''; n int;
+begin
+  insert into people (id, company_id, branch_id, full_name, employment_status, leaver_date) values
+    (p_old, c, b, 'ZZ PROBE old leaver', 'leaver', current_date - interval '9 years'),
+    (p_young, c, b, 'ZZ PROBE recent leaver', 'leaver', current_date - interval '7 years'),
+    (p_hold, c, b, 'ZZ PROBE held leaver', 'leaver', current_date - interval '9 years'),
+    (p_active, c, b, 'ZZ PROBE active', 'active', null);
+  update people set retention_hold = true where id = p_hold;
+  insert into service_users (id, company_id, branch_id, full_name, service_status, discharge_date) values
+    (s_old, c, b, 'ZZ PROBE old SU', 'cancelled', current_date - interval '9 years'),
+    (s_hosp, c, b, 'ZZ PROBE hospital SU', 'hospital', current_date - interval '9 years');
+  insert into record_updates (id, company_id, person_id, author_id, author_name, body) values (u1, c, p_old, a, 'Bev', 'old');
+  insert into record_updates (company_id, person_id, parent_id, author_id, author_name, body) values (c, p_old, u1, a, 'Bev', 'reply');
+  insert into record_update_files (company_id, update_id, storage_path, file_name, mime_type, bytes, sha256) values (c, u1, c::text||'/'||u1::text||'/1-x.pdf', 'x.pdf', 'application/pdf', 1, 'x');
+  insert into record_updates (company_id, person_id, author_id, author_name, body) select c, x, a, 'Bev', 'keep' from unnest(array[p_young, p_hold, p_active]) x;
+  insert into record_updates (company_id, service_user_id, author_id, author_name, body) select c, x, a, 'Bev', 's' from unnest(array[s_old, s_hosp]) x;
+
+  select coalesce(sum(removed),0) into n from expire_record_update_retention(200) e where e.person_id = p_old or e.service_user_id = s_old;
+  r := r || format(E'\n%s removed %s rows from the old leaver and the old cancelled SU (expect 3)', case when n=3 then 'PASS' else 'FAIL' end, n);
+  select count(*) into n from record_updates where person_id in (p_young, p_hold, p_active) or service_user_id = s_hosp;
+  r := r || format(E'\n%s recent leaver, held leaver, active person, hospital SU kept (%s of 4)', case when n=4 then 'PASS' else 'FAIL' end, n);
+  select count(*) into n from record_update_file_trash where storage_path = c::text||'/'||u1::text||'/1-x.pdf';
+  r := r || format(E'\n%s the file is queued for removal', case when n=1 then 'PASS' else 'FAIL' end);
+
+  execute 'set local role authenticated';
+  perform set_config('request.jwt.claims', json_build_object('sub', a, 'role','authenticated')::text, true);
+  begin
+    perform expire_record_update_retention(1);
+    r := r || E'\nFAIL an Admin could run the retention rule';
+  exception when others then r := r || E'\nPASS an Admin cannot run the retention rule (' || sqlerrm || ')';
+  end;
+  execute 'set local role none';
+  raise exception using errcode='P0001', message='__probe_report__'||r;
+end;
+$probe$;

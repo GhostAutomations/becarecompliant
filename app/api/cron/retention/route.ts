@@ -3,7 +3,7 @@ import { runRetentionExpiry } from "@/lib/evidence/retention";
 import { runCompanyPurge } from "@/lib/companies/delete-apply";
 import { backfillMissingBodies } from "@/lib/founder/inbox-store";
 import { removeAbandonedPaperUploads } from "@/lib/evidence/paper-cleanup";
-import { removeRecordUpdateLeftovers } from "@/lib/updates/cleanup";
+import { expireRecordUpdates, removeRecordUpdateLeftovers } from "@/lib/updates/cleanup";
 import { applyDueLeavings } from "@/lib/people/leaving-apply";
 
 /**
@@ -58,6 +58,12 @@ export async function GET(request: NextRequest) {
   const paperUploads = await removeAbandonedPaperUploads();
   /* ATTACHMENTS OF UPDATES NOTHING POINTS AT (0324): uploads never posted, and the files of a
      record that was deleted. */
+  /* UPDATES FOLLOW THE RECORD'S RETENTION CLOCK (0325): erased eight years after end of care,
+     never on a hold. Before the leftovers, so their files go in the same run. */
+  const updateExpiry = await expireRecordUpdates();
+  if (updateExpiry.error) {
+    console.error("[cron/retention] update expiry:", updateExpiry.error);
+  }
   const updateFiles = await removeRecordUpdateLeftovers();
   if (updateFiles.errors.length) {
     console.error("[cron/retention] update files:", updateFiles.errors.join(" | "));
@@ -79,19 +85,24 @@ export async function GET(request: NextRequest) {
   // broken for months" must never look the same from the outside.
   if (retention.error) {
     console.error("[cron/retention] run failed:", retention.error);
-    return NextResponse.json({ retention, companies, emailBodies, paperUploads, updateFiles, leavers }, { status: 500 });
+    return NextResponse.json({ retention, companies, emailBodies, paperUploads, updateExpiry, updateFiles, leavers }, { status: 500 });
   }
   // Same rule for the purge half: a company that was due to be erased and was not is a failed
   // run, and a failed run must not answer 200. A purge that half-completed reports its error
   // here rather than only in the tombstone nobody is watching.
   if (companies.errors.length) {
     console.error("[cron/retention] company purge failed:", companies.errors.join(" | "));
-    return NextResponse.json({ retention, companies, emailBodies, paperUploads, updateFiles, leavers }, { status: 500 });
+    return NextResponse.json({ retention, companies, emailBodies, paperUploads, updateExpiry, updateFiles, leavers }, { status: 500 });
+  }
+  // Same rule for the Updates half: special category notes that were due to go and did not is a
+  // failed run, not a quiet one.
+  if (updateExpiry.error) {
+    return NextResponse.json({ retention, companies, emailBodies, paperUploads, updateExpiry, updateFiles, leavers }, { status: 500 });
   }
   /* A body we could not collect is reported, never silent — but it does not fail the run,
      because retention and the purge did their work and a 500 here would hide that. */
   if (emailBodies.errors.length) {
     console.error("[cron/retention] email bodies:", emailBodies.errors.join(" | "));
   }
-  return NextResponse.json({ retention, companies, emailBodies, paperUploads, updateFiles, leavers });
+  return NextResponse.json({ retention, companies, emailBodies, paperUploads, updateExpiry, updateFiles, leavers });
 }

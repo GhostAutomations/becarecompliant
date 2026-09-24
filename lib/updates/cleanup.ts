@@ -13,6 +13,7 @@ import "server-only";
  */
 
 import { createServiceClient } from "@/lib/supabase/admin";
+import { writeAudit } from "@/lib/audit";
 
 const BUCKET = "record-updates";
 
@@ -72,4 +73,35 @@ export async function removeRecordUpdateLeftovers(): Promise<{ removed: number; 
     await supabase.from("record_update_file_trash").delete().in("storage_path", paths);
   }
   return { removed, errors };
+}
+
+/**
+ * Updates past the record's retention date are erased (0325). The rule is the evidence rule: eight
+ * years from end of care (a leaver's leaving date, a cancelled Service User's discharge date),
+ * never while the record is on a retention hold. The database function picks and deletes in one
+ * statement and is service role only; this writes one audit line per record, without the words.
+ *
+ * Run BEFORE removeRecordUpdateLeftovers, so the files of what was erased tonight go tonight.
+ */
+export async function expireRecordUpdates(options?: { limit?: number }): Promise<{ removed: number; records: number; error?: string }> {
+  const supabase = createServiceClient();
+  const { data, error } = await supabase.rpc("expire_record_update_retention", { p_limit: options?.limit ?? 200 });
+  if (error) return { removed: 0, records: 0, error: error.message };
+  const rows = (data ?? []) as Array<{ company_id: string; person_id: string | null; service_user_id: string | null; removed: number }>;
+  let removed = 0;
+  for (const r of rows) {
+    removed += r.removed;
+    await writeAudit({
+      companyId: r.company_id,
+      actorId: null,
+      actorEmail: null,
+      actorRole: "retention",
+      action: "record_update.expired",
+      entityType: r.person_id ? "person" : "service_user",
+      entityId: r.person_id ?? r.service_user_id,
+      summary: `Erased ${r.removed} ${r.removed === 1 ? "update" : "updates"} by the retention rule (eight years after end of care)`,
+      metadata: { removed: r.removed, reason: "retention_expiry" },
+    });
+  }
+  return { removed, records: rows.length };
 }

@@ -3443,7 +3443,11 @@ user... I think update section is a better option." Agreed by popup the same day
 - Every rule is in the database (RPCs, select only RLS), proved by scripts/updates-probe.sql
   across eight roles in a rolled back run. Files of deleted records and abandoned uploads are
   removed by the nightly retention run; a company purge now covers the new bucket.
-- NOT YET COVERED: retention anonymisation and a SAR export of updates. Raised with Phil.
+- RETENTION (0325, same day, Phil: "Build it next"): updates are erased on the evidence clock,
+  eight years after end of care (leaving date / discharge date), never on a retention hold, by
+  the nightly retention run, files included, one audit line per record. Proved in a rolled back
+  probe (scripts/updates-probe.sql part two). A SAR export does not exist yet for anything in the
+  product (only the sar_evidence_for_subject groundwork), so there was nothing to add updates to.
 
 ### 2026-09-24 — the Whiteboard's four weeks stop rolling
 
