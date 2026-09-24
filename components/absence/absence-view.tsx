@@ -455,11 +455,10 @@ export default function AbsenceView({
           once an absence is logged against them.
         </div>
       ) : (
-        /* THREE ACROSS on a desktop (Phil, 2026-09-24: "this page is too much, each tile needs
-           to be narrower, lets have 3 tiles per line"). Same text and button sizes, the cards are
-           simply a third of the width instead of a half: two across on a laptop or tablet, one
-           on a phone. */
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        /* FOUR ACROSS on a wide desktop (Phil, 2026-09-24: "each tile needs to be narrower", then
+           "lets try 4 tiles per line"). Same text and button sizes: three on a smaller desktop,
+           two on a laptop or tablet, one on a phone. */
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {visibleRows.map((r) => {
             const s = r.status;
             const pill =
@@ -545,7 +544,9 @@ export default function AbsenceView({
                   </div>
                 )}
 
-                <div className="mt-auto flex flex-wrap items-center justify-evenly gap-2 pt-1">
+                {/* Two by two, full width, so a narrow card holds its buttons in tidy rows
+                    instead of a ragged wrap. */}
+                <div className="mt-auto grid grid-cols-2 gap-2 pt-1 [&>*]:w-full [&_button]:w-full">
                   {canManage && absenceSchema ? (
                       <FormEvidenceDialog
                         title={`Record absence for ${r.fullName}`}
