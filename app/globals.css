@@ -358,6 +358,15 @@
   .pill-red,
   .pill-neutral {
     @apply inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold;
+    /* A pill is a label, not text to copy or a control (Phil, 2026-09-24: hovering "Discounted"
+       gave a text cursor, as if it should do something). Inside a link or button it keeps the
+       pointer of whatever it sits in. */
+    @apply cursor-default select-none;
+  }
+
+  a .pill, a .pill-green, a .pill-amber, a .pill-red, a .pill-neutral,
+  button .pill, button .pill-green, button .pill-amber, button .pill-red, button .pill-neutral {
+    @apply cursor-pointer;
   }
 
   .pill {

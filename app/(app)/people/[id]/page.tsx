@@ -874,15 +874,21 @@ export default async function PersonPage({
             <>
               <ul className="space-y-1.5 text-sm">
                 {absences.map((a) => (
-                  <li key={a.id} className="flex items-center justify-between gap-2">
-                    <span className={a.discounted_at ? "text-white/45 line-through" : "text-white/80"}>
-                      {formatDisplayDate(a.start_date)}
-                    </span>
-                    {a.discounted_at ? (
-                      <span className="pill pill-neutral" title={a.discount_reason ?? undefined}>Discounted</span>
-                    ) : (
-                      <span className="truncate text-xs text-white/50">{a.reason ?? ""}</span>
-                    )}
+                  <li key={a.id}>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={a.discounted_at ? "text-white/45 line-through" : "text-white/80"}>
+                        {formatDisplayDate(a.start_date)}
+                      </span>
+                      {a.discounted_at ? (
+                        <span className="pill pill-neutral">Discounted</span>
+                      ) : (
+                        <span className="truncate text-xs text-white/50">{a.reason ?? ""}</span>
+                      )}
+                    </div>
+                    {/* Written out, not hidden in a hover (Phil, 2026-09-24). */}
+                    {a.discounted_at && a.discount_reason ? (
+                      <p className="mt-0.5 text-xs text-white/50">Discounted: {a.discount_reason}</p>
+                    ) : null}
                   </li>
                 ))}
               </ul>
