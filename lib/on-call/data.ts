@@ -309,6 +309,8 @@ export type UrgentFollowUp = {
   shift_date: string | null;
   slot: "am" | "pm" | null;
   branch_name: string | null;
+  /** When the handover was first saved: the 24 hour clock runs from here (Phil, 2026-09-24). */
+  created_at: string;
 };
 
 /** Open urgent follow-ups for the manager+ dashboard card: shift + date, each
@@ -317,15 +319,16 @@ export async function getUrgentFollowUps(companyId: string): Promise<UrgentFollo
   const supabase = await createClient();
   const { data } = await supabase
     .from("on_call_logs")
-    .select("id, shift_date, slot, branches(name)")
+    .select("id, shift_date, slot, created_at, branches(name)")
     .eq("company_id", companyId)
     .eq("follow_up_required", true)
     .eq("follow_up_done", false)
     .order("shift_date", { ascending: false });
-  return ((data as Array<{ id: string; shift_date: string | null; slot: "am" | "pm" | null; branches: { name: string } | { name: string }[] | null }> | null) ?? []).map((r) => ({
+  return ((data as Array<{ id: string; shift_date: string | null; slot: "am" | "pm" | null; created_at: string; branches: { name: string } | { name: string }[] | null }> | null) ?? []).map((r) => ({
     id: r.id,
     shift_date: r.shift_date,
     slot: r.slot,
     branch_name: relOne(r.branches)?.name ?? null,
+    created_at: r.created_at,
   }));
 }

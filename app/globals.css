@@ -1518,3 +1518,19 @@ canvas {
 .record-card-meta {
   @apply flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/55;
 }
+
+/* An urgent follow up waiting over 24 hours pulses slowly (Phil, 2026-09-24: "flashing red").
+   A fade, not a hard blink, about once a second; reduced motion gets a steady red pill, and the
+   pill's own words ("Urgent, over 24h") carry the meaning either way. */
+@keyframes pill-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+.pill-pulse {
+  animation: pill-pulse 1.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pill-pulse {
+    animation: none;
+  }
+}

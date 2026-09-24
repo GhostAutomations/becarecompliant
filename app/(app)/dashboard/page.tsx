@@ -6,7 +6,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import { getUrgentFollowUps } from "@/lib/on-call/data";
-import { shiftLabel } from "@/lib/on-call/format";
+import { shiftLabel, urgentIsOverdue } from "@/lib/on-call/format";
 import { featureEnabled } from "@/lib/billing/tier";
 import { getOnCallLabel } from "@/lib/on-call/company-label";
 import { rtwAbsenceDates, rtwDueLabel, rtwHref } from "@/lib/absence/rtw-list";
@@ -670,6 +670,8 @@ export default async function DashboardPage() {
    * training and policy coverage, and none of those are an On Call caller's business.
    */
   const onCallPlus = companyWide || profile.role === "on_call";
+  // One "now" for the whole render, so every urgent follow up is judged against the same clock.
+  const renderedAt = Date.now();
   const canSeeOnCall = onCallPlus && (await featureEnabled(companyId, "on_call"));
   // The department's name for this company (0276), so the tile does not say "On Call" to a
   // company whose nav calls it something else.
@@ -1289,9 +1291,18 @@ export default async function DashboardPage() {
                     href={`/on-call/log/${u.id}`}
                     className="flex items-center justify-between gap-3 rounded-xl border border-white/10 px-3 py-2 transition hover:bg-white/[0.06]"
                   >
-                    <span className="pill-amber shrink-0">
-                      <span className="pill-dot" /> Urgent
-                    </span>
+                    {/* RED, and a slow red pulse once it has waited 24 hours since the handover was
+                        saved (Phil, 2026-09-24). The words say so too, so the state never rests on
+                        the animation alone, and reduced motion gets a steady red pill. */}
+                    {urgentIsOverdue(u.created_at, renderedAt) ? (
+                      <span className="pill-red pill-pulse shrink-0">
+                        <span className="pill-dot" /> Urgent, over 24h
+                      </span>
+                    ) : (
+                      <span className="pill-red shrink-0">
+                        <span className="pill-dot" /> Urgent
+                      </span>
+                    )}
                     <span className="min-w-0 flex-1 truncate text-sm text-white/80">
                       {shiftLabel(u.shift_date, u.slot)}
                     </span>

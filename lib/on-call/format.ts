@@ -130,3 +130,12 @@ export function completedByLine(log: {
   }
   return `Completed by ${completer}`;
 }
+
+/** An urgent follow up still open 24 hours after its handover was saved (Phil, 2026-09-24: "if it
+ *  is over 24 hours, it should be flashing red"). Exactly 24 hours counts as over. */
+export const URGENT_OVERDUE_MS = 24 * 60 * 60 * 1000;
+
+export function urgentIsOverdue(savedAtIso: string, nowMs: number): boolean {
+  const t = Date.parse(savedAtIso);
+  return Number.isFinite(t) && nowMs - t >= URGENT_OVERDUE_MS;
+}

@@ -3512,3 +3512,11 @@ is dropped from the address once used). Drawn for Supervisor and above and On Ca
 which absences each sees, so a Supervisor or Manager gets their branches and the company wide
 roles all of them. Outstanding Return to Works now leave out leavers and archived records, on the
 Absence page as well as the dashboard. lib/absence/rtw-list.ts, three tests.
+
+### 2026-09-24 — Urgent follow ups go red, and pulse after 24 hours
+
+Phil: "in the dash in out of hours urgent follow ups, the urgent pill should be red, if it is over
+24 hours, it should be flashing red." Agreed by popup, in Operation Thistle: the clock runs from
+when the handover was first saved (created_at); a slow red pulse, not a hard blink, with the words
+"Urgent, over 24h" so the state never rests on the animation; reduced motion gets a steady red
+pill. lib/on-call/format.ts urgentIsOverdue, one test; .pill-pulse in globals.css.

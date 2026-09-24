@@ -2308,3 +2308,7 @@ draft reads "Started by X. Not finalised yet."; a completed urgent follow up rea
 with the time; the Handover register has a Completed by column. All from the login, nobody types
 a name. Names resolve through the definer path so On Call and Supervisor users see them too.
 lib/on-call/format.ts completedByLine, one test.
+
+**Live (dpl_98stkcuy):** the 22/09 PM handover reads "Finalised · 22 Sept, 22:33  Completed by
+Lauren Morgan", and the Handover register's Completed by column shows Lauren Morgan for 22/09 and
+21/09. Checked signed in as Phil (Thistle Admin).
