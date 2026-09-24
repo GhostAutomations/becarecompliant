@@ -2164,3 +2164,62 @@ track. The pack printed the same list, and the assistant read it.
 **Fixed:** the list uses the same window as the count (lib/framework/due-soon.ts, three tests:
 Thistle's own dates, the window's edge, month, year and leap year ends). Page, pack and assistant
 all read that one list, so all three now agree with the count.
+
+---
+
+## List 9 - Olarewaju Bright Ogonnoh is not on Thistle's register: closed, no change (2026-09-24)
+
+Phil: *"Olarewaju has actually left the company so we don't need to add her on."* She is not in
+BCC in any state (checked: no record on Thistle under any part of her name), which is right for
+someone who left before Thistle moved across. Nothing to build or fix.
+
+---
+
+## List 12 - what a Branch Manager, an On Call and a Viewer can actually do (2026-09-24)
+
+Thistle has no Branch Manager, On Call or Viewer login, which is how these three roles went
+unprobed. scripts/access-probe.sql can now probe a person AS a role (v_as_role): the role is
+swapped inside a savepoint and rolled back with everything else, and each attempt carries the
+roles its tile is for (a transcription of lib/auth/module-catalogue.ts), so one script judges every
+role. Run against Thistle's live data as Chloe Driscoll probed as each role; her role was checked
+afterwards and is unchanged; nothing was kept.
+
+- **Branch Manager:** every tile matched, first time.
+- **On Call and Viewer:** two things the tiles do not give them were allowed by the database
+  (DEF-069, DEF-070 below). Two apparent failures were the probe's fault and are corrected in it:
+  it counted forms Chloe had filed herself (everybody may see their own), and it expected the
+  Viewer and On Call to be refused an incident report, which 0301 opened to every member on
+  purpose (the carer's report).
+- **After 0323:** Supervisor, Branch Manager, On Call and Viewer each 20 of 20 as the tiles
+  promise.
+
+## DEF-069 - Anybody could put a holiday on anybody's record
+
+holiday_requests_insert accepted any member of the company who named themselves as requester,
+whoever the request was for. An On Call or a Viewer could put a pending holiday on any record. The
+screens never offered it. Phil: *"Own record, or Supervisor and above."* **Fixed (0323):** a request
+is for the requester's own record (or names no record, as the portal files a carer's own), or it is
+made by somebody who may manage holiday for that branch. Proved in a rolled back probe: a carer on
+their own record allowed, on somebody else's refused, with no record named allowed.
+
+## DEF-070 - A Viewer could file a completed form
+
+submit_evidence let any branch member file a form against anybody in the branch, so a Viewer, who
+is read only, could. Phil: *"Viewers can never file a form."* **Fixed (0323):** submit_evidence
+refuses a Viewer with "A Viewer can see the registers but cannot fill in a form." On Call keeps its
+absence and complaint forms, carers their own portal forms, Supervisors and above are unchanged.
+
+## DEF-071 - A Right to Work could run out without anybody being told
+
+The register coloured a Right to Work expiry, but only a fortnight ahead, and no email mentioned
+it: the morning reports read checks, and the expiry is a date on the record, the same gap DBS had
+before 2026-09-22. On Thistle two expiries fall inside ninety days (30/10/2026 and 30/11/2026) and
+nothing had flagged either. Phil: *"90 days, like DBS"* and *"People report only, like DBS."*
+**Fixed:** RTW_AMBER_DAYS = 90 is the default for the register, the People summary and the email
+(a company can still set its own on a 'right_to_work' definition; none has). The People report
+gets "Right to Work expiring" and "Right to Work expired" sections, drawn only when there is one,
+scoped by branch like everything else, leavers and archived records dropped, no Planned cell. The
+DBS and Right to Work reads now share one routine (getTrackerDateChecks) and one tested rule
+(lib/notifications/tracker-dates.ts, 7 tests). Verified: tsc clean, 1175 tests pass. **To see:**
+the next People report to Thistle's admins lists Smith Tacho Azang and Deborah Olabode under
+"Right to Work expiring".

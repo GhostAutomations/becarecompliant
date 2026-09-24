@@ -5,7 +5,8 @@ import { COMPLIANCE_RECIPIENT_ROLES, normaliseRecipientRole } from "@/lib/notifi
 import { todayInLondon, formatCivilDate } from "@/lib/recurrence";
 import { reportableCheck } from "@/lib/notifications/reportable";
 import { plannedFor, plannedIndex, type PlannedSource, type PlannedVisit } from "@/lib/notifications/planned";
-import { DBS_AMBER_DAYS } from "@/lib/people/logic";
+import { DBS_AMBER_DAYS, RTW_AMBER_DAYS } from "@/lib/people/logic";
+import { datesToChase, trackerDateAlerts, type TrackerDateRow } from "@/lib/notifications/tracker-dates";
 
 /**
  * Service-role reads for the notification cron. RLS is bypassed here (the cron
@@ -244,6 +245,11 @@ export type ReportingData = {
    */
   dbsRenewals: ReportingCheck[];
   /**
+   * Right to Work expiries that are amber or already past (DEF-071, 2026-09-24). Same rule and
+   * same reason as DBS: ninety days by default, a section of their own, People report only.
+   */
+  rtwExpiries: ReportingCheck[];
+  /**
    * Every visit in the diary for this company from today on, keyed by plannedKey(recordId,
    * checkName). Handed out so the Supervisor digest can fill its Planned column from the SAME
    * read the People and Service User reports use (DEF-055), rather than a second query that
@@ -268,7 +274,7 @@ function addDaysIso(iso: string, days: number): string {
 
 
 /**
- * DBS renewals worth saying something about: amber, or already past.
+ * DBS renewals and Right to Work expiries worth saying something about: amber, or already past.
  *
  * WHY THIS IS HERE AT ALL (Phil, 2026-09-22). The renewal date started colouring on the register
  * the same morning (DEF-039), and a colour only helps somebody who opens the screen. Nothing
@@ -279,10 +285,18 @@ function addDaysIso(iso: string, days: number): string {
  * given themselves one, falling back to ninety days — the identical rule the register colours
  * by, so the email and the screen can never disagree about what amber means.
  */
-async function getDbsRenewals(
+async function getTrackerDateChecks(
   supabase: ReturnType<typeof createServiceClient>,
   companyId: string,
   todayIso: string,
+  opts: {
+    /** The check definition a company can give itself to set its own window. */
+    definitionKey: "dbs_renewal" | "right_to_work";
+    /** The person_trackers date column. */
+    column: "enhanced_dbs_date" | "rtw_expiry_date";
+    fallbackAmberDays: number;
+    checkName: string;
+  },
 ): Promise<ReportingCheck[]> {
   const [{ data: def }, { data: trackers }] = await Promise.all([
     supabase
@@ -290,59 +304,51 @@ async function getDbsRenewals(
       .select("amber_days")
       .eq("company_id", companyId)
       .eq("population", "people")
-      .eq("key", "dbs_renewal")
+      .eq("key", opts.definitionKey)
       .maybeSingle(),
     supabase
       .from("person_trackers")
-      .select("person_id, branch_id, enhanced_dbs_date")
+      .select(`person_id, branch_id, ${opts.column}`)
       .eq("company_id", companyId)
-      .not("enhanced_dbs_date", "is", null),
+      .not(opts.column, "is", null),
   ]);
-  const amberDays = (def as { amber_days?: number | null } | null)?.amber_days ?? DBS_AMBER_DAYS;
-  const rows = (trackers ?? []) as Array<{
-    person_id: string;
-    branch_id: string | null;
-    enhanced_dbs_date: string;
-  }>;
-  if (rows.length === 0) return [];
-
-  const horizon = addDaysIso(todayIso, amberDays);
-  const wanted = rows.filter((r) => r.enhanced_dbs_date <= horizon);
+  const amberDays = (def as { amber_days?: number | null } | null)?.amber_days ?? opts.fallbackAmberDays;
+  const rows: TrackerDateRow[] = ((trackers ?? []) as unknown as Array<Record<string, string | null>>).map((r) => ({
+    personId: r.person_id as string,
+    branchId: r.branch_id,
+    date: r[opts.column] as string,
+  }));
+  const wanted = datesToChase(rows, todayIso, amberDays);
   if (wanted.length === 0) return [];
 
   /* Names and branches are read here rather than passed in, because this runs for a company
-     whose people list the caller may have narrowed. A leaver's DBS is nobody's problem, so
-     archived and left records are dropped. */
+     whose people list the caller may have narrowed. Leavers and archived records are dropped
+     in trackerDateAlerts. */
   const [{ data: people }, { data: branches }] = await Promise.all([
     supabase
       .from("people")
       .select("id, full_name, employment_status, archived_at")
-      .in("id", wanted.map((r) => r.person_id)),
+      .in("id", wanted.map((r) => r.personId)),
     supabase.from("branches").select("id, name").eq("company_id", companyId),
   ]);
   const branchName = new Map(((branches ?? []) as Array<{ id: string; name: string }>).map((b) => [b.id, b.name]));
-  const active = new Map(
-    ((people ?? []) as Array<{ id: string; full_name: string; employment_status: string | null; archived_at: string | null }>)
-      .filter((p) => p.archived_at === null && p.employment_status !== "leaver")
-      .map((p) => [p.id, p.full_name]),
+  const found = ((people ?? []) as Array<{ id: string; full_name: string; employment_status: string | null; archived_at: string | null }>).map(
+    (p) => ({ id: p.id, fullName: p.full_name, employmentStatus: p.employment_status, archivedAt: p.archived_at }),
   );
 
-  return wanted
-    .filter((r) => active.has(r.person_id))
-    .map((r) => ({
-      population: "people" as const,
-      recordId: r.person_id,
-      recordName: active.get(r.person_id) as string,
-      branchId: r.branch_id,
-      branchName: r.branch_id ? branchName.get(r.branch_id) ?? "" : "",
-      checkName: "DBS renewal",
-      dueDate: r.enhanced_dbs_date,
-      /* A DBS cannot be booked on the Planner, so the Planned column would show a red cross
-         against every one of them and mean nothing. It is left blank instead. */
-      planned: null,
-      plannable: false,
-    }))
-    .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+  return trackerDateAlerts(wanted, found).map((a) => ({
+    population: "people" as const,
+    recordId: a.personId,
+    recordName: a.personName,
+    branchId: a.branchId,
+    branchName: a.branchId ? branchName.get(a.branchId) ?? "" : "",
+    checkName: opts.checkName,
+    dueDate: a.date,
+    /* Neither a DBS nor a Right to Work can be booked on the Planner, so the Planned column
+       would show a red cross against every one of them and mean nothing. It is left blank. */
+    planned: null,
+    plannable: false,
+  }));
 }
 
 /**
@@ -455,7 +461,19 @@ export async function getReportingData(companyId: string): Promise<ReportingData
   const horizon = addDaysIso(todayIso, REPORTING_HORIZON_DAYS);
   // What is already in the diary, so each row can say whether anybody has been sent to do it.
   const planned = await getPlannedVisits(supabase, companyId, todayIso);
-  const dbsRenewals = await getDbsRenewals(supabase, companyId, todayIso);
+  const dbsRenewals = await getTrackerDateChecks(supabase, companyId, todayIso, {
+    definitionKey: "dbs_renewal",
+    column: "enhanced_dbs_date",
+    fallbackAmberDays: DBS_AMBER_DAYS,
+    checkName: "DBS renewal",
+  });
+  /* DEF-071 (Phil, 2026-09-24): Right to Work is chased exactly like DBS, at ninety days. */
+  const rtwExpiries = await getTrackerDateChecks(supabase, companyId, todayIso, {
+    definitionKey: "right_to_work",
+    column: "rtw_expiry_date",
+    fallbackAmberDays: RTW_AMBER_DAYS,
+    checkName: "Right to Work expiry",
+  });
 
   const [peopleChecks, suChecks, people, sus, branches, activePeople, activeSus] =
     await Promise.all([
@@ -536,6 +554,7 @@ export async function getReportingData(companyId: string): Promise<ReportingData
     people: peopleOut,
     serviceUsers: suOut,
     dbsRenewals,
+    rtwExpiries,
     plannedVisits: planned,
     hasPeople: (activePeople.data ?? []).length > 0,
     hasServiceUsers: (activeSus.data ?? []).length > 0,

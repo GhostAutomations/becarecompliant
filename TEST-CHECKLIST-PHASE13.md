@@ -208,7 +208,7 @@ in the same piece of work (Phil: "we are passed final testing so it needs to be 
 | K5 | Thistle pack: "Outstanding checks" tables, no dashes in headings, narrative gives no overall score | PASS, but the narrative printed markdown asterisks, ISO dates, "n/a", colours for statuses and its own title block: DEF-066 |
 | K6 | Readiness page: "Outstanding checks (n)", and "No data yet" where a signal has no data | PASS after reload (Phil first saw "Outstanding items" on a page loaded before the deploy went live; reloaded 24/09: "Outstanding checks (19)" and "(5)", intro "outstanding checks", three signals "No data yet") |
 | K7 | DEF-065: Inspection pack pressed once shows "Preparing the pack…" and the 20 second note, further presses do nothing, one PDF downloads | PASS (Phil, 24/09) |
-| K8 | DEF-066: the next pack's narrative has no asterisks or # signs, no title or provider block of its own, dates like 17 September 2026, statuses in words, "no data yet" not "n/a" | |
+| K8 | DEF-066: the next pack's narrative has no asterisks or # signs, no title or provider block of its own, dates like 17 September 2026, statuses in words, "no data yet" not "n/a" | PASS (Phil's pack of 24/09, third download: plain text throughout, starts at Readiness summary, themes as "Care and Support: Action needed", dates as 17 September 2026, "no data yet", nine specific actions naming the 12 outstanding checks; the Outstanding checks tables now match their counts, 12 and 1) |
 
 ## Readiness assistant, tested live on Thistle (read only), 2026-09-24 (DEF-067)
 
@@ -223,3 +223,14 @@ in the same piece of work (Phil: "we are passed final testing so it needs to be 
 | A7 | Asking a question after drafting keeps the draft | PASS on retest (draft and its edit still there after What needs booking) |
 | A8 | Every use recorded as AI usage for the company | PASS (usage_events, feature framework_narrative and framework_qa) |
 | A9 | DEF-068: each theme's Outstanding checks list matches its count (Thistle 24/09: Care and Support 1 overdue and 11 due soon listed, not 18; Leadership and Management 1 due soon, not 5) | PASS (Care and Support: 1 overdue, 11 due soon, list of 12; Leadership and Management: 1 due soon, list of 1) |
+
+## List 12, access by role, 2026-09-24 (DEF-069, DEF-070)
+
+| # | Check | Result |
+|---|---|---|
+| R1 | Probe as Branch Manager (Thistle, rolled back): every tile as promised | PASS (20 of 20) |
+| R2 | Probe as On Call: every tile as promised | FAIL (holiday for anyone), fixed by 0323; PASS on rerun (20 of 20) |
+| R3 | Probe as Viewer: every tile as promised | FAIL (holiday for anyone, filing a form), fixed by 0323; PASS on rerun (20 of 20) |
+| R4 | Probe as Supervisor after 0323: nothing taken away | PASS (20 of 20) |
+| R5 | Carer holiday after 0323: own record allowed, somebody else refused, no record named allowed | PASS (rolled back) |
+| R6 | Chloe Driscoll's role after every probe | PASS (still supervisor) |

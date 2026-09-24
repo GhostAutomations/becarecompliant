@@ -5,7 +5,7 @@ import RealtimeRefresh from "@/components/realtime-refresh";
 import ViewNav from "@/components/people/view-nav";
 import ComplianceCards from "@/components/people/compliance-cards";
 import { listBranches, listRegister, getSupervisionCycleMode } from "@/lib/people/data";
-import { supervisionSlots, appraisalSlot, DBS_AMBER_DAYS } from "@/lib/people/logic";
+import { supervisionSlots, appraisalSlot, DBS_AMBER_DAYS, RTW_AMBER_DAYS } from "@/lib/people/logic";
 import { DEFAULT_AMBER_DAYS } from "@/lib/recurrence";
 import { todayInLondon, formatCivilDate } from "@/lib/recurrence";
 import { ragFor, worseRag, type CardLine, type CardRag, type PersonCard } from "@/lib/people/summary-card";
@@ -59,7 +59,7 @@ export default async function PeopleSummaryPage({
   const defByKey = Object.fromEntries(definitions.map((d) => [d.key, d]));
   const supInterval = defByKey["supervision"]?.interval ?? 90;
   const supAmber = defByKey["supervision"]?.amber_days ?? DEFAULT_AMBER_DAYS;
-  const rtwAmber = defByKey["right_to_work"]?.amber_days ?? DEFAULT_AMBER_DAYS;
+  const rtwAmber = defByKey["right_to_work"]?.amber_days ?? RTW_AMBER_DAYS;
   const probationAmber = defByKey["probation_review"]?.amber_days ?? 14;
   /* The SAME expression the register uses, so the card and the matrix cannot colour one
      carer's DBS differently. See app/(app)/people/page.tsx. */

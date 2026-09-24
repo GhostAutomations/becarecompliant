@@ -275,6 +275,11 @@ export async function GET(request: NextRequest) {
               pop.key === "people"
                 ? scopeReporting(recipient, reporting.dbsRenewals).map(toRow)
                 : [];
+            /* Right to Work expiries ride the same way (DEF-071, 2026-09-24). */
+            const rtwExpiries =
+              pop.key === "people"
+                ? scopeReporting(recipient, reporting.rtwExpiries).map(toRow)
+                : [];
             const overdueRecords = new Set(overdue.map((c) => c.recordId)).size;
             const dueSoonRecords = new Set(dueSoon.map((c) => c.recordId)).size;
             const subject = reportingSubject(pop.key, overdueRecords, dueSoonRecords);
@@ -303,6 +308,7 @@ export async function GET(request: NextRequest) {
                 overdue: overdue.map(toRow),
                 dueSoon: dueSoon.map(toRow),
                 dbsRenewals,
+                rtwExpiries,
                 actionUrl: appUrl,
               }),
             });

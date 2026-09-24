@@ -397,14 +397,12 @@ function reportingSectionHtml(
  * NOTHING AT ALL IS DRAWN when there is none due: a manager with no DBS coming up should not
  * read a line about DBS every morning for a year.
  */
-function dbsSectionHtml(rows: ReportingRow[]): string {
+function trackerDateSectionHtml(rows: ReportingRow[], pastHeading: string, soonHeading: string): string {
   if (rows.length === 0) return "";
   const past = rows.filter((r) => r.daysOverdue != null && r.daysOverdue > 0);
   const soon = rows.filter((r) => !(r.daysOverdue != null && r.daysOverdue > 0));
-  return `${past.length > 0 ? reportingSectionHtml("DBS renewals overdue", past, true, "") : ""}${
-    soon.length > 0
-      ? reportingSectionHtml("DBS renewals coming up", soon, false, "")
-      : ""
+  return `${past.length > 0 ? reportingSectionHtml(pastHeading, past, true, "") : ""}${
+    soon.length > 0 ? reportingSectionHtml(soonHeading, soon, false, "") : ""
   }`;
 }
 
@@ -436,6 +434,8 @@ export function reportingEmailHtml(opts: {
    * email as well when amber"). People only; a service user has no DBS.
    */
   dbsRenewals?: ReportingRow[];
+  /** Right to Work expiries, amber at ninety days or already past (DEF-071). People only. */
+  rtwExpiries?: ReportingRow[];
   actionUrl: string;
 }): string {
   const label = populationLabel(opts.population);
@@ -455,7 +455,8 @@ export function reportingEmailHtml(opts: {
     <strong style="color:#ffffff;">${escapeHtml(opts.companyName)}</strong> on ${escapeHtml(formatDateUk(opts.dateIso))}: ${summary}.</p>
     ${reportingSectionHtml("Records overdue", opts.overdue, true, "Nothing overdue.")}
     ${reportingSectionHtml("Records due in the next 14 days", opts.dueSoon, false, "Nothing due in the next 14 days.")}
-    ${dbsSectionHtml(opts.dbsRenewals ?? [])}`;
+    ${trackerDateSectionHtml(opts.dbsRenewals ?? [], "DBS renewals overdue", "DBS renewals coming up")}
+    ${trackerDateSectionHtml(opts.rtwExpiries ?? [], "Right to Work expired", "Right to Work expiring")}`;
 
   return shell({
     maxWidth: REPORT_CARD_WIDTH,

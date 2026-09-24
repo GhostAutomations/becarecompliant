@@ -12,7 +12,7 @@ import {
 } from "@/lib/people/data";
 import { listRegisterCheckColumns, getRegisterColumnText } from "@/lib/register/data";
 import { DEFAULT_AMBER_DAYS } from "@/lib/recurrence";
-import { DBS_AMBER_DAYS } from "@/lib/people/logic";
+import { DBS_AMBER_DAYS, RTW_AMBER_DAYS } from "@/lib/people/logic";
 import { REGISTER_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
 
 export const metadata: Metadata = { title: "People" };
@@ -79,7 +79,7 @@ export default async function PeoplePage({
   const matrixConfig = {
     supInterval: defByKey["supervision"]?.interval ?? 90,
     supAmber: defByKey["supervision"]?.amber_days ?? DEFAULT_AMBER_DAYS,
-    rtwAmber: defByKey["right_to_work"]?.amber_days ?? DEFAULT_AMBER_DAYS,
+    rtwAmber: defByKey["right_to_work"]?.amber_days ?? RTW_AMBER_DAYS,
     probationAmber: defByKey["probation_review"]?.amber_days ?? 14,
     /* A DBS takes six to eight weeks to come back, so it gets three months' notice rather than
        the fortnight every other column here uses (DBS_AMBER_DAYS). A company that wants a

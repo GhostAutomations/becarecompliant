@@ -552,6 +552,14 @@ export function annotateSupervisionOptions(
  */
 export const DBS_AMBER_DAYS = 90;
 
+/**
+ * Notice a Right to Work expiry gets before it goes amber: ninety days, like DBS (DEF-071, Phil,
+ * 2026-09-24). A visa extension or a new share code takes weeks to arrange, so a fortnight was
+ * too late to act on. A company changes it the same way: a 'right_to_work' check definition with
+ * its own amber days. The register, the summary and the morning email all read this one number.
+ */
+export const RTW_AMBER_DAYS = 90;
+
 export function dateRag(
   date: string | null,
   amberDays: number,
