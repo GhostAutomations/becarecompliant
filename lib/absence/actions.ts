@@ -339,7 +339,11 @@ export async function recordAbsenceMeeting(
 
   revalidatePath("/people/absence");
   revalidatePath(`/people/${personId}`);
-  return { ok: attachedToBooking ? "Meeting recorded against the booking." : "Meeting recorded." };
+  // Handed back so the screen can offer to discount the absences this meeting discussed (0328).
+  return {
+    ok: attachedToBooking ? "Meeting recorded against the booking." : "Meeting recorded.",
+    data: { meeting_stage: validStage ? String(validStage) : "", meeting_date: meetingDate ?? "" },
+  };
 }
 
 /** Book a formal absence management meeting (Stage 1 to 4) for a future date.

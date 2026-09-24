@@ -54,6 +54,7 @@ export default function FormEvidenceDialog({
   hideFields,
   aiDraft,
   keepDraft = true,
+  onSaved,
 }: {
   title: string;
   schema: FormSchema;
@@ -68,6 +69,9 @@ export default function FormEvidenceDialog({
   /** Keep a part-finished copy of this form and hand it back for 12 hours. On by
    *  default; pass false for a dialog that is a decision rather than a form. */
   keepDraft?: boolean;
+  /** Called once the action has saved (state.ok), after the dialog closes. Lets a caller offer
+   *  a follow up step, e.g. discounting absences straight after a meeting is recorded. */
+  onSaved?: (state: ActionState) => void;
   /** Optional AI assist. The action returns { data } of field key to text, which is
    *  merged into the answers for the user to EDIT before saving. Nothing is stored by
    *  drafting, so a draft they dislike costs a credit and leaves no record.
@@ -174,6 +178,7 @@ export default function FormEvidenceDialog({
     else if (state.ok && open) {
       setOpen(false);
       router.refresh();
+      onSaved?.(state);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);

@@ -5,7 +5,9 @@ import BackLink from "@/components/back-link";
 import { listOutstandingRtw } from "@/lib/absence/rtw";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import { listBranches, listBranchNames, getCompanyFormByKey } from "@/lib/people/data";
-import { listAbsenceRegister, listActivePeople, listAbsenceEvents, listOpenBookings, listMeetingConductors, listMeetingOffices } from "@/lib/absence/data";
+import { listAbsenceRegister, listActivePeople, listAbsenceEvents, listAbsenceRestarts, listOpenBookings, listMeetingConductors, listMeetingOffices } from "@/lib/absence/data";
+import { canDiscountAbsences, windowStartIso } from "@/lib/absence/discount";
+import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import { isFormSchema, type FormSchema } from "@/lib/form-schema";
 import type { StageThreshold } from "@/lib/absence/logic";
 import AbsenceView from "@/components/absence/absence-view";
@@ -44,6 +46,7 @@ export default async function AbsencePage() {
     conductors,
     offices,
     branchNames,
+    restarts,
   ] = await Promise.all([
       listBranches(companyId, profile),
       listAbsenceRegister(companyId, null),
@@ -57,6 +60,7 @@ export default async function AbsencePage() {
       listMeetingConductors(companyId),
       listMeetingOffices(companyId),
       listBranchNames(companyId),
+      listAbsenceRestarts(companyId),
     ]);
 
   const absenceSchema: FormSchema | null =
@@ -73,7 +77,7 @@ export default async function AbsencePage() {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <RealtimeRefresh
-        tables={["absence_events", "absence_meetings"]}
+        tables={["absence_events", "absence_meetings", "absence_count_restarts"]}
         channel="absence"
       />
       <BackLink href="/people" label="Back to People" />
@@ -94,6 +98,9 @@ export default async function AbsencePage() {
         conductors={conductors}
         offices={offices}
         canManage={canManage}
+        canDiscount={canDiscountAbsences(profile.role)}
+        restarts={restarts}
+        windowStart={windowStartIso(formatCivilDate(todayInLondon()), config.window)}
       />
     </div>
   );

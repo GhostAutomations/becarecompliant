@@ -8,19 +8,21 @@
  * completes the matching founder Form and stores immutable Evidence.
  */
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import FormEvidenceDialog from "@/components/forms/form-evidence-dialog";
 import AbsenceDetailDialog from "@/components/absence/absence-detail-dialog";
 import BookMeetingDialog from "@/components/absence/book-meeting-dialog";
 import CancelRearrangeDialog from "@/components/absence/cancel-rearrange-dialog";
+import DiscountAfterMeeting from "@/components/absence/discount-after-meeting";
 import type { FormSchema } from "@/lib/form-schema";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import type { AbsenceMethod, StageThreshold } from "@/lib/absence/logic";
-import type { AbsencePersonRow, PersonLite, AbsenceEventRow, OpenBookingRow, ConductorLite, MeetingOffice } from "@/lib/absence/data";
+import type { AbsencePersonRow, PersonLite, AbsenceEventRow, AbsenceRestartRow, OpenBookingRow, ConductorLite, MeetingOffice } from "@/lib/absence/data";
 import type { BranchLite } from "@/lib/people/data";
 import { recordAbsence, recordAbsenceMeeting } from "@/lib/absence/actions";
 import { recordableStages } from "@/lib/absence/record-meeting";
+import { absenceCountState, countedAbsences, meetingDiscountReason } from "@/lib/absence/discount";
 import { draftReturnToWork, recordReturnToWork } from "@/lib/absence/rtw-actions";
 import type { OutstandingRtw } from "@/lib/absence/rtw";
 
@@ -66,6 +68,9 @@ export default function AbsenceView({
   conductors,
   offices,
   canManage,
+  canDiscount,
+  restarts,
+  windowStart,
 }: {
   method: AbsenceMethod;
   /** Stage occasions thresholds (stages method), for scoping which absences a
@@ -91,9 +96,27 @@ export default function AbsenceView({
   conductors: ConductorLite[];
   offices: MeetingOffice[];
   canManage: boolean;
+  /** Managers and above: discount absences and restart the count (0328). */
+  canDiscount: boolean;
+  /** Active count restarts, one per person at most. */
+  restarts: AbsenceRestartRow[];
+  /** First date inside the rolling window (Europe/London today less the window). */
+  windowStart: string;
 }) {
   const [branch, setBranch] = useState("");
   const [pickPerson, setPickPerson] = useState("");
+
+  const restartByPerson = useMemo(() => {
+    const map: Record<string, AbsenceRestartRow> = {};
+    for (const r of restarts) map[r.person_id] = r;
+    return map;
+  }, [restarts]);
+
+  /* After a meeting is saved, a Manager or above is asked which absences it discounted. */
+  const [afterMeeting, setAfterMeeting] = useState<
+    { personId: string; personName: string; stage: number | null; date: string | null } | null
+  >(null);
+  const closeAfterMeeting = useCallback(() => setAfterMeeting(null), []);
 
   const eventsByPerson = useMemo(() => {
     const map: Record<string, AbsenceEventRow[]> = {};
@@ -166,9 +189,15 @@ export default function AbsenceView({
     // A Stage N meeting only discusses ITS absences (Phil): Stage 1 covers the
     // occasions up to its trigger threshold; each later stage covers the new
     // absences since the previous stage's threshold. Numbers stay absolute.
-    const chronological = [...(eventsByPerson[r.personId] ?? [])].sort((a, b) =>
-      a.start_date.localeCompare(b.start_date),
-    );
+    // Discounted absences, and any before a count restart, are not what a meeting discusses
+    // (0328). They stay on the record but leave this list and its numbering.
+    const restartFrom = restartByPerson[r.personId]?.from_date ?? null;
+    const chronological = [...(eventsByPerson[r.personId] ?? [])]
+      .filter((e) => {
+        const st = absenceCountState(e, { restartFrom, windowStart });
+        return st !== "discounted" && st !== "before_restart";
+      })
+      .sort((a, b) => a.start_date.localeCompare(b.start_date));
     let discussed = chronological.map((e, i) => ({ e, n: i + 1 }));
     const bookedStage = earliest?.stage ?? null;
     if (bookedStage && stageThresholds.length > 0) {
@@ -323,7 +352,7 @@ export default function AbsenceView({
                     {r.overdue ? "Overdue" : "Due"} {fmtDay(r.dueDate)}
                   </span>
                   <FormEvidenceDialog
-                    title={`Return to Work — ${r.personName}`}
+                    title={`Return to Work for ${r.personName}`}
                     schema={rtwSchema}
                     action={recordReturnToWork}
                     extraFields={{ absence_event_id: r.absenceEventId }}
@@ -466,6 +495,15 @@ export default function AbsenceView({
                   </div>
                 </div>
 
+                {(r.notCounted > 0 || r.restartedFrom) && (
+                  <p className="text-xs text-white/50">
+                    {r.notCounted > 0
+                      ? `${r.notCounted} ${r.notCounted === 1 ? "absence does" : "absences do"} not count.`
+                      : ""}
+                    {r.notCounted > 0 && r.restartedFrom ? " " : ""}
+                    {r.restartedFrom ? `Count restarted from ${fmtDay(r.restartedFrom)}.` : ""}
+                  </p>
+                )}
                 {s.action && <p className="text-xs text-white/70">Action: {s.action}</p>}
                 {s.meetingDue && (
                   <p className="text-xs font-medium text-amber-300">
@@ -505,7 +543,7 @@ export default function AbsenceView({
                 <div className="mt-auto flex flex-wrap items-center justify-evenly gap-2 pt-1">
                   {canManage && absenceSchema ? (
                       <FormEvidenceDialog
-                        title={`Record absence — ${r.fullName}`}
+                        title={`Record absence for ${r.fullName}`}
                         schema={absenceSchema}
                         action={recordAbsence}
                         extraFields={{ person_id: r.personId }}
@@ -516,9 +554,14 @@ export default function AbsenceView({
                       />
                     ) : null}
                   <AbsenceDetailDialog
+                    personId={r.personId}
                     personName={r.fullName}
                     events={eventsByPerson[r.personId] ?? []}
                     canEdit={canManage}
+                    canDiscount={canDiscount}
+                    restart={restartByPerson[r.personId] ?? null}
+                    windowStart={windowStart}
+                    todayIso={londonToday}
                   />
                   {canManage ? (
                     <BookMeetingDialog
@@ -536,7 +579,7 @@ export default function AbsenceView({
                         const mf = meetingFormFor(r);
                         return mf.schema ? (
                           <FormEvidenceDialog
-                            title={`Absence meeting — ${r.fullName}`}
+                            title={`Absence meeting for ${r.fullName}`}
                             schema={mf.schema}
                             action={recordAbsenceMeeting}
                             extraFields={{ person_id: r.personId }}
@@ -545,6 +588,16 @@ export default function AbsenceView({
                             submitLabel="Save meeting"
                             presetAnswers={mf.presets}
                             hideFields={["name"]}
+                            onSaved={(saved) => {
+                              if (!canDiscount) return;
+                              const st = Number.parseInt(saved.data?.meeting_stage ?? "", 10);
+                              setAfterMeeting({
+                                personId: r.personId,
+                                personName: r.fullName,
+                                stage: Number.isInteger(st) ? st : null,
+                                date: saved.data?.meeting_date || null,
+                              });
+                            }}
                           />
                         ) : null;
                       })()
@@ -563,6 +616,18 @@ export default function AbsenceView({
           })}
         </div>
       )}
+
+      {afterMeeting ? (
+        <DiscountAfterMeeting
+          personName={afterMeeting.personName}
+          absences={countedAbsences(eventsByPerson[afterMeeting.personId] ?? [], {
+            restartFrom: restartByPerson[afterMeeting.personId]?.from_date ?? null,
+            windowStart,
+          })}
+          defaultReason={meetingDiscountReason(afterMeeting.stage, afterMeeting.date)}
+          onClose={closeAfterMeeting}
+        />
+      ) : null}
     </div>
   );
 }

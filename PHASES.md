@@ -3474,3 +3474,26 @@ are left out by choice.
 The ZIP is too big for a web response, so it goes to a private subject-access bucket with no
 storage policies, comes back as a five minute link, and the nightly retention run removes it a
 day later (sar_exports keeps the row). Support mode cannot make one. fflate added for the ZIP.
+
+### 2026-09-24 — Absence discounting (migrations 0327 and 0328)
+
+Phil, when the Thistle meetings showed Charlotte had disallowed absences: "we need a away to reset
+abences or restart triggers is some are discounted". Agreed by popup: all three, Managers and
+above only (Company Admin, the Registered roles, a Manager of the person's branch).
+
+- **Discount one absence** from View absence. A reason is required. It stays on the record,
+  struck through, with who, when and why, and stops counting towards occasions, days, Bradford
+  and the stage triggers. "Count it again" undoes it.
+- **Restart the count from a date**, with a reason. Absences AND meetings before that date stop
+  counting, so the person starts again at no stage. One restart per person; a new one replaces
+  it; "Undo restart" clears it. Every restart is kept for the history and the SAR export.
+- **After a meeting** is recorded, a Manager or above is asked which absences it discounted: tick
+  boxes, nothing ticked to begin with, the reason filled in from the meeting.
+
+The counting stays in person_absence_summary, which now also returns not_counted and
+count_restarted_from. The discount columns can only change through the functions (a trigger
+refuses a direct edit, because Supervisors can update absence_events for the last date). A
+discounted absence still raises its Return to Work: it happened, it just does not count.
+Probe: scripts/absence-discount-probe.sql, 18 checks, all pass.
+
+0327 is DEF-073: the view had been running as its owner since 0223, readable without signing in.

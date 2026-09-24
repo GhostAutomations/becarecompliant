@@ -875,8 +875,14 @@ export default async function PersonPage({
               <ul className="space-y-1.5 text-sm">
                 {absences.map((a) => (
                   <li key={a.id} className="flex items-center justify-between gap-2">
-                    <span className="text-white/80">{formatDisplayDate(a.start_date)}</span>
-                    <span className="truncate text-xs text-white/50">{a.reason ?? ""}</span>
+                    <span className={a.discounted_at ? "text-white/45 line-through" : "text-white/80"}>
+                      {formatDisplayDate(a.start_date)}
+                    </span>
+                    {a.discounted_at ? (
+                      <span className="pill pill-neutral" title={a.discount_reason ?? undefined}>Discounted</span>
+                    ) : (
+                      <span className="truncate text-xs text-white/50">{a.reason ?? ""}</span>
+                    )}
                   </li>
                 ))}
               </ul>

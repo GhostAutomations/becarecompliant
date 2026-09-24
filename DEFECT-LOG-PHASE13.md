@@ -2254,7 +2254,45 @@ refuses a missing stage, a missing date or a date after today BEFORE the Evidenc
 letter or invite is sent from recording in either case. A booked meeting works exactly as before
 (lib/absence/record-meeting.ts, three tests).
 
+**Live (dpl_6Apc6MJh):** a meeting dated 30/09 was refused with the Book meeting message and left
+no Evidence behind. Asim Riaz (Stage 1, 09/06, No further action) and Jamie Meredith (Stage 1,
+10/07, Informal support and monitoring) then recorded from the monday board, every answer copied,
+minutes ticked not required. Both now show 1 met stage and Jamie's "Stage 1 meeting is due" has
+gone. No letters were sent.
+
 **Also asked for, next on Operation Thistle:** a way to discount absences or restart the triggers.
 Charlotte disallowed two of Asim's absences and two of Jamie's in these meetings; the product has
 no way to say an absence does not count, so it would keep calling for meetings Thistle would not
 hold.
+
+## DEF-073 - The absence summary could be read without signing in
+
+**Found 2026-09-24** while building absence discounting, by reading the live view's options before
+changing it. person_absence_summary was created in 0041 with security_invoker, so each reader saw
+only what their own RLS allows. 0223 and 0224 (4 September, the rolling window change) redefined
+it with a plain "create or replace view ... as", and Postgres drops the option when a view is
+replaced without it. From then on the view ran as its owner and ignored RLS, and anon and
+authenticated both held SELECT on it. **Proved:** a rolled back read as anon returned 9 rows, every
+active Thistle person with an absence: full name, branch, occasions, days, first and last absence
+and meeting stage. No reasons, no health detail. Inside the app every read is made by the server
+and filtered to the signed in company, so no other company ever saw them on screen. Within a company,
+anyone who could open Absence or the dashboard was shown the whole company's list rather than
+only the branches their role allows.
+
+**Who read it:** the API logs for 10, 17, 20, 21, 22 and 23 to 24 September hold 3,216 reads of
+the view, every one from the app's own server with the company filter. None from a browser, none
+without the filter. The logs do not reach back to 4 September in full, so that is evidence, not
+proof, for the first days.
+
+**Fixed (0327, applied):** security_invoker is back on and anon has no access at all. Checked
+live: anon refused, Bevan's Admin sees 0 rows and none from another company, Thistle's Admin sees
+Thistle's 9. **Guarded:** lib/db/views-read-as-caller.test.ts reads every migration in order and
+fails if the latest definition of any public view has lost security_invoker. It was checked
+against a copy of the migrations without 0327 and failed on person_absence_summary, as it should.
+The nine other public views were all still correct.
+
+**For Phil:** worth a line in the platform's incident log (what, when, fixed, no sign of access).
+UK GDPR expects a processor to tell the controller about a personal data breach without undue
+delay. With no sign that anyone outside the app read it, this may be a closed weakness rather than
+a breach, but that is your judgement to make (with advice if you want it), and the facts above are
+what Thistle would need if you tell them.
