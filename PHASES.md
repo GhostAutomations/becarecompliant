@@ -3457,3 +3457,20 @@ Wednesday and all four moved every morning. They are now this week and the three
 to Sunday, moving only on a Monday (lib/planner/week.ts boardWeeks, tested across the year end and
 the clock change). A check due earlier this week and still unbooked stays in the first tile with
 its date in red (Phil's choice by popup). The tile labels lost their dash: "21 to 27 Sep".
+
+### 2026-09-24 — Subject access export (migration 0326)
+
+Phil, when the Updates build showed there was no SAR export anywhere: "Build it next". Agreed by
+popup: one ZIP per record, made by a Company Admin from Manage record, every run in History.
+Inside: summary.pdf (everything, readable), a CSV per section, evidence.pdf and evidence.csv
+(every completed form in full, the inspection pack renderer), files/ (every original upload:
+evidence files, Update attachments, training certificates, the care plan) and README.txt, which
+says the company is the controller and must read and redact before sending. A Person's carries
+record, checks, Updates (with any earlier wording still held), training, holiday, absence,
+absence meetings and leaving. A Service User's carries record, checks, Updates, care schedule,
+outcomes, outcome notes and outcome reviews. Complaints, incidents, invoices and the access log
+are left out by choice.
+
+The ZIP is too big for a web response, so it goes to a private subject-access bucket with no
+storage policies, comes back as a five minute link, and the nightly retention run removes it a
+day later (sar_exports keeps the row). Support mode cannot make one. fflate added for the ZIP.

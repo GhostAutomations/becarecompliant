@@ -30,3 +30,11 @@ Run as popups, one at a time: Pass / Fail / Not tested. Bevan Care Ltd (Swansea)
 | # | Test | Result |
 |---|------|--------|
 | R1 | scripts/updates-probe.sql part two: old leaver and old cancelled SU erased (3 rows), recent leaver, held leaver, active person and hospital SU kept, file queued, an Admin cannot run it | PASS 24/09 |
+
+## Subject access export (0326)
+
+| # | Test | Result |
+|---|------|--------|
+| S1 | Bevan, ZZ TEST DBS Warn, Manage record: "Subject access export" shows for Bev Admin; press it; a ZIP comes back with README, summary.pdf, evidence.pdf, CSVs and files/updates with the Update attachments | |
+| S2 | History on the record shows "Made a subject access export" | |
+| S3 | The route refuses anybody who is not a Company Admin | |

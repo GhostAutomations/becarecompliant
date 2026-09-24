@@ -14,6 +14,7 @@ import ActionForm from "@/components/action-form";
 import CycleBox from "@/components/records/cycle-box";
 import RecordHistory from "@/components/reports/record-history";
 import UpdatesTile from "@/components/updates/updates-tile";
+import SubjectAccessExport from "@/components/records/subject-access-export";
 import { getRecordUpdates } from "@/lib/updates/data";
 import EditPersonForm from "@/components/people/edit-person-form";
 import DeletePersonForm from "@/components/people/delete-person-form";
@@ -996,8 +997,8 @@ export default async function PersonPage({
                 {person.retention_hold ? (
                   <>
                     <p className="mt-1 text-sm text-amber-200">
-                      On hold: these records will not be anonymised when their retention date
-                      passes.
+                      On hold: these records will not be anonymised, and the Updates not erased,
+                      when their retention date passes.
                     </p>
                     <p className="mt-1 text-xs text-white/60">
                       Reason: {person.retention_hold_reason || "Not recorded"}
@@ -1017,7 +1018,7 @@ export default async function PersonPage({
                   <>
                     <p className="mt-1 text-sm text-white/60">
                       Evidence for a leaver is kept for eight years from their leaving date and
-                      is then anonymised automatically. Hold it if these records must be kept
+                      is then anonymised automatically, and the Updates on the record are erased. Hold it if these records must be kept
                       longer, for example an ongoing tribunal or investigation.
                     </p>
                     <ActionForm
@@ -1040,6 +1041,12 @@ export default async function PersonPage({
                   </>
                 )}
               </div>
+            ) : null}
+
+            {/* SUBJECT ACCESS EXPORT (2026-09-24). Company Admins only, and never in support mode:
+                the company is the controller and answers the request. */}
+            {profile.role === "company_admin" && !supportMode ? (
+              <SubjectAccessExport kind="person" recordId={person.id} recordName={person.full_name} />
             ) : null}
           </div>
         </PanelDialog>

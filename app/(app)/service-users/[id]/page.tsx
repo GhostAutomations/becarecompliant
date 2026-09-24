@@ -14,6 +14,7 @@ import EvidenceHistory from "@/components/people/evidence-history";
 import ActionForm from "@/components/action-form";
 import RecordHistory from "@/components/reports/record-history";
 import UpdatesTile from "@/components/updates/updates-tile";
+import SubjectAccessExport from "@/components/records/subject-access-export";
 import { getRecordUpdates } from "@/lib/updates/data";
 import EditServiceUserForm from "@/components/service-users/edit-service-user-form";
 import CareScheduleTile from "@/components/service-users/care-schedule-tile";
@@ -501,8 +502,8 @@ export default async function ServiceUserPage({
                 {serviceUser.retention_hold ? (
                   <>
                     <p className="mt-1 text-sm text-amber-200">
-                      On hold: these records will not be anonymised when their retention date
-                      passes.
+                      On hold: these records will not be anonymised, and the Updates not erased,
+                      when their retention date passes.
                     </p>
                     <p className="mt-1 text-xs text-white/60">
                       Reason: {serviceUser.retention_hold_reason || "Not recorded"}
@@ -524,7 +525,8 @@ export default async function ServiceUserPage({
                   <>
                     <p className="mt-1 text-sm text-white/60">
                       Evidence for a discharged Service User is kept for eight years from their
-                      discharge date and is then anonymised automatically. Hold it if these
+                      discharge date and is then anonymised automatically, and the Updates on the
+                      record are erased. Hold it if these
                       records must be kept longer, for example an ongoing investigation.
                     </p>
                     <ActionForm
@@ -547,6 +549,12 @@ export default async function ServiceUserPage({
                   </>
                 )}
               </div>
+            ) : null}
+
+            {/* SUBJECT ACCESS EXPORT (2026-09-24). Company Admins only, and never in support mode:
+                the company is the controller and answers the request. */}
+            {profile.role === "company_admin" && !supportMode ? (
+              <SubjectAccessExport kind="service_user" recordId={serviceUser.id} recordName={serviceUser.full_name} />
             ) : null}
           </div>
         </PanelDialog>
