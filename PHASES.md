@@ -3425,3 +3425,22 @@ Shipped alongside DEF-018, which the first real email exposed within the hour: a
 to fetch left a silent null. It now records why, shows it, offers a button to try again, and is
 retried nightly before the provider forgets the message.
 
+
+### 2026-09-24 — Updates on every People and Service User record (migration 0324)
+
+Phil: "a bit like the update section on Monday... on their record... for people and service
+user... I think update section is a better option." Agreed by popup the same day:
+
+- A tile beside Complaints on a Person, and next to Audit over History on a Service User, whose
+  Setup Visit and Audit tiles were narrowed to sit exactly over Evidence history. "Open" shows
+  the thread in the centre popup: pinned first, then oldest at the top, newest at the bottom.
+- Supervisor and above read and post; a Viewer reads; On Call and carers never. A Manager,
+  Supervisor or Viewer does not see the Updates on their own Person record.
+- Replies, attachments (photos, PDF, Word, Excel; 5 per update, 20 MB each, private bucket,
+  every open audited), @mentions (only people who can see the record; a branded email that never
+  carries the words), pinning by anybody who can post. The author edits their own (marked
+  Edited, old words kept); only a Company Admin removes, with a reason.
+- Every rule is in the database (RPCs, select only RLS), proved by scripts/updates-probe.sql
+  across eight roles in a rolled back run. Files of deleted records and abandoned uploads are
+  removed by the nightly retention run; a company purge now covers the new bucket.
+- NOT YET COVERED: retention anonymisation and a SAR export of updates. Raised with Phil.

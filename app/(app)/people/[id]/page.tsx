@@ -13,6 +13,8 @@ import { checksForTitle } from "@/lib/people/check-scope";
 import ActionForm from "@/components/action-form";
 import CycleBox from "@/components/records/cycle-box";
 import RecordHistory from "@/components/reports/record-history";
+import UpdatesTile from "@/components/updates/updates-tile";
+import { getRecordUpdates } from "@/lib/updates/data";
 import EditPersonForm from "@/components/people/edit-person-form";
 import DeletePersonForm from "@/components/people/delete-person-form";
 import RecordBookTask from "@/components/planner/record-book-task";
@@ -115,7 +117,7 @@ export default async function PersonPage({
     login?: string;
   }>;
 }) {
-  const { profile } = await requireCompany();
+  const { user, profile } = await requireCompany();
   const { id } = await params;
   const { completed, recorded, history, from, login: loginBanner } = await searchParams;
   // Back returns to the view the record was opened from (Main, Leavers, Archive, ...);
@@ -192,12 +194,15 @@ export default async function PersonPage({
 
   // The history timeline uses the record_audit_trail RPC (guarded by
   // can_manage_person), so only fetch it for managers/admins. Exports are Pro+.
-  const [auditTrail, exportsEnabled, jobTitles] = await Promise.all([
+  const [auditTrail, exportsEnabled, jobTitles, updates] = await Promise.all([
     canManage ? getRecordAuditTrail("person", id) : Promise.resolve([]),
     featureEnabled(companyId, "reporting_exports"),
     // The same list Add a person offers, so a job title is chosen the same way whether it
     // is being set for the first time or corrected afterwards.
     canManage ? listJobTitles(companyId) : Promise.resolve([]),
+    /* Updates (0324): the database decides who reads them. Nobody below Supervisor, and a
+       Manager or Supervisor never on their own record. */
+    getRecordUpdates({ kind: "person", id }, { supportMode }),
   ]);
 
   /* COMPLAINTS ABOUT THIS PERSON. The role list is the Complaints section's own, not this
@@ -699,19 +704,36 @@ export default async function PersonPage({
             </div>
           </section>
 
-          {/* WHAT IS LEFT OF THE TRACKER ROW. DBS, Right to Work and Probation moved up into
-              the Checks grid (2026-09-18); complaints about this person were never a tracker
-              and simply stayed behind.
-
-              Shown only to people who can already open the Complaints section: complaints
-              about staff are HR sensitive, and a supervisor who can see this record cannot see
-              the section, so must not see this either. Never a bare count -- the outcome is in
-              the same sentence. */}
-          {canSeeComplaints ? (
-            <section className="grid gap-3 lg:grid-cols-3">{complaintsTile}</section>
-          ) : null}
         </>
       )}
+
+      {/* COMPLAINTS AND UPDATES, ONE ROW, above Holiday (Phil, 2026-09-24: "a tile next to
+          complaints above holidays").
+
+          Complaints is what was left of the tracker row once DBS, Right to Work and Probation
+          moved into the Checks grid (2026-09-18). It is shown only to people who can already
+          open the Complaints section: complaints about staff are HR sensitive, and a supervisor
+          who can see this record cannot see the section, so must not see this either. Never a
+          bare count -- the outcome is in the same sentence.
+
+          The Updates tile is outside the leaver branch on purpose:
+          a leaver's record still gets written on (a reference request, a returned uniform), and
+          the Complaints tile stays where it was, active records only. A Supervisor, who cannot
+          see Complaints, gets the Updates tile on its own in the first column. */}
+      {(canSeeComplaints && !isLeaver) || updates.canRead ? (
+        <section className="grid gap-3 lg:grid-cols-3">
+          {canSeeComplaints && !isLeaver ? complaintsTile : null}
+          {updates.canRead ? (
+            <UpdatesTile
+              kind="person"
+              recordId={person.id}
+              data={updates}
+              currentUserId={user.id}
+              canRemove={profile.role === "company_admin" && !supportMode}
+            />
+          ) : null}
+        </section>
+      ) : null}
 
       {/* THE PERSON'S OWN ADMIN, IN ONE ROW: their login, their holiday, their absence
           (Phil, 2026-09-08: "holiday and absence can go next to Team meber login"). All three

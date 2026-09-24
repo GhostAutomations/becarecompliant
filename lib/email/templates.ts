@@ -564,6 +564,38 @@ export function noticeEmailHtml(opts: {
   });
 }
 
+/** Subject of the email sent when somebody is @mentioned in an Update. */
+export function mentionEmailSubject(authorName: string): string {
+  return `${authorName} mentioned you in an update`;
+}
+
+/**
+ * Somebody was @mentioned in an Update on a record (0324, Phil 2026-09-24).
+ *
+ * IT NEVER CARRIES THE WORDS. An update can hold care details, and those belong in the app,
+ * behind a login, not in somebody's inbox. It says who, on whose record, and gives the button.
+ */
+export function mentionEmailHtml(opts: {
+  recipientName: string;
+  authorName: string;
+  recordName: string;
+  recordKind: "person" | "service_user";
+  companyName: string;
+  url: string;
+}): string {
+  const whose = opts.recordKind === "person" ? "the People record for" : "the Service User record for";
+  return noticeEmailHtml({
+    preheader: mentionEmailSubject(opts.authorName),
+    heading: "You were mentioned in an update",
+    bodyHtml: `<p style="margin:0 0 12px 0;">Hello ${escapeHtml(opts.recipientName)}.</p>
+    <p style="margin:0 0 12px 0;">${escapeHtml(opts.authorName)} mentioned you in an update on ${whose}
+    <strong style="color:#ffffff;">${escapeHtml(opts.recordName)}</strong>${opts.companyName ? ` at ${escapeHtml(opts.companyName)}` : ""}.</p>
+    <p style="margin:0;">Open the record to read it. For privacy, the update itself is not included in this email.</p>`,
+    ctaLabel: "Open the record",
+    ctaUrl: opts.url,
+  });
+}
+
 /**
  * Company-branded invoice email. UNLIKE every other template here, this carries
  * the CARE COMPANY's brand, not Be Care Compliant's: the client is theirs, so the

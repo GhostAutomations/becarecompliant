@@ -13,6 +13,8 @@ import PanelDialog from "@/components/panel-dialog";
 import EvidenceHistory from "@/components/people/evidence-history";
 import ActionForm from "@/components/action-form";
 import RecordHistory from "@/components/reports/record-history";
+import UpdatesTile from "@/components/updates/updates-tile";
+import { getRecordUpdates } from "@/lib/updates/data";
 import EditServiceUserForm from "@/components/service-users/edit-service-user-form";
 import CareScheduleTile from "@/components/service-users/care-schedule-tile";
 import RecordBookTask from "@/components/planner/record-book-task";
@@ -127,12 +129,25 @@ export default async function ServiceUserPage({
     ]);
 
   // History timeline (managers/admins, via the record_audit_trail RPC) + export gate.
-  const [auditTrail, exportsEnabled, outcomesEnabled, carePlanEntries] = await Promise.all([
+  const [auditTrail, exportsEnabled, outcomesEnabled, carePlanEntries, updates] = await Promise.all([
     canManage ? getRecordAuditTrail("service_user", id) : Promise.resolve([]),
     featureEnabled(companyId, "reporting_exports"),
     featureEnabled(companyId, "outcomes_satisfaction"),
     getCarePlanEntries(id),
+    /* Updates (0324). Special category data: the page view is already audited above, and every
+       post, edit, removal and file opened is audited in lib/updates/actions.ts. */
+    getRecordUpdates({ kind: "service_user", id }, { supportMode }),
   ]);
+
+  const updatesTile = updates.canRead ? (
+    <UpdatesTile
+      kind="service_user"
+      recordId={serviceUser.id}
+      data={updates}
+      currentUserId={user.id}
+      canRemove={profile.role === "company_admin" && !supportMode}
+    />
+  ) : null;
 
   const statusByDef = new Map<string, SuCheckStatus>(statuses.map((s) => [s.definition_id, s]));
   const reviewDef = definitions.find((d) => d.key === "care_plan_review");
@@ -345,10 +360,15 @@ export default async function ServiceUserPage({
                 />
               ) : null}
             </div>
-            {/* FIVE IN A ROW, as on the People record (Phil, 2026-09-18). It was auto-fit with
-                a 230px floor, which on a record with two checks stretched them across half the
-                page each. The two records lay their checks out the same way now. */}
-            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            {/* LINED UP WITH THE ROW BELOW (Phil, 2026-09-24: "make setup visit and audit tiles
+                smaller so they sit at exactly above evidence history. And then the updates can
+                sit exactly above history.") Six columns here against three below, with the
+                same gap, so two checks take exactly the width of Evidence history and the
+                Updates tile, pinned to columns three and four, sits exactly over History. More
+                checks than two flow on into columns five and six and the rows after. It was
+                five in a row (2026-09-18), which left both checks hanging past the edge of
+                Evidence history. */}
+            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 lg:gap-4">
               {otherDefs.map((def) => {
                 const s = statusByDef.get(def.id);
                 /* A ONE-OFF THAT HAS BEEN DONE IS FINISHED (Phil, 2026-09-18). The Setup Visit
@@ -380,15 +400,25 @@ export default async function ServiceUserPage({
                   </div>
                 );
               })}
+              {updatesTile ? <div className="sm:col-span-2 lg:col-start-3 lg:row-start-1">{updatesTile}</div> : null}
             </div>
           </section>
         </>
       )}
 
-      {/* The three folded sections sit in one row, as on the People record. auto-fit because
-          two of the three are permission dependent; items-start so opening one does not
-          stretch the others. */}
-      <section className="grid items-start gap-4 grid-cols-[repeat(auto-fit,minmax(320px,1fr))]">
+      {/* A cancelled service user has no Checks row, but their Updates are still read and
+          written: the tile keeps its place over History. */}
+      {isCancelled && updatesTile ? (
+        <section className="grid gap-4 grid-cols-1 lg:grid-cols-3">
+          <div className="lg:col-start-2">{updatesTile}</div>
+        </section>
+      ) : null}
+
+      {/* The three folded sections sit in one row, as on the People record; items-start so
+          opening one does not stretch the others. THREE FIXED COLUMNS, not auto-fit
+          (2026-09-24), so the Checks row above lines up with them: Evidence history is always
+          the first column and History the second, whatever else this person may see. */}
+      <section className="grid items-start gap-4 grid-cols-1 lg:grid-cols-3">
       <PanelDialog title="Evidence history" count={evidence.length}>
         <EvidenceHistory rows={evidence} />
       </PanelDialog>

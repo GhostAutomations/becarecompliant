@@ -2223,3 +2223,5 @@ DBS and Right to Work reads now share one routine (getTrackerDateChecks) and one
 (lib/notifications/tracker-dates.ts, 7 tests). Verified: tsc clean, 1175 tests pass. **To see:**
 the next People report to Thistle's admins lists Smith Tacho Azang and Deborah Olabode under
 "Right to Work expiring".
+**Live (dpl_8ThiHUp9, READY):** Phil confirmed Smith Tacho Azang's RTW Expiry (30/10/2026) is now
+amber on Thistle's register. PASS. The email section is seen in the next People report.

@@ -19,8 +19,77 @@
  * the page behind does not slide about under the dialog.
  */
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+
+/**
+ * The centred dialog itself, for a trigger that is not the folded-card button below (the
+ * Updates tile, 0324). One dialog, so every popup on a record opens, scrolls and closes the same
+ * way: Escape, the backdrop and Close all shut it, and the page behind stops scrolling.
+ */
+export function CentreDialog({
+  open,
+  onClose,
+  label,
+  children,
+  footer,
+}: {
+  open: boolean;
+  onClose: () => void;
+  label: string;
+  children: React.ReactNode;
+  /** Pinned under the scrolling content, e.g. a Write box that must stay in view. */
+  footer?: React.ReactNode;
+}) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previous;
+    };
+  }, [open, onClose]);
+
+  if (!mounted || !open) return null;
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center"
+      onClick={onClose}
+      role="presentation"
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={label}
+        onClick={(e) => e.stopPropagation()}
+        /* Wide, because what goes in here is a table of evidence or a full edit form,
+           and the whole point of moving it out of the page was to stop it being
+           squeezed into a third of a row. */
+        className="glass-card my-auto w-full max-w-4xl"
+      >
+        <div className="flex items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
+          <h2 className="text-sm font-semibold text-white">{label}</h2>
+          <button type="button" onClick={onClose} className="text-xs text-white/50 hover:text-white">
+            Close
+          </button>
+        </div>
+        <div className={`${footer ? "max-h-[60vh]" : "max-h-[75vh]"} overflow-y-auto`} data-dialog-scroll>
+          {children}
+        </div>
+        {footer ? <div className="border-t border-white/10">{footer}</div> : null}
+      </div>
+    </div>,
+    document.body,
+  );
+}
 
 export default function PanelDialog({
   title,
@@ -33,24 +102,7 @@ export default function PanelDialog({
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => setMounted(true), []);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("keydown", onKey);
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = previous;
-    };
-  }, [open]);
-
+  const close = useCallback(() => setOpen(false), []);
   const label = `${title}${count && count > 0 ? ` (${count})` : ""}`;
 
   return (
@@ -68,39 +120,9 @@ export default function PanelDialog({
         </span>
       </button>
 
-      {mounted && open
-        ? createPortal(
-            <div
-              className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center"
-              onClick={() => setOpen(false)}
-              role="presentation"
-            >
-              <div
-                role="dialog"
-                aria-modal="true"
-                aria-label={title}
-                onClick={(e) => e.stopPropagation()}
-                /* Wide, because what goes in here is a table of evidence or a full edit form,
-                   and the whole point of moving it out of the page was to stop it being
-                   squeezed into a third of a row. */
-                className="glass-card my-auto w-full max-w-4xl"
-              >
-                <div className="flex items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
-                  <h2 className="text-sm font-semibold text-white">{label}</h2>
-                  <button
-                    type="button"
-                    onClick={() => setOpen(false)}
-                    className="text-xs text-white/50 hover:text-white"
-                  >
-                    Close
-                  </button>
-                </div>
-                <div className="max-h-[75vh] overflow-y-auto">{children}</div>
-              </div>
-            </div>,
-            document.body,
-          )
-        : null}
+      <CentreDialog open={open} onClose={close} label={label}>
+        {children}
+      </CentreDialog>
     </>
   );
 }
