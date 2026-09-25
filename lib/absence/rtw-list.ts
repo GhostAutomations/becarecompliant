@@ -57,20 +57,21 @@ export function rtwFromSearch(search: string): string | null {
  *
  * Listed from the day after the absence began, until a last date is entered.
  *
- * Only absences RECORDED from 25/09/2026 (midnight London) onwards: the history imported from
- * monday is single days with no last date on purpose, and listing it would ask Thistle for last
- * dates, and then Return to Works, on absences from April (Phil: "Only absences recorded from now
- * on").
+ * Only absences that BEGAN on or after 24/09/2026, the day this started (Phil, 2026-09-25: "i
+ * thought we were only starting last date from yesterday"). The first cut went by when an
+ * absence was RECORDED, and four April to June absences typed in just after midnight for the
+ * meeting records got through; what an absence is about is its first date, not when someone got
+ * round to typing it. The monday history (single days, no last date on purpose) stays quiet.
  */
-export const AWAITING_LAST_DATE_FROM_UTC = "2026-09-24T23:00:00Z";
+export const AWAITING_LAST_DATE_FROM = "2026-09-24";
 
 export function isAwaitingLastDate(
-  ev: { start_date: string; end_date: string | null; return_date: string | null; created_at: string },
+  ev: { start_date: string; end_date: string | null; return_date: string | null },
   todayIso: string,
 ): boolean {
   if (ev.end_date || ev.return_date) return false;
   if (ev.start_date >= todayIso) return false;
-  return Date.parse(ev.created_at) >= Date.parse(AWAITING_LAST_DATE_FROM_UTC);
+  return ev.start_date >= AWAITING_LAST_DATE_FROM;
 }
 
 /** "Off since 22/09/2026 · 3 days" (counting the first day). */

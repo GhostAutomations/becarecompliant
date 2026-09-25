@@ -3530,9 +3530,11 @@ split the tile and in the bottom have absences that are waiting for a end date, 
 bevan". The dashboard panel is now two halves: Return to Work due (three rows) on top, and
 "Waiting for a last date" below: open absences with no last date, from the day after the absence
 began, each reading "Off since 25/09/2026 · 2 days" with an amber "Add last date" pill that opens
-that person's View absence on the Absence page (?view=<person>). Only absences recorded from
-25/09/2026 onwards (Phil: "Only absences recorded from now on"), so Thistle's imported single
-days stay quiet. Active people only, RLS scoped. lib/absence/rtw-list.ts isAwaitingLastDate, two
+that person's View absence on the Absence page (?view=<person>). Only absences that began on or
+after 24/09/2026 (Phil: "i thought we were only starting last date from yesterday"), so Thistle's
+imported single days stay quiet. The first cut went by when an absence was recorded, which let
+four April to June absences for Asim and Jamie through because they were typed in after midnight
+for the meeting records; it now goes by the absence's first date. Active people only, RLS scoped. lib/absence/rtw-list.ts isAwaitingLastDate, two
 tests. Same session: Supervisors now get the Out of Hours urgent follow ups panel on the
 dashboard (Phil: "also need to add the Out of Hours: urgent follow ups tile to the supervisor
 dash"); RLS already let them read those handovers.

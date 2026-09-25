@@ -11,7 +11,7 @@ import "server-only";
  */
 
 import { createClient } from "@/lib/supabase/server";
-import { AWAITING_LAST_DATE_FROM_UTC, isAwaitingLastDate } from "@/lib/absence/rtw-list";
+import { AWAITING_LAST_DATE_FROM, isAwaitingLastDate } from "@/lib/absence/rtw-list";
 
 export type OutstandingRtw = {
   absenceEventId: string;
@@ -102,7 +102,7 @@ export async function listAwaitingLastDate(companyId: string): Promise<AwaitingL
     .is("end_date", null)
     .is("return_date", null)
     .lt("start_date", today)
-    .gte("created_at", AWAITING_LAST_DATE_FROM_UTC)
+    .gte("start_date", AWAITING_LAST_DATE_FROM)
     .eq("people.employment_status", "active")
     .is("people.archived_at", null)
     .order("start_date", { ascending: true })

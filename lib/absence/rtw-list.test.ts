@@ -39,23 +39,16 @@ test("the link opens that Return to Work and nothing else", () => {
   assert.equal(rtwFromSearch(""), null);
 });
 
-test("an absence waits for a last date from the day after it began, if recorded from 25/09", () => {
+test("an absence waits for a last date from the day after it began, if it began from 24/09/2026", () => {
   const today = "2026-09-26";
-  const base = { end_date: null, return_date: null, created_at: "2026-09-25T08:10:00Z" };
+  const base = { end_date: null, return_date: null };
   assert.equal(isAwaitingLastDate({ ...base, start_date: "2026-09-25" }, today), true);
+  assert.equal(isAwaitingLastDate({ ...base, start_date: "2026-09-24" }, today), true, "24/09 is the first day it applies");
   assert.equal(isAwaitingLastDate({ ...base, start_date: "2026-09-26" }, today), false, "not on its first day");
   assert.equal(isAwaitingLastDate({ ...base, start_date: "2026-09-25", end_date: "2026-09-25" }, today), false);
   assert.equal(isAwaitingLastDate({ ...base, start_date: "2026-09-25", return_date: "2026-09-26" }, today), false);
-  assert.equal(
-    isAwaitingLastDate({ ...base, start_date: "2026-04-25", created_at: "2026-09-24T20:00:00Z" }, today),
-    false,
-    "history recorded before 25/09 stays quiet",
-  );
-  assert.equal(
-    isAwaitingLastDate({ ...base, start_date: "2026-09-24", created_at: "2026-09-24T23:30:00Z" }, today),
-    true,
-    "00:30 on 25/09 London time counts",
-  );
+  assert.equal(isAwaitingLastDate({ ...base, start_date: "2026-04-25" }, today), false, "an April absence typed in today stays quiet");
+  assert.equal(isAwaitingLastDate({ ...base, start_date: "2026-09-23" }, today), false);
 });
 
 test("off since counts the first day, and the view link opens that person", () => {
