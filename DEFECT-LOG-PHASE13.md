@@ -2340,3 +2340,12 @@ said the set up email had gone again; nothing arrived and the invite's resend co
 inviteOrResendForPerson stops at "already has a login" whenever the person is linked to a login,
 accepted or not, and returns ok. **Fixed:** the text now resends through resendStaffInviteByEmail
 and only says it went when the email actually did.
+
+## DEF-078 - A carer who set their password landed on "That area is switched off"
+Found live 2026-09-25 by Phil, accepting the ZZ TEST Audit Starter invite on his phone. Setting a
+password (/welcome) and signing in with no link both finish at /dashboard. Since the department
+gate (2026-09-17) runs in middleware BEFORE the page, a Team Member login was sent to /no-access,
+which offers only a Dashboard button and so said there was nowhere to go. The dashboard page's own
+"staff go to /my" never ran. None of Thistle's carers had accepted yet, so nobody real hit it.
+**Fixed:** when the gate refuses a Team Member and their company has My area open, it sends them to
+/my instead of /no-access.

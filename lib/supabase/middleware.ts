@@ -205,7 +205,13 @@ export async function updateSession(request: NextRequest) {
       }
       if (!canUseModule(moduleKey, role, disabled)) {
         const url = request.nextUrl.clone();
-        url.pathname = NO_ACCESS_PATH;
+        /* A TEAM MEMBER'S HOME IS MY AREA (found live 2026-09-25). Setting a password at /welcome,
+           and signing in with no link, both finish at /dashboard, which a Team Member login can
+           never open, so every carer who accepted their invite landed on "That area is switched
+           off" with nowhere to go. The pages themselves send staff to /my, but this gate runs
+           first. Send them home instead, unless their company has closed My area too. */
+        url.pathname =
+          role === "staff" && canUseModule("team_portal", role, disabled) ? "/my" : NO_ACCESS_PATH;
         url.search = "";
         return NextResponse.redirect(url);
       }
