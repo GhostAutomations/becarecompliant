@@ -1332,7 +1332,11 @@ export default async function DashboardPage() {
             who, for which absence and by when, overdue first. Each row opens that interview's
             form on the Absence page. Five and no scroll, like the urgent follow ups beside it. */}
         {RTW_LIST_ROLES.includes(profile.role) ? (
-          <Panel title="Return to Work due" href="/people/absence" linkLabel="Open Absence">
+          <Panel
+            title={`Return to Work due${absenceActions.rtwList.length > 0 ? ` (${absenceActions.rtwList.length})` : ""}`}
+            href="/people/absence"
+            linkLabel="Open Absence"
+          >
             {/* SPLIT IN TWO (Phil, 2026-09-24). Top: interviews due. Bottom: absences with no last
                 date yet, from the day after they began. A Return to Work cannot be asked for until
                 there is a last date, so the bottom half is the step before the top one. Three rows
@@ -1346,8 +1350,10 @@ export default async function DashboardPage() {
                 {absenceActions.rtwList.length === 0 ? (
                   <p className="text-sm text-white/55">No Return to Work interviews are waiting.</p>
                 ) : (
-                  <ul className="space-y-2">
-                    {absenceActions.rtwList.slice(0, 3).map((r) => (
+                  /* EVERY ONE, SCROLLING after about three (Phil, 2026-09-25: "will need to be
+                     scrollable if there are tasks for that tile not visible"). */
+                  <ul className="max-h-[11.5rem] space-y-2 overflow-y-auto pr-1">
+                    {absenceActions.rtwList.map((r) => (
                       <li key={r.absenceEventId}>
                         <Link
                           href={rtwHref(r.absenceEventId)}
@@ -1368,23 +1374,19 @@ export default async function DashboardPage() {
                         </Link>
                       </li>
                     ))}
-                    {absenceActions.rtwList.length > 3 ? (
-                      <li className="pt-0.5 text-[11px] text-white/45">
-                        {absenceActions.rtwList.length - 3} more waiting
-                      </li>
-                    ) : null}
                   </ul>
                 )}
               </div>
               <div className="border-t border-white/10 pt-3">
                 <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-white/50">
                   Waiting for a last date
+                  {absenceActions.awaitingLastDate.length > 0 ? ` (${absenceActions.awaitingLastDate.length})` : ""}
                 </p>
                 {absenceActions.awaitingLastDate.length === 0 ? (
                   <p className="text-sm text-white/55">Every absence has a last date.</p>
                 ) : (
-                  <ul className="space-y-2">
-                    {absenceActions.awaitingLastDate.slice(0, 3).map((a) => (
+                  <ul className="max-h-[11.5rem] space-y-2 overflow-y-auto pr-1">
+                    {absenceActions.awaitingLastDate.map((a) => (
                       <li key={a.absenceEventId}>
                         <Link
                           href={viewAbsenceHref(a.personId)}
@@ -1401,11 +1403,6 @@ export default async function DashboardPage() {
                         </Link>
                       </li>
                     ))}
-                    {absenceActions.awaitingLastDate.length > 3 ? (
-                      <li className="pt-0.5 text-[11px] text-white/45">
-                        {absenceActions.awaitingLastDate.length - 3} more waiting
-                      </li>
-                    ) : null}
                   </ul>
                 )}
               </div>
