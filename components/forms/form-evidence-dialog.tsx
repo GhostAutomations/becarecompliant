@@ -21,7 +21,7 @@
  * opened about (see lib/forms/draft-key.ts).
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useActionState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
@@ -56,6 +56,10 @@ export default function FormEvidenceDialog({
   keepDraft = true,
   onSaved,
   openOnMount = false,
+  initialAi,
+  questionsEditable = false,
+  questionsNote,
+  questionsFooter,
 }: {
   title: string;
   schema: FormSchema;
@@ -75,6 +79,16 @@ export default function FormEvidenceDialog({
   onSaved?: (state: ActionState) => void;
   /** Open straight away, e.g. when a dashboard link asked for this form by id. */
   openOnMount?: boolean;
+  /** AI drafted questions already saved for this record (and any answers already given), so
+   *  they show straight away and Draft it for me is never pressed, or paid for, twice. */
+  initialAi?: { questions: AiQuestion[]; answers?: string[] | null };
+  /** Let the person reading the drafted questions reword them or take one out. */
+  questionsEditable?: boolean;
+  /** A line shown above the drafted questions, e.g. who answered them and when. */
+  questionsNote?: ReactNode;
+  /** Shown under the drafted questions, e.g. a Send to employee panel. It receives the
+   *  questions as they are on screen now, and can lock them once they have gone. */
+  questionsFooter?: (ctx: { questions: AiQuestion[]; locked: boolean; lock: () => void }) => ReactNode;
   /** Optional AI assist. The action returns { data } of field key to text, which is
    *  merged into the answers for the user to EDIT before saving. Nothing is stored by
    *  drafting, so a draft they dislike costs a credit and leaves no record.
@@ -123,8 +137,28 @@ export default function FormEvidenceDialog({
   // arrives, so the label and the disabled state are never late.
   const [drafting, setDrafting] = useState(false);
   // AI drafted questions and the answers being typed into them, held by index.
-  const [aiQuestions, setAiQuestions] = useState<AiQuestion[]>([]);
-  const [aiAnswers, setAiAnswers] = useState<string[]>([]);
+  const [aiQuestions, setAiQuestions] = useState<AiQuestion[]>(initialAi?.questions ?? []);
+  const [aiAnswers, setAiAnswers] = useState<string[]>(
+    (initialAi?.questions ?? []).map((_, i) => initialAi?.answers?.[i] ?? ""),
+  );
+  const [questionsLocked, setQuestionsLocked] = useState(false);
+  /* Saved questions can change underneath a closed dialog (the employee answers, the page
+     refreshes). Take the new copy while it is closed; never while someone is typing in it. */
+  const initialAiKey = JSON.stringify(initialAi ?? null);
+  useEffect(() => {
+    if (open || !initialAi) return;
+    setAiQuestions(initialAi.questions);
+    setAiAnswers(initialAi.questions.map((_, i) => initialAi.answers?.[i] ?? ""));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialAiKey, open]);
+
+  function setAiQuestionText(index: number, text: string) {
+    setAiQuestions((prev) => prev.map((q, i) => (i === index ? { ...q, question: text } : q)));
+  }
+  function removeAiQuestion(index: number) {
+    setAiQuestions((prev) => prev.filter((_, i) => i !== index));
+    setAiAnswers((prev) => prev.filter((_, i) => i !== index));
+  }
 
   // Drop hidden fields from what we render and validate. The server still
   // validates against the full published version, so only omit optional fields.
@@ -227,6 +261,11 @@ export default function FormEvidenceDialog({
     setSubmitting(true);
     const fd = new FormData();
     fd.set("answers", JSON.stringify(payload));
+    // The drafted questions and answers as a list as well, so the server can tell which answers
+    // were changed. Presentational: the saved answer is the serialised text above.
+    if (aiQuestions.length > 0) {
+      fd.set("ai_questions_json", JSON.stringify({ questions: aiQuestions, answers: aiAnswers }));
+    }
     for (const [k, v] of Object.entries(extraFields ?? {})) fd.set(k, v);
     for (const [key, file] of Object.entries(files)) {
       if (file) fd.append(`file:${key}`, file);
@@ -258,7 +297,12 @@ export default function FormEvidenceDialog({
             </div>
 
             <form onSubmit={onSubmit} className="space-y-6">
-              {aiDraft ? (
+              {aiDraft && aiDraft.questions && aiQuestions.length > 0 ? (
+                <p className="text-xs text-white/50">
+                  These questions are saved to this record, so they are not drafted again and no
+                  more AI credits are used.
+                </p>
+              ) : aiDraft ? (
                 <div className="rounded-xl border border-white/10 bg-white/5 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className="text-sm text-white/70">{aiDraft.hint}</p>
@@ -309,13 +353,38 @@ export default function FormEvidenceDialog({
                       your own words and record what you are told. Your answers are saved with
                       the form.
                     </p>
+                    {questionsNote ? <div className="mt-3">{questionsNote}</div> : null}
                   </div>
                   <div className="flex flex-col gap-5">
                     {aiQuestions.map((q, i) => (
                       <div key={`ai-q-${i}`} className="flex flex-col gap-1.5">
-                        <label htmlFor={`ai-q-${i}`} className="form-label">
-                          {q.question}
-                        </label>
+                        {questionsEditable && !questionsLocked ? (
+                          <div className="flex items-start gap-2">
+                            <input
+                              type="text"
+                              aria-label={`Question ${i + 1}`}
+                              value={q.question}
+                              maxLength={300}
+                              disabled={busy}
+                              onChange={(e) => setAiQuestionText(i, e.target.value)}
+                              className="flex-1"
+                            />
+                            {aiQuestions.length > 1 ? (
+                              <button
+                                type="button"
+                                className="btn-ghost px-2 py-1.5 text-xs"
+                                disabled={busy}
+                                onClick={() => removeAiQuestion(i)}
+                              >
+                                Remove
+                              </button>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <label htmlFor={`ai-q-${i}`} className="form-label">
+                            {q.question}
+                          </label>
+                        )}
                         {q.type === "yes_no" ? (
                           <div className="mt-1 flex gap-2">
                             {["Yes", "No"].map((opt) => (
@@ -361,6 +430,15 @@ export default function FormEvidenceDialog({
                       </div>
                     ))}
                   </div>
+                  {questionsFooter ? (
+                    <div className="mt-5">
+                      {questionsFooter({
+                        questions: aiQuestions,
+                        locked: questionsLocked,
+                        lock: () => setQuestionsLocked(true),
+                      })}
+                    </div>
+                  ) : null}
                 </section>
               ) : null}
 

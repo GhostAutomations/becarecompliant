@@ -3548,3 +3548,25 @@ sees the Out of Hours urgent follow ups panel.
 Then (Phil, 2026-09-25): "lets have these tiles on one line overdue, due in 7 - 14 - 30". The
 Open actions tile (the overdue count) is renamed Overdue and sits with Due in 7, 14 and 30 days
 on their own row: four across on a desktop, two by two on a tablet, one on a phone.
+
+### 2026-09-25 — Twilio live, and Return to Work questions answered by the employee (migration 0331)
+Twilio: Be Care Compliant texts from its own number, +44 7886 077200, bought in Thistle Care's
+Twilio account (Phil: "lets just set it up in thistle"; Thistle's existing number stays with Join
+Care Now). Replies go to /api/webhooks/twilio/sms; TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and
+TWILIO_FROM are in Vercel. Incoming texts proven live (two filed in sms_inbound, signature
+checked). Twilio answers HELP itself and never forwards it; STOP and START are forwarded. Phil:
+no overdue alerts by text for now.
+Return to Work (Phil: "when that is drafted it stays for that specific return to work, so it
+stops using ai credits, then it sends a text with a link to those questions in the employee
+portal, then they must complete those questions. it then comes back to the return to work and
+the return to work tile is updated"). Agreed by popup: whoever drafted checks and sends; the
+link opens in their portal and needs them signed in; a Supervisor or above checks the answers
+and can change them after ringing the employee. rtw_questionnaires holds one set per absence;
+Draft it for me reads a saved set back instead of spending a credit; Send to (name) by text
+checks the mobile, the portal login (resends the set up email when never accepted), the plan and
+the texts left; /my/return-to-work/[id] and a card at the top of My area take the answers through
+submit_my_rtw_answers, which only accepts the signed in person's own questions with every one
+answered. The tile and the Absence page show Questions sent, Link expired or Answers in, live.
+Recording the interview writes who answered and which answers were changed, by whom, at the top
+of the answers, and closes the link. Included in the subject access export. Database probe 10/10
+(scripts/rtw-questions-probe.sql); live steps in TEST-CHECKLIST-RTW-TEXT.md.

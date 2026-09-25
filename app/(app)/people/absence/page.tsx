@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import { listOutstandingRtw } from "@/lib/absence/rtw";
+import { listRtwQuestionnaires } from "@/lib/absence/rtw-questions-data";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import { listBranches, listBranchNames, getCompanyFormByKey } from "@/lib/people/data";
 import { listAbsenceRegister, listActivePeople, listAbsenceEvents, listOpenBookings, listMeetingConductors, listMeetingOffices } from "@/lib/absence/data";
@@ -61,6 +62,9 @@ export default async function AbsencePage() {
       listBranchNames(companyId),
     ]);
 
+  // Saved Return to Work questions (0331): read back, never drafted twice.
+  const rtwQuestionnaires = await listRtwQuestionnaires(outstandingRtw.map((r) => r.absenceEventId));
+
   const absenceSchema: FormSchema | null =
     absenceForm && isFormSchema(absenceForm.schema) ? (absenceForm.schema as FormSchema) : null;
   const meetingSchema: FormSchema | null =
@@ -75,7 +79,7 @@ export default async function AbsencePage() {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <RealtimeRefresh
-        tables={["absence_events", "absence_meetings"]}
+        tables={["absence_events", "absence_meetings", "rtw_questionnaires"]}
         channel="absence"
       />
       <BackLink href="/people" label="Back to People" />
@@ -92,6 +96,7 @@ export default async function AbsencePage() {
         rtwSchema={rtwSchema}
         currentUserName={(profile.full_name ?? "").trim() || profile.email}
         outstandingRtw={outstandingRtw}
+        rtwQuestionnaires={rtwQuestionnaires}
         openBookings={openBookings}
         conductors={conductors}
         offices={offices}

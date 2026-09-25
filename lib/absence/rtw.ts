@@ -12,6 +12,7 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { AWAITING_LAST_DATE_FROM, isAwaitingLastDate } from "@/lib/absence/rtw-list";
+import type { RtwQuestionnaireStatus } from "@/lib/absence/rtw-questions";
 
 export type OutstandingRtw = {
   absenceEventId: string;
@@ -26,6 +27,8 @@ export type OutstandingRtw = {
   dueDate: string;
   /** Red once the due date has passed, amber while it is still ahead. */
   overdue: boolean;
+  /** The questions texted to the employee (0331), when there are any the caller may see. */
+  questions: { status: RtwQuestionnaireStatus; expiresAt: string | null } | null;
 };
 
 /** Today as YYYY-MM-DD in Europe/London, matching the rest of the app. */
@@ -42,7 +45,7 @@ export async function listOutstandingRtw(companyId: string): Promise<Outstanding
   const { data } = await supabase
     .from("absence_events")
     .select(
-      "id, person_id, start_date, end_date, return_date, days, reason, rtw_due_date, people!inner(full_name, employment_status, archived_at), branches(name)",
+      "id, person_id, start_date, end_date, return_date, days, reason, rtw_due_date, people!inner(full_name, employment_status, archived_at), branches(name), rtw_questionnaires(status, expires_at)",
     )
     .eq("company_id", companyId)
     .eq("people.employment_status", "active")
@@ -64,7 +67,13 @@ export async function listOutstandingRtw(companyId: string): Promise<Outstanding
     rtw_due_date: string;
     people: { full_name: string } | null;
     branches: { name: string } | null;
-  }> | null) ?? []).map((r) => ({
+    rtw_questionnaires:
+      | { status: RtwQuestionnaireStatus; expires_at: string | null }
+      | Array<{ status: RtwQuestionnaireStatus; expires_at: string | null }>
+      | null;
+  }> | null) ?? []).map((r) => {
+    const q = Array.isArray(r.rtw_questionnaires) ? r.rtw_questionnaires[0] ?? null : r.rtw_questionnaires;
+    return {
     absenceEventId: r.id,
     personId: r.person_id,
     personName: r.people?.full_name ?? "Unknown",
@@ -76,7 +85,9 @@ export async function listOutstandingRtw(companyId: string): Promise<Outstanding
     reason: r.reason,
     dueDate: r.rtw_due_date,
     overdue: r.rtw_due_date < today,
-  }));
+    questions: q ? { status: q.status, expiresAt: q.expires_at } : null,
+    };
+  });
 }
 
 export type AwaitingLastDate = {

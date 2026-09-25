@@ -35,6 +35,8 @@ import { getCompanyFormByKey } from "@/lib/people/data";
 import { getRtwContext } from "./rtw";
 import type { Answers } from "@/lib/form-schema";
 import { stripJsonFence, toAiQuestions, type ActionState, type AiQuestion } from "@/lib/forms";
+import { getRtwQuestionnaire } from "@/lib/absence/rtw-questions-data";
+import { changedAnswerNumbers, rtwProvenanceNote } from "@/lib/absence/rtw-questions";
 
 // v4: the model writes ALL of the questions. The guardrails below are unchanged from
 // v1, v2 and v3 and must stay that way: never diagnose, never speculate about a medical
@@ -122,6 +124,17 @@ export async function draftReturnToWork(
   const absenceId = String(formData.get("absence_event_id") ?? "");
   if (!absenceId) return { error: "Missing absence." };
 
+  /* DRAFTED ONCE, KEPT (Phil, 2026-09-25): "when that is drafted it stays for that specific
+     return to work, so it stops using ai credits". If this absence already has saved questions,
+     hand those back and spend nothing. */
+  const saved = await getRtwQuestionnaire(absenceId);
+  if (saved && saved.questions.length > 0) {
+    return {
+      ok: "Drafted",
+      data: { absence_summary: saved.summary ?? "", ai_questions: JSON.stringify(saved.questions) },
+    } as ActionState;
+  }
+
   const ctx = await getRtwContext(absenceId);
   if (!ctx) return { error: "That absence could not be found." };
 
@@ -152,6 +165,36 @@ export async function draftReturnToWork(
 
   const { summary, questions } = readDraft(result.ok);
   if (questions.length > 0) {
+    // Save it to this Return to Work straight away, so the next press reads it back for free
+    // and the questions can be checked and texted to the employee (migration 0331).
+    const supabase = await createClient();
+    const { data: ev } = await supabase
+      .from("absence_events")
+      .select("person_id, branch_id")
+      .eq("id", absenceId)
+      .maybeSingle();
+    if (ev) {
+      const { error: insErr } = await supabase.from("rtw_questionnaires").insert({
+        company_id: profile.company_id,
+        absence_event_id: absenceId,
+        person_id: ev.person_id,
+        branch_id: ev.branch_id ?? null,
+        summary,
+        questions,
+        drafted_by: profile.id,
+        drafted_by_name: profile.full_name,
+      });
+      // Two people pressing at once: the first draft wins and both see it.
+      if (insErr) {
+        const won = await getRtwQuestionnaire(absenceId);
+        if (won && won.questions.length > 0) {
+          return {
+            ok: "Drafted",
+            data: { absence_summary: won.summary ?? "", ai_questions: JSON.stringify(won.questions) },
+          } as ActionState;
+        }
+      }
+    }
     return {
       ok: "Drafted",
       // absence_summary is a real field key and is merged straight into the answers.
@@ -206,6 +249,36 @@ export async function recordReturnToWork(
   const form = await getCompanyFormByKey(profile.company_id, "return_to_work");
   if (!form) return { error: "The Return to Work form is not available for your company yet." };
 
+  /* THE EMPLOYEE'S OWN ANSWERS (0331). When they answered through their portal, say so at the
+     top of the answers, and say which ones the interviewer changed after ringing them. The
+     final answers come from the dialog; what the employee sent is read back from the database,
+     never taken from the browser. */
+  const questionnaire = await getRtwQuestionnaire(absenceId);
+  let changed: number[] = [];
+  if (questionnaire?.status === "answered" && questionnaire.answers) {
+    let finalAnswers: string[] = [];
+    try {
+      const posted = JSON.parse(String(formData.get("ai_questions_json") ?? "{}")) as { answers?: unknown };
+      if (Array.isArray(posted.answers)) finalAnswers = posted.answers.map((a) => String(a ?? ""));
+    } catch {
+      finalAnswers = [];
+    }
+    if (finalAnswers.length > 0) changed = changedAnswerNumbers(questionnaire.answers, finalAnswers);
+    const { data: who } = await supabase
+      .from("people")
+      .select("full_name")
+      .eq("id", absence.person_id as string)
+      .maybeSingle();
+    const note = rtwProvenanceNote({
+      firstName: String(who?.full_name ?? "").trim().split(/\s+/)[0] ?? "",
+      answeredAtIso: questionnaire.answeredAt ?? new Date().toISOString(),
+      changed,
+      changedByName: profile.full_name,
+    });
+    const existing = typeof answers.tailored_questions === "string" ? answers.tailored_questions : "";
+    answers = { ...answers, tailored_questions: existing ? `${note}\n\n${existing}` : note };
+  }
+
   const files: EvidenceFileInput[] = [];
   for (const [key, value] of formData.entries()) {
     if (key.startsWith("file:") && value instanceof File && value.size > 0) {
@@ -241,6 +314,24 @@ export async function recordReturnToWork(
     return { error: "The interview was saved as Evidence but the absence could not be updated." };
   }
 
+  // The questions are finished with: the link in the text stops working, and the tile stops
+  // saying "Answers in".
+  if (questionnaire && questionnaire.status !== "recorded") {
+    await supabase
+      .from("rtw_questionnaires")
+      .update({
+        status: "recorded",
+        ...(changed.length > 0
+          ? {
+              answers_changed_at: new Date().toISOString(),
+              answers_changed_by: profile.id,
+              answers_changed_by_name: profile.full_name,
+            }
+          : {}),
+      })
+      .eq("id", questionnaire.id);
+  }
+
   await writeAudit({
     companyId: profile.company_id,
     actorId: user.id,
@@ -254,6 +345,7 @@ export async function recordReturnToWork(
   });
 
   revalidatePath("/people/absence");
+  revalidatePath("/dashboard");
   revalidatePath(`/people/${absence.person_id}`);
   return { ok: "Recorded", redirectTo: `/people/absence` };
 }

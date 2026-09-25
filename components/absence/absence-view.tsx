@@ -25,6 +25,9 @@ import { recordableStages } from "@/lib/absence/record-meeting";
 import { absenceCountState, countedAbsences, meetingDiscountReason } from "@/lib/absence/discount";
 import { draftReturnToWork, recordReturnToWork } from "@/lib/absence/rtw-actions";
 import type { OutstandingRtw } from "@/lib/absence/rtw";
+import type { RtwQuestionnaire } from "@/lib/absence/rtw-questions-data";
+import { rtwQuestionsPill } from "@/lib/absence/rtw-questions";
+import RtwSendPanel from "@/components/absence/rtw-send-panel";
 import { rtwFromSearch, viewFromSearch } from "@/lib/absence/rtw-list";
 
 /** The card shows the office NAME, not the full address (Phil, 2026-07-12):
@@ -65,6 +68,7 @@ export default function AbsenceView({
   rtwSchema,
   currentUserName,
   outstandingRtw,
+  rtwQuestionnaires,
   openBookings,
   conductors,
   offices,
@@ -92,6 +96,8 @@ export default function AbsenceView({
    *  option exactly or the server rejects the answer on save. */
   currentUserName: string;
   outstandingRtw: OutstandingRtw[];
+  /** Saved Return to Work questions (0331), keyed by absence id. */
+  rtwQuestionnaires: Record<string, RtwQuestionnaire>;
   openBookings: OpenBookingRow[];
   conductors: ConductorLite[];
   offices: MeetingOffice[];
@@ -358,9 +364,17 @@ export default function AbsenceView({
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
+                  {(() => {
+                    const pill = rtwQuestionsPill(r.questions, Date.now());
+                    return pill ? <span className={pill.className}>{pill.label}</span> : null;
+                  })()}
                   <span className={r.overdue ? "pill-red" : "pill-amber"}>
                     {r.overdue ? "Overdue" : "Due"} {fmtDay(r.dueDate)}
                   </span>
+                  {(() => {
+                    const saved = rtwQuestionnaires[r.absenceEventId];
+                    const first = r.personName.trim().split(/\s+/)[0] ?? "";
+                    return (
                   <FormEvidenceDialog
                     title={`Return to Work for ${r.personName}`}
                     schema={rtwSchema}
@@ -385,7 +399,41 @@ export default function AbsenceView({
                       // Phil: "a drop down filled with the person logged in but
                       // changeable". Usually you are the one holding the interview.
                       conducted_by: conductedByDefault,
+                      ...(saved?.summary ? { absence_summary: saved.summary } : {}),
                     }}
+                    initialAi={
+                      saved && saved.questions.length > 0
+                        ? { questions: saved.questions, answers: saved.answers }
+                        : undefined
+                    }
+                    /* Phil, 2026-09-25: whoever drafted them checks them before they go. Only
+                       while nothing has been sent, because after that the employee may already
+                       be reading the saved set. */
+                    questionsEditable={!saved || saved.status === "drafted"}
+                    questionsNote={
+                      saved?.status === "answered" ? (
+                        <p className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3 text-sm text-white/80">
+                          {first || "They"} answered these through their portal
+                          {saved.answeredAt
+                            ? ` on ${fmtDay(new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date(saved.answeredAt)))}`
+                            : ""}. If
+                          you are not happy with an answer, ring them and change it here before you
+                          save.
+                        </p>
+                      ) : null
+                    }
+                    questionsFooter={({ questions, lock }) => (
+                      <RtwSendPanel
+                        absenceEventId={r.absenceEventId}
+                        firstName={first}
+                        status={saved?.status ?? "drafted"}
+                        sentAt={saved?.sentAt ?? null}
+                        sentToLast4={saved?.sentToLast4 ?? null}
+                        expiresAt={saved?.expiresAt ?? null}
+                        questions={questions}
+                        lock={lock}
+                      />
+                    )}
                     aiDraft={{
                       action: draftReturnToWork,
                       label: "Draft it for me",
@@ -400,6 +448,8 @@ export default function AbsenceView({
                       questions: { dataKey: "ai_questions", answerKey: "tailored_questions" },
                     }}
                   />
+                    );
+                  })()}
                 </div>
               </div>
             ))}

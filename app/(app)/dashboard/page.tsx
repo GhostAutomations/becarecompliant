@@ -11,6 +11,7 @@ import { featureEnabled } from "@/lib/billing/tier";
 import { getOnCallLabel } from "@/lib/on-call/company-label";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import { offSinceLabel, rtwAbsenceDates, rtwDueLabel, rtwHref, viewAbsenceHref } from "@/lib/absence/rtw-list";
+import { rtwQuestionsPill } from "@/lib/absence/rtw-questions";
 import BillingAttention from "@/components/billing/billing-attention";
 import {
   isBillableSeat,
@@ -778,6 +779,8 @@ export default async function DashboardPage() {
         tables={["service_users", "check_instances", "service_user_trackers"]}
         channel="service-users-live"
       />
+      {/* A Return to Work moves the moment the employee sends their answers (0331). */}
+      <RealtimeRefresh tables={["rtw_questionnaires", "absence_events"]} channel="rtw-live" />
 
       {billingMessage ? <BillingAttention message={billingMessage} /> : null}
 
@@ -1274,8 +1277,16 @@ export default async function DashboardPage() {
                           </span>
                           {/* Overdue pulses like an urgent follow up over 24 hours (Phil,
                               2026-09-24). The word Overdue carries it without the motion. */}
-                          <span className={`${r.overdue ? "pill-red pill-pulse" : "pill-amber"} shrink-0`}>
-                            {rtwDueLabel(r)}
+                          <span className="flex shrink-0 flex-col items-end gap-1">
+                            <span className={`${r.overdue ? "pill-red pill-pulse" : "pill-amber"} shrink-0`}>
+                              {rtwDueLabel(r)}
+                            </span>
+                            {/* The questions texted to them (0331): sent, answered, or the link
+                                ran out. Answers in is the one that means "your turn". */}
+                            {(() => {
+                              const pill = rtwQuestionsPill(r.questions, renderedAt);
+                              return pill ? <span className={`${pill.className} shrink-0`}>{pill.label}</span> : null;
+                            })()}
                           </span>
                         </Link>
                       </li>

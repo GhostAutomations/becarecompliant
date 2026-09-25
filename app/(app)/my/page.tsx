@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
+import { createClient } from "@/lib/supabase/server";
+import { rtwPortalPath } from "@/lib/absence/rtw-questions";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import { getCompanyFormByKey } from "@/lib/people/data";
 import { isFormSchema, type FormSchema } from "@/lib/form-schema";
@@ -112,6 +114,10 @@ export default async function MyAreaPage() {
     moneyForm && isFormSchema(moneyForm.schema) ? (moneyForm.schema as FormSchema) : null;
 
   const holidays = record ? await getMyHolidays(record.id) : [];
+  // Return to Work questions waiting for their answers (0331). Their own, through
+  // my_open_rtw_questions, which only ever returns the signed in person's.
+  const { data: openRtw } = await (await createClient()).rpc("my_open_rtw_questions");
+  const rtwWaiting = ((openRtw as Array<{ id: string; sent_at: string | null; question_count: number }> | null) ?? []);
   // Item 26: the person being chased about their training was the only one who could not
   // look it up. Read through their own RLS (0173) and scored with the register's own rule.
   const training = record ? await getMyTraining(record.id) : [];
@@ -164,6 +170,24 @@ export default async function MyAreaPage() {
           Your holidays, your briefings to read and sign, and the forms you have sent in.
         </p>
       </div>
+
+      {/* RETURN TO WORK QUESTIONS (Phil, 2026-09-25). First on the page: the text sends them
+          here, and a question their manager is waiting on outranks everything else. */}
+      {rtwWaiting.length > 0 ? (
+        <section className="glass-card border border-amber-400/30 p-5">
+          <p className="text-lg font-semibold text-white">Questions from your manager</p>
+          <p className="mt-1 text-sm text-white/70">
+            Please answer a few questions before your Return to Work meeting.
+          </p>
+          <div className="mt-3 flex flex-col gap-2">
+            {rtwWaiting.map((r) => (
+              <Link key={r.id} href={rtwPortalPath(r.id)} className="btn-primary self-start px-4 py-2 text-sm">
+                Answer {r.question_count} question{r.question_count === 1 ? "" : "s"}
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {!record ? (
         <div className="glass-card p-5">

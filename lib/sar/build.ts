@@ -240,6 +240,31 @@ export async function buildSubjectAccessExport(input: {
       empty: "No absence meetings.",
     });
 
+    // ---- Return to Work questions they were sent and what they answered (0331)
+    const { data: rtwq } = await db
+      .from("rtw_questionnaires")
+      .select("questions, answers, status, sent_at, answered_at")
+      .eq("person_id", recordId)
+      .order("created_at", { ascending: true });
+    const rtwRows: string[][] = [];
+    for (const r of (rtwq ?? []) as Array<Record<string, unknown>>) {
+      if (!r.sent_at) continue; // a draft nobody sent was never put to them
+      const qs = Array.isArray(r.questions) ? (r.questions as Array<{ question?: unknown }>) : [];
+      const as = Array.isArray(r.answers) ? (r.answers as unknown[]) : [];
+      qs.forEach((q, i) => {
+        rtwRows.push([
+          fmtDateTime(r.sent_at as string), t(q?.question), t(as[i] ?? ""), fmtDateTime(r.answered_at as string),
+        ]);
+      });
+    }
+    sections.push({
+      title: "Return to Work questions",
+      file: "return-to-work-questions.csv",
+      headers: ["Sent", "Question", "Their answer", "Answered"],
+      rows: rtwRows,
+      empty: "No Return to Work questions were sent.",
+    });
+
     // ---- Leaving
     const { data: leave } = await db
       .from("person_leavings")
