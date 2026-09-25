@@ -3536,3 +3536,13 @@ days stay quiet. Active people only, RLS scoped. lib/absence/rtw-list.ts isAwait
 tests. Same session: Supervisors now get the Out of Hours urgent follow ups panel on the
 dashboard (Phil: "also need to add the Out of Hours: urgent follow ups tile to the supervisor
 dash"); RLS already let them read those handovers.
+Trialled live on Bevan signed in as ZZ Test Supervisor, 2026-09-25, all steps pass: an absence
+for ZZ TEST Audit Starter from 24/09 with no last date appeared under "Waiting for a last date"
+("Off since 24/09/2026 · 2 days"); its row opened that person's View absence; a last date of
+25/09 moved it up with the interview due 28/09; changing it to 26/09 moved the due date to 29/09;
+clearing it removed the Return to Work and put it back under Waiting. The Supervisor also now
+sees the Out of Hours urgent follow ups panel.
+
+Then (Phil, 2026-09-25): "lets have these tiles on one line overdue, due in 7 - 14 - 30". The
+Open actions tile (the overdue count) is renamed Overdue and sits with Due in 7, 14 and 30 days
+on their own row: four across on a desktop, two by two on a tablet, one on a phone.

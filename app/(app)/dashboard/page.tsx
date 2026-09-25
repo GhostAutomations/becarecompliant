@@ -915,15 +915,7 @@ export default async function DashboardPage() {
             the first one caused. Both existed to make a fixed layout behave; a fluid grid needs
             neither, so the tiles are now direct cells and cannot be stretched by a neighbour.
           */}
-          <Tile
-            href="/people"
-            label="Open actions"
-            icon="actions"
-            iconTone="indigo"
-            value={overdue}
-            tone={overdue > 0 ? "red" : "green"}
-            sub={`${people.overdue} people, ${serviceUsers.overdue} service users`}
-          />
+          {/* Open actions (the overdue count) moved down into the Overdue, 7, 14, 30 line. */}
           {/* Holidays, in place of the Upcoming inspections tile nothing feeds (Phil, 2026-07-30).
               Pending requests are the only holiday figure that is somebody's job right now. */}
           <Tile
@@ -1106,40 +1098,49 @@ export default async function DashboardPage() {
               },
             ]}
           />
-          {/*
-            THE THREE "DUE IN" TILES LIVE UP HERE NOW (2026-09-16). They are stat tiles: one
-            figure, one caption, the same component as everything around them. They were sitting
-            in the panel grid below, sharing rows with the PQS report, and a row is as tall as
-            its tallest member, so three short tiles were being drawn as 500px boxes with a
-            number floating at the top. Cards of very different heights should not share a grid.
-          */}
+      </div>
 
-          <Tile
-            href="/people"
-            label="Due in 7 days"
-            value={dueSoon.d7}
-            tone={dueSoon.d7 > 0 ? "amber" : "green"}
-            icon="calendar"
-            iconTone="orange"
-            sub="checks falling due"
-          />
-          <Tile
-            href="/people"
-            label="Due in 14 days"
-            value={dueSoon.d14}
-            icon="calendar"
-            iconTone="orange"
-            sub="includes the next 7 days"
-          />
-          <Tile
-            href="/people"
-            label="Due in 30 days"
-            value={dueSoon.d30}
-            icon="calendar"
-            iconTone="orange"
-            sub="includes the next 14 days"
-          />
-
+      {/*
+        OVERDUE, THEN DUE IN 7, 14 AND 30, ON ONE LINE (Phil, 2026-09-24: "lets have these tiles on
+        one line overdue, due in 7 - 14 - 30"). One question, "what is coming at me", read left to
+        right from already late to a month out. Four equal columns on a desktop, two by two on a
+        tablet or phone. Overdue is the old Open actions figure under the name it means.
+      */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Tile
+          href="/people"
+          label="Overdue"
+          icon="actions"
+          iconTone="indigo"
+          value={overdue}
+          tone={overdue > 0 ? "red" : "green"}
+          sub={`${people.overdue} people, ${serviceUsers.overdue} service users`}
+        />
+        <Tile
+          href="/people"
+          label="Due in 7 days"
+          value={dueSoon.d7}
+          tone={dueSoon.d7 > 0 ? "amber" : "green"}
+          icon="calendar"
+          iconTone="orange"
+          sub="checks falling due"
+        />
+        <Tile
+          href="/people"
+          label="Due in 14 days"
+          value={dueSoon.d14}
+          icon="calendar"
+          iconTone="orange"
+          sub="includes the next 7 days"
+        />
+        <Tile
+          href="/people"
+          label="Due in 30 days"
+          value={dueSoon.d30}
+          icon="calendar"
+          iconTone="orange"
+          sub="includes the next 14 days"
+        />
       </div>
 
       {/*
