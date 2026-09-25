@@ -802,7 +802,14 @@ export default async function DashboardPage() {
         .dash-grid fits as many columns as the window allows. No twelfths, no hand-placed spans
         and no breakpoint that can be set to a number nobody checked the arithmetic against.
       */}
-      <div className="dash-grid">
+      {/*
+        ONE LINE (Phil, 2026-09-25: "fit them on the top line that top line needs work, because of
+        the rediness tile the others are stretched"). On a desktop every tile in this block sits
+        in a single row on a wide screen (2xl, 1536px and up), however many the role and tier turn
+        on, each taking an equal share and Readiness two; the Readiness card is now as short as the
+        others, so nothing is stretched to match it. Narrower, they wrap four, three or two a row.
+      */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4 2xl:auto-cols-fr 2xl:grid-flow-col 2xl:grid-cols-none">
         {/* The dial sits BESIDE the percentage, and the breakdown row runs full width beneath
             both, so there is no dead column under the ring. */}
         {/* NO row span. It had one from when the tiles were two separate blocks; they are one
@@ -819,7 +826,7 @@ export default async function DashboardPage() {
             (seen live, 17 Aug QA). 2xl keeps the third column through the laptop widths and
             gives it back on big monitors, where two twelfths genuinely is wide enough.
          */}
-        <div className="glass-card flex flex-col justify-between gap-3 p-5">
+        <div className={`glass-card flex flex-col gap-2 p-4 ${score.enabled ? "col-span-2 md:col-span-1 xl:col-span-2" : ""}`}>
           {score.enabled ? (
             <>
               {/*
@@ -833,12 +840,15 @@ export default async function DashboardPage() {
                 <p className="text-xs uppercase tracking-wide text-white/50">
                   {score.regulator === "cqc" ? "CQC readiness" : "CIW readiness"}
                 </p>
-                <ul className="mt-3 space-y-2.5">
+                {/* COMPACT (2026-09-25): one line per theme, title and status. The reason and the
+                    breakdown button made this card twice the height of every tile beside it; the
+                    reason is on the Readiness page, and the whole list links there. */}
+                <Link href="/readiness" className="mt-2 block space-y-1 rounded-lg transition hover:bg-white/[0.04]">
                   {score.requirements
                     .filter((r) => r.mapped)
                     .map((r) => (
-                      <li key={r.code} className="min-w-0">
-                        <div className="flex items-center justify-between gap-2">
+                      <span key={r.code} className="block min-w-0">
+                        <span className="flex items-center justify-between gap-2">
                           <span className="truncate text-sm font-semibold text-white">{r.title}</span>
                           <span
                             className={`shrink-0 text-[11px] font-semibold ${
@@ -859,19 +869,12 @@ export default async function DashboardPage() {
                                   ? "On track"
                                   : "Not started"}
                           </span>
-                        </div>
-                        <p className="truncate text-xs text-white/55">{r.reason}</p>
-                      </li>
+                        </span>
+                      </span>
                     ))}
-                </ul>
+                  <span className="block pt-0.5 text-[11px] font-semibold text-gold-300">Readiness breakdown &rsaquo;</span>
+                </Link>
               </div>
-              <Link
-                href="/readiness"
-                className="flex w-full items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-gold-300 transition hover:bg-white/[0.08]"
-              >
-                Readiness breakdown
-                <span aria-hidden>&rsaquo;</span>
-              </Link>
             </>
           ) : (
             <div>
@@ -879,10 +882,11 @@ export default async function DashboardPage() {
               {/* Two different reasons land here and they must not share a sentence: a
                   Supervisor was told the feature is "not switched on for this company"
                   while the Admin was looking at a live score (17 Aug QA). */}
+              {/* Short, so this card is no taller than the tiles beside it. */}
               <p className="mt-2 text-sm text-white/60">
                 {companyWide
-                  ? "Inspection Readiness is not switched on for this company, so there is no score to show. Every other figure on this page is live."
-                  : "The compliance score is part of the management view, so it is not shown for your role. Every figure below is live."}
+                  ? "Not switched on for this company."
+                  : "Part of the management view, not shown for your role."}
               </p>
             </div>
           )}
@@ -1141,104 +1145,6 @@ export default async function DashboardPage() {
           iconTone="orange"
           sub="includes the next 14 days"
         />
-      </div>
-
-      {/*
-        THE LOWER PANELS, on the same fluid rule as row one.
-        These carry tables, a five day strip and a list rather than single figures, so the floor
-        is wider (.dash-grid-wide). NO spans and no row spans: three panels of similar height,
-        each taking one track, so auto-fit simply divides the width between them and they are
-        balanced at any size. The old version pinned each to named twelfths with explicit row
-        spans and a col-start, which is why the arrangement fell apart the moment the window was
-        not one of the three widths it had been laid out against.
-      */}
-      {/*
-        THE PQS REPORT IS ITS OWN ROW (Phil, 2026-09-16: "i dont wont any gaps").
-        It is a report; Planner and Recent activity are short lists. Sharing a grid row, one of
-        two things had to happen and both were wrong: stretch the short ones to the report's
-        height and pad them with dead space, or let them take their own height and leave a hole
-        underneath. The answer is not an alignment setting, it is not putting a tall thing and
-        short things in the same row. Full width also lets its branch tiles spread across a wide
-        monitor, which makes the report SHORTER as the screen gets wider.
-      */}
-      <div>
-        {/* THE PQS REPORT, not Inspection Readiness (Phil, 2026-07-29). Both figures are read
-            from the SAME functions the real PQS report uses, so the two can never quote
-            different numbers. The on time completion measures are deliberately not recomputed
-            here: that logic lives in the report builder, and a second copy of it is exactly how
-            the Evidence page and the Evidence PDF came to disagree. */}
-        {/* THE PQS REPORT. Every measure Cardiff scores, from the SAME computation the report
-            renders (lib/export/on-time getPqsMeasures), so the dashboard and the report can never
-            disagree. Each white tile opens the report at ITS OWN scope. */}
-        {/* NOT a whole card link any more (Phil, 2026-07-30): each white tile is its own link to
-            that branch's PQS report, and an anchor inside an anchor is invalid HTML that the
-            browser silently unnests. */}
-        {pqs && pqs.length > 0 ? (
-          <Panel title="PQS report">
-            {/* Two by two (Phil, 2026-07-29). The white tiles ARE the report now: the bar list
-                that used to sit under them said the same thing twice, so it is gone. More than
-                four scopes and the grid scrolls rather than shrinking the tiles. */}
-            {/* Full width now, so the scroller and the fixed two columns both go: the tiles
-                spread as far as the monitor allows and there is nothing left to scroll. */}
-            <div className="flex flex-col">
-              <div>
-                <div className="dash-grid">
-                  {pqsScopes.map((sc, i) => (
-                    <ScoreTile
-                      key={sc.key}
-                      name={sc.name}
-                      measures={sc.measures}
-                      /* No odd-number span any more. That rule existed because the grid was
-                         pinned at two columns, so three scopes left one beside an empty cell.
-                         auto-fit decides the column count from the width, so three scopes are
-                         three across wherever there is room for them. */
-                      /* A link only where it will actually open: the report viewer admits
-                         MANAGER_PLUS_ROLES, so a Supervisor following one would be bounced
-                         straight back here. The company tile opens the SAME report across all
-                         branches, which is what its figures are. */
-                      href={
-                        canOpenReports
-                          ? `/reports/view/on-time?branch=${sc.branchId ?? "all"}`
-                          : undefined
-                      }
-                    />
-                  ))}
-                </div>
-              </div>
-              {/* The ACTUAL days, not "the last six months". The window rolls: it is recomputed
-                  on every load from the same defaultOnTimeWindow the report and the PDF use, so
-                  the three always name the same period. Deliberately not the user's to change,
-                  because it is the window Cardiff scores. */}
-              <p className="mt-3 shrink-0 border-t border-white/10 pt-2.5 text-[11px] text-white/50">
-                Completion rate {fmtWindowDate(pqsWindow.from)} to {fmtWindowDate(pqsWindow.to)}.
-                {/* Only promises what is actually on the screen: a role the report viewer will
-                    not admit has nothing to open. */}
-                {canOpenReports ? " Open a tile for its full report." : null}
-              </p>
-            </div>
-          </Panel>
-        ) : (
-          <div>
-            <MissingPanel
-              title="PQS report"
-              needs={
-                canSeePqs
-                  ? "No recurring checks are configured yet, so there is nothing to score."
-                  : "Personal outcomes and satisfaction are Pro features and are not switched on for this company."
-              }
-            />
-          </div>
-        )}
-
-{/* THREE windows in place of the Due in 14 days tile and its by check panel (Phil,
-            2026-07-30), which were two boxes answering the same question. NESTED: the 30 day
-            figure includes the 14, and the 14 includes the 7, which is what "due in 30 days"
-            means to a manager. The captions say so rather than leaving it to be worked out. */}
-        {/* A sub grid of THREE equal columns inside the seven this row has spare. Twelve columns
-            will not divide into three equal spans (2, 2, 3 was the closest), and widening the row
-            would mean moving the PQS report. This gives three identical tiles and touches nothing
-            else. */}
-
       </div>
 
       <div className="dash-grid-wide">
@@ -1513,6 +1419,110 @@ export default async function DashboardPage() {
             </ul>
           )}
         </Panel>
+      </div>
+
+      {/*
+        ORDER (Phil, 2026-09-25: "things at the bottom are below the pqs and hidden"). The lists
+        people act on (urgent follow ups, Return to Work, Planner, Recent activity) come straight
+        after the figures, and the PQS report, a report to read rather than a list to work, goes
+        last. It used to sit in the middle and push the working lists off the bottom of the screen.
+      */}
+      {/*
+        THE LOWER PANELS, on the same fluid rule as row one.
+        These carry tables, a five day strip and a list rather than single figures, so the floor
+        is wider (.dash-grid-wide). NO spans and no row spans: three panels of similar height,
+        each taking one track, so auto-fit simply divides the width between them and they are
+        balanced at any size. The old version pinned each to named twelfths with explicit row
+        spans and a col-start, which is why the arrangement fell apart the moment the window was
+        not one of the three widths it had been laid out against.
+      */}
+      {/*
+        THE PQS REPORT IS ITS OWN ROW (Phil, 2026-09-16: "i dont wont any gaps").
+        It is a report; Planner and Recent activity are short lists. Sharing a grid row, one of
+        two things had to happen and both were wrong: stretch the short ones to the report's
+        height and pad them with dead space, or let them take their own height and leave a hole
+        underneath. The answer is not an alignment setting, it is not putting a tall thing and
+        short things in the same row. Full width also lets its branch tiles spread across a wide
+        monitor, which makes the report SHORTER as the screen gets wider.
+      */}
+      <div>
+        {/* THE PQS REPORT, not Inspection Readiness (Phil, 2026-07-29). Both figures are read
+            from the SAME functions the real PQS report uses, so the two can never quote
+            different numbers. The on time completion measures are deliberately not recomputed
+            here: that logic lives in the report builder, and a second copy of it is exactly how
+            the Evidence page and the Evidence PDF came to disagree. */}
+        {/* THE PQS REPORT. Every measure Cardiff scores, from the SAME computation the report
+            renders (lib/export/on-time getPqsMeasures), so the dashboard and the report can never
+            disagree. Each white tile opens the report at ITS OWN scope. */}
+        {/* NOT a whole card link any more (Phil, 2026-07-30): each white tile is its own link to
+            that branch's PQS report, and an anchor inside an anchor is invalid HTML that the
+            browser silently unnests. */}
+        {pqs && pqs.length > 0 ? (
+          <Panel title="PQS report">
+            {/* Two by two (Phil, 2026-07-29). The white tiles ARE the report now: the bar list
+                that used to sit under them said the same thing twice, so it is gone. More than
+                four scopes and the grid scrolls rather than shrinking the tiles. */}
+            {/* Full width now, so the scroller and the fixed two columns both go: the tiles
+                spread as far as the monitor allows and there is nothing left to scroll. */}
+            <div className="flex flex-col">
+              <div>
+                <div className="dash-grid">
+                  {pqsScopes.map((sc, i) => (
+                    <ScoreTile
+                      key={sc.key}
+                      name={sc.name}
+                      measures={sc.measures}
+                      /* No odd-number span any more. That rule existed because the grid was
+                         pinned at two columns, so three scopes left one beside an empty cell.
+                         auto-fit decides the column count from the width, so three scopes are
+                         three across wherever there is room for them. */
+                      /* A link only where it will actually open: the report viewer admits
+                         MANAGER_PLUS_ROLES, so a Supervisor following one would be bounced
+                         straight back here. The company tile opens the SAME report across all
+                         branches, which is what its figures are. */
+                      href={
+                        canOpenReports
+                          ? `/reports/view/on-time?branch=${sc.branchId ?? "all"}`
+                          : undefined
+                      }
+                    />
+                  ))}
+                </div>
+              </div>
+              {/* The ACTUAL days, not "the last six months". The window rolls: it is recomputed
+                  on every load from the same defaultOnTimeWindow the report and the PDF use, so
+                  the three always name the same period. Deliberately not the user's to change,
+                  because it is the window Cardiff scores. */}
+              <p className="mt-3 shrink-0 border-t border-white/10 pt-2.5 text-[11px] text-white/50">
+                Completion rate {fmtWindowDate(pqsWindow.from)} to {fmtWindowDate(pqsWindow.to)}.
+                {/* Only promises what is actually on the screen: a role the report viewer will
+                    not admit has nothing to open. */}
+                {canOpenReports ? " Open a tile for its full report." : null}
+              </p>
+            </div>
+          </Panel>
+        ) : (
+          <div>
+            <MissingPanel
+              title="PQS report"
+              needs={
+                canSeePqs
+                  ? "No recurring checks are configured yet, so there is nothing to score."
+                  : "Personal outcomes and satisfaction are Pro features and are not switched on for this company."
+              }
+            />
+          </div>
+        )}
+
+{/* THREE windows in place of the Due in 14 days tile and its by check panel (Phil,
+            2026-07-30), which were two boxes answering the same question. NESTED: the 30 day
+            figure includes the 14, and the 14 includes the 7, which is what "due in 30 days"
+            means to a manager. The captions say so rather than leaving it to be worked out. */}
+        {/* A sub grid of THREE equal columns inside the seven this row has spare. Twelve columns
+            will not divide into three equal spans (2, 2, 3 was the closest), and widening the row
+            would mean moving the PQS report. This gives three identical tiles and touches nothing
+            else. */}
+
       </div>
     </div>
   );
