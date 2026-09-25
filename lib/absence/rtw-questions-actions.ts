@@ -18,7 +18,7 @@ import { getCompanyTier, tierHasFeature } from "@/lib/billing/tier";
 import { sendSms, twilioConfigured } from "@/lib/sms/twilio";
 import { SMS_OPTED_OUT } from "@/lib/sms/opt-out";
 import { OUT_OF_SMS_CREDITS } from "@/lib/billing/sms-credits";
-import { inviteOrResendForPerson } from "@/lib/staff/invite";
+import { resendStaffInviteByEmail } from "@/lib/invites";
 import { siteUrl } from "@/lib/site";
 import { toAiQuestions, type ActionState } from "@/lib/forms";
 import {
@@ -80,7 +80,7 @@ export async function sendRtwQuestions(
 
   const { data: person } = await supabase
     .from("people")
-    .select("id, full_name, mobile, profile_id, employment_status, companies(name)")
+    .select("id, full_name, mobile, work_email, profile_id, employment_status, companies(name)")
     .eq("id", q.person_id as string)
     .maybeSingle();
   if (!person) return { error: "That person could not be found." };
@@ -154,18 +154,24 @@ export async function sendRtwQuestions(
     return { error: "The text went, but the Return to Work could not be updated. Please refresh the page." };
   }
 
-  // A login they never set up would stop them at the sign in page, so send the set up email again.
+  /* A login they never set up would stop them at the sign in page, so send the set up email
+     again. Straight to the resend: inviteOrResendForPerson stops at "already has a login" for a
+     person whose login exists but was never accepted, and sends nothing (found live 2026-09-25,
+     when it reported the email as sent and none arrived). Only say it went if it did. */
   let loginNote = "";
   if (loginStatus === "invited") {
-    const again = await inviteOrResendForPerson(person.id as string, {
-      id: user.id,
-      name: profile.full_name,
-      email: profile.email,
-      role: profile.role,
-    });
-    loginNote = again.ok
-      ? " They have not set up their portal login yet, so their set up email has been sent again too."
-      : " They have not set up their portal login yet, and the set up email could not be sent again. Check the email on their record.";
+    const again = person.work_email
+      ? await resendStaffInviteByEmail(companyId, person.work_email as string, {
+          id: user.id,
+          name: profile.full_name,
+          email: profile.email,
+          role: profile.role,
+        })
+      : null;
+    loginNote =
+      again?.ok && again.emailSent
+        ? " They have not set up their portal login yet, so their set up email has been sent again too."
+        : ` They have not set up their portal login yet, and their set up email could not be sent${again && !again.ok ? ` (${again.error})` : ""}. Use Send invite on their record.`;
   }
 
   await writeAudit({

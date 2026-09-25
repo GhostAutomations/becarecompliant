@@ -19,10 +19,10 @@ after a phone call if needed, and record.
 
 ## Live (after deploy)
 R1. Draft it for me on a Return to Work: questions appear and are saved; close and reopen, the
-    same questions are there and no second AI credit is used.
+    same questions are there and no second AI credit is used. PASS 2026-09-25 (8 saved, 1 credit)
 R2. Reword a question and remove one, then Send to (name) by text: the text arrives from
-    07886 077200 with a link.
-R3. The dashboard tile and the Absence page show "Questions sent".
+    07886 077200 with a link. PASS 2026-09-25 (after DEF-076 fix, 0332)
+R3. The dashboard tile and the Absence page show "Questions sent". PASS 2026-09-25
 R4. Tap the link signed out: the login page, then straight to the questions after signing in.
 R5. Leave a question blank and send: it says which one needs an answer. Answer them all: thank you.
 R6. The dashboard tile shows "Answers in" without a refresh.

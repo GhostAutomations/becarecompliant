@@ -2323,3 +2323,20 @@ always the last date (or return date) plus three days, and there is none while n
 a recorded interview keeps the due date it was done against. Proved in a rolled back probe on
 Bevan: 21/09 gives 24/09, extended to 25/09 gives 28/09, cleared gives none, and after the
 interview is recorded a later change leaves the due date alone. No existing row was out of step.
+
+## DEF-076 - No text could ever be paid for, so none could be sent
+Found live 2026-09-25 on the first real send (a Return to Work link on Bevan): "Could not check
+the SMS allowance: spend_sms_credit: not permitted for company ...". 0160 recognised the service
+role through the old request.jwt.claim.role setting, which current PostgREST no longer sets (and
+this project's service key is an sb_secret key), so the guard treated every send as a stranger.
+Nothing noticed because Twilio was only switched on today. **Fixed (0332, applied):** the service
+role is recognised by the request's role, the JSON claims or the old setting; everyone else still
+needs membership and EXECUTE stays service role only. Rolled back probe: service role spends,
+a signed in user and anon are refused. The second send went through and reached Phil's phone.
+
+## DEF-077 - "Their set up email has been sent again" when none was
+Found live 2026-09-25: sending the Return to Work text to a carer who never accepted their login
+said the set up email had gone again; nothing arrived and the invite's resend count stayed 0.
+inviteOrResendForPerson stops at "already has a login" whenever the person is linked to a login,
+accepted or not, and returns ok. **Fixed:** the text now resends through resendStaffInviteByEmail
+and only says it went when the email actually did.

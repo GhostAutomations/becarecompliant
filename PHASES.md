@@ -3570,3 +3570,6 @@ answered. The tile and the Absence page show Questions sent, Link expired or Ans
 Recording the interview writes who answered and which answers were changed, by whom, at the top
 of the answers, and closes the link. Included in the subject access export. Database probe 10/10
 (scripts/rtw-questions-probe.sql); live steps in TEST-CHECKLIST-RTW-TEXT.md.
+Live test on Bevan (moved to Black by Phil for it) found two defects, both fixed the same day:
+DEF-076, no text could be paid for (0332), and DEF-077, the set up email said it was resent when it
+was not. R1 (saved, no second credit), R2 (text arrived) and R3 (tile shows Questions sent) PASS.
