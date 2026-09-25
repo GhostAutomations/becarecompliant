@@ -1337,8 +1337,12 @@ export default async function DashboardPage() {
                 date yet, from the day after they began. A Return to Work cannot be asked for until
                 there is a last date, so the bottom half is the step before the top one. Three rows
                 each, and the corner link goes to the rest. */}
-            <div className="flex h-full flex-col gap-3">
-              <div className="min-h-0 flex-1">
+            {/* NATURAL HEIGHT, NOT flex-1 (2026-09-25, Phil: "there is text on top of text"). Two
+                halves told to share a fixed height squeezed three rows into 129px of a 180px
+                list, and the overflow printed over "Waiting for a last date". Each half now takes
+                the height it needs and the panel grows; its neighbours stretch to match. */}
+            <div className="flex flex-col gap-3">
+              <div>
                 {absenceActions.rtwList.length === 0 ? (
                   <p className="text-sm text-white/55">No Return to Work interviews are waiting.</p>
                 ) : (
@@ -1372,7 +1376,7 @@ export default async function DashboardPage() {
                   </ul>
                 )}
               </div>
-              <div className="min-h-0 flex-1 border-t border-white/10 pt-3">
+              <div className="border-t border-white/10 pt-3">
                 <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-white/50">
                   Waiting for a last date
                 </p>
