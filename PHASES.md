@@ -3522,3 +3522,17 @@ when the handover was first saved (created_at); a slow red pulse, not a hard bli
 pill. lib/on-call/format.ts urgentIsOverdue, one test; .pill-pulse in globals.css.
 Then: "have that pill flash as well". An overdue Return to Work on the dashboard pulses the same
 way (pill-red pill-pulse), steady for reduced motion.
+
+### 2026-09-24 — Waiting for a last date, under Return to Work due
+
+Phil: "in the return to work due tile in the dash, when a absence is create, on the day after,
+split the tile and in the bottom have absences that are waiting for a end date, trial it in
+bevan". The dashboard panel is now two halves: Return to Work due (three rows) on top, and
+"Waiting for a last date" below: open absences with no last date, from the day after the absence
+began, each reading "Off since 25/09/2026 · 2 days" with an amber "Add last date" pill that opens
+that person's View absence on the Absence page (?view=<person>). Only absences recorded from
+25/09/2026 onwards (Phil: "Only absences recorded from now on"), so Thistle's imported single
+days stay quiet. Active people only, RLS scoped. lib/absence/rtw-list.ts isAwaitingLastDate, two
+tests. Same session: Supervisors now get the Out of Hours urgent follow ups panel on the
+dashboard (Phil: "also need to add the Out of Hours: urgent follow ups tile to the supervisor
+dash"); RLS already let them read those handovers.

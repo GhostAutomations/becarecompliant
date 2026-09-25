@@ -11,6 +11,7 @@ import "server-only";
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { AWAITING_LAST_DATE_FROM_UTC, isAwaitingLastDate } from "@/lib/absence/rtw-list";
 
 export type OutstandingRtw = {
   absenceEventId: string;
@@ -76,6 +77,57 @@ export async function listOutstandingRtw(companyId: string): Promise<Outstanding
     dueDate: r.rtw_due_date,
     overdue: r.rtw_due_date < today,
   }));
+}
+
+export type AwaitingLastDate = {
+  absenceEventId: string;
+  personId: string;
+  personName: string;
+  branchName: string;
+  startDate: string;
+  reason: string | null;
+};
+
+/** Open absences still waiting for a last date, oldest first (see lib/absence/rtw-list.ts for the
+ *  rule). Active people only, and RLS scopes it exactly like the Return to Works. */
+export async function listAwaitingLastDate(companyId: string): Promise<AwaitingLastDate[]> {
+  const supabase = await createClient();
+  const today = londonToday();
+  const { data } = await supabase
+    .from("absence_events")
+    .select(
+      "id, person_id, start_date, end_date, return_date, reason, created_at, people!inner(full_name, employment_status, archived_at), branches(name)",
+    )
+    .eq("company_id", companyId)
+    .is("end_date", null)
+    .is("return_date", null)
+    .lt("start_date", today)
+    .gte("created_at", AWAITING_LAST_DATE_FROM_UTC)
+    .eq("people.employment_status", "active")
+    .is("people.archived_at", null)
+    .order("start_date", { ascending: true })
+    .limit(200);
+  return ((data as Array<{
+    id: string;
+    person_id: string;
+    start_date: string;
+    end_date: string | null;
+    return_date: string | null;
+    reason: string | null;
+    created_at: string;
+    people: { full_name: string } | null;
+    branches: { name: string } | null;
+  }> | null) ?? [])
+    // The same rule as the query, from the one tested function, so the two cannot drift.
+    .filter((r) => isAwaitingLastDate(r, today))
+    .map((r) => ({
+      absenceEventId: r.id,
+      personId: r.person_id,
+      personName: r.people?.full_name ?? "Unknown",
+      branchName: r.branches?.name ?? "",
+      startDate: r.start_date,
+      reason: r.reason,
+    }));
 }
 
 export type RtwContext = {

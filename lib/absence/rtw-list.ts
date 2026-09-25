@@ -49,3 +49,43 @@ export function rtwFromSearch(search: string): string | null {
   const v = new URLSearchParams(search).get("rtw") ?? "";
   return /^[0-9a-f-]{36}$/i.test(v) ? v : null;
 }
+
+/**
+ * ABSENCES WAITING FOR A LAST DATE (Phil, 2026-09-24): "when a absence is create, on the day
+ * after ... have absences that are waiting for a end date". No last date means no Return to Work
+ * can be asked for, so an open absence is the step before one.
+ *
+ * Listed from the day after the absence began, until a last date is entered.
+ *
+ * Only absences RECORDED from 25/09/2026 (midnight London) onwards: the history imported from
+ * monday is single days with no last date on purpose, and listing it would ask Thistle for last
+ * dates, and then Return to Works, on absences from April (Phil: "Only absences recorded from now
+ * on").
+ */
+export const AWAITING_LAST_DATE_FROM_UTC = "2026-09-24T23:00:00Z";
+
+export function isAwaitingLastDate(
+  ev: { start_date: string; end_date: string | null; return_date: string | null; created_at: string },
+  todayIso: string,
+): boolean {
+  if (ev.end_date || ev.return_date) return false;
+  if (ev.start_date >= todayIso) return false;
+  return Date.parse(ev.created_at) >= Date.parse(AWAITING_LAST_DATE_FROM_UTC);
+}
+
+/** "Off since 22/09/2026 · 3 days" (counting the first day). */
+export function offSinceLabel(startIso: string, todayIso: string): string {
+  const days = Math.round((Date.parse(`${todayIso}T00:00:00Z`) - Date.parse(`${startIso}T00:00:00Z`)) / 86_400_000) + 1;
+  return `Off since ${slash(startIso)} · ${days} day${days === 1 ? "" : "s"}`;
+}
+
+/** The Absence page with that person's View absence already open, where the last date goes. */
+export function viewAbsenceHref(personId: string): string {
+  return `/people/absence?view=${encodeURIComponent(personId)}`;
+}
+
+/** The person asked for in ?view=, if it looks like an id. */
+export function viewFromSearch(search: string): string | null {
+  const v = new URLSearchParams(search).get("view") ?? "";
+  return /^[0-9a-f-]{36}$/i.test(v) ? v : null;
+}

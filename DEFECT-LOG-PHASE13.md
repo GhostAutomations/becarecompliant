@@ -2312,3 +2312,14 @@ lib/on-call/format.ts completedByLine, one test.
 **Live (dpl_98stkcuy):** the 22/09 PM handover reads "Finalised · 22 Sept, 22:33  Completed by
 Lauren Morgan", and the Handover register's Completed by column shows Lauren Morgan for 22/09 and
 21/09. Checked signed in as Phil (Thistle Admin).
+
+## DEF-075 - A Return to Work due date did not follow the last date
+
+**Found 2026-09-24** answering Phil's question about when a Return to Work is asked for. 0142's
+trigger set rtw_due_date only while it was empty: extending an absence (last date 21/09 to 25/09)
+left the interview due 24/09, and clearing the last date left an interview asked for, for someone
+who had not come back. **Fixed (0330, applied):** until the interview is recorded the due date is
+always the last date (or return date) plus three days, and there is none while neither is known;
+a recorded interview keeps the due date it was done against. Proved in a rolled back probe on
+Bevan: 21/09 gives 24/09, extended to 25/09 gives 28/09, cleared gives none, and after the
+interview is recorded a later change leaves the due date alone. No existing row was out of step.

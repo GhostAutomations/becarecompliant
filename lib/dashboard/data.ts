@@ -17,7 +17,7 @@ import {
   listActivePeople,
 } from "@/lib/absence/data";
 import { listMyBookings } from "@/lib/planner/data";
-import { listOutstandingRtw, type OutstandingRtw } from "@/lib/absence/rtw";
+import { listAwaitingLastDate, listOutstandingRtw, type AwaitingLastDate, type OutstandingRtw } from "@/lib/absence/rtw";
 import { sortRtwForDashboard } from "@/lib/absence/rtw-list";
 
 /** Today in Europe/London as an ISO yyyy-mm-dd string (dates compare lexically). */
@@ -393,13 +393,16 @@ export type AbsenceActions = {
   rtwOverdue: number;
   /** The outstanding Return to Works themselves, overdue first, for the list under the tile. */
   rtwList: OutstandingRtw[];
+  /** Open absences with no last date yet, from the day after they began (Phil, 2026-09-24). */
+  awaitingLastDate: AwaitingLastDate[];
 };
 
 export async function getAbsenceActions(companyId: string): Promise<AbsenceActions> {
-  const [{ rows }, openBookings, rtw] = await Promise.all([
+  const [{ rows }, openBookings, rtw, awaitingLastDate] = await Promise.all([
     listAbsenceRegister(companyId, null),
     listOpenBookings(companyId),
     listOutstandingRtw(companyId),
+    listAwaitingLastDate(companyId),
   ]);
   const booked = new Set(openBookings.map((b) => b.person_id));
   return {
@@ -407,6 +410,7 @@ export async function getAbsenceActions(companyId: string): Promise<AbsenceActio
     rtw: rtw.length,
     rtwOverdue: rtw.filter((r) => r.overdue).length,
     rtwList: sortRtwForDashboard(rtw),
+    awaitingLastDate,
   };
 }
 

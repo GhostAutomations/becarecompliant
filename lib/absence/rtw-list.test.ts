@@ -1,6 +1,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { rtwAbsenceDates, rtwDueLabel, rtwFromSearch, rtwHref, sortRtwForDashboard } from "./rtw-list.ts";
+import {
+  isAwaitingLastDate,
+  offSinceLabel,
+  rtwAbsenceDates,
+  rtwDueLabel,
+  rtwFromSearch,
+  rtwHref,
+  sortRtwForDashboard,
+  viewAbsenceHref,
+  viewFromSearch,
+} from "./rtw-list.ts";
 
 test("overdue first, then soonest due", () => {
   const rows = [
@@ -27,4 +37,32 @@ test("the link opens that Return to Work and nothing else", () => {
   assert.equal(rtwFromSearch(`?rtw=${id}`), id);
   assert.equal(rtwFromSearch("?rtw=not-an-id"), null);
   assert.equal(rtwFromSearch(""), null);
+});
+
+test("an absence waits for a last date from the day after it began, if recorded from 25/09", () => {
+  const today = "2026-09-26";
+  const base = { end_date: null, return_date: null, created_at: "2026-09-25T08:10:00Z" };
+  assert.equal(isAwaitingLastDate({ ...base, start_date: "2026-09-25" }, today), true);
+  assert.equal(isAwaitingLastDate({ ...base, start_date: "2026-09-26" }, today), false, "not on its first day");
+  assert.equal(isAwaitingLastDate({ ...base, start_date: "2026-09-25", end_date: "2026-09-25" }, today), false);
+  assert.equal(isAwaitingLastDate({ ...base, start_date: "2026-09-25", return_date: "2026-09-26" }, today), false);
+  assert.equal(
+    isAwaitingLastDate({ ...base, start_date: "2026-04-25", created_at: "2026-09-24T20:00:00Z" }, today),
+    false,
+    "history recorded before 25/09 stays quiet",
+  );
+  assert.equal(
+    isAwaitingLastDate({ ...base, start_date: "2026-09-24", created_at: "2026-09-24T23:30:00Z" }, today),
+    true,
+    "00:30 on 25/09 London time counts",
+  );
+});
+
+test("off since counts the first day, and the view link opens that person", () => {
+  assert.equal(offSinceLabel("2026-09-25", "2026-09-26"), "Off since 25/09/2026 · 2 days");
+  assert.equal(offSinceLabel("2026-09-26", "2026-09-26"), "Off since 26/09/2026 · 1 day");
+  const id = "65546658-925a-495a-ab0a-cbdf4fa5e921";
+  assert.equal(viewAbsenceHref(id), `/people/absence?view=${id}`);
+  assert.equal(viewFromSearch(`?view=${id}`), id);
+  assert.equal(viewFromSearch("?view=x"), null);
 });

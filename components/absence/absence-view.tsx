@@ -25,7 +25,7 @@ import { recordableStages } from "@/lib/absence/record-meeting";
 import { absenceCountState, countedAbsences, meetingDiscountReason } from "@/lib/absence/discount";
 import { draftReturnToWork, recordReturnToWork } from "@/lib/absence/rtw-actions";
 import type { OutstandingRtw } from "@/lib/absence/rtw";
-import { rtwFromSearch } from "@/lib/absence/rtw-list";
+import { rtwFromSearch, viewFromSearch } from "@/lib/absence/rtw-list";
 
 /** The card shows the office NAME, not the full address (Phil, 2026-07-12):
  *  "Cardiff Branch Office", "Acme Care Company Office" or "Teams". The full
@@ -113,13 +113,19 @@ export default function AbsenceView({
   /* A dashboard Return to Work row links here with ?rtw=<absence id>: open that interview's
      form, then drop the parameter so a refresh does not open it again. */
   const [openRtwId, setOpenRtwId] = useState<string | null>(null);
+  /* A dashboard "Add last date" row links here with ?view=<person id>: open that person's
+     View absence, where the last date is entered. */
+  const [openViewPersonId, setOpenViewPersonId] = useState<string | null>(null);
   useEffect(() => {
     try {
       const id = rtwFromSearch(window.location.search);
-      if (!id) return;
-      setOpenRtwId(id);
+      const viewId = viewFromSearch(window.location.search);
+      if (!id && !viewId) return;
+      if (id) setOpenRtwId(id);
+      if (viewId) setOpenViewPersonId(viewId);
       const url = new URL(window.location.href);
       url.searchParams.delete("rtw");
+      url.searchParams.delete("view");
       window.history.replaceState(null, "", url.pathname + url.search);
     } catch {
       // No window: nothing to open.
@@ -565,6 +571,7 @@ export default function AbsenceView({
                     canEdit={canManage}
                     canDiscount={canDiscount}
                     windowStart={windowStart}
+                    openOnMount={openViewPersonId === r.personId}
                   />
                   {canManage ? (
                     <BookMeetingDialog

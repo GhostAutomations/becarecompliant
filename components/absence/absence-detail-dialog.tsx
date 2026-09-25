@@ -203,6 +203,7 @@ export default function AbsenceDetailDialog({
   canEdit,
   canDiscount = false,
   windowStart,
+  openOnMount = false,
   triggerLabel = "View absence",
   triggerClassName = "btn-outline px-3 py-1.5 text-xs",
 }: {
@@ -213,12 +214,17 @@ export default function AbsenceDetailDialog({
   canDiscount?: boolean;
   /** First date inside the rolling window, to label absences that have aged out. */
   windowStart: string;
+  /** Open straight away: a dashboard "Add last date" row asked for this person. */
+  openOnMount?: boolean;
   triggerLabel?: string;
   triggerClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    if (openOnMount) setOpen(true);
+  }, [openOnMount]);
 
   return (
     <>

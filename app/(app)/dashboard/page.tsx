@@ -9,7 +9,8 @@ import { getUrgentFollowUps } from "@/lib/on-call/data";
 import { shiftLabel, urgentIsOverdue } from "@/lib/on-call/format";
 import { featureEnabled } from "@/lib/billing/tier";
 import { getOnCallLabel } from "@/lib/on-call/company-label";
-import { rtwAbsenceDates, rtwDueLabel, rtwHref } from "@/lib/absence/rtw-list";
+import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
+import { offSinceLabel, rtwAbsenceDates, rtwDueLabel, rtwHref, viewAbsenceHref } from "@/lib/absence/rtw-list";
 import BillingAttention from "@/components/billing/billing-attention";
 import {
   isBillableSeat,
@@ -669,9 +670,13 @@ export default async function DashboardPage() {
    * whether anybody had picked it up. companyWide stays as it is: it gates the compliance score,
    * training and policy coverage, and none of those are an On Call caller's business.
    */
-  const onCallPlus = companyWide || profile.role === "on_call";
+  // SUPERVISORS TOO (Phil, 2026-09-24: "also need to add the Out of Hours: urgent follow ups
+  // tile to the supervisor dash"). RLS already lets a Supervisor read their branch's handovers and
+  // the company wide ones, and the Handover page already admits them.
+  const onCallPlus = companyWide || profile.role === "on_call" || profile.role === "supervisor";
   // One "now" for the whole render, so every urgent follow up is judged against the same clock.
   const renderedAt = Date.now();
+  const dashTodayIso = formatCivilDate(todayInLondon());
   const canSeeOnCall = onCallPlus && (await featureEnabled(companyId, "on_call"));
   // The department's name for this company (0276), so the tile does not say "On Call" to a
   // company whose nav calls it something else.
@@ -1327,41 +1332,79 @@ export default async function DashboardPage() {
             form on the Absence page. Five and no scroll, like the urgent follow ups beside it. */}
         {RTW_LIST_ROLES.includes(profile.role) ? (
           <Panel title="Return to Work due" href="/people/absence" linkLabel="Open Absence">
-            {absenceActions.rtwList.length === 0 ? (
-              <div className="flex h-full items-center justify-center">
-                <p className="text-sm text-white/55">No Return to Work interviews are waiting.</p>
+            {/* SPLIT IN TWO (Phil, 2026-09-24). Top: interviews due. Bottom: absences with no last
+                date yet, from the day after they began. A Return to Work cannot be asked for until
+                there is a last date, so the bottom half is the step before the top one. Three rows
+                each, and the corner link goes to the rest. */}
+            <div className="flex h-full flex-col gap-3">
+              <div className="min-h-0 flex-1">
+                {absenceActions.rtwList.length === 0 ? (
+                  <p className="text-sm text-white/55">No Return to Work interviews are waiting.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {absenceActions.rtwList.slice(0, 3).map((r) => (
+                      <li key={r.absenceEventId}>
+                        <Link
+                          href={rtwHref(r.absenceEventId)}
+                          className="flex items-center justify-between gap-3 rounded-xl border border-white/10 px-3 py-2 transition hover:bg-white/[0.06]"
+                        >
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm text-white/85">{r.personName}</span>
+                            <span className="block truncate text-[11px] text-white/45">
+                              Off {rtwAbsenceDates(r.startDate, r.endDate)}
+                              {r.branchName ? ` · ${r.branchName}` : ""}
+                            </span>
+                          </span>
+                          {/* Overdue pulses like an urgent follow up over 24 hours (Phil,
+                              2026-09-24). The word Overdue carries it without the motion. */}
+                          <span className={`${r.overdue ? "pill-red pill-pulse" : "pill-amber"} shrink-0`}>
+                            {rtwDueLabel(r)}
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                    {absenceActions.rtwList.length > 3 ? (
+                      <li className="pt-0.5 text-[11px] text-white/45">
+                        {absenceActions.rtwList.length - 3} more waiting
+                      </li>
+                    ) : null}
+                  </ul>
+                )}
               </div>
-            ) : (
-              <ul className="space-y-2">
-                {absenceActions.rtwList.slice(0, 5).map((r) => (
-                  <li key={r.absenceEventId}>
-                    <Link
-                      href={rtwHref(r.absenceEventId)}
-                      className="flex items-center justify-between gap-3 rounded-xl border border-white/10 px-3 py-2 transition hover:bg-white/[0.06]"
-                    >
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm text-white/85">{r.personName}</span>
-                        <span className="block truncate text-[11px] text-white/45">
-                          Off {rtwAbsenceDates(r.startDate, r.endDate)}
-                          {r.branchName ? ` · ${r.branchName}` : ""}
-                        </span>
-                      </span>
-                      {/* Overdue pulses like an urgent follow up over 24 hours (Phil, 2026-09-24:
-                          "have that pill flash as well"). The word Overdue carries it without the
-                          motion; reduced motion gets a steady red pill. */}
-                      <span className={`${r.overdue ? "pill-red pill-pulse" : "pill-amber"} shrink-0`}>
-                        {rtwDueLabel(r)}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-                {absenceActions.rtwList.length > 5 ? (
-                  <li className="pt-0.5 text-[11px] text-white/45">
-                    {absenceActions.rtwList.length - 5} more waiting
-                  </li>
-                ) : null}
-              </ul>
-            )}
+              <div className="min-h-0 flex-1 border-t border-white/10 pt-3">
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-white/50">
+                  Waiting for a last date
+                </p>
+                {absenceActions.awaitingLastDate.length === 0 ? (
+                  <p className="text-sm text-white/55">Every absence has a last date.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {absenceActions.awaitingLastDate.slice(0, 3).map((a) => (
+                      <li key={a.absenceEventId}>
+                        <Link
+                          href={viewAbsenceHref(a.personId)}
+                          className="flex items-center justify-between gap-3 rounded-xl border border-white/10 px-3 py-2 transition hover:bg-white/[0.06]"
+                        >
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm text-white/85">{a.personName}</span>
+                            <span className="block truncate text-[11px] text-white/45">
+                              {offSinceLabel(a.startDate, dashTodayIso)}
+                              {a.branchName ? ` · ${a.branchName}` : ""}
+                            </span>
+                          </span>
+                          <span className="pill-amber shrink-0">Add last date</span>
+                        </Link>
+                      </li>
+                    ))}
+                    {absenceActions.awaitingLastDate.length > 3 ? (
+                      <li className="pt-0.5 text-[11px] text-white/45">
+                        {absenceActions.awaitingLastDate.length - 3} more waiting
+                      </li>
+                    ) : null}
+                  </ul>
+                )}
+              </div>
+            </div>
           </Panel>
         ) : null}
 
