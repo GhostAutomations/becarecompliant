@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import RealtimeRefresh from "@/components/realtime-refresh";
+import PreviewTile from "@/components/dashboard/preview-tile";
+import type { PreviewLine } from "@/lib/dashboard/due-preview";
 import { getUrgentFollowUps } from "@/lib/on-call/data";
 import { shiftLabel, urgentIsOverdue } from "@/lib/on-call/format";
 import { featureEnabled } from "@/lib/billing/tier";
@@ -25,12 +27,11 @@ import { getIncidentActions } from "@/lib/incidents/data";
 import { listAccessibleBranchTypes } from "@/lib/service-users/data";
 import type { PqsMeasure } from "@/lib/export/on-time";
 import {
-  getComplianceBuckets,
   getComplianceScore,
   getTrainingCompletion,
   getPolicyCoverage,
   getAuditsCompleted,
-  getDueSoon,
+  getDuePreview,
   getPlannerWeek,
   getRecentActivity,
   getPqsSummary,
@@ -167,6 +168,7 @@ function Tile({
   icon,
   iconTone = "indigo",
   className = "",
+  preview,
 }: {
   href?: string;
   label: string;
@@ -176,6 +178,8 @@ function Tile({
   icon?: string;
   iconTone?: string;
   className?: string;
+  /** What sits behind the number, shown on hover (or first tap on a phone). Needs an href. */
+  preview?: { title: string; total: number; lines: PreviewLine[]; emptyText: string };
 }) {
   const valueClass =
     tone === "red"
@@ -212,6 +216,20 @@ function Tile({
       {icon ? <TileIcon name={icon} tone={iconTone} /> : null}
     </div>
   );
+  if (href && preview) {
+    return (
+      <PreviewTile
+        href={href}
+        className={className}
+        title={preview.title}
+        total={preview.total}
+        lines={preview.lines}
+        emptyText={preview.emptyText}
+      >
+        {inner}
+      </PreviewTile>
+    );
+  }
   return href ? (
     /*
       NO h-full, and it is the opposite trap to the one on Panel (measured 2026-09-16: the score
@@ -695,13 +713,12 @@ export default async function DashboardPage() {
   // No feature gate: recording an incident is a legal duty on every tier, Business included.
   const canSeeIncidents = INCIDENT_ROLES.includes(profile.role);
 
-  const { people, serviceUsers } = await getComplianceBuckets(companyId);
   const [
     score,
     trainingPct,
     policyCoverage,
     auditsPct,
-    dueSoon,
+    duePreview,
     plannerWeek,
     complaints,
     incidentActions,
@@ -720,7 +737,7 @@ export default async function DashboardPage() {
       // branch slice of it would answer a question nobody asked.
       companyWide ? getPolicyCoverage(companyId) : Promise.resolve(null),
       getAuditsCompleted(companyId),
-      getDueSoon(companyId),
+      getDuePreview(companyId),
       canSeePlanner ? getPlannerWeek(user.id) : Promise.resolve([]),
       canSeeComplaints
         ? getComplaintCounts(companyId)
@@ -760,7 +777,7 @@ export default async function DashboardPage() {
       : [];
 
   const pqsWindow = defaultOnTimeWindow();
-  const overdue = people.overdue + serviceUsers.overdue;
+  const overdue = duePreview.overdue.total;
   /*
    * SMS and AI are Admin only, so the row has to work with and without them. With: four tiles
    * narrow to two columns each to make room, and both rows still total twelve. Without: those
@@ -1121,13 +1138,15 @@ export default async function DashboardPage() {
           iconTone="indigo"
           value={overdue}
           tone={overdue > 0 ? "red" : "green"}
-          sub={`${people.overdue} people, ${serviceUsers.overdue} service users`}
+          sub={`${duePreview.overdue.people} people, ${duePreview.overdue.serviceUsers} service users`}
+          preview={{ title: "Overdue", ...duePreview.overdue, emptyText: "Nothing is overdue." }}
         />
         <Tile
           href="/people"
           label="Due in 7 days"
-          value={dueSoon.d7}
-          tone={dueSoon.d7 > 0 ? "amber" : "green"}
+          value={duePreview.d7.total}
+          tone={duePreview.d7.total > 0 ? "amber" : "green"}
+          preview={{ title: "Due in 7 days", ...duePreview.d7, emptyText: "Nothing falls due in the next 7 days." }}
           icon="calendar"
           iconTone="orange"
           sub="checks falling due"
@@ -1135,7 +1154,8 @@ export default async function DashboardPage() {
         <Tile
           href="/people"
           label="Due in 14 days"
-          value={dueSoon.d14}
+          value={duePreview.d14.total}
+          preview={{ title: "Due in 14 days", ...duePreview.d14, emptyText: "Nothing falls due in the next 14 days." }}
           icon="calendar"
           iconTone="orange"
           sub="includes the next 7 days"
@@ -1143,7 +1163,8 @@ export default async function DashboardPage() {
         <Tile
           href="/people"
           label="Due in 30 days"
-          value={dueSoon.d30}
+          value={duePreview.d30.total}
+          preview={{ title: "Due in 30 days", ...duePreview.d30, emptyText: "Nothing falls due in the next 30 days." }}
           icon="calendar"
           iconTone="orange"
           sub="includes the next 14 days"

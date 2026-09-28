@@ -19,6 +19,7 @@ import {
 import { listMyBookings } from "@/lib/planner/data";
 import { listAwaitingLastDate, listOutstandingRtw, type AwaitingLastDate, type OutstandingRtw } from "@/lib/absence/rtw";
 import { sortRtwForDashboard } from "@/lib/absence/rtw-list";
+import { buildDuePreview, type DuePreview, type DueRow } from "@/lib/dashboard/due-preview";
 
 /** Today in Europe/London as an ISO yyyy-mm-dd string (dates compare lexically). */
 function londonTodayIso(): string {
@@ -36,81 +37,52 @@ function addDaysIso(iso: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-export type DueBuckets = { overdue: number; due14: number; due30: number };
-
 /**
- * Bucket active records by their MOST URGENT check's due date, into fixed 14 and
- * 30 day windows (independent of the amber setting). Nested: due30 includes
- * due14. A record with an overdue check counts as overdue only.
+ * The Overdue and Due in 7, 14 and 30 day tiles, their numbers AND the list behind each
+ * (Phil, 2026-09-27: hover or tap a tile to see what is due). Both come out of the one pure
+ * function, buildDuePreview, so the figure on a tile and the list under it can never differ.
+ * RLS scopes every row to what the caller may see; the status views already leave out leavers,
+ * archived records and discharged service users.
  */
-async function bucketPopulation(
-  statusView: "person_check_status" | "service_user_check_status",
-  rollupView: "person_rollup" | "service_user_rollup",
-  idCol: "person_id" | "service_user_id",
-  companyId: string,
-): Promise<DueBuckets> {
+export async function getDuePreview(companyId: string): Promise<DuePreview> {
   const supabase = await createClient();
-  const [{ data: active }, { data: checks }] = await Promise.all([
-    supabase.from(rollupView).select(idCol).eq("company_id", companyId),
-    supabase.from(statusView).select(`${idCol}, due_date, rag`).eq("company_id", companyId),
+  const [pc, sc, pn, sn] = await Promise.all([
+    supabase.from("person_check_status").select("person_id, check_name, due_date, rag").eq("company_id", companyId),
+    supabase
+      .from("service_user_check_status")
+      .select("service_user_id, check_name, due_date, rag")
+      .eq("company_id", companyId),
+    supabase.from("people").select("id, full_name").eq("company_id", companyId),
+    supabase.from("service_users").select("id, full_name").eq("company_id", companyId),
   ]);
-
-  const activeSet = new Set<string>(
-    ((active as Array<Record<string, string>> | null) ?? []).map((r) => r[idCol]),
-  );
-
-  const today = londonTodayIso();
-  const in14 = addDaysIso(today, 14);
-  const in30 = addDaysIso(today, 30);
-
-  // Aggregate per active record: is it overdue (any red check), and the soonest
-  // FUTURE due date. Overdue is authoritative from the view's rag, NOT from a raw
-  // date compare (a completed one-off check keeps a historical due_date but is
-  // green, so it must not read as overdue).
-  const agg = new Map<string, { red: boolean; minFuture: string | null }>();
-  for (const c of (checks as Array<Record<string, string | null>> | null) ?? []) {
-    const id = c[idCol] as string | null;
-    if (!id || !activeSet.has(id)) continue;
-    let a = agg.get(id);
-    if (!a) {
-      a = { red: false, minFuture: null };
-      agg.set(id, a);
-    }
-    if (c.rag === "red") a.red = true;
-    const due = c.due_date as string | null;
-    if (due && due >= today && (!a.minFuture || due < a.minFuture)) a.minFuture = due;
+  const names = new Map<string, string>();
+  for (const r of (pn.data as Array<{ id: string; full_name: string | null }> | null) ?? []) {
+    names.set(`person:${r.id}`, r.full_name ?? "Unnamed");
   }
-
-  const buckets: DueBuckets = { overdue: 0, due14: 0, due30: 0 };
-  for (const a of agg.values()) {
-    if (a.red) {
-      buckets.overdue += 1;
-      continue;
-    }
-    if (!a.minFuture) continue;
-    if (a.minFuture <= in14) {
-      buckets.due14 += 1;
-      buckets.due30 += 1;
-    } else if (a.minFuture <= in30) {
-      buckets.due30 += 1;
-    }
+  for (const r of (sn.data as Array<{ id: string; full_name: string | null }> | null) ?? []) {
+    names.set(`service_user:${r.id}`, r.full_name ?? "Unnamed");
   }
-  return buckets;
-}
-
-export async function getComplianceBuckets(
-  companyId: string,
-): Promise<{ people: DueBuckets; serviceUsers: DueBuckets }> {
-  const [people, serviceUsers] = await Promise.all([
-    bucketPopulation("person_check_status", "person_rollup", "person_id", companyId),
-    bucketPopulation(
-      "service_user_check_status",
-      "service_user_rollup",
-      "service_user_id",
-      companyId,
-    ),
-  ]);
-  return { people, serviceUsers };
+  type P = { person_id: string; check_name: string | null; due_date: string | null; rag: string | null };
+  type S = { service_user_id: string; check_name: string | null; due_date: string | null; rag: string | null };
+  const rows: DueRow[] = [
+    ...((pc.data as P[] | null) ?? []).map((r) => ({
+      kind: "person" as const,
+      recordId: r.person_id,
+      name: names.get(`person:${r.person_id}`) ?? "Unnamed",
+      checkName: r.check_name,
+      dueDate: r.due_date,
+      rag: r.rag,
+    })),
+    ...((sc.data as S[] | null) ?? []).map((r) => ({
+      kind: "service_user" as const,
+      recordId: r.service_user_id,
+      name: names.get(`service_user:${r.service_user_id}`) ?? "Unnamed",
+      checkName: r.check_name,
+      dueDate: r.due_date,
+      rag: r.rag,
+    })),
+  ];
+  return buildDuePreview(rows, londonTodayIso());
 }
 
 /** Count of pending holiday requests the caller may see (RLS-scoped). */
@@ -536,37 +508,6 @@ export async function getSpendThisMonth(companyId: string): Promise<SpendThisMon
       monthlyGrant,
     },
   };
-}
-
-export type DueSoon = { d7: number; d14: number; d30: number };
-
-/**
- * Checks falling due in the next 7, 14 and 30 days.
- *
- * NESTED, not three separate bands: the 30 day figure includes the 14, and the 14 includes the 7.
- * That is what "due in 30 days" means to a manager, and it matches getComplianceBuckets, which
- * has nested its own windows since the start. Three exclusive bands would need three captions
- * explaining themselves.
- *
- * Overdue work is deliberately absent. That is the Open actions tile, and counting it here would
- * make the day look worse than it is.
- */
-export async function getDueSoon(companyId: string): Promise<DueSoon> {
-  const rows = await bothRegisters(companyId);
-  const today = londonTodayIso();
-  const in7 = addDaysIso(today, 7);
-  const in14 = addDaysIso(today, 14);
-  const in30 = addDaysIso(today, 30);
-
-  const out: DueSoon = { d7: 0, d14: 0, d30: 0 };
-  for (const r of rows) {
-    if (!r.due_date || !r.check_name) continue;
-    if (r.due_date < today || r.due_date > in30) continue;
-    out.d30 += 1;
-    if (r.due_date <= in14) out.d14 += 1;
-    if (r.due_date <= in7) out.d7 += 1;
-  }
-  return out;
 }
 
 export type PlannerItem = {
