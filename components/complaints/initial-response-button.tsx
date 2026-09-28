@@ -17,6 +17,7 @@ import {
   sendInitialResponse,
   recordPostalResponse,
 } from "@/lib/complaints/actions";
+import { AiIcon } from "@/components/ai-icon";
 
 export default function InitialResponseButton({
   complaintId,
@@ -101,6 +102,7 @@ export default function InitialResponseButton({
         className={done ? "btn btn-saved px-3 py-2 text-sm" : "btn-outline px-3 py-2 text-sm"}
         onClick={openDialog}
       >
+        <AiIcon />
         Initial Response
       </button>
 

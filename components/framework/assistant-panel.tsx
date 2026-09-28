@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { draftReadinessNarrative, askReadiness } from "@/lib/framework/ai";
 import { narrativePlainText } from "@/lib/framework/narrative-text";
+import { AiIcon } from "@/components/ai-icon";
 
 /**
  * The Inspection Readiness assistant. Quick actions and free-text questions
@@ -60,7 +61,14 @@ export default function AssistantPanel({ requirements }: { requirements: Array<{
           <span className="rounded-full bg-gold-400/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gold-300">AI</span>
         </h2>
         <button type="button" onClick={draft} disabled={pending} className="btn-outline text-xs">
-          {pending && mode === "draft" ? "Drafting…" : "Draft inspection narrative"}
+          {pending && mode === "draft" ? (
+            "Drafting…"
+          ) : (
+            <>
+              <AiIcon />
+              Draft inspection narrative
+            </>
+          )}
         </button>
       </div>
 
@@ -71,8 +79,9 @@ export default function AssistantPanel({ requirements }: { requirements: Array<{
             type="button"
             disabled={pending}
             onClick={() => runAsk(c.q)}
-            className="rounded-full border border-white/15 px-3 py-1 text-xs text-white/70 hover:border-gold-400/50 hover:bg-gold-400/10 hover:text-white"
+            className="inline-flex items-center gap-1.5 rounded-full border border-white/15 px-3 py-1 text-xs text-white/70 hover:border-gold-400/50 hover:bg-gold-400/10 hover:text-white"
           >
+            <AiIcon className="h-3 w-3 shrink-0 text-gold-400" />
             {c.label}
           </button>
         ))}
@@ -89,7 +98,14 @@ export default function AssistantPanel({ requirements }: { requirements: Array<{
           aria-label="Ask the readiness assistant"
         />
         <button type="button" onClick={() => runAsk(question)} disabled={pending} className="btn-primary text-sm">
-          {pending && mode === "ask" ? "Thinking…" : "Ask"}
+          {pending && mode === "ask" ? (
+            "Thinking…"
+          ) : (
+            <>
+              <AiIcon className="h-3.5 w-3.5 shrink-0" />
+              Ask
+            </>
+          )}
         </button>
       </div>
 

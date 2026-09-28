@@ -2358,6 +2358,42 @@ is not discovered late.
   and becomes data the pharmacy already holds, and it is what lets BCC stand beside Birdie
   rather than behind it.
 
+### Decisions added 2026-09-26 to 2026-09-28
+
+**Name.** Phil wants **Total Halo** remembered as the name for New Dawn (the all in one
+product). totalhalo.co.uk had no DNS on 2026-09-28 (very likely free); totalhalo.com is
+registered by someone else. Trade marks not yet checked (search classes 9 and 42), and Halo
+Connected Health (UK care records) is a nearby name. Not registered or adopted yet.
+
+**Replacing Care Planner and Birdie.** BCC becomes the one system for Thistle: planning,
+notes, MAR and compliance, Wales only for now.
+- Planning, MAR and notes are built in one go, not staged.
+- Launch at Thistle's Cardiff branch first to test, then Newport.
+- The Care Planner API (Nourish Empower, OAuth2: appointments, carers, clients,
+  timesheets, webhooks) is used for a one off import per branch at switchover, not an
+  ongoing sync. Birdie takes its visits from Care Planner, so a branch moves off both on
+  the same day.
+- Build from published guidance (NICE NG67, the Welsh medicines support principles, CIW
+  regulations) and Thistle's own procedures, never from Birdie's screens, wording or
+  templates (Birdie terms 5.6(e) to (g) forbid it).
+
+**Phil's feature list so far.**
+- Recorded setup: consent step in the app first; the supervisor records the setup (audio
+  only) and uploads it; AI completes the setup; the supervisor checks and approves; the
+  audio is deleted once approved. Needs a speech to text supplier (a new subprocessor, Phil
+  to approve, DPA annex to update); the Claude API does not take audio.
+- MAR from photos: the supervisor photographs each box with its pharmacy label; AI drafts
+  the MAR; the supervisor sets the times or the calls each medicine is given at, checks
+  every line and approves; a second trained person confirms before it goes live. Anything
+  unreadable or "as directed" is flagged, never guessed. The MAR needs date of birth and GP
+  practice (NICE NG67), which service user records do not hold yet.
+
+**Before Cardiff goes live.** A few paid hours from a Clinical Safety Officer (a pharmacist
+fits best) for the hazard log and safety case; Cyber Essentials, PI and cyber insurance and
+an independent penetration test; offline recording designed before the carer app is built;
+a printable rota and MAR each evening plus an out of hours support plan; run alongside Care
+Planner and Birdie on a small group of service users first.
+
 **Do not start any of this until Operation Thistle has signed off.** A platform that schedules
 care on top of a compliance product nobody has yet run in anger is a much worse bet than one
 built on a product a real agency already trusts.

@@ -39,6 +39,7 @@ import {
   type ActionState,
   type AiQuestion,
 } from "@/lib/forms";
+import { AiIcon } from "@/components/ai-icon";
 
 type Action = (prev: ActionState, formData: FormData) => Promise<ActionState>;
 
@@ -328,7 +329,10 @@ export default function FormEvidenceDialog({
                           Drafting…
                         </>
                       ) : (
-                        aiDraft.label
+                        <>
+                          <AiIcon />
+                          {aiDraft.label}
+                        </>
                       )}
                     </button>
                   </div>

@@ -7,6 +7,7 @@ import { REG73_SECTIONS, REG73_AI_FIELDS } from "@/lib/reg73/spec";
 import { saveReg73, submitReg73, aiDraftReg73, refreshReg73Data } from "@/lib/reg73/actions";
 import type { Reg73VisitFull } from "@/lib/reg73/data";
 import Reg73Signature from "@/components/reg73/reg73-signature";
+import { AiIcon } from "@/components/ai-icon";
 
 /** Data derived boxes, pre-filled from the site and re-pulled by Refresh data. Kept
  *  in client state so a refresh updates them in place, with no remount. */
@@ -197,7 +198,14 @@ export default function Reg73Form({
           {refreshing ? "Refreshing…" : "Refresh data"}
         </button>
         <button type="button" onClick={draftWithAi} disabled={busy} className="btn-outline px-3 py-2 text-xs">
-          {drafting ? "Drafting…" : "Draft narrative with AI"}
+          {drafting ? (
+            "Drafting…"
+          ) : (
+            <>
+              <AiIcon />
+              Draft narrative with AI
+            </>
+          )}
         </button>
         {error ? <span className="w-full text-xs font-semibold text-red-400">{error}</span> : null}
       </div>

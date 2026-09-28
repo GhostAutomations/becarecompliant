@@ -30,6 +30,7 @@ import {
   suggestAbsencePolicy,
 } from "@/lib/absence/settings-actions";
 import { useSavedFlash } from "@/lib/use-saved-flash";
+import { AiIcon } from "@/components/ai-icon";
 
 type Row = Record<string, string | number>;
 
@@ -314,7 +315,14 @@ export default function AbsenceSettings({
             disabled={aiPending}
             className="btn-outline px-3 py-2 text-sm"
           >
-            {aiPending ? "Reading policy…" : "Suggest settings with AI"}
+            {aiPending ? (
+              "Reading policy…"
+            ) : (
+              <>
+                <AiIcon />
+                Suggest settings with AI
+              </>
+            )}
           </button>
           {aiState.error && <p className="form-error text-xs">{aiState.error}</p>}
           {summary && (

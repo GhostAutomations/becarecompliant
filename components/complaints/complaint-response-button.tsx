@@ -17,6 +17,7 @@ import {
   sendComplaintResponse,
   recordComplaintResponseLetter,
 } from "@/lib/complaints/actions";
+import { AiIcon } from "@/components/ai-icon";
 
 type Attachment = { path: string; name: string };
 
@@ -117,6 +118,7 @@ export default function ComplaintResponseButton({
     return (
       <span title="Complete the Complaint Investigation first">
         <button type="button" className="btn-outline px-3 py-2 text-sm opacity-50" disabled>
+          <AiIcon />
           Complaint Response
         </button>
       </span>
@@ -130,6 +132,7 @@ export default function ComplaintResponseButton({
         className={done ? "btn btn-saved px-3 py-2 text-sm" : "btn-outline px-3 py-2 text-sm"}
         onClick={openDialog}
       >
+        <AiIcon />
         Complaint Response
       </button>
 
