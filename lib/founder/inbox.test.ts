@@ -129,6 +129,18 @@ test("bounces and out-of-office do not look like a customer waiting", () => {
   assert.equal(looksAutomated("info@livitycare.co.uk", "Re: Your trial request"), false);
 });
 
+test("DMARC reports from every provider are machine mail, a customer mentioning DMARC is not", () => {
+  const sub = "Report domain: becarecompliant.com Submitter: google.com Report-ID: 100052343252";
+  assert.equal(looksAutomated("noreply-dmarc-support@google.com", sub), true);
+  assert.equal(
+    looksAutomated("dmarcreport@microsoft.com", "[Preview] Report Domain: becarecompliant.com Submitter: enterprise.protection.outlook.com"),
+    true,
+  );
+  assert.equal(looksAutomated("noreply@dmarc.yahoo.com", "Report Domain: becarecompliant.com Submitter: yahoo.com"), true);
+  assert.equal(looksAutomated("reports@someprovider.net", "Report Domain: becarecompliant.com Submitter: someprovider.net"), true);
+  assert.equal(looksAutomated("info@livitycare.co.uk", "Question about your DMARC set up"), false);
+});
+
 test("THE LIST NEVER CALLS A FAILED FETCH AN EMPTY EMAIL", () => {
   // This is the wording that made Phil apologise for a defect that was not his:
   // a refused fetch read as "No text content", exactly like a blank message.

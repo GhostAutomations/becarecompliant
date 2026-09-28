@@ -131,7 +131,21 @@ export function isOurAddress(address: string, ourDomains: readonly string[]): bo
  * Obvious machine mail. Not spam filtering — just enough to keep "Mail Delivery Subsystem" and
  * out-of-office replies from looking like a customer waiting on an answer.
  */
+/**
+ * A DMARC aggregate report: the daily summary Google, Microsoft, Yahoo and others send about
+ * mail claiming to be from becarecompliant.com. Machine mail, filed under Other (Phil,
+ * 2026-09-28). Recognised by the sender ("dmarc" in the address, as in
+ * noreply-dmarc-support@google.com, dmarcreport@microsoft.com, noreply@dmarc.yahoo.com) or by the
+ * standard subject, "Report Domain: <domain> Submitter: <provider>", with or without Microsoft's
+ * "[Preview]" in front.
+ */
+export function isDmarcReport(fromAddress: string, subject: string | null | undefined): boolean {
+  if (normaliseAddress(fromAddress).includes("dmarc")) return true;
+  return /^\s*(\[preview\]\s*)?report domain:.*submitter:/i.test(subject ?? "");
+}
+
 export function looksAutomated(fromAddress: string, subject: string | null | undefined): boolean {
+  if (isDmarcReport(fromAddress, subject)) return true;
   const from = normaliseAddress(fromAddress);
   const local = from.split("@")[0] ?? "";
   if (["mailer-daemon", "postmaster", "no-reply", "noreply", "donotreply"].includes(local)) {
