@@ -39,7 +39,7 @@ test("a finished one off with an old date but green rag is never overdue", () =>
   assert.equal(p.d30.total, 0);
 });
 
-test("due windows are nested, include today, and count checks", () => {
+test("due bands are separate (0 to 7, 8 to 14, 15 to 30), include today, and count checks", () => {
   const p = buildDuePreview(
     [
       row({ checkName: "A", dueDate: T }),
@@ -52,16 +52,20 @@ test("due windows are nested, include today, and count checks", () => {
     ],
     T,
   );
-  assert.deepEqual([p.d7.total, p.d14.total, p.d30.total], [2, 4, 5]);
-  assert.deepEqual(p.d30.lines.map((l) => l.detail), ["A", "B", "C", "D", "E"]);
+  assert.deepEqual([p.d7.total, p.d14.total, p.d30.total], [2, 2, 1]);
+  assert.deepEqual(p.d7.lines.map((l) => l.detail), ["A", "B"]);
+  assert.deepEqual(p.d14.lines.map((l) => l.detail), ["C", "D"]);
+  assert.deepEqual(p.d30.lines.map((l) => l.detail), ["E"]);
 });
 
 test("only the first 8 are listed, soonest first, and the total stays whole", () => {
-  const rows = Array.from({ length: 12 }, (_, i) => row({ recordId: `p${i}`, name: `P${i}`, dueDate: addDaysIso(T, 12 - i) }));
+  const rows = Array.from({ length: 12 }, (_, i) =>
+    row({ recordId: `p${i}`, name: `P${String(i).padStart(2, "0")}`, dueDate: addDaysIso(T, i < 6 ? 7 : 1) }),
+  );
   const p = buildDuePreview(rows, T);
-  assert.equal(p.d30.total, 12);
-  assert.equal(p.d30.lines.length, 8);
-  assert.equal(p.d30.lines[0].name, "P11");
+  assert.equal(p.d7.total, 12);
+  assert.equal(p.d7.lines.length, 8);
+  assert.equal(p.d7.lines[0].name, "P06"); // due tomorrow, so before the ones due in 7 days
 });
 
 test("labels read as a manager would say them, across a month end", () => {

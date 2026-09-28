@@ -11,8 +11,9 @@
  *  - Overdue counts RECORDS (a person or service user with any red check), not checks. The rag
  *    comes from the status view, never from a date compare, because a finished one off check
  *    keeps its old due date (the 2026-07-17 gotcha). One line per record, listing its red checks.
- *  - Due in 7, 14 and 30 days count CHECKS with a due date from today to the end of the window,
- *    NESTED (30 includes 14 includes 7). One line per check.
+ *  - Due in 7, 14 and 30 days count CHECKS in SEPARATE bands (Phil, 2026-09-28: "7 needs to
+ *    show 0-7, 14 needs to show 8-14 and 30 needs to show 15-30"; nested windows made each tile
+ *    repeat the one before it): today to day 7, days 8 to 14, days 15 to 30. One line per check.
  *
  * Leavers, archived and discharged records never arrive here: the status views exclude them.
  * Pure and importless so it runs under node --test.
@@ -116,7 +117,7 @@ export function buildDuePreview(rows: DueRow[], todayIso: string, limit = PREVIE
     })),
   };
 
-  // Due windows: one entry per check due from today to the end of the window.
+  // Due bands: one entry per check, each check in exactly one band.
   const in7 = addDaysIso(todayIso, 7);
   const in14 = addDaysIso(todayIso, 14);
   const in30 = addDaysIso(todayIso, 30);
@@ -128,8 +129,10 @@ export function buildDuePreview(rows: DueRow[], todayIso: string, limit = PREVIE
         a.name.localeCompare(b.name) ||
         (a.checkName as string).localeCompare(b.checkName as string),
     );
-  const box = (until: string): PreviewBox => {
-    const within = upcoming.filter((r) => (r.dueDate as string) <= until);
+  const box = (after: string | null, until: string): PreviewBox => {
+    const within = upcoming.filter(
+      (r) => (after === null || (r.dueDate as string) > after) && (r.dueDate as string) <= until,
+    );
     return {
       total: within.length,
       lines: within.slice(0, limit).map((r) => ({
@@ -143,5 +146,5 @@ export function buildDuePreview(rows: DueRow[], todayIso: string, limit = PREVIE
     };
   };
 
-  return { overdue, d7: box(in7), d14: box(in14), d30: box(in30) };
+  return { overdue, d7: box(null, in7), d14: box(in7, in14), d30: box(in14, in30) };
 }

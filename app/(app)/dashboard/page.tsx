@@ -1129,6 +1129,9 @@ export default async function DashboardPage() {
         one line overdue, due in 7 - 14 - 30"). One question, "what is coming at me", read left to
         right from already late to a month out. Four equal columns on a desktop, two by two on a
         tablet or phone. Overdue is the old Open actions figure under the name it means.
+        SEPARATE BANDS since 2026-09-28 (Phil: "7 needs to show 0-7, 14 needs to show 8-14 and 30
+        needs to show 15-30"), so no tile repeats the one before it. Hovering a tile (first tap on a
+        phone) lists what is in it.
       */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Tile
@@ -1149,25 +1152,25 @@ export default async function DashboardPage() {
           preview={{ title: "Due in 7 days", ...duePreview.d7, emptyText: "Nothing falls due in the next 7 days." }}
           icon="calendar"
           iconTone="orange"
-          sub="checks falling due"
+          sub="today to day 7"
         />
         <Tile
           href="/people"
           label="Due in 14 days"
           value={duePreview.d14.total}
-          preview={{ title: "Due in 14 days", ...duePreview.d14, emptyText: "Nothing falls due in the next 14 days." }}
+          preview={{ title: "Due in 8 to 14 days", ...duePreview.d14, emptyText: "Nothing falls due in days 8 to 14." }}
           icon="calendar"
           iconTone="orange"
-          sub="includes the next 7 days"
+          sub="days 8 to 14"
         />
         <Tile
           href="/people"
           label="Due in 30 days"
           value={duePreview.d30.total}
-          preview={{ title: "Due in 30 days", ...duePreview.d30, emptyText: "Nothing falls due in the next 30 days." }}
+          preview={{ title: "Due in 15 to 30 days", ...duePreview.d30, emptyText: "Nothing falls due in days 15 to 30." }}
           icon="calendar"
           iconTone="orange"
-          sub="includes the next 14 days"
+          sub="days 15 to 30"
         />
       </div>
 
