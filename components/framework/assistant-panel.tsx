@@ -81,7 +81,7 @@ export default function AssistantPanel({ requirements }: { requirements: Array<{
             onClick={() => runAsk(c.q)}
             className="inline-flex items-center gap-1.5 rounded-full border border-white/15 px-3 py-1 text-xs text-white/70 hover:border-gold-400/50 hover:bg-gold-400/10 hover:text-white"
           >
-            <AiIcon className="h-3 w-3 shrink-0 text-gold-400" />
+            <AiIcon size="xs" />
             {c.label}
           </button>
         ))}
@@ -102,7 +102,7 @@ export default function AssistantPanel({ requirements }: { requirements: Array<{
             "Thinking…"
           ) : (
             <>
-              <AiIcon className="h-3.5 w-3.5 shrink-0" />
+              <AiIcon tone="onGold" />
               Ask
             </>
           )}
