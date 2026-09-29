@@ -28,7 +28,7 @@ export default function ActionForm({
   hidden,
   children,
   label = "Save",
-  savingLabel = "Saving…",
+  savingLabel,
   savedLabel = "Saved",
   buttonClassName = "btn-primary text-xs",
   className = "space-y-2",
@@ -138,7 +138,11 @@ export default function ActionForm({
   // them. The two press problem above cannot return: the dialog is ordinary React, so
   // nothing is blocked and no click is ever replayed.
   const showSaved = saved && !pending;
-  const btnLabel = pending ? savingLabel : showSaved ? savedLabel : label;
+  /* THE WORD WHILE IT WORKS MATCHES THE WORD WHEN IT IS DONE (Phil, 2026-09-29: Send invite said
+     "Saving" then "Sent"; "it should say sending and then sent"). A button that flashes Sent
+     says Sending while it goes, everywhere, unless it names its own word. */
+  const workingLabel = savingLabel ?? (savedLabel === "Sent" ? "Sending…" : "Saving…");
+  const btnLabel = pending ? workingLabel : showSaved ? savedLabel : label;
 
   return (
     <form
