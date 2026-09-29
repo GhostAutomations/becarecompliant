@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { submitTrialRequest } from "@/lib/marketing/actions";
 import { IDLE_STATE } from "@/lib/forms";
+import { PRICING_TIERS } from "@/lib/marketing/tiers";
 
 /**
  * The trial request form.
@@ -116,8 +117,9 @@ export default function TrialRequestForm({ defaultTier = "" }: { defaultTier?: s
             <label htmlFor="tier_interest" className="form-label">Plan you are interested in</label>
             <select id="tier_interest" name="tier_interest" defaultValue={defaultTier}>
               <option value="">Not sure yet</option>
-              <option value="business">Business, £49 a month plus VAT</option>
-              <option value="pro">Pro, £69 a month plus VAT</option>
+              {PRICING_TIERS.map((t) => (
+                <option key={t.key} value={t.key}>{`${t.name}, ${t.price} a month plus VAT`}</option>
+              ))}
             </select>
           </div>
           <div className="sm:col-span-2">

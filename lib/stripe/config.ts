@@ -5,7 +5,7 @@ import "server-only";
  *
  * Fixed product rules (not up for debate): every SUBSCRIPTION tier includes 4
  * users, then £5 per extra user per month. Black is free, founder granted, and has NO Stripe
- * objects. Prices: Business £49, Pro £69 per month (base), all GBP, monthly only, no trials.
+ * objects. Prices: Business £79, Pro £129 per month (base, from 2026-09-29), all GBP, monthly only, no trials.
  *
  * Stripe Price IDs are created in the Stripe dashboard (test mode first) and
  * supplied via env, so the numbers live in Stripe, not hard-coded here. This
@@ -39,14 +39,16 @@ export const TIER_LABELS: Record<Tier, string> = {
 
 /** Expected base price per subscription tier, in pence, for display + display-side reconciliation. */
 export const TIER_BASE_PENCE: Record<SubscriptionTier, number> = {
-  business: 4900,
+  // Raised 2026-09-29 (Phil): £49 to £79 and £69 to £129. The Stripe Prices must be replaced
+  // to match, or checkoutPriceProblem() refuses the sale; the founder health panel shows which.
+  business: 7900,
   // £69, not the original £99. The two public tiers were re-cut and the pricing page was
   // rewritten, but this constant and the Stripe Price were both left on the old number, so
   // for days the website promised £69 while the app said £99 and Stripe would have charged
   // £99. Nothing caught it because a marketing file and a config file have no way of
   // comparing notes; lib/billing/price-consistency.test.ts now makes them, and
   // checkoutPriceProblem() refuses a sale outright if Stripe disagrees with this number.
-  pro: 6900,
+  pro: 12900,
 };
 
 /** The Stripe Price ID for each subscription tier's flat monthly base fee. */
@@ -69,7 +71,7 @@ export function seatPriceId(): string | null {
 }
 
 /**
- * The per EXTRA BRANCH Price ID (£7.50/branch/month), the same shape as the seat price: one
+ * The per EXTRA BRANCH Price ID (£25/branch/month from 2026-09-29, £7.50 before), the same shape as the seat price: one
  * price shared by every subscription tier, whose QUANTITY carries the branches beyond the
  * tier's allowance (Business 1, Pro 2). See lib/billing/seats.ts includedBranchesForTier and
  * stripe-sync.ts syncBranchQuantity.

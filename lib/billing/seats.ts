@@ -35,8 +35,8 @@ export function includedSeatsForTier(tier: string): number {
 }
 
 /** Included branches by tier. Business 1, Pro 2, legacy/premium at least 2. Then
- *  £7.50 per extra branch per month. Branches are founder provisioned. */
-export const EXTRA_BRANCH_PENCE = 750;
+ *  £25 per extra branch per month. Branches are founder provisioned. */
+export const EXTRA_BRANCH_PENCE = 2500; // £25 from 2026-09-29 (Phil), £7.50 before
 export function includedBranchesForTier(tier: string): number {
   switch (tier) {
     case "pro":
@@ -89,7 +89,7 @@ export async function getSeatUsage(companyId: string): Promise<SeatUsage> {
 export type BranchUsage = { used: number; included: number; extra: number; extraCostPence: number };
 
 /** Operational branches (kind = 'branch', excluding the office/team) vs the tier's
- *  included allowance, with the £7.50/extra add-on cost for display. */
+ *  included allowance, with the per extra branch add-on cost for display. */
 export async function getBranchUsage(companyId: string, tier: string): Promise<BranchUsage> {
   const supabase = await createClient();
   const { count } = await supabase

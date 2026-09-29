@@ -248,7 +248,7 @@ export default async function BillingPage() {
             <div className="flex justify-between">
               <span>
                 {seats.extra} extra {seats.extra === 1 ? "seat" : "seats"} at{" "}
-                {formatPence(500)}
+                {formatPence(EXTRA_SEAT_PENCE)}
               </span>
               <span>{formatPence(seats.extraCostPence)}/mo</span>
             </div>
@@ -267,7 +267,7 @@ export default async function BillingPage() {
               <span>{formatPence(monthlyTotalPence)}/mo</span>
             </div>
             <p className="pt-1 text-xs text-white/40">
-              Each user beyond the first {seats.included} is {formatPence(500)} per
+              Each user beyond the first {seats.included} is {formatPence(EXTRA_SEAT_PENCE)} per
               month, and each branch beyond {branches.included} is{" "}
               {formatPence(EXTRA_BRANCH_PENCE)} per month. Changes are prorated onto your next
               invoice.
@@ -329,13 +329,13 @@ export default async function BillingPage() {
         </p>
         {branches.extra > 0 ? (
           <p className="mt-3 text-sm text-white/70">
-            {branches.extra} extra {branches.extra === 1 ? "branch" : "branches"} at {formatPence(750)} each,
+            {branches.extra} extra {branches.extra === 1 ? "branch" : "branches"} at {formatPence(EXTRA_BRANCH_PENCE)} each,
             <span className="font-semibold text-white"> {formatPence(branches.extraCostPence)}/mo</span>.
           </p>
         ) : (
           <p className="mt-3 text-sm text-white/60">
             Your plan includes {branches.included} {branches.included === 1 ? "branch" : "branches"}. Extra branches
-            are {formatPence(750)} each per month. Contact us to add a branch.
+            are {formatPence(EXTRA_BRANCH_PENCE)} each per month. Contact us to add a branch.
           </p>
         )}
       </section>

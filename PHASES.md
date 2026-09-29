@@ -3631,3 +3631,26 @@ set; {{stage_action}} is on the Letters palette too. The meeting form's warning 
 "Warning or dismissal" (None, Verbal, Written, Final written, Dismissal; v1 edited in place on every
 company and the template, existing answers were all None) and Record meeting refuses a warning above
 the stage's action before any Evidence is filed. Bradford bands keep their own free text action.
+
+### 2026-09-29 — New prices, the new pricing page, and trial requests in the Founder inbox
+
+Phil, before taking on a new client, agreed by popup: Business £79 (was £49), Pro £129 (was £69),
+extra branch £25 (was £7.50); extra user £5 and both top ups unchanged. Annual shown at ten months
+for twelve (£790, £1,290), set up by Phil with the client until annual card billing is built.
+Onboarding £295 one off, free for anyone who joins by 31 December 2026 (agreement signed and first
+payment made), with Phil's chosen line "Start 2027 inspection ready. Free onboarding when you join
+by 31 December." The offer is dated in lib/marketing/offer.ts and the page asks it on every request,
+so it comes down by itself on 1 January 2027. Buttons say Request a trial.
+
+Code: TIER_BASE_PENCE 7900 / 12900, EXTRA_BRANCH_PENCE 2500, lib/marketing/tiers.ts (annual price
+and saving), the pricing page rebuilt (offer banner, Monthly / Annual cards, what onboarding
+includes, extras, comparison with texts and outcomes rows, explainers), homepage and trial form
+prices read the new numbers. The price consistency test still ties the page to the code.
+STRIPE STILL HOLDS THE OLD PRICES until Phil replaces them (walkthrough given); until then the
+founder health panel shows a mismatch and checkout refuses a card sale, which is the guard working.
+Nobody pays today (Thistle and Bevan are Black).
+
+Trial requests: submitTrialRequest now also writes the request into founder_emails as an inbound
+message from the applicant, linked by trial_request_id, before any email is attempted, so Reply in
+the Founder inbox answers them directly (lib/marketing/trial-inbox.ts, 3 tests). The alert to Phil's
+own address and the Trial requests list are unchanged.

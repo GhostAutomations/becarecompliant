@@ -51,7 +51,7 @@ function extraBranchesFor(branches: number, tier: string): number {
 test("the allowances and the price are what the pricing page says", () => {
   assert.equal(includedBranches("business"), 1);
   assert.equal(includedBranches("pro"), 2);
-  assert.equal(constant(seats, "EXTRA_BRANCH_PENCE"), 750);
+  assert.equal(constant(seats, "EXTRA_BRANCH_PENCE"), 2500);
 });
 
 // Acme exactly: Pro, two included, three operational branches. £7.50 shown to the customer

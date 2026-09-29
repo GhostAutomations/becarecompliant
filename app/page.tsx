@@ -40,7 +40,7 @@ const EDGES: Array<{ title: string; body: string }> = [
 export const metadata: Metadata = {
   title: "Be Care Compliant | CQC and CIW compliance software for care providers",
   description:
-    "Compliance software for UK care providers. Track every supervision, spot check, DBS and care plan review, see what is overdue at a glance, and export the evidence for CQC, CIW and your local authority. From £49 a month plus VAT.",
+    "Compliance software for UK care providers. Track every supervision, spot check, DBS and care plan review, see what is overdue at a glance, and export the evidence for CQC, CIW and your local authority. From £79 a month plus VAT.",
 };
 
 const FEATURES: Array<{ title: string; body: string }> = [
@@ -160,7 +160,7 @@ export default async function Home() {
             <Link href="/pricing" className="btn-outline">See pricing</Link>
           </div>
           <p className="mt-4 text-xs text-white/60">
-            From £49 a month plus VAT. No card needed, and we set the trial up for you.
+            From £79 a month plus VAT. No card needed, and we set the trial up for you.
           </p>
 
           {/* The trust row sits ABOVE the product preview on purpose. It used to sit under a
@@ -343,7 +343,7 @@ export default async function Home() {
       {/* Pricing */}
       <section id="pricing" className="mx-auto max-w-6xl px-4 py-20">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-2xl font-semibold sm:text-3xl">£49 or £69 a month, per care service</h2>
+          <h2 className="text-2xl font-semibold sm:text-3xl">£79 or £129 a month, per care service</h2>
           <p className="mt-3 text-white/75">
             Two plans, both with a 14 day free trial. Carer logins are free, so you only pay for the people who
             manage compliance. Prices exclude VAT.

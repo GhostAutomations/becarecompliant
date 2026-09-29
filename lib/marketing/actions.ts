@@ -15,6 +15,7 @@ import { sendEmail, resendConfigured } from "@/lib/email/resend";
 import { noticeEmailHtml, escapeHtml } from "@/lib/email/templates";
 import { siteUrl } from "@/lib/site";
 import { type ActionState } from "@/lib/forms";
+import { trialRequestInboxMessage } from "@/lib/marketing/trial-inbox";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -85,6 +86,27 @@ export async function submitTrialRequest(
     .single();
   if (error) return { error: "Something went wrong. Please try again, or email hello@becarecompliant.com." };
   const requestId = (inserted as { id: string } | null)?.id ?? null;
+
+  /* INTO THE FOUNDER EMAIL INBOX (Phil, 2026-09-29). Stored as a message from the applicant,
+     linked to the request, so Reply in the inbox answers them and the thread sits with the lead.
+     Written before any email is attempted, so a lead reaches the inbox even when Resend is not
+     configured. Best effort: a failure here must never turn a captured lead into an error on
+     their screen, and the Trial requests list still has it. */
+  if (requestId) {
+    const msg = trialRequestInboxMessage({ company_name, contact_name, email, phone, tier_interest, team_size, message });
+    const { error: inboxError } = await supabase.from("founder_emails").insert({
+      direction: "in",
+      from_address: email,
+      from_name: contact_name,
+      to_addresses: [contactAddress()],
+      subject: msg.subject,
+      body_text: msg.text,
+      body_html: msg.html,
+      body_fetched_at: new Date().toISOString(),
+      trial_request_id: requestId,
+    });
+    if (inboxError) console.error("[trial] founder inbox copy failed:", inboxError.message);
+  }
 
   /* WHETHER THE FOUNDER WAS TOLD IS NOW A FACT ON THE ROW.
      Two real companies asked for a trial on 27 Aug 2026 and sat unanswered for six days. The

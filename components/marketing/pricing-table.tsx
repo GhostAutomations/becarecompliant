@@ -19,10 +19,12 @@ const ROWS: Row[] = [
   { label: "Email reminders and the daily digest", business: "yes", pro: "yes" },
   { label: "Basic reporting: the compliance register", business: "yes", pro: "yes" },
   { label: "Complaints management", business: "no", pro: "yes" },
+  { label: "Outcomes and satisfaction for the PQS", business: "no", pro: "yes" },
   { label: "All reports: PQS return, evidence packs, audit trail, training", business: "no", pro: "yes" },
   { label: "SMS reminders", business: "no", pro: "yes" },
   { label: "Form builder", business: "no", pro: "yes" },
   { label: "Priority support", business: "no", pro: "yes" },
+  { label: "Texts included each month", business: "None", pro: "100" },
   { label: "AI credits included each month", business: "25", pro: "50" },
   { label: "Branches included", business: "1", pro: "2" },
   { label: "Users included (carer logins are free)", business: "4", pro: "6" },
@@ -86,10 +88,10 @@ export default function PricingTable() {
             <tr className="border-t border-white/10">
               <td className="px-3 py-4" />
               <td className="px-3 py-4 text-center">
-                <Link href={`/start-trial?tier=${biz.key}`} className="btn-outline text-sm">Start free trial</Link>
+                <Link href={`/start-trial?tier=${biz.key}`} className="btn-outline text-sm">Request a trial</Link>
               </td>
               <td className="rounded-b-xl bg-gold-400/[0.06] px-3 py-4 text-center">
-                <Link href={`/start-trial?tier=${pro.key}`} className="btn-primary text-sm">Start free trial</Link>
+                <Link href={`/start-trial?tier=${pro.key}`} className="btn-primary text-sm">Request a trial</Link>
               </td>
             </tr>
           </tbody>
