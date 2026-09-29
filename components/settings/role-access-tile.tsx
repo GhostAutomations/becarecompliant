@@ -21,7 +21,7 @@
  * one.
  */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ActionForm from "@/components/action-form";
 import { SENIOR_CHECK_FIELD, splitColumns } from "@/lib/senior/checks";
 import {
@@ -81,6 +81,23 @@ export default function RoleAccessTile({
       Object.values(checksUnder ?? {}).flatMap((list) => (list ?? []).map((c) => [c.id, c.on])),
     ),
   );
+  /* AFTER SAVE, REACT RESETS THE FORM (a form action resets its form when it succeeds), which
+     would put every box back to how it was when the page first drew while the ticks above still
+     hold what was saved. Found testing 2026-09-29: first the boxes stayed wrong (Health Check
+     showed ticked though saved off), then, redrawn a moment later, they flashed all ticked
+     before settling (Phil: "that shouldn't happen"). The browser announces a reset before doing
+     it and lets it be cancelled, so the Senior tile cancels it: every box on it is driven by the
+     ticks above, which already are what was saved, and nothing ever flashes. */
+  const boxesRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!checksUnder) return;
+    const form = boxesRef.current?.closest("form");
+    if (!form) return;
+    const keepTicks = (e: Event) => e.preventDefault();
+    form.addEventListener("reset", keepTicks);
+    return () => form.removeEventListener("reset", keepTicks);
+  }, [checksUnder]);
+
   const toggleDept = (key: string, on: boolean) => {
     setDeptOn((d) => ({ ...d, [key]: on }));
     const under = checksUnder?.[key];
@@ -137,7 +154,10 @@ export default function RoleAccessTile({
             long list in three columns filled down the left first (People: four, three, three, so
             the tile is the height of the Viewer tile), a short one in the left column (Service
             users). */}
-        <div className={checksUnder ? "" : "grid grid-cols-1 gap-x-3 gap-y-0.5 sm:grid-cols-2"}>
+        <div
+          ref={boxesRef}
+          className={checksUnder ? "" : "grid grid-cols-1 gap-x-3 gap-y-0.5 sm:grid-cols-2"}
+        >
           {modules.map((m, index) => {
             const under = checksUnder?.[m.key];
             const parentLive = m.allowed && !m.locked;
