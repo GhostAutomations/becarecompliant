@@ -74,6 +74,20 @@ export function seniorPillClass(rag: SeniorCheck["rag"]): string {
   return rag === "red" ? "pill-red" : rag === "amber" ? "pill-amber" : rag === "green" ? "pill-green" : "pill-neutral";
 }
 
+/** The line under a form's button when a name has more than one: "Overdue, due 1 July 2026". */
+export function seniorFormStatus(c: Pick<SeniorCheck, "rag" | "dueDate" | "lastCompletedOn">): string {
+  if (c.dueDate) return `${seniorPillLabel(c)}, due ${longDate(c.dueDate)}`;
+  if (c.lastCompletedOn) return `Done ${longDate(c.lastCompletedOn)}`;
+  return seniorPillLabel(c);
+}
+
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+function longDate(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  if (!m) return iso;
+  return `${Number(m[3])} ${MONTHS[Number(m[2]) - 1] ?? ""} ${m[1]}`.trim();
+}
+
 /** How many Checks on the list are overdue, for the line under the title. */
 export function overdueCount(branches: readonly SeniorBranch[]): number {
   let n = 0;

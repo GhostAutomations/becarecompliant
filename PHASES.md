@@ -3704,3 +3704,13 @@ history and care plan through a service reader only after the database says yes
 actions ask the same question before any Evidence is stored, close planner bookings, clear the
 booked review and write back a corrected phone through that reader, and send the Senior back to
 their list with the outcome. Tests: lib/senior/register.test.ts, checks.test.ts, carer-login.test.ts.
+
+### 2026-09-29 — A Senior's list is gold name buttons
+
+Phil rejected the first Senior list (every name with a row per Check, status and Complete): "each
+name should be its own gold button ... click that name and then it opens up the form or forms".
+Now: names as gold buttons by branch. One ticked form opens straight away; more than one opens a
+small dialog with a gold button per form and its status under it. Names with nothing to complete
+(including the Senior's own) are left off; with no Check ticked at all the page is plain names.
+Also found: a test script saved the Senior tile over Phil's own save a second later (all ticked);
+his choice (People with Spot Check only, Service users off) was put back from the audit log.

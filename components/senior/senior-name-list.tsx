@@ -1,25 +1,24 @@
-import Link from "next/link";
 import BackLink from "@/components/back-link";
 import { createClient } from "@/lib/supabase/server";
-import { ukDate } from "@/lib/dates";
-import {
-  groupSeniorRegister,
-  overdueCount,
-  seniorPillClass,
-  seniorPillLabel,
-  type SeniorRegisterRow,
-} from "@/lib/senior/register";
+import SeniorNameButton from "@/components/senior/senior-name-button";
+import { groupSeniorRegister, seniorFormStatus, type SeniorRegisterRow } from "@/lib/senior/register";
 
 /**
  * A Senior's People or Service Users page (0338, 0339).
  *
- * Names from their own branch(es), and under each name the Checks their company left ticked on
- * the Senior tile in Role access: the status, the due date, and Complete (Phil, 2026-09-29).
- * Nothing else about the record: no contact details, no past Evidence, no record page to open.
+ * Phil, 2026-09-29: "each name should be its own gold button. And the spot check they are going
+ * to do, they should literally click that name and then it opens up the form or forms." So the
+ * page is names, as gold buttons, grouped by branch. A name opens its form straight away, or a
+ * small choice when the company has ticked more than one Check for Seniors. No wall of rows, no
+ * statuses on the page itself.
  *
- * Everything comes from senior_register, which applies every rule in the database: the Senior's
- * branches, current records only, the list ticked, each Check ticked. The Complete link goes to
- * the same Complete page a Manager uses, and that page asks the database again before it opens.
+ * A name with nothing for the Senior to complete (their own, or a record with none of the ticked
+ * Checks) is left off: a button that opens nothing is worse than no button. When NO Check is
+ * ticked at all, the list goes back to plain names, which is what a Senior had before 0339.
+ *
+ * Everything comes from senior_register, which applies every rule in the database (branches,
+ * current records, the list and each Check ticked, never their own record); the Complete page
+ * asks the database again before it opens.
  */
 export type SeniorOutcome = { completed?: string; recorded?: string; history?: string; warn?: string };
 
@@ -33,13 +32,28 @@ export default async function SeniorNameList({
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("senior_register", { p_kind: kind });
   const branches = groupSeniorRegister((data as SeniorRegisterRow[] | null) ?? []);
-  const people = branches.reduce((n, b) => n + b.records.length, 0);
-  const overdue = overdueCount(branches);
-  const anyChecks = branches.some((b) => b.records.some((r) => r.checks.length > 0));
+  const root = kind === "people" ? "/people" : "/service-users";
+
+  const withForms = branches
+    .map((b) => ({
+      name: b.name,
+      records: b.records
+        .map((r) => ({
+          id: r.id,
+          name: r.name,
+          forms: r.checks
+            .filter((c) => c.hasForm)
+            .map((c) => ({ href: `${root}/${r.id}/checks/${c.instanceId}/complete`, name: c.name, status: seniorFormStatus(c) })),
+        }))
+        .filter((r) => r.forms.length > 0),
+    }))
+    .filter((b) => b.records.length > 0);
+  const namesOnly = withForms.length === 0;
+  const shown = namesOnly ? branches : withForms;
+  const count = shown.reduce((n, b) => n + b.records.length, 0);
 
   const title = kind === "people" ? "People" : "Service Users";
   const noun = kind === "people" ? "staff" : "service users";
-  const root = kind === "people" ? "/people" : "/service-users";
 
   return (
     <div className="page-shell space-y-4">
@@ -47,9 +61,9 @@ export default async function SeniorNameList({
       <div>
         <h1 className="page-title">{title}</h1>
         <p className="page-subtitle">
-          The {noun} in your branch{branches.length === 1 ? "" : "es"}
-          {anyChecks ? ", with the checks you complete" : ""}.
-          {overdue > 0 ? ` ${overdue} ${overdue === 1 ? "check is" : "checks are"} overdue.` : ""}
+          {namesOnly
+            ? `The ${noun} in your branch${branches.length === 1 ? "" : "es"}.`
+            : "Tap a name to open the form."}
         </p>
       </div>
 
@@ -78,55 +92,33 @@ export default async function SeniorNameList({
         <div className="glass-card p-6 text-sm text-red-300">
           The list could not be loaded. Please try again, and tell your manager if it keeps happening.
         </div>
-      ) : people === 0 ? (
+      ) : count === 0 ? (
         <div className="glass-card p-6 text-sm text-white/60">
           There are no {noun} to show. If you expected some, ask your manager to check which branch you are in.
         </div>
       ) : (
         <div className="space-y-4">
-          {branches.map((b) => (
-            <section key={b.name} className="glass-card p-5">
-              <h2 className="text-sm font-semibold text-white/80">
-                {b.name} <span className="font-normal text-white/45">· {b.records.length}</span>
-              </h2>
-              {b.records.some((r) => r.checks.length > 0) ? (
-                <ul className="mt-3 divide-y divide-white/10">
-                  {b.records.map((r) => (
-                    <li key={r.id} className="py-3">
-                      <p className="text-sm font-medium text-white/90">{r.name}</p>
-                      {r.checks.length > 0 ? (
-                        <ul className="mt-2 space-y-1.5">
-                          {r.checks.map((c) => (
-                            <li key={c.instanceId} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
-                              <span className="min-w-[8rem] text-white/75">{c.name}</span>
-                              <span className={seniorPillClass(c.rag)}>{seniorPillLabel(c)}</span>
-                              <span className="text-white/50">
-                                {c.dueDate ? `Due ${ukDate(c.dueDate)}` : c.lastCompletedOn ? `Last done ${ukDate(c.lastCompletedOn)}` : ""}
-                              </span>
-                              {c.hasForm ? (
-                                <Link
-                                  href={`${root}/${r.id}/checks/${c.instanceId}/complete`}
-                                  className="btn-outline ml-auto px-3 py-1.5 text-xs"
-                                >
-                                  Complete
-                                </Link>
-                              ) : null}
-                            </li>
-                          ))}
-                        </ul>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <ul className="mt-3 grid gap-x-6 gap-y-2 text-sm text-white/85 sm:grid-cols-2 lg:grid-cols-3">
-                  {b.records.map((r) => (
-                    <li key={r.id}>{r.name}</li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          ))}
+          {namesOnly
+            ? branches.map((b) => (
+                <section key={b.name} className="glass-card p-5">
+                  <h2 className="text-sm font-semibold text-white/80">{b.name}</h2>
+                  <ul className="mt-3 grid gap-x-6 gap-y-2 text-sm text-white/85 sm:grid-cols-2 lg:grid-cols-3">
+                    {b.records.map((r) => (
+                      <li key={r.id}>{r.name}</li>
+                    ))}
+                  </ul>
+                </section>
+              ))
+            : withForms.map((b) => (
+                <section key={b.name} className="glass-card p-5">
+                  <h2 className="text-sm font-semibold text-white/80">{b.name}</h2>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    {b.records.map((r) => (
+                      <SeniorNameButton key={r.id} name={r.name} forms={r.forms} />
+                    ))}
+                  </div>
+                </section>
+              ))}
         </div>
       )}
     </div>

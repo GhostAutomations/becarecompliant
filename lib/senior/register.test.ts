@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { groupSeniorRegister, overdueCount, seniorPillClass, seniorPillLabel, type SeniorRegisterRow } from "./register.ts";
+import { groupSeniorRegister, overdueCount, seniorFormStatus, seniorPillClass, seniorPillLabel, type SeniorRegisterRow } from "./register.ts";
 
 const row = (o: Partial<SeniorRegisterRow>): SeniorRegisterRow => ({
   record_id: "r1",
@@ -57,4 +57,10 @@ test("pill words and classes", () => {
   assert.equal(seniorPillLabel({ rag: "none", lastCompletedOn: null }), "Not scheduled");
   assert.equal(seniorPillClass("red"), "pill-red");
   assert.equal(seniorPillClass("none"), "pill-neutral");
+});
+
+test("the line under a form's button", () => {
+  assert.equal(seniorFormStatus({ rag: "red", dueDate: "2026-07-01", lastCompletedOn: null }), "Overdue, due 1 July 2026");
+  assert.equal(seniorFormStatus({ rag: "none", dueDate: null, lastCompletedOn: "2026-02-03" }), "Done 3 February 2026");
+  assert.equal(seniorFormStatus({ rag: "none", dueDate: null, lastCompletedOn: null }), "Not scheduled");
 });

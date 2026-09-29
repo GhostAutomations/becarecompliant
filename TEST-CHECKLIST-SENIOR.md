@@ -6,7 +6,7 @@ Tested on Bevan Care Ltd with a ZZ TEST carer login moved to Senior.
 |---|-------|--------|
 | SR1 | Settings, Users, Role access: a Senior tile with People and Service users, and the company's Checks listed under each, all ticked | Pass 2026-09-29 (Claude in Chrome): On Call, Senior, Viewer order; all three tiles 382px |
 | SR2 | Unticking People greys its Checks; ticking it again ticks them all | Pass 2026-09-29 (Claude in Chrome) |
-| SR3 | Untick one Check, Save, reload: it stays unticked, the rest stay ticked | Fail 2026-09-29: saved correctly (database and reload show Health Check off) but straight after Save the box showed ticked again. Fixed (redraw on form reset), retest after deploy |
+| SR3 | Untick one Check, Save, reload: it stays unticked, the rest stay ticked | Pass 2026-09-29 (Phil) after two fixes: the boxes now keep the saved ticks after Save, with no flash |
 | SR4 | Change a ZZ TEST carer login to Senior: not counted as a paid user | Pass 2026-09-29: ZZ TEST Senior changed to Senior in Users; Billing shows 2 seats (Bev Admin, ZZ Test Supervisor) |
 | SR5 | As the Senior: menu shows My area, People, Service Users only | |
 | SR6 | People list: names by branch, ticked Checks under each with status, due date, Complete; no Checks against their own name | |
