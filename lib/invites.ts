@@ -20,7 +20,9 @@ export type InviteRole =
   | "on_call"
   | "team_member"
   /** Carer self-service login, shown as "Team Member". Free seat (0131). */
-  | "staff";
+  | "staff"
+  /** A carer's login that also sees a list of names. Free seat (0338). */
+  | "senior";
 
 /**
  * What the invitation email calls their role.

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
+import { isCarerLogin } from "@/lib/auth/carer-login";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import RealtimeRefresh from "@/components/realtime-refresh";
@@ -618,7 +619,7 @@ export default async function DashboardPage() {
      held nothing for them; it stopped being reasonable when the urgent follow ups they raise are
      shown on the Dashboard and nowhere else (Phil, 2026-09-17). Everything else on the page is
      gated on companyWide, which they are not, so what they get is their own follow ups. */
-  if (profile.role === "staff") redirect("/my");
+  if (isCarerLogin(profile.role)) redirect("/my");
 
   const supabase = await createClient();
   const companyId = profile.company_id;

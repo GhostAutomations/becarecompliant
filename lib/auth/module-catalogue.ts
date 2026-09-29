@@ -89,8 +89,8 @@ export const MODULES: readonly ModuleDef[] = [
   {
     key: "people",
     label: "People",
-    roles: [...OFFICE, "team_member"],
-    note: "A Viewer can see the register read only.",
+    roles: [...OFFICE, "team_member", "senior"],
+    note: "A Viewer can see the register read only. A Senior sees staff names only, from their own branches.",
   },
   { key: "training", label: "Training", roles: [...OFFICE, "team_member"] },
   { key: "holiday", label: "Holiday", roles: OFFICE },
@@ -98,8 +98,8 @@ export const MODULES: readonly ModuleDef[] = [
   {
     key: "service_users",
     label: "Service Users",
-    roles: [...OFFICE, "team_member"],
-    note: "A Viewer can see the register read only.",
+    roles: [...OFFICE, "team_member", "senior"],
+    note: "A Viewer can see the register read only. A Senior sees service user names only, from their own branches.",
   },
   {
     key: "complaints",
@@ -146,7 +146,8 @@ export const MODULES: readonly ModuleDef[] = [
   {
     key: "team_portal",
     label: "Team Portal",
-    roles: ["staff"],
+    // A Senior is a carer too, and keeps their own area (Phil, 2026-09-29).
+    roles: ["staff", "senior"],
     note: "A carer's own area, and the only thing a Team Member login opens.",
   },
 ];

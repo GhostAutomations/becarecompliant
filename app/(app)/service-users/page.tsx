@@ -4,6 +4,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import { getRegisterNameSort } from "@/lib/register/name-sort-pref";
 import ServiceUserRegister from "@/components/service-users/service-user-register";
 import RealtimeRefresh from "@/components/realtime-refresh";
+import SeniorNameList from "@/components/senior/senior-name-list";
 import {
   listRegister,
   getServiceUserColumnLabels,
@@ -24,6 +25,8 @@ export default async function ServiceUsersPage({
   const { user, profile } = await requireCompany();
   // A Team Member (staff) login has one destination: their own area.
   if (profile.role === "staff") redirect("/my");
+  // A Senior sees names only (0338). The middleware has already checked the Service Users tick.
+  if (profile.role === "senior") return <SeniorNameList kind="service_users" />;
   if (profile.role === "on_call") redirect("/on-call");
 
   if (!profile.company_id) {

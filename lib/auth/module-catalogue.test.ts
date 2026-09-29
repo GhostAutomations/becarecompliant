@@ -77,12 +77,19 @@ test("the ceiling matches the role lists the pages and actions already use", () 
   assert.deepEqual([...ceiling("incidents")].sort(), [...INCIDENTS_ROLES].sort());
 });
 
+test("a Senior reaches the People and Service User name lists and the Team Portal, nothing else", () => {
+  const allowed = new Set(["people", "service_users", "team_portal"]);
+  for (const m of MODULES) {
+    assert.equal(canUseModule(m.key, "senior"), allowed.has(m.key), `senior and ${m.key}`);
+  }
+});
+
 test("every module key is unique and every ceiling names real roles", () => {
   const keys = MODULES.map((m) => m.key);
   assert.equal(new Set(keys).size, keys.length, "two modules share a key");
   const known = new Set([
     "platform_admin", "company_admin", "registered_individual", "registered_manager",
-    "manager", "supervisor", "recruiter", "team_member", "on_call", "staff",
+    "manager", "supervisor", "recruiter", "team_member", "on_call", "staff", "senior",
   ]);
   for (const m of MODULES) {
     assert.ok(m.roles.length > 0, `${m.key} has an empty ceiling`);

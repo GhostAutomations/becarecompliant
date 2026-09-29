@@ -4,6 +4,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import { getRegisterNameSort } from "@/lib/register/name-sort-pref";
 import PeopleRegister from "@/components/people/people-register";
 import RealtimeRefresh from "@/components/realtime-refresh";
+import SeniorNameList from "@/components/senior/senior-name-list";
 import {
   listBranches,
   listRegister,
@@ -26,6 +27,8 @@ export default async function PeoplePage({
   const { user, profile } = await requireCompany();
   // A Team Member (staff) login has one destination: their own area.
   if (profile.role === "staff") redirect("/my");
+  // A Senior sees names only (0338). The middleware has already checked the People tick.
+  if (profile.role === "senior") return <SeniorNameList kind="people" />;
   // The On Call role has no People compliance department; send them home.
   if (profile.role === "on_call") redirect("/on-call");
 

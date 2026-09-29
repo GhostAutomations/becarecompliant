@@ -1,5 +1,6 @@
 "use server";
 
+import { tileModulesFor } from "@/lib/auth/carer-login";
 import { revalidatePath } from "next/cache";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
@@ -53,7 +54,9 @@ const INVITABLE_ROLES: InviteRole[] = [
  * saving any change to a carer's login came back "Choose a valid role." An option offered and
  * then refused is the same defect as a ticked box that does nothing (DEF-032).
  */
-const EDITABLE_ROLES: InviteRole[] = [...INVITABLE_ROLES, "staff"];
+// Senior (0338) is a carer's login too, so a carer is moved onto it here rather than invited:
+// their login is already linked to their People record, which their own area needs.
+const EDITABLE_ROLES: InviteRole[] = [...INVITABLE_ROLES, "staff", "senior"];
 
 /**
  * ONE `role` FIELD, whether they picked a built-in role or one their company named (0314).
@@ -788,8 +791,11 @@ export async function saveRoleModules(_prev: ActionState, formData: FormData): P
   }
 
   const ticked = new Set(formData.getAll("modules").map((v) => String(v)));
+  // Only the departments this role's tile shows are saved: a Senior's tile has People and
+  // Service Users, and their own area is not switched off by saving it (0338).
+  const onTile = new Set(tileModulesFor(role, MODULES.map((m) => m.key)));
   const offKeys = MODULES
-    .filter((m) => m.roles.includes(role) && !isLocked(m.key, role) && !ticked.has(m.key))
+    .filter((m) => onTile.has(m.key) && m.roles.includes(role) && !isLocked(m.key, role) && !ticked.has(m.key))
     .map((m) => m.key);
 
   const supabase = await createClient();
@@ -797,7 +803,8 @@ export async function saveRoleModules(_prev: ActionState, formData: FormData): P
     .from("company_role_modules")
     .delete()
     .eq("company_id", companyId)
-    .eq("role", role);
+    .eq("role", role)
+    .in("module_key", [...onTile]);
   if (delErr) return { error: delErr.message };
 
   if (offKeys.length > 0) {

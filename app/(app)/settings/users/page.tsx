@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { tileModulesFor } from "@/lib/auth/carer-login";
 import { redirect } from "next/navigation";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
 import { branchSummary } from "@/lib/auth/manage-scope";
@@ -54,6 +55,8 @@ const ROLE_ORDER = [
   "recruiter",
   "on_call",
   "team_member",
+  // A carer's login that also sees names (0338). Its tile shows People and Service Users only.
+  "senior",
 ];
 
 function roleRank(role: string): number {
@@ -66,6 +69,7 @@ function roleRank(role: string): number {
     "recruiter",
     "on_call",
     "team_member",
+    "senior",
     "staff",
   ].indexOf(role);
 }
@@ -79,7 +83,7 @@ function roleRank(role: string): number {
  * Note the word "active" here is about what the login DOES, not the account
  * status pill on each row, which is why both headings carry a subtitle.
  */
-const PASSIVE_ROLES = ["staff", "team_member"];
+const PASSIVE_ROLES = ["staff", "senior", "team_member"];
 
 export default async function UsersPage() {
   const { user, profile } = await requireCompanyAdmin();
@@ -299,7 +303,9 @@ export default async function UsersPage() {
   ];
   /* An INVITE does not offer the carer login: a Team Member account is created from the People
      register when a carer is added with an email (lib/staff/invite.ts), not typed in here. */
-  const inviteRoleOptions = roleOptions.filter((o) => o.value !== "staff");
+  /* Nor a Senior: a Senior is a carer moved onto it from their existing login, which is already
+     linked to their People record for their own area (0338). */
+  const inviteRoleOptions = roleOptions.filter((o) => o.value !== "staff" && o.value !== "senior");
 
   return (
     <div className="page-shell space-y-4">
@@ -604,7 +610,7 @@ export default async function UsersPage() {
               key={role}
               role={role}
               roleLabel={ROLE_LABELS[role] ?? role}
-              modules={MODULES.map((m) => ({
+              modules={MODULES.filter((m) => tileModulesFor(role, [m.key]).length > 0).map((m) => ({
                 key: m.key,
                 label: m.label,
                 note: m.note ?? null,

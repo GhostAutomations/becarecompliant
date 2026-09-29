@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { isCarerLogin } from "@/lib/auth/carer-login";
 import { requireCompany } from "@/lib/auth/guards";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import ViewNav from "@/components/people/view-nav";
@@ -32,7 +33,7 @@ export default async function PeopleSummaryPage({
   const { profile } = await requireCompany();
   // Same guard as the People register this summarises: care workers go to their own area,
   // on_call to theirs. Without it a staff login saw the summary view and the branch list.
-  if (profile.role === "staff") redirect("/my");
+  if (isCarerLogin(profile.role)) redirect("/my");
   if (profile.role === "on_call") redirect("/on-call");
   if (!profile.company_id) {
     return (

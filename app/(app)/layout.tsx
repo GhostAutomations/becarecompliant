@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { isCarerLogin } from "@/lib/auth/carer-login";
 import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
@@ -98,7 +99,8 @@ export default async function AppLayout({
    * a signature. So for staff the company's name leads and ours is a quiet
    * credit. Everyone who runs the service still sees the product they bought.
    */
-  const isStaff = profile.role === "staff";
+  // A carer's own login, Team Member or Senior (0338): their employer's name leads.
+  const isStaff = isCarerLogin(profile.role);
   const employerName = companyName || "Your company";
   const initials = (profile.full_name || profile.email || "?")
     .split(/[\s@.]+/)
@@ -146,7 +148,9 @@ export default async function AppLayout({
       ? "/founder"
       : profile.role === "on_call"
         ? "/on-call"
-        : "/dashboard";
+        : isCarerLogin(profile.role)
+          ? "/my"
+          : "/dashboard";
 
   return (
     <div className="app-bg flex h-dvh overflow-hidden">

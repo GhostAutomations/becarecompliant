@@ -13,7 +13,9 @@ export type Role =
   | "recruiter"
   | "team_member"
   | "on_call"
-  | "staff";
+  | "staff"
+  /** A carer's login that also sees a list of names (Phil, 2026-09-29). lib/auth/carer-login.ts */
+  | "senior";
 
 /** Senior roles that see every branch and everything a Branch Manager can, but not
  *  Settings or Billing (Company Admin only). Kept in one place so app-side gating
@@ -294,6 +296,18 @@ export function navEntriesForRole(role: string, disabled: ReadonlySet<string> = 
   if (role === "staff") {
     return [{ href: "/my", label: "My area", icon: "people" as const, group: "Departments" }];
   }
+  // A Senior: their own area, plus the name lists their company has left ticked (Phil,
+  // 2026-09-29). Only the lists, never the register's sub pages.
+  if (role === "senior") {
+    const out: NavEntry[] = [{ href: "/my", label: "My area", icon: "people" as const, group: "Departments" }];
+    if (canUseModule("people", role, disabled)) {
+      out.push({ href: "/people", label: "People", icon: "people" as const, group: "Departments" });
+    }
+    if (canUseModule("service_users", role, disabled)) {
+      out.push({ href: "/service-users", label: "Service Users", icon: "serviceUsers" as const, group: "Departments" });
+    }
+    return out;
+  }
   const allowed = (entry: NavEntry) =>
     (!entry.roles || entry.roles.includes(role as Role)) &&
     // A department the company has switched off for this role does not appear at all. Its own
@@ -328,6 +342,7 @@ export const MOBILE_PRIMARY_BY_ROLE: Record<string, string[]> = {
   recruiter: ["/dashboard", "/people", "/service-users"],
   team_member: ["/people", "/service-users"],
   on_call: ["/on-call", "/people/absence", "/complaints"],
+  senior: ["/my", "/people", "/service-users"],
   staff: ["/my"],
   platform_admin: ["/founder"],
 };
@@ -378,4 +393,5 @@ export const ROLE_LABELS: Record<string, string> = {
   team_member: "Viewer",
   on_call: "On Call",
   staff: "Team Member",
+  senior: "Senior",
 };

@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { canUseModule, disabledKey } from "@/lib/auth/module-catalogue";
 import { moduleForPath, NO_ACCESS_PATH } from "@/lib/auth/module-paths";
 import { amrFromAccessToken, isRecoverySession } from "@/lib/auth/password-reset-rules";
+import { isCarerLogin, seniorPathRedirect } from "@/lib/auth/carer-login";
 
 /**
  * Paths reachable without a session. Webhook paths MUST be added here
@@ -211,9 +212,21 @@ export async function updateSession(request: NextRequest) {
            off" with nowhere to go. The pages themselves send staff to /my, but this gate runs
            first. Send them home instead, unless their company has closed My area too. */
         url.pathname =
-          role === "staff" && canUseModule("team_portal", role, disabled) ? "/my" : NO_ACCESS_PATH;
+          isCarerLogin(role) && canUseModule("team_portal", role, disabled) ? "/my" : NO_ACCESS_PATH;
         url.search = "";
         return NextResponse.redirect(url);
+      }
+      /* A SENIOR HAS THE LIST AND NOTHING BELOW IT (Phil, 2026-09-29). A record, a summary or a
+         new record form under People or Service Users is not theirs: back to the list. RLS would
+         refuse the record anyway; this is so they never land on an empty page. */
+      if (role === "senior") {
+        const back = seniorPathRedirect(pathname);
+        if (back) {
+          const url = request.nextUrl.clone();
+          url.pathname = back;
+          url.search = "";
+          return NextResponse.redirect(url);
+        }
       }
     }
   }

@@ -3674,3 +3674,15 @@ company. It is a company role (0314): people on it keep the Supervisor built-in 
 reads, and it can only have departments switched off, never more. Added to Thistle and Bevan, and
 seed_company_default_roles(cid) now runs when the founder creates a company or provisions one from a
 trial request. Nothing is switched off yet: Phil is to say what a Senior must not reach.
+
+### 2026-09-29 — Senior rebuilt as a built-in role (migrations 0337, 0338)
+
+Phil rejected the company-role version: Senior is a default role, like Team Member, with its own
+tile in Settings, Role access. 0337 removed the unused Senior company roles and the seeding
+function. 0338 adds 'senior' to the profiles and invites role checks, counts it in is_staff(), lets
+an admin invite it, leaves it out of paid seats (free, like a Team Member login), and adds
+senior_name_list(kind): names only, from the Senior's own branch(es), active records only,
+discharged service users excluded, and nothing at all when the company switches that tick off.
+In the app a Senior keeps the carer portal (/my) and sees People and Service Users as plain name
+lists; any deeper link (a record, a summary) sends them back to the list. The Senior tile shows
+only two ticks: People and Service users. Tests: lib/auth/carer-login.test.ts and the catalogue test.

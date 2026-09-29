@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { isCarerLogin } from "@/lib/auth/carer-login";
 import { requireCompany } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import RealtimeRefresh from "@/components/realtime-refresh";
@@ -18,7 +19,7 @@ export default async function HolidayPage() {
   // Care workers manage their own holiday in /my; this is the branch management view
   // (approve requests, book for others, the branch calendar). A staff login reaching it
   // exposed the company branch list. Match the People register's staff guard.
-  if (profile.role === "staff") redirect("/my");
+  if (isCarerLogin(profile.role)) redirect("/my");
 
   if (!profile.company_id) {
     return (

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { isCarerLogin } from "@/lib/auth/carer-login";
 import { requireCompany } from "@/lib/auth/guards";
 import ActionForm from "@/components/action-form";
 import RealtimeRefresh from "@/components/realtime-refresh";
@@ -45,7 +46,7 @@ function fmtDate(iso: string | null): string {
 export default async function BriefingsPage() {
   const { profile } = await requireCompany();
   if (!profile.company_id) redirect("/dashboard");
-  if (profile.role === "staff") redirect("/my");
+  if (isCarerLogin(profile.role)) redirect("/my");
   if (!MANAGER_PLUS.includes(profile.role)) redirect("/dashboard");
 
   const [assignments, forms, policies, people] = await Promise.all([

@@ -35,7 +35,9 @@ export type Profile = {
     | "on_call"
     /** Carer self-service login, shown as "Team Member" (migration 0131). NOT the
      *  same as 'team_member', which is the older read-only Viewer role. */
-    | "staff";
+    | "staff"
+    /** A carer's login that also sees a list of names (Phil, 2026-09-29). */
+    | "senior";
   status: "invited" | "active" | "disabled";
   /**
    * The company's OWN role this person carries, if any (0314). `role` above is still the

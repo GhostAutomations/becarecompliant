@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/server";
  * the pricing model. Every seat count in the app AND the quantity pushed to
  * Stripe must go through this list, or the invoice and the screen disagree.
  */
-export const NON_BILLABLE_ROLES = ["platform_admin", "staff"];
+export const NON_BILLABLE_ROLES = ["platform_admin", "staff", "senior"];
 
 /** Does this user consume a paid seat? */
 export function isBillableSeat(role: string): boolean {
