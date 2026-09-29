@@ -287,6 +287,12 @@ Item 5 results, 2026-09-29 (deploy 5dede7cd READY, migrations 0344 and 0345 appl
   help you settle back in" shows "What do you need?" (closed without saving).
 - F9 PASS (Phil, phone): camera photo uploaded, shrunk to 1500 by 2000 JPEG, audited
   absence.rtw_fit_note_uploaded.
-- F10 NOT YET RUN: subject access export (needs Make the export and a ZIP download).
+- F10 PASS (Phil's go, run in Chrome through the export route, read in the browser, nothing saved
+  to disk): ZZ TEST Senior's ZIP, 15 files, none missing. return-to-work-questions.csv has the
+  "More detail" column (support Yes: "Fdctccf"), a "Fit note, Uploaded: image.jpg" row, both sets
+  listed, and the photo is in files/evidence with the Return to Work Evidence. Made twice (the
+  first read was cut short), so History shows two exports; both are removed after a day.
+
+Item 5: F1 to F10 all pass (2026-09-29).
 - Test data left: ZZ TEST Senior now has Phil's mobile; absences 1 to 10 Sep (Return to Work
   recorded) and 22 Sep (a copied set, answered by Phil, not recorded).
