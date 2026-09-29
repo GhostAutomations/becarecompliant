@@ -3714,3 +3714,12 @@ small dialog with a gold button per form and its status under it. Names with not
 (including the Senior's own) are left off; with no Check ticked at all the page is plain names.
 Also found: a test script saved the Senior tile over Phil's own save a second later (all ticked);
 his choice (People with Spot Check only, Service users off) was put back from the audit log.
+
+### 2026-09-29 — A Senior cannot reopen Check Evidence (migration 0341)
+
+Phil, testing on his phone as the Senior: the Spot Check they completed showed under "Forms I
+have sent in", and View opened the whole form. That list is for their own forms, "not on clients
+as in service users or people". evidence_select and evidence_files_select keep the author's rule
+for everyone except a carer login (Team Member, Senior) reading Evidence about a Service User or
+another Person. Checked live: the list shows 0, the Evidence page and PDF refuse, and Evidence on
+their own record stays readable.
