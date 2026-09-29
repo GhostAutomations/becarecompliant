@@ -189,6 +189,10 @@ export async function createCompany(
   // company creation.
   await supabase.rpc("seed_company_job_titles", { cid: company.id });
 
+  // Seed the default company roles (Senior, from Supervisor: Phil, 2026-09-29). Idempotent, and
+  // a failure must not fail company creation.
+  await supabase.rpc("seed_company_default_roles", { cid: company.id });
+
   // The seeded Forms carry the generic template options, so bake this company's own
   // Office and first Branch into every branch field straight away (best-effort, see
   // rebake-options.ts).
@@ -950,6 +954,11 @@ export async function provisionFromTrialRequest(
   // and first Branch into every branch field straight away (best effort, see
   // rebake-options.ts). Outside the transaction on purpose: it must never undo a company.
   await rebakeFormFieldOptions(companyId);
+
+  // The default company roles (Senior, from Supervisor: Phil, 2026-09-29). provision_company
+  // seeds forms, checks and training inside its transaction; this is outside it on purpose, the
+  // same as the rebake above: a missing role must never undo a company.
+  await supabase.rpc("seed_company_default_roles", { cid: companyId });
 
   const invite = await createAndSendInvite({
     companyId,

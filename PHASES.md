@@ -3666,3 +3666,11 @@ request texts every platform admin with a UK mobile on their profile, through se
 under 160 characters (trialRequestSmsText, tested). The founder sets or clears the number on
 Founder, Trial requests; each request shows "Texted to you" or why not. Every Start free trial
 button on the site (header, footer, homepage, social proof) now reads Request a trial.
+
+### 2026-09-29 — The Senior role on every company (migration 0336)
+
+Phil: a new role called just "Senior" (not Senior Carer), starting from Supervisor, on every
+company. It is a company role (0314): people on it keep the Supervisor built-in role, which RLS
+reads, and it can only have departments switched off, never more. Added to Thistle and Bevan, and
+seed_company_default_roles(cid) now runs when the founder creates a company or provisions one from a
+trial request. Nothing is switched off yet: Phil is to say what a Senior must not reach.
