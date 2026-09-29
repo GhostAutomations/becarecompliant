@@ -22,6 +22,7 @@ import { writeAudit } from "@/lib/audit";
 import { recordUsage } from "@/lib/notifications/usage";
 import { spendAiCredit, refundAiCredit, OUT_OF_CREDITS } from "@/lib/billing/ai-credits";
 import type { ActionState } from "@/lib/forms";
+import { isStageAction, STAGE_ACTIONS } from "@/lib/absence/stage-actions";
 
 const POLICY_BUCKET = "absence-policies";
 
@@ -50,6 +51,22 @@ export async function saveAbsenceConfig(
     return { error: "The thresholds could not be read." };
   }
   if (!Array.isArray(thresholds)) return { error: "Thresholds must be a list." };
+  // Stage actions come from a fixed list (Phil, 2026-09-29): the letters and the Record meeting
+  // check compare them, so a value outside the list is refused here, not only in the dropdown.
+  // Blank means not set and is stored as no action at all.
+  if (method === "stages") {
+    const cleaned: unknown[] = [];
+    for (const t of thresholds as Record<string, unknown>[]) {
+      const row = { ...(t ?? {}) } as Record<string, unknown>;
+      const action = typeof row.action === "string" ? row.action.trim() : "";
+      if (!action) delete row.action;
+      else if (!isStageAction(action)) {
+        return { error: `Stage ${String(row.stage ?? "")} has an action that is not on the list. Choose one from Up to and including.` };
+      } else row.action = action;
+      cleaned.push(row);
+    }
+    thresholds = cleaned;
+  }
 
   const supabase = await createClient();
   const { error } = await supabase.from("absence_config").upsert(
@@ -188,7 +205,7 @@ export async function suggestAbsencePolicy(
     "Return ONLY valid JSON, no prose, matching exactly:",
     '{"method":"stages"|"bradford","rolling_window_value":number,"rolling_window_unit":"day"|"week"|"month","thresholds":[...],"summary":"one sentence"}',
     'Give the rolling window in the unit the policy itself uses: a policy that says "a rolling twelve month period" is 12 and "month", not 365 and "day".',
-    'For "stages" each threshold is {"stage":1,"label":"Stage 1","occasions":3}.',
+    `For "stages" each threshold is {"stage":1,"label":"Stage 1","occasions":3,"action":"Verbal warning"}, where "action" is the most the policy says a meeting at that stage can lead to, and must be exactly one of: ${STAGE_ACTIONS.join(", ")}. Leave "action" out if the policy does not say.`,
     'For "bradford" each threshold is {"threshold":51,"label":"Stage 1","action":"Informal discussion"}.',
     "A Return to Work interview is conducted after EVERY absence, at every stage/level regardless of the stage; state this clearly in the summary.",
     "If the policy does not specify numbers, use sensible UK care-sector defaults and say so in the summary.",

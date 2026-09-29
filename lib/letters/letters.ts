@@ -34,6 +34,12 @@ export const LETTER_PLACEHOLDERS: LetterPlaceholder[] = [
   { token: "company_name", label: "Your company", example: "Acme Care Company" },
   { token: "stage", label: "Stage number", example: "2" },
   { token: "stage_label", label: "Stage in words", example: "Stage 2 absence management meeting" },
+  { token: "stage_action", label: "Most the stage can lead to (Settings, Absence)", example: "Written warning" },
+  {
+    token: "stage_action_sentence",
+    label: "What the meeting could lead to, as a sentence (blank if no action is set)",
+    example: "This is a Stage 2 meeting and its outcome could be up to and including a written warning.",
+  },
   { token: "conductor_name", label: "Who is conducting the meeting", example: "Sam Idris" },
   { token: "meeting_date", label: "Date of the meeting", example: "14/08/2026" },
   { token: "meeting_time", label: "Time of the meeting", example: "10:30" },
@@ -60,6 +66,8 @@ export type LetterDefinition = {
  * The default wording is EXACTLY what the app sent before this feature existed, so
  * turning it on changes nothing until an Admin edits. Do not "improve" these while
  * editing the code: a company that never opens the screen keeps whatever is here.
+ * The one deliberate change since: {{stage_action_sentence}} in the employee's
+ * invitation (Phil, 2026-09-29).
  */
 export const LETTER_DEFINITIONS: LetterDefinition[] = [
   {
@@ -71,6 +79,9 @@ export const LETTER_DEFINITIONS: LetterDefinition[] = [
     defaultSubject: "{{stage_label}}",
     defaultBody: [
       "This is your formal invitation to a {{stage_label}} under the absence procedure at {{company_name}}.",
+      // Added 2026-09-29 (Phil: the invitation says what the meeting could lead to). Blank when
+      // the company has set no action for the stage, and a blank paragraph is left out.
+      "{{stage_action_sentence}}",
       "The purpose of the meeting is to review your absence record, discuss any support you may need, and consider the next steps under the procedure. The meeting will be conducted by {{conductor_name}} and will be held at {{location}}.",
       "You have the right to be accompanied by a colleague or a trade union representative. Please let us know in advance if you will be accompanied.",
     ].join("\n\n"),

@@ -3609,3 +3609,25 @@ of the answers, and closes the link. Included in the subject access export. Data
 Live test on Bevan (moved to Black by Phil for it) found two defects, both fixed the same day:
 DEF-076, no text could be paid for (0332), and DEF-077, the set up email said it was resent when it
 was not. R1 (saved, no second credit), R2 (text arrived) and R3 (tile shows Questions sent) PASS.
+
+### 2026-09-29 — Absence round 2, Phil's four changes (order agreed: 4, 1, 2, 3)
+
+Phil's list: (1) Book meeting shows the email for approval before it is sent; (2) AI questions in
+Record meeting from the absences and Return to Works; (3) AI drafts the outcome letter for approval
+once a meeting is saved; (4) Settings, Absence gets the stage action ("for Thistle it is up to and
+including S1 verbal warning, S2 written warning, S3 final written warning, S4 dismissal").
+Decisions by popup: stage action from a fixed list; preview both emails read only, on Book,
+Rearrange and Cancel; outcome letter emailed and kept as a PDF; meeting questions in a new section
+like Return to Work, saved on the meeting so no second credit; the invitation says what the stage
+could lead to. Each one built, tested and signed off before the next.
+
+**4. Stage actions (migration 0334).** Trigger points get an "Up to and including" dropdown: No
+formal action, Informal discussion, Verbal warning, Written warning, Final written warning,
+Dismissal (lib/absence/stage-actions.ts, refused server side if off the list; the AI policy reader
+may fill it, and a value it words its own way is dropped). Book meeting shows the chosen stage's
+action. The employee's invitation carries {{stage_action_sentence}} ("This is a Stage 1 meeting and
+its outcome could be up to and including a verbal warning."), blank and left out when no action is
+set; {{stage_action}} is on the Letters palette too. The meeting form's warning question became
+"Warning or dismissal" (None, Verbal, Written, Final written, Dismissal; v1 edited in place on every
+company and the template, existing answers were all None) and Record meeting refuses a warning above
+the stage's action before any Evidence is filed. Bradford bands keep their own free text action.

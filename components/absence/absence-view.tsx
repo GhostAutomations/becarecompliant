@@ -15,6 +15,7 @@ import AbsenceDetailDialog from "@/components/absence/absence-detail-dialog";
 import BookMeetingDialog from "@/components/absence/book-meeting-dialog";
 import CancelRearrangeDialog from "@/components/absence/cancel-rearrange-dialog";
 import DiscountAfterMeeting from "@/components/absence/discount-after-meeting";
+import { stageActionFor, stageActionLines } from "@/lib/absence/stage-actions";
 import type { FormSchema } from "@/lib/form-schema";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import type { AbsenceMethod, StageThreshold } from "@/lib/absence/logic";
@@ -144,6 +145,21 @@ export default function AbsenceView({
     return map;
   }, [events]);
 
+  // Stage actions from Settings, Absence (Phil, 2026-09-29): shown when booking, and listed as
+  // help on the meeting form's warning question. The server enforces the same limit.
+  const stageActionMap = useMemo(() => {
+    const map: Record<number, string> = {};
+    for (const t of stageThresholds) {
+      const a = stageActionFor({ method: "stages", thresholds: stageThresholds }, Number(t.stage));
+      if (a) map[Number(t.stage)] = a;
+    }
+    return map;
+  }, [stageThresholds]);
+  const policyLines = useMemo(
+    () => stageActionLines({ method: "stages", thresholds: stageThresholds }),
+    [stageThresholds],
+  );
+
   // Earliest open booking per person (a booked meeting awaiting recording).
   const bookingByPerson = useMemo(() => {
     const map: Record<string, OpenBookingRow> = {};
@@ -198,7 +214,9 @@ export default function AbsenceView({
               }
             : f.key === "date_of_meeting" && nothingBooked
               ? { ...f, help: "The date the meeting was held. A meeting still to come is booked with Book meeting, so the employee gets their letter." }
-              : f,
+              : f.key === "warning_issued" && policyLines.length > 0
+                ? { ...f, help: `Your absence settings allow: ${policyLines.join(". ")}. A warning above the meeting's stage will not save.` }
+                : f,
         ),
       })),
     };
@@ -632,6 +650,7 @@ export default function AbsenceView({
                       maxStage={s.derivedStage ?? 0}
                       conductors={conductors}
                       offices={offices}
+                      stageActions={stageActionMap}
                     />
                   ) : null}
                   {canManage && meetingSchema ? (

@@ -41,9 +41,13 @@ export default function BookMeetingDialog({
   maxStage,
   conductors,
   offices,
+  stageActions = {},
 }: {
   personId: string;
   personName: string;
+  /** Stage number to "Up to and including" wording from Settings, Absence (Phil, 2026-09-29).
+   *  Only stages with an action set appear. */
+  stageActions?: Record<number, string>;
   /** Suggested stage from the card's derived position, clamped 1 to 4. */
   defaultStage: number;
   /** Stages below this were already held or booked and are not offered
@@ -81,6 +85,7 @@ export default function BookMeetingDialog({
             maxStage={maxStage}
             conductors={conductors}
             offices={offices}
+            stageActions={stageActions}
             onClose={() => setOpenInstance(0)}
           />,
           document.body,
@@ -97,6 +102,7 @@ function BookMeetingForm({
   maxStage,
   conductors,
   offices,
+  stageActions,
   onClose,
 }: {
   personId: string;
@@ -106,9 +112,12 @@ function BookMeetingForm({
   maxStage: number;
   conductors: ConductorLite[];
   offices: MeetingOffice[];
+  stageActions: Record<number, string>;
   onClose: () => void;
 }) {
   const router = useRouter();
+  const [stage, setStage] = useState(defaultStage);
+  const stageAction = stageActions[stage];
   const [state, action, pending] = useActionState(bookAbsenceMeeting, IDLE_STATE);
 
   // Close on success and refresh the register (booked meetings advance the stage).
@@ -134,11 +143,22 @@ function BookMeetingForm({
           <input type="hidden" name="person_id" value={personId} />
           <div>
             <label htmlFor="bm-stage" className="form-label">Stage</label>
-            <select id="bm-stage" name="stage" defaultValue={String(defaultStage)} disabled={pending}>
+            <select
+              id="bm-stage"
+              name="stage"
+              value={String(stage)}
+              onChange={(e) => setStage(Number(e.target.value))}
+              disabled={pending}
+            >
               {([1, 2, 3, 4].filter((s) => s >= minStage && s <= maxStage)).map((s) => (
                 <option key={s} value={s}>Stage {s}</option>
               ))}
             </select>
+            {stageAction ? (
+              <p className="mt-1 text-[10px] text-white/50">
+                Up to and including: <span className="font-semibold text-white/80">{stageAction}</span>. The invitation tells them.
+              </p>
+            ) : null}
           </div>
           <div>
             <label htmlFor="bm-conductor" className="form-label">Who is holding the meeting</label>

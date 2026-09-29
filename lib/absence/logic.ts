@@ -19,6 +19,9 @@ export type StageThreshold = {
   stage: number; // 1..4
   label: string;
   occasions?: number; // e.g. 3 separate absences
+  /** What the stage can lead to, from the fixed list in lib/absence/stage-actions.ts
+   *  (Phil, 2026-09-29). Optional: a company that has not set one keeps working. */
+  action?: string;
 };
 
 /** Bradford action band: fires when the score reaches the threshold. */

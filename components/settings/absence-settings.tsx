@@ -31,6 +31,7 @@ import {
 } from "@/lib/absence/settings-actions";
 import { useSavedFlash } from "@/lib/use-saved-flash";
 import { AiIcon } from "@/components/ai-icon";
+import { STAGE_ACTIONS, isStageAction } from "@/lib/absence/stage-actions";
 
 type Row = Record<string, string | number>;
 
@@ -77,7 +78,15 @@ export default function AbsenceSettings({
       if (s.method === "stages" || s.method === "bradford") setMethod(s.method);
       if (s.rolling_window_value) setWindowValue(String(s.rolling_window_value));
       if (isWindowUnit(s.rolling_window_unit)) setWindowUnit(s.rolling_window_unit);
-      if (Array.isArray(s.thresholds)) setRows(s.thresholds);
+      if (Array.isArray(s.thresholds)) {
+        // A stage action the AI worded its own way is dropped rather than saved: the list is
+        // fixed, and Save would refuse it anyway. The Admin picks it from the dropdown.
+        setRows(
+          s.method === "bradford"
+            ? s.thresholds
+            : s.thresholds.map((r) => (isStageAction(r.action) ? r : { ...r, action: "" })),
+        );
+      }
       if (s.summary) setSummary(s.summary);
       setDirty(true); // AI pre-filled: the admin still needs to Save.
     } catch {
@@ -157,6 +166,9 @@ export default function AbsenceSettings({
           { key: "stage", label: "Stage", type: "number" },
           { key: "label", label: "Label", type: "text" },
           { key: "occasions", label: "Occasions", type: "number" },
+          // Phil, 2026-09-29: what the stage can lead to, from a fixed list so the letters and
+          // the meeting form can rely on it (lib/absence/stage-actions.ts).
+          { key: "action", label: "Up to and including", type: "select" },
         ];
 
   return (
@@ -233,7 +245,7 @@ export default function AbsenceSettings({
           <p className="mb-2 text-xs text-white/50">
             {method === "bradford"
               ? "A stage triggers when the Bradford score (occasions squared times days) reaches the value."
-              : "A stage triggers when the number of occasions reaches the value, within the rolling window."}
+              : "A stage triggers when the number of occasions reaches the value, within the rolling window. Up to and including is the most a meeting at that stage can lead to: it goes into the invitation letter, and Record meeting will not accept a warning above it."}
           </p>
           <div className="space-y-2">
             {rows.map((r, i) => (
@@ -241,11 +253,24 @@ export default function AbsenceSettings({
                 {stageCols.map((c) => (
                   <div key={c.key} className="min-w-[90px] flex-1">
                     <label className="form-label text-[11px]">{c.label}</label>
-                    <input
-                      type={c.type}
-                      value={String(r[c.key] ?? "")}
-                      onChange={(e) => updateCell(i, c.key, e.target.value)}
-                    />
+                    {c.type === "select" ? (
+                      <select
+                        value={String(r[c.key] ?? "")}
+                        onChange={(e) => updateCell(i, c.key, e.target.value)}
+                        aria-label={`Stage ${String(r.stage ?? i + 1)} action`}
+                      >
+                        <option value="">Not set</option>
+                        {STAGE_ACTIONS.map((a) => (
+                          <option key={a} value={a}>{a}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type={c.type}
+                        value={String(r[c.key] ?? "")}
+                        onChange={(e) => updateCell(i, c.key, e.target.value)}
+                      />
+                    )}
                   </div>
                 ))}
                 <button

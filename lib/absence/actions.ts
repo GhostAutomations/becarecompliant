@@ -35,6 +35,7 @@ import { londonToUtc } from "@/lib/email/ics";
 import { siteUrl } from "@/lib/site";
 import { getAbsenceConfig } from "@/lib/absence/data";
 import { deriveAbsenceStatus } from "@/lib/absence/logic";
+import { stageActionFor, stageActionSentence, warningAllowed, warningTooHighMessage } from "@/lib/absence/stage-actions";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
 import type { Answers } from "@/lib/form-schema";
@@ -271,6 +272,15 @@ export async function recordAbsenceMeeting(
       todayIso: formatCivilDate(todayInLondon()),
     });
     if (problem) return { error: problem };
+  }
+
+  // Up to and including (Phil, 2026-09-29): a warning above what the stage allows in Settings,
+  // Absence is refused here, before any Evidence exists. No action set means nothing to hold it to.
+  if (validStage) {
+    const stageAction = stageActionFor(await getAbsenceConfig(person.company_id as string), validStage);
+    if (!warningAllowed(stageAction, answers["warning_issued"] as string | undefined)) {
+      return { error: warningTooHighMessage(validStage, stageAction!) };
+    }
   }
 
   const result = await submitEvidence({
@@ -670,6 +680,12 @@ async function sendMeetingLetters(args: {
     duration: `${args.duration} minutes`,
   };
 
+  // What this stage can lead to (Settings, Absence; Phil 2026-09-29). Read here rather than
+  // passed in, so booking and rearranging can never disagree about it.
+  const stageAction = stageActionFor(await getAbsenceConfig(args.companyId), args.stage);
+  values.stage_action = stageAction ?? "";
+  values.stage_action_sentence = stageActionSentence(args.stage, stageAction);
+
   const [employeeLetter, conductorLetter, rearrangedLetter] = await Promise.all([
     letterWordingFor(args.supabase, args.companyId, "absence_meeting_invite_employee"),
     letterWordingFor(args.supabase, args.companyId, "absence_meeting_invite_conductor"),
@@ -1021,7 +1037,15 @@ export async function cancelAbsenceMeetingBooking(
     profile.company_id,
     "absence_meeting_cancelled",
   );
+  // Every placeholder the Letters screen offers resolves, so none is ever sent as raw {{text}}.
+  // The "could lead to" sentence is left blank: it has no place in a cancellation.
+  const cancelStageAction = stageActionFor(
+    await getAbsenceConfig(profile.company_id),
+    (meeting.stage as number | null) ?? null,
+  );
   const cancelValues = (recipientName: string): Record<string, string> => ({
+    stage_action: cancelStageAction ?? "",
+    stage_action_sentence: "",
     recipient_name: recipientName,
     employee_name: (person?.full_name as string) ?? "",
     company_name: company?.name ?? "your company",
