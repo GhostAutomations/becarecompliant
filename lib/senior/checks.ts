@@ -30,12 +30,23 @@ export function seniorChecksOff(
 }
 
 /**
- * The two columns a list's Checks sit in on the Senior tile, filled down the left first
- * (Phil, 2026-09-29). More than five: the first half on the left, the rest on the right, so
- * People's ten are five and five. Five or fewer: all in the left column, the right one empty.
+ * The columns a list's Checks sit in on the Senior tile, filled down the left first
+ * (Phil, 2026-09-29). More than five: three columns, the spare ones going to the left, so
+ * People's ten are four, three and three and the tile is the height of the Viewer tile. Five or
+ * fewer: one column on the left (Service users).
  */
-export function splitColumns<T>(checks: readonly T[]): [T[], T[]] {
-  if (checks.length <= 5) return [[...checks], []];
-  const left = Math.ceil(checks.length / 2);
-  return [checks.slice(0, left), checks.slice(left)];
+export const SENIOR_CHECK_COLUMNS = 3;
+
+export function splitColumns<T>(checks: readonly T[]): T[][] {
+  if (checks.length <= 5) return [[...checks]];
+  const base = Math.floor(checks.length / SENIOR_CHECK_COLUMNS);
+  const extra = checks.length % SENIOR_CHECK_COLUMNS;
+  const out: T[][] = [];
+  let at = 0;
+  for (let c = 0; c < SENIOR_CHECK_COLUMNS; c++) {
+    const size = base + (c < extra ? 1 : 0);
+    out.push(checks.slice(at, at + size));
+    at += size;
+  }
+  return out;
 }

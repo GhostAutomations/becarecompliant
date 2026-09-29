@@ -15,14 +15,22 @@ test("with the list unticked, its Checks are left as they were", () => {
   assert.equal(seniorChecksOff(false, ["a", "b"], new Set()), null);
 });
 
-test("People's ten Checks are five on the left and five on the right, in order", () => {
+test("People's ten Checks are four, three and three, filled down the left first", () => {
   const ten = ["Supervision", "Annual Appraisal", "Spot Check", "Medication Competency", "Manual Handling", "Audit", "Mentoring", "Lead the Leader", "One to One", "Health Check"];
-  const [left, right] = splitColumns(ten);
-  assert.deepEqual(left, ten.slice(0, 5));
-  assert.deepEqual(right, ten.slice(5));
+  assert.deepEqual(splitColumns(ten), [
+    ["Supervision", "Annual Appraisal", "Spot Check", "Medication Competency"],
+    ["Manual Handling", "Audit", "Mentoring"],
+    ["Lead the Leader", "One to One", "Health Check"],
+  ]);
 });
 
-test("a short list stays in the left column; an odd long list puts the extra one on the left", () => {
-  assert.deepEqual(splitColumns(["Setup Visit", "Care Plan Review", "Audit"]), [["Setup Visit", "Care Plan Review", "Audit"], []]);
-  assert.deepEqual(splitColumns([1, 2, 3, 4, 5, 6, 7]).map((c) => c.length), [4, 3]);
+test("a short list stays in one column; nothing is lost or repeated in a long one", () => {
+  assert.deepEqual(splitColumns(["Setup Visit", "Care Plan Review", "Audit"]), [["Setup Visit", "Care Plan Review", "Audit"]]);
+  for (const n of [6, 7, 8, 11, 12]) {
+    const list = Array.from({ length: n }, (_, i) => i);
+    const cols = splitColumns(list);
+    assert.equal(cols.length, 3);
+    assert.deepEqual(cols.flat(), list);
+    assert.ok(Math.max(...cols.map((c) => c.length)) - Math.min(...cols.map((c) => c.length)) <= 1);
+  }
 });

@@ -54,9 +54,10 @@ const ROLE_ORDER = [
   "supervisor",
   "recruiter",
   "on_call",
-  "team_member",
-  // A carer's login that also sees names (0338). Its tile shows People and Service Users only.
+  // A carer's login that also sees its branch and completes ticked Checks (0338, 0339). Between
+  // On Call and Viewer on Role access (Phil, 2026-09-29).
   "senior",
+  "team_member",
 ];
 
 function roleRank(role: string): number {
@@ -68,8 +69,8 @@ function roleRank(role: string): number {
     "supervisor",
     "recruiter",
     "on_call",
-    "team_member",
     "senior",
+    "team_member",
     "staff",
   ].indexOf(role);
 }

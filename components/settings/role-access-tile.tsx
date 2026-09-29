@@ -133,9 +133,10 @@ export default function RoleAccessTile({
           unreadable, and this screen has to work on the phone an owner actually carries.
         */}
         {/* THE SENIOR TILE (Phil, 2026-09-29): each list across the tile, one under the other with
-            a dashed line between. Its Checks sit beneath it: a long list in two columns, filled
-            down the left first (People: Supervision to Manual Handling on the left, Audit to
-            Health Check on the right), a short one in the left column only (Service users). */}
+            a dashed line between. Its Checks sit beneath it, each row the height of a department row: a
+            long list in three columns filled down the left first (People: four, three, three, so
+            the tile is the height of the Viewer tile), a short one in the left column (Service
+            users). */}
         <div className={checksUnder ? "" : "grid grid-cols-1 gap-x-3 gap-y-0.5 sm:grid-cols-2"}>
           {modules.map((m, index) => {
             const under = checksUnder?.[m.key];
@@ -185,7 +186,7 @@ export default function RoleAccessTile({
             return (
               <div
                 key={m.key}
-                className={index > 0 ? "mt-2 border-t border-dashed border-white/20 pt-2" : undefined}
+                className={index > 0 ? "mt-0.5 border-t border-dashed border-white/20 pt-[3px]" : undefined}
               >
                 {label}
                 {/* The Checks under this list, indented beneath it. Greyed while the list is
@@ -193,14 +194,14 @@ export default function RoleAccessTile({
                 {under.length === 0 ? (
                   <p className="ml-6 pb-1 text-xs text-white/40">No checks set up yet.</p>
                 ) : (
-                  <div className="ml-4 grid grid-cols-2 items-start gap-x-2" aria-label={`${m.label} checks`}>
+                  <div className="ml-4 grid grid-cols-3 items-start gap-x-2" aria-label={`${m.label} checks`}>
                     {splitColumns(under).map((column, ci) => (
-                      <div key={ci} className="space-y-0.5">
+                      <div key={ci} className="flex flex-col gap-y-0.5">
                         {column.map((c) => (
                           <label
                             key={c.id}
-                            title={live ? undefined : `Tick ${m.label} first.`}
-                            className={`flex items-start gap-2 rounded-lg px-2 py-1 text-[13px] leading-snug ${
+                            title={live ? c.name : `Tick ${m.label} first.`}
+                            className={`flex items-center gap-2 rounded-lg px-2 py-1 text-[13px] ${
                               live ? "cursor-pointer text-white/75 hover:bg-white/5" : "text-white/30"
                             }`}
                           >
@@ -211,9 +212,9 @@ export default function RoleAccessTile({
                               checked={!!checkOn[c.id]}
                               onChange={(e) => setCheckOn((x) => ({ ...x, [c.id]: e.target.checked }))}
                               disabled={!live}
-                              className="mt-0.5 shrink-0"
+                              className="shrink-0"
                             />
-                            <span className="min-w-0 break-words">{c.name}</span>
+                            <span className="min-w-0 truncate">{c.name}</span>
                           </label>
                         ))}
                       </div>
