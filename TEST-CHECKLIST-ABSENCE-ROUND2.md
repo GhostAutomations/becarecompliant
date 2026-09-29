@@ -88,15 +88,30 @@ showed no new Thistle meeting rows, no absence audit entries and no emails logge
 - L2 PASS: Back showed every choice kept (Stage 1, Phil, 06/10/2026, 11:30, 1 hour, office).
 - L3 PASS: 30/09/2026 refused at Check the letters with the 48 hours message; no letters shown.
 - L4 PASS: pressing Accept the invitation inside the preview did nothing.
-- L9 NOT RUN: the Chrome window could not be resized to phone width. Phil to check on his phone.
+- L9 PASS (Phil, on his phone as Bev Admin): letters readable, tabs switch, email scrolls, Approve
+  and send, Back and Close all reachable.
 - L5 PASS on the booking, FAIL on the box: Phil signed Chrome into Bev Admin and gave the go.
   ZZ TEST Senior given one test absence (22/09/2026) so a Stage 1 was due, then booked 07/10/2026
   10:00, Teams, Bev Admin holding. Both letters logged "sent" once each (ppdavies+senior and
   ppdavies+cob). But the box never closed: its success step refreshed the page, the refresh gave
-  the box a new close function, which ran the success step again, so it refreshed without end and
-  the server began answering 503. Tab closed to stop it. DEF-079, fixed by keeping the close
+  the box a new close function, which ran the success step again, so it refreshed without end. Tab closed to stop it. DEF-079, fixed by keeping the close
   function stable (both Book and Rearrange had it). Phil to compare the two emails with the preview.
-- L6 preview PASS: 14:00 shows "This meeting has been rearranged..." in yellow, Back kept 14:00.
-  Approve and send held until the DEF-079 fix is live.
-- L7 preview PASS: both cancellation notices shown; nothing cancelled. Approve held until the fix.
-- L8 not run yet: no Bevan person without an email.
+- L6 PASS (after bdf1cd37): 14:00 shows "This meeting has been rearranged..." in yellow, Back kept
+  14:00. Approve and send: the box showed "Meeting rearranged. 2 new invitations sent." and closed
+  after one refresh; the card reads 7 Oct 2026 at 14:00. Both letters logged sent once.
+- L7 PASS: both cancellation notices shown and nothing cancelled until Approve and send; then the
+  box closed, the booking went (the card says a Stage 1 meeting is due again) and both notices
+  logged sent once. Audit: booked, rearranged, cancelled.
+- L5 to L7 emails PASS (checked in Resend, Phil signed in): all six Delivered, invite.ics attached to
+  the four invitations; the rearranged invitation and the cancellation notice read word for word as
+  their previews did.
+- L8 PASS: Phil chose a test person. Add person needs an email, so ZZ TEST No Email was added on
+  Bevan (Swansea, Care Assistant, login held, zz.noemail@example.com) and the email then cleared in
+  Manage record (a CSV import can also leave it blank). One test absence (23/09/2026). The Employee
+  tab read "ZZ TEST No Email: not sent" with the reason in amber and no email shown; Approve and
+  send booked 08/10/2026 10:00 with "1 invitation sent" and closed. Audit: employee
+  skipped_no_email, conductor sent. Cancel showed the same for the notice; approved, the booking
+  went and only ppdavies+cob was told.
+
+Item 1: L1 to L9 all pass (2026-09-29). Bevan test data left: ZZ TEST Senior and ZZ TEST No Email
+each have one test absence and a Stage 1 due; no meetings open.
