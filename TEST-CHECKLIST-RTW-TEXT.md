@@ -24,9 +24,16 @@ R2. Reword a question and remove one, then Send to (name) by text: the text arri
     07886 077200 with a link. PASS 2026-09-25 (after DEF-076 fix, 0332)
 R3. The dashboard tile and the Absence page show "Questions sent". PASS 2026-09-25
 R4. Tap the link signed out: the login page, then straight to the questions after signing in. PASS 2026-09-25
-R5. Leave a question blank and send: it says which one needs an answer. Answer them all: thank you. NOT TESTED on screen (Phil answered all; the blank check is proven in the database probe, test 7). To test on the phone.
-R6. The dashboard tile shows "Answers in" without a refresh. Answers in: PASS 2026-09-25. Live update without a refresh: still to watch on the phone.
+R5. Leave a question blank and send: it says which one needs an answer. Answer them all: thank you. PASS 2026-09-29 on the phone (fresh Return to Work for ZZ TEST Audit Starter, absence 26/09).
+R6. The dashboard tile shows "Answers in" without a refresh. Answers in: PASS 2026-09-25. Live update PASS 2026-09-29: the Bevan dashboard in Chrome, open 40 minutes with no reload, went from Questions sent to Answers in.
 R7. Open the Return to Work: the answers are filled in with the "answered through their portal"
     note. Change one answer and save. PASS 2026-09-25
 R8. The Evidence shows the note naming who answered and which answer was changed, by whom. PASS 2026-09-25 ("The answers to questions 5 and 6 were changed by Bev Admin after speaking to them.")
-R9. The link now says the answers were sent; My area no longer lists it. Proven in the data only (status answered, my_open_rtw_questions empty); still to view on the phone.
+R9. The link now says the answers were sent; My area no longer lists it. PASS 2026-09-29 on the phone.
+
+All live steps pass (2026-09-29).
+
+Phil's feedback from R5 (2026-09-29), not yet built:
+- A Yes to "Do you have a fit note" should ask them to upload it there and then, unless one is already uploaded.
+- "Is there any support that would help you now" should be Yes or No, and a Yes asks what they need.
+- The same for "Is there anything else you would like to raise".
