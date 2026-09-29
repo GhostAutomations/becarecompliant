@@ -25,8 +25,17 @@ export default function SettingsSection({
   children: React.ReactNode;
 }) {
   return (
-    <details className="fold glass-card overflow-hidden" open={defaultOpen}>
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 transition hover:bg-white/[0.04]">
+    /* OPEN, NOTHING INSIDE IS CLIPPED (Phil, 2026-09-29, Thistle, Team Member logins: the
+       Passive users list opened inside the section and was cut off at a sliver, so nobody could
+       be picked). The names list is a floating panel (user-dropdown.tsx) and a closed section's
+       overflow-hidden was cutting it off. Open, the section lets it spill over and sits above
+       the sections after it; closed, it clips as before, and the heading keeps its own rounded
+       corners so its hover shade never pokes past the card. */
+    <details
+      className="fold glass-card group overflow-hidden open:relative open:z-20 open:overflow-visible"
+      open={defaultOpen}
+    >
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl px-5 py-4 transition hover:bg-white/[0.04] group-open:rounded-b-none">
         <span className="min-w-0">
           <span className="flex items-center gap-2">
             <span className="text-base font-semibold text-white">{title}</span>
