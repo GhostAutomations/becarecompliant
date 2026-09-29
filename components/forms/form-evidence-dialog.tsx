@@ -382,14 +382,11 @@ export default function FormEvidenceDialog({
                       <div key={`ai-q-${i}`} className="flex flex-col gap-1.5">
                         {questionsEditable && !questionsLocked ? (
                           <div className="flex items-start gap-2">
-                            <input
-                              type="text"
-                              aria-label={`Question ${i + 1}`}
+                            <QuestionText
+                              label={`Question ${i + 1}`}
                               value={q.question}
-                              maxLength={300}
                               disabled={busy}
-                              onChange={(e) => setAiQuestionText(i, e.target.value)}
-                              className="flex-1"
+                              onChange={(text) => setAiQuestionText(i, text)}
                             />
                             {aiQuestions.length > 1 ? (
                               <button
@@ -510,5 +507,49 @@ export default function FormEvidenceDialog({
         document.body,
       )}
     </>
+  );
+}
+
+/**
+ * An editable drafted question, shown WHOLE. It was a one line input, which on a phone showed the
+ * first six words of a question the manager has to read aloud (Phil, 2026-09-29, Q9). A textarea
+ * that grows to fit its text, so the full question is always on screen and still editable. Sized
+ * from scrollHeight rather than CSS field-sizing, which Safari on iPhone does not support.
+ */
+function QuestionText({
+  label,
+  value,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  disabled: boolean;
+  onChange: (text: string) => void;
+}) {
+  const ref = useRef<HTMLTextAreaElement | null>(null);
+  useEffect(() => {
+    const fit = () => {
+      const el = ref.current;
+      if (!el) return;
+      el.style.height = "auto";
+      el.style.height = `${el.scrollHeight}px`;
+    };
+    fit();
+    // A phone turned on its side rewraps the text, so fit again.
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, [value]);
+  return (
+    <textarea
+      ref={ref}
+      aria-label={label}
+      rows={1}
+      value={value}
+      maxLength={300}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value.replace(/\n/g, " "))}
+      className="min-h-0 flex-1 resize-none overflow-hidden font-medium"
+    />
   );
 }

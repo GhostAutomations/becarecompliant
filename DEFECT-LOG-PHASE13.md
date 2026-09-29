@@ -2372,3 +2372,11 @@ put back the saved set the page had not yet caught up on. Return to Work never s
 its row leaves the list once recorded. **Fixed** in form-evidence-dialog: a successful save
 clears the drafted questions, their answers, the form's defaults and files, and the set just used
 up is never put back. Nothing wrong was saved: the Evidence held the six questions asked.
+
+## DEF-081 - Drafted questions cut off at six words on a phone
+Found by Phil 2026-09-29 on his phone (Absence 2, step Q9): "cant read the questions, you can only
+[see] the first 6 words". Where drafted questions can be reworded (Record meeting, and a Return to
+Work before it is sent), each question sat in a one line text box, so anything longer than the box
+was hidden; on a computer it cut off too. **Fixed:** the question is now a box that grows to fit
+the whole question (and refits when the phone is turned), still editable, with the Remove button
+beside it.

@@ -161,3 +161,14 @@ Run on Bevan as Bev Admin. ZZ TEST No Email and ZZ TEST Senior each have one tes
   questions with their answers; the set is closed against the new meeting and the Evidence.
 - Q6 FAIL: reopening Record meeting for the same person showed last meeting's 7 questions again.
   DEF-080, fixed in form-evidence-dialog; to retest once deployed.
+- Q6 PASS on retest (after 2956d8ea): ZZ TEST No Email drafted (7 questions about the single
+  absence on 23 September), one answered, saved as Stage 1, No further action. Record meeting for
+  them straight away, same page: no questions, the Draft button back, "Questions asked and
+  answers" visible, no earlier answers in any box.
+- Q7 PASS (Phil's go for the 4 emails): ZZ TEST Senior booked for 09/10/2026 10:00, Teams, Bev
+  Admin; Record meeting on it drafted 7 questions saved against the booking (stage 1). Cancelled
+  through the letters step: the booking and its question set are both gone. Emails: 2 invitations
+  and 2 cancellation notices, sent once each. AI credits for this feature: 3 in all (Audit
+  Starter, No Email, Senior), so no reopen ever spent one.
+- Q9 FAIL (Phil, phone): only the first six words of each question could be read. DEF-081, fixed
+  (questions shown whole in a growing box); to retest on the phone once deployed.
