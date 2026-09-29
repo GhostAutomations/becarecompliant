@@ -2349,3 +2349,13 @@ which offers only a Dashboard button and so said there was nowhere to go. The da
 "staff go to /my" never ran. None of Thistle's carers had accepted yet, so nobody real hit it.
 **Fixed:** when the gate refuses a Team Member and their company has My area open, it sends them to
 /my instead of /no-access.
+
+## DEF-079 - Book meeting's box never closed and refreshed the page without end
+Found live 2026-09-29 by Claude on Bevan (Absence 1, step L5). The booking itself was right: one
+meeting, both invitations sent once. But the box stayed open saying "Meeting booked. 2 invitations
+sent." and the page asked the server for a fresh copy over and over until it answered 503. The
+success step lists onClose and calls router.refresh(); the refresh re-renders the dialog's opener,
+whose inline onClose was a new function each time, so the success step ran again, refreshed again,
+and its close timer was cleared before it could fire. Rearrange had the same shape. Cancel and the
+discount box close at once, which unmounts them, so they never looped. **Fixed:** the opener's
+close function is made once (useCallback) in book-meeting-dialog and cancel-rearrange-dialog.

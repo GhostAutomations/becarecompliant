@@ -74,3 +74,29 @@ Run on Bevan with a ZZ TEST person whose email reaches Phil. Each step: Pass / F
 - L8. A person with no email: the employee tab says it will not be sent and why, and booking still
   works with the conductor's letter only.
 - L9. On a phone width the letters are readable and the buttons reachable.
+
+### Item 1 results (2026-09-29, Claude in Chrome, deploy e85bce5c READY)
+
+Run on Thistle as Phil, preview only: Approve and send was never pressed. Afterwards the database
+showed no new Thistle meeting rows, no absence audit entries and no emails logged.
+
+- L1 PASS: Joan Jepkosgei, Stage 1, Phil holding, 06/10/2026 11:30, Thistle office. The box widened
+  to "Check the letters", tabs "Employee: Joan Jepkosgei" and "Holding the meeting: Phil Davies",
+  To, Subject "Stage 1 absence management meeting: 6 October 2026, 11:30", calendar invite note,
+  and the whole email including the office address and the verbal warning sentence. The
+  conductor's letter reads "You are chairing this meeting".
+- L2 PASS: Back showed every choice kept (Stage 1, Phil, 06/10/2026, 11:30, 1 hour, office).
+- L3 PASS: 30/09/2026 refused at Check the letters with the 48 hours message; no letters shown.
+- L4 PASS: pressing Accept the invitation inside the preview did nothing.
+- L9 NOT RUN: the Chrome window could not be resized to phone width. Phil to check on his phone.
+- L5 PASS on the booking, FAIL on the box: Phil signed Chrome into Bev Admin and gave the go.
+  ZZ TEST Senior given one test absence (22/09/2026) so a Stage 1 was due, then booked 07/10/2026
+  10:00, Teams, Bev Admin holding. Both letters logged "sent" once each (ppdavies+senior and
+  ppdavies+cob). But the box never closed: its success step refreshed the page, the refresh gave
+  the box a new close function, which ran the success step again, so it refreshed without end and
+  the server began answering 503. Tab closed to stop it. DEF-079, fixed by keeping the close
+  function stable (both Book and Rearrange had it). Phil to compare the two emails with the preview.
+- L6 preview PASS: 14:00 shows "This meeting has been rearranged..." in yellow, Back kept 14:00.
+  Approve and send held until the DEF-079 fix is live.
+- L7 preview PASS: both cancellation notices shown; nothing cancelled. Approve held until the fix.
+- L8 not run yet: no Bevan person without an email.

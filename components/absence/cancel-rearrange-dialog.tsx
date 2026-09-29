@@ -13,7 +13,7 @@
  * mounted (hidden) behind the letters so Back keeps every choice.
  */
 
-import { startTransition, useActionState, useEffect, useRef, useState, useTransition } from "react";
+import { startTransition, useActionState, useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { IDLE_STATE } from "@/lib/forms";
@@ -51,6 +51,13 @@ export default function CancelRearrangeDialog({
   offices: MeetingOffice[];
 }) {
   const [openInstance, setOpenInstance] = useState(0);
+  /*
+   * Stable on purpose. The form's success effect lists onClose and calls router.refresh(); the
+   * refresh re-renders this component, so an inline arrow gave a new onClose every time, which re
+   * ran the effect, which refreshed again: an endless refresh loop that kept the box open and hit
+   * the server until it answered 503 (found live 2026-09-29).
+   */
+  const close = useCallback(() => setOpenInstance(0), []);
 
   return (
     <>
@@ -69,7 +76,7 @@ export default function CancelRearrangeDialog({
             personName={personName}
             conductors={conductors}
             offices={offices}
-            onClose={() => setOpenInstance(0)}
+            onClose={close}
           />,
           document.body,
         )}
