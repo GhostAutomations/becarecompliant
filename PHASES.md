@@ -2098,6 +2098,13 @@ Still open for Phil: whether Thistle's data lives in the same Supabase project a
 test companies (it should, or the thing being tested is not the thing being sold), and what
 happens to Acme once Thistle is real.
 
+### Phase 13 — still to do (added 2026-09-29, Phil)
+
+- **New department: Safety Checks.** Scope to be talked through with Phil before anything is built.
+- **New department: Maintenance.** Scope to be talked through with Phil before anything is built.
+- **Manager sign off.** Scope to be talked through with Phil before anything is built.
+- **A demo account.** Scope to be talked through with Phil before anything is built.
+
 # OPERATION NEW DAWN — Phase 14 onwards
 
 ## Phase 14 — Scheduling, care recording and the staff app  ⬜ NOT STARTED
@@ -3631,6 +3638,15 @@ set; {{stage_action}} is on the Letters palette too. The meeting form's warning 
 "Warning or dismissal" (None, Verbal, Written, Final written, Dismissal; v1 edited in place on every
 company and the template, existing answers were all None) and Record meeting refuses a warning above
 the stage's action before any Evidence is filed. Bradford bands keep their own free text action.
+
+**1. Check the letters before they go (no migration).** Book meeting, Rearrange and Cancel now
+show their emails read only for approval: one tab per recipient with To, Subject, the attachment
+note and the whole branded email in a sandboxed frame (links inert). Nothing is booked, changed,
+cancelled or sent until Approve and send; Back keeps every choice. The server builds each email
+once (buildMeetingLetters, renderCalendarInvite, planBooking / planRearrange / planCancel) and the
+preview and the send both use it, so the approved email is the one that goes. The action re-runs
+every check on approval. Cancel's old "Yes, cancel it" step is replaced by the notices themselves.
+Wording is still changed only in Settings, Letters. Tests L1 to L9 in TEST-CHECKLIST-ABSENCE-ROUND2.md.
 
 ### 2026-09-29 — New prices, the new pricing page, and trial requests in the Founder inbox
 

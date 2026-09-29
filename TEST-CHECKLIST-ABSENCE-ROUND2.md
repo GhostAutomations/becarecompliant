@@ -53,3 +53,24 @@ actions himself as real configuration (S6).
   outcome could be up to and including a verbal warning."
 
 Item 4: all six steps pass.
+
+## Item 1: check the letters before they go (Book, Rearrange, Cancel)
+
+Run on Bevan with a ZZ TEST person whose email reaches Phil. Each step: Pass / Fail / Not tested.
+
+- L1. Book meeting, fill the details, press Check the letters. The box widens and shows "Check the
+  letters", a tab for the employee and a tab for the person holding it, To, Subject, "A calendar
+  invite is attached", and the whole email. Nothing is booked yet (the card still shows Book meeting).
+- L2. Back returns to the details with every choice kept (stage, who, date, time, duration, place).
+- L3. A detail that breaks a rule (for example a date under 48 hours, typed by hand) is refused at
+  Check the letters with the usual message, before any letter is shown.
+- L4. Pressing Accept the invitation inside the preview does nothing.
+- L5. Approve and send books the meeting and sends both; the emails that arrive match the preview.
+- L6. Cancel / rearrange, change the time, Rearrange: check the letters shows both replacement
+  letters with the "replaces the earlier invitation" line. Back keeps the new time. Approve and
+  send rearranges and the arrivals match.
+- L7. Cancel the meeting shows both cancellation notices; nothing is cancelled until Approve and
+  send, then the meeting goes and both notices arrive.
+- L8. A person with no email: the employee tab says it will not be sent and why, and booking still
+  works with the conductor's letter only.
+- L9. On a phone width the letters are readable and the buttons reachable.

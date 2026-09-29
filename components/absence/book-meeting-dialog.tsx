@@ -10,13 +10,21 @@
  * The form lives in an inner component keyed per open, so reopening after a
  * successful booking always starts clean (a stale success state was closing
  * the dialog instantly: Phil, 2026-07-12).
+ *
+ * Two steps (Phil, 2026-09-29): the details, then both letters shown read only
+ * for approval. Nothing is booked or sent until Approve and send. The details
+ * form stays mounted (hidden) behind the letters, so Back returns to it with
+ * every choice kept, and it is submitted by hand rather than as a form action
+ * so React never resets it.
  */
 
-import { useActionState, useEffect, useState } from "react";
+import { startTransition, useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { IDLE_STATE } from "@/lib/forms";
-import { bookAbsenceMeeting } from "@/lib/absence/actions";
+import { bookAbsenceMeeting, previewBookAbsenceMeeting } from "@/lib/absence/actions";
+import type { LetterPreviewState } from "@/lib/absence/letter-preview";
+import LetterPreviewPanel from "@/components/absence/letter-preview-panel";
 import type { ConductorLite, MeetingOffice } from "@/lib/absence/data";
 
 /** Earliest bookable date for the picker: 48 hours from now (server enforces
@@ -119,6 +127,28 @@ function BookMeetingForm({
   const [stage, setStage] = useState(defaultStage);
   const stageAction = stageActions[stage];
   const [state, action, pending] = useActionState(bookAbsenceMeeting, IDLE_STATE);
+  const [preview, setPreview] = useState<LetterPreviewState | null>(null);
+  const [previewing, startPreview] = useTransition();
+  /** Exactly the details the letters were built from; Approve and send posts these. */
+  const approved = useRef<FormData | null>(null);
+  const busy = pending || previewing;
+  const letters = preview?.letters ?? null;
+
+  function showLetters(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    startPreview(async () => {
+      const result = await previewBookAbsenceMeeting(fd);
+      approved.current = result.letters ? fd : null;
+      setPreview(result);
+    });
+  }
+
+  function approveAndSend() {
+    const fd = approved.current;
+    if (!fd) return;
+    startTransition(() => action(fd));
+  }
 
   // Close on success and refresh the register (booked meetings advance the stage).
   useEffect(() => {
@@ -131,15 +161,35 @@ function BookMeetingForm({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-sm rounded-2xl border border-white/15 bg-navy-900 p-5 shadow-2xl">
+      <div
+        className={`max-h-[94vh] w-full overflow-y-auto rounded-2xl border border-white/15 bg-navy-900 p-5 shadow-2xl ${
+          letters ? "max-w-2xl" : "max-w-sm"
+        }`}
+      >
         <h2 className="text-sm font-semibold text-white">
-          Book meeting: {personName}
+          {letters ? "Check the letters" : "Book meeting"}: {personName}
         </h2>
-        <p className="mt-1 text-xs text-white/50">
-          The employee and the person holding the meeting receive a formal
-          letter invitation with a calendar invite.
-        </p>
-        <form action={action} className="mt-4 space-y-3">
+        {letters ? (
+          <LetterPreviewPanel
+            letters={letters}
+            intro="These are the emails that will be sent. Nothing is booked or sent until you approve."
+            approveLabel="Approve and send"
+            workingLabel="Sending…"
+            pending={pending}
+            error={state.error}
+            ok={state.ok}
+            onBack={() => setPreview(null)}
+            onApprove={approveAndSend}
+            onClose={onClose}
+          />
+        ) : (
+          <p className="mt-1 text-xs text-white/50">
+            The employee and the person holding the meeting receive a formal
+            letter invitation with a calendar invite. You will see both letters
+            before anything is sent.
+          </p>
+        )}
+        <form onSubmit={showLetters} className={letters ? "hidden" : "mt-4 space-y-3"}>
           <input type="hidden" name="person_id" value={personId} />
           <div>
             <label htmlFor="bm-stage" className="form-label">Stage</label>
@@ -148,7 +198,7 @@ function BookMeetingForm({
               name="stage"
               value={String(stage)}
               onChange={(e) => setStage(Number(e.target.value))}
-              disabled={pending}
+              disabled={busy}
             >
               {([1, 2, 3, 4].filter((s) => s >= minStage && s <= maxStage)).map((s) => (
                 <option key={s} value={s}>Stage {s}</option>
@@ -162,7 +212,7 @@ function BookMeetingForm({
           </div>
           <div>
             <label htmlFor="bm-conductor" className="form-label">Who is holding the meeting</label>
-            <select id="bm-conductor" name="conducted_by" defaultValue="" required disabled={pending}>
+            <select id="bm-conductor" name="conducted_by" defaultValue="" required disabled={busy}>
               <option value="" disabled>Choose a Manager or Admin</option>
               {conductors.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -179,7 +229,7 @@ function BookMeetingForm({
               type="date"
               min={minNoticeDate()}
               required
-              disabled={pending}
+              disabled={busy}
             />
             <p className="mt-1 text-[10px] text-white/40">
               Formal meetings need at least 48 hours notice.
@@ -188,11 +238,11 @@ function BookMeetingForm({
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label htmlFor="bm-time" className="form-label">Time</label>
-              <input id="bm-time" name="meeting_time" type="time" defaultValue="10:00" required disabled={pending} />
+              <input id="bm-time" name="meeting_time" type="time" defaultValue="10:00" required disabled={busy} />
             </div>
             <div>
               <label htmlFor="bm-duration" className="form-label">Duration</label>
-              <select id="bm-duration" name="duration" defaultValue="60" disabled={pending}>
+              <select id="bm-duration" name="duration" defaultValue="60" disabled={busy}>
                 {DURATIONS.map((d) => (
                   <option key={d.value} value={d.value}>{d.label}</option>
                 ))}
@@ -201,7 +251,7 @@ function BookMeetingForm({
           </div>
           <div>
             <label htmlFor="bm-location" className="form-label">Location</label>
-            <select id="bm-location" name="location_choice" defaultValue="" required disabled={pending}>
+            <select id="bm-location" name="location_choice" defaultValue="" required disabled={busy}>
               <option value="" disabled>Choose a location</option>
               {offices.map((o) => (
                 <option key={o.id} value={o.id} disabled={!o.hasAddress}>
@@ -215,16 +265,15 @@ function BookMeetingForm({
               letters. Teams tells them an invite will follow shortly.
             </p>
           </div>
-          {state.error && <p className="form-error">{state.error}</p>}
-          {state.ok && <p className="text-sm text-emerald-300">{state.ok}</p>}
+          {preview?.error && <p className="form-error">{preview.error}</p>}
           <div className="flex items-center justify-between gap-2 pt-1">
-            <button type="submit" className="btn-primary text-xs" disabled={pending}>
-              {pending ? "Booking…" : "Book and send invitations"}
+            <button type="submit" className="btn-primary text-xs" disabled={busy}>
+              {previewing ? "Preparing letters…" : "Check the letters"}
             </button>
             <button
               type="button"
               className="btn-ghost text-xs"
-              disabled={pending}
+              disabled={busy}
               onClick={onClose}
             >
               Close

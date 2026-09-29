@@ -24,7 +24,8 @@ import { profilesById } from "@/lib/auth/company-profiles";
 /** Who may hold a formal absence meeting. Mirrors listMeetingConductors in lib/absence/data.ts. */
 const CONDUCTOR_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager"];
 import { writeAudit } from "@/lib/audit";
-import { sendCalendarInvite } from "@/lib/notifications/invites";
+import { renderCalendarInvite, sendCalendarInvite } from "@/lib/notifications/invites";
+import type { LetterPreview, LetterPreviewState } from "@/lib/absence/letter-preview";
 import { sendEmail } from "@/lib/email/resend";
 import { noticeEmailHtml } from "@/lib/email/templates";
 import { letterWordingFor } from "@/lib/letters/data";
@@ -356,20 +357,28 @@ export async function recordAbsenceMeeting(
   };
 }
 
-/** Book a formal absence management meeting (Stage 1 to 4) for a future date.
- *  Creates the meeting entry (no Evidence yet: that comes when it is recorded)
- *  and sends the employee and their line manager a FORMAL LETTER invitation
- *  with a timed .ics calendar invite. Booked meetings count towards the
- *  person's meeting stage (Phil, 2026-07-12). Emails silently no-op when
- *  Resend is missing; outcomes are audited. Editable letter templates are a
- *  Phase 10 Additions item; the wording here is the standard letter. */
-export async function bookAbsenceMeeting(
-  _prev: ActionState,
-  formData: FormData,
-): Promise<ActionState> {
-  const { user, profile } = await requireCompany();
-  if (!profile.company_id) return { error: "No company context." };
+type ServerClient = Awaited<ReturnType<typeof createClient>>;
 
+/** Everything a booking needs, checked, before anything is written or sent. Shared by the
+ *  preview (Phil, 2026-09-29: the letters are shown for approval first) and the booking itself,
+ *  so the letters approved are built from exactly the same checked details. */
+type BookingPlan = {
+  supabase: ServerClient;
+  personId: string;
+  companyId: string;
+  branchId: string | null;
+  companyName: string;
+  stage: number;
+  meetingDate: string;
+  rawTime: string;
+  duration: number;
+  location: string;
+  locationKind: "office" | "teams";
+  employee: { profileId: string | null; name: string; email: string | null };
+  conductor: { id: string; name: string; email: string | null };
+};
+
+async function planBooking(formData: FormData): Promise<BookingPlan | { error: string }> {
   const personId = String(formData.get("person_id") ?? "");
   if (!personId) return { error: "Missing person." };
   const stage = Number.parseInt(String(formData.get("stage") ?? ""), 10);
@@ -473,7 +482,40 @@ export async function bookAbsenceMeeting(
     };
   }
 
-  // The conductor must be an active Manager or Admin in THIS company.
+  const conductor = await resolveConductor(supabase, person.company_id as string, conductedBy);
+  if ("error" in conductor) return conductor;
+
+  const employeeEmail = await employeeEmailFor(person);
+  const { data: company } = await supabase
+    .from("companies").select("name").eq("id", person.company_id as string).maybeSingle();
+
+  return {
+    supabase,
+    personId,
+    companyId: person.company_id as string,
+    branchId: (person.branch_id as string | null) ?? null,
+    companyName: company?.name ?? "Be Care Compliant",
+    stage,
+    meetingDate,
+    rawTime,
+    duration,
+    location,
+    locationKind,
+    employee: {
+      profileId: (person.profile_id as string | null) ?? null,
+      name: person.full_name as string,
+      email: employeeEmail,
+    },
+    conductor,
+  };
+}
+
+/** The conductor must be an active Manager or Admin in THIS company. */
+async function resolveConductor(
+  supabase: ServerClient,
+  companyId: string,
+  conductedBy: string,
+): Promise<{ id: string; name: string; email: string | null } | { error: string }> {
   /*
    * Through the definer path. Read from `profiles` directly this returned null for anybody but
    * the caller themselves, so a Manager choosing a colleague, and a Supervisor choosing anyone,
@@ -494,18 +536,103 @@ export async function bookAbsenceMeeting(
    * to them. is_company_conductor is the same definer check the planner's trigger uses.
    */
   const { data: conductorActive } = await supabase.rpc("is_company_conductor", {
-    cid: person.company_id as string,
+    cid: companyId,
     pid: conductedBy,
   });
   if (!conductor || !CONDUCTOR_ROLES.includes(conductor.role) || conductorActive !== true) {
     return { error: "The meeting must be held by a Manager or Admin in your company." };
   }
+  return {
+    id: conductor.id as string,
+    name: conductor.name,
+    email: (conductor.email as string | null) ?? null,
+  };
+}
+
+/** The employee's address: their record's work email, else their login's. */
+async function employeeEmailFor(
+  person: { work_email?: unknown; profile_id?: unknown } | null,
+): Promise<string | null> {
+  let email = (person?.work_email as string | null) ?? null;
+  if (!email && person?.profile_id) {
+    // Definer path: read directly this was null for every caller who is not an admin, so the
+    // letter was silently never sent to a carer whose only address is on their login.
+    email =
+      (await profilesById([person.profile_id as string])).get(person.profile_id as string)?.email ?? null;
+  }
+  return email;
+}
+
+/** Shows the two invitation letters exactly as Book would send them. Writes and sends nothing. */
+export async function previewBookAbsenceMeeting(formData: FormData): Promise<LetterPreviewState> {
+  const { profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+  const plan = await planBooking(formData);
+  if ("error" in plan) return { error: plan.error };
+  return {
+    letters: await previewMeetingLetters({
+      ...letterArgsFrom(plan),
+      meetingId: "preview",
+      responseToken: "preview",
+      rearranged: false,
+    }),
+  };
+}
+
+function letterArgsFrom(plan: {
+  supabase: ServerClient;
+  companyId: string;
+  branchId: string | null;
+  companyName: string;
+  stage: number;
+  meetingDate: string;
+  rawTime: string;
+  duration: number;
+  location: string;
+  locationKind: "office" | "teams";
+  employee: { profileId: string | null; name: string; email: string | null };
+  conductor: { id: string; name: string; email: string | null };
+}) {
+  return {
+    supabase: plan.supabase,
+    companyId: plan.companyId,
+    branchId: plan.branchId,
+    companyName: plan.companyName,
+    stage: plan.stage,
+    meetingDate: plan.meetingDate,
+    timeHHMM: plan.rawTime,
+    duration: plan.duration,
+    location: plan.location,
+    locationKind: plan.locationKind,
+    employee: plan.employee,
+    conductor: plan.conductor,
+  };
+}
+
+/** Book a formal absence management meeting (Stage 1 to 4) for a future date.
+ *  Creates the meeting entry (no Evidence yet: that comes when it is recorded)
+ *  and sends the employee and their line manager a FORMAL LETTER invitation
+ *  with a timed .ics calendar invite. Booked meetings count towards the
+ *  person's meeting stage (Phil, 2026-07-12). The dialog shows both letters
+ *  for approval first (previewBookAbsenceMeeting); this runs on Approve and
+ *  send and re-checks everything. Emails silently no-op when Resend is
+ *  missing; outcomes are audited. */
+export async function bookAbsenceMeeting(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+
+  const plan = await planBooking(formData);
+  if ("error" in plan) return { error: plan.error };
+  const { supabase, personId, stage, meetingDate, rawTime, duration, location, conductor } = plan;
 
   const { data: meeting, error: insErr } = await supabase
     .from("absence_meetings")
     .insert({
-      company_id: person.company_id as string,
-      branch_id: (person.branch_id as string | null) ?? null,
+      company_id: plan.companyId,
+      branch_id: plan.branchId,
       person_id: personId,
       stage,
       meeting_date: meetingDate,
@@ -522,44 +649,15 @@ export async function bookAbsenceMeeting(
   }
 
   // Formal letter invitations: employee + conductor.
-  let employeeEmail = (person.work_email as string | null) ?? null;
-  if (!employeeEmail && person.profile_id) {
-    // Definer path: read directly this was null for every caller who is not an admin, so the
-    // letter was silently never sent to a carer whose only address is on their login.
-    employeeEmail =
-      (await profilesById([person.profile_id as string])).get(person.profile_id as string)?.email ?? null;
-  }
-  const { data: company } = await supabase
-    .from("companies").select("name").eq("id", person.company_id as string).maybeSingle();
-
   const inviteOutcomes = await sendMeetingLetters({
-    supabase,
+    ...letterArgsFrom(plan),
     meetingId: meeting.id as string,
     responseToken: meeting.response_token as string,
-    companyId: person.company_id as string,
-    branchId: (person.branch_id as string | null) ?? null,
-    companyName: company?.name ?? "Be Care Compliant",
-    stage,
-    meetingDate,
-    timeHHMM: rawTime,
-    duration,
-    location,
-    locationKind,
-    employee: {
-      profileId: (person.profile_id as string | null) ?? null,
-      name: person.full_name as string,
-      email: employeeEmail,
-    },
-    conductor: {
-      id: conductor.id as string,
-      name: conductor.name,
-      email: (conductor.email as string | null) ?? null,
-    },
     rearranged: false,
   });
 
   await writeAudit({
-    companyId: person.company_id as string,
+    companyId: plan.companyId,
     actorId: user.id,
     actorEmail: profile.email,
     actorRole: profile.role,
@@ -632,13 +730,7 @@ async function resolveMeetingLocation(
   return { location: address, locationKind: "office" };
 }
 
-/** The formal letter pair for a booked or rearranged meeting: the employee's
- *  invitation (purpose, conductor, right to be accompanied, location, Accept /
- *  I cannot attend buttons) and the conductor's chairing copy (unambiguous
- *  that THEY are holding it, not attending one: Phil, 2026-07-12). Dedupe keys
- *  carry the slot, so a rearranged meeting sends fresh letters while the same
- *  slot can never double-send. Not exported: internal to this file. */
-async function sendMeetingLetters(args: {
+type MeetingLetterArgs = {
   supabase: { from: (t: string) => any };
   meetingId: string;
   responseToken: string;
@@ -654,10 +746,26 @@ async function sendMeetingLetters(args: {
   employee: { profileId: string | null; name: string; email: string | null };
   conductor: { id: string; name: string; email: string | null };
   rearranged: boolean;
-}): Promise<Record<string, string>> {
-  const outcomes: Record<string, string> = {};
+};
+
+type MeetingLetter = {
+  key: "employee" | "conductor";
+  profileId: string | null;
+  name: string;
+  email: string | null;
+  eventTitle: string;
+  detailHtml: string;
+  hideCta: boolean;
+};
+
+/** The formal letter pair for a booked or rearranged meeting: the employee's
+ *  invitation (purpose, conductor, right to be accompanied, location, Accept /
+ *  I cannot attend buttons) and the conductor's chairing copy (unambiguous
+ *  that THEY are holding it, not attending one: Phil, 2026-07-12). Built once
+ *  here and used both for the approval preview and for the send, so what is
+ *  approved is what goes. A letter with no address comes back with email null. */
+async function buildMeetingLetters(args: MeetingLetterArgs): Promise<MeetingLetter[]> {
   const stageLabel = `Stage ${args.stage} absence management meeting`;
-  const slot = `${args.meetingDate}:${args.timeHHMM}`;
 
   // The WORDING of these letters belongs to the company (Settings > Letters). We read
   // their version and fall back to the packaged default, so a letter can never fail to
@@ -702,19 +810,9 @@ async function sendMeetingLetters(args: {
         .trim()}</p>`
     : "";
 
-  const sends: {
-    key: string;
-    profileId: string | null;
-    name: string;
-    email: string;
-    eventTitle: string;
-    detailHtml: string;
-    hideCta: boolean;
-  }[] = [];
-
-  if (args.employee.email) {
-    const respondBase = `${siteUrl()}/meeting-response/${args.responseToken}`;
-    sends.push({
+  const respondBase = `${siteUrl()}/meeting-response/${args.responseToken}`;
+  return [
+    {
       key: "employee",
       profileId: args.employee.profileId,
       name: args.employee.name,
@@ -736,13 +834,8 @@ async function sendMeetingLetters(args: {
           </td>
         </tr></table>
         <p style="margin:12px 0 0 0;font-size:12px;color:#a8b2cc;">If you cannot attend you will be asked for the reason, and the meeting organiser will be told.</p>`,
-    });
-  } else {
-    outcomes.employee = "skipped_no_email";
-  }
-
-  if (args.conductor.email) {
-    sends.push({
+    },
+    {
       key: "conductor",
       profileId: args.conductor.id,
       name: args.conductor.name,
@@ -755,29 +848,63 @@ async function sendMeetingLetters(args: {
         ${rearrangedNote}
         ${renderLetterHtml(conductorLetter.body, { ...values, recipient_name: args.conductor.name })}
         ${teamsNote}`,
-    });
-  } else {
-    outcomes.conductor = "skipped_no_email";
-  }
+    },
+  ];
+}
 
-  for (const send of sends) {
+/** The approval preview of the pair: full branded emails, nothing sent or logged. */
+async function previewMeetingLetters(args: MeetingLetterArgs): Promise<LetterPreview[]> {
+  const letters = await buildMeetingLetters(args);
+  return letters.map((l) => {
+    const { subject, html } = renderCalendarInvite({
+      companyName: args.companyName,
+      recipient: { name: l.name },
+      eventTitle: l.eventTitle,
+      dateIso: args.meetingDate,
+      timeHHMM: args.timeHHMM,
+      durationMinutes: args.duration,
+      hideCta: l.hideCta,
+      detailHtml: l.detailHtml,
+    });
+    return {
+      key: l.key,
+      who: l.key === "employee" ? "Employee" : "Holding the meeting",
+      name: l.name,
+      to: l.email,
+      subject,
+      html: l.email ? html : "",
+      note: l.email ? "A calendar invite is attached." : null,
+    };
+  });
+}
+
+/** Sends the pair. Dedupe keys carry the slot, so a rearranged meeting sends fresh letters while
+ *  the same slot can never double send. Not exported: internal to this file. */
+async function sendMeetingLetters(args: MeetingLetterArgs): Promise<Record<string, string>> {
+  const outcomes: Record<string, string> = {};
+  const slot = `${args.meetingDate}:${args.timeHHMM}`;
+  for (const letter of await buildMeetingLetters(args)) {
+    if (!letter.email) {
+      outcomes[letter.key] = "skipped_no_email";
+      continue;
+    }
     const result = await sendCalendarInvite({
       companyId: args.companyId,
       branchId: args.branchId,
       companyName: args.companyName,
       kind: "absence_meeting_invite",
-      dedupeKey: `absence_meeting:${args.meetingId}:${slot}:${send.email}`,
-      recipient: { profileId: send.profileId, name: send.name, email: send.email },
-      eventTitle: send.eventTitle,
+      dedupeKey: `absence_meeting:${args.meetingId}:${slot}:${letter.email}`,
+      recipient: { profileId: letter.profileId, name: letter.name, email: letter.email },
+      eventTitle: letter.eventTitle,
       dateIso: args.meetingDate,
       timeHHMM: args.timeHHMM,
       durationMinutes: args.duration,
       location: args.location,
-      hideCta: send.hideCta,
-      detailHtml: send.detailHtml,
-      icsUid: `absence-meeting-${args.meetingId}-${slot.replace(/[^0-9]/g, "")}-${send.key}@becarecompliant.com`,
+      hideCta: letter.hideCta,
+      detailHtml: letter.detailHtml,
+      icsUid: `absence-meeting-${args.meetingId}-${slot.replace(/[^0-9]/g, "")}-${letter.key}@becarecompliant.com`,
     });
-    outcomes[send.key] = result.sent
+    outcomes[letter.key] = result.sent
       ? "sent"
       : result.deduped
         ? "already_sent"
@@ -788,15 +915,14 @@ async function sendMeetingLetters(args: {
   return outcomes;
 }
 
-/** Rearrange a booked (not yet recorded) meeting in one step: new slot,
- *  location and conductor, response reset, fresh letters to both invitees
- *  marked "this replaces the earlier invitation". Same 48 hour notice rule. */
-export async function rearrangeAbsenceMeeting(
-  _prev: ActionState,
+type RearrangePlan = BookingPlan & { meetingId: string; responseToken: string };
+
+/** A rearrangement, checked, before anything is changed or sent. Shared by the preview and the
+ *  rearrange itself (Phil, 2026-09-29). */
+async function planRearrange(
   formData: FormData,
-): Promise<ActionState> {
-  const { user, profile } = await requireCompany();
-  if (!profile.company_id) return { error: "No company context." };
+  companyId: string,
+): Promise<RearrangePlan | { error: string }> {
   const meetingId = String(formData.get("meeting_id") ?? "");
   if (!meetingId) return { error: "Missing meeting." };
 
@@ -827,40 +953,81 @@ export async function rearrangeAbsenceMeeting(
     .select("id, company_id, branch_id, person_id, stage, evidence_id, response_token")
     .eq("id", meetingId)
     .maybeSingle();
-  if (!meeting || meeting.company_id !== profile.company_id) {
+  if (!meeting || meeting.company_id !== companyId) {
     return { error: "That meeting could not be found." };
   }
   if (meeting.evidence_id) {
     return { error: "This meeting has already been recorded and cannot be rearranged." };
   }
 
-  const resolved = await resolveMeetingLocation(supabase, profile.company_id, locationChoice);
+  const resolved = await resolveMeetingLocation(supabase, companyId, locationChoice);
   if ("error" in resolved) return { error: resolved.error };
-  const { location, locationKind } = resolved;
 
-  /*
-   * Through the definer path. Read from `profiles` directly this returned null for anybody but
-   * the caller themselves, so a Manager choosing a colleague, and a Supervisor choosing anyone,
-   * were refused with a message that was not true: "The meeting must be held by a Manager or
-   * Admin in your company." It was. She just could not see them.
-   *
-   * company_profiles_by_id is NOT a company check on its own: since 0199 it also answers about
-   * the caller's own id whatever company they are in, so the founder resolves his own name. The
-   * company, the role and the active check are all carried by is_company_conductor below. Do not
-   * delete that call as redundant.
-   */
-  const conductor = (await profilesById([conductedBy])).get(conductedBy);
-  /*
-   * ACTIVE is checked separately and on purpose: company_profiles_by_id answers about leavers by
-   * design, so the resolved role does not prove the person is still here. See bookMeeting.
-   */
-  const { data: conductorActive } = await supabase.rpc("is_company_conductor", {
-    cid: profile.company_id,
-    pid: conductedBy,
-  });
-  if (!conductor || !CONDUCTOR_ROLES.includes(conductor.role) || conductorActive !== true) {
-    return { error: "The meeting must be held by a Manager or Admin in your company." };
-  }
+  const conductor = await resolveConductor(supabase, companyId, conductedBy);
+  if ("error" in conductor) return conductor;
+
+  const { data: person } = await supabase
+    .from("people")
+    .select("full_name, work_email, profile_id, branch_id")
+    .eq("id", meeting.person_id as string)
+    .maybeSingle();
+  const employeeEmail = await employeeEmailFor(person);
+  const { data: company } = await supabase
+    .from("companies").select("name").eq("id", companyId).maybeSingle();
+
+  return {
+    supabase,
+    meetingId,
+    responseToken: meeting.response_token as string,
+    personId: meeting.person_id as string,
+    companyId,
+    branchId: (meeting.branch_id as string | null) ?? null,
+    companyName: company?.name ?? "Be Care Compliant",
+    stage: (meeting.stage as number | null) ?? 1,
+    meetingDate,
+    rawTime,
+    duration,
+    location: resolved.location,
+    locationKind: resolved.locationKind,
+    employee: {
+      profileId: (person?.profile_id as string | null) ?? null,
+      name: (person?.full_name as string | null) ?? "the employee",
+      email: employeeEmail,
+    },
+    conductor,
+  };
+}
+
+/** Shows the two replacement letters exactly as Rearrange would send them. Changes nothing. */
+export async function previewRearrangeAbsenceMeeting(formData: FormData): Promise<LetterPreviewState> {
+  const { profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+  const plan = await planRearrange(formData, profile.company_id);
+  if ("error" in plan) return { error: plan.error };
+  return {
+    letters: await previewMeetingLetters({
+      ...letterArgsFrom(plan),
+      meetingId: plan.meetingId,
+      responseToken: plan.responseToken,
+      rearranged: true,
+    }),
+  };
+}
+
+/** Rearrange a booked (not yet recorded) meeting in one step: new slot,
+ *  location and conductor, response reset, fresh letters to both invitees
+ *  marked "this replaces the earlier invitation". Same 48 hour notice rule.
+ *  Runs on Approve and send, after the letters were shown. */
+export async function rearrangeAbsenceMeeting(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+
+  const plan = await planRearrange(formData, profile.company_id);
+  if ("error" in plan) return { error: plan.error };
+  const { supabase, meetingId, meetingDate, rawTime, duration, location, conductor } = plan;
 
   const { error: updErr } = await supabase
     .from("absence_meetings")
@@ -878,44 +1045,10 @@ export async function rearrangeAbsenceMeeting(
     .is("evidence_id", null);
   if (updErr) return { error: `The meeting could not be rearranged: ${updErr.message}` };
 
-  const { data: person } = await supabase
-    .from("people")
-    .select("full_name, work_email, profile_id, branch_id")
-    .eq("id", meeting.person_id as string)
-    .maybeSingle();
-  let employeeEmail = (person?.work_email as string | null) ?? null;
-  if (!employeeEmail && person?.profile_id) {
-    // Definer path: read directly this was null for every caller who is not an admin, so the
-    // letter was silently never sent to a carer whose only address is on their login.
-    employeeEmail =
-      (await profilesById([person.profile_id as string])).get(person.profile_id as string)?.email ?? null;
-  }
-  const { data: company } = await supabase
-    .from("companies").select("name").eq("id", profile.company_id).maybeSingle();
-
   const inviteOutcomes = await sendMeetingLetters({
-    supabase,
+    ...letterArgsFrom(plan),
     meetingId,
-    responseToken: meeting.response_token as string,
-    companyId: profile.company_id,
-    branchId: (meeting.branch_id as string | null) ?? null,
-    companyName: company?.name ?? "Be Care Compliant",
-    stage: (meeting.stage as number | null) ?? 1,
-    meetingDate,
-    timeHHMM: rawTime,
-    duration,
-    location,
-    locationKind,
-    employee: {
-      profileId: (person?.profile_id as string | null) ?? null,
-      name: (person?.full_name as string | null) ?? "the employee",
-      email: employeeEmail,
-    },
-    conductor: {
-      id: conductor.id as string,
-      name: conductor.name,
-      email: (conductor.email as string | null) ?? null,
-    },
+    responseToken: plan.responseToken,
     rearranged: true,
   });
 
@@ -926,7 +1059,7 @@ export async function rearrangeAbsenceMeeting(
     actorRole: profile.role,
     action: "absence.meeting_rearranged",
     entityType: "person",
-    entityId: meeting.person_id as string,
+    entityId: plan.personId,
     summary: `Rearranged the absence meeting to ${ukDate(meetingDate)} at ${rawTime}`,
     metadata: {
       meeting_id: meetingId,
@@ -940,7 +1073,7 @@ export async function rearrangeAbsenceMeeting(
   });
 
   revalidatePath("/people/absence");
-  revalidatePath(`/people/${meeting.person_id}`);
+  revalidatePath(`/people/${plan.personId}`);
   const sentCount = Object.values(inviteOutcomes).filter((v) => v === "sent").length;
   return {
     ok:
@@ -950,17 +1083,29 @@ export async function rearrangeAbsenceMeeting(
   };
 }
 
-/** Cancel a booked (not yet recorded) absence meeting. Deletes the booking so
- *  it stops counting towards the meeting stage, and emails a cancellation
- *  notice to the employee and the conductor. Rebooking is simply booking again
- *  (fresh letters go out). DB enforced: only open bookings are deletable, by
- *  Admins or the branch Manager (policy in migration 0048). */
-export async function cancelAbsenceMeetingBooking(
-  _prev: ActionState,
-  formData: FormData,
-): Promise<ActionState> {
-  const { user, profile } = await requireCompany();
-  if (!profile.company_id) return { error: "No company context." };
+type CancelNotice = {
+  key: "employee" | "conductor";
+  profileId: string | null;
+  name: string;
+  email: string | null;
+  subject: string;
+  html: string;
+  preheader: string;
+};
+
+type CancelPlan = {
+  supabase: ServerClient;
+  meetingId: string;
+  personId: string;
+  branchId: string | null;
+  stageLabel: string;
+  when: string;
+  notices: CancelNotice[];
+};
+
+/** A cancellation, checked, with its notices built, before anything is deleted or sent. Shared by
+ *  the preview and the cancel itself (Phil, 2026-09-29). */
+async function planCancel(formData: FormData, companyId: string): Promise<CancelPlan | { error: string }> {
   const meetingId = String(formData.get("meeting_id") ?? "");
   if (!meetingId) return { error: "Missing meeting." };
 
@@ -970,30 +1115,20 @@ export async function cancelAbsenceMeetingBooking(
     .select("id, company_id, branch_id, person_id, stage, meeting_date, meeting_time, evidence_id, conducted_by")
     .eq("id", meetingId)
     .maybeSingle();
-  if (!meeting || meeting.company_id !== profile.company_id) {
+  if (!meeting || meeting.company_id !== companyId) {
     return { error: "That meeting could not be found." };
   }
   if (meeting.evidence_id) {
     return { error: "This meeting has already been recorded and cannot be cancelled." };
   }
 
-  const { error: delErr, count } = await supabase
-    .from("absence_meetings")
-    .delete({ count: "exact" })
-    .eq("id", meetingId)
-    .is("evidence_id", null);
-  if (delErr || !count) {
-    return { error: delErr?.message ?? "You do not have permission to cancel this booking." };
-  }
-
-  // Cancellation notices to everyone who received a formal letter.
   const { data: person } = await supabase
     .from("people")
     .select("full_name, work_email, profile_id")
     .eq("id", meeting.person_id as string)
     .maybeSingle();
   const { data: company } = await supabase
-    .from("companies").select("name").eq("id", profile.company_id).maybeSingle();
+    .from("companies").select("name").eq("id", companyId).maybeSingle();
   const stageLabel = meeting.stage
     ? `Stage ${meeting.stage} absence management meeting`
     : "Absence management meeting";
@@ -1001,46 +1136,36 @@ export async function cancelAbsenceMeetingBooking(
   // audit summary. It printed "2026-08-19" while their invitation a week earlier said 19/08/2026.
   const when = `${ukDate(meeting.meeting_date as string | null)}${meeting.meeting_time ? ` at ${String(meeting.meeting_time).slice(0, 5)}` : ""}`;
 
-  const notices: { profileId: string | null; name: string; email: string; hasAccount: boolean }[] = [];
-  let employeeEmail = (person?.work_email as string | null) ?? null;
-  if (!employeeEmail && person?.profile_id) {
-    // Definer path: read directly this was null for every caller who is not an admin, so the
-    // letter was silently never sent to a carer whose only address is on their login.
-    employeeEmail =
-      (await profilesById([person.profile_id as string])).get(person.profile_id as string)?.email ?? null;
-  }
-  if (person && employeeEmail) {
-    notices.push({
+  const recipients: Omit<CancelNotice, "subject" | "html" | "preheader">[] = [];
+  if (person) {
+    recipients.push({
+      key: "employee",
       profileId: (person.profile_id as string | null) ?? null,
       name: person.full_name as string,
-      email: employeeEmail,
-      hasAccount: false, // employees have no app account: no Open button
+      email: await employeeEmailFor(person),
     });
   }
+  const hasAccount = (key: CancelNotice["key"]) => key === "conductor"; // employees have no app account: no Open button
   if (meeting.conducted_by) {
     // Definer path: without it the person due to hold the meeting was never told it was off.
     const conductor =
       (await profilesById([meeting.conducted_by as string])).get(meeting.conducted_by as string) ?? null;
-    if (conductor?.email) {
-      notices.push({
+    if (conductor) {
+      recipients.push({
+        key: "conductor",
         profileId: conductor.id,
         name: conductor.name,
-        email: conductor.email,
-        hasAccount: true,
+        email: (conductor.email as string | null) ?? null,
       });
     }
   }
 
   // Cancellation wording is the company's too (Settings > Letters).
-  const cancelLetter = await letterWordingFor(
-    supabase,
-    profile.company_id,
-    "absence_meeting_cancelled",
-  );
+  const cancelLetter = await letterWordingFor(supabase, companyId, "absence_meeting_cancelled");
   // Every placeholder the Letters screen offers resolves, so none is ever sent as raw {{text}}.
   // The "could lead to" sentence is left blank: it has no place in a cancellation.
   const cancelStageAction = stageActionFor(
-    await getAbsenceConfig(profile.company_id),
+    await getAbsenceConfig(companyId),
     (meeting.stage as number | null) ?? null,
   );
   const cancelValues = (recipientName: string): Record<string, string> => ({
@@ -1058,35 +1183,92 @@ export async function cancelAbsenceMeetingBooking(
     location: "",
     duration: "",
   });
+  const preheader = `The ${stageLabel.toLowerCase()} on ${when} is cancelled.`;
 
-  const cancelSubject = (recipientName: string): string =>
-    renderLetterSubject(cancelLetter.subject, cancelValues(recipientName)) ||
-    `Cancelled: ${stageLabel}`;
+  return {
+    supabase,
+    meetingId,
+    personId: meeting.person_id as string,
+    branchId: (meeting.branch_id as string | null) ?? null,
+    stageLabel,
+    when,
+    notices: recipients.map((r) => ({
+      ...r,
+      preheader,
+      subject:
+        renderLetterSubject(cancelLetter.subject, cancelValues(r.name)) || `Cancelled: ${stageLabel}`,
+      html: noticeEmailHtml({
+        preheader,
+        heading: "Meeting cancelled",
+        bodyHtml: renderLetterHtml(cancelLetter.body, cancelValues(r.name)),
+        ctaLabel: hasAccount(r.key) ? "Open Be Care Compliant" : undefined,
+        ctaUrl: hasAccount(r.key) ? siteUrl() : undefined,
+      }),
+    })),
+  };
+}
 
+/** Shows the cancellation notices exactly as Cancel would send them. Deletes and sends nothing. */
+export async function previewCancelAbsenceMeeting(formData: FormData): Promise<LetterPreviewState> {
+  const { profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+  const plan = await planCancel(formData, profile.company_id);
+  if ("error" in plan) return { error: plan.error };
+  return {
+    letters: plan.notices.map((n) => ({
+      key: n.key,
+      who: n.key === "employee" ? "Employee" : "Holding the meeting",
+      name: n.name,
+      to: n.email,
+      subject: n.subject,
+      html: n.email ? n.html : "",
+      note: null,
+    })),
+  };
+}
+
+/** Cancel a booked (not yet recorded) absence meeting. Deletes the booking so
+ *  it stops counting towards the meeting stage, and emails a cancellation
+ *  notice to the employee and the conductor. Rebooking is simply booking again
+ *  (fresh letters go out). DB enforced: only open bookings are deletable, by
+ *  Admins or the branch Manager (policy in migration 0048). Runs on Approve
+ *  and send, after the notices were shown. */
+export async function cancelAbsenceMeetingBooking(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+
+  const plan = await planCancel(formData, profile.company_id);
+  if ("error" in plan) return { error: plan.error };
+  const { supabase, meetingId } = plan;
+
+  const { error: delErr, count } = await supabase
+    .from("absence_meetings")
+    .delete({ count: "exact" })
+    .eq("id", meetingId)
+    .is("evidence_id", null);
+  if (delErr || !count) {
+    return { error: delErr?.message ?? "You do not have permission to cancel this booking." };
+  }
+
+  // Cancellation notices to everyone who received a formal letter.
   const noticeOutcomes: Record<string, string> = {};
-  for (const notice of notices) {
+  for (const notice of plan.notices) {
+    if (!notice.email) continue;
     const logId = await claimNotification({
       companyId: profile.company_id,
-      branchId: (meeting.branch_id as string | null) ?? null,
+      branchId: plan.branchId,
       recipientProfileId: notice.profileId,
       channel: "email",
       kind: "meeting_cancelled",
       dedupeKey: `meeting_cancelled:${meetingId}:${notice.email}`,
       toAddress: notice.email,
-      subject: cancelSubject(notice.name),
+      subject: notice.subject,
     });
     if (!logId) continue;
-    const result = await sendEmail({
-      to: notice.email,
-      subject: cancelSubject(notice.name),
-      html: noticeEmailHtml({
-        preheader: `The ${stageLabel.toLowerCase()} on ${when} is cancelled.`,
-        heading: "Meeting cancelled",
-        bodyHtml: renderLetterHtml(cancelLetter.body, cancelValues(notice.name)),
-        ctaLabel: notice.hasAccount ? "Open Be Care Compliant" : undefined,
-        ctaUrl: notice.hasAccount ? siteUrl() : undefined,
-      }),
-    });
+    const result = await sendEmail({ to: notice.email, subject: notice.subject, html: notice.html });
     noticeOutcomes[notice.email] = result.sent
       ? "sent"
       : result.skippedReason
@@ -1106,12 +1288,12 @@ export async function cancelAbsenceMeetingBooking(
     actorRole: profile.role,
     action: "absence.meeting_cancelled",
     entityType: "person",
-    entityId: meeting.person_id as string,
-    summary: `Cancelled the ${stageLabel.toLowerCase()} booked for ${when}`,
+    entityId: plan.personId,
+    summary: `Cancelled the ${plan.stageLabel.toLowerCase()} booked for ${plan.when}`,
     metadata: { meeting_id: meetingId, notices: noticeOutcomes },
   });
 
   revalidatePath("/people/absence");
-  revalidatePath(`/people/${meeting.person_id}`);
+  revalidatePath(`/people/${plan.personId}`);
   return { ok: "Booking cancelled. The invitees have been told." };
 }

@@ -36,7 +36,7 @@ export async function sendCalendarInvite(opts: {
   detailHtml: string;
   icsUid: string;
 }): Promise<SendResult & { deduped?: boolean }> {
-  const subject = `${opts.eventTitle}: ${ukDate(opts.dateIso)}${opts.timeHHMM ? `, ${opts.timeHHMM}` : ""}`;
+  const { subject, html } = renderCalendarInvite(opts);
 
   const logId = await claimNotification({
     companyId: opts.companyId,
@@ -67,16 +67,7 @@ export async function sendCalendarInvite(opts: {
   const result = await sendEmail({
     to: opts.recipient.email,
     subject,
-    html: calendarInviteEmailHtml({
-      recipientName: opts.recipient.name,
-      companyName: opts.companyName,
-      eventTitle: opts.eventTitle,
-      dateIso: opts.dateIso,
-      timeHHMM: opts.timeHHMM ?? null,
-      durationMinutes: opts.durationMinutes ?? null,
-      detailHtml: opts.detailHtml,
-      actionUrl: opts.hideCta ? undefined : siteUrl(),
-    }),
+    html,
     attachments: [
       {
         filename: "invite.ics",
@@ -92,6 +83,36 @@ export async function sendCalendarInvite(opts: {
     result.error ?? result.skippedReason,
   );
   return result;
+}
+
+/**
+ * The subject and the full branded email exactly as sendCalendarInvite sends them. Shared so the
+ * "check the letters before they go" screen (Phil, 2026-09-29) shows the real email, not a copy
+ * that could drift from it.
+ */
+export function renderCalendarInvite(opts: {
+  companyName: string;
+  recipient: { name: string };
+  eventTitle: string;
+  dateIso: string;
+  timeHHMM?: string | null;
+  durationMinutes?: number | null;
+  hideCta?: boolean;
+  detailHtml: string;
+}): { subject: string; html: string } {
+  return {
+    subject: `${opts.eventTitle}: ${ukDate(opts.dateIso)}${opts.timeHHMM ? `, ${opts.timeHHMM}` : ""}`,
+    html: calendarInviteEmailHtml({
+      recipientName: opts.recipient.name,
+      companyName: opts.companyName,
+      eventTitle: opts.eventTitle,
+      dateIso: opts.dateIso,
+      timeHHMM: opts.timeHHMM ?? null,
+      durationMinutes: opts.durationMinutes ?? null,
+      detailHtml: opts.detailHtml,
+      actionUrl: opts.hideCta ? undefined : siteUrl(),
+    }),
+  };
 }
 
 /** The ORGANIZER mailto, from RESEND_FROM ("Name <a@b>" or bare address). */

@@ -6,16 +6,25 @@
  * a new slot, location and conductor and sends fresh formal letters marked as
  * replacing the earlier invitation; cancelling deletes the booking and emails
  * both invitees that it is off. Remounts per open so state is always clean.
+ *
+ * Both show their emails read only for approval first (Phil, 2026-09-29):
+ * nothing is changed, cancelled or sent until Approve and send. The letters
+ * step is also the "are you sure" for cancelling. The rearrange form stays
+ * mounted (hidden) behind the letters so Back keeps every choice.
  */
 
-import { useActionState, useEffect, useState } from "react";
+import { startTransition, useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { IDLE_STATE } from "@/lib/forms";
 import {
   rearrangeAbsenceMeeting,
   cancelAbsenceMeetingBooking,
+  previewRearrangeAbsenceMeeting,
+  previewCancelAbsenceMeeting,
 } from "@/lib/absence/actions";
+import type { LetterPreview } from "@/lib/absence/letter-preview";
+import LetterPreviewPanel from "@/components/absence/letter-preview-panel";
 import type { ConductorLite, OpenBookingRow, MeetingOffice } from "@/lib/absence/data";
 
 function minNoticeDate(): string {
@@ -87,16 +96,49 @@ function CancelRearrangeForm({
     IDLE_STATE,
   );
   /*
-   * Cancelling asks first, IN THE APP. It used to call window.confirm, which cannot be styled,
-   * reads as a browser warning rather than as the product, and freezes browser automation dead so
-   * this path could never be driven or tested. Same reason delete-user-dialog stopped using it.
+   * Cancelling asks first, IN THE APP: the cancellation notices are shown and nothing happens
+   * until Approve and send. It once called window.confirm, which cannot be styled, reads as a
+   * browser warning rather than as the product, and freezes browser automation dead.
    */
-  const [confirmCancel, setConfirmCancel] = useState(false);
   const [cancelState, cancelAction, cancelling] = useActionState(
     cancelAbsenceMeetingBooking,
     IDLE_STATE,
   );
-  const busy = rearranging || cancelling;
+  const [shown, setShown] = useState<{ kind: "rearrange" | "cancel"; letters: LetterPreview[] } | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewing, startPreview] = useTransition();
+  /** Exactly the details the letters were built from; Approve and send posts these. */
+  const approved = useRef<FormData | null>(null);
+  const busy = rearranging || cancelling || previewing;
+
+  function showLetters(kind: "rearrange" | "cancel", fd: FormData) {
+    setPreviewError(null);
+    startPreview(async () => {
+      const result =
+        kind === "rearrange"
+          ? await previewRearrangeAbsenceMeeting(fd)
+          : await previewCancelAbsenceMeeting(fd);
+      if (result.letters) {
+        approved.current = fd;
+        setShown({ kind, letters: result.letters });
+      } else {
+        approved.current = null;
+        setPreviewError(result.error ?? "The letters could not be prepared.");
+      }
+    });
+  }
+
+  function approveAndSend() {
+    const fd = approved.current;
+    if (!fd || !shown) return;
+    startTransition(() => (shown.kind === "rearrange" ? rearrangeAction(fd) : cancelAction(fd)));
+  }
+
+  function cancelMeeting() {
+    const fd = new FormData();
+    fd.set("meeting_id", booking.id);
+    showLetters("cancel", fd);
+  }
 
   // Cancel closes IMMEDIATELY on success (a lingering disabled dialog reads as
   // an error: Phil, 2026-07-12). Rearrange holds briefly so the confirmation
@@ -118,16 +160,47 @@ function CancelRearrangeForm({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-sm rounded-2xl border border-white/15 bg-navy-900 p-5 shadow-2xl">
+      <div
+        className={`max-h-[94vh] w-full overflow-y-auto rounded-2xl border border-white/15 bg-navy-900 p-5 shadow-2xl ${
+          shown ? "max-w-2xl" : "max-w-sm"
+        }`}
+      >
         <h2 className="text-sm font-semibold text-white">
-          Cancel or rearrange: {personName}
+          {shown ? "Check the letters" : "Cancel or rearrange"}: {personName}
         </h2>
-        <p className="mt-1 text-xs text-white/50">
-          Rearranging sends fresh invitations that replace the earlier ones.
-          Cancelling tells both invitees the meeting is off.
-        </p>
+        {shown ? (
+          <LetterPreviewPanel
+            letters={shown.letters}
+            intro={
+              shown.kind === "rearrange"
+                ? "These are the new invitations that will be sent. Nothing is changed or sent until you approve."
+                : "Approving cancels the meeting and sends these notices. Nothing happens until you approve."
+            }
+            approveLabel="Approve and send"
+            workingLabel="Sending…"
+            pending={shown.kind === "rearrange" ? rearranging : cancelling}
+            error={shown.kind === "rearrange" ? rearrangeState.error : cancelState.error}
+            ok={shown.kind === "rearrange" ? rearrangeState.ok : cancelState.ok}
+            onBack={() => setShown(null)}
+            onApprove={approveAndSend}
+            onClose={onClose}
+          />
+        ) : (
+          <p className="mt-1 text-xs text-white/50">
+            Rearranging sends fresh invitations that replace the earlier ones.
+            Cancelling tells both invitees the meeting is off. You will see the
+            emails before anything is sent.
+          </p>
+        )}
 
-        <form action={rearrangeAction} className="mt-4 space-y-3">
+        <div className={shown ? "hidden" : undefined}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            showLetters("rearrange", new FormData(e.currentTarget));
+          }}
+          className="mt-4 space-y-3"
+        >
           <input type="hidden" name="meeting_id" value={booking.id} />
           <div>
             <label htmlFor="cr-conductor" className="form-label">Who is holding the meeting</label>
@@ -209,52 +282,22 @@ function CancelRearrangeForm({
               <option value="teams">Teams</option>
             </select>
           </div>
-          {rearrangeState.error && <p className="form-error">{rearrangeState.error}</p>}
-          {rearrangeState.ok && <p className="text-sm text-emerald-300">{rearrangeState.ok}</p>}
           <button type="submit" className="btn-primary text-xs" disabled={busy}>
-            {rearranging ? "Rearranging…" : "Rearrange and send new invitations"}
+            {previewing ? "Preparing letters…" : "Rearrange: check the letters"}
           </button>
         </form>
+        {previewError && <p className="form-error mt-3">{previewError}</p>}
 
         <div className="mt-4 border-t border-white/10 pt-4">
-          <form action={cancelAction} className="flex items-center justify-between gap-2">
-            <input type="hidden" name="meeting_id" value={booking.id} />
-            {/* The asking button is NOT a submit button; only the confirmed one is. */}
-            {confirmCancel ? (
-              <div className="flex items-center gap-2">
-                <button type="submit" className="btn-outline text-xs" disabled={busy}>
-                  {cancelling ? "Cancelling…" : "Yes, cancel it"}
-                </button>
-                <button
-                  type="button"
-                  className="btn-ghost text-xs"
-                  disabled={busy}
-                  onClick={() => setConfirmCancel(false)}
-                >
-                  Keep the meeting
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                className="btn-outline text-xs"
-                disabled={busy}
-                onClick={() => setConfirmCancel(true)}
-              >
-                Cancel the meeting
-              </button>
-            )}
+          <div className="flex items-center justify-between gap-2">
+            <button type="button" className="btn-outline text-xs" disabled={busy} onClick={cancelMeeting}>
+              Cancel the meeting
+            </button>
             <button type="button" className="btn-ghost text-xs" disabled={busy} onClick={onClose}>
               Close
             </button>
-          </form>
-          {confirmCancel && !cancelling ? (
-            <p className="mt-2 text-xs text-amber-200">
-              Anyone who received a letter will be emailed that the meeting is off.
-            </p>
-          ) : null}
-          {cancelState.error && <p className="form-error mt-2">{cancelState.error}</p>}
-          {cancelState.ok && <p className="mt-2 text-sm text-emerald-300">{cancelState.ok}</p>}
+          </div>
+        </div>
         </div>
       </div>
     </div>
