@@ -148,7 +148,7 @@ export const MODULES: readonly ModuleDef[] = [
     label: "Team Portal",
     // A Senior is a carer too, and keeps their own area (Phil, 2026-09-29).
     roles: ["staff", "senior"],
-    note: "A carer's own area, and the only thing a Team Member login opens.",
+    note: "A carer's own area, and the only thing a Care Assistant login opens.",
   },
 ];
 

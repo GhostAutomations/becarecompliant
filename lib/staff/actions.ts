@@ -103,7 +103,7 @@ export async function invitePersonLogin(
     action: "staff_login.invited",
     entityType: "person",
     entityId: personId,
-    summary: `Sent a Team Member login invite to ${person.full_name}`,
+    summary: `Sent a carer login invite to ${person.full_name}`,
     metadata: { email_sent: outcome.emailSent ?? false },
   });
 

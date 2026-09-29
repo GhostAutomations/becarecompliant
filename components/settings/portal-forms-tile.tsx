@@ -37,7 +37,7 @@ export default function PortalFormsTile({
   return (
     <div className="glass-card p-5">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-base font-semibold text-white">Team Member</h2>
+        <h2 className="text-base font-semibold text-white">Carers</h2>
         <span className="text-xs text-white/40">what a carer can fill in</span>
       </div>
 
@@ -55,7 +55,7 @@ export default function PortalFormsTile({
           <span className="min-w-0">
             <span className="font-semibold text-white/90">Team Portal</span>
             <span className="block text-xs text-white/45">
-              The whole area. Unticked, a Team Member login opens nothing.
+              The whole area. Unticked, a carer login opens nothing.
             </span>
           </span>
         </label>

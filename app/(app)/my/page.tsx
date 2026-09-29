@@ -201,7 +201,7 @@ export default async function MyAreaPage() {
           <section className="glass-card p-5">
             <p className="text-lg font-semibold text-white">{record.full_name}</p>
             <p className="text-sm text-white/60">
-              {record.job_title ?? "Team Member"}
+              {record.job_title ?? "Care Assistant"}
               {record.branch_name ? ` · ${record.branch_name}` : ""}
             </p>
           </section>

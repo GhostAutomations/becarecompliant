@@ -392,6 +392,6 @@ export const ROLE_LABELS: Record<string, string> = {
   recruiter: "Recruiter",
   team_member: "Viewer",
   on_call: "On Call",
-  staff: "Team Member",
-  senior: "Senior",
+  staff: "Care Assistant",
+  senior: "Senior Care Assistant",
 };

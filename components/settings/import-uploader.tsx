@@ -282,7 +282,7 @@ export default function ImportUploader() {
                 className="mt-0.5"
               />
               <span>
-                Don&rsquo;t send their Team Member logins yet
+                Don&rsquo;t send their carer logins yet
                 <span className="block text-xs text-white/50">
                   Everyone is imported as usual and their logins are created, but nobody is
                   emailed. Send them from Settings, Users when you are ready for the questions.

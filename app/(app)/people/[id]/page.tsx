@@ -593,9 +593,9 @@ export default async function PersonPage({
           created either way — this is one thing left to do, not a failure of the add. */}
       {loginBanner === "failed" ? (
         <div className="glass-card border border-rag-amber/25 p-4 text-sm text-rag-amber-soft">
-          {person.full_name} has been added, but their Team Member login could not be created.
-          Nothing has been emailed to them. Press Invite them on this record to try again — and
-          if it refuses a second time, tell us rather than adding them again.
+          {person.full_name} has been added, but their carer login could not be created.
+          Nothing has been emailed to them. Press Invite them on this record to try again. If
+          it refuses a second time, tell us rather than adding them again.
         </div>
       ) : null}
 
@@ -754,7 +754,7 @@ export default async function PersonPage({
                 send to, or when the login is already active. */}
             <div className="mb-3 flex items-start justify-between gap-3">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-white">
-                Team Member login
+                Carer login
               </h2>
               {login?.has_email && !isLeaver && !(login.has_login && login.login_status === "active") ? (
                 <ActionForm

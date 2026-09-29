@@ -156,5 +156,5 @@ export function listInviteDomains(allowed: readonly string[]): string {
 export function inviteDomainRefusal(allowed: readonly string[]): string {
   return `That address is outside the email domains your company allows for invites sent from Settings > Users. Allowed: ${listInviteDomains(
     allowed,
-  )}. Invite an address on one of those, or change the list on the Users screen. Team Member logins are not affected by this setting.`;
+  )}. Invite an address on one of those, or change the list on the Users screen. Carer logins are not affected by this setting.`;
 }

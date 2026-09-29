@@ -701,7 +701,7 @@ export async function resendStaffInviteByEmail(
     action: "invite.resent",
     entityType: "invite",
     entityId: invite.id as string,
-    summary: `Resent the Team Member invite to ${address}`,
+    summary: `Resent the carer login invite to ${address}`,
     metadata: { email: address, email_sent: send.sent },
   });
 

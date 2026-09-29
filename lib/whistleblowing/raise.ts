@@ -62,8 +62,8 @@ export async function raiseConcern(_prev: ActionState, formData: FormData): Prom
     action: "whistleblowing.raised_by_staff",
     entityType: "whistleblowing_disclosure",
     summary: named
-      ? "A concern was raised through the Team Member area"
-      : "An anonymous concern was raised through the Team Member area",
+      ? "A concern was raised through the carer area"
+      : "An anonymous concern was raised through the carer area",
     // No category and no metadata, for the same reason as the Admin path: audit_log is
     // readable by the founder, and what a disclosure is about belongs in one place.
   });

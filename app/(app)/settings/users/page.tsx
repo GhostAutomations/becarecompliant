@@ -336,7 +336,7 @@ export default async function UsersPage() {
       label: ROLE_LABELS[value] ?? value,
       baseRole: value,
     })),
-    { value: "staff", label: ROLE_LABELS.staff ?? "Team Member", baseRole: "staff" },
+    { value: "staff", label: ROLE_LABELS.staff ?? "Care Assistant", baseRole: "staff" },
     ...ownRoles.map((r) => ({
       value: roleChoiceValue(r.baseRole, r.id),
       label: `${r.name} (${ROLE_LABELS[r.baseRole] ?? r.baseRole})`,
@@ -441,7 +441,7 @@ export default async function UsersPage() {
         {inviteDomains.length > 0 ? (
           <p className="mt-1 text-xs text-white/50">
             Invites sent from this screen can only go to {listInviteDomains(inviteDomains)}.
-            Team Member logins are not affected.
+            Carer logins are not affected.
           </p>
         ) : null}
         <div className="mt-4">
@@ -464,7 +464,7 @@ export default async function UsersPage() {
         </p>
         <p className="mt-2 text-sm text-white/60">
           It applies only to the invites you send from this screen. It is never
-          applied to Team Member logins, which are created automatically when you
+          applied to carer logins, which are created automatically when you
           add or import a person and keep using the email address on their Record,
           so switching this on cannot lock your care staff out. Subdomains count, so
           an address at mail.sunrisecare.co.uk is accepted when sunrisecare.co.uk is
@@ -618,17 +618,17 @@ export default async function UsersPage() {
       </SettingsSection>
 
       <SettingsSection
-        title="Team Member logins"
+        title="Carer logins"
         summary="Carers: their own area only, and free of charge."
         count={passiveUsers.length}
       >
         <UserDropdown
           title="Passive users"
-          subtitle="Team Members: their own area only, and free of charge"
+          subtitle="Care Assistants and Senior Care Assistants, free of charge"
           users={passiveUsers.map(toItem)}
           branches={branchOptions}
           roleOptions={roleOptions}
-          emptyText="No Team Member logins yet. They are created when a person is added with an email."
+          emptyText="No carer logins yet. They are created when a person is added with an email."
         />
       </SettingsSection>
 
