@@ -28,3 +28,14 @@ export function seniorChecksOff(
   if (!listTicked) return null;
   return activeCheckIds.filter((id) => !tickedCheckIds.has(id));
 }
+
+/**
+ * The two columns a list's Checks sit in on the Senior tile, filled down the left first
+ * (Phil, 2026-09-29). More than five: the first half on the left, the rest on the right, so
+ * People's ten are five and five. Five or fewer: all in the left column, the right one empty.
+ */
+export function splitColumns<T>(checks: readonly T[]): [T[], T[]] {
+  if (checks.length <= 5) return [[...checks], []];
+  const left = Math.ceil(checks.length / 2);
+  return [checks.slice(0, left), checks.slice(left)];
+}

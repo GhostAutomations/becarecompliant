@@ -23,7 +23,7 @@
 
 import { useState } from "react";
 import ActionForm from "@/components/action-form";
-import { SENIOR_CHECK_FIELD } from "@/lib/senior/checks";
+import { SENIOR_CHECK_FIELD, splitColumns } from "@/lib/senior/checks";
 import {
   deleteCompanyRole,
   renameCompanyRole,
@@ -132,17 +132,12 @@ export default function RoleAccessTile({
           Two columns on a phone, one below that: three columns of checkboxes at 360px is
           unreadable, and this screen has to work on the phone an owner actually carries.
         */}
-        {/* THE SENIOR TILE is two columns at every width (Phil, 2026-09-29: "people on the left
-            and service users on the right"), each list's Checks in one column beneath it. The
-            tile stays the size of the others, so a long Check name wraps rather than truncates. */}
-        <div
-          className={
-            checksUnder
-              ? "grid grid-cols-2 items-start gap-x-3 gap-y-0.5"
-              : "grid grid-cols-1 gap-x-3 gap-y-0.5 sm:grid-cols-2"
-          }
-        >
-          {modules.map((m) => {
+        {/* THE SENIOR TILE (Phil, 2026-09-29): each list across the tile, one under the other with
+            a dashed line between. Its Checks sit beneath it: a long list in two columns, filled
+            down the left first (People: Supervision to Manual Handling on the left, Audit to
+            Health Check on the right), a short one in the left column only (Service users). */}
+        <div className={checksUnder ? "" : "grid grid-cols-1 gap-x-3 gap-y-0.5 sm:grid-cols-2"}>
+          {modules.map((m, index) => {
             const under = checksUnder?.[m.key];
             const parentLive = m.allowed && !m.locked;
             const why = !m.allowed
@@ -188,36 +183,40 @@ export default function RoleAccessTile({
             if (!under) return label;
             const live = parentLive && !!deptOn[m.key];
             return (
-              <div key={m.key} className="min-w-0">
+              <div
+                key={m.key}
+                className={index > 0 ? "mt-2 border-t border-dashed border-white/20 pt-2" : undefined}
+              >
                 {label}
                 {/* The Checks under this list, indented beneath it. Greyed while the list is
                     unticked; a greyed box is not posted and changes nothing. */}
                 {under.length === 0 ? (
-                  <p className="ml-4 pb-1 text-xs text-white/40">No checks set up yet.</p>
+                  <p className="ml-6 pb-1 text-xs text-white/40">No checks set up yet.</p>
                 ) : (
-                  <div
-                    className="ml-3 space-y-0.5 border-l border-white/10 pl-1"
-                    aria-label={`${m.label} checks`}
-                  >
-                    {under.map((c) => (
-                      <label
-                        key={c.id}
-                        title={live ? undefined : `Tick ${m.label} first.`}
-                        className={`flex items-start gap-2 rounded-lg px-2 py-1 text-[13px] leading-snug ${
-                          live ? "cursor-pointer text-white/75 hover:bg-white/5" : "text-white/30"
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          name={SENIOR_CHECK_FIELD}
-                          value={c.id}
-                          checked={!!checkOn[c.id]}
-                          onChange={(e) => setCheckOn((x) => ({ ...x, [c.id]: e.target.checked }))}
-                          disabled={!live}
-                          className="mt-0.5 shrink-0"
-                        />
-                        <span className="min-w-0 break-words">{c.name}</span>
-                      </label>
+                  <div className="ml-4 grid grid-cols-2 items-start gap-x-2" aria-label={`${m.label} checks`}>
+                    {splitColumns(under).map((column, ci) => (
+                      <div key={ci} className="space-y-0.5">
+                        {column.map((c) => (
+                          <label
+                            key={c.id}
+                            title={live ? undefined : `Tick ${m.label} first.`}
+                            className={`flex items-start gap-2 rounded-lg px-2 py-1 text-[13px] leading-snug ${
+                              live ? "cursor-pointer text-white/75 hover:bg-white/5" : "text-white/30"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              name={SENIOR_CHECK_FIELD}
+                              value={c.id}
+                              checked={!!checkOn[c.id]}
+                              onChange={(e) => setCheckOn((x) => ({ ...x, [c.id]: e.target.checked }))}
+                              disabled={!live}
+                              className="mt-0.5 shrink-0"
+                            />
+                            <span className="min-w-0 break-words">{c.name}</span>
+                          </label>
+                        ))}
+                      </div>
                     ))}
                   </div>
                 )}
