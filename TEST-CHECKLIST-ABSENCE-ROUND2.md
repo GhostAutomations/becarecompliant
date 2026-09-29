@@ -264,3 +264,29 @@ to Work set on Bevan: 1 AI credit plus 1 SMS.
 - F9 Phone: upload the fit note straight from the camera.
 - F10 Subject access export: Return to Work questions shows the More detail column and a Fit note
   row.
+
+Item 5 results, 2026-09-29 (deploy 5dede7cd READY, migrations 0344 and 0345 applied):
+- F1 PASS: new ZZ TEST Senior absence 1 to 10 Sep ("back strain, saw GP"), drafted (1 credit): 8
+  questions specific to it; the fit note question marked fit_note, adjustments and support marked
+  need, last "Is there anything else you would like to raise?" marked raise. The first Send by text
+  failed on Senior's dummy number (Twilio 400 shown on screen, set left as a draft); with Phil's go
+  his mobile went on the record and the text went (ending 5161).
+- F2 PASS (Phil, phone, on a free copy of the set on Senior's 22 Sep absence): Yes to the fit note
+  with nothing uploaded, Send refused; nothing reached the server.
+- F3 PASS (Phil, phone): "What do you need?" shown on Yes, empty box refused, hidden on No. On the
+  first set the detail was stored ("What they need" in answer_details).
+- F4 PASS (Phil, phone): "What would you like to raise?" shown on Yes, empty box refused. The final
+  send went with No to that question, so a stored raise detail was proven by F8 only.
+- F5 PASS: the manager's Return to Work shows "Fit note uploaded: image.jpg. It is filed with this
+  Return to Work when you save it." with View fit note (opened through a 5 minute signed link,
+  audited absence.rtw_fit_note_viewed), and "What do you need?" with their words under the Yes.
+- F6 PASS: recorded in Chrome: Evidence 34f77835 has the photo under Fit note (evidence_files
+  fit_note, 812KB, sha256 kept), "What they need: ..." in the portal answers text, the waiting copy
+  in rtw-fit-notes removed (0 objects), the set recorded with fit_note_evidence_id set.
+- F7 PASS: ZZ TEST DBS Warn's set drafted before 0344 (no marks): Yes to "Would any adjustments
+  help you settle back in" shows "What do you need?" (closed without saving).
+- F9 PASS (Phil, phone): camera photo uploaded, shrunk to 1500 by 2000 JPEG, audited
+  absence.rtw_fit_note_uploaded.
+- F10 NOT YET RUN: subject access export (needs Make the export and a ZIP download).
+- Test data left: ZZ TEST Senior now has Phil's mobile; absences 1 to 10 Sep (Return to Work
+  recorded) and 22 Sep (a copied set, answered by Phil, not recorded).
