@@ -438,7 +438,7 @@ export default function AbsenceView({
                     }}
                     initialAi={
                       saved && saved.questions.length > 0
-                        ? { questions: saved.questions, answers: saved.answers }
+                        ? { questions: saved.questions, answers: saved.answers, details: saved.details }
                         : undefined
                     }
                     /* Phil, 2026-09-25: whoever drafted them checks them before they go. Only
@@ -446,15 +446,37 @@ export default function AbsenceView({
                        be reading the saved set. */
                     questionsEditable={!saved || saved.status === "drafted"}
                     questionsNote={
-                      saved?.status === "answered" ? (
-                        <p className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3 text-sm text-white/80">
-                          {first || "They"} answered these through their portal
-                          {saved.answeredAt
-                            ? ` on ${fmtDay(new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date(saved.answeredAt)))}`
-                            : ""}. If
-                          you are not happy with an answer, ring them and change it here before you
-                          save.
-                        </p>
+                      saved?.status === "answered" || saved?.hasFitNote ? (
+                        <div className="space-y-2">
+                          {saved.status === "answered" ? (
+                            <p className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3 text-sm text-white/80">
+                              {first || "They"} answered these through their portal
+                              {saved.answeredAt
+                                ? ` on ${fmtDay(new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date(saved.answeredAt)))}`
+                                : ""}. If
+                              you are not happy with an answer, ring them and change it here before you
+                              save.
+                            </p>
+                          ) : null}
+                          {/* Their fit note, uploaded with their answers (0344). Filed into this
+                              Return to Work's Evidence when it is saved. */}
+                          {saved.hasFitNote ? (
+                            <p className="flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-white/80">
+                              <span>
+                                Fit note uploaded{saved.fitNoteName ? `: ${saved.fitNoteName}` : ""}. It is
+                                filed with this Return to Work when you save it.
+                              </span>
+                              <a
+                                href={`/api/absence/rtw-fit-note/${saved.id}`}
+                                target="_blank"
+                                rel="noopener"
+                                className="btn-outline px-2.5 py-1 text-xs"
+                              >
+                                View fit note
+                              </a>
+                            </p>
+                          ) : null}
+                        </div>
                       ) : null
                     }
                     questionsFooter={({ questions, lock }) => (

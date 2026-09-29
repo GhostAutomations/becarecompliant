@@ -3677,6 +3677,23 @@ keeps the PDF and can be retried; a sent letter never changes (RLS). Download vi
 /api/absence/outcome-letter/<meeting>, signed and audited. In the subject access export. Tests O1
 to O9 in TEST-CHECKLIST-ABSENCE-ROUND2.md.
 
+**5. Return to Work portal follow ups (migrations 0344, 0345).** From Phil's own portal test.
+Decisions by popup: a Yes to the fit note question means they must upload a photo or PDF there and
+then before sending, unless one is already uploaded for this absence; a Yes to support asks "What
+do you need?" and a Yes to anything else asks "What would you like to raise?", both required; the
+AI marks the three (followUp fit_note / need / raise on the question) and always asks the support
+question and, last, "Is there anything else you would like to raise?" (withRequiredFollowUps adds
+either if the AI leaves it out, within the 8 question cap). Sets drafted earlier are recognised by
+wording (lib/ai-follow-ups.ts). The fit note goes to the private evidence bucket
+({company}/rtw-fit-notes/{set}) via uploadMyFitNote (their own live set only, 3.8MB, PDF or photo,
+photos shrunk on the phone first), the manager sees "Fit note uploaded" with View fit note
+(/api/absence/rtw-fit-note/<set>, signed and audited), and recording the Return to Work files it
+into the Evidence's new optional "Fit note" field (v1 edited in place on every company and the
+template) and removes the waiting copy. submit_my_rtw_answers checks the follow ups and stores
+answer_details; the manager's dialog shows and edits the detail under each Yes and writes it into
+the Evidence. In the subject access export. 0345 fixed the details being lost (jsonb || null),
+found by the rolled back probe. Tests F1 to F10 in TEST-CHECKLIST-ABSENCE-ROUND2.md.
+
 ### 2026-09-29 — New prices, the new pricing page, and trial requests in the Founder inbox
 
 Phil, before taking on a new client, agreed by popup: Business £79 (was £49), Pro £129 (was £69),

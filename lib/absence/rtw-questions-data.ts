@@ -18,6 +18,12 @@ export type RtwQuestionnaire = {
   summary: string | null;
   questions: AiQuestion[];
   answers: string[] | null;
+  /** What they need / want to raise under a Yes, index for index (0344). */
+  details: Array<string | null> | null;
+  /** Their uploaded fit note, while it waits to be filed into the Return to Work Evidence. */
+  fitNoteName: string | null;
+  fitNoteUploadedAt: string | null;
+  hasFitNote: boolean;
   draftedByName: string | null;
   draftedAt: string;
   sentAt: string | null;
@@ -29,7 +35,7 @@ export type RtwQuestionnaire = {
 };
 
 export const RTW_QUESTIONNAIRE_COLUMNS =
-  "id, absence_event_id, status, summary, questions, answers, drafted_by_name, drafted_at, sent_at, sent_by_name, sent_to_last4, send_count, expires_at, answered_at";
+  "id, absence_event_id, status, summary, questions, answers, answer_details, fit_note_path, fit_note_name, fit_note_uploaded_at, drafted_by_name, drafted_at, sent_at, sent_by_name, sent_to_last4, send_count, expires_at, answered_at";
 
 type Row = {
   id: string;
@@ -38,6 +44,10 @@ type Row = {
   summary: string | null;
   questions: unknown;
   answers: unknown;
+  answer_details: unknown;
+  fit_note_path: string | null;
+  fit_note_name: string | null;
+  fit_note_uploaded_at: string | null;
   drafted_by_name: string | null;
   drafted_at: string;
   sent_at: string | null;
@@ -56,6 +66,12 @@ export function toQuestionnaire(r: Row): RtwQuestionnaire {
     summary: r.summary,
     questions: toAiQuestions(r.questions),
     answers: Array.isArray(r.answers) ? (r.answers as unknown[]).map((a) => String(a ?? "")) : null,
+    details: Array.isArray(r.answer_details)
+      ? (r.answer_details as unknown[]).map((d) => (typeof d === "string" ? d : null))
+      : null,
+    fitNoteName: r.fit_note_name,
+    fitNoteUploadedAt: r.fit_note_uploaded_at,
+    hasFitNote: Boolean(r.fit_note_path),
     draftedByName: r.drafted_by_name,
     draftedAt: r.drafted_at,
     sentAt: r.sent_at,

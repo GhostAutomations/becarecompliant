@@ -235,3 +235,32 @@ Run on Bevan as Bev Admin. Sends only to ppdavies+ test addresses.
   reachable. Closed without sending, so that letter is left as a draft.
 
 Item 3: O1 to O9 all pass (2026-09-29).
+
+
+## Item 5: Return to Work portal follow ups (migrations 0344, 0345)
+
+Needs a carer login (ZZ TEST Audit Starter or ZZ TEST Senior) and a newly drafted and sent Return
+to Work set on Bevan: 1 AI credit plus 1 SMS.
+
+- F1 Draft the Return to Work questions: the set has a fit note question (if the absence calls for
+  one), a Yes/No support question, and last "Is there anything else you would like to raise?".
+- F2 Portal, Yes to the fit note with nothing uploaded: an Upload your fit note button shows and
+  Send is refused ("Please upload your fit note where it asks."). Upload a photo: "Fit note
+  uploaded" with its name; Send now works.
+- F3 Portal, Yes to support: "What do you need?" box appears and must be filled in; No hides it.
+- F4 Portal, Yes to anything else: "What would you like to raise?" box appears and must be filled in.
+- F5 Manager's Return to Work: their answers show the extra detail under each Yes, and "Fit note
+  uploaded" with View fit note, which opens the file (audited absence.rtw_fit_note_viewed).
+- F6 Record the Return to Work: the Evidence has the fit note under "Fit note" and the details in
+  the answers; the waiting copy is removed and the set points at the Evidence.
+- F7 A set drafted before 0344 (no marks) still asks the follow ups, recognised by wording.
+- F8 PASS (database, rolled back, 2026-09-29): Yes to fit note with no upload refused; Yes to
+  support or anything else with a blank or missing detail refused; details not a list refused;
+  a detail over 2000 characters refused; with a fit note on file the set was answered and stored
+  details [null, null, "A phased return", null] (trimmed, one per question, a detail under a No
+  ignored); a second send returned already; another user could neither send nor read the set.
+  The probe first found every detail being lost (jsonb || null); fixed by 0345 before anything
+  shipped.
+- F9 Phone: upload the fit note straight from the camera.
+- F10 Subject access export: Return to Work questions shows the More detail column and a Fit note
+  row.

@@ -34,6 +34,7 @@ export default async function MyReturnToWorkPage({
     expires_at: string | null;
     answered_at: string | null;
     expired: boolean;
+    fit_note_name?: string | null;
   } | null;
 
   const questions = q ? toAiQuestions(q.questions) : [];
@@ -75,7 +76,7 @@ export default async function MyReturnToWorkPage({
             This link has run out. Please ask your manager to send the questions again.
           </p>
         ) : (
-          <RtwAnswerForm questionnaireId={q.id} questions={questions} />
+          <RtwAnswerForm questionnaireId={q.id} questions={questions} fitNoteName={q.fit_note_name ?? null} />
         )}
       </div>
     </div>

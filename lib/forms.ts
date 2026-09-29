@@ -1,3 +1,5 @@
+import { followUpLabel, inferFollowUp, isAiFollowUp, type AiFollowUp } from "./ai-follow-ups";
+
 /**
  * Shared server-action result shape for useActionState forms.
  * redirectTo: when set, the client navigates there with router.replace after the
@@ -43,6 +45,8 @@ export type AiQuestion = {
   type: AiQuestionType;
   /** Only for type "choice". Two or more short answers to choose from. */
   options?: string[];
+  /** Only for type "yes_no": what a Yes leads to (lib/ai-follow-ups.ts, 0344). */
+  followUp?: AiFollowUp;
 };
 
 /** Most questions we ever want to put in front of someone in one sitting.
@@ -98,6 +102,13 @@ export function toAiQuestions(value: unknown): AiQuestion[] {
         options = undefined;
       }
     }
+    if (type === "yes_no") {
+      // Marked by the AI (0344), or recognised by its wording for a set drafted before that.
+      const tagged = row.followUp ?? row.follow_up;
+      const followUp = isAiFollowUp(tagged) ? tagged : inferFollowUp(question);
+      out.push(followUp ? { question, type, followUp } : { question, type });
+      continue;
+    }
     out.push(options ? { question, type, options } : { question, type });
   }
   return out;
@@ -127,11 +138,18 @@ export function parseAiQuestions(raw: string): AiQuestion[] {
  * text, not JSON, because this is what a manager, an inspector or a tribunal reads back
  * out of Evidence years later.
  */
-export function serialiseAiQuestions(questions: AiQuestion[], answers: string[]): string {
+export function serialiseAiQuestions(
+  questions: AiQuestion[],
+  answers: string[],
+  details?: Array<string | null | undefined> | null,
+): string {
   return questions
     .map((q, i) => {
       const answer = (answers[i] ?? "").trim();
-      return `Q: ${q.question}\nA: ${answer}`.trimEnd();
+      const detail = (details?.[i] ?? "").trim();
+      const label = followUpLabel(q.followUp);
+      const extra = detail && label && answer === "Yes" ? `\n${label}: ${detail}` : "";
+      return `Q: ${q.question}\nA: ${answer}${extra}`.trimEnd();
     })
     .join("\n\n");
 }

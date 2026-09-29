@@ -40,6 +40,7 @@ import {
   type AiQuestion,
 } from "@/lib/forms";
 import { AiIcon } from "@/components/ai-icon";
+import { followUpPrompt, needsDetail } from "@/lib/ai-follow-ups";
 
 type Action = (prev: ActionState, formData: FormData) => Promise<ActionState>;
 
@@ -82,7 +83,7 @@ export default function FormEvidenceDialog({
   openOnMount?: boolean;
   /** AI drafted questions already saved for this record (and any answers already given), so
    *  they show straight away and Draft it for me is never pressed, or paid for, twice. */
-  initialAi?: { questions: AiQuestion[]; answers?: string[] | null };
+  initialAi?: { questions: AiQuestion[]; answers?: string[] | null; details?: Array<string | null> | null };
   /** Let the person reading the drafted questions reword them or take one out. */
   questionsEditable?: boolean;
   /** A line shown above the drafted questions, e.g. who answered them and when. */
@@ -142,6 +143,11 @@ export default function FormEvidenceDialog({
   const [aiAnswers, setAiAnswers] = useState<string[]>(
     (initialAi?.questions ?? []).map((_, i) => initialAi?.answers?.[i] ?? ""),
   );
+  /* What they need / want to raise under a Yes (0344): typed by the employee in their portal, or
+     here. Held beside the answers, index for index. */
+  const [aiDetails, setAiDetails] = useState<string[]>(
+    (initialAi?.questions ?? []).map((_, i) => initialAi?.details?.[i] ?? ""),
+  );
   const [questionsLocked, setQuestionsLocked] = useState(false);
   /* Saved questions can change underneath a closed dialog (the employee answers, the page
      refreshes). Take the new copy while it is closed; never while someone is typing in it. */
@@ -155,6 +161,7 @@ export default function FormEvidenceDialog({
     if (initialAiKey === consumedAiKey.current) return;
     setAiQuestions(initialAi.questions);
     setAiAnswers(initialAi.questions.map((_, i) => initialAi.answers?.[i] ?? ""));
+    setAiDetails(initialAi.questions.map((_, i) => initialAi.details?.[i] ?? ""));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialAiKey, open]);
 
@@ -164,6 +171,7 @@ export default function FormEvidenceDialog({
   function removeAiQuestion(index: number) {
     setAiQuestions((prev) => prev.filter((_, i) => i !== index));
     setAiAnswers((prev) => prev.filter((_, i) => i !== index));
+    setAiDetails((prev) => prev.filter((_, i) => i !== index));
   }
 
   // Drop hidden fields from what we render and validate. The server still
@@ -200,6 +208,7 @@ export default function FormEvidenceDialog({
     if (dataKey) delete incoming[dataKey];
     setAiQuestions(asked);
     setAiAnswers(asked.map(() => ""));
+    setAiDetails(asked.map(() => ""));
     const merged = { ...answers, ...incoming } as Answers;
     setAnswers(merged);
     setDraftDefaults(merged);
@@ -228,6 +237,7 @@ export default function FormEvidenceDialog({
       consumedAiKey.current = initialAiKey;
       setAiQuestions([]);
       setAiAnswers([]);
+      setAiDetails([]);
       setQuestionsLocked(false);
       setAnswers(presetAnswers ?? {});
       setDraftDefaults(undefined);
@@ -254,12 +264,20 @@ export default function FormEvidenceDialog({
     });
   }
 
+  function setAiDetail(index: number, value: string) {
+    setAiDetails((prev) => {
+      const next = prev.slice();
+      next[index] = value;
+      return next;
+    });
+  }
+
   /** The answers as they will be saved: what the form holds, plus the AI drafted
    *  questions and their answers serialised into their one long_text field. */
   function answersToSave(): Answers {
     const key = aiDraft?.questions?.answerKey;
     if (!key || aiQuestions.length === 0) return answers;
-    return { ...answers, [key]: serialiseAiQuestions(aiQuestions, aiAnswers) };
+    return { ...answers, [key]: serialiseAiQuestions(aiQuestions, aiAnswers, aiDetails) };
   }
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -283,7 +301,7 @@ export default function FormEvidenceDialog({
     // The drafted questions and answers as a list as well, so the server can tell which answers
     // were changed. Presentational: the saved answer is the serialised text above.
     if (aiQuestions.length > 0) {
-      fd.set("ai_questions_json", JSON.stringify({ questions: aiQuestions, answers: aiAnswers }));
+      fd.set("ai_questions_json", JSON.stringify({ questions: aiQuestions, answers: aiAnswers, details: aiDetails }));
     }
     for (const [k, v] of Object.entries(extraFields ?? {})) fd.set(k, v);
     for (const [key, file] of Object.entries(files)) {
@@ -446,6 +464,21 @@ export default function FormEvidenceDialog({
                             onChange={(e) => setAiAnswer(i, e.target.value)}
                           />
                         )}
+                        {needsDetail(q.followUp, aiAnswers[i]) ? (
+                          <div className="mt-1 flex flex-col gap-1">
+                            <label htmlFor={`ai-d-${i}`} className="form-label text-white/70">
+                              {followUpPrompt(q.followUp)}
+                            </label>
+                            <textarea
+                              id={`ai-d-${i}`}
+                              rows={2}
+                              maxLength={2000}
+                              value={aiDetails[i] ?? ""}
+                              disabled={busy}
+                              onChange={(e) => setAiDetail(i, e.target.value)}
+                            />
+                          </div>
+                        ) : null}
                       </div>
                     ))}
                   </div>

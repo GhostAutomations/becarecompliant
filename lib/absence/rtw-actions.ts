@@ -28,14 +28,16 @@
 import { revalidatePath } from "next/cache";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
 import { runAi } from "@/lib/ai/anthropic";
 import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
 import { getCompanyFormByKey } from "@/lib/people/data";
 import { getRtwContext } from "./rtw";
 import type { Answers } from "@/lib/form-schema";
-import { stripJsonFence, toAiQuestions, type ActionState, type AiQuestion } from "@/lib/forms";
+import { AI_QUESTION_LIMIT, stripJsonFence, toAiQuestions, type ActionState, type AiQuestion } from "@/lib/forms";
 import { getRtwQuestionnaire } from "@/lib/absence/rtw-questions-data";
+import { withRequiredFollowUps } from "@/lib/ai-follow-ups";
 import { changedAnswerNumbers, rtwProvenanceNote } from "@/lib/absence/rtw-questions";
 
 // v4: the model writes ALL of the questions. The guardrails below are unchanged from
@@ -70,6 +72,14 @@ const RTW_SYSTEM = [
   "of single days do not deserve the same questions. Ask about a fit note, medication, appointments,",
   "a phased return or a pattern of absence only where this record makes it relevant.",
   "Ask one thing per question and never ask the same thing twice in different words.",
+  // Follow ups (Phil, 2026-09-29, migration 0344). Marked on the question so the employee's
+  // portal can ask the next thing on a Yes: upload the fit note, say what they need, say what
+  // they want to raise.
+  'A yes_no question may carry "followUp". When you ask whether they have a fit note, make it a',
+  'yes_no question with "followUp": "fit_note". The support question MUST be a yes_no question',
+  'asking whether there is any support that would help them, with "followUp": "need". The LAST',
+  'question MUST be the yes_no question "Is there anything else you would like to raise?" with',
+  '"followUp": "raise". These count towards the 5 to 8 questions.',
 ].join(" ");
 
 // KEPT AS THE FALLBACK. If the model ignores the JSON instruction (or returns JSON we
@@ -163,7 +173,12 @@ export async function draftReturnToWork(
   });
   if ("error" in result) return { error: result.error };
 
-  const { summary, questions } = readDraft(result.ok);
+  const drafted = readDraft(result.ok);
+  const summary = drafted.summary;
+  // The support and anything else questions are always asked, even if the AI left one out.
+  const questions = drafted.questions.length > 0
+    ? withRequiredFollowUps(drafted.questions, (question, followUp): AiQuestion => ({ question, type: "yes_no", followUp }), AI_QUESTION_LIMIT)
+    : drafted.questions;
   if (questions.length > 0) {
     // Save it to this Return to Work straight away, so the next press reads it back for free
     // and the questions can be checked and texted to the employee (migration 0331).
@@ -292,6 +307,38 @@ export async function recordReturnToWork(
     }
   }
 
+  /* THE FIT NOTE THEY UPLOADED (0344) is filed into this Evidence, unless the interviewer
+     attached one themselves. Read with the service role: the file is in the private bucket and
+     the row has already been checked through RLS above. */
+  let fitNotePath: string | null = null;
+  const fitField = (form.schema as { sections?: Array<{ fields?: Array<{ key?: string }> }> } | null)
+    ?.sections?.some((sec) => sec.fields?.some((f) => f.key === "fit_note"));
+  if (questionnaire?.hasFitNote && fitField && !files.some((f) => f.fieldKey === "fit_note")) {
+    const { data: fn } = await supabase
+      .from("rtw_questionnaires")
+      .select("fit_note_path, fit_note_name, fit_note_type")
+      .eq("id", questionnaire.id)
+      .maybeSingle();
+    if (fn?.fit_note_path) {
+      const { data: blob, error: dlErr } = await createServiceClient()
+        .storage.from("evidence")
+        .download(fn.fit_note_path as string);
+      if (dlErr || !blob) {
+        return { error: `Their fit note could not be read, so nothing was saved: ${dlErr?.message ?? "no file"}. Try again.` };
+      }
+      const fileName = (fn.fit_note_name as string | null) || "fit-note";
+      files.push({
+        fieldKey: "fit_note",
+        kind: "upload",
+        fileName,
+        contentType: (fn.fit_note_type as string | null) || blob.type || "application/octet-stream",
+        bytes: Buffer.from(await blob.arrayBuffer()),
+      });
+      answers = { ...answers, fit_note: fileName };
+      fitNotePath = fn.fit_note_path as string;
+    }
+  }
+
   const result = await submitEvidence({
     formVersionId: form.versionId,
     branchId: (absence.branch_id as string | null) ?? null,
@@ -317,10 +364,13 @@ export async function recordReturnToWork(
   // The questions are finished with: the link in the text stops working, and the tile stops
   // saying "Answers in".
   if (questionnaire && questionnaire.status !== "recorded") {
+    // The fit note now lives in the Evidence (and follows its retention); the waiting copy goes.
+    if (fitNotePath) await createServiceClient().storage.from("evidence").remove([fitNotePath]);
     await supabase
       .from("rtw_questionnaires")
       .update({
         status: "recorded",
+        ...(fitNotePath ? { fit_note_path: null, fit_note_evidence_id: result.evidenceId } : {}),
         ...(changed.length > 0
           ? {
               answers_changed_at: new Date().toISOString(),

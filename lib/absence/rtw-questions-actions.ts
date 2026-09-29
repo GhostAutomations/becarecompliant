@@ -206,12 +206,89 @@ export async function submitMyRtwAnswers(
   } catch {
     return { error: "Your answers could not be read." };
   }
+  // What they need / want to raise under a Yes (0344). Checked again by the database.
+  let details: unknown = null;
+  try {
+    details = JSON.parse(String(formData.get("details") ?? "null"));
+  } catch {
+    return { error: "Your answers could not be read." };
+  }
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("submit_my_rtw_answers", {
     p_id: id,
     p_answers: answers,
+    p_details: Array.isArray(details) ? details : null,
   });
   if (error) return { error: error.message };
   revalidatePath("/my");
   return { ok: data === "already" ? "already" : "answered" };
+}
+
+const FIT_NOTE_MAX_BYTES = Math.floor(3.8 * 1024 * 1024);
+const FIT_NOTE_TYPES: Record<string, string> = {
+  "application/pdf": "pdf",
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/heic": "heic",
+  "image/heif": "heif",
+  "image/webp": "webp",
+};
+
+/**
+ * The employee uploads their fit note from the portal (Phil, 2026-09-29, 0344). Only their own
+ * questions, only while the link is live: my_rtw_questions answers for the SIGNED IN person alone.
+ * The file goes to the private evidence bucket beside nothing else of theirs, and a second upload
+ * replaces the first. It is filed into the Return to Work Evidence when the interview is recorded.
+ */
+export async function uploadMyFitNote(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { profile } = await requireCompany();
+  const id = String(formData.get("questionnaire_id") ?? "");
+  const file = formData.get("fit_note");
+  if (!id) return { error: "These questions could not be found." };
+  if (!(file instanceof File) || file.size === 0) return { error: "Choose a photo or PDF of your fit note first." };
+  if (file.size > FIT_NOTE_MAX_BYTES) return { error: "That file is too big to upload. Try a photo instead of a scan, or a smaller PDF." };
+  const ext = FIT_NOTE_TYPES[file.type];
+  if (!ext) return { error: "Please upload a photo (JPEG, PNG or HEIC) or a PDF." };
+
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("my_rtw_questions", { p_id: id });
+  const mine = data as { id?: string; status?: string; expired?: boolean } | null;
+  if (!mine?.id) return { error: "These questions could not be found." };
+  if (mine.status !== "sent" || mine.expired) return { error: "These questions can no longer be changed." };
+
+  const admin = createServiceClient();
+  const { data: row } = await admin
+    .from("rtw_questionnaires")
+    .select("company_id, person_id, fit_note_path")
+    .eq("id", id)
+    .maybeSingle();
+  if (!row) return { error: "These questions could not be found." };
+  const path = `${row.company_id}/rtw-fit-notes/${id}/fit-note.${ext}`;
+  const { error: upErr } = await admin.storage
+    .from("evidence")
+    .upload(path, Buffer.from(await file.arrayBuffer()), { contentType: file.type, upsert: true });
+  if (upErr) return { error: `Your fit note could not be uploaded: ${upErr.message}` };
+  // A replacement with a different type leaves the old one behind otherwise.
+  if (row.fit_note_path && row.fit_note_path !== path) {
+    await admin.storage.from("evidence").remove([row.fit_note_path as string]);
+  }
+  const name = file.name.replace(/[^\w .()-]+/g, "_").slice(0, 120) || `fit-note.${ext}`;
+  const { error: updErr } = await admin
+    .from("rtw_questionnaires")
+    .update({ fit_note_path: path, fit_note_name: name, fit_note_type: file.type, fit_note_uploaded_at: new Date().toISOString() })
+    .eq("id", id);
+  if (updErr) return { error: `Your fit note could not be saved: ${updErr.message}` };
+
+  await writeAudit({
+    companyId: row.company_id as string,
+    actorId: profile.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "absence.rtw_fit_note_uploaded",
+    entityType: "person",
+    entityId: row.person_id as string,
+    summary: "Uploaded their fit note with their Return to Work answers",
+    metadata: { rtw_questionnaire_id: id, bytes: file.size, type: file.type },
+  });
+  return { ok: "Uploaded", data: { name } };
 }
