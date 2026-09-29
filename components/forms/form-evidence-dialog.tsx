@@ -21,7 +21,7 @@
  * opened about (see lib/forms/draft-key.ts).
  */
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useActionState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
@@ -146,8 +146,13 @@ export default function FormEvidenceDialog({
   /* Saved questions can change underneath a closed dialog (the employee answers, the page
      refreshes). Take the new copy while it is closed; never while someone is typing in it. */
   const initialAiKey = JSON.stringify(initialAi ?? null);
+  /* The saved set that has just been used up by a successful save. Until the page catches up it
+     is still passed in, and must not be put back: the box stays open on the same record (Absence
+     meeting), so it would offer last meeting's questions again (found live 2026-09-29, Q6). */
+  const consumedAiKey = useRef<string | null>(null);
   useEffect(() => {
     if (open || !initialAi) return;
+    if (initialAiKey === consumedAiKey.current) return;
     setAiQuestions(initialAi.questions);
     setAiAnswers(initialAi.questions.map((_, i) => initialAi.answers?.[i] ?? ""));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -217,6 +222,19 @@ export default function FormEvidenceDialog({
     if (state.ok || state.redirectTo) held.discard();
     if (state.redirectTo) router.replace(state.redirectTo);
     else if (state.ok && open) {
+      /* Saved: start clean next time. The dialog stays mounted where the record stays on screen
+         (Record meeting on an Absence card), so without this it reopened on the answers and the
+         drafted questions just filed. */
+      consumedAiKey.current = initialAiKey;
+      setAiQuestions([]);
+      setAiAnswers([]);
+      setQuestionsLocked(false);
+      setAnswers(presetAnswers ?? {});
+      setDraftDefaults(undefined);
+      setFiles({});
+      setErrors([]);
+      setMissing(null);
+      setFormKey((k) => k + 1);
       setOpen(false);
       router.refresh();
       onSaved?.(state);

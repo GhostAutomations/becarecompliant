@@ -143,3 +143,21 @@ Run on Bevan as Bev Admin. ZZ TEST No Email and ZZ TEST Senior each have one tes
 - Q10 PASS (2026-09-29, rolled back): as Bev Admin can_prepare true, an insert went in and was
   read back; as ZZ TEST Senior's login can_prepare false and 0 rows visible. Security advisor
   unchanged (4 WARN, 1 INFO, no ERROR). The field is on Thistle v1, Bevan v1 and the template.
+- Q1 PASS: Record meeting for ZZ TEST Audit Starter (nothing booked) shows the panel with the gold
+  AI chip and "Draft questions for me"; "Questions asked and answers" is in the form.
+- Q2 PASS: "Drafting…" at once, then 7 questions (one a choice of three answers, the rest boxes);
+  the "Questions asked and answers" box hidden while they show. One AI credit
+  (absence_meeting_questions, 2,177 tokens); the set saved with no booking, as expected.
+- Q3 PASS: every question has an edit box and Remove; one removed. None suggests an outcome or a
+  warning or guesses a cause; no dashes. Wording read: "Can you talk me through what led to your
+  two absences, on 24 and 26 September...", "Are you clear on the attendance level the company
+  expects from you?".
+- Q8 PASS: the questions followed up the Return to Work ("In your return to work forms you said
+  work played a part in the first absence but not the second...", "you mentioned reduced hours or
+  duties might help") and the Stage 1 meeting ("At your Stage 1 meeting some support was agreed").
+- Q4 PASS: closed, page reloaded, reopened: the same 7 came back, no Draft button, no new usage.
+- Q5 PASS: answered, Stage 2, 29/09/2026, Informal support and monitoring, saved; the discount
+  question followed (answered No). The Evidence's "Questions asked and answers" holds the six
+  questions with their answers; the set is closed against the new meeting and the Evidence.
+- Q6 FAIL: reopening Record meeting for the same person showed last meeting's 7 questions again.
+  DEF-080, fixed in form-evidence-dialog; to retest once deployed.

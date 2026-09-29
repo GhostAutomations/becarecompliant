@@ -2362,3 +2362,13 @@ and its close timer was cleared before it could fire. Rearrange had the same sha
 discount box close at once, which unmounts them, so they never looped. **Fixed:** the opener's
 close function is made once (useCallback) in book-meeting-dialog and cancel-rearrange-dialog.
 Retested live after bdf1cd37: Rearrange and Cancel each closed after one refresh.
+
+## DEF-080 - Record meeting reopened on the questions just saved
+Found live 2026-09-29 by Claude on Bevan (Absence 2, step Q6). After a meeting with drafted
+questions was saved, pressing Record meeting again for the same person showed last meeting's
+questions (all seven, including one that had been removed) instead of a clean form. The dialog
+stays mounted on the Absence card, kept its questions in state after the save, and when it closed
+put back the saved set the page had not yet caught up on. Return to Work never showed it because
+its row leaves the list once recorded. **Fixed** in form-evidence-dialog: a successful save
+clears the drafted questions, their answers, the form's defaults and files, and the set just used
+up is never put back. Nothing wrong was saved: the Evidence held the six questions asked.
