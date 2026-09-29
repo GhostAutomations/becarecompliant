@@ -3654,3 +3654,15 @@ Trial requests: submitTrialRequest now also writes the request into founder_emai
 message from the applicant, linked by trial_request_id, before any email is attempted, so Reply in
 the Founder inbox answers them directly (lib/marketing/trial-inbox.ts, 3 tests). The alert to Phil's
 own address and the Trial requests list are unchanged.
+
+### 2026-09-29 (later) — Monthly or annual on the trial form, a text for every trial request (migration 0335)
+
+Phil: ask whether they want monthly or annual, text me when a trial request comes in, and change
+the Start free trial buttons. trial_requests gains billing_interest (monthly | annual | null),
+founder_texted_at and founder_text_error. The form asks "How would you like to pay"; the answer
+shows in the founder alert email, the Founder inbox copy and the Trial requests list. Each new
+request texts every platform admin with a UK mobile on their profile, through sendPlatformSms
+(lib/sms/twilio.ts: no customer allowance spent, opt outs respected), one plain GSM message kept
+under 160 characters (trialRequestSmsText, tested). The founder sets or clears the number on
+Founder, Trial requests; each request shows "Texted to you" or why not. Every Start free trial
+button on the site (header, footer, homepage, social proof) now reads Request a trial.

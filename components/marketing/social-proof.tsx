@@ -18,10 +18,10 @@ export default function SocialProof() {
           <h2 className="mt-3 text-2xl font-semibold sm:text-3xl">Be one of the first to run compliance this way</h2>
           <p className="mx-auto mt-4 max-w-xl text-white/75">
             Be Care Compliant is built by people who run real care services, for the managers who live under
-            inspection pressure. Start a free trial and help shape where it goes next.
+            inspection pressure. Request a trial and help shape where it goes next.
           </p>
           <div className="mt-6">
-            <Link href="/start-trial" className="btn-primary">Start your 14 day free trial</Link>
+            <Link href="/start-trial" className="btn-primary">Request a trial</Link>
           </div>
         </div>
       </section>

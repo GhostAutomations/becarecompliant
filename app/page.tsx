@@ -156,7 +156,7 @@ export default async function Home() {
             the evidence ready to export the day it is asked for.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <Link href="/start-trial" className="btn-primary">Start your 14 day free trial</Link>
+            <Link href="/start-trial" className="btn-primary">Request a trial</Link>
             <Link href="/pricing" className="btn-outline">See pricing</Link>
           </div>
           <p className="mt-4 text-xs text-white/60">
@@ -373,11 +373,11 @@ export default async function Home() {
       <section className="mx-auto max-w-4xl px-4 py-20 text-center">
         <h2 className="text-2xl font-semibold sm:text-3xl">Walk into your next inspection knowing</h2>
         <p className="mx-auto mt-4 max-w-xl text-white/75">
-          Start a free trial, bring your existing records in and see the whole compliance picture in one place,
+          Request a trial, bring your existing records in and see the whole compliance picture in one place,
           well before anyone asks to see it.
         </p>
         <div className="mt-8">
-          <Link href="/start-trial" className="btn-primary">Start your 14 day free trial</Link>
+          <Link href="/start-trial" className="btn-primary">Request a trial</Link>
         </div>
       </section>
 

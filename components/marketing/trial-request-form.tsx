@@ -123,6 +123,14 @@ export default function TrialRequestForm({ defaultTier = "" }: { defaultTier?: s
             </select>
           </div>
           <div className="sm:col-span-2">
+            <label htmlFor="billing_interest" className="form-label">How would you like to pay</label>
+            <select id="billing_interest" name="billing_interest" defaultValue="">
+              <option value="">Not sure yet</option>
+              <option value="monthly">Monthly, cancel any time</option>
+              <option value="annual">Annual, two months free</option>
+            </select>
+          </div>
+          <div className="sm:col-span-2">
             <label htmlFor="message" className="form-label">Anything you want us to know</label>
             <textarea
               id="message"

@@ -38,8 +38,8 @@ export default async function StartTrialPage({
         <div className="text-center">
           {/* "Request", not "Start". The button at the bottom of this page sends a request,
               and setup is founder led on purpose, so the heading now matches what pressing it
-              actually does. The buttons that bring people HERE still say Start free trial:
-              that is the invitation, this is the transaction. */}
+              actually does. The buttons that bring people HERE say Request a trial too
+              (Phil, 2026-09-29), so the invitation and the transaction match. */}
           <h1 className="text-3xl font-bold sm:text-4xl">Request your 14 day free trial</h1>
           <p className="mx-auto mt-4 max-w-xl text-white/75">
             Three details are all we need. We set the trial up for you and send your logins, usually the same working

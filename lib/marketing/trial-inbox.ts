@@ -15,11 +15,22 @@ export type TrialRequestFields = {
   email: string;
   phone: string | null;
   tier_interest: string | null;
+  /** 'monthly' | 'annual' | null (not sure). Asked on the form from 2026-09-29. */
+  billing_interest?: string | null;
   team_size: string | null;
   message: string | null;
 };
 
 const PLAN_NAMES: Record<string, string> = { business: "Business", pro: "Pro" };
+const BILLING_NAMES: Record<string, string> = { monthly: "Monthly", annual: "Annual" };
+
+export function billingLabel(value: string | null | undefined): string {
+  return value ? BILLING_NAMES[value] ?? value : "Not sure yet";
+}
+
+export function planLabel(value: string | null | undefined): string {
+  return value ? PLAN_NAMES[value] ?? value : "Not sure yet";
+}
 
 function esc(value: string): string {
   return value
@@ -36,7 +47,8 @@ export function trialRequestRows(f: TrialRequestFields): Array<[string, string]>
     ["Contact", f.contact_name],
     ["Email", f.email],
     ["Phone", f.phone || "Not given"],
-    ["Interested in", f.tier_interest ? PLAN_NAMES[f.tier_interest] ?? f.tier_interest : "Not sure yet"],
+    ["Interested in", planLabel(f.tier_interest)],
+    ["Would pay", billingLabel(f.billing_interest)],
     ["Team size", f.team_size || "Not given"],
     ["Message", f.message || "None"],
   ];
@@ -63,4 +75,21 @@ export function trialRequestInboxMessage(f: TrialRequestFields): { subject: stri
       .join("") +
     `</table><p>Reply here to answer them directly.</p>`;
   return { subject, text, html };
+}
+
+/**
+ * The text to the founder. Kept to one SMS: names are cut (company 32, contact 22 characters) so
+ * nothing can push it into a second segment, and only plain GSM characters are used, because a
+ * single curly quote or ellipsis switches the whole message to the 70 character encoding.
+ * No dashes.
+ */
+function cut(value: string, max: number): string {
+  const plain = value.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"');
+  return plain.length > max ? `${plain.slice(0, max - 3).trimEnd()}...` : plain;
+}
+
+export function trialRequestSmsText(f: TrialRequestFields): string {
+  const plan = f.tier_interest ? planLabel(f.tier_interest) : "No plan";
+  const billing = f.billing_interest ? billingLabel(f.billing_interest).toLowerCase() : "no billing choice";
+  return `Be Care Compliant: trial request from ${cut(f.company_name, 32)} (${cut(f.contact_name, 22)}). ${plan}, ${billing}. See the Founder inbox.`;
 }

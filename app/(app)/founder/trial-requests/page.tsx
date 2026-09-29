@@ -3,6 +3,8 @@ import Link from "next/link";
 import { requirePlatformAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import BackLink from "@/components/back-link";
+import FounderMobileForm from "@/components/founder/founder-mobile-form";
+import { billingLabel } from "@/lib/marketing/trial-inbox";
 import ActionForm from "@/components/action-form";
 import {
   setTrialRequestStatus,
@@ -70,6 +72,7 @@ type TrialRequestRow = {
   email: string;
   phone: string | null;
   tier_interest: string | null;
+  billing_interest: string | null;
   team_size: string | null;
   message: string | null;
   source: string;
@@ -85,6 +88,8 @@ type TrialRequestRow = {
      delivered without a timestamp to prove it. */
   founder_alerted_at: string | null;
   founder_alert_error: string | null;
+  founder_texted_at: string | null;
+  founder_text_error: string | null;
   founder_chased_at: string | null;
   founder_chase_count: number | null;
 };
@@ -102,14 +107,17 @@ type CompanyRow = {
 const TRIAL_TIERS = ["business", "pro"] as const;
 
 export default async function FounderTrialRequestsPage() {
-  await requirePlatformAdmin();
+  const { user } = await requirePlatformAdmin();
   const supabase = await createClient();
+  // The founder's own mobile for trial request texts (saveFounderMobile).
+  const { data: me } = await supabase.from("profiles").select("phone").eq("id", user.id).maybeSingle();
+  const founderMobile = ((me as { phone: string | null } | null)?.phone ?? null) || null;
 
   const [{ data }, { data: companyData }, { data: emailData }] = await Promise.all([
     supabase
       .from("trial_requests")
       .select(
-        "id, company_name, contact_name, email, phone, tier_interest, team_size, message, source, status, notes, status_changed_at, status_changed_by, created_at, company_id, name_key, founder_alerted_at, founder_alert_error, founder_chased_at, founder_chase_count",
+        "id, company_name, contact_name, email, phone, tier_interest, billing_interest, team_size, message, source, status, notes, status_changed_at, status_changed_by, created_at, company_id, name_key, founder_alerted_at, founder_alert_error, founder_texted_at, founder_text_error, founder_chased_at, founder_chase_count",
       )
       .order("created_at", { ascending: false })
       .limit(500),
@@ -287,11 +295,13 @@ export default async function FounderTrialRequestsPage() {
         <BackLink href="/founder" label="Back to Founder console" />
         <h1 className="page-title mt-1">Trial requests</h1>
         <p className="page-subtitle">
-          Everyone who pressed Start free trial on the website, newest first. Nobody
+          Everyone who pressed Request a trial on the website, newest first. Nobody
           creates a company but you. Press Provision on a request and the whole company is
           built, seeded and invited, with the 14 day trial starting from that press.
         </p>
       </div>
+
+      <FounderMobileForm current={founderMobile} />
 
       {rows.length > 0 ? (
         <p className="text-sm text-white/60">
@@ -305,7 +315,7 @@ export default async function FounderTrialRequestsPage() {
       {rows.length === 0 ? (
         <div className="glass-card px-6 py-12 text-center">
           <p className="text-sm text-white/60">
-            No trial requests yet. Anyone who presses Start free trial on the website
+            No trial requests yet. Anyone who presses Request a trial on the website
             appears here straight away, and you still get the email.
           </p>
         </div>
@@ -399,6 +409,28 @@ export default async function FounderTrialRequestsPage() {
                         tierLabel(r.tier_interest)
                       ) : (
                         <span className="text-white/40">Not sure yet</span>
+                      )}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs uppercase tracking-wide text-white/40">Would pay</dt>
+                    <dd className="text-white/80">
+                      {r.billing_interest ? (
+                        billingLabel(r.billing_interest)
+                      ) : (
+                        <span className="text-white/40">Not sure yet</span>
+                      )}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs uppercase tracking-wide text-white/40">Texted to you</dt>
+                    <dd className="text-white/80">
+                      {r.founder_texted_at ? (
+                        formatReceivedAt(r.founder_texted_at)
+                      ) : r.founder_text_error ? (
+                        <span className="text-amber-300">Not sent: {r.founder_text_error}</span>
+                      ) : (
+                        <span className="text-white/40">Before texts began</span>
                       )}
                     </dd>
                   </div>

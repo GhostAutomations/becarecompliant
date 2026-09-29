@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { trialRequestInboxMessage } from "./trial-inbox.ts";
+import { trialRequestInboxMessage, trialRequestSmsText } from "./trial-inbox.ts";
 
 const base = {
   company_name: "Smith & Sons Care",
@@ -30,4 +30,19 @@ test("what the applicant typed is escaped in the HTML", () => {
 
 test("no plan chosen reads Not sure yet", () => {
   assert.match(trialRequestInboxMessage({ ...base, tier_interest: null }).text, /Interested in: Not sure yet/);
+});
+
+test("the billing choice is shown, and a blank one reads Not sure yet", () => {
+  assert.match(trialRequestInboxMessage({ ...base, billing_interest: "annual" }).text, /Would pay: Annual/);
+  assert.match(trialRequestInboxMessage(base).text, /Would pay: Not sure yet/);
+});
+
+test("the founder text names the lead, the plan and the billing choice, with no dashes", () => {
+  const t = trialRequestSmsText({ ...base, billing_interest: "monthly" });
+  assert.equal(t, "Be Care Compliant: trial request from Smith & Sons Care (Jo O'Brien). Pro, monthly. See the Founder inbox.");
+  assert.doesNotMatch(t, /[\u2013\u2014]| - /);
+  const long = trialRequestSmsText({ ...base, company_name: "A".repeat(80), contact_name: "B".repeat(80), tier_interest: null });
+  assert.ok(long.length <= 160, `too long: ${long.length}`);
+  assert.match(long, /No plan, no billing choice/);
+  assert.match(long, /^[\x20-\x7E]*$/, "only plain characters, so it stays one SMS");
 });

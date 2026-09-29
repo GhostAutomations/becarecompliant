@@ -309,7 +309,7 @@ export default async function FounderPage() {
               ? `${waitingTrialRequests} ${waitingTrialRequests === 1 ? "request is" : "requests are"} waiting for a reply${
                   oldestWaitingHours > 0 ? `, the oldest for ${waitingLabel(oldestWaitingHours).replace("Waiting ", "")}` : ""
                 }. Setup stays founder led, so nothing is provisioned automatically.`
-              : "Leads from the Start free trial form on the website. Nothing waiting."}
+              : "Leads from the Request a trial form on the website. Nothing waiting."}
           </p>
         </Link>
         <Link

@@ -30,6 +30,7 @@ import {
   trialRequestStatusLabel,
 } from "@/lib/founder/trial-requests";
 import { trialDomainFor } from "@/lib/founder/trial-matching";
+import { ukMobileToE164 } from "@/lib/absence/rtw-questions";
 import { trialState } from "@/lib/billing/trial";
 import { sendFounderReply, refetchOneBody } from "@/lib/founder/inbox-store";
 import { trialBranchRefusal } from "@/lib/billing/trial-limits";
@@ -1682,3 +1683,41 @@ export async function emptyDeletedEmails(
   return { ok: count === 0 ? "Nothing to erase." : `Erased ${count}.` };
 }
 
+
+/**
+ * The founder's own mobile for trial request texts (Phil, 2026-09-29). Held on the founder's
+ * profile, where every other phone number lives, and read by submitTrialRequest. Blank clears
+ * it, which stops the texts. UK mobiles only, because that is what our Twilio number can text.
+ */
+export async function saveFounderMobile(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requirePlatformAdmin();
+  const raw = String(formData.get("phone") ?? "").trim();
+  const phone = raw ? ukMobileToE164(raw) : null;
+  if (raw && !phone) return { error: "Enter a UK mobile number, for example 07700 900123." };
+
+  const service = createServiceClient();
+  const { data, error } = await service
+    .from("profiles")
+    .update({ phone })
+    .eq("id", user.id)
+    .select("id");
+  if (error) return { error: `The number could not be saved: ${error.message}` };
+  if (!data || data.length === 0) return { error: "Your profile could not be found." };
+
+  await writeAudit({
+    companyId: null,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "founder.alert_mobile_set",
+    entityType: "profile",
+    entityId: user.id,
+    summary: phone ? "Set the mobile for trial request texts" : "Removed the mobile for trial request texts",
+  });
+
+  revalidatePath("/founder/trial-requests");
+  return { ok: phone ? "Saved. New trial requests will be texted to this number." : "Removed. Trial requests will not be texted." };
+}

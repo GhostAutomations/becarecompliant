@@ -15,7 +15,9 @@ import { sendEmail, resendConfigured } from "@/lib/email/resend";
 import { noticeEmailHtml, escapeHtml } from "@/lib/email/templates";
 import { siteUrl } from "@/lib/site";
 import { type ActionState } from "@/lib/forms";
-import { trialRequestInboxMessage } from "@/lib/marketing/trial-inbox";
+import { trialRequestInboxMessage, trialRequestSmsText, planLabel, billingLabel } from "@/lib/marketing/trial-inbox";
+import { sendPlatformSms } from "@/lib/sms/twilio";
+import { ukMobileToE164 } from "@/lib/absence/rtw-questions";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -37,6 +39,9 @@ export async function submitTrialRequest(
   const email = clean(formData.get("email"), 200).toLowerCase();
   const phone = clean(formData.get("phone"), 60) || null;
   const tier_interest = clean(formData.get("tier_interest"), 40) || null;
+  // Monthly or annual (Phil, 2026-09-29). Anything else is "not sure", never an error.
+  const rawBilling = clean(formData.get("billing_interest"), 20);
+  const billing_interest = rawBilling === "monthly" || rawBilling === "annual" ? rawBilling : null;
   const team_size = clean(formData.get("team_size"), 60) || null;
   const message = clean(formData.get("message"), 2000) || null;
   // Honeypot: bots fill hidden fields. If present, silently succeed without storing.
@@ -78,6 +83,7 @@ export async function submitTrialRequest(
       email,
       phone,
       tier_interest,
+      billing_interest,
       team_size,
       message,
       source: "website",
@@ -93,7 +99,7 @@ export async function submitTrialRequest(
      configured. Best effort: a failure here must never turn a captured lead into an error on
      their screen, and the Trial requests list still has it. */
   if (requestId) {
-    const msg = trialRequestInboxMessage({ company_name, contact_name, email, phone, tier_interest, team_size, message });
+    const msg = trialRequestInboxMessage({ company_name, contact_name, email, phone, tier_interest, billing_interest, team_size, message });
     const { error: inboxError } = await supabase.from("founder_emails").insert({
       direction: "in",
       from_address: email,
@@ -114,6 +120,38 @@ export async function submitTrialRequest(
      recorded when it did not. A lead is the one thing on this platform that costs money when
      it is late, so it gets the same treatment the product gives an overdue supervision —
      proof of delivery, and a chase until somebody deals with it (api/cron/trial-chase). */
+  /* A TEXT TO THE FOUNDER (Phil, 2026-09-29: "when a trial request comes in I get an SMS").
+     To every platform admin with a mobile on their profile, set on Founder, Trial requests. Sent
+     from the platform, so no customer's SMS allowance is touched. Whether it went is recorded on
+     the row, and it never stands between the applicant and their confirmation. */
+  if (requestId) {
+    let textedAt: string | null = null;
+    let textError: string | null = null;
+    const { data: founders } = await supabase
+      .from("profiles")
+      .select("phone")
+      .eq("role", "platform_admin");
+    const mobiles = ((founders as Array<{ phone: string | null }> | null) ?? [])
+      .map((f) => ukMobileToE164(f.phone))
+      .filter((m): m is string => Boolean(m));
+    if (mobiles.length === 0) {
+      textError = "No mobile on the founder's profile. Add one on Founder, Trial requests.";
+    } else {
+      const body = trialRequestSmsText({ company_name, contact_name, email, phone, tier_interest, billing_interest, team_size, message });
+      const problems: string[] = [];
+      for (const to of mobiles) {
+        const r = await sendPlatformSms({ to, body });
+        if (r.sent) textedAt = new Date().toISOString();
+        else problems.push(r.error ?? r.skippedReason ?? "Unknown send failure");
+      }
+      if (problems.length > 0) textError = problems.join("; ").slice(0, 500);
+    }
+    await supabase
+      .from("trial_requests")
+      .update({ founder_texted_at: textedAt, founder_text_error: textError })
+      .eq("id", requestId);
+  }
+
   let alertedAt: string | null = null;
   let alertError: string | null = null;
 
@@ -131,7 +169,8 @@ export async function submitTrialRequest(
       ["Contact", contact_name],
       ["Email", email],
       ["Phone", phone ?? "Not given"],
-      ["Interested in", tier_interest ?? "Not sure yet"],
+      ["Interested in", planLabel(tier_interest)],
+      ["Would pay", billingLabel(billing_interest)],
       ["Team size", team_size ?? "Not given"],
       ["Message", message ?? "None"],
     ]

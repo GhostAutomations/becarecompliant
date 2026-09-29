@@ -19,7 +19,7 @@ export default function SiteHeader({ authed = false }: { authed?: boolean }) {
           ) : (
             <Link href="/login" className="text-sm text-white/80 hover:text-white">Sign in</Link>
           )}
-          <Link href="/start-trial" className="btn-primary text-sm">Start free trial</Link>
+          <Link href="/start-trial" className="btn-primary text-sm">Request a trial</Link>
         </div>
       </div>
     </header>

@@ -137,3 +137,46 @@ export async function sendSms(opts: {
     return { sent: accepted, error: (e as Error).message };
   }
 }
+
+/**
+ * A text from the PLATFORM to the founder, not from a customer company (Phil, 2026-09-29: "when
+ * a trial request comes in I get an SMS").
+ *
+ * It spends no company's SMS allowance and writes no company usage row, because no company sent
+ * it: the cost is the platform's own. Everything else holds as for sendSms: missing Twilio config
+ * is a skippedReason, and a number that replied STOP is never texted.
+ */
+export async function sendPlatformSms(opts: { to: string; body: string }): Promise<SmsResult> {
+  const sid = process.env.TWILIO_ACCOUNT_SID;
+  const token = process.env.TWILIO_AUTH_TOKEN;
+  const from = process.env.TWILIO_FROM;
+  if (!sid || !token || !from) {
+    return {
+      sent: false,
+      skippedReason: "TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN / TWILIO_FROM not configured",
+    };
+  }
+  const optedOut = await isOptedOut(opts.to);
+  if (optedOut === null) return { sent: false, error: "Could not check the SMS opt out list" };
+  if (optedOut) return { sent: false, skippedReason: SMS_OPTED_OUT };
+
+  try {
+    const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${sid}:${token}`).toString("base64")}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({ To: opts.to, From: from, Body: opts.body }),
+    });
+    const payload = (await res.json().catch(() => ({}))) as {
+      sid?: string;
+      num_segments?: string;
+      message?: string;
+    };
+    if (!res.ok) return { sent: false, error: `Twilio ${res.status}: ${payload.message ?? "send failed"}` };
+    return { sent: true, sid: payload.sid, segments: Number(payload.num_segments ?? "1") || 1 };
+  } catch (e) {
+    return { sent: false, error: (e as Error).message };
+  }
+}
