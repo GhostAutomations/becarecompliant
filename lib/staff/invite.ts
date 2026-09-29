@@ -132,7 +132,13 @@ export async function inviteOrResendForPerson(
   inviter: Actor,
 ): Promise<StaffInviteOutcome> {
   const first = await inviteStaffForPerson(personId, inviter);
-  if (first.skipped !== "already_invited") return first;
+  /* A LOGIN THAT WAS NEVER ACCEPTED IS NOT "ALREADY HAS A LOGIN" (Phil, 2026-09-29: pressed Send
+     invite on Vera's record and nothing went). The import creates the login and links it to the
+     Person with the email held, so the record is linked, the first step says already_has_login,
+     and this used to stop there and report "They already have a login". Both answers now go on
+     to send the waiting invite; only when there is no pending invite (the login is really in
+     use) does the original answer stand. */
+  if (first.skipped !== "already_invited" && first.skipped !== "already_has_login") return first;
 
   // An invite is already waiting: send it again rather than doing nothing.
   const supabase = await createClient();
@@ -148,6 +154,9 @@ export async function inviteOrResendForPerson(
     person.work_email as string,
     inviter,
   );
+  if (!resent.ok && first.skipped === "already_has_login" && /no pending invite/i.test(resent.error ?? "")) {
+    return first;
+  }
   return resent.ok
     ? { ok: true, emailSent: resent.emailSent }
     : { ok: false, error: resent.error };

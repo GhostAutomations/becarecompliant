@@ -23,6 +23,11 @@ export type UserListItem = {
   role: string;
   roleLabel: string;
   status: string;
+  /** What the status reads as. "invited" means two different things: an invite that went out
+   *  and one the import held back that nobody was ever emailed (Phil, 2026-09-29: "I don't
+   *  believe they have all been invited"). Falls back to the raw status. */
+  statusLabel?: string;
+  statusTone?: "green" | "amber" | "neutral" | "red";
   isSelf: boolean;
   /** You cannot change yourself or another Admin from here. */
   canManage: boolean;
@@ -73,8 +78,14 @@ export default function UserPopup({
 
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <span className="pill-neutral">{user.roleLabel}</span>
-          <span className={user.status === "active" ? "pill-green" : "pill-red"}>
-            {user.status}
+          <span
+            className={
+              { green: "pill-green", amber: "pill-amber", neutral: "pill pill-neutral", red: "pill-red" }[
+                user.statusTone ?? (user.status === "active" ? "green" : "red")
+              ]
+            }
+          >
+            {user.statusLabel ?? user.status}
           </span>
           <span className="text-xs text-white/45">{user.branchSummary}</span>
         </div>

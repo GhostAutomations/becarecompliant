@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { tileModulesFor } from "@/lib/auth/carer-login";
+import { isCarerLogin, tileModulesFor } from "@/lib/auth/carer-login";
 import { redirect } from "next/navigation";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
 import { branchSummary } from "@/lib/auth/manage-scope";
@@ -186,7 +186,12 @@ export default async function UsersPage() {
       (a.full_name || a.email).localeCompare(b.full_name || b.email),
   );
   const activeUsers = userList.filter((u) => !PASSIVE_ROLES.includes(u.role));
-  const passiveUsers = userList.filter((u) => PASSIVE_ROLES.includes(u.role));
+  /* A LEAVER'S LOGIN IS NOT A TEAM MEMBER LOGIN (Phil, 2026-09-29: Mohammed "has been disabled
+     because he has been made a leaver. So he should not be being shown"). Leaving closes a
+     carer's login (bcc-leavers); it is reopened from their Person record, not from here. */
+  const passiveUsers = userList.filter(
+    (u) => PASSIVE_ROLES.includes(u.role) && !(isCarerLogin(u.role) && u.status === "disabled"),
+  );
   const pending = invites ?? [];
   // Created but never sent: the person does not know they have an account.
   const heldCount = pending.filter((i) => !i.email_sent_at).length;
@@ -244,6 +249,24 @@ export default async function UsersPage() {
     .filter((b) => b.kind === "branch")
     .map((b) => ({ id: b.id, name: b.name }));
 
+  /* INVITED IS TWO THINGS. A login whose invite email went out, and one the import made with
+     its email held back: the person has never been told. The list said "invited" for both, so
+     twelve Thistle carers who had never been emailed read as invited. The pending invite's
+     email_sent_at is the only thing that means sent, the same rule as the Person record and
+     Pending invites. */
+  const inviteByEmail = new Map(pending.map((i) => [String(i.email).toLowerCase(), i]));
+  function statusWords(u: { email: string; status: string }): Pick<UserListItem, "statusLabel" | "statusTone"> {
+    if (u.status === "active") return { statusLabel: "Active", statusTone: "green" };
+    if (u.status === "disabled") return { statusLabel: "Disabled", statusTone: "red" };
+    if (u.status === "invited") {
+      const inv = inviteByEmail.get(String(u.email).toLowerCase());
+      return inv?.email_sent_at
+        ? { statusLabel: "Invited", statusTone: "amber" }
+        : { statusLabel: "Not sent yet", statusTone: "neutral" };
+    }
+    return {};
+  }
+
   /**
    * One user as plain data for the dropdown. The list itself is a real dropdown
    * panel of names (Phil, 2026-07-26), so nothing is rendered down the page.
@@ -270,6 +293,7 @@ export default async function UsersPage() {
       role: roleChoiceValue(u.role, u.company_role_id ?? null),
       roleLabel: roleNameFor(u.role, u.company_role_id),
       status: u.status,
+      ...statusWords(u),
       isSelf,
       canManage: !isSelf && !isAdmin,
       primaryBranchId: primaryId,

@@ -100,7 +100,17 @@ export default function UserDropdown({
                   <span className="block truncate text-xs text-white/45">{u.email}</span>
                 </span>
                 {u.status !== "active" ? (
-                  <span className="shrink-0 text-xs text-rag-red-soft">{u.status}</span>
+                  <span
+                    className={`shrink-0 text-xs ${
+                      u.statusTone === "neutral"
+                        ? "text-white/50"
+                        : u.statusTone === "amber"
+                          ? "text-rag-amber-soft"
+                          : "text-rag-red-soft"
+                    }`}
+                  >
+                    {u.statusLabel ?? u.status}
+                  </span>
                 ) : null}
               </button>
             ))

@@ -680,11 +680,16 @@ export async function resendStaffInviteByEmail(
     }),
   });
 
+  /* A HELD INVITE'S FIRST SEND COUNTS AS SENT. This path is also what a Person record's Send
+     invite reaches for an imported carer whose email was held (Thistle, 2026-09-29), so it
+     stamps email_sent_at the way resendInvite does; without it the list kept saying Not sent
+     yet after a real send. */
   await admin
     .from("invites")
     .update({
       last_sent_at: new Date().toISOString(),
       resend_count: ((invite.resend_count as number | null) ?? 0) + 1,
+      ...(send.sent ? { email_sent_at: new Date().toISOString() } : {}),
     })
     .eq("id", invite.id);
 
