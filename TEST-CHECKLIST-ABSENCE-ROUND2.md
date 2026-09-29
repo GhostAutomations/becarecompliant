@@ -172,3 +172,10 @@ Run on Bevan as Bev Admin. ZZ TEST No Email and ZZ TEST Senior each have one tes
   Starter, No Email, Senior), so no reopen ever spent one.
 - Q9 FAIL (Phil, phone): only the first six words of each question could be read. DEF-081, fixed
   (questions shown whole in a growing box); to retest on the phone once deployed.
+- Q9 PASS on retest (after 8a4efbe9): on a computer every question shows whole (boxes sized to
+  their text, two lines where needed); Phil on his phone: every question readable in full, answers
+  and Remove usable, Save meeting reachable.
+
+Item 2: Q1 to Q10 all pass (2026-09-29). Bevan test data: ZZ TEST Audit Starter has a Stage 2
+meeting and ZZ TEST No Email a Stage 1 meeting recorded with drafted questions; ZZ TEST Senior has
+an open unbooked question set (drafted on Phil's phone), not yet used.
