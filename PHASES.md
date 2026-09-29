@@ -3662,6 +3662,21 @@ the person's supervisor, on call); never the employee. Also fixed on the way: th
 "Dates of absence discussed" used every absence ever recorded rather than the ones in the window
 (no company had any outside it yet). Tests Q1 to Q10 in TEST-CHECKLIST-ABSENCE-ROUND2.md.
 
+**3. The outcome letter (migration 0343).** After Save meeting (after the discount question, or
+straight away for someone not asked it) an "Outcome letter" box opens; it is also on each recorded
+meeting in the person's record Absence tile until the letter has gone. "Draft the outcome letter"
+(gold AI chip) writes the middle from the meeting's Evidence (no name sent; told never to add or
+change a fact, outcome or warning), saved at once so reopening costs nothing; or it is written by
+hand. "Check the letter" shows the whole email read only, with the company's fixed wording from a
+new Settings, Letters letter, "Absence meeting outcome" (opening, right of appeal, sign off, must
+keep {{outcome_body}}). Approve and send makes a branded PDF (lib/absence/outcome-letter-pdf.tsx),
+keeps it beside the meeting's Evidence in the private bucket (outcomeLetterPath, purged with that
+Evidence, and the letter's words cleared on anonymisation), and emails the letter with the PDF
+attached. No email address: PDF only, marked not emailed, to print and hand over. A failed email
+keeps the PDF and can be retried; a sent letter never changes (RLS). Download via
+/api/absence/outcome-letter/<meeting>, signed and audited. In the subject access export. Tests O1
+to O9 in TEST-CHECKLIST-ABSENCE-ROUND2.md.
+
 ### 2026-09-29 — New prices, the new pricing page, and trial requests in the Founder inbox
 
 Phil, before taking on a new client, agreed by popup: Business £79 (was £49), Pro £129 (was £69),

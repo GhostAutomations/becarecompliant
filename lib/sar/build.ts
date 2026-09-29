@@ -240,6 +240,25 @@ export async function buildSubjectAccessExport(input: {
       empty: "No absence meetings.",
     });
 
+    // ---- Outcome letters from their absence meetings (0343): what they were sent, word for word.
+    const { data: letters } = await db
+      .from("absence_outcome_letters")
+      .select("status, subject, letter_text, emailed_to, emailed_at, approved_at")
+      .eq("person_id", recordId)
+      .in("status", ["sent", "not_emailed"])
+      .order("approved_at", { ascending: true });
+    sections.push({
+      title: "Absence meeting outcome letters",
+      file: "absence-outcome-letters.csv",
+      headers: ["Approved", "Subject", "Emailed to", "Emailed", "Letter"],
+      rows: ((letters ?? []) as Array<Record<string, unknown>>).map((l) => [
+        fmtDateTime(l.approved_at as string), t(l.subject),
+        l.status === "sent" ? t(l.emailed_to) : "Not emailed: handed over", fmtDateTime(l.emailed_at as string),
+        t(l.letter_text),
+      ]),
+      empty: "No outcome letters.",
+    });
+
     // ---- Return to Work questions they were sent and what they answered (0331)
     const { data: rtwq } = await db
       .from("rtw_questionnaires")

@@ -19,6 +19,9 @@ export type LetterPreview = {
   html: string;
   /** "Calendar invite attached" and similar, or null. */
   note: string | null;
+  /** Says what happens instead when there is no address (the outcome letter is kept as a PDF).
+   *  When set, the email is still shown so it can be read before it is printed. */
+  unsentNote?: string;
 };
 
 export type LetterPreviewState = { error?: string; letters?: LetterPreview[] };
@@ -38,6 +41,7 @@ export function inertEmailHtml(html: string): string {
 /** What the dialog says about an email that will not be sent. */
 export function notSentReason(letter: LetterPreview): string | null {
   if (letter.to) return null;
+  if (letter.unsentNote) return letter.unsentNote;
   return letter.key === "employee"
     ? `${letter.name} has no email address on their record or login, so this letter will not be sent. Add one in Manage record first if they need it.`
     : `${letter.name} has no email address, so this letter will not be sent.`;

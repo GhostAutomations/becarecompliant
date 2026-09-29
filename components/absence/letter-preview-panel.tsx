@@ -76,16 +76,15 @@ export default function LetterPreviewPanel({
               </>
             ) : null}
           </dl>
-          {reason ? (
-            <p className="mt-3 text-xs text-amber-200">{reason}</p>
-          ) : (
+          {reason ? <p className="mt-3 text-xs text-amber-200">{reason}</p> : null}
+          {letter.html ? (
             <iframe
               title={`The email to ${letter.name}`}
               sandbox=""
               srcDoc={inertEmailHtml(letter.html)}
               className="mt-3 h-[50vh] min-h-72 w-full rounded-lg border border-white/10 bg-navy-950"
             />
-          )}
+          ) : null}
         </div>
       ) : null}
 

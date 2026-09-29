@@ -34,7 +34,7 @@ import { createClient } from "@/lib/supabase/server";
 import { addYearsIso } from "@/lib/dates";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
-import { deleteEvidenceObjects, evidenceRenderPath } from "./storage";
+import { deleteEvidenceObjects, evidenceRenderPath, outcomeLetterPath } from "./storage";
 
 export const DEFAULT_RETENTION_MIN_YEARS = 8;
 
@@ -103,6 +103,8 @@ export async function anonymiseEvidence(input: {
     // The cached RENDER of this evidence is a full PDF of it, personal data and all. Erasing
     // the row and leaving that behind would be erasure in name only.
     ...(ev?.company_id ? [evidenceRenderPath(ev.company_id, input.evidenceId)] : []),
+    // An absence meeting's outcome letter sits beside its Evidence and holds the same personal data.
+    ...(ev?.company_id ? [outcomeLetterPath(ev.company_id, input.evidenceId)] : []),
   ];
 
   // 2. Anonymise the row(s) via the guarded RPC (runs with the caller's auth).
@@ -111,6 +113,7 @@ export async function anonymiseEvidence(input: {
 
   // 3. Purge the storage objects (service role).
   await deleteEvidenceObjects(paths);
+  await clearOutcomeLetterText([input.evidenceId]);
 
   await writeAudit({
     companyId: ev?.company_id ?? null,
@@ -265,10 +268,12 @@ export async function runRetentionExpiry(options?: { limit?: number }): Promise<
   // path that was never rendered is a harmless no-op.
   for (const [evidenceId, entry] of byEvidence) {
     entry.paths.push(evidenceRenderPath(entry.companyId, evidenceId));
+    entry.paths.push(outcomeLetterPath(entry.companyId, evidenceId));
   }
 
   const allPaths = [...byEvidence.values()].flatMap((v) => v.paths);
   await deleteEvidenceObjects(allPaths);
+  await clearOutcomeLetterText([...byEvidence.keys()]);
 
   const companies = new Set<string>();
   for (const [evidenceId, entry] of byEvidence) {
@@ -296,4 +301,20 @@ export async function runRetentionExpiry(options?: { limit?: number }): Promise<
     companies: companies.size,
     batchFull: byEvidence.size >= limit,
   };
+}
+
+/**
+ * An absence meeting's outcome letter (0343) repeats what the meeting's Evidence says, so when that
+ * Evidence is anonymised the letter's words go too. The row stays, saying a letter was sent and
+ * when; its PDF is removed with the Evidence's other objects (outcomeLetterPath). Service role,
+ * because a sent letter is otherwise unchangeable. Best effort, like the object removal.
+ */
+async function clearOutcomeLetterText(evidenceIds: string[]): Promise<void> {
+  if (evidenceIds.length === 0) return;
+  const supabase = createServiceClient();
+  const { error } = await supabase
+    .from("absence_outcome_letters")
+    .update({ draft_body: null, approved_body: null, letter_text: null, subject: null, pdf_path: null })
+    .in("evidence_id", evidenceIds);
+  if (error) console.error("[retention] outcome letter text not cleared", error.message);
 }

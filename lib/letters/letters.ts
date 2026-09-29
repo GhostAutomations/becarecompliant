@@ -19,7 +19,8 @@ export type LetterKey =
   | "absence_meeting_invite_employee"
   | "absence_meeting_invite_conductor"
   | "absence_meeting_rearranged"
-  | "absence_meeting_cancelled";
+  | "absence_meeting_cancelled"
+  | "absence_meeting_outcome";
 
 export type LetterPlaceholder = {
   token: string;
@@ -60,6 +61,10 @@ export type LetterDefinition = {
   /** Functional content the system always adds, described plainly so an Admin knows
    *  not to try to write it themselves. */
   systemNote?: string;
+  /** Details only this letter can use, shown after the common ones. */
+  extraPlaceholders?: LetterPlaceholder[];
+  /** Details the wording must keep, or the letter would lose its point. Checked on save. */
+  requiredTokens?: string[];
 };
 
 /**
@@ -121,7 +126,44 @@ export const LETTER_DEFINITIONS: LetterDefinition[] = [
     defaultBody:
       "{{recipient_name}}, the {{stage_label}} booked for {{meeting_when}} at {{company_name}} has been cancelled. Please remove it from your calendar. If it is rearranged you will receive a new invitation.",
   },
+  {
+    key: "absence_meeting_outcome",
+    name: "Absence meeting outcome",
+    description:
+      "The letter confirming what was decided at an absence meeting. The middle of it, what was discussed and the outcome, is drafted from the meeting record and checked by the manager before it goes. This is your fixed wording around it: the opening, the right of appeal and the sign off. It is emailed to the employee with a PDF copy, and the PDF is kept on the meeting.",
+    sentTo: "The employee the meeting was about",
+    defaultSubject: "Outcome of your {{stage_label}}",
+    defaultBody: [
+      "{{recipient_name}},",
+      "Thank you for attending the {{stage_label}} on {{meeting_date}}, held by {{conductor_name}}. This letter confirms what was discussed and the outcome.",
+      "{{outcome_body}}",
+      "If you disagree with this outcome, you have the right to appeal. Please write to us within five working days of receiving this letter, setting out why you are appealing, and your appeal will be heard by a manager who was not involved in this meeting.",
+      "Yours sincerely,\n{{conductor_name}}\n{{company_name}}",
+    ].join("\n\n"),
+    systemNote:
+      "The meeting's own outcome is written into {{outcome_body}} each time, drafted from the meeting record and approved by the manager. The PDF copy is attached automatically.",
+    extraPlaceholders: [
+      {
+        token: "outcome_body",
+        label: "The outcome, drafted for each meeting (must stay in)",
+        example:
+          "At the meeting we discussed your two absences in September. We agreed that you will let your manager know by 7am on any day you cannot attend.\n\nThe outcome of the meeting is a verbal warning, which will remain on your record until 29/03/2027.",
+      },
+      { token: "letter_date", label: "Date of the letter", example: "30/09/2026" },
+    ],
+    requiredTokens: ["outcome_body"],
+  },
 ];
+
+/** The details a letter's editor offers: the common ones, then any of its own. */
+export function placeholdersFor(def: LetterDefinition): LetterPlaceholder[] {
+  return [...LETTER_PLACEHOLDERS, ...(def.extraPlaceholders ?? [])];
+}
+
+/** The required details missing from a wording, e.g. ["outcome_body"]. */
+export function missingRequiredTokens(def: LetterDefinition, body: string): string[] {
+  return (def.requiredTokens ?? []).filter((t) => !new RegExp(`\\{\\{\\s*${t}\\s*\\}\\}`).test(body));
+}
 
 export function letterDefinition(key: string): LetterDefinition | undefined {
   return LETTER_DEFINITIONS.find((l) => l.key === key);

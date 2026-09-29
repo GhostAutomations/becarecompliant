@@ -12,7 +12,7 @@ import { requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import type { ActionState } from "@/lib/forms";
-import { letterDefinition } from "./letters";
+import { letterDefinition, missingRequiredTokens } from "./letters";
 
 function trimOrEmpty(v: FormDataEntryValue | null): string {
   return String(v ?? "").trim();
@@ -33,6 +33,11 @@ export async function saveLetterTemplate(
   const subject = trimOrEmpty(formData.get("subject"));
   const body = trimOrEmpty(formData.get("body"));
   if (!body) return { error: "The letter needs some wording." };
+  const missing = missingRequiredTokens(def, body);
+  if (missing.length > 0) {
+    const labels = missing.map((t) => def.extraPlaceholders?.find((p) => p.token === t)?.label ?? t);
+    return { error: `This letter must keep: ${labels.join(", ")}. Insert it from the details below.` };
+  }
   // The rearranged note is a paragraph inside another letter, so it has no subject
   // of its own; every other letter is an email and must have one.
   if (!subject && def.key !== "absence_meeting_rearranged") {

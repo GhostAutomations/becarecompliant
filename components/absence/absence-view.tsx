@@ -8,13 +8,14 @@
  * completes the matching founder Form and stores immutable Evidence.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import FormEvidenceDialog from "@/components/forms/form-evidence-dialog";
 import AbsenceDetailDialog from "@/components/absence/absence-detail-dialog";
 import BookMeetingDialog from "@/components/absence/book-meeting-dialog";
 import CancelRearrangeDialog from "@/components/absence/cancel-rearrange-dialog";
 import DiscountAfterMeeting from "@/components/absence/discount-after-meeting";
+import OutcomeLetterDialog from "@/components/absence/outcome-letter-dialog";
 import { stageActionFor, stageActionLines } from "@/lib/absence/stage-actions";
 import type { FormSchema } from "@/lib/form-schema";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
@@ -119,9 +120,20 @@ export default function AbsenceView({
 
   /* After a meeting is saved, a Manager or above is asked which absences it discounted. */
   const [afterMeeting, setAfterMeeting] = useState<
-    { personId: string; personName: string; stage: number | null; date: string | null } | null
+    { personId: string; personName: string; stage: number | null; date: string | null; meetingId: string | null } | null
   >(null);
-  const closeAfterMeeting = useCallback(() => setAfterMeeting(null), []);
+  /* Then the outcome letter is offered (Phil, 2026-09-29): straight after the discount question, or
+     straight after the save for someone who is not asked it. */
+  const [letterFor, setLetterFor] = useState<{ meetingId: string; personName: string } | null>(null);
+  const afterRef = useRef(afterMeeting);
+  afterRef.current = afterMeeting;
+  // Stable on purpose: DiscountAfterMeeting's success effect lists it (see DEF-079).
+  const closeAfterMeeting = useCallback(() => {
+    const a = afterRef.current;
+    if (a?.meetingId) setLetterFor({ meetingId: a.meetingId, personName: a.personName });
+    setAfterMeeting(null);
+  }, []);
+  const closeLetter = useCallback(() => setLetterFor(null), []);
 
   /* A dashboard Return to Work row links here with ?rtw=<absence id>: open that interview's
      form, then drop the parameter so a refresh does not open it again. */
@@ -691,13 +703,18 @@ export default function AbsenceView({
                             presetAnswers={mf.presets}
                             hideFields={["name"]}
                             onSaved={(saved) => {
-                              if (!canDiscount) return;
+                              const meetingId = saved.data?.meeting_id || null;
+                              if (!canDiscount) {
+                                if (meetingId) setLetterFor({ meetingId, personName: r.fullName });
+                                return;
+                              }
                               const st = Number.parseInt(saved.data?.meeting_stage ?? "", 10);
                               setAfterMeeting({
                                 personId: r.personId,
                                 personName: r.fullName,
                                 stage: Number.isInteger(st) ? st : null,
                                 date: saved.data?.meeting_date || null,
+                                meetingId,
                               });
                             }}
                           />
@@ -725,6 +742,15 @@ export default function AbsenceView({
           absences={countedAbsences(eventsByPerson[afterMeeting.personId] ?? [], { windowStart })}
           defaultReason={meetingDiscountReason(afterMeeting.stage, afterMeeting.date)}
           onClose={closeAfterMeeting}
+        />
+      ) : null}
+
+      {letterFor ? (
+        <OutcomeLetterDialog
+          key={letterFor.meetingId}
+          meetingId={letterFor.meetingId}
+          personName={letterFor.personName}
+          onClose={closeLetter}
         />
       ) : null}
     </div>

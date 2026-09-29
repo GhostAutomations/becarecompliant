@@ -61,6 +61,8 @@ import WorkingStatusForm from "@/components/people/working-status-form";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { LEAVING_SCORES, competitorLabel, reasonLabel } from "@/lib/people/leaving";
 import { REGISTER_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
+import { listOutcomeLetters } from "@/lib/absence/outcome-letter-data";
+import { OutcomeLetterButton } from "@/components/absence/outcome-letter-dialog";
 
 export const metadata: Metadata = { title: "Record" };
 
@@ -188,6 +190,12 @@ export default async function PersonPage({
     listPersonAbsences(id),
     listPersonMeetings(id),
   ]);
+
+  // Outcome letters for their recorded absence meetings (0343). RLS keeps these to the people who
+  // prepare meetings, so for anyone else this is simply empty.
+  const outcomeLetters = canManage && meetings.some((m) => m.evidence_id)
+    ? await listOutcomeLetters({ personId: id })
+    : {};
 
   // Their own login. Manager-and-above information, so it is only fetched for someone who
   // can manage the record. The briefings that were fetched alongside it went with the tile.
@@ -896,14 +904,55 @@ export default async function PersonPage({
                 <div className="mt-3 border-t border-white/10 pt-3">
                   <p className="mb-1 text-[11px] uppercase tracking-wide text-white/40">Meetings</p>
                   <ul className="space-y-1 text-sm">
-                    {meetings.map((m) => (
-                      <li key={m.id} className="flex items-center justify-between gap-2">
-                        <span className="text-white/80">{formatDisplayDate(m.meeting_date) || "—"}</span>
-                        <span className="pill pill-neutral">
-                          {m.stage ? `Stage ${m.stage}` : "Meeting"}
-                        </span>
-                      </li>
-                    ))}
+                    {meetings.map((m) => {
+                      const letter = outcomeLetters[m.id];
+                      const gone = letter && (letter.status === "sent" || letter.status === "not_emailed");
+                      return (
+                        <li key={m.id}>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-white/80">{formatDisplayDate(m.meeting_date) || "Not dated"}</span>
+                            <span className="pill pill-neutral">
+                              {m.stage ? `Stage ${m.stage}` : "Meeting"}
+                            </span>
+                          </div>
+                          {/* The outcome letter (Phil, 2026-09-29): offered until it has gone, then
+                              the copy kept on the meeting. Only for a meeting that has been held. */}
+                          {canManage && m.evidence_id ? (
+                            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                              {gone ? (
+                                <>
+                                  {letter.hasPdf ? (
+                                    <a
+                                      href={`/api/absence/outcome-letter/${m.id}`}
+                                      className="btn-outline px-2.5 py-1 text-[11px]"
+                                    >
+                                      Outcome letter PDF
+                                    </a>
+                                  ) : null}
+                                  <span className="text-white/50">
+                                    {letter.status === "sent"
+                                      ? `Emailed ${formatDisplayDate(letter.sentAt ? new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date(letter.sentAt)) : null)}`
+                                      : "Not emailed: no address. Print it and hand it over."}
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  <OutcomeLetterButton
+                                    meetingId={m.id}
+                                    personName={person.full_name}
+                                    initialBody={letter?.body ?? null}
+                                    label={letter?.status === "send_failed" ? "Outcome letter: not sent yet" : "Outcome letter"}
+                                  />
+                                  {letter?.status === "send_failed" ? (
+                                    <span className="text-amber-200">The email did not go. Open it to try again.</span>
+                                  ) : null}
+                                </>
+                              )}
+                            </div>
+                          ) : null}
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               )}

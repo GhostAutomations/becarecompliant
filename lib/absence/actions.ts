@@ -365,7 +365,7 @@ export async function recordAbsenceMeeting(
   // Handed back so the screen can offer to discount the absences this meeting discussed (0328).
   return {
     ok: attachedToBooking ? "Meeting recorded against the booking." : "Meeting recorded.",
-    data: { meeting_stage: validStage ? String(validStage) : "", meeting_date: meetingDate ?? "" },
+    data: { meeting_stage: validStage ? String(validStage) : "", meeting_date: meetingDate ?? "", meeting_id: meetingId ?? "" },
   };
 }
 

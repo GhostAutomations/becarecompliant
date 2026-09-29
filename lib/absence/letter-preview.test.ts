@@ -41,3 +41,7 @@ test("notSentReason words the conductor case on its own", () => {
     "Phil has no email address, so this letter will not be sent.",
   );
 });
+
+test("notSentReason prefers the letter's own note when it has one", () => {
+  assert.equal(notSentReason({ ...base, to: null, unsentNote: "Kept as a PDF." }), "Kept as a PDF.");
+});

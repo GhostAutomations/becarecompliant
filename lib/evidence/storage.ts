@@ -46,6 +46,29 @@ export function evidenceRenderPath(companyId: string, evidenceId: string): strin
   return `${companyId}/${evidenceId}/render/evidence.pdf`;
 }
 
+/**
+ * The outcome letter sent after an absence meeting (Phil, 2026-09-29), kept next to that meeting's
+ * Evidence so it follows the Evidence's retention. Like the render above, nothing in evidence_files
+ * points at it, so every purge names it from this convention.
+ */
+export function outcomeLetterPath(companyId: string, evidenceId: string): string {
+  return `${companyId}/${evidenceId}/outcome-letter.pdf`;
+}
+
+/** Upload the outcome letter. Overwrites only while the letter is not yet final (a failed send
+ *  retried): the table refuses to change a letter once it has gone. */
+export async function uploadOutcomeLetter(
+  path: string,
+  bytes: Buffer,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = createServiceClient();
+  const { error } = await supabase.storage
+    .from(EVIDENCE_BUCKET)
+    .upload(path, bytes, { contentType: "application/pdf", upsert: true });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
 export function evidenceFilePath(
   companyId: string,
   evidenceId: string,

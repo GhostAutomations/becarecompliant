@@ -179,3 +179,29 @@ Run on Bevan as Bev Admin. ZZ TEST No Email and ZZ TEST Senior each have one tes
 Item 2: Q1 to Q10 all pass (2026-09-29). Bevan test data: ZZ TEST Audit Starter has a Stage 2
 meeting and ZZ TEST No Email a Stage 1 meeting recorded with drafted questions; ZZ TEST Senior has
 an open unbooked question set (drafted on Phil's phone), not yet used.
+
+## Item 3: the outcome letter (migration 0343)
+
+Run on Bevan as Bev Admin. Sends only to ppdavies+ test addresses.
+
+- O1. Settings, Letters shows "Absence meeting outcome" with the standard wording, the two extra
+  details (the drafted outcome, the date of the letter), and refuses a save without the outcome.
+- O2. Save a meeting: after the discount question, "Outcome letter" opens. "Draft the outcome
+  letter" (gold AI chip) fills the box with two to five paragraphs from the meeting record: the
+  recorded outcome and warning, no invented facts, no greeting, sign off or appeal, no dashes.
+- O3. "Not now" and reopen from the meeting on the person's record ("Outcome letter"): the same
+  draft comes back, no second credit.
+- O4. Edit the words, "Check the letter": the whole letter with the company wording around the
+  outcome, To, Subject and the PDF note. Back keeps the edits.
+- O5. Approve and send: the email arrives with the letter in the body and outcome-letter.pdf
+  attached; they match the preview. The meeting shows "Outcome letter PDF" and "Emailed <date>";
+  the PDF downloads and reads the same.
+- O6. A sent letter cannot be opened for editing again.
+- O7. No email address (ZZ TEST No Email): the check step says it will not be emailed and shows the
+  letter; Approve keeps the PDF, marked "Not emailed: no address. Print it and hand it over."
+- O8. On a phone: the box, the preview and the buttons are usable.
+- O9. Database probe (Claude): only the people who prepare meetings see letters; a sent letter
+  cannot be changed.
+- O9 PASS (2026-09-29, rolled back): Bev Admin inserted a draft for a recorded meeting and saw it,
+  marked it sent (1 row), then changing the sent letter updated 0 rows; ZZ TEST Senior's login
+  saw 0. Security advisor unchanged (4 WARN, 1 INFO).

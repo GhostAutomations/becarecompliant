@@ -21,17 +21,14 @@ import { useMemo, useRef, useState, useTransition } from "react";
 import ActionForm from "@/components/action-form";
 import { useSavedFlash } from "@/lib/use-saved-flash";
 import {
-  LETTER_PLACEHOLDERS,
   mergeLetterText,
+  placeholdersFor,
   type LetterDefinition,
 } from "@/lib/letters/letters";
 import type { ActionState } from "@/lib/forms";
 
 type ServerAction = (prev: ActionState, formData: FormData) => Promise<ActionState>;
 
-const EXAMPLE: Record<string, string> = Object.fromEntries(
-  LETTER_PLACEHOLDERS.map((p) => [p.token, p.example]),
-);
 
 export default function LetterEditor({
   letter,
@@ -50,6 +47,9 @@ export default function LetterEditor({
   reset: ServerAction;
 }) {
   const def = letter.definition;
+  // The common details plus any this letter has of its own (the outcome letter's drafted middle).
+  const placeholders = placeholdersFor(def);
+  const EXAMPLE: Record<string, string> = Object.fromEntries(placeholders.map((p) => [p.token, p.example]));
   const hasSubject = def.key !== "absence_meeting_rearranged";
   const [subject, setSubject] = useState(letter.subject);
   const [body, setBody] = useState(letter.body);
@@ -183,7 +183,7 @@ export default function LetterEditor({
             <div>
               <p className="form-label">Insert a detail</p>
               <div className="flex flex-wrap gap-1.5">
-                {LETTER_PLACEHOLDERS.map((ph) => (
+                {placeholders.map((ph) => (
                   <button
                     key={ph.token}
                     type="button"
