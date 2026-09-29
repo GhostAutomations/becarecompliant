@@ -8,6 +8,7 @@ import "server-only";
  */
 
 import { createClient } from "@/lib/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { listStaff, profilesById } from "@/lib/auth/company-profiles";
 import { type ProbationPeriod, probationFrom } from "@/lib/people/probation";
 import { branchScopedRole } from "@/lib/auth/manage-scope";
@@ -172,8 +173,11 @@ export type SupervisionCycleMode = "appraisal" | "four_supervisions";
 
 /** The company's People supervision cycle mode (default 'appraisal'). Drives whether
  *  the cycle is Sup 1-3 + Annual Appraisal, or four supervisions with no appraisal. */
-export async function getSupervisionCycleMode(companyId: string): Promise<SupervisionCycleMode> {
-  const supabase = await createClient();
+export async function getSupervisionCycleMode(
+  companyId: string,
+  client?: SupabaseClient,
+): Promise<SupervisionCycleMode> {
+  const supabase = client ?? (await createClient());
   const { data } = await supabase
     .from("companies")
     .select("supervision_cycle_mode")
@@ -201,8 +205,10 @@ function toPerson(row: PersonRow): PersonRecord {
   return { ...rest, branch_name: branches?.name ?? null };
 }
 
-export async function getPerson(personId: string): Promise<PersonRecord | null> {
-  const supabase = await createClient();
+/** `client` is for a Senior's Complete page only: a reader handed over after
+ *  senior_may_do_instance said yes (lib/senior/access.ts). Everyone else reads through RLS. */
+export async function getPerson(personId: string, client?: SupabaseClient): Promise<PersonRecord | null> {
+  const supabase = client ?? (await createClient());
   const { data } = await supabase
     .from("people")
     .select("*, branches(name)")
@@ -438,8 +444,8 @@ export async function listRegister(
   return { definitions, rows };
 }
 
-export async function getPersonTracker(personId: string): Promise<PersonTracker | null> {
-  const supabase = await createClient();
+export async function getPersonTracker(personId: string, client?: SupabaseClient): Promise<PersonTracker | null> {
+  const supabase = client ?? (await createClient());
   const { data } = await supabase
     .from("person_trackers")
     .select("*")
@@ -452,7 +458,7 @@ export async function getPersonTracker(personId: string): Promise<PersonTracker 
  *  submitted under. One small query however many records are being read, and the same
  *  rule the saving side uses (lib/evidence/completion-date.ts). */
 async function dateKeysFor(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: SupabaseClient,
   rows: ReadonlyArray<{ form_version_id?: string | null }>,
 ): Promise<Map<string, string | null>> {
   const ids = [...new Set(rows.map((r) => r.form_version_id).filter((id): id is string => !!id))];
@@ -467,8 +473,9 @@ export async function getAppraisalCompDates(
   personId: string,
   appraisalFormId: string | null,
   appraisalDefId: string | null,
+  client?: SupabaseClient,
 ): Promise<string[]> {
-  const supabase = await createClient();
+  const supabase = client ?? (await createClient());
   const dates: string[] = [];
   if (appraisalFormId) {
     const { data } = await supabase
@@ -507,8 +514,9 @@ export async function getSupervisionCompDates(
   personId: string,
   supFormId: string | null,
   supDefId: string | null,
+  client?: SupabaseClient,
 ): Promise<string[]> {
-  const supabase = await createClient();
+  const supabase = client ?? (await createClient());
   const dates: string[] = [];
   if (supFormId) {
     const { data } = await supabase
@@ -583,8 +591,8 @@ export async function getHealthCheckDates(
   return out;
 }
 
-export async function getPersonChecks(personId: string): Promise<CheckStatus[]> {
-  const supabase = await createClient();
+export async function getPersonChecks(personId: string, client?: SupabaseClient): Promise<CheckStatus[]> {
+  const supabase = client ?? (await createClient());
   const { data } = await supabase
     .from("person_check_status")
     .select("*")

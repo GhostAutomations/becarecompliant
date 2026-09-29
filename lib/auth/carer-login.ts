@@ -4,10 +4,11 @@
  *
  *   staff   "Team Member": a carer's own login, and only their own area.
  *   senior  "Senior": a carer's own login PLUS a list of names, People and or Service Users
- *           from their own branches, as ticked on the Senior tile in Role access. Names only:
- *           no records, checks, dates or contact details. The names come from the database
- *           function senior_name_list, never from the people or service_users tables, which a
- *           Senior reads exactly as a carer does (their own record only).
+ *           from their own branches, as ticked on the Senior tile in Role access, with the
+ *           Checks ticked under each list against every name: status, due date, and a
+ *           Complete button (0339). No records, contact details or past Evidence. The list
+ *           comes from the database function senior_register, never from the people or
+ *           service_users tables, which a Senior reads exactly as a carer does.
  *
  * Both are free, never paid users. Pure and importless so node --test can load it.
  */
@@ -30,14 +31,28 @@ export function tileModulesFor(role: string, all: readonly string[]): string[] {
 }
 
 /**
- * Where a Senior is sent when they open anything under People or Service Users other than the
- * list itself: back to the list. Their names page is the only page in either department they
- * have; a record, a summary or a new record form is not theirs, and RLS would refuse it anyway.
+ * Where a Senior is sent when they open anything under People or Service Users other than their
+ * list, or the Complete page of a Check (0339: the Checks ticked on their tile they may complete).
+ * A record, a summary or a new record form is not theirs, and RLS would refuse it anyway. Whether
+ * a Complete page is theirs is the database's question (senior_may_do_instance), asked by the page.
  * Null means the path is fine as it is.
  */
+const SENIOR_COMPLETE_PATH = /^\/(people|service-users)\/[0-9a-f-]{36}\/checks\/[0-9a-f-]{36}\/complete\/?$/i;
+
 export function seniorPathRedirect(pathname: string): string | null {
+  if (SENIOR_COMPLETE_PATH.test(pathname)) return null;
   for (const root of ["/people", "/service-users"]) {
     if (pathname.startsWith(`${root}/`)) return root;
   }
   return null;
+}
+
+/** Where a Senior lands after completing a Check: their list, with the outcome to show. */
+export function seniorListAfter(
+  population: "people" | "service_users",
+  outcome: "completed" | "recorded" | "history",
+  checkName: string,
+): string {
+  const root = population === "people" ? "/people" : "/service-users";
+  return `${root}?${outcome}=${encodeURIComponent(checkName)}`;
 }

@@ -61,6 +61,16 @@ export async function personChoices(companyId: string): Promise<LookupChoice[]> 
   }));
 }
 
+async function seniorChoices(kind: "service_user" | "person"): Promise<LookupChoice[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("senior_lookup_choices", { p_kind: kind });
+  return ((data as Array<{ id: string; full_name: string; branch_name: string | null }> | null) ?? []).map((r) => ({
+    id: r.id,
+    label: r.full_name,
+    hint: r.branch_name ?? undefined,
+  }));
+}
+
 /**
  * The choices a schema actually needs, so a form with no lookup field costs no query.
  * Returned keyed by source, which is the shape FormRenderer's `lookupChoices` takes.
@@ -68,6 +78,7 @@ export async function personChoices(companyId: string): Promise<LookupChoice[]> 
 export async function choicesForSchema(
   companyId: string,
   schema: { sections: Array<{ fields: Array<{ type: string; lookup?: string }> }> },
+  opts: { senior?: boolean } = {},
 ): Promise<Partial<Record<string, LookupChoice[]>> | undefined> {
   const sources = new Set<string>();
   for (const section of schema.sections ?? []) {
@@ -77,6 +88,15 @@ export async function choicesForSchema(
   }
   if (sources.size === 0) return undefined;
   const out: Partial<Record<string, LookupChoice[]>> = {};
+  /* A SENIOR (0339) cannot read the record tables, so their Spot Check or Mentoring form would
+     offer nobody. senior_lookup_choices gives them the current names in their own branches:
+     the people they visit with anyway, names and branch only. */
+  if (opts.senior) {
+    for (const source of sources) {
+      if (source === "service_user" || source === "person") out[source] = await seniorChoices(source);
+    }
+    return out;
+  }
   if (sources.has("service_user")) out.service_user = await serviceUserChoices(companyId);
   if (sources.has("person")) out.person = await personChoices(companyId);
   return out;

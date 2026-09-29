@@ -1,6 +1,7 @@
 "use server";
 
 import { tileModulesFor } from "@/lib/auth/carer-login";
+import { SENIOR_CHECK_FIELD, SENIOR_POPULATIONS, seniorChecksOff } from "@/lib/senior/checks";
 import { revalidatePath } from "next/cache";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
@@ -819,6 +820,39 @@ export async function saveRoleModules(_prev: ActionState, formData: FormData): P
     if (insErr) return { error: insErr.message };
   }
 
+  /* THE SENIOR'S CHECKS (0339): a box per Check under People and Service users. Only for a list
+     that is ticked: an unticked list greys its boxes, a greyed box is not posted, and that must
+     not read as "switch every Check off". */
+  const seniorOff: string[] = [];
+  if (role === "senior") {
+    const tickedChecks = new Set(formData.getAll(SENIOR_CHECK_FIELD).map((v) => String(v)));
+    for (const population of SENIOR_POPULATIONS) {
+      const { data: defs, error: defErr } = await supabase
+        .from("check_definitions")
+        .select("id")
+        .eq("company_id", companyId)
+        .eq("population", population)
+        .eq("active", true);
+      if (defErr) return { error: defErr.message };
+      const activeIds = ((defs as Array<{ id: string }> | null) ?? []).map((d) => d.id);
+      const off = seniorChecksOff(ticked.has(population), activeIds, tickedChecks);
+      if (off === null || activeIds.length === 0) continue;
+      const { error: clearErr } = await supabase
+        .from("senior_check_access_off")
+        .delete()
+        .eq("company_id", companyId)
+        .in("definition_id", activeIds);
+      if (clearErr) return { error: clearErr.message };
+      if (off.length > 0) {
+        const { error: offErr } = await supabase.from("senior_check_access_off").insert(
+          off.map((definition_id) => ({ company_id: companyId, definition_id, disabled_by: user.id })),
+        );
+        if (offErr) return { error: offErr.message };
+      }
+      seniorOff.push(...off);
+    }
+  }
+
   await writeAudit({
     companyId,
     actorId: user.id,
@@ -828,7 +862,7 @@ export async function saveRoleModules(_prev: ActionState, formData: FormData): P
     entityType: "company",
     entityId: companyId,
     summary: `${ROLE_LABELS[role] ?? role}: ${offKeys.length === 0 ? "every department" : `${offKeys.length} switched off`}`,
-    metadata: { role, switched_off: offKeys },
+    metadata: role === "senior" ? { role, switched_off: offKeys, senior_checks_off: seniorOff } : { role, switched_off: offKeys },
   });
 
   revalidatePath("/settings/users");

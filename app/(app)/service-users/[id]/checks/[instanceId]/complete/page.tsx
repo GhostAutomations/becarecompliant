@@ -18,10 +18,14 @@ import { fieldToNameSelect, findField, flattenFields, isFormSchema, makeFieldRea
 import { getCarePlanEntries } from "@/lib/service-users/data";
 import { linesFromRows } from "@/lib/service-users/care-package";
 import type { CheckDefinition } from "@/lib/people/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { seniorReaderFor } from "@/lib/senior/access";
+import { writeAudit } from "@/lib/audit";
 
 export const metadata: Metadata = { title: "Complete check" };
 
-const COMPLETE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor", "recruiter", "platform_admin"];
+/* A Senior too (0339), for the Checks ticked on their tile only: senior_may_do_instance, below. */
+const COMPLETE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor", "recruiter", "platform_admin", "senior"];
 
 export default async function CompleteServiceUserCheckPage({
   params,
@@ -30,7 +34,7 @@ export default async function CompleteServiceUserCheckPage({
   params: Promise<{ id: string; instanceId: string }>;
   searchParams: Promise<{ rev?: string }>;
 }) {
-  const { profile } = await requireCompany();
+  const { user, profile } = await requireCompany();
   const { id, instanceId } = await params;
   const { rev } = await searchParams;
   if (!COMPLETE_ROLES.includes(profile.role)) redirect(`/service-users/${id}`);
@@ -44,6 +48,17 @@ export default async function CompleteServiceUserCheckPage({
     );
   }
 
+  /* A SENIOR: the database says whether this Check is theirs before anything is read, and on
+     a yes the page gets a reader for the name, address, phone and care plan the form prefills,
+     which their own client cannot read (lib/senior/access.ts). */
+  const isSenior = profile.role === "senior";
+  let reader: SupabaseClient | undefined;
+  if (isSenior) {
+    const r = await seniorReaderFor(instanceId);
+    if (!r) redirect("/service-users");
+    reader = r;
+  }
+
   const supabase = await createClient();
   const { data: instance } = await supabase
     .from("check_instances")
@@ -55,7 +70,22 @@ export default async function CompleteServiceUserCheckPage({
   if (!instance || instance.service_user_id !== id || !def) redirect(`/service-users/${id}`);
   if (!def.form_id) redirect(`/service-users/${id}`);
 
-  const serviceUser = await getServiceUser(id);
+  const serviceUser = await getServiceUser(id, reader);
+  /* GDPR: a Senior has no record page, so this is where they READ a Service User's details
+     (name, address, phone, care plan), and that read is audited like the record page's. */
+  if (isSenior && serviceUser) {
+    await writeAudit({
+      companyId: serviceUser.company_id,
+      actorId: user.id,
+      actorEmail: profile.email,
+      actorRole: profile.role,
+      action: "service_user.viewed",
+      entityType: "service_user",
+      entityId: id,
+      summary: `Viewed ${serviceUser.full_name} to complete ${def.name}`,
+      metadata: { via: "senior_complete", check_instance_id: instanceId },
+    });
+  }
   const version = await getPublishedFormVersion(def.form_id);
   if (!version || !isFormSchema(version.schema)) {
     return (
@@ -129,7 +159,7 @@ export default async function CompleteServiceUserCheckPage({
      Evidence carries what the system held, not what a browser sent. */
   for (const field of flattenFields(schema)) {
     if (field.type === "care_package" && field.readOnly) {
-      presetAnswers[field.key] = linesFromRows(await getCarePlanEntries(id));
+      presetAnswers[field.key] = linesFromRows(await getCarePlanEntries(id, reader));
     }
   }
 
@@ -145,7 +175,7 @@ export default async function CompleteServiceUserCheckPage({
   /* Only queried when the schema actually has a record_lookup field, and read through
      the caller's own client so the names offered are the ones RLS lets them see. */
   const lookupChoices = profile.company_id
-    ? await choicesForSchema(profile.company_id, schema)
+    ? await choicesForSchema(profile.company_id, schema, { senior: isSenior })
     : undefined;
 
   /* What this user had already typed into this review, if they were interrupted in the
@@ -166,7 +196,11 @@ export default async function CompleteServiceUserCheckPage({
   return (
     <div className="page-form-wide space-y-6">
       <div>
-        <BackLink href={`/service-users/${id}`} label={`Back to ${serviceUser?.full_name ?? "record"}`} />
+        {isSenior ? (
+          <BackLink href="/service-users" label="Back to Service Users" />
+        ) : (
+          <BackLink href={`/service-users/${id}`} label={`Back to ${serviceUser?.full_name ?? "record"}`} />
+        )}
         {/* The heading names WHICH review, so the reviewer can see it before scrolling to the
             field, the same as the Supervision page saying "Supervision 2". */}
         <h1 className="page-title mt-1">{reviewHeading ? `${def.name}: ${reviewHeading}` : def.name}</h1>

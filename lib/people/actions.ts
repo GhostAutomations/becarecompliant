@@ -61,6 +61,8 @@ import {
   type PersonFootprint,
 } from "@/lib/people/deletable";
 import { createServiceClient } from "@/lib/supabase/admin";
+import { seniorMayDo } from "@/lib/senior/access";
+import { seniorListAfter } from "@/lib/auth/carer-login";
 import { getColumnLabels, getSupervisionCycleMode } from "@/lib/people/data";
 import { intervalUnit } from "@/lib/people/interval-unit";
 
@@ -1521,6 +1523,17 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
   if (!instance || !def) return { error: "That check could not be found." };
   if (!def.form_id) return { error: "This check has no form to complete." };
 
+  /* A SENIOR (0339) completes only the Checks ticked on their tile. Asked HERE, before any
+     Evidence is stored: submit_evidence checks the branch, not the Check, so a refusal left to
+     complete_check would file the Evidence and then fail to move the Check. */
+  const isSenior = profile.role === "senior";
+  if (isSenior && !(await seniorMayDo(instanceId))) {
+    return { error: "This check is not one you can complete. Ask your manager if you think it should be." };
+  }
+  /* Where the form goes afterwards: a Senior has no record page, so back to their list. */
+  const doneAt = (outcome: "completed" | "recorded" | "history", recordUrl: string) =>
+    isSenior ? seniorListAfter("people", outcome, def.name) : recordUrl;
+
   const version = await getPublishedFormVersion(def.form_id);
   if (!version) return { error: "This check's form has no published version." };
 
@@ -1575,7 +1588,7 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
     revalidatePath("/people");
     return {
       ok: "recorded",
-      redirectTo: `/people/${instance.person_id}?recorded=${encodeURIComponent(def.name)}`,
+      redirectTo: doneAt("recorded", `/people/${instance.person_id}?recorded=${encodeURIComponent(def.name)}`),
     };
   }
 
@@ -1607,7 +1620,10 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
     await dropDraft(checkDraftKey("people", instanceId));
     revalidatePath(`/people/${instance.person_id}`);
     revalidatePath("/people");
-    return { ok: "recorded", redirectTo: `/people/${instance.person_id}?history=${encodeURIComponent(def.name)}` };
+    return {
+      ok: "recorded",
+      redirectTo: doneAt("history", `/people/${instance.person_id}?history=${encodeURIComponent(def.name)}`),
+    };
   }
 
   const advanced = await advancePersonCheck({
@@ -1625,7 +1641,9 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
 
   // The work was booked; it has now been done. Turn the planner task green rather than
   // leaving a month of appointments on the whiteboard that all already happened.
-  await closeBookingsForCheck(supabase, instanceId, user.id);
+  // A Senior's own client cannot write the planner, so the booking is closed for them by the
+  // service reader: complete_check has just confirmed the Check was theirs to complete.
+  await closeBookingsForCheck(isSenior ? createServiceClient() : supabase, instanceId, user.id);
 
   await writeAudit({
     companyId: instance.company_id as string,
@@ -1648,7 +1666,10 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
   revalidatePath("/people");
   // Navigate client-side (see ActionState.redirectTo): a Server Action redirect()
   // to a URL with a query string trips Next.js issue #78396 (React #310).
-  return { ok: "completed", redirectTo: `/people/${instance.person_id}?completed=${encodeURIComponent(def.name)}` };
+  return {
+    ok: "completed",
+    redirectTo: doneAt("completed", `/people/${instance.person_id}?completed=${encodeURIComponent(def.name)}`),
+  };
 }
 
 /** Add a job title to the company's managed list (Settings > People). Admin only. */

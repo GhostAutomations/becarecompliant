@@ -94,6 +94,23 @@ export default async function UsersPage() {
   const disabled = await disabledModules(companyId);
   const ownRoles = await companyRoles(companyId);
   const accessRoles = ROLE_ORDER.filter((role) => MODULES.some((m) => m.roles.includes(role)));
+  /* The Senior tile's Check boxes (0339): the company's active Checks under People and Service
+     users, ticked unless switched off. */
+  const [{ data: seniorDefs }, { data: seniorOffRows }] = await Promise.all([
+    supabase
+      .from("check_definitions")
+      .select("id, name, population, sort_order")
+      .eq("company_id", companyId)
+      .eq("active", true)
+      .in("population", ["people", "service_users"])
+      .order("sort_order", { ascending: true }),
+    supabase.from("senior_check_access_off").select("definition_id").eq("company_id", companyId),
+  ]);
+  const seniorOff = new Set(((seniorOffRows as Array<{ definition_id: string }> | null) ?? []).map((r) => r.definition_id));
+  const seniorChecks = (population: string) =>
+    ((seniorDefs as Array<{ id: string; name: string; population: string }> | null) ?? [])
+      .filter((d) => d.population === population)
+      .map((d) => ({ id: d.id, name: d.name, on: !seniorOff.has(d.id) }));
   const [{ data: branches }, { data: users }, { data: invites }, { data: company }] =
     await Promise.all([
       supabase
@@ -618,6 +635,11 @@ export default async function UsersPage() {
                 locked: isLocked(m.key, role),
                 on: m.roles.includes(role) && !disabled.has(disabledKey(role, m.key)),
               }))}
+              checksUnder={
+                role === "senior"
+                  ? { people: seniorChecks("people"), service_users: seniorChecks("service_users") }
+                  : undefined
+              }
             />
           ))}
         </div>

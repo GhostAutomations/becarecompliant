@@ -22,13 +22,17 @@ export const metadata: Metadata = { title: "People" };
 export default async function PeoplePage({
   searchParams,
 }: {
-  searchParams: Promise<{ branch?: string; view?: string }>;
+  searchParams: Promise<{ branch?: string; view?: string; completed?: string; recorded?: string; history?: string; warn?: string }>;
 }) {
   const { user, profile } = await requireCompany();
   // A Team Member (staff) login has one destination: their own area.
   if (profile.role === "staff") redirect("/my");
-  // A Senior sees names only (0338). The middleware has already checked the People tick.
-  if (profile.role === "senior") return <SeniorNameList kind="people" />;
+  // A Senior sees names and the Checks ticked on their tile (0338, 0339). The middleware has
+  // already checked the People tick; the outcome of a Check they just completed arrives here.
+  if (profile.role === "senior") {
+    const { completed, recorded, history, warn } = await searchParams;
+    return <SeniorNameList kind="people" outcome={{ completed, recorded, history, warn }} />;
+  }
   // The On Call role has no People compliance department; send them home.
   if (profile.role === "on_call") redirect("/on-call");
 

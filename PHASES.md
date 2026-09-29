@@ -3686,3 +3686,21 @@ discharged service users excluded, and nothing at all when the company switches 
 In the app a Senior keeps the carer portal (/my) and sees People and Service Users as plain name
 lists; any deeper link (a record, a summary) sends them back to the list. The Senior tile shows
 only two ticks: People and Service users. Tests: lib/auth/carer-login.test.ts and the catalogue test.
+
+### 2026-09-29 — A Senior completes the Checks ticked on their tile (migrations 0339, 0340)
+
+Phil: under People and Service users on the Senior tile, a box per Check (the company's own
+Checks). Ticking the list makes its boxes active and ticked; a ticked Check means the Senior sees
+its status and due date against each name in their branch(es) and can open and complete its Form.
+A Check added later starts ticked (stored as what is switched off: senior_check_access_off).
+Database: senior_may_do_instance is the one rule (active Senior, own branch, current record, list
+and Check ticked, never their own People record), used by the new check_instances policy,
+complete_check, and the two follow-on schedulers (Appraisal re-anchors Supervision, Supervision 3
+dates the Appraisal). senior_register (names plus ticked Checks) replaces senior_name_list;
+senior_lookup_choices feeds the Spot Check and Mentoring "which service user" field. No new policy
+on people or service_users: the Complete page reads the record's name, branch, supervision
+history and care plan through a service reader only after the database says yes
+(lib/senior/access.ts), and a Senior reading a Service User there is audited as a view. The
+actions ask the same question before any Evidence is stored, close planner bookings, clear the
+booked review and write back a corrected phone through that reader, and send the Senior back to
+their list with the outcome. Tests: lib/senior/register.test.ts, checks.test.ts, carer-login.test.ts.

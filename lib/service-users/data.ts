@@ -12,6 +12,7 @@ import "server-only";
  */
 
 import { createClient } from "@/lib/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { completionDate, dateKeysByVersion } from "@/lib/evidence/completion-date";
 import { profilesById, profileName } from "@/lib/auth/company-profiles";
 import { branchScopedRole } from "@/lib/auth/manage-scope";
@@ -188,8 +189,9 @@ function toServiceUser(row: SuRow): ServiceUserRecord {
 /** The CURRENT (open) care plan version's entries, for the editor. */
 export async function getCarePlanEntries(
   serviceUserId: string,
+  client?: SupabaseClient,
 ): Promise<import("./care-plan-consts").CarePlanEntry[]> {
-  const supabase = await createClient();
+  const supabase = client ?? (await createClient());
   const { data } = await supabase
     .from("care_plan_entries")
     .select("id, day_of_week, service, unit, handed, carers, slot, quantity, position")
@@ -408,8 +410,9 @@ export async function getOutcomesRegister(companyId: string): Promise<OutcomesRe
   };
 }
 
-export async function getServiceUser(id: string): Promise<ServiceUserRecord | null> {
-  const supabase = await createClient();
+/** `client`: a Senior's Complete page only, after senior_may_do_instance (lib/senior/access.ts). */
+export async function getServiceUser(id: string, client?: SupabaseClient): Promise<ServiceUserRecord | null> {
+  const supabase = client ?? (await createClient());
   const { data } = await supabase
     .from("service_users")
     .select("*, branches(name)")

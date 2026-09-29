@@ -31,6 +31,9 @@ import { rebakeFormFieldOptions } from "@/lib/forms/rebake-options";
 import { ensurePrivateInvoicingFromSetup } from "@/lib/invoicing/ensure-private-invoicing";
 import { seedCarePlanFromSetup } from "./seed-care-plan";
 import { advanceServiceUserCheck, complexReviewContext, serviceUserNextDue } from "./advance-check";
+import { createServiceClient } from "@/lib/supabase/admin";
+import { seniorMayDo } from "@/lib/senior/access";
+import { seniorListAfter } from "@/lib/auth/carer-login";
 import { completionMovesCheck } from "@/lib/evidence/completion-date";
 import type { ActionState } from "@/lib/forms";
 import type { CheckDefinition } from "@/lib/people/types";
@@ -836,6 +839,18 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
   if (!instance || !def || !instance.service_user_id) return { error: "That check could not be found." };
   if (!def.form_id) return { error: "This check has no form to complete." };
 
+  /* A SENIOR (0339) completes only the Checks ticked on their tile, asked before any Evidence
+     is stored (submit_evidence checks the branch, not the Check). The record, its care plan
+     and its tracker are closed to their own client, so what this completion reads and writes
+     on the record goes through `recordRw`, a service reader handed over only after that yes. */
+  const isSenior = profile.role === "senior";
+  if (isSenior && !(await seniorMayDo(instanceId))) {
+    return { error: "This check is not one you can complete. Ask your manager if you think it should be." };
+  }
+  const recordRw = isSenior ? createServiceClient() : supabase;
+  const doneAt = (outcome: "completed" | "recorded" | "history", recordUrl: string) =>
+    isSenior ? seniorListAfter("service_users", outcome, def.name) : recordUrl;
+
   const version = await getPublishedFormVersion(def.form_id);
   if (!version) return { error: "This check's form has no published version." };
 
@@ -847,7 +862,7 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
     for (const field of flattenFields(version.schema as FormSchema)) {
       if (field.type === "care_package" && field.readOnly) {
         answers[field.key] = linesFromRows(
-          await getCarePlanEntries(instance.service_user_id as string),
+          await getCarePlanEntries(instance.service_user_id as string, isSenior ? recordRw : undefined),
         );
       }
     }
@@ -863,16 +878,21 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
     const phoneField = flattenFields(version.schema as FormSchema).find((f) => f.type === "phone");
     const answered = phoneField ? String(answers[phoneField.key] ?? "").trim() : "";
     if (answered) {
-      const { data: current } = await supabase
+      const { data: current } = await recordRw
         .from("service_users")
         .select("phone")
         .eq("id", instance.service_user_id as string)
         .maybeSingle<{ phone: string | null }>();
-      if ((current?.phone ?? "").trim() !== answered) {
-        await supabase
-          .from("service_users")
-          .update({ phone: answered })
-          .eq("id", instance.service_user_id as string);
+      /* Audited only when a row actually changed: an update RLS refuses returns no error,
+         just no rows, and the audit must not say the phone moved when it did not. */
+      const { data: changed } = (current?.phone ?? "").trim() !== answered
+        ? await recordRw
+            .from("service_users")
+            .update({ phone: answered })
+            .eq("id", instance.service_user_id as string)
+            .select("id")
+        : { data: [] as Array<{ id: string }> };
+      if ((changed?.length ?? 0) > 0) {
         await writeAudit({
           companyId: instance.company_id as string,
           actorId: user.id,
@@ -951,7 +971,7 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
     revalidatePath("/service-users");
     return {
       ok: "recorded",
-      redirectTo: `/service-users/${instance.service_user_id}?recorded=${encodeURIComponent(def.name)}`,
+      redirectTo: doneAt("recorded", `/service-users/${instance.service_user_id}?recorded=${encodeURIComponent(def.name)}`),
     };
   }
 
@@ -971,6 +991,7 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
       nextDue,
       expiry,
       actorId: user.id,
+      trackerClient: isSenior ? recordRw : undefined,
     });
     if (!advanced.ok) return { error: advanced.error };
   }
@@ -1069,7 +1090,7 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
 
   // The work was booked; it has now been done. Turn the planner task green rather than
   // leaving a month of appointments on the whiteboard that all already happened.
-  if (moves) await closeBookingsForCheck(supabase, instanceId, user.id);
+  if (moves) await closeBookingsForCheck(recordRw, instanceId, user.id);
 
   await writeAudit({
     companyId: instance.company_id as string,
@@ -1097,7 +1118,7 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
   return {
     ok: "completed",
     redirectTo:
-      `/service-users/${instance.service_user_id}?${moves ? "completed" : "history"}=${encodeURIComponent(def.name)}` +
+      doneAt(moves ? "completed" : "history", `/service-users/${instance.service_user_id}?${moves ? "completed" : "history"}=${encodeURIComponent(def.name)}`) +
       (escalationNote ? `&warn=${encodeURIComponent(escalationNote)}` : ""),
   };
 }

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isCarerLogin, seniorPathRedirect } from "./carer-login.ts";
+import { isCarerLogin, seniorListAfter, seniorPathRedirect } from "./carer-login.ts";
 import { canUseModule, withinCeiling } from "./module-catalogue.ts";
 
 test("staff and senior are carer logins, nobody else is", () => {
@@ -30,4 +30,20 @@ test("anything below the two lists sends a Senior back to the list", () => {
   assert.equal(seniorPathRedirect("/service-users"), null);
   assert.equal(seniorPathRedirect("/my"), null);
   assert.equal(seniorPathRedirect("/peoplex"), null);
+});
+
+test("a Senior may open the Complete page of a Check, and nothing else below the lists", () => {
+  const p = "11111111-2222-3333-4444-555555555555";
+  const i = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+  assert.equal(seniorPathRedirect(`/people/${p}/checks/${i}/complete`), null);
+  assert.equal(seniorPathRedirect(`/service-users/${p}/checks/${i}/complete`), null);
+  assert.equal(seniorPathRedirect(`/people/${p}/checks/${i}`), "/people");
+  assert.equal(seniorPathRedirect(`/people/${p}/tracker/probation/complete`), "/people");
+  assert.equal(seniorPathRedirect(`/people/${p}/checks/${i}/complete/extra`), "/people");
+  assert.equal(seniorPathRedirect(`/people/not-an-id/checks/${i}/complete`), "/people");
+});
+
+test("after completing, a Senior goes back to their list with the outcome", () => {
+  assert.equal(seniorListAfter("people", "completed", "Spot Check"), "/people?completed=Spot%20Check");
+  assert.equal(seniorListAfter("service_users", "history", "Care Plan Review"), "/service-users?history=Care%20Plan%20Review");
 });

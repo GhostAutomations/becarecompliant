@@ -79,6 +79,10 @@ export async function advanceServiceUserCheck(opts: {
   nextDue: string | null;
   expiry: string | null;
   actorId: string;
+  /** Who clears the booked review on the tracker. The caller's own client, except for a Senior
+   *  (0339), whose client cannot write the tracker: they pass the service reader, which is only
+   *  handed over once senior_may_do_instance said yes. complete_check always runs as the caller. */
+  trackerClient?: Supabase;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const { supabase } = opts;
   const { error: advanceErr } = await supabase.rpc("complete_check", {
@@ -95,7 +99,7 @@ export async function advanceServiceUserCheck(opts: {
   // Completing the Care Plan Review fulfils any booking, so clear the Planned Review
   // Date; Review Status then derives from the new New Review Due date.
   if (opts.def.key === "care_plan_review") {
-    await supabase
+    await (opts.trackerClient ?? supabase)
       .from("service_user_trackers")
       .update({
         planned_review_date: null,

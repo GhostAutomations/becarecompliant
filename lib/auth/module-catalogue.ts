@@ -90,7 +90,7 @@ export const MODULES: readonly ModuleDef[] = [
     key: "people",
     label: "People",
     roles: [...OFFICE, "team_member", "senior"],
-    note: "A Viewer can see the register read only. A Senior sees staff names only, from their own branches.",
+    note: "A Viewer can see the register read only. A Senior sees staff names from their own branches, and completes the Checks ticked below.",
   },
   { key: "training", label: "Training", roles: [...OFFICE, "team_member"] },
   { key: "holiday", label: "Holiday", roles: OFFICE },
@@ -99,7 +99,7 @@ export const MODULES: readonly ModuleDef[] = [
     key: "service_users",
     label: "Service Users",
     roles: [...OFFICE, "team_member", "senior"],
-    note: "A Viewer can see the register read only. A Senior sees service user names only, from their own branches.",
+    note: "A Viewer can see the register read only. A Senior sees service user names from their own branches, and completes the Checks ticked below.",
   },
   {
     key: "complaints",

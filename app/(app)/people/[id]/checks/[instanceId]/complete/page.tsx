@@ -26,10 +26,14 @@ import { DEFAULT_AMBER_DAYS, todayInLondon, formatCivilDate } from "@/lib/recurr
 import { recordFormPresets } from "@/lib/forms/record-presets";
 import { fieldToNameSelect, findField, isFormSchema, removeField, type Answers, type FormSchema } from "@/lib/form-schema";
 import type { CheckDefinition } from "@/lib/people/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { seniorReaderFor } from "@/lib/senior/access";
 
 export const metadata: Metadata = { title: "Complete check" };
 
-const COMPLETE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor", "recruiter", "platform_admin"];
+/* A Senior is on the list too (0339), but only for the Checks ticked on their tile: the
+   database answers that per Check (senior_may_do_instance), below. */
+const COMPLETE_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor", "recruiter", "platform_admin", "senior"];
 
 export default async function CompleteCheckPage({
   params,
@@ -54,6 +58,17 @@ export default async function CompleteCheckPage({
     );
   }
 
+  /* A SENIOR: asked of the database before anything is read. A Check they may not do sends
+     them back to their list; one they may do hands the page a reader for the record's name,
+     branch and supervision history, which their own client cannot read (lib/senior/access.ts). */
+  const isSenior = profile.role === "senior";
+  let reader: SupabaseClient | undefined;
+  if (isSenior) {
+    const r = await seniorReaderFor(instanceId);
+    if (!r) redirect("/people");
+    reader = r;
+  }
+
   const supabase = await createClient();
   const { data: instance } = await supabase
     .from("check_instances")
@@ -65,7 +80,7 @@ export default async function CompleteCheckPage({
   if (!instance || instance.person_id !== id || !def) redirect(`/people/${id}`);
   if (!def.form_id) redirect(`/people/${id}`);
 
-  const person = await getPerson(id);
+  const person = await getPerson(id, reader);
   const version = await getPublishedFormVersion(def.form_id);
   if (!version || !isFormSchema(version.schema)) {
     return (
@@ -100,12 +115,12 @@ export default async function CompleteCheckPage({
       presetAnswers = { supervision_type: sup };
       heading = `Supervision ${sup}`;
     } else {
-      const appraisalDef = (await getPersonChecks(id)).find((s) => s.check_key === "appraisal") ?? null;
-      const cycleMode = await getSupervisionCycleMode(def.company_id as string);
+      const appraisalDef = (await getPersonChecks(id, reader)).find((s) => s.check_key === "appraisal") ?? null;
+      const cycleMode = await getSupervisionCycleMode(def.company_id as string, reader);
       const [supCompDates, appraisalCompDates, tracker] = await Promise.all([
-        getSupervisionCompDates(id, def.form_id, def.id),
-        getAppraisalCompDates(id, appraisalDef?.form_id ?? null, appraisalDef?.definition_id ?? null),
-        getPersonTracker(id),
+        getSupervisionCompDates(id, def.form_id, def.id, reader),
+        getAppraisalCompDates(id, appraisalDef?.form_id ?? null, appraisalDef?.definition_id ?? null, reader),
+        getPersonTracker(id, reader),
       ]);
       const slots = supervisionSlots(
         def.interval,
@@ -156,7 +171,7 @@ export default async function CompleteCheckPage({
   /* Only queried when the schema actually has a record_lookup field, and read through
      the caller's own client so the names offered are the ones RLS lets them see. */
   const lookupChoices = profile.company_id
-    ? await choicesForSchema(profile.company_id, schema)
+    ? await choicesForSchema(profile.company_id, schema, { senior: isSenior })
     : undefined;
 
   /* What this user had already typed into this check, if they were interrupted in the
@@ -186,7 +201,11 @@ export default async function CompleteCheckPage({
   return (
     <div className="page-form space-y-6">
       <div>
-        <BackLink href={`/people/${id}`} label={`Back to ${person?.full_name ?? "record"}`} />
+        {isSenior ? (
+          <BackLink href="/people" label="Back to People" />
+        ) : (
+          <BackLink href={`/people/${id}`} label={`Back to ${person?.full_name ?? "record"}`} />
+        )}
         <h1 className="page-title mt-1">{heading}</h1>
         <p className="page-subtitle">
           Completing this form stores it as inspection evidence and schedules the
