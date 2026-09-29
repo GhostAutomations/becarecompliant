@@ -205,3 +205,33 @@ Run on Bevan as Bev Admin. Sends only to ppdavies+ test addresses.
 - O9 PASS (2026-09-29, rolled back): Bev Admin inserted a draft for a recorded meeting and saw it,
   marked it sent (1 row), then changing the sent letter updated 0 rows; ZZ TEST Senior's login
   saw 0. Security advisor unchanged (4 WARN, 1 INFO).
+
+### Item 3 results (2026-09-29, deploy 1d6afcb2, Bevan as Bev Admin)
+
+- O1 PASS: "Absence meeting outcome" listed with its description, standard wording and the two
+  extra details; saving wording without the outcome was refused with "This letter must keep: The
+  outcome, drafted for each meeting (must stay in)..." and nothing was saved.
+- O2 PASS: ZZ TEST Senior Stage 1 recorded (verbal warning until 29/03/2027, targets, review
+  29/12/2026); after "No, nothing was discounted" the Outcome letter box opened. The draft (1
+  credit) was three paragraphs using only the record: the absence of 22 September and the
+  explanation, the verbal warning and its date, the targets and review date. No greeting, sign
+  off or appeal, no dashes.
+- O3 PASS: Not now, then Outcome letter on the record's Absence tile: the same draft, no Draft
+  button, still one credit in total.
+- O4 PASS: an edit showed in Check the letter (date, greeting, opening, the outcome, appeal, sign
+  off, "Attached: The letter as a PDF"); Back kept it.
+- O7 PASS: ZZ TEST No Email, written by hand (no AI): the check step said it will not be emailed
+  and showed the letter; the button read Approve. Approved: status not emailed, PDF kept, the
+  record shows "Outcome letter PDF" and "Not emailed: no address. Print it and hand it over." The
+  PDF opened through the signed link: Bevan Care Ltd heading, Private and confidential, date,
+  subject, the letter, sign off, page footer.
+- O5 PASS (Phil's go): ZZ TEST Senior's letter approved and sent. Resend: Delivered to
+  ppdavies+senior with outcome-letter.pdf attached, reading as the preview. The record shows
+  "Outcome letter PDF" and "Emailed 29 Sep 26"; notification logged sent once; audited.
+- O6 PASS: once sent (and once kept as not emailed) the Outcome letter button is gone from the
+  meeting, and O9 showed the database refuses any change to a sent letter.
+- O8 PASS (Phil, phone): ZZ TEST Audit Starter's Stage 2 meeting, drafted, checked: the outcome
+  readable and editable, the whole letter readable in the preview, Approve and send, Back and Close
+  reachable. Closed without sending, so that letter is left as a draft.
+
+Item 3: O1 to O9 all pass (2026-09-29).
