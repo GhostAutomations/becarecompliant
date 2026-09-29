@@ -132,7 +132,16 @@ export default function RoleAccessTile({
           Two columns on a phone, one below that: three columns of checkboxes at 360px is
           unreadable, and this screen has to work on the phone an owner actually carries.
         */}
-        <div className="grid grid-cols-1 gap-x-3 gap-y-0.5 sm:grid-cols-2">
+        {/* THE SENIOR TILE is two columns at every width (Phil, 2026-09-29: "people on the left
+            and service users on the right"), each list's Checks in one column beneath it. The
+            tile stays the size of the others, so a long Check name wraps rather than truncates. */}
+        <div
+          className={
+            checksUnder
+              ? "grid grid-cols-2 items-start gap-x-3 gap-y-0.5"
+              : "grid grid-cols-1 gap-x-3 gap-y-0.5 sm:grid-cols-2"
+          }
+        >
           {modules.map((m) => {
             const under = checksUnder?.[m.key];
             const parentLive = m.allowed && !m.locked;
@@ -179,22 +188,22 @@ export default function RoleAccessTile({
             if (!under) return label;
             const live = parentLive && !!deptOn[m.key];
             return (
-              <div key={m.key} className="col-span-full">
+              <div key={m.key} className="min-w-0">
                 {label}
                 {/* The Checks under this list, indented beneath it. Greyed while the list is
                     unticked; a greyed box is not posted and changes nothing. */}
                 {under.length === 0 ? (
-                  <p className="ml-8 pb-1 text-xs text-white/40">No checks set up yet.</p>
+                  <p className="ml-4 pb-1 text-xs text-white/40">No checks set up yet.</p>
                 ) : (
                   <div
-                    className="ml-6 grid grid-cols-1 gap-x-3 gap-y-0.5 border-l border-white/10 pl-2 sm:grid-cols-2"
+                    className="ml-3 space-y-0.5 border-l border-white/10 pl-1"
                     aria-label={`${m.label} checks`}
                   >
                     {under.map((c) => (
                       <label
                         key={c.id}
                         title={live ? undefined : `Tick ${m.label} first.`}
-                        className={`flex items-center gap-2 rounded-lg px-2 py-1 text-[13px] ${
+                        className={`flex items-start gap-2 rounded-lg px-2 py-1 text-[13px] leading-snug ${
                           live ? "cursor-pointer text-white/75 hover:bg-white/5" : "text-white/30"
                         }`}
                       >
@@ -205,9 +214,9 @@ export default function RoleAccessTile({
                           checked={!!checkOn[c.id]}
                           onChange={(e) => setCheckOn((x) => ({ ...x, [c.id]: e.target.checked }))}
                           disabled={!live}
-                          className="shrink-0"
+                          className="mt-0.5 shrink-0"
                         />
-                        <span className="min-w-0 truncate">{c.name}</span>
+                        <span className="min-w-0 break-words">{c.name}</span>
                       </label>
                     ))}
                   </div>
