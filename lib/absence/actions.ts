@@ -40,7 +40,7 @@ import { stageActionFor, stageActionSentence, warningAllowed, warningTooHighMess
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
 import type { Answers } from "@/lib/form-schema";
-import type { ActionState } from "@/lib/forms";
+import { toAiQuestions, type ActionState, type AiQuestion } from "@/lib/forms";
 import { getCompanyFormByKey } from "@/lib/people/data";
 import { stageFrom, unbookedMeetingProblem } from "@/lib/absence/record-meeting";
 
@@ -331,6 +331,18 @@ export async function recordAbsenceMeeting(
     meetingId = meeting.id as string;
   }
 
+  // The drafted questions, if any, are now asked and answered (0342): close their set so it is not
+  // offered again, and keep the wording as it finally stood. The Evidence already holds the
+  // questions and answers, so a failure here costs nothing but a stale draft; it never fails the
+  // save.
+  await closeMeetingQuestions(supabase, {
+    personId,
+    bookingId: attachedToBooking ? meetingId : null,
+    meetingId,
+    evidenceId: result.evidenceId,
+    finalQuestions: finalAiQuestions(formData),
+  });
+
   await writeAudit({
     companyId: person.company_id as string,
     actorId: user.id,
@@ -358,6 +370,44 @@ export async function recordAbsenceMeeting(
 }
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
+
+/** The drafted questions as they stood on screen when the meeting was saved, if any. */
+function finalAiQuestions(formData: FormData): AiQuestion[] | null {
+  const raw = formData.get("ai_questions_json");
+  if (typeof raw !== "string" || !raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as { questions?: unknown };
+    const qs = toAiQuestions(parsed.questions);
+    return qs.length > 0 ? qs : null;
+  } catch {
+    return null;
+  }
+}
+
+async function closeMeetingQuestions(
+  supabase: ServerClient,
+  opts: {
+    personId: string;
+    bookingId: string | null;
+    meetingId: string | null;
+    evidenceId: string;
+    finalQuestions: AiQuestion[] | null;
+  },
+): Promise<void> {
+  const patch: Record<string, unknown> = {
+    evidence_id: opts.evidenceId,
+    recorded_at: new Date().toISOString(),
+    ...(opts.finalQuestions ? { questions: opts.finalQuestions } : {}),
+  };
+  let q = supabase.from("absence_meeting_questions").update(
+    opts.bookingId ? patch : { ...patch, meeting_id: opts.meetingId },
+  );
+  q = opts.bookingId
+    ? q.eq("meeting_id", opts.bookingId)
+    : q.eq("person_id", opts.personId).is("meeting_id", null);
+  const { error } = await q.is("evidence_id", null);
+  if (error) console.error("[absence] meeting questions not closed", { meetingId: opts.meetingId, error: error.message });
+}
 
 /** Everything a booking needs, checked, before anything is written or sent. Shared by the
  *  preview (Phil, 2026-09-29: the letters are shown for approval first) and the booking itself,

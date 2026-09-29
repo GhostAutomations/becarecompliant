@@ -3648,6 +3648,20 @@ preview and the send both use it, so the approved email is the one that goes. Th
 every check on approval. Cancel's old "Yes, cancel it" step is replaced by the notices themselves.
 Wording is still changed only in Settings, Letters. Tests L1 to L9 in TEST-CHECKLIST-ABSENCE-ROUND2.md.
 
+**2. AI questions in Record meeting (migration 0342).** Record meeting gets "Draft questions for
+me" (gold AI chip). The questions are written from the absences the meeting discusses, the other
+counted absences in the window, what was recorded at each Return to Work (or the employee's own
+portal answers) and what earlier meetings in the window agreed; no name or other identifier is
+sent. They show as a "Questions to ask" section like Return to Work, can be reworded or removed,
+and are written into the new optional field "Questions asked and answers" (meeting_questions, v1
+edited in place on every company and the template) when the meeting is saved. The set is kept in
+absence_meeting_questions the moment it is drafted (one per booking, or one open set per person
+for a meeting recorded without a booking), so reopening costs no credit; recording the meeting
+closes it, cancelling a booking deletes it. RLS: can_prepare_absence_meeting (Admin, branch lead,
+the person's supervisor, on call); never the employee. Also fixed on the way: the meeting's
+"Dates of absence discussed" used every absence ever recorded rather than the ones in the window
+(no company had any outside it yet). Tests Q1 to Q10 in TEST-CHECKLIST-ABSENCE-ROUND2.md.
+
 ### 2026-09-29 — New prices, the new pricing page, and trial requests in the Founder inbox
 
 Phil, before taking on a new client, agreed by popup: Business £79 (was £49), Pro £129 (was £69),

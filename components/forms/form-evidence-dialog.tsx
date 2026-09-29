@@ -338,7 +338,7 @@ export default function FormEvidenceDialog({
                   </div>
                   {draftPending || drafting ? (
                     <p className="mt-2 animate-pulse text-sm text-white/70">
-                      Writing questions for this absence. This takes a few seconds.
+                      Writing the questions from the record. This takes a few seconds.
                     </p>
                   ) : null}
                   {draftState.error ? <p className="form-error">{draftState.error}</p> : null}

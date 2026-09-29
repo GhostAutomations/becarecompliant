@@ -5,6 +5,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import { listOutstandingRtw } from "@/lib/absence/rtw";
 import { listRtwQuestionnaires } from "@/lib/absence/rtw-questions-data";
+import { listOpenMeetingQuestions } from "@/lib/absence/meeting-questions-data";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import { listBranches, listBranchNames, getCompanyFormByKey } from "@/lib/people/data";
 import { listAbsenceRegister, listActivePeople, listAbsenceEvents, listOpenBookings, listMeetingConductors, listMeetingOffices } from "@/lib/absence/data";
@@ -64,7 +65,11 @@ export default async function AbsencePage() {
     ]);
 
   // Saved Return to Work questions (0331): read back, never drafted twice.
-  const rtwQuestionnaires = await listRtwQuestionnaires(outstandingRtw.map((r) => r.absenceEventId));
+  const [rtwQuestionnaires, meetingQuestions] = await Promise.all([
+    listRtwQuestionnaires(outstandingRtw.map((r) => r.absenceEventId)),
+    // Drafted meeting questions (0342): read back, never drafted twice.
+    listOpenMeetingQuestions(companyId),
+  ]);
 
   const absenceSchema: FormSchema | null =
     absenceForm && isFormSchema(absenceForm.schema) ? (absenceForm.schema as FormSchema) : null;
@@ -98,6 +103,7 @@ export default async function AbsencePage() {
         currentUserName={(profile.full_name ?? "").trim() || profile.email}
         outstandingRtw={outstandingRtw}
         rtwQuestionnaires={rtwQuestionnaires}
+        meetingQuestions={meetingQuestions}
         openBookings={openBookings}
         conductors={conductors}
         offices={offices}

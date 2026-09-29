@@ -23,7 +23,10 @@ import type { AbsencePersonRow, PersonLite, AbsenceEventRow, OpenBookingRow, Con
 import type { BranchLite } from "@/lib/people/data";
 import { recordAbsence, recordAbsenceMeeting } from "@/lib/absence/actions";
 import { recordableStages } from "@/lib/absence/record-meeting";
-import { absenceCountState, countedAbsences, meetingDiscountReason } from "@/lib/absence/discount";
+import { countedAbsences, meetingDiscountReason } from "@/lib/absence/discount";
+import { discussedAbsences } from "@/lib/absence/meeting-questions";
+import { draftMeetingQuestions } from "@/lib/absence/meeting-questions-actions";
+import type { AiQuestion } from "@/lib/forms";
 import { draftReturnToWork, recordReturnToWork } from "@/lib/absence/rtw-actions";
 import type { OutstandingRtw } from "@/lib/absence/rtw";
 import type { RtwQuestionnaire } from "@/lib/absence/rtw-questions-data";
@@ -70,6 +73,7 @@ export default function AbsenceView({
   currentUserName,
   outstandingRtw,
   rtwQuestionnaires,
+  meetingQuestions,
   openBookings,
   conductors,
   offices,
@@ -99,6 +103,8 @@ export default function AbsenceView({
   outstandingRtw: OutstandingRtw[];
   /** Saved Return to Work questions (0331), keyed by absence id. */
   rtwQuestionnaires: Record<string, RtwQuestionnaire>;
+  /** Drafted meeting questions not yet asked (0342): "meeting:<booking id>" or "person:<id>". */
+  meetingQuestions: Record<string, AiQuestion[]>;
   openBookings: OpenBookingRow[];
   conductors: ConductorLite[];
   offices: MeetingOffice[];
@@ -180,8 +186,10 @@ export default function AbsenceView({
   function meetingFormFor(r: AbsencePersonRow): {
     schema: FormSchema | null;
     presets: Record<string, string>;
+    /** The booking this Record meeting is for, if any: the drafted questions are kept on it. */
+    bookingId: string | null;
   } {
-    if (!meetingSchema) return { schema: null, presets: {} };
+    if (!meetingSchema) return { schema: null, presets: {}, bookingId: null };
     // Declined means NOT booked in (Phil, 2026-07-12): declined bookings do
     // not appear as Meeting Type options and do not drive the prefills. The
     // manager rearranges (which resets the response) or cancels them.
@@ -229,21 +237,18 @@ export default function AbsenceView({
     // absences since the previous stage's threshold. Numbers stay absolute.
     // Discounted absences are not what a meeting discusses (0328). They stay on the record
     // but leave this list and its numbering.
-    const chronological = [...(eventsByPerson[r.personId] ?? [])]
-      .filter((e) => absenceCountState(e, { windowStart }) !== "discounted")
-      .sort((a, b) => a.start_date.localeCompare(b.start_date));
-    let discussed = chronological.map((e, i) => ({ e, n: i + 1 }));
+    // Absences outside the rolling window no longer count either, so they are not discussed
+    // (2026-09-29: this list used every absence ever recorded, which would have put a Stage 1 onto
+    // absences from years ago). The same rule the drafted questions use: discussedAbsences.
+    const chronological = countedAbsences(eventsByPerson[r.personId] ?? [], { windowStart });
     const bookedStage = earliest?.stage ?? null;
-    if (bookedStage && stageThresholds.length > 0) {
-      const occAt = (stage: number) =>
-        stageThresholds.find((t) => t.stage === stage)?.occasions;
-      const hi = occAt(bookedStage);
-      const lo = bookedStage > 1 ? occAt(bookedStage - 1) ?? 0 : 0;
-      if (hi) {
-        const scoped = discussed.slice(lo, hi);
-        if (scoped.length > 0) discussed = scoped;
-      }
-    }
+    const discussed = discussedAbsences(
+      chronological,
+      bookedStage,
+      stageThresholds
+        .filter((t) => typeof t.occasions === "number")
+        .map((t) => ({ stage: Number(t.stage), occasions: Number(t.occasions) })),
+    );
     const dates = discussed
       .map(({ e, n }) => {
         const range =
@@ -266,7 +271,7 @@ export default function AbsenceView({
       if (earliest.conductor_name) presets.manager_conducting = earliest.conductor_name;
       if (earliest.meeting_date) presets.date_of_meeting = earliest.meeting_date;
     }
-    return { schema, presets };
+    return { schema, presets, bookingId: earliest?.id ?? null };
   }
 
   const visibleRows = useMemo(
@@ -656,12 +661,30 @@ export default function AbsenceView({
                   {canManage && meetingSchema ? (
                       (() => {
                         const mf = meetingFormFor(r);
+                        const savedQuestions =
+                          meetingQuestions[mf.bookingId ? `meeting:${mf.bookingId}` : `person:${r.personId}`] ?? [];
                         return mf.schema ? (
                           <FormEvidenceDialog
                             title={`Absence meeting for ${r.fullName}`}
                             schema={mf.schema}
                             action={recordAbsenceMeeting}
                             extraFields={{ person_id: r.personId }}
+                            initialAi={savedQuestions.length > 0 ? { questions: savedQuestions } : undefined}
+                            questionsEditable
+                            aiDraft={
+                              mf.schema.sections.some((sec) => sec.fields.some((f) => f.key === "meeting_questions"))
+                                ? {
+                                    action: draftMeetingQuestions,
+                                    label: "Draft questions for me",
+                                    hint: "Write the questions for this meeting from their absences, what they said at their Return to Works and anything agreed at earlier meetings. They become boxes you fill in as you talk, and you can change or remove any of them. They are kept for this meeting, so opening it again costs nothing.",
+                                    extraFields: {
+                                      person_id: r.personId,
+                                      ...(mf.bookingId ? { meeting_id: mf.bookingId } : {}),
+                                    },
+                                    questions: { dataKey: "ai_questions", answerKey: "meeting_questions" },
+                                  }
+                                : undefined
+                            }
                             triggerLabel="Record meeting"
                             triggerClassName="btn-outline px-3 py-1.5 text-xs"
                             submitLabel="Save meeting"

@@ -115,3 +115,31 @@ showed no new Thistle meeting rows, no absence audit entries and no emails logge
 
 Item 1: L1 to L9 all pass (2026-09-29). Bevan test data left: ZZ TEST Senior and ZZ TEST No Email
 each have one test absence and a Stage 1 due; no meetings open.
+
+## Item 2: AI questions in Record meeting (migration 0342)
+
+Run on Bevan as Bev Admin. ZZ TEST No Email and ZZ TEST Senior each have one test absence.
+
+- Q1. Record meeting (nothing booked) shows a panel with the gold AI chip and "Draft questions for
+  me". The form also has "Questions asked and answers" at the top of Summary of Discussion.
+- Q2. Draft questions for me shows "Drafting…" at once, then a "Questions to ask" section of 5 to 8
+  questions about this person's absences (Yes/No buttons, choices or boxes). The "Questions asked
+  and answers" box is hidden while they are there. One AI credit used.
+- Q3. Every question can be reworded or removed. None suggests an outcome or a warning, none
+  guesses at a medical cause, no dashes.
+- Q4. Close without saving and open Record meeting again: the same questions come straight back,
+  with no second credit used.
+- Q5. Answer the questions, fill the rest and Save meeting. The Evidence shows "Questions asked and
+  answers" with each question and its answer.
+- Q6. After saving, Record meeting for the same person starts clean (the old set is not offered).
+- Q7. Book a meeting, then Record meeting on it: Draft questions for me drafts a set for that
+  booking. Cancelling the booking removes its set.
+- Q8. A person with a Return to Work recorded: the questions follow up on what they said there.
+- Q9. On a phone, the questions are readable and answerable.
+- Q10. Database probe (Claude): a Senior Care Assistant login can neither prepare nor read a set.
+
+### Item 2 results
+
+- Q10 PASS (2026-09-29, rolled back): as Bev Admin can_prepare true, an insert went in and was
+  read back; as ZZ TEST Senior's login can_prepare false and 0 rows visible. Security advisor
+  unchanged (4 WARN, 1 INFO, no ERROR). The field is on Thistle v1, Bevan v1 and the template.
