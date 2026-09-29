@@ -3694,6 +3694,27 @@ answer_details; the manager's dialog shows and edits the detail under each Yes a
 the Evidence. In the subject access export. 0345 fixed the details being lost (jsonb || null),
 found by the rolled back probe. Tests F1 to F10 in TEST-CHECKLIST-ABSENCE-ROUND2.md.
 
+### 2026-09-29 — The contract in the app, step 1: pages, acceptance, founder view (0346, 0347)
+
+Phil chose, by popup: bring the 26 Sep drafts up to date first (Diamond out; 3.6 Onboarding and 7.6
+the fee; monthly by card, annual and onboarding invoiced, card or bank transfer within 14 days; the
+Order gains an Onboarding fee line; DPA roles list and fit notes), approved as version 1.0; the
+supplier details (name, number, address, ICO, clause 14.4 minimum, publication date) live in
+lib/legal/supplier.ts and while any is missing the contract is a Draft and nobody is asked; the
+Order is prefilled and the Company Admin confirms; the 90 day read only exit and the 45 day renewal
+reminder follow as steps 2 and 3.
+
+Built: lib/legal/text.ts (the one source), fill.ts and markdown.ts (pure, 11 tests), documents.ts
+(versions and SHA-256 fingerprints), public /terms and /dpa; /agreement, where requireCompany sends
+a Company Admin (and nobody else) until their company has accepted what is in force, then the
+record of what was accepted; agreement_acceptances written only by the server with the Order, IP,
+user agent and fingerprints; Founder > Agreements with a per company "Ask to accept (test)" switch
+for before publication (a test acceptance is marked and does not count once published); Settings,
+Billing links to it. Found on the way and fixed in the same migration: a Company Admin could change
+their own company's tier, trial end and status by calling the API directly (companies_update allowed
+every column); a trigger now keeps those columns to the founder and the server. Tests A1 to A9 in
+TEST-CHECKLIST-CONTRACT.md.
+
 ### 2026-09-29 — New prices, the new pricing page, and trial requests in the Founder inbox
 
 Phil, before taking on a new client, agreed by popup: Business £79 (was £49), Pro £129 (was £69),

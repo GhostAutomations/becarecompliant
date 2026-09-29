@@ -271,6 +271,10 @@ export default async function FounderPage() {
           <h2 className="text-base font-semibold text-white">Training templates</h2>
           <p className="text-sm text-white/60">Master training course catalogue.</p>
         </Link>
+        <Link href="/founder/agreements" className="app-tile">
+          <h2 className="text-base font-semibold text-white">Agreements</h2>
+          <p className="text-sm text-white/60">Who has accepted the terms and DPA.</p>
+        </Link>
         <Link href="/founder/health" className="app-tile">
           <h2 className="text-base font-semibold text-white">Platform health</h2>
           <p className="text-sm text-white/60">Dependencies, sends and webhooks.</p>

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
@@ -386,6 +387,20 @@ export default async function BillingPage() {
           </p>
         </section>
       )}
+
+      {/* The agreement (0346): what was accepted, by whom and when, and the two documents. */}
+      <section className="glass-card p-5">
+        <h2 className="text-sm font-semibold text-white/80">Your agreement</h2>
+        <p className="mt-2 text-sm text-white/60">
+          The Subscription Agreement and Data Processing Agreement your company has accepted, and the
+          details on your Order.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Link href="/agreement" className="btn-ghost px-3 py-2 text-xs">
+            View your agreement
+          </Link>
+        </div>
+      </section>
     </div>
   );
 }

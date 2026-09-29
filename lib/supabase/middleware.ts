@@ -14,6 +14,8 @@ export const PUBLIC_PATHS = [
   "/pricing",
   "/start-trial",
   "/privacy",
+  "/terms", // the Subscription Agreement (0346)
+  "/dpa", // the Data Processing Agreement (0346)
   "/login",
   "/auth",
   "/api/webhooks",

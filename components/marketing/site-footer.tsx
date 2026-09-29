@@ -18,6 +18,8 @@ export default function SiteFooter() {
             <Link href="/pricing" className="hover:text-white">Pricing</Link>
             <Link href="/start-trial" className="hover:text-white">Request a trial</Link>
             <Link href="/privacy" className="hover:text-white">Privacy</Link>
+            <Link href="/terms" className="hover:text-white">Terms</Link>
+            <Link href="/dpa" className="hover:text-white">Data processing</Link>
             <Link href="/login" className="hover:text-white">Sign in</Link>
           </nav>
         </div>

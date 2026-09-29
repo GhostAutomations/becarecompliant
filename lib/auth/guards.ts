@@ -12,6 +12,7 @@ import {
 } from "@/lib/auth/password-reset-rules";
 import { readActingCompanyId } from "@/lib/founder/manage-as";
 import { isCompanyLapsed, isCompanyLocked } from "@/lib/billing/trial-gate";
+import { needsAgreement } from "@/lib/legal/acceptance";
 
 export type Profile = {
   id: string;
@@ -190,6 +191,11 @@ export type CompanyGuardOptions = {
    * anything. Adding a new route gates itself.
    */
   allowLapsed?: boolean;
+  /**
+   * Let a Company Admin through who has not accepted the agreement in force (0346). Set only by
+   * the accept screen's own action; everything else sends them to /agreement first.
+   */
+  allowUnaccepted?: boolean;
 };
 
 /** Requires an active member of a company (platform admin also passes). When
@@ -219,6 +225,18 @@ export async function requireCompany(
     // No query string on this redirect: redirecting a Server Action to a URL carrying one
     // trips the Next 15 router bug this codebase has already paid for (see lib/forms).
     redirect("/trial-ended");
+  }
+  /* THE AGREEMENT (Phil, 2026-09-26 and 2026-09-29): a Company Admin accepts the Subscription
+     Agreement and the DPA before using the app, and again when a new version is published. Only
+     the Company Admin is stopped; every other role carries on. Off for everybody until the
+     supplier details are filled in (lib/legal/supplier.ts), except a company the founder has
+     switched on to test it. After the trial lock, so a lapsed company sees the lapse first. */
+  if (
+    !options.allowUnaccepted &&
+    profile.role === "company_admin" &&
+    (await needsAgreement(profile.company_id))
+  ) {
+    redirect("/agreement");
   }
   return { user, profile };
 }
