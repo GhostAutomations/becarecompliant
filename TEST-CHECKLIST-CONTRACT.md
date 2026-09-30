@@ -151,3 +151,12 @@ Bevan switched to Pro by SQL for this (no Stripe subscription, so nothing billed
   total with extras x 10 months; Monthly by card shows the plan a year and a separate monthly total.
   The agreement's Order and, after Accept, Payment, Your agreement and Founder > Agreements show the
   same lines. Nothing in the section is bold.
+  A18 PASS (2026-09-30, Phil on phone, Pro).
+- A14 Business: screens PASS (Business bullets, 4 users, office team and 1 branch, £79 plan, 1 extra
+  user £5, yearly extras x 10). Phil accepted on Annual with extras monthly by card, so the payment
+  step showed the invoice message and Continue (as built); Stripe was not opened. Phil then asked
+  why Annual is not billed through Stripe: decided (popup) Annual pays by CARD through Stripe by
+  default, with "get an invoice instead" for bank transfer; built with the invoicing piece.
+  "Add a card" on the payment step (Monthly) is retested there.
+- A15 Black PASS (2026-09-30, Phil on phone): no billing or extras questions, "No charge (Black
+  account)", Order rows Not applicable, straight to the dashboard. Bevan back on Black.
