@@ -16,7 +16,10 @@ import {
 import { TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
 import { orderedExtrasByCompany, orderedFor } from "@/lib/billing/ordered-extras-read";
 import { billedExtra } from "@/lib/billing/ordered-extras";
-import { subscriptionMonthlyPence } from "@/lib/billing/monthly-total";
+import { dealsByCompany } from "@/lib/billing/deal-store";
+import { dealMonthlyParts } from "@/lib/billing/deal";
+import { subscriptionMonthlyPence, monthlyRecurringPence } from "@/lib/billing/monthly-total";
+import { YEARLY_MONTHS_CHARGED as MRR_YEARLY_MONTHS } from "@/lib/stripe/config";
 import { billingStatusPill, tierLabel } from "@/lib/founder/format";
 
 export const metadata: Metadata = { title: "Revenue" };
@@ -48,7 +51,7 @@ export default async function FounderRevenuePage() {
     supabase
       .from("company_billing")
       .select(
-        "company_id, subscription_status, billed_tier, seat_quantity, current_period_end, cancel_at_period_end",
+        "company_id, subscription_status, billed_tier, seat_quantity, current_period_end, cancel_at_period_end, billing_interval, extras_interval",
       ),
   ]);
 
@@ -90,6 +93,8 @@ export default async function FounderRevenuePage() {
   let pastDue = 0;
   // What each company ordered is the least it pays (2026-09-30): the same floor as Stripe.
   const orderedByCompany = await orderedExtrasByCompany(supabase);
+  // Deals' special prices (0354), so revenue is what each company is actually charged.
+  const deals = await dealsByCompany(supabase);
 
   for (const c of list) {
     // Test companies are left out of revenue (0353).
@@ -120,12 +125,22 @@ export default async function FounderRevenuePage() {
          revenue page under-reported every company with an extra branch — Acme by £7.50 a
          month. Same omission as the customer billing page and the founder company page; this
          was the fourth copy of the same sum, which is why they now share one rule. */
-      row.monthlyPence = subscriptionMonthlyPence({
-        basePence: TIER_BASE_PENCE[c.tier as keyof typeof TIER_BASE_PENCE],
-        extraSeats: seats.extra,
-        seatPence: EXTRA_SEAT_PENCE,
-        extraBranches: branchesExtra,
-        branchPence: EXTRA_BRANCH_PENCE,
+      // Monthly worth: an Annual company counts as its yearly price over twelve (2026-09-30).
+      const parts = dealMonthlyParts(
+        deals.get(c.id),
+        { planPence: TIER_BASE_PENCE[c.tier as keyof typeof TIER_BASE_PENCE], seatPence: EXTRA_SEAT_PENCE, branchPence: EXTRA_BRANCH_PENCE },
+        seats.extra,
+        branchesExtra,
+      );
+      row.monthlyPence = monthlyRecurringPence({
+        basePence: parts.basePence,
+        extraSeats: 1,
+        seatPence: parts.seatsPence,
+        extraBranches: 1,
+        branchPence: parts.branchesPence,
+        planYearly: (b as { billing_interval?: string | null } | null)?.billing_interval === "year",
+        extrasYearly: (b as { extras_interval?: string | null } | null)?.extras_interval === "year",
+        yearlyMonthsCharged: MRR_YEARLY_MONTHS,
       });
       const st = b?.subscription_status ?? null;
       if (["active", "trialing", "past_due"].includes(st ?? "")) {

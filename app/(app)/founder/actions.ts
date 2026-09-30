@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { branchWordFromForm, parseDealFromForm, writeDeal } from "@/lib/billing/deal-store";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { requirePlatformAdmin } from "@/lib/auth/guards";
@@ -109,6 +110,23 @@ export async function createCompany(
   const slug = slugInput ? slugify(slugInput) : slugify(name);
   if (!slug) return { error: "Could not derive a slug. Enter one manually." };
 
+  /* THE DEAL AND THE BRANCH WORD (0354, Phil 2026-09-30), checked before anything is made so a
+     typo in a price never leaves a half built company behind. A Black account has no deal. */
+  const word = branchWordFromForm(formData);
+  if ("error" in word) return { error: word.error };
+  const deal = parseDealFromForm(formData);
+  if (!deal.ok) return { error: deal.error };
+  if (deal.row && tier === "black") return { error: "A Black account is free, so it has no deal. Choose Business or Pro, or leave the deal to them." };
+  const moreBranches = String(formData.get("more_branches") ?? "")
+    .split(/\r?\n/)
+    .map((b) => b.trim())
+    .filter(Boolean)
+    .slice(0, 50);
+  if (moreBranches.some((b) => b.length > 80)) return { error: "Keep each branch name to 80 letters or fewer." };
+  if (new Set([branchName, ...moreBranches].map((b) => b.toLowerCase())).size !== moreBranches.length + 1) {
+    return { error: "Two branches have the same name. Give each one its own name." };
+  }
+
   const supabase = await createClient();
 
   const { data: company, error: companyErr } = await supabase
@@ -118,6 +136,8 @@ export async function createCompany(
       slug,
       tier,
       regulator,
+      branch_word: word.one,
+      branch_word_plural: word.many,
       /* Absolute time, not civil dates: a trial is a fixed length from the moment it is granted
          (see lib/billing/trial.ts). Both columns or neither — trial_ends_at alone is what the
          lock reads, and trial_started_at is what tells you when it began. */
@@ -142,6 +162,7 @@ export async function createCompany(
   const { error: branchErr } = await supabase.from("branches").insert([
     { company_id: company.id, name: `${name} Office`, kind: "team", uses_office_address: false },
     { company_id: company.id, name: branchName, kind: "branch" },
+    ...moreBranches.map((b) => ({ company_id: company.id, name: b, kind: "branch" })),
   ]);
   if (branchErr) {
     /* DEF-063: this used to return with the company row left behind, no branches, no forms and
@@ -154,6 +175,10 @@ export async function createCompany(
         : `The company could not be set up, so nothing was created: ${branchErr.message}`,
     };
   }
+
+  // The deal (0354). A failure is reported in the note rather than undoing the company, because
+  // it can be set again from the founder company page.
+  const dealSave = deal.row ? await writeDeal(supabase, company.id, deal.row, deal.notes, user.id) : {};
 
   // Seed the founder-curated starter forms so the company has usable forms on
   // day one. Idempotent (safe if re-run); runs as the platform admin, which the
@@ -214,7 +239,10 @@ export async function createCompany(
     },
   });
 
-  let note = `Company ${name} created with its Team and first Branch.`;
+  let note = `Company ${name} created with its Team and ${moreBranches.length ? `${moreBranches.length + 1} branches` : "first Branch"}.`;
+  if (deal.row) {
+    note += dealSave.error ? ` The deal could not be saved (${dealSave.error}); set it on the company page.` : " The deal is saved and fills in their Order.";
+  }
   if (trialDays > 0) {
     note += ` It is on a ${trialDays} day trial, covering one branch and two colleagues besides the Admin.`;
   }

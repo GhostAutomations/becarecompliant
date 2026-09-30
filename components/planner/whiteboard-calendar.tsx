@@ -12,6 +12,7 @@ import type { PlannerBookingView, PlannerFormData } from "@/lib/planner/data";
 // Pure and tested in lib/planner/week.test.ts: month ends, year ends, leap days and the clocks
 // going back are exactly where week arithmetic quietly goes wrong.
 import { mondayOf, shiftWeek, weekLabel, weekDays } from "@/lib/planner/week";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -83,6 +84,7 @@ export default function WhiteboardCalendar({
    */
   currentUserId?: string;
 }) {
+  const bw = useBranchWord();
   const router = useRouter();
   const [cancelling, startCancel] = useTransition();
 
@@ -225,9 +227,9 @@ export default function WhiteboardCalendar({
         </div>
         {branches.length > 1 ? (
           <label className="flex items-center gap-2 text-sm font-medium text-white/80">
-            Branch
+            {bw.one}
             <select className="inline-cell" value={branchId} onChange={(e) => setBranchId(e.target.value)}>
-              <option value="">All branches</option>
+              <option value="">{bw.all}</option>
               {branches.map((b) => (
                 <option key={b.id} value={b.id}>{b.name}</option>
               ))}

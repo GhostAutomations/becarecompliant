@@ -8,7 +8,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
 import { legalDocuments, legalPublished, LEGAL_VERSIONS } from "@/lib/legal/documents";
-import { acceptanceCurrent, afterAcceptPath, billingApplies, checkOrder, isLiveSubscription, extrasLineText, extrasPaidText, orderCosts, orderExtrasText, orderPriceListText, onboardingFeeLabel, orderIncludedText, orderPriceText, planLabel } from "@/lib/legal/fill";
+import { loadOrderTerms } from "@/lib/legal/order-terms";
+import { acceptanceCurrent, afterAcceptPath, billingApplies, branchesLineText, checkOrder, isLiveSubscription, extrasLineText, extrasPaidText, orderCosts, orderExtrasText, orderPriceListText, onboardingFeeLabel, orderIncludedText, orderPriceText, planLabel } from "@/lib/legal/fill";
 import { TIER_BASE_PENCE } from "@/lib/stripe/config";
 import { EXTRA_BRANCH_PENCE, EXTRA_SEAT_PENCE, includedBranchesForTier, includedSeatsForTier } from "@/lib/billing/seats";
 import { getCompanyBilling } from "@/lib/billing/stripe-sync";
@@ -47,17 +48,20 @@ export async function acceptAgreement(_prev: ActionState, formData: FormData): P
   /* A Black account is never billed, so it is not asked Monthly or Annual (Phil, 2026-09-30):
      whatever the form sends, it is recorded as "none". Decided here from the plan, not the form. */
   const billed = billingApplies(company.tier);
+  /* A FOUNDER DEAL FIXES THE ORDER (0354): its choices are used whatever the form sends. */
+  const terms = await loadOrderTerms(supabase, companyId);
+  const fixed = billed ? terms.fixed : null;
   const input = {
     legalName: String(formData.get("legal_name") ?? ""),
     organisationType: String(formData.get("organisation_type") ?? ""),
     companyNumber: String(formData.get("company_number") ?? ""),
     address: String(formData.get("address") ?? ""),
-    billingOption: billed ? String(formData.get("billing_option") ?? "") : "none",
+    billingOption: billed ? (fixed?.billingOption ?? String(formData.get("billing_option") ?? "")) : "none",
     accepted: formData.get("accept") === "yes",
     // A Black account is not asked about extras: it has as many users and branches as it needs.
-    extraUsers: billed ? String(formData.get("extra_users") ?? "") : undefined,
-    extraBranches: billed ? String(formData.get("extra_branches") ?? "") : undefined,
-    extrasBilling: billed ? String(formData.get("extras_billing") ?? "yearly") : undefined,
+    extraUsers: billed ? (fixed ? String(fixed.extraUsers) : String(formData.get("extra_users") ?? "")) : undefined,
+    extraBranches: billed ? (fixed ? String(fixed.extraBranches) : String(formData.get("extra_branches") ?? "")) : undefined,
+    extrasBilling: billed ? (fixed?.extrasBilling ?? String(formData.get("extras_billing") ?? "yearly")) : undefined,
   };
   const problems = checkOrder(input, { billingApplies: billed });
   const first = Object.values(problems)[0];
@@ -91,18 +95,15 @@ export async function acceptAgreement(_prev: ActionState, formData: FormData): P
     plan: planLabel(company.tier),
     billingOption: input.billingOption,
     extrasBilling: input.extrasBilling ?? "yearly",
-    monthlyPence: company.tier === "business" || company.tier === "pro" ? TIER_BASE_PENCE[company.tier] : null,
+    monthlyPence: terms.monthlyPence,
     annualMonths: ANNUAL_MONTHS_CHARGED,
     extraUsers,
     extraBranches,
-    seatPence: EXTRA_SEAT_PENCE,
-    branchPence: EXTRA_BRANCH_PENCE,
-    onboardingFee: onboardingFeeLabel({
-      tier: company.tier,
-      offerActive: onboardingOfferActive(formatCivilDate(todayInLondon())),
-      fee: ONBOARDING_FEE,
-      offerEnd: ONBOARDING_OFFER_END_TEXT,
-    }),
+    seatPence: terms.seatPence,
+    branchPence: terms.branchPence,
+    onboardingFee: terms.onboardingFee,
+    branchStep: terms.step,
+    word: terms.word,
   });
 
   const docs = legalDocuments();
@@ -131,34 +132,23 @@ export async function acceptAgreement(_prev: ActionState, formData: FormData): P
     price_text: orderPriceText({
       tier: company.tier,
       billingOption: input.billingOption,
-      monthlyPence:
-        company.tier === "business" || company.tier === "pro" ? TIER_BASE_PENCE[company.tier] : null,
+      monthlyPence: terms.monthlyPence,
       annualMonths: ANNUAL_MONTHS_CHARGED,
     }),
-    included_text: orderIncludedText({
-      users: includedSeatsForTier(company.tier ?? "business"),
-      branches: includedBranchesForTier(company.tier ?? "business"),
-      ai: aiMonthlyCredits(company.tier),
-      sms: smsMonthlyCredits(company.tier),
-    }),
-    price_list_date: orderPriceListText(
-      orderExtrasText({ tier: company.tier, seatPence: EXTRA_SEAT_PENCE, branchPence: EXTRA_BRANCH_PENCE }),
-      PRICE_LIST_DATE,
-    ),
-    onboarding_fee: onboardingFeeLabel({
-      tier: company.tier,
-      offerActive: onboardingOfferActive(today),
-      fee: ONBOARDING_FEE,
-      offerEnd: ONBOARDING_OFFER_END_TEXT,
-    }),
+    included_text: terms.includedText,
+    price_list_date: terms.priceListText,
+    onboarding_fee: terms.onboardingFee,
     branches_ordered: billed ? includedBranchesForTier(company.tier ?? "business") + extraBranches : null,
-    branches_text: extrasLineText(extraBranches, EXTRA_BRANCH_PENCE, company.tier),
+    branches_text: branchesLineText(extraBranches, terms.branchPence, company.tier, terms.step),
     extra_users: billed ? extraUsers : null,
     extra_branches: billed ? extraBranches : null,
-    extra_users_text: extrasLineText(extraUsers, EXTRA_SEAT_PENCE, company.tier),
+    extra_users_text: extrasLineText(extraUsers, terms.seatPence, company.tier),
     extras_billing: costs.extrasBilling,
     extras_paid_text: extrasPaidText(costs, input.billingOption, company.tier),
     total_text: costs.totalText,
+    // Their word for a branch as it read on the Order they accepted (0355). Null means Branch.
+    branch_word: terms.word.one.toLowerCase() === "branch" ? null : terms.word.one,
+    branch_word_plural: terms.word.one.toLowerCase() === "branch" ? null : terms.word.many,
     start_date: today,
     ip,
     user_agent: userAgent,

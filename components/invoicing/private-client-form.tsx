@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { IDLE_STATE, type ActionState } from "@/lib/forms";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 type ServerAction = (prev: ActionState, formData: FormData) => Promise<ActionState>;
 type Branch = { id: string; name: string };
@@ -38,6 +39,7 @@ export default function PrivateClientForm({
   serviceUsers: ServiceUser[];
   initial?: ClientInitial;
 }) {
+  const bw = useBranchWord();
   const router = useRouter();
   const [state, formAction, pending] = useActionState(action, IDLE_STATE);
   const [type, setType] = useState<"person" | "organisation">(initial?.client_type ?? "person");
@@ -85,13 +87,13 @@ export default function PrivateClientForm({
             defaultValue=""
             onChange={(e) => startFromServiceUser(e.target.value)}
           >
-            <option value="">Choose a service user to copy their name and branch</option>
+            <option value="">Choose a service user to copy their name and {bw.oneLower}</option>
             {serviceUsers.map((s) => (
               <option key={s.id} value={s.id}>{s.name}</option>
             ))}
           </select>
           <p className="form-hint">
-            For a self funding client who is the person receiving care. Fills the name, branch and link
+            For a self funding client who is the person receiving care. Fills the name, {bw.oneLower} and link
             below, which you can still edit.
           </p>
         </div>
@@ -120,7 +122,7 @@ export default function PrivateClientForm({
         </div>
         {mode === "create" ? (
           <div>
-            <label htmlFor="branch_id" className="form-label">Branch</label>
+            <label htmlFor="branch_id" className="form-label">{bw.one}</label>
             <select
               id="branch_id"
               name="branch_id"
@@ -128,7 +130,7 @@ export default function PrivateClientForm({
               onChange={(e) => onBranchChange(e.target.value)}
               required
             >
-              <option value="">Choose a branch</option>
+              <option value="">Choose a {bw.oneLower}</option>
               {branches.map((b) => (
                 <option key={b.id} value={b.id}>{b.name}</option>
               ))}
@@ -136,7 +138,7 @@ export default function PrivateClientForm({
           </div>
         ) : (
           <div>
-            <label className="form-label">Branch</label>
+            <label className="form-label">{bw.one}</label>
             <p className="pt-2 text-sm text-white/70">{initial?.branch_name ?? "—"}</p>
           </div>
         )}
@@ -203,7 +205,7 @@ export default function PrivateClientForm({
             <option key={s.id} value={s.id}>{s.name}</option>
           ))}
         </select>
-        <p className="form-hint">The person receiving the care this client pays for, in the chosen branch.</p>
+        <p className="form-hint">The person receiving the care this client pays for, in the chosen {bw.oneLower}.</p>
       </div>
 
       <div>

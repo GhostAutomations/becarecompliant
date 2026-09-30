@@ -30,6 +30,7 @@ import { renderEvidencePdf } from "./pdf";
 import { loadEvidenceSubject } from "./subject";
 import { escalationRecipients, type Recipient } from "./escalation-recipients";
 import { flattenFields, type Answers, type FormSchema } from "@/lib/form-schema";
+import { getBranchTerms } from "@/lib/branches/company-word";
 
 /** Did this set of answers ask for the review to be escalated? */
 export function wantsEscalation(schema: FormSchema, answers: Answers): boolean {
@@ -92,6 +93,7 @@ export async function escalateEvidence(input: EscalationInput): Promise<string |
       subject,
       companyName: input.companyName,
       branchName: input.branchName,
+      branchLabel: (await getBranchTerms(input.companyId)).one,
       formName: input.formName,
       formVersion: input.formVersion,
       authorName: input.authorName,

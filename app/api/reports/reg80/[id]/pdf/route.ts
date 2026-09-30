@@ -6,6 +6,7 @@ import { renderReportPdf } from "@/lib/export/pdf";
 import { pdfResponse, exportError } from "@/lib/export/deliver";
 import { getReg80Review } from "@/lib/reg80/data";
 import { buildReg80Doc } from "@/lib/reg80/pdf-doc";
+import { getBranchTerms } from "@/lib/branches/company-word";
 
 /** Branded PDF of one Regulation 80 quality of care review. RLS authorises the read. */
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -22,7 +23,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
     supabase.from("companies").select("name").eq("id", review.company_id).maybeSingle(),
   ]);
   const branchName = (branch?.name as string) ?? "Branch";
-  const doc = buildReg80Doc(review, branchName, (company?.name as string) ?? "Company");
+  const doc = buildReg80Doc(review, branchName, (company?.name as string) ?? "Company", (await getBranchTerms(profile.company_id)).one);
 
   await writeAudit({
     companyId: profile.company_id,

@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 /**
  * Branch picker that lives inside a report View. Changing it reloads the same report for the
@@ -17,6 +18,7 @@ export default function ReportBranchSelect({
   value: string;
   allowAll: boolean;
 }) {
+  const bw = useBranchWord();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -24,7 +26,7 @@ export default function ReportBranchSelect({
   return (
     <div>
       <label htmlFor="rbranch" className="form-label">
-        Branch
+        {bw.one}
       </label>
       <select
         id="rbranch"
@@ -36,7 +38,7 @@ export default function ReportBranchSelect({
         }}
         className="max-w-xs"
       >
-        {allowAll ? <option value="all">All branches</option> : null}
+        {allowAll ? <option value="all">{bw.all}</option> : null}
         {branches.map((b) => (
           <option key={b.id} value={b.id}>
             {b.name}

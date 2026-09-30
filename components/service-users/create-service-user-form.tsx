@@ -3,12 +3,14 @@
 import { useActionState } from "react";
 import { createServiceUser } from "@/lib/service-users/actions";
 import { IDLE_STATE } from "@/lib/forms";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 export default function CreateServiceUserForm({
   branches,
 }: {
   branches: Array<{ id: string; name: string }>;
 }) {
+  const bw = useBranchWord();
   const [state, formAction, pending] = useActionState(createServiceUser, IDLE_STATE);
 
   return (
@@ -20,7 +22,7 @@ export default function CreateServiceUserForm({
         </div>
 
         <div>
-          <label htmlFor="branch_id" className="form-label">Branch *</label>
+          <label htmlFor="branch_id" className="form-label">{bw.one} *</label>
           <select id="branch_id" name="branch_id" required defaultValue="">
             <option value="" disabled>Please choose</option>
             {branches.map((b) => (

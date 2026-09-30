@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 /** RELATIVE, EXTENSIONED: node --experimental-strip-types resolves neither aliases nor
  *  extensionless files. monthly-total.ts has no runtime imports for exactly this reason. */
-import { subscriptionMonthlyPence } from "./monthly-total.ts";
+import { subscriptionMonthlyPence, monthlyRecurringPence } from "./monthly-total.ts";
 
 const acme = {
   basePence: 6900,
@@ -65,4 +65,19 @@ test("a missing or nonsense number is ZERO, never NaN", () => {
 
 test("a fractional count never produces fractional pence", () => {
   assert.equal(subscriptionMonthlyPence({ ...acme, extraSeats: 1.9 }), 7650 + 500);
+});
+
+const annual = { basePence: 7900, extraSeats: 1, seatPence: 500, extraBranches: 0, branchPence: 2500, yearlyMonthsCharged: 10 };
+
+test("MRR of Annual Business plus one yearly extra user is £840 / 12 = £70", () => {
+  assert.equal(monthlyRecurringPence({ ...annual, planYearly: true, extrasYearly: true }), 7000);
+});
+
+test("MRR of a monthly company is its monthly total", () => {
+  assert.equal(monthlyRecurringPence({ ...annual, planYearly: false, extrasYearly: false }), 8400);
+});
+
+test("MRR of Annual with monthly extras: plan over twelve plus the extras each month", () => {
+  // 79 x 10 / 12 = 65.83..., plus 5 = 70.83 -> 7083 pence
+  assert.equal(monthlyRecurringPence({ ...annual, planYearly: true, extrasYearly: false }), 7083);
 });

@@ -12,6 +12,7 @@ import {
   CONTACT_METHODS,
   type ComplaintRelationship,
 } from "@/lib/complaints/types";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 export default function CreateComplaintForm({
   branches,
@@ -24,6 +25,7 @@ export default function CreateComplaintForm({
   people: PersonOption[];
   todayIso: string;
 }) {
+  const bw = useBranchWord();
   const [state, formAction, pending] = useActionState(createComplaint, IDLE_STATE);
   const [contactMethod, setContactMethod] = useState("");
   const [branchId, setBranchId] = useState("");
@@ -39,7 +41,7 @@ export default function CreateComplaintForm({
         </div>
 
         <div>
-          <label htmlFor="branch_id" className="form-label">Branch *</label>
+          <label htmlFor="branch_id" className="form-label">{bw.one} *</label>
           <select
             id="branch_id"
             name="branch_id"

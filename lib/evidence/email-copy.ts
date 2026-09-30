@@ -45,6 +45,8 @@ export type EmailCopyInput = {
   recipientEmail: string | null;
   companyName: string;
   branchName: string | null;
+  /** The company's word for a branch (0354). */
+  branchLabel?: string | null;
   formName: string;
   formVersion: number;
   authorName: string | null;
@@ -72,6 +74,7 @@ export async function emailEvidenceCopy(input: EmailCopyInput): Promise<string |
       subject: await loadEvidenceSubject(input.recordType, input.recordId),
       companyName: input.companyName,
       branchName: input.branchName,
+      branchLabel: input.branchLabel ?? null,
       formName: input.formName,
       formVersion: input.formVersion,
       authorName: input.authorName,

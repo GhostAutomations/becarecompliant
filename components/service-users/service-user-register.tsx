@@ -31,6 +31,7 @@ import { formatDisplayDate, reviewSlots } from "@/lib/service-users/logic";
 import { type ServiceUserRow, SERVICE_STATUS_LABELS } from "@/lib/service-users/types";
 import { NameSortHeader, sortByName, useNameSort, type SortMode } from "@/components/register/name-sort-header";
 import type { BranchType } from "@/lib/service-users/data";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 const RAG_ORDER: Record<string, number> = { red: 0, amber: 1, green: 2, none: 3 };
 
@@ -128,6 +129,7 @@ export default function ServiceUserRegister({
   /** The name order this user chose last time, read from their profile by the page. */
   initialSort: SortMode;
 }) {
+  const bw = useBranchWord();
   const router = useRouter();
   const [view, setView] = useState(VIEW_META[initialView] ? initialView : "main");
   // Branch options exclude the office (already only branch-kind) and carry each
@@ -226,7 +228,7 @@ export default function ServiceUserRegister({
             </div>
           ) : (
             <label className="flex items-center gap-2 text-sm font-bold text-white">
-              Branches
+              {bw.many}
               <select className="w-48" value={branchId} onChange={(e) => changeBranch(e.target.value)}>
                 {branchOptions.map((b) => (
                   <option key={b.id} value={b.id}>{b.name}</option>

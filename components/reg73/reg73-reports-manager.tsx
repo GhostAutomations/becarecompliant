@@ -6,6 +6,7 @@ import Link from "next/link";
 import { IDLE_STATE } from "@/lib/forms";
 import { deleteReg73Visits } from "@/lib/reg73/actions";
 import type { Reg73VisitListItem } from "@/lib/reg73/data";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 function fmtDate(v: string | null): string {
   if (!v) return "";
@@ -20,6 +21,7 @@ export default function Reg73ReportsManager({
   reports: Reg73VisitListItem[];
   canDelete: boolean;
 }) {
+  const bw = useBranchWord();
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirming, setConfirming] = useState(false);
@@ -127,7 +129,7 @@ export default function Reg73ReportsManager({
                 <input type="checkbox" checked={allSelected} onChange={toggleAll} aria-label="Select all" />
               </th>
               <th className="px-3 py-2">Report</th>
-              <th className="px-3 py-2">Branch</th>
+              <th className="px-3 py-2">{bw.one}</th>
               <th className="px-3 py-2">Status</th>
               <th className="px-3 py-2">Updated</th>
               <th className="px-3 py-2">PDF</th>

@@ -49,6 +49,7 @@ import {
   SERVICE_STATUS_LABELS,
 } from "@/lib/service-users/types";
 import { REGISTER_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
+import { getBranchTerms } from "@/lib/branches/company-word";
 
 export const metadata: Metadata = { title: "Service User" };
 
@@ -81,6 +82,7 @@ export default async function ServiceUserPage({
   const serviceUser = await getServiceUser(id);
   if (!serviceUser || !profile.company_id) redirect("/service-users");
   const companyId = profile.company_id;
+  const bw = await getBranchTerms(companyId);
   /*
    * PER RECORD, NOT PER ROLE (Phil, 2026-08-14). This used to be
    * `MANAGE_ROLES.includes(profile.role)`, which is a role check where RLS does a role check AND
@@ -437,7 +439,7 @@ export default async function ServiceUserPage({
 
             <div className="grid gap-5 sm:grid-cols-2">
               <ActionForm action={transferServiceUser} hidden={{ service_user_id: serviceUser.id }} label="Transfer" buttonClassName="btn-outline text-xs">
-                <label htmlFor="transfer_branch" className="form-label">Transfer to branch</label>
+                <label htmlFor="transfer_branch" className="form-label">Transfer to {bw.oneLower}</label>
                 <select id="transfer_branch" name="branch_id" defaultValue={serviceUser.branch_id}>
                   {branchOptions.map((b) => (<option key={b.id} value={b.id}>{b.name}</option>))}
                 </select>

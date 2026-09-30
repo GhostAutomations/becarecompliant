@@ -43,6 +43,7 @@ import {
   getActiveSeatCount,
 } from "@/lib/billing/stripe-sync";
 import { billedExtra } from "@/lib/billing/ordered-extras";
+import { dealSpecials } from "@/lib/billing/company-prices";
 import { subscriptionHasEnded } from "@/lib/billing/subscription-state";
 import { checkoutPriceProblem } from "@/lib/billing/price-check";
 import { branchPriceId } from "@/lib/stripe/config";
@@ -127,6 +128,20 @@ export async function changeTier(input: {
      against the TARGET tier's allowances, because that is what the company is about to be on.
      Checking a price that is not going on the invoice would let a company be blocked by a line
      it is not being charged for, which is a mistake this guard has already made once. */
+  /* A SPECIAL PLAN PRICE BELONGS TO THE PLAN IT WAS AGREED FOR (0354). Moving a company with an
+     agreed Business price to Pro would otherwise carry that Business price onto Pro. The founder
+     changes the deal first; a customer is asked to get in touch. Moving to Black is fine: free. */
+  const specials = await dealSpecials(input.companyId);
+  if (specials.plan && input.to !== "black") {
+    return {
+      ok: false,
+      error:
+        input.actor === "founder"
+          ? "This company has a special plan price in its deal. Change or clear the deal's plan price first, then change the plan."
+          : "Your plan has a price agreed with us, so please email hello@becarecompliant.com to change it and we will sort it out.",
+    };
+  }
+
   if (plan.settlement === "swap_base" || plan.settlement === "resume") {
     // Same floor as the syncs: never below what the accepted Order asked for (2026-09-30).
     const ordered = await getOrderedExtras(input.companyId, toTier);
@@ -135,6 +150,7 @@ export async function changeTier(input: {
     const priceProblem = await checkoutPriceProblem(toTier as "business" | "pro", {
       includeSeat: seatExtra > 0,
       includeBranch: branchExtra > 0,
+      skip: { seat: specials.seat, branch: specials.branch },
     });
     if (priceProblem) return { ok: false, error: priceProblem };
   }

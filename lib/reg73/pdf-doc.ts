@@ -29,7 +29,7 @@ function fmtDateTime(iso: string | null | undefined): string {
   }).format(new Date(iso));
 }
 
-export function buildReg73Doc(visit: Reg73VisitFull, branchName: string, companyName: string): ReportDoc {
+export function buildReg73Doc(visit: Reg73VisitFull, branchName: string, companyName: string, branchLabel = "Branch"): ReportDoc {
   const data = visit.data ?? {};
   const val = (k: string) => (typeof data[k] === "string" ? (data[k] as string) : "");
 
@@ -68,7 +68,7 @@ export function buildReg73Doc(visit: Reg73VisitFull, branchName: string, company
     reference: visit.reference ?? undefined,
     meta: [
       { label: "Responsible Individual", value: visit.ri_name ?? "Not set" },
-      { label: "Branch", value: branchName },
+      { label: branchLabel, value: branchName },
       { label: "Visit dates", value: `${fmtDate(visit.start_date)} to ${fmtDate(visit.end_date)}` },
       { label: "Status", value: visit.status === "submitted" ? "Submitted" : "Draft" },
     ],

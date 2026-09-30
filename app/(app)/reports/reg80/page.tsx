@@ -5,6 +5,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import { listAccessibleBranchTypes } from "@/lib/service-users/data";
 import StartReviewButton from "@/components/reg80/start-review-button";
+import { getBranchTerms } from "@/lib/branches/company-word";
 
 export const metadata: Metadata = { title: "Regulation 80 reviews" };
 
@@ -14,6 +15,7 @@ const START_ROLES = ["platform_admin", "company_admin", "registered_individual",
 export default async function Reg80ListPage() {
   const { user, profile } = await requireCompany();
   if (!profile.company_id) redirect("/founder");
+  const bw = await getBranchTerms(profile.company_id);
   if (!VIEW_ROLES.includes(profile.role)) redirect("/reports");
   const canStart = START_ROLES.includes(profile.role);
 
@@ -26,7 +28,7 @@ export default async function Reg80ListPage() {
         <div>
           <h1 className="page-title">Regulation 80 reviews</h1>
           <p className="page-subtitle">
-            The six monthly Quality of Care review, pre-filled from the site. One per branch.
+            The six monthly Quality of Care review, pre-filled from the site. One per {bw.oneLower}.
           </p>
         </div>
         <Link href="/reports/reg80/reports" className="btn-primary px-3 py-2 text-xs">
@@ -35,7 +37,7 @@ export default async function Reg80ListPage() {
       </div>
 
       {branches.length === 0 ? (
-        <div className="glass-card p-6 text-sm text-white/60">No branches to review yet.</div>
+        <div className="glass-card p-6 text-sm text-white/60">No {bw.manyLower} to review yet.</div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {branches.map((b) => (

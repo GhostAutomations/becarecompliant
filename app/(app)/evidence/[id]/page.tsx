@@ -6,6 +6,7 @@ import { isBinaryField, isPresentational, type AnswerValue } from "@/lib/form-sc
 import { shouldShowInEvidence, standDown } from "@/lib/form-validate";
 import { formatAnswerForDisplay } from "@/lib/form-format";
 import { ukDate } from "@/lib/dates";
+import { getBranchTerms } from "@/lib/branches/company-word";
 
 export const metadata: Metadata = { title: "Evidence" };
 
@@ -68,6 +69,7 @@ export default async function EvidenceViewPage({
   searchParams: Promise<{ from?: string }>;
 }) {
   const { profile } = await requireCompany();
+  const bw = await getBranchTerms(profile.company_id);
   const { id } = await params;
   const { from } = await searchParams;
   const cameFrom = from ? BACK_TARGETS[from] : undefined;
@@ -156,7 +158,7 @@ export default async function EvidenceViewPage({
           <p className="text-sm text-white/85">Version {ev.formVersion}</p>
         </div>
         <div>
-          <p className="text-[11px] uppercase text-white/40">Branch</p>
+          <p className="text-[11px] uppercase text-white/40">{bw.one}</p>
           <p className="text-sm text-white/85">{ev.branchName ?? "Not set"}</p>
         </div>
       </div>

@@ -13,6 +13,7 @@ import {
 } from "@/lib/service-users/data";
 import { listRegisterCheckColumns, getRegisterColumnText } from "@/lib/register/data";
 import { REGISTER_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
+import { getBranchTerms } from "@/lib/branches/company-word";
 
 export const metadata: Metadata = { title: "Service Users" };
 
@@ -29,7 +30,7 @@ export default async function ServiceUsersPage({
   // already checked the Service Users tick; the outcome of a Check they just completed arrives here.
   if (profile.role === "senior") {
     const { completed, recorded, history, warn } = await searchParams;
-    return <SeniorNameList kind="service_users" outcome={{ completed, recorded, history, warn }} />;
+    return <SeniorNameList kind="service_users" outcome={{ completed, recorded, history, warn }} branchWord={await getBranchTerms(profile.company_id)} />;
   }
   if (profile.role === "on_call") redirect("/on-call");
 

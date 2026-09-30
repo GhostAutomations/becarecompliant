@@ -2,6 +2,7 @@ import "server-only";
 import { recordUsage } from "@/lib/notifications/usage";
 import { spendSmsCredit, refundSmsCredit, OUT_OF_SMS_CREDITS } from "@/lib/billing/sms-credits";
 import { isOptedOut, SMS_OPTED_OUT } from "@/lib/sms/opt-out";
+import { DEMO_NO_SMS, isDemoCompanyAnyContext } from "@/lib/demo/data";
 
 /**
  * Twilio SMS sender (REST API, no SDK dependency, mirroring lib/email/resend.ts).
@@ -69,6 +70,11 @@ export async function sendSms(opts: {
    * as receiving nothing. "We could not tell" is reported as an error, never as permission: a
    * database that did not answer is not the same as a person who never objected.
    */
+  // NO SMS FROM A DEMO (Phil, 2026-09-30): its people are made up, and a text costs real money.
+  if (await isDemoCompanyAnyContext(opts.companyId)) {
+    return { sent: false, skippedReason: DEMO_NO_SMS };
+  }
+
   const optedOut = await isOptedOut(opts.to);
   if (optedOut === null) {
     return { sent: false, error: "Could not check the SMS opt out list" };

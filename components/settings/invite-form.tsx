@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { inviteUser } from "@/app/(app)/settings/actions";
 import { IDLE_STATE } from "@/lib/forms";
 import { picksABranch, mayChooseAllBranches, ALL_BRANCHES } from "@/lib/people/roles";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 type BranchOption = { id: string; name: string; kind: string };
 /** value is what the form posts ("supervisor", or "custom:<id>"); baseRole is the built-in role
@@ -17,6 +18,7 @@ export function InviteForm({
   branches: BranchOption[];
   roleOptions: RoleOption[];
 }) {
+  const bw = useBranchWord();
   const [state, formAction, pending] = useActionState(inviteUser, IDLE_STATE);
   /* THE BRANCH FIELD WAS TELLING A LIE (Phil, 2026-08-19). A Responsible Individual and a
      Registered Manager are company wide in the database — is_company_wide covers both, so they
@@ -76,7 +78,7 @@ export function InviteForm({
         </div>
         <div>
           <label htmlFor="branch_id" className="form-label">
-            Branch
+            {bw.one}
           </label>
           {noBranch ? (
             <>
@@ -89,22 +91,22 @@ export function InviteForm({
                 aria-hidden="true"
               />
               <p className="rounded-lg border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-white/70">
-                All branches
+                {bw.all}
               </p>
               <p className="form-hint">
-                This role sees and manages every branch, so there is no branch to choose.
+                This role sees and manages every {bw.oneLower}, so there is no {bw.oneLower} to choose.
               </p>
             </>
           ) : (
             <select id="branch_id" name="branch_id" defaultValue="" required key={role}>
               <option value="" disabled>
-                Choose a branch
+                Choose a {bw.oneLower}
               </option>
               {/* Offered to a Registered Manager, deliberately NOT selected for them: some run
                   every branch, some run one registered service, and the product should not
                   assume which (Phil, 2026-08-19). */}
               {mayChooseAllBranches(baseRole) ? (
-                <option value={ALL_BRANCHES}>All branches</option>
+                <option value={ALL_BRANCHES}>{bw.all}</option>
               ) : null}
               {branches.map((b) => (
                 <option key={b.id} value={b.id}>
@@ -116,7 +118,7 @@ export function InviteForm({
           )}
           {mayChooseAllBranches(baseRole) ? (
             <p className="form-hint">
-              Pick one branch, or All branches for somebody who covers every site. You can change
+              Pick one {bw.oneLower}, or {bw.all} for somebody who covers every site. You can change
               it later on this screen.
             </p>
           ) : null}

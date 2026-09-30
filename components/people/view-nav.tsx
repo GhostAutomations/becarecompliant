@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { BranchLite } from "@/lib/people/data";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 /** View keys and where each navigates (register variants use /people?view=). */
 const VIEW_PATHS: Record<string, string> = {
@@ -27,6 +28,7 @@ export default function ViewNav({
   branchId: string | null;
   branches: BranchLite[];
 }) {
+  const bw = useBranchWord();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const branchOptions = branches.filter((b) => b.kind === "branch" || b.kind === "team");
@@ -54,7 +56,7 @@ export default function ViewNav({
     <div className="flex flex-wrap items-center gap-4">
       {branchOptions.length > 1 ? (
         <label className="flex items-center gap-2 text-sm font-bold text-white">
-          Branches
+          {bw.many}
           <select
             className="w-48"
             value={shownBranch}
@@ -63,7 +65,7 @@ export default function ViewNav({
               go(VIEW_PATHS[shownView] ?? "/people", e.target.value);
             }}
           >
-            <option value="">All branches</option>
+            <option value="">{bw.all}</option>
             {branchOptions.map((b) => (
               <option key={b.id} value={b.id}>{b.name}</option>
             ))}

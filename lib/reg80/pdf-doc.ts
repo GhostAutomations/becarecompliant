@@ -29,7 +29,7 @@ function fmtDateTime(iso: string | null | undefined): string {
   }).format(new Date(iso));
 }
 
-export function buildReg80Doc(review: Reg80ReviewFull, branchName: string, companyName: string): ReportDoc {
+export function buildReg80Doc(review: Reg80ReviewFull, branchName: string, companyName: string, branchLabel = "Branch"): ReportDoc {
   const data = review.data ?? {};
   const val = (k: string) => (typeof data[k] === "string" ? (data[k] as string) : "");
 
@@ -78,7 +78,7 @@ export function buildReg80Doc(review: Reg80ReviewFull, branchName: string, compa
     reference: review.reference ?? undefined,
     meta: [
       { label: "Responsible Individual", value: review.ri_name ?? "Not set" },
-      { label: "Branch", value: branchName },
+      { label: branchLabel, value: branchName },
       { label: "Review period", value: `${fmtDate(review.period_start)} to ${fmtDate(review.period_end)}` },
       { label: "Status", value: review.status === "submitted" ? "Submitted" : "Draft" },
     ],

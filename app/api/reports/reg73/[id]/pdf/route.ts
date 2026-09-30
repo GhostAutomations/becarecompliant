@@ -6,6 +6,7 @@ import { renderReportPdf } from "@/lib/export/pdf";
 import { pdfResponse, exportError } from "@/lib/export/deliver";
 import { getReg73Visit } from "@/lib/reg73/data";
 import { buildReg73Doc } from "@/lib/reg73/pdf-doc";
+import { getBranchTerms } from "@/lib/branches/company-word";
 
 /** Branded PDF of one Regulation 73 visit. RLS authorises the read. */
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -22,7 +23,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
     supabase.from("companies").select("name").eq("id", visit.company_id).maybeSingle(),
   ]);
   const branchName = (branch?.name as string) ?? "Branch";
-  const doc = buildReg73Doc(visit, branchName, (company?.name as string) ?? "Company");
+  const doc = buildReg73Doc(visit, branchName, (company?.name as string) ?? "Company", (await getBranchTerms(profile.company_id)).one);
 
   await writeAudit({
     companyId: profile.company_id,

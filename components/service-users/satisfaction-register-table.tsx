@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { SatisfactionRow } from "@/lib/service-users/satisfaction";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 function fmtDate(iso: string | null): string {
   if (!iso) return "—";
@@ -24,6 +25,7 @@ export default function SatisfactionRegisterTable({
   questions: { key: string; label: string }[];
   branches: { id: string; name: string }[];
 }) {
+  const bw = useBranchWord();
   const withReviews = useMemo(() => rows.filter((r) => r.reviewsInWindow > 0), [rows]);
   const [branchId, setBranchId] = useState("");
   const shown = branchId ? withReviews.filter((r) => r.branch_id === branchId) : withReviews;
@@ -59,9 +61,9 @@ export default function SatisfactionRegisterTable({
           <h2 className="text-sm font-semibold text-white/80">Service users</h2>
           {branches.length > 1 ? (
             <label className="inline-flex items-center gap-2 text-xs text-white/55">
-              Branch
+              {bw.one}
               <select className="ctl-sm" value={branchId} onChange={(e) => setBranchId(e.target.value)}>
-                <option value="">All branches</option>
+                <option value="">{bw.all}</option>
                 {branches.map((b) => (
                   <option key={b.id} value={b.id}>{b.name}</option>
                 ))}
@@ -79,7 +81,7 @@ export default function SatisfactionRegisterTable({
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wide text-white/45">
                   <th className="py-2 pr-3">Service user</th>
-                  <th className="py-2 pr-3">Branch</th>
+                  <th className="py-2 pr-3">{bw.one}</th>
                   <th className="py-2 pr-3">Last review</th>
                   {questions.map((q) => (
                     <th key={q.key} className="py-2 pr-3">{q.label}</th>

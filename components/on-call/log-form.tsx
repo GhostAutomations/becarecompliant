@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { createLog, updateLog, saveLogDraft } from "@/lib/on-call/actions";
 import { IDLE_STATE } from "@/lib/forms";
 import type { BranchOption, OnCallLog, RotaScope } from "@/lib/on-call/types";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 type ShiftChoice = { value: string; label: string };
 
@@ -25,6 +26,7 @@ export default function LogForm({
   /** Present on the new-call page: prefill from saved draft + autosave. */
   draft?: Record<string, string> | null;
 }) {
+  const bw = useBranchWord();
   const editing = !!log;
   const draftEnabled = !editing && draft !== undefined;
   const d = draft ?? {};
@@ -88,7 +90,7 @@ export default function LogForm({
       <div className="grid gap-5 sm:grid-cols-2">
         {scope === "branch" ? (
           <div>
-            <label htmlFor="branch_id" className="form-label">Branch *</label>
+            <label htmlFor="branch_id" className="form-label">{bw.one} *</label>
             <select id="branch_id" name="branch_id" required defaultValue={branchValue}>
               <option value="" disabled>Please choose</option>
               {branches.map((b) => (

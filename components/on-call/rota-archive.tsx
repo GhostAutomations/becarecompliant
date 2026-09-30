@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { dayHeading } from "@/lib/on-call/format";
 import type { ArchiveWeek } from "@/lib/on-call/data";
 import type { BranchOption, RotaScope } from "@/lib/on-call/types";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 const SLOTS: Array<{ key: "am" | "pm"; label: string }> = [
   { key: "am", label: "AM" },
@@ -34,13 +35,14 @@ export default function RotaArchive({
   selectedBranchId: string | null;
   weeks: ArchiveWeek[];
 }) {
+  const bw = useBranchWord();
   const router = useRouter();
 
   return (
     <div className="space-y-6">
       {scope === "branch" && branches.length > 1 ? (
         <select
-          aria-label="Branch"
+          aria-label={bw.one}
           value={selectedBranchId ?? ""}
           onChange={(e) => router.push(`/on-call/archive?branch=${e.target.value}`)}
           className="w-auto"

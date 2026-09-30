@@ -29,6 +29,7 @@ import {
   resendStaffInviteByEmail,
   type Actor,
 } from "@/lib/invites";
+import { isDemoCompany } from "@/lib/demo/data";
 
 export type StaffInviteOutcome = {
   ok: boolean;
@@ -54,6 +55,8 @@ export async function inviteStaffForPerson(
     .eq("id", personId)
     .maybeSingle();
   if (!person) return { ok: false, error: "That person could not be found." };
+  // No logins from inside a demo (0356): the Person is added, nobody is invited.
+  if (await isDemoCompany(person.company_id as string)) return { ok: false, skipped: "demo" };
 
   const email = String(person.work_email ?? "").trim().toLowerCase();
   if (!email) return { ok: false, skipped: "no_email" };

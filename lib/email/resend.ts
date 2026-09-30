@@ -140,6 +140,12 @@ export async function sendEmail(opts: {
       skippedReason: "RESEND_API_KEY / RESEND_FROM not configured",
     };
   }
+  /* Never to a reserved or sample address (the demo's made up people are @demo.invalid, 0356).
+     The batch sender already filtered these; the single sender now does too, so a bounce can
+     never come from a made up person. */
+  if (!isSendableAddress(opts.to)) {
+    return { sent: false, skippedReason: "Not a real email address, so nothing was sent" };
+  }
 
   try {
     const res = await fetch("https://api.resend.com/emails", {

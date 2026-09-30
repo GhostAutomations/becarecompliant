@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runTrialRequestChase } from "@/lib/founder/trial-chase";
 import { isLondonSendHour } from "@/lib/notifications/digest";
+import { runDemoHousekeeping } from "@/lib/demo/manage";
 
 /**
  * Daily chase for unanswered trial requests.
@@ -35,9 +36,13 @@ export async function GET(request: NextRequest) {
   }
 
   const result = await runTrialRequestChase(now);
-  if (result.errors.length > 0) {
-    console.error("[cron/trial-chase] failed:", result.errors.join(" | "));
-    return NextResponse.json(result, { status: 500 });
+  /* DEMOS (0356), same morning run: the survey email for a demo that has ended, and the deletion
+     of a demo 14 days past its end. Idempotent, so the second fire of the hour does nothing. */
+  const demos = await runDemoHousekeeping();
+  const errors = [...result.errors, ...demos.errors];
+  if (errors.length > 0) {
+    console.error("[cron/trial-chase] failed:", errors.join(" | "));
+    return NextResponse.json({ ...result, demos }, { status: 500 });
   }
-  return NextResponse.json(result);
+  return NextResponse.json({ ...result, demos });
 }

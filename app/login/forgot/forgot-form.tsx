@@ -14,7 +14,7 @@ import { RESET_THROTTLE_MINUTES } from "@/lib/auth/password-reset-rules";
  * request inside it sends nothing and the button would lie. The same answer and the same countdown
  * appear whatever the address, so the screen still does not say who has an account.
  */
-export function ForgotForm({ notice }: { notice?: string }) {
+export function ForgotForm({ notice, buttonLabel }: { notice?: string; buttonLabel?: string }) {
   const [state, formAction, pending] = useActionState(requestPasswordReset, IDLE_STATE);
   const [email, setEmail] = useState("");
   const [sentAt, setSentAt] = useState<number | null>(null);
@@ -89,7 +89,7 @@ export function ForgotForm({ notice }: { notice?: string }) {
         </p>
       ) : null}
       <button type="submit" className="btn-primary w-full" disabled={pending}>
-        {pending ? "Sending…" : "Send me a reset link"}
+        {pending ? "Sending…" : buttonLabel ?? "Send me a reset link"}
       </button>
     </form>
   );

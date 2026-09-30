@@ -4,6 +4,7 @@
  * The cards themselves are just a title, a description and a View button, so the
  * page stays calm and there is only one place to pick a branch.
  */
+import { branchTerms, type BranchTerms } from "@/lib/branches/word";
 
 type ReportCardProps = { title: string; description: string; viewHref: string; locked?: boolean };
 
@@ -28,7 +29,17 @@ function ReportCard({ title, description, viewHref, locked = false }: ReportCard
   );
 }
 
-export default function ReportsPanel({ entitled, isAdmin }: { entitled: boolean; isAdmin: boolean }) {
+export default function ReportsPanel({
+  entitled,
+  isAdmin,
+  branchWord,
+}: {
+  entitled: boolean;
+  isAdmin: boolean;
+  /** The company's word for a branch (0354). */
+  branchWord?: BranchTerms;
+}) {
+  const bw = branchWord ?? branchTerms(null);
   const viewHref = (type: string) => `/reports/view/${type}`;
   const proLocked = !entitled;
 
@@ -36,7 +47,7 @@ export default function ReportsPanel({ entitled, isAdmin }: { entitled: boolean;
     <div className="space-y-6">
       <section className="glass-card p-5">
         <p className="text-xs text-white/50">
-          Open any report to view it, choose a branch and date range, and download it as a PDF or
+          Open any report to view it, choose a {bw.oneLower} and date range, and download it as a PDF or
           CSV. Reports cover active records only. Leavers, archived people and cancelled or
           discharged service users are excluded, matching the registers.
         </p>
@@ -55,25 +66,25 @@ export default function ReportsPanel({ entitled, isAdmin }: { entitled: boolean;
         />
         <ReportCard
           title="Compliance report"
-          description="People and Service Users together: a RAG summary and the full overdue lists, for a branch or the whole company."
+          description={`People and Service Users together: a RAG summary and the full overdue lists, for a ${bw.oneLower} or the whole company.`}
           viewHref={viewHref("compliance")}
           locked={proLocked}
         />
         <ReportCard
           title="PQS report"
-          description="The PQS headline scores (mandatory training, supervision, staff registration, care plan reviews and safeguarding) with score bands, plus the on time cycle detail, for one branch."
+          description={`The PQS headline scores (mandatory training, supervision, staff registration, care plan reviews and safeguarding) with score bands, plus the on time cycle detail, for one ${bw.oneLower}.`}
           viewHref={viewHref("on-time")}
           locked={proLocked}
         />
         <ReportCard
           title="Regulation 73"
-          description="The Responsible Individual branch visit report, one per branch, pre-filled from the site with KPIs, complaints, training and satisfaction. AI drafts the narrative, you edit and sign."
+          description={`The Responsible Individual ${bw.oneLower} visit report, one per ${bw.oneLower}, pre-filled from the site with KPIs, complaints, training and satisfaction. AI drafts the narrative, you edit and sign.`}
           viewHref="/reports/reg73"
           locked={proLocked}
         />
         <ReportCard
           title="Regulation 80"
-          description="The six monthly Quality of Care review, one per branch, pre-filled with staffing, turnover, complaints, audits, outcomes, supervisions and training. Covers the statutory review requirements. AI drafts the narrative, you edit and sign."
+          description={`The six monthly Quality of Care review, one per ${bw.oneLower}, pre-filled with staffing, turnover, complaints, audits, outcomes, supervisions and training. Covers the statutory review requirements. AI drafts the narrative, you edit and sign.`}
           viewHref="/reports/reg80"
           locked={proLocked}
         />

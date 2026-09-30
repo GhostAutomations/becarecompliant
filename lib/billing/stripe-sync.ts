@@ -9,6 +9,7 @@ import {
   allBasePriceIds,
   isBillingInterval,
   type BillingInterval,
+  type SubscriptionTier,
 } from "@/lib/stripe/config";
 import { includedSeatsForTier, includedBranchesForTier, NON_BILLABLE_ROLES, orderedExtrasOnTier } from "@/lib/billing/seats";
 import { customerIdentityPatch } from "@/lib/billing/customer-identity";
@@ -16,6 +17,7 @@ import { isTierName, type TierName } from "@/lib/billing/tier-change";
 import { pickBaseItem, baseSwapDecision } from "@/lib/billing/base-item";
 import { subscriptionHasEnded } from "@/lib/billing/subscription-state";
 import { billedExtra, orderedExtrasFrom, NO_ORDERED_EXTRAS, type OrderedExtras } from "@/lib/billing/ordered-extras";
+import { companyPrices } from "@/lib/billing/company-prices";
 
 /**
  * Exact seat sync to Stripe. Product rule: 4 users included, then £5/extra/mo.
@@ -249,8 +251,11 @@ export async function syncSeatQuantity(
       return { synced: false, reason: "not_subscription_tier" };
     }
 
-    // Monthly or yearly seat price, by what the company chose for its extras (Annual, 2026-09-30).
-    const seatPrice = seatPriceId(billingIntervals(billing).extras);
+    // Monthly or yearly seat price, by what the company chose for its extras (Annual, 2026-09-30),
+    // and the deal's special price if it has one (0354).
+    const seatPrice = (
+      await companyPrices(companyId, (billing.billed_tier ?? "business") as SubscriptionTier, billingIntervals(billing))
+    ).seat;
     if (!seatPrice) return { synced: false, reason: "no_seat_price" };
 
     const [active, ordered] = await Promise.all([getActiveSeatCount(companyId), getOrderedExtras(companyId, billing.billed_tier ?? "business")]);
@@ -352,7 +357,9 @@ export async function syncBasePrice(
     }
 
     // The plan line is monthly or yearly by how the company pays (Annual, 2026-09-30).
-    const wanted = tierBasePriceId(tier, billingIntervals(billing).plan);
+    // ...and the deal's special plan price if it has one (0354).
+    const dealPriced = await companyPrices(companyId, tier as SubscriptionTier, billingIntervals(billing));
+    const wanted = dealPriced.plan;
     if (!wanted) return { synced: false, reason: "no_base_price", tier };
 
     const subscription = await stripe.subscriptions.retrieve(billing.stripe_subscription_id);
@@ -365,7 +372,7 @@ export async function syncBasePrice(
       subscription.items.data.map((i) => ({ id: i.id, priceId: i.price?.id })),
       seatPriceId(),
       branchPriceId(),
-      [seatPriceId("year"), branchPriceId("year")],
+      [seatPriceId("year"), branchPriceId("year"), ...dealPriced.addOnIds],
     );
     if (!found.ok) {
       console.error(
@@ -377,7 +384,7 @@ export async function syncBasePrice(
     /* Only a line carrying a price we recognise as some tier's base price may be rewritten.
        See lib/billing/base-item.ts: swapping on "the id differs" would turn pointing an env var
        at a new Stripe Price into an overnight migration of every existing customer onto it. */
-    const decision = baseSwapDecision(found.item.priceId, wanted, allBasePriceIds());
+    const decision = baseSwapDecision(found.item.priceId, wanted, dealPriced.baseIds);
     if (!decision.swap) {
       if (decision.reason === "unrecognised_price") {
         console.error(
@@ -596,8 +603,11 @@ export async function syncBranchQuantity(
       return { synced: false, reason: "not_subscription_tier" };
     }
 
-    // Monthly or yearly branch price, by what the company chose for its extras (Annual, 2026-09-30).
-    const price = branchPriceId(billingIntervals(billing).extras);
+    // Monthly or yearly branch price, by what the company chose for its extras (Annual, 2026-09-30),
+    // and the deal's special or two-step price if it has one (0354).
+    const price = (
+      await companyPrices(companyId, (billing.billed_tier ?? "business") as SubscriptionTier, billingIntervals(billing))
+    ).branch;
     if (!price) return { synced: false, reason: "no_branch_price" };
 
     const [actualBranches, ordered] = await Promise.all([
@@ -609,6 +619,27 @@ export async function syncBranchQuantity(
 
     const subscription = await stripe.subscriptions.retrieve(billing.stripe_subscription_id);
     const item = subscription.items.data.find((i) => i.price?.id === price);
+
+    /* AN OLD BRANCH LINE IS MOVED, NEVER DOUBLED (0354). When the branch price changes under a live
+       subscription (the company's word for a branch was set or changed, so the line is now "Extra
+       house"), the old line is switched to the new price in place, from the next renewal, rather
+       than a second line being added beside it and both being charged. */
+    const listBranchIds = [branchPriceId("month"), branchPriceId("year")].filter(Boolean);
+    const stale = subscription.items.data.filter(
+      (i) =>
+        i.price?.id !== price &&
+        (listBranchIds.includes(i.price?.id ?? "") || String(i.price?.metadata?.deal_key ?? "").startsWith("branch:")),
+    );
+    if (!item && stale.length > 0) {
+      const [keep, ...extra] = stale;
+      for (const s of extra) await stripe.subscriptionItems.del(s.id, { proration_behavior: "none" });
+      if (quantity === 0 && subscription.items.data.length - extra.length > 1) {
+        await stripe.subscriptionItems.del(keep.id, { proration_behavior: prorationFor(billingIntervals(billing).extras, "decrease") });
+        return { synced: true, quantity };
+      }
+      await stripe.subscriptionItems.update(keep.id, { price, quantity, proration_behavior: "none" });
+      return { synced: true, reason: "moved_to_new_price", quantity };
+    }
 
     if (!item) {
       // Nothing to add when there is nothing to charge for: creating a zero quantity line on

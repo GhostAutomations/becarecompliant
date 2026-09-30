@@ -113,12 +113,13 @@ export async function GET(request: NextRequest) {
 
   const { data: company } = await supabase
     .from("companies")
-    .select("name")
+    .select("name, branch_word")
     .eq("id", profile.company_id)
     .maybeSingle();
 
   const pdf = await renderBriefingReport({
     companyName: (company?.name as string | null) ?? "Your company",
+    branchLabel: (company?.branch_word as string | null) || "Branch",
     title: rows[0].title,
     kind,
     version: kind === "policy" ? (rows[0].version ?? null) : null,

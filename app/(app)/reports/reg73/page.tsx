@@ -5,6 +5,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import { listAccessibleBranchTypes } from "@/lib/service-users/data";
 import StartVisitButton from "@/components/reg73/start-visit-button";
+import { getBranchTerms } from "@/lib/branches/company-word";
 
 export const metadata: Metadata = { title: "Regulation 73 visits" };
 
@@ -14,6 +15,7 @@ const START_ROLES = ["platform_admin", "company_admin", "registered_individual",
 export default async function Reg73ListPage() {
   const { user, profile } = await requireCompany();
   if (!profile.company_id) redirect("/founder");
+  const bw = await getBranchTerms(profile.company_id);
   if (!VIEW_ROLES.includes(profile.role)) redirect("/reports");
   const canStart = START_ROLES.includes(profile.role);
 
@@ -26,7 +28,7 @@ export default async function Reg73ListPage() {
         <div>
           <h1 className="page-title">Regulation 73 visits</h1>
           <p className="page-subtitle">
-            The Responsible Individual branch visit report, pre-filled from the site. One per branch.
+            The Responsible Individual {bw.oneLower} visit report, pre-filled from the site. One per {bw.oneLower}.
           </p>
         </div>
         <Link href="/reports/reg73/reports" className="btn-primary px-3 py-2 text-xs">
@@ -35,7 +37,7 @@ export default async function Reg73ListPage() {
       </div>
 
       {branches.length === 0 ? (
-        <div className="glass-card p-6 text-sm text-white/60">No branches to visit yet.</div>
+        <div className="glass-card p-6 text-sm text-white/60">No {bw.manyLower} to visit yet.</div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {branches.map((b) => (

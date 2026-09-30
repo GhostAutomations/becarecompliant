@@ -26,6 +26,9 @@ export const PUBLIC_PATHS = [
   // no session and never will have one, so the token in the path IS the authentication. The
   // route derives everything from that token and takes nothing else from the request.
   "/calendar",
+  // The demo survey (0356): the emailed link reaches somebody whose demo has ended and who can
+  // no longer sign in. The token in the path is the key, and it answers once.
+  "/demo-feedback",
 ];
 
 export function isPublicPath(pathname: string): boolean {

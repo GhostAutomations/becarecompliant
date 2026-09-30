@@ -29,6 +29,7 @@
 import { useMemo, useState } from "react";
 import RecordTypeahead from "@/components/register/record-typeahead";
 import type { LookupChoice } from "@/lib/forms/lookup";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 export type PersonOption = { id: string; full_name: string; branch_name: string | null };
 
@@ -39,6 +40,7 @@ export default function ComplaintPeoplePicker({
   people: PersonOption[];
   initialIds?: string[];
 }) {
+  const bw = useBranchWord();
   const [chosenIds, setChosenIds] = useState<string[]>(() =>
     initialIds.filter((id) => people.some((p) => p.id === id)),
   );
@@ -101,7 +103,7 @@ export default function ComplaintPeoplePicker({
       />
 
       <p className="form-hint">
-        Optional, and more than one can be named, from any branch. A complaint shows on a team
+        Optional, and more than one can be named, from any {bw.oneLower}. A complaint shows on a team
         member&apos;s record alongside whether it was upheld, never as a bare count.
       </p>
     </div>

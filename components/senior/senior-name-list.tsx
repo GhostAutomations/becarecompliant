@@ -2,6 +2,7 @@ import BackLink from "@/components/back-link";
 import { createClient } from "@/lib/supabase/server";
 import SeniorNameButton from "@/components/senior/senior-name-button";
 import { groupSeniorRegister, seniorFormStatus, type SeniorRegisterRow } from "@/lib/senior/register";
+import { branchTerms, type BranchTerms } from "@/lib/branches/word";
 
 /**
  * A Senior's People or Service Users page (0338, 0339).
@@ -25,10 +26,14 @@ export type SeniorOutcome = { completed?: string; recorded?: string; history?: s
 export default async function SeniorNameList({
   kind,
   outcome = {},
+  branchWord,
 }: {
   kind: "people" | "service_users";
   outcome?: SeniorOutcome;
+  /** The company's word for a branch (0354). */
+  branchWord?: BranchTerms;
 }) {
+  const bw = branchWord ?? branchTerms(null);
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("senior_register", { p_kind: kind });
   const branches = groupSeniorRegister((data as SeniorRegisterRow[] | null) ?? []);
@@ -62,7 +67,7 @@ export default async function SeniorNameList({
         <h1 className="page-title">{title}</h1>
         <p className="page-subtitle">
           {namesOnly
-            ? `The ${noun} in your branch${branches.length === 1 ? "" : "es"}.`
+            ? `The ${noun} in your ${branches.length === 1 ? bw.oneLower : bw.manyLower}.`
             : "Tap a name to open the form."}
         </p>
       </div>

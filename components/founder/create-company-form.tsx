@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { createCompany } from "@/app/(app)/founder/actions";
 import { IDLE_STATE } from "@/lib/forms";
+import { DealFields } from "@/components/founder/deal-fields";
 
 export function CreateCompanyForm() {
   const [state, formAction, pending] = useActionState(createCompany, IDLE_STATE);
@@ -93,6 +94,11 @@ export function CreateCompanyForm() {
             and whether the RISCA reports (Reg 73, Reg 80) apply.
           </p>
         </div>
+      </div>
+
+      {/* THE DEAL (Phil, 2026-09-30): branch word, more branches, and the Order fixed in advance. */}
+      <div className="border-t border-white/10 pt-5">
+        <DealFields defaults={null} showMoreBranches />
       </div>
 
       <div className="border-t border-white/10 pt-5">

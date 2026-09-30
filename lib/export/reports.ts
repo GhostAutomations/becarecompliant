@@ -29,6 +29,7 @@ import { SERVICE_STATUS_LABELS, type SuCheckStatus, type ServiceUserRow } from "
 import { buildCsv, type CsvCell } from "@/lib/export/csv";
 import type { ReportBlock, ReportDoc } from "@/lib/export/pdf";
 import { fmtDate, generatedAt, ragLabel, ragTone } from "@/lib/export/format";
+import { getBranchTerms } from "@/lib/branches/company-word";
 
 const EXCLUSION_NOTE =
   "Active records only. Leavers, archived people and cancelled or discharged service users are excluded, matching the registers.";
@@ -135,7 +136,8 @@ export async function buildPeopleRegisterReport(
   input: RegisterReportInput,
 ): Promise<{ doc: ReportDoc; csv: string; base: string; recordCount: number }> {
   const { definitions, rows } = await listPeopleRegister(input.companyId, input.branchId, "active");
-  const scopeLabel = input.branchName ? input.branchName : "All branches";
+  const bw = await getBranchTerms(input.companyId);
+  const scopeLabel = input.branchName ? input.branchName : bw.all;
   const win = input.window ?? defaultReportWindow();
   const today = todayIso();
 
@@ -231,7 +233,7 @@ export async function buildPeopleRegisterReport(
         emptyText: "No active people in this scope.",
         columns: [
           { header: "Name", width: "30%" },
-          { header: "Branch", width: "22%" },
+          { header: bw.one, width: "22%" },
           { header: "Working status", width: "16%" },
           { header: "Compliance", width: "14%" },
           { header: "Overdue", width: "9%", align: "right" },
@@ -295,7 +297,7 @@ export async function buildPeopleRegisterReport(
     ];
   });
   const csv = buildCsv(
-    ["Name", "Branch", "Working status", "Compliance", "Overdue checks", "Due checks in period", "Probation status", "Probation original end due", "Probation extension date", "Probation actual end"],
+    ["Name", bw.one, "Working status", "Compliance", "Overdue checks", "Due checks in period", "Probation status", "Probation original end due", "Probation extension date", "Probation actual end"],
     csvRows,
   );
 
@@ -310,7 +312,8 @@ export async function buildServiceUserRegisterReport(
   input: RegisterReportInput,
 ): Promise<{ doc: ReportDoc; csv: string; base: string; recordCount: number }> {
   const { definitions, rows } = await listServiceUserRegister(input.companyId, input.branchId, "active");
-  const scopeLabel = input.branchName ? input.branchName : "All branches";
+  const bw = await getBranchTerms(input.companyId);
+  const scopeLabel = input.branchName ? input.branchName : bw.all;
   const win = input.window ?? defaultReportWindow();
   const today = todayIso();
 
@@ -381,7 +384,7 @@ export async function buildServiceUserRegisterReport(
         emptyText: "No active service users in this scope.",
         columns: [
           { header: "Name", width: "30%" },
-          { header: "Branch", width: "22%" },
+          { header: bw.one, width: "22%" },
           { header: "Status", width: "16%" },
           { header: "Compliance", width: "14%" },
           { header: "Overdue", width: "9%", align: "right" },
@@ -422,7 +425,7 @@ export async function buildServiceUserRegisterReport(
     ];
   });
   const csv = buildCsv(
-    ["Name", "Branch", "Status", "Compliance", "Overdue checks", "Due checks in period"],
+    ["Name", bw.one, "Status", "Compliance", "Overdue checks", "Due checks in period"],
     csvRows,
   );
 
@@ -454,7 +457,8 @@ function overdueBlocks(overdue: Overdue[], dueSoon: Overdue[], win: ReportWindow
 export async function buildComplianceReport(
   input: RegisterReportInput,
 ): Promise<{ doc: ReportDoc; csv: string; base: string }> {
-  const scopeLabel = input.branchName ? input.branchName : "Whole company, all branches";
+  const bw = await getBranchTerms(input.companyId);
+  const scopeLabel = input.branchName ? input.branchName : `Whole company, ${bw.all.charAt(0).toLowerCase()}${bw.all.slice(1)}`;
   const win = input.window ?? defaultReportWindow();
   const today = todayIso();
   const [{ rows: pRows }, { rows: sRows }] = await Promise.all([

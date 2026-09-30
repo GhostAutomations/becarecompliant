@@ -6,6 +6,7 @@ import BackLink from "@/components/back-link";
 import { getReg80Review } from "@/lib/reg80/data";
 import { listReg73Signatories } from "@/lib/reg73/data";
 import Reg80Form from "@/components/reg80/reg80-form";
+import { getBranchTerms } from "@/lib/branches/company-word";
 
 export const metadata: Metadata = { title: "Regulation 80 review" };
 
@@ -15,6 +16,7 @@ const EDIT_ROLES = ["platform_admin", "company_admin", "registered_individual", 
 export default async function Reg80ReviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { profile } = await requireCompany();
   if (!profile.company_id) redirect("/founder");
+  const bw = await getBranchTerms(profile.company_id);
   if (!VIEW_ROLES.includes(profile.role)) redirect("/reports");
 
   const { id } = await params;
@@ -26,7 +28,7 @@ export default async function Reg80ReviewPage({ params }: { params: Promise<{ id
     supabase.from("branches").select("name").eq("id", review.branch_id).maybeSingle(),
     listReg73Signatories(profile.company_id),
   ]);
-  const branchName = (branch?.name as string) ?? "Branch";
+  const branchName = (branch?.name as string) ?? bw.one;
   const canEdit = EDIT_ROLES.includes(profile.role) && review.status === "draft";
 
   return (

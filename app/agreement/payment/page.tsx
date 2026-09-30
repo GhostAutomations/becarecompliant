@@ -8,6 +8,7 @@ import { listAcceptances } from "@/lib/legal/acceptance";
 import { legalPublished, LEGAL_VERSIONS } from "@/lib/legal/documents";
 import { acceptanceCurrent, afterAcceptPath, isLiveSubscription } from "@/lib/legal/fill";
 import { InvoiceInsteadButton, SubscribeButton } from "@/components/billing/billing-actions";
+import { branchWord, lower } from "@/lib/branches/word";
 
 /**
  * Step 4 of accepting the agreement: payment (Phil, 2026-09-30, by popup: "the very next screen
@@ -67,7 +68,7 @@ export default async function AgreementPaymentPage() {
             <dd className="text-white/85">{current.price_text ?? "As shown on your Order"}</dd>
             <dt className="text-white/55">Extra users</dt>
             <dd className="text-white/85">{current.extra_users_text ?? "None"}</dd>
-            <dt className="text-white/55">Extra branches</dt>
+            <dt className="text-white/55">Extra {lower(branchWord(current).many)}</dt>
             <dd className="text-white/85">{current.branches_text ?? "None"}</dd>
             {current.extras_paid_text ? (
               <>

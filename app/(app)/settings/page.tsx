@@ -8,12 +8,17 @@ import { featureEnabled } from "@/lib/billing/tier";
 import { PUBLIC_FORMS_ENABLED } from "@/lib/public-forms/flag";
 
 import { TIER_LABELS, type Tier } from "@/lib/stripe/config";
+import { getBranchTerms } from "@/lib/branches/company-word";
+import { isDemoCompany } from "@/lib/demo/data";
 
 export const metadata: Metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
   const { profile } = await requireCompanyAdmin();
   if (!profile.company_id) redirect("/founder");
+  const bw = await getBranchTerms(profile.company_id);
+  // A demo (0356) has no logins, roles or billing to manage; the founder managing as it still sees them.
+  const demo = profile.role !== "platform_admin" && (await isDemoCompany(profile.company_id));
 
   const supabase = await createClient();
   const [{ data: company }, seats, invoicingEnabled] = await Promise.all([
@@ -31,7 +36,7 @@ export default async function SettingsPage() {
       <div>
         <h1 className="page-title">Settings</h1>
         <p className="page-subtitle">
-          Manage your company, branches and team.
+          Manage your company, {bw.manyLower} and team.
         </p>
       </div>
 
@@ -48,6 +53,7 @@ export default async function SettingsPage() {
         </p>
       </section>
 
+      {demo ? null : (
       <section className="glass-card p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -80,6 +86,7 @@ export default async function SettingsPage() {
           )}
         </p>
       </section>
+      )}
 
       <section aria-label="Sections" className="grid gap-4 sm:grid-cols-2">
         <Link href="/settings/absence" className="app-tile">
@@ -89,16 +96,18 @@ export default async function SettingsPage() {
             thresholds, and upload your policy for AI to read.
           </p>
         </Link>
+        {demo ? null : (
         <Link href="/settings/billing" className="app-tile">
           <h2 className="text-base font-semibold text-white">Billing</h2>
           <p className="text-sm text-white/60">
             Your plan, seat costs, payment method and invoices.
           </p>
         </Link>
+        )}
         <Link href="/settings/branches" className="app-tile">
-          <h2 className="text-base font-semibold text-white">Branches</h2>
+          <h2 className="text-base font-semibold text-white">{bw.many}</h2>
           <p className="text-sm text-white/60">
-            Your Team (office) and Branch. Rename them or view their details.
+            Your Team (office) and {bw.one}. Rename them or view their details.
           </p>
         </Link>
         <Link href="/settings/branding" className="app-tile">
@@ -201,13 +210,15 @@ export default async function SettingsPage() {
             Metered SMS and AI usage for your company, this month and by month.
           </p>
         </Link>
+        {demo ? null : (
         <Link href="/settings/users" className="app-tile">
           <h2 className="text-base font-semibold text-white">Roles, users and access</h2>
           <p className="text-sm text-white/60">
-            Make a role of your own, invite your team, set roles and branches, and choose which
+            Make a role of your own, invite your team, set roles and {bw.manyLower}, and choose which
             departments each role opens.
           </p>
         </Link>
+        )}
       </section>
     </div>
   );

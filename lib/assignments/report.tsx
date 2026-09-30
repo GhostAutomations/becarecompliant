@@ -73,6 +73,8 @@ export type ReportPerson = {
 
 export type BriefingReport = {
   companyName: string;
+  /** The company's word for a branch (0354); Branch when not given. */
+  branchLabel?: string;
   title: string;
   kind: "policy" | "form";
   version: number | null;
@@ -146,7 +148,7 @@ export async function renderBriefingReport(r: BriefingReport): Promise<Buffer> {
           <>
             <View style={styles.head} fixed>
               <Text style={{ ...styles.headText, ...styles.name }}>Name</Text>
-              <Text style={{ ...styles.headText, ...styles.branch }}>Branch</Text>
+              <Text style={{ ...styles.headText, ...styles.branch }}>{r.branchLabel ?? "Branch"}</Text>
               <Text style={{ ...styles.headText, ...styles.when }}>{verb} at</Text>
               <Text style={{ ...styles.headText, ...styles.state }}>Status</Text>
             </View>
@@ -168,7 +170,7 @@ export async function renderBriefingReport(r: BriefingReport): Promise<Buffer> {
           <>
             <View style={styles.head} fixed>
               <Text style={{ ...styles.headText, ...styles.name }}>Name</Text>
-              <Text style={{ ...styles.headText, ...styles.branch }}>Branch</Text>
+              <Text style={{ ...styles.headText, ...styles.branch }}>{r.branchLabel ?? "Branch"}</Text>
               <Text style={{ ...styles.headText, ...styles.when }}>Due</Text>
               <Text style={{ ...styles.headText, ...styles.state }}>Status</Text>
             </View>

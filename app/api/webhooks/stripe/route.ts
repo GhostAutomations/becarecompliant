@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe/client";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { seatPriceId, isBillingInterval } from "@/lib/stripe/config";
+import { dealSpecials } from "@/lib/billing/company-prices";
 import { writeAudit } from "@/lib/audit";
 import { upsertCompanyBilling, syncSeatQuantity, syncBranchQuantity } from "@/lib/billing/stripe-sync";
 
@@ -108,7 +109,8 @@ function periodEnd(sub: Stripe.Subscription): string | null {
 /** Persist the current subscription state onto company_billing. */
 async function applySubscription(companyId: string, sub: Stripe.Subscription) {
   // The seat line may be the monthly or the yearly seat price (Annual, 2026-09-30).
-  const seatPrices = [seatPriceId("month"), seatPriceId("year")].filter(Boolean);
+  // ...or a special seat price made for this company's deal (0354).
+  const seatPrices = [seatPriceId("month"), seatPriceId("year"), ...(await dealSpecials(companyId)).seatPriceIds].filter(Boolean);
   const seatItem = sub.items.data.find((i) => i.price?.id && seatPrices.includes(i.price.id));
   // Monthly or yearly, recorded on the subscription when we created it. Older ones: monthly.
   const planInterval = isBillingInterval(sub.metadata?.billing_interval) ? sub.metadata.billing_interval : "month";

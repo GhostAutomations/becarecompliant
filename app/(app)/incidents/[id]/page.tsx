@@ -17,6 +17,7 @@ import {
 import { INCIDENT_STATUS_LABELS } from "@/lib/incidents/types";
 import { formatUkDate, formatTime, todayIso } from "@/lib/incidents/logic";
 import { INCIDENTS_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
+import { getBranchTerms } from "@/lib/branches/company-word";
 
 export const metadata: Metadata = { title: "Incident" };
 
@@ -24,6 +25,7 @@ export const metadata: Metadata = { title: "Incident" };
 export default async function IncidentPage({ params }: { params: Promise<{ id: string }> }) {
   const { profile } = await requireCompany();
   if (!profile.company_id) redirect("/dashboard");
+  const bw = await getBranchTerms(profile.company_id);
   if (!MANAGE_ROLES.includes(profile.role)) redirect("/dashboard");
 
   const { id } = await params;
@@ -77,7 +79,7 @@ export default async function IncidentPage({ params }: { params: Promise<{ id: s
           </span>
         </div>
         <p className="page-subtitle">
-          {incident.branch_name ?? "No branch"}
+          {incident.branch_name ?? `No ${bw.oneLower}`}
           {who ? ` — ${who}` : ""} — {INCIDENT_STATUS_LABELS[incident.status]}
           {incident.closed_on ? ` on ${formatUkDate(incident.closed_on)}` : ""}
         </p>

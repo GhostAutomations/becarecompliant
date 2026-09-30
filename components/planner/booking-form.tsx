@@ -7,6 +7,7 @@ import { createBooking, updateBooking } from "@/lib/planner/actions";
 import TimeSelect from "./time-select";
 import type { PlannerFormData, PlannerSubject } from "@/lib/planner/data";
 import { mayConductInBranch } from "@/lib/auth/manage-scope";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 /** ISO date -> DD/MM/YYYY for display. */
 function fmtDue(iso: string): string {
@@ -90,6 +91,7 @@ export default function BookingForm({
   /** The trigger's classes. Defaults to what every other caller already had. */
   buttonClassName?: string;
 }) {
+  const bw = useBranchWord();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -177,7 +179,7 @@ export default function BookingForm({
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-    if (!department || !subjectId) { setError("Choose a department, branch and name."); return; }
+    if (!department || !subjectId) { setError(`Choose a department, ${bw.oneLower} and name.`); return; }
     if (checkTargets.length === 0) { setError("Tick at least one check for this visit."); return; }
     const fd = new FormData(e.currentTarget);
     fd.set("subject_kind", department === "people" ? "person" : "service_user");
@@ -246,14 +248,14 @@ export default function BookingForm({
             </select>
           </label>
           <label className="block text-sm">
-            <span className="mb-1 block font-medium text-white/80">Branch</span>
+            <span className="mb-1 block font-medium text-white/80">{bw.one}</span>
             <select
               className="w-full"
               value={branchId}
               onChange={(e) => { setBranchId(e.target.value); setSubjectId(""); setCheckTargets([]); }}
               disabled={!department}
             >
-              <option value="">All branches</option>
+              <option value="">{bw.all}</option>
               {branchOptions.map((b) => (
                 <option key={b.id} value={b.id}>{b.name}</option>
               ))}

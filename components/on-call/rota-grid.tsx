@@ -7,6 +7,7 @@ import { assignCell, setRotaScope } from "@/lib/on-call/actions";
 import { IDLE_STATE } from "@/lib/forms";
 import { dayHeading } from "@/lib/on-call/format";
 import type { BranchOption, PersonOption, RotaCell, RotaScope, RotaWeek } from "@/lib/on-call/types";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 type Cells = Record<string, RotaCell>;
 const SLOTS: Array<{ key: "am" | "pm"; label: string }> = [
@@ -44,6 +45,7 @@ export default function RotaGrid({
   todayIso: string;
   currentSlot: "am" | "pm";
 }) {
+  const bw = useBranchWord();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   // Optimistic overrides so a picked name shows instantly and stays put through
@@ -87,7 +89,7 @@ export default function RotaGrid({
         {canChangeScope ? <ScopeToggle scope={scope} /> : null}
         {scope === "branch" && branches.length > 1 ? (
           <select
-            aria-label="Branch"
+            aria-label={bw.one}
             value={selectedBranchId ?? ""}
             onChange={(e) => router.push(`/on-call?branch=${e.target.value}`)}
             className="w-auto"
@@ -177,6 +179,7 @@ export default function RotaGrid({
 }
 
 function ScopeToggle({ scope }: { scope: RotaScope }) {
+  const bw = useBranchWord();
   const [, formAction, pending] = useActionState(setRotaScope, IDLE_STATE);
   return (
     <form action={formAction} className="inline-flex overflow-hidden rounded-lg border border-white/15">
@@ -189,7 +192,7 @@ function ScopeToggle({ scope }: { scope: RotaScope }) {
           disabled={pending || scope === s}
           className={`px-3 py-1.5 text-xs font-medium ${scope === s ? "bg-gold-400/20 text-gold-300" : "text-white/60 hover:bg-white/5"}`}
         >
-          {s === "company" ? "By company" : "By branch"}
+          {s === "company" ? "By company" : `By ${bw.oneLower}`}
         </button>
       ))}
     </form>

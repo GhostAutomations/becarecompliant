@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { shiftLabel } from "@/lib/on-call/format";
 import type { OnCallLog } from "@/lib/on-call/types";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 function loggedPill(count: number, logged: boolean) {
   if (count === 0) return <span className="text-white/40">0</span>;
@@ -17,6 +18,7 @@ function loggedPill(count: number, logged: boolean) {
 }
 
 export default function LogRegister({ rows }: { rows: OnCallLog[] }) {
+  const bw = useBranchWord();
   const hasBranch = rows.some((r) => r.branch_name);
 
   if (rows.length === 0) {
@@ -29,7 +31,7 @@ export default function LogRegister({ rows }: { rows: OnCallLog[] }) {
         <thead>
           <tr className="border-b border-white/10 text-left text-xs uppercase tracking-wide text-white/45">
             <th className="px-3 py-2">Shift</th>
-            {hasBranch ? <th className="px-3 py-2">Branch</th> : null}
+            {hasBranch ? <th className="px-3 py-2">{bw.one}</th> : null}
             <th className="px-3 py-2">Completed by</th>
             <th className="px-3 py-2">Complaints</th>
             <th className="px-3 py-2">Absences</th>

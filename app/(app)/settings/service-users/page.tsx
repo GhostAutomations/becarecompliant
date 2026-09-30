@@ -20,12 +20,14 @@ import {
 import { getSatisfactionQuestions } from "@/lib/service-users/satisfaction";
 import { STANDARD_SATISFACTION_KEYS } from "@/lib/service-users/satisfaction-questions";
 import { SU_REGISTER_COLUMNS } from "@/lib/service-users/types";
+import { getBranchTerms } from "@/lib/branches/company-word";
 
 export const metadata: Metadata = { title: "Service User checks" };
 
 export default async function SettingsServiceUsersPage() {
   const { profile } = await requireCompanyAdmin();
   if (!profile.company_id) redirect("/founder");
+  const bw = await getBranchTerms(profile.company_id);
 
   const [
     definitions,
@@ -120,8 +122,8 @@ export default async function SettingsServiceUsersPage() {
         <summary>Service Users Type</summary>
         <div className="space-y-3 border-t border-white/10 p-5">
           <p className="page-subtitle">
-            Set whether each branch runs a Simple or Complex Service User setup. Every
-            branch defaults to Simple. Branches are created elsewhere; this only sets
+            Set whether each {bw.oneLower} runs a Simple or Complex Service User setup. Every
+            {bw.oneLower} defaults to Simple. {bw.many} are created elsewhere; this only sets
             the type.
           </p>
           <BranchTypeForm branches={branchTypes} />

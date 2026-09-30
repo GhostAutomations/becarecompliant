@@ -37,6 +37,23 @@ export function subscriptionMonthlyPence(input: MonthlyTotalInput): number {
 }
 
 /**
+ * MRR: what a subscription is worth per month, however it is paid (2026-09-30). An Annual plan
+ * pays ten months' price for twelve, so its monthly worth is the yearly price over twelve, not
+ * the monthly list price: Bevan on Annual Business with one extra user is £840 a year, which is
+ * £70 a month of MRR, not £84. Extras follow their own interval. Rounded to the penny.
+ */
+export function monthlyRecurringPence(
+  input: MonthlyTotalInput & { planYearly: boolean; extrasYearly: boolean; yearlyMonthsCharged: number },
+): number {
+  const months = whole(input.yearlyMonthsCharged) || 12;
+  const base = whole(input.basePence);
+  const extras = whole(input.extraSeats) * whole(input.seatPence) + whole(input.extraBranches) * whole(input.branchPence);
+  const basePerMonth = input.planYearly ? (base * months) / 12 : base;
+  const extrasPerMonth = input.extrasYearly ? (extras * months) / 12 : extras;
+  return Math.round(basePerMonth + extrasPerMonth);
+}
+
+/**
  * A missing or nonsense number is ZERO, never NaN.
  *
  * NaN is the dangerous failure here: it propagates silently through the addition and prints

@@ -15,10 +15,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useActionState } from "react";
 import { useRouter } from "next/navigation";
-import { saveTeamMember, setUserStatus, sendUserPasswordReset } from "@/app/(app)/settings/actions";
+import { resendUserInvite, saveTeamMember, setUserStatus, sendUserPasswordReset } from "@/app/(app)/settings/actions";
 import { IDLE_STATE } from "@/lib/forms";
 import { useSavedFlash } from "@/lib/use-saved-flash";
 import DeleteUserDialog from "@/components/settings/delete-user-dialog";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 type Branch = { id: string; name: string };
 
@@ -49,10 +50,12 @@ export default function TeamMemberControls({
   branches: Branch[];
   roleOptions: RoleOption[];
 }) {
+  const bw = useBranchWord();
   const router = useRouter();
   const [state, formAction, pending] = useActionState(saveTeamMember, IDLE_STATE);
   const [statusState, statusAction, statusPending] = useActionState(setUserStatus, IDLE_STATE);
   const [resetState, resetAction, resetPending] = useActionState(sendUserPasswordReset, IDLE_STATE);
+  const [inviteState, inviteAction, invitePending] = useActionState(resendUserInvite, IDLE_STATE);
 
   useEffect(() => {
     if (statusState.ok) router.refresh();
@@ -117,14 +120,14 @@ export default function TeamMemberControls({
           </div>
 
           <div>
-            <label htmlFor={`primary-${userId}`} className="form-label">Primary branch</label>
+            <label htmlFor={`primary-${userId}`} className="form-label">Primary {bw.oneLower}</label>
             <select
               id={`primary-${userId}`}
               name="primary_branch_id"
               value={primary}
               onChange={(e) => setPrimary(e.target.value)}
             >
-              <option value="" disabled>Choose a branch</option>
+              <option value="" disabled>Choose a {bw.oneLower}</option>
               {branches.map((b) => (
                 <option key={b.id} value={b.id}>{b.name}</option>
               ))}
@@ -133,7 +136,7 @@ export default function TeamMemberControls({
         </div>
 
         <div ref={menuRef} className="relative">
-          <span className="form-label">Additional branch views</span>
+          <span className="form-label">Additional {bw.oneLower} views</span>
           <button
             type="button"
             onClick={() => setMenuOpen((v) => !v)}
@@ -145,7 +148,7 @@ export default function TeamMemberControls({
           {menuOpen ? (
             <div className="absolute z-50 mt-1 flex max-h-56 w-full flex-col gap-1 overflow-auto rounded-xl border border-white/15 bg-navy-900 p-2 shadow-2xl">
               {additionalOptions.length === 0 ? (
-                <span className="px-2 py-1 text-xs text-white/50">No other branches.</span>
+                <span className="px-2 py-1 text-xs text-white/50">No other {bw.manyLower}.</span>
               ) : (
                 additionalOptions.map((b) => (
                   <label
@@ -176,6 +179,20 @@ export default function TeamMemberControls({
       </form>
 
       <div className="flex flex-wrap items-center gap-2 border-t border-white/10 pt-4">
+        {/* A LOGIN STILL WAITING ON ITS INVITATION is not switched off, so "Enable" was the wrong
+            offer (Vera, 2026-09-30): it marked her active with no password. Say where it is and
+            re-send the invitation instead. */}
+        {status === "invited" ? (
+          <>
+            <span className="pill-amber">Invited, not accepted yet</span>
+            <form action={inviteAction}>
+              <input type="hidden" name="user_id" value={userId} />
+              <button type="submit" disabled={invitePending} className="btn-outline px-3 py-2 text-xs">
+                {invitePending ? "Sending…" : "Resend invite"}
+              </button>
+            </form>
+          </>
+        ) : (
         <form action={statusAction}>
           <input type="hidden" name="user_id" value={userId} />
           <input type="hidden" name="status" value={status === "active" ? "disabled" : "active"} />
@@ -187,6 +204,7 @@ export default function TeamMemberControls({
                 : "Enable this login"}
           </button>
         </form>
+        )}
         {/* THE ADMIN'S WAY TO LET SOMEBODY BACK IN (2026-09-23). Only for a live login: an
             invitation has its own resend, and a switched off login should stay off. */}
         {status === "active" ? (
@@ -203,6 +221,8 @@ export default function TeamMemberControls({
       {statusState.ok ? <p className="text-xs text-emerald-200">{statusState.ok}</p> : null}
       {resetState.error ? <p className="form-error">{resetState.error}</p> : null}
       {resetState.ok ? <p className="text-xs text-emerald-200">{resetState.ok}</p> : null}
+      {inviteState.error ? <p className="form-error">{inviteState.error}</p> : null}
+      {inviteState.ok ? <p className="text-xs text-emerald-200">{inviteState.ok}</p> : null}
     </div>
   );
 }

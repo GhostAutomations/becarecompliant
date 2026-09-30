@@ -9,11 +9,13 @@ import {
   STATUS_PILL,
   STATUS_LABEL,
 } from "@/lib/invoicing/types";
+import { getBranchTerms } from "@/lib/branches/company-word";
 
 export const metadata: Metadata = { title: "Invoicing" };
 
 export default async function InvoicingPage() {
   const { companyId } = await requireInvoicing();
+  const bw = await getBranchTerms(companyId);
   const [summary, invoices] = await Promise.all([
     getInvoiceSummary(companyId),
     listInvoices(companyId),
@@ -43,7 +45,7 @@ export default async function InvoicingPage() {
           <tr className="text-left text-xs uppercase tracking-wide text-white/45">
             <th className="py-2 pr-3">Number</th>
             <th className="py-2 pr-3">Client</th>
-            <th className="py-2 pr-3">Branch</th>
+            <th className="py-2 pr-3">{bw.one}</th>
             <th className="py-2 pr-3">Issued</th>
             <th className="py-2 pr-3">Due</th>
             <th className="py-2 pr-3 text-right">Total</th>
@@ -85,7 +87,7 @@ export default async function InvoicingPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="page-title">Invoicing</h1>
-          <p className="page-subtitle">Private client invoices for your branches.</p>
+          <p className="page-subtitle">Private client invoices for your {bw.manyLower}.</p>
         </div>
         <div className="flex items-center gap-2">
           <Link href="/invoicing/schedules" className="btn-outline text-sm">Recurring</Link>

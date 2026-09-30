@@ -2444,3 +2444,31 @@ users) would have kept charging an extra user after moving to Pro, which include
 to the current plan's allowance (orderedExtraOnPlan, 4 tests); (2) the plan swap used
 create_prorations, so an Annual upgrade's difference would have waited a year for the renewal
 invoice; now charged at once on Annual (always_invoice), as the page says.
+
+## DEF-087 — Founder company page and MRR still monthly for an Annual company (seen in Phil's I8 screenshots, 2026-09-30)
+
+Bevan's founder page (Annual Business, 1 extra user) showed "£84.00/mo · base £79.00 + 1 seat",
+the Seats card "1 extra (£0.00/mo)" (the ordered extra had its count raised by DEF-083 but not its
+cost), "£25.00 per branch per month" under Add a branch, and "Moving up to Pro is prorated onto
+their next invoice". The console, company list and revenue MRR also counted Annual companies at
+the monthly list price (£84 rather than £70). Fixed: the founder page reads billing_interval and
+extras_interval and shows yearly figures (£840.00/yr, 1 extra £50.00/yr, £250.00 per branch per
+year, upgrade charged for the rest of the year, removal stops the charge from renewal); MRR uses
+one new pure rule, monthlyRecurringPence (yearly price over twelve, 3 tests), in all three places.
+
+## DEF-088 — An expired or used invitation link said "Contact your administrator" (Vera, Thistle, 2026-09-30)
+
+Vera (Senior) was invited on 29 Sep and never completed it (invite still pending, profile
+"invited", no password). Her link failed at /auth/confirm, which sent every failed non-reset link
+to "Your account does not have access. Contact your administrator", reading as though she had no
+account. Fixed: a failed invite or magic link goes to /login/forgot?reason=invite ("That invitation
+link has expired or has already been used"), and that form re-sends the invitation itself when the
+address belongs to a login still waiting on one (same 2 minute wait, same public reply).
+
+## DEF-089 — A login waiting on its invitation offered "Enable this login" (same case)
+
+Settings, Roles users and access, carer login panel: any status other than active showed "Enable
+this login", including "invited". Pressing it set Vera active with no password; Phil then needed
+Send password reset to get her in. Fixed: an invited login shows "Invited, not accepted yet" and
+"Resend invite" (resendUserInvite, re-sends to the address already on it); Enable/Disable only for
+active and disabled logins.

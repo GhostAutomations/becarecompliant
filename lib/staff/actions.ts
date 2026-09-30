@@ -20,6 +20,7 @@ import { writeAudit } from "@/lib/audit";
 import type { ActionState } from "@/lib/forms";
 import { inviteOrResendForPerson } from "@/lib/staff/invite";
 import { REGISTER_ROLES } from "@/lib/auth/module-roles";
+import { DEMO_REFUSAL } from "@/lib/demo/data";
 
 /*
  * WHOEVER MAY ADD THE CARER MAY GIVE THEM THEIR LOGIN (2026-09-21, with 0316).
@@ -82,6 +83,7 @@ export async function invitePersonLogin(
           `${person.work_email} is a sample address, so nothing was sent. Put their real email on the record and invite them again.`,
       };
     }
+    if (outcome.skipped === "demo") return { error: DEMO_REFUSAL };
     if (outcome.skipped === "no_email") {
       return { error: "Add their personal email to the record first, then invite them." };
     }

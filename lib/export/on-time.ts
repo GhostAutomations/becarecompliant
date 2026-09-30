@@ -43,6 +43,8 @@ import { fmtDate, generatedAt } from "@/lib/export/format";
 import { getTrainingMatrix } from "@/lib/training/data";
 import { getSatisfaction } from "@/lib/service-users/satisfaction";
 import { getOutcomesRegister } from "@/lib/service-users/data";
+import { getBranchTerms } from "@/lib/branches/company-word";
+import type { BranchTerms } from "@/lib/branches/word";
 
 export type OnTimeWindow = { from: string; to: string };
 
@@ -792,8 +794,9 @@ export async function buildOnTimeReport(
   input: OnTimeInput,
 ): Promise<{ doc: ReportDoc; csv: string; base: string }> {
   const r = await runFor(input);
-  if ("empty" in r && r.empty) return emptyReport(input, r.empty);
-  return renderOnTimeDoc(input, r.win, r.stats, r.cycles, r.pqsStars, r.extraMeasures);
+  const bw = await getBranchTerms(input.companyId);
+  if ("empty" in r && r.empty) return emptyReport({ ...input, bw }, r.empty);
+  return renderOnTimeDoc({ ...input, bw }, r.win, r.stats, r.cycles, r.pqsStars, r.extraMeasures);
 }
 
 /**
@@ -873,14 +876,14 @@ function popLabel(p: "people" | "service_users"): string {
 }
 
 function renderOnTimeDoc(
-  input: { companyName: string; branchName: string | null },
+  input: { companyName: string; branchName: string | null; bw: BranchTerms },
   win: OnTimeWindow,
   stats: OnTimeStat[],
   cycles: OnTimeCycle[],
   pqsStars: Record<string, string>,
   extraMeasures: PqsMeasure[],
 ): { doc: ReportDoc; csv: string; base: string } {
-  const scopeLabel = input.branchName ? input.branchName : "All branches";
+  const scopeLabel = input.branchName ? input.branchName : input.bw.all;
   const period = `${fmtDate(win.from)} to ${fmtDate(win.to)}`;
 
   // Each summary row, tagged with its name and whether it is a starred PQS measure,
@@ -989,7 +992,7 @@ function renderOnTimeDoc(
         columns: [
           { header: "Check", width: "20%" },
           { header: "Record", width: "22%" },
-          { header: "Branch", width: "16%" },
+          { header: input.bw.one, width: "16%" },
           { header: "Due", width: "16%" },
           { header: "Completed", width: "16%" },
           { header: "Result", width: "10%" },
@@ -1059,10 +1062,10 @@ function renderOnTimeDoc(
 }
 
 function emptyReport(
-  input: { companyName: string; branchName: string | null; window: OnTimeWindow },
+  input: { companyName: string; branchName: string | null; window: OnTimeWindow; bw: BranchTerms },
   note: string,
 ): { doc: ReportDoc; csv: string; base: string } {
-  const scopeLabel = input.branchName ? input.branchName : "All branches";
+  const scopeLabel = input.branchName ? input.branchName : input.bw.all;
   return {
     doc: {
       title: "PQS report",

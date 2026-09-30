@@ -41,6 +41,8 @@ import {
   upsertCompanyBilling,
 } from "@/lib/billing/stripe-sync";
 import { billedExtra } from "@/lib/billing/ordered-extras";
+import { companyPrices, type CompanyPrices } from "@/lib/billing/company-prices";
+import { dealOnboardingPence } from "@/lib/billing/deal-store";
 import { checkoutLines, intervalsFromOrder, onboardingDue, type Interval } from "@/lib/billing/annual";
 import { listAcceptances } from "@/lib/legal/acceptance";
 import { acceptanceCurrent } from "@/lib/legal/fill";
@@ -49,6 +51,7 @@ import { ONBOARDING_FEE_PENCE, onboardingOfferActive } from "@/lib/marketing/off
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import { checkoutPriceProblem } from "@/lib/billing/price-check";
 import { changeTier } from "@/lib/billing/tier-apply";
+import { DEMO_REFUSAL, isDemoCompany } from "@/lib/demo/data";
 
 /**
  * Upgrade this company from Business to Pro.
@@ -71,6 +74,7 @@ export async function upgradeToPro(
   _formData: FormData,
 ): Promise<ActionState> {
   const { profile } = await requireCompanyAdmin({ allowLapsed: true });
+  if (profile.role !== "platform_admin" && (await isDemoCompany(profile.company_id))) return { error: DEMO_REFUSAL };
   if (!profile.company_id) return { error: "No company on your account." };
   if (!stripeConfigured()) {
     return { error: "Billing is not configured yet. Please try again later." };
@@ -122,6 +126,7 @@ export async function startCheckout(
   // allowLapsed: this is the way OUT of a lapsed trial. Gating it behind the same lock it
   // exists to clear would leave a customer with no route back to their own records.
   const { profile } = await requireCompanyAdmin({ allowLapsed: true });
+  if (profile.role !== "platform_admin" && (await isDemoCompany(profile.company_id))) return { error: DEMO_REFUSAL };
   if (!profile.company_id) return { error: "No company on your account." };
 
   if (!stripeConfigured()) {
@@ -130,7 +135,7 @@ export async function startCheckout(
 
   const prepared = await prepareSubscription(profile.company_id);
   if ("error" in prepared) return { error: prepared.error };
-  const { tier, companyName, plan, extras, extra, extraBranch, onboardingPence } = prepared;
+  const { tier, companyName, plan, extras, extra, extraBranch, onboardingPence, prices } = prepared;
 
   // Nobody is charged an amount that disagrees with what we showed them. See
   // lib/billing/price-check.ts: this refuses the sale rather than trusting the dashboard.
@@ -139,6 +144,7 @@ export async function startCheckout(
     includeBranch: extraBranch > 0,
     interval: plan,
     extrasInterval: extras,
+    skip: prices.special,
   });
   if (priceProblem) return { error: priceProblem };
 
@@ -155,9 +161,9 @@ export async function startCheckout(
      lines, so it carries the plan only and the webhook adds the monthly extras to the same
      subscription straight after (lib/billing/annual.ts). */
   const { lines } = checkoutLines({
-    basePriceId: tierBasePriceId(tier, plan)!,
-    seatPriceId: seatPriceId(extras),
-    branchPriceId: branchPriceId(extras),
+    basePriceId: prices.plan!,
+    seatPriceId: prices.seat,
+    branchPriceId: prices.branch,
     extraSeats: extra,
     extraBranches: extraBranch,
     plan,
@@ -233,12 +239,13 @@ export async function startInvoiceSubscription(
   _formData: FormData,
 ): Promise<ActionState> {
   const { profile } = await requireCompanyAdmin({ allowLapsed: true });
+  if (profile.role !== "platform_admin" && (await isDemoCompany(profile.company_id))) return { error: DEMO_REFUSAL };
   if (!profile.company_id) return { error: "No company on your account." };
   if (!stripeConfigured()) return { error: "Billing is not configured yet. Please try again later." };
 
   const prepared = await prepareSubscription(profile.company_id);
   if ("error" in prepared) return { error: prepared.error };
-  const { tier, companyName, plan, extras, extra, extraBranch, onboardingPence, acceptanceId } = prepared;
+  const { tier, companyName, plan, extras, extra, extraBranch, onboardingPence, acceptanceId, prices } = prepared;
   if (plan !== "year") return { error: "Invoices are for the Annual option. Monthly is paid by card." };
 
   const priceProblem = await checkoutPriceProblem(tier, {
@@ -246,6 +253,7 @@ export async function startInvoiceSubscription(
     includeBranch: extraBranch > 0,
     interval: plan,
     extrasInterval: extras,
+    skip: prices.special,
   });
   if (priceProblem) return { error: priceProblem };
 
@@ -254,9 +262,9 @@ export async function startInvoiceSubscription(
   if (!customerId) return { error: "Could not create your billing account. Please try again." };
 
   // Every line on one subscription: flexible billing mode allows monthly extras on a yearly plan.
-  const items: Array<{ price: string; quantity: number }> = [{ price: tierBasePriceId(tier, plan)!, quantity: 1 }];
-  if (extra > 0 && seatPriceId(extras)) items.push({ price: seatPriceId(extras)!, quantity: extra });
-  if (extraBranch > 0 && branchPriceId(extras)) items.push({ price: branchPriceId(extras)!, quantity: extraBranch });
+  const items: Array<{ price: string; quantity: number }> = [{ price: prices.plan!, quantity: 1 }];
+  if (extra > 0 && prices.seat) items.push({ price: prices.seat, quantity: extra });
+  if (extraBranch > 0 && prices.branch) items.push({ price: prices.branch, quantity: extraBranch });
 
   const key = `bcc-invoice-sub-${profile.company_id}-${acceptanceId ?? "none"}`;
   try {
@@ -348,6 +356,7 @@ async function prepareSubscription(companyId: string): Promise<
       extraBranch: number;
       onboardingPence: number;
       acceptanceId: string | null;
+      prices: CompanyPrices;
     }
 > {
   const supabase = await createClient();
@@ -386,6 +395,14 @@ async function prepareSubscription(companyId: string): Promise<
   const extra = billedExtra(extraSeats(await getActiveSeatCount(companyId), tier), ordered.users);
   const extraBranch = branchPriceId(extras) ? billedExtra(await extraBranches(companyId, tier), ordered.branches) : 0;
 
+  // The prices this company is charged: its deal's special prices where set, else the list (0354).
+  const prices = await companyPrices(companyId, tier, { plan, extras });
+  if (!prices.plan || (extra > 0 && !prices.seat) || (extraBranch > 0 && !prices.branch)) {
+    return { error: "We could not set up the prices agreed with you just now. Nothing has been charged. Please try again in a minute, or email hello@becarecompliant.com." };
+  }
+  // A deal can set its own onboarding fee (0354): waived, or an amount. Otherwise the offer rule.
+  const dealOnboarding = await dealOnboardingPence(companyId);
+
   const due = onboardingDue({
     tier,
     offerActiveOnStartDate: onboardingOfferActive(current?.start_date ?? formatCivilDate(todayInLondon())),
@@ -399,8 +416,9 @@ async function prepareSubscription(companyId: string): Promise<
     extras,
     extra,
     extraBranch,
-    onboardingPence: due ? ONBOARDING_FEE_PENCE : 0,
+    onboardingPence: billing?.stripe_subscription_id ? 0 : dealOnboarding !== null ? dealOnboarding : due ? ONBOARDING_FEE_PENCE : 0,
     acceptanceId: current?.id ?? null,
+    prices,
   };
 }
 
@@ -411,6 +429,7 @@ export async function startAiTopupCheckout(
   _formData: FormData,
 ): Promise<ActionState> {
   const { profile } = await requireCompanyAdmin();
+  if (profile.role !== "platform_admin" && (await isDemoCompany(profile.company_id))) return { error: DEMO_REFUSAL };
   if (!profile.company_id) return { error: "No company on your account." };
   if (!stripeConfigured()) {
     return { error: "Billing is not configured yet. Please try again later." };
@@ -483,6 +502,7 @@ export async function startSmsTopupCheckout(
   _formData: FormData,
 ): Promise<ActionState> {
   const { profile } = await requireCompanyAdmin();
+  if (profile.role !== "platform_admin" && (await isDemoCompany(profile.company_id))) return { error: DEMO_REFUSAL };
   if (!profile.company_id) return { error: "No company on your account." };
   if (!stripeConfigured()) {
     return { error: "Billing is not configured yet. Please try again later." };
@@ -559,6 +579,7 @@ export async function openBillingPortal(
   // allowLapsed for the same reason as startCheckout: a lapsed company must still be able
   // to reach its card, its invoices and its own cancellation.
   const { profile } = await requireCompanyAdmin({ allowLapsed: true });
+  if (profile.role !== "platform_admin" && (await isDemoCompany(profile.company_id))) return { error: DEMO_REFUSAL };
   if (!profile.company_id) return { error: "No company on your account." };
 
   if (!stripeConfigured()) {

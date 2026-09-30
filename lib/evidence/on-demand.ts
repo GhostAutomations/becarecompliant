@@ -83,7 +83,7 @@ export async function getEvidenceView(
   const { data, error } = await supabase
     .from("evidence")
     .select(
-      "id, company_id, branch_id, record_type, record_id, schema_snapshot, answers, author_name, author_email, submitted_at, pdf_path, anonymised_at, companies(name), branches(name), form_versions(version), forms(name)",
+      "id, company_id, branch_id, record_type, record_id, schema_snapshot, answers, author_name, author_email, submitted_at, pdf_path, anonymised_at, companies(name, branch_word), branches(name), form_versions(version), forms(name)",
     )
     .eq("id", evidenceId)
     .maybeSingle<EvidenceViewRow>();
@@ -159,7 +159,7 @@ type EvidenceRow = {
   author_email: string | null;
   submitted_at: string;
   pdf_path: string | null;
-  companies: { name: string } | null;
+  companies: { name: string; branch_word?: string | null } | null;
   branches: { name: string } | null;
   form_versions: { version: number } | null;
   forms: { name: string } | null;
@@ -182,7 +182,7 @@ export async function evidenceSignedPdfUrl(input: {
   const { data, error } = await supabase
     .from("evidence")
     .select(
-      "id, company_id, branch_id, record_type, record_id, schema_snapshot, answers, author_name, author_email, submitted_at, pdf_path, anonymised_at, companies(name), branches(name), form_versions(version), forms(name)",
+      "id, company_id, branch_id, record_type, record_id, schema_snapshot, answers, author_name, author_email, submitted_at, pdf_path, anonymised_at, companies(name, branch_word), branches(name), form_versions(version), forms(name)",
     )
     .eq("id", input.evidenceId)
     .maybeSingle<
@@ -224,6 +224,7 @@ export async function evidenceSignedPdfUrl(input: {
     subject: await loadEvidenceSubject(data.record_type, data.record_id),
     companyName: data.companies?.name ?? "Company",
     branchName: data.branches?.name ?? null,
+    branchLabel: data.companies?.branch_word ?? null,
     formName: data.forms?.name ?? "Form",
     formVersion: data.form_versions?.version ?? 1,
     authorName: data.author_name,
@@ -287,7 +288,7 @@ export async function renderEvidenceBytes(
   const { data, error } = await supabase
     .from("evidence")
     .select(
-      "id, company_id, branch_id, record_type, record_id, schema_snapshot, answers, author_name, author_email, submitted_at, pdf_path, companies(name), branches(name), form_versions(version), forms(name)",
+      "id, company_id, branch_id, record_type, record_id, schema_snapshot, answers, author_name, author_email, submitted_at, pdf_path, companies(name, branch_word), branches(name), form_versions(version), forms(name)",
     )
     .eq("id", evidenceId)
     .maybeSingle<EvidenceRow & { record_type: EvidenceRecordType; record_id: string }>();
@@ -300,6 +301,7 @@ export async function renderEvidenceBytes(
     subject: await loadEvidenceSubject(data.record_type, data.record_id),
     companyName: data.companies?.name ?? "Company",
     branchName: data.branches?.name ?? null,
+    branchLabel: data.companies?.branch_word ?? null,
     formName: data.forms?.name ?? "Form",
     formVersion: data.form_versions?.version ?? 1,
     authorName: data.author_name,

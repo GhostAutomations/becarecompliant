@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import BackLink from "@/components/back-link";
 import { getReg73Visit, listReg73Signatories } from "@/lib/reg73/data";
 import Reg73Form from "@/components/reg73/reg73-form";
+import { getBranchTerms } from "@/lib/branches/company-word";
 
 export const metadata: Metadata = { title: "Regulation 73 visit" };
 
@@ -14,6 +15,7 @@ const EDIT_ROLES = ["platform_admin", "company_admin", "registered_individual", 
 export default async function Reg73VisitPage({ params }: { params: Promise<{ id: string }> }) {
   const { profile } = await requireCompany();
   if (!profile.company_id) redirect("/founder");
+  const bw = await getBranchTerms(profile.company_id);
   if (!VIEW_ROLES.includes(profile.role)) redirect("/reports");
 
   const { id } = await params;
@@ -25,14 +27,14 @@ export default async function Reg73VisitPage({ params }: { params: Promise<{ id:
     supabase.from("branches").select("name").eq("id", visit.branch_id).maybeSingle(),
     listReg73Signatories(profile.company_id),
   ]);
-  const branchName = (branch?.name as string) ?? "Branch";
+  const branchName = (branch?.name as string) ?? bw.one;
   const canEdit = EDIT_ROLES.includes(profile.role) && visit.status === "draft";
 
   return (
     <div className="page-shell space-y-5">
       <BackLink href="/reports/reg73" label="Back to Regulation 73 visits" />
       <div>
-        <h1 className="page-title">Responsible Individual Branch Visit</h1>
+        <h1 className="page-title">Responsible Individual {bw.one} Visit</h1>
         <p className="page-subtitle">{visit.reference ?? branchName}</p>
       </div>
       <Reg73Form visit={visit} branchName={branchName} canEdit={canEdit} signatories={signatories} />

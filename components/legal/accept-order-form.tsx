@@ -8,6 +8,9 @@ import {
   MAX_EXTRA_BRANCHES,
   MAX_EXTRA_USERS,
   ORGANISATION_TYPES,
+  branchesLineText,
+  type OrderBranchStep,
+  type OrderBranchWord,
   extrasLineText,
   extrasPaidText,
   fillOrderTable,
@@ -47,6 +50,12 @@ export type OrderSummary = {
   branchesIncluded: number;
   seatPence: number;
   branchPence: number;
+  /** A deal's two-step extra branch price (0354), or null. */
+  branchStep: OrderBranchStep;
+  /** The company's own word for a branch (0354), e.g. House / Houses. */
+  word: OrderBranchWord;
+  /** A founder deal fixes these (0354): shown, not asked. Null means the Admin chooses. */
+  fixed: { billingOption: "monthly" | "annual"; extrasBilling: "monthly" | "yearly"; extraUsers: number; extraBranches: number } | null;
   /** The plan's monthly price in pence (null on Black) and how many months Annual charges. */
   monthlyPence: number | null;
   annualMonths: number;
@@ -88,11 +97,14 @@ export default function AcceptOrderForm({
   const [orgType, setOrgType] = useState("limited_company");
   const [companyNumber, setCompanyNumber] = useState(initial.companyNumber);
   const [address, setAddress] = useState(initial.address);
-  const [billing, setBilling] = useState(billingApplies ? "monthly" : "none");
+  const fixed = billingApplies ? summary.fixed : null;
+  const [billing, setBilling] = useState<string>(billingApplies ? (fixed?.billingOption ?? "monthly") : "none");
   const [accepted, setAccepted] = useState(false);
-  const [extraUsers, setExtraUsers] = useState("0");
-  const [extraBranches, setExtraBranches] = useState("0");
-  const [extrasBilling, setExtrasBilling] = useState("yearly");
+  const [extraUsers, setExtraUsers] = useState(String(fixed?.extraUsers ?? 0));
+  const [extraBranches, setExtraBranches] = useState(String(fixed?.extraBranches ?? 0));
+  const [extrasBilling, setExtrasBilling] = useState<string>(fixed?.extrasBilling ?? "yearly");
+  const wOne = summary.word.one.charAt(0).toLowerCase() + summary.word.one.slice(1);
+  const wMany = summary.word.many.charAt(0).toLowerCase() + summary.word.many.slice(1);
   const users = Math.max(0, Math.trunc(Number(extraUsers)) || 0);
   const branches = Math.max(0, Math.trunc(Number(extraBranches)) || 0);
   const costs = orderCosts({
@@ -107,6 +119,8 @@ export default function AcceptOrderForm({
     seatPence: summary.seatPence,
     branchPence: summary.branchPence,
     onboardingFee: summary.onboardingFee,
+    branchStep: summary.branchStep,
+    word: summary.word,
   });
   // Say the charge the way it will be taken: on Annual with extras paid yearly it is ten months'
   // price once a year, not "a month" (seen in test I3, 2026-09-30, beside a yearly breakdown).
@@ -117,6 +131,16 @@ export default function AcceptOrderForm({
       : extrasYearly
         ? `You will be charged an extra ${money(n * unit * summary.annualMonths)} a year (${n} x ${money(unit)} x ${summary.annualMonths} months).`
         : `You will be charged an extra ${money(n * unit)} a month (${n} x ${money(unit)}).`;
+  /* Extra branches may be two-step (0354): the first N at one price, the rest at another. */
+  const branchCharge = (n: number) => {
+    const step = summary.branchStep;
+    if (!step || n <= step.after) return chargeText(n, summary.branchPence);
+    const rest = n - step.after;
+    const m = extrasYearly ? summary.annualMonths : 1;
+    const total = (step.after * summary.branchPence + rest * step.pricePence) * m;
+    const per = extrasYearly ? ` x ${summary.annualMonths} months` : "";
+    return `You will be charged an extra ${money(total)} a ${extrasYearly ? "year" : "month"} (${step.after} x ${money(summary.branchPence)}${per}, then ${rest} x ${money(step.pricePence)}${per}).`;
+  };
   const numberRequired = orgType === "limited_company" || orgType === "charity";
   const price = billing === "annual" ? summary.priceAnnual : summary.priceMonthly;
 
@@ -158,7 +182,7 @@ export default function AcceptOrderForm({
           price,
           included: summary.included,
           extraUsers: extrasLineText(users, summary.seatPence, summary.tier),
-          extraBranches: extrasLineText(branches, summary.branchPence, summary.tier),
+          extraBranches: branchesLineText(branches, summary.branchPence, summary.tier, summary.branchStep),
           extrasPaid: extrasPaidText(costs, billing, summary.tier),
           total: costs.totalText,
           billingOption: billing,
@@ -170,6 +194,7 @@ export default function AcceptOrderForm({
           agreementVersion: summary.agreementVersion,
           dpaVersion: summary.dpaVersion,
         }),
+        { word: summary.word },
       ),
     [agreementText, legalName, orgType, companyNumber, address, billing, price, users, branches, costs, summary],
   );
@@ -255,7 +280,15 @@ export default function AcceptOrderForm({
           </div>
         </div>
 
-        {billingApplies ? (
+        {billingApplies && fixed ? (
+          <div className="mt-4 text-sm">
+            <p className="form-label">Billing option</p>
+            <p className="text-white/85">
+              {fixed.billingOption === "annual" ? "Annual, paid yearly in advance" : "Monthly, card, cancel any time"}, as agreed with you
+            </p>
+            <input type="hidden" name="billing_option" value={fixed.billingOption} />
+          </div>
+        ) : billingApplies ? (
           <fieldset className="mt-4">
             <legend className="form-label">Billing option</legend>
             <div className="mt-1 flex flex-wrap gap-5">
@@ -297,7 +330,37 @@ export default function AcceptOrderForm({
             </ul>
           </div>
 
-          {billingApplies ? (
+          {billingApplies && fixed ? (
+            <>
+              {/* THE AGREED DEAL (0354): shown, not asked, and sent as it is. */}
+              <div>
+                <p className="text-white/85">
+                  Your plan includes {summary.usersIncluded} {summary.usersIncluded === 1 ? "user" : "users"}. Extra users
+                  agreed with you: {users}.
+                </p>
+                <p className="mt-1 text-white">{chargeText(users, summary.seatPence)}</p>
+                <input type="hidden" name="extra_users" value={String(users)} />
+              </div>
+              <div>
+                <p className="text-white/85">
+                  Your plan includes the office team and {summary.branchesIncluded}{" "}
+                  {summary.branchesIncluded === 1 ? wOne : wMany}. Extra {wMany} agreed with you: {branches}.
+                </p>
+                <p className="mt-1 text-white">{branchCharge(branches)}</p>
+                <input type="hidden" name="extra_branches" value={String(branches)} />
+              </div>
+              {billing === "annual" && users + branches > 0 ? (
+                <p className="text-white/85">
+                  Extras paid:{" "}
+                  {extrasBilling === "monthly"
+                    ? "monthly by card, the full price each month"
+                    : "yearly with the plan, ten months' price for twelve"}
+                  , as agreed with you
+                </p>
+              ) : null}
+              <input type="hidden" name="extras_billing" value={extrasBilling} />
+            </>
+          ) : billingApplies ? (
             <>
               <div>
                 <p className="text-white/85">
@@ -326,10 +389,10 @@ export default function AcceptOrderForm({
               <div>
                 <p className="text-white/85">
                   Your plan includes the office team and {summary.branchesIncluded}{" "}
-                  {summary.branchesIncluded === 1 ? "branch" : "branches"}.
+                  {summary.branchesIncluded === 1 ? wOne : wMany}.
                 </p>
                 <label htmlFor="extra_branches" className="form-label mt-2">
-                  How many extra branches would you like to add?
+                  How many extra {wMany} would you like to add?
                 </label>
                 <div className="max-w-[8rem]">
                   <input
@@ -345,7 +408,7 @@ export default function AcceptOrderForm({
                     onChange={(e) => setExtraBranches(e.target.value)}
                   />
                 </div>
-                <p className="mt-1 text-white">{chargeText(branches, summary.branchPence)}</p>
+                <p className="mt-1 text-white">{branchCharge(branches)}</p>
               </div>
 
               {billing === "annual" && users + branches > 0 ? (

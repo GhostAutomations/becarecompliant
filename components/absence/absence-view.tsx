@@ -34,6 +34,7 @@ import type { RtwQuestionnaire } from "@/lib/absence/rtw-questions-data";
 import { rtwQuestionsPill } from "@/lib/absence/rtw-questions";
 import RtwSendPanel from "@/components/absence/rtw-send-panel";
 import { rtwFromSearch, viewFromSearch } from "@/lib/absence/rtw-list";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 /** The card shows the office NAME, not the full address (Phil, 2026-07-12):
  *  "Cardiff Branch Office", "Acme Care Company Office" or "Teams". The full
@@ -115,6 +116,7 @@ export default function AbsenceView({
   /** First date inside the rolling window (Europe/London today less the window). */
   windowStart: string;
 }) {
+  const bw = useBranchWord();
   const [branch, setBranch] = useState("");
   const [pickPerson, setPickPerson] = useState("");
 
@@ -351,7 +353,7 @@ export default function AbsenceView({
         {branches.length > 1 && (
           <div>
             <label htmlFor="absence-branch" className="form-label">
-              Branch
+              {bw.one}
             </label>
             <select
               id="absence-branch"
@@ -361,7 +363,7 @@ export default function AbsenceView({
                 setPickPerson("");
               }}
             >
-              <option value="">All branches</option>
+              <option value="">{bw.all}</option>
               {branches.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name}
@@ -564,7 +566,7 @@ export default function AbsenceView({
 
       {visibleRows.length === 0 ? (
         <div className="glass-card p-8 text-center text-sm text-white/60">
-          No absences recorded{branch ? " for this branch" : ""}. People appear here
+          No absences recorded{branch ? ` for this ${bw.oneLower}` : ""}. People appear here
           once an absence is logged against them.
         </div>
       ) : (

@@ -16,6 +16,7 @@ import {
   revokeInvite,
   type Actor,
   type InviteRole,
+  resendStaffInviteByEmail,
 } from "@/lib/invites";
 import {
   INVITE_DOMAIN_LIMIT,
@@ -34,6 +35,7 @@ import { sendPasswordReset } from "@/lib/auth/password-reset";
 import { RESET_THROTTLE_MINUTES } from "@/lib/auth/password-reset-rules";
 import { PORTAL_FORMS, portalFormKey } from "@/lib/auth/portal-forms";
 import { ROLE_LABELS } from "@/lib/nav";
+import { DEMO_REFUSAL, isDemoCompany } from "@/lib/demo/data";
 
 const INVITABLE_ROLES: InviteRole[] = [
   "registered_individual",
@@ -80,13 +82,19 @@ async function chooseRole(
   return { role: parsed.role as InviteRole, companyRoleId: parsed.companyRoleId };
 }
 
-async function adminContext(): Promise<
+async function adminContext(opts: { logins?: boolean } = {}): Promise<
   | { ok: true; companyId: string; actor: Actor }
   | { ok: false; error: string }
 > {
   const { user, profile } = await requireCompanyAdmin();
   if (!profile.company_id) {
     return { ok: false, error: "The Founder manages companies from the Founder console." };
+  }
+  /* A DEMO (0356) cannot touch logins or roles: no invites, no role changes, no resets. The
+     database refuses invites and roles as well; this says so in plain English first. The founder,
+     managing as the demo, is let through. */
+  if (opts.logins && profile.role !== "platform_admin" && (await isDemoCompany(profile.company_id))) {
+    return { ok: false, error: DEMO_REFUSAL };
   }
   return {
     ok: true,
@@ -134,7 +142,7 @@ export async function inviteUser(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const ctx = await adminContext();
+  const ctx = await adminContext({ logins: true });
   if (!ctx.ok) return { error: ctx.error };
 
   const email = String(formData.get("email") ?? "").trim();
@@ -269,7 +277,7 @@ export async function resendInviteAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const ctx = await adminContext();
+  const ctx = await adminContext({ logins: true });
   if (!ctx.ok) return { error: ctx.error };
   const inviteId = String(formData.get("invite_id") ?? "");
   if (!inviteId) return { error: "Missing invite." };
@@ -284,11 +292,39 @@ export async function resendInviteAction(
 }
 
 /** Send every invite that was created with the email held back. */
+/**
+ * RESEND THE INVITATION OF A LOGIN THAT NEVER ACCEPTED IT (Vera, Thistle, 2026-09-30). Her login
+ * sat at "invited" and the only button offered was "Enable this login", which marked her active
+ * without her ever setting a password. From a person's login panel this re-sends the invitation to
+ * the address already on it.
+ */
+export async function resendUserInvite(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const ctx = await adminContext({ logins: true });
+  if (!ctx.ok) return { error: ctx.error };
+  const userId = String(formData.get("user_id") ?? "");
+  if (!userId) return { error: "Missing login." };
+  const supabase = await createClient();
+  const { data: target } = await supabase
+    .from("profiles")
+    .select("email, status, company_id")
+    .eq("id", userId)
+    .maybeSingle();
+  if (!target || target.company_id !== ctx.companyId) return { error: "That login could not be found." };
+  if (target.status !== "invited") return { error: "They have already accepted their invitation." };
+  const outcome = await resendStaffInviteByEmail(ctx.companyId, String(target.email ?? ""), ctx.actor);
+  revalidatePath("/settings/users");
+  if (!outcome.ok) return { error: outcome.error };
+  if (!outcome.emailSent) {
+    return { ok: `Invitation updated, but the email was not sent (${outcome.emailNote ?? "email not configured"}).` };
+  }
+  return { ok: "Invitation sent again. The link in it works once." };
+}
+
 export async function sendHeldInvitesAction(
   _prev: ActionState,
   _formData: FormData,
 ): Promise<ActionState> {
-  const ctx = await adminContext();
+  const ctx = await adminContext({ logins: true });
   if (!ctx.ok) return { error: ctx.error };
 
   const supabase = await createClient();
@@ -328,7 +364,7 @@ export async function revokeInviteAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const ctx = await adminContext();
+  const ctx = await adminContext({ logins: true });
   if (!ctx.ok) return { error: ctx.error };
   const inviteId = String(formData.get("invite_id") ?? "");
   if (!inviteId) return { error: "Missing invite." };
@@ -382,7 +418,7 @@ export async function addInviteDomain(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const ctx = await adminContext();
+  const ctx = await adminContext({ logins: true });
   if (!ctx.ok) return { error: ctx.error };
 
   const parsed = normaliseInviteDomain(String(formData.get("domain") ?? ""));
@@ -426,7 +462,7 @@ export async function removeInviteDomain(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const ctx = await adminContext();
+  const ctx = await adminContext({ logins: true });
   if (!ctx.ok) return { error: ctx.error };
 
   const domain = String(formData.get("domain") ?? "").trim().toLowerCase();
@@ -463,7 +499,7 @@ export async function setUserStatus(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const ctx = await adminContext();
+  const ctx = await adminContext({ logins: true });
   if (!ctx.ok) return { error: ctx.error };
   const userId = String(formData.get("user_id") ?? "");
   const status = String(formData.get("status") ?? "");
@@ -514,7 +550,7 @@ export async function setUserStatus(
  *  Primary = auto-fill branch (their name appears when that branch is chosen on Add).
  *  Additional views = branches they can see but are not auto-filled into. */
 export async function saveTeamMember(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const ctx = await adminContext();
+  const ctx = await adminContext({ logins: true });
   if (!ctx.ok) return { error: ctx.error };
 
   const userId = String(formData.get("user_id") ?? "");
@@ -591,7 +627,7 @@ export async function deleteUser(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const ctx = await adminContext();
+  const ctx = await adminContext({ logins: true });
   if (!ctx.ok) return { error: ctx.error };
   const userId = String(formData.get("user_id") ?? "");
   if (!userId) return { error: "Missing user." };
@@ -658,7 +694,7 @@ export async function deleteUser(
 
 /** Change a user's role (within the non-admin roles). */
 export async function changeUserRole(formData: FormData): Promise<void> {
-  const ctx = await adminContext();
+  const ctx = await adminContext({ logins: true });
   if (!ctx.ok) return;
   const userId = String(formData.get("user_id") ?? "");
   const chosen = await chooseRole(String(formData.get("role") ?? ""), ctx.companyId, EDITABLE_ROLES);
@@ -782,6 +818,7 @@ export async function renameBranch(
  */
 export async function saveRoleModules(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const { user, profile } = await requireCompanyAdmin();
+  if (profile.role !== "platform_admin" && (await isDemoCompany(profile.company_id))) return { error: DEMO_REFUSAL };
   const companyId = profile.company_id;
   if (!companyId) return { error: "No company context." };
 
@@ -885,7 +922,7 @@ export async function createCompanyRole(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const ctx = await adminContext();
+  const ctx = await adminContext({ logins: true });
   if (!ctx.ok) return { error: ctx.error };
 
   const name = String(formData.get("name") ?? "").trim();
@@ -932,7 +969,7 @@ export async function renameCompanyRole(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const ctx = await adminContext();
+  const ctx = await adminContext({ logins: true });
   if (!ctx.ok) return { error: ctx.error };
 
   const id = String(formData.get("company_role_id") ?? "").trim();
@@ -981,7 +1018,7 @@ export async function saveCompanyRoleModules(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const ctx = await adminContext();
+  const ctx = await adminContext({ logins: true });
   if (!ctx.ok) return { error: ctx.error };
 
   const id = String(formData.get("company_role_id") ?? "").trim();
@@ -1048,7 +1085,7 @@ export async function deleteCompanyRole(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const ctx = await adminContext();
+  const ctx = await adminContext({ logins: true });
   if (!ctx.ok) return { error: ctx.error };
 
   const id = String(formData.get("company_role_id") ?? "").trim();
@@ -1173,7 +1210,7 @@ export async function sendUserPasswordReset(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const ctx = await adminContext();
+  const ctx = await adminContext({ logins: true });
   if (!ctx.ok) return { error: ctx.error };
   const userId = String(formData.get("user_id") ?? "");
   if (!userId) return { error: "Missing user." };

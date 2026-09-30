@@ -13,6 +13,7 @@ import AlreadyHerePanel, {
   type HistoryBoxView,
   type TrackerBoxView,
 } from "@/components/people/already-here-panel";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 export default function CreatePersonForm({
   branches,
@@ -32,6 +33,7 @@ export default function CreatePersonForm({
   trackerBoxes: TrackerBoxView[];
   historyBoxes: HistoryBoxView[];
 }) {
+  const bw = useBranchWord();
   const [state, formAction, pending] = useActionState(createPerson, IDLE_STATE);
   // One shared rule with the Edit form on the record (lib/people/roles.ts): the two screens
   // offered different people as a line manager until 2026-08-19.
@@ -85,7 +87,7 @@ export default function CreatePersonForm({
         </div>
 
         <div>
-          <label htmlFor="branch_id" className="form-label">Branch *</label>
+          <label htmlFor="branch_id" className="form-label">{bw.one} *</label>
           <select id="branch_id" name="branch_id" required value={branchId} onChange={(e) => onBranch(e.target.value)}>
             <option value="" disabled>Please choose</option>
             {branches.map((b) => (
@@ -150,7 +152,7 @@ export default function CreatePersonForm({
                   <option key={u.id} value={u.id}>{u.full_name || u.email}</option>
                 ))}
               </select>
-              <p className="form-hint">Auto filled from the branch. Change if needed.</p>
+              <p className="form-hint">Auto filled from the {bw.oneLower}. Change if needed.</p>
             </>
           )}
         </div>
@@ -193,7 +195,7 @@ export default function CreatePersonForm({
               ))}
             </div>
           )}
-          <p className="form-hint">Auto filled from the branch. Tick or untick as needed.</p>
+          <p className="form-hint">Auto filled from the {bw.oneLower}. Tick or untick as needed.</p>
         </div>
       </div>
 

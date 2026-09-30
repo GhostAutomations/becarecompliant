@@ -4,12 +4,14 @@ import { requireCompanyAdmin } from "@/lib/auth/guards";
 import { listBranches } from "@/lib/people/data";
 import BackLink from "@/components/back-link";
 import ImportUploader from "@/components/settings/import-uploader";
+import { getBranchTerms } from "@/lib/branches/company-word";
 
 export const metadata: Metadata = { title: "Import records" };
 
 export default async function ImportPage() {
   const { profile } = await requireCompanyAdmin();
   if (!profile.company_id) redirect("/founder");
+  const bw = await getBranchTerms(profile.company_id);
 
   const branches = await listBranches(profile.company_id, profile);
 
@@ -121,9 +123,9 @@ export default async function ImportPage() {
             <span className="text-white/90">Completed</span>, or the date if you have it.
           </li>
           <li>
-            The Branch column must exactly match one of your branches:{" "}
+            The Branch column must exactly match one of your {bw.manyLower}:{" "}
             <span className="text-white/90">
-              {branches.map((b) => b.name).join(", ") || "no branches set up yet"}
+              {branches.map((b) => b.name).join(", ") || `no ${bw.manyLower} set up yet`}
             </span>
             .
           </li>

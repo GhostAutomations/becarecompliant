@@ -24,6 +24,7 @@ import { useMemo, useState } from "react";
 import ActionForm from "@/components/action-form";
 import { assignItems } from "@/lib/assignments/actions";
 import type { BriefingPerson, BriefingScope, CompanyPolicy } from "@/lib/assignments/types";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 function plural(n: number): string {
   return n === 1 ? "person" : "people";
@@ -38,6 +39,7 @@ export default function AssignPanel({
   policies: CompanyPolicy[];
   people: BriefingPerson[];
 }) {
+  const bw = useBranchWord();
   const [open, setOpen] = useState(false);
   const [scope, setScope] = useState<BriefingScope>("company");
   const [branchId, setBranchId] = useState("");
@@ -89,8 +91,8 @@ export default function AssignPanel({
     },
     {
       value: "branch",
-      label: "A whole branch",
-      hint: branches.length > 0 ? "Pick the branch" : "No branches set up yet",
+      label: `A whole ${bw.oneLower}`,
+      hint: branches.length > 0 ? `Pick the ${bw.oneLower}` : `No ${bw.manyLower} set up yet`,
     },
     { value: "people", label: "Chosen people", hint: "Tick them yourself" },
   ];
@@ -183,7 +185,7 @@ export default function AssignPanel({
             <p className="form-hint">
               Goes to all {people.length} {plural(people.length)} on your register. Leavers and
               archived records are never included.
-              {noBranch > 0 ? ` That includes ${noBranch} with no branch set.` : ""}
+              {noBranch > 0 ? ` That includes ${noBranch} with no ${bw.oneLower} set.` : ""}
               {silentNote(people)}
             </p>
           )}
@@ -191,7 +193,7 @@ export default function AssignPanel({
           {scope === "branch" && (
             <div className="mt-3">
               <label htmlFor="assign-branch" className="form-label">
-                Which branch? *
+                Which {bw.oneLower}? *
               </label>
               <select
                 id="assign-branch"
@@ -211,7 +213,7 @@ export default function AssignPanel({
               </select>
               <p className="form-hint">
                 {branchId
-                  ? `Goes to all ${branchCount} ${plural(branchCount)} in that branch.${silentNote(inBranch)}`
+                  ? `Goes to all ${branchCount} ${plural(branchCount)} in that ${bw.oneLower}.${silentNote(inBranch)}`
                   : "Useful when one local authority asks for a document the others do not."}
               </p>
             </div>

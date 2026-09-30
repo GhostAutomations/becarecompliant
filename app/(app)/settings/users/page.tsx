@@ -31,6 +31,8 @@ import RoleAccessTile from "@/components/settings/role-access-tile";
 import NewRoleForm from "@/components/settings/new-role-form";
 import PortalFormsTile from "@/components/settings/portal-forms-tile";
 import { PORTAL_FORMS, portalFormKey } from "@/lib/auth/portal-forms";
+import { getBranchTerms } from "@/lib/branches/company-word";
+import { isDemoCompany } from "@/lib/demo/data";
 
 export const metadata: Metadata = { title: "Roles, users and access" };
 
@@ -89,7 +91,10 @@ const PASSIVE_ROLES = ["staff", "senior", "team_member"];
 export default async function UsersPage() {
   const { user, profile } = await requireCompanyAdmin();
   if (!profile.company_id) redirect("/founder");
+  // Logins, roles and billing are switched off in a demo (0356); the founder managing as it may look.
+  if (profile.role !== "platform_admin" && (await isDemoCompany(profile.company_id))) redirect("/settings");
   const companyId = profile.company_id;
+  const bw = await getBranchTerms(companyId);
 
   const supabase = await createClient();
   const disabled = await disabledModules(companyId);
@@ -317,8 +322,8 @@ export default async function UsersPage() {
     value,
     label: ROLE_LABELS[value] ?? value,
     reach: isCompanyWideRole(value)
-      ? "every branch in the company."
-      : "only the branches each person on it is assigned to.",
+      ? `every ${bw.oneLower} in the company.`
+      : `only the ${bw.manyLower} each person on it is assigned to.`,
   }));
 
   /* Every role picker on this screen is built from ONE list: the built-in roles, then the ones
@@ -436,7 +441,7 @@ export default async function UsersPage() {
 
       <SettingsSection
         title="Invite a person"
-        summary="Send an invitation, with their role and branches."
+        summary={`Send an invitation, with their role and ${bw.manyLower}.`}
       >
         {inviteDomains.length > 0 ? (
           <p className="mt-1 text-xs text-white/50">

@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { BranchLite } from "@/lib/service-users/data";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 /** View keys and where each navigates (register variants use /service-users?view=). */
 const VIEW_PATHS: Record<string, string> = {
@@ -24,6 +25,7 @@ export default function SuViewNav({
   branchId: string | null;
   branches: BranchLite[];
 }) {
+  const bw = useBranchWord();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   // Service Users are only assigned to a branch, never the office (team).
@@ -50,7 +52,7 @@ export default function SuViewNav({
     <div className="flex flex-wrap items-center gap-4">
       {branchOptions.length > 1 ? (
         <label className="flex items-center gap-2 text-sm font-bold text-white">
-          Branches
+          {bw.many}
           <select
             className="w-48"
             value={shownBranch}
@@ -59,7 +61,7 @@ export default function SuViewNav({
               go(VIEW_PATHS[shownView] ?? "/service-users", e.target.value);
             }}
           >
-            <option value="">All branches</option>
+            <option value="">{bw.all}</option>
             {branchOptions.map((b) => (
               <option key={b.id} value={b.id}>{b.name}</option>
             ))}

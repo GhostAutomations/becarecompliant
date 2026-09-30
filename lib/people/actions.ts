@@ -65,6 +65,7 @@ import { seniorMayDo } from "@/lib/senior/access";
 import { seniorListAfter } from "@/lib/auth/carer-login";
 import { getColumnLabels, getSupervisionCycleMode } from "@/lib/people/data";
 import { intervalUnit } from "@/lib/people/interval-unit";
+import { getBranchTerms } from "@/lib/branches/company-word";
 
 function trimOrNull(v: FormDataEntryValue | null): string | null {
   const s = String(v ?? "").trim();
@@ -286,7 +287,8 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
   const loginFailed =
     inviteOutcome.attempted === true &&
     inviteOutcome.ok === false &&
-    inviteOutcome.skipped !== "demo_email";
+    inviteOutcome.skipped !== "demo_email" &&
+    inviteOutcome.skipped !== "demo";
 
   redirect(`/people/${person.id}${loginFailed ? "?login=failed" : ""}`);
 }
@@ -1460,6 +1462,7 @@ export async function completeTrackerForm(_prev: ActionState, formData: FormData
       recipientEmail: (person.work_email as string | null) ?? null,
       companyName,
       branchName: personBranchName,
+      branchLabel: (await getBranchTerms(person.company_id as string)).one,
       formName: spec.title,
       formVersion: 1,
       authorName: profile.full_name || profile.email || null,

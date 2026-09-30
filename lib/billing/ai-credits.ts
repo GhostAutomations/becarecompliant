@@ -41,6 +41,14 @@ export async function spendAiCredit(
  *  grant_ai_credits is service-role only, so this goes through the service client. */
 export async function refundAiCredit(companyId: string): Promise<void> {
   try {
+    // A demo login's credit goes back to that login, not to the company (0356).
+    const supabase = await createClient();
+    const { data: wasDemo } = await supabase.rpc("refund_demo_ai_credit", { cid: companyId });
+    if (wasDemo === true) return;
+  } catch {
+    // No signed in user here (a background job): fall through to the company refund.
+  }
+  try {
     const { createServiceClient } = await import("@/lib/supabase/admin");
     const admin = createServiceClient();
     await admin.rpc("grant_ai_credits", { cid: companyId, amount: 1, p_reason: "refund", p_ref: null });

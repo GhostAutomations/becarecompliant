@@ -19,6 +19,7 @@ import {
 } from "@/lib/incidents/types";
 import { countable, summariseIncidents, needsAction } from "@/lib/incidents/summary";
 import { formatUkDate, formatTime } from "@/lib/incidents/logic";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 function statusPill(status: IncidentStatus) {
   const cls =
@@ -37,6 +38,7 @@ export default function IncidentsRegister({
   canManage: boolean;
   scope?: "open" | "closed";
 }) {
+  const bw = useBranchWord();
   const [status, setStatus] = useState<"all" | IncidentStatus>("all");
   const [branch, setBranch] = useState("");
   const [category, setCategory] = useState("");
@@ -156,9 +158,9 @@ export default function IncidentsRegister({
         </Link>
         {branches.length > 1 ? (
           <div>
-            <label htmlFor="incident_branch_filter" className="form-label">Branch</label>
+            <label htmlFor="incident_branch_filter" className="form-label">{bw.one}</label>
             <select id="incident_branch_filter" value={branch} onChange={(e) => setBranch(e.target.value)}>
-              <option value="">All branches</option>
+              <option value="">{bw.all}</option>
               {branches.map((b) => (
                 <option key={b.id} value={b.id}>{b.name}</option>
               ))}
@@ -197,7 +199,7 @@ export default function IncidentsRegister({
               <tr className="text-center text-xs uppercase tracking-wide text-white/40">
                 <th className="px-4 py-3 font-medium">When</th>
                 <th className="px-4 py-3 font-medium">Category</th>
-                <th className="px-4 py-3 font-medium">Branch</th>
+                <th className="px-4 py-3 font-medium">{bw.one}</th>
                 <th className="px-4 py-3 font-medium">Who</th>
                 <th className="px-4 py-3 font-medium">Notifiable</th>
                 <th className="px-4 py-3 font-medium">Safeguarding</th>

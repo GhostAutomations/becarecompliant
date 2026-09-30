@@ -13,6 +13,7 @@ import {
 import { readActingCompanyId } from "@/lib/founder/manage-as";
 import { isCompanyLapsed, isCompanyLocked } from "@/lib/billing/trial-gate";
 import { needsAgreement } from "@/lib/legal/acceptance";
+import { getCompanyDemo } from "@/lib/demo/data";
 
 export type Profile = {
   id: string;
@@ -221,6 +222,10 @@ export async function requireCompany(
      for are "add a card and carry on", which is not on offer to a company that has been shut.
      No query string on the redirect (see the Next 15 note below). */
   if (await isCompanyLocked(profile.company_id)) redirect("/company-closed");
+  /* A DEMO (0356) stops at its end date, whatever else is true: logins end, the company is deleted
+     14 days later. It never sees the agreement either: a demo is not a customer. */
+  const demo = await getCompanyDemo(profile.company_id);
+  if (demo && (demo.phase === "ended" || demo.phase === "purge_due")) redirect("/demo-ended");
   if (!options.allowLapsed && (await isCompanyLapsed(profile.company_id))) {
     // No query string on this redirect: redirecting a Server Action to a URL carrying one
     // trips the Next 15 router bug this codebase has already paid for (see lib/forms).
@@ -233,6 +238,7 @@ export async function requireCompany(
      switched on to test it. After the trial lock, so a lapsed company sees the lapse first. */
   if (
     !options.allowUnaccepted &&
+    !demo &&
     profile.role === "company_admin" &&
     (await needsAgreement(profile.company_id))
   ) {

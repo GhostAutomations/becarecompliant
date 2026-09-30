@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { setBranchServiceUserType } from "@/lib/service-users/actions";
 import type { BranchType } from "@/lib/service-users/data";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 const TYPES: Array<{ value: "simple" | "complex"; label: string }> = [
   { value: "simple", label: "Simple" },
@@ -11,6 +12,7 @@ const TYPES: Array<{ value: "simple" | "complex"; label: string }> = [
 ];
 
 export default function BranchTypeForm({ branches }: { branches: BranchType[] }) {
+  const bw = useBranchWord();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [optimistic, setOptimistic] = useState<Record<string, string>>({});
@@ -27,7 +29,7 @@ export default function BranchTypeForm({ branches }: { branches: BranchType[] })
   }
 
   if (branches.length === 0) {
-    return <p className="text-sm text-white/60">No branches yet. Add a branch to set its type.</p>;
+    return <p className="text-sm text-white/60">No {bw.manyLower} yet. Add a {bw.oneLower} to set its type.</p>;
   }
 
   return (

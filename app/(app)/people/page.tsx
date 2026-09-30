@@ -15,6 +15,7 @@ import { listRegisterCheckColumns, getRegisterColumnText } from "@/lib/register/
 import { DEFAULT_AMBER_DAYS } from "@/lib/recurrence";
 import { DBS_AMBER_DAYS, RTW_AMBER_DAYS } from "@/lib/people/logic";
 import { REGISTER_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
+import { getBranchTerms } from "@/lib/branches/company-word";
 
 export const metadata: Metadata = { title: "People" };
 
@@ -31,7 +32,7 @@ export default async function PeoplePage({
   // already checked the People tick; the outcome of a Check they just completed arrives here.
   if (profile.role === "senior") {
     const { completed, recorded, history, warn } = await searchParams;
-    return <SeniorNameList kind="people" outcome={{ completed, recorded, history, warn }} />;
+    return <SeniorNameList kind="people" outcome={{ completed, recorded, history, warn }} branchWord={await getBranchTerms(profile.company_id)} />;
   }
   // The On Call role has no People compliance department; send them home.
   if (profile.role === "on_call") redirect("/on-call");

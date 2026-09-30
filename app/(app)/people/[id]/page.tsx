@@ -63,6 +63,7 @@ import { LEAVING_SCORES, competitorLabel, reasonLabel } from "@/lib/people/leavi
 import { REGISTER_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
 import { listOutcomeLetters } from "@/lib/absence/outcome-letter-data";
 import { OutcomeLetterButton } from "@/components/absence/outcome-letter-dialog";
+import { getBranchTerms } from "@/lib/branches/company-word";
 
 export const metadata: Metadata = { title: "Record" };
 
@@ -130,6 +131,7 @@ export default async function PersonPage({
   const person = await getPerson(id);
   if (!person || !profile.company_id) redirect("/people");
   const companyId = profile.company_id;
+  const bw = await getBranchTerms(companyId);
   /*
    * PER RECORD, NOT PER ROLE (Phil, 2026-08-14). This used to be
    * `MANAGE_ROLES.includes(profile.role)`, which is a role check where RLS does a role check AND
@@ -1010,9 +1012,9 @@ export default async function PersonPage({
             <div className="grid gap-5 border-t border-white/10 pt-4 sm:grid-cols-2">
               <ActionForm action={transferPerson} hidden={{ person_id: person.id }} label="Transfer" buttonClassName="btn-outline text-xs">
                 <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-white/50">
-                  Branch
+                  {bw.one}
                 </h3>
-                <label htmlFor="transfer_branch" className="form-label">Transfer to branch</label>
+                <label htmlFor="transfer_branch" className="form-label">Transfer to {bw.oneLower}</label>
                 <select id="transfer_branch" name="branch_id" defaultValue={person.branch_id}>
                   {branchOptions.map((b) => (<option key={b.id} value={b.id}>{b.name}</option>))}
                 </select>

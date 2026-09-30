@@ -26,6 +26,7 @@ import {
   type PersonCard,
 } from "@/lib/people/summary-card";
 import { formatDisplayDate } from "@/lib/people/logic";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 /*
  * THE REGISTER'S COLOURS, NOT THE PILL TINTS (Phil, 2026-09-22: "fix" the pale card colours).
@@ -147,6 +148,7 @@ export default function ComplianceCards({
   /** Today in London, worked out on the server so every card agrees with the register. */
   today: string;
 }) {
+  const bw = useBranchWord();
   const [term, setTerm] = useState("");
   const [window, setWindow] = useState<string>("all");
 
@@ -191,7 +193,7 @@ export default function ComplianceCards({
           type="search"
           value={term}
           onChange={(e) => setTerm(e.target.value)}
-          placeholder="Search by name, job title or branch"
+          placeholder={`Search by name, job title or ${bw.oneLower}`}
           className="w-full max-w-sm text-sm"
           aria-label="Search people"
         />

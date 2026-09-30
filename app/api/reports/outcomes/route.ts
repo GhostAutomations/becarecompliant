@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { requireCompany } from "@/lib/auth/guards";
 import { buildCsv } from "@/lib/export/csv";
 import { getOutcomesRegister } from "@/lib/service-users/data";
+import { getBranchTerms } from "@/lib/branches/company-word";
 
 const ALLOWED = ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"];
 
@@ -34,7 +35,7 @@ export async function GET(_req: NextRequest) {
   ]);
 
   const csv = buildCsv(
-    ["Service user", "Branch", "Outcomes in scope", "Achieving or progressing", "Percent", "Update status", "Update due"],
+    ["Service user", (await getBranchTerms(profile.company_id)).one, "Outcomes in scope", "Achieving or progressing", "Percent", "Update status", "Update due"],
     rows,
   );
 

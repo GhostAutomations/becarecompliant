@@ -16,6 +16,7 @@ import { VerticalScrollbar } from "@/components/register/vertical-scrollbar";
 import { NameSortHeader, sortByName, useNameSort, type SortMode } from "@/components/register/name-sort-header";
 import { splitByProbation } from "@/lib/training/probation-group";
 import { phaseProgress } from "@/lib/training/phase";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 type BranchLite = { id: string; name: string };
 
@@ -97,6 +98,7 @@ export default function TrainingMatrix({
   /** The name order this user chose last time, read from their profile by the page. */
   initialSort: SortMode;
 }) {
+  const bw = useBranchWord();
   /*
    * TWO DIFFERENT QUESTIONS, and they used to be one boolean.
    *
@@ -298,7 +300,7 @@ export default function TrainingMatrix({
         {branches.length > 1 && (
           <div>
             <label htmlFor="tbranch" className="form-label">
-              Branch
+              {bw.one}
             </label>
             <select
               id="tbranch"
@@ -306,7 +308,7 @@ export default function TrainingMatrix({
               onChange={(e) => setBranch(e.target.value)}
               className="mt-1 max-w-xs"
             >
-              <option value="all">All branches</option>
+              <option value="all">{bw.all}</option>
               {branches.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name}
@@ -369,7 +371,7 @@ export default function TrainingMatrix({
       ) : shown.length === 0 ? (
         <div className="glass-card p-6 text-sm text-white/60">
           {inBranch.length === 0
-            ? "No active people in this branch yet. Add people to the register to track their training."
+            ? `No active people in this ${bw.oneLower} yet. Add people to the register to track their training.`
             : "Nobody matches that. Clear the search, or choose Everything."}
         </div>
       ) : (

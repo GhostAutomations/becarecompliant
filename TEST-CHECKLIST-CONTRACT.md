@@ -183,6 +183,71 @@ Bevan switched to Pro by SQL for this (no Stripe subscription, so nothing billed
   open Stripe's pages; empty filters say so.
 - I7 FAIL 2026-09-30, DEF-086: yearly cost shown inside the Seats card; Move to Pro and the notes still monthly. Fixed. RETEST PASS 2026-09-30 after deploy cf96a6f (Phil): plan card shows the yearly cost like an invoice (£790 + £50 x 10 months = £840 plus VAT), Seats shows usage only, Move to Pro compares yearly totals, Branches gives the yearly price. £1290.00 missing its comma: formatPence now thousands separated (next push).
 - I7 Settings, Billing on an Annual company shows /yr amounts.
+- I8 PART PASS 2026-09-30 (Phil, phone screenshots): switch shows No, Mark as a test company turns it to Yes. Then PASS (Phil): Founder > Invoices shows none of Bevan's invoices, Revenue leaves Bevan out. I8 PASS. The screenshots showed DEF-087 (founder page monthly on Annual), fixed.
 - I8 Test company (0353): on Founder > Companies > Bevan, Billing card, press "Mark as a test company";
   the pill reads Yes. Founder > Invoices (All) then shows none of Bevan's invoices (draft, void, £10
   paid). Revenue and the console MRR leave Bevan out. Pressing "Not a test company" brings them back.
+
+## Deal setup and the branch word (2026-09-30, 0354 and 0355)
+
+Test on a NEW test company made for the purpose (not Thistle). Stripe in sandbox; never pay.
+
+- D1 New company form: Deal section. Word House / Houses, two more houses (Treehouse, Oak House),
+  tier Business, Annual, extras yearly, 1 extra user, 7 extra houses, extra house price two step:
+  first 3 at £25, then £10. Onboarding waived. Create. The company page shows the Deal as saved,
+  Branches "(they say Houses)", and three houses plus the office.
+- D2 Validation: word without plural, a deal on Black, a duplicate house name, "first how many"
+  empty with a second price set: each refused with a plain message, nothing created.
+- D3 Founder edits the deal before acceptance (change the first price to £20): saved, audit
+  entry deal.saved. After acceptance the same edit is refused ("Branch word saved. The deal was
+  not changed"), the word can still change.
+- D4 Admin signs in: Order shows "as agreed with you" for plan, billing and extras, no choices to
+  change; the Order table reads "Extra houses" and has the row "Your word for a branch: House";
+  the cost lines show 3 houses at £25 and 4 at £10 (x 10 months on Annual); onboarding not charged.
+- D5 Payment step: "Extra houses" label; Stripe Checkout shows the plan, Extra Seat and a line
+  named "Extra house" at the agreed price (graduated). Do not pay.
+- D6 Settings, Billing: plan card shows the agreed prices, two house lines for the two step price,
+  the Houses card and notes say house or houses, not branch. Move to Pro hidden when the deal set
+  a plan price, otherwise uses the agreed extra prices.
+- D7 Branch word across the app for the Admin: sidebar and Settings tile say Houses; People and
+  Service User register filters say "All houses"; create person and service user forms say
+  "House *"; Incidents, Complaints, Whistleblowing, Holidays, Absence, Training, Planner, On Call
+  filters and columns say House; Reports chooser and Regulation 73/80 lists say house; a
+  PDF and CSV report say House in the column and "All houses" for the scope; an Evidence PDF
+  says House. The top bar pill for a manager reads "House Manager".
+- D8 A company without a word (Bevan) still says Branch everywhere, and Founder always says
+  branch, with the company's word alongside on its page.
+- D9 Word changed after a live subscription: the nightly or next sync moves the old branch line
+  to the new "Extra <word>" price in place (no second line on the subscription).
+
+## Demo accounts (2026-09-30, 0356 to 0358)
+
+Database parts proven by Claude in a rolled back dry run on 2026-09-30: sample data (50 people,
+40 service users, 420 checks: 264 green, 58 amber, 49 red, 49 unscheduled; 366 evidence), 5 AI
+credits per login then refused, refund gives one back, active time capped by real time, survey
+answers once (a 9 out of 5 refused), invites refused inside a demo. Still to test live after deploy:
+
+- DM1 Founder > Demos: set up a demo for a test client (your own +demo address, a password, blank
+  days). Lands on the demo page with "The demo is ready"; Founder > Companies does not list it.
+- DM2 Sign in as the demo login (another browser): straight to the dashboard, no agreement; gold
+  "Demo account" bar with the end date and "AI: 5 of 5 left"; three branches, about 50 people and
+  40 service users, a green, amber and red mix; evidence opens as a PDF.
+- DM3 Settings has no Billing, Seats or Roles, users and access; /settings/users and
+  /settings/billing go back to Settings; adding a Person with an email makes no login.
+- DM4 Use an AI button 6 times: the bar counts down, the 6th says out of credits.
+- DM5 Founder demo page after a few minutes of use: times signed in, total time, average visit,
+  parts used most (idle tab adds nothing).
+- DM6 Extend by 1 day, then End now: the demo login lands on "Your demo has ended" with "Tell us
+  what you thought". Answer the survey: all seven scores needed; answers show on the founder page.
+- DM7 Survey from 2 days before the end: the bar shows "Tell us what you thought".
+- DM8 The morning run (07:00 London) after the end: one survey email with a button, to a login that
+  has not answered, and never twice.
+- DM9 Delete now (type DELETE): company and login gone, usage and feedback still on the demo page.
+- DM10 Trial requests: "Set up a demo for <name>" opens Demos with the details filled in.
+
+## Invitation links (DEF-088, DEF-089)
+
+- IV1 Open an old or used invitation link: "That invitation link has expired or has already been
+  used", Send me a new link sends a fresh invitation (not a reset) to a login still waiting.
+- IV2 Settings, Roles users and access, a login still waiting: "Invited, not accepted yet" and
+  "Resend invite", no "Enable this login".

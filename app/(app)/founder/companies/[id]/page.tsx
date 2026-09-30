@@ -33,6 +33,10 @@ import { orderedExtrasByCompany, orderedFor } from "@/lib/billing/ordered-extras
 import { billedExtra } from "@/lib/billing/ordered-extras";
 import { subscriptionMonthlyPence } from "@/lib/billing/monthly-total";
 import { setTestCompany } from "@/lib/founder/test-company-actions";
+import { saveCompanyDeal } from "@/lib/founder/deal-actions";
+import { getDeal } from "@/lib/billing/deal-store";
+import { branchWord, dealMonthlyParts, lower } from "@/lib/billing/deal";
+import { DealFields } from "@/components/founder/deal-fields";
 import { TIER_LABELS } from "@/lib/stripe/config";
 import ActionForm from "@/components/action-form";
 import {
@@ -42,7 +46,8 @@ import {
   setCompanyRegulator,
   renameCompany,
 } from "@/app/(app)/founder/actions";
-import { TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
+import { TIER_BASE_PENCE, isSubscriptionTier, YEARLY_MONTHS_CHARGED } from "@/lib/stripe/config";
+import { billingIntervals } from "@/lib/billing/stripe-sync";
 import {
   billingStatusPill,
   companyStatusPillClass,
@@ -81,7 +86,7 @@ export default async function FounderCompanyPage({
 
   const { data: company } = await supabase
     .from("companies")
-    .select("id, name, slug, tier, status, created_at, deleted_at, purge_after, regulator, supervision_cycle_mode, people_column_labels, service_user_column_labels, is_test")
+    .select("id, name, slug, tier, status, created_at, deleted_at, purge_after, regulator, supervision_cycle_mode, people_column_labels, service_user_column_labels, is_test, branch_word, branch_word_plural")
     .eq("id", id)
     .maybeSingle();
 
@@ -114,7 +119,7 @@ export default async function FounderCompanyPage({
     supabase
       .from("company_billing")
       .select(
-        "stripe_subscription_id, subscription_status, billed_tier, seat_quantity, current_period_end, cancel_at_period_end",
+        "stripe_subscription_id, subscription_status, billed_tier, seat_quantity, current_period_end, cancel_at_period_end, billing_interval, extras_interval",
       )
       .eq("company_id", id)
       .maybeSingle(),
@@ -134,7 +139,17 @@ export default async function FounderCompanyPage({
   // What the company ordered is the least it pays (2026-09-30): the same floor as Stripe.
   const ordered = orderedFor(await orderedExtrasByCompany(supabase), company.id, company.tier ?? "business");
   const actualSeats = computeSeatUsage(activeUsers, includedSeatsForTier(company.tier));
-  const seats = { ...actualSeats, extra: billedExtra(actualSeats.extra, ordered.users) };
+  const seatsExtra = billedExtra(actualSeats.extra, ordered.users);
+  const seats = { ...actualSeats, extra: seatsExtra, extraCostPence: seatsExtra * EXTRA_SEAT_PENCE };
+  /* ANNUAL (2026-09-30, seen on Bevan's founder page): show yearly figures for a company paying
+     yearly, and the extras in the interval they are charged, the same as Settings, Billing. */
+  const intervals = billingIntervals(
+    billing as { billing_interval?: string | null; extras_interval?: string | null } | null,
+  );
+  const planYearly = intervals.plan === "year";
+  const extrasYearly = intervals.extras === "year";
+  const extrasPer = extrasYearly ? "/yr" : "/mo";
+  const extrasTimes = extrasYearly ? YEARLY_MONTHS_CHARGED : 1;
   const isSub = isSubscriptionTier(company.tier);
   /* A company moved to Black keeps a live subscription until the end of the period it has
      already paid for, so "Black: no Stripe subscription attached" would be false for up to a
@@ -143,22 +158,38 @@ export default async function FounderCompanyPage({
      there is billing to show, not whenever the tier is one we sell. */
   const hasBillingRow = Boolean(billing?.stripe_subscription_id);
   const branchIncluded = includedBranchesForTier(company.tier ?? "business");
+  // The company's own word for a branch (0354). Founder keeps "branch" and sees theirs alongside.
+  const theirWordRaw = branchWord(company as { branch_word?: string | null; branch_word_plural?: string | null });
+  const theirWord = theirWordRaw.one.toLowerCase() === "branch" ? null : theirWordRaw;
   const operationalBranches = (branches ?? []).filter((b) => (b as { kind?: string }).kind === "branch");
   const officeBranches = (branches ?? []).filter((b) => (b as { kind?: string }).kind !== "branch");
   // Extra branches are REAL MONEY on the subscription (one £7.50 line, quantity = beyond the
   // allowance), so the founder console has to include them or it reports a number Stripe
   // disagrees with. Acme showed £69.00/mo here while Stripe was billing £84.00.
   const extraBranchCount = billedExtra(Math.max(0, operationalBranches.length - branchIncluded), ordered.branches);
-  const monthlyTotalPence = isSub
-    ? subscriptionMonthlyPence({
-        basePence: TIER_BASE_PENCE[company.tier as keyof typeof TIER_BASE_PENCE],
-        extraSeats: seats.extra,
-        seatPence: EXTRA_SEAT_PENCE,
-        extraBranches: extraBranchCount,
-        branchPence: EXTRA_BRANCH_PENCE,
-      })
-    : 0;
+  // The deal's special prices, if any (0354), so this page shows what they are actually charged.
+  const deal = await getDeal(supabase, company.id);
+  const parts = isSub
+    ? dealMonthlyParts(
+        deal,
+        { planPence: TIER_BASE_PENCE[company.tier as keyof typeof TIER_BASE_PENCE], seatPence: EXTRA_SEAT_PENCE, branchPence: EXTRA_BRANCH_PENCE },
+        seats.extra,
+        extraBranchCount,
+      )
+    : null;
+  seats.extraCostPence = parts?.seatsPence ?? seats.extraCostPence;
+  const branchUnitPence = parts?.prices.branchPence ?? EXTRA_BRANCH_PENCE;
+  const branchStep = parts?.prices.step ?? null;
+  const monthlyTotalPence = parts ? parts.basePence + parts.seatsPence + parts.branchesPence : 0;
   const bpill = billingStatusPill(billing?.subscription_status ?? null);
+  const basePenceNow = parts?.basePence ?? 0;
+  const extrasPenceMonthly = (parts?.seatsPence ?? 0) + (parts?.branchesPence ?? 0);
+  const totalText = !isSub
+    ? ""
+    : planYearly
+      ? `${formatPence(basePenceNow * YEARLY_MONTHS_CHARGED + (extrasYearly ? extrasPenceMonthly * YEARLY_MONTHS_CHARGED : 0))}/yr` +
+        (!extrasYearly && extrasPenceMonthly > 0 ? ` + ${formatPence(extrasPenceMonthly)}/mo extras` : "")
+      : `${formatPence(monthlyTotalPence)}/mo`;
 
   // Usage grouped by month for a compact table.
   type UsageMonth = { sms: number; ai: number; smsCost: number; aiCost: number };
@@ -241,9 +272,9 @@ export default async function FounderCompanyPage({
           }
           sub={
             isSub
-              ? `${formatPence(monthlyTotalPence)}/mo` +
+              ? totalText +
                 (seats.extra > 0 || extraBranchCount > 0
-                  ? ` · base ${formatPence(TIER_BASE_PENCE[company.tier as keyof typeof TIER_BASE_PENCE])}` +
+                  ? ` · base ${formatPence(basePenceNow * (planYearly ? YEARLY_MONTHS_CHARGED : 1))}` +
                     (seats.extra > 0 ? ` + ${seats.extra} seat${seats.extra === 1 ? "" : "s"}` : "") +
                     (extraBranchCount > 0
                       ? ` + ${extraBranchCount} branch${extraBranchCount === 1 ? "" : "es"}`
@@ -257,7 +288,7 @@ export default async function FounderCompanyPage({
         <StatCard
           label="Seats"
           value={`${seats.used} / ${seats.included}`}
-          sub={`${seats.extra} extra (${formatPence(seats.extraCostPence)}/mo)`}
+          sub={`${seats.extra} extra (${formatPence(seats.extraCostPence * extrasTimes)}${extrasPer})`}
         />
         <StatCard
           label="Users"
@@ -269,7 +300,7 @@ export default async function FounderCompanyPage({
             company two branches over its allowance look three over. The office is not a branch
             and is never billed, so it is named separately rather than counted. */}
         <StatCard
-          label="Branches"
+          label={theirWord ? `Branches (they say ${theirWord.many})` : "Branches"}
           value={operationalBranches.length}
           sub={
             (operationalBranches.map((b) => b.name).join(", ") || "None") +
@@ -283,11 +314,21 @@ export default async function FounderCompanyPage({
           month the pricing page promises could never have been billed. Creating one here bills
           it immediately, prorated onto the next invoice like an extra user. */}
       <section aria-label="Branches" className="glass-card p-5">
-        <h2 className="mb-1 text-sm font-semibold text-white/80">Add a branch</h2>
+        <h2 className="mb-1 text-sm font-semibold text-white/80">
+          Add a branch{theirWord ? ` (a ${lower(theirWord.one)} to them)` : ""}
+        </h2>
         <p className="mb-3 text-xs text-white/50">
           {branchIncluded === 9999
             ? "This tier includes unlimited branches."
-            : `This tier includes ${branchIncluded} branch${branchIncluded === 1 ? "" : "es"}. Beyond that, ${formatPence(EXTRA_BRANCH_PENCE)} per branch per month is added to their subscription. Tell the customer before you add one.`}
+            : `This tier includes ${branchIncluded} branch${branchIncluded === 1 ? "" : "es"}. Beyond that, ${
+                extrasYearly
+                  ? `${formatPence(branchUnitPence * YEARLY_MONTHS_CHARGED)} per branch per year is added to their subscription, and the rest of their current year is charged straight away`
+                  : `${formatPence(branchUnitPence)} per branch per month is added to their subscription`
+              }${
+                branchStep
+                  ? ` for the first ${branchStep.after} extra, then ${formatPence(branchStep.pricePence * (extrasYearly ? YEARLY_MONTHS_CHARGED : 1))} each after that (their deal)`
+                  : ""
+              }. Tell the customer before you add one.`}
         </p>
         <ActionForm action={addBranch} hidden={{ company_id: company.id }} inline label="Add branch">
           <label htmlFor="new_branch_name" className="form-label">Branch name</label>
@@ -304,8 +345,10 @@ export default async function FounderCompanyPage({
             <h3 className="mb-1 text-xs font-semibold text-white/70">Remove a branch</h3>
             <p className="mb-3 text-xs text-white/50">
               Only a branch with nothing recorded against it can be removed, so this undoes one
-              added by mistake. Removing it stops the {formatPence(EXTRA_BRANCH_PENCE)} a month
-              straight away.
+              added by mistake.{" "}
+              {extrasYearly
+                ? `Removing it stops the ${formatPence(EXTRA_BRANCH_PENCE * YEARLY_MONTHS_CHARGED)} a year from their renewal.`
+                : `Removing it stops the ${formatPence(EXTRA_BRANCH_PENCE)} a month straight away.`}
             </p>
             <ul className="space-y-2">
               {operationalBranches.map((b) => (
@@ -340,8 +383,11 @@ export default async function FounderCompanyPage({
         <p className="mb-3 text-xs text-white/50">
           On {TIER_LABELS[(company.tier ?? "business") as keyof typeof TIER_LABELS] ?? company.tier}.
           Moving to Black makes them free straight away and stops their subscription at the end of
-          the period they have already paid for, so no money moves either way. Moving up to Pro is
-          prorated onto their next invoice. Moving down from Pro is not built yet.
+          the period they have already paid for, so no money moves either way. Moving up to Pro is{" "}
+          {planYearly
+            ? "charged for the rest of their current year straight away."
+            : "prorated onto their next invoice."}{" "}
+          Moving down from Pro is not built yet.
         </p>
         <ActionForm
           action={changeCompanyTier}
@@ -364,6 +410,25 @@ export default async function FounderCompanyPage({
                 </option>
               ))}
           </select>
+        </ActionForm>
+      </section>
+
+      {/* THE DEAL (0354, Phil 2026-09-30): fixes their Order and any special prices, plus their word
+          for a branch. Locked once their Admin has accepted, because the Order is then the contract. */}
+      <section aria-label="Deal" className="glass-card p-5">
+        <h2 className="mb-1 text-sm font-semibold text-white/80">Deal</h2>
+        <p className="mb-3 text-xs text-white/50">
+          {deal
+            ? "Their Order is filled in from this deal and they cannot change the numbers."
+            : "No deal: their Admin chooses the extras and Monthly or Annual on the Order."}{" "}
+          The deal can be changed until their Admin accepts the agreement.
+        </p>
+        <ActionForm action={saveCompanyDeal} hidden={{ company_id: company.id }} label="Save deal">
+          <DealFields
+            defaults={deal}
+            branchWord={(company as { branch_word?: string | null }).branch_word ?? null}
+            branchWordPlural={(company as { branch_word_plural?: string | null }).branch_word_plural ?? null}
+          />
         </ActionForm>
       </section>
 

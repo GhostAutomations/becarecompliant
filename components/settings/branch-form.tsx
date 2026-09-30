@@ -18,6 +18,7 @@ import { useActionState, useEffect, useState } from "react";
 import { IDLE_STATE } from "@/lib/forms";
 import { renameBranch } from "@/app/(app)/settings/actions";
 import { useSavedFlash } from "@/lib/use-saved-flash";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 export default function BranchForm({
   branchId,
@@ -36,6 +37,7 @@ export default function BranchForm({
   /** The office's address, or null while it is still blank. */
   officeAddress: string | null;
 }) {
+  const bw = useBranchWord();
   const [state, action, pending] = useActionState(renameBranch, IDLE_STATE);
   const [saved, flash, reset] = useSavedFlash();
   const [sharesOffice, setSharesOffice] = useState(!isOffice && initialSharesOffice);
@@ -94,7 +96,7 @@ export default function BranchForm({
           <p className="mt-1 text-[11px] text-white/40">
             {officeAddress
               ? "Taken from the office above. Change it there and this follows."
-              : "Set the office address on the first card, and this branch will use it."}
+              : `Set the office address on the first card, and this ${bw.oneLower} will use it.`}
           </p>
         </div>
       ) : (

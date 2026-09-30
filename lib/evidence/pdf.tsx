@@ -55,6 +55,8 @@ export type EvidencePdfMeta = {
   subject: EvidenceSubject;
   companyName: string;
   branchName?: string | null;
+  /** The company's word for a branch (0354); Branch when not given. */
+  branchLabel?: string | null;
   formName: string;
   formVersion: number;
   authorName?: string | null;
@@ -191,7 +193,7 @@ export function EvidenceEntry({
           <Text style={styles.metaValue}>{meta.companyName}</Text>
         </View>
         <View style={styles.metaCell}>
-          <Text style={styles.metaLabel}>Branch</Text>
+          <Text style={styles.metaLabel}>{meta.branchLabel || "Branch"}</Text>
           <Text style={styles.metaValue}>{meta.branchName || "Not set"}</Text>
         </View>
         <View style={styles.metaCell}>

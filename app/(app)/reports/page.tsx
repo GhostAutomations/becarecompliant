@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import { featureEnabled } from "@/lib/billing/tier";
 import ReportsPanel from "@/components/reports/reports-panel";
+import { getBranchTerms } from "@/lib/branches/company-word";
 
 export const metadata: Metadata = { title: "Reports" };
 
@@ -28,6 +29,7 @@ export default async function ReportsPage() {
       <ReportsPanel
         entitled={entitled}
         isAdmin={profile.role === "company_admin" || profile.role === "platform_admin"}
+        branchWord={await getBranchTerms(profile.company_id)}
       />
     </div>
   );

@@ -44,6 +44,8 @@ import {
   CARE_PLAN_UNITS,
   CARERS_OPTIONS,
 } from "@/lib/service-users/care-plan-consts";
+import { useBranchWord } from "@/components/branches/branch-word";
+import RatingStars from "@/components/forms/rating-stars";
 
 type Props = {
   schema: FormSchema;
@@ -224,6 +226,7 @@ function Field({
   /** record_lookup with scopeField: the branch answered on the form ("" when not yet). */
   scope?: string;
 }) {
+  const bw = useBranchWord();
   const id = `${idPrefix}-${field.key}`;
 
   // Presentational heading: a sub-heading inside a section.
@@ -546,7 +549,7 @@ function Field({
           id={id}
           value={typeof value === "string" ? value : ""}
           choices={offered}
-          placeholder={scope === "" ? "Choose the branch first" : undefined}
+          placeholder={scope === "" ? `Choose the ${bw.oneLower} first` : undefined}
           disabled={disabled}
           onPick={(choice, typed) => {
             /* The ANSWER is the name, so the evidence still reads correctly after a
@@ -716,41 +719,6 @@ function HintSelect({
 }
 
 /** Star rating (1..max). Answer is the chosen number. */
-function RatingStars({
-  value,
-  max,
-  disabled,
-  onValue,
-}: {
-  value: number;
-  max: number;
-  disabled: boolean;
-  onValue: (v: AnswerValue) => void;
-}) {
-  return (
-    <div className="mt-1 flex items-center gap-1.5">
-      {Array.from({ length: max }, (_, i) => i + 1).map((n) => (
-        <button
-          key={n}
-          type="button"
-          disabled={disabled}
-          aria-label={`${n} of ${max}`}
-          aria-pressed={value === n}
-          onClick={() => onValue(value === n ? 0 : n)}
-          className={`text-2xl leading-none ${n <= value ? "text-gold-300" : "text-white/25"}`}
-        >
-          ★
-        </button>
-      ))}
-      {value > 0 && (
-        <span className="ml-2 text-sm text-white/60">
-          {value} of {max}
-        </span>
-      )}
-    </div>
-  );
-}
-
 /** Structured postal address: several lines assembled into one AddressValue. */
 function AddressFields({
   value,

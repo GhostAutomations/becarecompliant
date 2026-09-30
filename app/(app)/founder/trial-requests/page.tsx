@@ -513,6 +513,16 @@ export default async function FounderTrialRequestsPage() {
                   </div>
                 ) : (
                   <div className="mt-4 border-t border-white/10 pt-4">
+                    <p className="mb-3 text-sm text-white/70">
+                      Want to show them first?{" "}
+                      <Link
+                        href={`/founder/demos?${new URLSearchParams({ client: r.company_name, name: r.contact_name, email: r.email, request: r.id }).toString()}`}
+                        className="underline decoration-white/30 hover:text-white"
+                      >
+                        Set up a demo for {r.contact_name}
+                      </Link>
+                      .
+                    </p>
                     <h3 className="text-sm font-semibold text-white">Provision the company</h3>
                     <p className="mt-1 text-xs text-white/50">
                       Builds the company, its Office and first Branch, and every starter

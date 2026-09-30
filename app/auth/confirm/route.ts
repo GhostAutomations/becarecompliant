@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { deviceKindFrom } from "@/lib/auth/device-kind";
 import { decodeSessionId } from "@/lib/auth/jwt";
 import { MANAGE_AS_COOKIE } from "@/lib/founder/manage-as";
-import { RESET_EXPIRED_PATH } from "@/lib/auth/password-reset-rules";
+import { INVITE_EXPIRED_PATH, RESET_EXPIRED_PATH } from "@/lib/auth/password-reset-rules";
 
 /**
  * Verifies a one time token from a branded invite email (sent via Resend) and
@@ -32,6 +32,12 @@ export async function GET(request: NextRequest) {
     /* A used or expired RESET link says so and offers a new one, rather than the "no access"
        message an invitation gets, which would read as though their account had been removed. */
     if (type === "recovery") return NextResponse.redirect(`${origin}${RESET_EXPIRED_PATH}`);
+    /* AN EXPIRED OR USED INVITATION says so too, and offers a fresh one (Vera, Thistle, 2026-09-30:
+       "Contact your administrator" read as though she had no account, and it took the Admin two
+       buttons to get her in). */
+    if (type === "invite" || type === "magiclink") {
+      return NextResponse.redirect(`${origin}${INVITE_EXPIRED_PATH}`);
+    }
     return NextResponse.redirect(`${origin}/login?reason=no-access`);
   }
 

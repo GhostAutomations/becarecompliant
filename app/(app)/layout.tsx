@@ -12,10 +12,15 @@ import { ROLE_LABELS, navEntriesForRole } from "@/lib/nav";
 import { companyRoles, disabledModulesFor } from "@/lib/auth/module-access";
 import { displayRoleLabel } from "@/lib/auth/custom-roles";
 import { onCallLabel, withOnCallLabel } from "@/lib/on-call/label";
+import { branchWord, DEFAULT_BRANCH_WORD, type BranchWord } from "@/lib/branches/word";
+import { BranchWordProvider } from "@/components/branches/branch-word";
 import { featureEnabled } from "@/lib/billing/tier";
 import { getCompanyTrialState } from "@/lib/billing/trial-gate";
 import { trialDaysLabel } from "@/lib/billing/trial";
 import { trialNotice } from "@/lib/billing/trial-limits";
+import { getCompanyDemo, getMyDemoLogin } from "@/lib/demo/data";
+import DemoHeartbeat from "@/components/demo/demo-heartbeat";
+import { formatDemoDate } from "@/lib/demo/rules";
 
 export default async function AppLayout({
   children,
@@ -56,11 +61,12 @@ export default async function AppLayout({
   let uiTheme = "classic";
   let companyName = "";
   let onCallName = "On Call";
+  let companyBranchWord: BranchWord = DEFAULT_BRANCH_WORD;
   if (navCompanyId) {
     const supabase = await createClient();
     const { data: co } = await supabase
       .from("companies")
-      .select("name, framework_enabled, ui_theme, on_call_label")
+      .select("name, framework_enabled, ui_theme, on_call_label, branch_word, branch_word_plural")
       .eq("id", navCompanyId)
       .maybeSingle();
     const c = co as {
@@ -68,12 +74,16 @@ export default async function AppLayout({
       framework_enabled?: boolean | null;
       ui_theme?: string | null;
       on_call_label?: string | null;
+      branch_word?: string | null;
+      branch_word_plural?: string | null;
     } | null;
     readinessEnabled = !!c?.framework_enabled;
     uiTheme = c?.ui_theme ?? "classic";
     companyName = c?.name ?? "";
     // What this company calls the On Call department (0276). Null means the default.
     onCallName = onCallLabel(c?.on_call_label);
+    // What this company calls a branch (0354), e.g. House. Read by client screens via useBranchWord().
+    companyBranchWord = branchWord(c);
   }
   /**
    * The trial warning bar, from three days out and no earlier (lib/billing/trial.ts).
@@ -84,6 +94,18 @@ export default async function AppLayout({
    * however many guards ran.
    */
   const trial = navCompanyId ? await getCompanyTrialState(navCompanyId) : null;
+  // A demo company (0356), its end date, this login's AI, and the survey link in its last two days.
+  const demo = await getCompanyDemo(navCompanyId);
+  const demoLogin = demo && !actingCompanyId ? await getMyDemoLogin(profile.id) : null;
+  let demoSurveyToken: string | null = null;
+  if (demo && demoLogin && demo.phase === "survey") {
+    const supabase = await createClient();
+    const { data: token } = await supabase.rpc("demo_feedback_token");
+    if (typeof token === "string") {
+      const { data: status } = await supabase.rpc("demo_feedback_status", { p_token: token });
+      if (!(status as { submitted?: boolean } | null)?.submitted) demoSurveyToken = token;
+    }
+  }
   const canBill = profile.role === "company_admin" || profile.role === "platform_admin";
 
   // Acme keeps the rail + collapsible drawer (below); the crisp "navy" surface
@@ -234,7 +256,10 @@ export default async function AppLayout({
                 need to do". */}
             {isStaff ? null : (
               <span className="pill-neutral">
-                {displayRoleLabel(ROLE_LABELS[profile.role] ?? profile.role, myCustomRole?.name ?? null)}
+                {displayRoleLabel(
+                  (ROLE_LABELS[profile.role] ?? profile.role).replace(/^Branch /, `${companyBranchWord.one} `),
+                  myCustomRole?.name ?? null,
+                )}
               </span>
             )}
             <form action="/auth/signout" method="post">
@@ -247,6 +272,27 @@ export default async function AppLayout({
 
         {actingCompanyName ? (
           <ManageAsBanner companyName={actingCompanyName} />
+        ) : null}
+
+        {/* A DEMO (0356): says so on every screen, with the end date and the AI left, and from two
+            days before the end asks for their feedback. The heartbeat counts active time only. */}
+        {demo ? (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-gold-400/25 bg-gold-400/[0.08] px-4 py-2 text-sm md:px-8">
+            <span className="font-semibold text-gold-200">Demo account</span>
+            <span className="text-gold-100/80">
+              Everything here is made up. Ends {formatDemoDate(demo.endsAt)}
+              {demoLogin ? `, AI: ${Math.max(0, demoLogin.aiAllowance - demoLogin.aiUsed)} of ${demoLogin.aiAllowance} left` : ""}.
+            </span>
+            {demoSurveyToken ? (
+              <Link
+                href={`/demo-feedback/${demoSurveyToken}?from=app`}
+                className="font-medium text-gold-200 underline decoration-gold-200/40 hover:text-white"
+              >
+                Tell us what you thought
+              </Link>
+            ) : null}
+            {demoLogin ? <DemoHeartbeat /> : null}
+          </div>
         ) : null}
 
         {/* SAID FROM THE FIRST LOGIN, not three days from the end (Phil, 2026-08-20: "when an
@@ -292,7 +338,7 @@ export default async function AppLayout({
         ) : null}
 
         <main className="app-main min-h-0 flex-1 overflow-y-auto px-4 pt-6 md:px-8">
-          {children}
+          <BranchWordProvider word={companyBranchWord}>{children}</BranchWordProvider>
         </main>
       </div>
 

@@ -14,6 +14,7 @@ import { getTrainingMatrix } from "@/lib/training/data";
 import { buildCsv, type CsvCell } from "@/lib/export/csv";
 import type { ReportDoc, ReportCell } from "@/lib/export/pdf";
 import { generatedAt } from "@/lib/export/format";
+import { getBranchTerms } from "@/lib/branches/company-word";
 
 /** PQS band: 100 = 10, 85 to 99.99 = 7, 70 to 84.99 = 5, 50 to 69.99 = 2, else 0. */
 function pqsBand(pct: number | null): number | null {
@@ -44,7 +45,7 @@ export async function buildTrainingReport(input: {
   branchName: string | null;
 }): Promise<{ doc: ReportDoc; csv: string; base: string }> {
   const matrix = await getTrainingMatrix(input.companyId, input.branchId);
-  const scopeLabel = input.branchName ?? "All branches";
+  const scopeLabel = input.branchName ?? (await getBranchTerms(input.companyId)).all;
 
   // Per course: compliant (green or amber) over all active people.
   type CourseStat = { name: string; renews: string; mandatory: boolean; safeguarding: boolean; ok: number; total: number };

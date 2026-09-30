@@ -3884,3 +3884,26 @@ branches, trial length (a week up to months), Admin sees the agreement then paym
 after payment; (3) rename "branch" per company (e.g. "house"), shown in the contract too, with
 each branch's own name; (4) negotiated branch prices (flat custom price, or first N at one price
 and the rest at another). To be planned with Phil by popup before any code.
+
+2026-09-30 (cont.): Deal setup and branch word BUILT, awaiting deploy and Phil's tests D1 to D9
+(TEST-CHECKLIST-CONTRACT.md). The deal fixes plan, billing, extras and special prices (flat or two
+step branches) on the Order; Stripe gets per company prices (company-prices.ts), and a company
+with its own branch word gets its own "Extra <word>" Stripe product so invoices use the word. The
+word shows across menus, registers, filters, reports, exports, Evidence PDFs, the Order, Billing and
+the role pill; Founder keeps "branch" with the word alongside. Next: the demo build, after Phil's
+go.
+
+2026-09-30 (cont.): Added to the DEMO build by popup (Phil): demo usage tracking and a feedback
+survey. Founder sees per demo login: number of logins, total active time (idle tab stops the
+clock), average session length, and the parts of the app used most. Survey: on screen from 2 days
+before the demo ends; if not completed, emailed automatically when the demo ends (branded button,
+no login needed). Ratings out of 5: ease of use, how it looks, registers and checks, forms and
+evidence, reports, overall; plus how likely to sign up; free text for liked, disliked, could do
+better. Answers shown on the demo's founder page.
+
+2026-09-30 (cont.): DEMO BUILT, awaiting deploy and Phil's tests DM1 to DM10
+(TEST-CHECKLIST-CONTRACT.md). Migrations 0356 (demos, logins, usage, feedback, per login AI,
+no invites or roles in a demo), 0357 (sample data), 0358 (demo linked to a trial request).
+Founder > Demos: set up, add login, extend, end now, delete now, usage and survey answers.
+Logins stop at the end date, deleted 14 days later by the 07:00 run, which also emails the survey.
+Also fixed DEF-088 and DEF-089 (Vera's invitation at Thistle).

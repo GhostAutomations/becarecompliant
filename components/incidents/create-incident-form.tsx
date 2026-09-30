@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createIncident } from "@/lib/incidents/actions";
 import { IDLE_STATE } from "@/lib/forms";
 import IncidentFields from "./incident-fields";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 export default function CreateIncidentForm({
   branches,
@@ -17,6 +18,7 @@ export default function CreateIncidentForm({
   people: Array<{ id: string; full_name: string; branch_id: string | null }>;
   todayIso: string;
 }) {
+  const bw = useBranchWord();
   const [state, formAction, pending] = useActionState(createIncident, IDLE_STATE);
   const router = useRouter();
   // The action returns redirectTo rather than calling redirect() (see lib/forms).
@@ -29,7 +31,7 @@ export default function CreateIncidentForm({
   return (
     <form action={formAction} className="space-y-6">
       <div>
-        <label htmlFor="branch_id" className="form-label">Branch *</label>
+        <label htmlFor="branch_id" className="form-label">{bw.one} *</label>
         <select
           id="branch_id"
           name="branch_id"
@@ -43,7 +45,7 @@ export default function CreateIncidentForm({
           ))}
         </select>
         <p className="form-hint">
-          Choose the branch first — the service user and staff lists narrow to it.
+          Choose the {bw.oneLower} first — the service user and staff lists narrow to it.
         </p>
       </div>
 

@@ -20,6 +20,7 @@ import {
 } from "@/lib/whistleblowing/types";
 import { countable, summariseDisclosures } from "@/lib/whistleblowing/summary";
 import { formatUkDate } from "@/lib/whistleblowing/logic";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 function statusPill(status: DisclosureStatus) {
   const cls =
@@ -34,6 +35,7 @@ export default function WhistleblowingRegister({
   rows: DisclosureRecord[];
   canManage: boolean;
 }) {
+  const bw = useBranchWord();
   const [status, setStatus] = useState<"all" | DisclosureStatus>("all");
 
   const filtered = useMemo(
@@ -131,7 +133,7 @@ export default function WhistleblowingRegister({
               <tr className="text-center text-xs uppercase tracking-wide text-white/40">
                 <th className="px-4 py-3 font-medium">Received</th>
                 <th className="px-4 py-3 font-medium">Category</th>
-                <th className="px-4 py-3 font-medium">Branch</th>
+                <th className="px-4 py-3 font-medium">{bw.one}</th>
                 <th className="px-4 py-3 font-medium">Discloser</th>
                 <th className="px-4 py-3 font-medium">Status</th>
               </tr>

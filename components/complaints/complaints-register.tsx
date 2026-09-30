@@ -16,6 +16,7 @@ import {
   type ComplaintStatus,
 } from "@/lib/complaints/types";
 import { responseRag, formatUkDate as formatDisplayDate, formatComplaintRef } from "@/lib/complaints/logic";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 function statusPill(status: ComplaintStatus) {
   const cls = status === "closed" ? "pill-green" : status === "in_progress" ? "pill-amber" : "pill-neutral";
@@ -46,6 +47,7 @@ export default function ComplaintsRegister({
   canManage: boolean;
   scope?: "open" | "closed";
 }) {
+  const bw = useBranchWord();
   const [status, setStatus] = useState<"all" | ComplaintStatus>("all");
   const [branch, setBranch] = useState<string>("");
 
@@ -98,9 +100,9 @@ export default function ComplaintsRegister({
         ) : null}
         {branches.length > 1 ? (
           <div>
-            <label htmlFor="branch_filter" className="form-label">Branch</label>
+            <label htmlFor="branch_filter" className="form-label">{bw.one}</label>
             <select id="branch_filter" value={branch} onChange={(e) => setBranch(e.target.value)}>
-              <option value="">All branches</option>
+              <option value="">{bw.all}</option>
               {branches.map((b) => (
                 <option key={b.id} value={b.id}>{b.name}</option>
               ))}
@@ -124,7 +126,7 @@ export default function ComplaintsRegister({
               <tr className="text-center text-xs uppercase tracking-wide text-white/40">
                 <th className="px-4 py-3 font-medium">Ref</th>
                 <th className="px-4 py-3 font-medium">Subject</th>
-                <th className="px-4 py-3 font-medium">Branch</th>
+                <th className="px-4 py-3 font-medium">{bw.one}</th>
                 <th className="px-4 py-3 font-medium">Complainant</th>
                 <th className="px-4 py-3 font-medium">Raised</th>
                 <th className="px-4 py-3 font-medium">Initial response due</th>

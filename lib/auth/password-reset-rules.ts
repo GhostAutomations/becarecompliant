@@ -29,7 +29,7 @@ export const RESET_THROTTLE_MINUTES = 2;
  * care company, which is a list of names worth having for somebody running a phishing campaign.
  */
 export const FORGOT_REPLY =
-  "If that address has a Be Care Compliant account, a reset link is on its way. It can take a minute or two to arrive, so check your junk folder too. You can ask for another link in 2 minutes. The link works once.";
+  "If that address has a Be Care Compliant account, a link is on its way. It can take a minute or two to arrive, so check your junk folder too. You can ask for another link in 2 minutes. The link works once.";
 
 /** Trim and lower case, the way every address is stored. */
 export function normaliseEmail(raw: string | null | undefined): string {
@@ -74,6 +74,9 @@ export function newPasswordProblem(password: string, confirm: string): string | 
 
 /** Where a used or expired reset link lands, so it says why rather than "no access". */
 export const RESET_EXPIRED_PATH = "/login/forgot?reason=expired";
+
+/** Where an expired or already used INVITATION link lands: the same form, which re-sends it. */
+export const INVITE_EXPIRED_PATH = "/login/forgot?reason=invite";
 
 /** Where the reset link sends somebody once the token is accepted. */
 export const RESET_FORM_PATH = "/login/reset";

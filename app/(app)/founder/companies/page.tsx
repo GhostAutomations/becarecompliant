@@ -15,7 +15,10 @@ import {
 } from "@/lib/billing/seats";
 import { orderedExtrasByCompany, orderedFor } from "@/lib/billing/ordered-extras-read";
 import { billedExtra } from "@/lib/billing/ordered-extras";
-import { subscriptionMonthlyPence } from "@/lib/billing/monthly-total";
+import { dealsByCompany } from "@/lib/billing/deal-store";
+import { dealMonthlyParts } from "@/lib/billing/deal";
+import { subscriptionMonthlyPence, monthlyRecurringPence } from "@/lib/billing/monthly-total";
+import { YEARLY_MONTHS_CHARGED as MRR_YEARLY_MONTHS } from "@/lib/stripe/config";
 import { TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
 import {
   billingStatusPill,
@@ -41,6 +44,7 @@ export default async function FounderCompaniesPage() {
     { data: invites },
     { data: billingRows },
     { data: branchRows },
+    { data: demoRows },
   ] =
     await Promise.all([
       supabase
@@ -49,8 +53,9 @@ export default async function FounderCompaniesPage() {
         .order("created_at", { ascending: false }),
       supabase.from("profiles").select("company_id, status, role"),
       supabase.from("invites").select("company_id, status"),
-      supabase.from("company_billing").select("company_id, subscription_status"),
+      supabase.from("company_billing").select("company_id, subscription_status, billing_interval, extras_interval"),
       supabase.from("branches").select("company_id, kind"),
+      supabase.from("demos").select("company_id").not("company_id", "is", null),
     ]);
 
   const billingByCompany = new Map(
@@ -80,9 +85,20 @@ export default async function FounderCompaniesPage() {
   const extraBranchesFor = (companyId: string, tier: string) =>
     Math.max(0, (operationalBranches.get(companyId) ?? 0) - includedBranchesForTier(tier));
 
-  const list = companies ?? [];
+  // Demos (0356) live on Founder > Demos, not among the customers.
+  const demoCompanyIds = new Set((demoRows ?? []).map((d) => d.company_id as string));
+  const list = (companies ?? []).filter((c) => !demoCompanyIds.has(c.id));
   // What each company ordered is the least it pays (2026-09-30): the same floor as Stripe.
   const orderedByCompany = await orderedExtrasByCompany(supabase);
+  // Deals' special prices (0354), so every total is what the company is actually charged.
+  const deals = await dealsByCompany(supabase);
+  const partsFor = (companyId: string, tier: string, seatsExtra: number) =>
+    dealMonthlyParts(
+      deals.get(companyId),
+      { planPence: TIER_BASE_PENCE[tier as keyof typeof TIER_BASE_PENCE], seatPence: EXTRA_SEAT_PENCE, branchPence: EXTRA_BRANCH_PENCE },
+      billedExtra(seatsExtra, orderedFor(orderedByCompany, companyId, tier).users),
+      billedExtra(extraBranchesFor(companyId, tier), orderedFor(orderedByCompany, companyId, tier).branches),
+    );
 
   let mrrPence = 0;
   for (const company of list) {
@@ -94,12 +110,18 @@ export default async function FounderCompaniesPage() {
     const seats = computeSeatUsage(activeUsers.get(company.id) ?? 0, includedSeatsForTier(company.tier));
     // The shared rule, so this header can never disagree with the console tile, the
     // revenue page or Stripe again. Branches are REQUIRED input, not an afterthought.
-    mrrPence += subscriptionMonthlyPence({
-      basePence: TIER_BASE_PENCE[company.tier as keyof typeof TIER_BASE_PENCE],
-      extraSeats: billedExtra(seats.extra, orderedFor(orderedByCompany, company.id, company.tier).users),
-      seatPence: EXTRA_SEAT_PENCE,
-      extraBranches: billedExtra(extraBranchesFor(company.id, company.tier), orderedFor(orderedByCompany, company.id, company.tier).branches),
-      branchPence: EXTRA_BRANCH_PENCE,
+    // MRR is the monthly worth: an Annual company counts as its yearly price over twelve.
+    const bill = billingByCompany.get(company.id) as { billing_interval?: string | null; extras_interval?: string | null } | undefined;
+    const parts = partsFor(company.id, company.tier, seats.extra);
+    mrrPence += monthlyRecurringPence({
+      basePence: parts.basePence,
+      extraSeats: 1,
+      seatPence: parts.seatsPence,
+      extraBranches: 1,
+      branchPence: parts.branchesPence,
+      planYearly: bill?.billing_interval === "year",
+      extrasYearly: bill?.extras_interval === "year",
+      yearlyMonthsCharged: MRR_YEARLY_MONTHS,
     });
   }
 
@@ -145,13 +167,16 @@ export default async function FounderCompaniesPage() {
               orderedFor(orderedByCompany, company.id, company.tier).branches,
             );
             const monthlyTotalPence = isSub
-              ? subscriptionMonthlyPence({
-                  basePence: TIER_BASE_PENCE[company.tier as keyof typeof TIER_BASE_PENCE],
-                  extraSeats: billedExtra(seats.extra, orderedFor(orderedByCompany, company.id, company.tier).users),
-                  seatPence: EXTRA_SEAT_PENCE,
-                  extraBranches,
-                  branchPence: EXTRA_BRANCH_PENCE,
-                })
+              ? (() => {
+                  const parts = partsFor(company.id, company.tier, seats.extra);
+                  return subscriptionMonthlyPence({
+                    basePence: parts.basePence,
+                    extraSeats: 1,
+                    seatPence: parts.seatsPence,
+                    extraBranches: 1,
+                    branchPence: parts.branchesPence,
+                  });
+                })()
               : 0;
             return (
               <div key={company.id} className="glass-card p-5">

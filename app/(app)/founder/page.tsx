@@ -16,7 +16,10 @@ import {
 import { TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
 import { orderedExtrasByCompany, orderedFor } from "@/lib/billing/ordered-extras-read";
 import { billedExtra } from "@/lib/billing/ordered-extras";
-import { subscriptionMonthlyPence } from "@/lib/billing/monthly-total";
+import { dealsByCompany } from "@/lib/billing/deal-store";
+import { dealMonthlyParts } from "@/lib/billing/deal";
+import { subscriptionMonthlyPence, monthlyRecurringPence } from "@/lib/billing/monthly-total";
+import { YEARLY_MONTHS_CHARGED as MRR_YEARLY_MONTHS } from "@/lib/stripe/config";
 import { buildSignupSeries, londonMonthKey, tallyBy } from "@/lib/founder/stats";
 import {
   companyStatusPillClass as statusPillClass,
@@ -51,7 +54,7 @@ export default async function FounderPage() {
     supabase.from("branches").select("company_id, kind"),
     supabase
       .from("company_billing")
-      .select("company_id, subscription_status, current_period_end"),
+      .select("company_id, subscription_status, current_period_end, billing_interval, extras_interval"),
     supabase
       .from("usage_monthly")
       .select("kind, month, event_count, units_sum")
@@ -89,12 +92,19 @@ export default async function FounderPage() {
 
   const billingByCompany = new Map<
     string,
-    { subscription_status: string | null; current_period_end: string | null }
+    {
+      subscription_status: string | null;
+      current_period_end: string | null;
+      billing_interval: string | null;
+      extras_interval: string | null;
+    }
   >();
   for (const b of billingRows ?? []) {
     billingByCompany.set(b.company_id, {
       subscription_status: b.subscription_status,
       current_period_end: b.current_period_end,
+      billing_interval: (b as { billing_interval?: string | null }).billing_interval ?? null,
+      extras_interval: (b as { extras_interval?: string | null }).extras_interval ?? null,
     });
   }
 
@@ -121,6 +131,8 @@ export default async function FounderPage() {
 
   // What each company ordered is the least it pays (2026-09-30), so the MRR uses the same floor as Stripe.
   const orderedByCompany = await orderedExtrasByCompany(supabase);
+  // Deals' special prices (0354), so MRR is what each company is actually charged.
+  const deals = await dealsByCompany(supabase);
 
   let mrrPence = 0;
   for (const company of list) {
@@ -130,15 +142,26 @@ export default async function FounderPage() {
     const status = billingByCompany.get(company.id)?.subscription_status ?? null;
     if (!["active", "trialing", "past_due"].includes(status ?? "")) continue;
     const seats = computeSeatUsage(activeUsers.get(company.id) ?? 0, includedSeatsForTier(company.tier));
-    mrrPence += subscriptionMonthlyPence({
-      basePence: TIER_BASE_PENCE[company.tier as keyof typeof TIER_BASE_PENCE],
-      extraSeats: billedExtra(seats.extra, orderedFor(orderedByCompany, company.id, company.tier).users),
-      seatPence: EXTRA_SEAT_PENCE,
-      extraBranches: billedExtra(
+    // MRR is the monthly worth: an Annual company counts as its yearly price over twelve.
+    const bill = billingByCompany.get(company.id);
+    const parts = dealMonthlyParts(
+      deals.get(company.id),
+      { planPence: TIER_BASE_PENCE[company.tier as keyof typeof TIER_BASE_PENCE], seatPence: EXTRA_SEAT_PENCE, branchPence: EXTRA_BRANCH_PENCE },
+      billedExtra(seats.extra, orderedFor(orderedByCompany, company.id, company.tier).users),
+      billedExtra(
         Math.max(0, (operationalBranches.get(company.id) ?? 0) - includedBranchesForTier(company.tier)),
         orderedFor(orderedByCompany, company.id, company.tier).branches,
       ),
-      branchPence: EXTRA_BRANCH_PENCE,
+    );
+    mrrPence += monthlyRecurringPence({
+      basePence: parts.basePence,
+      extraSeats: 1,
+      seatPence: parts.seatsPence,
+      extraBranches: 1,
+      branchPence: parts.branchesPence,
+      planYearly: bill?.billing_interval === "year",
+      extrasYearly: bill?.extras_interval === "year",
+      yearlyMonthsCharged: MRR_YEARLY_MONTHS,
     });
   }
 
@@ -301,6 +324,12 @@ export default async function FounderPage() {
             {waitingEmails > 0
               ? `${waitingEmails} ${waitingEmails === 1 ? "message is" : "messages are"} waiting on a reply.`
               : "Everything sent to and from the platform, kept for good."}
+          </p>
+        </Link>
+        <Link href="/founder/demos" className="app-tile sm:col-span-2 lg:col-span-4">
+          <h2 className="text-base font-semibold text-white">Demos</h2>
+          <p className="text-sm text-white/60">
+            Set up a Demo Care Company Limited for a client, see how much they used it and what they thought.
           </p>
         </Link>
         <Link

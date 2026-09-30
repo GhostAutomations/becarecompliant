@@ -10,6 +10,7 @@ import {
 import type { CommitOutcome } from "@/lib/import/actions";
 import type { ValidateResult } from "@/lib/import/parse";
 import type { TrainingValidateResult } from "@/lib/import/training";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 type Pop = "people" | "service_users" | "training";
 
@@ -20,6 +21,7 @@ const STATUS_PILL: Record<string, string> = {
 };
 
 export default function ImportUploader() {
+  const bw = useBranchWord();
   const [pop, setPop] = useState<Pop>("people");
   const [fileName, setFileName] = useState<string | null>(null);
   const [csvText, setCsvText] = useState<string>("");
@@ -243,7 +245,7 @@ export default function ImportUploader() {
                 <tr>
                   <th className="px-3 py-2">Row</th>
                   <th className="px-3 py-2">Name</th>
-                  <th className="px-3 py-2">Branch</th>
+                  <th className="px-3 py-2">{bw.one}</th>
                   <th className="px-3 py-2">Dates</th>
                   <th className="px-3 py-2">Status</th>
                 </tr>

@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getCompanyTrialState } from "@/lib/billing/trial-gate";
 import { needsAgreement, listAcceptances, type AcceptanceRow } from "@/lib/legal/acceptance";
 import { legalDocuments, legalPublished, LEGAL_VERSIONS } from "@/lib/legal/documents";
+import { loadOrderTerms } from "@/lib/legal/order-terms";
+import { branchWord } from "@/lib/billing/deal";
 import { acceptanceCurrent, billingApplies, billingOptionLabel, fillOrderTable, orderExtrasText, orderIncludedList, orderPriceListText, orderTableValues, organisationLabel, planLabel, onboardingFeeLabel, orderIncludedText, orderPriceText } from "@/lib/legal/fill";
 import { TIER_BASE_PENCE } from "@/lib/stripe/config";
 import { EXTRA_BRANCH_PENCE, EXTRA_SEAT_PENCE, includedBranchesForTier, includedSeatsForTier } from "@/lib/billing/seats";
@@ -15,6 +17,7 @@ import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import { ukDate } from "@/lib/dates";
 import AcceptOrderForm from "@/components/legal/accept-order-form";
 import LegalDocumentView from "@/components/legal/legal-document-view";
+import { lower } from "@/lib/branches/word";
 
 /**
  * The agreement, for a Company Admin (0346).
@@ -51,7 +54,7 @@ function OrderTable({ a }: { a: AcceptanceRow }) {
     ["Price", a.price_text ?? "Not recorded"],
     ["Included", a.included_text ?? "Not recorded"],
     ["Extra users", a.extra_users_text ?? "Not recorded"],
-    ["Extra branches", a.branches_text ?? "Not recorded"],
+    [`Extra ${lower(branchWord(a).many)}`, a.branches_text ?? "Not recorded"],
     ["Extras paid", a.extras_paid_text ?? "Not recorded"],
     ["Total", a.total_text ?? "Not recorded"],
     ["Billing option", billingOptionLabel(a.billing_option)],
@@ -157,6 +160,7 @@ export default async function AgreementPage() {
                           agreementVersion: current.agreement_version,
                           dpaVersion: current.dpa_version,
                         }),
+                        { word: branchWord({ branch_word: current.branch_word, branch_word_plural: current.branch_word_plural }) },
                       )}
                     />
                   </div>
@@ -191,24 +195,14 @@ export default async function AgreementPage() {
   const invoicing = (inv ?? null) as { company_number: string | null; from_address: string | null } | null;
   const officeAddress = ((office ?? null) as { address: string | null } | null)?.address ?? "";
   const today = formatCivilDate(todayInLondon());
-  const fee = onboardingFeeLabel({
-    tier: company.tier,
-    offerActive: onboardingOfferActive(today),
-    fee: ONBOARDING_FEE,
-    offerEnd: ONBOARDING_OFFER_END_TEXT,
-  });
   const renewal = acceptances.length > 0;
-  const monthlyPence = company.tier === "business" || company.tier === "pro" ? TIER_BASE_PENCE[company.tier] : null;
+  /* The Order's terms, deal and all (0354): the same loader the server uses when it records the
+     acceptance, so what is shown is what is signed. */
+  const terms = await loadOrderTerms(supabase, companyId);
+  const monthlyPence = terms.monthlyPence;
   const priceMonthly = orderPriceText({ tier: company.tier, billingOption: "monthly", monthlyPence, annualMonths: ANNUAL_MONTHS_CHARGED });
   const priceAnnual = orderPriceText({ tier: company.tier, billingOption: "annual", monthlyPence, annualMonths: ANNUAL_MONTHS_CHARGED });
-  const extras = orderExtrasText({ tier: company.tier, seatPence: EXTRA_SEAT_PENCE, branchPence: EXTRA_BRANCH_PENCE });
-  const allowance = {
-    users: includedSeatsForTier(company.tier ?? "business"),
-    branches: includedBranchesForTier(company.tier ?? "business"),
-    ai: aiMonthlyCredits(company.tier),
-    sms: smsMonthlyCredits(company.tier),
-  };
-  const included = orderIncludedText(allowance);
+  const allowance = terms.allowance;
 
   return (
     <main className="app-bg min-h-dvh px-4 py-10">
@@ -240,19 +234,22 @@ export default async function AgreementPage() {
           summary={{
             plan: planLabel(company.tier),
             tier: company.tier ?? "business",
-            includedList: orderIncludedList(allowance),
+            includedList: terms.includedList,
             usersIncluded: allowance.users,
             branchesIncluded: allowance.branches,
-            seatPence: EXTRA_SEAT_PENCE,
-            branchPence: EXTRA_BRANCH_PENCE,
+            seatPence: terms.seatPence,
+            branchPence: terms.branchPence,
+            branchStep: terms.step,
+            word: terms.word,
+            fixed: terms.fixed,
             monthlyPence,
             annualMonths: ANNUAL_MONTHS_CHARGED,
             priceMonthly,
             priceAnnual,
-            included,
-            priceList: orderPriceListText(extras, PRICE_LIST_DATE),
-            extras,
-            onboardingFee: fee,
+            included: terms.includedText,
+            priceList: terms.priceListText,
+            extras: terms.extrasText,
+            onboardingFee: terms.onboardingFee,
             startDate: ukDate(today),
             adminName: profile.full_name || profile.email || "Company Admin",
             agreementVersion: docs.agreement.version,

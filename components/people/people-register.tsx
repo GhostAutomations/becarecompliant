@@ -19,6 +19,7 @@ import { WORKING_STATUS_LABELS, type RegisterRow } from "@/lib/people/types";
 import type { BranchLite } from "@/lib/people/data";
 import { MAX_REGISTER_COLUMNS, type RegisterCheckColumn } from "@/lib/register/custom-columns";
 import type { SortMode } from "@/lib/register/name-sort-pref";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 type MatrixConfig = { supInterval: number; supAmber: number; rtwAmber: number; probationAmber: number; dbsAmber: number; cycleMode: "appraisal" | "four_supervisions" };
 
@@ -88,6 +89,7 @@ export default function PeopleRegister({
   initialSort: SortMode;
   /** The company's job titles, for the inline Job title pill on the matrix. */
 }) {
+  const bw = useBranchWord();
   const router = useRouter();
   const [view, setView] = useState(VIEW_META[initialView] ? initialView : "main");
   const [branchId, setBranchId] = useState(initialBranch);
@@ -154,9 +156,9 @@ export default function PeopleRegister({
       <div className="flex flex-wrap items-center gap-4">
         {branchOptions.length > 1 ? (
           <label className="flex items-center gap-2 text-sm font-bold text-white">
-            Branches
+            {bw.many}
             <select className="w-48" value={branchId} onChange={(e) => changeBranch(e.target.value)}>
-              <option value="">All branches</option>
+              <option value="">{bw.all}</option>
               {branchOptions.map((b) => (
                 <option key={b.id} value={b.id}>{b.name}</option>
               ))}

@@ -32,6 +32,7 @@ import {
   cancelHoliday,
   amendHoliday,
 } from "@/lib/holidays/actions";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 const HOLIDAY_HIDE_FOR_PERSON = [
   "name",
@@ -249,6 +250,7 @@ export default function HolidayView({
   /** So someone can withdraw their own pending request. */
   currentUserId: string;
 }) {
+  const bw = useBranchWord();
   const canDecide = (r: HolidayRequestRow) =>
     canApprove &&
     (approvableBranchIds === null ||
@@ -338,14 +340,14 @@ export default function HolidayView({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="page-title">Holiday</h1>
-          <p className="page-subtitle">Requests to review, and the branch holiday calendar.</p>
+          <p className="page-subtitle">Requests to review, and the {bw.oneLower} holiday calendar.</p>
         </div>
         <div className="flex items-end gap-3">
           {branches.length > 1 && (
             <div>
-              <label htmlFor="holiday-branch" className="form-label">Branch</label>
+              <label htmlFor="holiday-branch" className="form-label">{bw.one}</label>
               <select id="holiday-branch" value={branch} onChange={(e) => setBranch(e.target.value)}>
-                <option value="">All branches</option>
+                <option value="">{bw.all}</option>
                 {branches.map((b) => (
                   <option key={b.id} value={b.id}>{b.name}</option>
                 ))}

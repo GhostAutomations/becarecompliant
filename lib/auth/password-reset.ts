@@ -26,6 +26,7 @@ import {
   normaliseEmail,
   resetThrottled,
 } from "@/lib/auth/password-reset-rules";
+import { resendStaffInviteByEmail } from "@/lib/invites";
 
 export type ResetOutcome =
   | { sent: true; email: string }
@@ -56,6 +57,34 @@ export async function sendPasswordReset(opts: {
     .eq("email", email)
     .maybeSingle();
   if (!profile) return { sent: false, reason: "no_account" };
+  /* AN INVITATION NEVER ACCEPTED GETS A FRESH INVITATION, NOT A RESET (Vera, Thistle, 2026-09-30).
+     Her invite link had expired or been used, the link said "Contact your administrator", and the
+     only way in was the Admin pressing Enable and then Send password reset. The expired invite
+     link now lands on this form, and this form re-sends the invitation to the address already on
+     it. Same wait as a reset, and the public reply is the same sentence whatever happened. */
+  if (profile.status === "invited" && profile.company_id && !opts.sentBy) {
+    if (!isSendableAddress(email)) return { sent: false, reason: "unsendable" };
+    const { data: pending } = await admin
+      .from("invites")
+      .select("last_sent_at")
+      .eq("company_id", profile.company_id as string)
+      .eq("email", email)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!pending) return { sent: false, reason: "not_active" };
+    if (resetThrottled((pending as { last_sent_at?: string | null }).last_sent_at, Date.now())) {
+      return { sent: false, reason: "throttled" };
+    }
+    const resent = await resendStaffInviteByEmail(profile.company_id as string, email, {
+      id: profile.id as string,
+      name: "",
+      email,
+      role: profile.role as string,
+    });
+    return resent.ok ? { sent: true, email } : { sent: false, reason: "failed", detail: resent.error };
+  }
   if (!canReceiveReset(profile.status as string)) return { sent: false, reason: "not_active" };
   if (!isSendableAddress(email)) return { sent: false, reason: "unsendable" };
 

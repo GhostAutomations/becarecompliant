@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { requireCompany } from "@/lib/auth/guards";
 import { buildCsv } from "@/lib/export/csv";
 import { getSatisfaction, getSatisfactionQuestions } from "@/lib/service-users/satisfaction";
+import { getBranchTerms } from "@/lib/branches/company-word";
 
 const ALLOWED = ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"];
 
@@ -41,7 +42,7 @@ export async function GET(_req: NextRequest) {
     sat.pct === null ? "" : `${sat.pct}%`,
   ]);
 
-  const csv = buildCsv(["Service user", "Branch", "Last review", ...qCols, "Percent"], rows);
+  const csv = buildCsv(["Service user", (await getBranchTerms(profile.company_id)).one, "Last review", ...qCols, "Percent"], rows);
 
   return new Response(csv, {
     status: 200,

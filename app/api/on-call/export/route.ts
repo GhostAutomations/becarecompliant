@@ -4,6 +4,7 @@ import { listCallLog } from "@/lib/on-call/data";
 import { fmtDateTime, shiftLabel } from "@/lib/on-call/format";
 import { csvResponse, exportError } from "@/lib/export/deliver";
 import { writeAudit } from "@/lib/audit";
+import { getBranchTerms } from "@/lib/branches/company-word";
 
 const ONCALL_ROLES = [
   "company_admin", "registered_individual", "registered_manager",
@@ -33,7 +34,7 @@ export async function GET() {
 
   const rows = await listCallLog(profile.company_id);
   const header = [
-    "Ref", "Shift", "Logged at", "Branch", "Handled by", "Details",
+    "Ref", "Shift", "Logged at", (await getBranchTerms(profile.company_id)).one, "Handled by", "Details",
     "Complaints", "Complaints logged", "Absences", "Absences logged",
     "Follow up required", "Follow up done", "Follow up notes", "Follow up action",
     "Finalised", "Finalised at",

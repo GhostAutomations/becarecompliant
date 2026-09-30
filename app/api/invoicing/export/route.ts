@@ -5,6 +5,7 @@ import { featureEnabled } from "@/lib/billing/tier";
 import { buildCsv } from "@/lib/export/csv";
 import { listInvoices, londonToday } from "@/lib/invoicing/data";
 import { displayStatus, STATUS_LABEL, formatMoney } from "@/lib/invoicing/types";
+import { getBranchTerms } from "@/lib/branches/company-word";
 
 /** CSV of the invoice list for the company. Pro gated, Manager+ via RLS. */
 export async function GET(_req: NextRequest) {
@@ -22,7 +23,7 @@ export async function GET(_req: NextRequest) {
   const [invoices] = await Promise.all([listInvoices(profile.company_id)]);
   const today = londonToday();
   const csv = buildCsv(
-    ["Number", "Client", "Branch", "Issued", "Due", "Status", "Total"],
+    ["Number", "Client", (await getBranchTerms(profile.company_id)).one, "Issued", "Due", "Status", "Total"],
     invoices.map((inv) => [
       inv.number ?? "Draft",
       inv.client_name,

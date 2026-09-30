@@ -234,7 +234,7 @@ export async function commitPeople(
     if (inviter && row.fields.work_email) {
       const res = await inviteStaffForPerson(person.id, inviter, { sendEmail: !holdEmail });
       if (res.ok && !res.skipped) invited += 1;
-      else if (res.skipped === "demo_email") notInvited += 1;
+      else if (res.skipped === "demo_email" || res.skipped === "demo") notInvited += 1;
       else if (!res.ok) inviteFailed.push({ name: label, error: res.error ?? "unknown" });
     }
   }

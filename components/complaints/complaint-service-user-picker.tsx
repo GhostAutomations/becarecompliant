@@ -23,6 +23,7 @@
 import { useMemo, useState } from "react";
 import RecordTypeahead from "@/components/register/record-typeahead";
 import type { LookupChoice } from "@/lib/forms/lookup";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 export type ServiceUserOption = { id: string; full_name: string; branch_name: string | null };
 
@@ -35,6 +36,7 @@ export default function ComplaintServiceUserPicker({
   initialId?: string | null;
   fieldId?: string;
 }) {
+  const bw = useBranchWord();
   const [chosenId, setChosenId] = useState<string | null>(
     initialId && serviceUsers.some((s) => s.id === initialId) ? initialId : null,
   );
@@ -93,7 +95,7 @@ export default function ComplaintServiceUserPicker({
       )}
 
       <p className="form-hint">
-        Optional, and any branch. Leave it empty if the complaint is not about one service user.
+        Optional, and any {bw.oneLower}. Leave it empty if the complaint is not about one service user.
       </p>
     </div>
   );

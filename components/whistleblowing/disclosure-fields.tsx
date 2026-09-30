@@ -7,6 +7,7 @@
 
 import { useState } from "react";
 import { DISCLOSURE_CATEGORIES, type DisclosureRecord } from "@/lib/whistleblowing/types";
+import { useBranchWord } from "@/components/branches/branch-word";
 
 export default function DisclosureFields({
   idPrefix,
@@ -21,6 +22,7 @@ export default function DisclosureFields({
   todayIso: string;
   onEdit?: () => void;
 }) {
+  const bw = useBranchWord();
   const [named, setNamed] = useState(record ? !record.anonymous : false);
   const id = (name: string) => `${idPrefix}_${name}`;
 
@@ -40,16 +42,16 @@ export default function DisclosureFields({
         </div>
 
         <div>
-          <label htmlFor={id("branch_id")} className="form-label">Branch</label>
+          <label htmlFor={id("branch_id")} className="form-label">{bw.one}</label>
           <select id={id("branch_id")} name="branch_id" defaultValue={record?.branch_id ?? ""}>
-            <option value="">Company wide / not branch specific</option>
+            <option value="">Company wide / not {bw.oneLower} specific</option>
             {branches.map((b) => (
               <option key={b.id} value={b.id}>{b.name}</option>
             ))}
           </select>
           <p className="form-hint">
-            Leave this blank unless the disclosure is clearly about one branch. On a small
-            branch, naming it can point at who made the disclosure.
+            Leave this blank unless the disclosure is clearly about one {bw.oneLower}. On a small
+            {bw.oneLower}, naming it can point at who made the disclosure.
           </p>
         </div>
 

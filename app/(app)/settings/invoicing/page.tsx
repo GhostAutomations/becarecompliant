@@ -7,12 +7,14 @@ import ActionForm from "@/components/action-form";
 import { getInvoicingConfig, listRateList } from "@/lib/invoicing/data";
 import { saveInvoicingConfig, addRateLine, deleteRateLine, saveHourlyRates } from "@/lib/invoicing/actions";
 import { formatMoney, INVOICE_SERVICES, serviceRatePence, serviceFixedPence } from "@/lib/invoicing/types";
+import { getBranchTerms } from "@/lib/branches/company-word";
 
 export const metadata: Metadata = { title: "Invoicing settings" };
 
 export default async function InvoicingSettingsPage() {
   const { profile } = await requireCompanyAdmin();
   if (!profile.company_id) redirect("/founder");
+  const bw = await getBranchTerms(profile.company_id);
   if (!(await featureEnabled(profile.company_id, "invoicing"))) redirect("/settings");
 
   const [config, rates] = await Promise.all([
@@ -120,9 +122,9 @@ export default async function InvoicingSettingsPage() {
                 name="from_address"
                 rows={3}
                 defaultValue={config.from_address ?? ""}
-                placeholder={"Head office or a branch address\nStreet, Town\nPostcode"}
+                placeholder={`Head office or a ${bw.oneLower} address\nStreet, Town\nPostcode`}
               />
-              <p className="form-hint">Shown under your company name on invoices. Use your head office or a branch address.</p>
+              <p className="form-hint">Shown under your company name on invoices. Use your head office or a {bw.oneLower} address.</p>
             </div>
 
             <div>

@@ -78,8 +78,10 @@ export async function buildSubjectAccessExport(input: {
   if (!rec || rec.company_id !== companyId) return { ok: false, error: "That record could not be found." };
   const recordName = String(rec.full_name ?? "");
   const branchName = (one(rec.branches as { name: string } | { name: string }[] | null)?.name) ?? "";
-  const { data: company } = await db.from("companies").select("name").eq("id", companyId).maybeSingle();
+  const { data: company } = await db.from("companies").select("name, branch_word").eq("id", companyId).maybeSingle();
   const companyName = (company as { name?: string } | null)?.name ?? "";
+  // The company's word for a branch (0354).
+  const branchLabel = (company as { branch_word?: string | null } | null)?.branch_word || "Branch";
 
   const sections: Section[] = [];
   const attachments: Attachment[] = [];
@@ -88,14 +90,14 @@ export async function buildSubjectAccessExport(input: {
   const recordPairs: Array<[string, unknown]> =
     kind === "person"
       ? [
-          ["Name", rec.full_name], ["Branch", branchName], ["Job title", rec.job_title], ["Team", rec.team],
+          ["Name", rec.full_name], [branchLabel, branchName], ["Job title", rec.job_title], ["Team", rec.team],
           ["Working status", WORKING_STATUS_LABELS[rec.employment_status as keyof typeof WORKING_STATUS_LABELS] ?? rec.employment_status], ["Start date", fmtDate(rec.start_date as string)],
           ["Leaving date", fmtDate(rec.leaver_date as string)], ["Work email", rec.work_email], ["Mobile", rec.mobile],
           ["Social Care Wales registration", rec.scw_registration_number], ["Archived", fmtDate(rec.archived_at as string)],
           ["Record created", fmtDateTime(rec.created_at as string)],
         ]
       : [
-          ["Name", rec.full_name], ["Branch", branchName], ["SSID", rec.ssid], ["Package start", fmtDate(rec.package_start_date as string)],
+          ["Name", rec.full_name], [branchLabel, branchName], ["SSID", rec.ssid], ["Package start", fmtDate(rec.package_start_date as string)],
           ["Status", SERVICE_STATUS_LABELS[rec.service_status as keyof typeof SERVICE_STATUS_LABELS] ?? rec.service_status], ["Discharge date", fmtDate(rec.discharge_date as string)], ["Address", rec.address],
           ["Phone", rec.phone], ["Archived", fmtDate(rec.archived_at as string)],
           ["Private invoicing", yes(rec.private_invoicing as boolean)], ["Invoice to", rec.invoice_to],
@@ -462,7 +464,7 @@ export async function buildSubjectAccessExport(input: {
     subtitle: kind === "person" ? "Person" : "Service User",
     meta: [
       { label: "Company", value: companyName },
-      { label: "Branch", value: branchName },
+      { label: branchLabel, value: branchName },
       { label: "Made", value: made },
       { label: "Made by", value: input.actorName },
     ],

@@ -12,6 +12,13 @@
 
 import type { Supplier } from "./supplier";
 
+/** A company's own word for a branch (0354), e.g. House / Houses. Defaults to Branch. */
+export type OrderBranchWord = { one: string; many: string };
+/** A two-step extra branch price: the first `after` extra branches at the normal price, the rest at `pricePence`. */
+export type OrderBranchStep = { after: number; pricePence: number } | null;
+const BRANCH: OrderBranchWord = { one: "Branch", many: "Branches" };
+const low = (w: string) => w.charAt(0).toLowerCase() + w.slice(1);
+
 const TOKENS: Array<{ token: string; key: keyof Supplier; placeholder: string; label: string }> = [
   { token: "{{supplier_name}}", key: "name", placeholder: "[Company name]", label: "Company name" },
   { token: "{{supplier_number}}", key: "number", placeholder: "[Company number]", label: "Company number" },
@@ -191,11 +198,18 @@ export function orderPriceText(input: {
 }
 
 /** The Order's "what is included" line. A very large number (Black) reads as unlimited. */
-export function orderIncludedList(input: { users: number; branches: number; ai: number; sms: number }): string[] {
+export function orderIncludedList(input: {
+  users: number;
+  branches: number;
+  ai: number;
+  sms: number;
+  word?: OrderBranchWord;
+}): string[] {
   const n = (v: number, one: string, many: string) => (v >= 9999 ? `unlimited ${many}` : `${v} ${v === 1 ? one : many}`);
+  const w = input.word ?? BRANCH;
   return [
     n(input.users, "user", "users"),
-    `office team and ${n(input.branches, "branch", "branches")}`,
+    `office team and ${n(input.branches, low(w.one), low(w.many))}`,
     `${input.ai} AI credits a month`,
     input.sms > 0 ? `${input.sms} text messages a month` : "no text messages",
     "free carer logins",
@@ -203,7 +217,7 @@ export function orderIncludedList(input: { users: number; branches: number; ai: 
 }
 
 /** The same, as one line for the agreement's Order and the stored record. Shown as bullets on screen. */
-export function orderIncludedText(input: { users: number; branches: number; ai: number; sms: number }): string {
+export function orderIncludedText(input: { users: number; branches: number; ai: number; sms: number; word?: OrderBranchWord }): string {
   return orderIncludedList(input).join(", ");
 }
 
@@ -253,21 +267,34 @@ function orderCell(v: string): string {
     .trim();
 }
 
-export function fillOrderTable(text: string, values: Partial<Record<OrderRowLabel, string>>): string {
+export function fillOrderTable(
+  text: string,
+  values: Partial<Record<OrderRowLabel, string>>,
+  opts: { word?: OrderBranchWord } = {},
+): string {
   const start = text.indexOf("\n## The Order");
   if (start < 0) return text;
+  /* THEIR WORD FOR A BRANCH (0354, Phil 2026-09-30: "when they see their first contract, instead
+     of branch, they would see the word house"). The Order says it their way, and one extra row
+     ties their word to the agreement's defined term, so the standard wording above still binds. */
+  const w = opts.word && opts.word.one.toLowerCase() !== "branch" ? opts.word : null;
   const tail = text
     .slice(start)
     .split("\n")
-    .map((line) => {
+    .flatMap((line) => {
       const m = /^\| ([^|]+?) \| .* \|$/.exec(line);
-      if (!m) return line;
+      if (!m) return [line];
       const label = m[1] as OrderRowLabel;
-      if (!(ORDER_ROWS as readonly string[]).includes(label)) return line;
+      if (!(ORDER_ROWS as readonly string[]).includes(label)) return [line];
       const v = values[label];
-      if (v === undefined) return line;
+      if (v === undefined) return [line];
       const c = orderCell(v);
-      return `| ${label} | ${c === "" ? "Not filled in yet" : c} |`;
+      const shown = w && label === "Extra branches" ? `Extra ${low(w.many)}` : label;
+      const row = `| ${shown} | ${c === "" ? "Not filled in yet" : c} |`;
+      if (w && label === "Extra branches") {
+        return [row, `| Your word for a branch | ${orderCell(`${w.one}. In this agreement, "Branch" means a ${low(w.one)}`)} |`];
+      }
+      return [row];
     })
     .join("\n");
   return text.slice(0, start) + tail;
@@ -323,9 +350,19 @@ export function orderTableValues(o: {
  * pins its date, but says what it means: the extras prices, then "(prices from <date>)". This
  * whole line is what is stored with an acceptance, so the record keeps the prices of the day.
  */
-export function orderExtrasText(input: { tier: string | null | undefined; seatPence: number; branchPence: number }): string {
+export function orderExtrasText(input: {
+  tier: string | null | undefined;
+  seatPence: number;
+  branchPence: number;
+  step?: OrderBranchStep;
+  word?: OrderBranchWord;
+}): string {
   if (input.tier === "black") return "None, everything is included (Black account)";
-  return `${pounds(input.seatPence)} a month for each extra user, ${pounds(input.branchPence)} a month for each extra branch, plus VAT`;
+  const w = input.word ?? BRANCH;
+  const branch = input.step
+    ? `${pounds(input.branchPence)} a month for each of the first ${input.step.after} extra ${input.step.after === 1 ? low(w.one) : low(w.many)} and ${pounds(input.step.pricePence)} a month for each extra ${low(w.one)} after that`
+    : `${pounds(input.branchPence)} a month for each extra ${low(w.one)}`;
+  return `${pounds(input.seatPence)} a month for each extra user, ${branch}, plus VAT`;
 }
 
 export function orderPriceListText(extras: string, priceListDate: string): string {
@@ -389,6 +426,10 @@ export function orderCosts(i: {
   seatPence: number;
   branchPence: number;
   onboardingFee: string;
+  /** A deal's two-step extra branch price (0354); null or absent for one price. */
+  branchStep?: OrderBranchStep;
+  /** The company's word for a branch (0354). */
+  word?: OrderBranchWord;
 }): OrderCosts {
   if (i.tier === "black" || i.monthlyPence === null) {
     return { groups: [], oneOff: null, totalText: "No charge (Black account)", extrasBilling: "none" };
@@ -408,9 +449,20 @@ export function orderCosts(i: {
       pence += p;
     }
     if (branches > 0) {
-      const p = branches * i.branchPence * (months ?? 1);
-      lines.push({ label: `${plural(branches, "extra branch", "extra branches")} x ${money(i.branchPence)}${per}`, amount: money(p) });
-      pence += p;
+      const w = i.word ?? BRANCH;
+      const one = `extra ${low(w.one)}`;
+      const many = `extra ${low(w.many)}`;
+      const step = i.branchStep ?? null;
+      const first = step ? Math.min(branches, step.after) : branches;
+      const rest = branches - first;
+      const p1 = first * i.branchPence * (months ?? 1);
+      lines.push({ label: `${plural(first, one, many)} x ${money(i.branchPence)}${per}`, amount: money(p1) });
+      pence += p1;
+      if (step && rest > 0) {
+        const p2 = rest * step.pricePence * (months ?? 1);
+        lines.push({ label: `${plural(rest, one, many)} x ${money(step.pricePence)}${per}`, amount: money(p2) });
+        pence += p2;
+      }
     }
     return { lines, pence };
   };
@@ -461,6 +513,22 @@ export function extrasLineText(count: number, unitPence: number, tier: string | 
   if (tier === "black") return "Not applicable (Black account)";
   const n = Math.max(0, Math.trunc(count) || 0);
   return n === 0 ? "None" : `${n}, at ${money(unitPence)} a month each`;
+}
+
+/** The Order's extra branches line, honouring a two-step price and the company's word (0354). */
+export function branchesLineText(
+  count: number,
+  branchPence: number,
+  tier: string | null | undefined,
+  step: OrderBranchStep = null,
+): string {
+  if (tier === "black") return "Not applicable (Black account)";
+  const n = Math.max(0, Math.trunc(count) || 0);
+  if (n === 0) return "None";
+  if (step && n > step.after) {
+    return `${n}: the first ${step.after} at ${money(branchPence)} a month each and ${n - step.after} at ${money(step.pricePence)} a month each`;
+  }
+  return `${n}, at ${money(branchPence)} a month each`;
 }
 
 export function extrasPaidText(c: OrderCosts, billingOption: string, tier: string | null | undefined): string {

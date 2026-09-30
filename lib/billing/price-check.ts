@@ -239,6 +239,9 @@ export async function checkoutPriceProblem(
     /** Annual (2026-09-30): the plan and the extras can each be monthly or yearly. */
     interval?: BillingInterval;
     extrasInterval?: BillingInterval;
+    /** Lines priced by the company's deal (0354): made by us from the deal, so there is no list
+     *  price to compare them with. */
+    skip?: { plan?: boolean; seat?: boolean; branch?: boolean };
   } = {},
 ): Promise<string | null> {
   const planInterval = opts.interval ?? "month";
@@ -251,14 +254,16 @@ export async function checkoutPriceProblem(
   // company inside its included users never buys one, and refusing their subscription over
   // a price that would not appear on their bill would be the guard doing harm: they would
   // be locked out of a lapsed trial by a line item they are not being charged for.
-  const wanted: Array<{ id: string | null; expected: number; what: string }> = [
-    {
-      id: tierBasePriceId(tier, planInterval),
-      expected: TIER_BASE_PENCE[tier] * months(planInterval),
-      what: `the ${TIER_LABELS[tier]} plan`,
-    },
-  ];
-  if (opts.includeSeat) {
+  const wanted: Array<{ id: string | null; expected: number; what: string }> = opts.skip?.plan
+    ? []
+    : [
+        {
+          id: tierBasePriceId(tier, planInterval),
+          expected: TIER_BASE_PENCE[tier] * months(planInterval),
+          what: `the ${TIER_LABELS[tier]} plan`,
+        },
+      ];
+  if (opts.includeSeat && !opts.skip?.seat) {
     wanted.push({ id: seatPriceId(extrasInterval), expected: EXTRA_SEAT_PENCE * months(extrasInterval), what: "the extra user price" });
   }
   // Gated on its OWN line appearing, not on the seat line: a company can be inside its user
@@ -266,7 +271,7 @@ export async function checkoutPriceProblem(
   // above, and the same guard: a branch price that disagrees with EXTRA_BRANCH_PENCE is how a
   // customer gets billed something the pricing page never said, which is precisely how Pro
   // came to be sold at £69 and charged at £99.
-  if (opts.includeBranch) {
+  if (opts.includeBranch && !opts.skip?.branch) {
     wanted.push({ id: branchPriceId(extrasInterval), expected: EXTRA_BRANCH_PENCE * months(extrasInterval), what: "the extra branch price" });
   }
 

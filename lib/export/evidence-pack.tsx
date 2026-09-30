@@ -68,6 +68,8 @@ type PackEvidence = {
 export type EvidencePackData = {
   companyName: string;
   branchName: string | null;
+  /** The company's word for a branch (0354). */
+  branchLabel?: string;
   recordName: string;
   /** The same subject printed on every entry inside the pack, so the cover and the
    *  pages behind it can never name different people. */
@@ -114,7 +116,7 @@ function PackDocument({ data, attachments }: { data: EvidencePackData; attachmen
             <Text style={styles.metaValue}>{data.companyName}</Text>
           </View>
           <View style={styles.metaCell}>
-            <Text style={styles.metaLabel}>Branch</Text>
+            <Text style={styles.metaLabel}>{data.branchLabel ?? "Branch"}</Text>
             <Text style={styles.metaValue}>{data.branchName || "Not set"}</Text>
           </View>
           <View style={styles.metaCell}>
@@ -243,7 +245,7 @@ export async function getEvidencePackData(
   }
 
   const [{ data: company }, { data: evidence }] = await Promise.all([
-    supabase.from("companies").select("name").eq("id", companyId).maybeSingle<{ name: string }>(),
+    supabase.from("companies").select("name, branch_word").eq("id", companyId).maybeSingle<{ name: string; branch_word: string | null }>(),
     supabase
       .from("evidence")
       .select(
@@ -260,6 +262,7 @@ export async function getEvidencePackData(
     data: {
       companyName: company?.name ?? "Company",
       branchName,
+      branchLabel: company?.branch_word || "Branch",
       recordName,
       subject: subject ?? notOnFile(recordType, recordId),
       recordKind: recordType === "person" ? "Person" : "Service User",
@@ -306,7 +309,7 @@ export function evidencePackCsv(data: EvidencePackData): string {
       e.branches?.name ?? data.branchName ?? "",
     ]);
   return buildCsv(
-    ["Reference", "Form", "Version", "Completed by", "Completed on", "Completed at", "Branch"],
+    ["Reference", "Form", "Version", "Completed by", "Completed on", "Completed at", data.branchLabel ?? "Branch"],
     rows,
   );
 }
