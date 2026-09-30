@@ -3877,3 +3877,10 @@ Founder > Companies > [company] Billing card has "Mark as a test company"; a tes
 invoices are left off Founder > Invoices and it is left out of revenue and MRR (Phil's choice by
 popup, to hide Bevan's test invoices: a subscription's draft cannot be deleted, and the sandbox
 cannot send an invoice to void it).
+NEXT in Phase 13 (Phil, 2026-09-30, by popup: this phase, straight after I8): demo and deal setup.
+(1) Demo Care Company Limited, a Pro-like demo where the founder issues logins, no SMS, 5 AI
+credits per login, demo users cannot create logins; (2) founder-built customer setup: tier, seats,
+branches, trial length (a week up to months), Admin sees the agreement then payment, full build
+after payment; (3) rename "branch" per company (e.g. "house"), shown in the contract too, with
+each branch's own name; (4) negotiated branch prices (flat custom price, or first N at one price
+and the rest at another). To be planned with Phil by popup before any code.
