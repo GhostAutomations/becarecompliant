@@ -80,11 +80,23 @@ export function branchExtrasPence(extraBranches: number, prices: Pick<DealPrices
 /** The company's own word for a branch, e.g. House / Houses. Null or blank means Branch. */
 export type BranchWord = { one: string; many: string };
 
+/**
+ * The plural of a branch word by the usual English rules (Phil, 2026-09-30: a smarter guess, shown
+ * so it can be changed): Branch to Branches, Property to Properties, House to Houses, Day to Days.
+ */
+export function pluralOf(word: string): string {
+  const w = word.trim();
+  if (!w) return w;
+  if (/(s|x|z|ch|sh)$/i.test(w)) return `${w}${/[A-Z]$/.test(w) ? "ES" : "es"}`;
+  if (/[^aeiou]y$/i.test(w)) return `${w.slice(0, -1)}${/[A-Z]$/.test(w) ? "IES" : "ies"}`;
+  return `${w}${/[A-Z]$/.test(w) && w.length > 1 && w === w.toUpperCase() ? "S" : "s"}`;
+}
+
 export function branchWord(row: { branch_word?: string | null; branch_word_plural?: string | null } | null | undefined): BranchWord {
   const one = (row?.branch_word ?? "").trim();
   const many = (row?.branch_word_plural ?? "").trim();
   if (!one) return { one: "Branch", many: "Branches" };
-  return { one, many: many || `${one}s` };
+  return { one, many: many || pluralOf(one) };
 }
 
 /** Lower case, for use in a sentence: "extra house", "houses". */
@@ -194,4 +206,14 @@ export function dealMonthlyParts(
     branchesPence: branchExtrasPence(extraBranches, prices),
     prices,
   };
+}
+
+/**
+ * The intervals a deal will be billed on, for screens shown before the subscription exists (the
+ * billing row has no interval until then). Null when there is no deal or it leaves billing open.
+ */
+export function dealIntervals(deal: Pick<DealRow, "billing_option" | "extras_billing"> | null | undefined): { plan: "year" | "month"; extras: "year" | "month" } | null {
+  if (!deal || (deal.billing_option !== "annual" && deal.billing_option !== "monthly")) return null;
+  if (deal.billing_option === "monthly") return { plan: "month", extras: "month" };
+  return { plan: "year", extras: deal.extras_billing === "monthly" ? "month" : "year" };
 }

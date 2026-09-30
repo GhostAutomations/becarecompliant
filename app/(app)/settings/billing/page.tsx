@@ -17,7 +17,7 @@ import {
 import ActionForm from "@/components/action-form";
 import { upgradeToPro } from "@/lib/billing/actions";
 import { getDeal } from "@/lib/billing/deal-store";
-import { branchBands, branchWord, dealMonthlyParts, lower } from "@/lib/billing/deal";
+import { branchBands, branchWord, dealIntervals, dealMonthlyParts, lower } from "@/lib/billing/deal";
 import { billedExtra } from "@/lib/billing/ordered-extras";
 import { getAiCreditBalance } from "@/lib/billing/ai-credits";
 import { getSmsCreditBalance } from "@/lib/billing/sms-credits";
@@ -129,9 +129,10 @@ export default async function BillingPage() {
   /* ANNUAL (2026-09-30): a company paying yearly sees yearly amounts, ten months' price for
      twelve, and its extras yearly or monthly as it chose. Monthly companies see what they always
      did. The upgrade to Pro below still quotes monthly figures for comparison. */
-  const intervals = billingIntervals(
-    billing as { billing_interval?: string | null; extras_interval?: string | null } | null,
-  );
+  // Before the subscription exists, the intervals come from their deal (D1, 2026-09-30).
+  const intervals = billing?.billing_interval
+    ? billingIntervals(billing as { billing_interval?: string | null; extras_interval?: string | null } | null)
+    : dealIntervals(deal) ?? billingIntervals(null);
   const planYearly = intervals.plan === "year";
   const extrasYearly = intervals.extras === "year";
   const times = (yearly: boolean) => (yearly ? YEARLY_MONTHS_CHARGED : 1);

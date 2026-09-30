@@ -196,11 +196,15 @@ Test on a NEW test company made for the purpose (not Thistle). Stripe in sandbox
   tier Business, Annual, extras yearly, 1 extra user, 7 extra houses, extra house price two step:
   first 3 at £25, then £10. Onboarding waived. Create. The company page shows the Deal as saved,
   Branches "(they say Houses)", and three houses plus the office.
+- D1 PASS 2026-09-30 (Phil, House Test Ltd) after DEF-090 (create refused: null uses_office_address) and DEF-091 (refused form emptied) were fixed. DEF-092 found: Add a branch said per month for an Annual deal before subscribing; fixed, next push.
+- D2 part 1 (2026-09-30): a word with no plural was ACCEPTED, as built (plural filled in as word + s); the test step was wrong. Phil chose a smarter guess: pluralOf (s, es, ies rules, 1 test) fills the plural box as soon as the word is typed, visible and changeable (next push). Refuse Test Ltd was created by this step and needs deleting.
+- D2 PASS 2026-09-30 (run by Claude in Chrome at Phil's request, on one form): a deal on Black refused ("A Black account is free, so it has no deal..."); two branches named Main and main refused ("Two branches have the same name..."); a second price with no count refused ("Say how many extra branches are at the first price"). Every field kept after each refusal (DEF-091 fix proven). Nothing created (checked in the database).
 - D2 Validation: word without plural, a deal on Black, a duplicate house name, "first how many"
   empty with a second price set: each refused with a plain message, nothing created.
 - D3 Founder edits the deal before acceptance (change the first price to £20): saved, audit
   entry deal.saved. After acceptance the same edit is refused ("Branch word saved. The deal was
   not changed"), the word can still change.
+- D3 part 1 PASS 2026-09-30 (Claude in Chrome): House Test Ltd deal, first price 25 to 20, Save deal: company_deals 2000, audit deal.saved with the new deal, founder page reloads showing 20 and "£20.00 ... first 3 extra, then £10.00". Note: the founder page still says per month until DEF-092 is pushed. Part 2 (refused after acceptance) waits on D4, which needs the House Test Admin to sign in.
 - D4 Admin signs in: Order shows "as agreed with you" for plan, billing and extras, no choices to
   change; the Order table reads "Extra houses" and has the row "Your word for a branch: House";
   the cost lines show 3 houses at £25 and 4 at £10 (x 10 months on Annual); onboarding not charged.

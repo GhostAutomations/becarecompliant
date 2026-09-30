@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { parseDealForm, type DealRow } from "@/lib/billing/deal";
+import { parseDealForm, pluralOf, type DealRow } from "@/lib/billing/deal";
 
 /**
  * Reading and writing a company's deal (0354). Not a "use server" file: it exports helpers for the
@@ -49,7 +49,7 @@ export function branchWordFromForm(fd: FormData): { one: string | null; many: st
   if (!one && !many) return { one: null, many: null };
   if (!one) return { error: "Enter the word for one branch as well as the plural, for example House and Houses." };
   if (one.length > 30 || many.length > 30) return { error: "Keep the branch word to 30 letters or fewer." };
-  return { one, many: many || `${one}s` };
+  return { one, many: many || pluralOf(one) };
 }
 
 export async function getDeal(supabase: SupabaseClient, companyId: string): Promise<StoredDeal | null> {

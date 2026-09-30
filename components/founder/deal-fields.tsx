@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { pluralOf } from "@/lib/billing/deal";
 
 /**
  * THE DEAL (Phil, 2026-09-30): the fields a founder fills in to fix a company's Order and any
@@ -52,6 +53,7 @@ export function DealFields({
      so without this they would keep their chosen value while the rest of the form went back to
      its defaults (the DEF-082 trap). Put them back to the defaults with everything else. */
   const box = useRef<HTMLDivElement>(null);
+  const pluralRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const form = box.current?.closest("form");
     if (!form) return;
@@ -81,11 +83,26 @@ export function DealFields({
         <div className="mt-2 grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="branch_word" className="form-label">One</label>
-            <input id="branch_word" name="branch_word" maxLength={30} placeholder="House" defaultValue={branchWord ?? ""} />
+            <input
+              id="branch_word"
+              name="branch_word"
+              maxLength={30}
+              placeholder="House"
+              defaultValue={branchWord ?? ""}
+              onBlur={(e) => {
+                /* A smarter guess at the plural, filled in where it can be seen and changed
+                   (Phil, 2026-09-30): Property gives Properties, Branch gives Branches. */
+                const plural = pluralRef.current;
+                if (plural && !plural.value.trim() && e.currentTarget.value.trim()) {
+                  plural.value = pluralOf(e.currentTarget.value);
+                }
+              }}
+            />
           </div>
           <div>
             <label htmlFor="branch_word_plural" className="form-label">More than one</label>
-            <input id="branch_word_plural" name="branch_word_plural" maxLength={30} placeholder="Houses" defaultValue={branchWordPlural ?? ""} />
+            <input ref={pluralRef} id="branch_word_plural" name="branch_word_plural" maxLength={30} placeholder="Houses" defaultValue={branchWordPlural ?? ""} />
+            <p className="form-hint">Filled in for you from the word above. Change it if it is not right.</p>
           </div>
         </div>
       </div>

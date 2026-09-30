@@ -2488,3 +2488,10 @@ React 19 resets a form after an action passed to action={} finishes, error or no
 wiped the whole New company form. Phil: "as a customer, that would piss me off". Fixed for the
 New company form and for ActionForm (used by most forms in the app): they submit through onSubmit,
 so a refusal leaves every field as it was; ActionForm still clears after a success, as before.
+
+## DEF-092 — Founder page said "per month" for an Annual deal before they subscribe (D1, 2026-09-30)
+
+House Test Ltd (Annual, extras yearly, no subscription yet): Add a branch read "£25.00 per branch
+per month ... then £10.00 each". The intervals came only from the billing row, which has none until
+the subscription exists. Fixed: with no billing interval yet, the founder page and Settings, Billing
+take the intervals from the deal (dealIntervals, pure, 1 test): here £250.00 a year, then £100.00.

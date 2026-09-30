@@ -35,7 +35,7 @@ import { subscriptionMonthlyPence } from "@/lib/billing/monthly-total";
 import { setTestCompany } from "@/lib/founder/test-company-actions";
 import { saveCompanyDeal } from "@/lib/founder/deal-actions";
 import { getDeal } from "@/lib/billing/deal-store";
-import { branchWord, dealMonthlyParts, lower } from "@/lib/billing/deal";
+import { branchWord, dealIntervals, dealMonthlyParts, lower } from "@/lib/billing/deal";
 import { DealFields } from "@/components/founder/deal-fields";
 import { TIER_LABELS } from "@/lib/stripe/config";
 import ActionForm from "@/components/action-form";
@@ -143,9 +143,13 @@ export default async function FounderCompanyPage({
   const seats = { ...actualSeats, extra: seatsExtra, extraCostPence: seatsExtra * EXTRA_SEAT_PENCE };
   /* ANNUAL (2026-09-30, seen on Bevan's founder page): show yearly figures for a company paying
      yearly, and the extras in the interval they are charged, the same as Settings, Billing. */
-  const intervals = billingIntervals(
-    billing as { billing_interval?: string | null; extras_interval?: string | null } | null,
-  );
+  // The deal's special prices, if any (0354), so this page shows what they are actually charged.
+  const deal = await getDeal(supabase, company.id);
+  /* Before they subscribe there is no billing row yet, so the intervals come from the deal they
+     will accept (D1, 2026-09-30: an Annual deal read "per month" until the subscription existed). */
+  const intervals = billing?.billing_interval
+    ? billingIntervals(billing as { billing_interval?: string | null; extras_interval?: string | null } | null)
+    : dealIntervals(deal) ?? billingIntervals(null);
   const planYearly = intervals.plan === "year";
   const extrasYearly = intervals.extras === "year";
   const extrasPer = extrasYearly ? "/yr" : "/mo";
@@ -167,8 +171,6 @@ export default async function FounderCompanyPage({
   // allowance), so the founder console has to include them or it reports a number Stripe
   // disagrees with. Acme showed £69.00/mo here while Stripe was billing £84.00.
   const extraBranchCount = billedExtra(Math.max(0, operationalBranches.length - branchIncluded), ordered.branches);
-  // The deal's special prices, if any (0354), so this page shows what they are actually charged.
-  const deal = await getDeal(supabase, company.id);
   const parts = isSub
     ? dealMonthlyParts(
         deal,

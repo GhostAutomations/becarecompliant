@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { dealPrices, branchBands, branchExtrasPence, branchWord, parseDealForm, type DealRow } from "./deal.ts";
+import { dealPrices, branchBands, branchExtrasPence, branchWord, parseDealForm, dealIntervals, pluralOf, type DealRow } from "./deal.ts";
 
 const list = { planPence: 12900, seatPence: 500, branchPence: 2500 };
 const empty: DealRow = {
@@ -90,4 +90,23 @@ test("monthly parts at deal prices: Pro at £110, 1 extra user at £4, 7 houses 
     7,
   );
   assert.deepEqual([parts.basePence, parts.seatsPence, parts.branchesPence], [11000, 400, 11500]);
+});
+
+test("deal intervals before a subscription exists", () => {
+  assert.equal(dealIntervals(null), null);
+  assert.equal(dealIntervals({ billing_option: null, extras_billing: null }), null);
+  assert.deepEqual(dealIntervals({ billing_option: "monthly", extras_billing: null }), { plan: "month", extras: "month" });
+  assert.deepEqual(dealIntervals({ billing_option: "annual", extras_billing: "yearly" }), { plan: "year", extras: "year" });
+  assert.deepEqual(dealIntervals({ billing_option: "annual", extras_billing: "monthly" }), { plan: "year", extras: "month" });
+});
+
+test("plural of a branch word by the usual rules", () => {
+  assert.equal(pluralOf("House"), "Houses");
+  assert.equal(pluralOf("Branch"), "Branches");
+  assert.equal(pluralOf("Property"), "Properties");
+  assert.equal(pluralOf("Day"), "Days");
+  assert.equal(pluralOf("Box"), "Boxes");
+  assert.equal(pluralOf("Campus"), "Campuses");
+  assert.equal(pluralOf("Treehouse"), "Treehouses");
+  assert.equal(pluralOf(" Home "), "Homes");
 });
