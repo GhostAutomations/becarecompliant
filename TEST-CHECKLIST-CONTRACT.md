@@ -114,3 +114,14 @@ Bevan switched to Pro by SQL for this (no Stripe subscription, so nothing billed
 - A14 Business: the same at £79 a month, £790 a year; 4 users, 1 branch, 25 AI, no text messages.
 - A15 Black: no Monthly or Annual; the agreement's Order reads Billing option "Not applicable (Black
   account)" and the stored row says none.
+  A13 PASS (2026-09-30, Phil on phone, Pro, Annual). Phil's notes, both agreed by popup and built:
+  "Price List" with a bare date confused (now "Extras": £5 a month per extra user, £25 a month per
+  extra branch, plus VAT; the agreement's Order adds "(prices from 29 September 2026)" and that whole
+  line is stored), and after Accept the next screen should be payment, not the banner above Welcome
+  (new /agreement/payment, step 4).
+- A16 Payment step: accepting as a paying plan with no live subscription goes to "Payment, Step 4 of
+  4". Annual: amount, onboarding fee, extras, "We will email your first year's invoice to ...
+  payable within 14 days", Continue goes to the dashboard. Monthly: Add a card opens Stripe
+  Checkout (do NOT complete it on Bevan); "Not yet, I'm in my free trial" shows only while a trial
+  runs. Black, or a company already paying, goes straight to the dashboard. Another role opening
+  /agreement/payment is sent to the dashboard.

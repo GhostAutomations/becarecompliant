@@ -6,9 +6,9 @@ import { createClient } from "@/lib/supabase/server";
 import { getCompanyTrialState } from "@/lib/billing/trial-gate";
 import { needsAgreement, listAcceptances, type AcceptanceRow } from "@/lib/legal/acceptance";
 import { legalDocuments, legalPublished, LEGAL_VERSIONS } from "@/lib/legal/documents";
-import { acceptanceCurrent, billingApplies, billingOptionLabel, fillOrderTable, orderTableValues, organisationLabel, planLabel, onboardingFeeLabel, orderIncludedText, orderPriceText } from "@/lib/legal/fill";
+import { acceptanceCurrent, billingApplies, billingOptionLabel, fillOrderTable, orderExtrasText, orderPriceListText, orderTableValues, organisationLabel, planLabel, onboardingFeeLabel, orderIncludedText, orderPriceText } from "@/lib/legal/fill";
 import { TIER_BASE_PENCE } from "@/lib/stripe/config";
-import { includedBranchesForTier, includedSeatsForTier } from "@/lib/billing/seats";
+import { EXTRA_BRANCH_PENCE, EXTRA_SEAT_PENCE, includedBranchesForTier, includedSeatsForTier } from "@/lib/billing/seats";
 import { ANNUAL_MONTHS_CHARGED, PRICE_LIST_DATE, aiMonthlyCredits, smsMonthlyCredits } from "@/lib/billing/allowances";
 import { ONBOARDING_FEE, ONBOARDING_OFFER_END_TEXT, onboardingOfferActive } from "@/lib/marketing/offer";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
@@ -51,7 +51,7 @@ function OrderTable({ a }: { a: AcceptanceRow }) {
     ["Price", a.price_text ?? "Not recorded"],
     ["Included", a.included_text ?? "Not recorded"],
     ["Billing option", billingOptionLabel(a.billing_option)],
-    ["Price List", a.price_list_date ?? "Not recorded"],
+    ["Extras and prices", a.price_list_date ?? "Not recorded"],
     ["Onboarding fee", a.onboarding_fee],
     ["Start date", ukDate(a.start_date)],
     ["Accepted by", `${a.accepted_by_name}, Company Admin`],
@@ -193,6 +193,7 @@ export default async function AgreementPage() {
   const monthlyPence = company.tier === "business" || company.tier === "pro" ? TIER_BASE_PENCE[company.tier] : null;
   const priceMonthly = orderPriceText({ tier: company.tier, billingOption: "monthly", monthlyPence, annualMonths: ANNUAL_MONTHS_CHARGED });
   const priceAnnual = orderPriceText({ tier: company.tier, billingOption: "annual", monthlyPence, annualMonths: ANNUAL_MONTHS_CHARGED });
+  const extras = orderExtrasText({ tier: company.tier, seatPence: EXTRA_SEAT_PENCE, branchPence: EXTRA_BRANCH_PENCE });
   const included = orderIncludedText({
     users: includedSeatsForTier(company.tier ?? "business"),
     branches: includedBranchesForTier(company.tier ?? "business"),
@@ -232,7 +233,8 @@ export default async function AgreementPage() {
             priceMonthly,
             priceAnnual,
             included,
-            priceList: PRICE_LIST_DATE,
+            priceList: orderPriceListText(extras, PRICE_LIST_DATE),
+            extras,
             onboardingFee: fee,
             startDate: ukDate(today),
             adminName: profile.full_name || profile.email || "Company Admin",

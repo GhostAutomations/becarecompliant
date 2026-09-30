@@ -277,3 +277,33 @@ export function orderTableValues(o: {
     "Versions accepted": `Subscription Agreement ${o.agreementVersion}, Data Processing Agreement ${o.dpaVersion}`,
   };
 }
+
+/**
+ * EXTRAS, NOT A BARE DATE (Phil, 2026-09-30: "Price List with the date 29/9 will confuse people").
+ * The agreement charges extra users and branches at the Price List in force, so the Order still
+ * pins its date, but says what it means: the extras prices, then "(prices from <date>)". This
+ * whole line is what is stored with an acceptance, so the record keeps the prices of the day.
+ */
+export function orderExtrasText(input: { tier: string | null | undefined; seatPence: number; branchPence: number }): string {
+  if (input.tier === "black") return "None, everything is included (Black account)";
+  return `${pounds(input.seatPence)} a month for each extra user, ${pounds(input.branchPence)} a month for each extra branch, plus VAT`;
+}
+
+export function orderPriceListText(extras: string, priceListDate: string): string {
+  return `${extras} (prices from ${priceListDate})`;
+}
+
+/**
+ * WHERE ACCEPT GOES NEXT (Phil, 2026-09-30, by popup: "the very next screen should be the payment
+ * screen"). A company that has to pay and is not paying yet goes to the payment step; a Black
+ * account, or one whose subscription is already live, goes to its dashboard.
+ */
+export function afterAcceptPath(input: { tier: string | null | undefined; liveSubscription: boolean }): string {
+  if (input.tier === "black" || input.liveSubscription) return "/dashboard";
+  return "/agreement/payment";
+}
+
+/** A Stripe subscription status that means the company is already paying (or about to be). */
+export function isLiveSubscription(status: string | null | undefined, subscriptionId: string | null | undefined): boolean {
+  return !!subscriptionId && ["active", "trialing", "past_due"].includes(status ?? "");
+}

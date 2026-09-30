@@ -33,7 +33,10 @@ export type OrderSummary = {
   priceMonthly: string;
   priceAnnual: string;
   included: string;
+  /** The Order table's Price List line: the extras and the date of the prices. */
   priceList: string;
+  /** The extras on their own, for the summary on screen. */
+  extras: string;
   onboardingFee: string;
   startDate: string;
   adminName: string;
@@ -234,8 +237,8 @@ export default function AcceptOrderForm({
           <dd className="text-white/85">{price}</dd>
           <dt className="text-white/55">Included</dt>
           <dd className="text-white/85">{summary.included}</dd>
-          <dt className="text-white/55">Price List</dt>
-          <dd className="text-white/85">{summary.priceList}</dd>
+          <dt className="text-white/55">Extras</dt>
+          <dd className="text-white/85">{summary.extras}</dd>
           <dt className="text-white/55">Onboarding fee</dt>
           <dd className="text-white/85">{summary.onboardingFee}</dd>
           <dt className="text-white/55">Start date</dt>

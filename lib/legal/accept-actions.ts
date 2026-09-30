@@ -8,9 +8,10 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
 import { legalDocuments, legalPublished, LEGAL_VERSIONS } from "@/lib/legal/documents";
-import { acceptanceCurrent, billingApplies, checkOrder, onboardingFeeLabel, orderIncludedText, orderPriceText, planLabel } from "@/lib/legal/fill";
+import { acceptanceCurrent, afterAcceptPath, billingApplies, checkOrder, isLiveSubscription, orderExtrasText, orderPriceListText, onboardingFeeLabel, orderIncludedText, orderPriceText, planLabel } from "@/lib/legal/fill";
 import { TIER_BASE_PENCE } from "@/lib/stripe/config";
-import { includedBranchesForTier, includedSeatsForTier } from "@/lib/billing/seats";
+import { EXTRA_BRANCH_PENCE, EXTRA_SEAT_PENCE, includedBranchesForTier, includedSeatsForTier } from "@/lib/billing/seats";
+import { getCompanyBilling } from "@/lib/billing/stripe-sync";
 import { ANNUAL_MONTHS_CHARGED, PRICE_LIST_DATE, aiMonthlyCredits, smsMonthlyCredits } from "@/lib/billing/allowances";
 import { ONBOARDING_FEE, ONBOARDING_OFFER_END_TEXT, onboardingOfferActive } from "@/lib/marketing/offer";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
@@ -74,7 +75,7 @@ export async function acceptAgreement(_prev: ActionState, formData: FormData): P
       published,
     )
   ) {
-    redirect("/dashboard");
+    redirect(await nextAfterAccept(companyId, company.tier));
   }
 
   const docs = legalDocuments();
@@ -113,7 +114,10 @@ export async function acceptAgreement(_prev: ActionState, formData: FormData): P
       ai: aiMonthlyCredits(company.tier),
       sms: smsMonthlyCredits(company.tier),
     }),
-    price_list_date: PRICE_LIST_DATE,
+    price_list_date: orderPriceListText(
+      orderExtrasText({ tier: company.tier, seatPence: EXTRA_SEAT_PENCE, branchPence: EXTRA_BRANCH_PENCE }),
+      PRICE_LIST_DATE,
+    ),
     onboarding_fee: onboardingFeeLabel({
       tier: company.tier,
       offerActive: onboardingOfferActive(today),
@@ -145,11 +149,20 @@ export async function acceptAgreement(_prev: ActionState, formData: FormData): P
     },
   });
 
-  /* STRAIGHT TO THE DASHBOARD, FROM THE SERVER (A5, 2026-09-30). Returning redirectTo left the
+  /* ON TO THE NEXT STEP, FROM THE SERVER (A5, 2026-09-30; the payment step came the same day). Returning redirectTo left the
      Admin on "Your agreement": revalidatePath re-renders /agreement in the same response, and
      with nothing left to accept it renders the record instead of the form, so the form (and its
      client side redirect) is gone before it can run. redirect() is safe here: the Next 15 bug
      lib/forms.ts avoids only bites a URL with a query string, and /dashboard has none. */
   revalidatePath("/", "layout");
-  redirect("/dashboard");
+  redirect(await nextAfterAccept(companyId, company.tier));
+}
+
+/** The payment step for a company that has to pay and is not paying yet, else the dashboard. */
+async function nextAfterAccept(companyId: string, tier: string | null): Promise<string> {
+  const billing = await getCompanyBilling(companyId);
+  return afterAcceptPath({
+    tier,
+    liveSubscription: isLiveSubscription(billing?.subscription_status, billing?.stripe_subscription_id),
+  });
 }

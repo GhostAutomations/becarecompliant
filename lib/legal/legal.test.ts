@@ -199,3 +199,22 @@ test("the Order table in the agreement fills from the Order (Phil, 2026-09-30)",
   // Nothing to fill: text returned as it was.
   assert.equal(fillOrderTable("no order here", values), "no order here");
 });
+
+test("extras on the Order and where Accept goes next (Phil, 2026-09-30)", async () => {
+  const { orderExtrasText, orderPriceListText, afterAcceptPath, isLiveSubscription } = await import("./fill.ts");
+  const extras = orderExtrasText({ tier: "pro", seatPence: 500, branchPence: 2500 });
+  assert.equal(extras, "£5 a month for each extra user, £25 a month for each extra branch, plus VAT");
+  assert.equal(orderPriceListText(extras, "29 September 2026"), `${extras} (prices from 29 September 2026)`);
+  assert.match(orderExtrasText({ tier: "black", seatPence: 500, branchPence: 2500 }), /Black account/);
+  assert.equal(orderExtrasText({ tier: "business", seatPence: 750, branchPence: 2500 }).startsWith("£7.50 a month"), true);
+
+  assert.equal(afterAcceptPath({ tier: "pro", liveSubscription: false }), "/agreement/payment");
+  assert.equal(afterAcceptPath({ tier: "business", liveSubscription: false }), "/agreement/payment");
+  assert.equal(afterAcceptPath({ tier: "pro", liveSubscription: true }), "/dashboard");
+  assert.equal(afterAcceptPath({ tier: "black", liveSubscription: false }), "/dashboard");
+
+  assert.equal(isLiveSubscription("active", "sub_1"), true);
+  assert.equal(isLiveSubscription("past_due", "sub_1"), true);
+  assert.equal(isLiveSubscription("canceled", "sub_1"), false);
+  assert.equal(isLiveSubscription("active", null), false);
+});
