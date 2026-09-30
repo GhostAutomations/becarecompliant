@@ -61,11 +61,14 @@ export default async function FounderInvoicesPage({
   const supabase = createServiceClient();
   const { data: billingRows } = await supabase
     .from("company_billing")
-    .select("company_id, stripe_customer_id, companies(name)")
+    .select("company_id, stripe_customer_id, companies(name, is_test)")
     .not("stripe_customer_id", "is", null);
   const companyByCustomer = new Map<string, string>();
-  for (const r of (billingRows as Array<{ stripe_customer_id: string; companies: { name: string } | { name: string }[] | null }> | null) ?? []) {
+  type Co = { name: string; is_test?: boolean | null };
+  for (const r of (billingRows as Array<{ stripe_customer_id: string; companies: Co | Co[] | null }> | null) ?? []) {
     const c = Array.isArray(r.companies) ? r.companies[0] : r.companies;
+    // A test company's invoices are left off this page (0353, Phil 2026-09-30).
+    if (c?.is_test) continue;
     companyByCustomer.set(r.stripe_customer_id, c?.name ?? "Unknown company");
   }
 

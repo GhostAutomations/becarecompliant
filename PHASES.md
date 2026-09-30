@@ -3872,3 +3872,8 @@ left the first invoice a draft, DEF-085 founder Invoices would have listed other
 invoices, DEF-086 Settings Billing cost in the Seats card and monthly figures on Annual (plus the
 Pro allowance and the Annual upgrade proration). Bevan is left on Business Annual with a live test
 subscription (sub_1ULMWQRhL0XqZmTgTbaVBWWS, invoice U6ZNESFB-0073 open £840).
+2026-09-30: 0353 companies.is_test (founder only, guarded by companies_guard_founder_columns).
+Founder > Companies > [company] Billing card has "Mark as a test company"; a test company's
+invoices are left off Founder > Invoices and it is left out of revenue and MRR (Phil's choice by
+popup, to hide Bevan's test invoices: a subscription's draft cannot be deleted, and the sandbox
+cannot send an invoice to void it).

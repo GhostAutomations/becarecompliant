@@ -39,7 +39,7 @@ export default async function FounderRevenuePage() {
     await Promise.all([
     supabase
       .from("companies")
-      .select("id, name, tier, status")
+      .select("id, name, tier, status, is_test")
       .not("status", "in", "(archived,deleted)")
       .order("name", { ascending: true }),
     supabase.from("profiles").select("company_id, status, role"),
@@ -92,6 +92,8 @@ export default async function FounderRevenuePage() {
   const orderedByCompany = await orderedExtrasByCompany(supabase);
 
   for (const c of list) {
+    // Test companies are left out of revenue (0353).
+    if ((c as { is_test?: boolean }).is_test) continue;
     const b = billingByCompany.get(c.id) ?? null;
     const actualSeats = computeSeatUsage(activeUsers.get(c.id) ?? 0, includedSeatsForTier(c.tier));
     const seats = { ...actualSeats, extra: billedExtra(actualSeats.extra, orderedFor(orderedByCompany, c.id, c.tier).users) };

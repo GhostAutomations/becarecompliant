@@ -183,3 +183,6 @@ Bevan switched to Pro by SQL for this (no Stripe subscription, so nothing billed
   open Stripe's pages; empty filters say so.
 - I7 FAIL 2026-09-30, DEF-086: yearly cost shown inside the Seats card; Move to Pro and the notes still monthly. Fixed. RETEST PASS 2026-09-30 after deploy cf96a6f (Phil): plan card shows the yearly cost like an invoice (£790 + £50 x 10 months = £840 plus VAT), Seats shows usage only, Move to Pro compares yearly totals, Branches gives the yearly price. £1290.00 missing its comma: formatPence now thousands separated (next push).
 - I7 Settings, Billing on an Annual company shows /yr amounts.
+- I8 Test company (0353): on Founder > Companies > Bevan, Billing card, press "Mark as a test company";
+  the pill reads Yes. Founder > Invoices (All) then shows none of Bevan's invoices (draft, void, £10
+  paid). Revenue and the console MRR leave Bevan out. Pressing "Not a test company" brings them back.

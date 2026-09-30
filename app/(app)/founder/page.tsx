@@ -44,7 +44,7 @@ export default async function FounderPage() {
   ] = await Promise.all([
     supabase
       .from("companies")
-      .select("id, name, slug, tier, status, created_at")
+      .select("id, name, slug, tier, status, created_at, is_test")
       .order("created_at", { ascending: false }),
     supabase.from("profiles").select("company_id, status, role"),
     // Operational branches only (kind = 'branch'); the office/team row is never billed.
@@ -125,6 +125,8 @@ export default async function FounderPage() {
   let mrrPence = 0;
   for (const company of list) {
     if (!isSubscriptionTier(company.tier)) continue;
+    // Test companies are not real money (0353).
+    if ((company as { is_test?: boolean }).is_test) continue;
     const status = billingByCompany.get(company.id)?.subscription_status ?? null;
     if (!["active", "trialing", "past_due"].includes(status ?? "")) continue;
     const seats = computeSeatUsage(activeUsers.get(company.id) ?? 0, includedSeatsForTier(company.tier));

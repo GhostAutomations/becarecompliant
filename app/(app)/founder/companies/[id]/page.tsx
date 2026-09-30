@@ -32,6 +32,7 @@ import {
 import { orderedExtrasByCompany, orderedFor } from "@/lib/billing/ordered-extras-read";
 import { billedExtra } from "@/lib/billing/ordered-extras";
 import { subscriptionMonthlyPence } from "@/lib/billing/monthly-total";
+import { setTestCompany } from "@/lib/founder/test-company-actions";
 import { TIER_LABELS } from "@/lib/stripe/config";
 import ActionForm from "@/components/action-form";
 import {
@@ -80,7 +81,7 @@ export default async function FounderCompanyPage({
 
   const { data: company } = await supabase
     .from("companies")
-    .select("id, name, slug, tier, status, created_at, deleted_at, purge_after, regulator, supervision_cycle_mode, people_column_labels, service_user_column_labels")
+    .select("id, name, slug, tier, status, created_at, deleted_at, purge_after, regulator, supervision_cycle_mode, people_column_labels, service_user_column_labels, is_test")
     .eq("id", id)
     .maybeSingle();
 
@@ -404,6 +405,26 @@ export default async function FounderCompanyPage({
               : "No subscription."}
           </p>
         )}
+        {/* TEST COMPANY (0353, 2026-09-30): left off Invoices, revenue and MRR. */}
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3">
+          <div className="text-sm">
+            <span className="text-white/60">Test company</span>{" "}
+            {(company as { is_test?: boolean }).is_test ? (
+              <span className="pill pill-amber">Yes</span>
+            ) : (
+              <span className="pill pill-neutral">No</span>
+            )}
+            <p className="mt-1 text-xs text-white/45">
+              A test company&apos;s invoices are left off Invoices, and it is left out of revenue and MRR.
+            </p>
+          </div>
+          <ActionForm
+            action={setTestCompany}
+            hidden={{ company_id: company.id, on: (company as { is_test?: boolean }).is_test ? "no" : "yes" }}
+            label={(company as { is_test?: boolean }).is_test ? "Not a test company" : "Mark as a test company"}
+            buttonClassName="btn-ghost px-2 py-1 text-xs"
+          />
+        </div>
         {!isSub && hasBillingRow ? (
           <p className="mt-3 text-xs text-amber-200/80">
             On Black, but a subscription is still running. That is expected for the rest of the
