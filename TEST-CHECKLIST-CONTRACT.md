@@ -33,8 +33,13 @@ filled in; the Order is prefilled and the Company Admin confirms; the 90 day rea
   agreement.accepted written. BUT the Admin stayed on /agreement (the record) instead of the dashboard:
   revalidatePath re-rendered the page without the form, so the client redirect never ran. Fixed:
   the action now redirects on the server. Retest after deploy (delete the test row by id first).
+  RETEST (live 1977ae6d, test row 3bfb6c01 deleted by id first): "Accepting…" then straight to the
+  dashboard ("Welcome, Bev"). Row 40644e00 correct. PASS.
 - A6 Safe twice: /agreement after accepting shows the record, not the form; a second submit writes
   nothing.
+  PASS (2026-09-30): two tabs open on the accept screen, the second with different details and
+  Annual; accepted in the first, then the second. The second went to the dashboard and wrote nothing:
+  one row, the first tab's details, one new audit entry. /agreement afterwards shows the record.
 - A7 PASS (database, rolled back, 2026-09-29): a Company Admin can read their own acceptance and
   cannot insert, change or delete one; another company's Admin sees none; a Company Admin can no
   longer change tier, trial end, status or the agreement switch (they COULD before, by calling the
@@ -55,9 +60,15 @@ procedure and the first restore test (Annex 2 promises them).
 
 - A10 The accept screen shows Price (monthly and annual), Included and Price List; the stored
   Order has the one chosen.
+  PARTLY (2026-09-30): Bevan is Black, so it shows "No charge (Black account)", Included and Price
+  List, and the stored Order matches. The Monthly and Annual price lines need a Business or Pro
+  company's Admin to see on screen.
 - A11 /terms shows the new clauses (7.7, 8.4, 11.6, 11.8, 15.4, 19.1 to 19.4) and /dpa the
   Information Commission, the revised Annex 2 and Annex 3; the Draft notice says "subject to
   legal review".
+  PASS (2026-09-30, live): every listed clause present on /terms; /dpa has the Information
+  Commission, the two kinds of backup (Annex 2), our own nightly file copies (Annex 3), the
+  inspection themes (Annex 1) and 11.3; no dashes; Draft notice lists what is still to add.
 
 ## Third review (2026-09-30)
 
@@ -72,3 +83,5 @@ legal review"); the first published text is 1.0.
 
 - A12 /terms and /dpa head reads "Version 1.0, draft, subject to legal review" (matching the
   Order's "Versions accepted"); 8.4 no longer raises an annual price mid term.
+  PASS (2026-09-30, live): both heads read "Version 1.0, draft, subject to legal review"; 8.4 keeps
+  the existing price for the next annual term; 14.4 and 17.4 fifth review wording present.
