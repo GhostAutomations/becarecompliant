@@ -22,11 +22,17 @@ filled in; the Order is prefilled and the Company Admin confirms; the 90 day rea
   number is now stopped in the browser with everything kept (PASS); a 3 letter address is refused by
   the server with "Enter your registered or main address.", name, number and address kept (PASS),
   but the TICK was cleared by React's own form reset. Fixed in accept-order-form.tsx (choices put
-  back after the reset); retest after deploy.
+  back after the reset); retest after deploy. RETEST 2 (live 0807f858): Charity, number, 3 letter
+  address, Annual and the tick all kept after the server refusal, error shown beside Accept. PASS.
 - A5 Accept: "Accepting…" then "Accepted", then the dashboard. The row has the Order, versions
   1.0 and 1.0, both fingerprints, the IP and is_draft true; audit agreement.accepted. Founder >
   Agreements shows "Accepted (test)" with the Order, including Price, Included and Price List (0348). Settings, Billing, View your agreement shows
   the Order.
+  FIRST RUN (2026-09-30, live 0807f858): "Accepting…" shown; row saved correctly (versions 1.0/1.0,
+  both fingerprints, Order incl. Price, Included, Price List, IP, user agent, is_draft true) and audit
+  agreement.accepted written. BUT the Admin stayed on /agreement (the record) instead of the dashboard:
+  revalidatePath re-rendered the page without the form, so the client redirect never ran. Fixed:
+  the action now redirects on the server. Retest after deploy (delete the test row by id first).
 - A6 Safe twice: /agreement after accepting shows the record, not the form; a second submit writes
   nothing.
 - A7 PASS (database, rolled back, 2026-09-29): a Company Admin can read their own acceptance and

@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
@@ -70,7 +71,7 @@ export async function acceptAgreement(_prev: ActionState, formData: FormData): P
       published,
     )
   ) {
-    return { ok: "Accepted", redirectTo: "/dashboard" };
+    redirect("/dashboard");
   }
 
   const docs = legalDocuments();
@@ -141,6 +142,11 @@ export async function acceptAgreement(_prev: ActionState, formData: FormData): P
     },
   });
 
+  /* STRAIGHT TO THE DASHBOARD, FROM THE SERVER (A5, 2026-09-30). Returning redirectTo left the
+     Admin on "Your agreement": revalidatePath re-renders /agreement in the same response, and
+     with nothing left to accept it renders the record instead of the form, so the form (and its
+     client side redirect) is gone before it can run. redirect() is safe here: the Next 15 bug
+     lib/forms.ts avoids only bites a URL with a query string, and /dashboard has none. */
   revalidatePath("/", "layout");
-  return { ok: "Accepted", redirectTo: "/dashboard" };
+  redirect("/dashboard");
 }
