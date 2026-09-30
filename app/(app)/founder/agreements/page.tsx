@@ -185,6 +185,8 @@ export default async function FounderAgreementsPage() {
                   <dd className="text-white/80">{a.price_text ?? "Not recorded"}</dd>
                   <dt className="text-white/50">Included</dt>
                   <dd className="text-white/80">{a.included_text ?? "Not recorded"}</dd>
+                  <dt className="text-white/50">Branches</dt>
+                  <dd className="text-white/80">{a.branches_text ?? "Not recorded"}</dd>
                   <dt className="text-white/50">Extras and prices</dt>
                   <dd className="text-white/80">{a.price_list_date ?? "Not recorded"}</dd>
                   <dt className="text-white/50">Onboarding fee</dt>

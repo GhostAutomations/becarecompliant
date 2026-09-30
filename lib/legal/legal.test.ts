@@ -120,11 +120,11 @@ test("the Order's price and included lines", async () => {
   assert.match(orderPriceText({ tier: "black", billingOption: "monthly", monthlyPence: null, annualMonths: 10 }), /No charge/);
   assert.equal(
     orderIncludedText({ users: 4, branches: 1, ai: 25, sms: 0 }),
-    "4 users, 1 branch, 25 AI credits a month, no text messages, free carer logins",
+    "4 users, office team and 1 branch, 25 AI credits a month, no text messages, free carer logins",
   );
   assert.equal(
     orderIncludedText({ users: 9999, branches: 9999, ai: 1000, sms: 2000 }),
-    "unlimited users, unlimited branches, 1000 AI credits a month, 2000 text messages a month, free carer logins",
+    "unlimited users, office team and unlimited branches, 1000 AI credits a month, 2000 text messages a month, free carer logins",
   );
 });
 
@@ -168,7 +168,8 @@ test("the Order table in the agreement fills from the Order (Phil, 2026-09-30)",
     address: "1 Test Street\nCardiff | CF10 1AA",
     plan: "Pro",
     price: "£1,290 a year plus VAT, paid yearly in advance",
-    included: "6 users, 2 branches",
+    included: "6 users, office team and 2 branches",
+    branches: "3 branches: 2 included, plus 1 extra",
     billingOption: "annual",
     priceList: "29 September 2026",
     onboardingFee: "Waived (joined by 31 December 2026)",
@@ -217,4 +218,23 @@ test("extras on the Order and where Accept goes next (Phil, 2026-09-30)", async 
   assert.equal(isLiveSubscription("past_due", "sub_1"), true);
   assert.equal(isLiveSubscription("canceled", "sub_1"), false);
   assert.equal(isLiveSubscription("active", null), false);
+});
+
+test("branches on the Order (Phil, 2026-09-30)", async () => {
+  const { orderBranchesText, extraBranchCount, checkOrder } = await import("./fill.ts");
+  assert.equal(extraBranchCount(3, 2), 1);
+  assert.equal(extraBranchCount(1, 2), 0);
+  assert.equal(orderBranchesText({ tier: "pro", ordered: 2, included: 2, branchPence: 2500 }), "2 branches, included in your plan");
+  assert.equal(orderBranchesText({ tier: "business", ordered: 1, included: 1, branchPence: 2500 }), "1 branch, included in your plan");
+  assert.equal(
+    orderBranchesText({ tier: "pro", ordered: 4, included: 2, branchPence: 2500 }),
+    "4 branches: 2 included, plus 2 extra at £25 a month each (£50 a month plus VAT)",
+  );
+  assert.match(orderBranchesText({ tier: "black", ordered: 1, included: 9999, branchPence: 2500 }), /Black account/);
+  const base = { legalName: "Bevan Care Ltd", organisationType: "partnership", companyNumber: "", address: "1 Test Street", billingOption: "monthly", accepted: true };
+  assert.deepEqual(checkOrder({ ...base, branches: "3" }), {});
+  assert.ok(checkOrder({ ...base, branches: "0" }).branches);
+  assert.ok(checkOrder({ ...base, branches: "1.5" }).branches);
+  assert.ok(checkOrder({ ...base, branches: "51" }).branches);
+  assert.deepEqual(checkOrder({ ...base, billingOption: "none", branches: "0" }, { billingApplies: false }), {}, "Black is not asked");
 });

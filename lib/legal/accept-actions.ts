@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
 import { legalDocuments, legalPublished, LEGAL_VERSIONS } from "@/lib/legal/documents";
-import { acceptanceCurrent, afterAcceptPath, billingApplies, checkOrder, isLiveSubscription, orderExtrasText, orderPriceListText, onboardingFeeLabel, orderIncludedText, orderPriceText, planLabel } from "@/lib/legal/fill";
+import { acceptanceCurrent, afterAcceptPath, billingApplies, checkOrder, isLiveSubscription, orderBranchesText, orderExtrasText, orderPriceListText, onboardingFeeLabel, orderIncludedText, orderPriceText, planLabel } from "@/lib/legal/fill";
 import { TIER_BASE_PENCE } from "@/lib/stripe/config";
 import { EXTRA_BRANCH_PENCE, EXTRA_SEAT_PENCE, includedBranchesForTier, includedSeatsForTier } from "@/lib/billing/seats";
 import { getCompanyBilling } from "@/lib/billing/stripe-sync";
@@ -54,6 +54,8 @@ export async function acceptAgreement(_prev: ActionState, formData: FormData): P
     address: String(formData.get("address") ?? ""),
     billingOption: billed ? String(formData.get("billing_option") ?? "") : "none",
     accepted: formData.get("accept") === "yes",
+    // A Black account is not asked how many branches: it has as many as it needs.
+    branches: billed ? String(formData.get("branches") ?? "") : undefined,
   };
   const problems = checkOrder(input, { billingApplies: billed });
   const first = Object.values(problems)[0];
@@ -123,6 +125,13 @@ export async function acceptAgreement(_prev: ActionState, formData: FormData): P
       offerActive: onboardingOfferActive(today),
       fee: ONBOARDING_FEE,
       offerEnd: ONBOARDING_OFFER_END_TEXT,
+    }),
+    branches_ordered: billed ? Number(input.branches) : null,
+    branches_text: orderBranchesText({
+      tier: company.tier,
+      ordered: billed ? Number(input.branches) : 0,
+      included: includedBranchesForTier(company.tier ?? "business"),
+      branchPence: EXTRA_BRANCH_PENCE,
     }),
     start_date: today,
     ip,

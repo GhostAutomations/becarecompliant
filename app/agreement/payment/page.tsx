@@ -65,6 +65,12 @@ export default async function AgreementPaymentPage() {
             <dd className="text-white/85">{current.plan}</dd>
             <dt className="text-white/55">Price</dt>
             <dd className="text-white/85">{current.price_text ?? "As shown on your Order"}</dd>
+            {current.branches_text ? (
+              <>
+                <dt className="text-white/55">Branches</dt>
+                <dd className="text-white/85">{current.branches_text}</dd>
+              </>
+            ) : null}
             <dt className="text-white/55">Onboarding fee</dt>
             <dd className="text-white/85">{current.onboarding_fee}</dd>
             {current.price_list_date ? (

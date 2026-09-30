@@ -125,3 +125,15 @@ Bevan switched to Pro by SQL for this (no Stripe subscription, so nothing billed
   Checkout (do NOT complete it on Bevan); "Not yet, I'm in my free trial" shows only while a trial
   runs. Black, or a company already paying, goes straight to the dashboard. Another role opening
   /agreement/payment is sent to the dashboard.
+  A16 Annual PASS (2026-09-30, Phil on phone, Pro). Phil: the Order should ask how many branches and
+  show the office team and branches included. Agreed by popup: as priced (Business office team + 1
+  branch, Pro office team + 2), and ask "How many branches do you need?" starting at the number
+  included, showing any extra at £25 a month each; stored (0350 branches_ordered, branches_text),
+  shown in the agreement's Order (new Branches row), Your agreement, Payment and Founder > Agreements.
+  Billing still follows the branches actually set up.
+- A17 Branches: Pro shows "Your plan includes the office team and 2 branches", Branches "2 branches,
+  included in your plan"; change to 4: "4 branches: 2 included, plus 2 extra at £25 a month each
+  (£50 a month plus VAT)" on screen and in the agreement's Order. 0 or 51 is refused. Accept: the
+  row has branches_ordered 4 and that line; Payment and Founder > Agreements show it. Black: not asked.
+- A16 Monthly still to run: Add a card opens Stripe Checkout (do not pay); no skip link on Bevan
+  (no trial).

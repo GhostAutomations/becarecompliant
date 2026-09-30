@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import ActionForm from "@/components/action-form";
 import LegalDocumentView from "@/components/legal/legal-document-view";
 import { acceptAgreement } from "@/lib/legal/accept-actions";
-import { ORGANISATION_TYPES, fillOrderTable, orderTableValues } from "@/lib/legal/fill";
+import { MAX_ORDER_BRANCHES, ORGANISATION_TYPES, fillOrderTable, orderBranchesText, orderTableValues } from "@/lib/legal/fill";
 
 /**
  * The accept screen's form (/agreement): the Order, both agreements, the tick and Accept.
@@ -29,6 +29,10 @@ import { ORGANISATION_TYPES, fillOrderTable, orderTableValues } from "@/lib/lega
 
 export type OrderSummary = {
   plan: string;
+  tier: string;
+  /** Branches the plan includes (not counting the office team), and the price of each extra. */
+  branchesIncluded: number;
+  branchPence: number;
   /** The price line for each billing option. For a Black account both read "No charge". */
   priceMonthly: string;
   priceAnnual: string;
@@ -69,6 +73,13 @@ export default function AcceptOrderForm({
   const [address, setAddress] = useState(initial.address);
   const [billing, setBilling] = useState(billingApplies ? "monthly" : "none");
   const [accepted, setAccepted] = useState(false);
+  const [branches, setBranches] = useState(String(summary.branchesIncluded));
+  const branchesText = orderBranchesText({
+    tier: summary.tier,
+    ordered: Number(branches) || 0,
+    included: summary.branchesIncluded,
+    branchPence: summary.branchPence,
+  });
   const numberRequired = orgType === "limited_company" || orgType === "charity";
   const price = billing === "annual" ? summary.priceAnnual : summary.priceMonthly;
 
@@ -106,6 +117,7 @@ export default function AcceptOrderForm({
           plan: summary.plan,
           price,
           included: summary.included,
+          branches: branchesText,
           billingOption: billing,
           priceList: summary.priceList,
           onboardingFee: summary.onboardingFee,
@@ -116,7 +128,7 @@ export default function AcceptOrderForm({
           dpaVersion: summary.dpaVersion,
         }),
       ),
-    [agreementText, legalName, orgType, companyNumber, address, billing, price, summary],
+    [agreementText, legalName, orgType, companyNumber, address, billing, price, branchesText, summary],
   );
 
   const draftTag = published ? "" : ", draft";
@@ -230,6 +242,30 @@ export default function AcceptOrderForm({
           <input type="hidden" name="billing_option" value="none" />
         )}
 
+        {billingApplies ? (
+          <div className="mt-4 max-w-xs">
+            <label htmlFor="branches" className="form-label">
+              How many branches do you need?
+            </label>
+            <input
+              id="branches"
+              name="branches"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={MAX_ORDER_BRANCHES}
+              step={1}
+              required
+              value={branches}
+              onChange={(e) => setBranches(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-white/55">
+              Your plan includes the office team and {summary.branchesIncluded}{" "}
+              {summary.branchesIncluded === 1 ? "branch" : "branches"}.
+            </p>
+          </div>
+        ) : null}
+
         <dl className="mt-5 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-[max-content_1fr]">
           <dt className="text-white/55">Plan</dt>
           <dd className="text-white/85">{summary.plan}</dd>
@@ -237,6 +273,8 @@ export default function AcceptOrderForm({
           <dd className="text-white/85">{price}</dd>
           <dt className="text-white/55">Included</dt>
           <dd className="text-white/85">{summary.included}</dd>
+          <dt className="text-white/55">Branches</dt>
+          <dd className="text-white/85">{branchesText}</dd>
           <dt className="text-white/55">Extras</dt>
           <dd className="text-white/85">{summary.extras}</dd>
           <dt className="text-white/55">Onboarding fee</dt>

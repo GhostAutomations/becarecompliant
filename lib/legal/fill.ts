@@ -103,7 +103,12 @@ export type OrderInput = {
   address: string;
   billingOption: string;
   accepted: boolean;
+  /** How many branches the Order asks for (Phil, 2026-09-30). Only asked on a billed plan. */
+  branches?: string;
 };
+
+/** The most branches one Order can ask for on screen; more is a conversation, not a form. */
+export const MAX_ORDER_BRANCHES = 50;
 
 /** The accept form's checks, one message per field. Empty object means it can be accepted. */
 export function checkOrder(o: OrderInput, opts: { billingApplies?: boolean } = {}): Partial<Record<keyof OrderInput, string>> {
@@ -122,6 +127,11 @@ export function checkOrder(o: OrderInput, opts: { billingApplies?: boolean } = {
   else if (addr.length > 500) e.address = "That address is too long.";
   if (billing && o.billingOption !== "monthly" && o.billingOption !== "annual") e.billingOption = "Choose Monthly or Annual.";
   if (!billing && o.billingOption !== "none") e.billingOption = "This plan has no billing option.";
+  if (billing && o.branches !== undefined) {
+    const n = Number(o.branches);
+    if (!Number.isInteger(n) || n < 1) e.branches = "Enter how many branches you need, 1 or more.";
+    else if (n > MAX_ORDER_BRANCHES) e.branches = `For more than ${MAX_ORDER_BRANCHES} branches, please contact us.`;
+  }
   if (!o.accepted) e.accepted = "Tick the box to confirm you accept both agreements.";
   return e;
 }
@@ -173,7 +183,7 @@ export function orderIncludedText(input: { users: number; branches: number; ai: 
   const n = (v: number, one: string, many: string) => (v >= 9999 ? `unlimited ${many}` : `${v} ${v === 1 ? one : many}`);
   return [
     n(input.users, "user", "users"),
-    n(input.branches, "branch", "branches"),
+    `office team and ${n(input.branches, "branch", "branches")}`,
     `${input.ai} AI credits a month`,
     input.sms > 0 ? `${input.sms} text messages a month` : "no text messages",
     "free carer logins",
@@ -200,6 +210,7 @@ export const ORDER_ROWS = [
   "Plan",
   "Price",
   "Included",
+  "Branches",
   "Billing option",
   "Price List",
   "Onboarding fee",
@@ -251,6 +262,7 @@ export function orderTableValues(o: {
   plan: string;
   price: string;
   included: string;
+  branches: string;
   billingOption: string;
   priceList: string;
   onboardingFee: string;
@@ -268,6 +280,7 @@ export function orderTableValues(o: {
     Plan: o.plan,
     Price: o.price,
     Included: o.included,
+    Branches: o.branches,
     "Billing option": billingOptionLabel(o.billingOption),
     "Price List": o.priceList,
     "Onboarding fee": o.onboardingFee,
@@ -306,4 +319,28 @@ export function afterAcceptPath(input: { tier: string | null | undefined; liveSu
 /** A Stripe subscription status that means the company is already paying (or about to be). */
 export function isLiveSubscription(status: string | null | undefined, subscriptionId: string | null | undefined): boolean {
   return !!subscriptionId && ["active", "trialing", "past_due"].includes(status ?? "");
+}
+
+/**
+ * BRANCHES ON THE ORDER (Phil, 2026-09-30, by popup: "it should ask how many branches"). Business
+ * includes the office team and 1 branch, Pro the office team and 2 (the pricing page and billing
+ * agree); more are an extra charge each month. The answer is recorded on the Order for the founder
+ * to set up; billing still follows the branches actually set up.
+ */
+export function extraBranchCount(ordered: number, included: number): number {
+  return Math.max(0, Math.trunc(ordered) - included);
+}
+
+export function orderBranchesText(input: {
+  tier: string | null | undefined;
+  ordered: number;
+  included: number;
+  branchPence: number;
+}): string {
+  if (input.tier === "black") return "As many as you need (Black account)";
+  const ordered = Math.max(0, Math.trunc(input.ordered));
+  const extra = extraBranchCount(ordered, input.included);
+  const label = (v: number) => `${v} ${v === 1 ? "branch" : "branches"}`;
+  if (extra === 0) return `${label(ordered)}, included in your plan`;
+  return `${label(ordered)}: ${input.included} included, plus ${extra} extra at ${pounds(input.branchPence)} a month each (${pounds(extra * input.branchPence)} a month plus VAT)`;
 }

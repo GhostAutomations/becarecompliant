@@ -50,6 +50,7 @@ function OrderTable({ a }: { a: AcceptanceRow }) {
     ["Plan", a.plan],
     ["Price", a.price_text ?? "Not recorded"],
     ["Included", a.included_text ?? "Not recorded"],
+    ["Branches", a.branches_text ?? "Not recorded"],
     ["Billing option", billingOptionLabel(a.billing_option)],
     ["Extras and prices", a.price_list_date ?? "Not recorded"],
     ["Onboarding fee", a.onboarding_fee],
@@ -140,6 +141,7 @@ export default async function AgreementPage() {
                           plan: current.plan,
                           price: current.price_text ?? "Not recorded",
                           included: current.included_text ?? "Not recorded",
+                          branches: current.branches_text ?? "Not recorded",
                           billingOption: current.billing_option,
                           priceList: current.price_list_date ?? "Not recorded",
                           onboardingFee: current.onboarding_fee,
@@ -230,6 +232,9 @@ export default async function AgreementPage() {
           }}
           summary={{
             plan: planLabel(company.tier),
+            tier: company.tier ?? "business",
+            branchesIncluded: includedBranchesForTier(company.tier ?? "business"),
+            branchPence: EXTRA_BRANCH_PENCE,
             priceMonthly,
             priceAnnual,
             included,

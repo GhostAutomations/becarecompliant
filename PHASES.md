@@ -3825,3 +3825,18 @@ as in service users or people". evidence_select and evidence_files_select keep t
 for everyone except a carer login (Team Member, Senior) reading Evidence about a Service User or
 another Person. Checked live: the list shows 0, the Evidence page and PDF refuse, and Evidence on
 their own record stays readable.
+
+### 2026-09-30 — The contract: accept screen reworked, payment step (0349)
+
+Tested on Phil's phone and reworked: the Order comes first and fills in the Order table at the end of
+the Subscription Agreement live; Black accounts are not asked Monthly or Annual (0349 billing option
+none); "Price List" shows the extras prices with "(prices from 29 September 2026)" in the agreement;
+after Accept a paying plan with no live subscription goes to Payment, step 4 (Add a card for Monthly,
+skip only during a free trial; the emailed invoice for Annual). Tests A1 to A13 pass (A10 on unit
+tests by Phil's choice); A14 to A16 to run.
+
+NEXT IN THIS PHASE (Phil, 2026-09-30, by popup): automatic invoicing for Monthly, Annual and credit
+top ups, made and sent by Stripe, with a founder Invoices page across every company. Annual is a
+yearly Stripe subscription billed by invoice, payable within 14 days by card or UK bank transfer,
+reminders on, onboarding fee on the first invoice when due; top ups get a Stripe invoice (0.4%, capped
+at $2 equivalent, per Stripe's own pricing note). Then the annual renewal reminder.
