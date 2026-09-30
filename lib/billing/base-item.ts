@@ -32,8 +32,10 @@ export function pickBaseItem(
   items: readonly PricedItem[] | null | undefined,
   seatPriceId: string | null | undefined,
   branchPriceId: string | null | undefined,
+  /** The yearly seat and branch prices (Annual, 2026-09-30): add-ons too, never the plan. */
+  moreAddOnPriceIds: readonly (string | null | undefined)[] = [],
 ): BaseItemResult {
-  const addOns = new Set([seatPriceId, branchPriceId].filter(isNonEmpty));
+  const addOns = new Set([seatPriceId, branchPriceId, ...moreAddOnPriceIds].filter(isNonEmpty));
   const candidates = (items ?? []).filter(
     (i) => i && isNonEmpty(i.priceId) && !addOns.has(i.priceId),
   );

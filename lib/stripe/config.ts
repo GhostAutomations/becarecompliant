@@ -51,14 +51,43 @@ export const TIER_BASE_PENCE: Record<SubscriptionTier, number> = {
   pro: 12900,
 };
 
-/** The Stripe Price ID for each subscription tier's flat monthly base fee. */
-export function tierBasePriceId(tier: SubscriptionTier): string | null {
+/**
+ * MONTHLY OR ANNUAL (Phil, 2026-09-30). Annual is the same plan paid yearly at ten months' price
+ * for twelve, by card through Stripe by default or by Stripe invoice on request. Every price
+ * below therefore has a yearly twin, created in Stripe and supplied through its own env var,
+ * exactly like the monthly ones. The extras can be yearly too (same ten for twelve) or stay
+ * monthly on an Annual plan, on the SAME subscription (Stripe "flexible" billing mode allows
+ * mixed intervals), so seats and branches are looked up by the interval the company chose.
+ */
+export type BillingInterval = "month" | "year";
+
+export function isBillingInterval(v: unknown): v is BillingInterval {
+  return v === "month" || v === "year";
+}
+
+/** Months charged for a year on Annual: ten months' price for twelve. Kept in step with
+ *  ANNUAL_MONTHS_CHARGED in lib/billing/allowances.ts by price-consistency.test.ts. */
+export const YEARLY_MONTHS_CHARGED = 10;
+
+/** The Stripe Price ID for each subscription tier's flat base fee, monthly or yearly. */
+export function tierBasePriceId(tier: SubscriptionTier, interval: BillingInterval = "month"): string | null {
+  const yearly = interval === "year";
   switch (tier) {
     case "business":
-      return process.env.STRIPE_PRICE_BUSINESS ?? null;
+      return (yearly ? process.env.STRIPE_PRICE_BUSINESS_YEARLY : process.env.STRIPE_PRICE_BUSINESS) ?? null;
     case "pro":
-      return process.env.STRIPE_PRICE_PRO ?? null;
+      return (yearly ? process.env.STRIPE_PRICE_PRO_YEARLY : process.env.STRIPE_PRICE_PRO) ?? null;
   }
+}
+
+/** Every base price we created, monthly and yearly: the plan lines we may recognise and swap. */
+export function allBasePriceIds(): Array<string | null> {
+  return SUBSCRIPTION_TIERS.flatMap((t) => [tierBasePriceId(t, "month"), tierBasePriceId(t, "year")]);
+}
+
+/** Every add-on price, monthly and yearly: the lines that are never the plan. */
+export function allAddOnPriceIds(): Array<string | null> {
+  return [seatPriceId("month"), seatPriceId("year"), branchPriceId("month"), branchPriceId("year")];
 }
 
 /**
@@ -66,8 +95,8 @@ export function tierBasePriceId(tier: SubscriptionTier): string | null {
  * all subscription tiers. Its quantity carries the number of EXTRA seats, i.e.
  * max(0, active users − 4). See lib/billing/seats.ts and stripe-sync.ts.
  */
-export function seatPriceId(): string | null {
-  return process.env.STRIPE_PRICE_SEAT ?? null;
+export function seatPriceId(interval: BillingInterval = "month"): string | null {
+  return (interval === "year" ? process.env.STRIPE_PRICE_SEAT_YEARLY : process.env.STRIPE_PRICE_SEAT) ?? null;
 }
 
 /**
@@ -81,8 +110,8 @@ export function seatPriceId(): string | null {
  * Acme is the live example: Pro, two included, three operational branches, £7.50 a month shown
  * and never collected.
  */
-export function branchPriceId(): string | null {
-  return process.env.STRIPE_PRICE_BRANCH ?? null;
+export function branchPriceId(interval: BillingInterval = "month"): string | null {
+  return (interval === "year" ? process.env.STRIPE_PRICE_BRANCH_YEARLY : process.env.STRIPE_PRICE_BRANCH) ?? null;
 }
 
 /** AI credit top-up: a one-time payment for a bundle of credits. The Stripe Price
@@ -119,7 +148,11 @@ export function smsTopupPriceId(): string | null {
  * this to fail visibly ("billing not configured") rather than 500 on a missing
  * price id.
  */
-export function tierPricingReady(tier: SubscriptionTier): boolean {
-  return Boolean(tierBasePriceId(tier) && seatPriceId());
+export function tierPricingReady(
+  tier: SubscriptionTier,
+  interval: BillingInterval = "month",
+  extrasInterval: BillingInterval = interval,
+): boolean {
+  return Boolean(tierBasePriceId(tier, interval) && seatPriceId(extrasInterval));
 }
 

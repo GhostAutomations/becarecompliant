@@ -87,3 +87,11 @@ test("the two public plans are the two the billing code can actually sell", () =
     );
   }
 });
+
+test("Annual charges ten months for twelve in the Stripe config and on the Order alike (2026-09-30)", () => {
+  const allowances = readFileSync("lib/billing/allowances.ts", "utf8");
+  const a = allowances.match(/export const ANNUAL_MONTHS_CHARGED = (\d+);/);
+  const c = config.match(/export const YEARLY_MONTHS_CHARGED = (\d+);/);
+  assert.ok(a && c, "both constants exist");
+  assert.equal(Number(c![1]), Number(a![1]));
+});

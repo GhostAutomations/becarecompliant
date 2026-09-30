@@ -110,7 +110,7 @@ It applies from the moment your Company Admin accepts it in the platform, or sig
 
 6.2 **Monthly.** Fees are billed monthly in advance. The subscription renews each month until you cancel. You can cancel at any time in Settings, Billing, and the cancellation takes effect at the end of the current monthly Subscription Period you have already paid for. If you cancel, we do not refund the rest of that Subscription Period.
 
-6.3 **Annual.** Fees are invoiced yearly in advance at the annual price in the Price List. You commit to the full twelve months. The subscription renews for a further twelve months unless you cancel at least 30 days before the renewal date. We will remind your Company Admin by email at least 45 days before each renewal.
+6.3 **Annual.** Fees are paid yearly in advance at the annual price in the Price List. You commit to the full twelve months. The subscription renews for a further twelve months unless you cancel at least 30 days before the renewal date. We will remind your Company Admin by email at least 45 days before each renewal.
 
 6.4 On the Annual option, fees already paid are not refundable if you cancel early, except where clause 16.3, 16.4 or 16.5 applies.
 
@@ -120,7 +120,7 @@ It applies from the moment your Company Admin accepts it in the platform, or sig
 
 7.1 All fees are in pounds sterling and exclude VAT, which we add at the current rate.
 
-7.2 Monthly fees are paid by card through our payment provider, Stripe. Annual fees, and any Onboarding fee, are invoiced and may be paid by card or by bank transfer within 14 days of the invoice. By giving card details you authorise us to take the fees due under this agreement.
+7.2 Fees are paid by card through our payment provider, Stripe, and taken automatically each month on the Monthly option or each year on the Annual option. On the Annual option you may ask for an invoice instead, payable by card or by bank transfer within 14 days of the invoice. Any Onboarding fee is added to your first payment or first invoice. By giving card details you authorise us to take the fees due under this agreement.
 
 7.3 If a payment fails or an invoice is not paid on time, we will tell your Company Admin and try again. If any amount is still unpaid 14 days after we tell you, we may pause your Account under clause 15 until it is paid.
 
@@ -128,7 +128,7 @@ It applies from the moment your Company Admin accepts it in the platform, or sig
 
 7.5 **Usage Credits.** One AI credit is used each time a user runs an AI feature, and one SMS credit for each text message sent, however long the message is. A message that fails to send does not use a credit. The monthly AI and SMS credits included in your Plan are added each month, and unused credits carry over while this agreement continues, including if you change Plan. Credit top ups are paid in advance and are not refundable, except under clause 7.7. Unused Usage Credits end when this agreement ends.
 
-7.6 **Onboarding fee.** Any Onboarding fee is payable with your first invoice. It is not refundable once Onboarding has started, except under clause 7.7.
+7.6 **Onboarding fee.** Any Onboarding fee is payable with your first payment or first invoice. It is not refundable once Onboarding has started, except under clause 7.7.
 
 7.7 **Refunds when we are at fault or end the agreement.** If this agreement ends because of our serious breach (clause 16.3), because we end it (clause 16.4 or 19.3), or because you end it under clause 16.5, we will refund any Usage Credit top ups you paid for and have not used, and the part of any Onboarding fee for work we had not yet done.
 

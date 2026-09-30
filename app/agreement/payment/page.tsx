@@ -7,7 +7,7 @@ import { getCompanyBilling } from "@/lib/billing/stripe-sync";
 import { listAcceptances } from "@/lib/legal/acceptance";
 import { legalPublished, LEGAL_VERSIONS } from "@/lib/legal/documents";
 import { acceptanceCurrent, afterAcceptPath, isLiveSubscription } from "@/lib/legal/fill";
-import { SubscribeButton } from "@/components/billing/billing-actions";
+import { InvoiceInsteadButton, SubscribeButton } from "@/components/billing/billing-actions";
 
 /**
  * Step 4 of accepting the agreement: payment (Phil, 2026-09-30, by popup: "the very next screen
@@ -17,9 +17,9 @@ import { SubscribeButton } from "@/components/billing/billing-actions";
  * yet (afterAcceptPath). What it shows follows the billing option on the Order they just accepted:
  *
  *   Monthly  the plan and price, and Add a card (the same Stripe Checkout as Settings, Billing).
- *            A company still in its free trial may leave it for now; one that is not has no skip.
- *   Annual   the first year's amount and that the invoice comes by email, payable within 14 days
- *            by card or bank transfer (clause 7.2), then Continue.
+ *   Annual   Add a card too (card by default, Phil 2026-09-30), charged yearly; or "Get an invoice
+ *            instead": a Stripe invoice payable within 14 days by card or bank transfer.
+ *   A company still in its free trial may leave it for now; one that is not has no skip.
  *
  * Outside (app), like /agreement and Trial ended, so the app's navigation cannot bounce around it.
  * Anyone it does not apply to (another role, a Black account, a company already paying, or one
@@ -57,7 +57,7 @@ export default async function AgreementPaymentPage() {
           <h1 className="mt-1 text-xl font-semibold text-white">Payment</h1>
           <p className="mt-2 text-sm text-white/70">
             Thank you, {current.accepted_by_name}. {current.customer_legal_name} has accepted the agreement.
-            {annual ? " Here is how your first year is paid." : " Add a card to start your subscription."}
+            {annual ? " Add a card to pay your first year, or ask for an invoice." : " Add a card to start your subscription."}
           </p>
 
           <dl className="mt-5 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-[max-content_1fr]">
@@ -87,38 +87,39 @@ export default async function AgreementPaymentPage() {
             ) : null}
           </dl>
 
-          {annual ? (
-            <div className="mt-6 space-y-4">
-              <p className="rounded-lg border border-white/10 bg-white/[0.03] p-3 text-sm text-white/80">
-                We will email your first year&apos;s invoice to {profile.email}. It is payable within 14 days, by card
-                or bank transfer.
-                {current.extras_billing === "monthly"
-                  ? " Your extras are paid monthly by card: we will email you a secure link to add a card."
-                  : ""}{" "}
-                You can start using Be Care Compliant straight away.
-              </p>
-              <Link href="/dashboard" className="btn btn-primary">
-                Continue
-              </Link>
-            </div>
-          ) : (
-            <div className="mt-6 space-y-4">
-              <p className="text-sm text-white/70">
-                You will be taken to our secure payment page, run by Stripe. Your card details never reach us.
-              </p>
-              <SubscribeButton label="Add a card" />
-              {inTrial ? (
-                <p className="text-sm">
-                  <Link
-                    href="/dashboard"
-                    className="text-gold-300 underline underline-offset-4 hover:text-gold-400"
-                  >
-                    Not yet, I&apos;m in my free trial ({days} {days === 1 ? "day" : "days"} left)
-                  </Link>
+          {/* CARD BY DEFAULT, MONTHLY AND ANNUAL ALIKE (Phil, 2026-09-30): "why dont we bill them
+              through stripe?". Annual can ask for an invoice instead, for a bank transfer. */}
+          <div className="mt-6 space-y-4">
+            <p className="text-sm text-white/70">
+              {annual
+                ? current.extras_billing === "monthly"
+                  ? "Add a card and your first year is charged now; your extras are charged monthly to the same card. "
+                  : "Add a card and your first year is charged now, then each year on the same date. "
+                : "Add a card and your first month is charged now, then each month. "}
+              You will be taken to our secure payment page, run by Stripe. Your card details never reach us.
+            </p>
+            <SubscribeButton label="Add a card" />
+            {annual ? (
+              <div className="space-y-2 border-t border-white/10 pt-4">
+                <p className="text-sm text-white/70">
+                  Prefer to pay by bank transfer? We will email you an invoice instead, payable within 14 days by card
+                  or bank transfer.
+                  {current.extras_billing === "monthly" ? " Your monthly extras are invoiced each month." : ""}
                 </p>
-              ) : null}
-            </div>
-          )}
+                <InvoiceInsteadButton />
+              </div>
+            ) : null}
+            {inTrial ? (
+              <p className="text-sm">
+                <Link
+                  href="/dashboard"
+                  className="text-gold-300 underline underline-offset-4 hover:text-gold-400"
+                >
+                  Not yet, I&apos;m in my free trial ({days} {days === 1 ? "day" : "days"} left)
+                </Link>
+              </p>
+            ) : null}
+          </div>
         </div>
 
         <div className="flex justify-end">

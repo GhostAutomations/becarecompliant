@@ -15,6 +15,7 @@ import {
   openBillingPortal,
   startAiTopupCheckout,
   startSmsTopupCheckout,
+  startInvoiceSubscription,
 } from "@/lib/billing/actions";
 
 function useRedirect(redirectTo?: string) {
@@ -94,6 +95,46 @@ export function ManageBillingButton({
           disabled={busy}
         >
           {busy ? "Opening…" : label}
+        </button>
+        {state.error && <span className="text-sm text-red-300">{state.error}</span>}
+      </div>
+    </form>
+  );
+}
+
+/**
+ * "Prefer to pay by bank transfer? Get an invoice instead" (Annual only, Phil 2026-09-30).
+ * Stripe emails the invoice; the link also comes straight back here so it can be opened now.
+ * The word while it works matches the word when it is done: "Sending…" then "Sent".
+ */
+export function InvoiceInsteadButton({ label = "Get an invoice instead" }: { label?: string }) {
+  const [state, action, pending] = useActionState(startInvoiceSubscription, IDLE_STATE);
+  if (state.ok) {
+    const url = state.data?.invoiceUrl;
+    return (
+      <div className="space-y-3 rounded-lg border border-white/10 bg-white/[0.03] p-4 text-sm text-white/85">
+        <p>
+          Sent. Your invoice is on its way to {state.data?.email || "your email"}. It is payable within 14 days, by
+          card or by bank transfer to the account details on the invoice.
+        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          {url ? (
+            <a href={url} target="_blank" rel="noreferrer" className="btn btn-outline text-sm">
+              View and pay the invoice
+            </a>
+          ) : null}
+          <a href="/dashboard" className="btn btn-primary text-sm">
+            Continue
+          </a>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <form action={action}>
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="submit" className="btn btn-outline text-sm" disabled={pending}>
+          {pending ? "Sending…" : label}
         </button>
         {state.error && <span className="text-sm text-red-300">{state.error}</span>}
       </div>

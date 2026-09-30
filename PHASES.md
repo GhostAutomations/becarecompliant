@@ -3840,3 +3840,28 @@ top ups, made and sent by Stripe, with a founder Invoices page across every comp
 yearly Stripe subscription billed by invoice, payable within 14 days by card or UK bank transfer,
 reminders on, onboarding fee on the first invoice when due; top ups get a Stripe invoice (0.4%, capped
 at $2 equivalent, per Stripe's own pricing note). Then the annual renewal reminder.
+
+### 2026-09-30 — Automatic invoicing through Stripe, Annual by card by default (0352)
+
+Phil: invoicing for Monthly, Annual and credits, automatic; Annual pays by CARD through Stripe by
+default ("why dont we bill them through stripe?") with an invoice for bank transfer on request.
+Built: yearly Stripe prices (env STRIPE_PRICE_BUSINESS_YEARLY, _PRO_YEARLY, _SEAT_YEARLY,
+_BRANCH_YEARLY; ten months' price for twelve) checked by the price guard and the health panel;
+Checkout follows the accepted Order (monthly or yearly plan; extras yearly in Checkout, or monthly
+added to the same subscription after, Stripe flexible billing mode); "Get an invoice instead" on the
+payment step (Stripe subscription billed by invoice, 14 days, card or UK bank transfer, invoice link
+shown straight away, safe to press twice); onboarding fee on the first payment or invoice when due;
+Stripe invoices for AI and SMS top ups; seat, branch and plan syncs and the nightly reconcile read
+company_billing.billing_interval and extras_interval (0352); yearly extras charged pro rata at once
+and reductions from renewal (clause 5.4); Annual with monthly extras ends at the latest period end
+when moved to Black; Settings, Billing shows yearly amounts for Annual; Founder > Invoices lists
+every Stripe invoice (Unpaid, Overdue, Paid, All) with View and PDF. Clauses 6.3, 7.2 and 7.6
+reworded (card by default, invoice on request). Needs Phil: four yearly prices in Stripe, four env
+vars in Vercel, and the Stripe email and bank transfer settings.
+2026-09-30 later: Stripe sandbox set up by Claude through Chrome (Phil approved by popup): seven new
+prices (Business £79/mo and £790/yr, Pro £129/mo and £1,290/yr, extra branch £25/mo and £250/yr,
+extra user £50/yr; old prices untouched), invoice reminders on (finalised invoice emails were already
+on), Bank Transfers enabled, successful payment receipts on. The health panel had shown Business,
+Pro and branch as Wrong (still £49, £69, £7.50) so Checkout was refusing sales. Because Bank Transfers
+is now on, every Checkout Session names payment_method_types card, so top ups cannot be paid by a
+transfer that would never add credits. Vercel env vars still to point at the new ids.

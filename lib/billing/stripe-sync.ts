@@ -6,6 +6,9 @@ import {
   branchPriceId,
   tierBasePriceId,
   isSubscriptionTier,
+  allBasePriceIds,
+  isBillingInterval,
+  type BillingInterval,
 } from "@/lib/stripe/config";
 import { includedSeatsForTier, includedBranchesForTier, NON_BILLABLE_ROLES } from "@/lib/billing/seats";
 import { customerIdentityPatch } from "@/lib/billing/customer-identity";
@@ -34,7 +37,38 @@ export type CompanyBillingRow = {
   seat_quantity: number;
   current_period_end: string | null;
   cancel_at_period_end: boolean;
+  /** How the plan and the extras are billed (0352). Null on rows from before Annual: monthly. */
+  billing_interval?: string | null;
+  extras_interval?: string | null;
 };
+
+/**
+ * The plan's interval and the extras' interval for a billing row. An Annual company can pay its
+ * extras monthly on the same subscription (Phil, 2026-09-30), so the two are separate. Anything
+ * unrecorded is monthly, which is what every subscription before Annual was.
+ */
+export function billingIntervals(billing: Pick<CompanyBillingRow, "billing_interval" | "extras_interval"> | null): {
+  plan: BillingInterval;
+  extras: BillingInterval;
+} {
+  const plan = isBillingInterval(billing?.billing_interval) ? billing!.billing_interval as BillingInterval : "month";
+  const extras = isBillingInterval(billing?.extras_interval) ? billing!.extras_interval as BillingInterval : plan;
+  return { plan, extras };
+}
+
+/**
+ * HOW A CHANGE IN EXTRAS IS CHARGED (clause 5.4). Monthly: prorated onto the next monthly
+ * invoice, as always. Yearly extras (Annual, 2026-09-30): an addition is charged pro rata for the
+ * rest of the year STRAIGHT AWAY (left to the next invoice it would wait a whole year), and a
+ * reduction takes effect from the next renewal, with no credit now.
+ */
+export function prorationFor(
+  extras: BillingInterval,
+  change: "increase" | "decrease",
+): "create_prorations" | "always_invoice" | "none" {
+  if (extras !== "year") return "create_prorations";
+  return change === "increase" ? "always_invoice" : "none";
+}
 
 /** Live active-seat count for a company (service role; bypasses the guarded RPC). */
 export async function getActiveSeatCount(companyId: string): Promise<number> {
@@ -69,7 +103,7 @@ export async function getCompanyBilling(
   const { data } = await supabase
     .from("company_billing")
     .select(
-      "company_id, stripe_customer_id, stripe_subscription_id, subscription_status, billed_tier, seat_quantity, current_period_end, cancel_at_period_end",
+      "company_id, stripe_customer_id, stripe_subscription_id, subscription_status, billed_tier, seat_quantity, current_period_end, cancel_at_period_end, billing_interval, extras_interval",
     )
     .eq("company_id", companyId)
     .maybeSingle();
@@ -188,7 +222,8 @@ export async function syncSeatQuantity(
       return { synced: false, reason: "not_subscription_tier" };
     }
 
-    const seatPrice = seatPriceId();
+    // Monthly or yearly seat price, by what the company chose for its extras (Annual, 2026-09-30).
+    const seatPrice = seatPriceId(billingIntervals(billing).extras);
     if (!seatPrice) return { synced: false, reason: "no_seat_price" };
 
     const active = await getActiveSeatCount(companyId);
@@ -212,7 +247,7 @@ export async function syncSeatQuantity(
         subscription: billing.stripe_subscription_id,
         price: seatPrice,
         quantity,
-        proration_behavior: "create_prorations",
+        proration_behavior: prorationFor(billingIntervals(billing).extras, "increase"),
       });
     } else if (quantity === 0 && subscription.items.data.length > 1) {
       /* The line has fallen to nothing, so REMOVE it rather than leave a zero on the invoice.
@@ -220,12 +255,15 @@ export async function syncSeatQuantity(
          ever, which reads like a mistake even though the total is right. Only when something
          else remains: a subscription cannot have no items at all. */
       await stripe.subscriptionItems.del(seatItem.id, {
-        proration_behavior: "create_prorations",
+        proration_behavior: prorationFor(billingIntervals(billing).extras, "decrease"),
       });
     } else if ((seatItem.quantity ?? 0) !== quantity) {
       await stripe.subscriptionItems.update(seatItem.id, {
         quantity,
-        proration_behavior: "create_prorations",
+        proration_behavior: prorationFor(
+          billingIntervals(billing).extras,
+          quantity > (seatItem.quantity ?? 0) ? "increase" : "decrease",
+        ),
       });
     } else {
       // Already correct: still record for display, no Stripe write.
@@ -285,7 +323,8 @@ export async function syncBasePrice(
       return { synced: false, reason: "not_subscription_tier", tier };
     }
 
-    const wanted = tierBasePriceId(tier);
+    // The plan line is monthly or yearly by how the company pays (Annual, 2026-09-30).
+    const wanted = tierBasePriceId(tier, billingIntervals(billing).plan);
     if (!wanted) return { synced: false, reason: "no_base_price", tier };
 
     const subscription = await stripe.subscriptions.retrieve(billing.stripe_subscription_id);
@@ -298,6 +337,7 @@ export async function syncBasePrice(
       subscription.items.data.map((i) => ({ id: i.id, priceId: i.price?.id })),
       seatPriceId(),
       branchPriceId(),
+      [seatPriceId("year"), branchPriceId("year")],
     );
     if (!found.ok) {
       console.error(
@@ -309,10 +349,7 @@ export async function syncBasePrice(
     /* Only a line carrying a price we recognise as some tier's base price may be rewritten.
        See lib/billing/base-item.ts: swapping on "the id differs" would turn pointing an env var
        at a new Stripe Price into an overnight migration of every existing customer onto it. */
-    const decision = baseSwapDecision(found.item.priceId, wanted, [
-      tierBasePriceId("business"),
-      tierBasePriceId("pro"),
-    ]);
+    const decision = baseSwapDecision(found.item.priceId, wanted, allBasePriceIds());
     if (!decision.swap) {
       if (decision.reason === "unrecognised_price") {
         console.error(
@@ -349,9 +386,19 @@ export async function endSubscriptionAtPeriodEnd(
       return { ended: true, reason: "already_ended" };
     }
 
-    await stripe.subscriptions.update(billing.stripe_subscription_id, {
-      cancel_at_period_end: true,
-    });
+    /* AN ANNUAL PLAN WITH MONTHLY EXTRAS has two period ends, and cancel_at_period_end takes the
+       EARLIEST (Stripe: mixed interval subscriptions), which would end the year they paid for at
+       the next monthly boundary. For those, end at the latest period end instead. */
+    const { plan, extras } = billingIntervals(billing);
+    if (plan !== extras) {
+      await stripe.subscriptions.update(billing.stripe_subscription_id, {
+        cancel_at: "max_period_end",
+      } as unknown as Parameters<typeof stripe.subscriptions.update>[1]);
+    } else {
+      await stripe.subscriptions.update(billing.stripe_subscription_id, {
+        cancel_at_period_end: true,
+      });
+    }
     // The webhook writes cancel_at_period_end back, but the founder should not have to wait for
     // a round trip to see that it worked.
     await upsertCompanyBilling(companyId, { cancel_at_period_end: true });
@@ -385,9 +432,13 @@ export async function resumeSubscription(
       return { resumed: false, reason: "subscription_ended" };
     }
 
-    await stripe.subscriptions.update(billing.stripe_subscription_id, {
-      cancel_at_period_end: false,
-    });
+    const { plan, extras } = billingIntervals(billing);
+    await stripe.subscriptions.update(
+      billing.stripe_subscription_id,
+      (plan !== extras
+        ? { cancel_at: "" } // clears a scheduled cancel_at (see endSubscriptionAtPeriodEnd)
+        : { cancel_at_period_end: false }) as unknown as Parameters<typeof stripe.subscriptions.update>[1],
+    );
     await upsertCompanyBilling(companyId, { cancel_at_period_end: false });
     return { resumed: true };
   } catch (e) {
@@ -514,7 +565,8 @@ export async function syncBranchQuantity(
       return { synced: false, reason: "not_subscription_tier" };
     }
 
-    const price = branchPriceId();
+    // Monthly or yearly branch price, by what the company chose for its extras (Annual, 2026-09-30).
+    const price = branchPriceId(billingIntervals(billing).extras);
     if (!price) return { synced: false, reason: "no_branch_price" };
 
     const quantity = await extraBranches(companyId, billing.billed_tier ?? "business");
@@ -530,18 +582,21 @@ export async function syncBranchQuantity(
         subscription: billing.stripe_subscription_id,
         price,
         quantity,
-        proration_behavior: "create_prorations",
+        proration_behavior: prorationFor(billingIntervals(billing).extras, "increase"),
       });
     } else if (quantity === 0 && subscription.items.data.length > 1) {
       // Same rule as seats: a line that has fallen to nothing is removed, not zeroed, or every
       // future invoice carries "Extra branch 0 × £7.50 £0.00".
       await stripe.subscriptionItems.del(item.id, {
-        proration_behavior: "create_prorations",
+        proration_behavior: prorationFor(billingIntervals(billing).extras, "decrease"),
       });
     } else if ((item.quantity ?? 0) !== quantity) {
       await stripe.subscriptionItems.update(item.id, {
         quantity,
-        proration_behavior: "create_prorations",
+        proration_behavior: prorationFor(
+          billingIntervals(billing).extras,
+          quantity > (item.quantity ?? 0) ? "increase" : "decrease",
+        ),
       });
     } else {
       return { synced: true, reason: "unchanged", quantity };
@@ -585,7 +640,7 @@ export async function reconcileBilling(): Promise<{
        this loop too, and they are what heals a tier change whose Stripe half failed — the whole
        reason changeTier writes the tier before telling Stripe. Behind the branch guard, a
        deployment without STRIPE_PRICE_BRANCH would never have run them at all. */
-    const hasBranchPrice = Boolean(branchPriceId());
+    const hasBranchPrice = Boolean(branchPriceId("month") || branchPriceId("year"));
     const supabase = createServiceClient();
     const { data } = await supabase
       .from("company_billing")

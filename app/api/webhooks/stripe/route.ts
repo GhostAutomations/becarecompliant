@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe/client";
 import { createServiceClient } from "@/lib/supabase/admin";
-import { seatPriceId } from "@/lib/stripe/config";
+import { seatPriceId, isBillingInterval } from "@/lib/stripe/config";
 import { writeAudit } from "@/lib/audit";
-import { upsertCompanyBilling } from "@/lib/billing/stripe-sync";
+import { upsertCompanyBilling, syncSeatQuantity, syncBranchQuantity } from "@/lib/billing/stripe-sync";
 
 /**
  * Stripe webhook. The source of truth for subscription state: we provision and
@@ -107,10 +107,12 @@ function periodEnd(sub: Stripe.Subscription): string | null {
 
 /** Persist the current subscription state onto company_billing. */
 async function applySubscription(companyId: string, sub: Stripe.Subscription) {
-  const seatPrice = seatPriceId();
-  const seatItem = seatPrice
-    ? sub.items.data.find((i) => i.price?.id === seatPrice)
-    : undefined;
+  // The seat line may be the monthly or the yearly seat price (Annual, 2026-09-30).
+  const seatPrices = [seatPriceId("month"), seatPriceId("year")].filter(Boolean);
+  const seatItem = sub.items.data.find((i) => i.price?.id && seatPrices.includes(i.price.id));
+  // Monthly or yearly, recorded on the subscription when we created it. Older ones: monthly.
+  const planInterval = isBillingInterval(sub.metadata?.billing_interval) ? sub.metadata.billing_interval : "month";
+  const extrasInterval = isBillingInterval(sub.metadata?.extras_interval) ? sub.metadata.extras_interval : planInterval;
   const tier = await companyTier(companyId);
   await upsertCompanyBilling(companyId, {
     stripe_customer_id: typeof sub.customer === "string" ? sub.customer : sub.customer.id,
@@ -119,7 +121,9 @@ async function applySubscription(companyId: string, sub: Stripe.Subscription) {
     billed_tier: tier,
     seat_quantity: seatItem?.quantity ?? 0,
     current_period_end: periodEnd(sub),
-    cancel_at_period_end: sub.cancel_at_period_end ?? false,
+    cancel_at_period_end: Boolean(sub.cancel_at_period_end || sub.cancel_at),
+    billing_interval: planInterval,
+    extras_interval: extrasInterval,
   });
 
   /**
@@ -215,6 +219,14 @@ async function handleEvent(
       if (subId) {
         const sub = await stripe.subscriptions.retrieve(subId);
         await applySubscription(companyId, sub);
+        /* ANNUAL WITH MONTHLY EXTRAS. Checkout cannot mix yearly and monthly lines, so it carried
+           the plan only; the monthly extra users and branches go onto the same subscription now
+           (lib/billing/annual.ts). Both syncs count what is actually set up and add nothing when
+           there is nothing to charge for. */
+        if (sub.metadata?.extras_interval && sub.metadata.extras_interval !== sub.metadata.billing_interval) {
+          await syncSeatQuantity(companyId);
+          await syncBranchQuantity(companyId);
+        }
       }
       await writeAudit({
         companyId,

@@ -270,7 +270,7 @@ export default function AcceptOrderForm({
                   checked={billing === "annual"}
                   onChange={() => setBilling("annual")}
                 />
-                Annual, invoiced yearly in advance
+                Annual, paid yearly in advance
               </label>
             </div>
           </fieldset>

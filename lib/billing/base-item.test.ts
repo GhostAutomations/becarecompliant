@@ -112,3 +112,17 @@ test("a missing current price is never swapped on a guess", () => {
 test("unconfigured tier prices do not make everything look recognised", () => {
   assert.equal(baseSwapDecision(BUSINESS, PRO, [null, undefined, ""]).swap, false);
 });
+
+test("the yearly seat and branch prices are add-ons too, never the plan (Annual, 2026-09-30)", async () => {
+  const { pickBaseItem } = await import("./base-item.ts");
+  const items = [
+    { id: "si_base", priceId: "price_pro_yearly" },
+    { id: "si_seat_y", priceId: "price_seat_yearly" },
+    { id: "si_branch_m", priceId: "price_branch" },
+  ];
+  // Without the yearly add-ons excluded, two lines look like the plan: refuse, never guess.
+  const without = pickBaseItem(items, "price_seat", "price_branch");
+  assert.equal(without.ok, false);
+  const withYearly = pickBaseItem(items, "price_seat", "price_branch", ["price_seat_yearly", "price_branch_yearly"]);
+  assert.ok(withYearly.ok && withYearly.item.id === "si_base");
+});

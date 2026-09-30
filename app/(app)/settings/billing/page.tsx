@@ -18,7 +18,8 @@ import { subscriptionMonthlyPence } from "@/lib/billing/monthly-total";
 import { getAiCreditBalance } from "@/lib/billing/ai-credits";
 import { getSmsCreditBalance } from "@/lib/billing/sms-credits";
 import { SMS_TOPUP_CREDITS, SMS_TOPUP_PENCE, smsTopupPriceId } from "@/lib/stripe/config";
-import { TIER_LABELS, TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
+import { TIER_LABELS, TIER_BASE_PENCE, isSubscriptionTier, YEARLY_MONTHS_CHARGED } from "@/lib/stripe/config";
+import { billingIntervals } from "@/lib/billing/stripe-sync";
 import { stripeConfigured } from "@/lib/stripe/client";
 import {
   SubscribeButton,
@@ -80,7 +81,7 @@ export default async function BillingPage() {
     supabase
       .from("company_billing")
       .select(
-        "stripe_customer_id, stripe_subscription_id, subscription_status, current_period_end, cancel_at_period_end, seat_quantity",
+        "stripe_customer_id, stripe_subscription_id, subscription_status, current_period_end, cancel_at_period_end, seat_quantity, billing_interval, extras_interval",
       )
       .eq("company_id", profile.company_id)
       .maybeSingle(),
@@ -101,6 +102,16 @@ export default async function BillingPage() {
   // £69.00 — which was survivable only while nothing actually charged for a branch. The moment
   // it does, that page is telling a customer £69 and Stripe is taking £76.50. This product has
   // already been bitten once by a screen and an invoice disagreeing (£69 sold, £99 charged).
+  /* ANNUAL (2026-09-30): a company paying yearly sees yearly amounts, ten months' price for
+     twelve, and its extras yearly or monthly as it chose. Monthly companies see what they always
+     did. The upgrade to Pro below still quotes monthly figures for comparison. */
+  const intervals = billingIntervals(
+    billing as { billing_interval?: string | null; extras_interval?: string | null } | null,
+  );
+  const planYearly = intervals.plan === "year";
+  const extrasYearly = intervals.extras === "year";
+  const per = (yearly: boolean) => (yearly ? "/yr" : "/mo");
+  const times = (yearly: boolean) => (yearly ? YEARLY_MONTHS_CHARGED : 1);
   const monthlyTotalPence = subscriptionMonthlyPence({
     basePence,
     extraSeats: seats.extra,
@@ -241,15 +252,21 @@ export default async function BillingPage() {
         {isSub ? (
           <div className="mt-3 space-y-1 text-sm text-white/70">
             <div className="flex justify-between">
-              <span>{TIER_LABELS[tier as keyof typeof TIER_LABELS]} base</span>
-              <span>{formatPence(basePence)}/mo</span>
+              <span>{TIER_LABELS[tier as keyof typeof TIER_LABELS]} base{planYearly ? ", paid yearly" : ""}</span>
+              <span>
+                {formatPence(basePence * times(planYearly))}
+                {per(planYearly)}
+              </span>
             </div>
             <div className="flex justify-between">
               <span>
                 {seats.extra} extra {seats.extra === 1 ? "seat" : "seats"} at{" "}
                 {formatPence(EXTRA_SEAT_PENCE)}
               </span>
-              <span>{formatPence(seats.extraCostPence)}/mo</span>
+              <span>
+                {formatPence(seats.extraCostPence * times(extrasYearly))}
+                {per(extrasYearly)}
+              </span>
             </div>
             {/* Above the total, because a total has to come after the things it adds up. */}
             {branches.extra > 0 ? (
@@ -258,13 +275,29 @@ export default async function BillingPage() {
                   {branches.extra} extra {branches.extra === 1 ? "branch" : "branches"} at{" "}
                   {formatPence(EXTRA_BRANCH_PENCE)}
                 </span>
-                <span>{formatPence(branches.extraCostPence)}/mo</span>
+                <span>
+                  {formatPence(branches.extraCostPence * times(extrasYearly))}
+                  {per(extrasYearly)}
+                </span>
               </div>
             ) : null}
-            <div className="mt-2 flex justify-between border-t border-white/10 pt-2 font-semibold text-white">
-              <span>Estimated monthly total</span>
-              <span>{formatPence(monthlyTotalPence)}/mo</span>
-            </div>
+            {planYearly ? (
+              <div className="mt-2 flex justify-between border-t border-white/10 pt-2 font-semibold text-white">
+                <span>Estimated yearly total{extrasYearly ? "" : ", plus the monthly extras above"}</span>
+                <span>
+                  {formatPence(
+                    basePence * YEARLY_MONTHS_CHARGED +
+                      (extrasYearly ? (seats.extraCostPence + branches.extraCostPence) * YEARLY_MONTHS_CHARGED : 0),
+                  )}
+                  /yr
+                </span>
+              </div>
+            ) : (
+              <div className="mt-2 flex justify-between border-t border-white/10 pt-2 font-semibold text-white">
+                <span>Estimated monthly total</span>
+                <span>{formatPence(monthlyTotalPence)}/mo</span>
+              </div>
+            )}
             <p className="pt-1 text-xs text-white/40">
               Each user beyond the first {seats.included} is {formatPence(EXTRA_SEAT_PENCE)} per
               month, and each branch beyond {branches.included} is{" "}

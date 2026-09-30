@@ -9,6 +9,8 @@ import {
   seatPriceId,
   branchPriceId,
   aiTopupPriceId,
+  YEARLY_MONTHS_CHARGED,
+  type BillingInterval,
   type SubscriptionTier,
 } from "@/lib/stripe/config";
 import { EXTRA_SEAT_PENCE, EXTRA_BRANCH_PENCE } from "@/lib/billing/seats";
@@ -59,6 +61,8 @@ type Target = {
   expectedPence: number;
   /** Subscription prices must recur monthly; the top-up must be one time. */
   recurring: boolean;
+  /** Which way it recurs: the yearly twins (Annual, 2026-09-30) recur every year. */
+  interval?: BillingInterval;
   /** Is this something a customer can buy today? Taken from the public pricing page, so the
    *  two cannot drift. A tier nobody is sold has no price id and that is FINE: it is reported as
    *  Not set up rather than Wrong, because a health panel that is permanently red is a health
@@ -96,6 +100,37 @@ function targets(): Target[] {
     priceId: branchPriceId(),
     expectedPence: EXTRA_BRANCH_PENCE,
     recurring: true,
+    onSale: true,
+  });
+  /* THE YEARLY TWINS (Annual, 2026-09-30): ten months' price for twelve. Until they exist in
+     Stripe, Annual cannot be sold by card and says so; the monthly prices are untouched. */
+  for (const tier of SUBSCRIPTION_TIERS) {
+    list.push({
+      label: `${TIER_LABELS[tier]} plan, yearly base`,
+      env: `STRIPE_PRICE_${tier.toUpperCase()}_YEARLY`,
+      priceId: tierBasePriceId(tier, "year"),
+      expectedPence: TIER_BASE_PENCE[tier] * YEARLY_MONTHS_CHARGED,
+      recurring: true,
+      interval: "year",
+      onSale: PUBLIC_TIERS.has(tier),
+    });
+  }
+  list.push({
+    label: "Extra user, per year",
+    env: "STRIPE_PRICE_SEAT_YEARLY",
+    priceId: seatPriceId("year"),
+    expectedPence: EXTRA_SEAT_PENCE * YEARLY_MONTHS_CHARGED,
+    recurring: true,
+    interval: "year",
+    onSale: true,
+  });
+  list.push({
+    label: "Extra branch, per year",
+    env: "STRIPE_PRICE_BRANCH_YEARLY",
+    priceId: branchPriceId("year"),
+    expectedPence: EXTRA_BRANCH_PENCE * YEARLY_MONTHS_CHARGED,
+    recurring: true,
+    interval: "year",
     onSale: true,
   });
   list.push({
@@ -147,8 +182,9 @@ export async function checkStripePrices(): Promise<PriceCheck[] | null> {
         );
       }
       if (currency !== "gbp") problems.push(`the currency is ${currency ?? "unknown"}, not GBP`);
-      if (t.recurring && interval !== "month") {
-        problems.push(`it recurs ${interval ?? "not at all"} rather than monthly`);
+      const wantInterval = t.interval ?? "month";
+      if (t.recurring && interval !== wantInterval) {
+        problems.push(`it recurs ${interval ?? "not at all"} rather than ${wantInterval === "year" ? "yearly" : "monthly"}`);
       }
       if (!t.recurring && interval !== null) problems.push("it recurs, and it should be one time");
       if (price.active === false) problems.push("the price is archived in Stripe");
@@ -197,8 +233,17 @@ export async function checkStripePrices(): Promise<PriceCheck[] | null> {
  */
 export async function checkoutPriceProblem(
   tier: SubscriptionTier,
-  opts: { includeSeat?: boolean; includeBranch?: boolean } = {},
+  opts: {
+    includeSeat?: boolean;
+    includeBranch?: boolean;
+    /** Annual (2026-09-30): the plan and the extras can each be monthly or yearly. */
+    interval?: BillingInterval;
+    extrasInterval?: BillingInterval;
+  } = {},
 ): Promise<string | null> {
+  const planInterval = opts.interval ?? "month";
+  const extrasInterval = opts.extrasInterval ?? planInterval;
+  const months = (i: BillingInterval) => (i === "year" ? YEARLY_MONTHS_CHARGED : 1);
   const stripe = getStripe();
   if (!stripe) return null;
 
@@ -207,10 +252,14 @@ export async function checkoutPriceProblem(
   // a price that would not appear on their bill would be the guard doing harm: they would
   // be locked out of a lapsed trial by a line item they are not being charged for.
   const wanted: Array<{ id: string | null; expected: number; what: string }> = [
-    { id: tierBasePriceId(tier), expected: TIER_BASE_PENCE[tier], what: `the ${TIER_LABELS[tier]} plan` },
+    {
+      id: tierBasePriceId(tier, planInterval),
+      expected: TIER_BASE_PENCE[tier] * months(planInterval),
+      what: `the ${TIER_LABELS[tier]} plan`,
+    },
   ];
   if (opts.includeSeat) {
-    wanted.push({ id: seatPriceId(), expected: EXTRA_SEAT_PENCE, what: "the extra user price" });
+    wanted.push({ id: seatPriceId(extrasInterval), expected: EXTRA_SEAT_PENCE * months(extrasInterval), what: "the extra user price" });
   }
   // Gated on its OWN line appearing, not on the seat line: a company can be inside its user
   // allowance and over its branch allowance, and vice versa. Same reasoning as the seat gate
@@ -218,7 +267,7 @@ export async function checkoutPriceProblem(
   // customer gets billed something the pricing page never said, which is precisely how Pro
   // came to be sold at £69 and charged at £99.
   if (opts.includeBranch) {
-    wanted.push({ id: branchPriceId(), expected: EXTRA_BRANCH_PENCE, what: "the extra branch price" });
+    wanted.push({ id: branchPriceId(extrasInterval), expected: EXTRA_BRANCH_PENCE * months(extrasInterval), what: "the extra branch price" });
   }
 
   for (const w of wanted) {

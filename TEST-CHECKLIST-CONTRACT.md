@@ -160,3 +160,20 @@ Bevan switched to Pro by SQL for this (no Stripe subscription, so nothing billed
   "Add a card" on the payment step (Monthly) is retested there.
 - A15 Black PASS (2026-09-30, Phil on phone): no billing or extras questions, "No charge (Black
   account)", Order rows Not applicable, straight to the dashboard. Bevan back on Black.
+
+## Invoicing through Stripe (2026-09-30, 0352)
+
+- I1 Founder > Platform health lists the four yearly prices; each reads Matches once set up.
+- I2 Monthly, card: accept on Monthly, Add a card opens Stripe with the plan (and any extras) and, when
+  due, "Onboarding"; pay with a TEST card only if Stripe is in test mode. Subscription appears with
+  billing_interval month.
+- I3 Annual, card: accept on Annual (extras yearly), Add a card shows the yearly price (£790 or
+  £1,290). Annual with monthly extras: Stripe shows the year only; after paying, the monthly extra
+  lines appear on the same subscription.
+- I4 Annual, invoice: "Get an invoice instead" says "Sending…" then "Sent" with "View and pay the
+  invoice"; the invoice is payable in 14 days by card or bank transfer; pressing twice makes one
+  subscription.
+- I5 Top up: buying AI credits produces a Stripe invoice as well as the receipt.
+- I6 Founder > Invoices: Unpaid shows the Annual invoice as Due; Paid shows paid ones; View and PDF
+  open Stripe's pages; empty filters say so.
+- I7 Settings, Billing on an Annual company shows /yr amounts.
