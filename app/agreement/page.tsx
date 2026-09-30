@@ -6,15 +6,14 @@ import { createClient } from "@/lib/supabase/server";
 import { getCompanyTrialState } from "@/lib/billing/trial-gate";
 import { needsAgreement, listAcceptances, type AcceptanceRow } from "@/lib/legal/acceptance";
 import { legalDocuments, legalPublished, LEGAL_VERSIONS } from "@/lib/legal/documents";
-import { acceptanceCurrent, ORGANISATION_TYPES, organisationLabel, planLabel, onboardingFeeLabel, orderIncludedText, orderPriceText } from "@/lib/legal/fill";
+import { acceptanceCurrent, organisationLabel, planLabel, onboardingFeeLabel, orderIncludedText, orderPriceText } from "@/lib/legal/fill";
 import { TIER_BASE_PENCE } from "@/lib/stripe/config";
 import { includedBranchesForTier, includedSeatsForTier } from "@/lib/billing/seats";
 import { ANNUAL_MONTHS_CHARGED, PRICE_LIST_DATE, aiMonthlyCredits, smsMonthlyCredits } from "@/lib/billing/allowances";
 import { ONBOARDING_FEE, ONBOARDING_OFFER_END_TEXT, onboardingOfferActive } from "@/lib/marketing/offer";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import { ukDate } from "@/lib/dates";
-import { acceptAgreement } from "@/lib/legal/accept-actions";
-import ActionForm from "@/components/action-form";
+import AcceptOrderForm from "@/components/legal/accept-order-form";
 import LegalDocumentView from "@/components/legal/legal-document-view";
 
 /**
@@ -193,7 +192,7 @@ export default async function AgreementPage() {
 
         <details className="glass-card p-6" open>
           <summary className="cursor-pointer text-sm font-semibold text-white">
-            Subscription Agreement, version {docs.agreement.version}
+            Subscription Agreement{published ? `, version ${docs.agreement.version}` : ", draft"}
           </summary>
           <div className="mt-4 max-h-96 overflow-y-auto rounded-lg border border-white/10 bg-white/[0.02] p-4">
             <LegalDocumentView text={docs.agreement.text} compact />
@@ -202,7 +201,7 @@ export default async function AgreementPage() {
 
         <details className="glass-card p-6">
           <summary className="cursor-pointer text-sm font-semibold text-white">
-            Data Processing Agreement, version {docs.dpa.version}
+            Data Processing Agreement{published ? `, version ${docs.dpa.version}` : ", draft"}
           </summary>
           <div className="mt-4 max-h-96 overflow-y-auto rounded-lg border border-white/10 bg-white/[0.02] p-4">
             <LegalDocumentView text={docs.dpa.text} compact />
@@ -214,99 +213,34 @@ export default async function AgreementPage() {
           <p className="mt-1 text-xs text-white/55">
             These details go on the Order that forms part of the agreement. Correct anything that is not right.
           </p>
-          <ActionForm
-            action={acceptAgreement}
-            label="Accept"
-            savingLabel="Accepting…"
-            savedLabel="Accepted"
-            buttonClassName="btn-primary text-sm"
-            className="mt-5 space-y-4"
-          >
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <label htmlFor="legal_name" className="form-label">
-                  Customer legal name
-                </label>
-                <input id="legal_name" name="legal_name" required maxLength={200} defaultValue={company.name ?? ""} />
-              </div>
-              <div>
-                <label htmlFor="organisation_type" className="form-label">
-                  Type of organisation
-                </label>
-                <select id="organisation_type" name="organisation_type" required defaultValue="limited_company">
-                  {ORGANISATION_TYPES.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="company_number" className="form-label">
-                  Company or charity number
-                </label>
-                <input
-                  id="company_number"
-                  name="company_number"
-                  maxLength={40}
-                  defaultValue={invoicing?.company_number ?? ""}
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label htmlFor="address" className="form-label">
-                  Registered or main address
-                </label>
-                <textarea
-                  id="address"
-                  name="address"
-                  required
-                  rows={3}
-                  maxLength={500}
-                  defaultValue={invoicing?.from_address || officeAddress}
-                />
-              </div>
-            </div>
-
-            <fieldset>
-              <legend className="form-label">Billing option</legend>
-              <div className="mt-1 flex flex-wrap gap-5">
-                <label className="flex items-center gap-2 text-sm text-white/80">
-                  <input type="radio" name="billing_option" value="monthly" defaultChecked required />
-                  Monthly, card, cancel any time
-                </label>
-                <label className="flex items-center gap-2 text-sm text-white/80">
-                  <input type="radio" name="billing_option" value="annual" />
-                  Annual, invoiced yearly in advance
-                </label>
-              </div>
-            </fieldset>
-
-            <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-[max-content_1fr]">
-              <dt className="text-white/55">Plan</dt>
-              <dd className="text-white/85">{planLabel(company.tier)}</dd>
-              <dt className="text-white/55">Price</dt>
-              <dd className="text-white/85">
-                {monthlyPence === null ? priceMonthly : `Monthly: ${priceMonthly}. Annual: ${priceAnnual}.`}
-              </dd>
-              <dt className="text-white/55">Included</dt>
-              <dd className="text-white/85">{included}</dd>
-              <dt className="text-white/55">Price List</dt>
-              <dd className="text-white/85">{PRICE_LIST_DATE}</dd>
-              <dt className="text-white/55">Onboarding fee</dt>
-              <dd className="text-white/85">{fee}</dd>
-              <dt className="text-white/55">Accepted by</dt>
-              <dd className="text-white/85">{profile.full_name || profile.email}, Company Admin</dd>
-            </dl>
-
-            <label className="flex items-start gap-3 rounded-lg border border-white/10 bg-white/[0.03] p-3 text-sm text-white/85">
-              <input type="checkbox" name="accept" value="yes" required className="mt-0.5" />
-              <span>
-                I have read the Subscription Agreement and the Data Processing Agreement, I accept them on behalf of
-                the company named above, and I am authorised to do so.
-              </span>
-            </label>
-            {docLinks}
-          </ActionForm>
+          <AcceptOrderForm
+            initial={{
+              legalName: company.name ?? "",
+              companyNumber: invoicing?.company_number ?? "",
+              address: invoicing?.from_address || officeAddress,
+            }}
+            footer={
+              <>
+                <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-[max-content_1fr]">
+                  <dt className="text-white/55">Plan</dt>
+                  <dd className="text-white/85">{planLabel(company.tier)}</dd>
+                  <dt className="text-white/55">Price</dt>
+                  <dd className="text-white/85">
+                    {monthlyPence === null ? priceMonthly : `Monthly: ${priceMonthly}. Annual: ${priceAnnual}.`}
+                  </dd>
+                  <dt className="text-white/55">Included</dt>
+                  <dd className="text-white/85">{included}</dd>
+                  <dt className="text-white/55">Price List</dt>
+                  <dd className="text-white/85">{PRICE_LIST_DATE}</dd>
+                  <dt className="text-white/55">Onboarding fee</dt>
+                  <dd className="text-white/85">{fee}</dd>
+                  <dt className="text-white/55">Accepted by</dt>
+                  <dd className="text-white/85">{profile.full_name || profile.email}, Company Admin</dd>
+                </dl>
+                {docLinks}
+              </>
+            }
+          />
         </div>
 
         <div className="flex justify-end">

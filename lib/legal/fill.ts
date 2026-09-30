@@ -28,14 +28,20 @@ export function missingSupplier(s: Supplier): string[] {
   return TOKENS.filter((t) => blank(s[t.key])).map((t) => t.label);
 }
 
-/** The text with every token replaced. */
-export function fillLegalText(text: string, s: Supplier): string {
+/**
+ * The text with every token replaced. {{version_line}} reads "Draft, subject to legal review"
+ * until the text is published (Phil, 2026-09-30: drafts are unnumbered; the first published text
+ * is 1.0 and every later change 1.1, 1.2 and so on), then "Version 1.0 · <publication date>".
+ */
+export function fillLegalText(text: string, s: Supplier, version = "1.0"): string {
   let out = text;
   for (const t of TOKENS) {
     const v = s[t.key];
     out = out.split(t.token).join(blank(v) ? t.placeholder : (v as string).trim());
   }
-  return out;
+  const versionLine =
+    missingSupplier(s).length > 0 ? "Draft, subject to legal review" : `Version ${version} · ${(s.publicationDate as string).trim()}`;
+  return out.split("{{version_line}}").join(versionLine);
 }
 
 export const ORGANISATION_TYPES = [

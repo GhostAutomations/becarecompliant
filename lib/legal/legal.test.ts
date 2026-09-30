@@ -129,9 +129,18 @@ test("the Order's price and included lines", async () => {
 });
 
 test("the agreement carries the new clauses", () => {
-  for (const c of ["7.7 **Refunds", "8.4 On the Annual option", "11.6 **Retention.**", "11.8 **Inspection reports", "15.4 Fees continue", "19.4 A change we must make"]) {
+  for (const c of ["7.7 **Refunds", "8.4 On the Annual option", "11.6 **Retention.**", "11.8 **Anonymous themes", "15.4 Fees continue", "These are not added together", "19.4 A change we must make"]) {
     assert.ok(SUBSCRIPTION_AGREEMENT_1_0.includes(c), c);
   }
   assert.ok(DATA_PROCESSING_AGREEMENT_1_0.includes("Information Commission"));
   assert.ok(!DATA_PROCESSING_AGREEMENT_1_0.includes("Binding Corporate Rules"));
+});
+
+test("drafts are unnumbered; the published text carries its version and date", () => {
+  const draft = fillLegalText(SUBSCRIPTION_AGREEMENT_1_0, EMPTY, "1.0");
+  assert.ok(draft.includes("**Draft, subject to legal review**"));
+  assert.ok(!draft.includes("Version 1.0"));
+  const live = fillLegalText(SUBSCRIPTION_AGREEMENT_1_0, FULL, "1.0");
+  assert.ok(live.includes("**Version 1.0 · 1 November 2026**"));
+  assert.ok(!live.includes("{{"));
 });

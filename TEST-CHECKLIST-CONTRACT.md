@@ -10,12 +10,15 @@ filled in; the Order is prefilled and the Company Admin confirms; the 90 day rea
 - A1 PASS (2026-09-30, first version of the text): /terms and /dpa open signed out: Draft notice naming the details still to add, the whole
   text with clause headings, the Order table and the DPA subprocessor table; footer links Terms
   and Data processing.
-- A2 Founder > Agreements: Draft, the six missing details, every company "Not asked yet", and
+- A2 PASS (2026-09-30, in Chrome as founder): Founder > Agreements: Draft, the six missing details, every company "Not asked yet", and
   "Ask to accept (test)" switches Bevan on.
-- A3 Bevan's Company Admin is sent to /agreement from any page (dashboard, a record, Settings);
+- A3 PASS (2026-09-30): Bevan's Company Admin is sent to /agreement (checked from the dashboard, a
+  record and Settings, Billing; Order prefilled with the name only, Bevan has no Invoicing details) from any page (dashboard, a record, Settings);
   the Order is prefilled (name, company number and address from Invoicing or the office).
   A Manager or carer on Bevan carries on as normal.
-- A4 Refusals: no tick; a limited company with no company number; a blank address.
+- A4 Refusals: no tick; a limited company with no company number; a blank address. FIRST RUN
+  (2026-09-30): the server refused the missing number correctly, but the form wiped the address and
+  the tick: DEF-082, fixed; retest after deploy.
 - A5 Accept: "Accepting…" then "Accepted", then the dashboard. The row has the Order, versions
   1.0 and 1.0, both fingerprints, the IP and is_draft true; audit agreement.accepted. Founder >
   Agreements shows "Accepted (test)" with the Order, including Price, Included and Price List (0348). Settings, Billing, View your agreement shows
@@ -45,3 +48,16 @@ procedure and the first restore test (Annex 2 promises them).
 - A11 /terms shows the new clauses (7.7, 8.4, 11.6, 11.8, 15.4, 19.1 to 19.4) and /dpa the
   Information Commission, the revised Annex 2 and Annex 3; the Draft notice says "subject to
   legal review".
+
+## Third review (2026-09-30)
+
+Phil's second pass through ChatGPT. Applied: 16.2 wording; 7.7 covers 19.3; 8.4 old price until 60
+days after a late notice; 14 caps not added together, the data protection cap is the ceiling for a
+contract year; 15.4 prepaid fees credited for a security pause; one credit per text however long,
+failed sends free; retention period and starting event per record type; 11.8 anonymous themes
+only, as processor on the customer's instruction; DPA breach contact, notifying individuals, 5
+Working Days, urgent audits, "designed to prevent", advisory monitoring, honest supplier deletion,
+Supabase backups possibly overseas, file backups stated. Drafts unnumbered ("Draft, subject to
+legal review"); the first published text is 1.0.
+
+- A12 /terms and /dpa head reads "Draft, subject to legal review", not "Version 1.0".

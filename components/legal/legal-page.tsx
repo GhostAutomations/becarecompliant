@@ -28,8 +28,8 @@ export default async function LegalPage({ which }: { which: "agreement" | "dpa" 
             <div className="mb-8 rounded-lg border border-gold-400/40 bg-gold-400/10 p-4 text-sm text-white">
               <p className="font-semibold text-gold-300">Draft</p>
               <p className="mt-1 text-white/75">
-                This is the draft of version {doc.version}, subject to legal review. Our company details are
-                added before it is published, and until then nobody is asked to accept it. Details still to add:{" "}
+                This is a draft, subject to legal review. Our company details are added before it is
+                published as version {doc.version}, and until then nobody is asked to accept it. Details still to add:{" "}
                 {legalMissing().join(", ")}.
               </p>
             </div>

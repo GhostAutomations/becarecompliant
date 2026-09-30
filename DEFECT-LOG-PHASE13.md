@@ -2380,3 +2380,12 @@ Work before it is sent), each question sat in a one line text box, so anything l
 was hidden; on a computer it cut off too. **Fixed:** the question is now a box that grows to fit
 the whole question (and refits when the phone is turned), still editable, with the Remove button
 beside it.
+
+## DEF-082 · The accept screen wiped what the Admin had typed when it refused (2026-09-30)
+
+Found testing A4 (TEST-CHECKLIST-CONTRACT.md) as Bev Admin: a limited company with no company
+number was refused correctly ("Enter your company number."), but the address just typed and the
+tick were cleared, because React resets an uncontrolled form after its action runs. Fixed:
+components/legal/accept-order-form.tsx holds every field in state, so a refusal leaves them as
+typed, and the company or charity number is required in the browser for a limited company or a
+charity, so that refusal is caught before sending. The server still checks everything.

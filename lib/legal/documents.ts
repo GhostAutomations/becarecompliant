@@ -26,8 +26,8 @@ export type LegalDocument = {
 const sha = (s: string) => createHash("sha256").update(s, "utf8").digest("hex");
 
 export function legalDocuments(): { agreement: LegalDocument; dpa: LegalDocument } {
-  const a = fillLegalText(SUBSCRIPTION_AGREEMENT_1_0, SUPPLIER);
-  const d = fillLegalText(DATA_PROCESSING_AGREEMENT_1_0, SUPPLIER);
+  const a = fillLegalText(SUBSCRIPTION_AGREEMENT_1_0, SUPPLIER, LEGAL_VERSIONS.agreement);
+  const d = fillLegalText(DATA_PROCESSING_AGREEMENT_1_0, SUPPLIER, LEGAL_VERSIONS.dpa);
   return {
     agreement: {
       key: "agreement",
