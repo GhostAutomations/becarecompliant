@@ -129,11 +129,18 @@ export default async function FounderCompaniesPage() {
     <div className="w-full space-y-6">
       <div>
         <BackLink href="/founder" label="Back to Founder console" />
-        <h1 className="page-title mt-1">Companies</h1>
-        <p className="page-subtitle">
-          Every company on the platform: tier, status, seats, billing and usage.
-          Click a company to drill in.
-        </p>
+        <div className="mt-1 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="page-title">Companies</h1>
+            <p className="page-subtitle">
+              Every company on the platform: tier, status, seats, billing and usage.
+              Click a company to drill in.
+            </p>
+          </div>
+          <Link href="/founder/new" className="btn-primary shrink-0">
+            Create a company
+          </Link>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -151,7 +158,7 @@ export default async function FounderCompaniesPage() {
       {list.length === 0 ? (
         <div className="glass-card px-6 py-12 text-center">
           <p className="text-sm text-white/60">
-            No companies yet. Use Create a company from the Founder console.
+            No companies yet. Press Create a company above.
           </p>
         </div>
       ) : (

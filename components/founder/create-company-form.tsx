@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { startTransition, useActionState, type FormEvent } from "react";
 import { createCompany } from "@/app/(app)/founder/actions";
 import { IDLE_STATE } from "@/lib/forms";
 import { DealFields } from "@/components/founder/deal-fields";
@@ -14,7 +14,16 @@ export function CreateCompanyForm() {
   const createdId = state.data?.companyId ?? null;
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form
+      className="space-y-5"
+      onSubmit={(e: FormEvent<HTMLFormElement>) => {
+        /* Not action={}: React 19 empties a form after its action, so a refusal used to wipe
+           everything the founder had typed (Phil, 2026-09-30). The form is left as it was. */
+        e.preventDefault();
+        const fd = new FormData(e.currentTarget);
+        startTransition(() => formAction(fd));
+      }}
+    >
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="name" className="form-label">

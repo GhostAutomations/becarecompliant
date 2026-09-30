@@ -16,7 +16,7 @@
  * client component), keeping the page a server component.
  */
 
-import { useActionState, useEffect, useRef, useState, type ReactNode } from "react";
+import { startTransition, useActionState, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { IDLE_STATE, type ActionState } from "@/lib/forms";
@@ -137,6 +137,23 @@ export default function ActionForm({
   // delete-user-dialog.tsx replaced it for one button in Phase 8; this does it for all of
   // them. The two press problem above cannot return: the dialog is ordinary React, so
   // nothing is blocked and no click is ever replayed.
+  /* WHAT THEY TYPED SURVIVES A REFUSAL (Phil, 2026-09-30: a refused Create company emptied the
+     whole form, "as a customer, that would piss me off"). React 19 resets a form after an
+     action passed to action={} finishes, error or not. Submitting through onSubmit instead
+     leaves the form alone, and it is cleared here only after a success, as before. */
+  function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLElement | null;
+    const fd = submitter ? new FormData(e.currentTarget, submitter) : new FormData(e.currentTarget);
+    startTransition(() => formAction(fd));
+  }
+  const lastState = useRef(state);
+  useEffect(() => {
+    if (state === lastState.current) return;
+    lastState.current = state;
+    if (state.ok && !state.redirectTo) formRef.current?.reset();
+  }, [state]);
+
   const showSaved = saved && !pending;
   /* THE WORD WHILE IT WORKS MATCHES THE WORD WHEN IT IS DONE (Phil, 2026-09-29: Send invite said
      "Saving" then "Sent"; "it should say sending and then sent"). A button that flashes Sent
@@ -147,7 +164,7 @@ export default function ActionForm({
   return (
     <form
       ref={formRef}
-      action={formAction}
+      onSubmit={submit}
       onChange={() => setSaved(false)}
       className={inline ? `flex items-end gap-2${inlineTight ? " justify-between" : ""}` : className}
     >

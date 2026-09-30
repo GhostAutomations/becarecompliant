@@ -2472,3 +2472,19 @@ this login", including "invited". Pressing it set Vera active with no password; 
 Send password reset to get her in. Fixed: an invited login shows "Invited, not accepted yet" and
 "Resend invite" (resendUserInvite, re-sends to the address already on it); Enable/Disable only for
 active and disabled logins.
+
+## DEF-090 — Create a company refused: null uses_office_address on the branches (Phil, D1, 2026-09-30)
+
+"The company could not be set up, so nothing was created: null value in column uses_office_address
+of relation branches violates not-null constraint". The branches were inserted in one call, the
+office row naming uses_office_address and the branch rows not; a multi row insert sends every
+column any row names, so the branches got NULL instead of the default. Likely broken since the
+office row gained the column (DEF-063): no company has been created since 19 Aug. The half made
+company was removed as designed (checked: none left). Fixed: every branch row says true.
+
+## DEF-091 — A refused form emptied everything typed (same test)
+
+React 19 resets a form after an action passed to action={} finishes, error or not, so a refusal
+wiped the whole New company form. Phil: "as a customer, that would piss me off". Fixed for the
+New company form and for ActionForm (used by most forms in the app): they submit through onSubmit,
+so a refusal leaves every field as it was; ActionForm still clears after a success, as before.

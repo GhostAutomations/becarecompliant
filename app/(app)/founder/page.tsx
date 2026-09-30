@@ -205,12 +205,19 @@ export default async function FounderPage() {
 
   return (
     <div className="w-full space-y-8">
-      <div>
-        <h1 className="page-title">Founder console</h1>
-        <p className="page-subtitle">
-          Create and manage companies. Company setup is founder led: you create
-          the company, set the tier and invite the first Admin.
-        </p>
+      {/* Create a company is an action, so it is a button in the header rather than a tile among
+          the places (Phil, 2026-09-30). */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="page-title">Founder console</h1>
+          <p className="page-subtitle">
+            Create and manage companies. Company setup is founder led: you create
+            the company, set the tier and invite the first Admin.
+          </p>
+        </div>
+        <Link href="/founder/new" className="btn-primary shrink-0">
+          Create a company
+        </Link>
       </div>
 
       <section aria-label="Platform statistics" className="space-y-4">
@@ -273,10 +280,6 @@ export default async function FounderPage() {
       </section>
 
       <section aria-label="Library" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Link href="/founder/new" className="app-tile">
-          <h2 className="text-base font-semibold text-white">Create a company</h2>
-          <p className="text-sm text-white/60">Set up and seed a new tenant.</p>
-        </Link>
         <Link href="/founder/forms" className="app-tile">
           <h2 className="text-base font-semibold text-white">Form template library</h2>
           <p className="text-sm text-white/60">Starter forms for new companies.</p>

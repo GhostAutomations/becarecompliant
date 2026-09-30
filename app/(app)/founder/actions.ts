@@ -161,8 +161,11 @@ export async function createCompany(
   // itself (0222); said here as well as by the trigger in 0322 (DEF-063).
   const { error: branchErr } = await supabase.from("branches").insert([
     { company_id: company.id, name: `${name} Office`, kind: "team", uses_office_address: false },
-    { company_id: company.id, name: branchName, kind: "branch" },
-    ...moreBranches.map((b) => ({ company_id: company.id, name: b, kind: "branch" })),
+    /* uses_office_address said out loud on every row (DEF-090, 2026-09-30). A multi row insert
+       sends every column any row names, so the office's false turned the branches' missing value
+       into NULL rather than the column default, and the not null column refused the lot. */
+    { company_id: company.id, name: branchName, kind: "branch", uses_office_address: true },
+    ...moreBranches.map((b) => ({ company_id: company.id, name: b, kind: "branch", uses_office_address: true })),
   ]);
   if (branchErr) {
     /* DEF-063: this used to return with the company row left behind, no branches, no forms and
