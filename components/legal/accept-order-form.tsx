@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ActionForm from "@/components/action-form";
 import { acceptAgreement } from "@/lib/legal/accept-actions";
 import { ORGANISATION_TYPES } from "@/lib/legal/fill";
@@ -14,6 +14,11 @@ import { ORGANISATION_TYPES } from "@/lib/legal/fill";
  * a refusal leaves every answer where it was. The company or charity number is also marked
  * required in the browser for a limited company or a charity, so the commonest refusal is caught
  * before anything is sent. The server still checks everything (checkOrder).
+ *
+ * THE TICK AND THE CHOICES TOO (retest of A4, 2026-09-30). Being controlled kept the typed text,
+ * but React 19 resets the form itself after the action, and that reset unticked the box and put
+ * the radios and the select back to their first option on screen while the state still said
+ * otherwise. So when the form resets, every choice is put back from state straight after.
  */
 export default function AcceptOrderForm({
   initial,
@@ -30,6 +35,28 @@ export default function AcceptOrderForm({
   const [accepted, setAccepted] = useState(false);
   const numberRequired = orgType === "limited_company" || orgType === "charity";
 
+  const anchorRef = useRef<HTMLDivElement | null>(null);
+  const latest = useRef({ orgType, billing, accepted });
+  latest.current = { orgType, billing, accepted };
+  useEffect(() => {
+    const form = anchorRef.current?.closest("form");
+    if (!form) return;
+    const onReset = () => {
+      setTimeout(() => {
+        const v = latest.current;
+        const sel = form.querySelector<HTMLSelectElement>("#organisation_type");
+        if (sel) sel.value = v.orgType;
+        form.querySelectorAll<HTMLInputElement>('input[name="billing_option"]').forEach((r) => {
+          r.checked = r.value === v.billing;
+        });
+        const box = form.querySelector<HTMLInputElement>('input[name="accept"]');
+        if (box) box.checked = v.accepted;
+      }, 0);
+    };
+    form.addEventListener("reset", onReset);
+    return () => form.removeEventListener("reset", onReset);
+  }, []);
+
   return (
     <ActionForm
       action={acceptAgreement}
@@ -39,7 +66,7 @@ export default function AcceptOrderForm({
       buttonClassName="btn-primary text-sm"
       className="mt-5 space-y-4"
     >
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div ref={anchorRef} className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <label htmlFor="legal_name" className="form-label">
             Customer legal name

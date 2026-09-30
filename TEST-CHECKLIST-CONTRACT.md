@@ -18,7 +18,11 @@ filled in; the Order is prefilled and the Company Admin confirms; the 90 day rea
   A Manager or carer on Bevan carries on as normal.
 - A4 Refusals: no tick; a limited company with no company number; a blank address. FIRST RUN
   (2026-09-30): the server refused the missing number correctly, but the form wiped the address and
-  the tick: DEF-082, fixed; retest after deploy.
+  the tick: DEF-082, fixed; retest after deploy. RETEST (2026-09-30, live fce8d2ca): no company
+  number is now stopped in the browser with everything kept (PASS); a 3 letter address is refused by
+  the server with "Enter your registered or main address.", name, number and address kept (PASS),
+  but the TICK was cleared by React's own form reset. Fixed in accept-order-form.tsx (choices put
+  back after the reset); retest after deploy.
 - A5 Accept: "Accepting…" then "Accepted", then the dashboard. The row has the Order, versions
   1.0 and 1.0, both fingerprints, the IP and is_draft true; audit agreement.accepted. Founder >
   Agreements shows "Accepted (test)" with the Order, including Price, Included and Price List (0348). Settings, Billing, View your agreement shows

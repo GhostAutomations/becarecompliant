@@ -224,7 +224,7 @@ It applies from the moment your Company Admin accepts it in the platform, or sig
 
 These are not added together. The amount in clause 14.3(a) is the most either of us can be liable for in total in a contract year, for all claims arising from all events in that year, and claims under clause 14.3(b) count towards it.
 
-14.4 The amount is the greater of {{liability_floor}} and the fees paid and payable by you in the twelve months before the event giving rise to the claim.
+14.4 The amount is the greater of {{liability_floor}} and the fees paid and payable by you in the twelve months before the first event in that contract year that gives rise to a claim. The same amount applies to every claim in that contract year, whenever its event happened.
 
 14.5 This clause does not limit your obligation to pay fees that are due.
 
@@ -264,7 +264,7 @@ If you end it because of our breach, we will refund any fees you have paid in ad
 
 17.3 Within 30 days after the end of that 90 day period, we permanently delete your Customer Data from the Platform. Copies in our backups are overwritten on their normal cycle, and in any case within a further 30 days.
 
-17.4 At your choice, we will return your Customer Data to you (through the read only period and full export in clause 11.4, or a full export we produce for you on request) and then delete it, or delete it sooner if you ask us in writing. Deletion includes copies held by the subprocessors listed in the Data Processing Agreement. Until backup copies are overwritten, they are kept secure and are not restored or used for anything except deletion.
+17.4 At your choice, we will return your Customer Data to you (through the read only period and full export in clause 11.4, or a full export we produce for you on request) and then delete it, or delete it sooner if you ask us in writing. We also instruct the subprocessors listed in the Data Processing Agreement to delete their copies. Some of them keep limited copies for longer under their own terms, as clause 11.2 of the Data Processing Agreement explains. Until backup copies are overwritten, they are kept secure and are not restored or used for anything except deletion.
 
 17.5 We will confirm deletion in writing if you ask.
 
@@ -325,7 +325,8 @@ The Platform records this when your Company Admin accepts. A signed copy can be 
 | Start date | [ ] |
 | Accepted by | [Full name], Company Admin |
 | Accepted on | [Date and time], from [IP address] |
-| Versions accepted | Subscription Agreement [1.0], Data Processing Agreement [1.0] |`;
+| Versions accepted | Subscription Agreement [1.0], Data Processing Agreement [1.0] |
+`;
 
 export const DATA_PROCESSING_AGREEMENT_1_0 = `# Be Care Compliant Data Processing Agreement
 
@@ -521,7 +522,7 @@ If Data Protection Law changes in a way that affects this DPA, we may update it 
 
 **Testing and updates.** We regularly monitor security advisories for our providers and the software we depend on, and apply fixes in a timescale that matches the risk. We review our database security checks after every change to the database, and test access controls whenever we change them.
 
-**Backups and recovery.** Our database provider takes regular backups of the database. Uploaded files and stored Evidence documents are copied each night to separate private storage with the same provider in the United Kingdom. We test restoring both the database and files at least once a year and keep a record of each test.
+**Backups and recovery.** There are two kinds of backup. First, our database provider takes regular backups of the database as part of its managed service; it does not guarantee where those backups are held (see Annex 3). Second, we make our own copy of uploaded files and stored Evidence documents each night, to separate private storage with the same provider in its London region in the United Kingdom. We test restoring both the database and files at least once a year and keep a record of each test.
 
 **Incidents.** We follow a written incident procedure: contain the incident, assess what personal data is affected, tell you under clause 9, record what happened and review what we change as a result.
 
@@ -531,10 +532,11 @@ If Data Protection Law changes in a way that affects this DPA, we may update it 
 
 | Subprocessor | What it does | Personal Data involved | Where | Transfer safeguard |
 |---|---|---|---|---|
-| Supabase, Inc. | Database, file storage, backups and sign in | All Customer Data | Database and files in the United Kingdom (London). Supabase does not guarantee the location of its backups, system logs or support access, which may be outside the United Kingdom | UK Addendum to the EU Standard Contractual Clauses, in Supabase's DPA |
+| Supabase, Inc. | Database, file storage, backups and sign in | All Customer Data | Database, files and our own nightly file copies in the United Kingdom (London). Supabase's own managed database backups, system logs and support access are not guaranteed to be in the United Kingdom and may be outside it | UK Addendum to the EU Standard Contractual Clauses, in Supabase's DPA |
 | Vercel Inc. | Runs the web application | Customer Data passing through the application while in use | Application runs in London. Vercel's logs and platform data may be processed in the United States | UK Extension to the EU US Data Privacy Framework, and the UK International Data Transfer Addendum in Vercel's DPA |
 | Plus Five Five, Inc. (Resend) | Sends the Platform's emails | Recipient name and email address, and the content of the email | United States | UK Extension to the EU US Data Privacy Framework, and the UK Addendum to the EU Standard Contractual Clauses in Resend's DPA |
 | Twilio Inc. | Sends text messages, when you use a texting feature | Recipient mobile number and the message text | United States | UK Extension to the EU US Data Privacy Framework, and the UK International Data Transfer Addendum in Twilio's DPA |
 | Anthropic, PBC | AI drafting, only when one of your users presses an AI button | The text needed for that task, for example the details of an absence | United States, or other locations Anthropic uses to run its models | UK Addendum to the EU Standard Contractual Clauses, in Anthropic's DPA. Anthropic does not use this data to train its models. It deletes inputs and outputs within 30 days, except where its safety systems flag a breach of its usage policy, when it may keep them for up to two years |
 
-**Payments.** Stripe takes your payments. It receives only your billing contact's details and your payment details, never Customer Data. It processes them for us and, for its own fraud prevention and legal duties, as a controller, so it is not a Subprocessor of Customer Data.`;
+**Payments.** Stripe takes your payments. It receives only your billing contact's details and your payment details, never Customer Data. It processes them for us and, for its own fraud prevention and legal duties, as a controller, so it is not a Subprocessor of Customer Data.
+`;

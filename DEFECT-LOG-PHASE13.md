@@ -2389,3 +2389,9 @@ tick were cleared, because React resets an uncontrolled form after its action ru
 components/legal/accept-order-form.tsx holds every field in state, so a refusal leaves them as
 typed, and the company or charity number is required in the browser for a limited company or a
 charity, so that refusal is caught before sending. The server still checks everything.
+
+RETEST 2026-09-30: text fields now kept, but the tick was still cleared on a server refusal. Cause:
+React 19 calls form.reset() after the action; the controlled checkbox's state stayed true while the
+box on screen went blank (the same would happen to the radios and the select). Fixed: the form
+listens for its reset event and puts the tick, billing option and organisation type back from
+state straight after. Confirmed live that the reset event fires on a refusal.
