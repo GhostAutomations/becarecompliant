@@ -94,9 +94,9 @@ export default async function FounderCompaniesPage() {
     // revenue page or Stripe again. Branches are REQUIRED input, not an afterthought.
     mrrPence += subscriptionMonthlyPence({
       basePence: TIER_BASE_PENCE[company.tier as keyof typeof TIER_BASE_PENCE],
-      extraSeats: billedExtra(seats.extra, orderedFor(orderedByCompany, company.id).users),
+      extraSeats: billedExtra(seats.extra, orderedFor(orderedByCompany, company.id, company.tier).users),
       seatPence: EXTRA_SEAT_PENCE,
-      extraBranches: billedExtra(extraBranchesFor(company.id, company.tier), orderedFor(orderedByCompany, company.id).branches),
+      extraBranches: billedExtra(extraBranchesFor(company.id, company.tier), orderedFor(orderedByCompany, company.id, company.tier).branches),
       branchPence: EXTRA_BRANCH_PENCE,
     });
   }
@@ -140,12 +140,12 @@ export default async function FounderCompaniesPage() {
             const bpill = billingStatusPill(bill?.subscription_status ?? null);
             const extraBranches = billedExtra(
               extraBranchesFor(company.id, company.tier),
-              orderedFor(orderedByCompany, company.id).branches,
+              orderedFor(orderedByCompany, company.id, company.tier).branches,
             );
             const monthlyTotalPence = isSub
               ? subscriptionMonthlyPence({
                   basePence: TIER_BASE_PENCE[company.tier as keyof typeof TIER_BASE_PENCE],
-                  extraSeats: billedExtra(seats.extra, orderedFor(orderedByCompany, company.id).users),
+                  extraSeats: billedExtra(seats.extra, orderedFor(orderedByCompany, company.id, company.tier).users),
                   seatPence: EXTRA_SEAT_PENCE,
                   extraBranches,
                   branchPence: EXTRA_BRANCH_PENCE,

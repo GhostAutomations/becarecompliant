@@ -12,9 +12,15 @@
  * same arithmetic.
  */
 
-export type OrderedExtras = { users: number; branches: number };
+export type OrderedExtras = {
+  users: number;
+  branches: number;
+  /** The plan the Order was for ("business", "pro"), or null (Black, or no Order). The extras
+   *  are counted against that plan's allowance, so a later plan change must convert them. */
+  tier: string | null;
+};
 
-export const NO_ORDERED_EXTRAS: OrderedExtras = { users: 0, branches: 0 };
+export const NO_ORDERED_EXTRAS: OrderedExtras = { users: 0, branches: 0, tier: null };
 
 function wholeOrZero(n: unknown): number {
   return typeof n === "number" && Number.isFinite(n) && n > 0 ? Math.trunc(n) : 0;
@@ -23,10 +29,25 @@ function wholeOrZero(n: unknown): number {
 /** Ordered extras from an acceptance row. A missing row, a Black account (nulls) or anything
  *  malformed counts as nothing ordered, which fails towards charging only what exists. */
 export function orderedExtrasFrom(
-  row: { extra_users?: number | null; extra_branches?: number | null } | null | undefined,
+  row: { extra_users?: number | null; extra_branches?: number | null; plan?: string | null } | null | undefined,
 ): OrderedExtras {
   if (!row) return NO_ORDERED_EXTRAS;
-  return { users: wholeOrZero(row.extra_users), branches: wholeOrZero(row.extra_branches) };
+  const plan = typeof row.plan === "string" ? row.plan.trim().toLowerCase() : "";
+  return {
+    users: wholeOrZero(row.extra_users),
+    branches: wholeOrZero(row.extra_branches),
+    tier: plan === "business" || plan === "pro" ? plan : null,
+  };
+}
+
+/**
+ * Ordered extras counted against the plan the company is on NOW. An Order for Business with 1
+ * extra user means "5 users"; on Pro, which includes 6, that is no extra at all. Without this,
+ * moving to Pro would keep charging an extra user the new plan already includes.
+ * included = what the Order's plan and the current plan include (users or branches).
+ */
+export function orderedExtraOnPlan(orderedExtra: number, includedOnOrderPlan: number, includedNow: number): number {
+  return Math.max(0, wholeOrZero(orderedExtra) + wholeOrZero(includedOnOrderPlan) - wholeOrZero(includedNow));
 }
 
 /** The quantity to bill: whichever is larger, what exists or what was ordered. Never negative. */

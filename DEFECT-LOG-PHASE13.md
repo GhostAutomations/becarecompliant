@@ -2429,3 +2429,18 @@ Carer Academy customers (Thistle Care, Test CARE People and others). The founder
 the account-wide list, so it would have shown their invoices beside Be Care Compliant's, and a
 busy month elsewhere could have pushed ours past its limit of 100. Fixed: invoices are read per
 Stripe customer on a company_billing row, newest first across all of them.
+
+## DEF-086 — Settings, Billing on Annual: cost in the Seats card and monthly figures (found in test I7, 2026-09-30)
+
+Phil: the yearly cost was shown inside the Seats card, "that doesn't make any sense". Also on
+Annual: Move to Pro compared £84.00/mo with £129.00/mo "for the rest of this month"; the seat and
+branch notes said "per month" and "prorated onto your next invoice". Agreed by popup: the Current
+plan card now shows the cost like an invoice (plan, each extra with x 10 months on yearly extras,
+Total each year or month plus VAT, a second monthly group for monthly extras on Annual, no bold);
+Seats and Branches show only what is used and covered, with the price per extra in the interval it
+is charged; Move to Pro compares yearly totals on Annual. Found while tracing: (1) the Order floor
+from DEF-083 counted extras against the current plan, so a Business Order with 1 extra user (5
+users) would have kept charging an extra user after moving to Pro, which includes 6; now converted
+to the current plan's allowance (orderedExtraOnPlan, 4 tests); (2) the plan swap used
+create_prorations, so an Annual upgrade's difference would have waited a year for the renewal
+invoice; now charged at once on Annual (always_invoice), as the page says.

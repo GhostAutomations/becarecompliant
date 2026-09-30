@@ -382,7 +382,7 @@ async function prepareSubscription(companyId: string): Promise<
   // price when its line is actually going on this invoice.
   // What they ordered is the least they pay for (Phil, 2026-09-30, after test I3): the total
   // they accepted includes the extras they asked for, so Stripe must charge them from day one.
-  const ordered = await getOrderedExtras(companyId);
+  const ordered = await getOrderedExtras(companyId, tier);
   const extra = billedExtra(extraSeats(await getActiveSeatCount(companyId), tier), ordered.users);
   const extraBranch = branchPriceId(extras) ? billedExtra(await extraBranches(companyId, tier), ordered.branches) : 0;
 

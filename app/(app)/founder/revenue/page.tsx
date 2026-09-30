@@ -94,10 +94,10 @@ export default async function FounderRevenuePage() {
   for (const c of list) {
     const b = billingByCompany.get(c.id) ?? null;
     const actualSeats = computeSeatUsage(activeUsers.get(c.id) ?? 0, includedSeatsForTier(c.tier));
-    const seats = { ...actualSeats, extra: billedExtra(actualSeats.extra, orderedFor(orderedByCompany, c.id).users) };
+    const seats = { ...actualSeats, extra: billedExtra(actualSeats.extra, orderedFor(orderedByCompany, c.id, c.tier).users) };
     const branchesExtra = billedExtra(
       Math.max(0, (operationalBranches.get(c.id) ?? 0) - includedBranchesForTier(c.tier)),
-      orderedFor(orderedByCompany, c.id).branches,
+      orderedFor(orderedByCompany, c.id, c.tier).branches,
     );
     const row: Row = {
       id: c.id,

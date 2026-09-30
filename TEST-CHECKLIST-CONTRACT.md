@@ -178,7 +178,8 @@ Bevan switched to Pro by SQL for this (no Stripe subscription, so nothing billed
   subscription.
 - I5 PASS 2026-09-30: Phil paid one £10 AI top up on Bevan with Stripe's test card (sandbox). Stripe page card only; back on Settings, Billing; ledger +100 AI credits (topup, cs_test_a1qFO1…); Stripe invoice U6ZNESFB-0074 £10.00 Paid, Bevan Care Ltd.
 - I5 Top up: buying AI credits produces a Stripe invoice as well as the receipt.
-- I6 note 2026-09-30: DEF-085 fixed first (other products' invoices would have shown). Test after deploy.
+- I6 PASS 2026-09-30 after deploy ba497c3 (DEF-085 fixed first): Unpaid showed Bevan £840.00 Due 14 Oct, Paid showed the £10 top up, no other products' customers, View and PDF opened Stripe's pages (Phil).
 - I6 Founder > Invoices: Unpaid shows the Annual invoice as Due; Paid shows paid ones; View and PDF
   open Stripe's pages; empty filters say so.
+- I7 FAIL 2026-09-30, DEF-086: yearly cost shown inside the Seats card; Move to Pro and the notes still monthly. Fixed; RETEST after deploy.
 - I7 Settings, Billing on an Annual company shows /yr amounts.

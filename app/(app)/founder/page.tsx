@@ -130,11 +130,11 @@ export default async function FounderPage() {
     const seats = computeSeatUsage(activeUsers.get(company.id) ?? 0, includedSeatsForTier(company.tier));
     mrrPence += subscriptionMonthlyPence({
       basePence: TIER_BASE_PENCE[company.tier as keyof typeof TIER_BASE_PENCE],
-      extraSeats: billedExtra(seats.extra, orderedFor(orderedByCompany, company.id).users),
+      extraSeats: billedExtra(seats.extra, orderedFor(orderedByCompany, company.id, company.tier).users),
       seatPence: EXTRA_SEAT_PENCE,
       extraBranches: billedExtra(
         Math.max(0, (operationalBranches.get(company.id) ?? 0) - includedBranchesForTier(company.tier)),
-        orderedFor(orderedByCompany, company.id).branches,
+        orderedFor(orderedByCompany, company.id, company.tier).branches,
       ),
       branchPence: EXTRA_BRANCH_PENCE,
     });

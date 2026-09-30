@@ -11,10 +11,13 @@ import {
   EXTRA_SEAT_PENCE,
   includedSeatsForTier,
   includedBranchesForTier,
+  orderedExtrasOnTier,
+  orderedExtrasForDisplay,
 } from "@/lib/billing/seats";
 import ActionForm from "@/components/action-form";
 import { upgradeToPro } from "@/lib/billing/actions";
 import { subscriptionMonthlyPence } from "@/lib/billing/monthly-total";
+import { billedExtra } from "@/lib/billing/ordered-extras";
 import { getAiCreditBalance } from "@/lib/billing/ai-credits";
 import { getSmsCreditBalance } from "@/lib/billing/sms-credits";
 import { SMS_TOPUP_CREDITS, SMS_TOPUP_PENCE, smsTopupPriceId } from "@/lib/stripe/config";
@@ -110,7 +113,6 @@ export default async function BillingPage() {
   );
   const planYearly = intervals.plan === "year";
   const extrasYearly = intervals.extras === "year";
-  const per = (yearly: boolean) => (yearly ? "/yr" : "/mo");
   const times = (yearly: boolean) => (yearly ? YEARLY_MONTHS_CHARGED : 1);
   const monthlyTotalPence = subscriptionMonthlyPence({
     basePence,
@@ -125,8 +127,10 @@ export default async function BillingPage() {
      upgrade can REDUCE the extras bill at the same time as it raises the base, and the only
      honest thing to show somebody is the new total. */
   const canUpgradeToPro = tier === "business";
-  const proSeatExtra = Math.max(0, seats.used - includedSeatsForTier("pro"));
-  const proBranchExtra = Math.max(0, branches.used - includedBranchesForTier("pro"));
+  // On Pro the Order's extras are counted against Pro's allowance (DEF-083 floor, 2026-09-30).
+  const orderedOnPro = orderedExtrasOnTier(await orderedExtrasForDisplay(profile.company_id), "pro");
+  const proSeatExtra = billedExtra(Math.max(0, seats.used - includedSeatsForTier("pro")), orderedOnPro.users);
+  const proBranchExtra = billedExtra(Math.max(0, branches.used - includedBranchesForTier("pro")), orderedOnPro.branches);
   const proTotalPence = subscriptionMonthlyPence({
     basePence: TIER_BASE_PENCE.pro,
     extraSeats: proSeatExtra,
@@ -134,6 +138,31 @@ export default async function BillingPage() {
     extraBranches: proBranchExtra,
     branchPence: EXTRA_BRANCH_PENCE,
   });
+
+  /* WHAT THEY PAY, LIKE AN INVOICE, IN THE PLAN CARD (Phil, 2026-09-30: the cost sat in the Seats
+     card, "that doesn't make any sense"). Same shape as the Order on the agreement screen: the
+     plan, each extra, then the total, in the interval each is actually charged. No bold. */
+  const seatLinePence = seats.extraCostPence * times(extrasYearly);
+  const branchLinePence = branches.extraCostPence * times(extrasYearly);
+  const planLinePence = basePence * times(planYearly);
+  const extrasEach = extrasYearly ? ` x ${YEARLY_MONTHS_CHARGED} months` : "";
+  const yearlyExtrasInTotal = planYearly && extrasYearly;
+  const planTotalPence = planYearly
+    ? planLinePence + (yearlyExtrasInTotal ? seatLinePence + branchLinePence : 0)
+    : monthlyTotalPence;
+  const monthlyExtrasOnAnnualPence = planYearly && !extrasYearly ? seatLinePence + branchLinePence : 0;
+
+  // What Move to Pro would cost, in the interval they pay (yearly figures for Annual).
+  const nowComparePence = planYearly
+    ? planTotalPence
+    : monthlyTotalPence;
+  const proComparePence = planYearly
+    ? TIER_BASE_PENCE.pro * YEARLY_MONTHS_CHARGED +
+      (extrasYearly ? (proSeatExtra * EXTRA_SEAT_PENCE + proBranchExtra * EXTRA_BRANCH_PENCE) * YEARLY_MONTHS_CHARGED : 0)
+    : proTotalPence;
+  const proMonthlyExtrasOnAnnualPence =
+    planYearly && !extrasYearly ? proSeatExtra * EXTRA_SEAT_PENCE + proBranchExtra * EXTRA_BRANCH_PENCE : 0;
+  const compareUnit = planYearly ? "a year" : "a month";
   const hasSubscription = Boolean(billing?.stripe_subscription_id);
   const activeSub = ["active", "trialing", "past_due"].includes(
     billing?.subscription_status ?? "",
@@ -187,6 +216,70 @@ export default async function BillingPage() {
           )}
         </div>
         <p className="mt-3 text-sm text-white/60">{TIER_BLURB[tier] ?? ""}</p>
+        {isSub ? (
+          <div className="mt-4 space-y-1 border-t border-white/10 pt-3 text-sm text-white/70">
+            <p className="text-xs text-white/50">{planYearly ? "Your yearly cost" : "Your monthly cost"}</p>
+            <div className="flex justify-between gap-3">
+              <span>
+                {TIER_LABELS[tier as keyof typeof TIER_LABELS]} plan{planYearly ? ", paid yearly" : ""}
+              </span>
+              <span>{formatPence(planLinePence)}</span>
+            </div>
+            {yearlyExtrasInTotal || !planYearly ? (
+              <>
+                {seats.extra > 0 ? (
+                  <div className="flex justify-between gap-3">
+                    <span>
+                      {seats.extra} extra {seats.extra === 1 ? "user" : "users"} x {formatPence(EXTRA_SEAT_PENCE)}
+                      {extrasEach}
+                    </span>
+                    <span>{formatPence(seatLinePence)}</span>
+                  </div>
+                ) : null}
+                {branches.extra > 0 ? (
+                  <div className="flex justify-between gap-3">
+                    <span>
+                      {branches.extra} extra {branches.extra === 1 ? "branch" : "branches"} x{" "}
+                      {formatPence(EXTRA_BRANCH_PENCE)}
+                      {extrasEach}
+                    </span>
+                    <span>{formatPence(branchLinePence)}</span>
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+            <div className="flex justify-between gap-3 border-t border-white/10 pt-2 text-white">
+              <span>{planYearly ? "Total each year, plus VAT" : "Total each month, plus VAT"}</span>
+              <span>{formatPence(planTotalPence)}</span>
+            </div>
+            {monthlyExtrasOnAnnualPence > 0 ? (
+              <>
+                <p className="pt-3 text-xs text-white/50">Your monthly cost</p>
+                {seats.extra > 0 ? (
+                  <div className="flex justify-between gap-3">
+                    <span>
+                      {seats.extra} extra {seats.extra === 1 ? "user" : "users"} x {formatPence(EXTRA_SEAT_PENCE)}
+                    </span>
+                    <span>{formatPence(seatLinePence)}</span>
+                  </div>
+                ) : null}
+                {branches.extra > 0 ? (
+                  <div className="flex justify-between gap-3">
+                    <span>
+                      {branches.extra} extra {branches.extra === 1 ? "branch" : "branches"} x{" "}
+                      {formatPence(EXTRA_BRANCH_PENCE)}
+                    </span>
+                    <span>{formatPence(branchLinePence)}</span>
+                  </div>
+                ) : null}
+                <div className="flex justify-between gap-3 border-t border-white/10 pt-2 text-white">
+                  <span>Total each month, plus VAT</span>
+                  <span>{formatPence(monthlyExtrasOnAnnualPence)}</span>
+                </div>
+              </>
+            ) : null}
+          </div>
+        ) : null}
       </section>
 
       {/* AI credits */}
@@ -239,7 +332,7 @@ export default async function BillingPage() {
         ) : null}
       </section>
 
-      {/* Seats and cost */}
+      {/* Seats: what is used (the cost is in the plan card) */}
       <section className="glass-card p-5">
         <h2 className="text-sm font-semibold text-white/80">Seats</h2>
         <p className="mt-2 text-3xl font-bold text-white">
@@ -251,58 +344,16 @@ export default async function BillingPage() {
         </p>
         {isSub ? (
           <div className="mt-3 space-y-1 text-sm text-white/70">
-            <div className="flex justify-between">
-              <span>{TIER_LABELS[tier as keyof typeof TIER_LABELS]} base{planYearly ? ", paid yearly" : ""}</span>
-              <span>
-                {formatPence(basePence * times(planYearly))}
-                {per(planYearly)}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span>
-                {seats.extra} extra {seats.extra === 1 ? "seat" : "seats"} at{" "}
-                {formatPence(EXTRA_SEAT_PENCE)}
-              </span>
-              <span>
-                {formatPence(seats.extraCostPence * times(extrasYearly))}
-                {per(extrasYearly)}
-              </span>
-            </div>
-            {/* Above the total, because a total has to come after the things it adds up. */}
-            {branches.extra > 0 ? (
-              <div className="flex justify-between">
-                <span>
-                  {branches.extra} extra {branches.extra === 1 ? "branch" : "branches"} at{" "}
-                  {formatPence(EXTRA_BRANCH_PENCE)}
-                </span>
-                <span>
-                  {formatPence(branches.extraCostPence * times(extrasYearly))}
-                  {per(extrasYearly)}
-                </span>
-              </div>
+            {seats.extra > 0 ? (
+              <p>
+                You pay for {seats.extra} extra {seats.extra === 1 ? "user" : "users"}, so up to{" "}
+                {seats.included + seats.extra} users are covered.
+              </p>
             ) : null}
-            {planYearly ? (
-              <div className="mt-2 flex justify-between border-t border-white/10 pt-2 font-semibold text-white">
-                <span>Estimated yearly total{extrasYearly ? "" : ", plus the monthly extras above"}</span>
-                <span>
-                  {formatPence(
-                    basePence * YEARLY_MONTHS_CHARGED +
-                      (extrasYearly ? (seats.extraCostPence + branches.extraCostPence) * YEARLY_MONTHS_CHARGED : 0),
-                  )}
-                  /yr
-                </span>
-              </div>
-            ) : (
-              <div className="mt-2 flex justify-between border-t border-white/10 pt-2 font-semibold text-white">
-                <span>Estimated monthly total</span>
-                <span>{formatPence(monthlyTotalPence)}/mo</span>
-              </div>
-            )}
             <p className="pt-1 text-xs text-white/40">
-              Each user beyond the first {seats.included} is {formatPence(EXTRA_SEAT_PENCE)} per
-              month, and each branch beyond {branches.included} is{" "}
-              {formatPence(EXTRA_BRANCH_PENCE)} per month. Changes are prorated onto your next
-              invoice.
+              {extrasYearly
+                ? `Each extra user is ${formatPence(EXTRA_SEAT_PENCE * YEARLY_MONTHS_CHARGED)} a year (${formatPence(EXTRA_SEAT_PENCE)} x ${YEARLY_MONTHS_CHARGED} months). Adding one charges the rest of your current year straight away; removing one takes effect from your renewal.`
+                : `Each extra user is ${formatPence(EXTRA_SEAT_PENCE)} a month. Changes are prorated onto your next invoice.`}
             </p>
           </div>
         ) : (
@@ -329,24 +380,36 @@ export default async function BillingPage() {
           <div className="mt-3 space-y-1 text-sm text-white/70">
             <div className="flex justify-between">
               <span>You pay now</span>
-              <span>{formatPence(monthlyTotalPence)}/mo</span>
+              <span>
+                {formatPence(nowComparePence)} {compareUnit}
+              </span>
             </div>
-            <div className="flex justify-between font-semibold text-white">
+            <div className="flex justify-between text-white">
               <span>On Pro</span>
-              <span>{formatPence(proTotalPence)}/mo</span>
+              <span>
+                {formatPence(proComparePence)} {compareUnit}
+              </span>
             </div>
+            {monthlyExtrasOnAnnualPence > 0 || proMonthlyExtrasOnAnnualPence > 0 ? (
+              <p className="text-xs text-white/50">
+                Plus your extras each month: {formatPence(monthlyExtrasOnAnnualPence)} now,{" "}
+                {formatPence(proMonthlyExtrasOnAnnualPence)} on Pro.
+              </p>
+            ) : null}
           </div>
           <p className="mt-2 text-xs text-white/40">
-            {willBeProrated
-              ? "The difference is prorated onto your next invoice, so you only pay for the rest of this month."
-              : "Nothing is charged until you subscribe."}
+            {!willBeProrated
+              ? "Nothing is charged until you subscribe."
+              : planYearly
+                ? "The difference for the rest of your current year is charged straight away."
+                : "The difference is prorated onto your next invoice, so you only pay for the rest of this month."}
           </p>
           <div className="mt-4">
             <ActionForm
               action={upgradeToPro}
               label="Move to Pro"
               savedLabel="On Pro"
-              confirm={`Move to Pro? Your monthly total goes from ${formatPence(monthlyTotalPence)} to ${formatPence(proTotalPence)}${willBeProrated ? ", prorated onto your next invoice" : ". Nothing is charged until you subscribe"}.`}
+              confirm={`Move to Pro? Your total goes from ${formatPence(nowComparePence)} to ${formatPence(proComparePence)} ${compareUnit}${!willBeProrated ? ". Nothing is charged until you subscribe" : planYearly ? ", and the difference for the rest of this year is charged now" : ", prorated onto your next invoice"}.`}
             />
           </div>
         </section>
@@ -361,15 +424,15 @@ export default async function BillingPage() {
         </p>
         {branches.extra > 0 ? (
           <p className="mt-3 text-sm text-white/70">
-            {branches.extra} extra {branches.extra === 1 ? "branch" : "branches"} at {formatPence(EXTRA_BRANCH_PENCE)} each,
-            <span className="font-semibold text-white"> {formatPence(branches.extraCostPence)}/mo</span>.
+            You pay for {branches.extra} extra {branches.extra === 1 ? "branch" : "branches"}, so up to{" "}
+            {branches.included + branches.extra} branches are covered.
           </p>
-        ) : (
-          <p className="mt-3 text-sm text-white/60">
-            Your plan includes {branches.included} {branches.included === 1 ? "branch" : "branches"}. Extra branches
-            are {formatPence(EXTRA_BRANCH_PENCE)} each per month. Contact us to add a branch.
-          </p>
-        )}
+        ) : null}
+        <p className="mt-3 text-sm text-white/60">
+          {extrasYearly
+            ? `Each extra branch is ${formatPence(EXTRA_BRANCH_PENCE * YEARLY_MONTHS_CHARGED)} a year (${formatPence(EXTRA_BRANCH_PENCE)} x ${YEARLY_MONTHS_CHARGED} months). Contact us to add a branch.`
+            : `Each extra branch is ${formatPence(EXTRA_BRANCH_PENCE)} a month. Contact us to add a branch.`}
+        </p>
       </section>
 
       {/* Payment method + actions */}

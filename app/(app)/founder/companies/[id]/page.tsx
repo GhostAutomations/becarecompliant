@@ -131,7 +131,7 @@ export default async function FounderCompanyPage({
     (p) => p.status === "active" && isBillableSeat(p.role),
   ).length;
   // What the company ordered is the least it pays (2026-09-30): the same floor as Stripe.
-  const ordered = orderedFor(await orderedExtrasByCompany(supabase), company.id);
+  const ordered = orderedFor(await orderedExtrasByCompany(supabase), company.id, company.tier ?? "business");
   const actualSeats = computeSeatUsage(activeUsers, includedSeatsForTier(company.tier));
   const seats = { ...actualSeats, extra: billedExtra(actualSeats.extra, ordered.users) };
   const isSub = isSubscriptionTier(company.tier);

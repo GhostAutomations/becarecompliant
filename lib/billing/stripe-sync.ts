@@ -10,7 +10,7 @@ import {
   isBillingInterval,
   type BillingInterval,
 } from "@/lib/stripe/config";
-import { includedSeatsForTier, includedBranchesForTier, NON_BILLABLE_ROLES } from "@/lib/billing/seats";
+import { includedSeatsForTier, includedBranchesForTier, NON_BILLABLE_ROLES, orderedExtrasOnTier } from "@/lib/billing/seats";
 import { customerIdentityPatch } from "@/lib/billing/customer-identity";
 import { isTierName, type TierName } from "@/lib/billing/tier-change";
 import { pickBaseItem, baseSwapDecision } from "@/lib/billing/base-item";
@@ -96,11 +96,15 @@ export async function getActiveSeatCount(companyId: string): Promise<number> {
  * user. A read failure counts as nothing ordered, which fails towards charging only what exists,
  * the same direction as every other billing failure in this file.
  */
-export async function getOrderedExtras(companyId: string): Promise<OrderedExtras> {
+export async function getOrderedExtras(companyId: string, tier: string): Promise<{ users: number; branches: number }> {
+  return orderedExtrasOnTier(await readOrderedExtras(companyId), tier);
+}
+
+async function readOrderedExtras(companyId: string): Promise<OrderedExtras> {
   const supabase = createServiceClient();
   const { data, error } = await supabase
     .from("agreement_acceptances")
-    .select("extra_users, extra_branches")
+    .select("extra_users, extra_branches, plan")
     .eq("company_id", companyId)
     .order("accepted_at", { ascending: false })
     .limit(1)
@@ -249,7 +253,7 @@ export async function syncSeatQuantity(
     const seatPrice = seatPriceId(billingIntervals(billing).extras);
     if (!seatPrice) return { synced: false, reason: "no_seat_price" };
 
-    const [active, ordered] = await Promise.all([getActiveSeatCount(companyId), getOrderedExtras(companyId)]);
+    const [active, ordered] = await Promise.all([getActiveSeatCount(companyId), getOrderedExtras(companyId, billing.billed_tier ?? "business")]);
     // Never below what the accepted Order asked for (Phil, 2026-09-30).
     const quantity = billedExtra(extraSeats(active, billing.billed_tier ?? "business"), ordered.users);
 
@@ -386,7 +390,10 @@ export async function syncBasePrice(
     await stripe.subscriptionItems.update(found.item.id, {
       price: wanted,
       quantity: 1,
-      proration_behavior: "create_prorations",
+      /* On Annual the difference for the rest of the year is charged now (2026-09-30). With
+         "create_prorations" it would wait for the next invoice, which on Annual is the renewal a
+         year away. Only upgrades reach here (downgrades are refused; Black cancels instead). */
+      proration_behavior: prorationFor(billingIntervals(billing).plan, "increase"),
     });
     return { synced: true, tier };
   } catch (e) {
@@ -595,7 +602,7 @@ export async function syncBranchQuantity(
 
     const [actualBranches, ordered] = await Promise.all([
       extraBranches(companyId, billing.billed_tier ?? "business"),
-      getOrderedExtras(companyId),
+      getOrderedExtras(companyId, billing.billed_tier ?? "business"),
     ]);
     // Never below what the accepted Order asked for (Phil, 2026-09-30).
     const quantity = billedExtra(actualBranches, ordered.branches);

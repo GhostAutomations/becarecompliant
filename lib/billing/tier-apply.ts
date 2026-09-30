@@ -129,7 +129,7 @@ export async function changeTier(input: {
      it is not being charged for, which is a mistake this guard has already made once. */
   if (plan.settlement === "swap_base" || plan.settlement === "resume") {
     // Same floor as the syncs: never below what the accepted Order asked for (2026-09-30).
-    const ordered = await getOrderedExtras(input.companyId);
+    const ordered = await getOrderedExtras(input.companyId, toTier);
     const seatExtra = billedExtra(extraSeats(await getActiveSeatCount(input.companyId), toTier), ordered.users);
     const branchExtra = branchPriceId() ? billedExtra(await extraBranches(input.companyId, toTier), ordered.branches) : 0;
     const priceProblem = await checkoutPriceProblem(toTier as "business" | "pro", {
