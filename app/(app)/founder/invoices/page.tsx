@@ -83,9 +83,16 @@ export default async function FounderInvoicesPage({
     url: string | null;
   }> = [];
   try {
-    const list = await stripe.invoices.list({ limit: 100 });
     const now = Date.now();
-    invoices = list.data.map((inv) => {
+    /* BE CARE COMPLIANT'S OWN CUSTOMERS ONLY (DEF-085, 2026-09-30). One Stripe account holds
+       Join Care Now and Carer Academy too, so the account-wide list showed their customers'
+       invoices here as if they were ours, and could push ours past the 100 limit. Asked per
+       customer on a company_billing row instead, newest first across all of them. */
+    const lists = await Promise.all(
+      [...companyByCustomer.keys()].map((customer) => stripe.invoices.list({ customer, limit: 100 })),
+    );
+    const ours = lists.flatMap((l) => l.data).sort((a, b) => b.created - a.created);
+    invoices = ours.map((inv) => {
       const customer = typeof inv.customer === "string" ? inv.customer : inv.customer?.id ?? "";
       return {
         id: inv.id ?? "",

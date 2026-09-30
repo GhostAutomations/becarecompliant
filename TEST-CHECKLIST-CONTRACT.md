@@ -172,11 +172,13 @@ Bevan switched to Pro by SQL for this (no Stripe subscription, so nothing billed
 - I3 Annual, card: accept on Annual (extras yearly), Add a card shows the yearly price (£790 or
   £1,290). Annual with monthly extras: Stripe shows the year only; after paying, the monthly extra
   lines appear on the same subscription.
-- I4 FAIL 2026-09-30, DEF-084: subscription created right in Stripe (send invoice, 14 days, card + bank transfer, £790 + £50) but the Admin landed on the dashboard with no Sent message or link, and the first invoice stayed a draft. Fixed; RETEST after deploy (needs the test subscription cancelled and a fresh acceptance).
+- I4 FAIL 2026-09-30, DEF-084: subscription created right in Stripe (send invoice, 14 days, card + bank transfer, £790 + £50) but the Admin landed on the dashboard with no Sent message or link, and the first invoice stayed a draft. Fixed. RETEST PASS 2026-09-30 after deploy 46c609f (run by Claude on Bevan with Phil's go ahead): first test subscription cancelled in Stripe, fresh Annual acceptance (charge line now reads £50.00 a year), Get an invoice instead landed on Invoice sent: £840.00 to ppdavies+cob@gmail.com, payable by 14 October 2026, View and pay (invoice.stripe.com) and PDF links; Stripe shows invoice U6ZNESFB-0073 Open, £840.00, due 14 Oct; going back to the payment step now goes to the dashboard, so it cannot be pressed twice.
 - I4 Annual, invoice: "Get an invoice instead" says "Sending…" then "Sent" with "View and pay the
   invoice"; the invoice is payable in 14 days by card or bank transfer; pressing twice makes one
   subscription.
+- I5 PASS 2026-09-30: Phil paid one £10 AI top up on Bevan with Stripe's test card (sandbox). Stripe page card only; back on Settings, Billing; ledger +100 AI credits (topup, cs_test_a1qFO1…); Stripe invoice U6ZNESFB-0074 £10.00 Paid, Bevan Care Ltd.
 - I5 Top up: buying AI credits produces a Stripe invoice as well as the receipt.
+- I6 note 2026-09-30: DEF-085 fixed first (other products' invoices would have shown). Test after deploy.
 - I6 Founder > Invoices: Unpaid shows the Annual invoice as Due; Paid shows paid ones; View and PDF
   open Stripe's pages; empty filters say so.
 - I7 Settings, Billing on an Annual company shows /yr amounts.

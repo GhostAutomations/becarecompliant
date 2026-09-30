@@ -2421,3 +2421,11 @@ yet. Fixed: the action finalises the first invoice straight away (Stripe then em
 "Email finalised invoices" is on) and redirects to a new page, /agreement/invoice-sent, which
 reads the invoice back from Stripe and shows the amount, due date, email, "View and pay the
 invoice", the PDF and Continue, and says so plainly if Stripe has not finished it yet.
+
+## DEF-085 — Founder > Invoices would have listed other products' invoices (found before I6, 2026-09-30)
+
+Checking the Stripe sandbox for I5 showed the one Stripe account also holds Join Care Now and
+Carer Academy customers (Thistle Care, Test CARE People and others). The founder Invoices page read
+the account-wide list, so it would have shown their invoices beside Be Care Compliant's, and a
+busy month elsewhere could have pushed ours past its limit of 100. Fixed: invoices are read per
+Stripe customer on a company_billing row, newest first across all of them.
