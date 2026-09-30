@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCompanyTrialState } from "@/lib/billing/trial-gate";
 import { needsAgreement, listAcceptances, type AcceptanceRow } from "@/lib/legal/acceptance";
 import { legalDocuments, legalPublished, LEGAL_VERSIONS } from "@/lib/legal/documents";
-import { acceptanceCurrent, organisationLabel, planLabel, onboardingFeeLabel, orderIncludedText, orderPriceText } from "@/lib/legal/fill";
+import { acceptanceCurrent, billingApplies, billingOptionLabel, organisationLabel, planLabel, onboardingFeeLabel, orderIncludedText, orderPriceText } from "@/lib/legal/fill";
 import { TIER_BASE_PENCE } from "@/lib/stripe/config";
 import { includedBranchesForTier, includedSeatsForTier } from "@/lib/billing/seats";
 import { ANNUAL_MONTHS_CHARGED, PRICE_LIST_DATE, aiMonthlyCredits, smsMonthlyCredits } from "@/lib/billing/allowances";
@@ -50,7 +50,7 @@ function OrderTable({ a }: { a: AcceptanceRow }) {
     ["Plan", a.plan],
     ["Price", a.price_text ?? "Not recorded"],
     ["Included", a.included_text ?? "Not recorded"],
-    ["Billing option", a.billing_option === "annual" ? "Annual" : "Monthly"],
+    ["Billing option", billingOptionLabel(a.billing_option)],
     ["Price List", a.price_list_date ?? "Not recorded"],
     ["Onboarding fee", a.onboarding_fee],
     ["Start date", ukDate(a.start_date)],
@@ -214,6 +214,7 @@ export default async function AgreementPage() {
             These details go on the Order that forms part of the agreement. Correct anything that is not right.
           </p>
           <AcceptOrderForm
+            billingApplies={billingApplies(company.tier)}
             initial={{
               legalName: company.name ?? "",
               companyNumber: invoicing?.company_number ?? "",

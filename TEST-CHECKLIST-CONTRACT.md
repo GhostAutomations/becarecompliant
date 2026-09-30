@@ -47,7 +47,16 @@ filled in; the Order is prefilled and the Company Admin confirms; the 90 day rea
   server are unaffected. The first version of the guard refused every Company Admin update
   (generated name_key column); fixed by 0347 two minutes later, and no real user hit it (logs).
 - A8 Founder "Stop asking" turns Bevan off again.
+  PASS (2026-09-30, in Chrome as founder): Agreements showed Bevan "Accepted (test)" with the full
+  Order under Every acceptance (Price, Included, Price List, IP, versions, fingerprints), which
+  completes A5. Stop asking: button flashed and returned as "Ask to accept (test)", agreement_required
+  false, audit agreement.test_switched_off. The draft acceptance stays as a record.
 - A9 Phone: the accept screen on a phone (Phil).
+  PASS (2026-09-30, Phil on iPhone): accepted as Bev Admin, row 320f7937 (iPhone user agent). Phil's
+  note: a Black account was asked Monthly or Annual though it is never billed (Black is only ever
+  switched on by the founder, never offered at sign up). Fixed (0349 + fill.ts billingApplies): a
+  Black account is not asked, the server records "none" from the plan whatever the form sends, and
+  the Order shows "Not applicable (Black account)". Retest after deploy.
 
 ## Text revision after Phil's second review (2026-09-30, migration 0348)
 
@@ -63,6 +72,9 @@ procedure and the first restore test (Annex 2 promises them).
   PARTLY (2026-09-30): Bevan is Black, so it shows "No charge (Black account)", Included and Price
   List, and the stored Order matches. The Monthly and Annual price lines need a Business or Pro
   company's Admin to see on screen.
+  Phil (popup, 2026-09-30): the unit tests are enough (Business and Pro, Monthly and Annual, all
+  covered by orderPriceText); a real Business or Pro Order is checked when the first paying
+  customer accepts. A10 PASS.
 - A11 /terms shows the new clauses (7.7, 8.4, 11.6, 11.8, 15.4, 19.1 to 19.4) and /dpa the
   Information Commission, the revised Annex 2 and Annex 3; the Draft notice says "subject to
   legal review".

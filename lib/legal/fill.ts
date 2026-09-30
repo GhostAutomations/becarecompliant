@@ -60,7 +60,19 @@ export function organisationLabel(v: string): string {
   return ORGANISATION_TYPES.find((o) => o.value === v)?.label ?? v;
 }
 
-export type BillingOption = "monthly" | "annual";
+/** "none" is a Black account: granted by us, never billed, so it is not asked (Phil, 2026-09-30). */
+export type BillingOption = "monthly" | "annual" | "none";
+
+/** Does this plan have a billing option at all? Black has no charge, so no. */
+export function billingApplies(tier: string | null | undefined): boolean {
+  return tier !== "black";
+}
+
+export function billingOptionLabel(v: string): string {
+  if (v === "annual") return "Annual";
+  if (v === "none") return "Not applicable (Black account)";
+  return "Monthly";
+}
 
 export function planLabel(tier: string | null | undefined): string {
   if (tier === "pro") return "Pro";
@@ -94,7 +106,8 @@ export type OrderInput = {
 };
 
 /** The accept form's checks, one message per field. Empty object means it can be accepted. */
-export function checkOrder(o: OrderInput): Partial<Record<keyof OrderInput, string>> {
+export function checkOrder(o: OrderInput, opts: { billingApplies?: boolean } = {}): Partial<Record<keyof OrderInput, string>> {
+  const billing = opts.billingApplies ?? true;
   const e: Partial<Record<keyof OrderInput, string>> = {};
   const name = o.legalName.trim();
   if (name.length < 2) e.legalName = "Enter your company's legal name.";
@@ -107,7 +120,8 @@ export function checkOrder(o: OrderInput): Partial<Record<keyof OrderInput, stri
   const addr = o.address.trim();
   if (addr.length < 5) e.address = "Enter your registered or main address.";
   else if (addr.length > 500) e.address = "That address is too long.";
-  if (o.billingOption !== "monthly" && o.billingOption !== "annual") e.billingOption = "Choose Monthly or Annual.";
+  if (billing && o.billingOption !== "monthly" && o.billingOption !== "annual") e.billingOption = "Choose Monthly or Annual.";
+  if (!billing && o.billingOption !== "none") e.billingOption = "This plan has no billing option.";
   if (!o.accepted) e.accepted = "Tick the box to confirm you accept both agreements.";
   return e;
 }

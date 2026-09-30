@@ -23,9 +23,13 @@ import { ORGANISATION_TYPES } from "@/lib/legal/fill";
 export default function AcceptOrderForm({
   initial,
   footer,
+  billingApplies = true,
 }: {
   initial: { legalName: string; companyNumber: string; address: string };
   footer: React.ReactNode;
+  /** False for a Black account: never billed, so Monthly or Annual is not asked (Phil,
+   *  2026-09-30). The server decides the same from the plan, whatever this form sends. */
+  billingApplies?: boolean;
 }) {
   const [legalName, setLegalName] = useState(initial.legalName);
   const [orgType, setOrgType] = useState("limited_company");
@@ -128,31 +132,35 @@ export default function AcceptOrderForm({
         </div>
       </div>
 
-      <fieldset>
-        <legend className="form-label">Billing option</legend>
-        <div className="mt-1 flex flex-wrap gap-5">
-          <label className="flex items-center gap-2 text-sm text-white/80">
-            <input
-              type="radio"
-              name="billing_option"
-              value="monthly"
-              checked={billing === "monthly"}
-              onChange={() => setBilling("monthly")}
-            />
-            Monthly, card, cancel any time
-          </label>
-          <label className="flex items-center gap-2 text-sm text-white/80">
-            <input
-              type="radio"
-              name="billing_option"
-              value="annual"
-              checked={billing === "annual"}
-              onChange={() => setBilling("annual")}
-            />
-            Annual, invoiced yearly in advance
-          </label>
-        </div>
-      </fieldset>
+      {billingApplies ? (
+        <fieldset>
+          <legend className="form-label">Billing option</legend>
+          <div className="mt-1 flex flex-wrap gap-5">
+            <label className="flex items-center gap-2 text-sm text-white/80">
+              <input
+                type="radio"
+                name="billing_option"
+                value="monthly"
+                checked={billing === "monthly"}
+                onChange={() => setBilling("monthly")}
+              />
+              Monthly, card, cancel any time
+            </label>
+            <label className="flex items-center gap-2 text-sm text-white/80">
+              <input
+                type="radio"
+                name="billing_option"
+                value="annual"
+                checked={billing === "annual"}
+                onChange={() => setBilling("annual")}
+              />
+              Annual, invoiced yearly in advance
+            </label>
+          </div>
+        </fieldset>
+      ) : (
+        <input type="hidden" name="billing_option" value="none" />
+      )}
 
       {footer}
 

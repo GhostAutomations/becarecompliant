@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
 import { legalDocuments, legalPublished, LEGAL_VERSIONS } from "@/lib/legal/documents";
-import { acceptanceCurrent, checkOrder, onboardingFeeLabel, orderIncludedText, orderPriceText, planLabel } from "@/lib/legal/fill";
+import { acceptanceCurrent, billingApplies, checkOrder, onboardingFeeLabel, orderIncludedText, orderPriceText, planLabel } from "@/lib/legal/fill";
 import { TIER_BASE_PENCE } from "@/lib/stripe/config";
 import { includedBranchesForTier, includedSeatsForTier } from "@/lib/billing/seats";
 import { ANNUAL_MONTHS_CHARGED, PRICE_LIST_DATE, aiMonthlyCredits, smsMonthlyCredits } from "@/lib/billing/allowances";
@@ -34,18 +34,6 @@ export async function acceptAgreement(_prev: ActionState, formData: FormData): P
   }
   const companyId = profile.company_id;
 
-  const input = {
-    legalName: String(formData.get("legal_name") ?? ""),
-    organisationType: String(formData.get("organisation_type") ?? ""),
-    companyNumber: String(formData.get("company_number") ?? ""),
-    address: String(formData.get("address") ?? ""),
-    billingOption: String(formData.get("billing_option") ?? ""),
-    accepted: formData.get("accept") === "yes",
-  };
-  const problems = checkOrder(input);
-  const first = Object.values(problems)[0];
-  if (first) return { error: first };
-
   const supabase = await createClient();
   const { data: co, error: coErr } = await supabase
     .from("companies")
@@ -54,6 +42,21 @@ export async function acceptAgreement(_prev: ActionState, formData: FormData): P
     .maybeSingle();
   if (coErr || !co) return { error: "Your company could not be read. Please try again." };
   const company = co as { tier: string | null; agreement_required: boolean | null };
+
+  /* A Black account is never billed, so it is not asked Monthly or Annual (Phil, 2026-09-30):
+     whatever the form sends, it is recorded as "none". Decided here from the plan, not the form. */
+  const billed = billingApplies(company.tier);
+  const input = {
+    legalName: String(formData.get("legal_name") ?? ""),
+    organisationType: String(formData.get("organisation_type") ?? ""),
+    companyNumber: String(formData.get("company_number") ?? ""),
+    address: String(formData.get("address") ?? ""),
+    billingOption: billed ? String(formData.get("billing_option") ?? "") : "none",
+    accepted: formData.get("accept") === "yes",
+  };
+  const problems = checkOrder(input, { billingApplies: billed });
+  const first = Object.values(problems)[0];
+  if (first) return { error: first };
 
   const published = legalPublished();
   if (!published && !company.agreement_required) {

@@ -143,3 +143,18 @@ test("a draft says so and carries the version its Order will record; published t
   assert.ok(live.includes("**Version 1.0 · 1 November 2026**"));
   assert.ok(!live.includes("{{"));
 });
+
+test("a Black account has no billing option (Phil, 2026-09-30)", async () => {
+  const { billingApplies, billingOptionLabel, checkOrder } = await import("./fill.ts");
+  assert.equal(billingApplies("black"), false);
+  assert.equal(billingApplies("pro"), true);
+  assert.equal(billingApplies("business"), true);
+  const base = { legalName: "Bevan Care Ltd", organisationType: "partnership", companyNumber: "", address: "1 Test Street", accepted: true };
+  assert.deepEqual(checkOrder({ ...base, billingOption: "none" }, { billingApplies: false }), {});
+  assert.ok(checkOrder({ ...base, billingOption: "monthly" }, { billingApplies: false }).billingOption);
+  assert.ok(checkOrder({ ...base, billingOption: "none" }).billingOption);
+  assert.deepEqual(checkOrder({ ...base, billingOption: "annual" }), {});
+  assert.equal(billingOptionLabel("none"), "Not applicable (Black account)");
+  assert.equal(billingOptionLabel("annual"), "Annual");
+  assert.equal(billingOptionLabel("monthly"), "Monthly");
+});

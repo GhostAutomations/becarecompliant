@@ -6,7 +6,7 @@ import BackLink from "@/components/back-link";
 import ActionForm from "@/components/action-form";
 import { ACCEPTANCE_COLUMNS, type AcceptanceRow } from "@/lib/legal/acceptance";
 import { LEGAL_VERSIONS, legalMissing, legalPublished } from "@/lib/legal/documents";
-import { acceptanceCurrent, organisationLabel } from "@/lib/legal/fill";
+import { acceptanceCurrent, billingOptionLabel, organisationLabel } from "@/lib/legal/fill";
 import { setAgreementRequired } from "@/lib/legal/founder-actions";
 import { ukDate } from "@/lib/dates";
 
@@ -179,7 +179,7 @@ export default async function FounderAgreementsPage() {
                   <dd className="whitespace-pre-line text-white/80">{a.customer_address}</dd>
                   <dt className="text-white/50">Plan and billing</dt>
                   <dd className="text-white/80">
-                    {a.plan}, {a.billing_option === "annual" ? "Annual" : "Monthly"}
+                    {a.plan}, {billingOptionLabel(a.billing_option)}
                   </dd>
                   <dt className="text-white/50">Price</dt>
                   <dd className="text-white/80">{a.price_text ?? "Not recorded"}</dd>
