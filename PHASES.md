@@ -3715,6 +3715,25 @@ their own company's tier, trial end and status by calling the API directly (comp
 every column); a trigger now keeps those columns to the founder and the server. Tests A1 to A9 in
 TEST-CHECKLIST-CONTRACT.md.
 
+### 2026-09-30 — The contract: text revised after a second review (0348)
+
+Phil ran both drafts through ChatGPT. Its points were checked against the suppliers' own current
+terms before anything changed: the Information Commissioner becomes the Information Commission
+on 30 Sep 2026; Anthropic processes in the US or wherever it runs its models, deletes API data
+within 30 days (up to two years if flagged for misuse), does not train on it, and relies on the UK
+Addendum; Supabase is not on the Data Privacy Framework and does not state where backups and logs
+live; Twilio's BCRs are not UK approved. Agreement: "customer" not "care company", the Order
+records price, what is included and the Price List date (lib/billing/allowances.ts, now shared
+with Billing), onboarding scope agreed in writing, credits explained, 7.7 refunds, 8.4 late annual
+price rise, full export defined, 11.6 retention by record type, 11.8 opt in sharing of inspection
+reports, 14.3 contract years, 15.4 fees in a pause, insolvency limit, clause 19 accept to apply,
+notices by email. DPA: logs, "where required" policy document, return or delete including
+subprocessor copies, audit exceptions, Annex 2 without absolute claims, Annex 3 corrected. Phil
+chose to BUILD, before publishing: two factor sign in for Company Admins and the founder, and
+retention periods by record type. New in this phase after the contract: inspection report review
+(upload a CIW, CQC or PQS report, AI checks it against the company's Evidence and drafts factual
+accuracy or challenge points, lessons into Readiness).
+
 ### 2026-09-29 — New prices, the new pricing page, and trial requests in the Founder inbox
 
 Phil, before taking on a new client, agreed by popup: Business £79 (was £49), Pro £129 (was £69),

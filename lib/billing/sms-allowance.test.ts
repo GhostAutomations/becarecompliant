@@ -46,16 +46,20 @@ test("the database grants the agreed bundle for every tier", () => {
   }
 });
 
-test("the Billing page prints the same bundle the database grants", () => {
-  const m = billingPage.match(/const SMS_ALLOWANCE: Record<string, number> = \{([^}]+)\}/);
-  assert.ok(m, "The Billing page no longer states the SMS allowance");
+test("the Billing page and the Order print the same bundle the database grants", () => {
+  /* Since the contract work (2026-09-30) the bundle lives in lib/billing/allowances.ts, read by the
+     Billing page AND the Order a Company Admin accepts, so both are checked by checking it. */
+  const allowances = readFileSync(new URL("./allowances.ts", import.meta.url), "utf8");
+  const m = allowances.match(/export const SMS_MONTHLY_CREDITS: Record<string, number> = \{([^}]+)\}/);
+  assert.ok(m, "lib/billing/allowances.ts no longer states the SMS allowance");
   for (const [tier, texts] of BUNDLES) {
     assert.match(
       m![1],
       new RegExp(`${tier}: ${texts}\\b`),
-      `Billing shows a different allowance for ${tier} than the database grants`,
+      `Billing and the Order show a different allowance for ${tier} than the database grants`,
     );
   }
+  assert.match(billingPage, /smsMonthlyCredits\(tier\)/, "The Billing page no longer reads the shared SMS allowance");
 });
 
 test("an SMS top up bundle is a real number of texts at a real price", () => {

@@ -125,3 +125,35 @@ export function acceptanceCurrent(
 export function agreementGateOn(published: boolean, agreementRequired: boolean): boolean {
   return published || agreementRequired;
 }
+
+const pounds = (pence: number) =>
+  `£${(pence / 100).toLocaleString("en-GB", { minimumFractionDigits: pence % 100 === 0 ? 0 : 2, maximumFractionDigits: 2 })}`;
+
+/**
+ * The Order's price line. Black has no charge. Monthly is the plan's monthly price; Annual is the
+ * yearly price (ten months of the monthly price). Extra users and branches are on the Price List.
+ */
+export function orderPriceText(input: {
+  tier: string | null | undefined;
+  billingOption: string;
+  monthlyPence: number | null;
+  annualMonths: number;
+}): string {
+  if (input.tier === "black" || input.monthlyPence === null) return "No charge (Black account)";
+  if (input.billingOption === "annual") {
+    return `${pounds(input.monthlyPence * input.annualMonths)} a year plus VAT, paid yearly in advance`;
+  }
+  return `${pounds(input.monthlyPence)} a month plus VAT`;
+}
+
+/** The Order's "what is included" line. A very large number (Black) reads as unlimited. */
+export function orderIncludedText(input: { users: number; branches: number; ai: number; sms: number }): string {
+  const n = (v: number, one: string, many: string) => (v >= 9999 ? `unlimited ${many}` : `${v} ${v === 1 ? one : many}`);
+  return [
+    n(input.users, "user", "users"),
+    n(input.branches, "branch", "branches"),
+    `${input.ai} AI credits a month`,
+    input.sms > 0 ? `${input.sms} text messages a month` : "no text messages",
+    "free carer logins",
+  ].join(", ");
+}

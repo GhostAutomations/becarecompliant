@@ -27,6 +27,7 @@ import {
   TopUpSmsButton,
 } from "@/components/billing/billing-actions";
 import BackLink from "@/components/back-link";
+import { aiMonthlyCredits, smsMonthlyCredits } from "@/lib/billing/allowances";
 
 export const metadata: Metadata = { title: "Billing" };
 
@@ -89,12 +90,9 @@ export default async function BillingPage() {
   const branches = await getBranchUsage(profile.company_id, tier);
   const aiCredits = await getAiCreditBalance(profile.company_id);
   const smsCredits = await getSmsCreditBalance(profile.company_id);
-  const AI_ALLOWANCE: Record<string, number> = { business: 25, pro: 50, black: 1000 };
-  const aiMonthly = AI_ALLOWANCE[tier] ?? 25;
-  // Mirrors tier_monthly_sms_credits in migration 0159. Business gets none: SMS escalation is a
-  // Pro feature, and the zero allowance is the same rule expressed in the ledger.
-  const SMS_ALLOWANCE: Record<string, number> = { business: 0, pro: 100, black: 2000 };
-  const smsMonthly = SMS_ALLOWANCE[tier] ?? 0;
+  // One source for what each plan includes (lib/billing/allowances.ts), shared with the Order.
+  const aiMonthly = aiMonthlyCredits(tier);
+  const smsMonthly = smsMonthlyCredits(tier);
   const smsTopupReady = Boolean(smsTopupPriceId());
   const isSub = isSubscriptionTier(tier);
   const basePence = isSub ? TIER_BASE_PENCE[tier as keyof typeof TIER_BASE_PENCE] : 0;

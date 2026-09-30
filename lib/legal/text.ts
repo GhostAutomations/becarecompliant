@@ -18,7 +18,7 @@ This agreement is between:
 
 **{{supplier_name}}**, a company registered in England and Wales under number {{supplier_number}}, whose registered office is at {{supplier_address}}, trading as **Be Care Compliant** ("**we**", "**us**", "**our**"); and
 
-**the care company named in the Order** ("**you**", "**your**").
+**the customer named in the Order** ("**you**", "**your**").
 
 It applies from the moment your Company Admin accepts it in the platform, or signs an Order that refers to it, whichever happens first.
 
@@ -26,7 +26,7 @@ It applies from the moment your Company Admin accepts it in the platform, or sig
 
 1.1 The contract between us is made up of:
 
-(a) the **Order**, which records your company details, your Plan, your billing option and who accepted on your behalf;
+(a) the **Order**, which records your details, your Plan and its price, what your Plan includes, your billing option, the date of the Price List that applies, and who accepted on your behalf;
 
 (b) these **terms**;
 
@@ -72,7 +72,7 @@ It applies from the moment your Company Admin accepts it in the platform, or sig
 
 ## 3. The service
 
-3.1 We will provide the Platform to you during this agreement, for use by your authorised users in running your care business.
+3.1 We will provide the Platform to you during this agreement, for use by your authorised users in running your business.
 
 3.2 We will provide the Platform with reasonable skill and care, and we will use reasonable endeavours to keep it available at all times, apart from planned maintenance (which we will try to schedule outside UK office hours and tell you about in advance where it is likely to affect you) and events outside our reasonable control.
 
@@ -82,7 +82,7 @@ It applies from the moment your Company Admin accepts it in the platform, or sig
 
 3.5 **Setup.** We set up new companies ourselves. We create your Account, your first Branch and your Company Admin login, and we seed your Account with our starter Forms, Checks and training courses, which you can then change.
 
-3.6 **Onboarding.** When you first subscribe, we provide Onboarding: we import your existing Records, build your own Forms, set up your Checks and walk your team through the Platform. The Onboarding fee is shown in the Price List and on the Order. Where the Order shows the fee as waived, no Onboarding fee is payable.
+3.6 **Onboarding.** When you first subscribe, we provide Onboarding: we import your existing Records from the files you give us, build your own Forms, set up your Checks and walk your team through the Platform. Before we start, we agree with you in writing what will be imported and built and when it will be done. You give us your records in a form we can import and make someone available for the walkthrough. The Onboarding fee is shown in the Price List and on the Order. Where the Order shows the fee as waived, no Onboarding fee is payable.
 
 ## 4. Free trials
 
@@ -108,7 +108,7 @@ It applies from the moment your Company Admin accepts it in the platform, or sig
 
 6.1 You choose Monthly or Annual when you subscribe, and the Order records your choice.
 
-6.2 **Monthly.** Fees are billed monthly in advance. The subscription renews each month until you cancel. You can cancel at any time in Settings, Billing, and the cancellation takes effect at the end of the month you have already paid for. If you cancel, we do not refund the rest of the month.
+6.2 **Monthly.** Fees are billed monthly in advance. The subscription renews each month until you cancel. You can cancel at any time in Settings, Billing, and the cancellation takes effect at the end of the current monthly Subscription Period you have already paid for. If you cancel, we do not refund the rest of that Subscription Period.
 
 6.3 **Annual.** Fees are invoiced yearly in advance at the annual price in the Price List. You commit to the full twelve months. The subscription renews for a further twelve months unless you cancel at least 30 days before the renewal date. We will remind your Company Admin by email at least 45 days before each renewal.
 
@@ -126,9 +126,11 @@ It applies from the moment your Company Admin accepts it in the platform, or sig
 
 7.4 We may charge interest on overdue amounts under the Late Payment of Commercial Debts (Interest) Act 1998.
 
-7.5 **Usage Credits.** Monthly credits included in your Plan are added each month. AI credits carry over while your subscription is active. Credit top ups are paid in advance and are not refundable. Unused Usage Credits end when this agreement ends.
+7.5 **Usage Credits.** One AI credit is used each time a user runs an AI feature, and one SMS credit for each text message sent. The monthly AI and SMS credits included in your Plan are added each month, and unused credits carry over while this agreement continues, including if you change Plan. Credit top ups are paid in advance and are not refundable, except under clause 7.7. Unused Usage Credits end when this agreement ends.
 
-7.6 **Onboarding fee.** Any Onboarding fee is payable with your first invoice. It is not refundable once Onboarding has started.
+7.6 **Onboarding fee.** Any Onboarding fee is payable with your first invoice. It is not refundable once Onboarding has started, except under clause 7.7.
+
+7.7 **Refunds when we are at fault or end the agreement.** If this agreement ends because of our serious breach (clause 16.3), because we end it (clause 16.4), or because you end it under clause 16.5, we will refund any Usage Credit top ups you paid for and have not used, and the part of any Onboarding fee for work we had not yet done.
 
 ## 8. Price changes
 
@@ -137,6 +139,8 @@ It applies from the moment your Company Admin accepts it in the platform, or sig
 8.2 On the Annual option, your price is fixed for the twelve months you have paid for, and any change applies from your next renewal.
 
 8.3 If you do not accept a price rise, you may cancel before it takes effect, and on the Monthly option you will not pay the higher price.
+
+8.4 On the Annual option, if we tell you about a higher price later than 60 days before your renewal date, you may cancel the renewal at any time before the higher price applies, even if the 30 day deadline in clause 6.3 has passed, and you will not pay the higher price.
 
 ## 9. Your responsibilities
 
@@ -178,11 +182,15 @@ It applies from the moment your Company Admin accepts it in the platform, or sig
 
 11.3 We may use anonymous, aggregated information about how the Platform is used (for example, how many Checks are completed each month across all customers) to run and improve it. It will never identify you, your staff or your service users.
 
-11.4 **Export at any time.** You can export your Customer Data at any time as PDFs and CSV files, including individual subject access exports for a person or a service user.
+11.4 **Export at any time.** Your Company Admin can export your Customer Data at any time. A full export includes every Record, Check, Form, the completed Evidence as PDFs with the files attached to it, and the audit trail, as PDF and CSV files. You can also make a subject access export for one person or service user.
 
-11.5 **Evidence is kept unchanged.** Submitted Evidence cannot be edited. Corrections are recorded as new entries, so your inspection trail stays complete. Evidence is kept for the retention period set in Settings, Data retention (by default at least eight years from the date a member of staff leaves or a service user's care ends), after which the Platform anonymises it automatically unless you have placed a hold on it.
+11.5 **Evidence is kept unchanged.** Submitted Evidence cannot be edited. Corrections are recorded as new entries, so your inspection trail stays complete.
 
-11.6 **Data protection.** The Data Processing Agreement forms part of this agreement and applies whenever we process personal data on your behalf.
+11.6 **Retention.** You decide how long your records are kept. Settings, Data retention sets a retention period for each type of record, counted from the date a member of staff leaves or a service user's care ends. We provide default periods as a starting point only; you must review them and set the periods your own legal and regulatory duties require. When a period ends the Platform anonymises the records automatically, unless you have placed a hold on them.
+
+11.7 **Data protection.** The Data Processing Agreement forms part of this agreement and applies whenever we process personal data on your behalf.
+
+11.8 **Inspection reports, if you choose.** Your Company Admin can choose in the Platform to let us use the inspection reports you upload (for example from Care Inspectorate Wales, the Care Quality Commission or a local authority), and nothing else of yours, to improve our templates and guidance for all customers. We remove the names of people and services before we use them, and we never use them to train AI models. This is off unless your Company Admin switches it on, and they can switch it off at any time, after which we will not use reports you upload from then on.
 
 ## 12. Confidentiality
 
@@ -208,11 +216,11 @@ It applies from the moment your Company Admin accepts it in the platform, or sig
 
 14.2 Neither of us is liable to the other for loss of profit, revenue, business, contracts, goodwill or anticipated savings, or for any indirect or consequential loss, however it arises.
 
-14.3 Subject to clauses 14.1 and 14.2, each party's total liability to the other, for all claims arising in any period of twelve months:
+14.3 Subject to clauses 14.1 and 14.2, each party's total liability to the other for all claims arising from events in each **contract year** (the twelve months from the start date shown on the Order, and each following twelve months) is limited as follows. A claim belongs to the contract year in which the event giving rise to it happened, and related claims arising from the same event are treated as one claim.
 
-(a) for claims relating to data protection, including breaches of the Data Processing Agreement, is limited to **twice** the amount in clause 14.4; and
+(a) for claims relating to data protection, including breaches of the Data Processing Agreement: **twice** the amount in clause 14.4; and
 
-(b) for all other claims, is limited to the amount in clause 14.4.
+(b) for all other claims: the amount in clause 14.4.
 
 14.4 The amount is the greater of {{liability_floor}} and the fees paid and payable by you in the twelve months before the event giving rise to the claim.
 
@@ -226,6 +234,8 @@ It applies from the moment your Company Admin accepts it in the platform, or sig
 
 15.3 While your Account is paused we keep your Customer Data safe, and on request we will provide an export of it.
 
+15.4 Fees continue while your Account is paused because fees are overdue or because you breached clause 9.6. They do not continue while it is paused for a security risk you did not cause. If a pause that is not caused by unpaid fees or your breach lasts more than 30 days, you may end this agreement under clause 16.5.
+
 ## 16. Length of this agreement and ending it
 
 16.1 This agreement starts when it is accepted and continues until it is ended under this clause.
@@ -236,13 +246,13 @@ It applies from the moment your Company Admin accepts it in the platform, or sig
 
 (a) commits a serious breach and, if it can be put right, does not put it right within 30 days of being asked to; or
 
-(b) becomes insolvent, enters administration or liquidation, or stops trading.
+(b) becomes insolvent, enters administration or liquidation, or stops trading, except that we will not end this agreement because you have entered an insolvency procedure where the law does not allow us to.
 
 If you end it because of our breach, we will refund any fees you have paid in advance for the period after it ends.
 
 16.4 **We** may end it by giving at least 90 days' notice, for example if we withdraw the Platform. If we do, we will refund any fees you have paid in advance for the period after it ends.
 
-16.5 **You** may also end it by notice, at any time and without penalty, in the situations set out in clauses 3.3, 18 and 19, and clause 6.2 of the Data Processing Agreement. If you do, we will refund any fees you have paid in advance for the period after it ends.
+16.5 **You** may also end it by notice, at any time and without penalty, in the situations set out in clauses 3.3, 15.4, 18 and 19, and clause 6.2 of the Data Processing Agreement. If you do, we will refund any fees you have paid in advance for the period after it ends.
 
 ## 17. What happens when it ends
 
@@ -252,13 +262,13 @@ If you end it because of our breach, we will refund any fees you have paid in ad
 
 17.3 Within 30 days after the end of that 90 day period, we permanently delete your Customer Data from the Platform. Copies in our backups are overwritten on their normal cycle, and in any case within a further 30 days.
 
-17.4 If you ask us in writing to delete your Customer Data sooner, we will. If you ask us to export it for you, we will do so before deletion.
+17.4 At your choice, we will return your Customer Data to you (through the read only period and full export in clause 11.4, or a full export we produce for you on request) and then delete it, or delete it sooner if you ask us in writing. Deletion includes copies held by the subprocessors listed in the Data Processing Agreement. Until backup copies are overwritten, they are kept secure and are not restored or used for anything except deletion.
 
 17.5 We will confirm deletion in writing if you ask.
 
 17.6 We keep only what we are legally required to keep, such as invoices and records of this agreement. If the law ever requires us to keep any Customer Data, clause 11.3 of the Data Processing Agreement applies.
 
-17.7 Clauses 7 (for amounts already due), 11, 12, 13.3, 14, 17 and 20 continue after this agreement ends, and the Data Processing Agreement continues until your Customer Data has been deleted.
+17.7 Clauses 7 (for amounts already due and refunds under clause 7.7), 11, 12, 13.3, 14, 17 and 20 continue after this agreement ends, and the Data Processing Agreement continues until your Customer Data has been deleted.
 
 ## 18. Events outside our control
 
@@ -266,15 +276,17 @@ Neither of us is responsible for a delay or failure caused by something beyond o
 
 ## 19. Changes to these terms
 
-19.1 We may publish a new version of these terms or the Data Processing Agreement. Your Company Admin will be asked to accept it in the Platform, and we keep a record of each version you have accepted. Until it is accepted, the version you last accepted continues to apply, your other users can carry on as normal, and your Company Admin will see the new version each time they sign in.
+19.1 We may publish a new version of these terms or the Data Processing Agreement. We will tell your Company Admin by email, and they will be asked to accept it in the Platform. We keep a record of each version you have accepted.
 
-19.2 If a change materially disadvantages you, we will give at least 30 days' notice before it applies to you. If you do not accept it, you may end this agreement under clause 16.5 before it takes effect.
+19.2 Except under clause 19.4, a new version applies to you only once your Company Admin accepts it. Until then the version you last accepted continues to apply, your other users carry on as normal, and your Company Admin will see the new version each time they sign in.
 
-19.3 Changes required by law, or made to protect the security of the Platform, may apply sooner. If such a change materially disadvantages you, you may still end this agreement under clause 16.5.
+19.3 If your Company Admin has not accepted a new version within 60 days of our email, we may end this agreement by giving you 30 days' notice, and we will refund any fees you have paid in advance for the period after it ends. You may end this agreement under clause 16.5 at any time instead of accepting a new version.
+
+19.4 A change we must make to comply with the law, or to protect the security of the Platform, applies from the date given in our email, which will be as far ahead as the reason for the change allows. If such a change materially disadvantages you, you may end this agreement under clause 16.5.
 
 ## 20. General
 
-20.1 **Notices** to you are sent by email to your Company Admin, or shown in the Platform. Notices to us go to hello@becarecompliant.com.
+20.1 **Notices** to you are sent by email to your Company Admin, and any notice about ending this agreement, renewal or a price change is always sent by email. Other notices may also be shown in the Platform. Notices to us go to hello@becarecompliant.com. An email is treated as received on the next Working Day after it is sent, unless the sender receives a message that it was not delivered.
 
 20.2 **Suppliers.** We may use subcontractors to provide the Platform. Those who handle personal data are listed in the Data Processing Agreement. We remain responsible for them.
 
@@ -303,7 +315,10 @@ The Platform records this when your Company Admin accepts. A signed copy can be 
 | Company or charity number, if any | [ ] |
 | Registered or main address | [ ] |
 | Plan | [Business / Pro / Black] |
+| Price | [£ per month or per year, plus VAT] |
+| Included | [users, branches, AI credits and SMS credits a month] |
 | Billing option | [Monthly / Annual] |
+| Price List | [Date of the Price List that applies] |
 | Onboarding fee | [£295 plus VAT / Waived] |
 | Start date | [ ] |
 | Accepted by | [Full name], Company Admin |
@@ -314,7 +329,7 @@ export const DATA_PROCESSING_AGREEMENT_1_0 = `# Be Care Compliant Data Processin
 
 **Version 1.0 · {{publication_date}}**
 
-This Data Processing Agreement ("**DPA**") is between **{{supplier_name}}**, company number {{supplier_number}}, registered office {{supplier_address}}, ICO registration number {{supplier_ico}}, trading as **Be Care Compliant** ("**we**", the **processor**), and the care company named in the Order ("**you**", the **controller**).
+This Data Processing Agreement ("**DPA**") is between **{{supplier_name}}**, company number {{supplier_number}}, registered office {{supplier_address}}, ICO registration number {{supplier_ico}}, trading as **Be Care Compliant** ("**we**", the **processor**), and the customer named in the Order ("**you**", the **controller**).
 
 It forms part of the Be Care Compliant Subscription Agreement (the "**Agreement**") and applies whenever we process personal data on your behalf. Words defined in the Agreement have the same meaning here.
 
@@ -332,7 +347,7 @@ It forms part of the Be Care Compliant Subscription Agreement (the "**Agreement*
 
 2.1 You are the controller of the Personal Data and we are your processor.
 
-2.2 We are a controller in our own right only for the limited information we need to run our relationship with you: the names and contact details of your Company Admin and billing contact, billing details, and the technical security logs of our own systems (such as sign in attempts). The audit trail of access to and changes in your Records is part of your Customer Data. Our privacy notice at becarecompliant.com/privacy explains how we use it.
+2.2 We are a controller in our own right only for the limited information we need to run our relationship with you and to keep the Platform secure: the names and contact details of your Company Admin and billing contact, billing details, the record of your acceptance of the Agreement, your inspection reports with names removed if your Company Admin chooses to share them under clause 11.8 of the Agreement, and the technical logs of our own systems (such as sign in attempts and server logs), which we use only for security, fault finding and preventing misuse. The audit trail inside your Account, of who viewed and changed your Records, is part of your Customer Data and we process it for you. Our privacy notice at becarecompliant.com/privacy explains how we use the information we control.
 
 2.3 **Your obligations.** As controller, you are responsible for:
 
@@ -344,7 +359,7 @@ It forms part of the Be Care Compliant Subscription Agreement (the "**Agreement*
 
 (d) carrying out any data protection impact assessment you need, including before using the AI and text message features; and
 
-(e) for **criminal offence data** such as DBS check results, having an appropriate policy document and a condition under Schedule 1 of the Data Protection Act 2018. We recommend you record the certificate number, date and outcome rather than uploading copies of DBS certificates, in line with the DBS Code of Practice.
+(e) for **criminal offence data** such as DBS check results, having a condition under Schedule 1 of the Data Protection Act 2018, and an appropriate policy document where the condition you rely on requires one. We recommend you record the certificate number, date and outcome rather than uploading copies of DBS certificates, in line with the DBS Code of Practice.
 
 2.4 **Your rights.** You may give us instructions under clause 3, receive the help described in this DPA, and audit us under clause 13.
 
@@ -378,7 +393,7 @@ Everyone we authorise to access Personal Data is bound by a duty of confidential
 
 ## 7. Transfers outside the United Kingdom
 
-7.1 Your Records, Checks, Forms, Evidence and files are stored in the United Kingdom, in a London data centre region.
+7.1 Your database, including your Records, Checks, Forms and Evidence, and your files are stored in the United Kingdom, in a London data centre region, and the application that serves them runs in London. Some supporting processing, such as our providers' system logs, backups, AI drafting, email and text message delivery, and support access by our providers' staff, may take place outside the United Kingdom, as shown in Annex 3.
 
 7.2 Some Subprocessors process limited Personal Data outside the United Kingdom, as shown in Annex 3. We make those transfers only where Data Protection Law permits it, relying on UK adequacy regulations (including the UK Extension to the EU US Data Privacy Framework) or on the ICO's International Data Transfer Agreement or International Data Transfer Addendum, as stated for each Subprocessor.
 
@@ -400,13 +415,13 @@ Everyone we authorise to access Personal Data is bound by a duty of confidential
 
 ## 10. Helping you with your other obligations
 
-We will give you reasonable help, taking into account the nature of the processing and the information available to us, with data protection impact assessments, prior consultation with the Information Commissioner, and your obligations on security.
+We will give you reasonable help, taking into account the nature of the processing and the information available to us, with data protection impact assessments, prior consultation with the Information Commission (the UK regulator that replaced the Information Commissioner), and your obligations on security.
 
 ## 11. When the Agreement ends
 
 11.1 When the Agreement ends, your Account becomes read only for **90 days** so you can export your Personal Data.
 
-11.2 Within 30 days after that period, we delete the Personal Data from the Platform. Backup copies are overwritten on their normal cycle, and in any case within a further 30 days. If you ask in writing, we will delete sooner, or export the data for you before deletion.
+11.2 At your choice, we return the Personal Data to you (through the read only period and full export, or a full export we produce for you on request) and then delete it, or we delete it sooner if you ask in writing. We delete the Personal Data from the Platform within 30 days after the read only period, and make sure our Subprocessors delete their copies. Backup copies are overwritten on their normal cycle, and in any case within a further 30 days; until then they are kept secure and are not restored or used for anything except deletion.
 
 11.3 We will not keep Personal Data after that unless the law requires us to, in which case we will keep it confidential and process it only for that purpose.
 
@@ -414,13 +429,13 @@ We will give you reasonable help, taking into account the nature of the processi
 
 ## 12. Retention while the Agreement is running
 
-You decide how long Personal Data is kept. The Platform applies the retention settings you choose in Settings, Data retention, including automatic anonymisation of Evidence when its retention period ends and the holds you place to stop that happening.
+You decide how long Personal Data is kept. The Platform applies the retention period you set for each type of record in Settings, Data retention, including automatic anonymisation of records when their retention period ends and the holds you place to stop that happening.
 
 ## 13. Audits
 
 13.1 We will make available to you the information reasonably needed to demonstrate compliance with this DPA and Article 28 of the UK GDPR.
 
-13.2 If that information is not enough, you (or an independent auditor you appoint who is bound by confidentiality) may audit our compliance once in any twelve months, on at least 30 days' notice, between 9am and 5pm on a Working Day, at your own cost, and in a way that does not expose other customers' data. The limit of once a year does not apply after a Personal Data Breach or where a regulator requires it.
+13.2 If that information is not enough, you (or an independent auditor you appoint who is bound by confidentiality) may audit our compliance once in any twelve months, on at least 30 days' notice, between 9am and 5pm on a Working Day, at your own cost, and in a way that does not expose other customers' data. The limit of once a year and the notice period do not apply after a Personal Data Breach, where a regulator requires it, or where you have reasonable grounds to believe we are not complying with this DPA, in which case we will agree a shorter notice period with you.
 
 13.3 Our Subprocessors' own certifications and audit reports may be used to demonstrate their compliance.
 
@@ -466,7 +481,7 @@ If Data Protection Law changes in a way that affects this DPA, we may update it 
 
 (d) Files you upload, including photographs and scanned documents.
 
-(e) Technical data: login times, IP addresses, device and browser details, and the audit trail of access to and changes in Records.
+(e) Technical data held in your Account: login times, IP addresses, device and browser details as recorded in your audit trail, and the audit trail of access to and changes in Records.
 
 **Special category and criminal offence data.**
 
@@ -478,29 +493,33 @@ If Data Protection Law changes in a way that affects this DPA, we may update it 
 
 ## Annex 2: Security measures
 
-**Where your data lives.** Database, file storage and backups are hosted in the United Kingdom (London). The application runs in a London region.
+**Where your data lives.** Your database and files are stored in the United Kingdom (London), and the application runs in London. Annex 3 shows the supporting processing that takes place elsewhere.
 
-**Encryption.** All connections to the Platform are encrypted in transit using TLS. Data is encrypted at rest by our hosting providers.
+**Encryption.** Connections to the Platform are encrypted in transit using TLS. Data is encrypted at rest by our hosting providers.
 
-**Separation between companies.** Every company's data is separated inside the database itself by row level security rules, not only by the application, so one company cannot see another's data even if the application has a fault.
+**Separation between companies.** Each company's data is separated inside the database by row level security rules, not only by the application, so that one company cannot reach another's data even if the application makes a mistake. We test this separation whenever we change the rules that enforce it.
 
-**Role based access.** Each user has one role, such as Company Admin, Responsible Individual, Registered Manager, Branch Manager, Supervisor, Senior, On Call or Viewer, which decides which Branches, Records and features they can reach. Team Members (carer logins) see only their own portal, their own tasks and what has been assigned to them. These limits are enforced in the database, not only on screen.
+**Role based access.** Each user has one role, such as Company Admin, Responsible Individual, Registered Manager, Branch Manager, Supervisor, Senior, On Call or Viewer, which decides which Branches, Records and features they can reach. Team Members (carer logins) see only their own portal, their own tasks and what has been assigned to them. These limits are enforced in the database as well as on screen.
 
-**Accounts.** Accounts are invite only; there is no public sign up. A login can be signed in on one computer and one phone at a time, and signing in on another device of the same kind ends the earlier session, which stops logins being shared.
+**Accounts and sign in.** Accounts are invite only; there is no public sign up. Company Admins and our founder sign in with two factor authentication. A login can be signed in on one computer and one phone at a time, and signing in on another device of the same kind ends the earlier session, to discourage logins being shared.
 
-**Files.** Files and completed Evidence are held in private storage, are never publicly accessible, and are released only through links that expire after five minutes. Each download is recorded.
+**Files.** Files and completed Evidence are held in private storage that is not publicly accessible, and are released only through links that expire after five minutes. Downloads are recorded.
 
 **Audit trail.** Access to and changes in Records are written to an audit trail that users cannot edit.
 
 **Evidence integrity.** Submitted Evidence cannot be altered. It records who completed it, when, and which version of the Form was used.
 
-**Retention.** Your retention rules are applied automatically each night, including anonymisation of Evidence whose retention period has ended, with holds respected.
+**Retention.** The retention periods you set are applied automatically each night, including anonymisation of records whose retention period has ended, with holds respected.
 
 **Our own access.** Only our founder has platform administrator access. Support access to your Account is time limited, clearly shown on screen while in use, and every action taken is recorded in the audit trail against our name. Secret keys are held only on our servers, never in the browser.
 
 **Integrations.** Payment and message webhooks are verified by signature, and scheduled jobs are protected by secrets and refuse to run without them.
 
-**Resilience.** Our database provider takes regular backups. We monitor errors and the health of our payment, email and text message connections from our founder console.
+**Testing and updates.** We review our database provider's security advisories after every change to the database, test access controls when we change them, and apply security updates to our software and its dependencies.
+
+**Backups and recovery.** Our database provider takes regular backups. We test restoring from a backup at least once a year and keep a record of each test.
+
+**Incidents.** We follow a written incident procedure: contain the incident, assess what personal data is affected, tell you under clause 9, record what happened and review what we change as a result.
 
 **People.** Anyone we allow to access Personal Data is bound by confidentiality and given only the access their role requires.
 
@@ -508,10 +527,10 @@ If Data Protection Law changes in a way that affects this DPA, we may update it 
 
 | Subprocessor | What it does | Personal Data involved | Where | Transfer safeguard |
 |---|---|---|---|---|
-| Supabase, Inc. | Database, file storage and sign in | All Customer Data | United Kingdom (London) | Not a restricted transfer for stored data. Supabase's DPA includes the ICO's UK Addendum for any access from outside the UK |
-| Vercel Inc. | Runs the web application | Customer Data passing through the application while in use | Application runs in London. Vercel Inc. is a US company | ICO International Data Transfer Addendum in Vercel's DPA |
-| Plus Five Five, Inc. (Resend) | Sends the Platform's emails | Recipient name and email address, and the content of the email | Account data, email records and logs are held in the United States | UK Extension to the EU US Data Privacy Framework, and the ICO's UK Addendum |
-| Twilio Inc. | Sends text messages, when you use a texting feature | Recipient mobile number and the message text | United States | UK Extension to the EU US Data Privacy Framework, Binding Corporate Rules, and the ICO's International Data Transfer Agreement |
-| Anthropic, PBC | AI drafting, only when one of your users presses an AI button | The text needed for that task, for example the details of an absence | United States | ICO International Data Transfer Addendum in Anthropic's DPA. Anthropic states it does not train its models on this data, and normally deletes it within 30 days (longer only if its safety systems flag misuse) |
+| Supabase, Inc. | Database, file storage and sign in | All Customer Data | Database and files in the United Kingdom (London). Supabase's system logs and support access may be outside the United Kingdom | UK Addendum to the EU Standard Contractual Clauses, in Supabase's DPA |
+| Vercel Inc. | Runs the web application | Customer Data passing through the application while in use | Application runs in London. Vercel's logs and platform data may be processed in the United States | UK Extension to the EU US Data Privacy Framework, and the UK International Data Transfer Addendum in Vercel's DPA |
+| Plus Five Five, Inc. (Resend) | Sends the Platform's emails | Recipient name and email address, and the content of the email | United States | UK Extension to the EU US Data Privacy Framework, and the UK Addendum to the EU Standard Contractual Clauses in Resend's DPA |
+| Twilio Inc. | Sends text messages, when you use a texting feature | Recipient mobile number and the message text | United States | UK Extension to the EU US Data Privacy Framework, and the UK International Data Transfer Addendum in Twilio's DPA |
+| Anthropic, PBC | AI drafting, only when one of your users presses an AI button | The text needed for that task, for example the details of an absence | United States, or other locations Anthropic uses to run its models | UK Addendum to the EU Standard Contractual Clauses, in Anthropic's DPA. Anthropic does not use this data to train its models. It deletes inputs and outputs within 30 days, except where its safety systems flag a breach of its usage policy, when it may keep them for up to two years |
 
-**Payments.** Stripe takes your payments. It receives only your billing contact's details and your payment details, never Customer Data, and acts as a controller under its own terms, so it is not a Subprocessor.`;
+**Payments.** Stripe takes your payments. It receives only your billing contact's details and your payment details, never Customer Data. It processes them for us and, for its own fraud prevention and legal duties, as a controller, so it is not a Subprocessor of Customer Data.`;

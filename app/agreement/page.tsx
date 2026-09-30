@@ -6,7 +6,10 @@ import { createClient } from "@/lib/supabase/server";
 import { getCompanyTrialState } from "@/lib/billing/trial-gate";
 import { needsAgreement, listAcceptances, type AcceptanceRow } from "@/lib/legal/acceptance";
 import { legalDocuments, legalPublished, LEGAL_VERSIONS } from "@/lib/legal/documents";
-import { acceptanceCurrent, ORGANISATION_TYPES, organisationLabel, planLabel, onboardingFeeLabel } from "@/lib/legal/fill";
+import { acceptanceCurrent, ORGANISATION_TYPES, organisationLabel, planLabel, onboardingFeeLabel, orderIncludedText, orderPriceText } from "@/lib/legal/fill";
+import { TIER_BASE_PENCE } from "@/lib/stripe/config";
+import { includedBranchesForTier, includedSeatsForTier } from "@/lib/billing/seats";
+import { ANNUAL_MONTHS_CHARGED, PRICE_LIST_DATE, aiMonthlyCredits, smsMonthlyCredits } from "@/lib/billing/allowances";
 import { ONBOARDING_FEE, ONBOARDING_OFFER_END_TEXT, onboardingOfferActive } from "@/lib/marketing/offer";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import { ukDate } from "@/lib/dates";
@@ -46,7 +49,10 @@ function OrderTable({ a }: { a: AcceptanceRow }) {
     ["Company or charity number", a.company_number ?? "None given"],
     ["Registered or main address", a.customer_address],
     ["Plan", a.plan],
+    ["Price", a.price_text ?? "Not recorded"],
+    ["Included", a.included_text ?? "Not recorded"],
     ["Billing option", a.billing_option === "annual" ? "Annual" : "Monthly"],
+    ["Price List", a.price_list_date ?? "Not recorded"],
     ["Onboarding fee", a.onboarding_fee],
     ["Start date", ukDate(a.start_date)],
     ["Accepted by", `${a.accepted_by_name}, Company Admin`],
@@ -155,6 +161,15 @@ export default async function AgreementPage() {
     offerEnd: ONBOARDING_OFFER_END_TEXT,
   });
   const renewal = acceptances.length > 0;
+  const monthlyPence = company.tier === "business" || company.tier === "pro" ? TIER_BASE_PENCE[company.tier] : null;
+  const priceMonthly = orderPriceText({ tier: company.tier, billingOption: "monthly", monthlyPence, annualMonths: ANNUAL_MONTHS_CHARGED });
+  const priceAnnual = orderPriceText({ tier: company.tier, billingOption: "annual", monthlyPence, annualMonths: ANNUAL_MONTHS_CHARGED });
+  const included = orderIncludedText({
+    users: includedSeatsForTier(company.tier ?? "business"),
+    branches: includedBranchesForTier(company.tier ?? "business"),
+    ai: aiMonthlyCredits(company.tier),
+    sms: smsMonthlyCredits(company.tier),
+  });
 
   return (
     <main className="app-bg min-h-dvh px-4 py-10">
@@ -269,6 +284,14 @@ export default async function AgreementPage() {
             <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-[max-content_1fr]">
               <dt className="text-white/55">Plan</dt>
               <dd className="text-white/85">{planLabel(company.tier)}</dd>
+              <dt className="text-white/55">Price</dt>
+              <dd className="text-white/85">
+                {monthlyPence === null ? priceMonthly : `Monthly: ${priceMonthly}. Annual: ${priceAnnual}.`}
+              </dd>
+              <dt className="text-white/55">Included</dt>
+              <dd className="text-white/85">{included}</dd>
+              <dt className="text-white/55">Price List</dt>
+              <dd className="text-white/85">{PRICE_LIST_DATE}</dd>
               <dt className="text-white/55">Onboarding fee</dt>
               <dd className="text-white/85">{fee}</dd>
               <dt className="text-white/55">Accepted by</dt>

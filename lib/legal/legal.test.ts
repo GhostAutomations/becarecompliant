@@ -112,3 +112,26 @@ test("which acceptance counts", async () => {
   assert.equal(agreementGateOn(false, true), true, "on for a test company");
   assert.equal(agreementGateOn(true, false), true, "on for all once published");
 });
+
+test("the Order's price and included lines", async () => {
+  const { orderPriceText, orderIncludedText } = await import("./fill.ts");
+  assert.equal(orderPriceText({ tier: "business", billingOption: "monthly", monthlyPence: 7900, annualMonths: 10 }), "£79 a month plus VAT");
+  assert.equal(orderPriceText({ tier: "pro", billingOption: "annual", monthlyPence: 12900, annualMonths: 10 }), "£1,290 a year plus VAT, paid yearly in advance");
+  assert.match(orderPriceText({ tier: "black", billingOption: "monthly", monthlyPence: null, annualMonths: 10 }), /No charge/);
+  assert.equal(
+    orderIncludedText({ users: 4, branches: 1, ai: 25, sms: 0 }),
+    "4 users, 1 branch, 25 AI credits a month, no text messages, free carer logins",
+  );
+  assert.equal(
+    orderIncludedText({ users: 9999, branches: 9999, ai: 1000, sms: 2000 }),
+    "unlimited users, unlimited branches, 1000 AI credits a month, 2000 text messages a month, free carer logins",
+  );
+});
+
+test("the agreement carries the new clauses", () => {
+  for (const c of ["7.7 **Refunds", "8.4 On the Annual option", "11.6 **Retention.**", "11.8 **Inspection reports", "15.4 Fees continue", "19.4 A change we must make"]) {
+    assert.ok(SUBSCRIPTION_AGREEMENT_1_0.includes(c), c);
+  }
+  assert.ok(DATA_PROCESSING_AGREEMENT_1_0.includes("Information Commission"));
+  assert.ok(!DATA_PROCESSING_AGREEMENT_1_0.includes("Binding Corporate Rules"));
+});

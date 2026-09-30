@@ -7,7 +7,10 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
 import { legalDocuments, legalPublished, LEGAL_VERSIONS } from "@/lib/legal/documents";
-import { acceptanceCurrent, checkOrder, onboardingFeeLabel, planLabel } from "@/lib/legal/fill";
+import { acceptanceCurrent, checkOrder, onboardingFeeLabel, orderIncludedText, orderPriceText, planLabel } from "@/lib/legal/fill";
+import { TIER_BASE_PENCE } from "@/lib/stripe/config";
+import { includedBranchesForTier, includedSeatsForTier } from "@/lib/billing/seats";
+import { ANNUAL_MONTHS_CHARGED, PRICE_LIST_DATE, aiMonthlyCredits, smsMonthlyCredits } from "@/lib/billing/allowances";
 import { ONBOARDING_FEE, ONBOARDING_OFFER_END_TEXT, onboardingOfferActive } from "@/lib/marketing/offer";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import type { ActionState } from "@/lib/forms";
@@ -93,6 +96,20 @@ export async function acceptAgreement(_prev: ActionState, formData: FormData): P
     customer_address: input.address.trim(),
     plan: planLabel(company.tier),
     billing_option: input.billingOption,
+    price_text: orderPriceText({
+      tier: company.tier,
+      billingOption: input.billingOption,
+      monthlyPence:
+        company.tier === "business" || company.tier === "pro" ? TIER_BASE_PENCE[company.tier] : null,
+      annualMonths: ANNUAL_MONTHS_CHARGED,
+    }),
+    included_text: orderIncludedText({
+      users: includedSeatsForTier(company.tier ?? "business"),
+      branches: includedBranchesForTier(company.tier ?? "business"),
+      ai: aiMonthlyCredits(company.tier),
+      sms: smsMonthlyCredits(company.tier),
+    }),
+    price_list_date: PRICE_LIST_DATE,
     onboarding_fee: onboardingFeeLabel({
       tier: company.tier,
       offerActive: onboardingOfferActive(today),
