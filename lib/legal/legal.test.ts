@@ -169,7 +169,10 @@ test("the Order table in the agreement fills from the Order (Phil, 2026-09-30)",
     plan: "Pro",
     price: "£1,290 a year plus VAT, paid yearly in advance",
     included: "6 users, office team and 2 branches",
-    branches: "3 branches: 2 included, plus 1 extra",
+    extraUsers: "None",
+    extraBranches: "1, at £25.00 a month each",
+    extrasPaid: "Yearly with the plan, ten months' price for twelve",
+    total: "£1,540.00 a year plus VAT",
     billingOption: "annual",
     priceList: "29 September 2026",
     onboardingFee: "Waived (joined by 31 December 2026)",
@@ -220,21 +223,53 @@ test("extras on the Order and where Accept goes next (Phil, 2026-09-30)", async 
   assert.equal(isLiveSubscription("active", null), false);
 });
 
-test("branches on the Order (Phil, 2026-09-30)", async () => {
-  const { orderBranchesText, extraBranchCount, checkOrder } = await import("./fill.ts");
-  assert.equal(extraBranchCount(3, 2), 1);
-  assert.equal(extraBranchCount(1, 2), 0);
-  assert.equal(orderBranchesText({ tier: "pro", ordered: 2, included: 2, branchPence: 2500 }), "2 branches, included in your plan");
-  assert.equal(orderBranchesText({ tier: "business", ordered: 1, included: 1, branchPence: 2500 }), "1 branch, included in your plan");
-  assert.equal(
-    orderBranchesText({ tier: "pro", ordered: 4, included: 2, branchPence: 2500 }),
-    "4 branches: 2 included, plus 2 extra at £25 a month each (£50 a month plus VAT)",
-  );
-  assert.match(orderBranchesText({ tier: "black", ordered: 1, included: 9999, branchPence: 2500 }), /Black account/);
-  const base = { legalName: "Bevan Care Ltd", organisationType: "partnership", companyNumber: "", address: "1 Test Street", billingOption: "monthly", accepted: true };
-  assert.deepEqual(checkOrder({ ...base, branches: "3" }), {});
-  assert.ok(checkOrder({ ...base, branches: "0" }).branches);
-  assert.ok(checkOrder({ ...base, branches: "1.5" }).branches);
-  assert.ok(checkOrder({ ...base, branches: "51" }).branches);
-  assert.deepEqual(checkOrder({ ...base, billingOption: "none", branches: "0" }, { billingApplies: false }), {}, "Black is not asked");
+test("extras and the cost breakdown on the Order (Phil, 2026-09-30)", async () => {
+  const { orderCosts, extrasLineText, extrasPaidText, checkOrder, money } = await import("./fill.ts");
+  const base = { tier: "pro", plan: "Pro", monthlyPence: 12900, annualMonths: 10, seatPence: 500, branchPence: 2500, onboardingFee: "Waived" };
+  assert.equal(money(129000), "£1,290.00");
+
+  // Monthly, one extra branch: £129 + £25 = £154 a month.
+  const m = orderCosts({ ...base, billingOption: "monthly", extrasBilling: "yearly", extraUsers: 0, extraBranches: 1 });
+  assert.equal(m.groups.length, 1);
+  assert.equal(m.groups[0].heading, "Your monthly cost");
+  assert.deepEqual(m.groups[0].lines.map((l) => l.amount), ["£129.00", "£25.00"]);
+  assert.equal(m.totalText, "£154.00 a month plus VAT");
+  assert.equal(m.extrasBilling, "monthly");
+  assert.equal(extrasPaidText(m, "monthly", "pro"), "Monthly, with the plan");
+
+  // Annual, extras yearly: ten months' price for twelve on the extras too. 1290 + 2 x 5 x 10 + 1 x 25 x 10 = 1640.
+  const y = orderCosts({ ...base, billingOption: "annual", extrasBilling: "yearly", extraUsers: 2, extraBranches: 1 });
+  assert.equal(y.groups.length, 1);
+  assert.equal(y.totalText, "£1,640.00 a year plus VAT");
+  assert.equal(y.extrasBilling, "yearly");
+  assert.match(y.groups[0].lines[1].label, /2 extra users x £5.00 x 10 months/);
+
+  // Annual, extras monthly by card: full price each month. 1290 a year, 2 x 5 + 25 = 35 a month.
+  const ym = orderCosts({ ...base, billingOption: "annual", extrasBilling: "monthly", extraUsers: 2, extraBranches: 1 });
+  assert.equal(ym.groups.length, 2);
+  assert.equal(ym.groups[1].total.amount, "£35.00");
+  assert.equal(ym.totalText, "£1,290.00 a year and £35.00 a month, plus VAT");
+  assert.equal(extrasPaidText(ym, "annual", "pro"), "Monthly, by card");
+
+  // No extras on Annual: nothing to choose.
+  const none = orderCosts({ ...base, billingOption: "annual", extrasBilling: "monthly", extraUsers: 0, extraBranches: 0 });
+  assert.equal(none.totalText, "£1,290.00 a year plus VAT");
+  assert.equal(extrasPaidText(none, "annual", "pro"), "No extras");
+
+  // Black: no charge, nothing asked.
+  const black = orderCosts({ ...base, tier: "black", monthlyPence: null, billingOption: "none", extrasBilling: "yearly", extraUsers: 0, extraBranches: 0 });
+  assert.equal(black.groups.length, 0);
+  assert.match(black.totalText, /Black account/);
+  assert.equal(extrasLineText(3, 2500, "black"), "Not applicable (Black account)");
+  assert.equal(extrasLineText(0, 500, "pro"), "None");
+  assert.equal(extrasLineText(2, 500, "pro"), "2, at £5.00 a month each");
+
+  // The form's checks.
+  const order = { legalName: "Bevan Care Ltd", organisationType: "partnership", companyNumber: "", address: "1 Test Street", billingOption: "monthly", accepted: true };
+  assert.deepEqual(checkOrder({ ...order, extraUsers: "0", extraBranches: "2" }), {});
+  assert.ok(checkOrder({ ...order, extraUsers: "-1", extraBranches: "0" }).extraUsers);
+  assert.ok(checkOrder({ ...order, extraUsers: "", extraBranches: "0" }).extraUsers);
+  assert.ok(checkOrder({ ...order, extraUsers: "0", extraBranches: "51" }).extraBranches);
+  assert.ok(checkOrder({ ...order, billingOption: "annual", extraUsers: "0", extraBranches: "1", extrasBilling: "weekly" }).extrasBilling);
+  assert.deepEqual(checkOrder({ ...order, billingOption: "none", extraUsers: "-5" }, { billingApplies: false }), {}, "Black is not asked");
 });

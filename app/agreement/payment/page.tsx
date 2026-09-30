@@ -63,14 +63,20 @@ export default async function AgreementPaymentPage() {
           <dl className="mt-5 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-[max-content_1fr]">
             <dt className="text-white/55">Plan</dt>
             <dd className="text-white/85">{current.plan}</dd>
-            <dt className="text-white/55">Price</dt>
+            <dt className="text-white/55">Plan price</dt>
             <dd className="text-white/85">{current.price_text ?? "As shown on your Order"}</dd>
-            {current.branches_text ? (
+            <dt className="text-white/55">Extra users</dt>
+            <dd className="text-white/85">{current.extra_users_text ?? "None"}</dd>
+            <dt className="text-white/55">Extra branches</dt>
+            <dd className="text-white/85">{current.branches_text ?? "None"}</dd>
+            {current.extras_paid_text ? (
               <>
-                <dt className="text-white/55">Branches</dt>
-                <dd className="text-white/85">{current.branches_text}</dd>
+                <dt className="text-white/55">Extras paid</dt>
+                <dd className="text-white/85">{current.extras_paid_text}</dd>
               </>
             ) : null}
+            <dt className="text-white/55">Total</dt>
+            <dd className="text-white">{current.total_text ?? current.price_text ?? "As shown on your Order"}</dd>
             <dt className="text-white/55">Onboarding fee</dt>
             <dd className="text-white/85">{current.onboarding_fee}</dd>
             {current.price_list_date ? (
@@ -85,7 +91,11 @@ export default async function AgreementPaymentPage() {
             <div className="mt-6 space-y-4">
               <p className="rounded-lg border border-white/10 bg-white/[0.03] p-3 text-sm text-white/80">
                 We will email your first year&apos;s invoice to {profile.email}. It is payable within 14 days, by card
-                or bank transfer. You can start using Be Care Compliant straight away.
+                or bank transfer.
+                {current.extras_billing === "monthly"
+                  ? " Your extras are paid monthly by card: we will email you a secure link to add a card."
+                  : ""}{" "}
+                You can start using Be Care Compliant straight away.
               </p>
               <Link href="/dashboard" className="btn btn-primary">
                 Continue

@@ -137,3 +137,17 @@ Bevan switched to Pro by SQL for this (no Stripe subscription, so nothing billed
   row has branches_ordered 4 and that line; Payment and Founder > Agreements show it. Black: not asked.
 - A16 Monthly still to run: Add a card opens Stripe Checkout (do not pay); no skip link on Bevan
   (no trial).
+  A17 superseded (2026-09-30): Phil asked instead for "Your plan includes X. How many extra ... ?"
+  for users AND branches, the charge in white underneath, the plan as bullet points, and a breakdown
+  like an invoice with the total; no bold. Annual: the Admin chooses extras yearly with the plan
+  (ten months' price for twelve) or monthly by card (full price). Totals read plus VAT. Built with
+  0351 (extra_users, extra_branches, extra_users_text, extras_billing, extras_paid_text,
+  total_text); the agreement's Order gains Extra users, Extra branches, Extras paid and Total rows.
+- A18 Order extras and breakdown (Pro): bullets for the plan; "Your plan includes 6 users. How many
+  extra users do you need?" 0 gives "Nothing extra."; 2 gives "You will be charged an extra £10.00 a
+  month (2 x £5.00)". Branches the same at £25. Monthly with 1 extra branch: "Your monthly cost" Pro
+  plan £129.00, 1 extra branch x £25.00 £25.00, Total each month, plus VAT £154.00. Annual with
+  extras: the "How would you like to pay for the extras?" choice appears; Yearly shows one yearly
+  total with extras x 10 months; Monthly by card shows the plan a year and a separate monthly total.
+  The agreement's Order and, after Accept, Payment, Your agreement and Founder > Agreements show the
+  same lines. Nothing in the section is bold.

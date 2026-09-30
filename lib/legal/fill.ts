@@ -103,12 +103,16 @@ export type OrderInput = {
   address: string;
   billingOption: string;
   accepted: boolean;
-  /** How many branches the Order asks for (Phil, 2026-09-30). Only asked on a billed plan. */
-  branches?: string;
+  /** Extra users and extra branches on top of the plan (Phil, 2026-09-30). Only asked on a billed plan. */
+  extraUsers?: string;
+  extraBranches?: string;
+  /** On Annual only: are the extras paid yearly with the plan, or monthly by card. */
+  extrasBilling?: string;
 };
 
-/** The most branches one Order can ask for on screen; more is a conversation, not a form. */
-export const MAX_ORDER_BRANCHES = 50;
+/** The most extras one Order can ask for on screen; more is a conversation, not a form. */
+export const MAX_EXTRA_USERS = 500;
+export const MAX_EXTRA_BRANCHES = 50;
 
 /** The accept form's checks, one message per field. Empty object means it can be accepted. */
 export function checkOrder(o: OrderInput, opts: { billingApplies?: boolean } = {}): Partial<Record<keyof OrderInput, string>> {
@@ -127,10 +131,18 @@ export function checkOrder(o: OrderInput, opts: { billingApplies?: boolean } = {
   else if (addr.length > 500) e.address = "That address is too long.";
   if (billing && o.billingOption !== "monthly" && o.billingOption !== "annual") e.billingOption = "Choose Monthly or Annual.";
   if (!billing && o.billingOption !== "none") e.billingOption = "This plan has no billing option.";
-  if (billing && o.branches !== undefined) {
-    const n = Number(o.branches);
-    if (!Number.isInteger(n) || n < 1) e.branches = "Enter how many branches you need, 1 or more.";
-    else if (n > MAX_ORDER_BRANCHES) e.branches = `For more than ${MAX_ORDER_BRANCHES} branches, please contact us.`;
+  if (billing && o.extraUsers !== undefined) {
+    const n = Number(o.extraUsers);
+    if (o.extraUsers.trim() === "" || !Number.isInteger(n) || n < 0) e.extraUsers = "Enter how many extra users you need, 0 or more.";
+    else if (n > MAX_EXTRA_USERS) e.extraUsers = `For more than ${MAX_EXTRA_USERS} extra users, please contact us.`;
+  }
+  if (billing && o.extraBranches !== undefined) {
+    const n = Number(o.extraBranches);
+    if (o.extraBranches.trim() === "" || !Number.isInteger(n) || n < 0) e.extraBranches = "Enter how many extra branches you need, 0 or more.";
+    else if (n > MAX_EXTRA_BRANCHES) e.extraBranches = `For more than ${MAX_EXTRA_BRANCHES} extra branches, please contact us.`;
+  }
+  if (billing && o.billingOption === "annual" && o.extrasBilling !== undefined && o.extrasBilling !== "yearly" && o.extrasBilling !== "monthly") {
+    e.extrasBilling = "Choose how to pay for the extras.";
   }
   if (!o.accepted) e.accepted = "Tick the box to confirm you accept both agreements.";
   return e;
@@ -179,7 +191,7 @@ export function orderPriceText(input: {
 }
 
 /** The Order's "what is included" line. A very large number (Black) reads as unlimited. */
-export function orderIncludedText(input: { users: number; branches: number; ai: number; sms: number }): string {
+export function orderIncludedList(input: { users: number; branches: number; ai: number; sms: number }): string[] {
   const n = (v: number, one: string, many: string) => (v >= 9999 ? `unlimited ${many}` : `${v} ${v === 1 ? one : many}`);
   return [
     n(input.users, "user", "users"),
@@ -187,7 +199,12 @@ export function orderIncludedText(input: { users: number; branches: number; ai: 
     `${input.ai} AI credits a month`,
     input.sms > 0 ? `${input.sms} text messages a month` : "no text messages",
     "free carer logins",
-  ].join(", ");
+  ];
+}
+
+/** The same, as one line for the agreement's Order and the stored record. Shown as bullets on screen. */
+export function orderIncludedText(input: { users: number; branches: number; ai: number; sms: number }): string {
+  return orderIncludedList(input).join(", ");
 }
 
 /**
@@ -210,8 +227,11 @@ export const ORDER_ROWS = [
   "Plan",
   "Price",
   "Included",
-  "Branches",
+  "Extra users",
+  "Extra branches",
   "Billing option",
+  "Extras paid",
+  "Total",
   "Price List",
   "Onboarding fee",
   "Start date",
@@ -262,7 +282,10 @@ export function orderTableValues(o: {
   plan: string;
   price: string;
   included: string;
-  branches: string;
+  extraUsers: string;
+  extraBranches: string;
+  extrasPaid: string;
+  total: string;
   billingOption: string;
   priceList: string;
   onboardingFee: string;
@@ -280,7 +303,10 @@ export function orderTableValues(o: {
     Plan: o.plan,
     Price: o.price,
     Included: o.included,
-    Branches: o.branches,
+    "Extra users": o.extraUsers,
+    "Extra branches": o.extraBranches,
+    "Extras paid": o.extrasPaid,
+    Total: o.total,
     "Billing option": billingOptionLabel(o.billingOption),
     "Price List": o.priceList,
     "Onboarding fee": o.onboardingFee,
@@ -322,25 +348,124 @@ export function isLiveSubscription(status: string | null | undefined, subscripti
 }
 
 /**
- * BRANCHES ON THE ORDER (Phil, 2026-09-30, by popup: "it should ask how many branches"). Business
- * includes the office team and 1 branch, Pro the office team and 2 (the pricing page and billing
- * agree); more are an extra charge each month. The answer is recorded on the Order for the founder
- * to set up; billing still follows the branches actually set up.
+ * EXTRAS AND WHAT IT COSTS (Phil, 2026-09-30, testing on his phone, agreed by popup). The Order asks
+ * how many extra users and extra branches on top of the plan, says in plain words what each adds,
+ * and ends with a breakdown like an invoice, so the Admin knows exactly what they will pay.
+ *
+ * Annual: the Admin chooses how the extras are paid. Yearly with the plan gets the same ten
+ * months' price for twelve as the plan; monthly by card pays the full monthly price every month
+ * ("so it's not such a shock"). Prices are shown plus VAT. The onboarding fee is one-off, outside
+ * the totals. Billing still follows the users and branches actually set up; this is the Order.
  */
-export function extraBranchCount(ordered: number, included: number): number {
-  return Math.max(0, Math.trunc(ordered) - included);
+export type ExtrasBilling = "monthly" | "yearly" | "none";
+
+export type CostLine = { label: string; amount: string };
+export type CostGroup = { heading: string; lines: CostLine[]; total: CostLine };
+export type OrderCosts = {
+  groups: CostGroup[];
+  oneOff: CostLine | null;
+  /** One line for the Order table and the record, e.g. "£154 a month plus VAT". */
+  totalText: string;
+  extrasBilling: ExtrasBilling;
+};
+
+/** Money as it reads on an invoice: always pence, "£1,290.00". */
+export function money(pence: number): string {
+  return `£${(pence / 100).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-export function orderBranchesText(input: {
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+export function orderCosts(i: {
   tier: string | null | undefined;
-  ordered: number;
-  included: number;
+  plan: string;
+  billingOption: string;
+  /** Only read on Annual: "yearly" or "monthly". */
+  extrasBilling: string;
+  monthlyPence: number | null;
+  annualMonths: number;
+  extraUsers: number;
+  extraBranches: number;
+  seatPence: number;
   branchPence: number;
-}): string {
-  if (input.tier === "black") return "As many as you need (Black account)";
-  const ordered = Math.max(0, Math.trunc(input.ordered));
-  const extra = extraBranchCount(ordered, input.included);
-  const label = (v: number) => `${v} ${v === 1 ? "branch" : "branches"}`;
-  if (extra === 0) return `${label(ordered)}, included in your plan`;
-  return `${label(ordered)}: ${input.included} included, plus ${extra} extra at ${pounds(input.branchPence)} a month each (${pounds(extra * input.branchPence)} a month plus VAT)`;
+  onboardingFee: string;
+}): OrderCosts {
+  if (i.tier === "black" || i.monthlyPence === null) {
+    return { groups: [], oneOff: null, totalText: "No charge (Black account)", extrasBilling: "none" };
+  }
+  const users = Math.max(0, Math.trunc(i.extraUsers) || 0);
+  const branches = Math.max(0, Math.trunc(i.extraBranches) || 0);
+  const hasExtras = users + branches > 0;
+  const oneOff: CostLine = { label: "Onboarding fee, one-off", amount: i.onboardingFee };
+
+  const extraLines = (months: number | null): { lines: CostLine[]; pence: number } => {
+    const lines: CostLine[] = [];
+    let pence = 0;
+    const per = months === null ? "" : ` x ${months} months`;
+    if (users > 0) {
+      const p = users * i.seatPence * (months ?? 1);
+      lines.push({ label: `${plural(users, "extra user", "extra users")} x ${money(i.seatPence)}${per}`, amount: money(p) });
+      pence += p;
+    }
+    if (branches > 0) {
+      const p = branches * i.branchPence * (months ?? 1);
+      lines.push({ label: `${plural(branches, "extra branch", "extra branches")} x ${money(i.branchPence)}${per}`, amount: money(p) });
+      pence += p;
+    }
+    return { lines, pence };
+  };
+
+  if (i.billingOption !== "annual") {
+    const ex = extraLines(null);
+    const total = i.monthlyPence + ex.pence;
+    return {
+      groups: [
+        {
+          heading: "Your monthly cost",
+          lines: [{ label: `${i.plan} plan`, amount: money(i.monthlyPence) }, ...ex.lines],
+          total: { label: "Total each month, plus VAT", amount: money(total) },
+        },
+      ],
+      oneOff,
+      totalText: `${money(total)} a month plus VAT`,
+      extrasBilling: hasExtras ? "monthly" : "none",
+    };
+  }
+
+  const planYear = i.monthlyPence * i.annualMonths;
+  const planLine: CostLine = { label: `${i.plan} plan, a year`, amount: money(planYear) };
+  if (!hasExtras || i.extrasBilling !== "monthly") {
+    const ex = extraLines(hasExtras ? i.annualMonths : null);
+    const total = planYear + ex.pence;
+    return {
+      groups: [{ heading: "Your yearly cost", lines: [planLine, ...ex.lines], total: { label: "Total each year, plus VAT", amount: money(total) } }],
+      oneOff,
+      totalText: `${money(total)} a year plus VAT`,
+      extrasBilling: hasExtras ? "yearly" : "none",
+    };
+  }
+  const ex = extraLines(null);
+  return {
+    groups: [
+      { heading: "Your yearly cost", lines: [planLine], total: { label: "Total each year, plus VAT", amount: money(planYear) } },
+      { heading: "Your monthly cost, by card", lines: ex.lines, total: { label: "Total each month, plus VAT", amount: money(ex.pence) } },
+    ],
+    oneOff,
+    totalText: `${money(planYear)} a year and ${money(ex.pence)} a month, plus VAT`,
+    extrasBilling: "monthly",
+  };
+}
+
+/** "None" or "2, at £5.00 a month each", for the Order table and the record. */
+export function extrasLineText(count: number, unitPence: number, tier: string | null | undefined): string {
+  if (tier === "black") return "Not applicable (Black account)";
+  const n = Math.max(0, Math.trunc(count) || 0);
+  return n === 0 ? "None" : `${n}, at ${money(unitPence)} a month each`;
+}
+
+export function extrasPaidText(c: OrderCosts, billingOption: string, tier: string | null | undefined): string {
+  if (tier === "black") return "Not applicable (Black account)";
+  if (c.extrasBilling === "none") return "No extras";
+  if (billingOption !== "annual") return "Monthly, with the plan";
+  return c.extrasBilling === "yearly" ? "Yearly with the plan, ten months' price for twelve" : "Monthly, by card";
 }

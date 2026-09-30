@@ -319,8 +319,11 @@ The Platform records this when your Company Admin accepts. A signed copy can be 
 | Plan | [Business / Pro / Black] |
 | Price | [£ per month or per year, plus VAT] |
 | Included | [users, branches, AI credits and SMS credits a month] |
-| Branches | [How many branches, and any extra branches] |
+| Extra users | [None / number, at the Price List rate] |
+| Extra branches | [None / number, at the Price List rate] |
 | Billing option | [Monthly / Annual] |
+| Extras paid | [With the plan / Yearly / Monthly by card] |
+| Total | [£ a month or a year, plus VAT] |
 | Price List | [Date of the Price List that applies] |
 | Onboarding fee | [£295 plus VAT / Waived] |
 | Start date | [ ] |

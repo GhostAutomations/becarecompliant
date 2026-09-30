@@ -4,7 +4,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import ActionForm from "@/components/action-form";
 import LegalDocumentView from "@/components/legal/legal-document-view";
 import { acceptAgreement } from "@/lib/legal/accept-actions";
-import { MAX_ORDER_BRANCHES, ORGANISATION_TYPES, fillOrderTable, orderBranchesText, orderTableValues } from "@/lib/legal/fill";
+import {
+  MAX_EXTRA_BRANCHES,
+  MAX_EXTRA_USERS,
+  ORGANISATION_TYPES,
+  extrasLineText,
+  extrasPaidText,
+  fillOrderTable,
+  money,
+  orderCosts,
+  orderTableValues,
+} from "@/lib/legal/fill";
 
 /**
  * The accept screen's form (/agreement): the Order, both agreements, the tick and Accept.
@@ -30,9 +40,16 @@ import { MAX_ORDER_BRANCHES, ORGANISATION_TYPES, fillOrderTable, orderBranchesTe
 export type OrderSummary = {
   plan: string;
   tier: string;
-  /** Branches the plan includes (not counting the office team), and the price of each extra. */
+  /** What the plan includes, as short points for the screen. */
+  includedList: string[];
+  /** Users and branches (not counting the office team) the plan includes, and each extra's price. */
+  usersIncluded: number;
   branchesIncluded: number;
+  seatPence: number;
   branchPence: number;
+  /** The plan's monthly price in pence (null on Black) and how many months Annual charges. */
+  monthlyPence: number | null;
+  annualMonths: number;
   /** The price line for each billing option. For a Black account both read "No charge". */
   priceMonthly: string;
   priceAnnual: string;
@@ -73,19 +90,32 @@ export default function AcceptOrderForm({
   const [address, setAddress] = useState(initial.address);
   const [billing, setBilling] = useState(billingApplies ? "monthly" : "none");
   const [accepted, setAccepted] = useState(false);
-  const [branches, setBranches] = useState(String(summary.branchesIncluded));
-  const branchesText = orderBranchesText({
+  const [extraUsers, setExtraUsers] = useState("0");
+  const [extraBranches, setExtraBranches] = useState("0");
+  const [extrasBilling, setExtrasBilling] = useState("yearly");
+  const users = Math.max(0, Math.trunc(Number(extraUsers)) || 0);
+  const branches = Math.max(0, Math.trunc(Number(extraBranches)) || 0);
+  const costs = orderCosts({
     tier: summary.tier,
-    ordered: Number(branches) || 0,
-    included: summary.branchesIncluded,
+    plan: summary.plan,
+    billingOption: billing,
+    extrasBilling,
+    monthlyPence: summary.monthlyPence,
+    annualMonths: summary.annualMonths,
+    extraUsers: users,
+    extraBranches: branches,
+    seatPence: summary.seatPence,
     branchPence: summary.branchPence,
+    onboardingFee: summary.onboardingFee,
   });
+  const chargeText = (n: number, unit: number) =>
+    n === 0 ? "Nothing extra." : `You will be charged an extra ${money(n * unit)} a month (${n} x ${money(unit)}).`;
   const numberRequired = orgType === "limited_company" || orgType === "charity";
   const price = billing === "annual" ? summary.priceAnnual : summary.priceMonthly;
 
   const anchorRef = useRef<HTMLDivElement | null>(null);
-  const latest = useRef({ orgType, billing, accepted });
-  latest.current = { orgType, billing, accepted };
+  const latest = useRef({ orgType, billing, accepted, extrasBilling });
+  latest.current = { orgType, billing, accepted, extrasBilling };
   useEffect(() => {
     const form = anchorRef.current?.closest("form");
     if (!form) return;
@@ -96,6 +126,9 @@ export default function AcceptOrderForm({
         if (sel) sel.value = v.orgType;
         form.querySelectorAll<HTMLInputElement>('input[name="billing_option"]').forEach((r) => {
           r.checked = r.value === v.billing;
+        });
+        form.querySelectorAll<HTMLInputElement>('input[name="extras_billing"]').forEach((r) => {
+          r.checked = r.value === v.extrasBilling;
         });
         const box = form.querySelector<HTMLInputElement>('input[name="accept"]');
         if (box) box.checked = v.accepted;
@@ -117,7 +150,10 @@ export default function AcceptOrderForm({
           plan: summary.plan,
           price,
           included: summary.included,
-          branches: branchesText,
+          extraUsers: extrasLineText(users, summary.seatPence, summary.tier),
+          extraBranches: extrasLineText(branches, summary.branchPence, summary.tier),
+          extrasPaid: extrasPaidText(costs, billing, summary.tier),
+          total: costs.totalText,
           billingOption: billing,
           priceList: summary.priceList,
           onboardingFee: summary.onboardingFee,
@@ -128,7 +164,7 @@ export default function AcceptOrderForm({
           dpaVersion: summary.dpaVersion,
         }),
       ),
-    [agreementText, legalName, orgType, companyNumber, address, billing, price, branchesText, summary],
+    [agreementText, legalName, orgType, companyNumber, address, billing, price, users, branches, costs, summary],
   );
 
   const draftTag = published ? "" : ", draft";
@@ -242,48 +278,143 @@ export default function AcceptOrderForm({
           <input type="hidden" name="billing_option" value="none" />
         )}
 
-        {billingApplies ? (
-          <div className="mt-4 max-w-xs">
-            <label htmlFor="branches" className="form-label">
-              How many branches do you need?
-            </label>
-            <input
-              id="branches"
-              name="branches"
-              type="number"
-              inputMode="numeric"
-              min={1}
-              max={MAX_ORDER_BRANCHES}
-              step={1}
-              required
-              value={branches}
-              onChange={(e) => setBranches(e.target.value)}
-            />
-            <p className="mt-1 text-xs text-white/55">
-              Your plan includes the office team and {summary.branchesIncluded}{" "}
-              {summary.branchesIncluded === 1 ? "branch" : "branches"}.
-            </p>
+        {/* What the plan includes, the extras, and what it costs (Phil, 2026-09-30): plain weight
+            throughout, no bold, charges in white so they read as clearly as the questions. */}
+        <div className="mt-6 space-y-5 border-t border-white/10 pt-5 text-sm">
+          <div>
+            <p className="text-white/85">Your plan: {summary.plan}</p>
+            <ul className="mt-2 list-disc space-y-0.5 pl-5 text-white/75">
+              {summary.includedList.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
           </div>
-        ) : null}
 
-        <dl className="mt-5 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-[max-content_1fr]">
-          <dt className="text-white/55">Plan</dt>
-          <dd className="text-white/85">{summary.plan}</dd>
-          <dt className="text-white/55">Price</dt>
-          <dd className="text-white/85">{price}</dd>
-          <dt className="text-white/55">Included</dt>
-          <dd className="text-white/85">{summary.included}</dd>
-          <dt className="text-white/55">Branches</dt>
-          <dd className="text-white/85">{branchesText}</dd>
-          <dt className="text-white/55">Extras</dt>
-          <dd className="text-white/85">{summary.extras}</dd>
-          <dt className="text-white/55">Onboarding fee</dt>
-          <dd className="text-white/85">{summary.onboardingFee}</dd>
-          <dt className="text-white/55">Start date</dt>
-          <dd className="text-white/85">{summary.startDate}</dd>
-          <dt className="text-white/55">Accepted by</dt>
-          <dd className="text-white/85">{summary.adminName}, Company Admin</dd>
-        </dl>
+          {billingApplies ? (
+            <>
+              <div>
+                <p className="text-white/85">
+                  Your plan includes {summary.usersIncluded} {summary.usersIncluded === 1 ? "user" : "users"}.
+                </p>
+                <label htmlFor="extra_users" className="form-label mt-2">
+                  How many extra users do you need?
+                </label>
+                <div className="max-w-[8rem]">
+                  <input
+                    id="extra_users"
+                    name="extra_users"
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    max={MAX_EXTRA_USERS}
+                    step={1}
+                    required
+                    value={extraUsers}
+                    onChange={(e) => setExtraUsers(e.target.value)}
+                  />
+                </div>
+                <p className="mt-1 text-white">{chargeText(users, summary.seatPence)}</p>
+              </div>
+
+              <div>
+                <p className="text-white/85">
+                  Your plan includes the office team and {summary.branchesIncluded}{" "}
+                  {summary.branchesIncluded === 1 ? "branch" : "branches"}.
+                </p>
+                <label htmlFor="extra_branches" className="form-label mt-2">
+                  How many extra branches would you like to add?
+                </label>
+                <div className="max-w-[8rem]">
+                  <input
+                    id="extra_branches"
+                    name="extra_branches"
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    max={MAX_EXTRA_BRANCHES}
+                    step={1}
+                    required
+                    value={extraBranches}
+                    onChange={(e) => setExtraBranches(e.target.value)}
+                  />
+                </div>
+                <p className="mt-1 text-white">{chargeText(branches, summary.branchPence)}</p>
+              </div>
+
+              {billing === "annual" && users + branches > 0 ? (
+                <fieldset>
+                  <legend className="form-label">How would you like to pay for the extras?</legend>
+                  <div className="mt-1 space-y-2">
+                    <label className="flex items-start gap-2 text-white/80">
+                      <input
+                        type="radio"
+                        name="extras_billing"
+                        value="yearly"
+                        className="mt-0.5"
+                        checked={extrasBilling === "yearly"}
+                        onChange={() => setExtrasBilling("yearly")}
+                      />
+                      Yearly with the plan, ten months&apos; price for twelve
+                    </label>
+                    <label className="flex items-start gap-2 text-white/80">
+                      <input
+                        type="radio"
+                        name="extras_billing"
+                        value="monthly"
+                        className="mt-0.5"
+                        checked={extrasBilling === "monthly"}
+                        onChange={() => setExtrasBilling("monthly")}
+                      />
+                      Monthly by card, the full price each month
+                    </label>
+                  </div>
+                </fieldset>
+              ) : (
+                <input type="hidden" name="extras_billing" value={extrasBilling} />
+              )}
+            </>
+          ) : null}
+
+          {/* The breakdown, like an invoice. */}
+          {costs.groups.length === 0 ? (
+            <p className="rounded-lg border border-white/10 bg-white/[0.03] p-4 text-white/85">{costs.totalText}</p>
+          ) : (
+            <div className="space-y-3">
+              {costs.groups.map((g) => (
+                <div key={g.heading} className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+                  <p className="text-white/85">{g.heading}</p>
+                  <dl className="mt-2 space-y-1">
+                    {g.lines.map((l) => (
+                      <div key={l.label} className="flex items-baseline justify-between gap-4 text-white/75">
+                        <dt>{l.label}</dt>
+                        <dd className="tabular-nums">{l.amount}</dd>
+                      </div>
+                    ))}
+                    <div className="mt-2 flex items-baseline justify-between gap-4 border-t border-white/10 pt-2 text-white">
+                      <dt>{g.total.label}</dt>
+                      <dd className="tabular-nums">{g.total.amount}</dd>
+                    </div>
+                  </dl>
+                </div>
+              ))}
+              {costs.oneOff ? (
+                <div className="flex items-baseline justify-between gap-4 px-4 text-white/75">
+                  <span>{costs.oneOff.label}</span>
+                  <span>{costs.oneOff.amount}</span>
+                </div>
+              ) : null}
+            </div>
+          )}
+
+          <dl className="grid gap-x-6 gap-y-1 sm:grid-cols-[max-content_1fr]">
+            <dt className="text-white/55">Extra prices</dt>
+            <dd className="text-white/85">{summary.extras}</dd>
+            <dt className="text-white/55">Start date</dt>
+            <dd className="text-white/85">{summary.startDate}</dd>
+            <dt className="text-white/55">Accepted by</dt>
+            <dd className="text-white/85">{summary.adminName}, Company Admin</dd>
+          </dl>
+        </div>
       </div>
 
       {/* ---------------- 2. The agreements ---------------- */}

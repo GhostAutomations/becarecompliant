@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCompanyTrialState } from "@/lib/billing/trial-gate";
 import { needsAgreement, listAcceptances, type AcceptanceRow } from "@/lib/legal/acceptance";
 import { legalDocuments, legalPublished, LEGAL_VERSIONS } from "@/lib/legal/documents";
-import { acceptanceCurrent, billingApplies, billingOptionLabel, fillOrderTable, orderExtrasText, orderPriceListText, orderTableValues, organisationLabel, planLabel, onboardingFeeLabel, orderIncludedText, orderPriceText } from "@/lib/legal/fill";
+import { acceptanceCurrent, billingApplies, billingOptionLabel, fillOrderTable, orderExtrasText, orderIncludedList, orderPriceListText, orderTableValues, organisationLabel, planLabel, onboardingFeeLabel, orderIncludedText, orderPriceText } from "@/lib/legal/fill";
 import { TIER_BASE_PENCE } from "@/lib/stripe/config";
 import { EXTRA_BRANCH_PENCE, EXTRA_SEAT_PENCE, includedBranchesForTier, includedSeatsForTier } from "@/lib/billing/seats";
 import { ANNUAL_MONTHS_CHARGED, PRICE_LIST_DATE, aiMonthlyCredits, smsMonthlyCredits } from "@/lib/billing/allowances";
@@ -50,7 +50,10 @@ function OrderTable({ a }: { a: AcceptanceRow }) {
     ["Plan", a.plan],
     ["Price", a.price_text ?? "Not recorded"],
     ["Included", a.included_text ?? "Not recorded"],
-    ["Branches", a.branches_text ?? "Not recorded"],
+    ["Extra users", a.extra_users_text ?? "Not recorded"],
+    ["Extra branches", a.branches_text ?? "Not recorded"],
+    ["Extras paid", a.extras_paid_text ?? "Not recorded"],
+    ["Total", a.total_text ?? "Not recorded"],
     ["Billing option", billingOptionLabel(a.billing_option)],
     ["Extras and prices", a.price_list_date ?? "Not recorded"],
     ["Onboarding fee", a.onboarding_fee],
@@ -141,7 +144,10 @@ export default async function AgreementPage() {
                           plan: current.plan,
                           price: current.price_text ?? "Not recorded",
                           included: current.included_text ?? "Not recorded",
-                          branches: current.branches_text ?? "Not recorded",
+                          extraUsers: current.extra_users_text ?? "Not recorded",
+                          extraBranches: current.branches_text ?? "Not recorded",
+                          extrasPaid: current.extras_paid_text ?? "Not recorded",
+                          total: current.total_text ?? "Not recorded",
                           billingOption: current.billing_option,
                           priceList: current.price_list_date ?? "Not recorded",
                           onboardingFee: current.onboarding_fee,
@@ -196,12 +202,13 @@ export default async function AgreementPage() {
   const priceMonthly = orderPriceText({ tier: company.tier, billingOption: "monthly", monthlyPence, annualMonths: ANNUAL_MONTHS_CHARGED });
   const priceAnnual = orderPriceText({ tier: company.tier, billingOption: "annual", monthlyPence, annualMonths: ANNUAL_MONTHS_CHARGED });
   const extras = orderExtrasText({ tier: company.tier, seatPence: EXTRA_SEAT_PENCE, branchPence: EXTRA_BRANCH_PENCE });
-  const included = orderIncludedText({
+  const allowance = {
     users: includedSeatsForTier(company.tier ?? "business"),
     branches: includedBranchesForTier(company.tier ?? "business"),
     ai: aiMonthlyCredits(company.tier),
     sms: smsMonthlyCredits(company.tier),
-  });
+  };
+  const included = orderIncludedText(allowance);
 
   return (
     <main className="app-bg min-h-dvh px-4 py-10">
@@ -233,8 +240,13 @@ export default async function AgreementPage() {
           summary={{
             plan: planLabel(company.tier),
             tier: company.tier ?? "business",
-            branchesIncluded: includedBranchesForTier(company.tier ?? "business"),
+            includedList: orderIncludedList(allowance),
+            usersIncluded: allowance.users,
+            branchesIncluded: allowance.branches,
+            seatPence: EXTRA_SEAT_PENCE,
             branchPence: EXTRA_BRANCH_PENCE,
+            monthlyPence,
+            annualMonths: ANNUAL_MONTHS_CHARGED,
             priceMonthly,
             priceAnnual,
             included,

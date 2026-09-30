@@ -42,6 +42,12 @@ export type AcceptanceRow = {
   price_list_date: string | null;
   branches_ordered: number | null;
   branches_text: string | null;
+  extra_users: number | null;
+  extra_branches: number | null;
+  extra_users_text: string | null;
+  extras_billing: string | null;
+  extras_paid_text: string | null;
+  total_text: string | null;
   onboarding_fee: string;
   start_date: string;
   ip: string | null;
@@ -49,7 +55,7 @@ export type AcceptanceRow = {
 };
 
 export const ACCEPTANCE_COLUMNS =
-  "id, company_id, accepted_by_name, accepted_by_email, agreement_version, dpa_version, agreement_sha256, dpa_sha256, is_draft, customer_legal_name, organisation_type, company_number, customer_address, plan, billing_option, price_text, included_text, price_list_date, branches_ordered, branches_text, onboarding_fee, start_date, ip, accepted_at";
+  "id, company_id, accepted_by_name, accepted_by_email, agreement_version, dpa_version, agreement_sha256, dpa_sha256, is_draft, customer_legal_name, organisation_type, company_number, customer_address, plan, billing_option, price_text, included_text, price_list_date, branches_ordered, branches_text, extra_users, extra_branches, extra_users_text, extras_billing, extras_paid_text, total_text, onboarding_fee, start_date, ip, accepted_at";
 
 export const needsAgreement = cache(async (companyId: string): Promise<boolean> => {
   const supabase = await createClient();

@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
 import { legalDocuments, legalPublished, LEGAL_VERSIONS } from "@/lib/legal/documents";
-import { acceptanceCurrent, afterAcceptPath, billingApplies, checkOrder, isLiveSubscription, orderBranchesText, orderExtrasText, orderPriceListText, onboardingFeeLabel, orderIncludedText, orderPriceText, planLabel } from "@/lib/legal/fill";
+import { acceptanceCurrent, afterAcceptPath, billingApplies, checkOrder, isLiveSubscription, extrasLineText, extrasPaidText, orderCosts, orderExtrasText, orderPriceListText, onboardingFeeLabel, orderIncludedText, orderPriceText, planLabel } from "@/lib/legal/fill";
 import { TIER_BASE_PENCE } from "@/lib/stripe/config";
 import { EXTRA_BRANCH_PENCE, EXTRA_SEAT_PENCE, includedBranchesForTier, includedSeatsForTier } from "@/lib/billing/seats";
 import { getCompanyBilling } from "@/lib/billing/stripe-sync";
@@ -54,8 +54,10 @@ export async function acceptAgreement(_prev: ActionState, formData: FormData): P
     address: String(formData.get("address") ?? ""),
     billingOption: billed ? String(formData.get("billing_option") ?? "") : "none",
     accepted: formData.get("accept") === "yes",
-    // A Black account is not asked how many branches: it has as many as it needs.
-    branches: billed ? String(formData.get("branches") ?? "") : undefined,
+    // A Black account is not asked about extras: it has as many users and branches as it needs.
+    extraUsers: billed ? String(formData.get("extra_users") ?? "") : undefined,
+    extraBranches: billed ? String(formData.get("extra_branches") ?? "") : undefined,
+    extrasBilling: billed ? String(formData.get("extras_billing") ?? "yearly") : undefined,
   };
   const problems = checkOrder(input, { billingApplies: billed });
   const first = Object.values(problems)[0];
@@ -79,6 +81,29 @@ export async function acceptAgreement(_prev: ActionState, formData: FormData): P
   ) {
     redirect(await nextAfterAccept(companyId, company.tier));
   }
+
+  /* The extras and what they cost, worked out here from the plan, never taken from the form's
+     own sums (Phil, 2026-09-30): the form only says how many. */
+  const extraUsers = billed ? Number(input.extraUsers) : 0;
+  const extraBranches = billed ? Number(input.extraBranches) : 0;
+  const costs = orderCosts({
+    tier: company.tier,
+    plan: planLabel(company.tier),
+    billingOption: input.billingOption,
+    extrasBilling: input.extrasBilling ?? "yearly",
+    monthlyPence: company.tier === "business" || company.tier === "pro" ? TIER_BASE_PENCE[company.tier] : null,
+    annualMonths: ANNUAL_MONTHS_CHARGED,
+    extraUsers,
+    extraBranches,
+    seatPence: EXTRA_SEAT_PENCE,
+    branchPence: EXTRA_BRANCH_PENCE,
+    onboardingFee: onboardingFeeLabel({
+      tier: company.tier,
+      offerActive: onboardingOfferActive(formatCivilDate(todayInLondon())),
+      fee: ONBOARDING_FEE,
+      offerEnd: ONBOARDING_OFFER_END_TEXT,
+    }),
+  });
 
   const docs = legalDocuments();
   const today = formatCivilDate(todayInLondon());
@@ -126,13 +151,14 @@ export async function acceptAgreement(_prev: ActionState, formData: FormData): P
       fee: ONBOARDING_FEE,
       offerEnd: ONBOARDING_OFFER_END_TEXT,
     }),
-    branches_ordered: billed ? Number(input.branches) : null,
-    branches_text: orderBranchesText({
-      tier: company.tier,
-      ordered: billed ? Number(input.branches) : 0,
-      included: includedBranchesForTier(company.tier ?? "business"),
-      branchPence: EXTRA_BRANCH_PENCE,
-    }),
+    branches_ordered: billed ? includedBranchesForTier(company.tier ?? "business") + extraBranches : null,
+    branches_text: extrasLineText(extraBranches, EXTRA_BRANCH_PENCE, company.tier),
+    extra_users: billed ? extraUsers : null,
+    extra_branches: billed ? extraBranches : null,
+    extra_users_text: extrasLineText(extraUsers, EXTRA_SEAT_PENCE, company.tier),
+    extras_billing: costs.extrasBilling,
+    extras_paid_text: extrasPaidText(costs, input.billingOption, company.tier),
+    total_text: costs.totalText,
     start_date: today,
     ip,
     user_agent: userAgent,
