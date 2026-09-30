@@ -179,3 +179,101 @@ export function orderIncludedText(input: { users: number; branches: number; ai: 
     "free carer logins",
   ].join(", ");
 }
+
+/**
+ * THE ORDER TABLE, FILLED IN (Phil, 2026-09-30, testing the Pro Order on his phone: "shouldnt the
+ * order tile be above the agreements so it populates the agreements"). The Subscription
+ * Agreement ends with the Order as a blank template ("[ ]", "[Monthly / Annual]"). On the accept
+ * screen the Admin now fills the Order in first and this puts their answers into that table, live,
+ * so the agreement they read is the agreement they accept; "Your agreement" shows it filled from
+ * the stored Order afterwards.
+ *
+ * Only the rows of the "## The Order" table change, and only the right hand cell. The fingerprint
+ * stored with an acceptance is still of the standard wording (every customer accepts the same
+ * terms); the Order itself is stored beside it, field by field.
+ */
+export const ORDER_ROWS = [
+  "Customer legal name",
+  "Type of organisation",
+  "Company or charity number, if any",
+  "Registered or main address",
+  "Plan",
+  "Price",
+  "Included",
+  "Billing option",
+  "Price List",
+  "Onboarding fee",
+  "Start date",
+  "Accepted by",
+  "Accepted on",
+  "Versions accepted",
+] as const;
+
+export type OrderRowLabel = (typeof ORDER_ROWS)[number];
+
+/** A typed value made safe for one table cell: one line, no column breaks, no bold markers. */
+function orderCell(v: string): string {
+  return v
+    .replace(/\r?\n+/g, ", ")
+    .replace(/\|/g, "/")
+    .replace(/\*\*/g, "")
+    .replace(/\s+/g, " ")
+    .replace(/,\s*,/g, ",")
+    .trim();
+}
+
+export function fillOrderTable(text: string, values: Partial<Record<OrderRowLabel, string>>): string {
+  const start = text.indexOf("\n## The Order");
+  if (start < 0) return text;
+  const tail = text
+    .slice(start)
+    .split("\n")
+    .map((line) => {
+      const m = /^\| ([^|]+?) \| .* \|$/.exec(line);
+      if (!m) return line;
+      const label = m[1] as OrderRowLabel;
+      if (!(ORDER_ROWS as readonly string[]).includes(label)) return line;
+      const v = values[label];
+      if (v === undefined) return line;
+      const c = orderCell(v);
+      return `| ${label} | ${c === "" ? "Not filled in yet" : c} |`;
+    })
+    .join("\n");
+  return text.slice(0, start) + tail;
+}
+
+/** Every row of the Order table from one set of answers, for the accept screen and the record. */
+export function orderTableValues(o: {
+  legalName: string;
+  organisationType: string;
+  companyNumber: string;
+  address: string;
+  plan: string;
+  price: string;
+  included: string;
+  billingOption: string;
+  priceList: string;
+  onboardingFee: string;
+  startDate: string;
+  acceptedBy: string;
+  acceptedOn: string;
+  agreementVersion: string;
+  dpaVersion: string;
+}): Record<OrderRowLabel, string> {
+  return {
+    "Customer legal name": o.legalName,
+    "Type of organisation": organisationLabel(o.organisationType),
+    "Company or charity number, if any": o.companyNumber.trim() === "" ? "None given" : o.companyNumber,
+    "Registered or main address": o.address,
+    Plan: o.plan,
+    Price: o.price,
+    Included: o.included,
+    "Billing option": billingOptionLabel(o.billingOption),
+    "Price List": o.priceList,
+    "Onboarding fee": o.onboardingFee,
+    "Start date": o.startDate,
+    "Accepted by": `${o.acceptedBy}, Company Admin`,
+    "Accepted on": o.acceptedOn,
+    "Versions accepted": `Subscription Agreement ${o.agreementVersion}, Data Processing Agreement ${o.dpaVersion}`,
+  };
+}

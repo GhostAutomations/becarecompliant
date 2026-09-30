@@ -97,3 +97,20 @@ legal review"); the first published text is 1.0.
   Order's "Versions accepted"); 8.4 no longer raises an annual price mid term.
   PASS (2026-09-30, live): both heads read "Version 1.0, draft, subject to legal review"; 8.4 keeps
   the existing price for the next annual term; 14.4 and 17.4 fifth review wording present.
+
+## Order first, agreement fills in (2026-09-30)
+
+Phil, testing the Pro Order on his phone: the Order should come before the agreements and fill them
+in; choosing Monthly or Annual changed nothing in the agreement and its Start date read [ ]. Agreed by
+popup: the Order at the top, then both agreements, then the tick and Accept; the Order table at the end
+of the Subscription Agreement fills in live (fillOrderTable); Your agreement shows it filled from the
+stored Order. The fingerprint stays on the standard wording, the Order is stored beside it.
+Bevan switched to Pro by SQL for this (no Stripe subscription, so nothing billed); back to Black after.
+
+- A13 Pro: Price and the agreement's Order row change when Monthly and Annual are switched (£129 a
+  month; £1,290 a year); Included 6 users, 2 branches, 50 AI, 100 texts; Start date today; typed
+  name, number and address appear in the agreement's Order as typed. Accept, then Your agreement shows
+  the agreement with the Order filled in.
+- A14 Business: the same at £79 a month, £790 a year; 4 users, 1 branch, 25 AI, no text messages.
+- A15 Black: no Monthly or Annual; the agreement's Order reads Billing option "Not applicable (Black
+  account)" and the stored row says none.

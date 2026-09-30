@@ -158,3 +158,44 @@ test("a Black account has no billing option (Phil, 2026-09-30)", async () => {
   assert.equal(billingOptionLabel("annual"), "Annual");
   assert.equal(billingOptionLabel("monthly"), "Monthly");
 });
+
+test("the Order table in the agreement fills from the Order (Phil, 2026-09-30)", async () => {
+  const { fillOrderTable, orderTableValues, ORDER_ROWS } = await import("./fill.ts");
+  const values = orderTableValues({
+    legalName: "Bevan Care Ltd",
+    organisationType: "limited_company",
+    companyNumber: "12345678",
+    address: "1 Test Street\nCardiff | CF10 1AA",
+    plan: "Pro",
+    price: "£1,290 a year plus VAT, paid yearly in advance",
+    included: "6 users, 2 branches",
+    billingOption: "annual",
+    priceList: "29 September 2026",
+    onboardingFee: "Waived (joined by 31 December 2026)",
+    startDate: "30 September 2026",
+    acceptedBy: "Bev **Admin**",
+    acceptedOn: "When you press Accept",
+    agreementVersion: "1.0",
+    dpaVersion: "1.0",
+  });
+  const out = fillOrderTable(SUBSCRIPTION_AGREEMENT_1_0, values);
+  assert.ok(out.includes("| Billing option | Annual |"));
+  assert.ok(out.includes("| Start date | 30 September 2026 |"));
+  assert.ok(out.includes("| Registered or main address | 1 Test Street, Cardiff / CF10 1AA |"), "one line, no column break");
+  assert.ok(out.includes("| Accepted by | Bev Admin, Company Admin |"), "no bold markers from typed text");
+  assert.ok(!out.slice(out.indexOf("## The Order")).includes("[ ]"), "no blanks left in the Order");
+  // Everything before the Order is untouched, so the terms read exactly as published.
+  const cut = SUBSCRIPTION_AGREEMENT_1_0.indexOf("\n## The Order");
+  assert.equal(out.slice(0, cut), SUBSCRIPTION_AGREEMENT_1_0.slice(0, cut));
+  // Every row label in the template is one the filler knows, so none is left as a template row.
+  const rows = SUBSCRIPTION_AGREEMENT_1_0.slice(cut).split("\n").filter((l) => /^\| [^|]+ \| .* \|$/.test(l));
+  assert.equal(rows.length, ORDER_ROWS.length);
+  // Still parses into one table with every row.
+  const table = parseLegalMarkdown(out).filter((b) => b.kind === "table").pop();
+  assert.ok(table && table.kind === "table" && table.rows.length === ORDER_ROWS.length);
+  // An empty answer reads as not filled in, never as a bare blank.
+  const empty = fillOrderTable(SUBSCRIPTION_AGREEMENT_1_0, { ...values, "Customer legal name": "  " });
+  assert.ok(empty.includes("| Customer legal name | Not filled in yet |"));
+  // Nothing to fill: text returned as it was.
+  assert.equal(fillOrderTable("no order here", values), "no order here");
+});

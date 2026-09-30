@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCompanyTrialState } from "@/lib/billing/trial-gate";
 import { needsAgreement, listAcceptances, type AcceptanceRow } from "@/lib/legal/acceptance";
 import { legalDocuments, legalPublished, LEGAL_VERSIONS } from "@/lib/legal/documents";
-import { acceptanceCurrent, billingApplies, billingOptionLabel, organisationLabel, planLabel, onboardingFeeLabel, orderIncludedText, orderPriceText } from "@/lib/legal/fill";
+import { acceptanceCurrent, billingApplies, billingOptionLabel, fillOrderTable, orderTableValues, organisationLabel, planLabel, onboardingFeeLabel, orderIncludedText, orderPriceText } from "@/lib/legal/fill";
 import { TIER_BASE_PENCE } from "@/lib/stripe/config";
 import { includedBranchesForTier, includedSeatsForTier } from "@/lib/billing/seats";
 import { ANNUAL_MONTHS_CHARGED, PRICE_LIST_DATE, aiMonthlyCredits, smsMonthlyCredits } from "@/lib/billing/allowances";
@@ -123,6 +123,36 @@ export default async function AgreementPage() {
                 <div className="mt-5">
                   <OrderTable a={current} />
                 </div>
+                <details className="mt-5 rounded-lg border border-white/10 p-4">
+                  <summary className="cursor-pointer text-sm font-semibold text-white">
+                    The Subscription Agreement you accepted, with your Order filled in
+                  </summary>
+                  <div className="mt-4 max-h-96 overflow-y-auto rounded-lg border border-white/10 bg-white/[0.02] p-4">
+                    <LegalDocumentView
+                      compact
+                      text={fillOrderTable(
+                        docs.agreement.text,
+                        orderTableValues({
+                          legalName: current.customer_legal_name,
+                          organisationType: current.organisation_type,
+                          companyNumber: current.company_number ?? "",
+                          address: current.customer_address,
+                          plan: current.plan,
+                          price: current.price_text ?? "Not recorded",
+                          included: current.included_text ?? "Not recorded",
+                          billingOption: current.billing_option,
+                          priceList: current.price_list_date ?? "Not recorded",
+                          onboardingFee: current.onboarding_fee,
+                          startDate: ukDate(current.start_date),
+                          acceptedBy: current.accepted_by_name,
+                          acceptedOn: `${dateTime(current.accepted_at)}${current.ip ? `, from ${current.ip}` : ""}`,
+                          agreementVersion: current.agreement_version,
+                          dpaVersion: current.dpa_version,
+                        }),
+                      )}
+                    />
+                  </div>
+                </details>
               </>
             ) : (
               <p className="mt-2 text-sm text-white/70">
@@ -190,59 +220,30 @@ export default async function AgreementPage() {
           ) : null}
         </div>
 
-        <details className="glass-card p-6" open>
-          <summary className="cursor-pointer text-sm font-semibold text-white">
-            Subscription Agreement, version {docs.agreement.version}{published ? "" : ", draft"}
-          </summary>
-          <div className="mt-4 max-h-96 overflow-y-auto rounded-lg border border-white/10 bg-white/[0.02] p-4">
-            <LegalDocumentView text={docs.agreement.text} compact />
-          </div>
-        </details>
-
-        <details className="glass-card p-6">
-          <summary className="cursor-pointer text-sm font-semibold text-white">
-            Data Processing Agreement, version {docs.dpa.version}{published ? "" : ", draft"}
-          </summary>
-          <div className="mt-4 max-h-96 overflow-y-auto rounded-lg border border-white/10 bg-white/[0.02] p-4">
-            <LegalDocumentView text={docs.dpa.text} compact />
-          </div>
-        </details>
-
-        <div className="glass-card p-6 sm:p-8">
-          <h2 className="text-sm font-semibold text-white">The Order</h2>
-          <p className="mt-1 text-xs text-white/55">
-            These details go on the Order that forms part of the agreement. Correct anything that is not right.
-          </p>
-          <AcceptOrderForm
-            billingApplies={billingApplies(company.tier)}
-            initial={{
-              legalName: company.name ?? "",
-              companyNumber: invoicing?.company_number ?? "",
-              address: invoicing?.from_address || officeAddress,
-            }}
-            footer={
-              <>
-                <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-[max-content_1fr]">
-                  <dt className="text-white/55">Plan</dt>
-                  <dd className="text-white/85">{planLabel(company.tier)}</dd>
-                  <dt className="text-white/55">Price</dt>
-                  <dd className="text-white/85">
-                    {monthlyPence === null ? priceMonthly : `Monthly: ${priceMonthly}. Annual: ${priceAnnual}.`}
-                  </dd>
-                  <dt className="text-white/55">Included</dt>
-                  <dd className="text-white/85">{included}</dd>
-                  <dt className="text-white/55">Price List</dt>
-                  <dd className="text-white/85">{PRICE_LIST_DATE}</dd>
-                  <dt className="text-white/55">Onboarding fee</dt>
-                  <dd className="text-white/85">{fee}</dd>
-                  <dt className="text-white/55">Accepted by</dt>
-                  <dd className="text-white/85">{profile.full_name || profile.email}, Company Admin</dd>
-                </dl>
-                {docLinks}
-              </>
-            }
-          />
-        </div>
+        <AcceptOrderForm
+          billingApplies={billingApplies(company.tier)}
+          initial={{
+            legalName: company.name ?? "",
+            companyNumber: invoicing?.company_number ?? "",
+            address: invoicing?.from_address || officeAddress,
+          }}
+          summary={{
+            plan: planLabel(company.tier),
+            priceMonthly,
+            priceAnnual,
+            included,
+            priceList: PRICE_LIST_DATE,
+            onboardingFee: fee,
+            startDate: ukDate(today),
+            adminName: profile.full_name || profile.email || "Company Admin",
+            agreementVersion: docs.agreement.version,
+            dpaVersion: docs.dpa.version,
+          }}
+          agreementText={docs.agreement.text}
+          dpaText={docs.dpa.text}
+          published={published}
+          docLinks={docLinks}
+        />
 
         <div className="flex justify-end">
           <form action="/auth/signout" method="post">
