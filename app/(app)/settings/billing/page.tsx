@@ -393,7 +393,7 @@ export default async function BillingPage() {
           <p className="mt-2 text-sm text-white/70">
             Pro adds SMS reminders, reporting and inspector ready exports, the form builder,
             Complaints, Invoicing, the Planner and On Call. It also includes{" "}
-            {includedSeatsForTier("pro")} users and {includedBranchesForTier("pro")} {wMany}
+            {includedSeatsForTier("pro")} users and {includedBranchesForTier("pro")} {wMany}{" "}
             instead of {seats.included} and {branches.included}.
           </p>
           <div className="mt-3 space-y-1 text-sm text-white/70">

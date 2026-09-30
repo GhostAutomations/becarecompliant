@@ -42,6 +42,7 @@ import {
   getSpendThisMonth,
   type ComplianceScore,
 } from "@/lib/dashboard/data";
+import { getBranchTerms } from "@/lib/branches/company-word";
 
 /**
  * The dashboard, rebuilt to Phil's Mission Control design (2026-07-29).
@@ -670,7 +671,8 @@ export default async function DashboardPage() {
       const parts: string[] = [];
       if (extraSeats > 0) parts.push(`${extraSeats} more ${extraSeats === 1 ? "user" : "users"}`);
       if (extraBranches > 0) {
-        parts.push(`${extraBranches} more ${extraBranches === 1 ? "branch" : "branches"}`);
+        // In their own word for a branch (0354): "2 more houses".
+        parts.push(`${extraBranches} more ${(await getBranchTerms(companyId)).count(extraBranches).replace(/^\d+ /, "")}`);
       }
       billingMessage = parts.length
         ? `Billing is not set up, and you are using ${parts.join(" and ")} than your plan includes.`

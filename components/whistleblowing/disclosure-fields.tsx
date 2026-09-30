@@ -50,7 +50,7 @@ export default function DisclosureFields({
             ))}
           </select>
           <p className="form-hint">
-            Leave this blank unless the disclosure is clearly about one {bw.oneLower}. On a small
+            Leave this blank unless the disclosure is clearly about one {bw.oneLower}. On a small{" "}
             {bw.oneLower}, naming it can point at who made the disclosure.
           </p>
         </div>

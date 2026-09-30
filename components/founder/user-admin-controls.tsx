@@ -39,13 +39,16 @@ export function UserStatusButton({
   );
 }
 
-/** Resend or revoke a pending invite in a tenant company. */
+/** Send (or resend) or revoke a pending invite in a tenant company. */
 export function InviteActions({
   inviteId,
   companyId,
+  sent,
 }: {
   inviteId: string;
   companyId: string;
+  /** Has the invitation email ever gone? A held one says Send invite, not Resend (Phil, 2026-09-30). */
+  sent: boolean;
 }) {
   const [resendState, resendAction, resendPending] = useActionState(
     founderResendInvite,
@@ -68,7 +71,7 @@ export function InviteActions({
           disabled={resendPending}
           className={`${resent ? "btn-saved" : "btn-ghost"} px-2.5 py-1 text-xs`}
         >
-          {resendPending ? "Working…" : resent ? "Sent" : "Resend"}
+          {resendPending ? "Sending…" : resent ? "Sent" : sent ? "Resend" : "Send invite"}
         </button>
       </form>
       <form action={revokeAction} className="inline">

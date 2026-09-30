@@ -219,6 +219,10 @@ Test on a NEW test company made for the purpose (not Thistle). Stripe in sandbox
   filters and columns say House; Reports chooser and Regulation 73/80 lists say house; a
   PDF and CSV report say House in the column and "All houses" for the scope; an Evidence PDF
   says House. The top bar pill for a manager reads "House Manager".
+- D4 PASS 2026-10-01 (Claude in Chrome as the House Test Admin, after Phil switched on "Ask to accept (test)"): Order fixed "as agreed with you", houses throughout, the row "Your word for a branch: House", cost lines £790 + £50 + 3 x £20 x 10 + 4 x £10 x 10 = £1,840.00 a year, onboarding waived, "(prices agreed with you)". Draft test acceptance recorded with Phil's OK (legal name House Test Ltd, company number 00000000, address 1 Test Street, Cardiff).
+- D5 PASS 2026-10-01: payment step "Extra houses 7: the first 3 at £20.00 ... and 4 at £10.00", total £1,840.00; Stripe Checkout (sandbox, card only) Business £790.00, Extra Seat £50.00, "Extra house" Qty 7 £1,000.00, £1,840.00 per year. Not paid.
+- D6 PASS 2026-10-01: Settings, Billing yearly like an invoice with the two house lines, Seats and Houses cards in houses, Move to Pro £1,840 against £2,190 a year. Found and fixed "2 housesinstead" (missing space), and the same JSX space trap in two more places (next push).
+- D7 PART PASS 2026-10-01: Settings (Manage your company, houses and team; Houses tile), People register filter "All houses", Add a person "House *" and "Auto filled from the house", Reports chooser in houses. Dashboard banner said "2 more branches": fixed (next push). Still to see: role pill "House Manager" (needs a manager login), a report PDF/CSV and an Evidence PDF with a house.
 - D8 A company without a word (Bevan) still says Branch everywhere, and Founder always says
   branch, with the company's word alongside on its page.
 - D9 Word changed after a live subscription: the nightly or next sync moves the old branch line

@@ -112,7 +112,7 @@ export default async function FounderCompanyPage({
       .order("created_at", { ascending: true }),
     supabase
       .from("invites")
-      .select("id, email, full_name, role, status, created_at")
+      .select("id, email, full_name, role, status, created_at, email_sent_at")
       .eq("company_id", id)
       .eq("status", "pending")
       .order("created_at", { ascending: false }),
@@ -657,8 +657,17 @@ export default async function FounderCompanyPage({
                     <span className="pill pill-neutral">
                       {ROLE_LABELS[i.role] ?? i.role}
                     </span>
-                    <span className="pill pill-amber">Pending</span>
-                    <InviteActions inviteId={i.id} companyId={company.id} />
+                    {/* Not sent yet and Invited are different facts, as on Settings, Users. */}
+                    {(i as { email_sent_at?: string | null }).email_sent_at ? (
+                      <span className="pill pill-amber">Invited</span>
+                    ) : (
+                      <span className="pill pill-neutral">Not sent yet</span>
+                    )}
+                    <InviteActions
+                      inviteId={i.id}
+                      companyId={company.id}
+                      sent={Boolean((i as { email_sent_at?: string | null }).email_sent_at)}
+                    />
                   </div>
                 </div>
               ))}

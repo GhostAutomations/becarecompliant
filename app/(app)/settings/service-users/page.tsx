@@ -122,7 +122,7 @@ export default async function SettingsServiceUsersPage() {
         <summary>Service Users Type</summary>
         <div className="space-y-3 border-t border-white/10 p-5">
           <p className="page-subtitle">
-            Set whether each {bw.oneLower} runs a Simple or Complex Service User setup. Every
+            Set whether each {bw.oneLower} runs a Simple or Complex Service User setup. Every{" "}
             {bw.oneLower} defaults to Simple. {bw.many} are created elsewhere; this only sets
             the type.
           </p>
