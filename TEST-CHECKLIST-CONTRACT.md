@@ -168,10 +168,11 @@ Bevan switched to Pro by SQL for this (no Stripe subscription, so nothing billed
 - I2 Monthly, card: accept on Monthly, Add a card opens Stripe with the plan (and any extras) and, when
   due, "Onboarding"; pay with a TEST card only if Stripe is in test mode. Subscription appears with
   billing_interval month.
-- I3 FAIL 2026-09-30, DEF-083: ordered 1 extra user yearly, accepted £840.00 a year, Stripe showed Business £790.00 per year only. Fixed (charge what they ordered); RETEST after deploy.
+- I3 FAIL 2026-09-30, DEF-083: ordered 1 extra user yearly, accepted £840.00 a year, Stripe showed Business £790.00 per year only. Fixed (charge what they ordered). RETEST PASS 2026-09-30 after deploy e1a8506: Stripe showed Business £790.00 per year and Extra Seat £50.00 per year, £840.00, card only (Phil confirmed, not paid).
 - I3 Annual, card: accept on Annual (extras yearly), Add a card shows the yearly price (£790 or
   £1,290). Annual with monthly extras: Stripe shows the year only; after paying, the monthly extra
   lines appear on the same subscription.
+- I4 FAIL 2026-09-30, DEF-084: subscription created right in Stripe (send invoice, 14 days, card + bank transfer, £790 + £50) but the Admin landed on the dashboard with no Sent message or link, and the first invoice stayed a draft. Fixed; RETEST after deploy (needs the test subscription cancelled and a fresh acceptance).
 - I4 Annual, invoice: "Get an invoice instead" says "Sending…" then "Sent" with "View and pay the
   invoice"; the invoice is payable in 14 days by card or bank transfer; pressing twice makes one
   subscription.

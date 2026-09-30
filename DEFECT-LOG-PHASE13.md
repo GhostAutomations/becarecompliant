@@ -2408,3 +2408,16 @@ Checkout and the invoice route (prepareSubscription), the seat and branch syncs 
 reconcile (getOrderedExtras, service client), the plan change (tier-apply), Settings > Billing
 (getSeatUsage, getBranchUsage) and the four founder totals (orderedExtrasByCompany). Not changed:
 the invite seat notice on Settings > Users still counts only people beyond the plan.
+
+## DEF-084 — "Get an invoice instead" never showed the invoice (found in test I4, 2026-09-30)
+
+Pressing it on Bevan (Annual, £840) created the Stripe subscription correctly (send invoice, 14
+days, card and bank transfer, Business £790 + Extra Seat £50, flexible billing mode, metadata
+right), but the Admin landed on the dashboard with no "Sent" message and no link. Two causes:
+(1) the action returned a panel, but the server action re-rendered the payment step, which saw the
+now live subscription and redirected to the dashboard; (2) Stripe leaves a subscription's first
+invoice as a DRAFT for about an hour, so there was no payment link to show and nothing was emailed
+yet. Fixed: the action finalises the first invoice straight away (Stripe then emails it, since
+"Email finalised invoices" is on) and redirects to a new page, /agreement/invoice-sent, which
+reads the invoice back from Stripe and shows the amount, due date, email, "View and pay the
+invoice", the PDF and Continue, and says so plainly if Stripe has not finished it yet.

@@ -11,6 +11,7 @@
  */
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
@@ -294,7 +295,19 @@ export async function startInvoiceSubscription(
       extras_interval: extras,
     });
 
-    const invoice = sub.latest_invoice && typeof sub.latest_invoice !== "string" ? sub.latest_invoice : null;
+    /* FINALISE IT NOW (test I4, 2026-09-30). Stripe leaves a subscription's first invoice as a
+       DRAFT for about an hour, and a draft has no payment link and is not emailed, so "View and
+       pay the invoice" had nothing to open. Finalising it here numbers it, gives it the payment
+       page and the PDF, and (with "Email finalised invoices" on in Stripe) emails it straight
+       away. Best effort: if this fails Stripe still finalises and emails it within the hour. */
+    let invoice = sub.latest_invoice && typeof sub.latest_invoice !== "string" ? sub.latest_invoice : null;
+    if (invoice?.id && invoice.status === "draft") {
+      try {
+        invoice = await stripe.invoices.finalizeInvoice(invoice.id, {}, { idempotencyKey: `${key}-finalise` });
+      } catch (e) {
+        console.error("[billing] finalising the first invoice failed:", (e as Error).message);
+      }
+    }
     await writeAudit({
       companyId: profile.company_id,
       actorId: profile.id,
@@ -307,17 +320,16 @@ export async function startInvoiceSubscription(
       metadata: { subscription: sub.id, invoice: invoice?.id ?? null },
     });
     revalidatePath("/settings/billing");
-    return {
-      ok: "Sent",
-      data: {
-        invoiceUrl: invoice?.hosted_invoice_url ?? "",
-        email: profile.email,
-      },
-    };
   } catch (e) {
     console.error("[billing] invoice subscription failed:", (e as Error).message);
     return { error: "Could not set up your invoice. Nothing has been charged. Please try again, or email hello@becarecompliant.com." };
   }
+  /* A PAGE OF ITS OWN, NOT A PANEL (test I4, 2026-09-30). Returning a "Sent" panel did not work:
+     the action re-renders the payment step, which now sees a live subscription and sends the
+     Admin to the dashboard, so the panel and its link were never seen. The confirmation page
+     reads the invoice back from Stripe, so it also works on a refresh. Outside the try, because
+     redirect() works by throwing. */
+  redirect("/agreement/invoice-sent");
 }
 
 /**

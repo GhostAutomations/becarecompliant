@@ -108,28 +108,9 @@ export function ManageBillingButton({
  * The word while it works matches the word when it is done: "Sending…" then "Sent".
  */
 export function InvoiceInsteadButton({ label = "Get an invoice instead" }: { label?: string }) {
+  // On success the action redirects to /agreement/invoice-sent (test I4, 2026-09-30); only a
+  // refusal comes back here, shown beside the button.
   const [state, action, pending] = useActionState(startInvoiceSubscription, IDLE_STATE);
-  if (state.ok) {
-    const url = state.data?.invoiceUrl;
-    return (
-      <div className="space-y-3 rounded-lg border border-white/10 bg-white/[0.03] p-4 text-sm text-white/85">
-        <p>
-          Sent. Your invoice is on its way to {state.data?.email || "your email"}. It is payable within 14 days, by
-          card or by bank transfer to the account details on the invoice.
-        </p>
-        <div className="flex flex-wrap items-center gap-3">
-          {url ? (
-            <a href={url} target="_blank" rel="noreferrer" className="btn btn-outline text-sm">
-              View and pay the invoice
-            </a>
-          ) : null}
-          <a href="/dashboard" className="btn btn-primary text-sm">
-            Continue
-          </a>
-        </div>
-      </div>
-    );
-  }
   return (
     <form action={action}>
       <div className="flex flex-wrap items-center gap-3">
