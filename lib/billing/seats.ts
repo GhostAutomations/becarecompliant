@@ -69,7 +69,8 @@ export function computeSeatUsage(activeUsers: number, included: number = INCLUDE
 }
 
 export function formatPence(pence: number): string {
-  return `£${(pence / 100).toFixed(2)}`;
+  // Thousands separated ("£1,290.00", not "£1290.00"), seen on Settings, Billing 2026-09-30.
+  return `£${(pence / 100).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 /**

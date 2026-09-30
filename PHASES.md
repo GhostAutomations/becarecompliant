@@ -3865,3 +3865,10 @@ on), Bank Transfers enabled, successful payment receipts on. The health panel ha
 Pro and branch as Wrong (still £49, £69, £7.50) so Checkout was refusing sales. Because Bank Transfers
 is now on, every Checkout Session names payment_method_types card, so top ups cannot be paid by a
 transfer that would never add credits. Vercel env vars still to point at the new ids.
+
+2026-09-30 invoicing tests I1 to I7 all PASS (TEST-CHECKLIST-CONTRACT.md), with four defects found
+and fixed on the way: DEF-083 ordered extras not charged, DEF-084 invoice option showed nothing and
+left the first invoice a draft, DEF-085 founder Invoices would have listed other products'
+invoices, DEF-086 Settings Billing cost in the Seats card and monthly figures on Annual (plus the
+Pro allowance and the Annual upgrade proration). Bevan is left on Business Annual with a live test
+subscription (sub_1ULMWQRhL0XqZmTgTbaVBWWS, invoice U6ZNESFB-0073 open £840).

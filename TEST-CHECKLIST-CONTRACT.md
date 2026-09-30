@@ -181,5 +181,5 @@ Bevan switched to Pro by SQL for this (no Stripe subscription, so nothing billed
 - I6 PASS 2026-09-30 after deploy ba497c3 (DEF-085 fixed first): Unpaid showed Bevan £840.00 Due 14 Oct, Paid showed the £10 top up, no other products' customers, View and PDF opened Stripe's pages (Phil).
 - I6 Founder > Invoices: Unpaid shows the Annual invoice as Due; Paid shows paid ones; View and PDF
   open Stripe's pages; empty filters say so.
-- I7 FAIL 2026-09-30, DEF-086: yearly cost shown inside the Seats card; Move to Pro and the notes still monthly. Fixed; RETEST after deploy.
+- I7 FAIL 2026-09-30, DEF-086: yearly cost shown inside the Seats card; Move to Pro and the notes still monthly. Fixed. RETEST PASS 2026-09-30 after deploy cf96a6f (Phil): plan card shows the yearly cost like an invoice (£790 + £50 x 10 months = £840 plus VAT), Seats shows usage only, Move to Pro compares yearly totals, Branches gives the yearly price. £1290.00 missing its comma: formatPence now thousands separated (next push).
 - I7 Settings, Billing on an Annual company shows /yr amounts.
