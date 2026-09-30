@@ -2395,3 +2395,16 @@ React 19 calls form.reset() after the action; the controlled checkbox's state st
 box on screen went blank (the same would happen to the radios and the select). Fixed: the form
 listens for its reset event and puts the tick, billing option and organisation type back from
 state straight after. Confirmed live that the reset event fires on a refusal.
+
+## DEF-083 — Ordered extras accepted in the total but not charged (found in test I3, 2026-09-30)
+
+Bevan (Business, Annual, extras yearly) ordered 1 extra user and accepted "£840.00 a year plus VAT",
+but Add a card sent them to Stripe for £790.00 only. Cause: every billing path counted extras from
+the users and branches that actually exist (Bevan had 2 billable users against 4 included), never
+from the Order. Phil's rule by popup: charge what they ordered; what the latest accepted Order asks
+for is the least they pay, and people added beyond it are charged too. Fixed with one pure rule,
+lib/billing/ordered-extras.ts (billedExtra = the larger of actual and ordered, 8 tests), used by
+Checkout and the invoice route (prepareSubscription), the seat and branch syncs and so the nightly
+reconcile (getOrderedExtras, service client), the plan change (tier-apply), Settings > Billing
+(getSeatUsage, getBranchUsage) and the four founder totals (orderedExtrasByCompany). Not changed:
+the invite seat notice on Settings > Users still counts only people beyond the plan.

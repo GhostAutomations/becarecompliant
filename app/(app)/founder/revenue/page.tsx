@@ -14,6 +14,8 @@ import {
   EXTRA_BRANCH_PENCE,
 } from "@/lib/billing/seats";
 import { TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
+import { orderedExtrasByCompany, orderedFor } from "@/lib/billing/ordered-extras-read";
+import { billedExtra } from "@/lib/billing/ordered-extras";
 import { subscriptionMonthlyPence } from "@/lib/billing/monthly-total";
 import { billingStatusPill, tierLabel } from "@/lib/founder/format";
 
@@ -86,13 +88,16 @@ export default async function FounderRevenuePage() {
   const blacks: Row[] = [];
   let mrrPence = 0;
   let pastDue = 0;
+  // What each company ordered is the least it pays (2026-09-30): the same floor as Stripe.
+  const orderedByCompany = await orderedExtrasByCompany(supabase);
 
   for (const c of list) {
     const b = billingByCompany.get(c.id) ?? null;
-    const seats = computeSeatUsage(activeUsers.get(c.id) ?? 0, includedSeatsForTier(c.tier));
-    const branchesExtra = Math.max(
-      0,
-      (operationalBranches.get(c.id) ?? 0) - includedBranchesForTier(c.tier),
+    const actualSeats = computeSeatUsage(activeUsers.get(c.id) ?? 0, includedSeatsForTier(c.tier));
+    const seats = { ...actualSeats, extra: billedExtra(actualSeats.extra, orderedFor(orderedByCompany, c.id).users) };
+    const branchesExtra = billedExtra(
+      Math.max(0, (operationalBranches.get(c.id) ?? 0) - includedBranchesForTier(c.tier)),
+      orderedFor(orderedByCompany, c.id).branches,
     );
     const row: Row = {
       id: c.id,

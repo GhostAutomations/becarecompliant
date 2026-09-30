@@ -13,6 +13,8 @@ import {
   formatPence,
   isBillableSeat,
 } from "@/lib/billing/seats";
+import { orderedExtrasByCompany, orderedFor } from "@/lib/billing/ordered-extras-read";
+import { billedExtra } from "@/lib/billing/ordered-extras";
 import { subscriptionMonthlyPence } from "@/lib/billing/monthly-total";
 import { TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
 import {
@@ -79,6 +81,8 @@ export default async function FounderCompaniesPage() {
     Math.max(0, (operationalBranches.get(companyId) ?? 0) - includedBranchesForTier(tier));
 
   const list = companies ?? [];
+  // What each company ordered is the least it pays (2026-09-30): the same floor as Stripe.
+  const orderedByCompany = await orderedExtrasByCompany(supabase);
 
   let mrrPence = 0;
   for (const company of list) {
@@ -90,9 +94,9 @@ export default async function FounderCompaniesPage() {
     // revenue page or Stripe again. Branches are REQUIRED input, not an afterthought.
     mrrPence += subscriptionMonthlyPence({
       basePence: TIER_BASE_PENCE[company.tier as keyof typeof TIER_BASE_PENCE],
-      extraSeats: seats.extra,
+      extraSeats: billedExtra(seats.extra, orderedFor(orderedByCompany, company.id).users),
       seatPence: EXTRA_SEAT_PENCE,
-      extraBranches: extraBranchesFor(company.id, company.tier),
+      extraBranches: billedExtra(extraBranchesFor(company.id, company.tier), orderedFor(orderedByCompany, company.id).branches),
       branchPence: EXTRA_BRANCH_PENCE,
     });
   }
@@ -134,11 +138,14 @@ export default async function FounderCompaniesPage() {
             const isSub = isSubscriptionTier(company.tier);
             const bill = billingByCompany.get(company.id) ?? null;
             const bpill = billingStatusPill(bill?.subscription_status ?? null);
-            const extraBranches = extraBranchesFor(company.id, company.tier);
+            const extraBranches = billedExtra(
+              extraBranchesFor(company.id, company.tier),
+              orderedFor(orderedByCompany, company.id).branches,
+            );
             const monthlyTotalPence = isSub
               ? subscriptionMonthlyPence({
                   basePence: TIER_BASE_PENCE[company.tier as keyof typeof TIER_BASE_PENCE],
-                  extraSeats: seats.extra,
+                  extraSeats: billedExtra(seats.extra, orderedFor(orderedByCompany, company.id).users),
                   seatPence: EXTRA_SEAT_PENCE,
                   extraBranches,
                   branchPence: EXTRA_BRANCH_PENCE,

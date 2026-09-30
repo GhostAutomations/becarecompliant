@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { billedExtra, orderedExtrasFrom } from "@/lib/billing/ordered-extras";
 
 /**
  * Roles that do NOT consume a paid seat.
@@ -83,7 +84,24 @@ export async function getSeatUsage(companyId: string): Promise<SeatUsage> {
     supabase.from("companies").select("tier").eq("id", companyId).maybeSingle(),
   ]);
   const included = includedSeatsForTier((company?.tier as string) ?? "business");
-  return computeSeatUsage(typeof count === "number" ? count : 0, included);
+  const usage = computeSeatUsage(typeof count === "number" ? count : 0, included);
+  // Show what is billed: never below the extras the accepted Order asked for (2026-09-30).
+  const extra = billedExtra(usage.extra, (await orderedExtrasForDisplay(companyId)).users);
+  return { ...usage, extra, extraCostPence: extra * EXTRA_SEAT_PENCE };
+}
+
+/** The latest accepted Order's extras, read as the signed in user. Company Admins can read it
+ *  (RLS); anyone else gets nothing ordered, which only affects what a non admin screen shows. */
+async function orderedExtrasForDisplay(companyId: string) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("agreement_acceptances")
+    .select("extra_users, extra_branches")
+    .eq("company_id", companyId)
+    .order("accepted_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return orderedExtrasFrom(data);
 }
 
 export type BranchUsage = { used: number; included: number; extra: number; extraCostPence: number };
@@ -99,6 +117,6 @@ export async function getBranchUsage(companyId: string, tier: string): Promise<B
     .eq("kind", "branch");
   const used = count ?? 0;
   const included = includedBranchesForTier(tier);
-  const extra = Math.max(0, used - included);
+  const extra = billedExtra(Math.max(0, used - included), (await orderedExtrasForDisplay(companyId)).branches);
   return { used, included, extra, extraCostPence: extra * EXTRA_BRANCH_PENCE };
 }

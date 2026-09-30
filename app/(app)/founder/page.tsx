@@ -14,6 +14,8 @@ import {
   EXTRA_BRANCH_PENCE,
 } from "@/lib/billing/seats";
 import { TIER_BASE_PENCE, isSubscriptionTier } from "@/lib/stripe/config";
+import { orderedExtrasByCompany, orderedFor } from "@/lib/billing/ordered-extras-read";
+import { billedExtra } from "@/lib/billing/ordered-extras";
 import { subscriptionMonthlyPence } from "@/lib/billing/monthly-total";
 import { buildSignupSeries, londonMonthKey, tallyBy } from "@/lib/founder/stats";
 import {
@@ -117,6 +119,9 @@ export default async function FounderPage() {
     operationalBranches.set(b.company_id, (operationalBranches.get(b.company_id) ?? 0) + 1);
   }
 
+  // What each company ordered is the least it pays (2026-09-30), so the MRR uses the same floor as Stripe.
+  const orderedByCompany = await orderedExtrasByCompany(supabase);
+
   let mrrPence = 0;
   for (const company of list) {
     if (!isSubscriptionTier(company.tier)) continue;
@@ -125,11 +130,11 @@ export default async function FounderPage() {
     const seats = computeSeatUsage(activeUsers.get(company.id) ?? 0, includedSeatsForTier(company.tier));
     mrrPence += subscriptionMonthlyPence({
       basePence: TIER_BASE_PENCE[company.tier as keyof typeof TIER_BASE_PENCE],
-      extraSeats: seats.extra,
+      extraSeats: billedExtra(seats.extra, orderedFor(orderedByCompany, company.id).users),
       seatPence: EXTRA_SEAT_PENCE,
-      extraBranches: Math.max(
-        0,
-        (operationalBranches.get(company.id) ?? 0) - includedBranchesForTier(company.tier),
+      extraBranches: billedExtra(
+        Math.max(0, (operationalBranches.get(company.id) ?? 0) - includedBranchesForTier(company.tier)),
+        orderedFor(orderedByCompany, company.id).branches,
       ),
       branchPence: EXTRA_BRANCH_PENCE,
     });

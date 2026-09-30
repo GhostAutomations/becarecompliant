@@ -163,10 +163,12 @@ Bevan switched to Pro by SQL for this (no Stripe subscription, so nothing billed
 
 ## Invoicing through Stripe (2026-09-30, 0352)
 
-- I1 Founder > Platform health lists the four yearly prices; each reads Matches once set up.
+- I1 Founder > Platform health lists the four yearly prices; each reads Matches once set up. PASS 2026-09-30 (checked by Claude after deploy 98ed248: all nine prices Matches, "Stripe agrees").
+- I2 PASS 2026-09-30 (Bevan, Business Monthly: payment step £79.00 a month plus VAT; Stripe page Business £79.00 per month, card only; Phil confirmed, not paid).
 - I2 Monthly, card: accept on Monthly, Add a card opens Stripe with the plan (and any extras) and, when
   due, "Onboarding"; pay with a TEST card only if Stripe is in test mode. Subscription appears with
   billing_interval month.
+- I3 FAIL 2026-09-30, DEF-083: ordered 1 extra user yearly, accepted £840.00 a year, Stripe showed Business £790.00 per year only. Fixed (charge what they ordered); RETEST after deploy.
 - I3 Annual, card: accept on Annual (extras yearly), Add a card shows the yearly price (£790 or
   £1,290). Annual with monthly extras: Stripe shows the year only; after paying, the monthly extra
   lines appear on the same subscription.

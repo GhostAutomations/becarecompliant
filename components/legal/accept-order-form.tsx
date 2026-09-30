@@ -108,8 +108,15 @@ export default function AcceptOrderForm({
     branchPence: summary.branchPence,
     onboardingFee: summary.onboardingFee,
   });
+  // Say the charge the way it will be taken: on Annual with extras paid yearly it is ten months'
+  // price once a year, not "a month" (seen in test I3, 2026-09-30, beside a yearly breakdown).
+  const extrasYearly = billing === "annual" && extrasBilling === "yearly";
   const chargeText = (n: number, unit: number) =>
-    n === 0 ? "Nothing extra." : `You will be charged an extra ${money(n * unit)} a month (${n} x ${money(unit)}).`;
+    n === 0
+      ? "Nothing extra."
+      : extrasYearly
+        ? `You will be charged an extra ${money(n * unit * summary.annualMonths)} a year (${n} x ${money(unit)} x ${summary.annualMonths} months).`
+        : `You will be charged an extra ${money(n * unit)} a month (${n} x ${money(unit)}).`;
   const numberRequired = orgType === "limited_company" || orgType === "charity";
   const price = billing === "annual" ? summary.priceAnnual : summary.priceMonthly;
 

@@ -29,6 +29,8 @@ import {
   formatPence,
   isBillableSeat,
 } from "@/lib/billing/seats";
+import { orderedExtrasByCompany, orderedFor } from "@/lib/billing/ordered-extras-read";
+import { billedExtra } from "@/lib/billing/ordered-extras";
 import { subscriptionMonthlyPence } from "@/lib/billing/monthly-total";
 import { TIER_LABELS } from "@/lib/stripe/config";
 import ActionForm from "@/components/action-form";
@@ -128,7 +130,10 @@ export default async function FounderCompanyPage({
   const activeUsers = (profiles ?? []).filter(
     (p) => p.status === "active" && isBillableSeat(p.role),
   ).length;
-  const seats = computeSeatUsage(activeUsers, includedSeatsForTier(company.tier));
+  // What the company ordered is the least it pays (2026-09-30): the same floor as Stripe.
+  const ordered = orderedFor(await orderedExtrasByCompany(supabase), company.id);
+  const actualSeats = computeSeatUsage(activeUsers, includedSeatsForTier(company.tier));
+  const seats = { ...actualSeats, extra: billedExtra(actualSeats.extra, ordered.users) };
   const isSub = isSubscriptionTier(company.tier);
   /* A company moved to Black keeps a live subscription until the end of the period it has
      already paid for, so "Black: no Stripe subscription attached" would be false for up to a
@@ -142,7 +147,7 @@ export default async function FounderCompanyPage({
   // Extra branches are REAL MONEY on the subscription (one £7.50 line, quantity = beyond the
   // allowance), so the founder console has to include them or it reports a number Stripe
   // disagrees with. Acme showed £69.00/mo here while Stripe was billing £84.00.
-  const extraBranchCount = Math.max(0, operationalBranches.length - branchIncluded);
+  const extraBranchCount = billedExtra(Math.max(0, operationalBranches.length - branchIncluded), ordered.branches);
   const monthlyTotalPence = isSub
     ? subscriptionMonthlyPence({
         basePence: TIER_BASE_PENCE[company.tier as keyof typeof TIER_BASE_PENCE],

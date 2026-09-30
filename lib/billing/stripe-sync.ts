@@ -15,6 +15,7 @@ import { customerIdentityPatch } from "@/lib/billing/customer-identity";
 import { isTierName, type TierName } from "@/lib/billing/tier-change";
 import { pickBaseItem, baseSwapDecision } from "@/lib/billing/base-item";
 import { subscriptionHasEnded } from "@/lib/billing/subscription-state";
+import { billedExtra, orderedExtrasFrom, NO_ORDERED_EXTRAS, type OrderedExtras } from "@/lib/billing/ordered-extras";
 
 /**
  * Exact seat sync to Stripe. Product rule: 4 users included, then £5/extra/mo.
@@ -87,6 +88,28 @@ export async function getActiveSeatCount(companyId: string): Promise<number> {
     return 0;
   }
   return count ?? 0;
+}
+
+/**
+ * The extras the company's latest accepted Order asked for (Phil, 2026-09-30: what they ordered
+ * is the least they pay for). Read with the service client because the nightly reconcile has no
+ * user. A read failure counts as nothing ordered, which fails towards charging only what exists,
+ * the same direction as every other billing failure in this file.
+ */
+export async function getOrderedExtras(companyId: string): Promise<OrderedExtras> {
+  const supabase = createServiceClient();
+  const { data, error } = await supabase
+    .from("agreement_acceptances")
+    .select("extra_users, extra_branches")
+    .eq("company_id", companyId)
+    .order("accepted_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    console.error("[billing] ordered extras read failed:", error.message);
+    return NO_ORDERED_EXTRAS;
+  }
+  return orderedExtrasFrom(data);
 }
 
 /** Extra billable seats = users beyond the tier's included allowance (Business 4,
@@ -226,8 +249,9 @@ export async function syncSeatQuantity(
     const seatPrice = seatPriceId(billingIntervals(billing).extras);
     if (!seatPrice) return { synced: false, reason: "no_seat_price" };
 
-    const active = await getActiveSeatCount(companyId);
-    const quantity = extraSeats(active, billing.billed_tier ?? "business");
+    const [active, ordered] = await Promise.all([getActiveSeatCount(companyId), getOrderedExtras(companyId)]);
+    // Never below what the accepted Order asked for (Phil, 2026-09-30).
+    const quantity = billedExtra(extraSeats(active, billing.billed_tier ?? "business"), ordered.users);
 
     const subscription = await stripe.subscriptions.retrieve(
       billing.stripe_subscription_id,
@@ -569,7 +593,12 @@ export async function syncBranchQuantity(
     const price = branchPriceId(billingIntervals(billing).extras);
     if (!price) return { synced: false, reason: "no_branch_price" };
 
-    const quantity = await extraBranches(companyId, billing.billed_tier ?? "business");
+    const [actualBranches, ordered] = await Promise.all([
+      extraBranches(companyId, billing.billed_tier ?? "business"),
+      getOrderedExtras(companyId),
+    ]);
+    // Never below what the accepted Order asked for (Phil, 2026-09-30).
+    const quantity = billedExtra(actualBranches, ordered.branches);
 
     const subscription = await stripe.subscriptions.retrieve(billing.stripe_subscription_id);
     const item = subscription.items.data.find((i) => i.price?.id === price);

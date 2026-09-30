@@ -38,9 +38,11 @@ import {
   endSubscriptionAtPeriodEnd,
   resumeSubscription,
   extraSeats,
+  getOrderedExtras,
   extraBranches,
   getActiveSeatCount,
 } from "@/lib/billing/stripe-sync";
+import { billedExtra } from "@/lib/billing/ordered-extras";
 import { subscriptionHasEnded } from "@/lib/billing/subscription-state";
 import { checkoutPriceProblem } from "@/lib/billing/price-check";
 import { branchPriceId } from "@/lib/stripe/config";
@@ -126,8 +128,10 @@ export async function changeTier(input: {
      Checking a price that is not going on the invoice would let a company be blocked by a line
      it is not being charged for, which is a mistake this guard has already made once. */
   if (plan.settlement === "swap_base" || plan.settlement === "resume") {
-    const seatExtra = extraSeats(await getActiveSeatCount(input.companyId), toTier);
-    const branchExtra = branchPriceId() ? await extraBranches(input.companyId, toTier) : 0;
+    // Same floor as the syncs: never below what the accepted Order asked for (2026-09-30).
+    const ordered = await getOrderedExtras(input.companyId);
+    const seatExtra = billedExtra(extraSeats(await getActiveSeatCount(input.companyId), toTier), ordered.users);
+    const branchExtra = branchPriceId() ? billedExtra(await extraBranches(input.companyId, toTier), ordered.branches) : 0;
     const priceProblem = await checkoutPriceProblem(toTier as "business" | "pro", {
       includeSeat: seatExtra > 0,
       includeBranch: branchExtra > 0,
