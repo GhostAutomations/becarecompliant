@@ -140,7 +140,7 @@ It applies from the moment your Company Admin accepts it in the platform, or sig
 
 8.3 If you do not accept a price rise, you may cancel before it takes effect, and on the Monthly option you will not pay the higher price.
 
-8.4 On the Annual option, if we tell you about a higher price later than 60 days before your renewal date, your existing price continues until 60 days after we told you, and only then does the higher price apply. You may cancel the renewal at any time before the higher price applies, even if the 30 day deadline in clause 6.3 has passed, and you will not pay the higher price.
+8.4 On the Annual option, if we tell you about a higher price later than 60 days before your renewal date, the higher price does not apply to the twelve months that follow that renewal: your existing price continues for them, and the higher price can apply only from the renewal after. You may also cancel that renewal at any time before it takes effect, even if the 30 day deadline in clause 6.3 has passed.
 
 ## 9. Your responsibilities
 
@@ -427,7 +427,7 @@ We will give you reasonable help, taking into account the nature of the processi
 
 11.2 At your choice, we return the Personal Data to you (through the read only period and full export, or a full export we produce for you on request) and then delete it, or we delete it sooner if you ask in writing. We delete the Personal Data from the Platform within 30 days after the read only period, and instruct our Subprocessors to delete their copies. Some Subprocessors keep limited copies for longer under their own terms, as shown in Annex 3 (for example, content that Anthropic's safety systems flag); those copies stay protected under their contracts with us. Backup copies are overwritten on their normal cycle, and in any case within a further 30 days; until then they are kept secure and are not restored or used for anything except deletion.
 
-11.3 We will not keep Personal Data after that unless the law requires us to, in which case we will keep it confidential and process it only for that purpose.
+11.3 After that we will not keep Personal Data ourselves unless the law requires us to, in which case we will keep it confidential and process it only for that purpose. Copies a Subprocessor keeps for longer under clause 11.2 are held under that Subprocessor's own terms, which we have reviewed and which bind it to keep them confidential and secure; we will tell you which Subprocessor holds any such copies if you ask.
 
 11.4 We will confirm deletion in writing on request.
 
@@ -459,9 +459,9 @@ If Data Protection Law changes in a way that affects this DPA, we may update it 
 
 **Duration.** For the length of the Agreement, then the read only and deletion periods in clause 11.
 
-**Nature of the processing.** Collection through Forms and uploads, storage, organisation, retrieval, display, scheduling of Checks, calculation of compliance status, generation of reports, PDF and CSV exports, sending of emails and text messages, AI drafting where you use it, anonymisation and deletion.
+**Nature of the processing.** Collection through Forms and uploads, storage, organisation, retrieval, display, scheduling of Checks, calculation of compliance status, generation of reports, PDF and CSV exports, sending of emails and text messages, AI drafting where you use it, taking anonymous themes from inspection reports if you switch that on, backups, anonymisation and deletion.
 
-**Purpose.** To let you record, schedule, evidence and report on the compliance of your staff and the care you provide, for your own regulatory, contractual, employment and quality purposes.
+**Purpose.** To let you record, schedule, evidence and report on the compliance of your staff and the care you provide, for your own regulatory, contractual, employment and quality purposes; and, only if you switch it on, to produce anonymous themes from your inspection reports under clause 11.8 of the Agreement.
 
 **Categories of data subjects.**
 
@@ -521,7 +521,7 @@ If Data Protection Law changes in a way that affects this DPA, we may update it 
 
 **Testing and updates.** We regularly monitor security advisories for our providers and the software we depend on, and apply fixes in a timescale that matches the risk. We review our database security checks after every change to the database, and test access controls whenever we change them.
 
-**Backups and recovery.** Our database provider takes regular backups of the database. Uploaded files and stored Evidence documents are copied each night to separate private storage. We test restoring both the database and files at least once a year and keep a record of each test.
+**Backups and recovery.** Our database provider takes regular backups of the database. Uploaded files and stored Evidence documents are copied each night to separate private storage with the same provider in the United Kingdom. We test restoring both the database and files at least once a year and keep a record of each test.
 
 **Incidents.** We follow a written incident procedure: contain the incident, assess what personal data is affected, tell you under clause 9, record what happened and review what we change as a result.
 

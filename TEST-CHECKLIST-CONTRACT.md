@@ -60,4 +60,5 @@ Working Days, urgent audits, "designed to prevent", advisory monitoring, honest 
 Supabase backups possibly overseas, file backups stated. Drafts unnumbered ("Draft, subject to
 legal review"); the first published text is 1.0.
 
-- A12 /terms and /dpa head reads "Draft, subject to legal review", not "Version 1.0".
+- A12 /terms and /dpa head reads "Version 1.0, draft, subject to legal review" (matching the
+  Order's "Versions accepted"); 8.4 no longer raises an annual price mid term.

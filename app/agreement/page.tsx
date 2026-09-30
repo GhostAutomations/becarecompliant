@@ -192,7 +192,7 @@ export default async function AgreementPage() {
 
         <details className="glass-card p-6" open>
           <summary className="cursor-pointer text-sm font-semibold text-white">
-            Subscription Agreement{published ? `, version ${docs.agreement.version}` : ", draft"}
+            Subscription Agreement, version {docs.agreement.version}{published ? "" : ", draft"}
           </summary>
           <div className="mt-4 max-h-96 overflow-y-auto rounded-lg border border-white/10 bg-white/[0.02] p-4">
             <LegalDocumentView text={docs.agreement.text} compact />
@@ -201,7 +201,7 @@ export default async function AgreementPage() {
 
         <details className="glass-card p-6">
           <summary className="cursor-pointer text-sm font-semibold text-white">
-            Data Processing Agreement{published ? `, version ${docs.dpa.version}` : ", draft"}
+            Data Processing Agreement, version {docs.dpa.version}{published ? "" : ", draft"}
           </summary>
           <div className="mt-4 max-h-96 overflow-y-auto rounded-lg border border-white/10 bg-white/[0.02] p-4">
             <LegalDocumentView text={docs.dpa.text} compact />

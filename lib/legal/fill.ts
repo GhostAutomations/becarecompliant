@@ -40,7 +40,9 @@ export function fillLegalText(text: string, s: Supplier, version = "1.0"): strin
     out = out.split(t.token).join(blank(v) ? t.placeholder : (v as string).trim());
   }
   const versionLine =
-    missingSupplier(s).length > 0 ? "Draft, subject to legal review" : `Version ${version} · ${(s.publicationDate as string).trim()}`;
+    missingSupplier(s).length > 0
+      ? `Version ${version}, draft, subject to legal review`
+      : `Version ${version} · ${(s.publicationDate as string).trim()}`;
   return out.split("{{version_line}}").join(versionLine);
 }
 

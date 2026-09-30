@@ -136,10 +136,9 @@ test("the agreement carries the new clauses", () => {
   assert.ok(!DATA_PROCESSING_AGREEMENT_1_0.includes("Binding Corporate Rules"));
 });
 
-test("drafts are unnumbered; the published text carries its version and date", () => {
+test("a draft says so and carries the version its Order will record; published text carries its date", () => {
   const draft = fillLegalText(SUBSCRIPTION_AGREEMENT_1_0, EMPTY, "1.0");
-  assert.ok(draft.includes("**Draft, subject to legal review**"));
-  assert.ok(!draft.includes("Version 1.0"));
+  assert.ok(draft.includes("**Version 1.0, draft, subject to legal review**"));
   const live = fillLegalText(SUBSCRIPTION_AGREEMENT_1_0, FULL, "1.0");
   assert.ok(live.includes("**Version 1.0 · 1 November 2026**"));
   assert.ok(!live.includes("{{"));
