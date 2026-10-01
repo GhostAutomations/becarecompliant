@@ -17,6 +17,7 @@
  * lives on the Service User's own record, where it is done rather than watched.
  */
 
+import { showsColumn } from "@/lib/setup/defaults";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -112,6 +113,7 @@ export default function ServiceUserRegister({
   initialView,
   initialBranch,
   initialSort,
+  present,
 }: {
   rows: ServiceUserRow[];
   branches: BranchType[];
@@ -128,8 +130,12 @@ export default function ServiceUserRegister({
   initialBranch: string;
   /** The name order this user chose last time, read from their profile by the page. */
   initialSort: SortMode;
+  /** The company's active check keys; a curated column without its check is left off
+   *  (the creation tick list, lib/setup). Undefined draws every column. */
+  present?: string[];
 }) {
   const bw = useBranchWord();
+  const hasAudit = showsColumn(present, "audit");
   const router = useRouter();
   const [view, setView] = useState(VIEW_META[initialView] ? initialView : "main");
   // Branch options exclude the office (already only branch-kind) and carry each
@@ -331,7 +337,7 @@ export default function ServiceUserRegister({
                         <th>{col("new_review_due", "New Review Due")}</th>
                       </>
                     )}
-                    <th>{col("audit", "Audit")}</th>
+                    {hasAudit ? <th>{col("audit", "Audit")}</th> : null}
                     {shownColumns.map((c) => (
                       <th key={c.id}>{c.name}</th>
                     ))}
@@ -423,15 +429,17 @@ export default function ServiceUserRegister({
                             <td><RagDate date={newReviewDue} rag={review?.rag ?? "none"} /></td>
                           </>
                         )}
-                        <td>
-                          <ExtraCheckCell
-                            status={row.statusByKey["audit"]}
-                            recordId={su.id}
-                            basePath="/service-users"
-                            fromQuery={fromQuery}
-                            editable={canManage}
-                          />
-                        </td>
+                        {hasAudit ? (
+                          <td>
+                            <ExtraCheckCell
+                              status={row.statusByKey["audit"]}
+                              recordId={su.id}
+                              basePath="/service-users"
+                              fromQuery={fromQuery}
+                              editable={canManage}
+                            />
+                          </td>
+                        ) : null}
                         {shownColumns.map((c) => (
                           <td key={c.id}>
                             <ExtraCheckCell

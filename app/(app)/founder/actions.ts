@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { skippedKeys } from "@/lib/setup/defaults";
 import { branchWordFromForm, parseDealFromForm, writeDeal } from "@/lib/billing/deal-store";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
@@ -183,35 +184,46 @@ export async function createCompany(
   // it can be set again from the founder company page.
   const dealSave = deal.row ? await writeDeal(supabase, company.id, deal.row, deal.notes, user.id) : {};
 
-  // Seed the founder-curated starter forms so the company has usable forms on
-  // day one. Idempotent (safe if re-run); runs as the platform admin, which the
-  // SECURITY DEFINER function authorises. A seeding failure must not fail company
-  // creation, so it is surfaced in the note rather than thrown.
-  const { data: seededCount, error: seedErr } = await supabase.rpc(
-    "seed_company_form_templates",
-    { cid: company.id },
-  );
+  /* THE CREATION TICK LIST (Phil, 2026-09-26, built 2026-10-01). Thistle's set up is the default;
+     whatever the founder unticked is left out. One call seeds the forms, both check lists and the
+     training courses from the same tables the tick list was drawn from (seed_company_defaults,
+     0365): an unticked check takes its form with it, and the database never leaves out a locked
+     form or check, whatever arrives. Only ticked boxes are posted, so skippedKeys needs to know
+     the list was really on screen, or a page that failed to draw would create an empty company.
+     A failure must not fail company creation, so it is surfaced in the note rather than thrown. */
+  const listShown = String(formData.get("setup_list_shown") ?? "") === "1";
+  let skipPeople: string[] = [];
+  let skipSu: string[] = [];
+  let skipCourses: string[] = [];
+  let skippedNames: string[] = [];
+  if (listShown) {
+    const [defsRes, coursesRes] = await Promise.all([
+      supabase.from("default_check_definitions").select("population, key, name, locked_reason"),
+      supabase.from("training_course_templates").select("id, name").eq("active", true),
+    ]);
+    const defs = (defsRes.data ?? []) as Array<{ population: string; key: string; name: string; locked_reason: string | null }>;
+    const keptPeople = formData.getAll("keep_people_check").map(String);
+    const keptSu = formData.getAll("keep_su_check").map(String);
+    const keptCourses = formData.getAll("keep_course").map(String);
+    const pick = (pop: string) => defs.filter((d) => d.population === pop);
+    const locked = (pop: string) => pick(pop).filter((d) => d.locked_reason).map((d) => d.key);
+    skipPeople = skippedKeys(pick("people").map((d) => d.key), keptPeople, locked("people"), true);
+    skipSu = skippedKeys(pick("service_users").map((d) => d.key), keptSu, locked("service_users"), true);
+    const courses = (coursesRes.data ?? []) as Array<{ id: string; name: string }>;
+    skipCourses = skippedKeys(courses.map((c) => c.id), keptCourses, [], true);
+    skippedNames = [
+      ...pick("people").filter((d) => skipPeople.includes(d.key)).map((d) => d.name),
+      ...pick("service_users").filter((d) => skipSu.includes(d.key)).map((d) => `${d.name} (Service Users)`),
+    ];
+  }
 
-  // Seed the default People check catalogue (idempotent), linking each check to
-  // the Forms just seeded. A failure must not fail company creation.
-  const { data: checksSeeded, error: checksErr } = await supabase.rpc(
-    "seed_company_people_checks",
-    { cid: company.id },
-  );
-
-  // Seed the default Service User check catalogue (idempotent), linking each check to
-  // the Forms just seeded. A failure must not fail company creation.
-  const { data: suChecksSeeded, error: suChecksErr } = await supabase.rpc(
-    "seed_company_service_user_checks",
-    { cid: company.id },
-  );
-
-  // Seed the founder-curated training course catalogue (idempotent). A failure
-  // must not fail company creation.
-  const { data: trainingSeeded, error: trainingErr } = await supabase.rpc(
-    "seed_company_training_courses",
-    { cid: company.id },
-  );
+  const { data: seeded, error: seedErr } = await supabase.rpc("seed_company_defaults", {
+    cid: company.id,
+    p_skip_people_checks: skipPeople.length ? skipPeople : null,
+    p_skip_su_checks: skipSu.length ? skipSu : null,
+    p_skip_courses: skipCourses.length ? skipCourses : null,
+  });
+  const counts = (seeded ?? {}) as { forms?: number; people_checks?: number; su_checks?: number; courses?: number };
 
   // Seed the default staff job-title list (idempotent). A failure must not fail
   // company creation.
@@ -235,10 +247,12 @@ export async function createCompany(
       tier,
       slug,
       branch_name: branchName,
-      forms_seeded: seededCount ?? 0,
-      checks_seeded: checksErr ? 0 : (checksSeeded ?? 0),
-      su_checks_seeded: suChecksErr ? 0 : (suChecksSeeded ?? 0),
-      training_seeded: trainingErr ? 0 : (trainingSeeded ?? 0),
+      forms_seeded: counts.forms ?? 0,
+      checks_seeded: counts.people_checks ?? 0,
+      su_checks_seeded: counts.su_checks ?? 0,
+      training_seeded: counts.courses ?? 0,
+      checks_left_out: skippedNames,
+      courses_left_out: skipCourses.length,
     },
   });
 
@@ -250,24 +264,11 @@ export async function createCompany(
     note += ` It is on a ${trialDays} day trial, covering one branch and two colleagues besides the Admin.`;
   }
   if (seedErr) {
-    note += ` The starter forms could not be seeded: ${seedErr.message}`;
+    note += ` Thistle's set up could not be added (${seedErr.message}). Use Import latest templates on the company page to add it.`;
   } else {
-    note += ` ${seededCount ?? 0} starter forms were added.`;
-  }
-  if (checksErr) {
-    note += ` The People checks could not be seeded: ${checksErr.message}`;
-  } else {
-    note += ` ${checksSeeded ?? 0} People checks were configured.`;
-  }
-  if (suChecksErr) {
-    note += ` The Service User checks could not be seeded: ${suChecksErr.message}`;
-  } else {
-    note += ` ${suChecksSeeded ?? 0} Service User checks were configured.`;
-  }
-  if (trainingErr) {
-    note += ` The training courses could not be seeded: ${trainingErr.message}`;
-  } else {
-    note += ` ${trainingSeeded ?? 0} training courses were added.`;
+    note += ` Added ${counts.forms ?? 0} forms, ${counts.people_checks ?? 0} People checks, ${counts.su_checks ?? 0} Service User checks and ${counts.courses ?? 0} training courses.`;
+    if (skippedNames.length) note += ` Left out: ${skippedNames.join(", ")}.`;
+    if (skipCourses.length) note += ` ${skipCourses.length} training ${skipCourses.length === 1 ? "course" : "courses"} left out.`;
   }
 
   if (adminEmail) {

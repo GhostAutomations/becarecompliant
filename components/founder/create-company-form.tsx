@@ -5,8 +5,10 @@ import { startTransition, useActionState, type FormEvent } from "react";
 import { createCompany } from "@/app/(app)/founder/actions";
 import { IDLE_STATE } from "@/lib/forms";
 import { DealFields } from "@/components/founder/deal-fields";
+import { SetupTickList } from "@/components/founder/setup-tick-list";
+import type { SetupCatalogue } from "@/lib/setup/defaults";
 
-export function CreateCompanyForm() {
+export function CreateCompanyForm({ catalogue }: { catalogue: SetupCatalogue }) {
   const [state, formAction, pending] = useActionState(createCompany, IDLE_STATE);
   /* THE COMPANY EXISTS NOW, so the button must stop offering to make it again (Phil,
      2026-08-19: it stayed live under a gold "created" box, and a second press only ever
@@ -108,6 +110,11 @@ export function CreateCompanyForm() {
       {/* THE DEAL (Phil, 2026-09-30): branch word, more branches, and the Order fixed in advance. */}
       <div className="border-t border-white/10 pt-5">
         <DealFields defaults={null} showMoreBranches />
+      </div>
+
+      {/* THE CREATION TICK LIST (Phil, 2026-09-26): Thistle's set up, untick what they won't use. */}
+      <div className="border-t border-white/10 pt-5">
+        <SetupTickList catalogue={catalogue} />
       </div>
 
       <div className="border-t border-white/10 pt-5">

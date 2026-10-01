@@ -118,10 +118,18 @@ export default async function PeopleSummaryPage({
     });
 
     const lines: CardLine[] = [
-      line("Spot Check", byKey["spot_check"]?.due_date ?? null, (byKey["spot_check"]?.rag as CardRag) ?? "none"),
-      line("Manual Handling", byKey["manual_handling"]?.due_date ?? null, (byKey["manual_handling"]?.rag as CardRag) ?? "none"),
-      line("Medication Competency", byKey["competency"]?.due_date ?? null, (byKey["competency"]?.rag as CardRag) ?? "none"),
-      line("Audit", byKey["audit"]?.due_date ?? null, (byKey["audit"]?.rag as CardRag) ?? "none"),
+      /* A line per check the company HAS: one unticked at creation (lib/setup) has no line, the
+         same as it has no column on the register. */
+      ...(
+        [
+          ["Spot Check", "spot_check"],
+          ["Manual Handling", "manual_handling"],
+          ["Medication Competency", "competency"],
+          ["Audit", "audit"],
+        ] as const
+      )
+        .filter(([, key]) => defByKey[key])
+        .map(([label, key]) => line(label, byKey[key]?.due_date ?? null, (byKey[key]?.rag as CardRag) ?? "none")),
       /*
        * BOTH DBS DATES (Phil, 2026-09-22: "2 show both", then "i meant all dbs dates").
        *

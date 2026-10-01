@@ -2123,6 +2123,17 @@ happens to Acme once Thistle is real.
   setting "Registered with CIW as its own service", on by default, so the office branch is left out.
   BUILT 1 Oct (0363): see TEST-CHECKLIST-READINESS-BRANCH.md. Dashboard layout by popup: a line per
   branch in the top tile, and a section of cards below the PQS report.
+- **New company setup: the creation tick list (spec Phil 2026-09-26, built 1 Oct, 0365).** Founder > Create
+  a company shows Thistle's set up, all ticked: People checks, Service User checks (each with its form and
+  register columns) and training courses; untick what the customer won't use. Locked with the reason shown:
+  forms that power a department or tracker, and Supervision, Annual Appraisal, Setup Visit and Care Plan
+  Review. Register columns follow the checks; a company bringing its own forms has its columns renamed on
+  the company page. Phil, 1 Oct: Thistle's four ad hoc checks (Mentoring, Lead the Leader, One to One,
+  Health Check) are default for ALL companies (Health Check form added to the library, House Test topped
+  up); timings stay per company settings. Tests: TEST-CHECKLIST-SETUP.md.
+- **Getting set up card (agreed 1 Oct, after the tick list).** Company Admin dashboard card and the same
+  ticks on Founder > company page: company basics, branches, records in, team and settings; ticks itself
+  from what the app sees, any step can be marked Not needed, card goes when all done or skipped.
 
 # OPERATION NEW DAWN — Phase 14 onwards
 

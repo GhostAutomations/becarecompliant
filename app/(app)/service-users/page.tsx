@@ -97,6 +97,7 @@ export default async function ServiceUsersPage({
         initialView={view ?? "main"}
         initialBranch={branch ?? ""}
         initialSort={nameSort}
+        present={register.definitions.map((d) => d.key)}
       />
     </div>
   );

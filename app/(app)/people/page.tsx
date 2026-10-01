@@ -94,6 +94,8 @@ export default async function PeoplePage({
        different window gives itself a 'dbs_renewal' definition and sets its amber days. */
     dbsAmber: defByKey["dbs_renewal"]?.amber_days ?? DBS_AMBER_DAYS,
     cycleMode,
+    // Curated columns follow the checks the company has (the creation tick list, lib/setup).
+    present: definitions.map((d) => d.key),
   };
 
   return (

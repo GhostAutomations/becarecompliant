@@ -9,6 +9,7 @@
  * Styled only with canonical classes from globals.css.
  */
 
+import { showsColumn } from "@/lib/setup/defaults";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
@@ -54,6 +55,9 @@ type MatrixConfig = {
   /** Notice a DBS renewal gets before it ambers. Ninety days by default: see DBS_AMBER_DAYS. */
   dbsAmber: number;
   cycleMode: "appraisal" | "four_supervisions";
+  /** The company's active check keys. A curated column whose check the company does not have
+   *  (unticked at creation, lib/setup) is left off the register. Undefined draws every column. */
+  present?: string[];
 };
 
 
@@ -167,6 +171,7 @@ export default function RegisterMatrix({
   const filtered = useMemo(() => sortByName(unsorted, (r) => r.person.full_name, mode), [unsorted, mode]);
   // Four-supervisions mode: show a Sup 4 column pair and no Annual Appraisal columns.
   const fourSup = config.cycleMode === "four_supervisions";
+  const has = (key: string) => showsColumn(config.present, key);
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
@@ -200,8 +205,8 @@ export default function RegisterMatrix({
               <th>{col("status", "Status")}</th>
               <th>{col("job_title", "Job Title")}</th>
               <th>{col("start_date", "Start date")}</th>
-              <th>{col("manual_handling", "Manual Handling")}</th>
-              <th>{col("medication_competency", "Medication Competency")}</th>
+              {has("manual_handling") ? <th>{col("manual_handling", "Manual Handling")}</th> : null}
+              {has("competency") ? <th>{col("medication_competency", "Medication Competency")}</th> : null}
               <th>{col("dbs", "DBS")}</th>
               <th>{col("enhanced_dbs", "Enhanced DBS")}</th>
               <th>{col("rtw_expiry", "RTW Expiry")}</th>
@@ -210,8 +215,8 @@ export default function RegisterMatrix({
               <th>{col("probation_end_actual", "Probation End Actual")}</th>
               <th>{col("probation_status", "Probation Status")}</th>
               <th>{col("probation_extension", "Probation Extension")}</th>
-              <th>{col("spot_check_due", "Spot Check Due")}</th>
-              <th>{col("recent_spot_check", "Recent Spot Check")}</th>
+              {has("spot_check") ? <th>{col("spot_check_due", "Spot Check Due")}</th> : null}
+              {has("spot_check") ? <th>{col("recent_spot_check", "Recent Spot Check")}</th> : null}
               <th>{col("sup1_due", "Supervision 1 Due")}</th>
               <th>{col("sup1_comp", "Supervision 1 Done")}</th>
               <th>{col("sup2_due", "Supervision 2 Due")}</th>
@@ -229,7 +234,7 @@ export default function RegisterMatrix({
                   <th>{col("aa_comp", "Annual Appraisal Done")}</th>
                 </>
               )}
-              <th>{col("audit", "Audit")}</th>
+              {has("audit") ? <th>{col("audit", "Audit")}</th> : null}
               {extraColumns.map((c) => (
                 <th key={c.id}>{c.name}</th>
               ))}
@@ -287,8 +292,8 @@ export default function RegisterMatrix({
                       carer is judged on. It is still changed on Edit person, deliberately. */}
                   <td><span>{row.person.job_title || "—"}</span></td>
                   <td><Plain date={row.person.start_date} /></td>
-                  <td><RagDate date={mh?.due_date ?? null} rag={mh?.rag ?? "none"} /></td>
-                  <td><RagDate date={mc?.due_date ?? null} rag={mc?.rag ?? "none"} /></td>
+                  {has("manual_handling") ? <td><RagDate date={mh?.due_date ?? null} rag={mh?.rag ?? "none"} /></td> : null}
+                  {has("competency") ? <td><RagDate date={mc?.due_date ?? null} rag={mc?.rag ?? "none"} /></td> : null}
                   {/* THE CERTIFICATE DATE IS A FACT, so it is drawn plainly: it happened, it
                       cannot come due, and colouring it would say something about it that is not
                       true. */}
@@ -357,8 +362,8 @@ export default function RegisterMatrix({
                       rag={dateRag(t?.probation_extension_date ?? null, config.probationAmber)}
                     />
                   </td>
-                  <td><RagDate date={sc?.due_date ?? null} rag={sc?.rag ?? "none"} /></td>
-                  <td><Plain date={sc?.last_completed_on ?? null} /></td>
+                  {has("spot_check") ? <td><RagDate date={sc?.due_date ?? null} rag={sc?.rag ?? "none"} /></td> : null}
+                  {has("spot_check") ? <td><Plain date={sc?.last_completed_on ?? null} /></td> : null}
                   {/* A DEADLINE ONLY COUNTS DOWN WHILE IT IS ONE. An outstanding slot's Due
                       carries the pill - green over 14 days away, amber inside 14, red past.
                       Once the slot is done the Due is plain text, because the verdict has
@@ -385,7 +390,7 @@ export default function RegisterMatrix({
                       <td><DoneDate date={aaSlot.comp} late={aaSlot.compRag === "red"} /></td>
                     </>
                   )}
-                  <td>
+                  {has("audit") ? <td>
                     <ExtraCheckCell
                       status={row.statusByKey["audit"]}
                       recordId={row.person.id}
@@ -393,7 +398,7 @@ export default function RegisterMatrix({
                       fromQuery={fromQuery}
                       editable={editable}
                     />
-                  </td>
+                  </td> : null}
                   {extraColumns.map((c) => (
                     <td key={c.id}>
                       <ExtraCheckCell
