@@ -2,7 +2,7 @@
 
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
-import { getFrameworkReadiness, getFrameworkItems, type RequirementReadiness } from "@/lib/framework/data";
+import { getFrameworkReadiness, getFrameworkItems, shownThemes, type RequirementReadiness } from "@/lib/framework/data";
 import { resolveReadinessBranch } from "@/lib/framework/branches";
 import { runAi } from "@/lib/ai/anthropic";
 import { waitingParts, waitingTotal } from "@/lib/framework/waiting";
@@ -59,9 +59,7 @@ async function buildContext(
      no evidence. It now reads the page's own outstanding list (getFrameworkItems), overdue and
      due soon, for the themes the page shows. */
   const branchId = branch?.id ?? null;
-  const requirements = (pre ?? (await getFrameworkReadiness(companyId, regulator, branchId)).requirements).filter(
-    (r) => r.mapped,
-  );
+  const requirements = shownThemes(pre ?? (await getFrameworkReadiness(companyId, regulator, branchId)).requirements);
   const items = await getFrameworkItems(companyId, regulator, branchId);
 
   const outstandingLines: string[] = [];
@@ -106,7 +104,7 @@ const STATUS_WORDS: Record<string, string> = {
   red: "Action needed",
   amber: "Attention",
   green: "On track",
-  none: "Not mapped",
+  none: "Not started, nothing recorded for it yet",
 };
 
 /** 2026-09-17 -> 17 September 2026, for what the model is given and so what it writes. */

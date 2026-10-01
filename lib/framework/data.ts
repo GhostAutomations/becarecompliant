@@ -338,6 +338,16 @@ export async function getFrameworkReadiness(
   return { regulator, requirements: out };
 }
 
+/**
+ * THE THEMES TO SHOW (Phil, 2026-10-01: "it should show all categories", then "yes, everywhere").
+ * Every theme the regulator rates, a theme nothing feeds yet showing as Not started rather than
+ * vanishing. Environment is the one exception: it is for services with accommodation, and CIW never
+ * rates a domiciliary service on it, so it shows only when something feeds it.
+ */
+export function shownThemes<T extends { mapped: boolean; code: string }>(reqs: T[]): T[] {
+  return reqs.filter((r) => r.mapped || r.code !== "ENV");
+}
+
 /** Overall readiness score across the mapped requirements (0-100), or null. */
 export function overallScore(reqs: RequirementReadiness[]): number | null {
   const s = reqs.map((r) => r.score).filter((x): x is number => x != null);

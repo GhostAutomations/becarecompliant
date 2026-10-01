@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   getFrameworkReadiness,
   getFrameworkItems,
+  shownThemes,
   type Rag,
   type FrameworkItem,
 } from "@/lib/framework/data";
@@ -34,7 +35,7 @@ const REGULATOR_LABEL: Record<string, string> = {
   cqc: "Care Quality Commission (CQC)",
 };
 const PILL: Record<Rag, string> = { red: "pill-red", amber: "pill-amber", green: "pill-green", none: "pill-neutral" };
-const STATUS_TEXT: Record<Rag, string> = { red: "Action needed", amber: "Attention", green: "On track", none: "Not mapped" };
+const STATUS_TEXT: Record<Rag, string> = { red: "Action needed", amber: "Attention", green: "On track", none: "Not started" };
 
 function fmt(iso: string): string {
   const [y, m, d] = iso.split("-").map(Number);
@@ -101,7 +102,7 @@ export default async function ReadinessPage({ searchParams }: { searchParams: Pr
   const notices = (noticesRes.data as NoticeRow[] | null) ?? [];
   /* A theme nothing feeds is not shown: Environment is for services with accommodation, and CIW
      does not rate a domiciliary service on it. */
-  const requirements = allRequirements.filter((r) => r.mapped);
+  const requirements = shownThemes(allRequirements);
 
   return (
     <div className="page-shell space-y-6">

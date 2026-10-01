@@ -30,6 +30,8 @@ Test company: House Test Ltd (three houses: Ivy House, Oak House, Treehouse; wor
   PASS 1 Oct: all three unticked, Readiness showed every house together with the amber note, the dashboard section went and the tile showed the themes; all three ticked back and saved.
 
 ## CIW notice statuses (0364, Phil 1 Oct: "1+2")
-- [ ] RB11 Record a notice on a CIW company: "Status in the report" offers New, Reviewed, Not achieved, Achieved (New by default). Recording one as Achieved puts it straight into the closed list and does not count against its theme.
-- [ ] RB12 On an open notice, change CIW status to Reviewed: saved without a button, the meaning shows beside it, still open. Change to Achieved: closes it, "put right" date shown, theme no longer counts it. Change back to Not achieved: open again.
+- [x] RB11 Record a notice on a CIW company: "Status in the report" offers New, Reviewed, Not achieved, Achieved (New by default). Recording one as Achieved puts it straight into the closed list and does not count against its theme.
+  PASS 1 Oct (Ivy House): a Priority Action Notice under Well-being recorded as Achieved went straight to closed and Well-being did not turn Action needed. It showed "put right 1 Oct 2026", which reads as if CIW tested it today, so for CIW it now says "recorded 1 Oct 2026" (pack: "Achieved (recorded ...)"); recheck after deploy.
+- [x] RB12 On an open notice, change CIW status to Reviewed: saved without a button, the meaning shows beside it, still open. Change to Achieved: closes it, "put right" date shown, theme no longer counts it. Change back to Not achieved: open again.
+  PASS 1 Oct (Ivy House): New to Reviewed saved on change, meaning shown, still open (Leadership and Management Attention); Achieved closed it and the theme went to Not mapped; Not achieved reopened it and the theme went back to Attention.
 - [ ] RB13 Inspection pack: the notices table shows the CIW status word (Achieved with its date, or New / Reviewed / Not achieved).

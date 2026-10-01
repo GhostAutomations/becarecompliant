@@ -1,7 +1,7 @@
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
-import { getFrameworkReadiness, getFrameworkItems, type Rag } from "@/lib/framework/data";
+import { getFrameworkReadiness, getFrameworkItems, shownThemes, type Rag } from "@/lib/framework/data";
 import { draftReadinessNarrative } from "@/lib/framework/ai";
 import { renderReportPdf, type ReportBlock, type ReportDoc, type RagTone } from "@/lib/export/pdf";
 import { pdfResponse, exportError } from "@/lib/export/deliver";
@@ -15,7 +15,7 @@ const REG_LABEL: Record<string, string> = {
   ciw: "Care Inspectorate Wales (CIW)",
   cqc: "Care Quality Commission (CQC)",
 };
-const STATUS_TEXT: Record<Rag, string> = { red: "Action needed", amber: "Attention", green: "On track", none: "Not mapped" };
+const STATUS_TEXT: Record<Rag, string> = { red: "Action needed", amber: "Attention", green: "On track", none: "Not started" };
 const TONE: Record<Rag, RagTone> = { red: "red", amber: "amber", green: "green", none: "neutral" };
 
 function fmt(iso: string): string {
@@ -64,7 +64,7 @@ export async function GET(request: Request) {
   /* THE SAME THEMES AS THE PAGE (Operation Thistle list, number 15, 2026-09-23). A theme nothing feeds is left out, as the
      Readiness page leaves it out: Environment is for services with accommodation, and printing it
      as "Not mapped" in a document for an inspector reads as a gap the provider does not have. */
-  const requirements = allRequirements.filter((r) => r.mapped);
+  const requirements = shownThemes(allRequirements);
   const narrativeRes = await draftReadinessNarrative(requirements, branchId);
   const today = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/London" }).format(new Date());
 
@@ -138,7 +138,7 @@ export async function GET(request: Request) {
         { text: [n.regulation, n.description].filter(Boolean).join(": ") || "No detail recorded" },
         { text: fmt(n.issued_on) },
         n.resolved_on
-          ? { text: regulator === "ciw" ? `Achieved ${fmt(n.resolved_on)}` : `Resolved ${fmt(n.resolved_on)}`, rag: "green" as RagTone }
+          ? { text: regulator === "ciw" ? `Achieved (recorded ${fmt(n.resolved_on)})` : `Resolved ${fmt(n.resolved_on)}`, rag: "green" as RagTone }
           : {
               text: `${regulator === "ciw" ? noticeStatusLabel(n.status) : "Open"}${n.due_by ? `, due ${fmt(n.due_by)}` : ""}`,
               rag: (n.kind === "priority_action" ? "red" : "amber") as RagTone,

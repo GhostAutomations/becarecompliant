@@ -175,7 +175,8 @@ export default function NoticesPanel({
                   Issued {fmt(n.issued_on)}
                   {n.due_by ? ` · due ${fmt(n.due_by)}` : ""}
                   {ciw ? ` · ${noticeStatusLabel(n.status ?? (n.resolved_on ? "achieved" : "new"))}` : ""}
-                  {n.resolved_on ? ` · put right ${fmt(n.resolved_on)}` : ""}
+                  {/* For CIW the date is when it was RECORDED as achieved here, not when CIW tested it. */}
+                  {n.resolved_on ? (ciw ? ` · recorded ${fmt(n.resolved_on)}` : ` · put right ${fmt(n.resolved_on)}`) : ""}
                 </span>
               </div>
               <p className="mt-1 whitespace-pre-wrap">{n.description}</p>

@@ -165,6 +165,7 @@ export async function getAbsenceMeetingSummary(
 import {
   getFrameworkReadiness,
   overallScore,
+  shownThemes,
   type RequirementReadiness,
   type Rag,
 } from "@/lib/framework/data";
@@ -809,7 +810,7 @@ export async function getPolicyCoverage(companyId: string): Promise<PolicyCovera
 export type BranchReadiness = {
   branchId: string;
   name: string;
-  /** The themes something feeds, as the Readiness page shows them. */
+  /** Every theme the regulator rates (Environment only when something feeds it). */
   requirements: Array<{ code: string; title: string; status: Rag }>;
   /** The weakest theme's status, for the one line in the top tile. */
   worst: Rag;
@@ -826,8 +827,10 @@ export async function getBranchReadiness(companyId: string, regulator: "cqc" | "
     getLatestInspections(companyId, regulator),
   ]);
   return branches.map((b, i) => {
-    const requirements = per[i].requirements
-      .filter((r) => r.mapped)
+    /* EVERY THEME CIW RATES (Phil, 2026-10-01: "it should show all categories"). A theme nothing
+       feeds yet shows as Not started rather than vanishing. Environment is the one exception: it
+       is only for services with accommodation, and a domiciliary service is never rated on it. */
+    const requirements = shownThemes(per[i].requirements)
       .map((r) => ({ code: r.code, title: r.title, status: r.status }));
     const worst = requirements.reduce<Rag>((w, r) => (RAG_RANK[r.status] > RAG_RANK[w] ? r.status : w), "none");
     return { branchId: b.id, name: b.name, requirements, worst, last: inspections.get(b.id) ?? null };

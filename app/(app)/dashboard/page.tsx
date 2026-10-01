@@ -919,7 +919,7 @@ export default async function DashboardPage() {
                 ) : (
                 <Link href="/readiness" className="mt-2 block space-y-1 rounded-lg transition hover:bg-white/[0.04]">
                   {score.requirements
-                    .filter((r) => r.mapped)
+                    .filter((r) => r.mapped || r.code !== "ENV")
                     .map((r) => (
                       <span key={r.code} className="block min-w-0">
                         <span className="flex items-center justify-between gap-2">
