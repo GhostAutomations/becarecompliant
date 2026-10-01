@@ -5,7 +5,7 @@ import { noticeEmailHtml } from "@/lib/email/templates";
 import { siteUrl } from "@/lib/site";
 import { purgeCompany } from "@/lib/companies/delete-apply";
 import { writeAudit } from "@/lib/audit";
-import { DEMO_AI_PER_LOGIN, demoPhase } from "@/lib/demo/rules";
+import { DEMO_AI_PER_LOGIN, demoPhase, friendlyLoginError } from "@/lib/demo/rules";
 
 /**
  * DEMO ACCOUNTS, the server side (0356). Everything here runs with the service client and is
@@ -32,44 +32,63 @@ export async function demoLoginProblem(input: { fullName: string; email: string;
 }
 
 /**
- * Make one demo login: a Company Admin of the demo company with the password the founder chose,
- * confirmed and active, so it signs straight in (no invitation, no agreement). Its 5 AI credits
- * live on the demo_logins row.
+ * Step 1 of a demo login: the sign-in account itself, with the password the founder chose,
+ * confirmed so it signs straight in. Done first, so a refused password (too weak, leaked online)
+ * stops the founder before anything else is built.
  */
-export async function createDemoLogin(input: DemoLoginInput): Promise<{ ok: true; userId: string } | { ok: false; error: string }> {
+export async function createDemoUser(input: { fullName: string; email: string; password: string }): Promise<{ ok: true; userId: string } | { ok: false; error: string }> {
+  const admin = createServiceClient();
+  const { data: created, error } = await admin.auth.admin.createUser({
+    email: input.email.trim().toLowerCase(),
+    password: input.password,
+    email_confirm: true,
+    user_metadata: { full_name: input.fullName.trim() },
+  });
+  if (error || !created.user) return { ok: false, error: friendlyLoginError(error?.message ?? null) };
+  return { ok: true, userId: created.user.id };
+}
+
+/** Remove a sign-in account made by createDemoUser when the rest of the set up did not happen. */
+export async function discardDemoUser(userId: string): Promise<void> {
+  const admin = createServiceClient();
+  await admin.auth.admin.deleteUser(userId);
+}
+
+/**
+ * Step 2: make the account a Company Admin of the demo company, active, and record it with its
+ * 5 AI credits. On failure the account is removed, so nothing is left half made.
+ */
+export async function attachDemoLogin(input: { demoId: string; companyId: string; userId: string; fullName: string; email: string }): Promise<{ ok: true; userId: string } | { ok: false; error: string }> {
   const admin = createServiceClient();
   const email = input.email.trim().toLowerCase();
   const fullName = input.fullName.trim();
-  const { data: created, error } = await admin.auth.admin.createUser({
-    email,
-    password: input.password,
-    email_confirm: true,
-    user_metadata: { full_name: fullName },
-  });
-  if (error || !created.user) {
-    return { ok: false, error: `The login could not be created: ${error?.message ?? "no user came back"}` };
-  }
-  const userId = created.user.id;
   const { error: profileErr } = await admin
     .from("profiles")
     .update({ company_id: input.companyId, role: "company_admin", status: "active", full_name: fullName, email })
-    .eq("id", userId);
+    .eq("id", input.userId);
   if (profileErr) {
-    await admin.auth.admin.deleteUser(userId);
+    await discardDemoUser(input.userId);
     return { ok: false, error: `The login could not be attached to the demo: ${profileErr.message}` };
   }
   const { error: rowErr } = await admin.from("demo_logins").insert({
     demo_id: input.demoId,
-    user_id: userId,
+    user_id: input.userId,
     email,
     full_name: fullName,
     ai_allowance: DEMO_AI_PER_LOGIN,
   });
   if (rowErr) {
-    await admin.auth.admin.deleteUser(userId);
+    await discardDemoUser(input.userId);
     return { ok: false, error: `The login could not be recorded: ${rowErr.message}` };
   }
-  return { ok: true, userId };
+  return { ok: true, userId: input.userId };
+}
+
+/** Make one demo login in one go (used when adding a login to an existing demo). */
+export async function createDemoLogin(input: DemoLoginInput): Promise<{ ok: true; userId: string } | { ok: false; error: string }> {
+  const made = await createDemoUser(input);
+  if (!made.ok) return made;
+  return attachDemoLogin({ demoId: input.demoId, companyId: input.companyId, userId: made.userId, fullName: input.fullName, email: input.email });
 }
 
 /**

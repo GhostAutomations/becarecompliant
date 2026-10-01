@@ -70,6 +70,7 @@ export default async function DemosPage({
             <div>
               <label htmlFor="password" className="form-label">Password you will give them *</label>
               <input id="password" name="password" type="text" required minLength={8} autoComplete="off" />
+              <p className="form-hint">At least 8 characters. Passwords found in leaked password lists online are refused, so pick something unusual.</p>
               <p className="form-hint">At least 8 characters. Not stored anywhere you can read it again, so note it down.</p>
             </div>
           </div>

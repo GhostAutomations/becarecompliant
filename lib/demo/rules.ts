@@ -194,3 +194,21 @@ export function formatDemoDate(iso: string): string {
     timeZone: "Europe/London",
   });
 }
+
+/**
+ * Turn a sign-in service refusal into plain English for the founder. The password itself is never
+ * part of the message.
+ */
+export function friendlyLoginError(message: string | null | undefined): string {
+  const m = (message ?? "").trim();
+  if (/weak|easy to guess|pwned|leaked|breach/i.test(m)) {
+    return "That password has turned up in lists of passwords leaked online, so it is not allowed. Choose a different one.";
+  }
+  if (/already (been )?registered|already exists|email_exists/i.test(m)) {
+    return "That email already has a Be Care Compliant login. Use another address, for example name+demo@their-company.co.uk.";
+  }
+  if (/password/i.test(m) && /(at least|characters|should contain|too short)/i.test(m)) {
+    return "That password is too simple. Use at least 8 characters with a mix of letters and numbers.";
+  }
+  return m ? `The login could not be created: ${m}` : "The login could not be created. Try again.";
+}

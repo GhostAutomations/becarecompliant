@@ -104,11 +104,11 @@ export default async function DemoPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ problem?: string; created?: string }>;
+  searchParams: Promise<{ problem?: string; created?: string; why?: string }>;
 }) {
   await requirePlatformAdmin();
   const { id } = await params;
-  const { problem, created } = await searchParams;
+  const { problem, created, why } = await searchParams;
   const [demo] = await listDemos(id);
   if (!demo) notFound();
   const live = !demo.deletedAt;
@@ -137,6 +137,7 @@ export default async function DemoPage({
       {problem === "login" ? (
         <p role="alert" className="rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-100">
           The demo company was built but the login could not be made. Add it again below.
+          {why ? <span className="mt-1 block">Reason: {why.slice(0, 300)}</span> : null}
         </p>
       ) : null}
       {problem === "seed" ? (
@@ -190,6 +191,7 @@ export default async function DemoPage({
               <div>
                 <label htmlFor="add_password" className="form-label">Password you will give them *</label>
                 <input id="add_password" name="password" type="text" required minLength={8} autoComplete="off" />
+                <p className="form-hint">At least 8 characters. Passwords found in leaked password lists online are refused, so pick something unusual.</p>
               </div>
             </ActionForm>
           </div>

@@ -9,7 +9,7 @@ import { writeAudit } from "@/lib/audit";
 import { rebakeFormFieldOptions } from "@/lib/forms/rebake-options";
 import type { ActionState } from "@/lib/forms";
 import { DEMO_COMPANY_NAME, demoEndsAt, parseDemoDays } from "@/lib/demo/rules";
-import { createDemoLogin, demoLoginProblem, purgeDemo } from "@/lib/demo/manage";
+import { attachDemoLogin, createDemoLogin, createDemoUser, demoLoginProblem, discardDemoUser, purgeDemo } from "@/lib/demo/manage";
 
 /**
  * FOUNDER > DEMOS (0356, Phil 2026-09-30). A fresh Demo Care Company Limited per client, filled
@@ -35,6 +35,11 @@ export async function createDemo(_prev: ActionState, formData: FormData): Promis
   const problem = await demoLoginProblem({ fullName, email, password });
   if (problem) return { error: problem };
 
+  // The sign-in account first: if the password is refused, nothing else has been built and the
+  // founder's form keeps everything they typed.
+  const account = await createDemoUser({ fullName, email, password });
+  if (!account.ok) return { error: account.error };
+
   const supabase = await createClient();
   const slug = `demo-${randomBytes(4).toString("hex")}`;
   const { data: result, error } = await supabase.rpc("provision_company", {
@@ -48,9 +53,15 @@ export async function createDemo(_prev: ActionState, formData: FormData): Promis
     p_request_id: null,
     p_override_reason: null,
   });
-  if (error) return { error: error.message };
+  if (error) {
+    await discardDemoUser(account.userId);
+    return { error: error.message };
+  }
   const companyId = (result as { company_id?: string } | null)?.company_id;
-  if (!companyId) return { error: "The demo company was not created, so nothing has changed. Try again." };
+  if (!companyId) {
+    await discardDemoUser(account.userId);
+    return { error: "The demo company was not created, so nothing has changed. Try again." };
+  }
 
   // A demo is never billed, counted in revenue or listed with the customers.
   await supabase.from("companies").update({ is_test: true, regulator: "ciw" }).eq("id", companyId);
@@ -68,12 +79,15 @@ export async function createDemo(_prev: ActionState, formData: FormData): Promis
     })
     .select("id")
     .single();
-  if (demoErr || !demo) return { error: `The demo could not be recorded: ${demoErr?.message ?? "unknown"}` };
+  if (demoErr || !demo) {
+    await discardDemoUser(account.userId);
+    return { error: `The demo could not be recorded: ${demoErr?.message ?? "unknown"}` };
+  }
 
   const { data: seeded, error: seedErr } = await supabase.rpc("seed_demo_company", { p_company: companyId });
   await rebakeFormFieldOptions(companyId);
 
-  const login = await createDemoLogin({ demoId: demo.id as string, companyId, fullName, email, password });
+  const login = await attachDemoLogin({ demoId: demo.id as string, companyId, userId: account.userId, fullName, email });
 
   await writeAudit({
     companyId: null,
@@ -84,10 +98,10 @@ export async function createDemo(_prev: ActionState, formData: FormData): Promis
     entityType: "demo",
     entityId: demo.id as string,
     summary: `Set up a ${days.days} day demo for ${clientName}`,
-    metadata: { company_id: companyId, days: days.days, login_email: email, seeded: seeded ?? null, seed_error: seedErr?.message ?? null, login_ok: login.ok },
+    metadata: { company_id: companyId, days: days.days, login_email: email, seeded: seeded ?? null, seed_error: seedErr?.message ?? null, login_ok: login.ok, login_error: login.ok ? null : login.error },
   });
 
-  const flag = !login.ok ? "?problem=login" : seedErr ? "?problem=seed" : "?created=1";
+  const flag = !login.ok ? `?problem=login&why=${encodeURIComponent(login.error)}` : seedErr ? "?problem=seed" : "?created=1";
   redirect(`/founder/demos/${demo.id as string}${flag}`);
 }
 

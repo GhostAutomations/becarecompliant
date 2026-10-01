@@ -2495,3 +2495,9 @@ House Test Ltd (Annual, extras yearly, no subscription yet): Add a branch read "
 per month ... then £10.00 each". The intervals came only from the billing row, which has none until
 the subscription exists. Fixed: with no billing interval yet, the founder page and Settings, Billing
 take the intervals from the deal (dealIntervals, pure, 1 test): here £250.00 a year, then £100.00.
+
+## DEF-093: demo login refused with no reason given
+- Found: DM1, 1 Oct 2026. "The demo company was built but the login could not be made."
+- Cause: the sign-in service refused the password because it appears in leaked password lists (leaked password protection is on). createDemo built the company first, made the login last, and threw the reason away.
+- Fix: the sign-in account is now made first, so a refused password stops the form before anything is built and the form keeps what was typed. Later failures remove the account. Refusals are explained in plain English (friendlyLoginError, tested). The reason is shown on the demo page and stored in the audit entry (login_error). A hint under both password boxes says leaked passwords are refused.
+- Status: fixed, awaiting push and retest.

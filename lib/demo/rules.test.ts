@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  friendlyLoginError,
   demoPhase,
   demoDaysLeft,
   parseDemoDays,
@@ -102,4 +103,12 @@ test("average rating ignores blanks", () => {
   assert.equal(averageRating([4, 5, null, 3]), 4);
   assert.equal(averageRating([]), null);
   assert.equal(averageRating([5, 4]), 4.5);
+});
+
+test("friendlyLoginError explains a refused password or email in plain English", () => {
+  assert.match(friendlyLoginError("Password is known to be weak and easy to guess, please choose a different one."), /leaked online/);
+  assert.match(friendlyLoginError("A user with this email address has already been registered"), /already has a Be Care Compliant login/);
+  assert.match(friendlyLoginError("Password should contain at least one character of each: abc"), /too simple/);
+  assert.equal(friendlyLoginError("Database error"), "The login could not be created: Database error");
+  assert.equal(friendlyLoginError(null), "The login could not be created. Try again.");
 });
