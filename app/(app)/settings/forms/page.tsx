@@ -9,6 +9,8 @@ import NewFormButton from "@/components/form-builder/new-form-button";
 import FormColumnLink from "@/components/form-builder/form-column-link";
 import type { FormSummary } from "@/lib/form-builder/types";
 import { featureEnabled } from "@/lib/billing/tier";
+import { departmentFor } from "@/lib/form-builder/department-forms";
+import FormsLeaveCheck from "@/components/setup/forms-leave-check";
 
 export const metadata: Metadata = { title: "Forms" };
 
@@ -16,32 +18,8 @@ const POP_LABEL: Record<string, string> = {
   people: "People",
   service_users: "Service Users",
   complaints: "Complaints",
+  incidents: "Incidents",
 };
-
-// People forms are grouped by sub-department (mirrors the People nav children).
-// Anything not explicitly mapped falls under Compliance.
-const PEOPLE_SUBDEPT: Record<string, string> = {
-  holiday_requests: "Holiday",
-  holiday_response: "Holiday",
-  absence_back_office: "Absence",
-  absence_management_meeting: "Absence",
-  training_request: "Training",
-};
-function peopleSubDept(key: string): string {
-  return PEOPLE_SUBDEPT[key] ?? "Compliance";
-}
-
-/** Forms that link to a whole section/feature rather than a register column
- *  (Holiday, Absence, Training, Complaints). Compliance and Service User forms
- *  link to a column instead, so they return null. */
-function sectionLabelFor(f: FormSummary): string | null {
-  if ((f.population as string) === "complaints") return "Complaints section";
-  if (f.population === "people") {
-    const sub = peopleSubDept(f.key);
-    if (sub === "Holiday" || sub === "Absence" || sub === "Training") return sub;
-  }
-  return null;
-}
 
 export default async function SettingsFormsPage() {
   const { profile } = await requireCompanyAdmin();
@@ -93,18 +71,24 @@ export default async function SettingsFormsPage() {
     if (c.form_id) formLinkedCheck.set(c.form_id, c.id);
   }
 
-  const peopleForms = forms.filter((f) => f.population === "people");
-  const suForms = forms.filter((f) => f.population === "service_users");
-  const complaintForms = forms.filter((f) => (f.population as string) === "complaints");
-  const peopleBySub = (sub: string) => peopleForms.filter((f) => peopleSubDept(f.key) === sub);
-  // Forms wired to a column (People/Service User) or the Complaints section, duplicated
-  // into their own aggregate section.
-  const linkedForms = forms.filter(
-    (f) => formLinkedCheck.has(f.id) || sectionLabelFor(f) !== null,
-  );
+  /* The "happy with your forms?" question on leaving (Phil, 2026-10-01): only for the Company
+     Admin, and only while the Getting set up step is still open. */
+  const { data: formsStep } = await supabase
+    .from("company_setup_steps")
+    .select("state")
+    .eq("company_id", profile.company_id)
+    .eq("step_key", "forms")
+    .maybeSingle();
+  const askOnLeave = profile.role === "company_admin" && !formsStep;
+
+  const byName = (a: FormSummary, b: FormSummary) =>
+    a.name.localeCompare(b.name) || (POP_LABEL[a.population] ?? "").localeCompare(POP_LABEL[b.population] ?? "");
+  const departmentForms = forms.filter((f) => departmentFor(f) !== null).sort(byName);
+  const checkForms = forms.filter((f) => departmentFor(f) === null).sort(byName);
 
   return (
     <div className="page-shell space-y-6">
+      {askOnLeave ? <FormsLeaveCheck /> : null}
       <div>
         <BackLink href="/settings" label="Back to Settings" />
         <h1 className="page-title mt-1">Forms</h1>
@@ -126,39 +110,25 @@ export default async function SettingsFormsPage() {
           </p>
         </div>
       ) : (
-        /* TWO COLUMNS (Phil, 2026-10-01: "could we have two columns of 3?"). The sections that
-           have forms, in alphabetical order, are split in half, the first half down the left and the rest down the right,
-           so each card is half the page wide and nothing needs panning across. One column on a
-           narrow screen. */
-        (() => {
-          const groups = [
-            { key: "linked", title: "Linked forms", n: linkedForms.length, el: (
-              <LinkedFormsGroup
-                key="linked"
-                forms={linkedForms}
-                peopleChecks={peopleChecks}
-                suChecks={suChecks}
-                formLinkedCheck={formLinkedCheck}
-              />
-            ) },
-            { key: "people", title: "People forms", n: peopleBySub("Compliance").length, el: <FormGroup key="people" title="People forms" forms={peopleBySub("Compliance")} checks={peopleChecks} formLinkedCheck={formLinkedCheck} /> },
-            { key: "holiday", title: "Holiday forms", n: peopleBySub("Holiday").length, el: <FormGroup key="holiday" title="Holiday forms" forms={peopleBySub("Holiday")} checks={[]} formLinkedCheck={formLinkedCheck} sectionLabel="Holiday" /> },
-            { key: "absence", title: "Absence forms", n: peopleBySub("Absence").length, el: <FormGroup key="absence" title="Absence forms" forms={peopleBySub("Absence")} checks={[]} formLinkedCheck={formLinkedCheck} sectionLabel="Absence" /> },
-            { key: "training", title: "Training forms", n: peopleBySub("Training").length, el: <FormGroup key="training" title="Training forms" forms={peopleBySub("Training")} checks={[]} formLinkedCheck={formLinkedCheck} sectionLabel="Training" /> },
-            { key: "su", title: "Service User forms", n: suForms.length, el: <FormGroup key="su" title="Service User forms" forms={suForms} checks={suChecks} formLinkedCheck={formLinkedCheck} /> },
-            { key: "complaints", title: "Complaints forms", n: complaintForms.length, el: <FormGroup key="complaints" title="Complaints forms" forms={complaintForms} checks={[]} formLinkedCheck={formLinkedCheck} sectionLabel="Complaints section" /> },
-          ]
-            .filter((g) => g.n > 0)
-            /* ALPHABETICAL (Phil, 2026-10-01), down the left column then the right. */
-            .sort((a, b) => a.title.localeCompare(b.title));
-          const half = Math.ceil(groups.length / 2);
-          return (
-            <div className="grid items-start gap-3 lg:grid-cols-2">
-              <div className="space-y-3">{groups.slice(0, half).map((g) => g.el)}</div>
-              <div className="space-y-3">{groups.slice(half).map((g) => g.el)}</div>
-            </div>
-          );
-        })()
+        /* TWO TILES (Phil, 2026-10-01: "there needs to be a better simpler way"). Check forms
+           complete a check on the People or Service User register and keep their column
+           dropdown; Department forms are what a department runs on and say where in text.
+           Every form appears once, A to Z. Side by side on a wide screen. */
+        <div className="grid items-start gap-3 lg:grid-cols-2">
+          <FormGroup
+            title="Check forms"
+            forms={checkForms}
+            checksFor={(f) => (f.population === "service_users" ? suChecks : peopleChecks)}
+            formLinkedCheck={formLinkedCheck}
+          />
+          <FormGroup
+            title="Department forms"
+            forms={departmentForms}
+            checksFor={() => []}
+            formLinkedCheck={formLinkedCheck}
+            labelFor={(f) => departmentFor(f)}
+          />
+        </div>
       )}
     </div>
   );
@@ -271,15 +241,16 @@ function FormRow({
 function FormGroup({
   title,
   forms,
-  checks,
+  checksFor,
   formLinkedCheck,
-  sectionLabel = null,
+  labelFor,
 }: {
   title: string;
   forms: FormSummary[];
-  checks: Array<{ id: string; name: string }>;
+  checksFor: (f: FormSummary) => Array<{ id: string; name: string }>;
   formLinkedCheck: Map<string, string>;
-  sectionLabel?: string | null;
+  /** Department forms: where the form is used, shown as text in place of a dropdown. */
+  labelFor?: (f: FormSummary) => string | null;
 }) {
   if (forms.length === 0) return null;
   return (
@@ -289,54 +260,15 @@ function FormGroup({
       </summary>
       <div className="border-t border-white/10">
         {forms.map((f) => (
-          <FormRow key={f.id} f={f} checks={checks} formLinkedCheck={formLinkedCheck} sectionLabel={sectionLabel} />
+          <FormRow
+            key={f.id}
+            f={f}
+            checks={checksFor(f)}
+            formLinkedCheck={formLinkedCheck}
+            sectionLabel={labelFor ? labelFor(f) : null}
+            summaryOnly={Boolean(labelFor)}
+          />
         ))}
-      </div>
-    </details>
-  );
-}
-
-/** Aggregate section: every form wired to a column or a section, using the right
- *  column dropdown per population. These forms also appear in their own
- *  department/sub-department section. */
-function LinkedFormsGroup({
-  forms,
-  peopleChecks,
-  suChecks,
-  formLinkedCheck,
-}: {
-  forms: FormSummary[];
-  peopleChecks: Array<{ id: string; name: string }>;
-  suChecks: Array<{ id: string; name: string }>;
-  formLinkedCheck: Map<string, string>;
-}) {
-  if (forms.length === 0) return null;
-  return (
-    <details className="glass-card section-card">
-      <summary>
-        Linked forms ({forms.length})
-      </summary>
-      <div className="border-t border-white/10">
-        {forms.map((f) => {
-          const sectionLabel = sectionLabelFor(f);
-          const checks = sectionLabel
-            ? []
-            : f.population === "people"
-              ? peopleChecks
-              : f.population === "service_users"
-                ? suChecks
-                : [];
-          return (
-            <FormRow
-              key={f.id}
-              f={f}
-              checks={checks}
-              formLinkedCheck={formLinkedCheck}
-              sectionLabel={sectionLabel}
-              summaryOnly
-            />
-          );
-        })}
       </div>
     </details>
   );
