@@ -74,7 +74,7 @@ export function buildSetupSteps(
           paid || s.trial_live,
           !paid && s.trial_live ? "On a free trial for now." : null,
         ),
-        step("regulator", "Regulator chosen", null, Boolean(s.regulator), s.regulator ? null : "Ask Be Care Compliant to set it."),
+        step("regulator", "Regulator chosen", "/readiness", Boolean(s.regulator), s.regulator ? null : "Ask Be Care Compliant to set it."),
         step("logo", "Add your logo", "/settings/branding", s.has_logo),
       ],
     },

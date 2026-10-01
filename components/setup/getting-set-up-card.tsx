@@ -72,8 +72,16 @@ export default function GettingSetUpCard({
                       <span className="sr-only">
                         {s.state === "done" ? "Done: " : s.state === "not_needed" ? "Not needed: " : "To do: "}
                       </span>
-                      {s.state === "todo" && s.href && links ? (
-                        <Link href={s.href} className="text-white/90 underline decoration-white/25 underline-offset-2 hover:decoration-white/70">
+                      {/* EVERY STEP IS A LINK TO ITS PAGE, done or not (Phil, 2026-10-01): "even the ones
+                          that have been ticked, should be hyperlinks ... it should take you to the
+                          actual page." Done steps stay muted so what is left still stands out. */}
+                      {s.href && links ? (
+                        <Link
+                          href={s.href}
+                          className={`underline underline-offset-2 hover:decoration-white/70 ${
+                            s.state === "todo" ? "text-white/90 decoration-white/25" : "text-white/55 decoration-white/15"
+                          }`}
+                        >
                           {s.label}
                         </Link>
                       ) : (

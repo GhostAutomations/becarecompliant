@@ -90,3 +90,8 @@ test("the company's own word for a branch is used", () => {
   assert.ok(groups.some((g) => g.title === "Houses"));
   assert.match(find(base, "branches", { ...opts, one: "House", many: "Houses" })?.label ?? "", /each house/);
 });
+
+test("every step has a page to go to", () => {
+  const steps = buildSetupSteps(base, { ...opts, hasFormBuilder: true }).flatMap((g) => g.steps);
+  assert.deepEqual(steps.filter((s) => !s.href).map((s) => s.key), []);
+});
