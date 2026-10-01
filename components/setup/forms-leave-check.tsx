@@ -135,7 +135,7 @@ export default function FormsLeaveCheck() {
                     const r = await formsReviewNeedsHelp(note);
                     if (r.error) setError(r.error);
                     else {
-                      setMessage(r.ok ?? "Thank you.");
+                      setMessage(r.ok ?? "Your note has been sent.");
                       setStep("sent");
                     }
                   })

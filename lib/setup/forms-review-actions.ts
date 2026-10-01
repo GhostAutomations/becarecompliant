@@ -56,7 +56,7 @@ export async function formsReviewNeedsHelp(
 
   // Only a company the founder set up has a founder to tell.
   if (!company.provisioned_by) {
-    return { ok: "Thank you. Your note has been recorded." };
+    return { ok: "Your note has been recorded." };
   }
   if (!resendConfigured()) {
     console.error("[setup] forms help request not emailed: RESEND_API_KEY / RESEND_FROM not configured");
@@ -82,5 +82,5 @@ export async function formsReviewNeedsHelp(
     else console.error("[setup] forms help email not sent:", r.error ?? r.skippedReason);
   }
   if (!sent) return { error: "Your note could not be emailed just now. Please email Be Care Compliant directly." };
-  return { ok: "Thank you. Be Care Compliant has your note and will be in touch." };
+  return { ok: "Be Care Compliant has your note and will be in touch." };
 }
