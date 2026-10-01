@@ -65,12 +65,26 @@ export default function RealtimeRefresh({
       if (visible()) router.refresh();
     };
 
+    /* SIGNED IN BEFORE SUBSCRIBING (found 2026-10-01: a forms help note reached the founder
+       inbox table and the open inbox never showed it until Phil refreshed). The browser client
+       reads the login from the cookie a moment after it is created, and subscribing straight
+       away raced it: the socket joined as an anonymous visitor (realtime.subscription showed
+       claims_role "anon"), RLS correctly sent that visitor nothing, and the only thing that ever
+       caught up was the slow fallback poll. So the token is handed to Realtime first, and only
+       then does the channel join. Token refreshes after that are passed on by supabase-js. */
     const supabase = createClient();
+    let cancelled = false;
     const channel = supabase.channel(channelName);
     for (const table of tables) {
       channel.on("postgres_changes", { event: "*", schema: "public", table }, push);
     }
-    channel.subscribe();
+    void (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (cancelled) return;
+      await supabase.realtime.setAuth(data.session?.access_token ?? null);
+      if (cancelled) return;
+      channel.subscribe();
+    })();
 
     // Poll fallback for a dropped socket. Only while the tab is being looked at.
     const interval = setInterval(push, pollMs);
@@ -85,6 +99,7 @@ export default function RealtimeRefresh({
     window.addEventListener("focus", onVisible);
 
     return () => {
+      cancelled = true;
       supabase.removeChannel(channel);
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisible);
