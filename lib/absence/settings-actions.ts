@@ -20,7 +20,7 @@ import { createClient } from "@/lib/supabase/server";
 import { parseAbsenceWindow, windowLabel } from "@/lib/absence/window";
 import { writeAudit } from "@/lib/audit";
 import { recordUsage } from "@/lib/notifications/usage";
-import { spendAiCredit, refundAiCredit, OUT_OF_CREDITS } from "@/lib/billing/ai-credits";
+import { spendAiCredit, refundAiCredit } from "@/lib/billing/ai-credits";
 import type { ActionState } from "@/lib/forms";
 import { isStageAction, STAGE_ACTIONS } from "@/lib/absence/stage-actions";
 
@@ -212,7 +212,7 @@ export async function suggestAbsencePolicy(
   ].join(" ");
 
   const spent = await spendAiCredit(profile.company_id);
-  if (!spent.ok) return { error: OUT_OF_CREDITS };
+  if (!spent.ok) return { error: spent.message };
 
   let res: Response;
   try {

@@ -2534,4 +2534,9 @@ take the intervals from the deal (dealIntervals, pure, 1 test): here £250.00 a 
 - Found: 1 Oct 2026, DM4, Claude in Chrome as the ZZ TEST DM10 demo login. Each readiness assistant answer spent a credit (database ai_used 1, then 5) but the gold bar stayed "AI: 5 of 5 left" until another page was opened, then showed the right number.
 - Cause: the bar and the dashboard AI credits tile are drawn by the layout on page load, and nothing refreshed it after an AI button.
 - Fix: spendAiCredit (the one place every AI button spends a credit) revalidates the layout, so the server action's answer comes back with the new counts. Covers every company's AI tile, not only demos.
-- Status: fixed, to retest live (DM4: the bar counts down after each use, the 6th says out of credits).
+- Status: fixed and retested live 1 Oct (Claude in Chrome, ZZ TEST DM10 login set to 3 used): "What needs booking" answered and the bar went from "AI: 2 of 5 left" to "1 of 5 left" with no reload; the answer stayed on screen.
+
+## DEF-100: Out of AI credits in a demo told them to top up in Billing
+- Found: 1 Oct 2026, DM4 sixth use as the ZZ TEST DM10 demo login. Refused correctly, but the message was the customer one: "Top up in Billing to keep using AI features, or wait for next month's allowance". A demo has no Billing and no monthly allowance.
+- Fix: spendAiCredit returns the refusal to show; inside a demo it is "You have used all the AI credits in this demo. In your own account AI credits come with the plan each month, so talk to us when you are ready." All four AI spend points (AI helper, complaints x2, absence settings) use it.
+- Status: fixed, to retest live with DEF-099.

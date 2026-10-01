@@ -13,6 +13,10 @@ import { createClient } from "@/lib/supabase/server";
 export const OUT_OF_CREDITS =
   "You are out of AI credits. Top up in Billing to keep using AI features, or wait for next month's allowance.";
 
+/** The same refusal inside a demo (DEF-100): a demo has no Billing and no monthly allowance. */
+export const DEMO_OUT_OF_CREDITS =
+  "You have used all the AI credits in this demo. In your own account AI credits come with the plan each month, so talk to us when you are ready.";
+
 /** Current AI credit balance for a company (0 if none set up yet). */
 export async function getAiCreditBalance(companyId: string): Promise<number> {
   const supabase = await createClient();
@@ -26,15 +30,18 @@ export async function getAiCreditBalance(companyId: string): Promise<number> {
 
 /**
  * Try to spend one credit for the company. Returns { ok: true, remaining } when a
- * credit was deducted, or { ok: false } when the balance is zero. Atomic in the DB.
+ * credit was deducted, or { ok: false, message } (the refusal to show) when the balance is zero. Atomic in the DB.
  */
 export async function spendAiCredit(
   companyId: string,
-): Promise<{ ok: true; remaining: number } | { ok: false }> {
+): Promise<{ ok: true; remaining: number } | { ok: false; message: string }> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("spend_ai_credit", { cid: companyId });
   const remaining = typeof data === "number" ? data : -1;
-  if (error || remaining < 0) return { ok: false };
+  if (error || remaining < 0) {
+    const { isDemoCompany } = await import("@/lib/demo/data");
+    return { ok: false, message: (await isDemoCompany(companyId)) ? DEMO_OUT_OF_CREDITS : OUT_OF_CREDITS };
+  }
   refreshCreditCounts();
   return { ok: true, remaining };
 }

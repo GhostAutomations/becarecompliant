@@ -248,6 +248,7 @@ answers once (a 9 out of 5 refused), invites refused inside a demo. Still to tes
 - DM3 Settings has no Billing, Seats or Roles, users and access; /settings/users and
   /settings/billing go back to Settings; adding a Person with an email makes no login.
 - DM4 Use an AI button 6 times: the bar counts down, the 6th says out of credits.
+  1 Oct (Claude in Chrome, ZZ TEST DM10 demo login, readiness assistant): five answers, database ai_used 5 of 5; 6th refused and the bar showed 0 of 5. Two defects: the bar only changed on the next page (DEF-099) and the refusal told a demo to top up in Billing (DEF-100). Retest after both deploy.
 - DM5 (part seen 1 Oct: 1 sign in, 2 min, parts used shown) Founder demo page after a few minutes of use: times signed in, total time, average visit,
   parts used most (idle tab adds nothing).
 - DM6 Extend by 1 day, then End now: the demo login lands on "Your demo has ended" with "Tell us

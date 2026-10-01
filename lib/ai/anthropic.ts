@@ -1,5 +1,5 @@
 import "server-only";
-import { spendAiCredit, refundAiCredit, OUT_OF_CREDITS } from "@/lib/billing/ai-credits";
+import { spendAiCredit, refundAiCredit } from "@/lib/billing/ai-credits";
 import { recordUsage } from "@/lib/notifications/usage";
 
 /**
@@ -21,7 +21,7 @@ export async function runAi(opts: {
   }
 
   const spent = await spendAiCredit(opts.companyId);
-  if (!spent.ok) return { error: OUT_OF_CREDITS };
+  if (!spent.ok) return { error: spent.message };
 
   let res: Response;
   try {

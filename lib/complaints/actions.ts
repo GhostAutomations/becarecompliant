@@ -17,7 +17,7 @@ import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { submitEvidence } from "@/lib/evidence/submit";
 import { recordUsage } from "@/lib/notifications/usage";
-import { spendAiCredit, refundAiCredit, OUT_OF_CREDITS } from "@/lib/billing/ai-credits";
+import { spendAiCredit, refundAiCredit } from "@/lib/billing/ai-credits";
 import { requireFeature } from "@/lib/billing/tier";
 import { sendEmail, type EmailAttachment } from "@/lib/email/resend";
 import { noticeEmailHtml, escapeHtml } from "@/lib/email/templates";
@@ -481,7 +481,7 @@ export async function generateInitialResponse(_prev: ActionState, formData: Form
   const prompt = `You are writing on behalf of ${companyName}, a UK care provider, responding to a complaint. ${formatGuidance}\n\nUse only these details, do not invent facts:\n${facts}\n\nReturn ONLY valid JSON in exactly this shape, no markdown, no commentary: ${jsonShape}`;
 
   const spent = await spendAiCredit(profile.company_id);
-  if (!spent.ok) return { error: OUT_OF_CREDITS };
+  if (!spent.ok) return { error: spent.message };
 
   let res: Response;
   try {
@@ -727,7 +727,7 @@ export async function generateComplaintResponse(_prev: ActionState, formData: Fo
   const prompt = `You are writing on behalf of ${companyName}, a UK care provider, sending the final response to a complaint after investigating it. ${formatGuidance}\n\n${confidentiality}\n\nUse only these details from the complaint and its investigation, do not invent findings:\n${facts}\n\nReturn ONLY valid JSON in exactly this shape, no markdown: ${jsonShape}`;
 
   const spent = await spendAiCredit(profile.company_id);
-  if (!spent.ok) return { error: OUT_OF_CREDITS };
+  if (!spent.ok) return { error: spent.message };
 
   let res: Response;
   try {
