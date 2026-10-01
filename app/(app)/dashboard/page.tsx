@@ -861,7 +861,7 @@ export default async function DashboardPage() {
 
       {/* GETTING SET UP (Phil, 2026-10-01): the Company Admin's tick list, every company, until
           nothing is left to do. Never in a demo, which the founder sets up himself. */}
-      {setupCard && !setupCard.finished ? <GettingSetUpCard companyId={companyId} card={setupCard} /> : null}
+      {setupCard && !setupCard.finished ? <GettingSetUpCard companyId={companyId} card={setupCard} defaultOpen={false} highlight /> : null}
 
       {/*
         ROW ONE IS ONE FLUID GRID (Phil, 2026-09-16: "it needs to be perfect every time").

@@ -26,6 +26,8 @@ export type SetupStatus = {
   managers: number;
   branches: Array<{ id: string; name: string }>;
   steps: Record<string, "done" | "not_needed">;
+  /** Steps the founder ticked off by hand (0367), so the card can say so and offer Undo. */
+  founder_ticked?: string[];
 };
 
 export type SetupStep = {
@@ -34,6 +36,8 @@ export type SetupStep = {
   hint: string | null;
   href: string | null;
   state: SetupState;
+  /** Ticked off by Be Care Compliant rather than by the company or its data (0367). */
+  byFounder: boolean;
 };
 
 export type SetupGroup = { title: string; steps: SetupStep[] };
@@ -56,6 +60,8 @@ export function buildSetupSteps(
     href,
     hint,
     state: done || s.steps[key] === "done" ? "done" : s.steps[key] === "not_needed" ? "not_needed" : "todo",
+    // Only when the founder's tick is what made it done: real data or the Admin's own save wins.
+    byFounder: !done && s.steps[key] === "done" && (s.founder_ticked ?? []).includes(key),
   });
 
   const unchecked = s.branches.filter((b) => s.steps[branchStampKey(b.id)] !== "done");
@@ -126,4 +132,28 @@ export function setupProgress(groups: SetupGroup[]): { settled: number; total: n
   const all = groups.flatMap((g) => g.steps);
   const settled = all.filter((s) => s.state !== "todo").length;
   return { settled, total: all.length, finished: settled === all.length };
+}
+
+/**
+ * THE FOUNDER CAN TICK EVERY STEP EXCEPT THE AGREEMENT (Phil, popup 2026-10-01). The agreement is
+ * the customer's own acceptance; founder_set_setup_step refuses it too, this only hides the button.
+ */
+export function founderCanTick(stepKey: string): boolean {
+  return stepKey !== "agreement";
+}
+
+/** Ten days after creation (Phil, popup 2026-10-01: "10 days after creation, once"). */
+export const SETUP_ALERT_DAYS = 10;
+
+export function setupAlertDue(createdAt: string | Date, now: Date): boolean {
+  const created = new Date(createdAt).getTime();
+  if (!Number.isFinite(created)) return false;
+  return now.getTime() - created >= SETUP_ALERT_DAYS * 24 * 60 * 60 * 1000;
+}
+
+/** What is still to do, by group, for the 10 day alert. Not needed steps are settled, not listed. */
+export function outstandingByGroup(groups: SetupGroup[]): Array<{ title: string; labels: string[] }> {
+  return groups
+    .map((g) => ({ title: g.title, labels: g.steps.filter((x) => x.state === "todo").map((x) => x.label) }))
+    .filter((g) => g.labels.length > 0);
 }

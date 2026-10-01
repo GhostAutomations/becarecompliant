@@ -13,3 +13,14 @@ Run as popups, one at a time: Pass / Fail / Not tested. Phase 13 rule: test now,
 | GS6 | A Manager or Supervisor never sees the card. A demo company never shows it. || PASS 1 Oct (traced and DB): the dashboard only builds the card for company_admin or platform_admin and never in a demo; a Supervisor is refused by the database (GS0). |
 | GS7 | When every step is done or not needed, the card leaves the Admin dashboard. || PASS 1 Oct: with every step done or Not needed the dashboard had no card. The seven Not needed marks were then removed again; House Test keeps the genuine branch, check and notification stamps. |
 | GS8 | Every step is a link to its page, ticked or not (Phil, 1 Oct). | PASS 1 Oct (Claude, House Test in support mode): all 13 steps carry a link; the ticked "Check each house" opened Settings, Houses; every other target page opened with its own heading. "Accept the agreement" sends the founder in support mode back to Founder by design; a Company Admin gets Your agreement (traced in app/agreement/page.tsx). |
+
+## GS9 Forms question: No sends the note to Outlook AND the Founder Inbox, live (2026-10-01)
+- No on the forms question (Bevan, Business) sends the note: email arrives in Outlook (PASS) and a "Forms help: Bevan Care Ltd" row lands in founder_emails tagged to the company (PASS).
+- The open founder inbox shows it with no refresh (PASS, after the RealtimeRefresh fix: channels now set the session token on Realtime before joining; before the fix they could join as anon and RLS sent nothing).
+- "Thank you" shows once in the sent dialog (PASS).
+
+## Round 2 (2026-10-01, migration 0367): closed and gold, founder ticks, 10 day alert
+- GS10 Admin dashboard (Bevan): the card starts closed; closed it has a gold outline, gold tint and gold title; opened it is the normal card; a live push on the dashboard does not snap it shut.
+- GS11 Founder company page (Bevan): every step still to do except "Accept the agreement" has Mark done; clicking it ticks the step and shows "Ticked by Be Care Compliant." with Undo; Undo puts it back to To do. The Admin dashboard shows the same tick and note.
+- GS12 Undo never removes an Admin's own stamp (a step ticked by saving its page shows no Undo); the agreement has no Mark done and the database refuses it (founder_set_setup_step raises).
+- GS13 10 day alert: Bevan (created 17 Aug, set up not finished, setup_alert_at cleared for the test). Run /api/cron/setup-alert from Vercel: "Set up not finished: Bevan Care Ltd" lands in the Founder Inbox live and in Outlook, listing what is still to do by group, button "Open the company". Run it again: nothing new (once only). Companies before 0367 were stamped, so nothing else alerts.

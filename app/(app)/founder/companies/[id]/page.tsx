@@ -325,6 +325,7 @@ export default async function FounderCompanyPage({
           card={setupCard}
           defaultOpen={!setupCard.finished}
           links={false}
+          founderControls
           title={setupCard.finished ? "Getting set up: all done" : "Getting set up"}
         />
       ) : null}

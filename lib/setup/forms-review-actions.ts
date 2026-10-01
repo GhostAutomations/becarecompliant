@@ -11,8 +11,8 @@ import { revalidatePath } from "next/cache";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { recordSetupDone } from "@/lib/setup/status";
-import { sendEmail, resendConfigured } from "@/lib/email/resend";
-import { noticeEmailHtml, escapeHtml } from "@/lib/email/templates";
+import { escapeHtml } from "@/lib/email/templates";
+import { notifyFounder } from "@/lib/founder/notify";
 import { siteUrl } from "@/lib/site";
 import { writeAudit } from "@/lib/audit";
 
@@ -35,10 +35,7 @@ export async function formsReviewNeedsHelp(
   if (text.length > 2000) return { error: "Please keep it to 2000 characters or fewer." };
 
   const admin = createServiceClient();
-  const [{ data: co }, { data: founders }] = await Promise.all([
-    admin.from("companies").select("name, provisioned_by").eq("id", companyId).maybeSingle(),
-    admin.from("profiles").select("email").eq("role", "platform_admin"),
-  ]);
+  const { data: co } = await admin.from("companies").select("name, provisioned_by").eq("id", companyId).maybeSingle();
   const company = co as { name: string; provisioned_by: string | null } | null;
   if (!company) return { error: "The company could not be found." };
 
@@ -59,47 +56,25 @@ export async function formsReviewNeedsHelp(
     return { ok: "Your note has been recorded." };
   }
   const who = profile.full_name || profile.email;
-  const subject = `Forms help: ${company.name}`;
   const bodyHtml = `<p>${escapeHtml(who)} (${escapeHtml(profile.email)}) is not yet happy with their forms set up. They wrote:</p><p style="white-space:pre-wrap;border-left:3px solid #f5b544;padding-left:12px;">${escapeHtml(text)}</p>`;
 
-  /* INTO THE FOUNDER EMAIL INBOX TOO (Phil, 2026-10-01: "I would also like it to go in the
-     founder email system as well"). Stored as a message from the Admin, so Reply in the inbox
-     answers them. Written before any email is tried, so it lands even if Resend is down. */
-  const { error: inboxError } = await admin.from("founder_emails").insert({
-    direction: "in",
-    from_address: profile.email,
-    from_name: who,
-    to_addresses: [process.env.CONTACT_EMAIL || "hello@becarecompliant.com"],
-    subject,
-    body_text: `${who} (${profile.email}) at ${company.name} is not yet happy with their forms set up. They wrote:\n\n${text}`,
-    body_html: bodyHtml,
-    body_fetched_at: new Date().toISOString(),
-    company_id: companyId,
+  // Founder Inbox AND Outlook (Phil, 2026-10-01), from the Admin so Reply answers them.
+  const told = await notifyFounder({
+    subject: `Forms help: ${company.name}`,
+    heading: `${company.name} needs help with their forms`,
+    preheader: `${company.name} needs help with their forms`,
+    bodyHtml,
+    bodyText: `${who} (${profile.email}) at ${company.name} is not yet happy with their forms set up. They wrote:\n\n${text}`,
+    ctaLabel: "Open the company",
+    ctaUrl: `${siteUrl()}/founder/companies/${companyId}`,
+    companyId,
+    fromAddress: profile.email,
+    fromName: who,
+    replyTo: profile.email,
   });
-  if (inboxError) console.error("[setup] forms help not filed in the founder inbox:", inboxError.message);
 
-  let sent = 0;
-  if (resendConfigured()) {
-    const html = noticeEmailHtml({
-      preheader: `${company.name} needs help with their forms`,
-      heading: `${company.name} needs help with their forms`,
-      bodyHtml,
-      ctaLabel: "Open the company",
-      ctaUrl: `${siteUrl()}/founder/companies/${companyId}`,
-      footerNote: "You receive this because you are the platform admin for Be Care Compliant.",
-    });
-    const recipients = ((founders as Array<{ email: string | null }> | null) ?? [])
-      .map((a) => a.email)
-      .filter((e): e is string => Boolean(e));
-    for (const to of recipients) {
-      const r = await sendEmail({ to, subject, html, replyTo: profile.email || undefined });
-      if (r.sent) sent += 1;
-      else console.error("[setup] forms help email not sent:", r.error ?? r.skippedReason);
-    }
-  } else {
-    console.error("[setup] forms help request not emailed: RESEND_API_KEY / RESEND_FROM not configured");
+  if (!told.inbox && !told.emailed) {
+    return { error: "Your note could not be sent just now. Please email Be Care Compliant directly." };
   }
-
-  if (!sent && inboxError) return { error: "Your note could not be sent just now. Please email Be Care Compliant directly." };
   return { ok: "Be Care Compliant has your note and will be in touch." };
 }

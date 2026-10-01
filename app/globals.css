@@ -1534,3 +1534,24 @@ canvas {
     animation: none;
   }
 }
+
+/* ------------------------------------------------------------------
+ * GETTING SET UP, CLOSED = GOLD (Phil, popup 2026-10-01). On the Admin dashboard the card starts
+ * folded; folded, it wears a gold outline, a soft gold tint and a gold title so it is not missed.
+ * Opened, it is the ordinary card again. Unlayered and element-qualified so it beats the
+ * .glass-card defaults and the navy theme's override alike.
+ * ------------------------------------------------------------------ */
+details.setup-card-gold:not([open]) {
+  border-color: color-mix(in srgb, var(--color-gold-400) 65%, transparent);
+  background: color-mix(in srgb, var(--color-gold-400) 12%, var(--color-navy-900));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-gold-400) 25%, transparent);
+}
+details.setup-card-gold:not([open]) .setup-card-title,
+details.setup-card-gold:not([open]) .fold-chevron {
+  color: var(--color-gold-300);
+}
+details.setup-card-gold:not([open]) .setup-card-count {
+  border-color: color-mix(in srgb, var(--color-gold-400) 50%, transparent);
+  background: color-mix(in srgb, var(--color-gold-400) 15%, transparent);
+  color: var(--color-gold-300);
+}

@@ -1,6 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildSetupSteps, setupProgress, type SetupStatus } from "./getting-set-up.ts";
+import {
+  buildSetupSteps,
+  setupProgress,
+  founderCanTick,
+  setupAlertDue,
+  outstandingByGroup,
+  type SetupStatus,
+} from "./getting-set-up.ts";
 
 const base: SetupStatus = {
   tier: "business",
@@ -94,4 +101,40 @@ test("the company's own word for a branch is used", () => {
 test("every step has a page to go to", () => {
   const steps = buildSetupSteps(base, { ...opts, hasFormBuilder: true }).flatMap((g) => g.steps);
   assert.deepEqual(steps.filter((s) => !s.href).map((s) => s.key), []);
+});
+
+test("a founder tick shows as the founder's, and only when it is what made the step done", () => {
+  const ticked = { ...base, steps: { logo: "done" as const, people: "done" as const }, founder_ticked: ["logo", "people"], people: 4 };
+  const logo = find(ticked, "logo");
+  assert.equal(logo?.state, "done");
+  assert.equal(logo?.byFounder, true);
+  // Real People records make it done on their own, so the founder's tick is not what counts.
+  assert.equal(find(ticked, "people")?.byFounder, false);
+  // An Admin's own save stamp is not the founder's.
+  const saved = { ...base, steps: { notifications: "done" as const } };
+  assert.equal(find(saved, "notifications")?.byFounder, false);
+});
+
+test("the founder can tick every step but the agreement", () => {
+  const keys = buildSetupSteps(base, opts).flatMap((g) => g.steps).map((x) => x.key);
+  assert.deepEqual(keys.filter((k) => !founderCanTick(k)), ["agreement"]);
+});
+
+test("the set up alert is due at ten days, not before", () => {
+  const created = new Date("2026-10-01T09:00:00Z");
+  assert.equal(setupAlertDue(created, new Date("2026-10-11T08:59:00Z")), false);
+  assert.equal(setupAlertDue(created, new Date("2026-10-11T09:00:00Z")), true);
+  // Across the clocks going back (25 Oct 2026) it is still ten whole days.
+  assert.equal(setupAlertDue("2026-10-20T09:00:00Z", new Date("2026-10-30T09:00:00Z")), true);
+  assert.equal(setupAlertDue("not a date", new Date()), false);
+});
+
+test("the alert lists only what is still to do, by group", () => {
+  const s = { ...base, has_logo: true, steps: { training: "not_needed" as const } };
+  const out = outstandingByGroup(buildSetupSteps(s, opts));
+  const all = out.flatMap((g) => g.labels);
+  assert.ok(all.includes("Accept the agreement"));
+  assert.ok(!all.includes("Add your logo"));
+  assert.ok(!all.includes("Add training history"));
+  assert.ok(out.every((g) => g.labels.length > 0));
 });

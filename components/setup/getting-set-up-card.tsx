@@ -1,11 +1,14 @@
 import Link from "next/link";
 import type { SetupCard } from "@/lib/setup/status";
 import NotNeededButton from "./not-needed-button";
+import FounderTickButton from "./founder-tick-button";
+import { founderCanTick } from "@/lib/setup/getting-set-up";
 
 /**
  * The "Getting set up" card (Phil, 2026-10-01). On the Company Admin's dashboard while anything
- * is left to do, and on the founder company page always. A plain <details>, open by default on
- * the dashboard, so it can be folded away without being dismissed.
+ * is left to do, and on the founder company page always. A plain <details>, so it folds away
+ * without being dismissed. On the dashboard it starts folded and, folded, is gold (Phil, popup
+ * 2026-10-01). On the founder page the founder can tick any step but the agreement off.
  */
 export default function GettingSetUpCard({
   companyId,
@@ -13,6 +16,8 @@ export default function GettingSetUpCard({
   defaultOpen = true,
   title = "Getting set up",
   links = true,
+  highlight = false,
+  founderControls = false,
 }: {
   companyId: string;
   card: SetupCard;
@@ -21,15 +26,19 @@ export default function GettingSetUpCard({
   /** Off on the founder company page: the steps open the company's own Settings, which the
    *  founder only reaches through Manage as company. */
   links?: boolean;
+  /** Gold while folded (the dashboard). */
+  highlight?: boolean;
+  /** Mark done / Undo for the founder (the founder company page). */
+  founderControls?: boolean;
 }) {
   const pct = card.total ? Math.round((card.settled / card.total) * 100) : 0;
   return (
-    <details className="fold glass-card group overflow-hidden" open={defaultOpen}>
+    <details className={`fold glass-card group overflow-hidden${highlight ? " setup-card-gold" : ""}`} open={defaultOpen}>
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl px-5 py-4 transition hover:bg-white/[0.04] group-open:rounded-b-none">
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-2">
-            <span className="text-base font-semibold text-white">{title}</span>
-            <span className="rounded-full border border-white/15 bg-white/[0.06] px-2 py-0.5 text-xs text-white/70">
+            <span className="setup-card-title text-base font-semibold text-white">{title}</span>
+            <span className="setup-card-count rounded-full border border-white/15 bg-white/[0.06] px-2 py-0.5 text-xs text-white/70">
               {card.settled} of {card.total}
             </span>
           </span>
@@ -92,11 +101,19 @@ export default function GettingSetUpCard({
                       ) : s.hint && s.state === "done" && s.key === "payment" ? (
                         <span className="block text-xs text-white/45">{s.hint}</span>
                       ) : null}
+                      {s.byFounder ? (
+                        <span className="block text-xs text-white/45">Ticked by Be Care Compliant.</span>
+                      ) : null}
                     </span>
                   </span>
-                  {s.state !== "done" ? (
-                    <NotNeededButton companyId={companyId} stepKey={s.key} notNeeded={s.state === "not_needed"} />
-                  ) : null}
+                  <span className="flex shrink-0 items-start gap-1.5">
+                    {founderControls && founderCanTick(s.key) && (s.state === "todo" || s.byFounder) ? (
+                      <FounderTickButton companyId={companyId} stepKey={s.key} ticked={s.byFounder} />
+                    ) : null}
+                    {s.state !== "done" ? (
+                      <NotNeededButton companyId={companyId} stepKey={s.key} notNeeded={s.state === "not_needed"} />
+                    ) : null}
+                  </span>
                 </li>
               ))}
             </ul>
