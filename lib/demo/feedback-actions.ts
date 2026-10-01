@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { parseDemoRatings } from "@/lib/demo/rules";
+import { emailFounderDemoFeedback } from "@/lib/demo/feedback-alert";
 
 export type DemoFeedbackState = { ok?: boolean; error?: string };
 
@@ -35,7 +36,12 @@ export async function submitDemoFeedback(_prev: DemoFeedbackState, formData: For
     p_via: String(formData.get("via") ?? "") === "email" ? "email" : "app",
   });
   if (error) return { error: "Your answers could not be sent just now. Please try again." };
-  if (data === "ok" || data === "already") return { ok: true };
+  if (data === "ok") {
+    // First answer only ("already" is a second press): the founder hears about it once.
+    await emailFounderDemoFeedback(token);
+    return { ok: true };
+  }
+  if (data === "already") return { ok: true };
   if (data === "invalid") return { error: "Give every question a score from 1 to 5." };
   return { error: "That survey link is not valid." };
 }

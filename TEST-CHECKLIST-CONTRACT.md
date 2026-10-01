@@ -275,6 +275,9 @@ answers once (a 9 out of 5 refused), invites refused inside a demo. Still to tes
   open follow ups, recent activity filled, 2 Return to Works waiting, no billing banner, SMS Off.
 - DM13 (new) A refused password (one on the leaked lists) is explained in plain English and nothing is built.
   PASS 1 Oct (Phil, from the DM10 prefilled form, password123): "That password has turned up in lists of passwords leaked online, so it is not allowed. Choose a different one." Form kept every value; database: no login for ppdavies+dm10, no company, no demo.
+- DM15 (new, Phil 1 Oct) Founder email when a demo survey is answered: one email to the founder with
+  the client, who answered, the seven scores, the average, the three comments and an Open the demo
+  button; a second press of Send makes no second email. Needs a fresh demo (password typed by Phil).
 - DM14 (new) Login email: on Test Client 2, Send login email (password typed again) sends one branded
   email with a Log in button, email, password, end date and five things to try; the password typed
   works. The Set up and Add another login tick boxes send the same email when saved.
