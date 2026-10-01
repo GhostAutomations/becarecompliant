@@ -85,7 +85,7 @@ export default function ScwCell({
         )
       : null;
 
-  const text = number ?? (status === "missing" ? "Missing" : "Not yet");
+  const text = number ?? (status === "missing" ? "Missing" : "Under 6 months");
   const tone = number ? "text-white/85" : status === "missing" ? "text-rag-amber-soft font-semibold" : "text-white/40";
   const title = number
     ? `Social Care Wales registration ${number}`

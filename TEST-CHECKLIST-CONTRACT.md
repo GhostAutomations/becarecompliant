@@ -280,7 +280,7 @@ answers once (a 9 out of 5 refused), invites refused inside a demo. Still to tes
   "Resend invite", no "Enable this login".
 
 ## Social Care Wales registration number (DEF-097, 1 Oct 2026)
-- SC1 Thistle Training matrix: SCW number column next to Carer shows the 12 numbers; Damilola shows Not yet.
+- SC1 Thistle Training matrix: SCW number column next to Carer shows the 12 numbers; Damilola shows Not yet (now Under 6 months).
   PASS 1 Oct (Claude in Chrome, read only): all 12 W/ numbers shown, Damilola Not yet.
 - SC2 Click a number on the matrix (on a test company, not Thistle), change it, Save: it updates in place and on the person's record.
 - SC3 Person record: the number shows under the name; Manage record has the field and saving keeps it.
