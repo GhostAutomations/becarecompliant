@@ -23,3 +23,21 @@ test("the refusal says what to do, with no dashes", () => {
   assert.match(ONE_ACCOUNT_REFUSAL, /use a different email address/);
   assert.ok(!/[–—]/.test(ONE_ACCOUNT_REFUSAL));
 });
+
+import { activeLoginHere, activeLoginRefusal } from "./invite-one-account.ts";
+
+test("DEF-102: an active login in the same company is refused", () => {
+  assert.equal(activeLoginHere({ existingCompanyId: "a", existingStatus: "active", targetCompanyId: "a" }), true);
+});
+test("DEF-102: an invited profile (resend) and a leaver (rejoin) are allowed", () => {
+  assert.equal(activeLoginHere({ existingCompanyId: "a", existingStatus: "invited", targetCompanyId: "a" }), false);
+  assert.equal(activeLoginHere({ existingCompanyId: "a", existingStatus: "disabled", targetCompanyId: "a" }), false);
+});
+test("DEF-102: another company or no account is not this check", () => {
+  assert.equal(activeLoginHere({ existingCompanyId: "b", existingStatus: "active", targetCompanyId: "a" }), false);
+  assert.equal(activeLoginHere({ existingCompanyId: null, existingStatus: null, targetCompanyId: "a" }), false);
+});
+test("DEF-102: the refusal names the person and has no dashes", () => {
+  assert.match(activeLoginRefusal("Bev Admin"), /^Bev Admin already has a login here/);
+  assert.doesNotMatch(activeLoginRefusal("Bev Admin"), /[—–]/);
+});

@@ -37,3 +37,24 @@ export function belongsToAnotherCompany(input: {
   if (input.existingCompanyStatus === "deleted") return false;
   return true;
 }
+
+/**
+ * ALREADY A LIVE LOGIN HERE (DEF-102, found 1 Oct 2026). Inviting an address that is already an
+ * ACTIVE login in the same company went straight through: the invite then rewrote that person's
+ * role, name and status, so Bevan's Company Admin became an invited Viewer named after whatever
+ * was typed, and was locked out. A role or name change belongs on Active users, not on a new
+ * invitation. An invited profile is a resend and a closed one (a leaver) is a rejoin, so only
+ * "active" is refused.
+ */
+export function activeLoginHere(input: {
+  existingCompanyId: string | null | undefined;
+  existingStatus: string | null | undefined;
+  targetCompanyId: string;
+}): boolean {
+  return input.existingCompanyId === input.targetCompanyId && input.existingStatus === "active";
+}
+
+export function activeLoginRefusal(name: string | null | undefined): string {
+  const who = name?.trim() ? name.trim() : "Someone";
+  return `${who} already has a login here with that email address. To change their role or branch, use Active users instead of a new invite.`;
+}

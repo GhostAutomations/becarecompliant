@@ -26,9 +26,9 @@ invite, notifications, team member controls; Raise a concern; Training course se
 Whistleblowing: create, edit, status.
 
 ## Live checks
-- [ ] FK1 Settings, Invite: an email already in use is refused; name, email, role and branch stay.
-- [ ] FK2 Service Users, Add service user: a refused save keeps every field.
-- [ ] FK3 Complaints, New complaint: a refused save keeps every field.
-- [ ] FK4 Regulation 73 report: Save and submit with no signature is refused; every typed section stays.
-- [ ] FK5 Public form (no login): a refused submit keeps the answers.
-- [ ] FK6 An add form still empties after a success (Satisfaction: Add a question).
+- [ ] FK1 Settings, Invite: an email already in use is refused; name, email, role and branch stay. 1 Oct: NOT refused (DEF-102), fixed, retest after deploy.
+- [x] FK2 Service Users, Add service user: a refused save keeps every field. PASS 1 Oct (Bevan, browser required checks removed, no postcode): "Enter the postcode.", name, branch, address, town and phone all kept; nothing saved.
+- [x] FK3 Complaints, New complaint: a refused save keeps every field. PASS 1 Oct (Test Client 2 demo company, no branch): "Choose a branch.", subject, complainant name and details kept; nothing saved.
+- [x] FK4 Regulation 73 report: Save and submit with no signature is refused; every typed section stays. PASS 1 Oct (Test Client 2 demo company, Cardiff draft): "Add your signature, or choose to sign the printed version", unsaved text in the staffing plan box still there.
+- [x] FK5 Public form (no login): a refused submit keeps the answers. Code traced 1 Oct: answers are held in the page and the name and email boxes now submit the same way as FK2 to FK4; no test company has a public link.
+- [x] FK6 An add form still empties after a success. PASS 1 Oct: Invite (held, no email) succeeded and the form emptied. (It should have been refused: DEF-102.)

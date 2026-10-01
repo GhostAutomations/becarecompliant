@@ -8,7 +8,7 @@ import { writeAudit } from "@/lib/audit";
 import { picksABranch, isCompanyWideRole } from "@/lib/people/roles";
 import { siteUrl } from "@/lib/site";
 import { ROLE_LABELS } from "@/lib/nav";
-import { belongsToAnotherCompany, ONE_ACCOUNT_REFUSAL } from "@/lib/invite-one-account";
+import { activeLoginHere, activeLoginRefusal, belongsToAnotherCompany, ONE_ACCOUNT_REFUSAL } from "@/lib/invite-one-account";
 
 export type InviteRole =
   | "company_admin"
@@ -286,6 +286,18 @@ export async function createAndSendInvite(
   if (await addressHeldElsewhere(admin, email, p.companyId)) {
     return { ok: false, error: ONE_ACCOUNT_REFUSAL };
   }
+  /* ALREADY A LIVE LOGIN HERE (DEF-102): refused before any link is made, because making one
+     and promoting the profile below would rewrite that person's role, name and status. */
+  {
+    const { data: here } = await admin
+      .from("profiles")
+      .select("company_id, status, full_name")
+      .eq("company_id", p.companyId)
+      .ilike("email", email.replace(/[\\%_]/g, (c) => `\\${c}`));
+    const live = ((here as Array<{ company_id: string | null; status: string | null; full_name: string | null }> | null) ?? [])
+      .find((r) => activeLoginHere({ existingCompanyId: r.company_id, existingStatus: r.status, targetCompanyId: p.companyId }));
+    if (live) return { ok: false, error: activeLoginRefusal(live.full_name) };
+  }
 
   const link = await generateConfirmUrl(admin, email, fullName);
   if (link.error || !link.userId || !link.url) {
@@ -297,9 +309,19 @@ export async function createAndSendInvite(
      active, and an invited one was silently moved. See lib/invite-one-account.ts. */
   const { data: existing } = await admin
     .from("profiles")
-    .select("company_id, status")
+    .select("company_id, status, full_name")
     .eq("id", link.userId)
     .maybeSingle();
+  // The same DEF-102 check on the account the link resolved to, in case the address was stored differently.
+  if (
+    activeLoginHere({
+      existingCompanyId: (existing?.company_id as string | null | undefined) ?? null,
+      existingStatus: (existing?.status as string | null | undefined) ?? null,
+      targetCompanyId: p.companyId,
+    })
+  ) {
+    return { ok: false, error: activeLoginRefusal((existing?.full_name as string | null | undefined) ?? null) };
+  }
   let existingCompanyStatus: string | null = null;
   if (existing?.company_id && existing.company_id !== p.companyId) {
     const { data: other } = await admin

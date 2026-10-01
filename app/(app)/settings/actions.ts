@@ -262,7 +262,7 @@ export async function inviteUser(
      opposite things: one is what you asked for, the other is a problem. Say which. */
   if (holdEmail) {
     return {
-      ok: `${fullName} has been added. Nothing has been emailed — press Send invite below when you are ready.`,
+      ok: `${fullName} has been added. Nothing has been emailed: press Send invite below when you are ready.`,
     };
   }
   if (!outcome.emailSent) {
