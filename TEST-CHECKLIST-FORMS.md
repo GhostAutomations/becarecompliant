@@ -26,7 +26,7 @@ invite, notifications, team member controls; Raise a concern; Training course se
 Whistleblowing: create, edit, status.
 
 ## Live checks
-- [ ] FK1 Settings, Invite: an email already in use is refused; name, email, role and branch stay. 1 Oct: NOT refused (DEF-102), fixed, retest after deploy.
+- [x] FK1 Settings, Invite: an email already in use is refused; name, email, role and branch stay. 1 Oct: NOT refused (DEF-102), fixed. PASS after deploy: "Bev Admin already has a login here with that email address...", name, email, role, branch and the tick all kept; Bev Admin unchanged in the database, no invite made.
 - [x] FK2 Service Users, Add service user: a refused save keeps every field. PASS 1 Oct (Bevan, browser required checks removed, no postcode): "Enter the postcode.", name, branch, address, town and phone all kept; nothing saved.
 - [x] FK3 Complaints, New complaint: a refused save keeps every field. PASS 1 Oct (Test Client 2 demo company, no branch): "Choose a branch.", subject, complainant name and details kept; nothing saved.
 - [x] FK4 Regulation 73 report: Save and submit with no signature is refused; every typed section stays. PASS 1 Oct (Test Client 2 demo company, Cardiff draft): "Add your signature, or choose to sign the printed version", unsaved text in the staffing plan box still there.

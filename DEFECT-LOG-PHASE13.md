@@ -2552,4 +2552,4 @@ take the intervals from the deal (dealIntervals, pure, 1 test): here £250.00 a 
 - Cause: the one account per email guard (DEF-009) only refuses an address held by ANOTHER company. The same company was let through, and createAndSendInvite always rewrites the profile's role, name and status.
 - Put right: Bev Admin restored in the database straight away (Company Admin, active, name, the new branch row and pending invite removed). No other company has a pending invite on top of an accepted one, so nobody else was hit.
 - Fix: createAndSendInvite refuses an address that is already an ACTIVE login in the same company, before any link is made and again on the account the link resolves to: "<name> already has a login here with that email address. To change their role or branch, use Active users instead of a new invite." An invited profile (resend) and a leaver (rejoin) still go through. Unit tested. Also the held invite message lost its dash.
-- Status: fixed, to retest live (FK1).
+- Status: fixed and retested live 1 Oct (FK1): refused with the new message, everything typed kept, Bev Admin unchanged.

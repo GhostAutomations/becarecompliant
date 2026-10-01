@@ -2112,6 +2112,8 @@ happens to Acme once Thistle is real.
   action={} is reset when the action finishes, error or not), and test each one with a refused save.
   Starting point 1 Oct: the shared ActionForm is already safe (34 screens use it); 60 files post a form
   straight through action={} and each needs checking.
+  DONE 1 Oct (DEF-101): 45 forms moved to the shared keep-typed submit; live checks FK1 to FK6 in
+  TEST-CHECKLIST-FORMS.md all pass (FK5 code traced). Found and fixed on the way: DEF-102.
 - **Readiness per branch (added 2026-10-01, Phil, after Thistle's two CIW reports: Cardiff and Gwent are
   inspected as separate services).** Agreed by popup, next after the demo tests: readiness worked out per
   branch; dashboard tile a row per branch with Well-being, Care and Support, Leadership and Management
