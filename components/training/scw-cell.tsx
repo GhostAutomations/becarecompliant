@@ -103,33 +103,34 @@ export default function ScwCell({
     const [y, m, d] = iso.split("-");
     return `${d}/${m}/${y}`;
   };
-  const renewalNote = !number
-    ? ""
-    : !renewal
-      ? ". No renewal date recorded"
+  /* THE TIP SHOWS ONLY THE EXPIRY (Phil, 2026-10-01: "show only the exp date when hover over the
+     number"), plus the last day to send once it is due soon. No number, no "click to change". */
+  const tip = number
+    ? !renewal
+      ? "No expiry date recorded"
       : renewalState === "expired"
-        ? `. Expired ${fmt(renewal)}, so the registration has ended`
+        ? `Expired ${fmt(renewal)}`
         : renewalState === "due_soon"
-          ? `. Expires ${fmt(renewal)}: the renewal must reach Social Care Wales by ${fmt(scwApplyBy(renewal))}`
-          : `. Expires ${fmt(renewal)}`;
-  const reason = number
-    ? `Social Care Wales registration ${number}${renewalNote}`
+          ? `Expires ${fmt(renewal)}. The renewal must reach Social Care Wales by ${fmt(scwApplyBy(renewal))}`
+          : `Expires ${fmt(renewal)}`
     : status === "missing"
       ? "6 months or more in post with no registration number. The PQS counts this"
       : "Under 6 months in post";
   /* Just the number on the matrix (Phil, 2026-10-01: "don't put the date under the number"). The
-     expiry is in the hover tip; the number itself turns amber within 90 days and red once expired,
-     so a lapse is still visible without opening anything. */
+     number turns amber within 90 days and red once expired, in the same strong RAG colours as the
+     training cells (Phil chose stronger over the pale tint). */
   const tone = number
     ? renewalState === "expired"
-      ? "text-rag-red-soft font-semibold"
+      ? "rag-text-red font-semibold"
       : renewalState === "due_soon"
-        ? "text-rag-amber-soft font-semibold"
+        ? "rag-text-amber font-semibold"
         : "text-white/85"
     : status === "missing"
-      ? "text-rag-amber-soft font-semibold"
+      ? "rag-text-amber font-semibold"
       : "text-white/40";
-  const tip = editable ? `${reason}. Click to change.` : `${reason}.`;
+  const label = number
+    ? `Social Care Wales registration ${number}. ${tip}.${editable ? " Click to change." : ""}`
+    : `${tip}.${editable ? " Click to change." : ""}`;
 
   /* SHOWN STRAIGHT AWAY on hover (Phil, 2026-10-01: the browser's own tip "doesn't pop up
      instantly"). The same portalled tip as the PQS star (components/reports/star-tip.tsx). */
@@ -153,9 +154,8 @@ export default function ScwCell({
 
   if (!editable) {
     return (
-      <span className={`cursor-help text-xs tabular-nums ${tone}`} aria-label={tip} {...hover}>
+      <span className={`cursor-help text-xs tabular-nums ${tone}`} aria-label={label} {...hover}>
         {text}
-        
         {tipEl}
       </span>
     );
@@ -169,11 +169,10 @@ export default function ScwCell({
           setEditing(true);
         }}
         className={`text-xs tabular-nums ${tone}`}
-        aria-label={tip}
+        aria-label={label}
         {...hover}
       >
         <span className="underline decoration-white/15 underline-offset-2 hover:decoration-white/60">{text}</span>
-        
       </button>
       {tipEl}
       {dialog}
