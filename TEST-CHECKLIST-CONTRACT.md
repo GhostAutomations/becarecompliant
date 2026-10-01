@@ -252,9 +252,12 @@ answers once (a 9 out of 5 refused), invites refused inside a demo. Still to tes
   PASS 1 Oct after DEF-099 and DEF-100 deployed: bar counted 2, 1, 0 of 5 as each answer appeared with no reload; the press after the last credit said "You have used all the AI credits in this demo..." with no Billing wording.
 - DM5 (part seen 1 Oct: 1 sign in, 2 min, parts used shown) Founder demo page after a few minutes of use: times signed in, total time, average visit,
   parts used most (idle tab adds nothing).
+  PASS 1 Oct (ZZ TEST DM10): 1 sign in, 10 min, average 10 min, last seen 14:02; Inspection Readiness 62%, Dashboard 38%, matching what was used.
 - DM6 Extend by 1 day, then End now: the demo login lands on "Your demo has ended" with "Tell us
   what you thought". Answer the survey: all seven scores needed; answers show on the founder page.
+  1 Oct (ZZ TEST DM10): Extend by 1 day moved the end from Thu 8 to Fri 9 Oct, PASS. End now: founder page "Ended Thursday 1 October, deleted Thursday 15 October"; Phil's Safari moved to "Your demo has ended" by itself, PASS. Survey answered, answers on the founder page (average 3.2), PASS. Phil: the "3 of 5" text beside the stars made the row jump, removed from the shared stars. The missing score refusal was not tried: answers reset in the database to retest.
 - DM7 Survey from 2 days before the end: the bar shows "Tell us what you thought".
+  PASS 1 Oct (Phil in Safari as Dee, end date moved to 2 Oct in the database; list showed "Ends soon").
 - DM8 The morning run (07:00 London) after the end: one survey email with a button, to a login that
   has not answered, and never twice.
 - DM9 Delete now (type DELETE): company and login gone, usage and feedback still on the demo page.

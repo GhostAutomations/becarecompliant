@@ -1,7 +1,9 @@
 "use client";
 
 /* Stars from 1 to max. Shared by the form renderer's rating field and the demo survey, so a
-   score looks and behaves the same everywhere. Pressing the chosen star again clears it. */
+   score looks and behaves the same everywhere. Pressing the chosen star again clears it. No
+   "3 of 5" text beside the stars (Phil, 2026-10-01): it appeared on the first press and made the
+   row jump; the filled stars already say it. */
 export default function RatingStars({
   value,
   max,
@@ -28,11 +30,6 @@ export default function RatingStars({
           ★
         </button>
       ))}
-      {value > 0 && (
-        <span className="ml-2 text-sm text-white/60">
-          {value} of {max}
-        </span>
-      )}
     </div>
   );
 }
