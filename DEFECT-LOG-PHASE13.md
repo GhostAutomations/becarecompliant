@@ -2569,4 +2569,4 @@ take the intervals from the deal (dealIntervals, pure, 1 test): here £250.00 a 
 - Found: 1 Oct 2026, RB9 as the House Test Ltd Admin on Ivy House. Asked "Which service is this about, and what open notices does it have?", it named Ivy House correctly but said "I do not have that information" about notices, with one open on the page.
 - Cause: the assistant's context held the themes and the outstanding checks only, never the notices table or (new today) the last inspection's ratings.
 - Fix: the context now lists the branch's open notices (kind, theme, dates, CIW status, what it requires) and its last inspection with the rating per theme.
-- Status: fixed, to retest after deploy (same question, one AI credit of House Test Ltd).
+- Status: fixed and retested live 1 Oct: "This is about Ivy House (House Test Ltd)... Open notices: Area for Improvement, Leadership and Management, issued 14 January 2025, status Not achieved... That is the only open notice", the Achieved one correctly left out.
