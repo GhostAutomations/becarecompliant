@@ -72,8 +72,8 @@ test("done in the data beats an old Not needed", () => {
   assert.equal(find({ ...base, people: 3, steps: { people: "not_needed" } }, "people")?.state, "done");
 });
 
-test("forms appear only with the form builder", () => {
-  assert.equal(find(base, "forms"), undefined);
+test("forms appear on every plan", () => {
+  assert.equal(find(base, "forms")?.state, "todo");
   assert.equal(find(base, "forms", { ...opts, hasFormBuilder: true })?.state, "todo");
 });
 

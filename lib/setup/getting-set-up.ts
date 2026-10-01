@@ -112,9 +112,8 @@ export function buildSetupSteps(
           false,
           "Ticks when you save them once.",
         ),
-        ...(opts.hasFormBuilder
-          ? [step("forms", "Look over your forms", "/settings/forms", false, "Ticks when you tell us you are happy with them, as you leave the Forms page.")]
-          : []),
+        // Every plan (Phil, 2026-10-01): Business looks over its forms read only.
+        step("forms", "Look over your forms", "/settings/forms", false, "Ticks when you tell us you are happy with them, as you leave the Forms page."),
         step("policies", "Upload your policies", "/settings/policies", s.policies > 0),
         step("notifications", "Check the notification settings", "/settings/notifications", false, "Ticks when you save them once."),
       ],

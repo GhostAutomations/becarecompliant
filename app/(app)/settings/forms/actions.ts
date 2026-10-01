@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireCompanyAdmin } from "@/lib/auth/guards";
+import { requireFeature } from "@/lib/billing/tier";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import type { ActionState } from "@/lib/forms";
@@ -16,6 +17,9 @@ export async function setFormColumnLink(_prev: ActionState, formData: FormData):
   const { user, profile } = await requireCompanyAdmin();
   if (!profile.company_id) return { error: "No company context." };
   const companyId = profile.company_id;
+  // Business sees its forms read only (2026-10-01); pointing a form at a column is a builder job.
+  const gated = await requireFeature(companyId, "form_builder");
+  if (gated) return { error: gated };
 
   const formId = String(formData.get("form_id") ?? "").trim();
   const checkId = String(formData.get("check_id") ?? "").trim();

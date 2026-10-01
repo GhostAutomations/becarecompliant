@@ -27,29 +27,9 @@ export default async function SettingsFormsPage() {
 
   // The form builder is a Pro and above feature (server-side tier gating).
   const canBuild = await featureEnabled(profile.company_id, "form_builder");
-  if (!canBuild) {
-    return (
-      <div className="page-shell space-y-6">
-        <div>
-          <BackLink href="/settings" label="Back to Settings" />
-          <h1 className="page-title mt-1">Forms</h1>
-          <p className="page-subtitle">
-            Build and edit the forms your team completes as compliance Evidence.
-          </p>
-        </div>
-        <div className="glass-card p-6 text-center">
-          <p className="text-sm text-white/70">
-            The form builder is available on the Pro plan and above. Your seeded
-            starter forms keep working; upgrade to create and edit your own.
-          </p>
-          <Link href="/settings/billing" className="btn btn-primary mt-4 inline-block">
-            View plans
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
+  /* BUSINESS SEES ITS FORMS, READ ONLY (Phil, 2026-10-01). The builder is Pro and above, but
+     Be Care Compliant builds a customer's forms for them, so a Business Admin still looks them
+     over and is asked on leaving whether they are happy. No editing, no column dropdowns. */
   const forms = await listCompanyForms(profile.company_id);
 
   // The department columns (compliance checks) a form can link to, and which check
@@ -98,9 +78,21 @@ export default async function SettingsFormsPage() {
         </p>
       </div>
 
-      <div className="flex justify-end">
-        <NewFormButton forms={forms} />
-      </div>
+      {canBuild ? (
+        <div className="flex justify-end">
+          <NewFormButton forms={forms} />
+        </div>
+      ) : (
+        <div className="glass-card flex flex-wrap items-center justify-between gap-3 p-4">
+          <p className="text-sm text-white/70">
+            These are your forms, to look over. Editing them and building your own is on the Pro
+            plan and above. If something needs changing, tell us as you leave this page.
+          </p>
+          <Link href="/settings/billing" className="btn-outline px-3 py-1.5 text-xs">
+            View plans
+          </Link>
+        </div>
+      )}
 
       {forms.length === 0 ? (
         <div className="glass-card p-8 text-center">
@@ -120,6 +112,7 @@ export default async function SettingsFormsPage() {
             forms={checkForms}
             checksFor={(f) => (f.population === "service_users" ? suChecks : peopleChecks)}
             formLinkedCheck={formLinkedCheck}
+            readOnly={!canBuild}
           />
           <FormGroup
             title="Department forms"
@@ -127,6 +120,7 @@ export default async function SettingsFormsPage() {
             checksFor={() => []}
             formLinkedCheck={formLinkedCheck}
             labelFor={(f) => departmentFor(f)}
+            readOnly={!canBuild}
           />
         </div>
       )}
@@ -176,6 +170,7 @@ function FormRow({
   formLinkedCheck,
   sectionLabel,
   summaryOnly = false,
+  readOnly = false,
 }: {
   f: FormSummary;
   checks: Array<{ id: string; name: string }>;
@@ -184,6 +179,7 @@ function FormRow({
   /** Linked forms is a SUMMARY (Phil, 2026-10-01): it says what each form links to, and the
    *  link is changed in the form's own section, not here. */
   summaryOnly?: boolean;
+  readOnly?: boolean;
 }) {
   const linkedCheckId = formLinkedCheck.get(f.id);
   const linkedName = linkedCheckId ? checks.find((c) => c.id === linkedCheckId)?.name ?? null : null;
@@ -193,10 +189,17 @@ function FormRow({
      icon or a shield, so the dropdowns, icons and versions each line up down the list. */
   return (
     <div className="flex items-center gap-3 border-b border-white/5 px-5 py-2.5 last:border-b-0 hover:bg-white/5">
-      <Link href={`/settings/forms/${f.id}`} className="flex min-w-0 flex-1 items-center gap-3">
-        <span className="truncate text-sm font-medium text-white">{f.name}</span>
-        <span className="truncate text-xs text-white/40">{POP_LABEL[f.population]}</span>
-      </Link>
+      {readOnly ? (
+        <span className="flex min-w-0 flex-1 items-center gap-3">
+          <span className="truncate text-sm font-medium text-white">{f.name}</span>
+          <span className="truncate text-xs text-white/40">{POP_LABEL[f.population]}</span>
+        </span>
+      ) : (
+        <Link href={`/settings/forms/${f.id}`} className="flex min-w-0 flex-1 items-center gap-3">
+          <span className="truncate text-sm font-medium text-white">{f.name}</span>
+          <span className="truncate text-xs text-white/40">{POP_LABEL[f.population]}</span>
+        </Link>
+      )}
       <span className="w-44 shrink-0">
         {summaryOnly ? (
           linkLabel ? <span className="block truncate text-xs text-white/60">{linkLabel}</span> : null
@@ -244,6 +247,7 @@ function FormGroup({
   checksFor,
   formLinkedCheck,
   labelFor,
+  readOnly = false,
 }: {
   title: string;
   forms: FormSummary[];
@@ -251,6 +255,8 @@ function FormGroup({
   formLinkedCheck: Map<string, string>;
   /** Department forms: where the form is used, shown as text in place of a dropdown. */
   labelFor?: (f: FormSummary) => string | null;
+  /** Business: look, do not touch (no link into the builder, no dropdown). */
+  readOnly?: boolean;
 }) {
   if (forms.length === 0) return null;
   return (
@@ -266,7 +272,8 @@ function FormGroup({
             checks={checksFor(f)}
             formLinkedCheck={formLinkedCheck}
             sectionLabel={labelFor ? labelFor(f) : null}
-            summaryOnly={Boolean(labelFor)}
+            summaryOnly={Boolean(labelFor) || readOnly}
+            readOnly={readOnly}
           />
         ))}
       </div>
