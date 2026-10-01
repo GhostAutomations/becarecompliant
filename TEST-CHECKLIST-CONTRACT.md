@@ -259,18 +259,21 @@ answers once (a 9 out of 5 refused), invites refused inside a demo. Still to tes
   PASS 1 Oct (Claude in Chrome, Test Client): page says Deleted, usage kept (1 sign in, 2 min, Dashboard
   68%, Service Users 32%); database: company, people, evidence, sign in account and profile all gone.
 - DM10 Trial requests: "Set up a demo for <name>" opens Demos with the details filled in.
+  PASS 1 Oct (Claude in Chrome, Phil's OK): made up request "ZZ TEST DM10 Care Ltd", Dee Emten, ppdavies+dm10@gmail.com sent from /start-trial ("Request received"; founder texted and emailed, both recorded on the row). Trial requests, "Set up a demo for Dee Emten" opened Demos with who it is for, name and email filled in, password blank, email tick box on. Nothing set up.
 - DM11 (new) Try the AI: the demo bar and the dashboard AI tile open Try the AI, with seven AI features,
   each opening a sample record that is ready for it; the credits left are right.
 - DM12 (new) Sample data: dashboard about 85% in date with 4 overdue, CIW readiness mostly on track,
   PQS mostly green, Planner shows this week, policies and training up to date figures, on call shows two
   open follow ups, recent activity filled, 2 Return to Works waiting, no billing banner, SMS Off.
 - DM13 (new) A refused password (one on the leaked lists) is explained in plain English and nothing is built.
+  PASS 1 Oct (Phil, from the DM10 prefilled form, password123): "That password has turned up in lists of passwords leaked online, so it is not allowed. Choose a different one." Form kept every value; database: no login for ppdavies+dm10, no company, no demo.
 - DM14 (new) Login email: on Test Client 2, Send login email (password typed again) sends one branded
   email with a Log in button, email, password, end date and five things to try; the password typed
   works. The Set up and Add another login tick boxes send the same email when saved.
   PART PASS 1 Oct: sent and delivered (Resend, 11:48), branded, details and five tips right, reply to
   hello@. Only a brief "Sent" flash showed, so the result line now stays (showOk). Log in with the emailed
   password: PASS (Phil signed in). Still to check: the tick box on Set up.
+  Tick box on Set up PASS 1 Oct (Phil, ZZ TEST DM10 Care Ltd from the trial request): "The demo is ready" and emailed line; demo linked to the trial request, 50 people, 40 service users, ends 8 Oct; Resend "Your Be Care Compliant demo login" delivered 13:36, from no-reply@mail, reply to hello@, Hi Dee, email, the typed password, end date, five tips, Log in. Sign in with it: still to do.
 
 ## Invitation links (DEF-088, DEF-089)
 
@@ -297,3 +300,4 @@ answers once (a 9 out of 5 refused), invites refused inside a demo. Still to tes
 - SR5 (unit tested and code traced only: Bevan is on Business so has no PQS report, and no Pro company has a renewal date yet) PQS SCW registration: a person whose renewal date has passed no longer counts as registered.
 - SR6 (code traced and send by date unit tested; not run live because the cron sends real emails. On Bevan today it would list Carer Two as overdue, send by 09/09/2026, and not yet Senior, send by 09/11/2026) Daily People report: a renewal whose send by date (renewal minus 21 days) is within 14 days or past appears as "Social Care Wales renewal: last day to send it".
 - SR7 (PASS 1 Oct in the matrix popup on Bevan, Carer Three: 12/03/2025 filled 12/03/2028; 29/02/2024 filled 28/02/2027; typing 01/04/2027 by hand stopped it following and the hint said so; a registered date after it was refused with everything kept; saved 12/03/2025 + 01/04/2027, green chip; reopening shows Typed by hand) Popup, Manage record and Add person ask "registered or last renewed on": typing 12/03/2025 fills the renewal date 12/03/2028; changing the renewal date by hand stops it following; 29/02/2024 gives 28/02/2027; a renewal date on or before the registered date is refused.
+- SR8 (PASS 1 Oct, Claude on Bevan then Phil) Matrix shows just the number, no date under it. Number amber within 90 days of expiry and red once expired, in the same RAG text colours as the matrix counts; "Missing" amber. Hover tip shows only the expiry: "Expires 01/04/2027"; due soon "Expires 30/11/2026. The renewal must reach Social Care Wales by 09/11/2026"; expired "Expired 30/09/2026". Missing tip "In role over 6 months, update ASAP". Tip text centred and the box fits the text.

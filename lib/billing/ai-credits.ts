@@ -1,4 +1,5 @@
 import "server-only";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -34,7 +35,21 @@ export async function spendAiCredit(
   const { data, error } = await supabase.rpc("spend_ai_credit", { cid: companyId });
   const remaining = typeof data === "number" ? data : -1;
   if (error || remaining < 0) return { ok: false };
+  refreshCreditCounts();
   return { ok: true, remaining };
+}
+
+/* THE COUNT ON SCREEN FOLLOWS STRAIGHT AWAY (DEF-099, Phil 2026-10-01): the demo bar ("AI: 5 of 5
+   left") and the dashboard AI credits tile only changed on the next page. Every AI button runs
+   in a server action, and revalidating the layout there sends the fresh counts back with the
+   action's answer, so the bar counts down the moment the answer appears (a refund in the same
+   action is included too). Outside a request (a background job) there is nothing to refresh. */
+function refreshCreditCounts() {
+  try {
+    revalidatePath("/", "layout");
+  } catch {
+    // Not in a request: nothing on screen to update.
+  }
 }
 
 /** Give a credit back when a paid-for AI call failed after we deducted it. Best effort.

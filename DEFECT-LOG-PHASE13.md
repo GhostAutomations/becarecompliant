@@ -2529,3 +2529,9 @@ take the intervals from the deal (dealIntervals, pure, 1 test): here £250.00 a 
 - Cause: the DEF-091 React 19 behaviour (a form posted through action={} is reset when the action finishes, error or not) in two forms DEF-091 did not cover.
 - Fix: both forms submit through startTransition (Add person keeps its DBS warning step). The SCW error now says "/" is allowed, for example W/1234567.
 - Status: fixed and retested live on Bevan 1 Oct (Manage record and Add person both keep everything after a refusal).
+
+## DEF-099: The demo bar's AI count did not go down until the next page
+- Found: 1 Oct 2026, DM4, Claude in Chrome as the ZZ TEST DM10 demo login. Each readiness assistant answer spent a credit (database ai_used 1, then 5) but the gold bar stayed "AI: 5 of 5 left" until another page was opened, then showed the right number.
+- Cause: the bar and the dashboard AI credits tile are drawn by the layout on page load, and nothing refreshed it after an AI button.
+- Fix: spendAiCredit (the one place every AI button spends a credit) revalidates the layout, so the server action's answer comes back with the new counts. Covers every company's AI tile, not only demos.
+- Status: fixed, to retest live (DM4: the bar counts down after each use, the 6th says out of credits).
