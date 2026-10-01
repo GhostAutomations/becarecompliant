@@ -52,3 +52,20 @@ test("scwCountsAsRegistered: a number that has not ended", () => {
   assert.equal(scwCountsAsRegistered("W/1", "2026-09-30", "2026-10-01"), false);
   assert.equal(scwCountsAsRegistered(null, "2027-01-01", "2026-10-01"), false);
 });
+
+import { scwRenewalFromIssue, resolveScwDates } from "./scw.ts";
+
+test("scwRenewalFromIssue is three years on, 29 February to 28 February", () => {
+  assert.equal(scwRenewalFromIssue("2025-03-12"), "2028-03-12");
+  assert.equal(scwRenewalFromIssue("2024-02-29"), "2027-02-28");
+  assert.equal(scwRenewalFromIssue(null), null);
+});
+
+test("resolveScwDates: typed renewal wins, else worked out; guards", () => {
+  assert.deepEqual(resolveScwDates({ number: "W/1", issue: "2025-03-12", renewal: null }), { ok: true, issue: "2025-03-12", renewal: "2028-03-12" });
+  assert.deepEqual(resolveScwDates({ number: "W/1", issue: "2025-03-12", renewal: "2028-04-01" }), { ok: true, issue: "2025-03-12", renewal: "2028-04-01" });
+  assert.deepEqual(resolveScwDates({ number: "W/1", issue: null, renewal: "2028-04-01" }), { ok: true, issue: null, renewal: "2028-04-01" });
+  assert.equal(resolveScwDates({ number: null, issue: "2025-03-12", renewal: null }).ok, false);
+  assert.equal(resolveScwDates({ number: "W/1", issue: "2025-03-12", renewal: "2025-03-01" }).ok, false);
+  assert.deepEqual(resolveScwDates({ number: null, issue: null, renewal: null }), { ok: true, issue: null, renewal: null });
+});

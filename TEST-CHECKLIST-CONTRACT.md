@@ -290,9 +290,10 @@ answers once (a 9 out of 5 refused), invites refused inside a demo. Still to tes
   PASS 1 Oct (Bevan): Add person has the field; BAD<2 refused and every field kept (name, branch, job title, start date, manager, email, mobile, the hold tick); W/9990001 saved, one record made (ZZ TEST SCW New Starter, 9 checks), the record shows the number, no invite made. CQC half PASS 1 Oct (Bevan switched to CQC for the check, then back to CIW): no SCW column on the matrix, no line on the record, no field on Manage record or Add person, and saving Manage record kept the stored number (W/9990001). Back on CIW the column returned.
 
 ## Social Care Wales renewal date (0361, 1 Oct 2026)
-- SR1 Matrix popup on Bevan has Renewal date; save one 200 days away: green chip under the number; 60 days away: amber; yesterday: red. Hover says the renewal date and, when amber, the last day to send it (21 days before).
-- SR2 A renewal date with no number is refused ("Add the registration number as well").
+- SR1 (live 1 Oct, PASS: red, amber, green chips and hover tips right on Bevan) Matrix popup on Bevan has Renewal date; save one 200 days away: green chip under the number; 60 days away: amber; yesterday: red. Hover says the renewal date and, when amber, the last day to send it (21 days before).
+- SR2 (PASS 1 Oct) A renewal date with no number is refused ("Add the registration number as well").
 - SR3 Person record line: "renews ..." (amber or green), or "renewal date passed ..., so the registration has ended" in red, or "no renewal date recorded".
 - SR4 Manage record and Add person have the date; saving Manage record keeps it.
 - SR5 PQS SCW registration: a person whose renewal date has passed no longer counts as registered.
 - SR6 Daily People report: a renewal whose send by date (renewal minus 21 days) is within 14 days or past appears as "Social Care Wales renewal: last day to send it".
+- SR7 (0362) Popup, Manage record and Add person ask "registered or last renewed on": typing 12/03/2025 fills the renewal date 12/03/2028; changing the renewal date by hand stops it following; 29/02/2024 gives 28/02/2027; a renewal date on or before the registered date is refused.

@@ -62,7 +62,7 @@ import {
 } from "@/lib/people/deletable";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { seniorMayDo } from "@/lib/senior/access";
-import { cleanScwNumber, cleanScwDate } from "@/lib/people/scw";
+import { cleanScwNumber, cleanScwDate, resolveScwDates } from "@/lib/people/scw";
 import { seniorListAfter } from "@/lib/auth/carer-login";
 import { getColumnLabels, getSupervisionCycleMode } from "@/lib/people/data";
 import { intervalUnit } from "@/lib/people/interval-unit";
@@ -103,13 +103,18 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
   if (!scw.ok) return { error: scw.error };
   const scwRenewal = cleanScwDate(formData.get("scw_renewal_date"));
   if (!scwRenewal.ok) return { error: scwRenewal.error };
+  const scwIssue = cleanScwDate(formData.get("scw_registered_on"));
+  if (!scwIssue.ok) return { error: scwIssue.error };
+  const scwDates = resolveScwDates({ number: scw.value, issue: scwIssue.value, renewal: scwRenewal.value });
+  if (!scwDates.ok) return { error: scwDates.error };
 
   const supabase = await createClient();
   const { data: person, error } = await supabase
     .from("people")
     .insert({
       scw_registration_number: scw.value,
-      scw_renewal_date: scwRenewal.value,
+      scw_registered_on: scwDates.issue,
+      scw_renewal_date: scwDates.renewal,
       company_id: companyId,
       branch_id,
       full_name,
@@ -497,6 +502,15 @@ export async function updatePerson(_prev: ActionState, formData: FormData): Prom
   if (scw && !scw.ok) return { error: scw.error };
   const scwRenewal = formData.has("scw_renewal_date") ? cleanScwDate(formData.get("scw_renewal_date")) : null;
   if (scwRenewal && !scwRenewal.ok) return { error: scwRenewal.error };
+  const scwIssue = formData.has("scw_registered_on") ? cleanScwDate(formData.get("scw_registered_on")) : null;
+  if (scwIssue && !scwIssue.ok) return { error: scwIssue.error };
+  /* The three travel together on this form (0362): resolved as one, so a number cleared here
+     clears its dates and an issue date fills the renewal date. */
+  const scwDates =
+    scw && scw.ok && scwRenewal && scwRenewal.ok && scwIssue && scwIssue.ok
+      ? resolveScwDates({ number: scw.value, issue: scwIssue.value, renewal: scwRenewal.value })
+      : null;
+  if (scwDates && !scwDates.ok) return { error: scwDates.error };
 
   const { error } = await supabase
     .from("people")
@@ -510,7 +524,7 @@ export async function updatePerson(_prev: ActionState, formData: FormData): Prom
       team_leader_id: trimOrNull(formData.get("team_leader_id")),
       start_date: startDate,
       ...(scw && scw.ok ? { scw_registration_number: scw.value } : {}),
-      ...(scwRenewal && scwRenewal.ok ? { scw_renewal_date: scwRenewal.value } : {}),
+      ...(scwDates && scwDates.ok ? { scw_registered_on: scwDates.issue, scw_renewal_date: scwDates.renewal } : {}),
     })
     .eq("id", personId);
   if (error) return { error: error.message };
@@ -623,11 +637,18 @@ export async function updateScwNumber(_prev: ActionState, formData: FormData): P
   if (!scw.ok) return { error: scw.error };
   const scwRenewal = cleanScwDate(formData.get("scw_renewal_date"));
   if (!scwRenewal.ok) return { error: scwRenewal.error };
-  if (scwRenewal.value && !scw.value) return { error: "Add the registration number as well as the renewal date." };
+  const scwIssue = cleanScwDate(formData.get("scw_registered_on"));
+  if (!scwIssue.ok) return { error: scwIssue.error };
+  const scwDates = resolveScwDates({ number: scw.value, issue: scwIssue.value, renewal: scwRenewal.value });
+  if (!scwDates.ok) return { error: scwDates.error };
   const supabase = await createClient();
   const { data: updated, error } = await supabase
     .from("people")
-    .update({ scw_registration_number: scw.value, scw_renewal_date: scw.value ? scwRenewal.value : null })
+    .update({
+      scw_registration_number: scw.value,
+      scw_registered_on: scwDates.issue,
+      scw_renewal_date: scwDates.renewal,
+    })
     .eq("id", personId)
     .select("id, full_name, company_id")
     .maybeSingle();

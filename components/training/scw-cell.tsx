@@ -4,6 +4,7 @@ import { useState, type MouseEvent as ReactMouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import ActionForm from "@/components/action-form";
+import ScwDates from "@/components/people/scw-dates";
 import { updateScwNumber } from "@/lib/people/actions";
 import { scwRenewalState, scwApplyBy, type ScwStatus } from "@/lib/people/scw";
 
@@ -18,6 +19,7 @@ export default function ScwCell({
   personName,
   number,
   renewal,
+  registeredOn,
   todayIso,
   status,
   editable,
@@ -27,6 +29,8 @@ export default function ScwCell({
   number: string | null;
   /** Social Care Wales renewal date (0361), YYYY-MM-DD. */
   renewal: string | null;
+  /** Registered or last renewed on (0362). */
+  registeredOn: string | null;
   todayIso: string;
   status: ScwStatus;
   editable: boolean;
@@ -79,19 +83,7 @@ export default function ScwCell({
                     Leave it blank and save to remove it. The PQS counts anyone 6 months in post without one.
                   </p>
                 </div>
-                <div>
-                  <label htmlFor={`scw_renewal_${personId}`} className="form-label">
-                    Renewal date
-                  </label>
-                  <input
-                    id={`scw_renewal_${personId}`}
-                    name="scw_renewal_date"
-                    type="date"
-                    defaultValue={renewal ?? ""}
-                    className="max-w-[10rem]"
-                  />
-                  <p className="form-hint">As shown in SCWonline. The renewal must reach Social Care Wales 21 days before this date.</p>
-                </div>
+                <ScwDates idPrefix={`scw_${personId}`} defaultIssue={registeredOn} defaultRenewal={renewal} />
               </ActionForm>
               <div className="mt-4 flex items-center gap-3 border-t border-white/10 pt-4">
                 <button type="button" onClick={close} className="btn-ghost ml-auto px-3 py-2 text-sm">

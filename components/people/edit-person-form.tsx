@@ -1,5 +1,6 @@
 "use client";
 
+import ScwDates from "@/components/people/scw-dates";
 import { startTransition, useActionState, useEffect, useState } from "react";
 import { updatePerson } from "@/lib/people/actions";
 import { IDLE_STATE } from "@/lib/forms";
@@ -114,13 +115,7 @@ export default function EditPersonForm({
             <p className="form-hint">Leave blank if they are not registered yet. The PQS counts anyone 6 months in post without one.</p>
           </div>
         ) : null}
-        {showScw ? (
-          <div>
-            <label htmlFor="e_scw_renewal" className="form-label">Social Care Wales renewal date</label>
-            <input id="e_scw_renewal" name="scw_renewal_date" type="date" defaultValue={person.scw_renewal_date ?? ""} />
-            <p className="form-hint">As shown in SCWonline. It turns amber 90 days before and red once it has passed.</p>
-          </div>
-        ) : null}
+        {showScw ? <ScwDates idPrefix="e_scw_dates" defaultIssue={person.scw_registered_on ?? null} defaultRenewal={person.scw_renewal_date ?? null} /> : null}
         <div>
           <label htmlFor="e_manager_id" className="form-label">Line manager</label>
           {/*

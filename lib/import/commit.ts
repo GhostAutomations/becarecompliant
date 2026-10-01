@@ -1,4 +1,5 @@
 import "server-only";
+import { scwRenewalFromIssue } from "@/lib/people/scw";
 
 /**
  * Be Care Compliant — bulk import commit.
@@ -193,7 +194,10 @@ export async function commitPeople(
         team: row.fields.team ?? null,
         start_date: row.fields.start_date ?? null,
         scw_registration_number: row.fields.scw_registration_number ?? null,
-        scw_renewal_date: row.fields.scw_registration_number ? row.fields.scw_renewal_date ?? null : null,
+        scw_registered_on: row.fields.scw_registration_number ? row.fields.scw_registered_on ?? null : null,
+        scw_renewal_date: row.fields.scw_registration_number
+          ? row.fields.scw_renewal_date ?? scwRenewalFromIssue(row.fields.scw_registered_on ?? null)
+          : null,
         created_by: userId,
       })
       .select("id")

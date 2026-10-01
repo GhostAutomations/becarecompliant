@@ -1,5 +1,6 @@
 "use client";
 
+import ScwDates from "@/components/people/scw-dates";
 import Link from "next/link";
 import { canBeLineManager } from "@/lib/people/roles";
 
@@ -193,13 +194,7 @@ export default function CreatePersonForm({
             <p className="form-hint">Leave blank if they are not registered yet. The PQS counts anyone 6 months in post without one.</p>
           </div>
         ) : null}
-        {showScw ? (
-          <div>
-            <label htmlFor="scw_renewal_date" className="form-label">Social Care Wales renewal date</label>
-            <input id="scw_renewal_date" name="scw_renewal_date" type="date" />
-            <p className="form-hint">As shown in SCWonline. It turns amber 90 days before and red once it has passed.</p>
-          </div>
-        ) : null}
+        {showScw ? <ScwDates idPrefix="add_scw" /> : null}
 
         <div>
           <span className="form-label">Supervisors</span>

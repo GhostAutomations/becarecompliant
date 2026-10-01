@@ -34,6 +34,8 @@ export type PersonRecord = {
   scw_registration_number?: string | null;
   /** Social Care Wales renewal date (0361). */
   scw_renewal_date?: string | null;
+  /** Social Care Wales registered or last renewed on (0362). */
+  scw_registered_on?: string | null;
   archived_at: string | null;
   /** Retention hold (item 18): while true, this record's evidence is never anonymised by
    *  the retention rule, whatever its date. For an ongoing tribunal, safeguarding

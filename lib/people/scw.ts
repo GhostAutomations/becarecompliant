@@ -92,3 +92,41 @@ export function scwCountsAsRegistered(
   if (!number || number.trim() === "") return false;
   return !renewalIso || renewalIso >= asOfIso;
 }
+
+/* ===========================================================================
+ * THE ISSUE DATE (0362, Phil 2026-10-01, popup: "shouldn't they enter the issue date and BCC
+ * calculates the expiry"). Registration lasts three years from the date it was granted or last
+ * renewed (rule 25(2)), so the renewal date FOLLOWS the issue date, like a training renewal, and
+ * stops following once somebody types a different one.
+ * =========================================================================== */
+
+export const SCW_REGISTRATION_YEARS = 3;
+
+/** Three years on. 29 February goes to 28 February, never into March. */
+export function scwRenewalFromIssue(issueIso: string | null | undefined): string | null {
+  if (!issueIso || !/^\d{4}-\d{2}-\d{2}$/.test(issueIso)) return null;
+  const [y, m, d] = issueIso.split("-").map(Number);
+  const year = y + SCW_REGISTRATION_YEARS;
+  const lastDay = new Date(Date.UTC(year, m, 0)).getUTCDate();
+  return `${year}-${String(m).padStart(2, "0")}-${String(Math.min(d, lastDay)).padStart(2, "0")}`;
+}
+
+/**
+ * What to store from what was typed. The renewal date is the one typed, else worked out from the
+ * issue date. Refuses a renewal date on or before the issue date, and dates without a number.
+ */
+export function resolveScwDates(input: {
+  number: string | null;
+  issue: string | null;
+  renewal: string | null;
+}): { ok: true; issue: string | null; renewal: string | null } | { ok: false; error: string } {
+  if (!input.number) {
+    if (input.issue || input.renewal) return { ok: false, error: "Add the registration number as well as the dates." };
+    return { ok: true, issue: null, renewal: null };
+  }
+  const renewal = input.renewal ?? scwRenewalFromIssue(input.issue);
+  if (input.issue && renewal && renewal <= input.issue) {
+    return { ok: false, error: "The renewal date must be after the date they were registered or last renewed." };
+  }
+  return { ok: true, issue: input.issue, renewal };
+}
