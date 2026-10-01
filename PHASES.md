@@ -2121,6 +2121,8 @@ happens to Acme once Thistle is real.
   (date, rating per theme: Excellent, Good, Requires improvement, Requires significant improvement) and
   shown beside the live status; CIW notices recorded against the branch they were issued to; a per branch
   setting "Registered with CIW as its own service", on by default, so the office branch is left out.
+  BUILT 1 Oct (0363): see TEST-CHECKLIST-READINESS-BRANCH.md. Dashboard layout by popup: a line per
+  branch in the top tile, and a section of cards below the PQS report.
 
 # OPERATION NEW DAWN — Phase 14 onwards
 

@@ -14,6 +14,10 @@ import SnapshotOnLoad from "@/components/framework/snapshot-on-load";
 import NoticesPanel, { type NoticeRow } from "@/components/framework/notices-panel";
 import { waitingSentence } from "@/lib/framework/waiting";
 import DownloadButton from "@/components/download-button";
+import InspectionPanel from "@/components/framework/inspection-panel";
+import { resolveReadinessBranch, getLatestInspections } from "@/lib/framework/branches";
+import { ratingLabel, ratingTone } from "@/lib/framework/ratings";
+import { getBranchTerms } from "@/lib/branches/company-word";
 
 export const metadata: Metadata = { title: "Inspection Readiness" };
 
@@ -55,7 +59,12 @@ function ItemRow({ item, overdue }: { item: FrameworkItem; overdue: boolean }) {
   );
 }
 
-export default async function ReadinessPage() {
+const TONE_PILL = { green: "pill-green", amber: "pill-amber", red: "pill-red" } as const;
+/* Who may record an inspection: the same people RLS lets write branch_inspections. */
+const RECORDERS = ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"];
+
+export default async function ReadinessPage({ searchParams }: { searchParams: Promise<{ branch?: string }> }) {
+  const sp = await searchParams;
   const { profile } = await requireCompany();
   if (!profile.company_id) redirect("/founder");
   if (!ALLOWED.includes(profile.role)) redirect("/dashboard");
@@ -69,16 +78,26 @@ export default async function ReadinessPage() {
   if (!company?.framework_enabled) redirect("/dashboard");
   const regulator = (company.regulator ?? "ciw") as "cqc" | "ciw";
 
-  const [{ requirements: allRequirements }, items, noticesRes] = await Promise.all([
-    getFrameworkReadiness(profile.company_id, regulator),
-    getFrameworkItems(profile.company_id, regulator),
-    supabase
-      .from("inspection_notices")
-      .select("id, requirement_code, kind, regulation, description, issued_on, due_by, resolved_on")
-      .eq("company_id", profile.company_id)
-      .eq("regulator", regulator)
-      .order("issued_on", { ascending: false }),
+  /* PER REGISTERED SERVICE (0363, Phil 2026-10-01). CIW inspected Thistle Care (Cardiff) and
+     Thistle Care (Gwent) separately, each with its own report, ratings and notices, so readiness is
+     shown one branch at a time. A company with no registered service sees every branch together. */
+  const { branch, branches } = await resolveReadinessBranch(profile.company_id, sp.branch);
+  const branchId = branch?.id ?? null;
+  const bw = await getBranchTerms(profile.company_id);
+
+  let noticeQuery = supabase
+    .from("inspection_notices")
+    .select("id, requirement_code, kind, regulation, description, issued_on, due_by, resolved_on")
+    .eq("company_id", profile.company_id)
+    .eq("regulator", regulator);
+  if (branchId) noticeQuery = noticeQuery.or(`branch_id.eq.${branchId},branch_id.is.null`);
+  const [{ requirements: allRequirements }, items, noticesRes, inspections] = await Promise.all([
+    getFrameworkReadiness(profile.company_id, regulator, branchId),
+    getFrameworkItems(profile.company_id, regulator, branchId),
+    noticeQuery.order("issued_on", { ascending: false }),
+    getLatestInspections(profile.company_id, regulator),
   ]);
+  const last = branchId ? inspections.get(branchId) ?? null : null;
   const notices = (noticesRes.data as NoticeRow[] | null) ?? [];
   /* A theme nothing feeds is not shown: Environment is for services with accommodation, and CIW
      does not rate a domiciliary service on it. */
@@ -86,7 +105,7 @@ export default async function ReadinessPage() {
 
   return (
     <div className="page-shell space-y-6">
-      <SnapshotOnLoad />
+      <SnapshotOnLoad key={branchId ?? "all"} branchId={branchId} />
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
@@ -100,7 +119,7 @@ export default async function ReadinessPage() {
         </div>
         <div className="flex items-center gap-3">
           <DownloadButton
-            href="/api/reports/readiness-pack"
+            href={branchId ? `/api/reports/readiness-pack?branch=${branchId}` : "/api/reports/readiness-pack"}
             label="Inspection pack"
             busyLabel="Preparing the pack…"
             busyNote="This takes about 20 seconds. The download starts on its own."
@@ -108,6 +127,41 @@ export default async function ReadinessPage() {
           />
         </div>
       </div>
+
+      {branches.length > 1 ? (
+        <nav aria-label={`Choose a ${bw.oneLower}`} className="flex flex-wrap gap-2">
+          {branches.map((b) => (
+            <Link
+              key={b.id}
+              href={`/readiness?branch=${b.id}`}
+              aria-current={b.id === branchId ? "page" : undefined}
+              className={b.id === branchId ? "btn-primary px-3 py-1.5 text-sm" : "btn-outline px-3 py-1.5 text-sm"}
+            >
+              {b.name}
+            </Link>
+          ))}
+        </nav>
+      ) : null}
+      {branch ? (
+        <p className="text-sm text-white/60">
+          Showing <span className="font-semibold text-white">{branch.name}</span>. {regulator.toUpperCase()} inspects and rates each registered {bw.oneLower} on its own.
+        </p>
+      ) : (
+        <p className="text-sm text-amber-300">
+          No {bw.oneLower} is marked as registered with {regulator.toUpperCase()} as its own service, so this shows every {bw.oneLower} together. Tick it on each {bw.oneLower} in Settings.
+        </p>
+      )}
+
+      {branch ? (
+        <InspectionPanel
+          regulator={regulator}
+          branchId={branch.id}
+          branchName={branch.name}
+          themes={requirements.map((r) => ({ code: r.code, title: r.title }))}
+          last={last ? { inspectedOn: last.inspectedOn, publishedOn: last.publishedOn, ratings: last.ratings, notes: last.notes } : null}
+          canRecord={RECORDERS.includes(profile.role)}
+        />
+      ) : null}
 
       <div className="space-y-3">
         {requirements.map((r) => {
@@ -122,6 +176,15 @@ export default async function ReadinessPage() {
                 </div>
                 <span className={`pill ${PILL[r.status]} shrink-0`}>{STATUS_TEXT[r.status]}</span>
               </div>
+              {last?.ratings[r.code] ? (
+                <p className="mt-2 text-xs text-white/60">
+                  Rated{" "}
+                  <span className={`pill ${TONE_PILL[ratingTone(regulator, last.ratings[r.code]) ?? "green"]}`}>
+                    {ratingLabel(regulator, last.ratings[r.code])}
+                  </span>{" "}
+                  at the last inspection, {fmt(last.inspectedOn)}
+                </p>
+              ) : null}
 
               {/* THE PARTS, NOT A BLENDED SCORE (Phil, 2026-09-19): CIW rates a theme by
                   judgement, so the page shows what the judgement would be looking at. */}
@@ -188,9 +251,11 @@ export default async function ReadinessPage() {
         regulatorName={regulator.toUpperCase()}
         themes={requirements.map((r) => ({ code: r.code, title: r.title }))}
         notices={notices}
+        branchId={branchId}
+        branchName={branch?.name ?? null}
       />
 
-      <AssistantPanel requirements={requirements.map((r) => ({ code: r.code, title: r.title }))} />
+      <AssistantPanel key={branchId ?? "all"} branchId={branchId} requirements={requirements.map((r) => ({ code: r.code, title: r.title }))} />
 
       <p className="text-xs text-white/40">
         Readiness is a live view of your own data and a preparation aid, not a rating. The regulator makes its

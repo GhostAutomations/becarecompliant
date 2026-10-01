@@ -331,7 +331,7 @@ export type OutcomesRegister = {
 /** Company-wide personal outcomes rollup for the register and the PQS headline %.
  *  Each service user's worst outcome-update RAG surfaces so managers see who needs
  *  a progress update. */
-export async function getOutcomesRegister(companyId: string): Promise<OutcomesRegister> {
+export async function getOutcomesRegister(companyId: string, branchId: string | null = null): Promise<OutcomesRegister> {
   const { outcomeUpdateRag } = await import("./outcome-consts");
   const supabase = await createClient();
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
@@ -341,6 +341,8 @@ export async function getOutcomesRegister(companyId: string): Promise<OutcomesRe
       .select("id, full_name, branch_id, branches(name)")
       .eq("company_id", companyId)
       .eq("service_status", "active")
+      // One branch for readiness per branch (0363); every branch when null, as before.
+      .match(branchId ? { branch_id: branchId } : {})
       .order("surname_key", { ascending: true }),
     supabase
       .from("service_user_outcomes")

@@ -27,7 +27,10 @@ import { getComplaintCounts } from "@/lib/complaints/data";
 import { getIncidentActions } from "@/lib/incidents/data";
 import { listAccessibleBranchTypes } from "@/lib/service-users/data";
 import type { PqsMeasure } from "@/lib/export/on-time";
+import { ratingLabel } from "@/lib/framework/ratings";
 import {
+  getBranchReadiness,
+  type BranchReadiness,
   getComplianceScore,
   getTrainingCompletion,
   getPolicyCoverage,
@@ -563,6 +566,27 @@ function ScoreTile({
   );
 }
 
+const STATUS_WORD: Record<"red" | "amber" | "green" | "none", string> = {
+  red: "Action needed",
+  amber: "Attention",
+  green: "On track",
+  none: "Not started",
+};
+/* On the dark tile. */
+const STATUS_INK: Record<"red" | "amber" | "green" | "none", string> = {
+  red: "text-rag-red",
+  amber: "text-amber-300",
+  green: "text-emerald-300",
+  none: "text-white/45",
+};
+/* On the white cards, the same inks as the PQS tiles. */
+const CARD_INK: Record<"red" | "amber" | "green" | "none", string> = {
+  red: "text-rag-red",
+  amber: "text-rag-amber",
+  green: "text-rag-green",
+  none: "text-slate-400",
+};
+
 function MissingPanel({ title, needs }: { title: string; needs: string }) {
   return (
     <section
@@ -794,6 +818,10 @@ export default async function DashboardPage() {
    * rather than a hole where two tiles they may not read would have been.
    */
 
+  /* PER REGISTERED SERVICE (0363). Empty when the company has no branch ticked as registered,
+     and then the tile keeps showing the themes for every branch together, as before. */
+  const branchReadiness: BranchReadiness[] = score.enabled ? await getBranchReadiness(companyId, score.regulator) : [];
+
   const healthy =
     score.enabled ? score.requirements.filter((r) => r.status === "green").length : 0;
   const scored = score.enabled ? score.requirements.filter((r) => r.score != null).length : 0;
@@ -872,6 +900,23 @@ export default async function DashboardPage() {
                 {/* COMPACT (2026-09-25): one line per theme, title and status. The reason and the
                     breakdown button made this card twice the height of every tile beside it; the
                     reason is on the Readiness page, and the whole list links there. */}
+                {branchReadiness.length > 0 ? (
+                  /* ONE LINE PER BRANCH (Phil, 2026-10-01, popup): its weakest theme, and each
+                     line opens that branch's readiness. The themes are in the section below. */
+                  <div className="mt-2 space-y-1">
+                    {branchReadiness.map((b) => (
+                      <Link
+                        key={b.branchId}
+                        href={`/readiness?branch=${b.branchId}`}
+                        className="flex items-center justify-between gap-2 rounded-lg transition hover:bg-white/[0.04]"
+                      >
+                        <span className="truncate text-sm font-semibold text-white">{b.name}</span>
+                        <span className={`shrink-0 text-[11px] font-semibold ${STATUS_INK[b.worst]}`}>{STATUS_WORD[b.worst]}</span>
+                      </Link>
+                    ))}
+                    <Link href="/readiness" className="block pt-0.5 text-[11px] font-semibold text-gold-300">Readiness breakdown &rsaquo;</Link>
+                  </div>
+                ) : (
                 <Link href="/readiness" className="mt-2 block space-y-1 rounded-lg transition hover:bg-white/[0.04]">
                   {score.requirements
                     .filter((r) => r.mapped)
@@ -903,6 +948,7 @@ export default async function DashboardPage() {
                     ))}
                   <span className="block pt-0.5 text-[11px] font-semibold text-gold-300">Readiness breakdown &rsaquo;</span>
                 </Link>
+                )}
               </div>
             </>
           ) : (
@@ -1582,6 +1628,47 @@ export default async function DashboardPage() {
             />
           </div>
         )}
+
+        {/* READINESS PER BRANCH (Phil, 2026-10-01, popup: "like the PQS report"). A white card per
+            registered service, its themes and its last inspection, each opening that branch. */}
+        {branchReadiness.length > 0 && score.enabled ? (
+          <div className="mt-3">
+            <Panel title={`${score.regulator.toUpperCase()} readiness`} href="/readiness" linkLabel="Readiness">
+              <div className="dash-grid">
+                {branchReadiness.map((b) => (
+                  <Link
+                    key={b.branchId}
+                    href={`/readiness?branch=${b.branchId}`}
+                    aria-label={`${b.name}. Open its readiness.`}
+                    className="block rounded-xl bg-white p-4 shadow-lg shadow-black/20 transition hover:shadow-xl hover:ring-2 hover:ring-gold-300/70"
+                  >
+                    <p className="text-sm font-bold uppercase tracking-wide text-slate-800">{b.name}</p>
+                    <ul className="mt-2 space-y-1">
+                      {b.requirements.map((r) => (
+                        <li key={r.code} className="flex items-baseline justify-between gap-2">
+                          <span className="min-w-0 flex-1 truncate text-sm text-slate-600">{r.title}</span>
+                          <span className={`shrink-0 text-sm font-semibold ${CARD_INK[r.status]}`}>{STATUS_WORD[r.status]}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="mt-2 border-t border-slate-200 pt-2 text-[11px] text-slate-500">
+                      {b.last
+                        ? `Last inspected ${fmtWindowDate(b.last.inspectedOn)}${
+                            Object.keys(b.last.ratings).length > 0
+                              ? `: ${b.requirements
+                                  .filter((r) => b.last!.ratings[r.code])
+                                  .map((r) => `${r.title} ${ratingLabel(score.regulator, b.last!.ratings[r.code])}`)
+                                  .join(", ")}`
+                              : ""
+                          }`
+                        : "No inspection recorded yet"}
+                    </p>
+                  </Link>
+                ))}
+              </div>
+            </Panel>
+          </div>
+        ) : null}
 
 {/* THREE windows in place of the Due in 14 days tile and its by check panel (Phil,
             2026-07-30), which were two boxes answering the same question. NESTED: the 30 day

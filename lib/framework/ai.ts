@@ -3,6 +3,7 @@
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { getFrameworkReadiness, getFrameworkItems, type RequirementReadiness } from "@/lib/framework/data";
+import { resolveReadinessBranch } from "@/lib/framework/branches";
 import { runAi } from "@/lib/ai/anthropic";
 import { waitingParts, waitingTotal } from "@/lib/framework/waiting";
 
@@ -14,7 +15,9 @@ const REG_LABEL: Record<string, string> = {
 };
 
 /** Guard + resolve the company's regulator; returns null if the module is off. */
-async function resolve(): Promise<{ companyId: string; regulator: "cqc" | "ciw"; name: string } | null> {
+async function resolve(
+  branchId?: string | null,
+): Promise<{ companyId: string; regulator: "cqc" | "ciw"; name: string; branch: { id: string; name: string } | null } | null> {
   const { profile } = await requireCompany();
   if (!profile.company_id) return null;
   const supabase = await createClient();
@@ -24,7 +27,15 @@ async function resolve(): Promise<{ companyId: string; regulator: "cqc" | "ciw";
     .eq("id", profile.company_id)
     .maybeSingle();
   if (!data?.framework_enabled) return null;
-  return { companyId: profile.company_id, regulator: (data.regulator ?? "ciw") as "cqc" | "ciw", name: data.name as string };
+  /* The registered service the page is showing (0363). Resolved against this company's own
+     registered branches, so a branch id sent from the page can never reach another company's data. */
+  const { branch } = await resolveReadinessBranch(profile.company_id, branchId ?? null);
+  return {
+    companyId: profile.company_id,
+    regulator: (data.regulator ?? "ciw") as "cqc" | "ciw",
+    name: data.name as string,
+    branch,
+  };
 }
 
 /** Build a compact, grounded context: readiness per theme plus the page's own list of overdue
@@ -37,6 +48,7 @@ async function buildContext(
    *  a caller that has it (the readiness pack PDF) must not make us compute it a second time.
    *  React's cache() does not help here: a route handler sits outside the component tree. */
   pre?: RequirementReadiness[],
+  branch?: { id: string; name: string } | null,
 ): Promise<string> {
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
 
@@ -46,10 +58,11 @@ async function buildContext(
      shows in full, and it was given themes nothing feeds, so it reported Environment as having
      no evidence. It now reads the page's own outstanding list (getFrameworkItems), overdue and
      due soon, for the themes the page shows. */
-  const requirements = (pre ?? (await getFrameworkReadiness(companyId, regulator)).requirements).filter(
+  const branchId = branch?.id ?? null;
+  const requirements = (pre ?? (await getFrameworkReadiness(companyId, regulator, branchId)).requirements).filter(
     (r) => r.mapped,
   );
-  const items = await getFrameworkItems(companyId, regulator);
+  const items = await getFrameworkItems(companyId, regulator, branchId);
 
   const outstandingLines: string[] = [];
   for (const r of requirements) {
@@ -76,7 +89,7 @@ async function buildContext(
   });
 
   return [
-    `Regulator: ${REG_LABEL[regulator]}. Provider: ${name}. Date: ${ukDate(today)}.`,
+    `Regulator: ${REG_LABEL[regulator]}. Provider: ${name}.${branch ? ` Service (branch): ${branch.name}, inspected and rated on its own.` : ""} Date: ${ukDate(today)}.`,
     `Readiness by ${regulator === "ciw" ? "theme" : "key question"}:`,
     ...reqLines,
     shown.length
@@ -118,10 +131,10 @@ const SYSTEM = (regulator: string) =>
    tokens actually used are charged, and a reply that still runs out now says so (anthropic.ts). */
 
 /** Draft an inspection readiness narrative + prioritised gaps and actions. */
-export async function draftReadinessNarrative(pre?: RequirementReadiness[]): Promise<Result> {
-  const ctx = await resolve();
+export async function draftReadinessNarrative(pre?: RequirementReadiness[], branchId?: string | null): Promise<Result> {
+  const ctx = await resolve(branchId);
   if (!ctx) return { error: "Inspection Readiness is not enabled for this company." };
-  const context = await buildContext(ctx.companyId, ctx.regulator, ctx.name, pre);
+  const context = await buildContext(ctx.companyId, ctx.regulator, ctx.name, pre, ctx.branch);
   /* DEF-066: the pack already prints the provider, regulator and date on its cover, so the model
      starts straight at the first section, and headings go on a line of their own marked with ##
      so the pack can tell them apart. Anything else markdown is cleaned off by narrative-text. */
@@ -130,12 +143,12 @@ export async function draftReadinessNarrative(pre?: RequirementReadiness[]): Pro
 }
 
 /** Answer a manager's question grounded in the readiness data. */
-export async function askReadiness(question: string): Promise<Result> {
+export async function askReadiness(question: string, branchId?: string | null): Promise<Result> {
   const q = (question ?? "").trim();
   if (!q) return { error: "Type a question first." };
-  const ctx = await resolve();
+  const ctx = await resolve(branchId);
   if (!ctx) return { error: "Inspection Readiness is not enabled for this company." };
-  const context = await buildContext(ctx.companyId, ctx.regulator, ctx.name);
+  const context = await buildContext(ctx.companyId, ctx.regulator, ctx.name, undefined, ctx.branch);
   const prompt = `${context}\n\nThe manager asks: "${q}"\nAnswer using ONLY the data above. If the answer is not in the data, say you do not have that information. Be concise and specific, and refer to the exact records or checks where relevant.`;
   return runAi({ companyId: ctx.companyId, feature: "framework_qa", system: SYSTEM(ctx.regulator), prompt, maxTokens: 3000 });
 }

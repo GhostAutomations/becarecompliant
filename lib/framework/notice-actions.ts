@@ -49,10 +49,21 @@ export async function addInspectionNotice(_prev: ActionState, fd: FormData): Pro
     .maybeSingle();
   if (!req) return { error: "That theme was not found." };
 
+  /* The service it was issued to (0363). Must be one of this company's branches; RLS checks it
+     again. A company with no registered service records it against the company, as before. */
+  const branchRaw = text(fd, "branch_id");
+  let branchId: string | null = null;
+  if (branchRaw) {
+    const { data: b } = await supabase.from("branches").select("id").eq("id", branchRaw).eq("company_id", companyId).maybeSingle();
+    if (!b) return { error: "That branch was not found." };
+    branchId = b.id as string;
+  }
+
   const { data, error } = await supabase
     .from("inspection_notices")
     .insert({
       company_id: companyId,
+      branch_id: branchId,
       regulator,
       requirement_code: code,
       kind,

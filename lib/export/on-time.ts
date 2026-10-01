@@ -788,9 +788,10 @@ export async function getOnTimeRatesByCheckId(
  */
 export async function getOnTimeCountsByCheckId(
   companyId: string,
+  branchId: string | null = null,
 ): Promise<Map<string, { onTime: number; due: number }>> {
   const win = defaultOnTimeWindow();
-  const r = await runFor({ companyId, companyName: "", branchId: null, branchName: null, window: win });
+  const r = await runFor({ companyId, companyName: "", branchId, branchName: null, window: win });
   return new Map(r.stats.map((s) => [s.checkId, { onTime: s.onTime, due: s.dueInPeriod }]));
 }
 

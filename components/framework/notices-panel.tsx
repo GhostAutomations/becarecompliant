@@ -46,10 +46,15 @@ export default function NoticesPanel({
   regulatorName,
   themes,
   notices,
+  branchId,
+  branchName,
 }: {
   regulatorName: string;
   themes: Array<{ code: string; title: string }>;
   notices: NoticeRow[];
+  /** The service the notices belong to (0363). Null when the company has no registered service. */
+  branchId: string | null;
+  branchName: string | null;
 }) {
   const [adding, setAdding] = useState(false);
   const [state, action, pending] = useActionState(addInspectionNotice, IDLE_STATE);
@@ -69,7 +74,7 @@ export default function NoticesPanel({
     <div className="glass-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-sm font-semibold text-white">{regulatorName} notices</h2>
+          <h2 className="text-sm font-semibold text-white">{regulatorName} notices{branchName ? ` for ${branchName}` : ""}</h2>
           <p className="mt-0.5 text-sm text-white/60">
             Priority Action Notices and Areas for Improvement from an inspection. An open Priority
             Action Notice means that theme must be rated Requires significant improvement, so it
@@ -85,6 +90,7 @@ export default function NoticesPanel({
 
       {adding ? (
         <form ref={formRef} onSubmit={submitKeepingTyped(action)} className="mt-4 grid gap-3 sm:grid-cols-2">
+          {branchId ? <input type="hidden" name="branch_id" value={branchId} /> : null}
           <div>
             <label htmlFor="n_kind" className="form-label">Kind</label>
             <select id="n_kind" name="kind" required defaultValue="">

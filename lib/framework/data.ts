@@ -79,6 +79,8 @@ export type FrameworkReadiness = {
   requirements: RequirementReadiness[];
 };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const RANK: Record<Rag, number> = { none: 0, green: 1, amber: 2, red: 3 };
 function worst(a: Rag, b: Rag): Rag {
   return RANK[a] >= RANK[b] ? a : b;
@@ -93,7 +95,12 @@ function pctToRag(pct: number | null): Rag {
 export async function getFrameworkReadiness(
   companyId: string,
   regulator: "cqc" | "ciw",
+  /** One registered service (0363, Phil 2026-10-01: CIW inspects and rates each service on its
+   *  own, Cardiff and Gwent separately). Null is every branch together, as before. */
+  branchId: string | null = null,
 ): Promise<FrameworkReadiness> {
+  // It goes into a PostgREST filter string below, so only a real id gets that far.
+  if (branchId && !UUID_RE.test(branchId)) branchId = null;
   const supabase = await createClient();
 
   const [reqRes, mapRes, checkRes] = await Promise.all([
@@ -107,14 +114,18 @@ export async function getFrameworkReadiness(
       .from("requirement_evidence_map")
       .select("requirement_id, check_definition_id, source_kind")
       .eq("company_id", companyId),
-    supabase.rpc("get_framework_check_readiness", { p_company: companyId, p_regulator: regulator }),
+    supabase.rpc("get_framework_check_readiness", { p_company: companyId, p_regulator: regulator, p_branch: branchId }),
   ]);
-  const { data: noticeRows } = await supabase
+  /* A notice belongs to the service it was issued to. One recorded before 0363 has no branch and
+     counts against every branch, so it is never lost. */
+  let noticeQuery = supabase
     .from("inspection_notices")
     .select("requirement_code, kind")
     .eq("company_id", companyId)
     .eq("regulator", regulator)
     .is("resolved_on", null);
+  if (branchId) noticeQuery = noticeQuery.or(`branch_id.eq.${branchId},branch_id.is.null`);
+  const { data: noticeRows } = await noticeQuery;
   const noticesByCode = new Map<string, { priority: number; improvement: number }>();
   for (const n of (noticeRows as Array<{ requirement_code: string; kind: string }> | null) ?? []) {
     const cur = noticesByCode.get(n.requirement_code) ?? { priority: 0, improvement: 0 };
@@ -176,6 +187,7 @@ export async function getFrameworkReadiness(
           .from("complaints")
           .select("status, acknowledgement_due, date_acknowledged, response_due, date_closed")
           .eq("company_id", companyId)
+          .match(branchId ? { branch_id: branchId } : {})
       : Promise.resolve({ data: [] as ComplaintRow[] }),
     needsIncidents
       ? supabase
@@ -184,6 +196,7 @@ export async function getFrameworkReadiness(
             "status, reported_on, occurred_on, investigation_completed, no_further_action, outcome_recorded_on, closed_on, notifiable, notified_on, safeguarding, safeguarding_referred_on",
           )
           .eq("company_id", companyId)
+          .match(branchId ? { branch_id: branchId } : {})
       : Promise.resolve({ data: [] as IncidentRow[] }),
   ]);
   const complaints = needsComplaints
@@ -193,15 +206,15 @@ export async function getFrameworkReadiness(
     ? incidentHandling((incidentRes.data as IncidentRow[] | null) ?? [], today, sixMonthsAgo)
     : null;
   const [outcomes, satisfaction, training, onTimeById] = await Promise.all([
-    needsOutcomes ? getOutcomesRegister(companyId) : Promise.resolve(null),
-    needsSatisfaction ? getSatisfaction(companyId) : Promise.resolve(null),
+    needsOutcomes ? getOutcomesRegister(companyId, branchId) : Promise.resolve(null),
+    needsSatisfaction ? getSatisfaction(companyId, undefined, branchId) : Promise.resolve(null),
     // Mandatory training used to be pushed in as a LABEL with a null percentage, so a company at
     // 36% compliance could not move its own score. It is a real number now.
-    needsTraining ? getTrainingMatrix(companyId, null) : Promise.resolve(null),
+    needsTraining ? getTrainingMatrix(companyId, branchId) : Promise.resolve(null),
     // Skipped entirely when nothing is mapped, so a company with no mapping does not pay for a
     // six month engine run to learn that.
     checkIdsByReq.size > 0
-      ? getOnTimeCountsByCheckId(companyId)
+      ? getOnTimeCountsByCheckId(companyId, branchId)
       : Promise.resolve(new Map<string, { onTime: number; due: number }>()),
   ]);
 
@@ -336,6 +349,7 @@ export function overallScore(reqs: RequirementReadiness[]): number | null {
 export async function getFrameworkItems(
   companyId: string,
   regulator: "cqc" | "ciw",
+  branchId: string | null = null,
 ): Promise<Map<string, { overdue: FrameworkItem[]; dueSoon: FrameworkItem[] }>> {
   const supabase = await createClient();
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
@@ -364,7 +378,7 @@ export async function getFrameworkItems(
 
   const { data: inst } = await supabase
     .from("check_instances")
-    .select("id, definition_id, due_date, last_completed_on, record_type, person_id, service_user_id, check_definitions(name, recurring, amber_days), people(full_name, employment_status, archived_at), service_users(full_name, service_status, archived_at)")
+    .select("id, definition_id, due_date, last_completed_on, record_type, person_id, service_user_id, check_definitions(name, recurring, amber_days), people(full_name, employment_status, archived_at, branch_id), service_users(full_name, service_status, archived_at, branch_id)")
     .eq("company_id", companyId)
     .eq("active", true)
     .not("due_date", "is", null)
@@ -376,8 +390,8 @@ export async function getFrameworkItems(
       id: string; definition_id: string; due_date: string; last_completed_on: string | null; record_type: string;
       person_id: string | null; service_user_id: string | null;
       check_definitions: { name: string; recurring: boolean; amber_days: number | null } | { name: string; recurring: boolean; amber_days: number | null }[] | null;
-      people: { full_name: string; employment_status: string; archived_at: string | null } | { full_name: string; employment_status: string; archived_at: string | null }[] | null;
-      service_users: { full_name: string; service_status: string; archived_at: string | null } | { full_name: string; service_status: string; archived_at: string | null }[] | null;
+      people: { full_name: string; employment_status: string; archived_at: string | null; branch_id: string | null } | { full_name: string; employment_status: string; archived_at: string | null; branch_id: string | null }[] | null;
+      service_users: { full_name: string; service_status: string; archived_at: string | null; branch_id: string | null } | { full_name: string; service_status: string; archived_at: string | null; branch_id: string | null }[] | null;
     };
     const def = relOne(r.check_definitions);
     /* DONE IS DONE (Phil, 2026-09-19): twelve completed Setup Visits were listed here as overdue.
@@ -389,10 +403,12 @@ export async function getFrameworkItems(
     if (r.record_type === "person") {
       const p = relOne(r.people);
       if (!p || p.employment_status !== "active" || p.archived_at) continue;
+      if (branchId && p.branch_id !== branchId) continue;
       recordName = p.full_name; recordId = r.person_id; population = "people";
     } else {
       const su = relOne(r.service_users);
       if (!su || su.service_status !== "active" || su.archived_at) continue;
+      if (branchId && su.branch_id !== branchId) continue;
       recordName = su.full_name; recordId = r.service_user_id; population = "service_users";
     }
     if (!recordId) continue;
@@ -412,15 +428,17 @@ export async function getFrameworkItems(
 
 /** Previous readiness scores by requirement code (the most recent snapshot before
  *  today), for the trend delta. */
-export async function getReadinessTrend(companyId: string): Promise<Map<string, number>> {
+export async function getReadinessTrend(companyId: string, branchId: string | null = null): Promise<Map<string, number>> {
   const supabase = await createClient();
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
-  const { data } = await supabase
+  let q = supabase
     .from("framework_readiness_snapshots")
     .select("requirement_code, score, captured_on")
     .eq("company_id", companyId)
-    .lt("captured_on", today)
-    .order("captured_on", { ascending: false });
+    .lt("captured_on", today);
+  // The trend of THIS branch (0363); the company wide rows have no branch.
+  q = branchId ? q.eq("branch_id", branchId) : q.is("branch_id", null);
+  const { data } = await q.order("captured_on", { ascending: false });
   const prev = new Map<string, number>();
   for (const r of (data as Array<{ requirement_code: string; score: number }> | null) ?? []) {
     if (!prev.has(r.requirement_code)) prev.set(r.requirement_code, r.score);

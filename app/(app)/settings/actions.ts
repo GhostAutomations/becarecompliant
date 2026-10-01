@@ -760,6 +760,9 @@ export async function renameBranch(
   if (!existing) return { error: "The branch could not be saved: no matching branch." };
   const sharesOffice =
     existing.kind !== "team" && formData.get("uses_office_address") === "on";
+  // Only touched when the form showed the tick (0363), so an older form cannot clear it.
+  const registeredShown = formData.get("registered_service_shown") === "1";
+  const registered = formData.get("registered_service") === "on";
 
   const { error, count } = await supabase
     .from("branches")
@@ -768,6 +771,7 @@ export async function renameBranch(
         name,
         uses_office_address: sharesOffice,
         address: sharesOffice ? null : address || null,
+        ...(registeredShown ? { registered_service: registered } : {}),
       },
       { count: "exact" },
     )
@@ -789,6 +793,7 @@ export async function renameBranch(
       name,
       address: sharesOffice ? null : address || null,
       uses_office_address: sharesOffice,
+      ...(registeredShown ? { registered_service: registered } : {}),
     },
   });
   // Every Form field keyed branch or region carries a baked copy of the branch names
@@ -796,6 +801,8 @@ export async function renameBranch(
   // (best-effort, see rebake-options.ts).
   await rebakeFormFieldOptions(ctx.companyId);
   revalidatePath("/settings/branches");
+  revalidatePath("/readiness");
+  revalidatePath("/dashboard");
   return { ok: "Saved." };
 }
 

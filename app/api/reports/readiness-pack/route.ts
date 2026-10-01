@@ -8,6 +8,7 @@ import { pdfResponse, exportError } from "@/lib/export/deliver";
 import { waitingSentence } from "@/lib/framework/waiting";
 import { packThemeHeading, packThemePairs } from "@/lib/framework/pack-lines";
 import { narrativeLines } from "@/lib/framework/narrative-text";
+import { resolveReadinessBranch } from "@/lib/framework/branches";
 
 const REG_LABEL: Record<string, string> = {
   ciw: "Care Inspectorate Wales (CIW)",
@@ -23,7 +24,7 @@ function fmt(iso: string): string {
 
 /** Inspection readiness pack: the readiness picture, outstanding checks and an AI
  *  narrative, as one branded PDF. Enabled per company (framework_enabled). */
-export async function GET() {
+export async function GET(request: Request) {
   const { profile } = await requireCompany();
   if (!profile.company_id) return exportError("No company context.", 400);
 
@@ -35,25 +36,35 @@ export async function GET() {
     .maybeSingle();
   if (!company?.framework_enabled) return exportError("Inspection Readiness is not enabled for this company.", 403);
   const regulator = (company.regulator ?? "ciw") as "cqc" | "ciw";
+  /* ONE SERVICE PER PACK (0363): the regulator inspects each registered branch on its own. */
+  const { branch } = await resolveReadinessBranch(profile.company_id, new URL(request.url).searchParams.get("branch"));
+  const branchId = branch?.id ?? null;
 
   // Readiness FIRST, then the narrative with that same data. Readiness now runs the six month
   // PQS engine, and a route handler is outside the React tree, so cache() would not have stopped
   // the old Promise.all from running the whole thing twice.
   const [{ requirements: allRequirements }, items, noticesRes] = await Promise.all([
-    getFrameworkReadiness(profile.company_id, regulator),
-    getFrameworkItems(profile.company_id, regulator),
-    supabase
-      .from("inspection_notices")
-      .select("requirement_code, kind, regulation, description, issued_on, due_by, resolved_on")
-      .eq("company_id", profile.company_id)
-      .eq("regulator", regulator)
-      .order("issued_on", { ascending: false }),
+    getFrameworkReadiness(profile.company_id, regulator, branchId),
+    getFrameworkItems(profile.company_id, regulator, branchId),
+    (branchId
+      ? supabase
+          .from("inspection_notices")
+          .select("requirement_code, kind, regulation, description, issued_on, due_by, resolved_on")
+          .eq("company_id", profile.company_id)
+          .eq("regulator", regulator)
+          .or(`branch_id.eq.${branchId},branch_id.is.null`)
+      : supabase
+          .from("inspection_notices")
+          .select("requirement_code, kind, regulation, description, issued_on, due_by, resolved_on")
+          .eq("company_id", profile.company_id)
+          .eq("regulator", regulator)
+    ).order("issued_on", { ascending: false }),
   ]);
   /* THE SAME THEMES AS THE PAGE (Operation Thistle list, number 15, 2026-09-23). A theme nothing feeds is left out, as the
      Readiness page leaves it out: Environment is for services with accommodation, and printing it
      as "Not mapped" in a document for an inspector reads as a gap the provider does not have. */
   const requirements = allRequirements.filter((r) => r.mapped);
-  const narrativeRes = await draftReadinessNarrative(requirements);
+  const narrativeRes = await draftReadinessNarrative(requirements, branchId);
   const today = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/London" }).format(new Date());
 
   const blocks: ReportBlock[] = [];
@@ -148,6 +159,7 @@ export async function GET() {
     subtitle: REG_LABEL[regulator],
     meta: [
       { label: "Provider", value: company.name as string },
+      ...(branch ? [{ label: "Service", value: branch.name }] : []),
       { label: "Regulator", value: REG_LABEL[regulator] },
       { label: "Generated", value: today },
       { label: "Rating", value: "Each theme is rated separately, with no overall rating" },
@@ -165,8 +177,9 @@ export async function GET() {
     entityType: "report",
     entityId: null,
     summary: "Exported inspection readiness pack (PDF)",
-    metadata: { report: "readiness_pack", regulator },
+    metadata: { report: "readiness_pack", regulator, branch_id: branchId },
   });
 
-  return pdfResponse(await renderReportPdf(doc), "inspection-readiness-pack");
+  const slug = branch ? `-${branch.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}` : "";
+  return pdfResponse(await renderReportPdf(doc), `inspection-readiness-pack${slug}`);
 }

@@ -28,6 +28,8 @@ export default function BranchForm({
   isOffice,
   initialSharesOffice,
   officeAddress,
+  initialRegistered,
+  regulatorName,
 }: {
   branchId: string;
   initialName: string;
@@ -37,6 +39,9 @@ export default function BranchForm({
   initialSharesOffice: boolean;
   /** The office's address, or null while it is still blank. */
   officeAddress: string | null;
+  /** "Registered with CIW as its own service" (0363): readiness is worked out per such branch. */
+  initialRegistered: boolean;
+  regulatorName: string;
 }) {
   const bw = useBranchWord();
   const [state, action, pending] = useActionState(renameBranch, IDLE_STATE);
@@ -87,6 +92,26 @@ export default function BranchForm({
           </span>
         </label>
       )}
+
+      {/* READINESS PER SERVICE (0363, Phil 2026-10-01): the regulator inspects and rates each
+          registered service on its own. The office is usually not one, so it starts unticked. */}
+      <input type="hidden" name="registered_service_shown" value="1" />
+      <label className="flex items-start gap-2 text-sm text-white/80">
+        <input
+          type="checkbox"
+          name="registered_service"
+          defaultChecked={initialRegistered}
+          onChange={reset}
+          disabled={pending}
+        />
+        <span>
+          Registered with {regulatorName} as its own service
+          <span className="mt-0.5 block text-[11px] text-white/40">
+            {regulatorName} inspects and rates each registered service separately, so Inspection
+            Readiness is shown for each {bw.oneLower} ticked here.
+          </span>
+        </span>
+      </label>
 
       {sharesOffice ? (
         <div>

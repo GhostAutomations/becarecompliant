@@ -32,9 +32,9 @@ export default async function BranchesPage() {
   const [{ data: branches }, { data: company }] = await Promise.all([
     supabase
       .from("branches")
-      .select("id, name, kind, status, address, uses_office_address, created_at")
+      .select("id, name, kind, status, address, uses_office_address, registered_service, created_at")
       .eq("company_id", profile.company_id),
-    supabase.from("companies").select("tier").eq("id", profile.company_id).maybeSingle(),
+    supabase.from("companies").select("tier, regulator").eq("id", profile.company_id).maybeSingle(),
   ]);
 
   /* ORDER AND LABELS COME FROM THE RULE, NOT FROM THE QUERY. The old .order("kind") put the
@@ -101,6 +101,8 @@ export default async function BranchesPage() {
               isOffice={branch.kind === "team"}
               initialSharesOffice={Boolean(branch.uses_office_address)}
               officeAddress={office}
+              initialRegistered={Boolean((branch as { registered_service?: boolean }).registered_service)}
+              regulatorName={((company as { regulator?: string | null } | null)?.regulator ?? "ciw").toUpperCase()}
             />
           </div>
         ))}

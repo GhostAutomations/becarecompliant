@@ -10,7 +10,14 @@ import { AiIcon } from "@/components/ai-icon";
  * answered from the company's own live data, plus a full inspection narrative
  * draft. Read only; a manager edits and signs off anything they use.
  */
-export default function AssistantPanel({ requirements }: { requirements: Array<{ code: string; title: string }> }) {
+export default function AssistantPanel({
+  requirements,
+  branchId = null,
+}: {
+  requirements: Array<{ code: string; title: string }>;
+  /** The registered service the page shows (0363); the answers are about that branch. */
+  branchId?: string | null;
+}) {
   const [pending, startTransition] = useTransition();
   const [mode, setMode] = useState<"draft" | "ask">("ask");
   const [question, setQuestion] = useState("");
@@ -30,7 +37,7 @@ export default function AssistantPanel({ requirements }: { requirements: Array<{
        a draft the manager had just edited, with no way back. Both stay on screen. */
     setMode("ask");
     startTransition(async () => {
-      const res = await askReadiness(q);
+      const res = await askReadiness(q, branchId);
       if ("error" in res) setError(res.error);
       else setAnswer(narrativePlainText(res.ok));
     });
@@ -41,7 +48,7 @@ export default function AssistantPanel({ requirements }: { requirements: Array<{
     setNarrative(null);
     setMode("draft");
     startTransition(async () => {
-      const res = await draftReadinessNarrative();
+      const res = await draftReadinessNarrative(undefined, branchId);
       if ("error" in res) setError(res.error);
       else setNarrative(narrativePlainText(res.ok));
     });

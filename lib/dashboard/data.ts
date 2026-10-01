@@ -166,7 +166,9 @@ import {
   getFrameworkReadiness,
   overallScore,
   type RequirementReadiness,
+  type Rag,
 } from "@/lib/framework/data";
+import { getRegisteredBranches, getLatestInspections, type BranchInspection } from "@/lib/framework/branches";
 import { getTrainingMatrix } from "@/lib/training/data";
 import {
   summarisePolicyCoverage,
@@ -211,6 +213,8 @@ async function previousScores(
     .from("framework_readiness_snapshots")
     .select("requirement_code, score, captured_on")
     .eq("company_id", companyId)
+    // The company wide rows only: per branch snapshots (0363) carry a branch.
+    .is("branch_id", null)
     .lt("captured_on", today)
     .order("captured_on", { ascending: false });
   const prev = new Map<string, { score: number; capturedOn: string }>();
@@ -790,4 +794,42 @@ export async function getPolicyCoverage(companyId: string): Promise<PolicyCovera
     assignments,
     ((policies as { id: string; title: string; version: number }[] | null) ?? []),
   );
+}
+
+
+/* ===========================================================================
+ * READINESS PER REGISTERED SERVICE (0363, Phil 2026-10-01)
+ *
+ * CIW inspects and rates each registered service on its own (Thistle Care (Cardiff) and Thistle
+ * Care (Gwent) are two reports), so the dashboard shows each branch: a line per branch in the top
+ * tile, and a card per branch below the PQS report, laid out like it. Same engine as the
+ * Readiness page, one branch at a time, read through the caller's RLS.
+ * =========================================================================== */
+
+export type BranchReadiness = {
+  branchId: string;
+  name: string;
+  /** The themes something feeds, as the Readiness page shows them. */
+  requirements: Array<{ code: string; title: string; status: Rag }>;
+  /** The weakest theme's status, for the one line in the top tile. */
+  worst: Rag;
+  last: BranchInspection | null;
+};
+
+const RAG_RANK: Record<Rag, number> = { none: 0, green: 1, amber: 2, red: 3 };
+
+export async function getBranchReadiness(companyId: string, regulator: "cqc" | "ciw"): Promise<BranchReadiness[]> {
+  const branches = await getRegisteredBranches(companyId);
+  if (branches.length === 0) return [];
+  const [per, inspections] = await Promise.all([
+    Promise.all(branches.map((b) => getFrameworkReadiness(companyId, regulator, b.id))),
+    getLatestInspections(companyId, regulator),
+  ]);
+  return branches.map((b, i) => {
+    const requirements = per[i].requirements
+      .filter((r) => r.mapped)
+      .map((r) => ({ code: r.code, title: r.title, status: r.status }));
+    const worst = requirements.reduce<Rag>((w, r) => (RAG_RANK[r.status] > RAG_RANK[w] ? r.status : w), "none");
+    return { branchId: b.id, name: b.name, requirements, worst, last: inspections.get(b.id) ?? null };
+  });
 }
