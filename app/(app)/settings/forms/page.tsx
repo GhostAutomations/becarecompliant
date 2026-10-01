@@ -114,7 +114,7 @@ export default async function SettingsFormsPage() {
         </p>
       </div>
 
-      <div className="flex justify-end">
+      <div className="flex max-w-4xl justify-end">
         <NewFormButton forms={forms} />
       </div>
 
@@ -126,7 +126,9 @@ export default async function SettingsFormsPage() {
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
+        /* NARROWER (Phil, 2026-10-01): the list stops at 56rem so the name and its dropdown are
+           not a screen apart on a wide monitor. */
+        <div className="max-w-4xl space-y-3">
           <LinkedFormsGroup
             forms={linkedForms}
             peopleChecks={peopleChecks}
@@ -195,32 +197,43 @@ function FormRow({
   const linkedCheckId = formLinkedCheck.get(f.id);
   const linkedName = linkedCheckId ? checks.find((c) => c.id === linkedCheckId)?.name ?? null : null;
   const linkLabel = checks.length > 0 ? linkedName : sectionLabel;
+  /* FIXED COLUMNS (Phil, 2026-10-01): "put the drop downs in a line not dependent on the icons
+     to their right". Every row keeps the same slots whether or not it has a dropdown, a link
+     icon or a shield, so the dropdowns, icons and versions each line up down the list. */
   return (
     <div className="flex items-center gap-3 border-b border-white/5 px-5 py-2.5 last:border-b-0 hover:bg-white/5">
       <Link href={`/settings/forms/${f.id}`} className="flex min-w-0 flex-1 items-center gap-3">
         <span className="truncate text-sm font-medium text-white">{f.name}</span>
         <span className="truncate text-xs text-white/40">{POP_LABEL[f.population]}</span>
       </Link>
-      {checks.length > 0 ? (
-        <FormColumnLink formId={f.id} checks={checks} currentCheckId={linkedCheckId ?? ""} />
-      ) : null}
-      {linkLabel ? (
-        <span className="group relative inline-flex shrink-0">
-          <LinkIcon />
-          <span className="pointer-events-none absolute bottom-full right-0 z-20 mb-1.5 hidden whitespace-nowrap rounded-md border border-white/10 bg-navy-950 px-2 py-1 text-[11px] text-white/90 shadow-lg group-hover:block">
-            Links to {linkLabel}
-          </span>
+      <span className="w-44 shrink-0">
+        {checks.length > 0 ? (
+          <FormColumnLink formId={f.id} checks={checks} currentCheckId={linkedCheckId ?? ""} />
+        ) : null}
+      </span>
+      <span className="flex w-10 shrink-0 items-center justify-end gap-1.5">
+        <span className="inline-flex w-4 justify-center">
+          {linkLabel ? (
+            <span className="group relative inline-flex">
+              <LinkIcon />
+              <span className="pointer-events-none absolute bottom-full right-0 z-20 mb-1.5 hidden whitespace-nowrap rounded-md border border-white/10 bg-navy-950 px-2 py-1 text-[11px] text-white/90 shadow-lg group-hover:block">
+                Links to {linkLabel}
+              </span>
+            </span>
+          ) : null}
         </span>
-      ) : null}
-      {f.sourceTemplateKey ? (
-        <span className="group relative inline-flex shrink-0">
-          <ShieldIcon />
-          <span className="pointer-events-none absolute bottom-full right-0 z-20 mb-1.5 hidden whitespace-nowrap rounded-md border border-white/10 bg-navy-950 px-2 py-1 text-[11px] text-white/90 shadow-lg group-hover:block">
-            Be Care Compliant form
-          </span>
+        <span className="inline-flex w-4 justify-center">
+          {f.sourceTemplateKey ? (
+            <span className="group relative inline-flex">
+              <ShieldIcon />
+              <span className="pointer-events-none absolute bottom-full right-0 z-20 mb-1.5 hidden whitespace-nowrap rounded-md border border-white/10 bg-navy-950 px-2 py-1 text-[11px] text-white/90 shadow-lg group-hover:block">
+                Be Care Compliant form
+              </span>
+            </span>
+          ) : null}
         </span>
-      ) : null}
-      <span className="flex shrink-0 items-center gap-2 text-xs">
+      </span>
+      <span className="flex w-36 shrink-0 items-center justify-end gap-2 text-xs">
         {f.currentVersion == null ? (
           <span className="pill pill-amber">Not published</span>
         ) : (

@@ -44,7 +44,7 @@ export default function FormColumnLink({
       value={value}
       disabled={pending}
       onChange={(e) => onChange(e.target.value)}
-      className={`max-w-[11rem] text-xs ${error ? "border-rag-red" : ""}`}
+      className={`w-full max-w-[11rem] text-xs ${error ? "border-rag-red" : ""}`}
     >
       <option value="">No column</option>
       {checks.map((c) => (
