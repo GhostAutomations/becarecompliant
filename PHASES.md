@@ -2130,7 +2130,7 @@ happens to Acme once Thistle is real.
   Review. Register columns follow the checks; a company bringing its own forms has its columns renamed on
   the company page. Phil, 1 Oct: Thistle's four ad hoc checks (Mentoring, Lead the Leader, One to One,
   Health Check) are default for ALL companies (Health Check form added to the library, House Test topped
-  up); timings stay per company settings. Tests: TEST-CHECKLIST-SETUP.md.
+  up); timings stay per company settings. Tests: TEST-CHECKLIST-SETUP.md, ST0 to ST7 all PASS 1 Oct.
 - **Getting set up card (agreed 1 Oct, after the tick list).** Company Admin dashboard card and the same
   ticks on Founder > company page: company basics, branches, records in, team and settings; ticks itself
   from what the app sees, any step can be marked Not needed, card goes when all done or skipped.
