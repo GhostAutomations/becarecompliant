@@ -143,7 +143,7 @@ export default function ScwCell({
     pos && !editing && typeof document !== "undefined"
       ? createPortal(
           <span
-            className="pointer-events-none fixed z-[9999] w-64 -translate-x-1/2 -translate-y-full rounded-md bg-navy-950 px-2 py-1.5 text-xs font-normal leading-snug text-white/90 shadow-xl ring-1 ring-white/10"
+            className="pointer-events-none fixed z-[9999] w-max max-w-64 -translate-x-1/2 text-center -translate-y-full rounded-md bg-navy-950 px-2 py-1.5 text-xs font-normal leading-snug text-white/90 shadow-xl ring-1 ring-white/10"
             style={{ left: pos.x, top: pos.y - 10 }}
           >
             {tip}
