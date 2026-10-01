@@ -262,6 +262,7 @@ answers once (a 9 out of 5 refused), invites refused inside a demo. Still to tes
 - DM8 The morning run (07:00 London) after the end: one survey email with a button, to a login that
   has not answered, and never twice.
   Set up 1 Oct (Phil's OK): Test Client 2 ended at about 14:15 with no answers; ZZ TEST DM10 ended and answered. Check Resend after 07:00 on 2 Oct: one survey email to ppdavies+demo@gmail.com, none to ppdavies+dm10@gmail.com; and none to either on 3 Oct.
+  PASS 1 Oct (Phil asked to run it now; trial-chase cron run from Vercel Cron Jobs at 15:18): one "How was your Be Care Compliant demo?" email delivered to ppdavies+demo@gmail.com, none to +dm10 (answered and deleted); a second run sent nothing more (feedback_emailed_at set). Test Client 2 then deleted as Phil asked.
 - DM9 Delete now (type DELETE): company and login gone, usage and feedback still on the demo page.
   PASS 1 Oct (Claude in Chrome, Test Client): page says Deleted, usage kept (1 sign in, 2 min, Dashboard
   68%, Service Users 32%); database: company, people, evidence, sign in account and profile all gone.
