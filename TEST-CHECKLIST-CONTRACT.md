@@ -281,6 +281,8 @@ answers once (a 9 out of 5 refused), invites refused inside a demo. Still to tes
 
 ## Social Care Wales registration number (DEF-097, 1 Oct 2026)
 - SC1 Thistle Training matrix: SCW number column next to Carer shows the 12 numbers; Damilola shows Not yet.
+  PASS 1 Oct (Claude in Chrome, read only): all 12 W/ numbers shown, Damilola Not yet.
 - SC2 Click a number on the matrix (on a test company, not Thistle), change it, Save: it updates in place and on the person's record.
 - SC3 Person record: the number shows under the name; Manage record has the field and saving keeps it.
+  PART PASS 1 Oct: Asim Riaz shows "Social Care Wales registration: W/5168234". Manage record save still to test.
 - SC4 Add person has the field; a CQC company shows none of this.
