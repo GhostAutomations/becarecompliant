@@ -3,7 +3,9 @@
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { getFrameworkReadiness, getFrameworkItems, shownThemes, type RequirementReadiness } from "@/lib/framework/data";
-import { resolveReadinessBranch } from "@/lib/framework/branches";
+import { resolveReadinessBranch, getLatestInspections } from "@/lib/framework/branches";
+import { noticeStatusLabel } from "@/lib/framework/notice-status";
+import { ratingLabel } from "@/lib/framework/ratings";
 import { runAi } from "@/lib/ai/anthropic";
 import { waitingParts, waitingTotal } from "@/lib/framework/waiting";
 
@@ -75,6 +77,33 @@ async function buildContext(
   }
   const shown = outstandingLines.slice(0, 80);
 
+  /* THE REGULATOR'S OWN RECORD TOO (found 1 Oct 2026, RB9: asked "what open notices does it
+     have?", the assistant said it had no notice data, about a branch with one on the page). The
+     open notices and the last inspection's ratings, for the same branch the page shows. */
+  const supabase = await createClient();
+  let nq = supabase
+    .from("inspection_notices")
+    .select("requirement_code, kind, regulation, description, issued_on, due_by, status")
+    .eq("company_id", companyId)
+    .eq("regulator", regulator)
+    .is("resolved_on", null);
+  if (branchId) nq = nq.or(`branch_id.eq.${branchId},branch_id.is.null`);
+  const [{ data: noticeRows }, inspections] = await Promise.all([
+    nq.order("issued_on", { ascending: false }).limit(30),
+    branchId ? getLatestInspections(companyId, regulator) : Promise.resolve(new Map()),
+  ]);
+  const titleOf = new Map(requirements.map((r) => [r.code, r.title]));
+  const noticeLines = ((noticeRows as Array<{ requirement_code: string; kind: string; regulation: string | null; description: string | null; issued_on: string; due_by: string | null; status: string | null }> | null) ?? []).map(
+    (n) =>
+      `- ${n.kind === "priority_action" ? "Priority Action Notice" : "Area for Improvement"}; ${titleOf.get(n.requirement_code) ?? n.requirement_code}; issued ${ukDate(n.issued_on)}${n.due_by ? `; to be put right by ${ukDate(n.due_by)}` : ""}${regulator === "ciw" ? `; status ${noticeStatusLabel(n.status)}` : ""}${n.regulation ? `; ${n.regulation}` : ""}; ${n.description ?? ""}`,
+  );
+  const last = branchId ? inspections.get(branchId) : undefined;
+  const lastLine = last
+    ? `Last ${regulator.toUpperCase()} inspection: ${ukDate(last.inspectedOn)}. Ratings: ${
+        requirements.filter((r) => last.ratings[r.code]).map((r) => `${r.title} ${ratingLabel(regulator, last.ratings[r.code])}`).join("; ") || "none recorded"
+      }.`
+    : `No ${regulator.toUpperCase()} inspection recorded for this service.`;
+
   const reqLines = requirements.map((r) => {
     const parts: string[] = [];
     if (r.checks.total > 0) parts.push(`checks ${r.checks.overdue} overdue, ${r.checks.dueSoon} due soon, ${r.checks.onTrack} on track`);
@@ -90,6 +119,9 @@ async function buildContext(
     `Regulator: ${REG_LABEL[regulator]}. Provider: ${name}.${branch ? ` Service (branch): ${branch.name}, inspected and rated on its own.` : ""} Date: ${ukDate(today)}.`,
     `Readiness by ${regulator === "ciw" ? "theme" : "key question"}:`,
     ...reqLines,
+    lastLine,
+    noticeLines.length ? "Open notices from the regulator:" : "No open notices from the regulator.",
+    ...noticeLines,
     shown.length
       ? `Outstanding checks, overdue and due soon (area; record; check; due date; state):`
       : `No overdue or due soon checks.`,

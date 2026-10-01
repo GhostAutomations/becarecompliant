@@ -2564,3 +2564,9 @@ take the intervals from the deal (dealIntervals, pure, 1 test): here £250.00 a 
 - Found: 1 Oct 2026, RB6 on House Test Ltd: the reason line and the notices line under it said the same thing.
 - Fix: the notices line is left out when the reason line already says exactly that.
 - Status: fixed and rechecked live 1 Oct (Ivy House, Leadership and Management): said once.
+
+## DEF-105: The readiness assistant could not see the regulator's notices or the last inspection
+- Found: 1 Oct 2026, RB9 as the House Test Ltd Admin on Ivy House. Asked "Which service is this about, and what open notices does it have?", it named Ivy House correctly but said "I do not have that information" about notices, with one open on the page.
+- Cause: the assistant's context held the themes and the outstanding checks only, never the notices table or (new today) the last inspection's ratings.
+- Fix: the context now lists the branch's open notices (kind, theme, dates, CIW status, what it requires) and its last inspection with the rating per theme.
+- Status: fixed, to retest after deploy (same question, one AI credit of House Test Ltd).

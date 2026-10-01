@@ -26,6 +26,7 @@ Test company: House Test Ltd (three houses: Ivy House, Oak House, Treehouse; wor
   Not run by Claude: the pack downloads a file to your computer. Code traced: the button passes ?branch=, the pack reads that branch, adds Service: <house> to the cover and names the file after it.
 - [ ] RB9 Readiness assistant on a house answers about that house (the question names it).
   Could not run in support mode: the founder is not a company member, so AI is refused (DEF-103, the message said "out of AI credits" with 25 left; fixed and rechecked: it now says AI is switched off in support mode). Code traced: the question and narrative are passed the branch and the context names the service. To try as a company login.
+  1 Oct as the House Test Admin (Ivy House): named "Ivy House, a branch of House Test Ltd, inspected and rated on its own" (PASS for the branch), but said it had no notice information (DEF-105, fixed, retest).
 - [x] RB10 A company with no registered branch (untick all): Readiness shows every branch together with the amber note to tick them in Settings; the dashboard tile goes back to the three themes.
   PASS 1 Oct: all three unticked, Readiness showed every house together with the amber note, the dashboard section went and the tile showed the themes; all three ticked back and saved.
 
