@@ -12,7 +12,7 @@
  * about before they click.
  */
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { IDLE_STATE } from "@/lib/forms";
 import { useSavedFlash } from "@/lib/use-saved-flash";
 import {
@@ -22,6 +22,7 @@ import {
   restoreStandardSatisfactionQuestions,
 } from "@/lib/service-users/satisfaction-settings";
 import type { SatisfactionQuestion } from "@/lib/service-users/satisfaction-questions";
+import { submitKeepingTyped, useClearOnSuccess } from "@/components/forms/keep-typed";
 
 function QuestionRow({ q }: { q: SatisfactionQuestion }) {
   const [label, setLabel] = useState(q.label);
@@ -35,7 +36,7 @@ function QuestionRow({ q }: { q: SatisfactionQuestion }) {
   return (
     <div className="rounded-xl border border-white/10 px-4 py-3">
       <div className="flex flex-wrap items-start gap-3">
-        <form action={rename} className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+        <form onSubmit={submitKeepingTyped(rename)} className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
           <input type="hidden" name="key" value={q.key} />
           <input
             name="label"
@@ -52,7 +53,7 @@ function QuestionRow({ q }: { q: SatisfactionQuestion }) {
             {renaming ? "Saving…" : saved ? "Saved" : "Save wording"}
           </button>
         </form>
-        <form action={remove}>
+        <form onSubmit={submitKeepingTyped(remove)}>
           <input type="hidden" name="key" value={q.key} />
           <button type="submit" disabled={removing} className="btn-outline">
             {removing ? "Removing…" : "Remove"}
@@ -79,6 +80,8 @@ export default function SatisfactionQuestionsForm({
   missingStandard: number;
 }) {
   const [state, add, adding] = useActionState(addSatisfactionQuestion, IDLE_STATE);
+  const addRef = useRef<HTMLFormElement>(null);
+  useClearOnSuccess(addRef, state, (s) => Boolean(s.ok));
   const [restoreState, restore, restoring] = useActionState(
     restoreStandardSatisfactionQuestions,
     IDLE_STATE,
@@ -104,7 +107,7 @@ export default function SatisfactionQuestionsForm({
         </div>
       )}
 
-      <form action={add} className="flex flex-wrap items-end gap-2 border-t border-white/10 pt-4">
+      <form ref={addRef} onSubmit={submitKeepingTyped(add)} className="flex flex-wrap items-end gap-2 border-t border-white/10 pt-4">
         <div className="min-w-0 flex-1">
           <label htmlFor="new_satisfaction_q" className="form-label">Add a question</label>
           <input
@@ -125,7 +128,7 @@ export default function SatisfactionQuestionsForm({
           anything. Restoring by key is the only way back that keeps a question's past
           attached to it (Phil, 2026-09-14). */}
       {missingStandard > 0 ? (
-        <form action={restore} className="border-t border-white/10 pt-4">
+        <form onSubmit={submitKeepingTyped(restore)} className="border-t border-white/10 pt-4">
           <button type="submit" disabled={restoring} className="btn-outline">
             {restoring
               ? "Restoring…"

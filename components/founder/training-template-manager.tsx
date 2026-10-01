@@ -7,7 +7,7 @@
  * (globals.css); save-button discipline with inline error/ok.
  */
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { IDLE_STATE } from "@/lib/forms";
 import { useSavedFlash } from "@/lib/use-saved-flash";
 import {
@@ -15,6 +15,7 @@ import {
   updateTrainingTemplate,
   deleteTrainingTemplate,
 } from "@/app/(app)/founder/actions";
+import { submitKeepingTyped, useClearOnSuccess } from "@/components/forms/keep-typed";
 
 export type TrainingTemplate = {
   id: string;
@@ -31,8 +32,10 @@ function AddForm() {
   const [state, action, pending] = useActionState(createTrainingTemplate, IDLE_STATE);
   const [saved, flash, reset] = useSavedFlash();
   useEffect(() => { if (state.ok && !pending) flash(); }, [state, pending, flash]);
+  const formRef = useRef<HTMLFormElement>(null);
+  useClearOnSuccess(formRef, state, (s) => Boolean(s.ok));
   return (
-    <form action={action} className="glass-card space-y-4 p-5" onChange={reset}>
+    <form ref={formRef} onSubmit={submitKeepingTyped(action)} className="glass-card space-y-4 p-5" onChange={reset}>
       <h2 className="text-base font-semibold text-white">Add a course</h2>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block text-sm">
@@ -77,7 +80,7 @@ function TemplateRow({ t }: { t: TrainingTemplate }) {
   useEffect(() => { if (saveState.ok && !saving) flash(); }, [saveState, saving, flash]);
   return (
     <div className="glass-card p-5">
-      <form action={saveAction} className="space-y-3" onChange={reset}>
+      <form onSubmit={submitKeepingTyped(saveAction)} className="space-y-3" onChange={reset}>
         <input type="hidden" name="id" value={t.id} />
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="block text-sm sm:col-span-2 lg:col-span-1">
@@ -122,7 +125,7 @@ function TemplateRow({ t }: { t: TrainingTemplate }) {
         </div>
         {saveState.error && <p className="text-sm text-red-300">{saveState.error}</p>}
       </form>
-      <form action={delAction} className="mt-2 border-t border-white/10 pt-2">
+      <form onSubmit={submitKeepingTyped(delAction)} className="mt-2 border-t border-white/10 pt-2">
         <input type="hidden" name="id" value={t.id} />
         <button type="submit" disabled={deleting} className="text-xs text-red-300 hover:underline">
           {deleting ? "Deleting…" : "Delete template"}

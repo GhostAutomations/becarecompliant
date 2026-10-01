@@ -7,6 +7,7 @@ import { useSavedFlash } from "@/lib/use-saved-flash";
 import { formatMoney } from "@/lib/invoicing/types";
 import { carePlanLinesForPeriod } from "@/lib/invoicing/invoice-actions";
 import { CARE_PLAN_UNITS, CARE_PLAN_DAYS, HANDED_OPTIONS, unitPricePence, lineAmountPence } from "@/lib/service-users/care-plan-consts";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 type ServerAction = (prev: ActionState, formData: FormData) => Promise<ActionState>;
 type Client = { id: string; name: string; invoice_to_label: string; invoice_delivery: string | null };
@@ -186,7 +187,7 @@ export default function InvoiceBuilder({
   }
 
   return (
-    <form action={formAction} className="space-y-6" onChange={resetSaved}>
+    <form onSubmit={submitKeepingTyped(formAction)} className="space-y-6" onChange={resetSaved}>
       {mode === "edit" && initial ? <input type="hidden" name="invoice_id" value={initial.invoice_id} /> : null}
       <input type="hidden" name="service_user_id" value={clientId} />
       <input type="hidden" name="lines" value={linesJson} />

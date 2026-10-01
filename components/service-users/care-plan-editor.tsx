@@ -32,6 +32,7 @@ import {
 import { linesFromRows, packageRows, parsePackage } from "@/lib/service-users/care-package";
 import { ukDate } from "@/lib/dates";
 import type { PackageLineValue } from "@/lib/form-schema";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 type ServerAction = (prev: ActionState, formData: FormData) => Promise<ActionState>;
 
@@ -124,7 +125,7 @@ export default function CarePlanEditor({
   };
 
   return (
-    <form ref={formRef} action={formAction} className="space-y-4">
+    <form ref={formRef} onSubmit={submitKeepingTyped(formAction)} className="space-y-4">
       <input type="hidden" name="service_user_id" value={serviceUserId} />
       <input type="hidden" name="entries" value={entriesJson} />
 

@@ -23,6 +23,7 @@ import {
   type OutcomeRow,
   type OutcomeProgress,
 } from "@/lib/service-users/outcome-consts";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 function fmt(iso: string | null): string {
   if (!iso) return "—";
@@ -105,7 +106,7 @@ function AddOutcome({ serviceUserId }: { serviceUserId: string }) {
   }
 
   return (
-    <form action={formAction} onChange={reset} className="glass-card space-y-3 p-5">
+    <form onSubmit={submitKeepingTyped(formAction)} onChange={reset} className="glass-card space-y-3 p-5">
       <input type="hidden" name="service_user_id" value={serviceUserId} />
       <div>
         <label className="form-label">Outcome</label>
@@ -245,7 +246,7 @@ function LogUpdateForm({ serviceUserId, outcomeId, onDone }: { serviceUserId: st
   }, [state, pending, flash, onDone]);
 
   return (
-    <form action={formAction} onChange={reset} className="space-y-3 border-t border-white/10 pt-3">
+    <form onSubmit={submitKeepingTyped(formAction)} onChange={reset} className="space-y-3 border-t border-white/10 pt-3">
       <input type="hidden" name="service_user_id" value={serviceUserId} />
       <input type="hidden" name="outcome_id" value={outcomeId} />
       <div className="grid gap-3 sm:grid-cols-[12rem_1fr]">
@@ -284,7 +285,7 @@ function CompleteForm({ serviceUserId, outcomeId, onDone }: { serviceUserId: str
   }, [state, pending, flash, onDone]);
 
   return (
-    <form action={formAction} onChange={reset} className="space-y-3 border-t border-white/10 pt-3">
+    <form onSubmit={submitKeepingTyped(formAction)} onChange={reset} className="space-y-3 border-t border-white/10 pt-3">
       <input type="hidden" name="service_user_id" value={serviceUserId} />
       <input type="hidden" name="outcome_id" value={outcomeId} />
       <div>
@@ -316,7 +317,7 @@ function TargetDate({ serviceUserId, outcome }: { serviceUserId: string; outcome
   useEffect(() => { if (state.ok) flash(); }, [state, flash]);
 
   return (
-    <form ref={formRef} action={formAction} className="flex items-center gap-1.5">
+    <form ref={formRef} onSubmit={submitKeepingTyped(formAction)} className="flex items-center gap-1.5">
       <input type="hidden" name="service_user_id" value={serviceUserId} />
       <input type="hidden" name="outcome_id" value={outcome.id} />
       <label htmlFor={`target-${outcome.id}`} className="text-white/45">Target</label>
@@ -345,7 +346,7 @@ function EditForm({ serviceUserId, outcome, onDone }: { serviceUserId: string; o
   }, [state, pending, flash, onDone]);
 
   return (
-    <form action={formAction} onChange={reset} className="space-y-3 border-t border-white/10 pt-3">
+    <form onSubmit={submitKeepingTyped(formAction)} onChange={reset} className="space-y-3 border-t border-white/10 pt-3">
       <input type="hidden" name="service_user_id" value={serviceUserId} />
       <input type="hidden" name="outcome_id" value={outcome.id} />
       <div>
@@ -376,7 +377,7 @@ function ReopenButton({ serviceUserId, outcomeId }: { serviceUserId: string; out
     if (state.ok && !pending) flash();
   }, [state, pending, flash]);
   return (
-    <form action={formAction}>
+    <form onSubmit={submitKeepingTyped(formAction)}>
       <input type="hidden" name="service_user_id" value={serviceUserId} />
       <input type="hidden" name="outcome_id" value={outcomeId} />
       <button type="submit" disabled={pending} className={`btn ${saved ? "btn-saved" : "btn-outline"} text-xs`}>
@@ -397,7 +398,7 @@ function RemoveButton({ serviceUserId, outcomeId }: { serviceUserId: string; out
     );
   }
   return (
-    <form action={formAction} className="inline-flex items-center gap-2">
+    <form onSubmit={submitKeepingTyped(formAction)} className="inline-flex items-center gap-2">
       <input type="hidden" name="service_user_id" value={serviceUserId} />
       <input type="hidden" name="outcome_id" value={outcomeId} />
       <button type="submit" disabled={pending} className="btn-danger text-xs">

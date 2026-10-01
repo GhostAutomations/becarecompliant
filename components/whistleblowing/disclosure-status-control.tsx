@@ -9,6 +9,7 @@ import {
   DISCLOSURE_STATUSES,
   type DisclosureStatus,
 } from "@/lib/whistleblowing/types";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 export default function DisclosureStatusControl({
   disclosureId,
@@ -27,7 +28,7 @@ export default function DisclosureStatusControl({
   useEffect(() => { if (state.ok && !pending) flash(); }, [state, pending, flash]);
 
   return (
-    <form action={action} className="space-y-3">
+    <form onSubmit={submitKeepingTyped(action)} className="space-y-3">
       <input type="hidden" name="disclosure_id" value={disclosureId} />
       <div>
         <label htmlFor="disclosure_status" className="form-label">Status</label>

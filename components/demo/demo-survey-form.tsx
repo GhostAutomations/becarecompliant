@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import RatingStars from "@/components/forms/rating-stars";
 import { DEMO_SURVEY_RATINGS } from "@/lib/demo/rules";
 import { submitDemoFeedback, type DemoFeedbackState } from "@/lib/demo/feedback-actions";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 /* The demo survey (Phil, 2026-09-30): seven scores out of five, then what they liked, what they
    did not, and what we could do better. One form for the in-app link and the emailed link. */
@@ -24,7 +25,7 @@ export default function DemoSurveyForm({ token, via }: { token: string; via: "ap
   }
 
   return (
-    <form action={action} className="glass-card space-y-6 p-6">
+    <form onSubmit={submitKeepingTyped(action)} className="glass-card space-y-6 p-6">
       <input type="hidden" name="token" value={token} />
       <input type="hidden" name="via" value={via} />
       <div>

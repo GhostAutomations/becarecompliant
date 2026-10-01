@@ -6,6 +6,7 @@ import { IDLE_STATE } from "@/lib/forms";
 import { useSavedFlash } from "@/lib/use-saved-flash";
 import type { IncidentRecord } from "@/lib/incidents/types";
 import IncidentFields from "./incident-fields";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 export default function EditIncidentForm({
   incident,
@@ -23,7 +24,7 @@ export default function EditIncidentForm({
   useEffect(() => { if (state.ok && !pending) flash(); }, [state, pending, flash]);
 
   return (
-    <form action={formAction} className="space-y-6" onChange={reset}>
+    <form onSubmit={submitKeepingTyped(formAction)} className="space-y-6" onChange={reset}>
       <input type="hidden" name="incident_id" value={incident.id} />
 
       <IncidentFields

@@ -6,6 +6,7 @@ import { IDLE_STATE } from "@/lib/forms";
 import { useSavedFlash } from "@/lib/use-saved-flash";
 import type { DisclosureRecord } from "@/lib/whistleblowing/types";
 import DisclosureFields from "./disclosure-fields";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 export default function EditDisclosureForm({
   record,
@@ -21,7 +22,7 @@ export default function EditDisclosureForm({
   useEffect(() => { if (state.ok && !pending) flash(); }, [state, pending, flash]);
 
   return (
-    <form action={formAction} className="space-y-6" onChange={reset}>
+    <form onSubmit={submitKeepingTyped(formAction)} className="space-y-6" onChange={reset}>
       <input type="hidden" name="disclosure_id" value={record.id} />
 
       <DisclosureFields

@@ -13,6 +13,7 @@ import {
   type ComplaintRelationship,
 } from "@/lib/complaints/types";
 import { useBranchWord } from "@/components/branches/branch-word";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 export default function CreateComplaintForm({
   branches,
@@ -33,7 +34,7 @@ export default function CreateComplaintForm({
   // Once a branch is chosen, only its service users are selectable.
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form onSubmit={submitKeepingTyped(formAction)} className="space-y-5">
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <label htmlFor="subject" className="form-label">Subject *</label>

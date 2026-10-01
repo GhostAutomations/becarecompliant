@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { createServiceUser } from "@/lib/service-users/actions";
 import { IDLE_STATE } from "@/lib/forms";
 import { useBranchWord } from "@/components/branches/branch-word";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 export default function CreateServiceUserForm({
   branches,
@@ -14,7 +15,7 @@ export default function CreateServiceUserForm({
   const [state, formAction, pending] = useActionState(createServiceUser, IDLE_STATE);
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form onSubmit={submitKeepingTyped(formAction)} className="space-y-5">
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <label htmlFor="full_name" className="form-label">Full name *</label>

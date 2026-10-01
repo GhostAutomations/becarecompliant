@@ -14,6 +14,7 @@ import { useActionState, useState } from "react";
 import { pushLibraryForm } from "@/lib/forms/library-push-actions";
 import { IDLE_STATE } from "@/lib/forms";
 import type { CompanyFormState } from "@/lib/forms/library-push";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 const STATE_COPY: Record<
   CompanyFormState["state"],
@@ -70,7 +71,7 @@ export default function LibraryPush({
   }
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form onSubmit={submitKeepingTyped(formAction)} className="space-y-5">
       <input type="hidden" name="template_key" value={templateKey} />
 
       <div className="space-y-2">

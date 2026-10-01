@@ -18,6 +18,7 @@ import {
   recordPostalResponse,
 } from "@/lib/complaints/actions";
 import { AiIcon } from "@/components/ai-icon";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 export default function InitialResponseButton({
   complaintId,
@@ -136,7 +137,7 @@ export default function InitialResponseButton({
                 </p>
 
                 {isEmail ? (
-                  <form action={sendAction} className="space-y-3">
+                  <form onSubmit={submitKeepingTyped(sendAction)} className="space-y-3">
                     <input type="hidden" name="complaint_id" value={complaintId} />
                     <div>
                       <label htmlFor="ir_subject" className="form-label">Subject</label>
@@ -157,7 +158,7 @@ export default function InitialResponseButton({
                     </div>
                   </form>
                 ) : (
-                  <form action={recordAction} className="space-y-3">
+                  <form onSubmit={submitKeepingTyped(recordAction)} className="space-y-3">
                     <input type="hidden" name="complaint_id" value={complaintId} />
                     <div>
                       <label htmlFor="ir_letter" className="form-label">Letter</label>

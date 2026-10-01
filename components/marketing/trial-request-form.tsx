@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { submitTrialRequest } from "@/lib/marketing/actions";
 import { IDLE_STATE } from "@/lib/forms";
 import { PRICING_TIERS } from "@/lib/marketing/tiers";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 /**
  * The trial request form.
@@ -38,7 +39,7 @@ export default function TrialRequestForm({ defaultTier = "" }: { defaultTier?: s
   }
 
   return (
-    <form action={action} className="glass-card space-y-6 p-6">
+    <form onSubmit={submitKeepingTyped(action)} className="glass-card space-y-6 p-6">
       {/* Honeypot: hidden from people, tempting to bots. Leave empty. */}
       <input
         type="text"

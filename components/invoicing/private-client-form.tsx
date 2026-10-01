@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { IDLE_STATE, type ActionState } from "@/lib/forms";
 import { useBranchWord } from "@/components/branches/branch-word";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 type ServerAction = (prev: ActionState, formData: FormData) => Promise<ActionState>;
 type Branch = { id: string; name: string };
@@ -76,7 +77,7 @@ export default function PrivateClientForm({
   }
 
   return (
-    <form action={formAction} className="glass-card space-y-4 p-5">
+    <form onSubmit={submitKeepingTyped(formAction)} className="glass-card space-y-4 p-5">
       {initial?.id ? <input type="hidden" name="id" value={initial.id} /> : null}
 
       {mode === "create" && serviceUsers.length > 0 ? (

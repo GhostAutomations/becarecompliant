@@ -15,6 +15,7 @@ import { useActionState } from "react";
 import { raiseConcern } from "@/lib/whistleblowing/raise";
 import { IDLE_STATE } from "@/lib/forms";
 import { DISCLOSURE_CATEGORIES } from "@/lib/whistleblowing/types";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 export default function RaiseConcern() {
   const [state, formAction, pending] = useActionState(raiseConcern, IDLE_STATE);
@@ -36,7 +37,7 @@ export default function RaiseConcern() {
   }
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form onSubmit={submitKeepingTyped(formAction)} className="space-y-5">
       <div>
         <label htmlFor="concern_category" className="form-label">What is it about?</label>
         <select id="concern_category" name="category" defaultValue="">

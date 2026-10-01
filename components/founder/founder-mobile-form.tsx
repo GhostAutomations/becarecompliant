@@ -10,6 +10,7 @@ import { useActionState, useEffect } from "react";
 import { IDLE_STATE } from "@/lib/forms";
 import { useSavedFlash } from "@/lib/use-saved-flash";
 import { saveFounderMobile } from "@/app/(app)/founder/actions";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 export default function FounderMobileForm({ current }: { current: string | null }) {
   const [state, action, saving] = useActionState(saveFounderMobile, IDLE_STATE);
@@ -19,7 +20,7 @@ export default function FounderMobileForm({ current }: { current: string | null 
   }, [state, saving, flash]);
 
   return (
-    <form action={action} onChange={reset} className="glass-card flex flex-wrap items-end gap-3 p-4">
+    <form onSubmit={submitKeepingTyped(action)} onChange={reset} className="glass-card flex flex-wrap items-end gap-3 p-4">
       <div className="min-w-56 flex-1">
         <label htmlFor="founder-mobile" className="form-label">Text me new trial requests</label>
         <input

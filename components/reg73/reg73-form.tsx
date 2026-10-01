@@ -8,6 +8,7 @@ import { saveReg73, submitReg73, aiDraftReg73, refreshReg73Data } from "@/lib/re
 import type { Reg73VisitFull } from "@/lib/reg73/data";
 import Reg73Signature from "@/components/reg73/reg73-signature";
 import { AiIcon } from "@/components/ai-icon";
+import { submitKeepingTypedBy } from "@/components/forms/keep-typed";
 
 /** Data derived boxes, pre-filled from the site and re-pulled by Refresh data. Kept
  *  in client state so a refresh updates them in place, with no remount. */
@@ -181,14 +182,18 @@ export default function Reg73Form({
 
   // Editable draft.
   return (
-    <form className="space-y-4" onChange={resetSaved}>
+    <form
+      className="space-y-4"
+      onChange={resetSaved}
+      onSubmit={submitKeepingTypedBy((b) => (b?.dataset.intent === "submit" ? submitAction : saveAction))}
+    >
       <input type="hidden" name="visit_id" value={visit.id} />
       <input type="hidden" name="_ai_fields" value={[...gold].join(",")} />
 
       <div className="glass-card flex flex-wrap items-center gap-2 p-3">
         <button
           type="submit"
-          formAction={saveAction}
+          data-intent="save"
           disabled={busy}
           className={saved && !savePending ? "btn-saved px-3 py-2 text-xs" : "btn-primary px-3 py-2 text-xs"}
         >
@@ -218,7 +223,7 @@ export default function Reg73Form({
               <Reg73Signature defaultMethod={val("sign_method")} defaultSignature={val("ri_signature")} />
               <div className="flex flex-wrap items-center justify-end gap-3">
                 {submitState.error ? <span className="text-xs font-semibold text-red-400">{submitState.error}</span> : null}
-                <button type="submit" formAction={submitAction} disabled={busy} className="btn-primary px-4 py-2 text-sm">
+                <button type="submit" data-intent="submit" disabled={busy} className="btn-primary px-4 py-2 text-sm">
                   {submitPending ? "Submitting…" : "Save and submit"}
                 </button>
               </div>

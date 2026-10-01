@@ -3,11 +3,12 @@
 import { useActionState } from "react";
 import { setNewPassword } from "../actions";
 import { IDLE_STATE } from "@/lib/forms";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 export function ResetForm({ email }: { email: string }) {
   const [state, formAction, pending] = useActionState(setNewPassword, IDLE_STATE);
   return (
-    <form action={formAction} className="space-y-5">
+    <form onSubmit={submitKeepingTyped(formAction)} className="space-y-5">
       {/* Read only email as the login identity, so a password manager saves the new password
           against the right account. */}
       <div>

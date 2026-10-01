@@ -14,6 +14,7 @@ import {
   saveNotificationSettings,
   saveUserPhone,
 } from "@/lib/notifications/settings-actions";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 /** Roles that can be an SMS/notification recipient, with their display labels. */
 const ROLE_LABEL: Record<string, string> = {
@@ -79,7 +80,7 @@ export default function NotificationSettings({
         </div>
       )}
 
-      <form action={saveAction} className="glass-card space-y-5 p-5" onChange={resetMain}>
+      <form onSubmit={submitKeepingTyped(saveAction)} className="glass-card space-y-5 p-5" onChange={resetMain}>
         <div>
           <h2 className="text-sm font-semibold text-white/80">Channels</h2>
           <label className="mt-3 flex items-start gap-3">
@@ -222,7 +223,7 @@ function PhoneRow({ u }: { u: EscalationUser }) {
   useEffect(() => { if (state.ok && !saving) flash(); }, [state, saving, flash]);
   return (
     <li>
-      <form action={action} className="flex flex-wrap items-center gap-3" onChange={reset}>
+      <form onSubmit={submitKeepingTyped(action)} className="flex flex-wrap items-center gap-3" onChange={reset}>
         <input type="hidden" name="profile_id" value={u.profileId} />
         <span className="min-w-40 text-sm text-white/80">
           <span className="font-semibold text-white">{u.fullName}</span>

@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { signIn } from "./actions";
 import type { LoginState } from "@/lib/auth/types";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 const initialState: LoginState = { error: null };
 
@@ -10,7 +11,7 @@ export function LoginForm({ notice, next }: { notice?: string; next?: string | n
   const [state, formAction, pending] = useActionState(signIn, initialState);
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form onSubmit={submitKeepingTyped(formAction)} className="space-y-5">
       {/* Where they were headed before the sign-in wall. Validated again on the server. */}
       {next ? <input type="hidden" name="next" value={next} /> : null}
       {notice ? (

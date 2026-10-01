@@ -6,6 +6,7 @@ import { IDLE_STATE } from "@/lib/forms";
 import { useSavedFlash } from "@/lib/use-saved-flash";
 import PrivateInvoicingFields from "@/components/service-users/private-invoicing-fields";
 import type { ServiceUserRecord } from "@/lib/service-users/types";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 export default function EditServiceUserForm({ serviceUser }: { serviceUser: ServiceUserRecord }) {
   const [state, formAction, pending] = useActionState(updateServiceUser, IDLE_STATE);
@@ -13,7 +14,7 @@ export default function EditServiceUserForm({ serviceUser }: { serviceUser: Serv
   useEffect(() => { if (state.ok && !pending) flash(); }, [state, pending, flash]);
 
   return (
-    <form action={formAction} className="space-y-5" onChange={reset}>
+    <form onSubmit={submitKeepingTyped(formAction)} className="space-y-5" onChange={reset}>
       <input type="hidden" name="service_user_id" value={serviceUser.id} />
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="sm:col-span-2">

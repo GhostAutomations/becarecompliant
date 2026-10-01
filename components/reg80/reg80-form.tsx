@@ -9,6 +9,7 @@ import type { Reg80ReviewFull } from "@/lib/reg80/data";
 import Reg73Signature from "@/components/reg73/reg73-signature";
 import Reg80ImageInput from "@/components/reg80/reg80-image-input";
 import { AiIcon } from "@/components/ai-icon";
+import { submitKeepingTypedBy } from "@/components/forms/keep-typed";
 
 function fmtDate(v: string): string {
   if (!v) return "Not answered";
@@ -198,6 +199,7 @@ export default function Reg80Form({
         resetSaved();
         setOfferRedraft(false);
       }}
+      onSubmit={submitKeepingTypedBy((b) => (b?.dataset.intent === "submit" ? submitAction : saveAction))}
     >
       <input type="hidden" name="review_id" value={review.id} />
       <input type="hidden" name="_ai_fields" value={[...gold].join(",")} />
@@ -205,7 +207,7 @@ export default function Reg80Form({
       <div className="glass-card flex flex-wrap items-center gap-2 p-3">
         <button
           type="submit"
-          formAction={saveAction}
+          data-intent="save"
           disabled={busy}
           className={saved && !savePending ? "btn-saved px-3 py-2 text-xs" : "btn-primary px-3 py-2 text-xs"}
         >
@@ -263,7 +265,7 @@ export default function Reg80Form({
               <Reg73Signature defaultMethod={val("sign_method")} defaultSignature={val("ri_signature")} />
               <div className="flex flex-wrap items-center justify-end gap-3">
                 {submitState.error ? <span className="text-xs font-semibold text-red-400">{submitState.error}</span> : null}
-                <button type="submit" formAction={submitAction} disabled={busy} className="btn-primary px-4 py-2 text-sm">
+                <button type="submit" data-intent="submit" disabled={busy} className="btn-primary px-4 py-2 text-sm">
                   {submitPending ? "Submitting…" : "Save and submit"}
                 </button>
               </div>

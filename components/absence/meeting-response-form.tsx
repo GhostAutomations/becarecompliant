@@ -10,6 +10,7 @@
 import { useActionState, useState } from "react";
 import { IDLE_STATE } from "@/lib/forms";
 import { respondToMeeting } from "@/lib/absence/response-actions";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 export default function MeetingResponseForm({
   token,
@@ -30,7 +31,7 @@ export default function MeetingResponseForm({
     <div className="space-y-4">
       {!declining ? (
         <div className="flex flex-wrap items-center gap-3">
-          <form action={action}>
+          <form onSubmit={submitKeepingTyped(action)}>
             <input type="hidden" name="token" value={token} />
             <input type="hidden" name="response" value="accepted" />
             <button type="submit" className="btn-primary px-5 py-2.5 text-sm" disabled={pending}>
@@ -47,7 +48,7 @@ export default function MeetingResponseForm({
           </button>
         </div>
       ) : (
-        <form action={action} className="space-y-3">
+        <form onSubmit={submitKeepingTyped(action)} className="space-y-3">
           <input type="hidden" name="token" value={token} />
           <input type="hidden" name="response" value="declined" />
           <div>

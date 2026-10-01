@@ -15,6 +15,7 @@ import type { Answers, FormSchema } from "@/lib/form-schema";
 import FormRenderer from "@/components/forms/form-renderer";
 import { submitPublicForm } from "@/lib/public-forms/submit";
 import type { PublicSubmitState } from "@/lib/public-forms/types";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 const IDLE: PublicSubmitState = {};
 
@@ -43,7 +44,7 @@ export default function PublicForm({
   }
 
   return (
-    <form action={action} className="space-y-6">
+    <form onSubmit={submitKeepingTyped(action)} className="space-y-6">
       <input type="hidden" name="link_code" value={linkCode} />
       <input type="hidden" name="form_key" value={formKey} />
       <input type="hidden" name="answers" value={JSON.stringify(answers)} />

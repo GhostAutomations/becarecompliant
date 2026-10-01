@@ -20,6 +20,7 @@ import { IDLE_STATE } from "@/lib/forms";
 import { useSavedFlash } from "@/lib/use-saved-flash";
 import DeleteUserDialog from "@/components/settings/delete-user-dialog";
 import { useBranchWord } from "@/components/branches/branch-word";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 type Branch = { id: string; name: string };
 
@@ -96,7 +97,7 @@ export default function TeamMemberControls({
 
   return (
     <div className="space-y-5">
-      <form action={formAction} className="space-y-4" onChange={reset}>
+      <form onSubmit={submitKeepingTyped(formAction)} className="space-y-4" onChange={reset}>
         <input type="hidden" name="user_id" value={userId} />
         {additionalClean.map((id) => (
           <input key={id} type="hidden" name="additional_branch_ids" value={id} />
@@ -185,7 +186,7 @@ export default function TeamMemberControls({
         {status === "invited" ? (
           <>
             <span className="pill-amber">Invited, not accepted yet</span>
-            <form action={inviteAction}>
+            <form onSubmit={submitKeepingTyped(inviteAction)}>
               <input type="hidden" name="user_id" value={userId} />
               <button type="submit" disabled={invitePending} className="btn-outline px-3 py-2 text-xs">
                 {invitePending ? "Sending…" : "Resend invite"}
@@ -193,7 +194,7 @@ export default function TeamMemberControls({
             </form>
           </>
         ) : (
-        <form action={statusAction}>
+        <form onSubmit={submitKeepingTyped(statusAction)}>
           <input type="hidden" name="user_id" value={userId} />
           <input type="hidden" name="status" value={status === "active" ? "disabled" : "active"} />
           <button type="submit" disabled={statusPending} className="btn-outline px-3 py-2 text-xs">
@@ -208,7 +209,7 @@ export default function TeamMemberControls({
         {/* THE ADMIN'S WAY TO LET SOMEBODY BACK IN (2026-09-23). Only for a live login: an
             invitation has its own resend, and a switched off login should stay off. */}
         {status === "active" ? (
-          <form action={resetAction}>
+          <form onSubmit={submitKeepingTyped(resetAction)}>
             <input type="hidden" name="user_id" value={userId} />
             <button type="submit" disabled={resetPending} className="btn-outline px-3 py-2 text-xs">
               {resetPending ? "Sending…" : "Send password reset"}

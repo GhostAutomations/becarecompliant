@@ -6,6 +6,7 @@ import { IDLE_STATE } from "@/lib/forms";
 import { toLocalInput } from "@/lib/on-call/format";
 import type { BranchOption, OnCallShift, PersonOption } from "@/lib/on-call/types";
 import { useBranchWord } from "@/components/branches/branch-word";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 /** Add or edit an on-call rota shift. Reused for both; `shift` present = edit. */
 export default function ShiftForm({
@@ -33,7 +34,7 @@ export default function ShiftForm({
   }, [state.ok, onDone]);
 
   return (
-    <form action={formAction} className="glass-card space-y-4 p-5">
+    <form onSubmit={submitKeepingTyped(formAction)} className="glass-card space-y-4 p-5">
       {editing ? <input type="hidden" name="id" value={shift.id} /> : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -114,10 +115,13 @@ function DeleteShiftButton({ id, onDone }: { id: string; onDone?: () => void }) 
   }, [state.ok, onDone]);
   return (
     <form
-      action={formAction}
       className="ml-auto"
       onSubmit={(e) => {
-        if (!confirm("Remove this shift from the rota?")) e.preventDefault();
+        if (!confirm("Remove this shift from the rota?")) {
+          e.preventDefault();
+          return;
+        }
+        submitKeepingTyped(formAction)(e);
       }}
     >
       <input type="hidden" name="id" value={id} />

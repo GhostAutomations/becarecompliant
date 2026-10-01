@@ -5,6 +5,7 @@ import { setComplaintStatus } from "@/lib/complaints/actions";
 import { IDLE_STATE } from "@/lib/forms";
 import { useSavedFlash } from "@/lib/use-saved-flash";
 import { COMPLAINT_STATUS_LABELS, COMPLAINT_STATUS_ORDER, type ComplaintStatus } from "@/lib/complaints/types";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 export default function ComplaintStatusControl({
   complaintId,
@@ -22,7 +23,7 @@ export default function ComplaintStatusControl({
   useEffect(() => { if (state.ok && !pending) flash(); }, [state, pending, flash]);
 
   return (
-    <form action={action} className="space-y-3">
+    <form onSubmit={submitKeepingTyped(action)} className="space-y-3">
       <input type="hidden" name="complaint_id" value={complaintId} />
       <div>
         <label htmlFor="complaint_status" className="form-label">Status</label>

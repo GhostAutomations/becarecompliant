@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { completeInvite } from "./actions";
 import { IDLE_STATE } from "@/lib/forms";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 export function WelcomeForm({ defaultName, email }: { defaultName: string; email: string }) {
   const [state, formAction, pending] = useActionState(
@@ -11,7 +12,7 @@ export function WelcomeForm({ defaultName, email }: { defaultName: string; email
   );
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form onSubmit={submitKeepingTyped(formAction)} className="space-y-5">
       {/* Read-only email as the login identity so password managers save
           email + password together (autoComplete="username"). */}
       <div>

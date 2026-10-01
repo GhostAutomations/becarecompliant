@@ -19,6 +19,7 @@ import { IDLE_STATE } from "@/lib/forms";
 import { renameBranch } from "@/app/(app)/settings/actions";
 import { useSavedFlash } from "@/lib/use-saved-flash";
 import { useBranchWord } from "@/components/branches/branch-word";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 export default function BranchForm({
   branchId,
@@ -50,7 +51,7 @@ export default function BranchForm({
   const label = pending ? "Saving…" : saved ? "Saved" : "Save";
 
   return (
-    <form action={action} className="space-y-3" onChange={reset}>
+    <form onSubmit={submitKeepingTyped(action)} className="space-y-3" onChange={reset}>
       <input type="hidden" name="branch_id" value={branchId} />
       <div>
         <label htmlFor={`name-${branchId}`} className="form-label">

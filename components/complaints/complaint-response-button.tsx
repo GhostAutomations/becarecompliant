@@ -18,6 +18,7 @@ import {
   recordComplaintResponseLetter,
 } from "@/lib/complaints/actions";
 import { AiIcon } from "@/components/ai-icon";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 type Attachment = { path: string; name: string };
 
@@ -166,7 +167,7 @@ export default function ComplaintResponseButton({
                 </p>
 
                 {isEmail ? (
-                  <form action={sendAction} className="space-y-3">
+                  <form onSubmit={submitKeepingTyped(sendAction)} className="space-y-3">
                     <input type="hidden" name="complaint_id" value={complaintId} />
                     <input type="hidden" name="attachment_paths" value={JSON.stringify([...selected])} />
                     <div>
@@ -200,7 +201,7 @@ export default function ComplaintResponseButton({
                     </div>
                   </form>
                 ) : (
-                  <form action={recordAction} className="space-y-3">
+                  <form onSubmit={submitKeepingTyped(recordAction)} className="space-y-3">
                     <input type="hidden" name="complaint_id" value={complaintId} />
                     <div>
                       <label htmlFor="cr_letter" className="form-label">Letter</label>

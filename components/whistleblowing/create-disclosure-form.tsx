@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createDisclosure } from "@/lib/whistleblowing/actions";
 import { IDLE_STATE } from "@/lib/forms";
 import DisclosureFields from "./disclosure-fields";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 export default function CreateDisclosureForm({
   branches,
@@ -21,7 +22,7 @@ export default function CreateDisclosureForm({
   }, [state.redirectTo, router]);
 
   return (
-    <form action={formAction} className="space-y-6">
+    <form onSubmit={submitKeepingTyped(formAction)} className="space-y-6">
       <DisclosureFields idPrefix="new_disclosure" branches={branches} todayIso={todayIso} />
 
       {state.error ? <p className="form-error">{state.error}</p> : null}

@@ -7,6 +7,7 @@ import { IDLE_STATE } from "@/lib/forms";
 import { deleteReg73Visits } from "@/lib/reg73/actions";
 import type { Reg73VisitListItem } from "@/lib/reg73/data";
 import { useBranchWord } from "@/components/branches/branch-word";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 function fmtDate(v: string | null): string {
   if (!v) return "";
@@ -109,7 +110,7 @@ export default function Reg73ReportsManager({
           <span className="text-sm text-white/80">
             Delete {selected.size} report(s)? This cannot be undone.
           </span>
-          <form action={action} className="ml-auto flex items-center gap-2">
+          <form onSubmit={submitKeepingTyped(action)} className="ml-auto flex items-center gap-2">
             <input type="hidden" name="ids" value={[...selected].join(",")} />
             <button type="submit" disabled={pending} className="btn border border-rag-red/40 px-3 py-2 text-xs text-rag-red-soft hover:bg-rag-red/10">
               {pending ? "Deleting…" : "Confirm delete"}

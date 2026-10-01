@@ -14,6 +14,7 @@ import {
   type ComplaintRecord,
   type ComplaintRelationship,
 } from "@/lib/complaints/types";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 export default function EditComplaintForm({
   complaint,
@@ -31,7 +32,7 @@ export default function EditComplaintForm({
   useEffect(() => { if (state.ok && !pending) flash(); }, [state, pending, flash]);
 
   return (
-    <form action={formAction} className="space-y-5" onChange={reset}>
+    <form onSubmit={submitKeepingTyped(formAction)} className="space-y-5" onChange={reset}>
       <input type="hidden" name="complaint_id" value={complaint.id} />
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">

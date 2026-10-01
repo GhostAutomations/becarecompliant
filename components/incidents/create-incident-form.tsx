@@ -6,6 +6,7 @@ import { createIncident } from "@/lib/incidents/actions";
 import { IDLE_STATE } from "@/lib/forms";
 import IncidentFields from "./incident-fields";
 import { useBranchWord } from "@/components/branches/branch-word";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 export default function CreateIncidentForm({
   branches,
@@ -29,7 +30,7 @@ export default function CreateIncidentForm({
   const [branchId, setBranchId] = useState(branches.length === 1 ? branches[0].id : "");
 
   return (
-    <form action={formAction} className="space-y-6">
+    <form onSubmit={submitKeepingTyped(formAction)} className="space-y-6">
       <div>
         <label htmlFor="branch_id" className="form-label">{bw.one} *</label>
         <select

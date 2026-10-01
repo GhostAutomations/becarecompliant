@@ -2104,6 +2104,14 @@ happens to Acme once Thistle is real.
 - **New department: Maintenance.** Scope to be talked through with Phil before anything is built.
 - **Manager sign off.** Scope to be talked through with Phil before anything is built.
 - **A demo account.** Scope to be talked through with Phil before anything is built.
+- **A refused save never wipes what was typed: check every form (added 2026-10-01, Phil).** Standing rule
+  from now on: on any form or data entry point (founder screens, every company, forms built in the form
+  builder, new company, new service user, new person, everything), when a required field is missing or a
+  save is refused, the message shows and everything already entered stays. Audit every form on the site,
+  fix the ones that lose data (DEF-091 and DEF-098 were this bug: a React 19 form posted through
+  action={} is reset when the action finishes, error or not), and test each one with a refused save.
+  Starting point 1 Oct: the shared ActionForm is already safe (34 screens use it); 60 files post a form
+  straight through action={} and each needs checking.
 - **Readiness per branch (added 2026-10-01, Phil, after Thistle's two CIW reports: Cardiff and Gwent are
   inspected as separate services).** Agreed by popup, next after the demo tests: readiness worked out per
   branch; dashboard tile a row per branch with Well-being, Care and Support, Leadership and Management

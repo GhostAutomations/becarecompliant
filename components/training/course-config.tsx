@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { IDLE_STATE } from "@/lib/forms";
 import { saveCourse } from "@/lib/training/actions";
 import type { TrainingCourse } from "@/lib/training/data";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 function CourseRow({ course }: { course: TrainingCourse | null }) {
   const router = useRouter();
@@ -16,7 +17,7 @@ function CourseRow({ course }: { course: TrainingCourse | null }) {
   }, [state.ok, router]);
 
   return (
-    <form action={formAction} className="flex flex-wrap items-end gap-3 border-t border-white/5 py-3">
+    <form onSubmit={submitKeepingTyped(formAction)} className="flex flex-wrap items-end gap-3 border-t border-white/5 py-3">
       {course ? <input type="hidden" name="course_id" value={course.id} /> : null}
       <div className="min-w-[12rem] flex-1">
         {isNew ? <label className="form-label">New course</label> : null}

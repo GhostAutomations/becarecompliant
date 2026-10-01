@@ -7,6 +7,7 @@ import { createLog, updateLog, saveLogDraft } from "@/lib/on-call/actions";
 import { IDLE_STATE } from "@/lib/forms";
 import type { BranchOption, OnCallLog, RotaScope } from "@/lib/on-call/types";
 import { useBranchWord } from "@/components/branches/branch-word";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 type ShiftChoice = { value: string; label: string };
 
@@ -82,7 +83,7 @@ export default function LogForm({
   }
 
   return (
-    <form id="oncall-log-form" ref={formRef} action={formAction} onChange={onChange} className="space-y-5">
+    <form id="oncall-log-form" ref={formRef} onSubmit={submitKeepingTyped(formAction)} onChange={onChange} className="space-y-5">
       {editing ? <input type="hidden" name="id" value={log.id} /> : null}
       {editing ? <input type="hidden" name="finalise" ref={finaliseRef} defaultValue="no" /> : null}
       <input type="hidden" name="scope" value={scope} />

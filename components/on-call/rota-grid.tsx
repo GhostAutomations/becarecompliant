@@ -8,6 +8,7 @@ import { IDLE_STATE } from "@/lib/forms";
 import { dayHeading } from "@/lib/on-call/format";
 import type { BranchOption, PersonOption, RotaCell, RotaScope, RotaWeek } from "@/lib/on-call/types";
 import { useBranchWord } from "@/components/branches/branch-word";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 type Cells = Record<string, RotaCell>;
 const SLOTS: Array<{ key: "am" | "pm"; label: string }> = [
@@ -182,7 +183,7 @@ function ScopeToggle({ scope }: { scope: RotaScope }) {
   const bw = useBranchWord();
   const [, formAction, pending] = useActionState(setRotaScope, IDLE_STATE);
   return (
-    <form action={formAction} className="inline-flex overflow-hidden rounded-lg border border-white/15">
+    <form onSubmit={submitKeepingTyped(formAction)} className="inline-flex overflow-hidden rounded-lg border border-white/15">
       {(["company", "branch"] as RotaScope[]).map((s) => (
         <button
           key={s}

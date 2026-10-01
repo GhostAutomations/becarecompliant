@@ -10,6 +10,7 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { addInspectionNotice, setInspectionNoticeResolved } from "@/lib/framework/notice-actions";
 import { IDLE_STATE } from "@/lib/forms";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 export type NoticeRow = {
   id: string;
@@ -83,7 +84,7 @@ export default function NoticesPanel({
       </div>
 
       {adding ? (
-        <form ref={formRef} action={action} className="mt-4 grid gap-3 sm:grid-cols-2">
+        <form ref={formRef} onSubmit={submitKeepingTyped(action)} className="mt-4 grid gap-3 sm:grid-cols-2">
           <div>
             <label htmlFor="n_kind" className="form-label">Kind</label>
             <select id="n_kind" name="kind" required defaultValue="">
@@ -156,7 +157,7 @@ export default function NoticesPanel({
                 </span>
               </div>
               <p className="mt-1 whitespace-pre-wrap">{n.description}</p>
-              <form action={setInspectionNoticeResolved} className="mt-2">
+              <form onSubmit={submitKeepingTyped(setInspectionNoticeResolved)} className="mt-2">
                 <input type="hidden" name="id" value={n.id} />
                 <input type="hidden" name="resolved_on" value={n.resolved_on ? "" : todayIso()} />
                 <button type="submit" className="text-xs font-semibold text-gold-300 hover:text-gold-200">

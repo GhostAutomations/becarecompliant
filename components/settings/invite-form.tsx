@@ -1,10 +1,11 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import { inviteUser } from "@/app/(app)/settings/actions";
 import { IDLE_STATE } from "@/lib/forms";
 import { picksABranch, mayChooseAllBranches, ALL_BRANCHES } from "@/lib/people/roles";
 import { useBranchWord } from "@/components/branches/branch-word";
+import { submitKeepingTyped, useClearOnSuccess } from "@/components/forms/keep-typed";
 
 type BranchOption = { id: string; name: string; kind: string };
 /** value is what the form posts ("supervisor", or "custom:<id>"); baseRole is the built-in role
@@ -20,6 +21,8 @@ export function InviteForm({
 }) {
   const bw = useBranchWord();
   const [state, formAction, pending] = useActionState(inviteUser, IDLE_STATE);
+  const formRef = useRef<HTMLFormElement>(null);
+  useClearOnSuccess(formRef, state, (s) => Boolean(s.ok));
   /* THE BRANCH FIELD WAS TELLING A LIE (Phil, 2026-08-19). A Responsible Individual and a
      Registered Manager are company wide in the database — is_company_wide covers both, so they
      reach every branch whatever is picked here. Forcing a branch implied they belonged to one,
@@ -36,7 +39,7 @@ export function InviteForm({
   const noBranch = !picksABranch(baseRole);
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form ref={formRef} onSubmit={submitKeepingTyped(formAction)} className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="full_name" className="form-label">

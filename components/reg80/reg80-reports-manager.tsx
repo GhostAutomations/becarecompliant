@@ -7,6 +7,7 @@ import { IDLE_STATE } from "@/lib/forms";
 import { deleteReg80Reviews } from "@/lib/reg80/actions";
 import type { Reg80ReviewListItem } from "@/lib/reg80/data";
 import { useBranchWord } from "@/components/branches/branch-word";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 function fmtDate(v: string | null): string {
   if (!v) return "";
@@ -107,7 +108,7 @@ export default function Reg80ReportsManager({
       {confirming ? (
         <div className="glass-card flex flex-wrap items-center gap-3 border border-rag-red/30 p-3">
           <span className="text-sm text-white/80">Delete {selected.size} report(s)? This cannot be undone.</span>
-          <form action={action} className="ml-auto flex items-center gap-2">
+          <form onSubmit={submitKeepingTyped(action)} className="ml-auto flex items-center gap-2">
             <input type="hidden" name="ids" value={[...selected].join(",")} />
             <button
               type="submit"

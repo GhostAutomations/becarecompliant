@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { useSavedFlash } from "@/lib/use-saved-flash";
 import { uploadCarePlan, getCarePlanUrl } from "@/lib/service-users/actions";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 /** Care Plan document upload + view for a service user (drill-down and Setup form). */
 export default function CarePlanUpload({
@@ -44,7 +45,7 @@ export default function CarePlanUpload({
           : "No care plan uploaded yet."}
       </p>
       {editable ? (
-        <form action={action} className="flex flex-wrap items-center gap-3" onChange={reset}>
+        <form onSubmit={submitKeepingTyped(action)} className="flex flex-wrap items-center gap-3" onChange={reset}>
           <input type="hidden" name="service_user_id" value={serviceUserId} />
           <input
             type="file"

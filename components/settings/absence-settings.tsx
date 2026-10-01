@@ -32,6 +32,7 @@ import {
 import { useSavedFlash } from "@/lib/use-saved-flash";
 import { AiIcon } from "@/components/ai-icon";
 import { STAGE_ACTIONS, isStageAction } from "@/lib/absence/stage-actions";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 type Row = Record<string, string | number>;
 
@@ -314,7 +315,7 @@ export default function AbsenceSettings({
             : "No policy uploaded yet."}
         </p>
 
-        <form action={uploadAction} className="mt-3 flex flex-wrap items-center gap-3">
+        <form onSubmit={submitKeepingTyped(uploadAction)} className="mt-3 flex flex-wrap items-center gap-3">
           <label htmlFor="policy" className="btn-outline cursor-pointer px-3 py-2 text-sm">
             Choose PDF
           </label>

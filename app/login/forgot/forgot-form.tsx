@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import { requestPasswordReset } from "../actions";
 import { IDLE_STATE } from "@/lib/forms";
 import { RESET_THROTTLE_MINUTES } from "@/lib/auth/password-reset-rules";
+import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
 /**
  * "Forgot your password?" form.
@@ -62,7 +63,7 @@ export function ForgotForm({ notice, buttonLabel }: { notice?: string; buttonLab
   }
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form onSubmit={submitKeepingTyped(formAction)} className="space-y-5">
       {notice ? (
         <p role="status" className="rounded-xl border border-gold-400/40 bg-gold-400/15 px-3.5 py-2.5 text-sm text-gold-300">
           {notice}

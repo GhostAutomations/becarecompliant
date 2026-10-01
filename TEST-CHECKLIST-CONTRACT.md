@@ -256,10 +256,12 @@ answers once (a 9 out of 5 refused), invites refused inside a demo. Still to tes
 - DM6 Extend by 1 day, then End now: the demo login lands on "Your demo has ended" with "Tell us
   what you thought". Answer the survey: all seven scores needed; answers show on the founder page.
   1 Oct (ZZ TEST DM10): Extend by 1 day moved the end from Thu 8 to Fri 9 Oct, PASS. End now: founder page "Ended Thursday 1 October, deleted Thursday 15 October"; Phil's Safari moved to "Your demo has ended" by itself, PASS. Survey answered, answers on the founder page (average 3.2), PASS. Phil: the "3 of 5" text beside the stars made the row jump, removed from the shared stars. The missing score refusal was not tried: answers reset in the database to retest.
+  DM6 PASS 1 Oct after deploy: a missing score refused ("Give \"How likely you are to sign up\" a score from 1 to 5."), stars and typed text kept, row still when clicking; resubmitted, answers on the founder page 14:13, average 4.2.
 - DM7 Survey from 2 days before the end: the bar shows "Tell us what you thought".
   PASS 1 Oct (Phil in Safari as Dee, end date moved to 2 Oct in the database; list showed "Ends soon").
 - DM8 The morning run (07:00 London) after the end: one survey email with a button, to a login that
   has not answered, and never twice.
+  Set up 1 Oct (Phil's OK): Test Client 2 ended at about 14:15 with no answers; ZZ TEST DM10 ended and answered. Check Resend after 07:00 on 2 Oct: one survey email to ppdavies+demo@gmail.com, none to ppdavies+dm10@gmail.com; and none to either on 3 Oct.
 - DM9 Delete now (type DELETE): company and login gone, usage and feedback still on the demo page.
   PASS 1 Oct (Claude in Chrome, Test Client): page says Deleted, usage kept (1 sign in, 2 min, Dashboard
   68%, Service Users 32%); database: company, people, evidence, sign in account and profile all gone.
