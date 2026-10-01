@@ -238,6 +238,9 @@ answers once (a 9 out of 5 refused), invites refused inside a demo. Still to tes
 
 - DM1 Founder > Demos: set up a demo for a test client (your own +demo address, a password, blank
   days). Lands on the demo page with "The demo is ready"; Founder > Companies does not list it.
+  PART PASS 1 Oct: demo built (3 branches, 50 people, 40 service users, 420 checks, ends 8 Oct), not
+  in Founder > Companies. The first login was refused (DEF-093, leaked password); added again by
+  Add another login, now a Company Admin with 5 AI credits. Retest of the refusal message after deploy.
 - DM2 Sign in as the demo login (another browser): straight to the dashboard, no agreement; gold
   "Demo account" bar with the end date and "AI: 5 of 5 left"; three branches, about 50 people and
   40 service users, a green, amber and red mix; evidence opens as a PDF.
@@ -253,6 +256,12 @@ answers once (a 9 out of 5 refused), invites refused inside a demo. Still to tes
   has not answered, and never twice.
 - DM9 Delete now (type DELETE): company and login gone, usage and feedback still on the demo page.
 - DM10 Trial requests: "Set up a demo for <name>" opens Demos with the details filled in.
+- DM11 (new) Try the AI: the demo bar and the dashboard AI tile open Try the AI, with seven AI features,
+  each opening a sample record that is ready for it; the credits left are right.
+- DM12 (new) Sample data: dashboard about 85% in date with 4 overdue, CIW readiness mostly on track,
+  PQS mostly green, Planner shows this week, policies and training up to date figures, on call shows two
+  open follow ups, recent activity filled, 2 Return to Works waiting, no billing banner, SMS Off.
+- DM13 (new) A refused password (one on the leaked lists) is explained in plain English and nothing is built.
 
 ## Invitation links (DEF-088, DEF-089)
 

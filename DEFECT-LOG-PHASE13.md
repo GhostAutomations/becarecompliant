@@ -2501,3 +2501,19 @@ take the intervals from the deal (dealIntervals, pure, 1 test): here £250.00 a 
 - Cause: the sign-in service refused the password because it appears in leaked password lists (leaked password protection is on). createDemo built the company first, made the login last, and threw the reason away.
 - Fix: the sign-in account is now made first, so a refused password stops the form before anything is built and the form keeps what was typed. Later failures remove the account. Refusals are explained in plain English (friendlyLoginError, tested). The reason is shown on the demo page and stored in the audit entry (login_error). A hint under both password boxes says leaked passwords are refused.
 - Status: fixed, awaiting push and retest.
+
+## DEF-094: library forms name Thistle Care in every new company
+- Found: 1 Oct 2026, building the demo sample data. The founder form library (form_templates) has "Thistle Care" in the wording of Spot Check, Supervision and Probation Review, so every company seeded from it (Bevan, House Test, Refuse Test, the demo) shows Thistle's name in those questions.
+- Demo: fixed in the demo seed (0359 replaces it with "Demo Care Company").
+- Customers: NOT fixed yet. Needs Phil's decision on the template wording.
+
+## DEF-095: the demo company looked like a failing provider
+- Found: DM2, 1 Oct 2026 (Phil): CIW readiness Action needed everywhere, 34 overdue, every Return to Work overdue, PQS all 0%, nothing in Planner, policies, training, on call or recent activity.
+- Cause: the first seed gave each check one completion and no history (so the PQS walk scored every cycle late), picked the first option of every choice question (so satisfaction answers were all No and supervisions said Yes to safeguarding concerns), left every Return to Work undone and seeded nothing for training, policies, outcomes, planner, on call or activity.
+- Fix (0359, Phil's popup: good with a few problems): nine months of on time history per check, about 89% green, 10% amber, exactly 4 overdue; sensible answers (good answer to each question, signatures); training, SCW numbers, DBS dates, outcomes, four written policies issued and mostly signed, 6 of 8 Return to Works done, complaints and incidents handled on time, an on call fortnight with two follow ups open, nine planner bookings for the demo login, recent activity. Dry run: 1,436 pieces of Evidence in 4.5 seconds.
+- Status: fixed, awaiting push and a fresh demo.
+
+## DEF-096: demo dashboard showed billing and the company's AI credits
+- Found: DM2, 1 Oct 2026. "Billing is not set up, 1 more branch" banner, AI credits tile 0 used n/a left, SMS n/a.
+- Fix: no billing banner in a demo; the AI tile shows the login's own credits and opens Try the AI; the SMS tile says Off, In the demo.
+- Status: fixed, awaiting push.

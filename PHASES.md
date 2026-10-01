@@ -3907,3 +3907,11 @@ no invites or roles in a demo), 0357 (sample data), 0358 (demo linked to a trial
 Founder > Demos: set up, add login, extend, end now, delete now, usage and survey answers.
 Logins stop at the end date, deleted 14 days later by the 07:00 run, which also emails the survey.
 Also fixed DEF-088 and DEF-089 (Vera's invitation at Thistle).
+
+2026-10-01: DEMO, ROUND 2 after Phil's first look (DM2). DEF-093 (refused password explained, login
+made first), DEF-095 (sample data rebuilt by 0359 to look like a good company with a few problems:
+history behind every check, training, policies, outcomes, planner, on call, activity; 4 overdue),
+DEF-096 (no billing banner, AI tile shows the login's credits, SMS Off in a demo), and the new
+Try the AI page (/demo/try-ai, linked from the demo bar and the AI tile; Phil's popup: build it now).
+DEF-094 logged: the form library names Thistle Care in three forms for every company (decision needed).
+Tests DM11 to DM13 added.

@@ -10,6 +10,7 @@ import { rebakeFormFieldOptions } from "@/lib/forms/rebake-options";
 import type { ActionState } from "@/lib/forms";
 import { DEMO_COMPANY_NAME, demoEndsAt, parseDemoDays } from "@/lib/demo/rules";
 import { attachDemoLogin, createDemoLogin, createDemoUser, demoLoginProblem, discardDemoUser, purgeDemo } from "@/lib/demo/manage";
+import { finishDemoPolicies } from "@/lib/demo/policies";
 
 /**
  * FOUNDER > DEMOS (0356, Phil 2026-09-30). A fresh Demo Care Company Limited per client, filled
@@ -84,10 +85,16 @@ export async function createDemo(_prev: ActionState, formData: FormData): Promis
     return { error: `The demo could not be recorded: ${demoErr?.message ?? "unknown"}` };
   }
 
-  const { data: seeded, error: seedErr } = await supabase.rpc("seed_demo_company", { p_company: companyId });
-  await rebakeFormFieldOptions(companyId);
-
+  // The login is attached BEFORE the sample data, because the planner bookings in it are given to
+  // the demo login and only somebody in the company can be given a booking.
   const login = await attachDemoLogin({ demoId: demo.id as string, companyId, userId: account.userId, fullName, email });
+
+  const { data: seeded, error: seedErr } = await supabase.rpc("seed_demo_company", {
+    p_company: companyId,
+    p_conductor: login.ok ? account.userId : null,
+  });
+  await rebakeFormFieldOptions(companyId);
+  const policyProblems = seedErr ? [] : await finishDemoPolicies(companyId, user.id);
 
   await writeAudit({
     companyId: null,
@@ -98,7 +105,7 @@ export async function createDemo(_prev: ActionState, formData: FormData): Promis
     entityType: "demo",
     entityId: demo.id as string,
     summary: `Set up a ${days.days} day demo for ${clientName}`,
-    metadata: { company_id: companyId, days: days.days, login_email: email, seeded: seeded ?? null, seed_error: seedErr?.message ?? null, login_ok: login.ok, login_error: login.ok ? null : login.error },
+    metadata: { company_id: companyId, days: days.days, login_email: email, seeded: seeded ?? null, seed_error: seedErr?.message ?? null, policy_problems: policyProblems, login_ok: login.ok, login_error: login.ok ? null : login.error },
   });
 
   const flag = !login.ok ? `?problem=login&why=${encodeURIComponent(login.error)}` : seedErr ? "?problem=seed" : "?created=1";

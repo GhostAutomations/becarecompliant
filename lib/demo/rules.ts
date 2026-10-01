@@ -7,6 +7,9 @@
  */
 
 export const DEMO_COMPANY_NAME = "Demo Care Company Limited";
+/** The demo only page that shows every AI button with a short how to (Phil, 2026-10-01). */
+export const DEMO_TRY_AI_PATH = "/demo/try-ai";
+
 export const DEFAULT_DEMO_DAYS = 7;
 export const MAX_DEMO_DAYS = 365;
 export const DEMO_GRACE_DAYS = 14;
@@ -76,6 +79,7 @@ const AREAS: Record<string, string> = {
   settings: "settings",
   my: "my_area",
   "demo-feedback": "feedback",
+  demo: "try_ai",
 };
 
 export function demoAreaFor(pathname: string): string {
@@ -106,6 +110,7 @@ export const DEMO_AREA_LABELS: Record<string, string> = {
   settings: "Settings",
   my_area: "My area",
   feedback: "Feedback",
+  try_ai: "Try the AI",
   other: "Other",
 };
 

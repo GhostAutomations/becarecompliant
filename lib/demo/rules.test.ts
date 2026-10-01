@@ -112,3 +112,7 @@ test("friendlyLoginError explains a refused password or email in plain English",
   assert.equal(friendlyLoginError("Database error"), "The login could not be created: Database error");
   assert.equal(friendlyLoginError(null), "The login could not be created. Try again.");
 });
+
+test("demoAreaFor counts the Try the AI page as its own part of the app", () => {
+  assert.equal(demoAreaFor("/demo/try-ai"), "try_ai");
+});

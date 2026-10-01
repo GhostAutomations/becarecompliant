@@ -20,7 +20,7 @@ import { trialDaysLabel } from "@/lib/billing/trial";
 import { trialNotice } from "@/lib/billing/trial-limits";
 import { getCompanyDemo, getMyDemoLogin } from "@/lib/demo/data";
 import DemoHeartbeat from "@/components/demo/demo-heartbeat";
-import { formatDemoDate } from "@/lib/demo/rules";
+import { formatDemoDate, DEMO_TRY_AI_PATH } from "@/lib/demo/rules";
 
 export default async function AppLayout({
   children,
@@ -283,6 +283,15 @@ export default async function AppLayout({
               Everything here is made up. Ends {formatDemoDate(demo.endsAt)}
               {demoLogin ? `, AI: ${Math.max(0, demoLogin.aiAllowance - demoLogin.aiUsed)} of ${demoLogin.aiAllowance} left` : ""}.
             </span>
+            {demoLogin ? (
+              /* Phil, 2026-10-01: encourage them to use their credits, on a page made for it. */
+              <Link
+                href={DEMO_TRY_AI_PATH}
+                className="font-medium text-gold-200 underline decoration-gold-200/40 hover:text-white"
+              >
+                Try the AI
+              </Link>
+            ) : null}
             {demoSurveyToken ? (
               <Link
                 href={`/demo-feedback/${demoSurveyToken}?from=app`}

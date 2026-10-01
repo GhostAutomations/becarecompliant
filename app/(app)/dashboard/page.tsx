@@ -43,6 +43,8 @@ import {
   type ComplianceScore,
 } from "@/lib/dashboard/data";
 import { getBranchTerms } from "@/lib/branches/company-word";
+import { getCompanyDemo, getMyDemoLogin } from "@/lib/demo/data";
+import { DEMO_TRY_AI_PATH } from "@/lib/demo/rules";
 
 /**
  * The dashboard, rebuilt to Phil's Mission Control design (2026-07-29).
@@ -640,7 +642,11 @@ export default async function DashboardPage() {
   /* Billing attention (2026-08-20). Only an Admin sees it: it is the only role that can do
      anything about it, and the support session is excluded because the founder is not the
      person to tell. */
-  const showsBilling = profile.role === "company_admin" && !profile.actingAsCompanyId;
+  /* A DEMO (Phil, 2026-10-01): "I don't think we need anything to do with billing in the demo
+     account". Nobody in a demo can pay, and the founder sets the demo up, so it is never asked. */
+  const demo = await getCompanyDemo(companyId);
+  const demoLogin = demo ? await getMyDemoLogin(user.id) : null;
+  const showsBilling = profile.role === "company_admin" && !profile.actingAsCompanyId && !demo;
   let billingMessage: string | null = null;
   if (showsBilling) {
     const [{ data: co }, { data: bill }, { data: userRows }, { data: branchRows }] =
@@ -957,7 +963,15 @@ export default async function DashboardPage() {
           {/* SMS and AI, in the dead space Holiday and Complaints were carrying (Phil,
               2026-07-30). Both count down against a monthly allowance by tier; SMS got one on
               31 Jul, which is what took this tile from red to live. */}
-          {spend ? (
+          {demo ? (
+            /* A demo sends no SMS at all (0356), so it says so rather than "n/a". */
+            <SplitTile
+              label="SMS"
+              icon="policy"
+              iconTone="blue"
+              pairs={[{ value: "Off", caption: "In the demo" }]}
+            />
+          ) : spend ? (
             /* LIVE (2026-07-31). The tile was red while sending had no allowance to count down
                from. It has one now, so it reads like AI credits: sent this month, and left. */
             <SplitTile
@@ -1069,7 +1083,24 @@ export default async function DashboardPage() {
               },
             ]}
           />
-          {spend ? (
+          {demo && demoLogin ? (
+            /* A demo login's own five credits (0356), not the company's monthly grant, and the
+               tile opens the Try the AI page rather than Billing, which a demo cannot see. */
+            <SplitTile
+              href={DEMO_TRY_AI_PATH}
+              label="AI credits"
+              icon="training"
+              iconTone="indigo"
+              pairs={[
+                { value: demoLogin.aiUsed, caption: "Used" },
+                {
+                  value: Math.max(0, demoLogin.aiAllowance - demoLogin.aiUsed),
+                  caption: "Left",
+                  tone: demoLogin.aiUsed >= demoLogin.aiAllowance ? "red" : "green",
+                },
+              ]}
+            />
+          ) : spend ? (
             <SplitTile
               href="/settings/billing"
               label="AI credits"
