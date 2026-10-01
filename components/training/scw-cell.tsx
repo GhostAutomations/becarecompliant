@@ -114,7 +114,7 @@ export default function ScwCell({
           ? `Expires ${fmt(renewal)}. The renewal must reach Social Care Wales by ${fmt(scwApplyBy(renewal))}`
           : `Expires ${fmt(renewal)}`
     : status === "missing"
-      ? "6 months or more in post with no registration number. The PQS counts this"
+      ? "In role over 6 months, update ASAP"
       : "Under 6 months in post";
   /* Just the number on the matrix (Phil, 2026-10-01: "don't put the date under the number"). The
      number turns amber within 90 days and red once expired, in the same strong RAG colours as the
