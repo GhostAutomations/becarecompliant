@@ -2539,4 +2539,4 @@ take the intervals from the deal (dealIntervals, pure, 1 test): here £250.00 a 
 ## DEF-100: Out of AI credits in a demo told them to top up in Billing
 - Found: 1 Oct 2026, DM4 sixth use as the ZZ TEST DM10 demo login. Refused correctly, but the message was the customer one: "Top up in Billing to keep using AI features, or wait for next month's allowance". A demo has no Billing and no monthly allowance.
 - Fix: spendAiCredit returns the refusal to show; inside a demo it is "You have used all the AI credits in this demo. In your own account AI credits come with the plan each month, so talk to us when you are ready." All four AI spend points (AI helper, complaints x2, absence settings) use it.
-- Status: fixed, to retest live with DEF-099.
+- Status: fixed and retested live 1 Oct (Claude in Chrome, ZZ TEST DM10 login): last credit used, bar 0 of 5, next press shows the demo message.

@@ -2104,6 +2104,13 @@ happens to Acme once Thistle is real.
 - **New department: Maintenance.** Scope to be talked through with Phil before anything is built.
 - **Manager sign off.** Scope to be talked through with Phil before anything is built.
 - **A demo account.** Scope to be talked through with Phil before anything is built.
+- **Readiness per branch (added 2026-10-01, Phil, after Thistle's two CIW reports: Cardiff and Gwent are
+  inspected as separate services).** Agreed by popup, next after the demo tests: readiness worked out per
+  branch; dashboard tile a row per branch with Well-being, Care and Support, Leadership and Management
+  (like the PQS tiles); a branch picker on the Readiness page; each branch's last CIW inspection recorded
+  (date, rating per theme: Excellent, Good, Requires improvement, Requires significant improvement) and
+  shown beside the live status; CIW notices recorded against the branch they were issued to; a per branch
+  setting "Registered with CIW as its own service", on by default, so the office branch is left out.
 
 # OPERATION NEW DAWN — Phase 14 onwards
 
