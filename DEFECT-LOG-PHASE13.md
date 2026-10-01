@@ -2517,3 +2517,9 @@ take the intervals from the deal (dealIntervals, pure, 1 test): here £250.00 a 
 - Found: DM2, 1 Oct 2026. "Billing is not set up, 1 more branch" banner, AI credits tile 0 used n/a left, SMS n/a.
 - Fix: no billing banner in a demo; the AI tile shows the login's own credits and opens Try the AI; the SMS tile says Off, In the demo.
 - Status: fixed, awaiting push.
+
+## DEF-097: Social Care Wales registration numbers could not be seen or entered
+- Found: 1 Oct 2026, Thistle asked where their SCW registration details are. Phil could not find them on Training, the compliance matrix, the person record, Manage record or Add person.
+- Cause: the number has been stored on the Person since 0060 and is used by the PQS report, the Evidence PDF heading, Reg 80 and the SAR export, but only the CSV import could set it. No screen showed or edited it. Thistle's 12 numbers were safe (12 of 13 active staff; the 13th started 16 Sep 2026, so not counted yet).
+- Fix (Phil's popup): Social Care Wales registration number on Add person and Manage record; shown under the name on the person's record (amber "No ... number" once 6 months in post); an SCW number column on the Training matrix, click to type or correct it (Missing in amber at 6+ months, Not yet before). Welsh companies only (regulator not CQC). lib/people/scw.ts, tested. Renewal date tracking is a later item, after researching Social Care Wales' current rules.
+- Status: fixed, awaiting push and test (SC1 to SC4).

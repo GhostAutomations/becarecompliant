@@ -278,3 +278,9 @@ answers once (a 9 out of 5 refused), invites refused inside a demo. Still to tes
   used", Send me a new link sends a fresh invitation (not a reset) to a login still waiting.
 - IV2 Settings, Roles users and access, a login still waiting: "Invited, not accepted yet" and
   "Resend invite", no "Enable this login".
+
+## Social Care Wales registration number (DEF-097, 1 Oct 2026)
+- SC1 Thistle Training matrix: SCW number column next to Carer shows the 12 numbers; Damilola shows Not yet.
+- SC2 Click a number on the matrix (on a test company, not Thistle), change it, Save: it updates in place and on the person's record.
+- SC3 Person record: the number shows under the name; Manage record has the field and saving keeps it.
+- SC4 Add person has the field; a CQC company shows none of this.

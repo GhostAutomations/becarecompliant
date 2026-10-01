@@ -23,6 +23,7 @@ export default function CreatePersonForm({
   historyFlag,
   trackerBoxes,
   historyBoxes,
+  showScw = false,
 }: {
   branches: BranchLite[];
   users: ProfileLite[];
@@ -32,6 +33,8 @@ export default function CreatePersonForm({
   historyFlag: string;
   trackerBoxes: TrackerBoxView[];
   historyBoxes: HistoryBoxView[];
+  /** Welsh companies (CIW): ask for the Social Care Wales registration number (DEF-097). */
+  showScw?: boolean;
 }) {
   const bw = useBranchWord();
   const [state, formAction, pending] = useActionState(createPerson, IDLE_STATE);
@@ -174,6 +177,14 @@ export default function CreatePersonForm({
           <label htmlFor="mobile" className="form-label">Mobile *</label>
           <input id="mobile" name="mobile" required />
         </div>
+
+        {showScw ? (
+          <div>
+            <label htmlFor="scw_registration_number" className="form-label">Social Care Wales registration number</label>
+            <input id="scw_registration_number" name="scw_registration_number" maxLength={20} autoComplete="off" />
+            <p className="form-hint">Leave blank if they are not registered yet. The PQS counts anyone 6 months in post without one.</p>
+          </div>
+        ) : null}
 
         <div>
           <span className="form-label">Supervisors</span>

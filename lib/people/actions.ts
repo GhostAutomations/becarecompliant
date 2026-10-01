@@ -62,6 +62,7 @@ import {
 } from "@/lib/people/deletable";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { seniorMayDo } from "@/lib/senior/access";
+import { cleanScwNumber } from "@/lib/people/scw";
 import { seniorListAfter } from "@/lib/auth/carer-login";
 import { getColumnLabels, getSupervisionCycleMode } from "@/lib/people/data";
 import { intervalUnit } from "@/lib/people/interval-unit";
@@ -98,11 +99,14 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
   }
 
   const start_date = isoDateOrNull(formData.get("start_date"));
+  const scw = cleanScwNumber(formData.get("scw_registration_number"));
+  if (!scw.ok) return { error: scw.error };
 
   const supabase = await createClient();
   const { data: person, error } = await supabase
     .from("people")
     .insert({
+      scw_registration_number: scw.value,
       company_id: companyId,
       branch_id,
       full_name,
@@ -485,6 +489,9 @@ export async function updatePerson(_prev: ActionState, formData: FormData): Prom
   const startMoved = (before?.start_date ?? null) !== startDate;
   const newJobTitle = trimOrNull(formData.get("job_title"));
   const titleChanged = (before?.job_title ?? null) !== newJobTitle;
+  /* Only when the form carries the field (DEF-097): a form without it must not wipe the number. */
+  const scw = formData.has("scw_registration_number") ? cleanScwNumber(formData.get("scw_registration_number")) : null;
+  if (scw && !scw.ok) return { error: scw.error };
 
   const { error } = await supabase
     .from("people")
@@ -497,6 +504,7 @@ export async function updatePerson(_prev: ActionState, formData: FormData): Prom
       manager_id: trimOrNull(formData.get("manager_id")),
       team_leader_id: trimOrNull(formData.get("team_leader_id")),
       start_date: startDate,
+      ...(scw && scw.ok ? { scw_registration_number: scw.value } : {}),
     })
     .eq("id", personId);
   if (error) return { error: error.message };
@@ -593,6 +601,43 @@ export async function updatePerson(_prev: ActionState, formData: FormData): Prom
 
   revalidatePath(`/people/${personId}`);
   revalidatePath("/people");
+  return { ok: "Saved." };
+}
+
+/**
+ * The Social Care Wales registration number from the Training matrix (DEF-097, Phil 2026-10-01:
+ * like the column on his Monday board). Who may change it is the database's call (RLS on people),
+ * the same as Manage record.
+ */
+export async function updateScwNumber(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { user, profile } = await requireCompany();
+  const personId = String(formData.get("person_id") ?? "");
+  if (!personId) return { error: "Missing record." };
+  const scw = cleanScwNumber(formData.get("scw_registration_number"));
+  if (!scw.ok) return { error: scw.error };
+  const supabase = await createClient();
+  const { data: updated, error } = await supabase
+    .from("people")
+    .update({ scw_registration_number: scw.value })
+    .eq("id", personId)
+    .select("id, full_name, company_id")
+    .maybeSingle();
+  if (error) return { error: error.message };
+  if (!updated) return { error: "You cannot change this person's record." };
+  await writeAudit({
+    companyId: (updated.company_id as string) ?? profile.company_id ?? "",
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "person.updated",
+    entityType: "person",
+    entityId: personId,
+    summary: scw.value
+      ? `Set the Social Care Wales registration number for ${updated.full_name as string}`
+      : `Cleared the Social Care Wales registration number for ${updated.full_name as string}`,
+  });
+  revalidatePath("/people/training");
+  revalidatePath(`/people/${personId}`);
   return { ok: "Saved." };
 }
 

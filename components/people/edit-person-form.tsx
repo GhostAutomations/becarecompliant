@@ -12,10 +12,13 @@ export default function EditPersonForm({
   person,
   users,
   jobTitles,
+  showScw = false,
 }: {
   person: PersonRecord;
   users: UserLite[];
   jobTitles: JobTitle[];
+  /** Welsh companies (CIW): the Social Care Wales registration number (DEF-097). */
+  showScw?: boolean;
 }) {
   // One shared rule with Add a person (lib/people/roles.ts).
   const eligible = users.filter((u) => canBeLineManager(u.role));
@@ -97,6 +100,13 @@ export default function EditPersonForm({
           <label htmlFor="e_mobile" className="form-label">Mobile</label>
           <input id="e_mobile" name="mobile" defaultValue={person.mobile ?? ""} />
         </div>
+        {showScw ? (
+          <div>
+            <label htmlFor="e_scw" className="form-label">Social Care Wales registration number</label>
+            <input id="e_scw" name="scw_registration_number" maxLength={20} autoComplete="off" defaultValue={person.scw_registration_number ?? ""} />
+            <p className="form-hint">Leave blank if they are not registered yet. The PQS counts anyone 6 months in post without one.</p>
+          </div>
+        ) : null}
         <div>
           <label htmlFor="e_manager_id" className="form-label">Line manager</label>
           {/*

@@ -8,6 +8,8 @@ import type {
   Rag,
 } from "@/lib/training/data";
 import TrainingCellDialog from "@/components/training/training-cell-dialog";
+import ScwCell from "@/components/training/scw-cell";
+import { scwStatus } from "@/lib/people/scw";
 import BulkTrainingDialog from "@/components/training/bulk-training-dialog";
 import { canRecordTraining, canRecordTrainingAnywhere } from "@/lib/auth/manage-scope";
 import { HorizontalScrollbar } from "@/components/register/horizontal-scrollbar";
@@ -89,6 +91,7 @@ export default function TrainingMatrix({
   viewerRole,
   viewerBranchIds,
   initialSort,
+  showScw = false,
 }: {
   courses: TrainingCourse[];
   people: TrainingPerson[];
@@ -97,7 +100,10 @@ export default function TrainingMatrix({
   viewerBranchIds: string[];
   /** The name order this user chose last time, read from their profile by the page. */
   initialSort: SortMode;
+  /** Welsh companies: the Social Care Wales registration number column (DEF-097). */
+  showScw?: boolean;
 }) {
+  const scwToday = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
   const bw = useBranchWord();
   /*
    * TWO DIFFERENT QUESTIONS, and they used to be one boolean.
@@ -382,6 +388,7 @@ export default function TrainingMatrix({
             <thead>
               <tr>
                 <NameSortHeader label="Carer" mode={mode} onChange={setMode} />
+                {showScw ? <th title="Social Care Wales registration number">SCW number</th> : null}
                 {phases.map((g) => (
                   <th key={g.phase} title={`${g.courses.length} courses`}>
                     Phase {g.phase}
@@ -406,7 +413,7 @@ export default function TrainingMatrix({
                         {group.label}
                         <span className="matrix-group-count">{group.rows.length}</span>
                       </th>
-                      <td colSpan={courses.length + phases.length} />
+                      <td colSpan={courses.length + phases.length + (showScw ? 1 : 0)} />
                     </tr>
                   ) : null}
                   {group.rows.map((p) => {
@@ -419,6 +426,17 @@ export default function TrainingMatrix({
                   <td className={`col-carer ${hasExpired ? "training-expired" : ""}`}>
                     <div>{p.full_name}</div>
                   </td>
+                  {showScw ? (
+                    <td>
+                      <ScwCell
+                        personId={p.id}
+                        personName={p.full_name}
+                        number={p.scw_number}
+                        status={scwStatus(p.scw_number, p.start_date, scwToday)}
+                        editable={editable}
+                      />
+                    </td>
+                  ) : null}
                   {phases.map((g) => (
                     <td key={g.phase}>
                       <PhaseBar progress={phaseProgress(g.courses.map((c) => p.cells[c.id]))} />

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getRegulator } from "@/lib/complaints/data";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
@@ -70,6 +71,7 @@ export default async function NewPersonPage() {
           historyFlag={HISTORY_FLAG}
           trackerBoxes={trackers}
           historyBoxes={history}
+          showScw={(await getRegulator(profile.company_id)) !== "cqc"}
         />
       </div>
     </div>

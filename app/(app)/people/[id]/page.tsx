@@ -17,6 +17,8 @@ import UpdatesTile from "@/components/updates/updates-tile";
 import SubjectAccessExport from "@/components/records/subject-access-export";
 import { getRecordUpdates } from "@/lib/updates/data";
 import EditPersonForm from "@/components/people/edit-person-form";
+import { getRegulator } from "@/lib/complaints/data";
+import { scwStatus } from "@/lib/people/scw";
 import DeletePersonForm from "@/components/people/delete-person-form";
 import RecordBookTask from "@/components/planner/record-book-task";
 import { featureEnabled } from "@/lib/billing/tier";
@@ -166,6 +168,10 @@ export default async function PersonPage({
      compliance evidence, and evidence signed by the founder impersonating a manager is worse
      than no evidence. Until 2026-08-19 the buttons rendered, the form filled in, and the save
      was refused at the very end with "Not a member of this company" — after the work. */
+  /* SOCIAL CARE WALES REGISTRATION (DEF-097): Welsh companies only. */
+  const showScw = (await getRegulator(person.company_id as string)) !== "cqc";
+  const scwTodayIso = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
+  const scwState = scwStatus(person.scw_registration_number ?? null, person.start_date, scwTodayIso);
   const supportMode = Boolean(profile.actingAsCompanyId);
   const canComplete = COMPLETE_ROLES.includes(profile.role) && !supportMode;
   // The audit History timeline is Admins only (Founder + Company Admin).
@@ -572,6 +578,19 @@ export default async function PersonPage({
         <p className="page-subtitle mt-1.5 text-lg">
           {[person.job_title, person.branch_name, person.team].filter(Boolean).join(" · ") || "Staff record"}
         </p>
+        {showScw ? (
+          <p
+            className={`mt-1 text-sm ${
+              scwState === "registered" ? "text-white/60" : scwState === "missing" ? "text-rag-amber-soft" : "text-white/45"
+            }`}
+          >
+            {scwState === "registered"
+              ? `Social Care Wales registration: ${person.scw_registration_number}`
+              : scwState === "missing"
+                ? "No Social Care Wales registration number. Add it in Manage record."
+                : "Not registered with Social Care Wales yet (under 6 months in post)."}
+          </p>
+        ) : null}
       </div>
 
       {completed ? (
@@ -1000,7 +1019,7 @@ export default async function PersonPage({
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-white/50">
                 Details
               </h3>
-              <EditPersonForm person={person} users={users} jobTitles={jobTitles} />
+              <EditPersonForm person={person} users={users} jobTitles={jobTitles} showScw={showScw} />
             </section>
 
             {/* TRANSFER ALONE. The Supervisors picker that used to sit beside it wrote to

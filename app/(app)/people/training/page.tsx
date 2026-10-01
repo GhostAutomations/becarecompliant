@@ -8,6 +8,7 @@ import { listBranches } from "@/lib/people/data";
 import { callerBranchIds } from "@/lib/auth/branches";
 import { getTrainingMatrix } from "@/lib/training/data";
 import TrainingMatrix from "@/components/training/training-matrix";
+import { getRegulator } from "@/lib/complaints/data";
 
 export const metadata: Metadata = { title: "Training" };
 
@@ -55,6 +56,7 @@ export default async function TrainingPage() {
           initialSort={nameSort}
           viewerRole={profile.role}
           viewerBranchIds={viewerBranchIds}
+          showScw={(await getRegulator(companyId)) !== "cqc"}
         />
       </div>
     </div>
