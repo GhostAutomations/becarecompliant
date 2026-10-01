@@ -539,11 +539,6 @@ export default function TrainingMatrix({
         {" "}A booking under a cell is the date the training is arranged for. It does not make the
         course compliant: it counts as outstanding until the training itself is recorded.
         {canManage ? " Click any cell to record, book or update it." : ""}
-        {/* Said on the screen, not in a hover tip (Phil, 2026-10-01: "nothing happens when you
-            hover"). */}
-        {showScw
-          ? " SCW number: Missing means 6 months or more in post with no Social Care Wales registration number, which the PQS counts against you. Under 6 months means they are not counted yet."
-          : ""}
       </p>
 
       {bulkOpen ? (

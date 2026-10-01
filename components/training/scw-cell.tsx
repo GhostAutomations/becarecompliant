@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type MouseEvent as ReactMouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import ActionForm from "@/components/action-form";
@@ -28,6 +28,7 @@ export default function ScwCell({
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const close = () => setEditing(false);
   const done = () => {
     close();
@@ -87,30 +88,57 @@ export default function ScwCell({
 
   const text = number ?? (status === "missing" ? "Missing" : "Under 6 months");
   const tone = number ? "text-white/85" : status === "missing" ? "text-rag-amber-soft font-semibold" : "text-white/40";
-  const title = number
+  const reason = number
     ? `Social Care Wales registration ${number}`
     : status === "missing"
-      ? "6 months or more in post with no registration number: the PQS counts this"
+      ? "6 months or more in post with no registration number. The PQS counts this"
       : "Under 6 months in post";
+  const tip = editable ? `${reason}. Click to change.` : `${reason}.`;
+
+  /* SHOWN STRAIGHT AWAY on hover (Phil, 2026-10-01: the browser's own tip "doesn't pop up
+     instantly"). The same portalled tip as the PQS star (components/reports/star-tip.tsx). */
+  const hover = {
+    onMouseEnter: (e: ReactMouseEvent) => setPos({ x: e.clientX, y: e.clientY }),
+    onMouseMove: (e: ReactMouseEvent) => setPos({ x: e.clientX, y: e.clientY }),
+    onMouseLeave: () => setPos(null),
+  };
+  const tipEl =
+    pos && !editing && typeof document !== "undefined"
+      ? createPortal(
+          <span
+            className="pointer-events-none fixed z-[9999] w-64 -translate-x-1/2 -translate-y-full rounded-md bg-navy-950 px-2 py-1.5 text-xs font-normal leading-snug text-white/90 shadow-xl ring-1 ring-white/10"
+            style={{ left: pos.x, top: pos.y - 10 }}
+          >
+            {tip}
+          </span>,
+          document.body,
+        )
+      : null;
 
   if (!editable) {
     return (
-      <span className={`text-xs tabular-nums ${tone}`} title={title}>
+      <span className={`cursor-help text-xs tabular-nums ${tone}`} aria-label={tip} {...hover}>
         {text}
+        {tipEl}
       </span>
     );
   }
   return (
     <>
-    <button
-      type="button"
-      onClick={() => setEditing(true)}
-      className={`text-xs tabular-nums underline decoration-white/15 underline-offset-2 hover:decoration-white/60 ${tone}`}
-      title={`${title}. Click to change.`}
-    >
-      {text}
-    </button>
-    {dialog}
+      <button
+        type="button"
+        onClick={() => {
+          setPos(null);
+          setEditing(true);
+        }}
+        className={`text-xs tabular-nums underline decoration-white/15 underline-offset-2 hover:decoration-white/60 ${tone}`}
+        aria-label={tip}
+        {...hover}
+      >
+        {text}
+      </button>
+      {tipEl}
+      {dialog}
     </>
   );
 }
