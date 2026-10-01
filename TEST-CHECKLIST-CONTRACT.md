@@ -268,6 +268,9 @@ answers once (a 9 out of 5 refused), invites refused inside a demo. Still to tes
 - DM14 (new) Login email: on Test Client 2, Send login email (password typed again) sends one branded
   email with a Log in button, email, password, end date and five things to try; the password typed
   works. The Set up and Add another login tick boxes send the same email when saved.
+  PART PASS 1 Oct: sent and delivered (Resend, 11:48), branded, details and five tips right, reply to
+  hello@. Only a brief "Sent" flash showed, so the result line now stays (showOk). Still to check: log in
+  with the emailed password; the tick boxes.
 
 ## Invitation links (DEF-088, DEF-089)
 

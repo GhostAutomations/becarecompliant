@@ -186,6 +186,7 @@ export default async function DemoPage({
                     label="Send login email"
                     savingLabel="Sending…"
                     savedLabel="Sent"
+                    showOk
                     className="mt-3 space-y-3"
                   >
                     <div>
@@ -209,7 +210,7 @@ export default async function DemoPage({
           <div className="glass-card p-5">
             <h2 className="text-sm font-semibold text-white/80">Add another login</h2>
             <p className="mt-1 text-xs text-white/50">Each login has its own 5 AI credits and its own figures above.</p>
-            <ActionForm action={addDemoLogin} hidden={{ demo_id: demo.id }} label="Add login" savingLabel="Adding…" savedLabel="Added" className="mt-3 space-y-3">
+            <ActionForm action={addDemoLogin} hidden={{ demo_id: demo.id }} label="Add login" savingLabel="Adding…" savedLabel="Added" showOk className="mt-3 space-y-3">
               <div>
                 <label htmlFor="add_full_name" className="form-label">Their name *</label>
                 <input id="add_full_name" name="full_name" required />

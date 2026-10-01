@@ -38,6 +38,7 @@ export default function ActionForm({
   onDone,
   onDoneDelayMs = 1200,
   disabled = false,
+  showOk = false,
 }: {
   action: ServerAction;
   hidden?: Record<string, string>;
@@ -58,6 +59,10 @@ export default function ActionForm({
    *  stayed on the right away from limits and the drop down"). Opt in, so every existing
    *  inline form is untouched. */
   inlineTight?: boolean;
+  /** Also print the action's success message beside the button, as plain text, until the next
+   *  submit. Opt in, for actions whose result is worth reading, such as an email that went to a
+   *  named address (Phil, 2026-10-01: the "Sent" flash alone was missed). */
+  showOk?: boolean;
   /** Optional confirmation prompt shown before submit. */
   confirm?: string;
   /** Called after the success flash, e.g. to close the panel that contained the
@@ -182,6 +187,9 @@ export default function ActionForm({
           {btnLabel}
         </button>
         {state.error ? <span className="text-xs text-red-300">{state.error}</span> : null}
+        {showOk && state.ok && !pending && !state.error ? (
+          <span role="status" className="text-xs text-emerald-300">{state.ok}</span>
+        ) : null}
       </div>
 
       {/*

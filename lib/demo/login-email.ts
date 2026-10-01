@@ -53,6 +53,32 @@ export function demoLoginEmailHtml(opts: {
   });
 }
 
+export function demoLoginEmailText(opts: { fullName: string; email: string; password: string; endsAt: string }): string {
+  const first = opts.fullName.trim().split(/\s+/)[0] || "there";
+  return [
+    `Hi ${first},`,
+    "",
+    "Your own demo of Be Care Compliant is ready. Everything in it is made up, so click anything and try everything: nothing you do can affect a real person.",
+    "",
+    `Email: ${opts.email}`,
+    `Password: ${opts.password}`,
+    `Your demo ends: ${formatDemoDate(opts.endsAt)}`,
+    "",
+    `Log in: ${siteUrl()}/login`,
+    "",
+    "Getting the most from it",
+    "1. Start on the dashboard. One glance shows what is in date, due soon and overdue across three branches.",
+    "2. Click an overdue figure to go straight to the check, complete its form and watch the next due date set itself.",
+    "3. Open a person or a service user to see their checks, Evidence and history in one place.",
+    "4. Open Reports for the PQS report and inspection readiness, ready to hand to an inspector.",
+    `5. Press Try the AI in the gold bar at the top. You have ${DEMO_AI_PER_LOGIN} AI credits to spend on the things that save the most time.`,
+    "",
+    "Two days before your demo ends we will ask what you thought. It takes two minutes and helps us a great deal.",
+    "",
+    "Any questions, just reply to this email.",
+  ].join("\n");
+}
+
 /** Send it. Never throws; says why when it did not go. */
 export async function sendDemoLoginEmail(opts: {
   demoId: string;
@@ -75,6 +101,14 @@ export async function sendDemoLoginEmail(opts: {
       endsAt: demo.ends_at as string,
     }),
     replyTo: contactAddress(),
+    // A real plain text part: the one Resend makes from the HTML runs the details table together
+    // ("Emailname@x.comPassword...").
+    text: demoLoginEmailText({
+      fullName: opts.fullName,
+      email: opts.email,
+      password: opts.password,
+      endsAt: demo.ends_at as string,
+    }),
   });
   if (!sent.sent) return { ok: false, error: sent.skippedReason ?? sent.error ?? "The email service did not accept it." };
   return { ok: true };
