@@ -2553,3 +2553,14 @@ take the intervals from the deal (dealIntervals, pure, 1 test): here £250.00 a 
 - Put right: Bev Admin restored in the database straight away (Company Admin, active, name, the new branch row and pending invite removed). No other company has a pending invite on top of an accepted one, so nobody else was hit.
 - Fix: createAndSendInvite refuses an address that is already an ACTIVE login in the same company, before any link is made and again on the account the link resolves to: "<name> already has a login here with that email address. To change their role or branch, use Active users instead of a new invite." An invited profile (resend) and a leaver (rejoin) still go through. Unit tested. Also the held invite message lost its dash.
 - Status: fixed and retested live 1 Oct (FK1): refused with the new message, everything typed kept, Bev Admin unchanged.
+
+## DEF-103: In support mode an AI button said "out of AI credits" for a company with credits left
+- Found: 1 Oct 2026, Claude testing per branch readiness (RB9) as the founder managing House Test Ltd: the readiness assistant said "You are out of AI credits. Top up in Billing..." while the AI tile showed 25 left (database balance 25).
+- Cause: spend_ai_credit refuses anyone who is not a member of the company, which includes the founder in support mode (correct: support work must not spend a customer's credits), and that refusal was reported with the out of credits message.
+- Fix: the refusal now says "AI is switched off in support mode, so this company's credits are not spent. Ask someone at the company to try it."
+- Status: fixed, to retest after deploy (any AI button in support mode).
+
+## DEF-104: A readiness theme card said "1 Area for Improvement open" twice
+- Found: 1 Oct 2026, RB6 on House Test Ltd: the reason line and the notices line under it said the same thing.
+- Fix: the notices line is left out when the reason line already says exactly that.
+- Status: fixed, to recheck after deploy.

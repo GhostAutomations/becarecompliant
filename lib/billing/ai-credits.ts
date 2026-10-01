@@ -38,6 +38,12 @@ export async function spendAiCredit(
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("spend_ai_credit", { cid: companyId });
   const remaining = typeof data === "number" ? data : -1;
+  /* SUPPORT MODE (DEF-103): the founder managing a company is not one of its members, so the
+     database refuses the spend. That is right (support work must not spend a customer's credits),
+     but it was reported as "You are out of AI credits", about a company with 25 left. */
+  if (error && /not a member/i.test(error.message)) {
+    return { ok: false, message: "AI is switched off in support mode, so this company's credits are not spent. Ask someone at the company to try it." };
+  }
   if (error || remaining < 0) {
     const { isDemoCompany } = await import("@/lib/demo/data");
     return { ok: false, message: (await isDemoCompany(companyId)) ? DEMO_OUT_OF_CREDITS : OUT_OF_CREDITS };

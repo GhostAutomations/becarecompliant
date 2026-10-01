@@ -194,7 +194,15 @@ export default async function ReadinessPage({ searchParams }: { searchParams: Pr
                   {`${r.checks.overdue} overdue · ${r.checks.dueSoon} due soon · ${r.checks.onTrack} on track`}
                 </p>
               ) : null}
-              {r.notices.priority + r.notices.improvement > 0 ? (
+              {/* Not when the reason line above already says exactly this. */}
+              {r.notices.priority + r.notices.improvement > 0 &&
+              r.reason !==
+                [
+                  r.notices.priority > 0 ? `${r.notices.priority} Priority Action ${r.notices.priority === 1 ? "Notice" : "Notices"} open` : null,
+                  r.notices.improvement > 0 ? `${r.notices.improvement} ${r.notices.improvement === 1 ? "Area" : "Areas"} for Improvement open` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ") ? (
                 <p className="mt-1 text-xs text-amber-300">
                   {[
                     r.notices.priority > 0
