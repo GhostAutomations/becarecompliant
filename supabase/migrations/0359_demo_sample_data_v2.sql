@@ -368,8 +368,10 @@ declare
     'Dorothy','Alwyn','Edna','Glyn','Maureen','Stanley','Olwen','Trevor','Beryl','Emrys'];
   v_su_last text[] := array['Ashworth','Beddoe','Crowther','Davies','Ellery','Farr','Gethin','Hopkin','Ivor','Jolley',
     'Kenward','Lewis','Maddox','Nash','Oakley','Probert','Quinnell','Roderick','Sayce','Tudor'];
-  -- The four overdue checks Phil asked for, so the red and the drill down can still be shown.
-  v_red text[] := array['p6:supervision', 'p23:spot_check', 'p38:appraisal', 's11:care_plan_review'];
+  -- The four overdue checks Phil asked for, so the red and the drill down can still be shown. All
+  -- four sit under ONE readiness theme (Care and Support): any overdue check marks its theme Action
+  -- needed, and the demo should read as mostly on track, two themes of three.
+  v_red text[] := array['p6:spot_check', 'p23:spot_check', 's11:care_plan_review', 's25:audit'];
   v_people uuid[] := '{}';
   v_people_names text[] := '{}';
   v_people_branch uuid[] := '{}';
@@ -525,9 +527,10 @@ begin
       v_count_checks := v_count_checks + 1;
       if d.form_id is null then continue; end if;
       if not (coalesce(d.recurring, false) and coalesce(d.interval, 0) > 0) then
-        -- A one off (the Setup Visit) was done when the package started.
+        -- A one off (the Setup Visit) was done when the package started. It keeps its due date, as a
+        -- completed one off does in the app, or readiness counts it as a check with no due date.
         v_ev := public.demo_add_evidence(p_company, v_branch, d.form_id, 'service_user', v_id, v_start + 1, v_ctx);
-        update public.check_instances set due_date = null, last_completed_on = v_start + 1, last_evidence_id = v_ev where id = v_inst;
+        update public.check_instances set due_date = v_start + 1, last_completed_on = v_start + 1, last_evidence_id = v_ev where id = v_inst;
         v_count_evidence := v_count_evidence + 1;
         continue;
       end if;
