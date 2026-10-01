@@ -13,7 +13,7 @@ export function cleanScwNumber(raw: unknown): { ok: true; value: string | null }
   const v = String(raw ?? "").replace(/\s+/g, " ").trim();
   if (v === "") return { ok: true, value: null };
   if (v.length > MAX_LENGTH) return { ok: false, error: `A registration number is at most ${MAX_LENGTH} characters.` };
-  if (!/^[A-Za-z0-9 /-]+$/.test(v)) return { ok: false, error: "A registration number can only have letters, numbers and spaces." };
+  if (!/^[A-Za-z0-9 /-]+$/.test(v)) return { ok: false, error: "A registration number can only have letters, numbers, spaces and the / sign, for example W/1234567." };
   return { ok: true, value: v };
 }
 

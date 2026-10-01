@@ -283,6 +283,8 @@ answers once (a 9 out of 5 refused), invites refused inside a demo. Still to tes
 - SC1 Thistle Training matrix: SCW number column next to Carer shows the 12 numbers; Damilola shows Not yet (now Under 6 months).
   PASS 1 Oct (Claude in Chrome, read only): all 12 W/ numbers shown, Damilola Not yet.
 - SC2 Click a number on the matrix (on a test company, not Thistle), change it, Save: it updates in place and on the person's record.
+  PASS 1 Oct (Claude in Chrome, Bevan, ZZ TEST Carer Two): popup opens; 12<3 refused with a clear message and kept in the box; W/1234567 saved, matrix and record show it, audit says Set the Social Care Wales registration number; blank saved puts Missing back.
 - SC3 Person record: the number shows under the name; Manage record has the field and saving keeps it.
-  PART PASS 1 Oct: Asim Riaz shows "Social Care Wales registration: W/5168234". Manage record save still to test.
+  PART PASS 1 Oct: Asim Riaz shows "Social Care Wales registration: W/5168234". Manage record (ZZ TEST Senior, under 6 months): W/7654321 saved, record line and matrix show it, all other fields unchanged in the database. A refused save reset the form (DEF-098, fixed, retest after deploy).
 - SC4 Add person has the field; a CQC company shows none of this.
+  Still to test after the DEF-098 deploy. No CQC company exists on the platform, so the CQC half is code traced only (showScw = regulator is not cqc, in the matrix, the record and both forms).

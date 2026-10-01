@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { canBeLineManager } from "@/lib/people/roles";
 
-import { useActionState, useRef, useState } from "react";
+import { startTransition, useActionState, useRef, useState } from "react";
 import { dbsWarnings } from "@/lib/people/dbs-check";
 import DbsWarning from "@/components/people/dbs-warning";
 import { createPerson } from "@/lib/people/actions";
@@ -48,22 +48,30 @@ export default function CreatePersonForm({
   const confirmedRef = useRef(false);
   const [warnings, setWarnings] = useState<string[]>([]);
 
+  /* WHAT THEY TYPED SURVIVES A REFUSAL (the DEF-091 rule, found again here 2026-10-01). React 19
+     resets a form after an action passed to action={} finishes, error or not, so a refused Add
+     person emptied a long form. Every submit now goes through startTransition, which leaves the
+     form alone; a success redirects to the new record, so there is nothing to clear. */
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
     if (confirmedRef.current) {
       confirmedRef.current = false;
+      startTransition(() => formAction(fd));
       return;
     }
-    const fd = new FormData(e.currentTarget);
-    if (!fd.get(historyFlag)) return;
-    const found = dbsWarnings({
-      certificateDate: String(fd.get("t_dbs_date") ?? ""),
-      renewalDate: String(fd.get("t_enhanced_dbs_date") ?? ""),
-      startDate: String(fd.get("start_date") ?? ""),
-    });
-    if (found.length > 0) {
-      e.preventDefault();
-      setWarnings(found);
+    if (fd.get(historyFlag)) {
+      const found = dbsWarnings({
+        certificateDate: String(fd.get("t_dbs_date") ?? ""),
+        renewalDate: String(fd.get("t_enhanced_dbs_date") ?? ""),
+        startDate: String(fd.get("start_date") ?? ""),
+      });
+      if (found.length > 0) {
+        setWarnings(found);
+        return;
+      }
     }
+    startTransition(() => formAction(fd));
   }
 
   const [branchId, setBranchId] = useState("");
@@ -82,7 +90,7 @@ export default function CreatePersonForm({
   }
 
   return (
-    <form ref={formRef} action={formAction} onSubmit={onSubmit} onChange={() => setWarnings([])} className="space-y-5">
+    <form ref={formRef} onSubmit={onSubmit} onChange={() => setWarnings([])} className="space-y-5">
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <label htmlFor="full_name" className="form-label">Full name *</label>

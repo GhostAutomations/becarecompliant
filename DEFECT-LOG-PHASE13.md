@@ -2523,3 +2523,9 @@ take the intervals from the deal (dealIntervals, pure, 1 test): here £250.00 a 
 - Cause: the number has been stored on the Person since 0060 and is used by the PQS report, the Evidence PDF heading, Reg 80 and the SAR export, but only the CSV import could set it. No screen showed or edited it. Thistle's 12 numbers were safe (12 of 13 active staff; the 13th started 16 Sep 2026, so not counted yet).
 - Fix (Phil's popup): Social Care Wales registration number on Add person and Manage record; shown under the name on the person's record (amber "No ... number" once 6 months in post); an SCW number column on the Training matrix, click to type or correct it (Missing in amber at 6+ months, Not yet before). Welsh companies only (regulator not CQC). lib/people/scw.ts, tested. Renewal date tracking is a later item, after researching Social Care Wales' current rules.
 - Status: fixed, awaiting push and test (SC1 to SC4).
+
+## DEF-098: Manage record and Add person threw away what was typed when a save was refused
+- Found: 1 Oct 2026, Claude testing SCW numbers on Bevan. A refused Manage record save (bad SCW number) showed the error but put every field back to the saved values; Add person had the same pattern, so one refused field emptied the whole long form.
+- Cause: the DEF-091 React 19 behaviour (a form posted through action={} is reset when the action finishes, error or not) in two forms DEF-091 did not cover.
+- Fix: both forms submit through startTransition (Add person keeps its DBS warning step). The SCW error now says "/" is allowed, for example W/1234567.
+- Status: fixed, awaiting push and retest.

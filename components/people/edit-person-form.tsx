@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { startTransition, useActionState, useEffect, useState } from "react";
 import { updatePerson } from "@/lib/people/actions";
 import { IDLE_STATE } from "@/lib/forms";
 import { useSavedFlash } from "@/lib/use-saved-flash";
@@ -42,7 +42,14 @@ export default function EditPersonForm({
 
   return (
     <form
-      action={formAction}
+      /* Through startTransition, not action={} (the DEF-091 rule, 2026-10-01): React 19 resets
+         a form after an action={} finishes, error or not, so a refused save threw away every
+         change on the form. */
+      onSubmit={(e) => {
+        e.preventDefault();
+        const fd = new FormData(e.currentTarget);
+        startTransition(() => formAction(fd));
+      }}
       className="space-y-5"
       onChange={() => {
         reset();
