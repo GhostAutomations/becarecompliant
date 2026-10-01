@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import ActionForm from "@/components/action-form";
 import { updateScwNumber } from "@/lib/people/actions";
-import type { ScwStatus } from "@/lib/people/scw";
+import { scwRenewalState, scwApplyBy, type ScwStatus } from "@/lib/people/scw";
 
 /**
  * THE SCW NUMBER COLUMN on the Training matrix (DEF-097, Phil 2026-10-01: "like the column on my
@@ -17,12 +17,17 @@ export default function ScwCell({
   personId,
   personName,
   number,
+  renewal,
+  todayIso,
   status,
   editable,
 }: {
   personId: string;
   personName: string;
   number: string | null;
+  /** Social Care Wales renewal date (0361), YYYY-MM-DD. */
+  renewal: string | null;
+  todayIso: string;
   status: ScwStatus;
   editable: boolean;
 }) {
@@ -74,6 +79,19 @@ export default function ScwCell({
                     Leave it blank and save to remove it. The PQS counts anyone 6 months in post without one.
                   </p>
                 </div>
+                <div>
+                  <label htmlFor={`scw_renewal_${personId}`} className="form-label">
+                    Renewal date
+                  </label>
+                  <input
+                    id={`scw_renewal_${personId}`}
+                    name="scw_renewal_date"
+                    type="date"
+                    defaultValue={renewal ?? ""}
+                    className="max-w-[10rem]"
+                  />
+                  <p className="form-hint">As shown in SCWonline. The renewal must reach Social Care Wales 21 days before this date.</p>
+                </div>
               </ActionForm>
               <div className="mt-4 flex items-center gap-3 border-t border-white/10 pt-4">
                 <button type="button" onClick={close} className="btn-ghost ml-auto px-3 py-2 text-sm">
@@ -88,8 +106,22 @@ export default function ScwCell({
 
   const text = number ?? (status === "missing" ? "Missing" : "Under 6 months");
   const tone = number ? "text-white/85" : status === "missing" ? "text-rag-amber-soft font-semibold" : "text-white/40";
+  const renewalState = number ? scwRenewalState(renewal, todayIso) : null;
+  const fmt = (iso: string) => {
+    const [y, m, d] = iso.split("-");
+    return `${d}/${m}/${y}`;
+  };
+  const renewalNote = !number
+    ? ""
+    : !renewal
+      ? ". No renewal date recorded"
+      : renewalState === "expired"
+        ? `. Renewal date ${fmt(renewal)} has passed, so the registration has ended`
+        : renewalState === "due_soon"
+          ? `. Renews ${fmt(renewal)}: the renewal must reach Social Care Wales by ${fmt(scwApplyBy(renewal))}`
+          : `. Renews ${fmt(renewal)}`;
   const reason = number
-    ? `Social Care Wales registration ${number}`
+    ? `Social Care Wales registration ${number}${renewalNote}`
     : status === "missing"
       ? "6 months or more in post with no registration number. The PQS counts this"
       : "Under 6 months in post";
@@ -117,8 +149,17 @@ export default function ScwCell({
 
   if (!editable) {
     return (
-      <span className={`cursor-help text-xs tabular-nums ${tone}`} aria-label={tip} {...hover}>
+      <span className={`inline-flex cursor-help flex-col items-center text-xs tabular-nums ${tone}`} aria-label={tip} {...hover}>
         {text}
+        {number && renewal ? (
+          <span
+            className={`rag-cell mt-1 ${
+              renewalState === "expired" ? "rag-cell-red" : renewalState === "due_soon" ? "rag-cell-amber" : "rag-cell-green"
+            }`}
+          >
+            {fmt(renewal)}
+          </span>
+        ) : null}
         {tipEl}
       </span>
     );
@@ -131,11 +172,20 @@ export default function ScwCell({
           setPos(null);
           setEditing(true);
         }}
-        className={`text-xs tabular-nums underline decoration-white/15 underline-offset-2 hover:decoration-white/60 ${tone}`}
+        className={`inline-flex flex-col items-center text-xs tabular-nums ${tone}`}
         aria-label={tip}
         {...hover}
       >
-        {text}
+        <span className="underline decoration-white/15 underline-offset-2 hover:decoration-white/60">{text}</span>
+        {number && renewal ? (
+          <span
+            className={`rag-cell mt-1 ${
+              renewalState === "expired" ? "rag-cell-red" : renewalState === "due_soon" ? "rag-cell-amber" : "rag-cell-green"
+            }`}
+          >
+            {fmt(renewal)}
+          </span>
+        ) : null}
       </button>
       {tipEl}
       {dialog}

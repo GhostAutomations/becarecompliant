@@ -62,7 +62,7 @@ import {
 } from "@/lib/people/deletable";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { seniorMayDo } from "@/lib/senior/access";
-import { cleanScwNumber } from "@/lib/people/scw";
+import { cleanScwNumber, cleanScwDate } from "@/lib/people/scw";
 import { seniorListAfter } from "@/lib/auth/carer-login";
 import { getColumnLabels, getSupervisionCycleMode } from "@/lib/people/data";
 import { intervalUnit } from "@/lib/people/interval-unit";
@@ -101,12 +101,15 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
   const start_date = isoDateOrNull(formData.get("start_date"));
   const scw = cleanScwNumber(formData.get("scw_registration_number"));
   if (!scw.ok) return { error: scw.error };
+  const scwRenewal = cleanScwDate(formData.get("scw_renewal_date"));
+  if (!scwRenewal.ok) return { error: scwRenewal.error };
 
   const supabase = await createClient();
   const { data: person, error } = await supabase
     .from("people")
     .insert({
       scw_registration_number: scw.value,
+      scw_renewal_date: scwRenewal.value,
       company_id: companyId,
       branch_id,
       full_name,
@@ -492,6 +495,8 @@ export async function updatePerson(_prev: ActionState, formData: FormData): Prom
   /* Only when the form carries the field (DEF-097): a form without it must not wipe the number. */
   const scw = formData.has("scw_registration_number") ? cleanScwNumber(formData.get("scw_registration_number")) : null;
   if (scw && !scw.ok) return { error: scw.error };
+  const scwRenewal = formData.has("scw_renewal_date") ? cleanScwDate(formData.get("scw_renewal_date")) : null;
+  if (scwRenewal && !scwRenewal.ok) return { error: scwRenewal.error };
 
   const { error } = await supabase
     .from("people")
@@ -505,6 +510,7 @@ export async function updatePerson(_prev: ActionState, formData: FormData): Prom
       team_leader_id: trimOrNull(formData.get("team_leader_id")),
       start_date: startDate,
       ...(scw && scw.ok ? { scw_registration_number: scw.value } : {}),
+      ...(scwRenewal && scwRenewal.ok ? { scw_renewal_date: scwRenewal.value } : {}),
     })
     .eq("id", personId);
   if (error) return { error: error.message };
@@ -615,10 +621,13 @@ export async function updateScwNumber(_prev: ActionState, formData: FormData): P
   if (!personId) return { error: "Missing record." };
   const scw = cleanScwNumber(formData.get("scw_registration_number"));
   if (!scw.ok) return { error: scw.error };
+  const scwRenewal = cleanScwDate(formData.get("scw_renewal_date"));
+  if (!scwRenewal.ok) return { error: scwRenewal.error };
+  if (scwRenewal.value && !scw.value) return { error: "Add the registration number as well as the renewal date." };
   const supabase = await createClient();
   const { data: updated, error } = await supabase
     .from("people")
-    .update({ scw_registration_number: scw.value })
+    .update({ scw_registration_number: scw.value, scw_renewal_date: scw.value ? scwRenewal.value : null })
     .eq("id", personId)
     .select("id, full_name, company_id")
     .maybeSingle();

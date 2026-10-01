@@ -60,6 +60,7 @@ const PEOPLE_IDENTITY: IdentityField[] = [
   { header: "Email", field: "work_email", required: false, kind: "text" },
   { header: "Mobile", field: "mobile", required: false, kind: "text" },
   { header: "SCW number", field: "scw_registration_number", required: false, kind: "text" },
+  { header: "SCW renewal date", field: "scw_renewal_date", required: false, kind: "date" },
 ];
 
 const PEOPLE_DOCUMENTS: DocumentField[] = [

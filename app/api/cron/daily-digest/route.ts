@@ -41,6 +41,7 @@ import {
 import { sendSms, twilioConfigured } from "@/lib/sms/twilio";
 import { isOptedOut } from "@/lib/sms/opt-out";
 import { getTrainingAttention } from "@/lib/notifications/training";
+import { getScwAttention } from "@/lib/notifications/scw";
 import { OUT_OF_SMS_CREDITS } from "@/lib/billing/sms-credits";
 import { tierHasFeature } from "@/lib/billing/tier";
 import type { Tier } from "@/lib/stripe/config";
@@ -180,7 +181,15 @@ export async function GET(request: NextRequest) {
        * An expired certificate is worth an email; it is not worth quietly spending a company's
        * SMS allowance on a rule nobody agreed to.
        */
-      const peopleChecks = [...reporting.people, ...trainingDue];
+      // Social Care Wales renewals (0361), the same way and for the same reasons as training.
+      let scwDue: Awaited<ReturnType<typeof getScwAttention>> = [];
+      try {
+        scwDue = await getScwAttention(company.id);
+      } catch (e) {
+        summary.failures.push(`scw ${company.name}: ${(e as Error).message}`);
+      }
+
+      const peopleChecks = [...reporting.people, ...trainingDue, ...scwDue];
       summary.trainingDue += trainingDue.length;
 
       if (company.settings.emailDigestEnabled) {

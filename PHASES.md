@@ -3917,3 +3917,7 @@ DEF-094 logged: the form library names Thistle Care in three forms for every com
 Tests DM11 to DM13 added.
 2026-10-01 (cont.): demo login email (Phil's popup): tick box on Set up a demo and Add another login,
 and Send login email per login (password typed again, set as typed so the email is always right).
+2026-10-01 (cont.): DEF-097 Social Care Wales numbers shown and edited (matrix column, record,
+Add person, Manage record), tested SC1 to SC4 incl. CQC. DEF-098 fixed (refused saves kept).
+0361 SCW renewal date (Phil's popup: amber 90 days, daily digest by the send by date, expired
+registrations not counted on the PQS); also an "SCW renewal date" import column. Tests SR1 to SR6.

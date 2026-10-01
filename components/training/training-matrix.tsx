@@ -432,6 +432,8 @@ export default function TrainingMatrix({
                         personId={p.id}
                         personName={p.full_name}
                         number={p.scw_number}
+                        renewal={p.scw_renewal_date}
+                        todayIso={scwToday}
                         status={scwStatus(p.scw_number, p.start_date, scwToday)}
                         editable={editable}
                       />

@@ -75,6 +75,7 @@ export type TrainingPerson = {
   /** Social Care Wales registration number (DEF-097), and the start date that decides whether a
    *  blank one is a PQS gap yet (lib/people/scw.ts). */
   scw_number: string | null;
+  scw_renewal_date: string | null;
   start_date: string | null;
   cells: Record<string, TrainingCell>; // keyed by course id
 };
@@ -126,6 +127,7 @@ type PersonRow = {
   job_title: string | null;
   branch_id: string | null;
   scw_registration_number: string | null;
+  scw_renewal_date: string | null;
   start_date: string | null;
   branches: { name: string } | null;
   /** A carer has at most one tracker row; PostgREST types the embed as an array. */
@@ -284,7 +286,7 @@ const getTrainingMatrixUncached = cache(async function getTrainingMatrix(
     .from("people")
     /* person_trackers carries the probation status, which groups the matrix: a new starter
        is red on nearly every course and that is not the same fact as a lapse. */
-    .select("id, full_name, job_title, branch_id, scw_registration_number, start_date, branches(name), person_trackers(probation_status)")
+    .select("id, full_name, job_title, branch_id, scw_registration_number, scw_renewal_date, start_date, branches(name), person_trackers(probation_status)")
     .eq("company_id", companyId)
     .is("archived_at", null)
     .neq("employment_status", "leaver")
@@ -369,6 +371,7 @@ const getTrainingMatrixUncached = cache(async function getTrainingMatrix(
       job_title: p.job_title,
       probation_status: tracker?.probation_status ?? null,
       scw_number: p.scw_registration_number ?? null,
+      scw_renewal_date: p.scw_renewal_date ?? null,
       start_date: p.start_date ?? null,
       cells,
     };

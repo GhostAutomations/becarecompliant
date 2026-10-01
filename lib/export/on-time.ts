@@ -44,6 +44,7 @@ import { getTrainingMatrix } from "@/lib/training/data";
 import { getSatisfaction } from "@/lib/service-users/satisfaction";
 import { getOutcomesRegister } from "@/lib/service-users/data";
 import { getBranchTerms } from "@/lib/branches/company-word";
+import { scwCountsAsRegistered } from "@/lib/people/scw";
 import type { BranchTerms } from "@/lib/branches/word";
 
 export type OnTimeWindow = { from: string; to: string };
@@ -158,6 +159,7 @@ type PersonRawShape = {
   branch_id: string | null;
   start_date: string | null;
   scw_registration_number: string | null;
+  scw_renewal_date: string | null;
   branches: { name: string } | { name: string }[] | null;
 };
 type SuRawShape = {
@@ -251,7 +253,7 @@ async function computeOnTime(input: OnTimeInput) {
   // same row twice and miss another, so a carer would be double counted or absent.
   let peopleQ = supabase
     .from("people")
-    .select("id, full_name, branch_id, start_date, scw_registration_number, branches(name)")
+    .select("id, full_name, branch_id, start_date, scw_registration_number, scw_renewal_date, branches(name)")
     .eq("company_id", input.companyId)
     .is("archived_at", null)
     .neq("employment_status", "leaver")
@@ -649,7 +651,9 @@ async function computeOnTime(input: OnTimeInput) {
   for (const p of staff) {
     if (!p.start_date || p.start_date > cutoff) continue; // 6+ months in post AT the period end
     scwDenom += 1;
-    if (p.scw_registration_number && p.scw_registration_number.trim() !== "") scwNum += 1;
+    // A registration whose renewal date passed before the period end has ENDED (Phil, 2026-10-01,
+    // popup): it does not count as registered just because a number is still on file.
+    if (scwCountsAsRegistered(p.scw_registration_number, p.scw_renewal_date, win.to)) scwNum += 1;
   }
   const scwPct = floorPct(scwNum, scwDenom);
 

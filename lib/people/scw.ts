@@ -36,3 +36,59 @@ export function scwStatus(number: string | null | undefined, startIso: string | 
   const cutoff = first.toISOString().slice(0, 10);
   return startIso <= cutoff ? "missing" : "not_yet";
 }
+
+/* ===========================================================================
+ * THE RENEWAL DATE (0361, Phil 2026-10-01, popup).
+ *
+ * Social Care Wales registration lasts three years (Registration Rules 2024, rule 25(2)) and the
+ * renewal must reach them at least 21 days before it expires (rule 16(4)). Amber 90 days before,
+ * Phil's choice, so there is time to chase the carer and the endorsement; red once it has passed,
+ * because the registration has then ended.
+ * =========================================================================== */
+
+export const SCW_RENEWAL_AMBER_DAYS = 90;
+export const SCW_APPLY_DAYS_BEFORE = 21;
+
+/** A typed renewal date: YYYY-MM-DD or blank. */
+export function cleanScwDate(raw: unknown): { ok: true; value: string | null } | { ok: false; error: string } {
+  const v = String(raw ?? "").trim();
+  if (v === "") return { ok: true, value: null };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return { ok: false, error: "Enter the renewal date as a date." };
+  const [y, m, d] = v.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) {
+    return { ok: false, error: "That renewal date does not exist." };
+  }
+  if (y < 2015 || y > 2100) return { ok: false, error: "Check the renewal date: the year looks wrong." };
+  return { ok: true, value: v };
+}
+
+function addDaysIso(iso: string, days: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
+export type ScwRenewalState = "in_date" | "due_soon" | "expired";
+
+/** Null when there is no renewal date to judge. */
+export function scwRenewalState(renewalIso: string | null | undefined, todayIso: string): ScwRenewalState | null {
+  if (!renewalIso) return null;
+  if (renewalIso < todayIso) return "expired";
+  if (renewalIso <= addDaysIso(todayIso, SCW_RENEWAL_AMBER_DAYS)) return "due_soon";
+  return "in_date";
+}
+
+/** The last day the renewal can reach Social Care Wales on time. */
+export function scwApplyBy(renewalIso: string): string {
+  return addDaysIso(renewalIso, -SCW_APPLY_DAYS_BEFORE);
+}
+
+/** For the PQS: a number, and not a registration that ended before asOf. */
+export function scwCountsAsRegistered(
+  number: string | null | undefined,
+  renewalIso: string | null | undefined,
+  asOfIso: string,
+): boolean {
+  if (!number || number.trim() === "") return false;
+  return !renewalIso || renewalIso >= asOfIso;
+}

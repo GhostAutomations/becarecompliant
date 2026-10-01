@@ -288,3 +288,11 @@ answers once (a 9 out of 5 refused), invites refused inside a demo. Still to tes
   PART PASS 1 Oct: Asim Riaz shows "Social Care Wales registration: W/5168234". Manage record (ZZ TEST Senior, under 6 months): W/7654321 saved, record line and matrix show it, all other fields unchanged in the database. A refused save reset the form (DEF-098). RETEST PASS after deploy: BAD<1 refused with the / message, the typed number and a changed mobile both kept on screen, database unchanged.
 - SC4 Add person has the field; a CQC company shows none of this.
   PASS 1 Oct (Bevan): Add person has the field; BAD<2 refused and every field kept (name, branch, job title, start date, manager, email, mobile, the hold tick); W/9990001 saved, one record made (ZZ TEST SCW New Starter, 9 checks), the record shows the number, no invite made. CQC half PASS 1 Oct (Bevan switched to CQC for the check, then back to CIW): no SCW column on the matrix, no line on the record, no field on Manage record or Add person, and saving Manage record kept the stored number (W/9990001). Back on CIW the column returned.
+
+## Social Care Wales renewal date (0361, 1 Oct 2026)
+- SR1 Matrix popup on Bevan has Renewal date; save one 200 days away: green chip under the number; 60 days away: amber; yesterday: red. Hover says the renewal date and, when amber, the last day to send it (21 days before).
+- SR2 A renewal date with no number is refused ("Add the registration number as well").
+- SR3 Person record line: "renews ..." (amber or green), or "renewal date passed ..., so the registration has ended" in red, or "no renewal date recorded".
+- SR4 Manage record and Add person have the date; saving Manage record keeps it.
+- SR5 PQS SCW registration: a person whose renewal date has passed no longer counts as registered.
+- SR6 Daily People report: a renewal whose send by date (renewal minus 21 days) is within 14 days or past appears as "Social Care Wales renewal: last day to send it".

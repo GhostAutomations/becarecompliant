@@ -193,6 +193,7 @@ export async function commitPeople(
         team: row.fields.team ?? null,
         start_date: row.fields.start_date ?? null,
         scw_registration_number: row.fields.scw_registration_number ?? null,
+        scw_renewal_date: row.fields.scw_registration_number ? row.fields.scw_renewal_date ?? null : null,
         created_by: userId,
       })
       .select("id")
