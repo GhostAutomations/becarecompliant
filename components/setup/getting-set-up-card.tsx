@@ -12,11 +12,15 @@ export default function GettingSetUpCard({
   card,
   defaultOpen = true,
   title = "Getting set up",
+  links = true,
 }: {
   companyId: string;
   card: SetupCard;
   defaultOpen?: boolean;
   title?: string;
+  /** Off on the founder company page: the steps open the company's own Settings, which the
+   *  founder only reaches through Manage as company. */
+  links?: boolean;
 }) {
   const pct = card.total ? Math.round((card.settled / card.total) * 100) : 0;
   return (
@@ -68,7 +72,7 @@ export default function GettingSetUpCard({
                       <span className="sr-only">
                         {s.state === "done" ? "Done: " : s.state === "not_needed" ? "Not needed: " : "To do: "}
                       </span>
-                      {s.state === "todo" && s.href ? (
+                      {s.state === "todo" && s.href && links ? (
                         <Link href={s.href} className="text-white/90 underline decoration-white/25 underline-offset-2 hover:decoration-white/70">
                           {s.label}
                         </Link>

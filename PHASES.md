@@ -2136,7 +2136,7 @@ happens to Acme once Thistle is real.
   from what the app sees, any step can be marked Not needed, card goes when all done or skipped.
   BUILT 1 Oct (0366). Popups: steps the data can't show (each branch, People and Service User check
   settings, forms on the builder tiers, notifications) tick the first time that page is saved; EVERY company
-  gets the card. Tests: TEST-CHECKLIST-GETTING-SET-UP.md.
+  gets the card. Tests: TEST-CHECKLIST-GETTING-SET-UP.md, GS0 to GS7 all PASS 1 Oct.
 
 # OPERATION NEW DAWN — Phase 14 onwards
 
