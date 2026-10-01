@@ -46,7 +46,8 @@ export default async function DemosPage({
         <h2 className="text-sm font-semibold text-white/80">Set up a demo</h2>
         <p className="mt-1 text-xs text-white/50">
           Takes a few seconds: the company is built, filled with sample data and the login made.
-          Give the client the email and the password you choose here; nothing is emailed to them.
+          Tick the box to email the client their login details and how to get started, or give them
+          the email and password yourself.
         </p>
         <ActionForm action={createDemo} hidden={{ trial_request_id: sp.request ?? "" }} label="Set up the demo" savingLabel="Setting up…" savedLabel="Done" className="mt-4 space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
@@ -70,10 +71,13 @@ export default async function DemosPage({
             <div>
               <label htmlFor="password" className="form-label">Password you will give them *</label>
               <input id="password" name="password" type="text" required minLength={8} autoComplete="off" />
-              <p className="form-hint">At least 8 characters. Passwords found in leaked password lists online are refused, so pick something unusual.</p>
-              <p className="form-hint">At least 8 characters. Not stored anywhere you can read it again, so note it down.</p>
+              <p className="form-hint">At least 8 characters. Passwords found in leaked password lists online are refused, so pick something unusual. It is not stored anywhere you can read it again, so note it down.</p>
             </div>
           </div>
+          <label className="flex items-center gap-2 text-sm text-white/80">
+            <input type="checkbox" name="send_email" defaultChecked />
+            Email them their login details and how to get started
+          </label>
         </ActionForm>
       </section>
 

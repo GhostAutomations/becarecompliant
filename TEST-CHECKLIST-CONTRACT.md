@@ -241,13 +241,14 @@ answers once (a 9 out of 5 refused), invites refused inside a demo. Still to tes
   PART PASS 1 Oct: demo built (3 branches, 50 people, 40 service users, 420 checks, ends 8 Oct), not
   in Founder > Companies. The first login was refused (DEF-093, leaked password); added again by
   Add another login, now a Company Admin with 5 AI credits. Retest of the refusal message after deploy.
+  PASS 1 Oct (Test Client 2, after deploy): "The demo is ready" banner with the login email.
 - DM2 Sign in as the demo login (another browser): straight to the dashboard, no agreement; gold
   "Demo account" bar with the end date and "AI: 5 of 5 left"; three branches, about 50 people and
   40 service users, a green, amber and red mix; evidence opens as a PDF.
 - DM3 Settings has no Billing, Seats or Roles, users and access; /settings/users and
   /settings/billing go back to Settings; adding a Person with an email makes no login.
 - DM4 Use an AI button 6 times: the bar counts down, the 6th says out of credits.
-- DM5 Founder demo page after a few minutes of use: times signed in, total time, average visit,
+- DM5 (part seen 1 Oct: 1 sign in, 2 min, parts used shown) Founder demo page after a few minutes of use: times signed in, total time, average visit,
   parts used most (idle tab adds nothing).
 - DM6 Extend by 1 day, then End now: the demo login lands on "Your demo has ended" with "Tell us
   what you thought". Answer the survey: all seven scores needed; answers show on the founder page.
@@ -255,6 +256,8 @@ answers once (a 9 out of 5 refused), invites refused inside a demo. Still to tes
 - DM8 The morning run (07:00 London) after the end: one survey email with a button, to a login that
   has not answered, and never twice.
 - DM9 Delete now (type DELETE): company and login gone, usage and feedback still on the demo page.
+  PASS 1 Oct (Claude in Chrome, Test Client): page says Deleted, usage kept (1 sign in, 2 min, Dashboard
+  68%, Service Users 32%); database: company, people, evidence, sign in account and profile all gone.
 - DM10 Trial requests: "Set up a demo for <name>" opens Demos with the details filled in.
 - DM11 (new) Try the AI: the demo bar and the dashboard AI tile open Try the AI, with seven AI features,
   each opening a sample record that is ready for it; the credits left are right.
@@ -262,6 +265,9 @@ answers once (a 9 out of 5 refused), invites refused inside a demo. Still to tes
   PQS mostly green, Planner shows this week, policies and training up to date figures, on call shows two
   open follow ups, recent activity filled, 2 Return to Works waiting, no billing banner, SMS Off.
 - DM13 (new) A refused password (one on the leaked lists) is explained in plain English and nothing is built.
+- DM14 (new) Login email: on Test Client 2, Send login email (password typed again) sends one branded
+  email with a Log in button, email, password, end date and five things to try; the password typed
+  works. The Set up and Add another login tick boxes send the same email when saved.
 
 ## Invitation links (DEF-088, DEF-089)
 

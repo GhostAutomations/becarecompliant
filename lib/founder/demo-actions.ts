@@ -8,9 +8,11 @@ import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { rebakeFormFieldOptions } from "@/lib/forms/rebake-options";
 import type { ActionState } from "@/lib/forms";
-import { DEMO_COMPANY_NAME, demoEndsAt, parseDemoDays } from "@/lib/demo/rules";
+import { DEMO_COMPANY_NAME, demoEndsAt, demoPhase, friendlyLoginError, parseDemoDays } from "@/lib/demo/rules";
 import { attachDemoLogin, createDemoLogin, createDemoUser, demoLoginProblem, discardDemoUser, purgeDemo } from "@/lib/demo/manage";
 import { finishDemoPolicies } from "@/lib/demo/policies";
+import { sendDemoLoginEmail } from "@/lib/demo/login-email";
+import { createServiceClient } from "@/lib/supabase/admin";
 
 /**
  * FOUNDER > DEMOS (0356, Phil 2026-09-30). A fresh Demo Care Company Limited per client, filled
@@ -108,7 +110,26 @@ export async function createDemo(_prev: ActionState, formData: FormData): Promis
     metadata: { company_id: companyId, days: days.days, login_email: email, seeded: seeded ?? null, seed_error: seedErr?.message ?? null, policy_problems: policyProblems, login_ok: login.ok, login_error: login.ok ? null : login.error },
   });
 
-  const flag = !login.ok ? `?problem=login&why=${encodeURIComponent(login.error)}` : seedErr ? "?problem=seed" : "?created=1";
+  // The login email, when the founder ticked it (on by default). Sent after everything is built so
+  // the client never logs in to an empty company. The password goes in it and nowhere else.
+  let mailFlag = "";
+  if (login.ok && !seedErr && formData.get("send_email") === "on") {
+    const mailed = await sendDemoLoginEmail({ demoId: demo.id as string, fullName, email, password });
+    await writeAudit({
+      companyId: null,
+      actorId: user.id,
+      actorEmail: profile.email,
+      actorRole: "platform_admin",
+      action: "demo.login_emailed",
+      entityType: "demo",
+      entityId: demo.id as string,
+      summary: mailed.ok ? `Emailed the demo login details to ${email}` : `The demo login email to ${email} was not sent`,
+      metadata: { email, sent: mailed.ok, error: mailed.ok ? null : mailed.error },
+    });
+    mailFlag = mailed.ok ? "&emailed=1" : `&emailed=0&mailwhy=${encodeURIComponent(mailed.error)}`;
+  }
+
+  const flag = !login.ok ? `?problem=login&why=${encodeURIComponent(login.error)}` : seedErr ? "?problem=seed" : `?created=1${mailFlag}`;
   redirect(`/founder/demos/${demo.id as string}${flag}`);
 }
 
@@ -137,7 +158,71 @@ export async function addDemoLogin(_prev: ActionState, formData: FormData): Prom
     metadata: { email },
   });
   revalidatePath(`/founder/demos/${demoId}`);
+  if (formData.get("send_email") === "on") {
+    const mailed = await sendDemoLoginEmail({ demoId, fullName, email, password });
+    await writeAudit({
+      companyId: null,
+      actorId: user.id,
+      actorEmail: profile.email,
+      actorRole: "platform_admin",
+      action: "demo.login_emailed",
+      entityType: "demo",
+      entityId: demoId,
+      summary: mailed.ok ? `Emailed the demo login details to ${email}` : `The demo login email to ${email} was not sent`,
+      metadata: { email, sent: mailed.ok, error: mailed.ok ? null : mailed.error },
+    });
+    if (!mailed.ok) return { error: `Login made for ${email}, but the email was not sent: ${mailed.error} Give them the password yourself, or use Send login email.` };
+    return { ok: `Login made for ${email} and their login details emailed to them.` };
+  }
   return { ok: `Login made for ${email}. Give them the password you chose.` };
+}
+
+/**
+ * SEND LOGIN EMAIL for a login that already exists (Phil, 2026-10-01). The password is never
+ * stored, so the founder types it again. Whatever he types BECOMES their password before the
+ * email goes, so the email can never carry a password that does not work (a typo would otherwise
+ * lock the client out with a confident looking email in their inbox).
+ */
+export async function emailDemoLogin(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { user, profile } = await requirePlatformAdmin();
+  const demoId = field(formData, "demo_id");
+  const loginId = field(formData, "login_id");
+  const password = String(formData.get("password") ?? "");
+  if (password.length < 8) return { error: "Type the password, at least 8 characters." };
+  const supabase = await createClient();
+  const { data: demo } = await supabase.from("demos").select("id, ends_at, deleted_at").eq("id", demoId).maybeSingle();
+  if (!demo || demo.deleted_at) return { error: "That demo has been deleted." };
+  const phase = demoPhase(demo.ends_at as string);
+  if (phase === "ended" || phase === "purge_due") return { error: "This demo has ended, so its logins do not work. Extend it first." };
+  const { data: login } = await supabase
+    .from("demo_logins")
+    .select("id, user_id, email, full_name")
+    .eq("id", loginId)
+    .eq("demo_id", demoId)
+    .maybeSingle();
+  if (!login || !login.user_id) return { error: "That login was not found on this demo." };
+  const admin = createServiceClient();
+  const { error: pwErr } = await admin.auth.admin.updateUserById(login.user_id as string, { password });
+  if (pwErr) return { error: friendlyLoginError(pwErr.message) };
+  const mailed = await sendDemoLoginEmail({
+    demoId,
+    fullName: login.full_name as string,
+    email: login.email as string,
+    password,
+  });
+  await writeAudit({
+    companyId: null,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: "platform_admin",
+    action: "demo.login_emailed",
+    entityType: "demo",
+    entityId: demoId,
+    summary: mailed.ok ? `Emailed the demo login details to ${login.email as string}` : `The demo login email to ${login.email as string} was not sent`,
+    metadata: { email: login.email, sent: mailed.ok, error: mailed.ok ? null : mailed.error, password_set: true },
+  });
+  if (!mailed.ok) return { error: `The password is set, but the email was not sent: ${mailed.error}` };
+  return { ok: `Emailed the login details to ${login.email as string}.` };
 }
 
 /** Add days to the end date (counted from now if it has already ended). */

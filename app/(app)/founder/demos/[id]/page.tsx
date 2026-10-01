@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { requirePlatformAdmin } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import ActionForm from "@/components/action-form";
-import { addDemoLogin, deleteDemoNow, endDemoNow, extendDemo } from "@/lib/founder/demo-actions";
+import { addDemoLogin, deleteDemoNow, emailDemoLogin, endDemoNow, extendDemo } from "@/lib/founder/demo-actions";
 import { feedbackAverage, listDemos, type DemoFeedbackRow } from "@/lib/demo/founder-data";
 import { DEMO_SURVEY_RATINGS, demoDeleteAt, formatActiveTime, formatDemoDate, type DemoUsage } from "@/lib/demo/rules";
 
@@ -104,15 +104,16 @@ export default async function DemoPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ problem?: string; created?: string; why?: string }>;
+  searchParams: Promise<{ problem?: string; created?: string; why?: string; emailed?: string; mailwhy?: string }>;
 }) {
   await requirePlatformAdmin();
   const { id } = await params;
-  const { problem, created, why } = await searchParams;
+  const { problem, created, why, emailed, mailwhy } = await searchParams;
   const [demo] = await listDemos(id);
   if (!demo) notFound();
   const live = !demo.deletedAt;
   const ended = demo.phase === "ended" || demo.phase === "purge_due";
+  const canEmail = live && !ended;
 
   return (
     <div className="page-shell space-y-6">
@@ -130,8 +131,14 @@ export default async function DemoPage({
 
       {created ? (
         <p role="status" className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
-          The demo is ready. Give {demo.logins[0]?.fullName ?? "them"} the email {demo.logins[0]?.email ?? ""} and the
-          password you chose, and send them to becarecompliant.com/login.
+          {emailed === "1"
+            ? `The demo is ready, and ${demo.logins[0]?.fullName ?? "they"} has been emailed the login details (${demo.logins[0]?.email ?? ""}, the password you chose, and how to get started).`
+            : `The demo is ready. Give ${demo.logins[0]?.fullName ?? "them"} the email ${demo.logins[0]?.email ?? ""} and the password you chose, and send them to becarecompliant.com/login, or email them the details with Send login email below.`}
+        </p>
+      ) : null}
+      {created && emailed === "0" ? (
+        <p role="alert" className="rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-100">
+          The login email was not sent{mailwhy ? `: ${mailwhy.slice(0, 300)}` : "."} Use Send login email below, or give them the details yourself.
         </p>
       ) : null}
       {problem === "login" ? (
@@ -165,6 +172,29 @@ export default async function DemoPage({
                 </p>
               </div>
               {demo.logins.length > 1 ? <UsageBlock usage={l.usage} /> : null}
+              {canEmail ? (
+                <details className="border-t border-white/10 pt-4">
+                  <summary className="cursor-pointer text-sm font-medium text-gold-200">Send login email</summary>
+                  <p className="mt-2 text-xs text-white/50">
+                    Emails {l.fullName} a button to log in, their email and password, the end date and how to get started.
+                    Passwords are never stored, so type it again. Whatever you type here becomes their password, so the
+                    email is always right.
+                  </p>
+                  <ActionForm
+                    action={emailDemoLogin}
+                    hidden={{ demo_id: demo.id, login_id: l.id }}
+                    label="Send login email"
+                    savingLabel="Sending…"
+                    savedLabel="Sent"
+                    className="mt-3 space-y-3"
+                  >
+                    <div>
+                      <label htmlFor={`pw_${l.id}`} className="form-label">Their password *</label>
+                      <input id={`pw_${l.id}`} name="password" type="text" required minLength={8} autoComplete="off" />
+                    </div>
+                  </ActionForm>
+                </details>
+              ) : null}
               <div className="border-t border-white/10 pt-4">
                 <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-white/50">Their feedback</h3>
                 <FeedbackBlock f={l.feedback} />
@@ -193,6 +223,10 @@ export default async function DemoPage({
                 <input id="add_password" name="password" type="text" required minLength={8} autoComplete="off" />
                 <p className="form-hint">At least 8 characters. Passwords found in leaked password lists online are refused, so pick something unusual.</p>
               </div>
+              <label className="flex items-center gap-2 text-sm text-white/80">
+                <input type="checkbox" name="send_email" defaultChecked />
+                Email them their login details
+              </label>
             </ActionForm>
           </div>
 

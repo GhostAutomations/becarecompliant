@@ -2505,7 +2505,7 @@ take the intervals from the deal (dealIntervals, pure, 1 test): here £250.00 a 
 ## DEF-094: library forms name Thistle Care in every new company
 - Found: 1 Oct 2026, building the demo sample data. The founder form library (form_templates) has "Thistle Care" in the wording of Spot Check, Supervision and Probation Review, so every company seeded from it (Bevan, House Test, Refuse Test, the demo) shows Thistle's name in those questions.
 - Demo: fixed in the demo seed (0359 replaces it with "Demo Care Company").
-- Customers: NOT fixed yet. Needs Phil's decision on the template wording.
+- Customers: fixed by 0360 (Phil's popup: fix now). The library and every other company's copies now say "the company" (six questions, e.g. "I would happily recommend the company as an employer?"). Thistle's own forms and all existing Evidence are unchanged. Verified: no other company's forms mention Thistle; Thistle keeps its 6.
 
 ## DEF-095: the demo company looked like a failing provider
 - Found: DM2, 1 Oct 2026 (Phil): CIW readiness Action needed everywhere, 34 overdue, every Return to Work overdue, PQS all 0%, nothing in Planner, policies, training, on call or recent activity.

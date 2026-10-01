@@ -3915,3 +3915,5 @@ DEF-096 (no billing banner, AI tile shows the login's credits, SMS Off in a demo
 Try the AI page (/demo/try-ai, linked from the demo bar and the AI tile; Phil's popup: build it now).
 DEF-094 logged: the form library names Thistle Care in three forms for every company (decision needed).
 Tests DM11 to DM13 added.
+2026-10-01 (cont.): demo login email (Phil's popup): tick box on Set up a demo and Add another login,
+and Send login email per login (password typed again, set as typed so the email is always right).
