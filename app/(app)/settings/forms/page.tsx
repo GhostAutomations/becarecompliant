@@ -127,12 +127,12 @@ export default async function SettingsFormsPage() {
         </div>
       ) : (
         /* TWO COLUMNS (Phil, 2026-10-01: "could we have two columns of 3?"). The sections that
-           have forms are split in half, the first half down the left and the rest down the right,
+           have forms, in alphabetical order, are split in half, the first half down the left and the rest down the right,
            so each card is half the page wide and nothing needs panning across. One column on a
            narrow screen. */
         (() => {
           const groups = [
-            { key: "linked", n: linkedForms.length, el: (
+            { key: "linked", title: "Linked forms", n: linkedForms.length, el: (
               <LinkedFormsGroup
                 key="linked"
                 forms={linkedForms}
@@ -141,13 +141,16 @@ export default async function SettingsFormsPage() {
                 formLinkedCheck={formLinkedCheck}
               />
             ) },
-            { key: "people", n: peopleBySub("Compliance").length, el: <FormGroup key="people" title="People forms" forms={peopleBySub("Compliance")} checks={peopleChecks} formLinkedCheck={formLinkedCheck} /> },
-            { key: "holiday", n: peopleBySub("Holiday").length, el: <FormGroup key="holiday" title="Holiday forms" forms={peopleBySub("Holiday")} checks={[]} formLinkedCheck={formLinkedCheck} sectionLabel="Holiday" /> },
-            { key: "absence", n: peopleBySub("Absence").length, el: <FormGroup key="absence" title="Absence forms" forms={peopleBySub("Absence")} checks={[]} formLinkedCheck={formLinkedCheck} sectionLabel="Absence" /> },
-            { key: "training", n: peopleBySub("Training").length, el: <FormGroup key="training" title="Training forms" forms={peopleBySub("Training")} checks={[]} formLinkedCheck={formLinkedCheck} sectionLabel="Training" /> },
-            { key: "su", n: suForms.length, el: <FormGroup key="su" title="Service User forms" forms={suForms} checks={suChecks} formLinkedCheck={formLinkedCheck} /> },
-            { key: "complaints", n: complaintForms.length, el: <FormGroup key="complaints" title="Complaints forms" forms={complaintForms} checks={[]} formLinkedCheck={formLinkedCheck} sectionLabel="Complaints section" /> },
-          ].filter((g) => g.n > 0);
+            { key: "people", title: "People forms", n: peopleBySub("Compliance").length, el: <FormGroup key="people" title="People forms" forms={peopleBySub("Compliance")} checks={peopleChecks} formLinkedCheck={formLinkedCheck} /> },
+            { key: "holiday", title: "Holiday forms", n: peopleBySub("Holiday").length, el: <FormGroup key="holiday" title="Holiday forms" forms={peopleBySub("Holiday")} checks={[]} formLinkedCheck={formLinkedCheck} sectionLabel="Holiday" /> },
+            { key: "absence", title: "Absence forms", n: peopleBySub("Absence").length, el: <FormGroup key="absence" title="Absence forms" forms={peopleBySub("Absence")} checks={[]} formLinkedCheck={formLinkedCheck} sectionLabel="Absence" /> },
+            { key: "training", title: "Training forms", n: peopleBySub("Training").length, el: <FormGroup key="training" title="Training forms" forms={peopleBySub("Training")} checks={[]} formLinkedCheck={formLinkedCheck} sectionLabel="Training" /> },
+            { key: "su", title: "Service User forms", n: suForms.length, el: <FormGroup key="su" title="Service User forms" forms={suForms} checks={suChecks} formLinkedCheck={formLinkedCheck} /> },
+            { key: "complaints", title: "Complaints forms", n: complaintForms.length, el: <FormGroup key="complaints" title="Complaints forms" forms={complaintForms} checks={[]} formLinkedCheck={formLinkedCheck} sectionLabel="Complaints section" /> },
+          ]
+            .filter((g) => g.n > 0)
+            /* ALPHABETICAL (Phil, 2026-10-01), down the left column then the right. */
+            .sort((a, b) => a.title.localeCompare(b.title));
           const half = Math.ceil(groups.length / 2);
           return (
             <div className="grid items-start gap-3 lg:grid-cols-2">
@@ -202,11 +205,15 @@ function FormRow({
   checks,
   formLinkedCheck,
   sectionLabel,
+  summaryOnly = false,
 }: {
   f: FormSummary;
   checks: Array<{ id: string; name: string }>;
   formLinkedCheck: Map<string, string>;
   sectionLabel: string | null;
+  /** Linked forms is a SUMMARY (Phil, 2026-10-01): it says what each form links to, and the
+   *  link is changed in the form's own section, not here. */
+  summaryOnly?: boolean;
 }) {
   const linkedCheckId = formLinkedCheck.get(f.id);
   const linkedName = linkedCheckId ? checks.find((c) => c.id === linkedCheckId)?.name ?? null : null;
@@ -221,7 +228,9 @@ function FormRow({
         <span className="truncate text-xs text-white/40">{POP_LABEL[f.population]}</span>
       </Link>
       <span className="w-44 shrink-0">
-        {checks.length > 0 ? (
+        {summaryOnly ? (
+          linkLabel ? <span className="block truncate text-xs text-white/60">{linkLabel}</span> : null
+        ) : checks.length > 0 ? (
           <FormColumnLink formId={f.id} checks={checks} currentCheckId={linkedCheckId ?? ""} />
         ) : null}
       </span>
@@ -324,6 +333,7 @@ function LinkedFormsGroup({
               checks={checks}
               formLinkedCheck={formLinkedCheck}
               sectionLabel={sectionLabel}
+              summaryOnly
             />
           );
         })}
