@@ -8,7 +8,8 @@
  */
 
 import { useActionState, useEffect, useRef, useState } from "react";
-import { addInspectionNotice, setInspectionNoticeResolved } from "@/lib/framework/notice-actions";
+import { addInspectionNotice, setInspectionNoticeResolved, setInspectionNoticeStatus } from "@/lib/framework/notice-actions";
+import { NOTICE_STATUSES, noticeStatusLabel } from "@/lib/framework/notice-status";
 import { IDLE_STATE } from "@/lib/forms";
 import { submitKeepingTyped } from "@/components/forms/keep-typed";
 
@@ -21,6 +22,8 @@ export type NoticeRow = {
   issued_on: string;
   due_by: string | null;
   resolved_on: string | null;
+  /** CIW's status from the report (0364): new, reviewed, not_achieved or achieved. */
+  status?: string | null;
 };
 
 const KIND_LABEL: Record<NoticeRow["kind"], string> = {
@@ -60,6 +63,7 @@ export default function NoticesPanel({
   const [state, action, pending] = useActionState(addInspectionNotice, IDLE_STATE);
   const formRef = useRef<HTMLFormElement>(null);
   const titleOf = new Map(themes.map((t) => [t.code, t.title]));
+  const ciw = regulatorName === "CIW";
   const open = notices.filter((n) => !n.resolved_on);
   const closed = notices.filter((n) => n.resolved_on);
 
@@ -124,6 +128,17 @@ export default function NoticesPanel({
             <label htmlFor="n_due" className="form-label">To be put right by</label>
             <input id="n_due" name="due_by" type="date" />
           </div>
+          {ciw ? (
+            <div>
+              <label htmlFor="n_status" className="form-label">Status in the report</label>
+              <select id="n_status" name="status" defaultValue="new">
+                {NOTICE_STATUSES.map((s) => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+              <p className="form-hint">As the report's Summary of Non-Compliance gives it. Achieved closes it.</p>
+            </div>
+          ) : null}
           <div className="flex items-end gap-3 sm:col-span-2">
             <button type="submit" className="btn-primary text-sm" disabled={pending}>
               {pending ? "Saving…" : "Save the notice"}
@@ -159,17 +174,41 @@ export default function NoticesPanel({
                 <span className="text-xs text-white/50">
                   Issued {fmt(n.issued_on)}
                   {n.due_by ? ` · due ${fmt(n.due_by)}` : ""}
+                  {ciw ? ` · ${noticeStatusLabel(n.status ?? (n.resolved_on ? "achieved" : "new"))}` : ""}
                   {n.resolved_on ? ` · put right ${fmt(n.resolved_on)}` : ""}
                 </span>
               </div>
               <p className="mt-1 whitespace-pre-wrap">{n.description}</p>
-              <form onSubmit={submitKeepingTyped(setInspectionNoticeResolved)} className="mt-2">
-                <input type="hidden" name="id" value={n.id} />
-                <input type="hidden" name="resolved_on" value={n.resolved_on ? "" : todayIso()} />
-                <button type="submit" className="text-xs font-semibold text-gold-300 hover:text-gold-200">
-                  {n.resolved_on ? "Reopen" : "Mark as put right today"}
-                </button>
-              </form>
+              {ciw ? (
+                /* CIW's four statuses (0364). Choosing one saves it straight away; Achieved
+                   closes the notice and the others keep it open against its theme. */
+                <form onSubmit={submitKeepingTyped(setInspectionNoticeStatus)} className="mt-2 flex flex-wrap items-center gap-2">
+                  <input type="hidden" name="id" value={n.id} />
+                  <label htmlFor={`ns_${n.id}`} className="text-xs text-white/60">CIW status</label>
+                  <select
+                    id={`ns_${n.id}`}
+                    name="status"
+                    defaultValue={n.status ?? (n.resolved_on ? "achieved" : "new")}
+                    className="max-w-[12rem] py-1 text-xs"
+                    onChange={(e) => e.currentTarget.form?.requestSubmit()}
+                  >
+                    {NOTICE_STATUSES.map((s) => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
+                  </select>
+                  <span className="text-[11px] text-white/45">
+                    {NOTICE_STATUSES.find((s) => s.value === (n.status ?? (n.resolved_on ? "achieved" : "new")))?.meaning}
+                  </span>
+                </form>
+              ) : (
+                <form onSubmit={submitKeepingTyped(setInspectionNoticeResolved)} className="mt-2">
+                  <input type="hidden" name="id" value={n.id} />
+                  <input type="hidden" name="resolved_on" value={n.resolved_on ? "" : todayIso()} />
+                  <button type="submit" className="text-xs font-semibold text-gold-300 hover:text-gold-200">
+                    {n.resolved_on ? "Reopen" : "Mark as put right today"}
+                  </button>
+                </form>
+              )}
             </li>
           ))}
         </ul>

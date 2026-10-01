@@ -9,6 +9,7 @@ import { waitingSentence } from "@/lib/framework/waiting";
 import { packThemeHeading, packThemePairs } from "@/lib/framework/pack-lines";
 import { narrativeLines } from "@/lib/framework/narrative-text";
 import { resolveReadinessBranch } from "@/lib/framework/branches";
+import { noticeStatusLabel } from "@/lib/framework/notice-status";
 
 const REG_LABEL: Record<string, string> = {
   ciw: "Care Inspectorate Wales (CIW)",
@@ -49,13 +50,13 @@ export async function GET(request: Request) {
     (branchId
       ? supabase
           .from("inspection_notices")
-          .select("requirement_code, kind, regulation, description, issued_on, due_by, resolved_on")
+          .select("requirement_code, kind, regulation, description, issued_on, due_by, resolved_on, status")
           .eq("company_id", profile.company_id)
           .eq("regulator", regulator)
           .or(`branch_id.eq.${branchId},branch_id.is.null`)
       : supabase
           .from("inspection_notices")
-          .select("requirement_code, kind, regulation, description, issued_on, due_by, resolved_on")
+          .select("requirement_code, kind, regulation, description, issued_on, due_by, resolved_on, status")
           .eq("company_id", profile.company_id)
           .eq("regulator", regulator)
     ).order("issued_on", { ascending: false }),
@@ -112,6 +113,7 @@ export async function GET(request: Request) {
     issued_on: string;
     due_by: string | null;
     resolved_on: string | null;
+    status: string | null;
   };
   const notices = ((noticesRes.data as NoticeRow[] | null) ?? []).slice().sort(
     (a, b) => Number(!!a.resolved_on) - Number(!!b.resolved_on),
@@ -136,8 +138,11 @@ export async function GET(request: Request) {
         { text: [n.regulation, n.description].filter(Boolean).join(": ") || "No detail recorded" },
         { text: fmt(n.issued_on) },
         n.resolved_on
-          ? { text: `Resolved ${fmt(n.resolved_on)}`, rag: "green" as RagTone }
-          : { text: n.due_by ? `Open, due ${fmt(n.due_by)}` : "Open", rag: (n.kind === "priority_action" ? "red" : "amber") as RagTone },
+          ? { text: regulator === "ciw" ? `Achieved ${fmt(n.resolved_on)}` : `Resolved ${fmt(n.resolved_on)}`, rag: "green" as RagTone }
+          : {
+              text: `${regulator === "ciw" ? noticeStatusLabel(n.status) : "Open"}${n.due_by ? `, due ${fmt(n.due_by)}` : ""}`,
+              rag: (n.kind === "priority_action" ? "red" : "amber") as RagTone,
+            },
       ]),
     });
   }

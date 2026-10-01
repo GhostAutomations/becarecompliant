@@ -13,6 +13,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import type { ActionState } from "@/lib/forms";
+import { isNoticeStatus, noticeStatusLabel, resolvedOnFor } from "@/lib/framework/notice-status";
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -40,6 +41,10 @@ export async function addInspectionNotice(_prev: ActionState, fd: FormData): Pro
   if (!description) return { error: "Say what the notice requires." };
   if (!issuedOn || !ISO.test(issuedOn)) return { error: "Enter the date it was issued." };
   if (dueBy && !ISO.test(dueBy)) return { error: "Enter a valid date it is due to be put right by." };
+  // CIW's status from the report (0364). Recording an old report's notice as Achieved closes it.
+  const statusRaw = text(fd, "status") ?? "new";
+  if (!isNoticeStatus(statusRaw)) return { error: "Choose the status the report gives it." };
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
 
   const { data: req } = await supabase
     .from("framework_requirements")
@@ -71,6 +76,8 @@ export async function addInspectionNotice(_prev: ActionState, fd: FormData): Pro
       description,
       issued_on: issuedOn,
       due_by: dueBy,
+      status: statusRaw,
+      resolved_on: resolvedOnFor(statusRaw, null, today),
       created_by: user.id,
     })
     .select("id")
@@ -105,7 +112,7 @@ export async function setInspectionNoticeResolved(fd: FormData): Promise<void> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("inspection_notices")
-    .update({ resolved_on: resolvedOn, updated_at: new Date().toISOString() })
+    .update({ resolved_on: resolvedOn, status: resolvedOn ? "achieved" : "new", updated_at: new Date().toISOString() })
     .eq("id", id)
     .eq("company_id", companyId)
     .select("id");
@@ -120,6 +127,50 @@ export async function setInspectionNoticeResolved(fd: FormData): Promise<void> {
     entityType: "inspection_notice",
     entityId: id,
     summary: resolvedOn ? `Marked a notice as put right on ${resolvedOn}` : "Reopened a notice",
+  });
+  revalidatePath("/readiness");
+  revalidatePath("/dashboard");
+}
+
+/** CIW's status from a later report (0364): Achieved closes the notice, the others keep it open. */
+export async function setInspectionNoticeStatus(fd: FormData): Promise<void> {
+  const { user, profile } = await requireCompany();
+  const companyId = profile.company_id;
+  if (!companyId) return;
+  const id = text(fd, "id");
+  const status = text(fd, "status");
+  if (!id || !isNoticeStatus(status)) return;
+
+  const supabase = await createClient();
+  const { data: current } = await supabase
+    .from("inspection_notices")
+    .select("resolved_on, status")
+    .eq("id", id)
+    .eq("company_id", companyId)
+    .maybeSingle();
+  if (!current || current.status === status) return;
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
+  const { data } = await supabase
+    .from("inspection_notices")
+    .update({
+      status,
+      resolved_on: resolvedOnFor(status, (current.resolved_on as string | null) ?? null, today),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .eq("company_id", companyId)
+    .select("id");
+  if (!data || data.length === 0) return;
+
+  await writeAudit({
+    companyId,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "inspection_notice.status",
+    entityType: "inspection_notice",
+    entityId: id,
+    summary: `Set a notice to ${noticeStatusLabel(status)}`,
   });
   revalidatePath("/readiness");
   revalidatePath("/dashboard");

@@ -28,3 +28,8 @@ Test company: House Test Ltd (three houses: Ivy House, Oak House, Treehouse; wor
   Could not run in support mode: the founder is not a company member, so AI is refused (DEF-103, the message said "out of AI credits" with 25 left; fixed and rechecked: it now says AI is switched off in support mode). Code traced: the question and narrative are passed the branch and the context names the service. To try as a company login.
 - [x] RB10 A company with no registered branch (untick all): Readiness shows every branch together with the amber note to tick them in Settings; the dashboard tile goes back to the three themes.
   PASS 1 Oct: all three unticked, Readiness showed every house together with the amber note, the dashboard section went and the tile showed the themes; all three ticked back and saved.
+
+## CIW notice statuses (0364, Phil 1 Oct: "1+2")
+- [ ] RB11 Record a notice on a CIW company: "Status in the report" offers New, Reviewed, Not achieved, Achieved (New by default). Recording one as Achieved puts it straight into the closed list and does not count against its theme.
+- [ ] RB12 On an open notice, change CIW status to Reviewed: saved without a button, the meaning shows beside it, still open. Change to Achieved: closes it, "put right" date shown, theme no longer counts it. Change back to Not achieved: open again.
+- [ ] RB13 Inspection pack: the notices table shows the CIW status word (Achieved with its date, or New / Reviewed / Not achieved).

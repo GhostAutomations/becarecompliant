@@ -87,7 +87,7 @@ export default async function ReadinessPage({ searchParams }: { searchParams: Pr
 
   let noticeQuery = supabase
     .from("inspection_notices")
-    .select("id, requirement_code, kind, regulation, description, issued_on, due_by, resolved_on")
+    .select("id, requirement_code, kind, regulation, description, issued_on, due_by, resolved_on, status")
     .eq("company_id", profile.company_id)
     .eq("regulator", regulator);
   if (branchId) noticeQuery = noticeQuery.or(`branch_id.eq.${branchId},branch_id.is.null`);
