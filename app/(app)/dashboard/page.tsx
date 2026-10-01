@@ -16,6 +16,8 @@ import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import { offSinceLabel, rtwAbsenceDates, rtwDueLabel, rtwHref, viewAbsenceHref } from "@/lib/absence/rtw-list";
 import { rtwQuestionsPill } from "@/lib/absence/rtw-questions";
 import BillingAttention from "@/components/billing/billing-attention";
+import GettingSetUpCard from "@/components/setup/getting-set-up-card";
+import { getSetupCard } from "@/lib/setup/status";
 import {
   isBillableSeat,
   includedSeatsForTier,
@@ -671,6 +673,10 @@ export default async function DashboardPage() {
   const demo = await getCompanyDemo(companyId);
   const demoLogin = demo ? await getMyDemoLogin(user.id) : null;
   const showsBilling = profile.role === "company_admin" && !profile.actingAsCompanyId && !demo;
+  const setupCard =
+    !demo && (profile.role === "company_admin" || profile.role === "platform_admin")
+      ? await getSetupCard(companyId)
+      : null;
   let billingMessage: string | null = null;
   if (showsBilling) {
     const [{ data: co }, { data: bill }, { data: userRows }, { data: branchRows }] =
@@ -852,6 +858,10 @@ export default async function DashboardPage() {
           </Link>
         </div>
       </div>
+
+      {/* GETTING SET UP (Phil, 2026-10-01): the Company Admin's tick list, every company, until
+          nothing is left to do. Never in a demo, which the founder sets up himself. */}
+      {setupCard && !setupCard.finished ? <GettingSetUpCard companyId={companyId} card={setupCard} /> : null}
 
       {/*
         ROW ONE IS ONE FLUID GRID (Phil, 2026-09-16: "it needs to be perfect every time").

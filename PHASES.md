@@ -2134,6 +2134,9 @@ happens to Acme once Thistle is real.
 - **Getting set up card (agreed 1 Oct, after the tick list).** Company Admin dashboard card and the same
   ticks on Founder > company page: company basics, branches, records in, team and settings; ticks itself
   from what the app sees, any step can be marked Not needed, card goes when all done or skipped.
+  BUILT 1 Oct (0366). Popups: steps the data can't show (each branch, People and Service User check
+  settings, forms on the builder tiers, notifications) tick the first time that page is saved; EVERY company
+  gets the card. Tests: TEST-CHECKLIST-GETTING-SET-UP.md.
 
 # OPERATION NEW DAWN — Phase 14 onwards
 

@@ -1,4 +1,5 @@
 "use server";
+import { recordSetupDone } from "@/lib/setup/status";
 
 /**
  * Notification settings server actions (Company Admin only).
@@ -59,6 +60,8 @@ export async function saveNotificationSettings(
     { onConflict: "company_id" },
   );
   if (error) return { error: `Settings could not be saved: ${error.message}` };
+  // Getting set up (0366): ticks the first time these settings are saved.
+  await recordSetupDone(profile.company_id, "notifications", user.id);
 
   await writeAudit({
     companyId: profile.company_id,

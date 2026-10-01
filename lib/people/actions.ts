@@ -1,4 +1,5 @@
 "use server";
+import { recordSetupDone } from "@/lib/setup/status";
 
 /**
  * Be Care Compliant — People (Phase 3) server actions.
@@ -1106,6 +1107,19 @@ export async function updateCheckDefinition(formData: FormData): Promise<ActionS
   const supabase = await createClient();
   const { error } = await supabase.from("check_definitions").update(patch).eq("id", definitionId);
   if (error) return { error: error.message };
+
+  // Getting set up (0366): the check settings tick the first time one is saved.
+  {
+    const { data: stamp } = await supabase
+      .from("check_definitions")
+      .select("population, company_id")
+      .eq("id", definitionId)
+      .maybeSingle();
+    const st = stamp as { population: string; company_id: string } | null;
+    if (st) {
+      await recordSetupDone(st.company_id, st.population === "service_users" ? "checks_service_users" : "checks_people", user.id);
+    }
+  }
 
   // Recompute the due date on carers who have NOT yet completed this check, so the
   // new schedule applies to existing records too (completion-anchor checks only).

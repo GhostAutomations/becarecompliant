@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import GettingSetUpCard from "@/components/setup/getting-set-up-card";
+import { getSetupCard } from "@/lib/setup/status";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requirePlatformAdmin } from "@/lib/auth/guards";
@@ -91,6 +93,7 @@ export default async function FounderCompanyPage({
     .maybeSingle();
 
   if (!company) notFound();
+  const setupCard = await getSetupCard(company.id);
 
   const [
     { data: branches },
@@ -315,6 +318,16 @@ export default async function FounderCompanyPage({
           extra branch on the test company was added by hand in SQL, which is why the £7.50 a
           month the pricing page promises could never have been billed. Creating one here bills
           it immediately, prorated onto the next invoice like an extra user. */}
+      {/* GETTING SET UP (Phil, 2026-10-01): the same ticks their Admin sees on the dashboard. */}
+      {setupCard ? (
+        <GettingSetUpCard
+          companyId={company.id}
+          card={setupCard}
+          defaultOpen={!setupCard.finished}
+          title={setupCard.finished ? "Getting set up: all done" : "Getting set up"}
+        />
+      ) : null}
+
       <section aria-label="Branches" className="glass-card p-5">
         <h2 className="mb-1 text-sm font-semibold text-white/80">
           Add a branch{theirWord ? ` (a ${lower(theirWord.one)} to them)` : ""}

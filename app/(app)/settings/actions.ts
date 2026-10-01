@@ -1,4 +1,5 @@
 "use server";
+import { recordSetupDone } from "@/lib/setup/status";
 
 import { tileModulesFor } from "@/lib/auth/carer-login";
 import { SENIOR_CHECK_FIELD, SENIOR_POPULATIONS, seniorChecksOff } from "@/lib/senior/checks";
@@ -800,6 +801,8 @@ export async function renameBranch(
   // (migration 0076), so a rename leaves them offering the old one until we re-bake
   // (best-effort, see rebake-options.ts).
   await rebakeFormFieldOptions(ctx.companyId);
+  // Getting set up (0366): each branch ticks the first time it is saved.
+  if (existing.kind === "branch") await recordSetupDone(ctx.companyId, `branch:${branchId}`, ctx.actor.id);
   revalidatePath("/settings/branches");
   revalidatePath("/readiness");
   revalidatePath("/dashboard");

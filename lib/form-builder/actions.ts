@@ -1,4 +1,5 @@
 "use server";
+import { recordSetupDone } from "@/lib/setup/status";
 
 /**
  * Be Care Compliant — Form builder (Phase 5) server actions.
@@ -122,6 +123,8 @@ export async function saveDraft(versionId: string, schema: FormSchema): Promise<
     p_schema: schema,
   });
   if (error) return { error: error.message };
+  // Getting set up (0366): forms tick the first time one is saved or published.
+  await recordSetupDone(companyOf(profile) as string, "forms", profile.id);
   return { ok: "Saved." };
 }
 
@@ -159,6 +162,7 @@ export async function publishForm(versionId: string, formId: string): Promise<Ac
     metadata: { version: data },
   });
 
+  await recordSetupDone(companyId, "forms", user.id);
   revalidatePath("/settings/forms");
   revalidatePath(`/settings/forms/${formId}`);
   return { ok: `Published version ${data as number}.` };
