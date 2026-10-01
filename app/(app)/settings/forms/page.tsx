@@ -114,7 +114,7 @@ export default async function SettingsFormsPage() {
         </p>
       </div>
 
-      <div className="flex max-w-4xl justify-end">
+      <div className="flex justify-end">
         <NewFormButton forms={forms} />
       </div>
 
@@ -126,22 +126,36 @@ export default async function SettingsFormsPage() {
           </p>
         </div>
       ) : (
-        /* NARROWER (Phil, 2026-10-01): the list stops at 56rem so the name and its dropdown are
-           not a screen apart on a wide monitor. */
-        <div className="max-w-4xl space-y-3">
-          <LinkedFormsGroup
-            forms={linkedForms}
-            peopleChecks={peopleChecks}
-            suChecks={suChecks}
-            formLinkedCheck={formLinkedCheck}
-          />
-          <FormGroup title="People forms" forms={peopleBySub("Compliance")} checks={peopleChecks} formLinkedCheck={formLinkedCheck} />
-          <FormGroup title="Holiday forms" forms={peopleBySub("Holiday")} checks={[]} formLinkedCheck={formLinkedCheck} sectionLabel="Holiday" />
-          <FormGroup title="Absence forms" forms={peopleBySub("Absence")} checks={[]} formLinkedCheck={formLinkedCheck} sectionLabel="Absence" />
-          <FormGroup title="Training forms" forms={peopleBySub("Training")} checks={[]} formLinkedCheck={formLinkedCheck} sectionLabel="Training" />
-          <FormGroup title="Service User forms" forms={suForms} checks={suChecks} formLinkedCheck={formLinkedCheck} />
-          <FormGroup title="Complaints forms" forms={complaintForms} checks={[]} formLinkedCheck={formLinkedCheck} sectionLabel="Complaints section" />
-        </div>
+        /* TWO COLUMNS (Phil, 2026-10-01: "could we have two columns of 3?"). The sections that
+           have forms are split in half, the first half down the left and the rest down the right,
+           so each card is half the page wide and nothing needs panning across. One column on a
+           narrow screen. */
+        (() => {
+          const groups = [
+            { key: "linked", n: linkedForms.length, el: (
+              <LinkedFormsGroup
+                key="linked"
+                forms={linkedForms}
+                peopleChecks={peopleChecks}
+                suChecks={suChecks}
+                formLinkedCheck={formLinkedCheck}
+              />
+            ) },
+            { key: "people", n: peopleBySub("Compliance").length, el: <FormGroup key="people" title="People forms" forms={peopleBySub("Compliance")} checks={peopleChecks} formLinkedCheck={formLinkedCheck} /> },
+            { key: "holiday", n: peopleBySub("Holiday").length, el: <FormGroup key="holiday" title="Holiday forms" forms={peopleBySub("Holiday")} checks={[]} formLinkedCheck={formLinkedCheck} sectionLabel="Holiday" /> },
+            { key: "absence", n: peopleBySub("Absence").length, el: <FormGroup key="absence" title="Absence forms" forms={peopleBySub("Absence")} checks={[]} formLinkedCheck={formLinkedCheck} sectionLabel="Absence" /> },
+            { key: "training", n: peopleBySub("Training").length, el: <FormGroup key="training" title="Training forms" forms={peopleBySub("Training")} checks={[]} formLinkedCheck={formLinkedCheck} sectionLabel="Training" /> },
+            { key: "su", n: suForms.length, el: <FormGroup key="su" title="Service User forms" forms={suForms} checks={suChecks} formLinkedCheck={formLinkedCheck} /> },
+            { key: "complaints", n: complaintForms.length, el: <FormGroup key="complaints" title="Complaints forms" forms={complaintForms} checks={[]} formLinkedCheck={formLinkedCheck} sectionLabel="Complaints section" /> },
+          ].filter((g) => g.n > 0);
+          const half = Math.ceil(groups.length / 2);
+          return (
+            <div className="grid items-start gap-3 lg:grid-cols-2">
+              <div className="space-y-3">{groups.slice(0, half).map((g) => g.el)}</div>
+              <div className="space-y-3">{groups.slice(half).map((g) => g.el)}</div>
+            </div>
+          );
+        })()
       )}
     </div>
   );
@@ -233,7 +247,7 @@ function FormRow({
           ) : null}
         </span>
       </span>
-      <span className="flex w-36 shrink-0 items-center justify-end gap-2 text-xs">
+      <span className="flex w-28 shrink-0 items-center justify-end gap-2 text-xs">
         {f.currentVersion == null ? (
           <span className="pill pill-amber">Not published</span>
         ) : (
