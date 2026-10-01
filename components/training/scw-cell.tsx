@@ -97,7 +97,7 @@ export default function ScwCell({
       : null;
 
   const text = number ?? (status === "missing" ? "Missing" : "Under 6 months");
-  const tone = number ? "text-white/85" : status === "missing" ? "text-rag-amber-soft font-semibold" : "text-white/40";
+
   const renewalState = number ? scwRenewalState(renewal, todayIso) : null;
   const fmt = (iso: string) => {
     const [y, m, d] = iso.split("-");
@@ -108,15 +108,27 @@ export default function ScwCell({
     : !renewal
       ? ". No renewal date recorded"
       : renewalState === "expired"
-        ? `. Renewal date ${fmt(renewal)} has passed, so the registration has ended`
+        ? `. Expired ${fmt(renewal)}, so the registration has ended`
         : renewalState === "due_soon"
-          ? `. Renews ${fmt(renewal)}: the renewal must reach Social Care Wales by ${fmt(scwApplyBy(renewal))}`
-          : `. Renews ${fmt(renewal)}`;
+          ? `. Expires ${fmt(renewal)}: the renewal must reach Social Care Wales by ${fmt(scwApplyBy(renewal))}`
+          : `. Expires ${fmt(renewal)}`;
   const reason = number
     ? `Social Care Wales registration ${number}${renewalNote}`
     : status === "missing"
       ? "6 months or more in post with no registration number. The PQS counts this"
       : "Under 6 months in post";
+  /* Just the number on the matrix (Phil, 2026-10-01: "don't put the date under the number"). The
+     expiry is in the hover tip; the number itself turns amber within 90 days and red once expired,
+     so a lapse is still visible without opening anything. */
+  const tone = number
+    ? renewalState === "expired"
+      ? "text-rag-red-soft font-semibold"
+      : renewalState === "due_soon"
+        ? "text-rag-amber-soft font-semibold"
+        : "text-white/85"
+    : status === "missing"
+      ? "text-rag-amber-soft font-semibold"
+      : "text-white/40";
   const tip = editable ? `${reason}. Click to change.` : `${reason}.`;
 
   /* SHOWN STRAIGHT AWAY on hover (Phil, 2026-10-01: the browser's own tip "doesn't pop up
@@ -141,17 +153,9 @@ export default function ScwCell({
 
   if (!editable) {
     return (
-      <span className={`inline-flex cursor-help flex-col items-center text-xs tabular-nums ${tone}`} aria-label={tip} {...hover}>
+      <span className={`cursor-help text-xs tabular-nums ${tone}`} aria-label={tip} {...hover}>
         {text}
-        {number && renewal ? (
-          <span
-            className={`rag-cell mt-1 ${
-              renewalState === "expired" ? "rag-cell-red" : renewalState === "due_soon" ? "rag-cell-amber" : "rag-cell-green"
-            }`}
-          >
-            {fmt(renewal)}
-          </span>
-        ) : null}
+        
         {tipEl}
       </span>
     );
@@ -164,20 +168,12 @@ export default function ScwCell({
           setPos(null);
           setEditing(true);
         }}
-        className={`inline-flex flex-col items-center text-xs tabular-nums ${tone}`}
+        className={`text-xs tabular-nums ${tone}`}
         aria-label={tip}
         {...hover}
       >
         <span className="underline decoration-white/15 underline-offset-2 hover:decoration-white/60">{text}</span>
-        {number && renewal ? (
-          <span
-            className={`rag-cell mt-1 ${
-              renewalState === "expired" ? "rag-cell-red" : renewalState === "due_soon" ? "rag-cell-amber" : "rag-cell-green"
-            }`}
-          >
-            {fmt(renewal)}
-          </span>
-        ) : null}
+        
       </button>
       {tipEl}
       {dialog}
