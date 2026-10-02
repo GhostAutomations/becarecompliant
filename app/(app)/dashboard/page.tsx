@@ -213,8 +213,8 @@ function Tile({
   const inner = (
     <div className="flex h-full items-start gap-3">
       <div className="flex min-w-0 flex-1 flex-col">
-        <p className="truncate text-xs uppercase tracking-wide text-white/50">{label}</p>
-        <p className={`mt-2 text-[40px] font-bold leading-none tabular-nums ${valueClass}`}>
+        <p className="truncate text-[11px] uppercase tracking-wide text-white/50 @[13rem]:text-xs">{label}</p>
+        <p className={`mt-2 text-[32px] font-bold leading-none tabular-nums @[13rem]:text-[40px] ${valueClass}`}>
           {value}
         </p>
         {/* mt-auto: the caption sits on the FLOOR of the tile, so the slack lands between the
@@ -324,7 +324,7 @@ function SplitTile({
   const inner = (
     <div className="flex h-full items-start gap-3">
       <div className="flex min-w-0 flex-1 flex-col">
-        <p className="truncate text-xs uppercase tracking-wide text-white/50">{label}</p>
+        <p className="truncate text-[11px] uppercase tracking-wide text-white/50 @[13rem]:text-xs">{label}</p>
         {/*
             A LINE BETWEEN THEM, and room to breathe. Measured, "100%" and "39%" each fitted
             their half with 8px to spare and no overflow flag anywhere — and on the screen they
@@ -336,7 +336,7 @@ function SplitTile({
             const half = (
               <>
                 <p
-                  className={`min-w-0 text-[24px] font-bold leading-none tabular-nums @[14rem]:text-[40px] ${ink(p.tone)}`}
+                  className={`min-w-0 text-[24px] font-bold leading-none tabular-nums @[9.5rem]:text-[28px] @[14rem]:text-[40px] ${ink(p.tone)}`}
                 >
                   {p.value}
                 </p>
@@ -882,11 +882,11 @@ export default async function DashboardPage() {
         others, so nothing is stretched to match it. Narrower, they wrap four, three or two a row.
       */}
       {/*
-        ADJUSTS TO THE SCREEN (Phil, 2 Oct 2026, popup "One line if it fits"; see .dash-top-row in
-        globals.css). The one line rule above switched on at a 1536px window, which on a 1920
-        monitor left each tile about 174px. Now the tiles go on one line only when each can be
-        13rem wide, otherwise two or three even lines. data-cells must count EVERY tile rendered
-        below, so the conditional ones (SMS, AI credits) are counted the same way they render.
+        ADJUSTS TO THE SCREEN (Phil, 2 Oct 2026; see .dash-top-row in globals.css). One line
+        whenever each tile can be 11rem wide, Readiness one and a half tiles, the figures stepping
+        down to fit (Phil: "why didnt you make the fonts slightly smaller"); two or three even
+        lines only below that. data-cells must count EVERY tile rendered below, so the
+        conditional ones (SMS, AI credits) are counted the same way they render.
       */}
       <div className="dash-top-wrap">
       <div
