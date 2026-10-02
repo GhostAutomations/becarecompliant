@@ -2106,6 +2106,11 @@ happens to Acme once Thistle is real.
   PDF, Word, Excel or picture, in the founder library (free) and every company's builder (1 AI credit),
   the draft landing in the builder for checking before Save. BUILT 2 Oct (0373). Tests FB1 to FB9 in
   TEST-CHECKLIST-FORM-BUILDER-ROUND.md.
+  PASSED 2 Oct: FB1, FB2, FB3, FB4, FB6 (Word, the Birdie audit). STILL TO TEST in this phase (Phil, 2 Oct:
+  "we will test them later add them to this phase"): FB5 PDF, FB6 Excel and a photo, FB7 a link (Google
+  Form, and one that needs a sign in), FB8 a company import spending 1 AI credit (and a refused import
+  spending nothing), FB9 Add after versus Replace, the unsaved changes warning (link, refresh), and red
+  tiles for a question asked twice.
 - **Speed pass on the database access rules (Phil, 2 Oct 2026: "we will do the speed up later", then "add the speed up
   to the list": Phase 13, after the Gofal Cymru Care demo).** Found when Phil asked why the site felt slow: every register and dashboard query
   runs the RLS rules per ROW (is_branch_team_member, is_company_admin, senior_may_do_instance and the rest),
