@@ -393,9 +393,14 @@ export async function getFrameworkReadiness(
     const trackersOverdue = themeOverdue.filter((i) => !i.instanceId).length;
     const overdueInHand = themeOverdue.filter((i) => gapInHand(i)).length;
 
+    /* The count line, the pack and the assistant read these, so a lapsed DBS or Right to Work is
+       counted with the overdue checks there too. Before, the headline said "1 check overdue" while
+       the line under it said "0 overdue" (snag S14, found by the assistant in Neath, 2 Oct). */
+    const counted = { ...checks, overdue: checks.overdue + trackersOverdue, total: checks.total + trackersOverdue };
+
     const notices = noticesByCode.get(r.code) ?? { priority: 0, improvement: 0 };
     const inputs = {
-      overdue: checks.overdue + trackersOverdue,
+      overdue: counted.overdue,
       overdueInHand,
       dueSoon: checks.dueSoon,
       total: checks.total,
@@ -414,7 +419,7 @@ export async function getFrameworkReadiness(
     // snapshots and the inspection pack; the dashboard no longer shows it (see theme-status.ts).
     const signals: number[] = [];
     // Every percentage on a compliance surface is rounded DOWN, never up (Phil, 2026-07-30).
-    if (checks.total > 0) signals.push(Math.floor((100 * (checks.total - checks.overdue)) / checks.total));
+    if (counted.total > 0) signals.push(Math.floor((100 * (counted.total - counted.overdue)) / counted.total));
     for (const m of metrics) if (m.pct != null) signals.push(m.pct);
     const score = signals.length ? Math.floor(signals.reduce((a, b) => a + b, 0) / signals.length) : null;
 
@@ -425,7 +430,7 @@ export async function getFrameworkReadiness(
       description: r.description,
       status,
       score,
-      checks,
+      checks: counted,
       metrics,
       onTimePct,
       notices,
