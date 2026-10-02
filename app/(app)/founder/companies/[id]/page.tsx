@@ -497,7 +497,9 @@ export default async function FounderCompanyPage({
               <span className="pill pill-neutral">No</span>
             )}
             <p className="mt-1 text-xs text-white/45">
-              A test company&apos;s invoices are left off Invoices, and it is left out of revenue and MRR.
+              A test company&apos;s invoices are left off Invoices, and it is left out of revenue and MRR. It
+              sends no emails or texts at all (morning reports, alerts, staff emails, letters, chasers),
+              except password resets and login invites.
             </p>
           </div>
           <ActionForm

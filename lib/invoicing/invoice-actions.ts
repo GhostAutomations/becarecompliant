@@ -513,7 +513,7 @@ async function emailInvoiceOnSend(
       replyable: Boolean(config.reply_to_email),
     });
 
-    const result = await sendEmail({
+    const result = await sendEmail({ companyId: inv.company_id,
       to: inv.bill_to_email,
       subject: `${companyName} invoice ${inv.number}`,
       html,

@@ -103,7 +103,7 @@ export async function respondToMeeting(
         const reasonHtml = !accepted
           ? `<p style="margin:12px 0 0 0;">Reason given: ${escapeHtml(reason)}</p>`
           : "";
-        const result = await sendEmail({
+        const result = await sendEmail({ companyId: meeting.company_id as string,
           to: notifyProfile.email,
           subject,
           html: noticeEmailHtml({

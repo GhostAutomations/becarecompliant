@@ -3,6 +3,7 @@ import { recordUsage } from "@/lib/notifications/usage";
 import { spendSmsCredit, refundSmsCredit, OUT_OF_SMS_CREDITS } from "@/lib/billing/sms-credits";
 import { isOptedOut, SMS_OPTED_OUT } from "@/lib/sms/opt-out";
 import { DEMO_NO_SMS, isDemoCompanyAnyContext } from "@/lib/demo/data";
+import { TEST_COMPANY_NO_MESSAGES, isMessagingMuted } from "@/lib/email/muted";
 
 /**
  * Twilio SMS sender (REST API, no SDK dependency, mirroring lib/email/resend.ts).
@@ -73,6 +74,10 @@ export async function sendSms(opts: {
   // NO SMS FROM A DEMO (Phil, 2026-09-30): its people are made up, and a text costs real money.
   if (await isDemoCompanyAnyContext(opts.companyId)) {
     return { sent: false, skippedReason: DEMO_NO_SMS };
+  }
+  // A test company texts nobody (Phil, 2026-10-02; lib/email/muted.ts).
+  if (await isMessagingMuted(opts.companyId)) {
+    return { sent: false, skippedReason: TEST_COMPANY_NO_MESSAGES };
   }
 
   const optedOut = await isOptedOut(opts.to);

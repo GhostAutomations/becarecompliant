@@ -143,7 +143,7 @@ export async function commitImportAction(
     } else {
       const admins = await companyAdminEmails(profile.company_id);
       const targets = admins.length > 0 ? admins : [profile.email];
-      const results = await Promise.all(targets.map((to) => sendEmail({ to, subject, html })));
+      const results = await Promise.all(targets.map((to) => sendEmail({ companyId: profile.company_id, to, subject, html })));
       const anySent = results.some((r) => r.sent);
       emailNote = anySent
         ? `Summary emailed to the Company ${admins.length === 1 ? "Admin" : "Admins"}.`

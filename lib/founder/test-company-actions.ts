@@ -9,7 +9,8 @@ import type { ActionState } from "@/lib/forms";
 /**
  * Founder: mark a company as a test company, or not (0353, Phil 2026-09-30). A test company's
  * invoices are left off Founder > Invoices and it is left out of the revenue and MRR totals, so
- * billing tests on companies like Bevan never look like real money. Guarded in the database by
+ * billing tests on companies like Bevan never look like real money. Since 2 Oct 2026 a test
+ * company also sends no emails or texts (lib/email/muted.ts), except password resets and invites. Guarded in the database by
  * companies_guard_founder_columns, so a Company Admin cannot set it on their own company.
  */
 export async function setTestCompany(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -36,8 +37,8 @@ export async function setTestCompany(_prev: ActionState, formData: FormData): Pr
     entityType: "company",
     entityId: companyId,
     summary: on
-      ? "Marked as a test company: left off Invoices, revenue and MRR"
-      : "No longer a test company: counted in Invoices, revenue and MRR again",
+      ? "Marked as a test company: left off Invoices, revenue and MRR, and no emails or texts sent"
+      : "No longer a test company: counted in Invoices, revenue and MRR again, and emails and texts sent again",
   });
   revalidatePath(`/founder/companies/${companyId}`);
   revalidatePath("/founder/invoices");

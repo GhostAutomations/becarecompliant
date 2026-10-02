@@ -247,7 +247,7 @@ async function emailMentions(opts: { ref: Ref; facts: { companyId: string; name:
       metadata: { update_id: opts.updateId, record_kind: opts.ref.kind, record_id: opts.ref.id },
     });
     if (!logId) continue;
-    const result = await sendEmail({
+    const result = await sendEmail({ companyId: opts.facts.companyId,
       to: p.email,
       subject,
       html: mentionEmailHtml({

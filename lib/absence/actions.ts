@@ -1318,7 +1318,7 @@ export async function cancelAbsenceMeetingBooking(
       subject: notice.subject,
     });
     if (!logId) continue;
-    const result = await sendEmail({ to: notice.email, subject: notice.subject, html: notice.html });
+    const result = await sendEmail({ companyId: profile.company_id, to: notice.email, subject: notice.subject, html: notice.html });
     noticeOutcomes[notice.email] = result.sent
       ? "sent"
       : result.skippedReason

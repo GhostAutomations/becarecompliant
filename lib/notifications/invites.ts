@@ -64,7 +64,7 @@ export async function sendCalendarInvite(opts: {
     attendees: [{ name: opts.recipient.name, email: opts.recipient.email }],
   });
 
-  const result = await sendEmail({
+  const result = await sendEmail({ companyId: opts.companyId,
     to: opts.recipient.email,
     subject,
     html,

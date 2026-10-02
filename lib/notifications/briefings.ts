@@ -174,6 +174,7 @@ export async function notifyBriefingSent(opts: {
 
     const results = await sendEmailBatch(
       toSend.map((m) => ({ to: m.to, subject: m.subject, html: m.html })),
+      { companyId: opts.companyId },
     );
 
     const sentIds: string[] = [];
@@ -326,6 +327,7 @@ export async function sendBriefingChases(opts: {
 
   const results = await sendEmailBatch(
     messages.map((m) => ({ to: m.to, subject: m.subject, html: m.html })),
+    { companyId: opts.companyId },
   );
   const sentIds: string[] = [];
   const failedIds: string[] = [];

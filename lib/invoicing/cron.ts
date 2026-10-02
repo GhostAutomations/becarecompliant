@@ -420,7 +420,7 @@ export async function runOverdueReminders(): Promise<{
           out.skipped += 1;
           continue;
         }
-        const result = await sendEmail({
+        const result = await sendEmail({ companyId: c.company_id,
           to: recipient.email,
           subject,
           html: noticeEmailHtml({

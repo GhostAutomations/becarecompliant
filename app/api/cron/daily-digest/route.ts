@@ -216,7 +216,7 @@ export async function GET(request: NextRequest) {
             summary.skipped += 1;
             continue;
           }
-          const result = await sendEmail({
+          const result = await sendEmail({ companyId: company.id,
             to: digest.recipient.email,
             subject: digestSubject(digest.overdueCount, digest.dueSoonCount),
             html: digestEmailHtml({
@@ -306,7 +306,7 @@ export async function GET(request: NextRequest) {
               summary.skipped += 1;
               continue;
             }
-            const result = await sendEmail({
+            const result = await sendEmail({ companyId: company.id,
               to: recipient.email,
               subject,
               html: reportingEmailHtml({
@@ -374,7 +374,7 @@ export async function GET(request: NextRequest) {
                 summary.skipped += 1;
                 continue;
               }
-              const result = await sendEmail({
+              const result = await sendEmail({ companyId: company.id,
                 to: recipient.email,
                 subject,
                 html: managerOutstandingHtml({

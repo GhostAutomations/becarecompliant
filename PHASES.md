@@ -2137,6 +2137,12 @@ happens to Acme once Thistle is real.
   Leadership and Management; the manager's own rating per theme with CIW's descriptors, history kept,
   carried into Reg 80. BUILT 2 Oct (0374): see TEST-CHECKLIST-READINESS-GAPS.md. Untested yet.
   Follow up: drop the seven argument post_record_update once deployed.
+- **Test companies send no emails or texts (added 2 Oct, Phil: "it's a test company it doesn't get any
+  emails").** A company marked Test company on Founder > company (is_test) sends nothing: morning
+  reports, alerts, staff emails, letters, chasers, texts; password resets and login invites still go
+  (popup). One check in sendEmail, sendEmailBatch and sendSms (lib/email/muted.ts); Bevan's digest and
+  texts also switched off in its settings. BUILT 2 Oct. Untested: post an Update mentioning a Bevan
+  login and confirm no email arrives and the Founder notification log shows it skipped.
 - **Deal tests D7 (rest), D8, D9** in TEST-CHECKLIST-CONTRACT.md.
 - **New department: Safety Checks.** Scope to be talked through with Phil before anything is built.
 - **New department: Maintenance.** Scope to be talked through with Phil before anything is built.

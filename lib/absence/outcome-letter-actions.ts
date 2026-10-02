@@ -325,7 +325,7 @@ export async function sendOutcomeLetter(_prev: ActionState, formData: FormData):
       status = "send_failed";
       emailError = "This letter is already being sent. Wait a moment and refresh.";
     } else {
-      const result = await sendEmail({
+      const result = await sendEmail({ companyId: ctx.companyId,
         to: ctx.employee.email,
         subject: letter.subject,
         html: letter.html,

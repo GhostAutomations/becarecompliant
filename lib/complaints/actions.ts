@@ -548,7 +548,7 @@ export async function sendInitialResponse(_prev: ActionState, formData: FormData
   if (!c.contact_email) return { error: "There is no contact email on this complaint." };
 
   const finalSubject = subject || "Response to your complaint";
-  const send = await sendEmail({
+  const send = await sendEmail({ companyId: profile.company_id,
     to: c.contact_email as string,
     subject: finalSubject,
     html: noticeEmailHtml({
@@ -824,7 +824,7 @@ export async function sendComplaintResponse(_prev: ActionState, formData: FormDa
   }
 
   const finalSubject = subject || "Response to your complaint";
-  const send = await sendEmail({
+  const send = await sendEmail({ companyId: profile.company_id,
     to: c.contact_email as string,
     subject: finalSubject,
     html: noticeEmailHtml({

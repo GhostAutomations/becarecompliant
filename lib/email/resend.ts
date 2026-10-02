@@ -1,4 +1,5 @@
 import "server-only";
+import { TEST_COMPANY_NO_MESSAGES, isMessagingMuted } from "@/lib/email/muted";
 
 export type SendResult = {
   sent: boolean;
@@ -72,8 +73,15 @@ export type BatchMessage = { to: string; subject: string; html: string };
  * settled correctly. If the batch endpoint itself fails, this falls back to
  * sending them one at a time rather than losing the lot.
  */
-export async function sendEmailBatch(messages: BatchMessage[]): Promise<SendResult[]> {
+export async function sendEmailBatch(
+  messages: BatchMessage[],
+  /** The company sending. A test company sends nothing (lib/email/muted.ts). */
+  opts: { companyId?: string | null } = {},
+): Promise<SendResult[]> {
   if (messages.length === 0) return [];
+  if (await isMessagingMuted(opts.companyId)) {
+    return messages.map(() => ({ sent: false, skippedReason: TEST_COMPANY_NO_MESSAGES }));
+  }
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM;
   if (!apiKey || !from) {
@@ -113,7 +121,7 @@ export async function sendEmailBatch(messages: BatchMessage[]): Promise<SendResu
     // Fall back to one at a time, so one bad address cannot silence the rest.
     console.error("[email] batch failed, falling back:", error);
     for (const m of chunk) {
-      out.push(await sendEmail(m));
+      out.push(await sendEmail({ ...m, companyId: opts.companyId }));
     }
   }
   return out;
@@ -131,7 +139,13 @@ export async function sendEmail(opts: {
   headers?: Record<string, string>;
   /** Plain text alternative. Set on console replies so the text part is what the founder typed. */
   text?: string;
+  /** The company sending. A test company sends nothing (lib/email/muted.ts). Left out on
+   *  purpose for password resets, login invites and founder emails. */
+  companyId?: string | null;
 }): Promise<SendResult> {
+  if (await isMessagingMuted(opts.companyId)) {
+    return { sent: false, skippedReason: TEST_COMPANY_NO_MESSAGES };
+  }
   const apiKey = process.env.RESEND_API_KEY;
   const from = opts.fromOverride || process.env.RESEND_FROM;
   if (!apiKey || !from) {

@@ -52,6 +52,8 @@ export type EmailCopyInput = {
   authorName: string | null;
   authorEmail: string | null;
   evidenceId: string;
+  /** The company sending; a test company sends nothing (lib/email/muted.ts). */
+  companyId?: string | null;
 };
 
 /** Did this set of answers ask for a copy to be emailed over? */
@@ -87,7 +89,7 @@ export async function emailEvidenceCopy(input: EmailCopyInput): Promise<string |
   }
 
   const first = (input.recipientName ?? "").trim().split(" ")[0] || "there";
-  const result = await sendEmail({
+  const result = await sendEmail({ companyId: input.companyId,
     to,
     subject: `${input.formName} from ${input.companyName}`,
     html: noticeEmailHtml({

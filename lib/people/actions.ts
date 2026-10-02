@@ -1543,6 +1543,7 @@ export async function completeTrackerForm(_prev: ActionState, formData: FormData
     ]);
     const companyName = (co?.name as string | null) ?? "Your employer";
     emailNote = await emailEvidenceCopy({
+      companyId: person.company_id as string,
       schema: form.schema as FormSchema,
       answers: visible,
       recordType: "person",

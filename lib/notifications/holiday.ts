@@ -86,7 +86,7 @@ export async function notifyHolidayRequested(opts: {
         outcomes[approver.email] = "already_sent";
         continue;
       }
-      const result = await sendEmail({
+      const result = await sendEmail({ companyId: opts.companyId,
         to: approver.email,
         subject: `Holiday request from ${opts.requesterName}`,
         html: noticeEmailHtml({
@@ -175,7 +175,7 @@ export async function notifyHolidayDecided(opts: {
       !approved && opts.note
         ? `<p style="margin:12px 0 0 0;">Reason given: ${escapeHtml(opts.note)}</p>`
         : "";
-    const result = await sendEmail({
+    const result = await sendEmail({ companyId: opts.companyId,
       to: toAddress,
       subject: approved ? "Your holiday request is approved" : "Your holiday request was declined",
       html: noticeEmailHtml({
@@ -271,7 +271,7 @@ export async function notifyHolidayChanged(opts: {
     const noteHtml = opts.note
       ? `<p style="margin:12px 0 0 0;">${escapeHtml(opts.note)}</p>`
       : "";
-    const result = await sendEmail({
+    const result = await sendEmail({ companyId: opts.companyId,
       to: toAddress,
       subject,
       html: noticeEmailHtml({

@@ -112,7 +112,7 @@ export async function escalateEvidence(input: EscalationInput): Promise<string |
 
   for (const r of recipients) {
     const first = (r.full_name ?? "").trim().split(" ")[0] || "there";
-    const result = await sendEmail({
+    const result = await sendEmail({ companyId: input.companyId,
       to: (r.email ?? "").trim(),
       subject: `Escalated: ${input.formName} for ${subject.name}`,
       html: noticeEmailHtml({
