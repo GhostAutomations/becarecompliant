@@ -116,6 +116,7 @@ has them as checks or tracker dates.
 - S12 (Phil 2 Oct, during snag testing) Outstanding checks: the risk pill, action noted and Add action sit to the right of the name and check on the same line, so every row is the same height. On a phone they wrap under the name.
 - S13 (Phil 2 Oct: "does add action need to take you to the dash?") Add action opens the record's Updates popup over the Readiness page, already linked to the check. Posting closes it and redraws Readiness. The record page is never shown. Opening a service user's updates this way is audited (service_user.updates_viewed).
 - S14 (found by the assistant, Neath, 2 Oct) A theme's count line said "0 overdue" while its headline said "1 check overdue" and the list showed Osian Mathias's lapsed DBS. A lapsed DBS or Right to Work now counts as overdue in the count line, the pack and the assistant.
+- S15 (Llanelli pack, 3 Oct) The AI narrative said "the inspector has judged" Delyth's check late for a recorded reason. The label is our estimate, not an inspector's decision. The assistant and narrative are now told so, and the label is spelled out for them.
 
 ## Snagging push (0375), tested by Claude in Chrome on Bevan (Phil, 2 Oct: "then you test in chrome")
 - [x] SN1 (S1) Outstanding checks rows: header Name and check, Due, Planned; Dafydd Harries supervision Planned 5 Oct; unbooked rows "Not booked"; DBS row Planned blank. PASS 2 Oct (Claude in Chrome, Llanelli): headers, Dafydd supervision Planned 5 Oct, Not booked rows, Osian DBS Planned blank.
@@ -125,11 +126,12 @@ has them as checks or tracker dates.
 - [x] SN5 (S5) Add action shows "Why is it late?" once About is set; a safety gap with a recognised reason shows amber "Inspector's judgement: late for a recorded reason"; Other or none stays red with the note shown; the thread shows "Late: ..."; a person on recorded holiday or absence on the due date is spotted. PASS 2 Oct: Delyth posted with Staff member off sick, Care and Support pill changed to 1 late for a recorded reason.
 - [x] SN6 (S6) DBS action has "DBS application submitted": a date 8 weeks or more before the renewal date turns it amber; later stays red with "DBS applied <date>". PASS 3 Oct (Osian, Neath): submitted 1 Sept stayed red with DBS applied 1 Sept 2026; submitted 20 Jul turned amber Inspector's judgement and the theme went to Attention.
 - [x] SN7 (S7) "Your rating:" bold white. PASS 2 Oct: Your rating: bold white.
-- [ ] SN8 (S8) Inspection pack: "Your rating" first under each theme heading.
-- [ ] SN9 (S9) PDFs wrap words whole, no "ac-tion".
+- [x] SN8 (S8) Inspection pack: "Your rating" first under each theme heading. PASS 3 Oct (Llanelli pack): YOUR RATING is the first box under each theme, Not rated yet on Leadership and Management.
+- [x] SN9 (S9) PDFs wrap words whole, no "ac-tion". PASS 3 Oct: no words split with hyphens anywhere in the pack.
 - [x] SN10 (S10) Ask box narrower, Ask button beside it. PASS 2 Oct (Neath): Ask row narrow.
 - [x] SN11 (S11) a shortcut button says Thinking while it works. PASS 2 Oct: Biggest risk showed Thinking... on itself, then answered with Osian's DBS. It also spotted snag S14.
 - [x] SN12 Reg 80 new section "Overdue checks and why they are late" lists each overdue check with the label and action. PASS 3 Oct (Llanelli Refresh data): lists Delyth (Inspector's judgement, off sick) and Dafydd (Area for Improvement likely, booked 5 Oct); Rating of each theme filled.
 - [ ] SN13 (S12) Outstanding checks: pill, action and Add action on the same line as the name; all rows the same height; long action text cuts off with the full text on hover; on a phone width they wrap under the name. Desktop PASS 3 Oct (rows one line, same height). Phone width still to check.
 - [x] SN14 (S13) Add action on Readiness opens "Updates on <name>" over Readiness with About preselected; Post closes it, Readiness stays on the same branch and the pill updates; Close leaves you on Readiness; Pin or Edit inside it redraws the thread. PASS 3 Oct (Osian): popup over Readiness, About preselected, DBS date shown; Post closed it and the row updated in place; Pin and Unpin redrew the thread; Close stayed on Readiness.
-- [ ] SN15 (S14) Neath Leadership and Management count line reads "1 overdue" (Osian's DBS), matching the headline.
+- [x] SN15 (S14) Neath Leadership and Management count line reads "1 overdue" (Osian's DBS), matching the headline. PASS 3 Oct: reads 1 overdue · 1 due soon · 17 on track.
+- [ ] SN16 (S15) Llanelli: Draft inspection narrative (or the Care and Support chip) talks about Delyth's late check without saying an inspector has judged or accepted it.

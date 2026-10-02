@@ -3,7 +3,14 @@
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { getFrameworkReadiness, getFrameworkItems, shownThemes, type RequirementReadiness } from "@/lib/framework/data";
-import { GAP_RISK_LABEL, actionText } from "@/lib/framework/gaps";
+import { actionText, type GapRisk } from "@/lib/framework/gaps";
+
+/* How each gap label is put to the model, so it cannot read "Inspector's judgement" as a ruling. */
+const AI_RISK_WORDS: Record<GapRisk, string> = {
+  pan_risk: "Priority Action Notice risk",
+  judgement: "late for a recorded reason, so whether CIW accepts the delay will be the inspector's judgement at inspection",
+  afi_likely: "Area for Improvement likely",
+};
 import { resolveReadinessBranch, getLatestInspections } from "@/lib/framework/branches";
 import { noticeStatusLabel } from "@/lib/framework/notice-status";
 import { ratingLabel } from "@/lib/framework/ratings";
@@ -70,7 +77,9 @@ async function buildContext(
     const it = items.get(r.code);
     if (!it) continue;
     for (const i of it.overdue) {
-      const risk = i.risk ? `; ${GAP_RISK_LABEL[i.risk]}` : "";
+      /* Spelled out for the model: on 3 Oct the pack's narrative read "Inspector's judgement" as an
+         inspector having judged it (snag S15). It is our estimate of how CIW may view the gap. */
+      const risk = i.risk ? `; likely CIW view (our estimate, not a decision): ${AI_RISK_WORDS[i.risk]}` : "";
       const act = i.action ? `; ${actionText(i.action, ukDate)}` : "; no action in place";
       outstandingLines.push(`- ${r.title}; ${i.recordName}; ${i.checkName}; due ${ukDate(i.dueDate)}; OVERDUE${risk}${act}`);
     }
@@ -155,7 +164,7 @@ function ukDate(iso: string): string {
 }
 
 const SYSTEM = (regulator: string) =>
-  `You are an experienced UK care compliance adviser helping a provider prepare for a ${regulator === "ciw" ? "Care Inspectorate Wales (CIW)" : "Care Quality Commission (CQC)"} inspection. Use ONLY the data you are given. Never invent people, facts or figures. Use UK spelling and plain English. Be honest about weaknesses. Make clear this is a preparation aid based on the provider's own live data, not a regulatory rating or legal advice. ${regulator === "ciw" ? "CIW rates each theme separately, by judgement, so never give an overall score, percentage rating or grade for the service. " : ""}Call the things that fall due "checks", never "items". Do not use dashes as punctuation: use commas, colons and full stops. Write plain text, not markdown: no asterisks, no underscores, no # signs. Write dates as they are given to you, for example 17 September 2026. Describe a theme by its status words (On track, Attention, Action needed), never as a colour. Where a figure has no data yet, say "no data yet", never "n/a".`;
+  `You are an experienced UK care compliance adviser helping a provider prepare for a ${regulator === "ciw" ? "Care Inspectorate Wales (CIW)" : "Care Quality Commission (CQC)"} inspection. Use ONLY the data you are given. Never invent people, facts or figures. Use UK spelling and plain English. Be honest about weaknesses. Make clear this is a preparation aid based on the provider's own live data, not a regulatory rating or legal advice. ${regulator === "ciw" ? "CIW rates each theme separately, by judgement, so never give an overall score, percentage rating or grade for the service. " : ""}Call the things that fall due "checks", never "items". Do not use dashes as punctuation: use commas, colons and full stops. Write plain text, not markdown: no asterisks, no underscores, no # signs. Write dates as they are given to you, for example 17 September 2026. Describe a theme by its status words (On track, Attention, Action needed), never as a colour. Where a figure has no data yet, say "no data yet", never "n/a". ${regulator === "ciw" ? "The likely CIW view given for an overdue check is this platform's own estimate from the provider's data. No inspector has seen or judged it, so never say an inspector has judged, accepted or decided anything." : ""}`;
 
 /* TOKEN BUDGETS (2026-09-24, measured on Thistle). The model spends a good part of its budget
    before any text appears: a narrative of 4,451 characters used 2,718 output tokens, and "What
