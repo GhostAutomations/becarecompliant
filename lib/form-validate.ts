@@ -15,6 +15,7 @@
  *  - required, per-type shape, and per-field validation constraints are checked.
  */
 
+import { matchesVisibleWhen } from "@/lib/form-visibility";
 import {
   type AddressValue,
   type Answers,
@@ -53,12 +54,7 @@ export function formCompletesCheck(schema: FormSchema, answers: Answers): boolea
 /** Is a field visible given the current answers (conditional logic)? */
 export function isFieldVisible(field: FormField, answers: Answers): boolean {
   if (!field.visibleWhen) return true;
-  const controlling = answers[field.visibleWhen.field];
-  if (controlling == null) return false;
-  if (Array.isArray(controlling)) {
-    return controlling.some((v) => field.visibleWhen!.in.includes(String(v)));
-  }
-  return field.visibleWhen.in.includes(String(controlling));
+  return matchesVisibleWhen(field.visibleWhen.in, answers[field.visibleWhen.field]);
 }
 
 /**

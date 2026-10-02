@@ -2574,6 +2574,14 @@ take the intervals from the deal (dealIntervals, pure, 1 test): here £250.00 a 
 ## DEF-103 - Every incident page said "Page not found", and new incident reports failed (2 Oct 2026)
 - Found by Claude testing DM11 on the demo: Try the AI's incident link opened "Page not found"; so did every incident on the demo.
 - Cause: migration 0303 (19 Sep) never reached the live database. incidents.event_type and incident_people did not exist; the incident page reads incident_people and the report writes event_type. Every company was affected since 19 Sep.
-- Fix: the table, column and policies applied 2 Oct with Phil's OK (recorded as 0370). The 0303 incident form changes were left out, by Phil's choice.
+- Fix: the table, column and policies applied 2 Oct with Phil's OK (recorded as 0370). Filing still failed ("Answer whether it is notifiable to the regulator and whether it is a safeguarding matter.") because the code asks the office questions only the 0303 form has, so with Phil's OK the 0303 form update ran too: library v2 and every company's Incident Report form updated in place.
 - Also: the incident page and fields had dashes in customer copy; replaced. Try the AI step now reads "Press Investigate, then Draft the lines of enquiry."
 - Status: fixed; incident pages load on the demo (three checked, 200 with the case shown). Filing a new incident report still to be tested live.
+
+## DEF-104 - The incident forms' follow up questions never appeared (2 Oct 2026)
+- Found by Claude filing a test incident on the demo after DEF-103: answering No to "Was treatment received?" and "Has the next of kin been told?" asked nothing more, and the report filed without the reasons.
+- Cause: a yes_no answer is stored as "Yes" or "No", but the three incident forms (0301 to 0303) say visibleWhen in ["yes"] or ["no"]. The visibility check compared with case, so the follow ups never showed and were never required.
+- Fix: lib/form-visibility.ts compares without case; isFieldVisible uses it (client and server). Unit test lib/form-validate.visible.test.ts.
+- Scope checked in the live database: only the Incident Report, Incident Investigation and Incident Outcome forms on Thistle, House Test and Bevan have such follow ups; no other form changes behaviour.
+- Status: fixed in code, awaiting push and a live retest.
+- DEF-103 retest PASS 2 Oct (demo, Claude in Chrome): a near miss (Fall) filed with staff Ben Morgan and the office answers; incidents.event_type near_miss, category Fall, notifiable and safeguarding false, incident_people Ben Morgan.

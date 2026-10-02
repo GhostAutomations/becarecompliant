@@ -4,9 +4,11 @@
 -- incident_people table did not exist, so every incident page returned "Page not found" (the page
 -- reads incident_people) and filing an incident report failed (it writes event_type), on every
 -- company. Found by Claude testing the demo's Try the AI incident link. Applied 2 Oct with Phil's
--- OK: the table, the column and the three policies only. The incident report FORM changes in 0303
--- (type of event, staff lookup, For the office) were NOT applied: Phil chose to leave every
--- company's incident form as it is for now. Idempotent, so a rebuild that also runs 0303 is safe.
+-- OK: the table, the column and the three policies (below). Then, also with Phil's OK, the rest of
+-- 0303 was run exactly as written (its do $mig$ block): the library and every company's Incident
+-- Report form updated in place (no company had a report filed on it), because the report action
+-- requires the office's notifiable and safeguarding answers that only the 0303 form asks. Without
+-- it no Admin or Manager could file an incident. Idempotent, so a rebuild that runs 0303 is safe.
 
 alter table public.incidents add column if not exists event_type text;
 
