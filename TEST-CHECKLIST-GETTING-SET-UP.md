@@ -24,3 +24,9 @@ Run as popups, one at a time: Pass / Fail / Not tested. Phase 13 rule: test now,
 - GS11 Founder company page (Bevan): every step still to do except "Accept the agreement" has Mark done; clicking it ticks the step and shows "Ticked by Be Care Compliant." with Undo; Undo puts it back to To do. The Admin dashboard shows the same tick and note.
 - GS12 Undo never removes an Admin's own stamp (a step ticked by saving its page shows no Undo); the agreement has no Mark done and the database refuses it (founder_set_setup_step raises).
 - GS13 10 day alert: Bevan (created 17 Aug, set up not finished, setup_alert_at cleared for the test). Run /api/cron/setup-alert from Vercel: "Set up not finished: Bevan Care Ltd" lands in the Founder Inbox live and in Outlook, listing what is still to do by group, button "Open the company". Run it again: nothing new (once only). Companies before 0367 were stamped, so nothing else alerts.
+
+### Round 2 results (2 Oct 2026, deploy be1bbce)
+- GS10 PASS (Phil): closed and gold on the Admin dashboard, normal card when open.
+- GS11 PASS (tested in Chrome on Bevan's founder page): Mark done on every step still to do, none on the agreement; Mark done on Add your logo ticked it with "Ticked by Be Care Compliant." and Undo; audit row setup.step_ticked_by_founder by phil.davies@outlook.com; Undo put it back to To do.
+- GS12 PASS (SQL as the founder, rolled back): Undo left an Admin's own notifications stamp in place; agreement refused ("The agreement can only be accepted by the company itself"); a Company Admin calling founder_set_setup_step refused.
+- GS13 PASS: Run in Vercel at 00:07; "Set up not finished: Bevan Care Ltd" arrived in Outlook (Phil) and appeared in the open Founder Inbox with no refresh, from "Bevan Care Ltd (set up alert)"; Bevan stamped setup_alert_at, so it is not sent again; no other company alerted.

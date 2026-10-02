@@ -102,7 +102,7 @@ export default function GettingSetUpCard({
                         <span className="block text-xs text-white/45">{s.hint}</span>
                       ) : null}
                       {s.byFounder ? (
-                        <span className="block text-xs text-white/45">Ticked by Be Care Compliant.</span>
+                        <span className="block text-xs text-gold-300">Ticked by Be Care Compliant.</span>
                       ) : null}
                     </span>
                   </span>
