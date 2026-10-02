@@ -84,7 +84,7 @@ export default async function TryAiPage() {
       what: "Reads the incident report and drafts what the investigation needs to find out.",
       steps: [
         inc ? `Open the ${inc.category.toLowerCase()} incident.` : "Open an incident.",
-        "In the investigation stage, press Draft the lines of enquiry.",
+        "Press Investigate, then Draft the lines of enquiry.",
         "Use them as the starting point for the investigation.",
       ],
       href: inc ? `/incidents/${inc.id}` : "/incidents",

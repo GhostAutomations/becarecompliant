@@ -2570,3 +2570,10 @@ take the intervals from the deal (dealIntervals, pure, 1 test): here £250.00 a 
 - Cause: the assistant's context held the themes and the outstanding checks only, never the notices table or (new today) the last inspection's ratings.
 - Fix: the context now lists the branch's open notices (kind, theme, dates, CIW status, what it requires) and its last inspection with the rating per theme.
 - Status: fixed and retested live 1 Oct: "This is about Ivy House (House Test Ltd)... Open notices: Area for Improvement, Leadership and Management, issued 14 January 2025, status Not achieved... That is the only open notice", the Achieved one correctly left out.
+
+## DEF-103 - Every incident page said "Page not found", and new incident reports failed (2 Oct 2026)
+- Found by Claude testing DM11 on the demo: Try the AI's incident link opened "Page not found"; so did every incident on the demo.
+- Cause: migration 0303 (19 Sep) never reached the live database. incidents.event_type and incident_people did not exist; the incident page reads incident_people and the report writes event_type. Every company was affected since 19 Sep.
+- Fix: the table, column and policies applied 2 Oct with Phil's OK (recorded as 0370). The 0303 incident form changes were left out, by Phil's choice.
+- Also: the incident page and fields had dashes in customer copy; replaced. Try the AI step now reads "Press Investigate, then Draft the lines of enquiry."
+- Status: fixed; incident pages load on the demo (three checked, 200 with the case shown). Filing a new incident report still to be tested live.

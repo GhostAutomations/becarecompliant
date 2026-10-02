@@ -82,7 +82,7 @@ export default function IncidentStages({
       ) : null}
 
       {investigationDone && caseState.noFurtherAction === true ? (
-        <span className="pill-neutral">No further action — no outcome needed</span>
+        <span className="pill-neutral">No further action, no outcome needed</span>
       ) : null}
     </div>
   );

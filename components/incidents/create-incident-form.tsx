@@ -46,7 +46,7 @@ export default function CreateIncidentForm({
           ))}
         </select>
         <p className="form-hint">
-          Choose the {bw.oneLower} first — the service user and staff lists narrow to it.
+          Choose the {bw.oneLower} first: the service user and staff lists narrow to it.
         </p>
       </div>
 

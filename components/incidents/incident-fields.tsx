@@ -99,7 +99,7 @@ export default function IncidentFields({
               <option key={p.id} value={p.id}>{p.full_name}</option>
             ))}
           </select>
-          <p className="form-hint">Either, both or neither — some incidents involve nobody in particular.</p>
+          <p className="form-hint">Either, both or neither: some incidents involve nobody in particular.</p>
         </div>
 
         <div className="sm:col-span-2">
@@ -121,7 +121,7 @@ export default function IncidentFields({
             name="immediate_action"
             rows={3}
             defaultValue={incident?.immediate_action ?? ""}
-            placeholder="What was done at the time — first aid, GP called, family informed."
+            placeholder="What was done at the time: first aid, GP called, family informed."
           />
         </div>
       </div>
@@ -139,7 +139,7 @@ export default function IncidentFields({
             Notifiable to the regulator
             <span className="block text-xs text-white/50">
               CQC Regulation 18 in England, CIW Regulation 60 in Wales. Tick it now even if
-              the notification has not gone yet — the register will chase it.
+              the notification has not gone yet. The register will chase it.
             </span>
           </span>
         </label>

@@ -80,7 +80,7 @@ export default async function IncidentPage({ params }: { params: Promise<{ id: s
         </div>
         <p className="page-subtitle">
           {incident.branch_name ?? `No ${bw.oneLower}`}
-          {who ? ` — ${who}` : ""} — {INCIDENT_STATUS_LABELS[incident.status]}
+          {who ? ` · ${who}` : ""} · {INCIDENT_STATUS_LABELS[incident.status]}
           {incident.closed_on ? ` on ${formatUkDate(incident.closed_on)}` : ""}
         </p>
       </div>
@@ -147,7 +147,7 @@ export default async function IncidentPage({ params }: { params: Promise<{ id: s
           <div className="glass-card p-5 text-xs text-white/50">
             <p className="mb-1 font-medium text-white/70">Why this is one record</p>
             <p>
-              A safeguarding referral is this incident, escalated — not a second record. Kept
+              A safeguarding referral is this incident, escalated, not a second record. Kept
               together, the six monthly review always reconciles: incidents, of which so many
               notifiable and so many referred.
             </p>

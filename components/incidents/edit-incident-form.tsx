@@ -44,7 +44,7 @@ export default function EditIncidentForm({
           name="lessons_learnt"
           rows={3}
           defaultValue={incident.lessons_learnt ?? ""}
-          placeholder="What changed as a result — training, a care plan update, a new check."
+          placeholder="What changed as a result: training, a care plan update, a new check."
         />
         <p className="form-hint">
           This is what the six monthly Quality of Care Review asks for. Written now, it is
