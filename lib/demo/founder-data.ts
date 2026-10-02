@@ -36,6 +36,8 @@ export type DemoView = {
   startsAt: string;
   endsAt: string;
   deletedAt: string | null;
+  /** Taken off the Demos list by the founder (0372). Only ever set once the company is deleted. */
+  archivedAt: string | null;
   feedbackEmailedAt: string | null;
   trialRequestId: string | null;
   phase: DemoPhase;
@@ -58,13 +60,13 @@ export async function listDemos(onlyId?: string): Promise<DemoView[]> {
   const supabase = await createClient();
   let q = supabase
     .from("demos")
-    .select("id, company_id, client_name, contact_email, starts_at, ends_at, deleted_at, feedback_emailed_at, trial_request_id")
+    .select("id, company_id, client_name, contact_email, starts_at, ends_at, deleted_at, archived_at, feedback_emailed_at, trial_request_id")
     .order("created_at", { ascending: false });
   if (onlyId) q = q.eq("id", onlyId);
   const { data: demos } = await q;
   const rows = (demos ?? []) as Array<{
     id: string; company_id: string | null; client_name: string; contact_email: string | null; starts_at: string;
-    ends_at: string; deleted_at: string | null; feedback_emailed_at: string | null; trial_request_id: string | null;
+    ends_at: string; deleted_at: string | null; archived_at: string | null; feedback_emailed_at: string | null; trial_request_id: string | null;
   }>;
   if (rows.length === 0) return [];
   const ids = rows.map((d) => d.id);
@@ -106,6 +108,7 @@ export async function listDemos(onlyId?: string): Promise<DemoView[]> {
       startsAt: d.starts_at,
       endsAt: d.ends_at,
       deletedAt: d.deleted_at,
+      archivedAt: d.archived_at,
       feedbackEmailedAt: d.feedback_emailed_at,
       trialRequestId: d.trial_request_id,
       phase: demoPhase(d.ends_at),

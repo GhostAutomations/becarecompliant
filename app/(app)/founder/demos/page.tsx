@@ -3,7 +3,7 @@ import Link from "next/link";
 import { requirePlatformAdmin } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import ActionForm from "@/components/action-form";
-import { createDemo } from "@/lib/founder/demo-actions";
+import { createDemo, setDemoArchived } from "@/lib/founder/demo-actions";
 import { listDemos } from "@/lib/demo/founder-data";
 import { DEFAULT_DEMO_DAYS, demoDeleteAt, formatActiveTime, formatDemoDate, type DemoPhase } from "@/lib/demo/rules";
 
@@ -24,11 +24,16 @@ const PHASE_PILL: Record<DemoPhase, { label: string; cls: string }> = {
 export default async function DemosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ client?: string; name?: string; email?: string; request?: string }>;
+  searchParams: Promise<{ client?: string; name?: string; email?: string; request?: string; archived?: string }>;
 }) {
   await requirePlatformAdmin();
   const sp = await searchParams;
-  const demos = await listDemos();
+  const all = await listDemos();
+  /* ARCHIVED (0372, Phil 2026-10-02): a deleted demo can be archived off this list; its usage and
+     feedback are kept and "Show archived" lists them. */
+  const showArchived = sp.archived === "1";
+  const archivedCount = all.filter((d) => d.archivedAt).length;
+  const demos = all.filter((d) => (showArchived ? Boolean(d.archivedAt) : !d.archivedAt));
 
   return (
     <div className="page-shell space-y-6">
@@ -72,8 +77,22 @@ export default async function DemosPage({
         </ActionForm>
       </section>
 
+      {showArchived || archivedCount > 0 ? (
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-white/80">{showArchived ? "Archived demos" : "Demos"}</h2>
+          <Link
+            href={showArchived ? "/founder/demos" : "/founder/demos?archived=1"}
+            className="text-xs font-semibold text-gold-300 underline decoration-gold-300/40 hover:decoration-gold-300"
+          >
+            {showArchived ? "Back to the demo list" : `Show archived (${archivedCount})`}
+          </Link>
+        </div>
+      ) : null}
+
       {demos.length === 0 ? (
-        <div className="glass-card p-6 text-sm text-white/60">No demos yet. Set one up above.</div>
+        <div className="glass-card p-6 text-sm text-white/60">
+          {showArchived ? "No archived demos." : archivedCount > 0 ? "No demos on the list. Set one up above." : "No demos yet. Set one up above."}
+        </div>
       ) : (
         <section className="glass-card overflow-x-auto p-0">
           <table className="w-full text-sm">
@@ -97,7 +116,22 @@ export default async function DemosPage({
                         Demo for {d.clientName}
                       </Link>
                     </td>
-                    <td className="px-4 py-3"><span className={pill.cls}>{pill.label}</span></td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={pill.cls}>{pill.label}</span>
+                        {d.deletedAt ? (
+                          <ActionForm
+                            action={setDemoArchived}
+                            hidden={{ demo_id: d.id, archive: d.archivedAt ? "0" : "1" }}
+                            label={d.archivedAt ? "Unarchive" : "Archive"}
+                            savingLabel={d.archivedAt ? "Unarchiving…" : "Archiving…"}
+                            savedLabel={d.archivedAt ? "Unarchived" : "Archived"}
+                            buttonClassName="btn-outline text-xs"
+                            className=""
+                          />
+                        ) : null}
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-white/70">
                       {formatDemoDate(d.endsAt)}
                       {!d.deletedAt && (d.phase === "ended" || d.phase === "purge_due") ? (

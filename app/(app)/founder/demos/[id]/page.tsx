@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { requirePlatformAdmin } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import ActionForm from "@/components/action-form";
-import { addDemoLogin, deleteDemoNow, emailDemoLogin, endDemoNow, extendDemo } from "@/lib/founder/demo-actions";
+import { addDemoLogin, deleteDemoNow, emailDemoLogin, endDemoNow, extendDemo, setDemoArchived } from "@/lib/founder/demo-actions";
 import { feedbackAverage, listDemos, type DemoFeedbackRow } from "@/lib/demo/founder-data";
 import { DEMO_SURVEY_RATINGS, demoDeleteAt, formatActiveTime, formatDemoDate, type DemoUsage } from "@/lib/demo/rules";
 
@@ -122,7 +122,7 @@ export default async function DemoPage({
         <h1 className="page-title">Demo for {demo.clientName}</h1>
         <p className="page-subtitle">
           {demo.deletedAt
-            ? `Deleted ${formatDemoDate(demo.deletedAt)}. Its usage and feedback are kept here.`
+            ? `Deleted ${formatDemoDate(demo.deletedAt)}. Its usage and feedback are kept here.${demo.archivedAt ? " Archived, so it is off the Demos list." : ""}`
             : ended
               ? `Ended ${formatDemoDate(demo.endsAt)}. The demo company is deleted ${formatDemoDate(demoDeleteAt(demo.endsAt).toISOString())}.`
               : `Runs until ${formatDemoDate(demo.endsAt)}. They see Demo Care Company Limited.`}
@@ -255,6 +255,26 @@ export default async function DemoPage({
               </p>
             ) : null}
           </div>
+        </section>
+      ) : null}
+
+      {!live ? (
+        <section className="glass-card p-5">
+          <h2 className="text-sm font-semibold text-white/80">{demo.archivedAt ? "Archived" : "Archive"}</h2>
+          <p className="mt-1 text-xs text-white/50">
+            {demo.archivedAt
+              ? "Off the Demos list. Unarchive puts it back. Nothing was erased."
+              : "Takes this demo off the Demos list. Its usage and feedback are kept, under Show archived."}
+          </p>
+          <ActionForm
+            action={setDemoArchived}
+            hidden={{ demo_id: demo.id, archive: demo.archivedAt ? "0" : "1" }}
+            label={demo.archivedAt ? "Unarchive" : "Archive"}
+            savingLabel={demo.archivedAt ? "Unarchiving…" : "Archiving…"}
+            savedLabel={demo.archivedAt ? "Unarchived" : "Archived"}
+            buttonClassName="btn-outline text-xs"
+            className="mt-3"
+          />
         </section>
       ) : null}
     </div>

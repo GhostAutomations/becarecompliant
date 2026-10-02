@@ -283,3 +283,41 @@ export async function deleteDemoNow(_prev: ActionState, formData: FormData): Pro
   revalidatePath(`/founder/demos/${demoId}`);
   return { ok: "Deleted. The demo company and its logins are gone; its usage figures and feedback are kept here." };
 }
+
+/**
+ * ARCHIVE (0372, Phil 2026-10-02: "add a archive button"). Takes a deleted demo off the Demos list
+ * without erasing its usage or feedback; Unarchive puts it back. A demo whose company still exists
+ * cannot be archived, so a running demo is never hidden by mistake. Safe to press twice.
+ */
+export async function setDemoArchived(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { user, profile } = await requirePlatformAdmin();
+  const demoId = field(formData, "demo_id");
+  const archive = field(formData, "archive") !== "0";
+  const supabase = await createClient();
+  const { data: demo } = await supabase.from("demos").select("id, client_name, deleted_at, archived_at").eq("id", demoId).maybeSingle();
+  if (!demo) return { error: "That demo no longer exists." };
+  if (archive && !demo.deleted_at) return { error: "Delete the demo company first. Only a deleted demo can be archived." };
+  if (archive === Boolean(demo.archived_at)) {
+    revalidatePath("/founder/demos");
+    return { ok: archive ? "Already archived." : "Already on the list." };
+  }
+  const { error } = await supabase
+    .from("demos")
+    .update({ archived_at: archive ? new Date().toISOString() : null })
+    .eq("id", demoId);
+  if (error) return { error: error.message };
+  await writeAudit({
+    companyId: null,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: "platform_admin",
+    action: archive ? "demo.archived" : "demo.unarchived",
+    entityType: "demo",
+    entityId: demoId,
+    summary: `${archive ? "Archived" : "Unarchived"} the demo for ${demo.client_name as string}`,
+    metadata: {},
+  });
+  revalidatePath("/founder/demos");
+  revalidatePath(`/founder/demos/${demoId}`);
+  return { ok: archive ? "Archived." : "Back on the list." };
+}
