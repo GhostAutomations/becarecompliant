@@ -2138,7 +2138,8 @@ happens to Acme once Thistle is real.
   carried into Reg 80. BUILT 2 Oct (0374): see TEST-CHECKLIST-READINESS-GAPS.md. TESTED 2 Oct on Bevan,
   RG1 to RG15 all passed. Snags S1 to S16 BUILT (0375 for late reasons and the DBS date) and TESTED
   2 Oct to 3 Oct, SN1 to SN17 all passed (Chrome and Phil's phone).
-  Follow up: drop the seven and nine argument post_record_update overloads.
+  Old seven and nine argument post_record_update overloads DROPPED 3 Oct (0376, run by Phil in the SQL
+  editor); a test Update on Dafydd Harries posted and linked to his supervision afterwards.
 - **Test companies send no emails or texts (added 2 Oct, Phil: "it's a test company it doesn't get any
   emails").** A company marked Test company on Founder > company (is_test) sends nothing: morning
   reports, alerts, staff emails, letters, chasers, texts; password resets and login invites still go
