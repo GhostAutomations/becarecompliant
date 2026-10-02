@@ -58,6 +58,14 @@ type Props = {
   idPrefix?: string;
   /** Called with the full answers object whenever any field changes. */
   onChange?: (answers: Answers) => void;
+  /**
+   * FILLED IN, NOT SHOWN (Phil, 2 Oct 2026: "those auto fields are still visible ... id like it so
+   * its like the other forms"). When completing a check, a question set to "Fill in automatically"
+   * that HAS been filled in is left off the screen; its answer is still saved in the Evidence.
+   * One that could not be filled (a record with no start date) stays on screen to be answered.
+   * Off everywhere else, so the builder preview and Evidence views still show every question.
+   */
+  hideFilledIn?: boolean;
   /** Called when a file_upload / signature binary is chosen or cleared. */
   onFileSelect?: (key: string, file: File | null) => void;
   /**
@@ -76,6 +84,13 @@ type Props = {
   onLookupMany?: (key: string, choices: LookupChoice[]) => void;
 };
 
+function hasOpeningValue(v: AnswerValue | undefined): boolean {
+  if (v == null) return false;
+  if (typeof v === "string") return v.trim() !== "";
+  if (Array.isArray(v)) return v.length > 0;
+  return true;
+}
+
 // React 19 note: useCallback is imported individually above to match the repo's
 // existing import style; behaviour is identical to React.useCallback.
 export default function FormRenderer({
@@ -89,6 +104,7 @@ export default function FormRenderer({
   lookupChoices,
   onLookupSelect,
   onLookupMany,
+  hideFilledIn = false,
 }: Props) {
   const [answers, setAnswers] = useState<Answers>(defaultValue ?? {});
   // Mirror the latest answers in a ref so `update` can build the next value
@@ -134,7 +150,12 @@ export default function FormRenderer({
            for an ECM audit -- and a heading with nothing under it reads as a question the
            person has failed to answer. Sections carry no visibleWhen of their own; they do
            not need one, because a section IS its questions. */
-        const visibleFields = section.fields.filter((field) => isFieldVisible(field, answers));
+        const visibleFields = section.fields.filter(
+          (field) =>
+            isFieldVisible(field, answers) &&
+            /* Judged on what the form OPENED with, so a question never vanishes mid-answer. */
+            !(hideFilledIn && field.prefill && hasOpeningValue(defaultValue?.[field.key])),
+        );
         if (visibleFields.length === 0) return null;
         return (
         <section key={section.id} className="section-card p-5">

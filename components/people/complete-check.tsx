@@ -109,6 +109,7 @@ export default function CompleteCheck({
         }}
         onFileSelect={(key, file) => setFiles((prev) => ({ ...prev, [key]: file }))}
         lookupChoices={lookupChoices}
+        hideFilledIn
       />
 
       {missing ? <p className="form-error">{missing}</p> : null}
