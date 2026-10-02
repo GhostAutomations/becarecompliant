@@ -439,6 +439,7 @@ ITEM 3 (import templates) BUILT 2026-07-14, no migration. Scope agreed by popup 
   - ACCESSIBILITY, THE REAL ONES ONLY. text-white/40 and text-white/45 on the navy background measure roughly 3.6:1 and 3.9:1, under the 4.5:1 AA floor for small text, and were carrying real information (the price line, the trial reassurance, the pricing footnote, the footer). All raised to text-white/60, about 6.9:1, with no change to the palette. Both marketing tables gained scope="col" and scope="row" and turned their first column into th, so a screen reader announces "Complaints management, Business, not included" instead of three loose values. The tick and cross glyphs carried aria-label on a bare span, which is ignored on a generic element, and now carry role="img" with it. The empty corner cell of the pricing table gained an sr-only label. Heading order was already correct and was left alone.
   - VOCABULARY. Two uses of "board" and one of "item", all banned on this project, are gone. Copy now uses Record, Register, Check, Form and Evidence where it means them. No dashes anywhere in customer facing copy, checked by grep across all five files. NOT built on Phil's machine and NOT tested live.
 
+
 ## Phase 11 — Final Testing
 
 FINAL TESTING PART 2, THE SECURITY AND PERMISSIONS AUDIT, RAN 17 AUGUST 2026 (live
@@ -2100,10 +2101,27 @@ happens to Acme once Thistle is real.
 
 ### Phase 13 — still to do (added 2026-09-29, Phil)
 
+- **Speed pass on the database access rules (Phil, 2 Oct 2026: "we will do the speed up later", then "add the speed up
+  to the list": Phase 13, after the Gofal Cymru Care demo).** Found when Phil asked why the site felt slow: every register and dashboard query
+  runs the RLS rules per ROW (is_branch_team_member, is_company_admin, senior_may_do_instance and the rest),
+  so the demo's person_check_status read takes 0.17s as a Company Admin against 0.01s without RLS, and the
+  busiest app queries average 0.2 to 0.5s. Plan agreed in outline: rewrite the policies on people,
+  service_users, check_instances, check_definitions, evidence, person_training, absence and planner so the
+  "who is this user" answers are worked out once per query ((select fn()) init plans, cheapest test first),
+  with NO change to who can see what. Safety: for every role (Founder, Admin, Manager, Supervisor, Senior,
+  On call, Team Member) list the exact rows each sees on Thistle, Bevan and the demo before and after, apply
+  in batches only when they match, old policies kept to put back, security advisor after each batch;
+  measure before and after.
+- **Contract leftovers (Phil chose to build before publishing, 30 Sep).** Not in the code as of 2 Oct:
+  the 90 day read only exit, the 45 day renewal reminder, retention periods by record type, two factor
+  sign in for Company Admins and the founder, and a nightly copy of the stored files.
+- **Inspection report review (30 Sep).** Upload a CIW, CQC or PQS report; the AI checks it against the
+  company's Evidence and drafts factual accuracy or challenge points; lessons go into Readiness. Not built.
+- **Deal tests D7 (rest), D8, D9** in TEST-CHECKLIST-CONTRACT.md.
 - **New department: Safety Checks.** Scope to be talked through with Phil before anything is built.
 - **New department: Maintenance.** Scope to be talked through with Phil before anything is built.
 - **Manager sign off.** Scope to be talked through with Phil before anything is built.
-- **A demo account.** Scope to be talked through with Phil before anything is built.
+- **A demo account.** DONE: Founder > Demos (0356 onwards), DM tests in TEST-CHECKLIST-CONTRACT.md.
 - **A refused save never wipes what was typed: check every form (added 2026-10-01, Phil).** Standing rule
   from now on: on any form or data entry point (founder screens, every company, forms built in the form
   builder, new company, new service user, new person, everything), when a required field is missing or a
@@ -2144,6 +2162,9 @@ happens to Acme once Thistle is real.
 - **Demo logins by set password link (Phil, 2 Oct).** No password set by the founder: the demo email carries
   a one time "Set your password" button to the Welcome page; Send a new link on the founder page; Forgot
   your password re-sends it for a login not yet used. Tests DM16 to DM19 in TEST-CHECKLIST-CONTRACT.md.
+- **Demo housekeeping (2 Oct).** Deleting a demo timed out (DEF-107): 0371 indexes every unindexed foreign
+  key, the delete now takes 0.7s. Archive a deleted demo off the Demos list, Show archived, Unarchive (0372,
+  DM20 PASS). Dashboard top row adjusts to the screen, one line with slightly smaller figures (DEF-106).
 
 # OPERATION NEW DAWN — Phase 14 onwards
 
