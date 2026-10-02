@@ -152,9 +152,9 @@ function TileIcon({ name, tone }: { name: string; tone: string }) {
       /* SQUASHED TILES (Phil, 2 Oct 2026, a different monitor: "some tiles on the top line looked
          squashed"). On a 1920 wide screen the one line top row gives each tile about 174px, and the
          icon took 52px of it: "92%" and "98%" ran together and labels were cut off. The icon now
-         steps aside when its tile is narrower than 11rem inside (the tile is the @container), so
-         the figures and the label get the room; on a wider screen it is back. */
-      className={`hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl @[11rem]:flex ${ICON_TONES[tone] ?? ICON_TONES.indigo}`}
+         steps aside when its tile is narrower than 15rem (the tile is the @container), so the
+         figures and the label get the room; on a wider tile it is back. */
+      className={`hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl @[15rem]:flex ${ICON_TONES[tone] ?? ICON_TONES.indigo}`}
     >
       <svg
         viewBox="0 0 24 24"
@@ -881,7 +881,18 @@ export default async function DashboardPage() {
         on, each taking an equal share and Readiness two; the Readiness card is now as short as the
         others, so nothing is stretched to match it. Narrower, they wrap four, three or two a row.
       */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4 2xl:auto-cols-fr 2xl:grid-flow-col 2xl:grid-cols-none">
+      {/*
+        ADJUSTS TO THE SCREEN (Phil, 2 Oct 2026, popup "One line if it fits"; see .dash-top-row in
+        globals.css). The one line rule above switched on at a 1536px window, which on a 1920
+        monitor left each tile about 174px. Now the tiles go on one line only when each can be
+        13rem wide, otherwise two or three even lines. data-cells must count EVERY tile rendered
+        below, so the conditional ones (SMS, AI credits) are counted the same way they render.
+      */}
+      <div className="dash-top-wrap">
+      <div
+        className="dash-top-row"
+        data-cells={6 + (demo || spend ? 1 : 0) + ((demo && demoLogin) || spend ? 1 : 0)}
+      >
         {/* The dial sits BESIDE the percentage, and the breakdown row runs full width beneath
             both, so there is no dead column under the ring. */}
         {/* NO row span. It had one from when the tiles were two separate blocks; they are one
@@ -898,7 +909,7 @@ export default async function DashboardPage() {
             (seen live, 17 Aug QA). 2xl keeps the third column through the laptop widths and
             gives it back on big monitors, where two twelfths genuinely is wide enough.
          */}
-        <div className={`glass-card flex flex-col gap-2 p-4 ${score.enabled ? "col-span-2 md:col-span-1 xl:col-span-2" : ""}`}>
+        <div className="dash-top-wide glass-card flex flex-col gap-2 p-4">
           {score.enabled ? (
             <>
               {/*
@@ -1217,6 +1228,7 @@ export default async function DashboardPage() {
               },
             ]}
           />
+      </div>
       </div>
 
       {/*

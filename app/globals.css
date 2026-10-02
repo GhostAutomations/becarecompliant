@@ -690,6 +690,70 @@
 
   /* Compact select/input for dense grids (care plan, invoice lines). Keeps the
      canonical look but shorter, so rows do not feel chunky. */
+    /*
+   * THE TOP ROW ADJUSTS TO THE SCREEN (Phil, 2 Oct 2026, popup: "One line if it fits").
+   * One line only when every tile can be at least 13rem wide. Otherwise the tiles split into two
+   * (then three) EVEN lines, never a long line and a short one. The page sets data-cells to the
+   * number of tiles the role and tier turn on, and the rules below pick how many go on a line
+   * from the width of the space they actually have (a container query, so the sidebar is
+   * already taken off). The old rule switched to one line at a 1536px window, and on a 1920
+   * monitor that left each tile about 174px: squashed.
+   * Readiness is the same size as every other tile (Phil: "the ciw readiness tile is too big"),
+   * except on a phone, where two to a line would cut its branch names off, so it takes the line.
+   */
+  .dash-top-wrap {
+    container: dash-top / inline-size;
+  }
+
+  .dash-top-row {
+    --per: 2;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .dash-top-row > * {
+    min-width: 0;
+    /* 1px under the exact share, so rounding can never push the last tile of a line onto the next. */
+    flex: 1 1 calc((100% - (var(--per) - 1) * 0.75rem) / var(--per) - 1px);
+  }
+
+  .dash-top-row > .dash-top-wide {
+    flex-basis: 100%;
+  }
+
+  @container dash-top (min-width: 40rem) {
+    .dash-top-row > .dash-top-wide {
+      flex-basis: calc((100% - (var(--per) - 1) * 0.75rem) / var(--per) - 1px);
+    }
+  }
+
+  @container dash-top (min-width: 40.5rem) { .dash-top-row[data-cells="3"] { --per: 3; } }
+  @container dash-top (min-width: 40.5rem) { .dash-top-row[data-cells="5"] { --per: 3; } }
+  @container dash-top (min-width: 40.5rem) { .dash-top-row[data-cells="6"] { --per: 3; } }
+  @container dash-top (min-width: 40.5rem) { .dash-top-row[data-cells="7"] { --per: 3; } }
+  @container dash-top (min-width: 40.5rem) { .dash-top-row[data-cells="8"] { --per: 3; } }
+  @container dash-top (min-width: 40.5rem) { .dash-top-row[data-cells="9"] { --per: 3; } }
+  @container dash-top (min-width: 54.25rem) { .dash-top-row[data-cells="4"] { --per: 4; } }
+  @container dash-top (min-width: 54.25rem) { .dash-top-row[data-cells="7"] { --per: 4; } }
+  @container dash-top (min-width: 54.25rem) { .dash-top-row[data-cells="8"] { --per: 4; } }
+  @container dash-top (min-width: 54.25rem) { .dash-top-row[data-cells="10"] { --per: 4; } }
+  @container dash-top (min-width: 54.25rem) { .dash-top-row[data-cells="11"] { --per: 4; } }
+  @container dash-top (min-width: 54.25rem) { .dash-top-row[data-cells="12"] { --per: 4; } }
+  @container dash-top (min-width: 68.0rem) { .dash-top-row[data-cells="5"] { --per: 5; } }
+  @container dash-top (min-width: 68.0rem) { .dash-top-row[data-cells="9"] { --per: 5; } }
+  @container dash-top (min-width: 68.0rem) { .dash-top-row[data-cells="10"] { --per: 5; } }
+  @container dash-top (min-width: 81.75rem) { .dash-top-row[data-cells="6"] { --per: 6; } }
+  @container dash-top (min-width: 81.75rem) { .dash-top-row[data-cells="11"] { --per: 6; } }
+  @container dash-top (min-width: 81.75rem) { .dash-top-row[data-cells="12"] { --per: 6; } }
+  @container dash-top (min-width: 95.5rem) { .dash-top-row[data-cells="7"] { --per: 7; } }
+  @container dash-top (min-width: 109.25rem) { .dash-top-row[data-cells="8"] { --per: 8; } }
+  @container dash-top (min-width: 123.0rem) { .dash-top-row[data-cells="9"] { --per: 9; } }
+  @container dash-top (min-width: 136.75rem) { .dash-top-row[data-cells="10"] { --per: 10; } }
+  @container dash-top (min-width: 150.5rem) { .dash-top-row[data-cells="11"] { --per: 11; } }
+  @container dash-top (min-width: 164.25rem) { .dash-top-row[data-cells="12"] { --per: 12; } }
+
   /*
    * FLUID DASHBOARD ROWS — no breakpoints, and no gaps.
    *
