@@ -27,6 +27,7 @@ import {
   resetThrottled,
 } from "@/lib/auth/password-reset-rules";
 import { resendStaffInviteByEmail } from "@/lib/invites";
+import { sendDemoLoginEmail } from "@/lib/demo/login-email";
 
 export type ResetOutcome =
   | { sent: true; email: string }
@@ -73,7 +74,45 @@ export async function sendPasswordReset(opts: {
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (!pending) return { sent: false, reason: "not_active" };
+    if (!pending) {
+      /* A DEMO LOGIN THAT HAS NOT CHOSEN ITS PASSWORD YET (Phil, 2026-10-02) has no invitation row:
+         its way in is the set password link in the demo email. If that link has expired, Forgot
+         your password sends a fresh one, with the same wait as a reset. */
+      const { data: demoLogin } = await admin
+        .from("demo_logins")
+        .select("demo_id, full_name")
+        .eq("user_id", profile.id as string)
+        .maybeSingle();
+      if (!demoLogin) return { sent: false, reason: "not_active" };
+      const { data: lastDemo } = await admin
+        .from("audit_log")
+        .select("created_at")
+        .eq("entity_type", "profile")
+        .eq("entity_id", profile.id as string)
+        .eq("action", "demo.link_resent")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (resetThrottled((lastDemo as { created_at?: string } | null)?.created_at, Date.now())) {
+        return { sent: false, reason: "throttled" };
+      }
+      const mailed = await sendDemoLoginEmail({
+        demoId: (demoLogin as { demo_id: string }).demo_id,
+        fullName: ((demoLogin as { full_name: string | null }).full_name ?? "") || email,
+        email,
+      });
+      if (!mailed.ok) return { sent: false, reason: "failed", detail: mailed.error };
+      await writeAudit({
+        companyId: profile.company_id as string,
+        actorId: null,
+        actorEmail: null,
+        action: "demo.link_resent",
+        entityType: "profile",
+        entityId: profile.id as string,
+        summary: "Sent a new demo set password link (Forgot your password)",
+      });
+      return { sent: true, email };
+    }
     if (resetThrottled((pending as { last_sent_at?: string | null }).last_sent_at, Date.now())) {
       return { sent: false, reason: "throttled" };
     }

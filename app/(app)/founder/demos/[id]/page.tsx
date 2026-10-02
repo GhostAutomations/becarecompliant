@@ -132,13 +132,13 @@ export default async function DemoPage({
       {created ? (
         <p role="status" className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
           {emailed === "1"
-            ? `The demo is ready, and ${demo.logins[0]?.fullName ?? "they"} has been emailed the login details (${demo.logins[0]?.email ?? ""}, the password you chose, and how to get started).`
-            : `The demo is ready. Give ${demo.logins[0]?.fullName ?? "them"} the email ${demo.logins[0]?.email ?? ""} and the password you chose, and send them to becarecompliant.com/login, or email them the details with Send login email below.`}
+            ? `The demo is ready, and ${demo.logins[0]?.fullName ?? "they"} has been emailed (${demo.logins[0]?.email ?? ""}) a button to choose their own password, and how to get started.`
+            : `The demo is ready, but the email did not go. Use Send a new link below so ${demo.logins[0]?.fullName ?? "they"} can choose a password.`}
         </p>
       ) : null}
       {created && emailed === "0" ? (
         <p role="alert" className="rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-100">
-          The login email was not sent{mailwhy ? `: ${mailwhy.slice(0, 300)}` : "."} Use Send login email below, or give them the details yourself.
+          The login email was not sent{mailwhy ? `: ${mailwhy.slice(0, 300)}` : "."} Use Send a new link below.
         </p>
       ) : null}
       {problem === "login" ? (
@@ -173,28 +173,24 @@ export default async function DemoPage({
               </div>
               {demo.logins.length > 1 ? <UsageBlock usage={l.usage} /> : null}
               {canEmail ? (
-                <details className="border-t border-white/10 pt-4">
-                  <summary className="cursor-pointer text-sm font-medium text-gold-200">Send login email</summary>
-                  <p className="mt-2 text-xs text-white/50">
-                    Emails {l.fullName} a button to log in, their email and password, the end date and how to get started.
-                    Passwords are never stored, so type it again. Whatever you type here becomes their password, so the
-                    email is always right.
+                <div className="border-t border-white/10 pt-4">
+                  <p className="text-xs text-white/50">
+                    Emails {l.fullName} a fresh one time button: to choose their password if they have not yet, or a new
+                    one if they have. Use it if the first link has expired or they have lost the email.
                   </p>
                   <ActionForm
                     action={emailDemoLogin}
                     hidden={{ demo_id: demo.id, login_id: l.id }}
-                    label="Send login email"
+                    label="Send a new link"
                     savingLabel="Sending…"
                     savedLabel="Sent"
                     showOk
-                    className="mt-3 space-y-3"
+                    inline
+                    className="mt-3"
                   >
-                    <div>
-                      <label htmlFor={`pw_${l.id}`} className="form-label">Their password *</label>
-                      <input id={`pw_${l.id}`} name="password" type="text" required minLength={8} autoComplete="off" />
-                    </div>
+                    {null}
                   </ActionForm>
-                </details>
+                </div>
               ) : null}
               <div className="border-t border-white/10 pt-4">
                 <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-white/50">Their feedback</h3>
@@ -219,15 +215,7 @@ export default async function DemoPage({
                 <label htmlFor="add_email" className="form-label">Their email *</label>
                 <input id="add_email" name="email" type="email" required />
               </div>
-              <div>
-                <label htmlFor="add_password" className="form-label">Password you will give them *</label>
-                <input id="add_password" name="password" type="text" required minLength={8} autoComplete="off" />
-                <p className="form-hint">At least 8 characters. Passwords found in leaked password lists online are refused, so pick something unusual.</p>
-              </div>
-              <label className="flex items-center gap-2 text-sm text-white/80">
-                <input type="checkbox" name="send_email" defaultChecked />
-                Email them their login details
-              </label>
+              <p className="form-hint">They are emailed a button to choose their own password.</p>
             </ActionForm>
           </div>
 

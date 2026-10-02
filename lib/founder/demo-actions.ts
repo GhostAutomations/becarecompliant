@@ -8,16 +8,16 @@ import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { rebakeFormFieldOptions } from "@/lib/forms/rebake-options";
 import type { ActionState } from "@/lib/forms";
-import { DEMO_COMPANY_NAME, demoEndsAt, demoPhase, friendlyLoginError, parseDemoDays } from "@/lib/demo/rules";
-import { attachDemoLogin, createDemoLogin, createDemoUser, demoLoginProblem, discardDemoUser, purgeDemo } from "@/lib/demo/manage";
+import { DEMO_COMPANY_NAME, demoEndsAt, demoPhase, parseDemoDays } from "@/lib/demo/rules";
+import { attachDemoLogin, createDemoLogin, createDemoUser, demoLoginProblem, discardDemoUser, markDemoLoginWaiting, purgeDemo } from "@/lib/demo/manage";
 import { finishDemoPolicies } from "@/lib/demo/policies";
 import { sendDemoLoginEmail } from "@/lib/demo/login-email";
-import { createServiceClient } from "@/lib/supabase/admin";
 
 /**
  * FOUNDER > DEMOS (0356, Phil 2026-09-30). A fresh Demo Care Company Limited per client, filled
- * with made up data, with a login whose password the founder sets, running for the days he sets
- * (7 by default). Only the founder can make, extend, end or delete one.
+ * with made up data, with a login, running for the days he sets (7 by default). Only the founder
+ * can make, extend, end or delete one. The client chooses their own password from a one time link
+ * in the login email (Phil, 2026-10-02): the founder never sets or sees it.
  */
 
 function field(formData: FormData, key: string): string {
@@ -29,18 +29,17 @@ export async function createDemo(_prev: ActionState, formData: FormData): Promis
   const clientName = field(formData, "client_name");
   const fullName = field(formData, "full_name");
   const email = field(formData, "email").toLowerCase();
-  const password = String(formData.get("password") ?? "");
   const days = parseDemoDays(field(formData, "days"));
 
   if (!clientName) return { error: "Enter who the demo is for (their company or name)." };
   if (clientName.length > 120) return { error: "Keep the client name to 120 characters." };
   if (!days.ok) return { error: days.error };
-  const problem = await demoLoginProblem({ fullName, email, password });
+  const problem = await demoLoginProblem({ fullName, email });
   if (problem) return { error: problem };
 
-  // The sign-in account first: if the password is refused, nothing else has been built and the
-  // founder's form keeps everything they typed.
-  const account = await createDemoUser({ fullName, email, password });
+  // The sign-in account first: if it is refused, nothing else has been built and the founder's
+  // form keeps everything they typed.
+  const account = await createDemoUser({ fullName, email });
   if (!account.ok) return { error: account.error };
 
   const supabase = await createClient();
@@ -89,7 +88,7 @@ export async function createDemo(_prev: ActionState, formData: FormData): Promis
 
   // The login is attached BEFORE the sample data, because the planner bookings in it are given to
   // the demo login and only somebody in the company can be given a booking.
-  const login = await attachDemoLogin({ demoId: demo.id as string, companyId, userId: account.userId, fullName, email });
+  const login = await attachDemoLogin({ demoId: demo.id as string, companyId, userId: account.userId, fullName, email, status: "active" });
 
   const { data: seeded, error: seedErr } = await supabase.rpc("seed_demo_company", {
     p_company: companyId,
@@ -97,6 +96,8 @@ export async function createDemo(_prev: ActionState, formData: FormData): Promis
   });
   await rebakeFormFieldOptions(companyId);
   const policyProblems = seedErr ? [] : await finishDemoPolicies(companyId, user.id);
+  // Now the sample data is in, the login waits for its password on the Welcome page.
+  if (login.ok) await markDemoLoginWaiting(account.userId);
 
   await writeAudit({
     companyId: null,
@@ -110,11 +111,11 @@ export async function createDemo(_prev: ActionState, formData: FormData): Promis
     metadata: { company_id: companyId, days: days.days, login_email: email, seeded: seeded ?? null, seed_error: seedErr?.message ?? null, policy_problems: policyProblems, login_ok: login.ok, login_error: login.ok ? null : login.error },
   });
 
-  // The login email, when the founder ticked it (on by default). Sent after everything is built so
-  // the client never logs in to an empty company. The password goes in it and nowhere else.
+  // The login email, always: it carries the only way in (the set password link). Sent after
+  // everything is built so the client never lands in an empty company.
   let mailFlag = "";
-  if (login.ok && !seedErr && formData.get("send_email") === "on") {
-    const mailed = await sendDemoLoginEmail({ demoId: demo.id as string, fullName, email, password });
+  if (login.ok && !seedErr) {
+    const mailed = await sendDemoLoginEmail({ demoId: demo.id as string, fullName, email });
     await writeAudit({
       companyId: null,
       actorId: user.id,
@@ -138,13 +139,12 @@ export async function addDemoLogin(_prev: ActionState, formData: FormData): Prom
   const demoId = field(formData, "demo_id");
   const fullName = field(formData, "full_name");
   const email = field(formData, "email").toLowerCase();
-  const password = String(formData.get("password") ?? "");
   const supabase = await createClient();
   const { data: demo } = await supabase.from("demos").select("id, company_id, client_name, deleted_at").eq("id", demoId).maybeSingle();
   if (!demo || !demo.company_id || demo.deleted_at) return { error: "That demo has been deleted, so no login can be added." };
-  const problem = await demoLoginProblem({ fullName, email, password });
+  const problem = await demoLoginProblem({ fullName, email });
   if (problem) return { error: problem };
-  const login = await createDemoLogin({ demoId, companyId: demo.company_id as string, fullName, email, password });
+  const login = await createDemoLogin({ demoId, companyId: demo.company_id as string, fullName, email });
   if (!login.ok) return { error: login.error };
   await writeAudit({
     companyId: null,
@@ -158,8 +158,8 @@ export async function addDemoLogin(_prev: ActionState, formData: FormData): Prom
     metadata: { email },
   });
   revalidatePath(`/founder/demos/${demoId}`);
-  if (formData.get("send_email") === "on") {
-    const mailed = await sendDemoLoginEmail({ demoId, fullName, email, password });
+  {
+    const mailed = await sendDemoLoginEmail({ demoId, fullName, email });
     await writeAudit({
       companyId: null,
       actorId: user.id,
@@ -171,24 +171,20 @@ export async function addDemoLogin(_prev: ActionState, formData: FormData): Prom
       summary: mailed.ok ? `Emailed the demo login details to ${email}` : `The demo login email to ${email} was not sent`,
       metadata: { email, sent: mailed.ok, error: mailed.ok ? null : mailed.error },
     });
-    if (!mailed.ok) return { error: `Login made for ${email}, but the email was not sent: ${mailed.error} Give them the password yourself, or use Send login email.` };
-    return { ok: `Login made for ${email} and their login details emailed to them.` };
+    if (!mailed.ok) return { error: `Login made for ${email}, but the email was not sent: ${mailed.error} Use Send a new link on their login.` };
+    return { ok: `Login made for ${email} and emailed a link to choose their password.` };
   }
-  return { ok: `Login made for ${email}. Give them the password you chose.` };
 }
 
 /**
- * SEND LOGIN EMAIL for a login that already exists (Phil, 2026-10-01). The password is never
- * stored, so the founder types it again. Whatever he types BECOMES their password before the
- * email goes, so the email can never carry a password that does not work (a typo would otherwise
- * lock the client out with a confident looking email in their inbox).
+ * SEND A NEW LINK for a login that already exists (Phil, 2026-10-02). No password is typed or
+ * stored: the email carries a fresh one time link. Not used yet, it lets them choose their password;
+ * already in use, it lets them choose a new one.
  */
 export async function emailDemoLogin(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const { user, profile } = await requirePlatformAdmin();
   const demoId = field(formData, "demo_id");
   const loginId = field(formData, "login_id");
-  const password = String(formData.get("password") ?? "");
-  if (password.length < 8) return { error: "Type the password, at least 8 characters." };
   const supabase = await createClient();
   const { data: demo } = await supabase.from("demos").select("id, ends_at, deleted_at").eq("id", demoId).maybeSingle();
   if (!demo || demo.deleted_at) return { error: "That demo has been deleted." };
@@ -201,14 +197,10 @@ export async function emailDemoLogin(_prev: ActionState, formData: FormData): Pr
     .eq("demo_id", demoId)
     .maybeSingle();
   if (!login || !login.user_id) return { error: "That login was not found on this demo." };
-  const admin = createServiceClient();
-  const { error: pwErr } = await admin.auth.admin.updateUserById(login.user_id as string, { password });
-  if (pwErr) return { error: friendlyLoginError(pwErr.message) };
   const mailed = await sendDemoLoginEmail({
     demoId,
     fullName: login.full_name as string,
     email: login.email as string,
-    password,
   });
   await writeAudit({
     companyId: null,
@@ -218,11 +210,11 @@ export async function emailDemoLogin(_prev: ActionState, formData: FormData): Pr
     action: "demo.login_emailed",
     entityType: "demo",
     entityId: demoId,
-    summary: mailed.ok ? `Emailed the demo login details to ${login.email as string}` : `The demo login email to ${login.email as string} was not sent`,
-    metadata: { email: login.email, sent: mailed.ok, error: mailed.ok ? null : mailed.error, password_set: true },
+    summary: mailed.ok ? `Emailed a new sign in link to ${login.email as string}` : `The demo login email to ${login.email as string} was not sent`,
+    metadata: { email: login.email, sent: mailed.ok, error: mailed.ok ? null : mailed.error },
   });
-  if (!mailed.ok) return { error: `The password is set, but the email was not sent: ${mailed.error}` };
-  return { ok: `Emailed the login details to ${login.email as string}.` };
+  if (!mailed.ok) return { error: `The email was not sent: ${mailed.error}` };
+  return { ok: `Emailed a new link to ${login.email as string}.` };
 }
 
 /** Add days to the end date (counted from now if it has already ended). */

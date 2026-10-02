@@ -2137,6 +2137,13 @@ happens to Acme once Thistle is real.
   BUILT 1 Oct (0366). Popups: steps the data can't show (each branch, People and Service User check
   settings, forms on the builder tiers, notifications) tick the first time that page is saved; EVERY company
   gets the card. Tests: TEST-CHECKLIST-GETTING-SET-UP.md, GS0 to GS7 all PASS 1 Oct.
+  Round 2 (0367, 0368, 1 to 2 Oct): card closed and gold on the Admin dashboard; founder Mark done / Undo
+  with a gold "Ticked by Be Care Compliant." note; one alert to the Founder Inbox and email 10 days after
+  creation if not finished (daily cron /api/cron/setup-alert); agreement and payment are gates that tick
+  themselves with no buttons. GS9 to GS14 all PASS.
+- **Demo logins by set password link (Phil, 2 Oct).** No password set by the founder: the demo email carries
+  a one time "Set your password" button to the Welcome page; Send a new link on the founder page; Forgot
+  your password re-sends it for a login not yet used. Tests DM16 to DM19 in TEST-CHECKLIST-CONTRACT.md.
 
 # OPERATION NEW DAWN — Phase 14 onwards
 

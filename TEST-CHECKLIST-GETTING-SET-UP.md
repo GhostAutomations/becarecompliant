@@ -30,3 +30,8 @@ Run as popups, one at a time: Pass / Fail / Not tested. Phase 13 rule: test now,
 - GS11 PASS (tested in Chrome on Bevan's founder page): Mark done on every step still to do, none on the agreement; Mark done on Add your logo ticked it with "Ticked by Be Care Compliant." and Undo; audit row setup.step_ticked_by_founder by phil.davies@outlook.com; Undo put it back to To do.
 - GS12 PASS (SQL as the founder, rolled back): Undo left an Admin's own notifications stamp in place; agreement refused ("The agreement can only be accepted by the company itself"); a Company Admin calling founder_set_setup_step refused.
 - GS13 PASS: Run in Vercel at 00:07; "Set up not finished: Bevan Care Ltd" arrived in Outlook (Phil) and appeared in the open Founder Inbox with no refresh, from "Bevan Care Ltd (set up alert)"; Bevan stamped setup_alert_at, so it is not sent again; no other company alerted.
+
+## GS14 Agreement and payment are gates (0368, 2 Oct 2026) PASS
+- Thistle founder page: Accept the agreement (gate off for Thistle) and Set up payment (Black) both green, no Mark done or Not needed on either; other steps still to do keep their buttons. Checked in Chrome after deploy 472158f.
+- Bevan: payment green as a test company; card reads "Getting set up: all done, 14 of 14" (Phil ticked the rest as founder at 00:17).
+- Unit tests: gates locked and ignore any stamp; agreement done where its gate is off, not where on; test company needs no payment; founder can tick every step but the two gates.

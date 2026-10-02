@@ -9,7 +9,7 @@ import { DEFAULT_DEMO_DAYS, demoDeleteAt, formatActiveTime, formatDemoDate, type
 
 /**
  * FOUNDER > DEMOS (0356, Phil 2026-09-30). A fresh Demo Care Company Limited for each client, full
- * of made up data, with a login and password the founder sets. Each demo shows how much it was
+ * of made up data, with a login whose password the client chooses from the emailed link. Each demo shows how much it was
  * used and what the client thought of it, and stays listed after its company is deleted.
  */
 export const metadata: Metadata = { title: "Demos" };
@@ -46,8 +46,8 @@ export default async function DemosPage({
         <h2 className="text-sm font-semibold text-white/80">Set up a demo</h2>
         <p className="mt-1 text-xs text-white/50">
           Takes a few seconds: the company is built, filled with sample data and the login made.
-          Tick the box to email the client their login details and how to get started, or give them
-          the email and password yourself.
+          The client is emailed a button to choose their own password, and how to get started. You
+          never set or see their password.
         </p>
         <ActionForm action={createDemo} hidden={{ trial_request_id: sp.request ?? "" }} label="Set up the demo" savingLabel="Setting up…" savedLabel="Done" className="mt-4 space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
@@ -68,16 +68,7 @@ export default async function DemosPage({
               <label htmlFor="email" className="form-label">Their email (the login) *</label>
               <input id="email" name="email" type="email" required defaultValue={sp.email ?? ""} />
             </div>
-            <div>
-              <label htmlFor="password" className="form-label">Password you will give them *</label>
-              <input id="password" name="password" type="text" required minLength={8} autoComplete="off" />
-              <p className="form-hint">At least 8 characters. Passwords found in leaked password lists online are refused, so pick something unusual. It is not stored anywhere you can read it again, so note it down.</p>
-            </div>
           </div>
-          <label className="flex items-center gap-2 text-sm text-white/80">
-            <input type="checkbox" name="send_email" defaultChecked />
-            Email them their login details and how to get started
-          </label>
         </ActionForm>
       </section>
 

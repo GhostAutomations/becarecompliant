@@ -14,15 +14,14 @@ import { DEMO_AI_PER_LOGIN, demoPhase, friendlyLoginError } from "@/lib/demo/rul
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
-export type DemoLoginInput = { demoId: string; companyId: string; fullName: string; email: string; password: string };
+export type DemoLoginInput = { demoId: string; companyId: string; fullName: string; email: string };
 
 /** Check a login's details before anything is created. Null when they are fine. */
-export async function demoLoginProblem(input: { fullName: string; email: string; password: string }): Promise<string | null> {
+export async function demoLoginProblem(input: { fullName: string; email: string }): Promise<string | null> {
   if (!input.fullName.trim()) return "Enter the name of the person the demo is for.";
   const email = input.email.trim().toLowerCase();
   if (!EMAIL_RE.test(email)) return "Enter a valid email address for the login.";
   if (!isSendableAddress(email)) return "That is a test or sample address. Use the client's real email.";
-  if (input.password.length < 8) return "Choose a password of at least 8 characters.";
   const admin = createServiceClient();
   const { data } = await admin.from("profiles").select("id").eq("email", email).limit(1);
   if ((data ?? []).length > 0) {
@@ -32,15 +31,14 @@ export async function demoLoginProblem(input: { fullName: string; email: string;
 }
 
 /**
- * Step 1 of a demo login: the sign-in account itself, with the password the founder chose,
- * confirmed so it signs straight in. Done first, so a refused password (too weak, leaked online)
- * stops the founder before anything else is built.
+ * Step 1 of a demo login: the sign-in account itself, confirmed and WITH NO PASSWORD (Phil,
+ * 2026-10-02). The client chooses their own through the link in the login email; until they do,
+ * nobody can sign in as them.
  */
-export async function createDemoUser(input: { fullName: string; email: string; password: string }): Promise<{ ok: true; userId: string } | { ok: false; error: string }> {
+export async function createDemoUser(input: { fullName: string; email: string }): Promise<{ ok: true; userId: string } | { ok: false; error: string }> {
   const admin = createServiceClient();
   const { data: created, error } = await admin.auth.admin.createUser({
     email: input.email.trim().toLowerCase(),
-    password: input.password,
     email_confirm: true,
     user_metadata: { full_name: input.fullName.trim() },
   });
@@ -58,13 +56,22 @@ export async function discardDemoUser(userId: string): Promise<void> {
  * Step 2: make the account a Company Admin of the demo company, active, and record it with its
  * 5 AI credits. On failure the account is removed, so nothing is left half made.
  */
-export async function attachDemoLogin(input: { demoId: string; companyId: string; userId: string; fullName: string; email: string }): Promise<{ ok: true; userId: string } | { ok: false; error: string }> {
+export async function attachDemoLogin(input: {
+  demoId: string;
+  companyId: string;
+  userId: string;
+  fullName: string;
+  email: string;
+  /** "invited" until they choose their password on the Welcome page. Set up a demo attaches it
+   *  active for the sample data (planner bookings go to it), then marks it invited. */
+  status?: "invited" | "active";
+}): Promise<{ ok: true; userId: string } | { ok: false; error: string }> {
   const admin = createServiceClient();
   const email = input.email.trim().toLowerCase();
   const fullName = input.fullName.trim();
   const { error: profileErr } = await admin
     .from("profiles")
-    .update({ company_id: input.companyId, role: "company_admin", status: "active", full_name: fullName, email })
+    .update({ company_id: input.companyId, role: "company_admin", status: input.status ?? "invited", full_name: fullName, email })
     .eq("id", input.userId);
   if (profileErr) {
     await discardDemoUser(input.userId);
@@ -88,7 +95,7 @@ export async function attachDemoLogin(input: { demoId: string; companyId: string
 export async function createDemoLogin(input: DemoLoginInput): Promise<{ ok: true; userId: string } | { ok: false; error: string }> {
   const made = await createDemoUser(input);
   if (!made.ok) return made;
-  return attachDemoLogin({ demoId: input.demoId, companyId: input.companyId, userId: made.userId, fullName: input.fullName, email: input.email });
+  return attachDemoLogin({ demoId: input.demoId, companyId: input.companyId, userId: made.userId, fullName: input.fullName, email: input.email, status: "invited" });
 }
 
 /**
@@ -185,4 +192,11 @@ export async function runDemoHousekeeping(): Promise<{ emailed: number; deleted:
     if (allSent) await admin.from("demos").update({ feedback_emailed_at: new Date().toISOString() }).eq("id", d.id);
   }
   return { emailed, deleted, errors };
+}
+
+/** Until the client chooses a password, the login waits on the Welcome page (status invited). */
+export async function markDemoLoginWaiting(userId: string): Promise<void> {
+  const admin = createServiceClient();
+  const { error } = await admin.from("profiles").update({ status: "invited" }).eq("id", userId).eq("status", "active");
+  if (error) console.error("[demo] login not marked waiting:", error.message);
 }
