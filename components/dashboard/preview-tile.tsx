@@ -90,7 +90,7 @@ export default function PreviewTile({
     >
       <Link
         href={href}
-        className={`glass-card glass-card-hover block flex-1 p-4 ${className}`}
+        className={`glass-card glass-card-hover @container block flex-1 p-4 ${className}`}
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={(e) => {

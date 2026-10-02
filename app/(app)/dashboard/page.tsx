@@ -149,7 +149,12 @@ const ICON_TONES: Record<string, string> = {
 function TileIcon({ name, tone }: { name: string; tone: string }) {
   return (
     <span
-      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${ICON_TONES[tone] ?? ICON_TONES.indigo}`}
+      /* SQUASHED TILES (Phil, 2 Oct 2026, a different monitor: "some tiles on the top line looked
+         squashed"). On a 1920 wide screen the one line top row gives each tile about 174px, and the
+         icon took 52px of it: "92%" and "98%" ran together and labels were cut off. The icon now
+         steps aside when its tile is narrower than 11rem inside (the tile is the @container), so
+         the figures and the label get the room; on a wider screen it is back. */
+      className={`hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl @[11rem]:flex ${ICON_TONES[tone] ?? ICON_TONES.indigo}`}
     >
       <svg
         viewBox="0 0 24 24"
@@ -251,11 +256,11 @@ function Tile({
       the row and forced a stretch. Same two words, opposite failure, both invisible in the code
       and obvious the moment anything is measured.
     */
-    <Link href={href} className={`glass-card glass-card-hover block p-4 ${className}`}>
+    <Link href={href} className={`glass-card glass-card-hover @container block p-4 ${className}`}>
       {inner}
     </Link>
   ) : (
-    <div className={`glass-card p-4 ${className}`}>{inner}</div>
+    <div className={`glass-card @container p-4 ${className}`}>{inner}</div>
   );
 }
 
@@ -397,7 +402,7 @@ function MissingTile({
   value?: ReactNode;
 }) {
   return (
-    <div className={`rounded-2xl border border-red-400/25 bg-red-500/[0.07] p-4 ${className}`}>
+    <div className={`@container rounded-2xl border border-red-400/25 bg-red-500/[0.07] p-4 ${className}`}>
       <div className="flex items-start gap-3">
         <div className="flex h-full min-w-0 flex-1 flex-col">
           <div className="flex items-start justify-between gap-2">

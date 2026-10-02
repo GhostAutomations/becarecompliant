@@ -2592,3 +2592,10 @@ take the intervals from the deal (dealIntervals, pure, 1 test): here £250.00 a 
 - Fix: lib/auth/reset-marker.ts. /auth/confirm, after a recovery token, sets an HMAC signed, httpOnly cookie tied to the new session. The reset page and its action accept the session while the marker is under 15 minutes old; requireUser and the middleware treat any session carrying a marker as reset only, so an abandoned reset never leaves anyone signed in; saving the password clears it. Unit tested (lib/auth/reset-marker.test.ts).
 - A second reset straight away "sent nothing": the public form allows one email every 2 minutes (R8), by design.
 - Status: fixed and retested live 2 Oct (R7 PASS, Phil, ppdavies+cob: Set a new password, password changed, signed in with the new one).
+
+## DEF-106 - Top row dashboard tiles squashed on a wide screen (2 Oct 2026)
+- Found by Phil in the demo dry run on a different monitor: some top row tiles looked squashed.
+- Evidence: at a 1920px window the 2xl top row lays every tile on one line (9 tiles, about 174px each). The 40px icon took a quarter of each tile, so two figure tiles ran together ("92%98%") and labels were cut off ("AUDITS COM...", "AWAITING A...").
+- Fix: the tile icon now only shows when the tile is at least 11rem wide (container queries on Tile, SplitTile, PreviewTile and the placeholder tile). Wider screens and the 2, 3 and 4 column layouts keep the icon.
+- Preview on the live demo (icons hidden by script at 1920px): every figure and label fits ("92%" and "98%" apart, "AUDITS COMPLETED", "AWAITING ACTION").
+- Status: fixed, to be checked live after the push.
