@@ -116,3 +116,16 @@ test("Birdie audit: a question's comments box is labelled Comments, a repeat is 
   assert.ok(d.notes.some((n) => /Asked twice: "Are care plans updated within the last 30 days\?"/.test(n)));
   assert.ok(d.notes.some((n) => /2 questions show only when/.test(n)));
 });
+
+test("the builder marks a question asked twice, never the Comments boxes or headings", async () => {
+  const { repeatedLabels } = await import("./repeated.ts");
+  const twice = repeatedLabels([
+    { type: "radio", label: "Are care plans updated within the last 30 days?" },
+    { type: "long_text", label: "Comments" },
+    { type: "radio", label: "Are care plans updated within the last 30 days" },
+    { type: "long_text", label: "Comments" },
+    { type: "heading", label: "Section notes" },
+    { type: "heading", label: "Section notes" },
+  ]);
+  assert.deepEqual([...twice], ["are care plans updated within the last 30 days"]);
+});

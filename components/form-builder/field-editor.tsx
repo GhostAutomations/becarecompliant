@@ -9,6 +9,7 @@
  * Form / Check / Record: never "item"/"board".
  */
 
+import { normaliseLabel, repeatedLabels } from "@/lib/form-builder/schema-ops";
 import { useId } from "react";
 import {
   type FieldOption,
@@ -93,8 +94,14 @@ export default function FieldEditor({
         : conditionField.options ?? []
     : [];
 
+  /* Red when this question is asked more than once in the form (Phil, 2 Oct 2026). */
+  const repeated = repeatedLabels(allFields).has(normaliseLabel(field.label));
+
   return (
-    <div className="glass-card p-4">
+    <div className={`glass-card p-4 ${repeated ? "border border-red-400/60 bg-red-500/10" : ""}`}>
+      {repeated ? (
+        <p className="mb-2 text-[12px] font-semibold text-red-300">Asked more than once in this form. Remove the repeat if it is not meant to be there.</p>
+      ) : null}
       <div className="mb-3 flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-start gap-2">
           {dragHandle}

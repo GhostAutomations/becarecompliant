@@ -7,6 +7,8 @@
  * effects, no server imports: safe on the client.
  */
 
+import { normaliseLabel, repeatedLabels } from "./repeated";
+export { normaliseLabel, repeatedLabels };
 import {
   type FieldOption,
   type FieldType,
@@ -269,6 +271,7 @@ export function moveField(schema: FormSchema, sectionId: string, key: string, di
 
 export type SchemaIssue = { level: "error" | "warning"; message: string };
 
+
 /**
  * Validate the schema an author is building. Errors block Publish; warnings are
  * shown but do not block. This protects the completer-facing contract: unique
@@ -373,6 +376,17 @@ export function validateSchema(schema: FormSchema): SchemaIssue[] {
           });
         }
       }
+    }
+  }
+
+  const flat = schema.sections.flatMap((sec) => sec.fields);
+  const twice = repeatedLabels(flat);
+  const reported = new Set<string>();
+  for (const f of flat) {
+    const n = normaliseLabel(f.label);
+    if (twice.has(n) && !reported.has(n)) {
+      reported.add(n);
+      issues.push({ level: "warning", message: `"${f.label}" is asked more than once. It is shown in red below.` });
     }
   }
 
