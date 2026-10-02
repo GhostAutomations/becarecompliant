@@ -2136,8 +2136,9 @@ happens to Acme once Thistle is real.
   ("About") is the action in place; Safeguarding training and Social Care Wales registration on
   Leadership and Management; the manager's own rating per theme with CIW's descriptors, history kept,
   carried into Reg 80. BUILT 2 Oct (0374): see TEST-CHECKLIST-READINESS-GAPS.md. TESTED 2 Oct on Bevan,
-  RG1 to RG15 all passed; snags S1 to S11 logged there, to build in one push.
-  Follow up: drop the seven argument post_record_update once deployed.
+  RG1 to RG15 all passed. Snags S1 to S16 BUILT (0375 for late reasons and the DBS date) and TESTED
+  2 Oct to 3 Oct, SN1 to SN17 all passed (Chrome and Phil's phone).
+  Follow up: drop the seven and nine argument post_record_update overloads.
 - **Test companies send no emails or texts (added 2 Oct, Phil: "it's a test company it doesn't get any
   emails").** A company marked Test company on Founder > company (is_test) sends nothing: morning
   reports, alerts, staff emails, letters, chasers, texts; password resets and login invites still go
