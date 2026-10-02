@@ -146,6 +146,7 @@ export default async function CompleteServiceUserCheckPage({
     branchName: suBranchName,
     authorName: profile.full_name || profile.email || null,
     today: formatCivilDate(todayInLondon()),
+    startDate: serviceUser?.package_start_date ?? null,
   });
   // The review number the record card told us, filled in and still editable.
   if (presetReview) presetAnswers["type_of_review"] = presetReview;

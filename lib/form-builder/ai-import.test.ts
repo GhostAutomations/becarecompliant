@@ -138,5 +138,6 @@ test("Platform Audit header questions are filled in automatically when imported"
   assert.equal(prefillFor("Service Users Name", "short_text"), "record_name");
   assert.equal(prefillFor("Staff member name", "short_text"), "record_name");
   assert.equal(prefillFor("Key Findings", "long_text"), undefined);
-  assert.equal(prefillFor("Service Users Date of Start", "date"), undefined);
+  assert.equal(prefillFor("Service Users Date of Start", "date"), "record_start_date");
+  assert.equal(prefillFor("Audit Date", "date"), undefined);
 });

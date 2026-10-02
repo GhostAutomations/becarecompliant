@@ -63,7 +63,7 @@ export type FieldType =
   | "score_band";
 
 /** What a question can be filled in with automatically (see FormField.prefill). */
-export type FieldPrefill = "record_name" | "record_branch" | "completed_by" | "today";
+export type FieldPrefill = "record_name" | "record_branch" | "completed_by" | "today" | "record_start_date";
 
 /** Which register a record_lookup field searches. */
 export type LookupSource = "service_user" | "person";

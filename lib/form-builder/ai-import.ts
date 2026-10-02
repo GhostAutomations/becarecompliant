@@ -202,6 +202,9 @@ export function prefillFor(label: string, type: FieldType): FormField["prefill"]
   if (text && /\b(service user'?s?|client'?s?|staff( member)?'?s?|employee'?s?|carer'?s?|person'?s?)\s+(full\s+)?name\b/.test(l)) {
     return "record_name";
   }
+  if (type === "date" && /\b(date of start|start date|package start|started)\b/.test(l)) {
+    return "record_start_date";
+  }
   return undefined;
 }
 

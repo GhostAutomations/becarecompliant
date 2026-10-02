@@ -53,6 +53,9 @@ export function recordFormPresets(
     /** Today's date (ISO, Europe/London). Seeds the first date field so the completion
      *  date defaults to today; it stays editable. */
     today?: string | null;
+    /** The record's start date: a person's start date, a service user's package start date
+     *  (the one the register shows). For a question set to "The record's start date". */
+    startDate?: string | null;
   },
 ): Answers {
   const presets: Answers = {};
@@ -81,7 +84,9 @@ export function recordFormPresets(
                 ? (opts.authorName ?? null)
                 : f.prefill === "today"
                   ? (opts.today ?? null)
-                  : null;
+                  : f.prefill === "record_start_date"
+                    ? (opts.startDate ?? null)
+                    : null;
         if (v) presets[f.key] = v;
         if (f.type === "date" && f.prefill === "today") dateSeeded = true;
         continue;

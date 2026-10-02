@@ -16,11 +16,12 @@ test("a question set to fill in automatically in the builder is filled, whatever
           { key: "service_users_name", type: "short_text" as const, label: "Service Users Name", prefill: "record_name" as const },
           { key: "office", type: "single_select" as const, label: "Office", prefill: "record_branch" as const, options: [{ value: "cardiff", label: "Cardiff" }] },
           { key: "date_of_start", type: "date" as const, label: "Date of Start" },
+          { key: "package_start", type: "date" as const, label: "Service Users Date of Start", prefill: "record_start_date" as const },
         ],
       },
     ],
   };
-  const p = recordFormPresets(schema, { fullName: "Mary Jones", branchName: "Cardiff", authorName: "Hayley Jeffries", today: "2026-10-02" });
+  const p = recordFormPresets(schema, { fullName: "Mary Jones", branchName: "Cardiff", authorName: "Hayley Jeffries", today: "2026-10-02", startDate: "2025-06-14" });
   assert.equal(p.audit_date, "2026-10-02");
   assert.equal(p.auditors_name, "Hayley Jeffries");
   assert.equal(p.branch_location, "Cardiff");
@@ -28,4 +29,5 @@ test("a question set to fill in automatically in the builder is filled, whatever
   assert.equal(p.office, "cardiff");
   // Today went to the chosen date question, so the start date is left for the person to fill in.
   assert.equal(p.date_of_start, undefined);
+  assert.equal(p.package_start, "2025-06-14");
 });

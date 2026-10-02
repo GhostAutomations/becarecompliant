@@ -86,7 +86,10 @@ export default function FieldEditor({
           { value: "completed_by", label: "The name of the person completing it" },
         ]
       : field.type === "date"
-        ? [{ value: "today", label: "Today's date" }]
+        ? [
+            { value: "today", label: "Today's date" },
+            { value: "record_start_date", label: "The record's start date (package start for a service user)" },
+          ]
         : field.type === "single_select" || field.type === "radio"
           ? [{ value: "record_branch", label: "The record's branch (when it is one of the options)" }]
           : [];

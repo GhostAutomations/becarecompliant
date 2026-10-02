@@ -167,6 +167,7 @@ export default async function CompleteCheckPage({
     branchName: personBranchName,
     authorName: profile.full_name || profile.email || null,
     today: formatCivilDate(todayInLondon()),
+    startDate: person?.start_date ?? null,
   });
   presetAnswers = { ...recordPresets, ...(presetAnswers ?? {}) };
 
