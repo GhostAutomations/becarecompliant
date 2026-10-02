@@ -115,9 +115,32 @@ test("a founder tick shows as the founder's, and only when it is what made the s
   assert.equal(find(saved, "notifications")?.byFounder, false);
 });
 
-test("the founder can tick every step but the agreement", () => {
+test("the founder can tick every step but the agreement and payment", () => {
   const keys = buildSetupSteps(base, opts).flatMap((g) => g.steps).map((x) => x.key);
-  assert.deepEqual(keys.filter((k) => !founderCanTick(k)), ["agreement"]);
+  assert.deepEqual(keys.filter((k) => !founderCanTick(k)), ["agreement", "payment"]);
+});
+
+test("agreement and payment are gates: locked, and no stamp ticks or skips them", () => {
+  const stamped = { ...base, agreement_required: true, steps: { agreement: "done" as const, payment: "not_needed" as const } };
+  const a = find(stamped, "agreement");
+  const p = find(stamped, "payment");
+  assert.equal(a?.locked, true);
+  assert.equal(a?.state, "todo");
+  assert.equal(p?.locked, true);
+  assert.equal(p?.state, "todo");
+  assert.equal(find(base, "logo")?.locked, false);
+});
+
+test("the agreement counts as done where its gate is off, and not where it is on", () => {
+  assert.equal(find({ ...base, agreement_required: false }, "agreement")?.state, "done");
+  assert.equal(find({ ...base, agreement_required: true }, "agreement")?.state, "todo");
+  assert.equal(find({ ...base }, "agreement", { ...opts, legalPublished: true })?.state, "todo");
+  assert.equal(find({ ...base, agreement_accepted: true }, "agreement", { ...opts, legalPublished: true })?.state, "done");
+});
+
+test("a test company needs no payment", () => {
+  assert.equal(find({ ...base, is_test: true, subscription_status: "canceled" }, "payment")?.state, "done");
+  assert.equal(find({ ...base, subscription_status: "canceled" }, "payment")?.state, "todo");
 });
 
 test("the set up alert is due at ten days, not before", () => {
@@ -130,7 +153,7 @@ test("the set up alert is due at ten days, not before", () => {
 });
 
 test("the alert lists only what is still to do, by group", () => {
-  const s = { ...base, has_logo: true, steps: { training: "not_needed" as const } };
+  const s = { ...base, agreement_required: true, has_logo: true, steps: { training: "not_needed" as const } };
   const out = outstandingByGroup(buildSetupSteps(s, opts));
   const all = out.flatMap((g) => g.labels);
   assert.ok(all.includes("Accept the agreement"));

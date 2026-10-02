@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { getBranchTerms } from "@/lib/branches/company-word";
 import { branchTerms, branchWord } from "@/lib/branches/word";
+import { legalPublished } from "@/lib/legal/documents";
 import { tierHasFeature } from "@/lib/billing/tier";
 import type { Tier } from "@/lib/stripe/config";
 import { buildSetupSteps, setupProgress, type SetupGroup, type SetupStatus } from "./getting-set-up";
@@ -22,6 +23,7 @@ function cardFromStatus(status: SetupStatus, terms: { one: string; many: string 
     many: terms.many,
     regulatorName: status.regulator === "ciw" ? "CIW" : status.regulator === "cqc" ? "CQC" : null,
     hasFormBuilder: tierHasFeature(status.tier as Tier, "form_builder"),
+    legalPublished: legalPublished(),
   });
   return { groups, ...setupProgress(groups) };
 }

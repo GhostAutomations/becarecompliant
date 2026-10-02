@@ -14,6 +14,10 @@ export type SetupState = "done" | "not_needed" | "todo";
 
 export type SetupStatus = {
   tier: string;
+  /** The founder's per company switch for the agreement gate before the terms are published (0346). */
+  agreement_required?: boolean;
+  /** A test company is never billed (0368). */
+  is_test?: boolean;
   regulator: string | null;
   has_logo: boolean;
   trial_live: boolean;
@@ -38,6 +42,8 @@ export type SetupStep = {
   state: SetupState;
   /** Ticked off by Be Care Compliant rather than by the company or its data (0367). */
   byFounder: boolean;
+  /** A gate, not a job: it ticks itself and nobody can mark it done or not needed (0368). */
+  locked: boolean;
 };
 
 export type SetupGroup = { title: string; steps: SetupStep[] };
@@ -50,19 +56,35 @@ export const branchStampKey = (branchId: string) => `branch:${branchId}`;
 
 const PAYING = ["active", "trialing", "past_due"];
 
+/** Sign up gates: they tick themselves, with no Mark done or Not needed for anyone (0368). */
+export const GATE_STEPS: readonly string[] = ["agreement", "payment"];
+
 export function buildSetupSteps(
   s: SetupStatus,
-  opts: { one: string; many: string; regulatorName: string | null; hasFormBuilder: boolean },
+  opts: {
+    one: string;
+    many: string;
+    regulatorName: string | null;
+    hasFormBuilder: boolean;
+    /** Terms published (lib/legal): the agreement gate is on for every company. */
+    legalPublished?: boolean;
+  },
 ): SetupGroup[] {
-  const step = (key: string, label: string, href: string | null, done: boolean, hint: string | null = null): SetupStep => ({
-    key,
-    label,
-    href,
-    hint,
-    state: done || s.steps[key] === "done" ? "done" : s.steps[key] === "not_needed" ? "not_needed" : "todo",
-    // Only when the founder's tick is what made it done: real data or the Admin's own save wins.
-    byFounder: !done && s.steps[key] === "done" && (s.founder_ticked ?? []).includes(key),
-  });
+  const step = (key: string, label: string, href: string | null, done: boolean, hint: string | null = null): SetupStep => {
+    const locked = GATE_STEPS.includes(key);
+    // A gate goes only by what the company actually did; no stamp can tick or skip it.
+    if (locked) return { key, label, href, hint, state: done ? "done" : "todo", byFounder: false, locked };
+    return {
+      key,
+      label,
+      href,
+      hint,
+      state: done || s.steps[key] === "done" ? "done" : s.steps[key] === "not_needed" ? "not_needed" : "todo",
+      // Only when the founder's tick is what made it done: real data or the Admin's own save wins.
+      byFounder: !done && s.steps[key] === "done" && (s.founder_ticked ?? []).includes(key),
+      locked,
+    };
+  };
 
   const unchecked = s.branches.filter((b) => s.steps[branchStampKey(b.id)] !== "done");
   const paid = s.tier === "black" || PAYING.includes(s.subscription_status ?? "");
@@ -72,12 +94,20 @@ export function buildSetupSteps(
     {
       title: "Company basics",
       steps: [
-        step("agreement", "Accept the agreement", "/agreement", s.agreement_accepted),
+        /* GATES (Phil, 2026-10-02): "accept the agreement and add payment should already be green".
+           The Admin meets both at first sign in, so they tick themselves. The agreement also counts
+           where its gate is off for this company; payment where the company is never billed. */
+        step(
+          "agreement",
+          "Accept the agreement",
+          "/agreement",
+          s.agreement_accepted || !(opts.legalPublished || Boolean(s.agreement_required)),
+        ),
         step(
           "payment",
           "Set up payment",
           "/settings/billing",
-          paid || s.trial_live,
+          paid || s.trial_live || Boolean(s.is_test),
           !paid && s.trial_live ? "On a free trial for now." : null,
         ),
         step("regulator", "Regulator chosen", "/readiness", Boolean(s.regulator), s.regulator ? null : "Ask Be Care Compliant to set it."),
@@ -135,11 +165,12 @@ export function setupProgress(groups: SetupGroup[]): { settled: number; total: n
 }
 
 /**
- * THE FOUNDER CAN TICK EVERY STEP EXCEPT THE AGREEMENT (Phil, popup 2026-10-01). The agreement is
- * the customer's own acceptance; founder_set_setup_step refuses it too, this only hides the button.
+ * THE FOUNDER CAN TICK EVERY STEP EXCEPT THE GATES (Phil, popup 2026-10-01, then 2026-10-02: the
+ * agreement and payment tick themselves). founder_set_setup_step refuses them too; this only hides
+ * the button.
  */
 export function founderCanTick(stepKey: string): boolean {
-  return stepKey !== "agreement";
+  return !GATE_STEPS.includes(stepKey);
 }
 
 /** Ten days after creation (Phil, popup 2026-10-01: "10 days after creation, once"). */

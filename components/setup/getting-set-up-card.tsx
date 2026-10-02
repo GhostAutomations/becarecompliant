@@ -110,7 +110,7 @@ export default function GettingSetUpCard({
                     {founderControls && founderCanTick(s.key) && (s.state === "todo" || s.byFounder) ? (
                       <FounderTickButton companyId={companyId} stepKey={s.key} ticked={s.byFounder} />
                     ) : null}
-                    {s.state !== "done" ? (
+                    {s.state !== "done" && !s.locked ? (
                       <NotNeededButton companyId={companyId} stepKey={s.key} notNeeded={s.state === "not_needed"} />
                     ) : null}
                   </span>
