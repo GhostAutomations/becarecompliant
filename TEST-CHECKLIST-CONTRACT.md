@@ -335,3 +335,4 @@ answers once (a 9 out of 5 refused), invites refused inside a demo. Still to tes
 - DEF-104 retest PASS (founder support session on Bevan, form not sent): answering No to treatment and to next of kin now shows "Why no treatment was received *" and "Why they have not been told *". Support session ended.
 - DEF-103 incident filing PASS (demo, see the defect log).
 - R6 PASS (Phil, on Thistle): signing out on the iPhone left the Mac signed in.
+- R7 PASS (Phil, 2 Oct, after DEF-105 deploy e509abf): a fresh reset email for ppdavies+cob opened Set a new password, saving landed on "password changed", and the new password signed in. Earlier emails said expired (DEF-105, links sent before the fix).

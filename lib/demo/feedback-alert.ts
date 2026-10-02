@@ -1,7 +1,7 @@
 import "server-only";
 import { createServiceClient } from "@/lib/supabase/admin";
-import { sendEmail, resendConfigured } from "@/lib/email/resend";
-import { noticeEmailHtml, escapeHtml } from "@/lib/email/templates";
+import { escapeHtml } from "@/lib/email/templates";
+import { notifyFounder } from "@/lib/founder/notify";
 import { siteUrl } from "@/lib/site";
 import { DEMO_SURVEY_RATINGS } from "@/lib/demo/rules";
 
@@ -11,13 +11,12 @@ import { DEMO_SURVEY_RATINGS } from "@/lib/demo/rules";
  * (the database refuses a second one), with the seven scores and the three comments and a button
  * to the demo's founder page. Best effort: a failed send never stands between the client and
  * their "Thank you", and the answers are on the founder page whatever happens here.
+ *
+ * FOUNDER INBOX TOO (Phil, 2026-10-02), through notifyFounder like every founder notice: it lands
+ * in the Founder Inbox even when email is down, from the demo login so Reply answers them.
  */
 export async function emailFounderDemoFeedback(token: string): Promise<void> {
   try {
-    if (!resendConfigured()) {
-      console.error("[demo] survey answered but RESEND_API_KEY / RESEND_FROM not configured, founder not emailed");
-      return;
-    }
     const admin = createServiceClient();
     const { data: fb } = await admin
       .from("demo_feedback")
@@ -26,12 +25,11 @@ export async function emailFounderDemoFeedback(token: string): Promise<void> {
       .maybeSingle();
     if (!fb) return;
     const f = fb as Record<string, unknown>;
-    const [{ data: demo }, { data: login }, { data: founders }] = await Promise.all([
+    const [{ data: demo }, { data: login }] = await Promise.all([
       admin.from("demos").select("id, client_name").eq("id", f.demo_id as string).maybeSingle(),
       f.login_id
         ? admin.from("demo_logins").select("full_name, email").eq("id", f.login_id as string).maybeSingle()
         : Promise.resolve({ data: null }),
-      admin.from("profiles").select("email").eq("role", "platform_admin"),
     ]);
     const client = (demo as { client_name?: string } | null)?.client_name ?? "a client";
     const who = (login as { full_name?: string; email?: string } | null) ?? null;
@@ -47,21 +45,30 @@ export async function emailFounderDemoFeedback(token: string): Promise<void> {
       row("What they did not like", String(f.disliked ?? "").trim() || "Nothing written"),
       row("What we could do better", String(f.better ?? "").trim() || "Nothing written"),
     ].join("");
-    const html = noticeEmailHtml({
-      preheader: `${client} answered the demo survey: average ${average.toFixed(1)} out of 5`,
+    const bodyHtml = `<p>The demo survey has been answered${f.submitted_via === "email" ? " from the emailed link" : " in the demo"}.</p><table style="border-collapse:collapse;font-size:14px;">${rows}</table>`;
+    const bodyText = [
+      `The demo survey for ${client} has been answered.`,
+      `From: ${who ? `${who.full_name ?? ""} (${who.email ?? ""})` : "A demo login"}`,
+      ...DEMO_SURVEY_RATINGS.map((q, i) => `${q.label}: ${scores[i]} / 5`),
+      `Average: ${average.toFixed(1)} out of 5`,
+      `What they liked: ${String(f.liked ?? "").trim() || "Nothing written"}`,
+      `What they did not like: ${String(f.disliked ?? "").trim() || "Nothing written"}`,
+      `What we could do better: ${String(f.better ?? "").trim() || "Nothing written"}`,
+    ].join("\n");
+    const told = await notifyFounder({
+      subject: `Demo feedback: ${client}, ${average.toFixed(1)} out of 5`,
       heading: `Demo feedback from ${client}`,
-      bodyHtml: `<p>The demo survey has been answered${f.submitted_via === "email" ? " from the emailed link" : " in the demo"}.</p><table style="border-collapse:collapse;font-size:14px;">${rows}</table>`,
+      preheader: `${client} answered the demo survey: average ${average.toFixed(1)} out of 5`,
+      bodyHtml,
+      bodyText,
       ctaLabel: "Open the demo",
       ctaUrl: `${siteUrl()}/founder/demos/${(demo as { id?: string } | null)?.id ?? ""}`,
-      footerNote: "You receive this because you are the platform admin for Be Care Compliant.",
+      companyId: null,
+      fromAddress: who?.email ?? null,
+      fromName: who?.full_name ? `${who.full_name} (demo)` : null,
+      replyTo: who?.email ?? null,
     });
-    const recipients = ((founders as Array<{ email: string | null }> | null) ?? [])
-      .map((a) => a.email)
-      .filter((e): e is string => Boolean(e));
-    for (const to of recipients) {
-      const r = await sendEmail({ to, subject: `Demo feedback: ${client}, ${average.toFixed(1)} out of 5`, html, replyTo: who?.email || undefined });
-      if (!r.sent) console.error("[demo] founder feedback email not sent:", r.error ?? r.skippedReason);
-    }
+    if (!told.inbox && !told.emailed) console.error("[demo] founder feedback notice reached neither the inbox nor email");
   } catch (e) {
     console.error("[demo] founder feedback email failed:", (e as Error).message);
   }

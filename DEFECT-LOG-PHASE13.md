@@ -2583,7 +2583,7 @@ take the intervals from the deal (dealIntervals, pure, 1 test): here £250.00 a 
 - Cause: a yes_no answer is stored as "Yes" or "No", but the three incident forms (0301 to 0303) say visibleWhen in ["yes"] or ["no"]. The visibility check compared with case, so the follow ups never showed and were never required.
 - Fix: lib/form-visibility.ts compares without case; isFieldVisible uses it (client and server). Unit test lib/form-validate.visible.test.ts.
 - Scope checked in the live database: only the Incident Report, Incident Investigation and Incident Outcome forms on Thistle, House Test and Bevan have such follow ups; no other form changes behaviour.
-- Status: fixed in code, awaiting push and a live retest.
+- Status: fixed and retested live 2 Oct (Bevan support session: the follow ups appear).
 - DEF-103 retest PASS 2 Oct (demo, Claude in Chrome): a near miss (Fall) filed with staff Ben Morgan and the office answers; incidents.event_type near_miss, category Fall, notifiable and safeguarding false, incident_people Ben Morgan.
 
 ## DEF-105 - Every password reset link said "expired" (2 Oct 2026)
@@ -2591,4 +2591,4 @@ take the intervals from the deal (dealIntervals, pure, 1 test): here £250.00 a 
 - Evidence: the Supabase auth log shows the token checked successfully (POST /verify 200, a login) and the new session's amr is "otp". The reset form only accepted a session whose amr says "recovery", which Supabase does not write for a link checked with verifyOtp and a token_hash. So every reset link failed since the form was built (23 Sep), and the session it left behind was a full sign in made without a password.
 - Fix: lib/auth/reset-marker.ts. /auth/confirm, after a recovery token, sets an HMAC signed, httpOnly cookie tied to the new session. The reset page and its action accept the session while the marker is under 15 minutes old; requireUser and the middleware treat any session carrying a marker as reset only, so an abandoned reset never leaves anyone signed in; saving the password clears it. Unit tested (lib/auth/reset-marker.test.ts).
 - A second reset straight away "sent nothing": the public form allows one email every 2 minutes (R8), by design.
-- Status: fixed in code, awaiting push and Phil's live retest of R7.
+- Status: fixed and retested live 2 Oct (R7 PASS, Phil, ppdavies+cob: Set a new password, password changed, signed in with the new one).
