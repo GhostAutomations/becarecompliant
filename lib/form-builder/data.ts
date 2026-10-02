@@ -215,7 +215,24 @@ export async function listFormTemplates(): Promise<TemplateSummary[]> {
     .select("id, key, name, population, version, status")
     .order("population", { ascending: true })
     .order("name", { ascending: true });
-  return ((data ?? []) as TemplateSummary[]).map((t) => ({ ...t }));
+  /* WHO HOLDS EACH ONE (2 Oct 2026): Delete is offered only on a form no company holds and no built
+     in check uses; the database checks the same again before it deletes (0373). */
+  const [{ data: held }, { data: builtIns }] = await Promise.all([
+    supabase.from("forms").select("company_id, source_template_key").not("source_template_key", "is", null),
+    supabase.from("default_check_definitions").select("form_key"),
+  ]);
+  const holders = new Map<string, Set<string>>();
+  for (const f of (held ?? []) as Array<{ company_id: string; source_template_key: string }>) {
+    const set = holders.get(f.source_template_key) ?? new Set<string>();
+    set.add(f.company_id);
+    holders.set(f.source_template_key, set);
+  }
+  const builtIn = new Set(((builtIns ?? []) as Array<{ form_key: string | null }>).map((b) => b.form_key).filter(Boolean));
+  return ((data ?? []) as Array<Omit<TemplateSummary, "heldBy" | "builtIn">>).map((t) => ({
+    ...t,
+    heldBy: holders.get(t.key)?.size ?? 0,
+    builtIn: builtIn.has(t.key),
+  }));
 }
 
 export type TemplateForEdit = {

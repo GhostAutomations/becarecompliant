@@ -7,6 +7,10 @@ import BuilderShell from "@/components/form-builder/builder-shell";
 
 export const metadata: Metadata = { title: "Edit form" };
 
+/* Import with AI (2 Oct 2026) runs as a server action from this page and can take most of a
+   minute on a long form, so the page allows a minute. */
+export const maxDuration = 60;
+
 export default async function EditFormPage({
   params,
 }: {

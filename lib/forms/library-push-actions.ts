@@ -120,3 +120,69 @@ export async function pushLibraryForm(
   const ok = `Sent to ${sent.length === 1 ? sent[0] : `${sent.length} companies`}.`;
   return { ok: refused.length > 0 ? `${ok} Not sent to ${refused.join("; ")}.` : ok };
 }
+
+/**
+ * GIVE A LIBRARY FORM TO COMPANIES THAT DO NOT HAVE IT (Phil, 2 Oct 2026: "send a single company if
+ * required"). Each one goes through founder_give_form_template (0373), which seeds it exactly as a
+ * new company is seeded and leaves a company that already has the key alone, so pressing twice
+ * adds nothing twice. Reports each company by name.
+ */
+export async function giveLibraryForm(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { user, profile } = await requirePlatformAdmin();
+  const templateId = String(formData.get("template_id") ?? "").trim();
+  const chosen = [...new Set(formData.getAll("company_ids").map((v) => String(v)))];
+  if (!templateId) return { error: "Missing form." };
+  if (chosen.length === 0) return { error: "Tick at least one company." };
+
+  const supabase = await createClient();
+  const { data: template } = await supabase
+    .from("form_templates")
+    .select("name, key")
+    .eq("id", templateId)
+    .maybeSingle<{ name: string; key: string }>();
+  if (!template) return { error: "That library form could not be read." };
+  const { data: names } = await supabase.from("companies").select("id, name").in("id", chosen);
+  const nameOf = new Map(((names ?? []) as Array<{ id: string; name: string }>).map((c) => [c.id, c.name]));
+
+  const added: string[] = [];
+  const already: string[] = [];
+  const refused: string[] = [];
+  for (const companyId of chosen) {
+    const name = nameOf.get(companyId) ?? "a company";
+    const { data, error } = await supabase.rpc("founder_give_form_template", {
+      p_template_id: templateId,
+      p_company_id: companyId,
+    });
+    if (error) {
+      refused.push(`${name} (${error.message})`);
+      continue;
+    }
+    if (data === "already") {
+      already.push(name);
+      continue;
+    }
+    added.push(name);
+    await writeAudit({
+      companyId,
+      actorId: user.id,
+      actorEmail: profile.email,
+      actorRole: profile.role,
+      action: "form.library_given",
+      entityType: "form",
+      entityId: templateId,
+      summary: `${template.name} added to this company from the form library`,
+      metadata: { template_key: template.key },
+    });
+  }
+
+  revalidatePath("/founder/forms");
+  revalidatePath(`/founder/forms/${templateId}/push`);
+  revalidatePath("/settings/forms");
+
+  const parts: string[] = [];
+  if (added.length) parts.push(`Added to ${added.join(", ")}.`);
+  if (already.length) parts.push(`${already.join(", ")} already ${already.length === 1 ? "has" : "have"} it.`);
+  if (refused.length) parts.push(`Not added to ${refused.join("; ")}.`);
+  if (added.length === 0 && already.length === 0) return { error: parts.join(" ") };
+  return { ok: parts.join(" ") };
+}

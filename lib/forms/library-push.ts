@@ -154,3 +154,23 @@ export async function libraryPushView(templateKey: string): Promise<LibraryPushV
     companies,
   };
 }
+
+/**
+ * GIVE TO A COMPANY (Phil, 2 Oct 2026, popup "Pick any company"). The companies that do NOT have
+ * this form, so the founder can add it to one of them, or a few. A company already holding a form
+ * with the same key (the library's or their own) is left out, because the key is unique within a
+ * company. Deleted companies and running demos are left out too.
+ */
+export async function companiesWithoutForm(templateKey: string): Promise<Array<{ id: string; name: string }>> {
+  const supabase = await createClient();
+  const [{ data: companies }, { data: holders }, { data: demos }] = await Promise.all([
+    supabase.from("companies").select("id, name, status").neq("status", "deleted").order("name"),
+    supabase.from("forms").select("company_id").eq("key", templateKey),
+    supabase.from("demos").select("company_id").is("deleted_at", null),
+  ]);
+  const has = new Set(((holders ?? []) as Array<{ company_id: string }>).map((h) => h.company_id));
+  const demo = new Set(((demos ?? []) as Array<{ company_id: string | null }>).map((d) => d.company_id).filter(Boolean));
+  return ((companies ?? []) as Array<{ id: string; name: string }>)
+    .filter((c) => !has.has(c.id) && !demo.has(c.id))
+    .map((c) => ({ id: c.id, name: c.name }));
+}

@@ -9,7 +9,8 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createTemplate, setTemplateStatus } from "@/lib/form-builder/actions";
+import { createTemplate, deleteTemplate, setTemplateStatus } from "@/lib/form-builder/actions";
+import ActionForm from "@/components/action-form";
 import type { Population, TemplateSummary } from "@/lib/form-builder/types";
 
 const POP_LABEL: Record<Population, string> = {
@@ -25,6 +26,8 @@ export default function TemplateLibrary({ templates }: { templates: TemplateSumm
   const [name, setName] = useState("");
   const [population, setPopulation] = useState<Population>("people");
   const [error, setError] = useState<string | null>(null);
+  /* The row whose Delete box is open (2 Oct 2026). */
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   function createIt() {
     setError(null);
@@ -128,29 +131,66 @@ export default function TemplateLibrary({ templates }: { templates: TemplateSumm
         </div>
       ) : (
         <div className="space-y-2">
-          {templates.map((t) => (
-            <div key={t.id} className="glass-card flex items-center justify-between gap-3 p-4">
-              <Link href={`/founder/forms/${t.id}`} className="min-w-0 flex-1">
-                <p className="truncate text-base font-semibold text-white">{t.name}</p>
-                <p className="text-xs text-white/45">
-                  {POP_LABEL[t.population]} · <span className="font-mono">{t.key}</span> · v{t.version}
-                </p>
-              </Link>
-              <div className="flex shrink-0 items-center gap-2">
-                <span className={`pill ${t.status === "archived" ? "pill-neutral" : "pill-green"}`}>
-                  {t.status}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => toggleStatus(t)}
-                  disabled={pending}
-                  className="btn-ghost px-3 py-1.5 text-xs"
-                >
-                  {t.status === "archived" ? "Restore" : "Archive"}
-                </button>
+          {templates.map((t) => {
+            /* DELETE ONLY WHAT NOBODY HOLDS (Phil, 2 Oct 2026, popup). Once a company has a copy,
+               its versions and Evidence point back here, so Archive is the only way out. */
+            const deletable = t.heldBy === 0 && !t.builtIn;
+            return (
+              <div key={t.id} className="glass-card p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <Link href={`/founder/forms/${t.id}`} className="min-w-0 flex-1">
+                    <p className="truncate text-base font-semibold text-white">{t.name}</p>
+                    <p className="text-xs text-white/45">
+                      {POP_LABEL[t.population] ?? t.population} · <span className="font-mono">{t.key}</span> · v{t.version} ·{" "}
+                      {t.heldBy === 0 ? "no company has it yet" : `held by ${t.heldBy} ${t.heldBy === 1 ? "company" : "companies"}`}
+                      {t.builtIn ? " · used by a built in check" : ""}
+                    </p>
+                  </Link>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className={`pill ${t.status === "archived" ? "pill-neutral" : "pill-green"}`}>
+                      {t.status}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => toggleStatus(t)}
+                      disabled={pending}
+                      className="btn-ghost px-3 py-1.5 text-xs"
+                    >
+                      {t.status === "archived" ? "Restore" : "Archive"}
+                    </button>
+                    {deletable ? (
+                      <button
+                        type="button"
+                        onClick={() => setDeleting(deleting === t.id ? null : t.id)}
+                        className="btn-ghost px-3 py-1.5 text-xs text-red-300"
+                      >
+                        Delete
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+                {deletable && deleting === t.id ? (
+                  <div className="mt-3 border-t border-white/10 pt-3">
+                    <p className="text-xs text-white/55">
+                      Deletes {t.name} from the library for good. No company has it, so nothing else changes. Type DELETE to confirm.
+                    </p>
+                    <ActionForm
+                      action={deleteTemplate}
+                      hidden={{ template_id: t.id }}
+                      label="Delete for good"
+                      savingLabel="Deleting…"
+                      savedLabel="Deleted"
+                      buttonClassName="btn-danger text-xs"
+                      inline
+                      className="mt-2"
+                    >
+                      <input name="confirm" aria-label="Type DELETE" placeholder="DELETE" autoComplete="off" />
+                    </ActionForm>
+                  </div>
+                ) : null}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

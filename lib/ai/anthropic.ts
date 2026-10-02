@@ -8,9 +8,13 @@ import { recordUsage } from "@/lib/notifications/usage";
  * Callers decide how to use the text. Never throws to the client.
  */
 export async function runAi(opts: {
-  companyId: string;
+  /** The company whose credit is spent. null is the founder working in the platform library
+   *  (AI form import, 2 Oct 2026): no company pays, nothing is spent or metered against one. */
+  companyId: string | null;
   feature: string;
   prompt: string;
+  /** Extra content blocks sent BEFORE the prompt, such as a PDF or a picture to read. */
+  attachments?: unknown[];
   system?: string;
   maxTokens?: number;
 }): Promise<{ ok: string } | { error: string }> {
@@ -20,8 +24,14 @@ export async function runAi(opts: {
     return { error: "AI is not configured. Ask your administrator to set the AI keys." };
   }
 
-  const spent = await spendAiCredit(opts.companyId);
-  if (!spent.ok) return { error: spent.message };
+  const companyId = opts.companyId;
+  const refund = async () => {
+    if (companyId) await refundAiCredit(companyId);
+  };
+  if (companyId) {
+    const spent = await spendAiCredit(companyId);
+    if (!spent.ok) return { error: spent.message };
+  }
 
   let res: Response;
   try {
@@ -32,15 +42,22 @@ export async function runAi(opts: {
         model,
         max_tokens: opts.maxTokens ?? 1500,
         ...(opts.system ? { system: opts.system } : {}),
-        messages: [{ role: "user", content: opts.prompt }],
+        messages: [
+          {
+            role: "user",
+            content: opts.attachments?.length
+              ? [...opts.attachments, { type: "text", text: opts.prompt }]
+              : opts.prompt,
+          },
+        ],
       }),
     });
   } catch (e) {
-    await refundAiCredit(opts.companyId);
+    await refund();
     return { error: `AI request failed: ${(e as Error).message}` };
   }
   if (!res.ok) {
-    await refundAiCredit(opts.companyId);
+    await refund();
     const detail = (await res.text().catch(() => "")).replace(/sk-ant-[A-Za-z0-9_-]{6,}/g, "[redacted]");
     return { error: `AI request failed (${res.status}). ${detail.slice(0, 160)}` };
   }
@@ -50,8 +67,8 @@ export async function runAi(opts: {
     stop_reason?: string;
     usage?: { input_tokens?: number; output_tokens?: number };
   };
-  await recordUsage({
-    companyId: opts.companyId,
+  if (companyId) await recordUsage({
+    companyId,
     kind: "ai",
     units: (json.usage?.input_tokens ?? 0) + (json.usage?.output_tokens ?? 0),
     metadata: {
@@ -67,7 +84,7 @@ export async function runAi(opts: {
     // only deduct for work actually done. Report WHY, because "empty response" alone
     // is undiagnosable — stop_reason tells us whether it ran out of tokens, and the
     // block types tell us whether the text simply arrived in a shape we do not read.
-    await refundAiCredit(opts.companyId);
+    await refund();
     const stop = json.stop_reason ?? "unknown";
     const kinds = (json.content ?? []).map((b) => b.type ?? "?").join(", ") || "none";
     console.error("[ai] empty response", { feature: opts.feature, stop, kinds });

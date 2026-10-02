@@ -45,6 +45,7 @@ import {
 import SectionEditor from "./section-editor";
 import VersionHistory from "./version-history";
 import ContentOutline from "./content-outline";
+import AiImportDialog from "./ai-import-dialog";
 
 type CompanyProps = {
   kind: "company";
@@ -86,6 +87,8 @@ export default function BuilderShell(props: Props) {
   const [message, setMessage] = useState<{ ok?: string; error?: string } | null>(null);
   const [pending, startTransition] = useTransition();
   const [sectionDrag, setSectionDrag] = useState<number | null>(null);
+  /* What the last AI import did, shown until the next edit (2 Oct 2026). */
+  const [importNote, setImportNote] = useState<string | null>(null);
   const bank = props.bank;
 
   const issues = useMemo(() => validateSchema(schema), [schema]);
@@ -99,6 +102,7 @@ export default function BuilderShell(props: Props) {
     setSchema(next);
     setDirty(true);
     setMessage(null);
+    setImportNote(null);
   }
 
   // ---- Save / Publish / Discard --------------------------------------------
@@ -232,6 +236,16 @@ export default function BuilderShell(props: Props) {
 
         <div className="flex flex-wrap items-center gap-2">
           {dirty && <span className="text-xs text-amber-300">Unsaved changes</span>}
+          <AiImportDialog
+            kind={props.kind}
+            population={props.population}
+            schema={schema}
+            onDraft={(next, summary) => {
+              mutate(next);
+              setImportNote(summary);
+              setTab("edit");
+            }}
+          />
           <button
             type="button"
             onClick={() => doSave()}
@@ -263,6 +277,12 @@ export default function BuilderShell(props: Props) {
           )}
         </div>
       </div>
+
+      {importNote && (
+        <div className="glass-card border border-gold-400/30 p-4">
+          <p className="text-sm text-gold-300">{importNote}</p>
+        </div>
+      )}
 
       {message?.error && (
         <div className="glass-card border border-red-400/30 p-4">

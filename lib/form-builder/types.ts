@@ -63,6 +63,10 @@ export type TemplateSummary = {
   population: Population;
   version: number;
   status: "active" | "archived";
+  /** How many companies hold a copy (forms.source_template_key). 0 means it can be deleted. */
+  heldBy: number;
+  /** A built in check completes this form, so it is never deleted, only archived. */
+  builtIn: boolean;
 };
 
 /**

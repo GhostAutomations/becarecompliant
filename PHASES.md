@@ -2101,6 +2101,11 @@ happens to Acme once Thistle is real.
 
 ### Phase 13 — still to do (added 2026-09-29, Phil)
 
+- **Form builder round (Phil, 2 Oct 2026; popups: Phase 13 now).** Delete a library form no company holds
+  (Archive otherwise); give a library form to any single company, or a few; Import with AI from a link,
+  PDF, Word, Excel or picture, in the founder library (free) and every company's builder (1 AI credit),
+  the draft landing in the builder for checking before Save. BUILT 2 Oct (0373). Tests FB1 to FB9 in
+  TEST-CHECKLIST-FORM-BUILDER-ROUND.md.
 - **Speed pass on the database access rules (Phil, 2 Oct 2026: "we will do the speed up later", then "add the speed up
   to the list": Phase 13, after the Gofal Cymru Care demo).** Found when Phil asked why the site felt slow: every register and dashboard query
   runs the RLS rules per ROW (is_branch_team_member, is_company_admin, senior_may_do_instance and the rest),

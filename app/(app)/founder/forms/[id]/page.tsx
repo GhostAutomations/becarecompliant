@@ -9,6 +9,10 @@ import { blankSchema } from "@/lib/form-builder/schema-ops";
 
 export const metadata: Metadata = { title: "Edit template" };
 
+/* Import with AI (2 Oct 2026) runs as a server action from this page and can take most of a
+   minute on a long form, so the page allows a minute. */
+export const maxDuration = 60;
+
 export default async function EditTemplatePage({
   params,
 }: {

@@ -282,6 +282,33 @@ export async function setTemplateStatus(
   return { ok: status === "archived" ? "Template archived." : "Template restored." };
 }
 
+/**
+ * DELETE A LIBRARY FORM (Phil, 2 Oct 2026, popup "Delete if no company has it"). Only one no
+ * company holds and no built in check uses; the database refuses anything else with the reason
+ * (founder_delete_form_template, 0373), so a stale list cannot delete a form a company now holds.
+ */
+export async function deleteTemplate(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { user, profile } = await requirePlatformAdmin();
+  const templateId = String(formData.get("template_id") ?? "");
+  if (String(formData.get("confirm") ?? "").trim() !== "DELETE") return { error: "Type DELETE to confirm." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("founder_delete_form_template", { p_template_id: templateId });
+  if (error) return { error: error.message };
+  await writeAudit({
+    companyId: null,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: "platform_admin",
+    action: "form_template.deleted",
+    entityType: "form_template",
+    entityId: templateId,
+    summary: `Deleted ${(data as string) ?? "a form"} from the form library`,
+    metadata: {},
+  });
+  revalidatePath("/founder/forms");
+  return { ok: "Deleted.", redirectTo: "/founder/forms" };
+}
+
 // ---------------------------------------------------------------------------
 // Question bank curation (platform admin only; RLS also enforces it)
 // ---------------------------------------------------------------------------
