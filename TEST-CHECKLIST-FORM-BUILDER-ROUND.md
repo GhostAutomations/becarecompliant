@@ -27,3 +27,7 @@ the template library, runAi takes attachments and a null company (founder).
   draft; the AI credits figure goes down by 1; a refused import (bad file) keeps the choices and
   spends nothing.
 - FB9 Add vs Replace: on a form with questions, Add puts the imported ones after; Replace swaps them.
+
+- FB1 PASS 2 Oct (Claude in Chrome): holder counts on every row, Delete only on unheld forms, built in ones Archive only. Phil: the DELETE box was too wide and the pill, Archive/Restore and Delete did not line up; fixed (fixed slots, box w-28, department labels Complaints and Incidents). Same narrow box on the demo Delete now.
+- FB2 PASS 2 Oct (Phil): Platform Audit deleted; checked in the database, gone.
+- FB6 (Word) PASS 2 Oct (Phil, Birdie Audit Form.docx into a library form): every header field and all 21 questions in order and sections, Yes/No/NA choices, comments boxes, summary, signature; prefilled answer, carer comment, empty rows and Criteria headings left out. Phil chose three import improvements by popup: comment boxes labelled Comments, follow ups shown only when needed (showWhen), repeated questions flagged. Built with unit test.

@@ -241,8 +241,9 @@ export default async function DemoPage({
               <p className="mt-1 text-xs text-white/50">
                 Deletes the demo company, its records and its logins now, instead of 14 days after the end. Usage and feedback stay here. Type DELETE to confirm.
               </p>
-              <ActionForm action={deleteDemoNow} hidden={{ demo_id: demo.id }} label="Delete the demo company" savingLabel="Deleting…" savedLabel="Deleted" buttonClassName="btn-outline text-xs" inline className="mt-3">
-                <input name="confirm" aria-label="Type DELETE" placeholder="DELETE" autoComplete="off" />
+              <ActionForm action={deleteDemoNow} hidden={{ demo_id: demo.id }} label="Delete the demo company" savingLabel="Deleting…" savedLabel="Deleted" buttonClassName="btn-outline text-xs" className="mt-3 flex items-center gap-2">
+                {/* Only as wide as the word it asks for (Phil, 2 Oct 2026, on the form library). */}
+                <input name="confirm" aria-label="Type DELETE" placeholder="DELETE" autoComplete="off" className="w-28" />
               </ActionForm>
             </div>
             {demo.companyId ? (

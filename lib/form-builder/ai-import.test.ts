@@ -62,10 +62,57 @@ test("the model's reply is made safe: unique keys, known types, real choices", (
   assert.equal(f[3].type, "short_text");
   assert.equal(f[4].type, "yes_no");
   assert.equal(d.questions, 5);
-  assert.equal(d.notes.length, 1);
+  // The simpler answer types, and "Date of visit" asked twice.
+  assert.equal(d.notes.length, 2);
+  assert.ok(d.notes.some((n) => /Asked twice: "Date of visit"/.test(n)));
 });
 
 test("a key never starts with a number", () => {
   const d = draftToSchema({ sections: [{ title: "A", fields: [{ label: "1. Name", type: "short_text" }] }] }, [], "t");
   assert.equal(d.schema.sections[0].fields[0].key, "q_1_name");
+});
+
+test("Birdie audit: a question's comments box is labelled Comments, a repeat is flagged, a follow up shows only on Yes", () => {
+  const d = draftToSchema(
+    {
+      sections: [
+        {
+          title: "Care Planning",
+          fields: [
+            { label: "Are care plans updated within the last 30 days?", type: "radio", options: ["Yes", "No", "NA"] },
+            { label: "Are care plans updated within the last 30 days? Comments", type: "long_text" },
+          ],
+        },
+        {
+          title: "Visit Records",
+          fields: [
+            { label: "Are care plans updated within the last 30 days?", type: "radio", options: ["Yes", "No", "NA"] },
+            { label: "Comments", type: "long_text" },
+          ],
+        },
+        {
+          title: "Audit Summary",
+          fields: [
+            { label: "Follow-Up Required", type: "yes_no" },
+            { label: "Follow-Up Date", type: "date", showWhen: { question: "Follow-Up Required", answers: ["Yes"] } },
+            { label: "Outcome", type: "radio", options: ["Pass", "Fail"] },
+            { label: "Retest date", type: "date", showWhen: { question: "Outcome", answers: ["Fail"] } },
+            { label: "Ignored", type: "date", showWhen: { question: "Not a question", answers: ["Yes"] } },
+          ],
+        },
+      ],
+    },
+    [],
+    "t",
+  );
+  const [care, visits, summary] = d.schema.sections;
+  assert.equal(care.fields[1].label, "Comments");
+  assert.equal(care.fields[1].key, "are_care_plans_updated_within_the_last_30_days_comments");
+  assert.equal(visits.fields[1].label, "Comments");
+  assert.notEqual(visits.fields[1].key, care.fields[1].key);
+  assert.deepEqual(summary.fields[1].visibleWhen, { field: "follow_up_required", in: ["yes"] });
+  assert.deepEqual(summary.fields[3].visibleWhen, { field: "outcome", in: ["fail"] });
+  assert.equal(summary.fields[4].visibleWhen, undefined);
+  assert.ok(d.notes.some((n) => /Asked twice: "Are care plans updated within the last 30 days\?"/.test(n)));
+  assert.ok(d.notes.some((n) => /2 questions show only when/.test(n)));
 });

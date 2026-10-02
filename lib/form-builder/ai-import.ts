@@ -229,6 +229,11 @@ export function draftToSchema(raw: unknown, takenKeys: string[] = [], idSeed = D
   const sections: FormSection[] = [];
   let questions = 0;
   let changedType = 0;
+  /* Every question so far, by its label, so a later "show this only when" can point at it. */
+  const byLabel = new Map<string, FormField>();
+  const askedTwice: string[] = [];
+  let previous: FormField | null = null;
+  const pendingShowWhen: Array<{ field: FormField; question: string; answers: string[] }> = [];
 
   rawSections.slice(0, 40).forEach((rs, si) => {
     const s = (rs && typeof rs === "object" ? rs : {}) as Record<string, unknown>;
@@ -250,12 +255,26 @@ export function draftToSchema(raw: unknown, takenKeys: string[] = [], idSeed = D
         type = options.length === 0 && /\b(yes|no)\b/i.test(label) ? "yes_no" : "short_text";
         changedType += 1;
       }
-      const base = slug(label, `question_${questions + 1}`);
+      /* A COMMENTS BOX IS "Comments" (Phil, 2 Oct 2026, on the Birdie audit): the box under a
+         question took the whole question as its label ("Are care plans updated ...? Comments"). */
+      let shownLabel = label;
+      const commentish = /\b(comments?|notes?)\.?$/i.test(label);
+      if (commentish && (type === "long_text" || type === "short_text") && previous && previous.type !== "heading") {
+        const stem = label.replace(/[.\s]*\b(comments?|notes?)\.?$/i, "").trim().toLowerCase();
+        if (stem === "" || previous.label.toLowerCase().startsWith(stem) || stem.startsWith(previous.label.toLowerCase().replace(/[?.]$/, ""))) {
+          shownLabel = "Comments";
+        }
+      }
+      const norm = shownLabel.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      if (shownLabel !== "Comments" && type !== "heading" && byLabel.has(norm) && !askedTwice.includes(shownLabel)) {
+        askedTwice.push(shownLabel);
+      }
+      const base = shownLabel === "Comments" && previous ? `${previous.key}_comments` : slug(label, `question_${questions + 1}`);
       let key = base;
       let n = 2;
       while (keys.has(key)) key = `${base}_${n++}`;
       keys.add(key);
-      const field: FormField = { key, type, label };
+      const field: FormField = { key, type, label: shownLabel };
       if (f.required === true && type !== "heading") field.required = true;
       const help = clean(f.help, 400);
       if (help) field.help = help;
@@ -269,7 +288,16 @@ export function draftToSchema(raw: unknown, takenKeys: string[] = [], idSeed = D
           return { value, label };
         });
       }
+      /* SHOWN ONLY WHEN NEEDED (Phil, 2 Oct 2026): "Follow-Up Date" after "Follow-Up Required". The
+         model names the earlier question and the answers that show this one; resolved below,
+         once every question has its key. */
+      const sw = (f.showWhen && typeof f.showWhen === "object" ? f.showWhen : null) as { question?: unknown; answers?: unknown } | null;
+      if (sw && typeof sw.question === "string" && Array.isArray(sw.answers)) {
+        pendingShowWhen.push({ field, question: sw.question, answers: sw.answers.filter((a): a is string => typeof a === "string") });
+      }
       if (type !== "heading") questions += 1;
+      if (shownLabel !== "Comments" && type !== "heading" && !byLabel.has(norm)) byLabel.set(norm, field);
+      previous = field;
       fields.push(field);
     }
     if (fields.length === 0) return;
@@ -281,6 +309,28 @@ export function draftToSchema(raw: unknown, takenKeys: string[] = [], idSeed = D
     });
   });
 
+  let conditional = 0;
+  for (const p of pendingShowWhen) {
+    const target = byLabel.get(p.question.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim());
+    if (!target || target === p.field) continue;
+    let values: string[];
+    if (target.type === "yes_no" || target.type === "checkbox") {
+      values = p.answers.map((a) => a.trim().toLowerCase()).filter((a) => a === "yes" || a === "no");
+    } else if (target.options?.length) {
+      values = p.answers
+        .map((a) => target.options!.find((o) => o.label.toLowerCase() === a.trim().toLowerCase())?.value)
+        .filter((v): v is string => Boolean(v));
+    } else continue;
+    if (values.length === 0) continue;
+    p.field.visibleWhen = { field: target.key, in: [...new Set(values)] };
+    conditional += 1;
+  }
+  if (conditional > 0) {
+    notes.push(`${conditional} question${conditional === 1 ? " shows" : "s show"} only when an earlier answer needs ${conditional === 1 ? "it" : "them"}.`);
+  }
+  if (askedTwice.length > 0) {
+    notes.push(`Asked twice: ${askedTwice.map((l) => `"${l}"`).join(", ")}. Remove the repeat if it is not meant to be there.`);
+  }
   if (changedType > 0) {
     notes.push(`${changedType} question${changedType === 1 ? " was" : "s were"} set to a simpler answer type. Check ${changedType === 1 ? "it" : "them"}.`);
   }
@@ -298,7 +348,9 @@ export function aiImportSystem(population: string): string {
     `Use only these answer types: ${AI_FIELD_TYPES.join(", ")}.`,
     "Guidance: tick boxes with several choices where one is picked are radio or single_select; where several can be picked, multi_select; a single tick box to confirm something is checkbox; Yes or No questions are yes_no; a signature line is signature; a date line is date; a box for writing is long_text, a short line is short_text; star or 1 to 5 scores are rating; a printed heading or instruction with no answer is heading.",
     "Mark a question required only when the source says it must be answered (for example an asterisk or the word required).",
+    "Where the source has a comments or notes box for a question, add it straight after that question as long_text with the label Comments.",
+    'Where a question only applies after an earlier answer (for example a follow up date after "Follow up required: Yes"), add "showWhen": {"question": "the earlier question label exactly", "answers": ["Yes"]} to it.',
     "Use UK spelling. Never use dashes as punctuation in labels: use commas, colons and full stops. Never use the words item or board.",
-    'Reply with JSON only, no other text, in exactly this shape: {"name": "form name", "sections": [{"title": "section title", "description": "optional", "fields": [{"label": "question as asked", "type": "one of the types", "required": false, "help": "optional", "options": ["only for radio, single_select and multi_select"]}]}]}',
+    'Reply with JSON only, no other text, in exactly this shape: {"name": "form name", "sections": [{"title": "section title", "description": "optional", "fields": [{"label": "question as asked", "type": "one of the types", "required": false, "help": "optional", "options": ["only for radio, single_select and multi_select"], "showWhen": {"question": "optional", "answers": ["optional"]}}]}]}',
   ].join("\n");
 }

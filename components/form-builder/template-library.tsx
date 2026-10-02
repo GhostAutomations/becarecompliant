@@ -13,9 +13,13 @@ import { createTemplate, deleteTemplate, setTemplateStatus } from "@/lib/form-bu
 import ActionForm from "@/components/action-form";
 import type { Population, TemplateSummary } from "@/lib/form-builder/types";
 
-const POP_LABEL: Record<Population, string> = {
+/* Every department a library form can belong to, so none shows its raw key (Phil, 2 Oct 2026:
+   "complaints" and "incidents" were printed in lower case). */
+const POP_LABEL: Record<string, string> = {
   people: "People",
   service_users: "Service Users",
+  complaints: "Complaints",
+  incidents: "Incidents",
 };
 
 export default function TemplateLibrary({ templates }: { templates: TemplateSummary[] }) {
@@ -146,27 +150,36 @@ export default function TemplateLibrary({ templates }: { templates: TemplateSumm
                       {t.builtIn ? " · used by a built in check" : ""}
                     </p>
                   </Link>
+                  {/* FIXED SLOTS (Phil, 2 Oct 2026: "archived, restore, active and delete all need to
+                      be in line going down"). The status pill, Archive or Restore, and Delete each
+                      keep their own column whether or not a row has them, so they line up. */}
                   <div className="flex shrink-0 items-center gap-2">
-                    <span className={`pill ${t.status === "archived" ? "pill-neutral" : "pill-green"}`}>
-                      {t.status}
+                    <span className="flex w-20 justify-end">
+                      <span className={`pill ${t.status === "archived" ? "pill-neutral" : "pill-green"}`}>
+                        {t.status}
+                      </span>
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => toggleStatus(t)}
-                      disabled={pending}
-                      className="btn-ghost px-3 py-1.5 text-xs"
-                    >
-                      {t.status === "archived" ? "Restore" : "Archive"}
-                    </button>
-                    {deletable ? (
+                    <span className="flex w-20 justify-center">
                       <button
                         type="button"
-                        onClick={() => setDeleting(deleting === t.id ? null : t.id)}
-                        className="btn-ghost px-3 py-1.5 text-xs text-red-300"
+                        onClick={() => toggleStatus(t)}
+                        disabled={pending}
+                        className="btn-ghost px-3 py-1.5 text-xs"
                       >
-                        Delete
+                        {t.status === "archived" ? "Restore" : "Archive"}
                       </button>
-                    ) : null}
+                    </span>
+                    <span className="flex w-16 justify-center">
+                      {deletable ? (
+                        <button
+                          type="button"
+                          onClick={() => setDeleting(deleting === t.id ? null : t.id)}
+                          className="btn-ghost px-3 py-1.5 text-xs text-red-300"
+                        >
+                          Delete
+                        </button>
+                      ) : null}
+                    </span>
                   </div>
                 </div>
                 {deletable && deleting === t.id ? (
@@ -181,10 +194,10 @@ export default function TemplateLibrary({ templates }: { templates: TemplateSumm
                       savingLabel="Deleting…"
                       savedLabel="Deleted"
                       buttonClassName="btn-danger text-xs"
-                      inline
-                      className="mt-2"
+                      className="mt-2 flex items-center gap-2"
                     >
-                      <input name="confirm" aria-label="Type DELETE" placeholder="DELETE" autoComplete="off" />
+                      {/* Only as wide as the word it asks for (Phil, 2 Oct 2026). */}
+                      <input name="confirm" aria-label="Type DELETE" placeholder="DELETE" autoComplete="off" className="w-28" />
                     </ActionForm>
                   </div>
                 ) : null}
