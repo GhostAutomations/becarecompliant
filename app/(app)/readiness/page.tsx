@@ -19,6 +19,9 @@ import InspectionPanel from "@/components/framework/inspection-panel";
 import { resolveReadinessBranch, getLatestInspections } from "@/lib/framework/branches";
 import { ratingLabel, ratingTone } from "@/lib/framework/ratings";
 import { getBranchTerms } from "@/lib/branches/company-word";
+import OwnRating from "@/components/framework/own-rating";
+import { getSelfRatings } from "@/lib/framework/self-ratings";
+import { GAP_RISK_LABEL, metricGap } from "@/lib/framework/gaps";
 
 export const metadata: Metadata = { title: "Inspection Readiness" };
 
@@ -42,21 +45,42 @@ function fmt(iso: string): string {
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
-function ItemRow({ item, overdue }: { item: FrameworkItem; overdue: boolean }) {
+function ItemRow({ item, overdue, canAct }: { item: FrameworkItem; overdue: boolean; canAct: boolean }) {
   const base = item.population === "people" ? "people" : "service-users";
+  /* The gap's own line (0374): CIW's likely view and the action in place, or a way to add one. */
+  const action = item.action
+    ? item.action.kind === "booked"
+      ? `Booked ${fmt(item.action.on)}`
+      : `Action noted ${fmt(item.action.on)} by ${item.action.by}`
+    : null;
   return (
-    <Link
-      href={`/${base}/${item.recordId}/checks/${item.instanceId}/complete`}
-      className="flex items-center justify-between gap-3 rounded-md border border-white/10 bg-white/5 px-3 py-1.5 text-sm hover:border-gold-400/40 hover:bg-gold-400/10"
-    >
-      <span className="min-w-0 truncate">
-        <span className="font-medium text-white">{item.recordName}</span>
-        <span className="text-white/50"> · {item.checkName}</span>
-      </span>
-      <span className={`shrink-0 text-xs ${overdue ? "text-red-300" : "text-amber-200"}`}>
-        {overdue ? "Overdue" : "Due"} {fmt(item.dueDate)}
-      </span>
-    </Link>
+    <div className="rounded-md border border-white/10 bg-white/5 px-3 py-1.5 text-sm hover:border-gold-400/40">
+      <div className="flex items-center justify-between gap-3">
+        <Link href={item.href} className="min-w-0 truncate hover:text-gold-300">
+          <span className="font-medium text-white">{item.recordName}</span>
+          <span className="text-white/50"> · {item.checkName}</span>
+        </Link>
+        <span className={`shrink-0 text-xs ${overdue ? "text-red-300" : "text-amber-200"}`}>
+          {overdue ? "Overdue" : "Due"} {fmt(item.dueDate)}
+        </span>
+      </div>
+      {overdue && (item.risk || action || canAct) ? (
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+          {item.risk ? (
+            <span className={`pill ${item.risk === "pan_risk" ? "pill-red" : "pill-amber"} text-[10px]`}>{GAP_RISK_LABEL[item.risk]}</span>
+          ) : null}
+          {action ? <span className="text-white/60">{action}</span> : <span className="text-white/45">No action in place</span>}
+          {canAct ? (
+            <Link
+              href={`/${base}/${item.recordId}?updates=open&about=${encodeURIComponent(item.aboutValue)}`}
+              className="btn-outline btn-xs"
+            >
+              Add action
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -92,12 +116,16 @@ export default async function ReadinessPage({ searchParams }: { searchParams: Pr
     .eq("company_id", profile.company_id)
     .eq("regulator", regulator);
   if (branchId) noticeQuery = noticeQuery.or(`branch_id.eq.${branchId},branch_id.is.null`);
-  const [{ requirements: allRequirements }, items, noticesRes, inspections] = await Promise.all([
+  const [{ requirements: allRequirements }, items, noticesRes, inspections, selfRatings] = await Promise.all([
     getFrameworkReadiness(profile.company_id, regulator, branchId),
     getFrameworkItems(profile.company_id, regulator, branchId),
     noticeQuery.order("issued_on", { ascending: false }),
     getLatestInspections(profile.company_id, regulator),
+    getSelfRatings(profile.company_id, regulator, branchId),
   ]);
+  /* Who may rate a theme and add an action: the people who record an inspection, not the founder
+     looking in support mode. Adding an action is an Update, which the record's own rules decide. */
+  const canRate = RECORDERS.includes(profile.role) && !profile.actingAsCompanyId;
   const last = branchId ? inspections.get(branchId) ?? null : null;
   const notices = (noticesRes.data as NoticeRow[] | null) ?? [];
   /* A theme nothing feeds is not shown: Environment is for services with accommodation, and CIW
@@ -187,9 +215,33 @@ export default async function ReadinessPage({ searchParams }: { searchParams: Pr
                 </p>
               ) : null}
 
+              <OwnRating
+                regulator={regulator}
+                code={r.code}
+                title={r.title}
+                branchId={branchId}
+                latest={selfRatings.get(r.code)?.latest ?? null}
+                history={selfRatings.get(r.code)?.history ?? []}
+                canRate={canRate}
+                priorityOpen={r.notices.priority}
+              />
+
               {/* THE PARTS, NOT A BLENDED SCORE (Phil, 2026-09-19): CIW rates a theme by
                   judgement, so the page shows what the judgement would be looking at. */}
               <p className="mt-3 text-sm text-white/80">{r.reason}</p>
+              {(() => {
+                /* What CIW would likely make of the gaps (0374, lib/framework/gaps.ts). */
+                if (regulator !== "ciw") return null;
+                const pan = it.overdue.filter((i) => i.risk === "pan_risk").length + r.metrics.filter((m) => metricGap(m.label, m.pct, r.code)?.risk === "pan_risk").length;
+                const afi = it.overdue.filter((i) => i.risk === "afi_likely").length + r.metrics.filter((m) => metricGap(m.label, m.pct, r.code)?.risk === "afi_likely").length;
+                if (pan + afi === 0) return null;
+                return (
+                  <p className="mt-1 flex flex-wrap gap-2 text-xs">
+                    {pan > 0 ? <span className="pill pill-red text-[10px]">{pan} Priority Action Notice {pan === 1 ? "risk" : "risks"}</span> : null}
+                    {afi > 0 ? <span className="pill pill-amber text-[10px]">{afi} {afi === 1 ? "Area" : "Areas"} for Improvement likely</span> : null}
+                  </p>
+                );
+              })()}
               {r.checks.total > 0 ? (
                 <p className="mt-1 text-xs text-white/60">
                   {`${r.checks.overdue} overdue · ${r.checks.dueSoon} due soon · ${r.checks.onTrack} on track`}
@@ -236,18 +288,46 @@ export default async function ReadinessPage({ searchParams }: { searchParams: Pr
 
               {r.metrics.length > 0 ? (
                 <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm text-white/70">
-                  {r.metrics.map((m) => (
-                    <span key={m.label}>{m.label}: <span className="text-white/90">{m.pct != null ? `${m.pct}%` : (m.note ?? "No data yet")}</span></span>
-                  ))}
+                  {r.metrics.map((m) => {
+                    const gap = regulator === "ciw" ? metricGap(m.label, m.pct, r.code) : null;
+                    return (
+                      <span key={m.label} title={gap?.anchor ?? undefined}>
+                        {m.label}: <span className="text-white/90">{m.pct != null ? `${m.pct}%` : (m.note ?? "No data yet")}</span>
+                        {gap ? (
+                          <span className={`pill ${gap.risk === "pan_risk" ? "pill-red" : "pill-amber"} ml-2 align-middle text-[10px]`}>
+                            {GAP_RISK_LABEL[gap.risk]}
+                          </span>
+                        ) : null}
+                      </span>
+                    );
+                  })}
                 </div>
               ) : null}
+              {regulator === "ciw"
+                ? (() => {
+                    /* What Good looks like in CIW's own framework, for each measure short of it, so a
+                       phone user sees it too (a hover title alone would not). */
+                    const anchors = [
+                      ...new Set(
+                        r.metrics.map((m) => metricGap(m.label, m.pct, r.code)?.anchor).filter((a): a is string => !!a),
+                      ),
+                    ];
+                    return anchors.length > 0 ? (
+                      <ul className="mt-1 space-y-0.5 text-xs text-white/50">
+                        {anchors.map((a) => (
+                          <li key={a}>{a}</li>
+                        ))}
+                      </ul>
+                    ) : null;
+                  })()
+                : null}
 
               {outstanding > 0 ? (
                 <details className="section-card mt-3">
                   <summary>Outstanding checks ({outstanding})</summary>
                   <div className="space-y-1 border-t border-white/10 p-3">
-                    {it.overdue.map((i) => <ItemRow key={i.instanceId} item={i} overdue />)}
-                    {it.dueSoon.map((i) => <ItemRow key={i.instanceId} item={i} overdue={false} />)}
+                    {it.overdue.map((i) => <ItemRow key={i.instanceId ?? `${i.recordId}:${i.aboutValue}`} item={i} overdue canAct={canRate} />)}
+                    {it.dueSoon.map((i) => <ItemRow key={i.instanceId ?? `${i.recordId}:${i.aboutValue}`} item={i} overdue={false} canAct={false} />)}
                   </div>
                 </details>
               ) : null}

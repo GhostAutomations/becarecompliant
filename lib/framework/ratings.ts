@@ -57,3 +57,30 @@ export function parseRatings(
   }
   return { ok: true, ratings: out };
 }
+
+/**
+ * WHAT EACH CIW RATING MEANS, in CIW's own words (Annex E of CIW's guidance on carrying out a
+ * quality of care review, CIW-DR-0052-E, July 2025, which summarises the descriptors in the
+ * inspection framework of May 2025). Shown when a manager rates a theme themselves (0374): the
+ * guidance says providers "may find it helpful to rate your service in relation to each theme"
+ * using these descriptors. CQC levels carry no descriptor here until CQC's own are agreed.
+ */
+export const CIW_DESCRIPTORS: Record<string, string> = {
+  excellent:
+    "With few exceptions, the service is outstanding. This could be for exceptional leadership, for care and support that puts people at the centre of everything they do, or for making a significant positive difference to people's well-being.",
+  good: "The service is consistently safe, caring, and meets people's outcomes through reliable practices with positive results.",
+  requires_improvement:
+    "The service sometimes falls short of expected standards with inconsistent practices and areas that need strengthening to ensure people's safety and well-being.",
+  requires_significant_improvement:
+    "The service is rarely effective, has weak or inadequate leadership, and significant gaps in care that risk people's safety and wellbeing. Immediate action is needed to make improvements.",
+};
+
+/** The one rule CIW fixes (framework paragraph 9): an open Priority Action Notice means the theme
+ *  "must be rated as Requires significant improvement". A self rating above that is refused. */
+export function selfRatingProblem(regulator: Regulator, rating: string, priorityOpen: number): string | null {
+  if (!RATING_LEVELS[regulator].some((l) => l.value === rating)) return "Choose a rating from the list.";
+  if (regulator === "ciw" && priorityOpen > 0 && rating !== "requires_significant_improvement") {
+    return "This theme has an open Priority Action Notice, and CIW's framework says a theme with one must be rated Requires significant improvement.";
+  }
+  return null;
+}

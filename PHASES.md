@@ -2127,6 +2127,16 @@ happens to Acme once Thistle is real.
   sign in for Company Admins and the founder, and a nightly copy of the stored files.
 - **Inspection report review (30 Sep).** Upload a CIW, CQC or PQS report; the AI checks it against the
   company's Evidence and drafts factual accuracy or challenge points; lessons go into Readiness. Not built.
+- **Readiness gaps in CIW's words and your own rating per theme (added 2 Oct, Phil, after the
+  inspection report review: 12 CIW and 6 CQC reports, the Cardiff PQS, CIW's framework of May 2025 and
+  its quality of care review guidance; write up in the claude.ai project, inspections/
+  inspection-scoring-analysis).** Readiness still shows the evidence, never a predicted rating (19 Sep
+  rule). Each overdue gap gets CIW's label (Priority Action Notice risk for a safety gap with nothing in
+  place, otherwise Area for Improvement likely); a Planner booking or an Update linked to the check
+  ("About") is the action in place; Safeguarding training and Social Care Wales registration on
+  Leadership and Management; the manager's own rating per theme with CIW's descriptors, history kept,
+  carried into Reg 80. BUILT 2 Oct (0374): see TEST-CHECKLIST-READINESS-GAPS.md. Untested yet.
+  Follow up: drop the seven argument post_record_update once deployed.
 - **Deal tests D7 (rest), D8, D9** in TEST-CHECKLIST-CONTRACT.md.
 - **New department: Safety Checks.** Scope to be talked through with Phil before anything is built.
 - **New department: Maintenance.** Scope to be talked through with Phil before anything is built.

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseRatings, ratingLabel, ratingTone, RATING_LEVELS } from "./ratings.ts";
+import { parseRatings, ratingLabel, ratingTone, RATING_LEVELS, selfRatingProblem, CIW_DESCRIPTORS } from "./ratings.ts";
 
 test("CIW levels are the four CIW publishes, best first", () => {
   assert.deepEqual(RATING_LEVELS.ciw.map((l) => l.label), ["Excellent", "Good", "Requires improvement", "Requires significant improvement"]);
@@ -25,4 +25,22 @@ test("labels and tones", () => {
 });
 test("no dashes in any label", () => {
   for (const r of ["ciw", "cqc"] as const) for (const l of RATING_LEVELS[r]) assert.doesNotMatch(l.label, /[—–-]/);
+});
+
+
+test("a self rating must be a level the regulator uses", () => {
+  assert.equal(selfRatingProblem("ciw", "good", 0), null);
+  assert.equal(selfRatingProblem("ciw", "outstanding", 0), "Choose a rating from the list.");
+  assert.equal(selfRatingProblem("cqc", "outstanding", 0), null);
+});
+
+test("an open Priority Action Notice forces Requires significant improvement (CIW)", () => {
+  assert.match(selfRatingProblem("ciw", "good", 1) ?? "", /Priority Action Notice/);
+  assert.equal(selfRatingProblem("ciw", "requires_significant_improvement", 1), null);
+});
+
+test("every CIW level has its descriptor", () => {
+  for (const v of ["excellent", "good", "requires_improvement", "requires_significant_improvement"]) {
+    assert.ok(CIW_DESCRIPTORS[v]?.length > 20);
+  }
 });

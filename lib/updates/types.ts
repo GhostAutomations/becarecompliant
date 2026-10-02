@@ -18,6 +18,8 @@ export type RecordUpdate = {
   removedReason: string | null;
   files: UpdateFile[];
   mentions: string[];
+  /** What the update is about (0374): a check on this record, DBS renewal or Right to Work. */
+  aboutLabel: string | null;
 };
 
 export type RecordUpdates = {
@@ -27,5 +29,8 @@ export type RecordUpdates = {
   tile: RecordUpdate | null;
   threads: Thread<RecordUpdate>[];
   mentionables: Array<{ id: string; name: string }>;
+  /** What a new update can be about: this record's checks, and a person's DBS and Right to Work.
+   *  value is "check:<instance id>", "dbs_renewal" or "right_to_work" (lib/updates/about.ts). */
+  aboutChoices: Array<{ value: string; label: string }>;
 };
 

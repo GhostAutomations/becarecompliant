@@ -54,15 +54,22 @@ export default function UpdatesTile({
   canRemove: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  /* ?about= from the Readiness page's "Add action" (0374): the new update starts linked to that
+     check, so it counts as the action. Only a choice this record offers is taken. */
+  const [startAbout, setStartAbout] = useState("");
   const close = useCallback(() => setOpen(false), []);
 
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
       if (params.get("updates") === "open") setOpen(true);
+      const about = params.get("about") ?? "";
+      if (about && data.aboutChoices.some((c) => c.value === about)) setStartAbout(about);
     } catch {
       // No window: nothing to open.
     }
+    // Once, on arrival: a refresh after posting must not reopen or relink anything.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const tile = data.tile;
@@ -102,7 +109,16 @@ export default function UpdatesTile({
         label={label}
         footer={
           data.canPost ? (
-            <Composer kind={kind} recordId={recordId} mentionables={data.mentionables} parentId={null} onPosted={() => scrollToEnd()} />
+            <Composer
+              key={startAbout}
+              kind={kind}
+              recordId={recordId}
+              mentionables={data.mentionables}
+              aboutChoices={data.aboutChoices}
+              startAbout={startAbout}
+              parentId={null}
+              onPosted={() => scrollToEnd()}
+            />
           ) : (
             <p className="px-5 py-3 text-xs text-white/50">You can read the updates on this record but not write them.</p>
           )
@@ -260,6 +276,7 @@ function UpdateView({
         <span className="text-[12px] text-white/45">{updateStamp(u.createdAt)}</span>
         {u.editedAt && !removed ? <span className="text-[11px] text-white/40">Edited</span> : null}
         {u.pinnedAt && !removed ? <span className="pill-amber text-[10px]">Pinned</span> : null}
+        {u.aboutLabel && !removed ? <span className="pill-neutral text-[10px]">About: {u.aboutLabel}</span> : null}
       </div>
 
       {removed ? (
@@ -390,6 +407,8 @@ function Composer({
   kind,
   recordId,
   mentionables,
+  aboutChoices = [],
+  startAbout = "",
   parentId,
   onPosted,
   onCancel,
@@ -397,6 +416,9 @@ function Composer({
   kind: Kind;
   recordId: string;
   mentionables: Array<{ id: string; name: string }>;
+  /** Top level updates only: what this update is about (0374). */
+  aboutChoices?: Array<{ value: string; label: string }>;
+  startAbout?: string;
   parentId: string | null;
   onPosted: () => void;
   onCancel?: () => void;
@@ -405,6 +427,7 @@ function Composer({
   const box = useRef<HTMLTextAreaElement>(null);
   const picker = useRef<HTMLInputElement>(null);
   const [body, setBody] = useState("");
+  const [about, setAbout] = useState(startAbout);
   const [files, setFiles] = useState<File[]>([]);
   const [picked, setPicked] = useState<Array<{ id: string; name: string }>>([]);
   const [query, setQuery] = useState<{ start: number; query: string } | null>(null);
@@ -490,6 +513,7 @@ function Composer({
         body,
         mentions: picked,
         files: started.uploads.map((u, i) => ({ path: u.path, name: files[i].name })),
+        about: parentId ? null : about,
       });
       if (!done.ok) {
         setStatus(null);
@@ -497,6 +521,7 @@ function Composer({
         return;
       }
       setBody("");
+      setAbout("");
       setFiles([]);
       setPicked([]);
       setStatus(null);
@@ -573,7 +598,29 @@ function Composer({
       {error ? <p className="form-error">{error}</p> : null}
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
+        <div className="flex flex-wrap items-center gap-2">
+          {!parentId && aboutChoices.length > 0 ? (
+            <>
+              <label htmlFor="update-about" className="sr-only">
+                What is this update about?
+              </label>
+              <select
+                id="update-about"
+                value={about}
+                onChange={(e) => setAbout(e.target.value)}
+                disabled={busy}
+                className="ctl-sm w-auto max-w-[14rem]"
+                title="Linking an update to an overdue check counts as action in place on the Readiness page."
+              >
+                <option value="">About: nothing in particular</option>
+                {aboutChoices.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    About: {c.label}
+                  </option>
+                ))}
+              </select>
+            </>
+          ) : null}
           <input
             ref={picker}
             id={`update-files-${parentId ?? "new"}`}

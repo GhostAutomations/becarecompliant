@@ -91,6 +91,9 @@ export type Reg80Prefill = {
     mentoring: number;
   };
   scw: { activeStaff: number; withoutRegistration: number };
+  /** The manager's own rating of each theme for this branch, latest first per theme (0374).
+   *  Empty when nobody has rated yet. */
+  selfRatings: Array<{ title: string; rating: string; setByName: string; on: string; note: string | null }>;
   pqs: {
     mandatoryTraining: number | null;
     safeguarding: number | null;
@@ -116,6 +119,45 @@ function monthsBetween(start: string, end: string): number {
   const [ay, am] = start.slice(0, 10).split("-").map(Number);
   const [by, bm] = end.slice(0, 10).split("-").map(Number);
   return Math.max(1, by * 12 + bm - (ay * 12 + am));
+}
+
+/** The latest own rating of each theme for this branch, in the regulator's theme order (0374).
+ *  Read through the caller's RLS: the people who write a Reg 80 can read them. */
+async function readSelfRatings(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  companyId: string,
+  branchId: string,
+): Promise<Reg80Prefill["selfRatings"]> {
+  const { data: co } = await supabase.from("companies").select("regulator").eq("id", companyId).maybeSingle();
+  const regulator = ((co?.regulator as string | null) ?? "ciw") as "ciw" | "cqc";
+  const [{ data: reqs }, { data: rows }] = await Promise.all([
+    supabase.from("framework_requirements").select("code, title, sort_order").eq("regulator", regulator).eq("active", true).order("sort_order"),
+    supabase
+      .from("readiness_self_ratings")
+      .select("requirement_code, rating, note, set_by_name, created_at")
+      .eq("company_id", companyId)
+      .eq("regulator", regulator)
+      .eq("branch_id", branchId)
+      .order("created_at", { ascending: false })
+      .limit(200),
+  ]);
+  const latest = new Map<string, { rating: string; note: string | null; set_by_name: string; created_at: string }>();
+  for (const r of (rows as Array<{ requirement_code: string; rating: string; note: string | null; set_by_name: string; created_at: string }> | null) ?? []) {
+    if (!latest.has(r.requirement_code)) latest.set(r.requirement_code, r);
+  }
+  const out: Reg80Prefill["selfRatings"] = [];
+  for (const q of (reqs as Array<{ code: string; title: string }> | null) ?? []) {
+    const r = latest.get(q.code);
+    if (!r) continue;
+    out.push({
+      title: q.title,
+      rating: r.rating,
+      setByName: r.set_by_name,
+      on: new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date(r.created_at)),
+      note: r.note,
+    });
+  }
+  return out;
 }
 
 /** Rough split of a job title into care facing versus office, for the turnover table.
@@ -393,6 +435,7 @@ export async function getReg80Prefill(input: {
     overdue,
     scw: { activeStaff: scwActive, withoutRegistration: scwWithout },
     pqs,
+    selfRatings: await readSelfRatings(supabase, input.companyId, input.branchId),
     previousReview: prevRes.data
       ? {
           periodEnd: (prevRes.data as { period_end: string | null }).period_end ?? null,

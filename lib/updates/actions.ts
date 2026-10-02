@@ -38,6 +38,7 @@ import {
   updateMimeType,
   updatePostProblem,
 } from "./rules";
+import { parseAbout } from "./about";
 
 const BUCKET = "record-updates";
 const SIGNED_URL_TTL_SECONDS = 300;
@@ -126,6 +127,8 @@ export async function postUpdate(input: {
   body: string;
   mentions: Array<{ id: string; name: string }>;
   files: Array<{ path: string; name: string }>;
+  /** What the update is about (0374): "check:<id>", "dbs_renewal", "right_to_work" or "". */
+  about?: string | null;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const w = await writer();
   if ("error" in w) return { ok: false, error: w.error };
@@ -135,6 +138,9 @@ export async function postUpdate(input: {
   if (!UUID.test(updateId)) return { ok: false, error: "That update could not be saved. Try again." };
   const parentId = input.parentId ? String(input.parentId) : null;
   if (parentId && !UUID.test(parentId)) return { ok: false, error: "That reply does not belong to an update on this record." };
+  const about = parseAbout(input.about);
+  if (about === undefined) return { ok: false, error: "Choose what the update is about from the list." };
+  if (about && parentId) return { ok: false, error: "A reply follows the update it answers." };
   const body = String(input.body ?? "");
   const pages = Array.isArray(input.files) ? input.files : [];
   const problem = updatePostProblem(body, pages.length);
@@ -180,6 +186,8 @@ export async function postUpdate(input: {
     p_body: body,
     p_mentions: mentionIds,
     p_files: files,
+    p_about_instance: about?.instance ?? null,
+    p_about_tracker: about?.tracker ?? null,
   });
   if (rpcErr) return { ok: false, error: rpcErr.message };
 
@@ -192,7 +200,14 @@ export async function postUpdate(input: {
     entityType: ref.kind,
     entityId: ref.id,
     summary: `${parentId ? "Replied to an update" : "Posted an update"} on ${facts.name}${files.length ? ` with ${files.length} ${files.length === 1 ? "file" : "files"}` : ""}`,
-    metadata: { update_id: updateId, parent_id: parentId, files: files.length, mentions: mentionIds.length },
+    metadata: {
+      update_id: updateId,
+      parent_id: parentId,
+      files: files.length,
+      mentions: mentionIds.length,
+      about_check_instance: about?.instance ?? null,
+      about_tracker: about?.tracker ?? null,
+    },
   });
 
   await emailMentions({ ref, facts, updateId, authorName: w.profile.full_name });

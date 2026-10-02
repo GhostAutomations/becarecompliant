@@ -15,6 +15,8 @@ import {
 } from "@/lib/framework/case-handling";
 import { reportableCheck } from "@/lib/notifications/reportable";
 import { amberWindow, isDueSoon } from "@/lib/framework/due-soon";
+import { actionInPlace, gapRisk, isSafetyCheck, type GapAction, type GapRisk } from "@/lib/framework/gaps";
+import { scwCountsAsRegistered } from "@/lib/people/scw";
 
 /**
  * Inspection readiness against a regulator's framework. Each requirement (CIW
@@ -66,12 +68,21 @@ export type RequirementReadiness = {
 };
 
 export type FrameworkItem = {
-  instanceId: string;
+  /** Null for a DBS renewal or Right to Work, which are dates on the person, not checks. */
+  instanceId: string | null;
   recordId: string;
   recordName: string;
   checkName: string;
   dueDate: string;
   population: "people" | "service_users";
+  /** Where the row goes: the check's Complete page, or the person for a DBS or Right to Work. */
+  href: string;
+  /** The value an Update uses to be ABOUT this gap (lib/updates/about.ts). */
+  aboutValue: string;
+  /** Overdue only (0374): what CIW would likely make of it, and the action in place if any. */
+  safety: boolean;
+  action: GapAction;
+  risk: GapRisk | null;
 };
 
 export type FrameworkReadiness = {
@@ -90,6 +101,47 @@ function pctToRag(pct: number | null): Rag {
   if (pct >= 85) return "green";
   if (pct >= 50) return "amber";
   return "red";
+}
+
+/** Where a lapsed DBS or Right to Work counts: Leadership and Management (CIW), Safe (CQC). */
+export function trackerThemeCode(regulator: "cqc" | "ciw"): string {
+  return regulator === "ciw" ? "LM" : "SAFE";
+}
+
+/** Active people in this branch whose DBS renewal date or Right to Work expiry has passed (0374).
+ *  Read through the caller's RLS. */
+async function lapsedTrackers(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  companyId: string,
+  branchId: string | null,
+  today: string,
+): Promise<Array<{ personId: string; personName: string; tracker: "dbs_renewal" | "right_to_work"; name: string; date: string }>> {
+  let tq = supabase
+    .from("person_trackers")
+    .select("person_id, enhanced_dbs_date, rtw_expiry_date, people(full_name, employment_status, archived_at, branch_id)")
+    .eq("company_id", companyId)
+    .or(`enhanced_dbs_date.lt.${today},rtw_expiry_date.lt.${today}`);
+  if (branchId) tq = tq.eq("branch_id", branchId);
+  const { data } = await tq;
+  const out: Array<{ personId: string; personName: string; tracker: "dbs_renewal" | "right_to_work"; name: string; date: string }> = [];
+  for (const raw of (data as unknown[]) ?? []) {
+    const t = raw as {
+      person_id: string;
+      enhanced_dbs_date: string | null;
+      rtw_expiry_date: string | null;
+      people: { full_name: string; employment_status: string; archived_at: string | null; branch_id: string | null } | Array<{ full_name: string; employment_status: string; archived_at: string | null; branch_id: string | null }> | null;
+    };
+    const p = relOne(t.people);
+    if (!p || p.employment_status !== "active" || p.archived_at) continue;
+    if (branchId && p.branch_id !== branchId) continue;
+    if (t.enhanced_dbs_date && t.enhanced_dbs_date < today) {
+      out.push({ personId: t.person_id, personName: p.full_name, tracker: "dbs_renewal", name: "DBS renewal", date: t.enhanced_dbs_date });
+    }
+    if (t.rtw_expiry_date && t.rtw_expiry_date < today) {
+      out.push({ personId: t.person_id, personName: p.full_name, tracker: "right_to_work", name: "Right to Work", date: t.rtw_expiry_date });
+    }
+  }
+  return out;
 }
 
 export async function getFrameworkReadiness(
@@ -218,6 +270,31 @@ export async function getFrameworkReadiness(
       : Promise.resolve(new Map<string, { onTime: number; due: number }>()),
   ]);
 
+  const lapsed = await lapsedTrackers(supabase, companyId, branchId, today);
+
+  /* Social Care Wales registration, CIW only: staff 6 months or more in post with a registration
+     that has not ended, as the PQS report counts it (lib/export/on-time.ts). */
+  let scwPct: number | null = null;
+  if (regulator === "ciw" && needsTraining) {
+    let pq = supabase
+      .from("people")
+      .select("start_date, scw_registration_number, scw_renewal_date")
+      .eq("company_id", companyId)
+      .eq("employment_status", "active")
+      .is("archived_at", null);
+    if (branchId) pq = pq.eq("branch_id", branchId);
+    const { data: staff } = await pq;
+    const cutoff = new Date(Date.UTC(ty, tm - 7, td)).toISOString().slice(0, 10);
+    let denom = 0;
+    let num = 0;
+    for (const p of (staff as Array<{ start_date: string | null; scw_registration_number: string | null; scw_renewal_date: string | null }> | null) ?? []) {
+      if (!p.start_date || p.start_date > cutoff) continue;
+      denom += 1;
+      if (scwCountsAsRegistered(p.scw_registration_number, p.scw_renewal_date, today)) num += 1;
+    }
+    scwPct = denom > 0 ? Math.floor((100 * num) / denom) : null;
+  }
+
   const out: RequirementReadiness[] = requirements.map((r) => {
     const c = checksByReq.get(r.id) ?? {
       overdue: 0,
@@ -256,6 +333,15 @@ export async function getFrameworkReadiness(
         pct: training?.summary.mandatoryCompliancePct ?? null,
         note: "Tracked in the Training department",
       });
+      /* CIW's framework (Phil, 2026-10-02): safeguarding is its own line ("staff understand and
+         follow the Wales Safeguarding Procedures"), and registration with Social Care Wales is
+         part of Good for staff (line of enquiry 11). The same figures the PQS report uses. */
+      if (training?.summary.safeguardingPct != null) {
+        metrics.push({ label: "Safeguarding training", pct: training.summary.safeguardingPct });
+      }
+      if (regulator === "ciw" && scwPct != null) {
+        metrics.push({ label: "Social Care Wales registration", pct: scwPct, note: "Staff 6 months or more in post" });
+      }
     }
 
     /*
@@ -295,6 +381,11 @@ export async function getFrameworkReadiness(
       caseOverdue.push({ singular: "incident step", plural: "incident steps", count: incidents.overdue });
     }
 
+    /* A lapsed DBS or Right to Work is overdue like a check, and a safety gap (0374). */
+    if (r.code === trackerThemeCode(regulator) && lapsed.length > 0) {
+      caseOverdue.push({ singular: "DBS or Right to Work", plural: "DBS or Right to Work", count: lapsed.length });
+    }
+
     const notices = noticesByCode.get(r.code) ?? { priority: 0, improvement: 0 };
     const inputs = {
       overdue: checks.overdue,
@@ -309,7 +400,7 @@ export async function getFrameworkReadiness(
     const status: Rag = themeStatus(inputs);
     const reason = themeReason(inputs, regulator.toUpperCase());
     const mapped =
-      checks.total > 0 || checks.unscheduled > 0 || waitingTotal(checks.waiting) > 0 || sources.size > 0 || notices.priority + notices.improvement > 0;
+      checks.total > 0 || checks.unscheduled > 0 || waitingTotal(checks.waiting) > 0 || sources.size > 0 || notices.priority + notices.improvement > 0 || caseOverdue.some((c) => c.count > 0);
 
     // Score: % of checks not overdue, averaged with any metric percentages. Kept for the
     // snapshots and the inspection pack; the dashboard no longer shows it (see theme-status.ts).
@@ -377,7 +468,8 @@ export async function getFrameworkItems(
   }
   const defIds = [...defToCode.keys()];
   const byCode = new Map<string, { overdue: FrameworkItem[]; dueSoon: FrameworkItem[] }>();
-  if (defIds.length === 0) return byCode;
+  // No check mapped still leaves DBS and Right to Work to look at, so this does not return early.
+  if (defIds.length > 0) {
 
   const { data: companyRow } = await supabase
     .from("companies")
@@ -388,7 +480,7 @@ export async function getFrameworkItems(
 
   const { data: inst } = await supabase
     .from("check_instances")
-    .select("id, definition_id, due_date, last_completed_on, record_type, person_id, service_user_id, check_definitions(name, recurring, amber_days), people(full_name, employment_status, archived_at, branch_id), service_users(full_name, service_status, archived_at, branch_id)")
+    .select("id, definition_id, due_date, last_completed_on, record_type, person_id, service_user_id, check_definitions(name, key, recurring, amber_days), people(full_name, employment_status, archived_at, branch_id), service_users(full_name, service_status, archived_at, branch_id)")
     .eq("company_id", companyId)
     .eq("active", true)
     .not("due_date", "is", null)
@@ -399,7 +491,7 @@ export async function getFrameworkItems(
     const r = raw as {
       id: string; definition_id: string; due_date: string; last_completed_on: string | null; record_type: string;
       person_id: string | null; service_user_id: string | null;
-      check_definitions: { name: string; recurring: boolean; amber_days: number | null } | { name: string; recurring: boolean; amber_days: number | null }[] | null;
+      check_definitions: { name: string; key: string | null; recurring: boolean; amber_days: number | null } | { name: string; key: string | null; recurring: boolean; amber_days: number | null }[] | null;
       people: { full_name: string; employment_status: string; archived_at: string | null; branch_id: string | null } | { full_name: string; employment_status: string; archived_at: string | null; branch_id: string | null }[] | null;
       service_users: { full_name: string; service_status: string; archived_at: string | null; branch_id: string | null } | { full_name: string; service_status: string; archived_at: string | null; branch_id: string | null }[] | null;
     };
@@ -425,13 +517,108 @@ export async function getFrameworkItems(
     const code = defToCode.get(r.definition_id);
     if (!code) continue;
 
-    const item: FrameworkItem = { instanceId: r.id, recordId, recordName: recordName!, checkName: def?.name ?? "check", dueDate: r.due_date, population };
+    const base = population === "people" ? "people" : "service-users";
+    const item: FrameworkItem = {
+      instanceId: r.id,
+      recordId,
+      recordName: recordName!,
+      checkName: def?.name ?? "check",
+      dueDate: r.due_date,
+      population,
+      href: `/${base}/${recordId}/checks/${r.id}/complete`,
+      aboutValue: `check:${r.id}`,
+      safety: isSafetyCheck(def?.key ?? null, def?.name ?? null),
+      action: null,
+      risk: null,
+    };
     const bucket = byCode.get(code) ?? { overdue: [], dueSoon: [] };
     if (r.due_date < today) bucket.overdue.push(item);
     /* The check's own amber window, as the count above the list uses (DEF-068). It was a flat
        30 days, so Thistle's card said "11 due soon" and listed 18. */
     else if (isDueSoon(r.due_date, today, amberWindow(def?.amber_days, companyAmber))) bucket.dueSoon.push(item);
     byCode.set(code, bucket);
+  }
+  }
+
+  /* DBS renewals and Right to Work (0374): dates on the person, not checks, and the two gaps CIW
+     names first under staff fitness ("routine and regular checks"). A lapsed one sits with
+     Leadership and Management (CQC: Safe). */
+  const trackerCode = trackerThemeCode(regulator);
+  for (const l of await lapsedTrackers(supabase, companyId, branchId, today)) {
+    const bucket = byCode.get(trackerCode) ?? { overdue: [], dueSoon: [] };
+    bucket.overdue.push({
+      instanceId: null,
+      recordId: l.personId,
+      recordName: l.personName,
+      checkName: l.name,
+      dueDate: l.date,
+      population: "people",
+      href: `/people/${l.personId}`,
+      aboutValue: l.tracker,
+      safety: true,
+      action: null,
+      risk: null,
+    });
+    byCode.set(trackerCode, bucket);
+  }
+
+  /* WHAT CIW WOULD LIKELY MAKE OF EACH OVERDUE GAP (0374, lib/framework/gaps.ts): a booking still
+     to happen, or a linked Update posted on or after the day it fell due, is the action in place. */
+  const overdue = [...byCode.values()].flatMap((b) => b.overdue);
+  if (overdue.length > 0) {
+    const instanceIds = overdue.map((i) => i.instanceId).filter((x): x is string => !!x);
+    const trackerPeople = [...new Set(overdue.filter((i) => !i.instanceId).map((i) => i.recordId))];
+    const [bookingRes, taskRes, updateRes, trackerUpdateRes] = await Promise.all([
+      instanceIds.length
+        ? supabase.from("planner_bookings").select("check_instance_id, scheduled_date").eq("company_id", companyId).eq("status", "planned").gte("scheduled_date", today).in("check_instance_id", instanceIds)
+        : Promise.resolve({ data: [] }),
+      instanceIds.length
+        ? supabase.from("planner_booking_tasks").select("check_instance_id, status, planner_bookings!inner(scheduled_date, status)").eq("company_id", companyId).in("check_instance_id", instanceIds)
+        : Promise.resolve({ data: [] }),
+      instanceIds.length
+        ? supabase.from("record_updates").select("about_check_instance, created_at, author_name").is("removed_at", null).in("about_check_instance", instanceIds)
+        : Promise.resolve({ data: [] }),
+      trackerPeople.length
+        ? supabase.from("record_updates").select("person_id, about_tracker, created_at, author_name").is("removed_at", null).not("about_tracker", "is", null).in("person_id", trackerPeople)
+        : Promise.resolve({ data: [] }),
+    ]);
+    const bookings = new Map<string, string[]>();
+    const addBooking = (id: string | null, date: string | null) => {
+      if (!id || !date) return;
+      bookings.set(id, [...(bookings.get(id) ?? []), date]);
+    };
+    for (const b of (bookingRes.data as Array<{ check_instance_id: string | null; scheduled_date: string }> | null) ?? []) addBooking(b.check_instance_id, b.scheduled_date);
+    for (const raw of (taskRes.data as unknown[]) ?? []) {
+      const t = raw as { check_instance_id: string | null; status: string; planner_bookings: { scheduled_date: string; status: string } | Array<{ scheduled_date: string; status: string }> | null };
+      const b = relOne(t.planner_bookings);
+      if (!b || t.status === "cancelled" || b.status !== "planned") continue;
+      addBooking(t.check_instance_id, b.scheduled_date);
+    }
+    const london = (ts: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date(ts));
+    const updates = new Map<string, Array<{ on: string; by: string }>>();
+    for (const u of (updateRes.data as Array<{ about_check_instance: string; created_at: string; author_name: string }> | null) ?? []) {
+      updates.set(u.about_check_instance, [...(updates.get(u.about_check_instance) ?? []), { on: london(u.created_at), by: u.author_name }]);
+    }
+    for (const u of (trackerUpdateRes.data as Array<{ person_id: string; about_tracker: string; created_at: string; author_name: string }> | null) ?? []) {
+      const k = `${u.person_id}:${u.about_tracker}`;
+      updates.set(k, [...(updates.get(k) ?? []), { on: london(u.created_at), by: u.author_name }]);
+    }
+    for (const item of overdue) {
+      const key = item.instanceId ?? `${item.recordId}:${item.aboutValue}`;
+      item.action = actionInPlace({
+        dueDate: item.dueDate,
+        todayIso: today,
+        bookings: item.instanceId ? bookings.get(item.instanceId) ?? [] : [],
+        updates: updates.get(key) ?? [],
+      });
+      /* CIW's own words. CQC uses different enforcement terms, so a CQC company sees the action in
+         place but no label until CQC's are agreed. */
+      item.risk = regulator === "ciw" ? gapRisk(item.safety, item.action) : null;
+    }
+    // Priority Action Notice risks first, then the oldest.
+    for (const b of byCode.values()) {
+      b.overdue.sort((a, c) => (a.risk === c.risk ? (a.dueDate < c.dueDate ? -1 : 1) : a.risk === "pan_risk" ? -1 : 1));
+    }
   }
   return byCode;
 }

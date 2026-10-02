@@ -223,6 +223,20 @@ export const REG80_SECTIONS: Reg80Section[] = [
     ],
   },
   {
+    title: "Rating of each theme",
+    intro:
+      "Your own rating of each theme against CIW's descriptors, as CIW's quality of care review guidance suggests. Pre-filled from the Readiness page for this branch.",
+    fields: [
+      {
+        key: "self_ratings",
+        label: "Rating of each theme",
+        type: "text",
+        data: true,
+        hint: "Set or change a rating on the Readiness page, then press Refresh data.",
+      },
+    ],
+  },
+  {
     title: "Overall assessment of the standard of care",
     intro: "The Responsible Individual's assessment of the standard of care and support provided (Regulation 80(4)(a)).",
     fields: [{ key: "overall_assessment", label: "Overall assessment", type: "text", ai: true }],
@@ -243,6 +257,20 @@ export const REG80_DATA_FIELDS = REG80_SECTIONS.flatMap((s) => s.fields.filter((
 export const REG80_IMAGE_FIELDS = REG80_SECTIONS.flatMap((s) =>
   s.fields.filter((f) => f.type === "image").map((f) => f.key),
 );
+
+/** The rating's words, kept here (not imported from lib/framework) so this file stays loadable
+ *  under node --test. The same labels as RATING_LEVELS. */
+function selfRatingWord(v: string): string {
+  const words: Record<string, string> = {
+    excellent: "Excellent",
+    good: "Good",
+    requires_improvement: "Requires improvement",
+    requires_significant_improvement: "Requires significant improvement",
+    outstanding: "Outstanding",
+    inadequate: "Inadequate",
+  };
+  return words[v] ?? v;
+}
 
 function pctText(v: number | null): string {
   return v == null ? "no data" : `${v}%`;
@@ -276,6 +304,9 @@ export function reg80DataSummary(p: Reg80Prefill): string {
     `Overdue at today's date: supervisions ${p.overdue.supervision}, spot checks ${p.overdue.spotCheck}, manual handling competency ${p.overdue.manualHandling}, medication competency ${p.overdue.medication}, mentoring ${p.overdue.mentoring}. Supervision on time ${pctText(p.pqs.supervisionOnTime)}.`,
     `Training: mandatory ${pctText(p.pqs.mandatoryTraining)}, safeguarding ${pctText(p.pqs.safeguarding)}. Social Care Wales registration: ${p.scw.withoutRegistration} of ${p.scw.activeStaff} active staff are not registered (registered on time rate ${pctText(p.pqs.scwRegistration)}).`,
     `Customer satisfaction ${pctText(p.pqs.customerSatisfaction)}.`,
+    p.selfRatings.length
+      ? `The service's own rating of each theme: ${p.selfRatings.map((r) => `${r.title} ${selfRatingWord(r.rating)}`).join(", ")}.`
+      : "The service has not rated its themes yet.",
   ].join(" ");
 }
 
@@ -349,5 +380,10 @@ export function buildInitialData(p: Reg80Prefill, riName: string): Record<string
     care_plans_summary: carePlanLines.join("\n"),
     supervision_summary: supervisionLines.join("\n"),
     training_summary: trainingLines.join("\n"),
+    self_ratings: p.selfRatings.length
+      ? p.selfRatings
+          .map((r) => `${r.title}: ${selfRatingWord(r.rating)} (set by ${r.setByName}, ${ukDate(r.on)})${r.note ? `. ${r.note}` : ""}`)
+          .join("\n")
+      : "No theme has been rated yet. Rate each theme on the Readiness page, then press Refresh data.",
   };
 }

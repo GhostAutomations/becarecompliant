@@ -2,6 +2,7 @@ import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { getFrameworkReadiness, getFrameworkItems, shownThemes, type Rag } from "@/lib/framework/data";
+import { GAP_RISK_LABEL } from "@/lib/framework/gaps";
 import { draftReadinessNarrative } from "@/lib/framework/ai";
 import { renderReportPdf, type ReportBlock, type ReportDoc, type RagTone } from "@/lib/export/pdf";
 import { pdfResponse, exportError } from "@/lib/export/deliver";
@@ -92,12 +93,21 @@ export async function GET(request: Request) {
       blocks.push({
         kind: "table",
         caption: "Outstanding checks",
-        columns: [{ header: "Name", width: "38%" }, { header: "Check", width: "34%" }, { header: "Due", width: "16%" }, { header: "Status", width: "12%" }],
+        columns: [{ header: "Name", width: "26%" }, { header: "Check", width: "22%" }, { header: "Due", width: "13%" }, { header: "Status", width: "11%" }, { header: regulator === "ciw" ? "CIW would likely see" : "Action in place", width: "28%" }],
         rows: all.map(({ i, overdue }) => [
           { text: i.recordName, strong: true },
           { text: i.checkName },
           { text: fmt(i.dueDate) },
           { text: overdue ? "Overdue" : "Due soon", rag: (overdue ? "red" : "amber") as RagTone },
+          {
+            text: [
+              i.risk ? GAP_RISK_LABEL[i.risk] : null,
+              i.action ? (i.action.kind === "booked" ? `booked ${fmt(i.action.on)}` : `action noted ${fmt(i.action.on)}`) : null,
+            ]
+              .filter(Boolean)
+              .join(", "),
+            ...(i.risk ? { rag: (i.risk === "pan_risk" ? "red" : "amber") as RagTone } : {}),
+          },
         ]),
       });
     }
