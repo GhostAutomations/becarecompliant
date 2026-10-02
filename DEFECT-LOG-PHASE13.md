@@ -2585,3 +2585,10 @@ take the intervals from the deal (dealIntervals, pure, 1 test): here £250.00 a 
 - Scope checked in the live database: only the Incident Report, Incident Investigation and Incident Outcome forms on Thistle, House Test and Bevan have such follow ups; no other form changes behaviour.
 - Status: fixed in code, awaiting push and a live retest.
 - DEF-103 retest PASS 2 Oct (demo, Claude in Chrome): a near miss (Fall) filed with staff Ben Morgan and the office answers; incidents.event_type near_miss, category Fall, notifiable and safeguarding false, incident_people Ben Morgan.
+
+## DEF-105 - Every password reset link said "expired" (2 Oct 2026)
+- Found by Phil testing R7 (ppdavies+cob) and DM19 (a demo login's new link): the email arrived, the button said "That reset link has expired or has already been used."
+- Evidence: the Supabase auth log shows the token checked successfully (POST /verify 200, a login) and the new session's amr is "otp". The reset form only accepted a session whose amr says "recovery", which Supabase does not write for a link checked with verifyOtp and a token_hash. So every reset link failed since the form was built (23 Sep), and the session it left behind was a full sign in made without a password.
+- Fix: lib/auth/reset-marker.ts. /auth/confirm, after a recovery token, sets an HMAC signed, httpOnly cookie tied to the new session. The reset page and its action accept the session while the marker is under 15 minutes old; requireUser and the middleware treat any session carrying a marker as reset only, so an abandoned reset never leaves anyone signed in; saving the password clears it. Unit tested (lib/auth/reset-marker.test.ts).
+- A second reset straight away "sent nothing": the public form allows one email every 2 minutes (R8), by design.
+- Status: fixed in code, awaiting push and Phil's live retest of R7.

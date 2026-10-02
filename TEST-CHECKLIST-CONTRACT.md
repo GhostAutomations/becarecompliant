@@ -330,3 +330,8 @@ answers once (a 9 out of 5 refused), invites refused inside a demo. Still to tes
 - R9 PASS: /login/reset opened directly on a normal session goes to /login/forgot?reason=expired with "That reset link has expired or has already been used."
 - R8 PASS (public form): Send me a reset link, then "You can ask for another link in 1:57" counting down; audit password.reset_sent. The Admin "no wait" half not run here (a demo has no Users page).
 - DEF-103 OPEN: migration 0303 (19 Sep) was never applied: incidents.event_type and incident_people do not exist, so every incident page 404s and filing an incident report fails, on every company. Applying the schema part needs Phil's OK.
+- DM18 PART PASS (Phil): pressing the used Set your password button again says the link has expired. Not yet run: Forgot your password for a demo login that has never set its password (needs a fresh unused login).
+- DM19 PASS (Claude in Chrome as founder): demo page Send a new link has no password box; pressing it showed "Emailed a new link to ppdavies+demopw@gmail.com."; Add another login has no password box. The login is active, so this email is the "Choose a new password" kind.
+- DEF-104 retest PASS (founder support session on Bevan, form not sent): answering No to treatment and to next of kin now shows "Why no treatment was received *" and "Why they have not been told *". Support session ended.
+- DEF-103 incident filing PASS (demo, see the defect log).
+- R6 PASS (Phil, on Thistle): signing out on the iPhone left the Mac signed in.

@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { canUseModule, disabledKey } from "@/lib/auth/module-catalogue";
 import { moduleForPath, NO_ACCESS_PATH } from "@/lib/auth/module-paths";
 import { amrFromAccessToken, isRecoverySession } from "@/lib/auth/password-reset-rules";
+import { RESET_MARKER_COOKIE, isResetSession } from "@/lib/auth/reset-marker";
 import { isCarerLogin, seniorPathRedirect } from "@/lib/auth/carer-login";
 
 /**
@@ -238,10 +239,13 @@ export async function updateSession(request: NextRequest) {
 
   /* A session made by a reset link is not a signed in person yet (Phil, popup 2026-09-23): "Back to
      sign in" must show the sign in page, not bounce them into the dashboard it cannot reach. */
-  const resetOnly =
-    user && pathname === "/login"
-      ? isRecoverySession(amrFromAccessToken((await supabase.auth.getSession()).data.session?.access_token))
-      : false;
+  let resetOnly = false;
+  if (user && pathname === "/login") {
+    const token = (await supabase.auth.getSession()).data.session?.access_token;
+    resetOnly =
+      isRecoverySession(amrFromAccessToken(token)) ||
+      (await isResetSession(request.cookies.get(RESET_MARKER_COOKIE)?.value, token));
+  }
   if (user && pathname === "/login" && !resetOnly) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";

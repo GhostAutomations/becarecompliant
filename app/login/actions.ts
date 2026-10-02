@@ -8,6 +8,7 @@ import { decodeSessionId } from "@/lib/auth/jwt";
 import type { LoginState } from "@/lib/auth/types";
 import { afterSignIn } from "@/lib/auth/safe-next";
 import { deviceKindFrom } from "@/lib/auth/device-kind";
+import { RESET_MARKER_COOKIE, isFreshResetSession } from "@/lib/auth/reset-marker";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
 import { sendPasswordReset } from "@/lib/auth/password-reset";
@@ -121,7 +122,14 @@ export async function setNewPassword(
   const {
     data: { session: current },
   } = await supabase.auth.getSession();
-  if (!current || !cameFromRecovery(amrFromAccessToken(current.access_token), Date.now())) {
+  const marker = (await cookies()).get(RESET_MARKER_COOKIE)?.value;
+  if (
+    !current ||
+    !(
+      cameFromRecovery(amrFromAccessToken(current.access_token), Date.now()) ||
+      (await isFreshResetSession(marker, current.access_token))
+    )
+  ) {
     return { error: "This reset has expired. Ask for a new link from the sign in page." };
   }
 
@@ -171,5 +179,6 @@ export async function setNewPassword(
    * moment a phone or browser offers to save it.
    */
   await supabase.auth.signOut({ scope: "local" });
+  (await cookies()).delete(RESET_MARKER_COOKIE);
   redirect("/login?reason=password-changed");
 }

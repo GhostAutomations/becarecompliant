@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { deviceKindFrom } from "@/lib/auth/device-kind";
 import { decodeSessionId } from "@/lib/auth/jwt";
 import { MANAGE_AS_COOKIE } from "@/lib/founder/manage-as";
+import { RESET_MARKER_COOKIE, RESET_MARKER_MAX_AGE_SECONDS, makeResetMarker } from "@/lib/auth/reset-marker";
 import { INVITE_EXPIRED_PATH, RESET_EXPIRED_PATH } from "@/lib/auth/password-reset-rules";
 
 /**
@@ -48,6 +49,21 @@ export async function GET(request: NextRequest) {
    * reads. Same one line as the sign in and sign out paths.
    */
   (await cookies()).delete(MANAGE_AS_COOKIE);
+
+  /* DEF-105: mark a session made by a RESET link, because Supabase records its amr as "otp", the
+     same as a sign in link, and the reset form could not tell them apart (lib/auth/reset-marker). */
+  if (type === "recovery") {
+    const sid = decodeSessionId(data.session.access_token);
+    const marker = sid ? await makeResetMarker(sid) : null;
+    if (!marker) return NextResponse.redirect(`${origin}${RESET_EXPIRED_PATH}`);
+    (await cookies()).set(RESET_MARKER_COOKIE, marker, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: RESET_MARKER_MAX_AGE_SECONDS,
+    });
+  }
 
   /* Claim the slot for THIS kind of device (migration 0273). An invite link is very often
      opened on a phone, and defaulting to the desktop slot would put them in the wrong one: the

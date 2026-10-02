@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
+import { RESET_MARKER_COOKIE, isResetSession } from "@/lib/auth/reset-marker";
+import { cookies, headers } from "next/headers";
 import { loginPath } from "@/lib/auth/safe-next";
 import { deviceKindFrom } from "@/lib/auth/device-kind";
 import type { User } from "@supabase/supabase-js";
@@ -114,7 +115,10 @@ export async function requireUser(): Promise<User> {
     /* A SESSION MADE BY A RESET LINK CAN ONLY SET A PASSWORD (Phil, popup 2026-09-23). Every page
        that asks for a user sends it back to the form, so nobody gets into the app from a reset
        email without choosing a password. getUser above has already checked this token. */
-    if (isRecoverySession(amrFromAccessToken(session.access_token))) {
+    if (
+      isRecoverySession(amrFromAccessToken(session.access_token)) ||
+      (await isResetSession((await cookies()).get(RESET_MARKER_COOKIE)?.value, session.access_token))
+    ) {
       redirect(RESET_FORM_PATH);
     }
     const currentSessionId = decodeSessionId(session.access_token);

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { RESET_MARKER_COOKIE, isFreshResetSession } from "@/lib/auth/reset-marker";
 import { createClient } from "@/lib/supabase/server";
 import { RESET_EXPIRED_PATH, amrFromAccessToken, cameFromRecovery } from "@/lib/auth/password-reset-rules";
 import { ResetForm } from "./reset-form";
@@ -24,7 +26,14 @@ export default async function ResetPage() {
   const {
     data: { session },
   } = await supabase.auth.getSession();
-  if (!session || !cameFromRecovery(amrFromAccessToken(session.access_token), Date.now())) {
+  const marker = (await cookies()).get(RESET_MARKER_COOKIE)?.value;
+  if (
+    !session ||
+    !(
+      cameFromRecovery(amrFromAccessToken(session.access_token), Date.now()) ||
+      (await isFreshResetSession(marker, session.access_token))
+    )
+  ) {
     redirect(RESET_EXPIRED_PATH);
   }
 
