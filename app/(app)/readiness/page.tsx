@@ -49,32 +49,36 @@ function fmt(iso: string): string {
 /* Each outstanding check on one row with tidy columns, Due and Planned (snag S1, Phil 2 Oct: "keep it
    tidy one column for due one column for planned"). Overdue rows carry CIW's likely view, the action in
    place and Add action on the same line, to the right of the name and check, so every row is the same
-   height (Phil 2 Oct). On a phone the extras wrap under the name. */
-const ROW_GRID = "grid grid-cols-[minmax(0,1fr)_6.5rem_6.5rem] items-center gap-x-3";
+   height (Phil 2 Oct).
+   ON A PHONE the three columns do not fit (Phil's phone, 3 Oct: names cut to "Delyth Mo...", the pill
+   over the dates and Add action off the card), so a row stacks instead: the name and check in full,
+   then the Due and Planned dates, then the pill, the action and Add action, wrapping as they need. */
+const ROW_GRID = "md:grid md:grid-cols-[minmax(0,1fr)_6.5rem_6.5rem] md:items-center md:gap-x-3";
 
 function ItemRow({ item, overdue, canAct }: { item: FrameworkItem; overdue: boolean; canAct: boolean }) {
   const action = actionText(item.action, fmt);
   const extras = overdue && (item.risk || action || canAct);
+  const planned = item.planned ? fmt(item.planned) : item.instanceId ? "Not booked" : "";
   return (
     <div className="rounded-md border border-white/10 bg-white/5 px-3 py-1.5 text-sm hover:border-gold-400/40">
       {/* min-h matches the Add action button, so rows with and without it are the same height. */}
-      <div className={`${ROW_GRID} min-h-[1.625rem]`}>
-        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 md:flex-nowrap">
-          <Link href={item.href} className="min-w-0 shrink truncate hover:text-gold-300 md:max-w-[50%] md:shrink-0">
+      <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 md:min-h-[1.625rem] ${ROW_GRID}`}>
+        <div className="contents md:flex md:min-w-0 md:flex-nowrap md:items-center md:gap-x-2">
+          <Link href={item.href} className="min-w-0 basis-full hover:text-gold-300 md:max-w-[50%] md:shrink-0 md:basis-auto md:truncate">
             <span className="font-medium text-white">{item.recordName}</span>
             <span className="text-white/50"> · {item.checkName}</span>
           </Link>
           {extras ? (
-            <div className="flex min-w-0 items-center gap-x-2 text-xs">
+            <div className="order-last flex min-w-0 basis-full flex-wrap items-center gap-x-2 gap-y-1 text-xs md:order-none md:basis-auto md:flex-nowrap">
               {item.risk ? (
-                <span className={`pill ${item.risk === "pan_risk" ? "pill-red" : "pill-amber"} shrink-0 whitespace-nowrap text-[10px]`}>
+                <span className={`pill ${item.risk === "pan_risk" ? "pill-red" : "pill-amber"} text-[10px] md:shrink-0 md:whitespace-nowrap`}>
                   {GAP_RISK_LABEL[item.risk]}
                 </span>
               ) : null}
               {action ? (
-                <span className="min-w-0 truncate text-white/60" title={action}>{action}</span>
+                <span className="min-w-0 text-white/60 md:truncate" title={action}>{action}</span>
               ) : (
-                <span className="shrink-0 whitespace-nowrap text-white/45">No action in place</span>
+                <span className="text-white/45 md:shrink-0 md:whitespace-nowrap">No action in place</span>
               )}
               {canAct ? (
                 <AddAction
@@ -87,9 +91,13 @@ function ItemRow({ item, overdue, canAct }: { item: FrameworkItem; overdue: bool
             </div>
           ) : null}
         </div>
-        <span className={`text-xs ${overdue ? "text-red-300" : "text-amber-200"}`}>{fmt(item.dueDate)}</span>
-        <span className={`text-xs ${item.planned ? "text-white/80" : "text-white/40"}`}>
-          {item.planned ? fmt(item.planned) : item.instanceId ? "Not booked" : ""}
+        <span className={`text-xs ${overdue ? "text-red-300" : "text-amber-200"}`}>
+          <span className="text-white/45 md:hidden">Due </span>
+          {fmt(item.dueDate)}
+        </span>
+        <span className={`text-xs ${item.planned ? "text-white/80" : "text-white/40"} ${planned ? "" : "hidden md:inline"}`}>
+          <span className="text-white/45 md:hidden">Planned </span>
+          {planned}
         </span>
       </div>
     </div>
@@ -323,7 +331,7 @@ export default async function ReadinessPage({ searchParams }: { searchParams: Pr
                 <details className="section-card mt-3">
                   <summary>Outstanding checks ({outstanding})</summary>
                   <div className="space-y-1 border-t border-white/10 p-3">
-                    <div className={`${ROW_GRID} px-3 text-[11px] font-semibold uppercase tracking-wide text-white/45`}>
+                    <div className={`hidden px-3 text-[11px] font-semibold uppercase tracking-wide text-white/45 ${ROW_GRID}`}>
                       <span>Name and check</span>
                       <span>Due</span>
                       <span>Planned</span>
