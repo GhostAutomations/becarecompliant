@@ -12,7 +12,7 @@
  * "Change it". A change that only links a form to an empty column still saves straight away.
  */
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { IDLE_STATE } from "@/lib/forms";
@@ -46,6 +46,13 @@ export default function FormColumnLink({
   const [asking, setAsking] = useState<{ next: string; lines: string[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  /* FOLLOW THE SAVED LINK (Phil, 2 Oct 2026: "i created the column ... then had to go back and
+     select it"). After a save the page refreshes with the new link, and the dropdown now shows it
+     rather than what it held when the page first drew. */
+  useEffect(() => {
+    setValue(currentCheckId);
+  }, [currentCheckId]);
+
   function save(next: string) {
     setValue(next);
     setAsking(null);
@@ -72,6 +79,11 @@ export default function FormColumnLink({
   const [addError, setAddError] = useState<string | null>(null);
   const [addOk, setAddOk] = useState<string | null>(null);
   const currentCol = checks.find((c) => c.id === value);
+  useEffect(() => {
+    if (!addOk) return;
+    const t = setTimeout(() => setAddOk(null), 6000);
+    return () => clearTimeout(t);
+  }, [addOk]);
 
   function add() {
     setAddError(null);
@@ -115,10 +127,22 @@ export default function FormColumnLink({
   }
 
   return (
-    <span className="block">
+    /* NOTHING UNDER THE DROPDOWN (Phil, 2 Oct 2026: "i dont like the text making the line higher,
+       put it to the left of the drop down"). Messages sit to the LEFT of it, over the row's empty
+       space, and the warnings open as a box over the page, so a row never changes height. */
+    <span className="relative block">
+      {addOk || error ? (
+        <span
+          role="status"
+          className={`pointer-events-none absolute right-full top-1/2 mr-3 -translate-y-1/2 whitespace-nowrap text-xs ${error ? "text-red-300" : "text-emerald-300"}`}
+          title={error ?? addOk ?? undefined}
+        >
+          {error ? "Not saved" : "Column added"}
+        </span>
+      ) : null}
       <select
         aria-label="Link this form to a column"
-        value={asking ? asking.next : value}
+        value={value}
         disabled={pending}
         onChange={(e) => onChange(e.target.value)}
         className={`w-full max-w-[11rem] text-xs ${error ? "border-rag-red" : ""}`}
@@ -129,7 +153,32 @@ export default function FormColumnLink({
         ))}
         <option value={NEW_COLUMN}>+ Add a new column</option>
       </select>
-      {addOk ? <span className="mt-1 block text-xs text-emerald-300">{addOk}</span> : null}
+      {asking
+        ? createPortal(
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={() => setAsking(null)}>
+              <div
+                role="alertdialog"
+                aria-modal="true"
+                className="w-full max-w-md space-y-3 rounded-2xl border border-white/10 bg-navy-900 p-6 shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h2 className="text-lg font-semibold text-white">Change the column for {formName}?</h2>
+                {asking.lines.map((l) => (
+                  <p key={l} className="text-sm text-amber-100">{l}</p>
+                ))}
+                <div className="flex flex-wrap items-center gap-3 pt-1">
+                  <button type="button" className="btn-primary px-4 py-2 text-sm" onClick={() => save(asking.next)}>
+                    Change it
+                  </button>
+                  <button type="button" className="btn-ghost px-3 py-2 text-sm" onClick={() => setAsking(null)}>
+                    Keep as it was
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
       {adding
         ? createPortal(
             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={() => !pending && setAdding(false)}>
@@ -204,7 +253,6 @@ export default function FormColumnLink({
           </span>
         </span>
       ) : null}
-      {error ? <span className="mt-1 block text-xs text-red-300">{error}</span> : null}
     </span>
   );
 }
