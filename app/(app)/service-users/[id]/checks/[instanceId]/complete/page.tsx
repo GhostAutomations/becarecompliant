@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import BackLink from "@/components/back-link";
+import { NoFormLinked } from "@/components/forms/no-form-linked";
 import { choicesForSchema } from "@/lib/forms/lookup-data";
 import SupportModeNotice from "@/components/support-mode-notice";
 import CompleteCheck from "@/components/service-users/complete-check";
@@ -68,7 +69,17 @@ export default async function CompleteServiceUserCheckPage({
 
   const def = (instance?.definition as CheckDefinition | undefined) ?? undefined;
   if (!instance || instance.service_user_id !== id || !def) redirect(`/service-users/${id}`);
-  if (!def.form_id) redirect(`/service-users/${id}`);
+  /* NO FORM, SAID RATHER THAN BOUNCED (DEF-108, 2 Oct 2026). A Planner booking for a check with
+     no form linked used to send the person straight back to the record with no reason given. */
+  if (!def.form_id) {
+    return (
+      <div className="page-form space-y-4">
+        <BackLink href={`/service-users/${id}`} label="Back to the record" />
+        <h1 className="page-title">Complete {def.name}</h1>
+        <NoFormLinked checkName={def.name} />
+      </div>
+    );
+  }
 
   const serviceUser = await getServiceUser(id, reader);
   /* GDPR: a Senior has no record page, so this is where they READ a Service User's details

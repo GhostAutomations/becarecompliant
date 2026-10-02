@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import BackLink from "@/components/back-link";
 import { listCompanyForms } from "@/lib/form-builder/data";
 import NewFormButton from "@/components/form-builder/new-form-button";
-import FormColumnLink from "@/components/form-builder/form-column-link";
+import FormColumnLink, { type ColumnChoice } from "@/components/form-builder/form-column-link";
 import type { FormSummary } from "@/lib/form-builder/types";
 import { featureEnabled } from "@/lib/billing/tier";
 import { departmentFor } from "@/lib/form-builder/department-forms";
@@ -43,11 +43,19 @@ export default async function SettingsFormsPage() {
     .in("population", ["people", "service_users"])
     .order("sort_order", { ascending: true });
 
-  const peopleChecks: Array<{ id: string; name: string }> = [];
-  const suChecks: Array<{ id: string; name: string }> = [];
+  const peopleChecks: ColumnChoice[] = [];
+  const suChecks: ColumnChoice[] = [];
   const formLinkedCheck = new Map<string, string>();
+  /* Which form each column uses now, by name, so the dropdown can say what a change would undo
+     (DEF-108, 2 Oct 2026). */
+  const formName = new Map(forms.map((f) => [f.id, f.name]));
   for (const c of (checkDefs as Array<{ id: string; name: string; population: string; form_id: string | null }> | null) ?? []) {
-    (c.population === "service_users" ? suChecks : peopleChecks).push({ id: c.id, name: c.name });
+    (c.population === "service_users" ? suChecks : peopleChecks).push({
+      id: c.id,
+      name: c.name,
+      formId: c.form_id,
+      formName: c.form_id ? (formName.get(c.form_id) ?? "another form") : null,
+    });
     if (c.form_id) formLinkedCheck.set(c.form_id, c.id);
   }
 
@@ -173,7 +181,7 @@ function FormRow({
   readOnly = false,
 }: {
   f: FormSummary;
-  checks: Array<{ id: string; name: string }>;
+  checks: ColumnChoice[];
   formLinkedCheck: Map<string, string>;
   sectionLabel: string | null;
   /** Linked forms is a SUMMARY (Phil, 2026-10-01): it says what each form links to, and the
@@ -204,7 +212,7 @@ function FormRow({
         {summaryOnly ? (
           linkLabel ? <span className="block truncate text-xs text-white/60">{linkLabel}</span> : null
         ) : checks.length > 0 ? (
-          <FormColumnLink formId={f.id} checks={checks} currentCheckId={linkedCheckId ?? ""} />
+          <FormColumnLink formId={f.id} formName={f.name} checks={checks} currentCheckId={linkedCheckId ?? ""} />
         ) : null}
       </span>
       <span className="flex w-10 shrink-0 items-center justify-end gap-1.5">
@@ -251,7 +259,7 @@ function FormGroup({
 }: {
   title: string;
   forms: FormSummary[];
-  checksFor: (f: FormSummary) => Array<{ id: string; name: string }>;
+  checksFor: (f: FormSummary) => ColumnChoice[];
   formLinkedCheck: Map<string, string>;
   /** Department forms: where the form is used, shown as text in place of a dropdown. */
   labelFor?: (f: FormSummary) => string | null;

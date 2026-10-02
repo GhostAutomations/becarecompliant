@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { NoFormLinked } from "@/components/forms/no-form-linked";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import { canManageRecord } from "@/lib/auth/manage-scope";
@@ -507,6 +508,7 @@ export default async function PersonPage({
           {st && def.form_id && canComplete && !probationPassed ? (
             <Link href={`/people/${person.id}/checks/${st.instance_id}/complete`} className="btn-primary btn-tile text-[13px]">Complete</Link>
           ) : null}
+          {st && !def.form_id && canComplete && !probationPassed ? <NoFormLinked checkName={def.name} className="mt-3" /> : null}
         </div>
       );
     }
@@ -530,6 +532,7 @@ export default async function PersonPage({
         {st && def.form_id && canComplete && !settledOneOff ? (
           <Link href={`/people/${person.id}/checks/${st.instance_id}/complete`} className="btn-primary btn-tile text-[13px]">Complete</Link>
         ) : null}
+        {st && !def.form_id && canComplete && !settledOneOff ? <NoFormLinked checkName={def.name} className="mt-3" /> : null}
       </div>
     );
   };

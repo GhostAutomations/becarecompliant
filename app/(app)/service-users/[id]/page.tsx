@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { NoFormLinked } from "@/components/forms/no-form-linked";
 import CycleBox from "@/components/records/cycle-box";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
@@ -400,6 +401,7 @@ export default async function ServiceUserPage({
                     {s && def.form_id && canComplete && !settledOneOff ? (
                       <Link href={`/service-users/${serviceUser.id}/checks/${s.instance_id}/complete`} className="btn-primary btn-tile text-[13px]">Complete</Link>
                     ) : null}
+                    {s && !def.form_id && canComplete && !settledOneOff ? <NoFormLinked checkName={def.name} className="mt-3" /> : null}
                   </div>
                 );
               })}
