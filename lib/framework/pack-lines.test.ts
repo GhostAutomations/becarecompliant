@@ -18,8 +18,16 @@ const LM: PackThemeInput = {
 test("list 15: no score and no percentage readiness figure for the theme itself", () => {
   const pairs = packThemePairs(LM);
   assert.ok(!pairs.some((p) => p.label === "Score"));
-  assert.equal(pairs[0].label, "Summary");
-  assert.equal(pairs[0].value, "75% on time, last 6 months");
+  assert.equal(pairs[1].label, "Summary");
+  assert.equal(pairs[1].value, "75% on time, last 6 months");
+});
+
+test("your own rating comes first, or says it is not rated (S8)", () => {
+  assert.deepEqual(packThemePairs(LM)[0], { label: "Your rating", value: "Not rated yet" });
+  assert.deepEqual(packThemePairs({ ...LM, ownRating: "Good, set by Bev Admin, 2 October 2026" })[0], {
+    label: "Your rating",
+    value: "Good, set by Bev Admin, 2 October 2026",
+  });
 });
 
 test("the heading carries the status with no dash", () => {

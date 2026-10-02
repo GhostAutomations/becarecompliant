@@ -24,6 +24,9 @@ export default function AssistantPanel({
   const [answer, setAnswer] = useState<string | null>(null);
   const [narrative, setNarrative] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /* Which shortcut was pressed, so that button says Thinking too (snag S11, Phil 2 Oct). Null when the
+     question came from the box. */
+  const [activeChip, setActiveChip] = useState<string | null>(null);
 
   function runAsk(q: string) {
     /* An empty question said nothing at all (tested 2026-09-24): the button simply did not respond. */
@@ -85,27 +88,50 @@ export default function AssistantPanel({
             key={c.label}
             type="button"
             disabled={pending}
-            onClick={() => runAsk(c.q)}
+            onClick={() => {
+              setActiveChip(c.label);
+              runAsk(c.q);
+            }}
             className="inline-flex items-center gap-1.5 rounded-full border border-white/15 px-3 py-1 text-xs text-white/70 hover:border-gold-400/50 hover:bg-gold-400/10 hover:text-white"
           >
-            <AiIcon size="xs" />
-            {c.label}
+            {pending && mode === "ask" && activeChip === c.label ? (
+              "Thinking…"
+            ) : (
+              <>
+                <AiIcon size="xs" />
+                {c.label}
+              </>
+            )}
           </button>
         ))}
       </div>
 
-      <div className="flex flex-wrap items-end gap-2">
+      {/* Narrow enough that the Ask button and its Thinking stay beside the box, in view (snag S10). */}
+      <div className="flex max-w-2xl flex-wrap items-end gap-2">
         <input
           type="text"
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") runAsk(question); }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              setActiveChip(null);
+              runAsk(question);
+            }
+          }}
           placeholder="Ask anything about your readiness…"
           className="min-w-0 flex-1"
           aria-label="Ask the readiness assistant"
         />
-        <button type="button" onClick={() => runAsk(question)} disabled={pending} className="btn-primary text-sm">
-          {pending && mode === "ask" ? (
+        <button
+          type="button"
+          onClick={() => {
+            setActiveChip(null);
+            runAsk(question);
+          }}
+          disabled={pending}
+          className="btn-primary text-sm"
+        >
+          {pending && mode === "ask" && activeChip === null ? (
             "Thinking…"
           ) : (
             <>

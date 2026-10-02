@@ -2,7 +2,9 @@ import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { getFrameworkReadiness, getFrameworkItems, shownThemes, type Rag } from "@/lib/framework/data";
-import { GAP_RISK_LABEL } from "@/lib/framework/gaps";
+import { GAP_RISK_LABEL, actionText } from "@/lib/framework/gaps";
+import { getSelfRatings } from "@/lib/framework/self-ratings";
+import { ratingLabel } from "@/lib/framework/ratings";
 import { draftReadinessNarrative } from "@/lib/framework/ai";
 import { renderReportPdf, type ReportBlock, type ReportDoc, type RagTone } from "@/lib/export/pdf";
 import { pdfResponse, exportError } from "@/lib/export/deliver";
@@ -66,6 +68,7 @@ export async function GET(request: Request) {
      Readiness page leaves it out: Environment is for services with accommodation, and printing it
      as "Not mapped" in a document for an inspector reads as a gap the provider does not have. */
   const requirements = shownThemes(allRequirements);
+  const selfRatings = await getSelfRatings(profile.company_id, regulator, branchId);
   const narrativeRes = await draftReadinessNarrative(requirements, branchId);
   const today = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/London" }).format(new Date());
 
@@ -84,6 +87,12 @@ export async function GET(request: Request) {
       waitingLine: waitingSentence(r.checks.waiting),
       metrics: r.metrics,
       notices: r.notices,
+      ownRating: (() => {
+        const own = selfRatings.get(r.code)?.latest;
+        if (!own) return null;
+        const on = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/London" }).format(new Date(own.createdAt));
+        return `${ratingLabel(regulator, own.rating) ?? own.rating}, set by ${own.setByName}, ${on}${own.note ? `. ${own.note}` : ""}`;
+      })(),
     });
     blocks.push({ kind: "keyvalues", pairs });
 
@@ -102,7 +111,7 @@ export async function GET(request: Request) {
           {
             text: [
               i.risk ? GAP_RISK_LABEL[i.risk] : null,
-              i.action ? (i.action.kind === "booked" ? `booked ${fmt(i.action.on)}` : `action noted ${fmt(i.action.on)}`) : null,
+              actionText(i.action, fmt),
             ]
               .filter(Boolean)
               .join(", "),

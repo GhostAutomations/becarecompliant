@@ -15,7 +15,8 @@ import {
 } from "@/lib/framework/case-handling";
 import { reportableCheck } from "@/lib/notifications/reportable";
 import { amberWindow, isDueSoon } from "@/lib/framework/due-soon";
-import { actionInPlace, gapRisk, isSafetyCheck, type GapAction, type GapRisk } from "@/lib/framework/gaps";
+import { cache } from "react";
+import { assessGap, gapInHand, isLateReason, isSafetyCheck, type GapAction, type GapRisk, type GapUpdate } from "@/lib/framework/gaps";
 import { scwCountsAsRegistered } from "@/lib/people/scw";
 
 /**
@@ -79,6 +80,9 @@ export type FrameworkItem = {
   href: string;
   /** The value an Update uses to be ABOUT this gap (lib/updates/about.ts). */
   aboutValue: string;
+  /** The earliest Planner booking still to happen, or null (snag S1). Always null for a DBS renewal
+   *  or Right to Work, which cannot be booked. */
+  planned: string | null;
   /** Overdue only (0374): what CIW would likely make of it, and the action in place if any. */
   safety: boolean;
   action: GapAction;
@@ -270,7 +274,9 @@ export async function getFrameworkReadiness(
       : Promise.resolve(new Map<string, { onTime: number; due: number }>()),
   ]);
 
-  const lapsed = await lapsedTrackers(supabase, companyId, branchId, today);
+  /* The gaps behind each theme (cached per request), so a theme whose overdue checks are all in hand
+     reads Attention, not Action needed (0375, snag S2), and lapsed DBS and Right to Work count. */
+  const gapItems = await getFrameworkItems(companyId, regulator, branchId);
 
   /* Social Care Wales registration, CIW only: staff 6 months or more in post with a registration
      that has not ended, as the PQS report counts it (lib/export/on-time.ts). */
@@ -381,14 +387,16 @@ export async function getFrameworkReadiness(
       caseOverdue.push({ singular: "incident step", plural: "incident steps", count: incidents.overdue });
     }
 
-    /* A lapsed DBS or Right to Work is overdue like a check, and a safety gap (0374). */
-    if (r.code === trackerThemeCode(regulator) && lapsed.length > 0) {
-      caseOverdue.push({ singular: "DBS or Right to Work", plural: "DBS or Right to Work", count: lapsed.length });
-    }
+    /* A lapsed DBS or Right to Work is overdue like a check, and a safety gap (0374). Overdue work
+       with an action in place that is not still a Priority Action Notice risk is in hand (S2). */
+    const themeOverdue = gapItems.get(r.code)?.overdue ?? [];
+    const trackersOverdue = themeOverdue.filter((i) => !i.instanceId).length;
+    const overdueInHand = themeOverdue.filter((i) => gapInHand(i)).length;
 
     const notices = noticesByCode.get(r.code) ?? { priority: 0, improvement: 0 };
     const inputs = {
-      overdue: checks.overdue,
+      overdue: checks.overdue + trackersOverdue,
+      overdueInHand,
       dueSoon: checks.dueSoon,
       total: checks.total,
       onTimePct,
@@ -447,7 +455,10 @@ export function overallScore(reqs: RequirementReadiness[]): number | null {
 
 /** The exact overdue and due-soon items behind each requirement, for the
  *  drill-down. Keyed by requirement code. RLS scopes to the caller. */
-export async function getFrameworkItems(
+/* Read once per request: Readiness, the theme status (snag S2) and the pack all need it. */
+export const getFrameworkItems = cache(getFrameworkItemsUncached);
+
+async function getFrameworkItemsUncached(
   companyId: string,
   regulator: "cqc" | "ciw",
   branchId: string | null = null,
@@ -527,6 +538,7 @@ export async function getFrameworkItems(
       population,
       href: `/${base}/${recordId}/checks/${r.id}/complete`,
       aboutValue: `check:${r.id}`,
+      planned: null,
       safety: isSafetyCheck(def?.key ?? null, def?.name ?? null),
       action: null,
       risk: null,
@@ -555,6 +567,7 @@ export async function getFrameworkItems(
       population: "people",
       href: `/people/${l.personId}`,
       aboutValue: l.tracker,
+      planned: null,
       safety: true,
       action: null,
       risk: null,
@@ -562,29 +575,40 @@ export async function getFrameworkItems(
     byCode.set(trackerCode, bucket);
   }
 
-  /* WHAT CIW WOULD LIKELY MAKE OF EACH OVERDUE GAP (0374, lib/framework/gaps.ts): a booking still
-     to happen, or a linked Update posted on or after the day it fell due, is the action in place. */
+  /* WHAT CIW WOULD LIKELY MAKE OF EACH OVERDUE GAP (0374, 0375; lib/framework/gaps.ts), and WHEN EACH
+     IS PLANNED (snag S1: every row, overdue and due soon, shows its Planner date). An action is a
+     booking still to happen, a linked Update posted on or after the day it fell due with its reason,
+     or holiday or absence on record covering the due date. */
+  const all = [...byCode.values()].flatMap((b) => [...b.overdue, ...b.dueSoon]);
   const overdue = [...byCode.values()].flatMap((b) => b.overdue);
-  if (overdue.length > 0) {
-    const instanceIds = overdue.map((i) => i.instanceId).filter((x): x is string => !!x);
+  if (all.length > 0) {
+    const instanceIds = all.map((i) => i.instanceId).filter((x): x is string => !!x);
+    const overdueIds = overdue.map((i) => i.instanceId).filter((x): x is string => !!x);
     const trackerPeople = [...new Set(overdue.filter((i) => !i.instanceId).map((i) => i.recordId))];
-    const [bookingRes, taskRes, updateRes, trackerUpdateRes] = await Promise.all([
+    const awayPeople = [...new Set(overdue.filter((i) => i.population === "people").map((i) => i.recordId))];
+    const [bookingRes, taskRes, updateRes, trackerUpdateRes, holidayRes, absenceRes] = await Promise.all([
       instanceIds.length
         ? supabase.from("planner_bookings").select("check_instance_id, scheduled_date").eq("company_id", companyId).eq("status", "planned").gte("scheduled_date", today).in("check_instance_id", instanceIds)
         : Promise.resolve({ data: [] }),
       instanceIds.length
         ? supabase.from("planner_booking_tasks").select("check_instance_id, status, planner_bookings!inner(scheduled_date, status)").eq("company_id", companyId).in("check_instance_id", instanceIds)
         : Promise.resolve({ data: [] }),
-      instanceIds.length
-        ? supabase.from("record_updates").select("about_check_instance, created_at, author_name").is("removed_at", null).in("about_check_instance", instanceIds)
+      overdueIds.length
+        ? supabase.from("record_updates").select("about_check_instance, created_at, author_name, late_reason, dbs_submitted_on").is("removed_at", null).in("about_check_instance", overdueIds)
         : Promise.resolve({ data: [] }),
       trackerPeople.length
-        ? supabase.from("record_updates").select("person_id, about_tracker, created_at, author_name").is("removed_at", null).not("about_tracker", "is", null).in("person_id", trackerPeople)
+        ? supabase.from("record_updates").select("person_id, about_tracker, created_at, author_name, late_reason, dbs_submitted_on").is("removed_at", null).not("about_tracker", "is", null).in("person_id", trackerPeople)
+        : Promise.resolve({ data: [] }),
+      awayPeople.length
+        ? supabase.from("holiday_requests").select("person_id, start_date, end_date").eq("company_id", companyId).eq("status", "approved").in("person_id", awayPeople)
+        : Promise.resolve({ data: [] }),
+      awayPeople.length
+        ? supabase.from("absence_events").select("person_id, start_date, end_date, return_date").eq("company_id", companyId).in("person_id", awayPeople)
         : Promise.resolve({ data: [] }),
     ]);
     const bookings = new Map<string, string[]>();
     const addBooking = (id: string | null, date: string | null) => {
-      if (!id || !date) return;
+      if (!id || !date || date < today) return;
       bookings.set(id, [...(bookings.get(id) ?? []), date]);
     };
     for (const b of (bookingRes.data as Array<{ check_instance_id: string | null; scheduled_date: string }> | null) ?? []) addBooking(b.check_instance_id, b.scheduled_date);
@@ -595,29 +619,53 @@ export async function getFrameworkItems(
       addBooking(t.check_instance_id, b.scheduled_date);
     }
     const london = (ts: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date(ts));
-    const updates = new Map<string, Array<{ on: string; by: string }>>();
-    for (const u of (updateRes.data as Array<{ about_check_instance: string; created_at: string; author_name: string }> | null) ?? []) {
-      updates.set(u.about_check_instance, [...(updates.get(u.about_check_instance) ?? []), { on: london(u.created_at), by: u.author_name }]);
+    type U = { created_at: string; author_name: string; late_reason: string | null; dbs_submitted_on: string | null };
+    const toUpdate = (u: U): GapUpdate => ({
+      on: london(u.created_at),
+      by: u.author_name,
+      reason: isLateReason(u.late_reason) ? u.late_reason : null,
+      dbsSubmittedOn: u.dbs_submitted_on,
+    });
+    const updates = new Map<string, GapUpdate[]>();
+    for (const u of (updateRes.data as Array<U & { about_check_instance: string }> | null) ?? []) {
+      updates.set(u.about_check_instance, [...(updates.get(u.about_check_instance) ?? []), toUpdate(u)]);
     }
-    for (const u of (trackerUpdateRes.data as Array<{ person_id: string; about_tracker: string; created_at: string; author_name: string }> | null) ?? []) {
+    for (const u of (trackerUpdateRes.data as Array<U & { person_id: string; about_tracker: string }> | null) ?? []) {
       const k = `${u.person_id}:${u.about_tracker}`;
-      updates.set(k, [...(updates.get(k) ?? []), { on: london(u.created_at), by: u.author_name }]);
+      updates.set(k, [...(updates.get(k) ?? []), toUpdate(u)]);
+    }
+    const away = new Map<string, Array<{ from: string; to: string; what: "holiday" | "absence" }>>();
+    for (const h of (holidayRes.data as Array<{ person_id: string; start_date: string; end_date: string | null }> | null) ?? []) {
+      away.set(h.person_id, [...(away.get(h.person_id) ?? []), { from: h.start_date, to: h.end_date ?? h.start_date, what: "holiday" }]);
+    }
+    for (const e of (absenceRes.data as Array<{ person_id: string; start_date: string; end_date: string | null; return_date: string | null }> | null) ?? []) {
+      away.set(e.person_id, [...(away.get(e.person_id) ?? []), { from: e.start_date, to: e.end_date ?? e.return_date ?? today, what: "absence" }]);
+    }
+    for (const item of all) {
+      const planned = item.instanceId ? (bookings.get(item.instanceId) ?? []).sort()[0] ?? null : null;
+      item.planned = planned;
     }
     for (const item of overdue) {
       const key = item.instanceId ?? `${item.recordId}:${item.aboutValue}`;
-      item.action = actionInPlace({
+      const tracker = item.instanceId ? null : (item.aboutValue as "dbs_renewal" | "right_to_work");
+      const g = assessGap({
+        safety: item.safety,
+        tracker,
         dueDate: item.dueDate,
         todayIso: today,
         bookings: item.instanceId ? bookings.get(item.instanceId) ?? [] : [],
         updates: updates.get(key) ?? [],
+        away: item.population === "people" ? away.get(item.recordId) ?? [] : [],
       });
+      item.action = g.action;
       /* CIW's own words. CQC uses different enforcement terms, so a CQC company sees the action in
          place but no label until CQC's are agreed. */
-      item.risk = regulator === "ciw" ? gapRisk(item.safety, item.action) : null;
+      item.risk = regulator === "ciw" ? g.risk : null;
     }
     // Priority Action Notice risks first, then the oldest.
+    const rank = (r: GapRisk | null) => (r === "pan_risk" ? 0 : r === "afi_likely" ? 1 : 2);
     for (const b of byCode.values()) {
-      b.overdue.sort((a, c) => (a.risk === c.risk ? (a.dueDate < c.dueDate ? -1 : 1) : a.risk === "pan_risk" ? -1 : 1));
+      b.overdue.sort((a, c) => (rank(a.risk) === rank(c.risk) ? (a.dueDate < c.dueDate ? -1 : 1) : rank(a.risk) - rank(c.risk)));
     }
   }
   return byCode;

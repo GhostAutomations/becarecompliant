@@ -223,6 +223,19 @@ export const REG80_SECTIONS: Reg80Section[] = [
     ],
   },
   {
+    title: "Overdue checks and why they are late",
+    intro: "Checks overdue on the day the data was pulled, with the action in place or the reason recorded on the Readiness page.",
+    fields: [
+      {
+        key: "late_checks",
+        label: "Overdue checks",
+        type: "text",
+        data: true,
+        hint: "Record a reason with Add action on the Readiness page, then press Refresh data.",
+      },
+    ],
+  },
+  {
     title: "Rating of each theme",
     intro:
       "Your own rating of each theme against CIW's descriptors, as CIW's quality of care review guidance suggests. Pre-filled from the Readiness page for this branch.",
@@ -380,6 +393,11 @@ export function buildInitialData(p: Reg80Prefill, riName: string): Record<string
     care_plans_summary: carePlanLines.join("\n"),
     supervision_summary: supervisionLines.join("\n"),
     training_summary: trainingLines.join("\n"),
+    late_checks: p.lateChecks.length
+      ? p.lateChecks
+          .map((c) => `${c.recordName}, ${c.checkName}, due ${ukDate(c.dueDate)} (${c.theme})${c.label ? `. ${c.label}` : ""}. ${c.action ?? "No action in place"}.`)
+          .join("\n")
+      : "No checks overdue.",
     self_ratings: p.selfRatings.length
       ? p.selfRatings
           .map((r) => `${r.title}: ${selfRatingWord(r.rating)} (set by ${r.setByName}, ${ukDate(r.on)})${r.note ? `. ${r.note}` : ""}`)

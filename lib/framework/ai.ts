@@ -3,7 +3,7 @@
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { getFrameworkReadiness, getFrameworkItems, shownThemes, type RequirementReadiness } from "@/lib/framework/data";
-import { GAP_RISK_LABEL } from "@/lib/framework/gaps";
+import { GAP_RISK_LABEL, actionText } from "@/lib/framework/gaps";
 import { resolveReadinessBranch, getLatestInspections } from "@/lib/framework/branches";
 import { noticeStatusLabel } from "@/lib/framework/notice-status";
 import { ratingLabel } from "@/lib/framework/ratings";
@@ -71,7 +71,7 @@ async function buildContext(
     if (!it) continue;
     for (const i of it.overdue) {
       const risk = i.risk ? `; ${GAP_RISK_LABEL[i.risk]}` : "";
-      const act = i.action ? (i.action.kind === "booked" ? `; booked ${ukDate(i.action.on)}` : `; action noted ${ukDate(i.action.on)} by ${i.action.by}`) : "; no action in place";
+      const act = i.action ? `; ${actionText(i.action, ukDate)}` : "; no action in place";
       outstandingLines.push(`- ${r.title}; ${i.recordName}; ${i.checkName}; due ${ukDate(i.dueDate)}; OVERDUE${risk}${act}`);
     }
     for (const i of it.dueSoon) {

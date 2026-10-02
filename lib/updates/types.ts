@@ -20,6 +20,9 @@ export type RecordUpdate = {
   mentions: string[];
   /** What the update is about (0374): a check on this record, DBS renewal or Right to Work. */
   aboutLabel: string | null;
+  /** Why the check was late, in words (0375), and for a DBS renewal when the application went in. */
+  lateReason: string | null;
+  dbsSubmittedOn: string | null;
 };
 
 export type RecordUpdates = {

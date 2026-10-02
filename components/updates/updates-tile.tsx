@@ -35,6 +35,7 @@ import {
   updatePostProblem,
   updateStamp,
 } from "@/lib/updates/rules";
+import { LATE_REASONS } from "@/lib/framework/gaps";
 import type { RecordUpdate, RecordUpdates } from "@/lib/updates/types";
 
 type Kind = "person" | "service_user";
@@ -57,7 +58,14 @@ export default function UpdatesTile({
   /* ?about= from the Readiness page's "Add action" (0374): the new update starts linked to that
      check, so it counts as the action. Only a choice this record offers is taken. */
   const [startAbout, setStartAbout] = useState("");
-  const close = useCallback(() => setOpen(false), []);
+  /* Came from the Readiness page's Add action: go back there when done (snag S4, Phil 2 Oct). Only a
+     Readiness address is taken, so the link cannot send anybody elsewhere. */
+  const [returnTo, setReturnTo] = useState<string | null>(null);
+  const router = useRouter();
+  const close = useCallback(() => {
+    setOpen(false);
+    if (returnTo) router.push(returnTo);
+  }, [returnTo, router]);
 
   useEffect(() => {
     try {
@@ -65,6 +73,8 @@ export default function UpdatesTile({
       if (params.get("updates") === "open") setOpen(true);
       const about = params.get("about") ?? "";
       if (about && data.aboutChoices.some((c) => c.value === about)) setStartAbout(about);
+      const back = params.get("return") ?? "";
+      if (/^\/readiness(\?branch=[0-9a-f-]{36})?$/i.test(back)) setReturnTo(back);
     } catch {
       // No window: nothing to open.
     }
@@ -117,7 +127,7 @@ export default function UpdatesTile({
               aboutChoices={data.aboutChoices}
               startAbout={startAbout}
               parentId={null}
-              onPosted={() => scrollToEnd()}
+              onPosted={() => (returnTo ? router.push(returnTo) : scrollToEnd())}
             />
           ) : (
             <p className="px-5 py-3 text-xs text-white/50">You can read the updates on this record but not write them.</p>
@@ -277,6 +287,8 @@ function UpdateView({
         {u.editedAt && !removed ? <span className="text-[11px] text-white/40">Edited</span> : null}
         {u.pinnedAt && !removed ? <span className="pill-amber text-[10px]">Pinned</span> : null}
         {u.aboutLabel && !removed ? <span className="pill-neutral text-[10px]">About: {u.aboutLabel}</span> : null}
+        {u.lateReason && !removed ? <span className="pill-neutral text-[10px]">Late: {u.lateReason}</span> : null}
+        {u.dbsSubmittedOn && !removed ? <span className="pill-neutral text-[10px]">DBS applied {u.dbsSubmittedOn.split("-").reverse().join("/")}</span> : null}
       </div>
 
       {removed ? (
@@ -428,6 +440,9 @@ function Composer({
   const picker = useRef<HTMLInputElement>(null);
   const [body, setBody] = useState("");
   const [about, setAbout] = useState(startAbout);
+  /* Why the check is late (0375, snag S5), and for a DBS renewal when the new application went in (S6). */
+  const [lateReason, setLateReason] = useState("");
+  const [dbsDate, setDbsDate] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [picked, setPicked] = useState<Array<{ id: string; name: string }>>([]);
   const [query, setQuery] = useState<{ start: number; query: string } | null>(null);
@@ -514,6 +529,8 @@ function Composer({
         mentions: picked,
         files: started.uploads.map((u, i) => ({ path: u.path, name: files[i].name })),
         about: parentId ? null : about,
+        lateReason: !parentId && about ? lateReason || null : null,
+        dbsSubmittedOn: !parentId && about === "dbs_renewal" ? dbsDate || null : null,
       });
       if (!done.ok) {
         setStatus(null);
@@ -522,6 +539,8 @@ function Composer({
       }
       setBody("");
       setAbout("");
+      setLateReason("");
+      setDbsDate("");
       setFiles([]);
       setPicked([]);
       setStatus(null);
@@ -619,6 +638,43 @@ function Composer({
                   </option>
                 ))}
               </select>
+              {about ? (
+                <>
+                  <label htmlFor="update-late-reason" className="sr-only">
+                    Why is it late?
+                  </label>
+                  <select
+                    id="update-late-reason"
+                    value={lateReason}
+                    onChange={(e) => setLateReason(e.target.value)}
+                    disabled={busy}
+                    className="ctl-sm w-auto max-w-[14rem]"
+                    title="An inspector may accept these reasons for a check being late."
+                  >
+                    <option value="">Why is it late? (optional)</option>
+                    {LATE_REASONS.map((r) => (
+                      <option key={r.value} value={r.value}>
+                        {r.label}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              ) : null}
+              {about === "dbs_renewal" ? (
+                <>
+                  <label htmlFor="update-dbs-date" className="text-xs text-white/60">
+                    DBS application submitted
+                  </label>
+                  <input
+                    id="update-dbs-date"
+                    type="date"
+                    value={dbsDate}
+                    onChange={(e) => setDbsDate(e.target.value)}
+                    disabled={busy}
+                    className="ctl-sm w-auto"
+                  />
+                </>
+              ) : null}
             </>
           ) : null}
           <input

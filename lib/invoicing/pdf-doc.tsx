@@ -14,7 +14,13 @@ import {
   View,
   Image,
   renderToBuffer,
+  Font,
 } from "@react-pdf/renderer";
+
+/* Words wrap whole, never split with a hyphen at the end of a line ("ac-tion", "PRO-GRESSING"):
+   snag S9, Phil 2 Oct, and the no dashes rule for customer copy. */
+Font.registerHyphenationCallback((word) => [word]);
+
 import { formatMoney, formatUnitPrice, showsUnitPrice, displayStatus, STATUS_LABEL, type InvoicingConfig } from "./types";
 import type { InvoiceDetail } from "./data";
 

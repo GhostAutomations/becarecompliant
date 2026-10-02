@@ -51,14 +51,16 @@ export default function OwnRating({
     <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-white/60">
       {latest ? (
         <>
-          <span>Your rating:</span>
+          <span className="font-semibold text-white">Your rating:</span>
           <span className={`pill ${tone ? TONE_PILL[tone] : "pill-neutral"}`}>{ratingLabel(regulator, latest.rating)}</span>
           <span>
             (set by {latest.setByName}, {when(latest.createdAt)})
           </span>
         </>
       ) : (
-        <span>Your rating: not rated yet</span>
+        <span>
+          <span className="font-semibold text-white">Your rating:</span> not rated yet
+        </span>
       )}
       {canRate ? (
         <button

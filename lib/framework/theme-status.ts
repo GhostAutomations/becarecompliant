@@ -19,6 +19,10 @@ export type ThemeRag = "red" | "amber" | "green" | "none";
 
 export type ThemeInputs = {
   overdue: number;
+  /** Overdue checks with an action in place that CIW would weigh (0375, snag S2, Phil 2 Oct): a
+   *  booking or a recorded reason, and not still a Priority Action Notice risk. When every overdue
+   *  check is in hand the theme is Attention, not Action needed. */
+  overdueInHand?: number;
   dueSoon: number;
   /** Checks with a due date. 0 means no checks feed this theme. */
   total: number;
@@ -46,7 +50,10 @@ export function pctRag(pct: number | null): ThemeRag {
 export function themeStatus(t: ThemeInputs): ThemeRag {
   if (t.priorityOpen > 0) return "red";
   let s: ThemeRag = "none";
-  if (t.total > 0) s = worst(s, t.overdue > 0 ? "red" : t.dueSoon > 0 ? "amber" : "green");
+  if (t.total > 0) {
+    const open = t.overdue - Math.min(t.overdue, t.overdueInHand ?? 0);
+    s = worst(s, open > 0 ? "red" : t.overdue > 0 ? "amber" : t.dueSoon > 0 ? "amber" : "green");
+  }
   if ((t.caseOverdue ?? []).some((c) => c.count > 0)) s = worst(s, "red");
   s = worst(s, pctRag(t.onTimePct));
   for (const m of t.metrics) s = worst(s, pctRag(m.pct));
@@ -62,12 +69,17 @@ export function themeReason(t: ThemeInputs, regulatorName: string): string {
       : `${t.priorityOpen} ${regulatorName} Priority Action Notices open`;
   }
   const cases = (t.caseOverdue ?? []).filter((c) => c.count > 0);
-  if (t.overdue > 0 || cases.length > 0) {
+  const inHand = Math.min(t.overdue, t.overdueInHand ?? 0);
+  if (t.overdue > inHand || cases.length > 0) {
+    const open = t.overdue - inHand;
     const parts = [
-      ...(t.overdue > 0 ? [`${t.overdue} ${t.overdue === 1 ? "check" : "checks"}`] : []),
+      ...(open > 0 ? [`${open} ${open === 1 ? "check" : "checks"}`] : []),
       ...cases.map((c) => `${c.count} ${c.count === 1 ? c.singular : c.plural}`),
     ];
-    return `${parts.join(", ")} overdue`;
+    return `${parts.join(", ")} overdue${inHand > 0 ? `, ${inHand} more in hand` : ""}`;
+  }
+  if (t.overdue > 0) {
+    return `${t.overdue} ${t.overdue === 1 ? "check" : "checks"} overdue, action in place`;
   }
   const low = [
     ...(t.onTimePct != null ? [{ label: "on time, last 6 months", pct: t.onTimePct }] : []),

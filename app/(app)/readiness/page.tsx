@@ -21,7 +21,7 @@ import { ratingLabel, ratingTone } from "@/lib/framework/ratings";
 import { getBranchTerms } from "@/lib/branches/company-word";
 import OwnRating from "@/components/framework/own-rating";
 import { getSelfRatings } from "@/lib/framework/self-ratings";
-import { GAP_RISK_LABEL, metricGap } from "@/lib/framework/gaps";
+import { GAP_RISK_LABEL, actionText, metricGap } from "@/lib/framework/gaps";
 
 export const metadata: Metadata = { title: "Inspection Readiness" };
 
@@ -45,23 +45,24 @@ function fmt(iso: string): string {
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
-function ItemRow({ item, overdue, canAct }: { item: FrameworkItem; overdue: boolean; canAct: boolean }) {
+/* Each outstanding check on one row with tidy columns, Due and Planned (snag S1, Phil 2 Oct: "keep it
+   tidy one column for due one column for planned"). Overdue rows add a second line with CIW's likely
+   view, the action in place and Add action. */
+const ROW_GRID = "grid grid-cols-[minmax(0,1fr)_6.5rem_6.5rem] items-center gap-x-3";
+
+function ItemRow({ item, overdue, canAct, returnTo }: { item: FrameworkItem; overdue: boolean; canAct: boolean; returnTo: string }) {
   const base = item.population === "people" ? "people" : "service-users";
-  /* The gap's own line (0374): CIW's likely view and the action in place, or a way to add one. */
-  const action = item.action
-    ? item.action.kind === "booked"
-      ? `Booked ${fmt(item.action.on)}`
-      : `Action noted ${fmt(item.action.on)} by ${item.action.by}`
-    : null;
+  const action = actionText(item.action, fmt);
   return (
     <div className="rounded-md border border-white/10 bg-white/5 px-3 py-1.5 text-sm hover:border-gold-400/40">
-      <div className="flex items-center justify-between gap-3">
+      <div className={ROW_GRID}>
         <Link href={item.href} className="min-w-0 truncate hover:text-gold-300">
           <span className="font-medium text-white">{item.recordName}</span>
           <span className="text-white/50"> · {item.checkName}</span>
         </Link>
-        <span className={`shrink-0 text-xs ${overdue ? "text-red-300" : "text-amber-200"}`}>
-          {overdue ? "Overdue" : "Due"} {fmt(item.dueDate)}
+        <span className={`text-xs ${overdue ? "text-red-300" : "text-amber-200"}`}>{fmt(item.dueDate)}</span>
+        <span className={`text-xs ${item.planned ? "text-white/80" : "text-white/40"}`}>
+          {item.planned ? fmt(item.planned) : item.instanceId ? "Not booked" : ""}
         </span>
       </div>
       {overdue && (item.risk || action || canAct) ? (
@@ -72,7 +73,7 @@ function ItemRow({ item, overdue, canAct }: { item: FrameworkItem; overdue: bool
           {action ? <span className="text-white/60">{action}</span> : <span className="text-white/45">No action in place</span>}
           {canAct ? (
             <Link
-              href={`/${base}/${item.recordId}?updates=open&about=${encodeURIComponent(item.aboutValue)}`}
+              href={`/${base}/${item.recordId}?updates=open&about=${encodeURIComponent(item.aboutValue)}&return=${encodeURIComponent(returnTo)}`}
               className="btn-outline btn-xs"
             >
               Add action
@@ -232,13 +233,15 @@ export default async function ReadinessPage({ searchParams }: { searchParams: Pr
               {(() => {
                 /* What CIW would likely make of the gaps (0374, lib/framework/gaps.ts). */
                 if (regulator !== "ciw") return null;
-                const pan = it.overdue.filter((i) => i.risk === "pan_risk").length + r.metrics.filter((m) => metricGap(m.label, m.pct, r.code)?.risk === "pan_risk").length;
-                const afi = it.overdue.filter((i) => i.risk === "afi_likely").length + r.metrics.filter((m) => metricGap(m.label, m.pct, r.code)?.risk === "afi_likely").length;
-                if (pan + afi === 0) return null;
+                const pan = it.overdue.filter((i) => i.risk === "pan_risk").length + r.metrics.filter((m) => metricGap(m.label, m.pct)?.risk === "pan_risk").length;
+                const afi = it.overdue.filter((i) => i.risk === "afi_likely").length + r.metrics.filter((m) => metricGap(m.label, m.pct)?.risk === "afi_likely").length;
+                const judgement = it.overdue.filter((i) => i.risk === "judgement").length;
+                if (pan + afi + judgement === 0) return null;
                 return (
                   <p className="mt-1 flex flex-wrap gap-2 text-xs">
                     {pan > 0 ? <span className="pill pill-red text-[10px]">{pan} Priority Action Notice {pan === 1 ? "risk" : "risks"}</span> : null}
                     {afi > 0 ? <span className="pill pill-amber text-[10px]">{afi} {afi === 1 ? "Area" : "Areas"} for Improvement likely</span> : null}
+                    {judgement > 0 ? <span className="pill pill-amber text-[10px]">{judgement} late for a recorded reason</span> : null}
                   </p>
                 );
               })()}
@@ -289,9 +292,9 @@ export default async function ReadinessPage({ searchParams }: { searchParams: Pr
               {r.metrics.length > 0 ? (
                 <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm text-white/70">
                   {r.metrics.map((m) => {
-                    const gap = regulator === "ciw" ? metricGap(m.label, m.pct, r.code) : null;
+                    const gap = regulator === "ciw" ? metricGap(m.label, m.pct) : null;
                     return (
-                      <span key={m.label} title={gap?.anchor ?? undefined}>
+                      <span key={m.label}>
                         {m.label}: <span className="text-white/90">{m.pct != null ? `${m.pct}%` : (m.note ?? "No data yet")}</span>
                         {gap ? (
                           <span className={`pill ${gap.risk === "pan_risk" ? "pill-red" : "pill-amber"} ml-2 align-middle text-[10px]`}>
@@ -303,31 +306,19 @@ export default async function ReadinessPage({ searchParams }: { searchParams: Pr
                   })}
                 </div>
               ) : null}
-              {regulator === "ciw"
-                ? (() => {
-                    /* What Good looks like in CIW's own framework, for each measure short of it, so a
-                       phone user sees it too (a hover title alone would not). */
-                    const anchors = [
-                      ...new Set(
-                        r.metrics.map((m) => metricGap(m.label, m.pct, r.code)?.anchor).filter((a): a is string => !!a),
-                      ),
-                    ];
-                    return anchors.length > 0 ? (
-                      <ul className="mt-1 space-y-0.5 text-xs text-white/50">
-                        {anchors.map((a) => (
-                          <li key={a}>{a}</li>
-                        ))}
-                      </ul>
-                    ) : null;
-                  })()
-                : null}
+
 
               {outstanding > 0 ? (
                 <details className="section-card mt-3">
                   <summary>Outstanding checks ({outstanding})</summary>
                   <div className="space-y-1 border-t border-white/10 p-3">
-                    {it.overdue.map((i) => <ItemRow key={i.instanceId ?? `${i.recordId}:${i.aboutValue}`} item={i} overdue canAct={canRate} />)}
-                    {it.dueSoon.map((i) => <ItemRow key={i.instanceId ?? `${i.recordId}:${i.aboutValue}`} item={i} overdue={false} canAct={false} />)}
+                    <div className={`${ROW_GRID} px-3 text-[11px] font-semibold uppercase tracking-wide text-white/45`}>
+                      <span>Name and check</span>
+                      <span>Due</span>
+                      <span>Planned</span>
+                    </div>
+                    {it.overdue.map((i) => <ItemRow key={i.instanceId ?? `${i.recordId}:${i.aboutValue}`} item={i} overdue canAct={canRate} returnTo={branchId ? `/readiness?branch=${branchId}` : "/readiness"} />)}
+                    {it.dueSoon.map((i) => <ItemRow key={i.instanceId ?? `${i.recordId}:${i.aboutValue}`} item={i} overdue={false} canAct={false} returnTo="/readiness" />)}
                   </div>
                 </details>
               ) : null}

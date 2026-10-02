@@ -24,6 +24,9 @@ export type PackThemeInput = {
   waitingLine: string | null;
   metrics: Array<{ label: string; pct: number | null; note?: string | null }>;
   notices: { priority: number; improvement: number };
+  /** The manager's own rating in words, e.g. "Requires improvement, set by Bev Admin, 2 October
+   *  2026" (0375, snag S8). Null when the theme has not been rated. */
+  ownRating?: string | null;
 };
 
 export type PackPair = { label: string; value: string };
@@ -34,7 +37,7 @@ export function packThemeHeading(t: Pick<PackThemeInput, "title" | "statusText">
 }
 
 export function packThemePairs(t: PackThemeInput): PackPair[] {
-  const pairs: PackPair[] = [{ label: "Summary", value: t.reason }];
+  const pairs: PackPair[] = [{ label: "Your rating", value: t.ownRating ?? "Not rated yet" }, { label: "Summary", value: t.reason }];
   if (t.checks.total > 0) {
     pairs.push({
       label: "Checks",

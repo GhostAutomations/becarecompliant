@@ -17,7 +17,12 @@ import "server-only";
  * ever contains evidence the caller may see. No dashes in copy.
  */
 
-import { Document, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
+import { Document, Page, StyleSheet, Text, View, renderToBuffer, Font } from "@react-pdf/renderer";
+
+/* Words wrap whole, never split with a hyphen at the end of a line ("ac-tion", "PRO-GRESSING"):
+   snag S9, Phil 2 Oct, and the no dashes rule for customer copy. */
+Font.registerHyphenationCallback((word) => [word]);
+
 import { createClient } from "@/lib/supabase/server";
 import { isFormSchema, type Answers, type FormSchema } from "@/lib/form-schema";
 import { EvidenceEntry, type EvidencePdfMeta } from "@/lib/evidence/pdf";

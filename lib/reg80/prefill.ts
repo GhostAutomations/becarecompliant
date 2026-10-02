@@ -26,6 +26,9 @@ import "server-only";
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { getFrameworkItems } from "@/lib/framework/data";
+import { GAP_RISK_LABEL, actionText } from "@/lib/framework/gaps";
+import { ukDate } from "@/lib/dates";
 import { getPqsMeasures, defaultOnTimeWindow } from "@/lib/export/on-time";
 import { todayInLondon, formatCivilDate } from "@/lib/recurrence";
 import { summariseIncidents, type CountableIncident } from "@/lib/incidents/summary";
@@ -94,6 +97,8 @@ export type Reg80Prefill = {
   /** The manager's own rating of each theme for this branch, latest first per theme (0374).
    *  Empty when nobody has rated yet. */
   selfRatings: Array<{ title: string; rating: string; setByName: string; on: string; note: string | null }>;
+  /** Overdue checks today and why they are late, as the Readiness page shows them (0375, snag S5). */
+  lateChecks: Array<{ theme: string; recordName: string; checkName: string; dueDate: string; label: string | null; action: string | null }>;
   pqs: {
     mandatoryTraining: number | null;
     safeguarding: number | null;
@@ -119,6 +124,35 @@ function monthsBetween(start: string, end: string): number {
   const [ay, am] = start.slice(0, 10).split("-").map(Number);
   const [by, bm] = end.slice(0, 10).split("-").map(Number);
   return Math.max(1, by * 12 + bm - (ay * 12 + am));
+}
+
+/** Today's overdue checks for this branch with CIW's likely view and the action or reason (0375). */
+async function readLateChecks(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  companyId: string,
+  branchId: string,
+): Promise<Reg80Prefill["lateChecks"]> {
+  const { data: co } = await supabase.from("companies").select("regulator, framework_enabled").eq("id", companyId).maybeSingle();
+  if (!co?.framework_enabled) return [];
+  const regulator = ((co?.regulator as string | null) ?? "ciw") as "ciw" | "cqc";
+  const [{ data: reqs }, items] = await Promise.all([
+    supabase.from("framework_requirements").select("code, title, sort_order").eq("regulator", regulator).eq("active", true).order("sort_order"),
+    getFrameworkItems(companyId, regulator, branchId),
+  ]);
+  const out: Reg80Prefill["lateChecks"] = [];
+  for (const q of (reqs as Array<{ code: string; title: string }> | null) ?? []) {
+    for (const i of items.get(q.code)?.overdue ?? []) {
+      out.push({
+        theme: q.title,
+        recordName: i.recordName,
+        checkName: i.checkName,
+        dueDate: i.dueDate,
+        label: i.risk ? GAP_RISK_LABEL[i.risk] : null,
+        action: actionText(i.action, ukDate),
+      });
+    }
+  }
+  return out;
 }
 
 /** The latest own rating of each theme for this branch, in the regulator's theme order (0374).
@@ -436,6 +470,7 @@ export async function getReg80Prefill(input: {
     scw: { activeStaff: scwActive, withoutRegistration: scwWithout },
     pqs,
     selfRatings: await readSelfRatings(supabase, input.companyId, input.branchId),
+    lateChecks: await readLateChecks(supabase, input.companyId, input.branchId),
     previousReview: prevRes.data
       ? {
           periodEnd: (prevRes.data as { period_end: string | null }).period_end ?? null,

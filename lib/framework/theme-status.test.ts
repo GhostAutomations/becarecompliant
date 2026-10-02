@@ -44,3 +44,15 @@ test("an overdue complaint or incident is named, and makes the theme Action need
   assert.equal(themeStatus(t), "red");
   assert.equal(themeReason(t, "CIW"), "2 checks, 1 complaint overdue");
 });
+
+test("overdue checks all in hand make the theme Attention, not Action needed (S2)", () => {
+  const t = { ...base, overdue: 2, overdueInHand: 2 };
+  assert.equal(themeStatus(t), "amber");
+  assert.equal(themeReason(t, "CIW"), "2 checks overdue, action in place");
+});
+
+test("one overdue check not in hand keeps the theme Action needed and says so", () => {
+  const t = { ...base, overdue: 3, overdueInHand: 2 };
+  assert.equal(themeStatus(t), "red");
+  assert.equal(themeReason(t, "CIW"), "1 check overdue, 2 more in hand");
+});

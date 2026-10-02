@@ -12,6 +12,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { orderThreads, tileUpdate, updateCount } from "./rules";
 import { TRACKER_LABEL, aboutValue } from "./about";
+import { lateReasonLabel } from "@/lib/framework/gaps";
 
 import type { RecordRef, RecordUpdate, RecordUpdates } from "./types";
 export type { RecordRef, RecordUpdate, RecordUpdates } from "./types";
@@ -35,7 +36,7 @@ export async function getRecordUpdates(ref: RecordRef, opts: { supportMode: bool
     supabase
       .from("record_updates")
       .select(
-        "id, parent_id, author_id, author_name, body, created_at, edited_at, pinned_at, removed_at, removed_reason, about_check_instance, about_tracker, files:record_update_files(id, file_name, mime_type, bytes), mentions:record_update_mentions(display_name)",
+        "id, parent_id, author_id, author_name, body, created_at, edited_at, pinned_at, removed_at, removed_reason, about_check_instance, about_tracker, late_reason, dbs_submitted_on, files:record_update_files(id, file_name, mime_type, bytes), mentions:record_update_mentions(display_name)",
       )
       .eq(column, ref.id)
       .order("created_at", { ascending: true })
@@ -66,6 +67,8 @@ export async function getRecordUpdates(ref: RecordRef, opts: { supportMode: bool
     mentions: Array<{ display_name: string }> | null;
     about_check_instance: string | null;
     about_tracker: string | null;
+    late_reason: string | null;
+    dbs_submitted_on: string | null;
   };
   type CheckRaw = {
     id: string;
@@ -97,6 +100,8 @@ export async function getRecordUpdates(ref: RecordRef, opts: { supportMode: bool
     files: r.removed_at ? [] : (r.files ?? []).map((f) => ({ id: f.id, fileName: f.file_name, mimeType: f.mime_type, bytes: Number(f.bytes) })),
     mentions: (r.mentions ?? []).map((m) => m.display_name),
     aboutLabel: aboutLabel(r),
+    lateReason: lateReasonLabel(r.late_reason),
+    dbsSubmittedOn: r.dbs_submitted_on,
   }));
 
   const aboutChoices = [

@@ -39,6 +39,7 @@ import {
   updatePostProblem,
 } from "./rules";
 import { parseAbout } from "./about";
+import { isLateReason } from "@/lib/framework/gaps";
 
 const BUCKET = "record-updates";
 const SIGNED_URL_TTL_SECONDS = 300;
@@ -129,6 +130,10 @@ export async function postUpdate(input: {
   files: Array<{ path: string; name: string }>;
   /** What the update is about (0374): "check:<id>", "dbs_renewal", "right_to_work" or "". */
   about?: string | null;
+  /** Why the check it is about is late (0375, snag S5), and for a DBS renewal the date the new
+   *  application went in (S6). */
+  lateReason?: string | null;
+  dbsSubmittedOn?: string | null;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const w = await writer();
   if ("error" in w) return { ok: false, error: w.error };
@@ -141,6 +146,12 @@ export async function postUpdate(input: {
   const about = parseAbout(input.about);
   if (about === undefined) return { ok: false, error: "Choose what the update is about from the list." };
   if (about && parentId) return { ok: false, error: "A reply follows the update it answers." };
+  const lateReason = input.lateReason ? String(input.lateReason) : null;
+  if (lateReason && !isLateReason(lateReason)) return { ok: false, error: "Choose why it is late from the list." };
+  const dbsSubmittedOn = input.dbsSubmittedOn ? String(input.dbsSubmittedOn) : null;
+  if (dbsSubmittedOn && !/^\d{4}-\d{2}-\d{2}$/.test(dbsSubmittedOn)) return { ok: false, error: "Enter the date the DBS application was submitted." };
+  if ((lateReason || dbsSubmittedOn) && !about) return { ok: false, error: "Choose which check the reason is about." };
+  if (dbsSubmittedOn && about?.tracker !== "dbs_renewal") return { ok: false, error: "The application date is only for a DBS renewal." };
   const body = String(input.body ?? "");
   const pages = Array.isArray(input.files) ? input.files : [];
   const problem = updatePostProblem(body, pages.length);
@@ -188,6 +199,8 @@ export async function postUpdate(input: {
     p_files: files,
     p_about_instance: about?.instance ?? null,
     p_about_tracker: about?.tracker ?? null,
+    p_late_reason: lateReason,
+    p_dbs_submitted_on: dbsSubmittedOn,
   });
   if (rpcErr) return { ok: false, error: rpcErr.message };
 
@@ -207,6 +220,8 @@ export async function postUpdate(input: {
       mentions: mentionIds.length,
       about_check_instance: about?.instance ?? null,
       about_tracker: about?.tracker ?? null,
+      late_reason: lateReason,
+      dbs_submitted_on: dbsSubmittedOn,
     },
   });
 

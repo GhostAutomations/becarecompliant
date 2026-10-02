@@ -22,7 +22,13 @@ import {
   View,
   Image,
   renderToBuffer,
+  Font,
 } from "@react-pdf/renderer";
+
+/* Words wrap whole, never split with a hyphen at the end of a line ("ac-tion", "PRO-GRESSING"):
+   snag S9, Phil 2 Oct, and the no dashes rule for customer copy. */
+Font.registerHyphenationCallback((word) => [word]);
+
 
 const NAVY = "#081231";
 const NAVY_SOFT = "#14306b";
