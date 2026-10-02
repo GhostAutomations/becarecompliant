@@ -77,6 +77,20 @@ export default function FieldEditor({
     setOptions((field.options ?? []).filter((_, idx) => idx !== i));
   }
 
+  /* FILL IN AUTOMATICALLY (Phil, 2 Oct 2026). What each kind of question can be filled with. */
+  const prefillChoices: Array<{ value: NonNullable<FormField["prefill"]>; label: string }> =
+    field.type === "short_text" || field.type === "long_text"
+      ? [
+          { value: "record_name", label: "The record's name (the person or service user)" },
+          { value: "record_branch", label: "The record's branch" },
+          { value: "completed_by", label: "The name of the person completing it" },
+        ]
+      : field.type === "date"
+        ? [{ value: "today", label: "Today's date" }]
+        : field.type === "single_select" || field.type === "radio"
+          ? [{ value: "record_branch", label: "The record's branch (when it is one of the options)" }]
+          : [];
+
   const conditionField = field.visibleWhen
     ? allFields.find((f) => f.key === field.visibleWhen!.field)
     : undefined;
@@ -382,6 +396,26 @@ export default function FieldEditor({
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {prefillChoices.length > 0 && (
+        <div className="mt-4">
+          <label htmlFor={`${uid}-prefill`} className="form-label">
+            Fill in automatically
+          </label>
+          <select
+            id={`${uid}-prefill`}
+            value={field.prefill ?? ""}
+            onChange={(e) => onChange({ prefill: (e.target.value || undefined) as FormField["prefill"] })}
+            className="max-w-xs"
+          >
+            <option value="">No, leave it blank</option>
+            {prefillChoices.map((c) => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
+          </select>
+          <p className="form-hint">Filled in when the form is opened. The person completing it can still change it.</p>
         </div>
       )}
 

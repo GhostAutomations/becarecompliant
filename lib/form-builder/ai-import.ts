@@ -189,6 +189,22 @@ export const AI_FIELD_TYPES: FieldType[] = [
 
 const CHOICE: FieldType[] = ["single_select", "multi_select", "radio"];
 
+/** What an imported question should be filled in with, judged from its wording. */
+export function prefillFor(label: string, type: FieldType): FormField["prefill"] | undefined {
+  const l = label.toLowerCase();
+  const text = type === "short_text" || type === "long_text";
+  if (text && /\b(auditor'?s?|assessor'?s?|reviewer'?s?|supervisor'?s?|completed by|carried out by|conducted by|reviewed by)\b.*\bname\b|\b(completed|carried out|conducted|reviewed) by\b/.test(l)) {
+    return "completed_by";
+  }
+  if ((text || type === "single_select" || type === "radio") && /^(branch|location|office|branch\s*\/\s*location|branch or location)\b/.test(l)) {
+    return "record_branch";
+  }
+  if (text && /\b(service user'?s?|client'?s?|staff( member)?'?s?|employee'?s?|carer'?s?|person'?s?)\s+(full\s+)?name\b/.test(l)) {
+    return "record_name";
+  }
+  return undefined;
+}
+
 export type AiDraft = { name: string | null; schema: FormSchema; questions: number; notes: string[] };
 
 function slug(s: string, fallback: string): string {
@@ -276,6 +292,10 @@ export function draftToSchema(raw: unknown, takenKeys: string[] = [], idSeed = D
       keys.add(key);
       const field: FormField = { key, type, label: shownLabel };
       if (f.required === true && type !== "heading") field.required = true;
+      /* FILLED IN AUTOMATICALLY where the question plainly asks for something the system already
+         knows (Phil, 2 Oct 2026, on the Platform Audit's Auditors Name and Branch/Location). */
+      const pf = prefillFor(shownLabel, type);
+      if (pf) field.prefill = pf;
       const help = clean(f.help, 400);
       if (help) field.help = help;
       if (CHOICE.includes(type)) {

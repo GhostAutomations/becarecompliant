@@ -62,6 +62,9 @@ export type FieldType =
   /** The band a score falls in, worked out from the totals it names. Read only. */
   | "score_band";
 
+/** What a question can be filled in with automatically (see FormField.prefill). */
+export type FieldPrefill = "record_name" | "record_branch" | "completed_by" | "today";
+
 /** Which register a record_lookup field searches. */
 export type LookupSource = "service_user" | "person";
 
@@ -138,6 +141,14 @@ export type FormField = {
   readOnly?: boolean;
   /** Small helper text shown under the control. */
   help?: string;
+  /**
+   * FILLED IN AUTOMATICALLY (Phil, 2 Oct 2026: "Auditors Name, Branch/Location should be auto fill
+   * and there should be an option for this in the form builder"). Chosen in the builder rather
+   * than guessed from the question's key, which is what missed "Auditors Name" and
+   * "Branch/Location" on the Platform Audit. Only a starting answer: the person completing the
+   * form can still change it. lib/forms/record-presets.ts applies it.
+   */
+  prefill?: FieldPrefill;
   placeholder?: string;
   /**
    * date only: THIS is when the thing was done, and it is what the register shows.

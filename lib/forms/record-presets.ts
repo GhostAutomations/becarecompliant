@@ -63,6 +63,30 @@ export function recordFormPresets(
       const key = (f.key ?? "").toLowerCase();
       const label = (f.label ?? "").toLowerCase();
 
+      /* Chosen in the builder first (2 Oct 2026): what the author said wins over any guess. */
+      if (f.prefill) {
+        const branchValue = (): string | null => {
+          if (!opts.branchName) return null;
+          if (!f.options?.length) return opts.branchName;
+          const bn = opts.branchName.toLowerCase();
+          const m = f.options.find((o) => String(o.value ?? "").toLowerCase() === bn || String(o.label ?? "").toLowerCase() === bn);
+          return m ? String(m.value) : null;
+        };
+        const v =
+          f.prefill === "record_name"
+            ? opts.fullName
+            : f.prefill === "record_branch"
+              ? branchValue()
+              : f.prefill === "completed_by"
+                ? (opts.authorName ?? null)
+                : f.prefill === "today"
+                  ? (opts.today ?? null)
+                  : null;
+        if (v) presets[f.key] = v;
+        if (f.type === "date" && f.prefill === "today") dateSeeded = true;
+        continue;
+      }
+
       // First date field: default to today (editable). This is the activity date used
       // to stamp the completion (e.g. Date of supervision, Date of Appraisal).
       if (!dateSeeded && f.type === "date" && opts.today) {

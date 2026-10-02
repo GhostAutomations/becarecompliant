@@ -129,3 +129,14 @@ test("the builder marks a question asked twice, never the Comments boxes or head
   ]);
   assert.deepEqual([...twice], ["are care plans updated within the last 30 days"]);
 });
+
+test("Platform Audit header questions are filled in automatically when imported", async () => {
+  const { prefillFor } = await import("./ai-import.ts");
+  assert.equal(prefillFor("Auditors Name", "short_text"), "completed_by");
+  assert.equal(prefillFor("Completed by", "short_text"), "completed_by");
+  assert.equal(prefillFor("Branch/Location", "short_text"), "record_branch");
+  assert.equal(prefillFor("Service Users Name", "short_text"), "record_name");
+  assert.equal(prefillFor("Staff member name", "short_text"), "record_name");
+  assert.equal(prefillFor("Key Findings", "long_text"), undefined);
+  assert.equal(prefillFor("Service Users Date of Start", "date"), undefined);
+});
