@@ -182,7 +182,7 @@ export default function ActionForm({
           type={confirm ? "button" : "submit"}
           disabled={pending || disabled}
           onClick={confirm ? () => { if (!disabled) setAsking(true); } : undefined}
-          className={showSaved ? "btn-saved text-xs" : buttonClassName}
+          className={showSaved ? `btn-saved text-xs${/\bbtn-xs\b/.test(buttonClassName) ? " btn-xs" : ""}` : buttonClassName}
         >
           {btnLabel}
         </button>

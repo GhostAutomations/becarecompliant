@@ -351,6 +351,13 @@
     @apply bg-rag-green text-white shadow-sm;
   }
 
+  /* PILL SIZED BUTTON (Phil, 2 Oct 2026, of Archive beside the Deleted pill: "needs to be same
+     height as the deleted pill"). Add btn-xs to any button that sits on a line with a pill: the
+     pill's padding, text size and round ends. ActionForm keeps it on the green Saved flash too. */
+  .btn-xs {
+    @apply rounded-full px-2.5 py-1 text-xs;
+  }
+
   /* Status pills (RAG) */
   .pill,
   .pill-green,

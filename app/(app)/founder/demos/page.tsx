@@ -126,7 +126,7 @@ export default async function DemosPage({
                             label={d.archivedAt ? "Unarchive" : "Archive"}
                             savingLabel={d.archivedAt ? "Unarchiving…" : "Archiving…"}
                             savedLabel={d.archivedAt ? "Unarchived" : "Archived"}
-                            buttonClassName="btn-outline text-xs"
+                            buttonClassName="btn-outline btn-xs"
                             className=""
                           />
                         ) : null}
