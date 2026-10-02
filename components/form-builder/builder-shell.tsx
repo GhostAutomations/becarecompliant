@@ -46,6 +46,7 @@ import SectionEditor from "./section-editor";
 import VersionHistory from "./version-history";
 import ContentOutline from "./content-outline";
 import AiImportDialog from "./ai-import-dialog";
+import UnsavedGuard from "./unsaved-guard";
 
 type CompanyProps = {
   kind: "company";
@@ -203,6 +204,7 @@ export default function BuilderShell(props: Props) {
 
   return (
     <div className="space-y-6">
+      <UnsavedGuard dirty={dirty} />
       <StatusBar
         kind={props.kind}
         population={props.population}
