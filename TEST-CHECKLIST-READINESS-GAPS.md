@@ -113,17 +113,21 @@ has them as checks or tracker dates.
 - S10 The "Ask anything about your readiness" box is too wide: the Ask button and its "Thinking" sit off to the
   right, so the page looks frozen. Make the box narrower so the button and its state stay in view.
 - S11 A shortcut button (Biggest risk, What needs booking, each theme) shows "Thinking..." on itself while it works.
+- S12 (Phil 2 Oct, during snag testing) Outstanding checks: the risk pill, action noted and Add action sit to the right of the name and check on the same line, so every row is the same height. On a phone they wrap under the name.
+- S13 (Phil 2 Oct: "does add action need to take you to the dash?") Add action opens the record's Updates popup over the Readiness page, already linked to the check. Posting closes it and redraws Readiness. The record page is never shown. Opening a service user's updates this way is audited (service_user.updates_viewed).
 
 ## Snagging push (0375), tested by Claude in Chrome on Bevan (Phil, 2 Oct: "then you test in chrome")
-- [ ] SN1 (S1) Outstanding checks rows: header Name and check, Due, Planned; Dafydd Harries supervision Planned 5 Oct; unbooked rows "Not booked"; DBS row Planned blank.
-- [ ] SN2 (S2) Llanelli Leadership and Management (only overdue check booked) reads Attention, reason "1 check overdue, action in place".
-- [ ] SN3 (S3) no "CIW Good:" lines under the measures; the amber pills stay.
-- [ ] SN4 (S4) Add action, post: back on Readiness, same branch. Closing the Updates popup also goes back.
-- [ ] SN5 (S5) Add action shows "Why is it late?" once About is set; a safety gap with a recognised reason shows amber "Inspector's judgement: late for a recorded reason"; Other or none stays red with the note shown; the thread shows "Late: ..."; a person on recorded holiday or absence on the due date is spotted.
+- [x] SN1 (S1) Outstanding checks rows: header Name and check, Due, Planned; Dafydd Harries supervision Planned 5 Oct; unbooked rows "Not booked"; DBS row Planned blank. PASS 2 Oct (Claude in Chrome, Llanelli): headers, Dafydd supervision Planned 5 Oct, Not booked rows, Osian DBS Planned blank.
+- [x] SN2 (S2) Llanelli Leadership and Management (only overdue check booked) reads Attention, reason "1 check overdue, action in place". PASS 2 Oct.
+- [x] SN3 (S3) no "CIW Good:" lines under the measures; the amber pills stay. PASS 2 Oct.
+- [x] SN4 (S4) Add action, post: back on Readiness, same branch. Closing the Updates popup also goes back. PASS 2 Oct (Delyth): Post returned to Readiness on Llanelli. Now replaced by S13, retest as SN14.
+- [x] SN5 (S5) Add action shows "Why is it late?" once About is set; a safety gap with a recognised reason shows amber "Inspector's judgement: late for a recorded reason"; Other or none stays red with the note shown; the thread shows "Late: ..."; a person on recorded holiday or absence on the due date is spotted. PASS 2 Oct: Delyth posted with Staff member off sick, Care and Support pill changed to 1 late for a recorded reason.
 - [ ] SN6 (S6) DBS action has "DBS application submitted": a date 8 weeks or more before the renewal date turns it amber; later stays red with "DBS applied <date>".
-- [ ] SN7 (S7) "Your rating:" bold white.
+- [x] SN7 (S7) "Your rating:" bold white. PASS 2 Oct: Your rating: bold white.
 - [ ] SN8 (S8) Inspection pack: "Your rating" first under each theme heading.
 - [ ] SN9 (S9) PDFs wrap words whole, no "ac-tion".
 - [ ] SN10 (S10) Ask box narrower, Ask button beside it.
 - [ ] SN11 (S11) a shortcut button says Thinking while it works.
 - [ ] SN12 Reg 80 new section "Overdue checks and why they are late" lists each overdue check with the label and action.
+- [ ] SN13 (S12) Outstanding checks: pill, action and Add action on the same line as the name; all rows the same height; long action text cuts off with the full text on hover; on a phone width they wrap under the name.
+- [ ] SN14 (S13) Add action on Readiness opens "Updates on <name>" over Readiness with About preselected; Post closes it, Readiness stays on the same branch and the pill updates; Close leaves you on Readiness; Pin or Edit inside it redraws the thread.

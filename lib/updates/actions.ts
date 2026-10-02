@@ -40,6 +40,8 @@ import {
 } from "./rules";
 import { parseAbout } from "./about";
 import { isLateReason } from "@/lib/framework/gaps";
+import { getRecordUpdates } from "./data";
+import type { RecordUpdates } from "./types";
 
 const BUCKET = "record-updates";
 const SIGNED_URL_TTL_SECONDS = 300;
@@ -413,4 +415,40 @@ export async function openUpdateFile(input: { fileId: string }): Promise<{ ok: t
     metadata: { update_id: row.update_id, file_id: fileId },
   });
   return { ok: true, url: signed.signedUrl };
+}
+
+/**
+ * A record's Updates thread for the Readiness page's Add action (snag S13, Phil 2 Oct), so the note
+ * is written over Readiness instead of on the record page. Read through the caller's own client,
+ * exactly as the record page reads it, so the database decides what they see. Opening a Service
+ * User's thread is audited, the same as viewing their record (special category data).
+ */
+export async function loadRecordUpdates(input: {
+  kind: Kind;
+  recordId: string;
+}): Promise<{ ok: true; data: RecordUpdates; currentUserId: string; canRemove: boolean } | { ok: false; error: string }> {
+  const ref = cleanRef(input.kind, input.recordId);
+  if (!ref) return { ok: false, error: "That record could not be found." };
+  const { user, profile } = await requireCompany();
+  const supportMode = Boolean(profile.actingAsCompanyId);
+  try {
+    const data = await getRecordUpdates(ref, { supportMode });
+    if (!data.canRead) return { ok: false, error: "You cannot see the updates on this record." };
+    if (ref.kind === "service_user") {
+      const facts = await recordFacts(ref);
+      await writeAudit({
+        companyId: facts?.companyId ?? profile.company_id ?? null,
+        actorId: user.id,
+        actorEmail: profile.email,
+        actorRole: profile.role,
+        action: "service_user.updates_viewed",
+        entityType: "service_user",
+        entityId: ref.id,
+        summary: `Opened the updates on ${facts?.name ?? "a service user"} from Readiness`,
+      });
+    }
+    return { ok: true, data, currentUserId: user.id, canRemove: profile.role === "company_admin" && !supportMode };
+  } catch (e) {
+    return { ok: false, error: `The updates could not be opened: ${(e as Error).message}. Try again.` };
+  }
 }

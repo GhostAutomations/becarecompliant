@@ -19,7 +19,7 @@
  * An email link to the record ends ?updates=open, which opens the thread straight away.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { CentreDialog } from "@/components/panel-dialog";
@@ -39,6 +39,11 @@ import { LATE_REASONS } from "@/lib/framework/gaps";
 import type { RecordUpdate, RecordUpdates } from "@/lib/updates/types";
 
 type Kind = "person" | "service_user";
+
+/* Told after anything in the thread changes (a post, edit, pin or removal). On a record page the
+   router refresh redraws the thread; the Readiness page's Add action holds the thread itself, so
+   it passes a reload here (snag S13, Phil 2 Oct: "does add action need to take you to the dash?"). */
+const ChangedContext = createContext<() => void>(() => {});
 
 export default function UpdatesTile({
   kind,
@@ -83,7 +88,6 @@ export default function UpdatesTile({
   }, []);
 
   const tile = data.tile;
-  const label = `Updates${data.count > 0 ? ` (${data.count})` : ""}`;
 
   return (
     /* h-full: the tile takes the height of its row, so it matches the Audit tile beside it on a
@@ -113,10 +117,58 @@ export default function UpdatesTile({
         </p>
       )}
 
-      <CentreDialog
+      <UpdatesDialog
+        kind={kind}
+        recordId={recordId}
+        data={data}
+        currentUserId={currentUserId}
+        canRemove={canRemove}
         open={open}
         onClose={close}
-        label={label}
+        startAbout={startAbout}
+        onPosted={() => (returnTo ? router.push(returnTo) : scrollToEnd())}
+      />
+    </div>
+  );
+}
+
+/**
+ * The thread in the middle of the screen with the Write box at its foot. The record's Updates tile
+ * opens it, and so does Add action on the Readiness page, so a manager can note why a check is late
+ * without leaving Readiness.
+ */
+export function UpdatesDialog({
+  kind,
+  recordId,
+  data,
+  currentUserId,
+  canRemove,
+  open,
+  onClose,
+  startAbout = "",
+  onPosted,
+  onChanged,
+  label,
+}: {
+  kind: Kind;
+  recordId: string;
+  data: RecordUpdates;
+  currentUserId: string;
+  canRemove: boolean;
+  open: boolean;
+  onClose: () => void;
+  /** A choice from data.aboutChoices to start the new update linked to, or "". */
+  startAbout?: string;
+  onPosted: () => void;
+  onChanged?: () => void;
+  label?: string;
+}) {
+  return (
+    <ChangedContext.Provider value={onChanged ?? noop}>
+      <CentreDialog
+        open={open}
+        onClose={onClose}
+        label={label ?? `Updates${data.count > 0 ? ` (${data.count})` : ""}`}
         footer={
           data.canPost ? (
             <Composer
@@ -127,7 +179,7 @@ export default function UpdatesTile({
               aboutChoices={data.aboutChoices}
               startAbout={startAbout}
               parentId={null}
-              onPosted={() => (returnTo ? router.push(returnTo) : scrollToEnd())}
+              onPosted={onPosted}
             />
           ) : (
             <p className="px-5 py-3 text-xs text-white/50">You can read the updates on this record but not write them.</p>
@@ -143,9 +195,11 @@ export default function UpdatesTile({
           open={open}
         />
       </CentreDialog>
-    </div>
+    </ChangedContext.Provider>
   );
 }
+
+function noop() {}
 
 function scrollToEnd() {
   requestAnimationFrame(() => {
@@ -242,6 +296,7 @@ function UpdateView({
   isReply: boolean;
 }) {
   const router = useRouter();
+  const changed = useContext(ChangedContext);
   const [mode, setMode] = useState<"read" | "edit" | "reply" | "remove">("read");
   const [draft, setDraft] = useState(u.body);
   const [reason, setReason] = useState("");
@@ -262,6 +317,7 @@ function UpdateView({
       }
       setMode("read");
       router.refresh();
+      changed();
     } catch (e) {
       setError(`That did not save: ${(e as Error).message}. Try again.`);
     } finally {
@@ -436,6 +492,7 @@ function Composer({
   onCancel?: () => void;
 }) {
   const router = useRouter();
+  const changed = useContext(ChangedContext);
   const box = useRef<HTMLTextAreaElement>(null);
   const picker = useRef<HTMLInputElement>(null);
   const [body, setBody] = useState("");
@@ -545,6 +602,7 @@ function Composer({
       setPicked([]);
       setStatus(null);
       router.refresh();
+      changed();
       onPosted();
     } catch (err) {
       setStatus(null);

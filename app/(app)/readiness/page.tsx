@@ -20,6 +20,7 @@ import { resolveReadinessBranch, getLatestInspections } from "@/lib/framework/br
 import { ratingLabel, ratingTone } from "@/lib/framework/ratings";
 import { getBranchTerms } from "@/lib/branches/company-word";
 import OwnRating from "@/components/framework/own-rating";
+import AddAction from "@/components/framework/add-action";
 import { getSelfRatings } from "@/lib/framework/self-ratings";
 import { GAP_RISK_LABEL, actionText, metricGap } from "@/lib/framework/gaps";
 
@@ -46,41 +47,51 @@ function fmt(iso: string): string {
 }
 
 /* Each outstanding check on one row with tidy columns, Due and Planned (snag S1, Phil 2 Oct: "keep it
-   tidy one column for due one column for planned"). Overdue rows add a second line with CIW's likely
-   view, the action in place and Add action. */
+   tidy one column for due one column for planned"). Overdue rows carry CIW's likely view, the action in
+   place and Add action on the same line, to the right of the name and check, so every row is the same
+   height (Phil 2 Oct). On a phone the extras wrap under the name. */
 const ROW_GRID = "grid grid-cols-[minmax(0,1fr)_6.5rem_6.5rem] items-center gap-x-3";
 
-function ItemRow({ item, overdue, canAct, returnTo }: { item: FrameworkItem; overdue: boolean; canAct: boolean; returnTo: string }) {
-  const base = item.population === "people" ? "people" : "service-users";
+function ItemRow({ item, overdue, canAct }: { item: FrameworkItem; overdue: boolean; canAct: boolean }) {
   const action = actionText(item.action, fmt);
+  const extras = overdue && (item.risk || action || canAct);
   return (
     <div className="rounded-md border border-white/10 bg-white/5 px-3 py-1.5 text-sm hover:border-gold-400/40">
-      <div className={ROW_GRID}>
-        <Link href={item.href} className="min-w-0 truncate hover:text-gold-300">
-          <span className="font-medium text-white">{item.recordName}</span>
-          <span className="text-white/50"> · {item.checkName}</span>
-        </Link>
+      {/* min-h matches the Add action button, so rows with and without it are the same height. */}
+      <div className={`${ROW_GRID} min-h-[1.625rem]`}>
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 md:flex-nowrap">
+          <Link href={item.href} className="min-w-0 shrink truncate hover:text-gold-300 md:max-w-[50%] md:shrink-0">
+            <span className="font-medium text-white">{item.recordName}</span>
+            <span className="text-white/50"> · {item.checkName}</span>
+          </Link>
+          {extras ? (
+            <div className="flex min-w-0 items-center gap-x-2 text-xs">
+              {item.risk ? (
+                <span className={`pill ${item.risk === "pan_risk" ? "pill-red" : "pill-amber"} shrink-0 whitespace-nowrap text-[10px]`}>
+                  {GAP_RISK_LABEL[item.risk]}
+                </span>
+              ) : null}
+              {action ? (
+                <span className="min-w-0 truncate text-white/60" title={action}>{action}</span>
+              ) : (
+                <span className="shrink-0 whitespace-nowrap text-white/45">No action in place</span>
+              )}
+              {canAct ? (
+                <AddAction
+                  kind={item.population === "people" ? "person" : "service_user"}
+                  recordId={item.recordId}
+                  recordName={item.recordName}
+                  about={item.aboutValue}
+                />
+              ) : null}
+            </div>
+          ) : null}
+        </div>
         <span className={`text-xs ${overdue ? "text-red-300" : "text-amber-200"}`}>{fmt(item.dueDate)}</span>
         <span className={`text-xs ${item.planned ? "text-white/80" : "text-white/40"}`}>
           {item.planned ? fmt(item.planned) : item.instanceId ? "Not booked" : ""}
         </span>
       </div>
-      {overdue && (item.risk || action || canAct) ? (
-        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-          {item.risk ? (
-            <span className={`pill ${item.risk === "pan_risk" ? "pill-red" : "pill-amber"} text-[10px]`}>{GAP_RISK_LABEL[item.risk]}</span>
-          ) : null}
-          {action ? <span className="text-white/60">{action}</span> : <span className="text-white/45">No action in place</span>}
-          {canAct ? (
-            <Link
-              href={`/${base}/${item.recordId}?updates=open&about=${encodeURIComponent(item.aboutValue)}&return=${encodeURIComponent(returnTo)}`}
-              className="btn-outline btn-xs"
-            >
-              Add action
-            </Link>
-          ) : null}
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -317,8 +328,8 @@ export default async function ReadinessPage({ searchParams }: { searchParams: Pr
                       <span>Due</span>
                       <span>Planned</span>
                     </div>
-                    {it.overdue.map((i) => <ItemRow key={i.instanceId ?? `${i.recordId}:${i.aboutValue}`} item={i} overdue canAct={canRate} returnTo={branchId ? `/readiness?branch=${branchId}` : "/readiness"} />)}
-                    {it.dueSoon.map((i) => <ItemRow key={i.instanceId ?? `${i.recordId}:${i.aboutValue}`} item={i} overdue={false} canAct={false} returnTo="/readiness" />)}
+                    {it.overdue.map((i) => <ItemRow key={i.instanceId ?? `${i.recordId}:${i.aboutValue}`} item={i} overdue canAct={canRate} />)}
+                    {it.dueSoon.map((i) => <ItemRow key={i.instanceId ?? `${i.recordId}:${i.aboutValue}`} item={i} overdue={false} canAct={false} />)}
                   </div>
                 </details>
               ) : null}
