@@ -75,6 +75,9 @@ export type FrameworkItem = {
   recordName: string;
   checkName: string;
   dueDate: string;
+  /** When the check was last done (null for a DBS renewal or Right to Work, or never done). Linked
+   *  Updates written since then count as the action (snag S17). */
+  lastCompleted: string | null;
   population: "people" | "service_users";
   /** Where the row goes: the check's Complete page, or the person for a DBS or Right to Work. */
   href: string;
@@ -540,6 +543,7 @@ async function getFrameworkItemsUncached(
       recordName: recordName!,
       checkName: def?.name ?? "check",
       dueDate: r.due_date,
+      lastCompleted: r.last_completed_on,
       population,
       href: `/${base}/${recordId}/checks/${r.id}/complete`,
       aboutValue: `check:${r.id}`,
@@ -569,6 +573,7 @@ async function getFrameworkItemsUncached(
       recordName: l.personName,
       checkName: l.name,
       dueDate: l.date,
+      lastCompleted: null,
       population: "people",
       href: `/people/${l.personId}`,
       aboutValue: l.tracker,
@@ -582,7 +587,7 @@ async function getFrameworkItemsUncached(
 
   /* WHAT CIW WOULD LIKELY MAKE OF EACH OVERDUE GAP (0374, 0375; lib/framework/gaps.ts), and WHEN EACH
      IS PLANNED (snag S1: every row, overdue and due soon, shows its Planner date). An action is a
-     booking still to happen, a linked Update posted on or after the day it fell due with its reason,
+     booking still to happen, a linked Update posted since the check was last done, with its reason,
      or holiday or absence on record covering the due date. */
   const all = [...byCode.values()].flatMap((b) => [...b.overdue, ...b.dueSoon]);
   const overdue = [...byCode.values()].flatMap((b) => b.overdue);
@@ -657,6 +662,7 @@ async function getFrameworkItemsUncached(
         safety: item.safety,
         tracker,
         dueDate: item.dueDate,
+        since: item.lastCompleted,
         todayIso: today,
         bookings: item.instanceId ? bookings.get(item.instanceId) ?? [] : [],
         updates: updates.get(key) ?? [],

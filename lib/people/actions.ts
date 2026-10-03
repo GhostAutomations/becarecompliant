@@ -37,6 +37,7 @@ import {
   probationEndDue,
   TRACKER_FORMS,
   REGISTER_COLUMNS,
+  addDaysIso,
 } from "./logic";
 import {
   parseProbationPeriod,
@@ -1526,6 +1527,34 @@ export async function completeTrackerForm(_prev: ActionState, formData: FormData
     if (typeof sv === "string" && sv) patch[spec.statusFrom.column] = sv;
   }
   await supabase.from("person_trackers").update(patch).eq("person_id", personId);
+
+  /* PASSING PROBATION SCHEDULES SUPERVISION 1 (snag S18, Phil 3 Oct). Supervision 1 falls due one
+     supervision interval after the probation end (supervisionSlots), and the record page drew it,
+     but nothing wrote the stored due date the registers, reminders and Readiness read. Smith Tacho
+     Azang passed on 24 Sep and Readiness listed his supervision as "no due date". Only a supervision
+     never done and with no due date is touched, so an existing schedule is never overwritten. */
+  if (
+    formKey === "probation_review" &&
+    patch.probation_status === "passed" &&
+    typeof patch.probation_end_actual === "string"
+  ) {
+    const { data: sup } = await supabase
+      .from("check_instances")
+      .select("id, due_date, last_completed_on, check_definitions!inner(key, population, interval)")
+      .eq("person_id", personId)
+      .eq("active", true)
+      .eq("check_definitions.key", "supervision")
+      .eq("check_definitions.population", "people")
+      .maybeSingle();
+    const row = sup as { due_date: string | null; last_completed_on: string | null; check_definitions: { interval: number | null } | Array<{ interval: number | null }> } | null;
+    if (row && !row.due_date && !row.last_completed_on) {
+      const defRow = Array.isArray(row.check_definitions) ? row.check_definitions[0] : row.check_definitions;
+      const supDue = addDaysIso(patch.probation_end_actual, defRow?.interval ?? 90);
+      if (supDue) {
+        await supabase.rpc("set_person_check_due", { p_person_id: personId, p_check_key: "supervision", p_due_date: supDue });
+      }
+    }
+  }
 
   // Booked on the planner as a task? It has now been done, so the chip goes green.
   await closeBookingsForTrackerForm(supabase, personId, formKey, user.id);

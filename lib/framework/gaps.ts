@@ -92,8 +92,19 @@ function daysBefore(iso: string, days: number): string {
 }
 
 /** What one candidate action makes of the gap. */
+/** Reasons an inspector may accept for a check running late (Phil 2 Oct: holiday, sickness, a
+ *  service user in hospital, next of kin unavailable). "Booked" and "Other" are not among them. */
+const PERSONAL_REASONS = new Set<LateReason>(["holiday", "sickness", "hospital", "nok_unavailable"]);
+
 function riskFor(safety: boolean, tracker: string | null, dueDate: string, action: Exclude<GapAction, null>): GapRisk {
-  if (!safety) return "afi_likely";
+  /* Any check late for a recognised reason is the inspector's call (snag S17, Phil 3 Oct, Mary
+     Ikpi-Ubi's Spot Check: a carer off for a family emergency read harsher than a safety check late
+     for the same reason). A booking on its own does not soften a check that is not a safety check. */
+  if (!safety) {
+    if (action.kind === "away") return "judgement";
+    if (action.kind === "update" && action.reason && PERSONAL_REASONS.has(action.reason)) return "judgement";
+    return "afi_likely";
+  }
   if (action.kind === "booked" || action.kind === "away") return "judgement";
   if (tracker === "dbs_renewal") {
     return action.dbsSubmittedOn && action.dbsSubmittedOn <= daysBefore(dueDate, DBS_SUBMIT_WEEKS * 7) ? "judgement" : "pan_risk";
@@ -107,20 +118,26 @@ const RISK_RANK: Record<GapRisk, number> = { judgement: 0, afi_likely: 1, pan_ri
  * CIW's matrix for one overdue gap (framework paragraphs 10 to 13): the impact, from what the gap is
  * (a safety gap is at least moderate), and whether it is likely to continue, from what is in place.
  *
- * - Not a safety gap: "Area for Improvement likely", with or without an action.
+ * - Not a safety gap: "Area for Improvement likely", unless an Update gives a recognised reason
+ *   (holiday, off sick or absent, hospital, next of kin unavailable) or the person was away on recorded
+ *   holiday or absence when it fell due: then "Inspector's judgement" (snag S17).
  * - A safety gap with nothing in place, an Update with no reason or "Other", or a DBS application sent
  *   later than eight weeks before the renewal date: "Priority Action Notice risk".
  * - A safety gap booked in the Planner (today or later), with a recognised reason, a DBS application
  *   sent in time, or the person away on recorded holiday or absence when it fell due: "Inspector's
  *   judgement: late for a recorded reason" (moderate and unlikely to recur is the inspector's call).
  *
- * Only Updates posted on or after the due date count. The action shown is the one that best answers
- * the gap; among equals, a booking, then the newest Update, then the absence.
+ * Updates count from the day the check was last done (snag S17: a manager who flags it before it
+ * falls due gets credit), or from the due date when there is no last completion. The action shown is
+ * the one that best answers the gap; among equals, the newest Update (its reason is what the row
+ * should say, and the booking already shows in the Planned column), then the absence, then a booking.
  */
 export function assessGap(input: {
   safety: boolean;
   tracker?: "dbs_renewal" | "right_to_work" | null;
   dueDate: string;
+  /** The day the check was last done: Updates from then on count. Null: from the due date. */
+  since?: string | null;
   todayIso: string;
   bookings: string[];
   updates: GapUpdate[];
@@ -128,14 +145,15 @@ export function assessGap(input: {
 }): { action: GapAction; risk: GapRisk } {
   const tracker = input.tracker ?? null;
   const candidates: Array<Exclude<GapAction, null>> = [];
-  const ahead = input.bookings.filter((d) => d >= input.todayIso).sort();
-  if (ahead.length > 0) candidates.push({ kind: "booked", on: ahead[0] });
-  for (const u of [...input.updates].filter((u) => u.on >= input.dueDate).sort((a, b) => (a.on < b.on ? 1 : -1))) {
+  const since = input.since && input.since < input.dueDate ? input.since : input.dueDate;
+  for (const u of [...input.updates].filter((u) => u.on >= since).sort((a, b) => (a.on < b.on ? 1 : -1))) {
     candidates.push({ kind: "update", on: u.on, by: u.by, reason: u.reason, dbsSubmittedOn: u.dbsSubmittedOn });
   }
   for (const a of input.away) {
     if (a.from <= input.dueDate && a.to >= input.dueDate) candidates.push({ kind: "away", from: a.from, to: a.to, what: a.what });
   }
+  const ahead = input.bookings.filter((d) => d >= input.todayIso).sort();
+  if (ahead.length > 0) candidates.push({ kind: "booked", on: ahead[0] });
   if (candidates.length === 0) return { action: null, risk: input.safety ? "pan_risk" : "afi_likely" };
   let best = candidates[0];
   let bestRisk = riskFor(input.safety, tracker, input.dueDate, best);

@@ -104,3 +104,36 @@ test("the action in words", async () => {
     "Action noted 2026-10-02 by Bev, DBS applied 2026-07-01",
   );
 });
+
+/* Snag S17 (Phil 3 Oct, Mary Ikpi-Ubi's Spot Check). */
+test("S17: any check late for a recognised reason is the inspector's judgement", () => {
+  for (const reason of ["holiday", "sickness", "hospital", "nok_unavailable"]) {
+    assert.equal(assessGap({ ...base, safety: false, updates: [u("2026-09-10", reason)] }).risk, "judgement", reason);
+  }
+  assert.equal(assessGap({ ...base, safety: false, updates: [u("2026-09-10", "other")] }).risk, "afi_likely");
+  assert.equal(assessGap({ ...base, safety: false, updates: [u("2026-09-10", "booked")] }).risk, "afi_likely");
+  assert.equal(assessGap({ ...base, safety: false, away: [{ from: "2026-08-30", to: "2026-09-05", what: "holiday" as const }] }).risk, "judgement");
+});
+
+test("S17: a booking alone does not soften a check that is not a safety check", () => {
+  assert.deepEqual(assessGap({ ...base, safety: false, bookings: ["2026-10-06"] }), { action: { kind: "booked", on: "2026-10-06" }, risk: "afi_likely" });
+});
+
+test("S17: with a booking and a note, the row shows the note", () => {
+  const r = assessGap({ ...base, safety: false, bookings: ["2026-10-06"], updates: [u("2026-10-02", "sickness")] });
+  assert.equal(r.action?.kind, "update");
+  assert.equal(r.risk, "judgement");
+  const s = assessGap({ ...base, safety: true, bookings: ["2026-10-06"], updates: [u("2026-10-02", "sickness")] });
+  assert.equal(s.action?.kind, "update");
+  // A safety note with no reason loses to the booking, which is the better answer.
+  const t = assessGap({ ...base, safety: true, bookings: ["2026-10-06"], updates: [u("2026-10-02")] });
+  assert.equal(t.action?.kind, "booked");
+});
+
+test("S17: a note written since the check was last done counts, one before it does not", () => {
+  const early = u("2026-08-29", "sickness");
+  assert.equal(assessGap({ ...base, safety: false, since: "2026-08-04", updates: [early] }).risk, "judgement");
+  assert.equal(assessGap({ ...base, safety: false, since: "2026-08-30", updates: [early] }).risk, "afi_likely");
+  // No last completion: from the due date, as before.
+  assert.equal(assessGap({ ...base, safety: false, since: null, updates: [early] }).risk, "afi_likely");
+});
