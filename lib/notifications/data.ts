@@ -6,6 +6,7 @@ import { todayInLondon, formatCivilDate } from "@/lib/recurrence";
 import { reportableCheck } from "@/lib/notifications/reportable";
 import { plannedFor, plannedIndex, type PlannedSource, type PlannedVisit } from "@/lib/notifications/planned";
 import { DBS_AMBER_DAYS, RTW_AMBER_DAYS } from "@/lib/people/logic";
+import { missingDocuments, type DocTracker } from "@/lib/people/doc-gaps";
 import { datesToChase, trackerDateAlerts, type TrackerDateRow } from "@/lib/notifications/tracker-dates";
 
 /**
@@ -352,6 +353,56 @@ async function getTrackerDateChecks(
 }
 
 /**
+ * A DBS OR RIGHT TO WORK NEVER RECORDED (audit W1, Phil 2026-10-03: red from the start date).
+ *
+ * getTrackerDateChecks only chases a date that exists, so somebody with no DBS on file at all was
+ * never in the morning email. These rows go into the same DBS and Right to Work sections, dated
+ * from the start date, through the one rule every screen uses (lib/people/doc-gaps.ts). Active,
+ * unarchived people only, as everywhere else.
+ */
+async function getMissingDocumentChecks(
+  supabase: ReturnType<typeof createServiceClient>,
+  companyId: string,
+  todayIso: string,
+): Promise<{ dbs: ReportingCheck[]; rtw: ReportingCheck[] }> {
+  const [{ data: people }, { data: trackers }, { data: branches }] = await Promise.all([
+    supabase
+      .from("people")
+      .select("id, full_name, branch_id, start_date")
+      .eq("company_id", companyId)
+      .is("archived_at", null)
+      .neq("employment_status", "leaver"),
+    supabase
+      .from("person_trackers")
+      .select("person_id, dbs_date, enhanced_dbs_date, rtw_expiry_date, rtw_limits")
+      .eq("company_id", companyId),
+    supabase.from("branches").select("id, name").eq("company_id", companyId),
+  ]);
+  const branchName = new Map(((branches ?? []) as Array<{ id: string; name: string }>).map((b) => [b.id, b.name]));
+  const byPerson = new Map(
+    ((trackers ?? []) as Array<DocTracker & { person_id: string }>).map((t) => [t.person_id, t]),
+  );
+  const out = { dbs: [] as ReportingCheck[], rtw: [] as ReportingCheck[] };
+  for (const p of (people ?? []) as Array<{ id: string; full_name: string; branch_id: string | null; start_date: string | null }>) {
+    for (const g of missingDocuments(byPerson.get(p.id) ?? null, p.start_date, todayIso)) {
+      const row: ReportingCheck = {
+        population: "people",
+        recordId: p.id,
+        recordName: p.full_name,
+        branchId: p.branch_id,
+        branchName: p.branch_id ? branchName.get(p.branch_id) ?? "" : "",
+        checkName: g.name,
+        dueDate: g.since,
+        planned: null,
+        plannable: false,
+      };
+      (g.kind === "dbs_renewal" ? out.dbs : out.rtw).push(row);
+    }
+  }
+  return out;
+}
+
+/**
  * What is IN THE DIARY: every check with a planned visit against it, for one company.
  *
  * Phil, 2026-09-22: the daily report says what is due; this is what says whether anybody has
@@ -474,6 +525,10 @@ export async function getReportingData(companyId: string): Promise<ReportingData
     fallbackAmberDays: RTW_AMBER_DAYS,
     checkName: "Right to Work expiry",
   });
+  /* W1: never recorded joins the same two sections, oldest first, ahead of the dated rows. */
+  const missingDocs = await getMissingDocumentChecks(supabase, companyId, todayIso);
+  dbsRenewals.unshift(...missingDocs.dbs);
+  rtwExpiries.unshift(...missingDocs.rtw);
 
   const [peopleChecks, suChecks, people, sus, branches, activePeople, activeSus] =
     await Promise.all([

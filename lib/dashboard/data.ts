@@ -20,6 +20,7 @@ import { listMyBookings } from "@/lib/planner/data";
 import { listAwaitingLastDate, listOutstandingRtw, type AwaitingLastDate, type OutstandingRtw } from "@/lib/absence/rtw";
 import { sortRtwForDashboard } from "@/lib/absence/rtw-list";
 import { buildDuePreview, type DuePreview, type DueRow } from "@/lib/dashboard/due-preview";
+import { missingDocuments, type DocTracker } from "@/lib/people/doc-gaps";
 
 /** Today in Europe/London as an ISO yyyy-mm-dd string (dates compare lexically). */
 function londonTodayIso(): string {
@@ -46,14 +47,18 @@ function addDaysIso(iso: string, days: number): string {
  */
 export async function getDuePreview(companyId: string): Promise<DuePreview> {
   const supabase = await createClient();
-  const [pc, sc, pn, sn] = await Promise.all([
+  const [pc, sc, pn, sn, tr] = await Promise.all([
     supabase.from("person_check_status").select("person_id, check_name, due_date, rag").eq("company_id", companyId),
     supabase
       .from("service_user_check_status")
       .select("service_user_id, check_name, due_date, rag")
       .eq("company_id", companyId),
-    supabase.from("people").select("id, full_name").eq("company_id", companyId),
+    supabase.from("people").select("id, full_name, start_date, employment_status, archived_at").eq("company_id", companyId),
     supabase.from("service_users").select("id, full_name").eq("company_id", companyId),
+    supabase
+      .from("person_trackers")
+      .select("person_id, dbs_date, enhanced_dbs_date, rtw_expiry_date, rtw_limits")
+      .eq("company_id", companyId),
   ]);
   const names = new Map<string, string>();
   for (const r of (pn.data as Array<{ id: string; full_name: string | null }> | null) ?? []) {
@@ -82,7 +87,34 @@ export async function getDuePreview(companyId: string): Promise<DuePreview> {
       rag: r.rag,
     })),
   ];
-  return buildDuePreview(rows, londonTodayIso());
+  /* A DBS OR RIGHT TO WORK NEVER RECORDED, OR ALREADY LAPSED (audit W1, Phil 2026-10-03): red from
+     the start date, or from the day it ran out. These are tracker dates, not check instances, so the
+     status views above never carried them and the Overdue tile could not see a carer working
+     without a DBS. Same rule as the record, register and digest: lib/people/doc-gaps.ts. */
+  const today = londonTodayIso();
+  type PersonRow = { id: string; start_date: string | null; employment_status: string; archived_at: string | null };
+  const activePeople = new Map(
+    ((pn.data as PersonRow[] | null) ?? [])
+      .filter((p) => p.employment_status !== "leaver" && !p.archived_at)
+      .map((p) => [p.id, p]),
+  );
+  const trackers = new Map(
+    ((tr.data as Array<DocTracker & { person_id: string }> | null) ?? []).map((t) => [t.person_id, t]),
+  );
+  for (const p of activePeople.values()) {
+    const t = trackers.get(p.id) ?? null;
+    const name = names.get(`person:${p.id}`) ?? "Unnamed";
+    for (const g of missingDocuments(t, p.start_date, today)) {
+      rows.push({ kind: "person", recordId: p.id, name, checkName: g.name, dueDate: g.since, rag: "red" });
+    }
+    if (t?.enhanced_dbs_date && t.enhanced_dbs_date < today) {
+      rows.push({ kind: "person", recordId: p.id, name, checkName: "DBS renewal", dueDate: t.enhanced_dbs_date, rag: "red" });
+    }
+    if (t?.rtw_expiry_date && t.rtw_expiry_date < today) {
+      rows.push({ kind: "person", recordId: p.id, name, checkName: "Right to Work expiry", dueDate: t.rtw_expiry_date, rag: "red" });
+    }
+  }
+  return buildDuePreview(rows, today);
 }
 
 /** Count of pending holiday requests the caller may see (RLS-scoped). */

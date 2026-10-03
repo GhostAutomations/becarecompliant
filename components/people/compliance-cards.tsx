@@ -276,7 +276,7 @@ export default function ComplianceCards({
                   <div key={l.label} className="flex items-baseline justify-between gap-3">
                     <dt className="text-white/55">{l.label}</dt>
                     <dd className={`shrink-0 font-medium ${DATE[l.rag]}`}>
-                      {l.done ? "Complete" : l.due ? formatDisplayDate(l.due) : "—"}
+                      {l.note ?? (l.done ? "Complete" : l.due ? formatDisplayDate(l.due) : "—")}
                     </dd>
                   </div>
                 ))}

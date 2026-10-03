@@ -10,6 +10,7 @@ import { supervisionSlots, appraisalSlot, DBS_AMBER_DAYS, RTW_AMBER_DAYS } from 
 import { DEFAULT_AMBER_DAYS } from "@/lib/recurrence";
 import { todayInLondon, formatCivilDate } from "@/lib/recurrence";
 import { ragFor, worseRag, type CardLine, type CardRag, type PersonCard } from "@/lib/people/summary-card";
+import { missingDocuments, NOT_RECORDED } from "@/lib/people/doc-gaps";
 
 export const metadata: Metadata = { title: "Compliance Summary" };
 
@@ -70,6 +71,10 @@ export default async function PeopleSummaryPage({
 
   const cards: PersonCard[] = rows.map((row) => {
     const t = row.tracker;
+    const gaps =
+      row.person.employment_status === "leaver" || row.person.archived_at
+        ? []
+        : missingDocuments(t ?? null, row.person.start_date, today);
     const slots = supervisionSlots(
       supInterval,
       row.supCompDates,
@@ -145,12 +150,18 @@ export default async function PeopleSummaryPage({
        * expired DBS turns the card red and lifts that carer to the top of the board.
        */
       line("DBS", t?.dbs_date ?? null, "none", false, true),
-      line(
-        "DBS renewal",
-        t?.enhanced_dbs_date ?? null,
-        ragFor(t?.enhanced_dbs_date ?? null, today, dbsAmber),
-      ),
-      line("RTW expiry", t?.rtw_expiry_date ?? null, ragFor(t?.rtw_expiry_date ?? null, today, rtwAmber)),
+      /* NEVER RECORDED IS RED FROM THE START DATE (audit W1), the same rule as the record and
+         the register (lib/people/doc-gaps.ts), so a carer with no DBS on file lifts to the top. */
+      gaps.some((g) => g.kind === "dbs_renewal")
+        ? { label: "DBS renewal", due: null, rag: "red", note: NOT_RECORDED }
+        : line(
+            "DBS renewal",
+            t?.enhanced_dbs_date ?? null,
+            ragFor(t?.enhanced_dbs_date ?? null, today, dbsAmber),
+          ),
+      gaps.some((g) => g.kind === "right_to_work")
+        ? { label: "Right to Work", due: null, rag: "red", note: NOT_RECORDED }
+        : line("RTW expiry", t?.rtw_expiry_date ?? null, ragFor(t?.rtw_expiry_date ?? null, today, rtwAmber)),
       probationDone
         ? line("Probation", null, "green", true)
         : line("Probation", t?.probation_end_due ?? null, ragFor(t?.probation_end_due ?? null, today, probationAmber)),

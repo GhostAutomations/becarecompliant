@@ -18,7 +18,8 @@ import {
   PROBATION_STATUS_LABELS,
   WORKING_STATUS_LABELS,
 } from "@/lib/people/types";
-import { formatDisplayDate, supervisionSlots, appraisalSlot, dateRag } from "@/lib/people/logic";
+import { formatDisplayDate, supervisionSlots, appraisalSlot, dateRag, todayIso } from "@/lib/people/logic";
+import { missingDocuments, NOT_RECORDED } from "@/lib/people/doc-gaps";
 import { probationDueCountsDown } from "@/lib/people/probation";
 import { toneClass, type Tone } from "@/components/register/pill-select";
 import { HorizontalScrollbar } from "@/components/register/horizontal-scrollbar";
@@ -169,6 +170,8 @@ export default function RegisterMatrix({
   // on screen, with no round trip and nothing to lose in a filter.
   const { mode, setMode } = useNameSort(initialSort);
   const filtered = useMemo(() => sortByName(unsorted, (r) => r.person.full_name, mode), [unsorted, mode]);
+  // Today in London, for the "Not recorded" rule (W1). The page renders on the server too, so it is read once.
+  const today = todayIso();
   // Four-supervisions mode: show a Sup 4 column pair and no Annual Appraisal columns.
   const fourSup = config.cycleMode === "four_supervisions";
   const has = (key: string) => showsColumn(config.present, key);
@@ -273,6 +276,14 @@ export default function RegisterMatrix({
                 // supervision interval after it, so the row reads across.
                 sup[2]?.comp ?? null,
               );
+              /* A DBS OR RIGHT TO WORK NEVER RECORDED (audit W1): red "Not recorded" in the
+                 renewal and limits cells from the start date. lib/people/doc-gaps.ts. */
+              const gaps =
+                row.person.employment_status === "leaver" || row.person.archived_at
+                  ? []
+                  : missingDocuments(t ?? null, row.person.start_date, today);
+              const dbsGap = gaps.some((g) => g.kind === "dbs_renewal");
+              const rtwGap = gaps.some((g) => g.kind === "right_to_work");
               return (
                 <tr key={row.person.id}>
                   <td className="col-carer">
@@ -304,10 +315,14 @@ export default function RegisterMatrix({
                       have said a word about it. It is the one column on this matrix an
                       inspector asks to see, so it colours like every other deadline here. */}
                   <td>
-                    <RagDate
-                      date={t?.enhanced_dbs_date ?? null}
-                      rag={dateRag(t?.enhanced_dbs_date ?? null, config.dbsAmber)}
-                    />
+                    {dbsGap ? (
+                      <span className="rag-cell rag-cell-red">{NOT_RECORDED}</span>
+                    ) : (
+                      <RagDate
+                        date={t?.enhanced_dbs_date ?? null}
+                        rag={dateRag(t?.enhanced_dbs_date ?? null, config.dbsAmber)}
+                      />
+                    )}
                   </td>
                   <td>
                     <RagDate
@@ -322,7 +337,15 @@ export default function RegisterMatrix({
                       is a mis-click away from changing the wrong person's. It is set on the
                       record, beside the expiry date and the document it came from, where
                       whoever changes it is looking at the evidence for it. */}
-                  <td>{t?.rtw_limits ? RTW_LIMIT_LABELS[t.rtw_limits] : "—"}</td>
+                  <td>
+                    {rtwGap ? (
+                      <span className="rag-cell rag-cell-red">{NOT_RECORDED}</span>
+                    ) : t?.rtw_limits ? (
+                      RTW_LIMIT_LABELS[t.rtw_limits]
+                    ) : (
+                      "—"
+                    )}
+                  </td>
                   <td>
                     {/* A DEADLINE ONLY COUNTS DOWN WHILE IT IS ONE (Phil, 2026-09-16: "why
                         are all the probation end due dates red?"). This cell was coloured on

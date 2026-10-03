@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import { missingDocuments, type DocTracker } from "@/lib/people/doc-gaps";
 import { getOutcomesRegister } from "@/lib/service-users/data";
 import { getSatisfaction } from "@/lib/service-users/satisfaction";
 import { getTrainingMatrix } from "@/lib/training/data";
@@ -115,37 +116,44 @@ export function trackerThemeCode(regulator: "cqc" | "ciw"): string {
   return regulator === "ciw" ? "LM" : "SAFE";
 }
 
-/** Active people in this branch whose DBS renewal date or Right to Work expiry has passed (0374).
- *  Read through the caller's RLS. */
+/** Active people in this branch whose DBS renewal date or Right to Work expiry has passed (0374),
+ *  or who have never had one recorded at all (audit W1, Phil 2026-10-03: red from the start date,
+ *  through lib/people/doc-gaps.ts, the rule every screen uses). A missing document is dated from
+ *  the start date, so it ages like any other gap and goes through the same Priority Action Notice
+ *  test. Read through the caller's RLS. */
 async function lapsedTrackers(
   supabase: Awaited<ReturnType<typeof createClient>>,
   companyId: string,
   branchId: string | null,
   today: string,
 ): Promise<Array<{ personId: string; personName: string; tracker: "dbs_renewal" | "right_to_work"; name: string; date: string }>> {
+  let pq = supabase
+    .from("people")
+    .select("id, full_name, start_date, branch_id")
+    .eq("company_id", companyId)
+    .eq("employment_status", "active")
+    .is("archived_at", null);
+  if (branchId) pq = pq.eq("branch_id", branchId);
   let tq = supabase
     .from("person_trackers")
-    .select("person_id, enhanced_dbs_date, rtw_expiry_date, people(full_name, employment_status, archived_at, branch_id)")
-    .eq("company_id", companyId)
-    .or(`enhanced_dbs_date.lt.${today},rtw_expiry_date.lt.${today}`);
+    .select("person_id, dbs_date, enhanced_dbs_date, rtw_expiry_date, rtw_limits")
+    .eq("company_id", companyId);
   if (branchId) tq = tq.eq("branch_id", branchId);
-  const { data } = await tq;
+  const [{ data: people }, { data: trackers }] = await Promise.all([pq, tq]);
+  const byPerson = new Map(
+    ((trackers as Array<DocTracker & { person_id: string }> | null) ?? []).map((t) => [t.person_id, t]),
+  );
   const out: Array<{ personId: string; personName: string; tracker: "dbs_renewal" | "right_to_work"; name: string; date: string }> = [];
-  for (const raw of (data as unknown[]) ?? []) {
-    const t = raw as {
-      person_id: string;
-      enhanced_dbs_date: string | null;
-      rtw_expiry_date: string | null;
-      people: { full_name: string; employment_status: string; archived_at: string | null; branch_id: string | null } | Array<{ full_name: string; employment_status: string; archived_at: string | null; branch_id: string | null }> | null;
-    };
-    const p = relOne(t.people);
-    if (!p || p.employment_status !== "active" || p.archived_at) continue;
-    if (branchId && p.branch_id !== branchId) continue;
-    if (t.enhanced_dbs_date && t.enhanced_dbs_date < today) {
-      out.push({ personId: t.person_id, personName: p.full_name, tracker: "dbs_renewal", name: "DBS renewal", date: t.enhanced_dbs_date });
+  for (const p of (people as Array<{ id: string; full_name: string; start_date: string | null; branch_id: string | null }> | null) ?? []) {
+    const t = byPerson.get(p.id) ?? null;
+    for (const g of missingDocuments(t, p.start_date, today)) {
+      out.push({ personId: p.id, personName: p.full_name, tracker: g.kind, name: g.name, date: g.since });
     }
-    if (t.rtw_expiry_date && t.rtw_expiry_date < today) {
-      out.push({ personId: t.person_id, personName: p.full_name, tracker: "right_to_work", name: "Right to Work", date: t.rtw_expiry_date });
+    if (t?.enhanced_dbs_date && t.enhanced_dbs_date < today) {
+      out.push({ personId: p.id, personName: p.full_name, tracker: "dbs_renewal", name: "DBS renewal", date: t.enhanced_dbs_date });
+    }
+    if (t?.rtw_expiry_date && t.rtw_expiry_date < today) {
+      out.push({ personId: p.id, personName: p.full_name, tracker: "right_to_work", name: "Right to Work", date: t.rtw_expiry_date });
     }
   }
   return out;

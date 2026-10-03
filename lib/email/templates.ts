@@ -455,8 +455,8 @@ export function reportingEmailHtml(opts: {
     <strong style="color:#ffffff;">${escapeHtml(opts.companyName)}</strong> on ${escapeHtml(formatDateUk(opts.dateIso))}: ${summary}.</p>
     ${reportingSectionHtml("Records overdue", opts.overdue, true, "Nothing overdue.")}
     ${reportingSectionHtml("Records due in the next 14 days", opts.dueSoon, false, "Nothing due in the next 14 days.")}
-    ${trackerDateSectionHtml(opts.dbsRenewals ?? [], "DBS renewals overdue", "DBS renewals coming up")}
-    ${trackerDateSectionHtml(opts.rtwExpiries ?? [], "Right to Work expired", "Right to Work expiring")}`;
+    ${trackerDateSectionHtml(opts.dbsRenewals ?? [], "DBS overdue or not on file", "DBS renewals coming up")}
+    ${trackerDateSectionHtml(opts.rtwExpiries ?? [], "Right to Work expired or not on file", "Right to Work expiring")}`;
 
   return shell({
     maxWidth: REPORT_CARD_WIDTH,

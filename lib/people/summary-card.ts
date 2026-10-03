@@ -23,6 +23,8 @@ export type CardLine = {
   rag: CardRag;
   /** True when this is done and has nothing outstanding, e.g. probation passed. */
   done?: boolean;
+  /** Words shown in place of a date, e.g. "Not recorded" for a DBS never put on file (W1). */
+  note?: string;
   /**
    * A DATE THAT HAPPENED, not a deadline: the date on a DBS certificate, the day a probation
    * review was actually held. It is shown because a manager wants to see it, and it is kept out

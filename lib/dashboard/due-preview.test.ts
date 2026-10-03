@@ -75,3 +75,13 @@ test("labels read as a manager would say them, across a month end", () => {
   assert.equal(lateLabel("2026-08-31", T), "28 days late");
   assert.equal(addDaysIso("2028-02-28", 1), "2028-02-29");
 });
+
+test("a DBS never recorded, red from a start date of today, counts once: overdue, not also due today (W1)", () => {
+  const p = buildDuePreview(
+    [{ kind: "person", recordId: "a", name: "New Starter", checkName: "DBS not recorded", dueDate: "2026-10-03", rag: "red" }],
+    "2026-10-03",
+  );
+  assert.equal(p.overdue.total, 1);
+  assert.equal(p.overdue.people, 1);
+  assert.equal(p.d7.total, 0);
+});

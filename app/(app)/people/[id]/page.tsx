@@ -48,7 +48,8 @@ import {
   setRetentionHold,
   transferPerson,
 } from "@/lib/people/actions";
-import { appraisalSlot, formatDisplayDate, recurrenceLabel, supervisionSlots } from "@/lib/people/logic";
+import { appraisalSlot, dateRag, DBS_AMBER_DAYS, formatDisplayDate, recurrenceLabel, RTW_AMBER_DAYS, supervisionSlots } from "@/lib/people/logic";
+import { missingDocuments } from "@/lib/people/doc-gaps";
 import { nextSupervisionNumber } from "@/lib/people/next-supervision";
 import { ukDate } from "@/lib/dates";
 import {
@@ -399,6 +400,27 @@ export default async function PersonPage({
     probationStatusPill(tracker?.probation_status ?? null),
   );
 
+  /* A DBS OR RIGHT TO WORK NEVER RECORDED IS RED FROM THE START DATE (audit W1, Phil 2026-10-03).
+     Until then these two tiles had no colour at all, and they did not count towards the pill at
+     the top, so a carer with neither on file read "Compliant". lib/people/doc-gaps.ts holds the rule
+     for every screen. A recorded document colours by its own date, at the company's window. */
+  const docGaps =
+    person.employment_status === "leaver" || person.archived_at
+      ? []
+      : missingDocuments(tracker, person.start_date, scwTodayIso);
+  const dbsGap = docGaps.some((g) => g.kind === "dbs_renewal");
+  const rtwGap = docGaps.some((g) => g.kind === "right_to_work");
+  const dbsAmber = definitions.find((d) => d.key === "dbs_renewal")?.amber_days ?? DBS_AMBER_DAYS;
+  const rtwAmber = definitions.find((d) => d.key === "right_to_work")?.amber_days ?? RTW_AMBER_DAYS;
+  const dbsRag: string = dbsGap ? "red" : dateRag(tracker?.enhanced_dbs_date ?? null, dbsAmber);
+  const rtwRag: string = rtwGap ? "red" : dateRag(tracker?.rtw_expiry_date ?? null, rtwAmber);
+  const docBadge = (gap: boolean, rag: string) =>
+    gap ? (
+      <span className="pill-red"><span className="pill-dot" /> Not recorded</span>
+    ) : rag === "red" || rag === "amber" ? (
+      ragPill(rag)
+    ) : undefined;
+
   const dbsTile = trackerTile(
     "DBS",
     "Document",
@@ -407,6 +429,8 @@ export default async function PersonPage({
       { label: "Enhanced DBS", value: formatDisplayDate(tracker?.enhanced_dbs_date ?? null) || "—" },
     ],
     canManage && !supportMode ? `/people/${person.id}/tracker/dbs_renewal/complete` : null,
+    undefined,
+    docBadge(dbsGap, dbsRag),
   );
 
   /* LIMITS IS READ HERE AND ANSWERED ON THE FORM (Phil, 2026-09-18). It was a dropdown and a
@@ -421,6 +445,8 @@ export default async function PersonPage({
       { label: "Limits", value: tracker?.rtw_limits ? RTW_LIMIT_LABELS[tracker.rtw_limits] : "—" },
     ],
     canManage && !supportMode ? `/people/${person.id}/tracker/right_to_work/complete` : null,
+    undefined,
+    docBadge(rtwGap, rtwRag),
   );
 
   /* Complaints naming this person. The RAG is driven by UPHELD complaints only: being
@@ -453,10 +479,13 @@ export default async function PersonPage({
     </div>
   );
 
+  /* The checks AND the two documents (W1): a lapsed or missing DBS or Right to Work is the
+     record's worst news, so it has to reach the pill at the top. */
+  const rags = [...statuses.map((s) => s.rag as string), dbsRag, rtwRag].filter((r) => r !== "none");
   const worstRag =
-    statuses.length === 0
+    rags.length === 0
       ? "none"
-      : statuses.reduce((worst, s) => (RAG_RANK[s.rag] < RAG_RANK[worst] ? s.rag : worst), "green" as string);
+      : rags.reduce((worst, r) => (RAG_RANK[r] < RAG_RANK[worst] ? r : worst), "green" as string);
   /* Counted over the checks that are actually this person's, so the button never offers to
      apply something the database would refuse and then report nothing happened. */
   const missingCount = applicableDefs.filter((d) => !statusByDef.has(d.id)).length;

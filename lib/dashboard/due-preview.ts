@@ -122,7 +122,9 @@ export function buildDuePreview(rows: DueRow[], todayIso: string, limit = PREVIE
   const in14 = addDaysIso(todayIso, 14);
   const in30 = addDaysIso(todayIso, 30);
   const upcoming = rows
-    .filter((r) => r.checkName && r.dueDate && r.dueDate >= todayIso && r.dueDate <= in30)
+    // A red row is already overdue. Only a DBS or Right to Work never recorded can be red and
+    // dated today (it counts from the start date, audit W1), and it must not appear twice.
+    .filter((r) => r.rag !== "red" && r.checkName && r.dueDate && r.dueDate >= todayIso && r.dueDate <= in30)
     .sort(
       (a, b) =>
         (a.dueDate as string).localeCompare(b.dueDate as string) ||
