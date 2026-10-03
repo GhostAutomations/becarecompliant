@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { missingDocuments, type DocTracker } from "@/lib/people/doc-gaps";
+import { getCompanyRow } from "@/lib/companies/row";
 import { getOutcomesRegister } from "@/lib/service-users/data";
 import { getSatisfaction } from "@/lib/service-users/satisfaction";
 import { getTrainingMatrix } from "@/lib/training/data";
@@ -498,11 +499,8 @@ async function getFrameworkItemsUncached(
   // No check mapped still leaves DBS and Right to Work to look at, so this does not return early.
   if (defIds.length > 0) {
 
-  const { data: companyRow } = await supabase
-    .from("companies")
-    .select("amber_days_default")
-    .eq("id", companyId)
-    .maybeSingle();
+  // One company read per request (lib/companies/row.ts, audit B1): this ran once per theme.
+  const companyRow = await getCompanyRow(companyId);
   const companyAmber = (companyRow?.amber_days_default as number | null | undefined) ?? null;
 
   const { data: inst } = await supabase

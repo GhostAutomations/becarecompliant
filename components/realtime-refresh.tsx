@@ -98,19 +98,43 @@ export default function RealtimeRefresh({
        then does the channel join. Token refreshes after that are passed on by supabase-js. */
     const supabase = createClient();
     let cancelled = false;
-    const channel = supabase.channel(channelName);
-    for (const table of tables) {
-      channel.on("postgres_changes", { event: "*", schema: "public", table }, push);
-    }
-    void (async () => {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    /* JOIN, AND JOIN AGAIN WHEN IT DROPS (audit B1, measured 3 Oct): a tab left hidden for a few
+       minutes lets the socket's heartbeat lapse, the channel closes, and the page was left on the
+       ten second poll for as long as it stayed open. Coming back to the tab now rebuilds the
+       channel if it is not joined, so the poll is only ever a stop gap. */
+    let joining = false;
+    const join = async () => {
+      // Focus and visibilitychange both fire on return: one rejoin, not two channels.
+      if (joining) return;
+      joining = true;
+      try {
+        await joinOnce();
+      } finally {
+        joining = false;
+      }
+    };
+    const joinOnce = async () => {
+      if (channel) {
+        const old = channel;
+        channel = null;
+        await supabase.removeChannel(old);
+      }
       const { data } = await supabase.auth.getSession();
       if (cancelled) return;
       await supabase.realtime.setAuth(data.session?.access_token ?? null);
       if (cancelled) return;
-      channel.subscribe((status) => {
+      const ch = supabase.channel(channelName);
+      for (const table of tables) {
+        ch.on("postgres_changes", { event: "*", schema: "public", table }, push);
+      }
+      channel = ch;
+      ch.subscribe((status) => {
+        if (channel !== ch) return; // a channel we have already replaced
         connected = status === "SUBSCRIBED";
       });
-    })();
+    };
+    void join();
 
     // Poll fallback for a dropped socket. Only while the tab is being looked at.
     const interval = setInterval(() => {
@@ -121,7 +145,9 @@ export default function RealtimeRefresh({
        Unconditional, because a socket that dropped while hidden would have had nothing to
        report either way. */
     const onVisible = () => {
-      if (visible()) push();
+      if (!visible()) return;
+      if (!connected) void join();
+      push();
     };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onVisible);
@@ -129,7 +155,7 @@ export default function RealtimeRefresh({
     return () => {
       cancelled = true;
       if (timer) clearTimeout(timer);
-      supabase.removeChannel(channel);
+      if (channel) void supabase.removeChannel(channel);
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", onVisible);
