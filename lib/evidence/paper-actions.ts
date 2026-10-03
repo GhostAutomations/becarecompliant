@@ -33,6 +33,7 @@ import type { CheckDefinition } from "@/lib/people/types";
 import { todayInLondon, formatCivilDate } from "@/lib/recurrence";
 import { EVIDENCE_BUCKET, evidenceFilePath, sha256Hex } from "./storage";
 import { completionMovesCheck } from "./completion-date";
+import { START_GUARDED_KEYS, beforeStartProblem } from "@/lib/people/before-start";
 import {
   PAPER_MAX_BYTES,
   paperDateProblem,
@@ -143,6 +144,12 @@ export async function finishPaperUpload(input: {
   const dateProblem = paperDateProblem(input.completedOn, today);
   if (dateProblem) return { ok: false, error: dateProblem };
   const completedOn = String(input.completedOn);
+  /* NOT BEFORE THEY STARTED (snag S19): the paper copy of a supervision or appraisal. */
+  if (instance.person_id && START_GUARDED_KEYS.has(def.key)) {
+    const { data: who } = await (await createClient()).from("people").select("start_date").eq("id", instance.person_id).maybeSingle();
+    const startProblem = beforeStartProblem(def.name, completedOn, (who?.start_date as string | null) ?? null);
+    if (startProblem) return { ok: false, error: startProblem };
+  }
 
   const pages = Array.isArray(input.pages) ? input.pages : [];
   const setProblem = paperFilesProblem(pages.map((p) => ({ name: String(p.name ?? ""), size: 1 })));

@@ -39,6 +39,7 @@ import {
   REGISTER_COLUMNS,
   addDaysIso,
 } from "./logic";
+import { START_GUARDED_KEYS, beforeStartProblem } from "./before-start";
 import {
   parseProbationPeriod,
   probationFrom,
@@ -109,6 +110,29 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
   if (!scwIssue.ok) return { error: scwIssue.error };
   const scwDates = resolveScwDates({ number: scw.value, issue: scwIssue.value, renewal: scwRenewal.value });
   if (!scwDates.ok) return { error: scwDates.error };
+
+  /* NOT BEFORE THEY STARTED (snag S19): "they already work here" history with a supervision or
+     appraisal, or a probation end, dated before the start date is refused before the record is
+     made, so nothing half saves. What was typed stays on the form. */
+  if (start_date && String(formData.get(HISTORY_FLAG) ?? "") === "1") {
+    const typedNow: Record<string, string> = {};
+    for (const [k, v] of formData.entries()) {
+      if (typeof v === "string" && (k.startsWith("done_") || k.startsWith("t_"))) typedNow[k] = v;
+    }
+    const defsNow = await listPeopleCheckDefinitions(companyId);
+    const [labelsNow, modeNow] = await Promise.all([getColumnLabels(companyId), getSupervisionCycleMode(companyId)]);
+    for (const e of historyEntries(historyBoxes(defsNow, labelsNow, modeNow), typedNow, defsNow)) {
+      const key = defsNow.find((d: CheckDefinition) => d.id === e.definitionId)?.key ?? "";
+      if (!START_GUARDED_KEYS.has(key)) continue;
+      for (const d of e.dates) {
+        const problem = beforeStartProblem(e.name, d, start_date);
+        if (problem) return { error: problem };
+      }
+    }
+    const probEnd = trackerPatch(typedNow).probation_end_actual ?? null;
+    const probProblem = beforeStartProblem("probation end", probEnd, start_date);
+    if (probProblem) return { error: probProblem };
+  }
 
   const supabase = await createClient();
   const { data: person, error } = await supabase
@@ -1471,7 +1495,7 @@ export async function completeTrackerForm(_prev: ActionState, formData: FormData
   const supabase = await createClient();
   const { data: person } = await supabase
     .from("people")
-    .select("branch_id, company_id, full_name, work_email")
+    .select("branch_id, company_id, full_name, work_email, start_date")
     .eq("id", personId)
     .maybeSingle();
   if (!person) return { error: "That record could not be found." };
@@ -1489,6 +1513,18 @@ export async function completeTrackerForm(_prev: ActionState, formData: FormData
         contentType: value.type || "application/octet-stream",
         bytes: Buffer.from(await value.arrayBuffer()),
       });
+    }
+  }
+
+  /* NOT BEFORE THEY STARTED (snag S19): a probation that ended, or was extended to, a date before
+     the start date is refused before anything is stored. Read the answers the person could see. */
+  if (formKey === "probation_review") {
+    const seen = isFormSchema(form.schema) ? cleanAnswers(form.schema as FormSchema, answers) : answers;
+    const start = (person.start_date as string | null) ?? null;
+    for (const [key, what] of [["probation_end_actual", "probation end"], ["probation_extension_date", "probation extension"]] as const) {
+      const v = seen[key];
+      const problem = beforeStartProblem(what, typeof v === "string" ? v : null, start);
+      if (problem) return { error: problem };
     }
   }
 
@@ -1671,6 +1707,16 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
         bytes: Buffer.from(await value.arrayBuffer()),
       });
     }
+  }
+
+  /* NOT BEFORE THEY STARTED (snag S19): a supervision or appraisal dated before the start date
+     is refused here, before any Evidence is stored. Same date the check would be stamped with. */
+  if (START_GUARDED_KEYS.has(def.key)) {
+    const guardKey = isFormSchema(version.schema) ? firstDateFieldKey(version.schema as FormSchema) : null;
+    const guardDate = guardKey ? answers[guardKey] : undefined;
+    const { data: who } = await supabase.from("people").select("start_date").eq("id", instance.person_id as string).maybeSingle();
+    const problem = beforeStartProblem(def.name, typeof guardDate === "string" ? guardDate : null, (who?.start_date as string | null) ?? null);
+    if (problem) return { error: problem };
   }
 
   // 1. Store immutable Evidence through the shared pipeline (validates authoritatively).

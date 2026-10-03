@@ -1,4 +1,5 @@
 import "server-only";
+import { START_GUARDED_KEYS, beforeStartProblem } from "@/lib/people/before-start";
 
 /**
  * Be Care Compliant — bulk import parsing + validation (no writes).
@@ -254,6 +255,15 @@ export async function validateImport(
       const filled = cells
         .map((cell_, i) => ({ ...cell_, slot: i + 1 }))
         .filter((x): x is { due: string | null; done: string; slot: number } => !!x.done);
+
+      /* NOT BEFORE THEY STARTED (snag S19): a supervision or appraisal done before the start date
+         stops the row, so it cannot reach the record the way Smith Tacho Azang's 31/12/2025 did. */
+      if (population === "people" && START_GUARDED_KEYS.has(c.key)) {
+        for (const x of filled) {
+          const problem = beforeStartProblem(c.name, x.done, fields.start_date ?? null);
+          if (problem) errors.push(problem);
+        }
+      }
 
       // Newest first, which is the order the commit seeds them in.
       const ordered = filled.slice().sort((a, b) => (a.done < b.done ? 1 : a.done > b.done ? -1 : 0));
