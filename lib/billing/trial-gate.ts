@@ -1,8 +1,8 @@
 import "server-only";
 import { cache } from "react";
-import { createClient } from "@/lib/supabase/server";
 import { trialState, type TrialState } from "@/lib/billing/trial";
 import { companyIsLocked } from "@/lib/companies/deletion";
+import { getCompanyRow } from "@/lib/companies/row";
 
 /**
  * The database half of the trial clock. Kept apart from trial.ts so the maths stays pure
@@ -23,12 +23,7 @@ export const getCompanyTrialState = cache(
   async (
     companyId: string,
   ): Promise<TrialState & { companyName: string; tier: string; companyStatus: string }> => {
-    const supabase = await createClient();
-    const { data } = await supabase
-      .from("companies")
-      .select("name, tier, trial_ends_at, status")
-      .eq("id", companyId)
-      .maybeSingle();
+    const data = await getCompanyRow(companyId);
     const row = (data ?? null) as
       | {
           name: string | null;

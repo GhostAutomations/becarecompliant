@@ -35,6 +35,15 @@ const PEOPLE_TABLES = ["people", "check_instances", "person_trackers"];
 // Realtime is the primary path (pushes within ~1s). This is only the safety-net
 // poll for a dropped socket; kept short so the screen is never stale for long.
 const POLL_MS = 10_000;
+/* AUDIT B1 (3 Oct 2026): the refresh storm. Every change event called router.refresh() on the
+   spot, and the poll ran even while the socket was healthy. A bulk change (a data load, a demo
+   rebuild, a cron touching a few hundred checks) became a few hundred full re-renders of the
+   dashboard per open tab, each one twenty or more database reads: 2 Oct, 10:00 to 10:30, two open
+   dashboards made about 97,000 requests, and 3 Oct one tab made 11,700 in five minutes. Now a
+   burst of events becomes ONE refresh once it settles, never more often than MIN_GAP_MS, and the
+   poll only runs while the socket is actually down. The push still lands within a second or two. */
+const SETTLE_MS = 800;
+const MIN_GAP_MS = 3_000;
 
 /**
  * Defaults to the People tables + channel (unchanged). The Service User register
@@ -61,9 +70,24 @@ export default function RealtimeRefresh({
     /* A change that lands while the tab is hidden is dropped, not painted: the browser
        would defer the paint anyway, and refreshing a screen nobody is reading is churn.
        Coming back pushes once, which catches up everything missed in one go. */
-    const push = () => {
-      if (visible()) router.refresh();
+    let lastRefresh = 0;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const refreshNow = () => {
+      timer = null;
+      if (!visible()) return;
+      lastRefresh = Date.now();
+      router.refresh();
     };
+    /* Trailing: wait for the burst to settle, and keep at least MIN_GAP_MS between refreshes. */
+    const push = () => {
+      if (!visible()) return;
+      if (timer) return;
+      const wait = Math.max(SETTLE_MS, lastRefresh + MIN_GAP_MS - Date.now());
+      timer = setTimeout(refreshNow, wait);
+    };
+    /* True only while the socket is joined. The poll below is a safety net for a dropped socket,
+       so it stays quiet while this is true. */
+    let connected = false;
 
     /* SIGNED IN BEFORE SUBSCRIBING (found 2026-10-01: a forms help note reached the founder
        inbox table and the open inbox never showed it until Phil refreshed). The browser client
@@ -83,23 +107,28 @@ export default function RealtimeRefresh({
       if (cancelled) return;
       await supabase.realtime.setAuth(data.session?.access_token ?? null);
       if (cancelled) return;
-      channel.subscribe();
+      channel.subscribe((status) => {
+        connected = status === "SUBSCRIBED";
+      });
     })();
 
     // Poll fallback for a dropped socket. Only while the tab is being looked at.
-    const interval = setInterval(push, pollMs);
+    const interval = setInterval(() => {
+      if (!connected) push();
+    }, pollMs);
 
     /* Back on the screen: push once, so what changed while you were away is simply there.
        Unconditional, because a socket that dropped while hidden would have had nothing to
        report either way. */
     const onVisible = () => {
-      if (visible()) router.refresh();
+      if (visible()) push();
     };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onVisible);
 
     return () => {
       cancelled = true;
+      if (timer) clearTimeout(timer);
       supabase.removeChannel(channel);
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisible);

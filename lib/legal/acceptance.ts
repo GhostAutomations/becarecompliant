@@ -3,6 +3,7 @@ import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { LEGAL_VERSIONS, legalPublished } from "@/lib/legal/documents";
 import { acceptanceCurrent, agreementGateOn } from "@/lib/legal/fill";
+import { getCompanyRow } from "@/lib/companies/row";
 
 /**
  * The agreement gate's database half (0346).
@@ -63,12 +64,8 @@ export const needsAgreement = cache(async (companyId: string): Promise<boolean> 
   const supabase = await createClient();
   const published = legalPublished();
   if (!published) {
-    const { data: co, error } = await supabase
-      .from("companies")
-      .select("agreement_required")
-      .eq("id", companyId)
-      .maybeSingle();
-    if (error || !co) return false;
+    const co = await getCompanyRow(companyId);
+    if (!co) return false;
     if (!agreementGateOn(false, Boolean((co as { agreement_required?: boolean }).agreement_required))) return false;
   }
   const { data, error } = await supabase

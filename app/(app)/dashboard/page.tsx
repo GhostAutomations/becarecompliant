@@ -50,6 +50,7 @@ import {
 import { getBranchTerms } from "@/lib/branches/company-word";
 import { getCompanyDemo, getMyDemoLogin } from "@/lib/demo/data";
 import { DEMO_TRY_AI_PATH } from "@/lib/demo/rules";
+import { getCompanyRow } from "@/lib/companies/row";
 
 /**
  * The dashboard, rebuilt to Phil's Mission Control design (2026-07-29).
@@ -661,11 +662,7 @@ export default async function DashboardPage() {
   let heading = `Welcome, ${(profile.full_name || profile.email).split(" ")[0]}`;
   let subtitle = "Here is what is happening with your compliance today.";
   if (profile.actingAsCompanyId) {
-    const { data: co } = await supabase
-      .from("companies")
-      .select("name")
-      .eq("id", profile.actingAsCompanyId)
-      .maybeSingle();
+    const co = await getCompanyRow(profile.actingAsCompanyId);
     heading = `Support session: ${co?.name ?? "this company"}`;
     subtitle = "You are managing this company for support. Its compliance overview is below.";
   }
@@ -686,7 +683,7 @@ export default async function DashboardPage() {
   if (showsBilling) {
     const [{ data: co }, { data: bill }, { data: userRows }, { data: branchRows }] =
       await Promise.all([
-        supabase.from("companies").select("tier").eq("id", companyId).maybeSingle(),
+        getCompanyRow(companyId).then((company) => ({ data: company })),
         supabase
           .from("company_billing")
           .select("subscription_status")
@@ -799,11 +796,7 @@ export default async function DashboardPage() {
       getRecentActivity(companyId),
       canSeeOnCall ? getUrgentFollowUps(companyId) : Promise.resolve([]),
     ]);
-  const { data: coRow } = await supabase
-    .from("companies")
-    .select("name")
-    .eq("id", companyId)
-    .maybeSingle();
+  const coRow = await getCompanyRow(companyId);
   const pqs = canSeePqs ? await getPqsSummary(companyId, coRow?.name ?? "Company") : null;
   // The white score tiles: the company and every branch this user can see. Only computed when
   // there are measures to show, since each extra branch is a full run of the PQS engine.

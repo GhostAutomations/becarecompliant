@@ -1,6 +1,6 @@
 import "server-only";
-import { createClient } from "@/lib/supabase/server";
 import { onCallLabel } from "@/lib/on-call/label";
+import { getCompanyRow } from "@/lib/companies/row";
 
 /**
  * What THIS company calls the On Call department (migration 0276).
@@ -11,11 +11,6 @@ import { onCallLabel } from "@/lib/on-call/label";
  */
 export async function getOnCallLabel(companyId: string | null | undefined): Promise<string> {
   if (!companyId) return onCallLabel(null);
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("companies")
-    .select("on_call_label")
-    .eq("id", companyId)
-    .maybeSingle();
+  const data = await getCompanyRow(companyId);
   return onCallLabel((data as { on_call_label?: string | null } | null)?.on_call_label);
 }

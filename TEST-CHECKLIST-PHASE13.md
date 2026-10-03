@@ -234,3 +234,12 @@ in the same piece of work (Phil: "we are passed final testing so it needs to be 
 | R4 | Probe as Supervisor after 0323: nothing taken away | PASS (20 of 20) |
 | R5 | Carer holiday after 0323: own record allowed, somebody else refused, no record named allowed | PASS (rolled back) |
 | R6 | Chloe Driscoll's role after every probe | PASS (still supervisor) |
+
+## W1, DBS or Right to Work never recorded is red from the start date (3 Oct 2026, deploy dpl_EmjMVxi4)
+
+- W1-1 Bevan, ZZ Audit Walk Person (no DBS, no RTW): record pill red, DBS and Right to Work tiles red "Not recorded". PASS (checked by Claude in the browser pane)
+- W1-2 Bevan People register: red "Not recorded" in the DBS renewal and RTW Limits cells for the two Bevan starters with nothing on file (4 cells). PASS (Claude)
+- W1-3 Bevan dashboard Overdue: 7 people (was 5): ZZ Audit Walk Person (missing documents) and Osian Mathias (DBS renewal 22 Sep, lapsed, never counted before). PASS (Claude, matched to the database)
+- W1-4 Thistle, Chloe Driscoll: RTW Limits red "Not recorded" on the register, Right to Work tile red, record pill red. PASS (Phil)
+- Still to see: the 06:00 digest on 4 Oct lists Chloe Driscoll, Jamie Meredith and Michaela Wright under "Right to Work expired or not on file".
+

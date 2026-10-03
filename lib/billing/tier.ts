@@ -1,6 +1,6 @@
 import "server-only";
-import { createClient } from "@/lib/supabase/server";
 import type { Tier } from "@/lib/stripe/config";
+import { getCompanyRow } from "@/lib/companies/row";
 
 /**
  * Server-side tier gating. Feature access is decided HERE, never in the UI
@@ -52,12 +52,7 @@ export function featureMinTier(_feature: Feature): Tier {
 
 /** Read a company's tier. Defaults to "business" (least privilege) if unknown. */
 export async function getCompanyTier(companyId: string): Promise<Tier> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("companies")
-    .select("tier")
-    .eq("id", companyId)
-    .maybeSingle();
+  const data = await getCompanyRow(companyId);
   const tier = (data?.tier ?? "business") as Tier;
   return tier;
 }

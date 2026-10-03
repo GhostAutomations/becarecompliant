@@ -282,11 +282,7 @@ export async function getComplianceScore(
   opts: { companyWide: boolean },
 ): Promise<ComplianceScore> {
   const supabase = await createClient();
-  const { data: company } = await supabase
-    .from("companies")
-    .select("framework_enabled, regulator")
-    .eq("id", companyId)
-    .maybeSingle();
+  const company = await getCompanyRow(companyId);
   const co = company as { framework_enabled: boolean | null; regulator: string | null } | null;
   if (!co?.framework_enabled) return { enabled: false };
 
@@ -504,7 +500,7 @@ export async function getSpendThisMonth(companyId: string): Promise<SpendThisMon
       .in("reason", ["spend", "refund"])
       .gte("created_at", monthStart),
     supabase.from("company_ai_credits").select("balance").eq("company_id", companyId).maybeSingle(),
-    supabase.from("companies").select("tier").eq("id", companyId).maybeSingle(),
+    getCompanyRow(companyId).then((company) => ({ data: company })),
     supabase.from("company_sms_credits").select("balance").eq("company_id", companyId).maybeSingle(),
   ]);
 
@@ -677,6 +673,7 @@ export async function getRecentActivity(companyId: string): Promise<ActivityLine
  * =========================================================================== */
 
 import { getPqsMeasures, defaultOnTimeWindow, type PqsMeasure } from "@/lib/export/on-time";
+import { getCompanyRow } from "@/lib/companies/row";
 
 /**
  * Every measure Cardiff scores, from the SAME computation the PQS report renders. Not a

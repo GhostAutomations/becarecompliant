@@ -14,6 +14,7 @@ import { type ProbationPeriod, probationFrom } from "@/lib/people/probation";
 import { branchScopedRole } from "@/lib/auth/manage-scope";
 import { completionDate, dateKeysByVersion } from "@/lib/evidence/completion-date";
 import { callerBranchIds } from "@/lib/auth/branches";
+import { getCompanyRow } from "@/lib/companies/row";
 import type {
   CheckDefinition,
   CheckStatus,
@@ -47,12 +48,7 @@ export async function getRollupCounts(
 
 /** The company Probationary Period in days (default 180). */
 export async function getProbationPeriod(companyId: string): Promise<ProbationPeriod> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("companies")
-    .select("probation_period_value, probation_period_unit")
-    .eq("id", companyId)
-    .maybeSingle();
+  const data = await getCompanyRow(companyId);
   return probationFrom(data?.probation_period_value, data?.probation_period_unit);
 }
 
@@ -73,12 +69,7 @@ export async function listJobTitles(companyId: string): Promise<JobTitle[]> {
 
 /** Per-company shorthand labels for the People register columns ({} if none). */
 export async function getColumnLabels(companyId: string): Promise<Record<string, string>> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("companies")
-    .select("people_column_labels")
-    .eq("id", companyId)
-    .maybeSingle();
+  const data = await getCompanyRow(companyId);
   return ((data?.people_column_labels as Record<string, string> | null) ?? {}) as Record<string, string>;
 }
 
@@ -177,12 +168,11 @@ export async function getSupervisionCycleMode(
   companyId: string,
   client?: SupabaseClient,
 ): Promise<SupervisionCycleMode> {
-  const supabase = client ?? (await createClient());
-  const { data } = await supabase
-    .from("companies")
-    .select("supervision_cycle_mode")
-    .eq("id", companyId)
-    .maybeSingle();
+  // The caller's own client when one is passed (a cron, a service read); otherwise the row this
+  // request has already read (lib/companies/row.ts, audit B1).
+  const data = client
+    ? (await client.from("companies").select("supervision_cycle_mode").eq("id", companyId).maybeSingle()).data
+    : await getCompanyRow(companyId);
   return (data?.supervision_cycle_mode as SupervisionCycleMode | null) ?? "appraisal";
 }
 

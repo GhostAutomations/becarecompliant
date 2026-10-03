@@ -21,6 +21,7 @@ import { trialNotice } from "@/lib/billing/trial-limits";
 import { getCompanyDemo, getMyDemoLogin } from "@/lib/demo/data";
 import DemoHeartbeat from "@/components/demo/demo-heartbeat";
 import { formatDemoDate, DEMO_TRY_AI_PATH } from "@/lib/demo/rules";
+import { getCompanyRow } from "@/lib/companies/row";
 
 export default async function AppLayout({
   children,
@@ -36,12 +37,7 @@ export default async function AppLayout({
     profile.role === "platform_admin" ? await readActingCompanyId() : null;
   let actingCompanyName: string | null = null;
   if (actingCompanyId) {
-    const supabase = await createClient();
-    const { data } = await supabase
-      .from("companies")
-      .select("name")
-      .eq("id", actingCompanyId)
-      .maybeSingle();
+    const data = await getCompanyRow(actingCompanyId);
     actingCompanyName = data?.name ?? "this company";
   }
   // Complaints and Invoicing are Pro features: hide their nav entries for
@@ -63,12 +59,7 @@ export default async function AppLayout({
   let onCallName = "On Call";
   let companyBranchWord: BranchWord = DEFAULT_BRANCH_WORD;
   if (navCompanyId) {
-    const supabase = await createClient();
-    const { data: co } = await supabase
-      .from("companies")
-      .select("name, framework_enabled, ui_theme, on_call_label, branch_word, branch_word_plural")
-      .eq("id", navCompanyId)
-      .maybeSingle();
+    const co = await getCompanyRow(navCompanyId);
     const c = co as {
       name?: string | null;
       framework_enabled?: boolean | null;

@@ -18,6 +18,7 @@ import { profilesById, profileName } from "@/lib/auth/company-profiles";
 import { branchScopedRole } from "@/lib/auth/manage-scope";
 import { carersOf } from "./care-plan-consts";
 import type { CheckDefinition } from "@/lib/people/types";
+import { getCompanyRow } from "@/lib/companies/row";
 import type {
   ServiceUserRecord,
   ServiceUserRollup,
@@ -61,12 +62,7 @@ export async function getServiceUserRollupCounts(
 
 /** Per-company shorthand labels for the Service User register columns ({} if none). */
 export async function getServiceUserColumnLabels(companyId: string): Promise<Record<string, string>> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("companies")
-    .select("service_user_column_labels")
-    .eq("id", companyId)
-    .maybeSingle();
+  const data = await getCompanyRow(companyId);
   return ((data?.service_user_column_labels as Record<string, string> | null) ?? {}) as Record<string, string>;
 }
 
@@ -95,12 +91,7 @@ export async function getReviewIntervalDays(companyId: string): Promise<number> 
 
 /** The company outcomes review cadence in months (default 3). */
 export async function getOutcomesReviewMonths(companyId: string): Promise<number> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("companies")
-    .select("outcomes_review_months")
-    .eq("id", companyId)
-    .maybeSingle();
+  const data = await getCompanyRow(companyId);
   return Number((data?.outcomes_review_months as number | null) ?? 3);
 }
 
@@ -349,7 +340,7 @@ export async function getOutcomesRegister(companyId: string, branchId: string | 
       .select("service_user_id, status, last_update_at, created_at")
       .eq("company_id", companyId)
       .is("archived_at", null),
-    supabase.from("companies").select("outcomes_review_months").eq("id", companyId).maybeSingle(),
+    getCompanyRow(companyId).then((company) => ({ data: company })),
   ]);
 
   const intervalMonths = Number((company?.outcomes_review_months as number | undefined) ?? 3);

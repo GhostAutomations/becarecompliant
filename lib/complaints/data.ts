@@ -18,6 +18,7 @@ import {
 } from "./types";
 
 import { defaultComplaintTimescales } from "./regulator-defaults";
+import { getCompanyRow } from "@/lib/companies/row";
 
 export { getCompanyFormByKey, getPublishedFormVersion } from "@/lib/people/data";
 export { listAccessibleBranchTypes } from "@/lib/service-users/data";
@@ -54,7 +55,7 @@ export async function getComplaintsConfig(companyId: string): Promise<Complaints
       .select("acknowledgement_days, response_days, amber_days, count_working_days, ref_prefix")
       .eq("company_id", companyId)
       .maybeSingle(),
-    supabase.from("companies").select("regulator").eq("id", companyId).maybeSingle(),
+    getCompanyRow(companyId).then((company) => ({ data: company })),
   ]);
   const fallback = defaultComplaintTimescales(company?.regulator);
   if (!data) return { ...fallback, ref_prefix: null };
@@ -69,12 +70,7 @@ export async function getComplaintsConfig(companyId: string): Promise<Complaints
 
 /** The company's regulator, for screens that explain where a default came from. */
 export async function getRegulator(companyId: string): Promise<string | null> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("companies")
-    .select("regulator")
-    .eq("id", companyId)
-    .maybeSingle();
+  const data = await getCompanyRow(companyId);
   return (data?.regulator as string | null) ?? null;
 }
 
@@ -84,7 +80,7 @@ export async function getComplaintRefPrefix(companyId: string): Promise<string> 
   const supabase = await createClient();
   const [{ data: cfg }, { data: company }] = await Promise.all([
     supabase.from("complaints_config").select("ref_prefix").eq("company_id", companyId).maybeSingle(),
-    supabase.from("companies").select("name").eq("id", companyId).maybeSingle(),
+    getCompanyRow(companyId).then((company) => ({ data: company })),
   ]);
   const configured = ((cfg?.ref_prefix as string | null) ?? "").trim();
   if (configured) return configured;
