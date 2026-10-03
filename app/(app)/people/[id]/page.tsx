@@ -544,10 +544,12 @@ export default async function PersonPage({
     <CycleBox
       title="Annual Appraisal"
       due={aaSlot.nextDue}
-      comp={aaSlot.comp}
+      comp={aaSlot.doneShown}
       ragClass={slotPill(aaSlot.nextDueRag)}
       href={
-        appraisalStatus && appraisalTileDef.form_id && canComplete && appraisalReady && !aaSlot.comp
+        /* Offered while the next appraisal is due and not yet done. This was "no appraisal on file",
+           which hid the button from anybody appraised before, however overdue the next one was. */
+        appraisalStatus && appraisalTileDef.form_id && canComplete && appraisalReady && !aaSlot.nextDueMet
           ? `/people/${person.id}/checks/${appraisalStatus.instance_id}/complete`
           : null
       }

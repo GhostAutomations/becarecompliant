@@ -25,3 +25,14 @@ export function appraisalDueMet(anchor: string | null, comp: string | null): boo
   if (!anchor || !comp) return false;
   return comp > anchor;
 }
+
+/**
+ * WHAT THE DONE CELL SHOWS (Phil, 2026-09-17, standing rule: "when an appraisal, supervision and
+ * review becomes due clean the corresponding done date"; re-raised 3 Oct when the appraisal was
+ * found still showing last year's date beside the new due date). Once the next appraisal is due
+ * and not yet done, the Done cell is empty; the old date stays stored and in the reports, and the
+ * cell fills again when the appraisal is completed. Supervisions and reviews already did this.
+ */
+export function appraisalDoneShown(nextDue: string | null, nextDueMet: boolean, comp: string | null): string | null {
+  return nextDue && !nextDueMet ? null : comp;
+}

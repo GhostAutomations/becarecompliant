@@ -98,7 +98,7 @@ export default async function PeopleSummaryPage({
         rag: (s.comp ? "green" : (s.rag as CardRag)) as CardRag,
       })),
       ...(cycleMode === "appraisal"
-        ? [{ label: "AA", rag: (aa.comp ? "green" : (aa.nextDueRag as CardRag)) as CardRag }]
+        ? [{ label: "AA", rag: (aa.doneShown ? "green" : (aa.nextDueRag as CardRag)) as CardRag }]
         : []),
     ];
 

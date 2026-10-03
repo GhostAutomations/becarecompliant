@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { appraisalDueMet } from "./appraisal-due.ts";
+import { appraisalDueMet, appraisalDoneShown } from "./appraisal-due.ts";
 
 test("an appraisal done after its Supervision 3 has discharged the deadline", () => {
   // Chloe Driscoll: Sup 3 on 03/04/2026 makes the appraisal due 22/06/2026, and she was
@@ -29,4 +29,13 @@ test("no anchor, or no appraisal, is never met", () => {
   assert.equal(appraisalDueMet(null, "2026-07-03"), false);
   assert.equal(appraisalDueMet("2026-07-03", null), false);
   assert.equal(appraisalDueMet(null, null), false);
+});
+
+test("the Done cell clears once the next appraisal is due, and fills again when it is done", () => {
+  // Mary Ikpi-Ubi: appraised 18/12/2025, Supervision 3 on 24/08/2026, next appraisal due 12/11/2026.
+  assert.equal(appraisalDoneShown("2026-11-12", appraisalDueMet("2026-08-24", "2025-12-18"), "2025-12-18"), null);
+  // Appraised on 01/11/2026, after that Supervision 3: the deadline is met, the date shows.
+  assert.equal(appraisalDoneShown("2026-11-12", appraisalDueMet("2026-08-24", "2026-11-01"), "2026-11-01"), "2026-11-01");
+  // No next appraisal due yet (Supervision 3 not done): the last one shows.
+  assert.equal(appraisalDoneShown(null, false, "2025-12-18"), "2025-12-18");
 });

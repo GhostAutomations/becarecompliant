@@ -387,7 +387,7 @@ export default function RegisterMatrix({
                           NOT when the stored due date is one the last appraisal already met: that
                           cycle is closed and the cell reads like a completed supervision slot. */}
                       <td>{aaSlot.nextDueMet ? <CycleDate date={aaSlot.nextDue} /> : <RagDate date={aaSlot.nextDue} rag={aaSlot.nextDueRag} />}</td>
-                      <td><DoneDate date={aaSlot.comp} late={aaSlot.compRag === "red"} /></td>
+                      <td><DoneDate date={aaSlot.doneShown} late={aaSlot.compRag === "red"} /></td>
                     </>
                   )}
                   {has("audit") ? <td>

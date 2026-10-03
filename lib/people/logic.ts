@@ -12,7 +12,7 @@ import {
   type AnswerValue,
   type FormSchema,
 } from "@/lib/form-schema";
-import { appraisalDueMet } from "./appraisal-due";
+import { appraisalDueMet, appraisalDoneShown } from "./appraisal-due";
 import { datedFromStart } from "./start-dated";
 import {
   type ProbationPeriod,
@@ -412,6 +412,9 @@ export type AppraisalSlot = {
    * this the row said red for overdue beside a green completed on the very same day.
    */
   nextDueMet: boolean;
+  /** What the Done cell shows: empty while the next appraisal is due and not done (Phil's
+   *  17 Sep rule). `comp` stays the last appraisal for everything else. */
+  doneShown: string | null;
 };
 
 /**
@@ -489,7 +492,7 @@ export function appraisalSlot(
   const nextDueMet = appraisalDueMet(anchor, comp);
   if (nextDue && !nextDueMet) nextDueRag = ragStatus(parseCivilDate(nextDue), today, amberDays);
 
-  return { nextDue, nextDueRag, comp, compRag, nextDueMet };
+  return { nextDue, nextDueRag, comp, compRag, nextDueMet, doneShown: appraisalDoneShown(nextDue, nextDueMet, comp) };
 }
 
 /**
