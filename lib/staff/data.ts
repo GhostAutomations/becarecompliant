@@ -120,7 +120,8 @@ export type PersonLoginStatus = {
 /**
  * Whether this Person has a Team Member login yet, for their record. Goes through
  * person_login_status (migration 0134) because profiles and invites are readable
- * by Company Admins only, and a Branch Manager needs to see this too.
+ * by Company Admins only, and a Branch Manager, Supervisor or Recruiter needs to see this too
+ * (0379: the same people who may send the invite).
  */
 export async function getPersonLoginStatus(
   personId: string,
@@ -129,7 +130,13 @@ export async function getPersonLoginStatus(
   const { data, error } = await supabase.rpc("person_login_status", {
     p_person_id: personId,
   });
-  if (error || !data) return null;
+  if (error) {
+    /* SAID OUT LOUD, NOT SWALLOWED (audit B2). A refusal here used to blank the login box
+       with nothing in the logs to say why. */
+    console.error("person_login_status failed", { personId, message: error.message });
+    return null;
+  }
+  if (!data) return null;
   return data as PersonLoginStatus;
 }
 

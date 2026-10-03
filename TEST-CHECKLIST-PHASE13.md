@@ -243,3 +243,17 @@ in the same piece of work (Phil: "we are passed final testing so it needs to be 
 - W1-4 Thistle, Chloe Driscoll: RTW Limits red "Not recorded" on the register, Right to Work tile red, record pill red. PASS (Phil)
 - Still to see: the 06:00 digest on 4 Oct lists Chloe Driscoll, Jamie Meredith and Michaela Wright under "Right to Work expired or not on file".
 
+
+## B1, the dashboard refresh storm (3 Oct 2026, final deploy dpl_Fg7va8R2)
+
+- B1-1 Idle dashboard, live connection healthy: before the fix 800 to 3,500 requests a minute, after 0. PASS (Claude, Supabase logs and browser timings)
+- B1-2 A live change lands on the open dashboard: refreshed in 1.8 seconds. PASS (Claude)
+- B1-3 Dashboard reopened after the pane was hidden: 18 link prefetches on load, then one refresh in about 3.5 minutes (a real change), otherwise quiet. PASS (Claude)
+- B1-4 Background tab for 10+ minutes in Chrome, then return: one refresh, live updates still arrive. TO TEST NOW in Chrome (the pane reloads on reopen, so the rejoin path never ran there).
+
+## B2, Supervisors and Recruiters see the Carer login box (3 Oct 2026, migration 0379)
+
+- B2-1 Probe as Thistle Supervisor (dd1b8fe3), rolled back: person in her branch refused before 0379, login status returned after. PASS (Claude)
+- B2-2 Same Supervisor, person in another company: refused after 0379. PASS (Claude)
+- B2-3 Acme Supervisor: is_branch_lead true for her own branch; a person outside her branch is not even readable. PASS (Claude)
+- B2-4 Live: Supervisor opens a Person record and sees the Carer login box with the right state. To test after 0379 is applied and deployed.

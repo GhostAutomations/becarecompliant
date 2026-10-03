@@ -208,8 +208,8 @@ export default async function PersonPage({
     ? await listOutcomeLetters({ personId: id })
     : {};
 
-  // Their own login. Manager-and-above information, so it is only fetched for someone who
-  // can manage the record. The briefings that were fetched alongside it went with the tile.
+  // Their own login. Only fetched for someone who can manage the record, which is also who
+  // may send the invite (0379 made person_login_status agree with that, audit B2). The briefings that were fetched alongside it went with the tile.
   const login = canManage ? await getPersonLoginStatus(id) : null;
 
   // The history timeline uses the record_audit_trail RPC (guarded by
