@@ -103,10 +103,10 @@ export function serviceTemplates(config: InvoicingConfig): InvoiceTemplate[] {
   for (const s of INVOICE_SERVICES) {
     const base = serviceRatePence(config, s.key);
     for (const h of HANDED) {
-      out.push({ description: `${s.label} - ${h.label}`, unit_price_pence: Math.round(base * h.multiplier) });
+      out.push({ description: `${s.label}, ${h.label}`, unit_price_pence: Math.round(base * h.multiplier) });
     }
     const fixed = serviceFixedPence(config, s.key);
-    if (fixed > 0) out.push({ description: `${s.label} - Fixed`, unit_price_pence: fixed });
+    if (fixed > 0) out.push({ description: `${s.label}, fixed`, unit_price_pence: fixed });
   }
   return out;
 }

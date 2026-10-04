@@ -40,7 +40,7 @@ export function importSummaryEmail(opts: {
     <p style="margin:0 0 6px 0;">The bulk import into
     <strong style="color:#ffffff;">${escapeHtml(opts.companyName)}</strong> is complete.
     <strong style="color:#ffffff;">${opts.created}</strong> ${noun} were added.
-    ${flagCount > 0 ? "Some items need your attention:" : "Nothing needs your attention."}</p>
+    ${flagCount > 0 ? "Some rows need your attention:" : "Nothing needs your attention."}</p>
     ${skippedBlock}
     ${erroredBlock}`;
 

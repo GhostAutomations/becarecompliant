@@ -725,7 +725,7 @@ export default async function FounderCompanyPage({
       <section aria-label="Company name" className="glass-card p-5">
         <h2 className="text-sm font-semibold text-white/80">Company name</h2>
         <p className="mt-1 mb-3 text-sm text-white/60">
-          What prints on their evidence PDFs, their statutory reports and — through Stripe — on
+          What prints on their evidence PDFs, their statutory reports and, through Stripe, on
           every invoice. Changing it here updates their Stripe customer record too. The slug in
           the address bar is left alone, because people have it bookmarked.
         </p>

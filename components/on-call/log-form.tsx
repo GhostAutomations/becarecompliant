@@ -40,14 +40,11 @@ export default function LogForm({
   const [saved, setSaved] = useState(false);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  // Flash the green "Saved" briefly, then revert (never a stuck green box).
+  /* Green "Saved" that STAYS until the form is edited (the Save rule, docs/SAVE_BUTTONS.md; audit
+     R3). onChange below clears it. This had its own 2 second timer, the pattern removed elsewhere. */
   useEffect(() => {
-    if (state.ok && !pending) {
-      setSaved(true);
-      const t = setTimeout(() => setSaved(false), 2000);
-      return () => clearTimeout(t);
-    }
-  }, [state.ok, pending]);
+    if (state.ok && !pending) setSaved(true);
+  }, [state, pending]);
   // One-click flow (per Phil): Save both saves the shift AND immediately offers
   // to finalise it, so nobody has to hunt for a second button. A finalise submit
   // returns redirectTo (the page re-renders read-only), so the popup only opens

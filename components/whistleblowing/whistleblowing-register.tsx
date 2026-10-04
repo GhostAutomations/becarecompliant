@@ -65,7 +65,7 @@ export default function WhistleblowingRegister({
         <p className="mt-1">
           This register is visible to the Admin and the Responsible Individual only. Branch
           managers cannot see it at any level, and that is enforced by the database rather
-          than by a hidden menu — a disclosure is commonly about a manager.
+          than by a hidden menu, because a disclosure is commonly about a manager.
         </p>
       </div>
 

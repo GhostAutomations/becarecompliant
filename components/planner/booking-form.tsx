@@ -288,7 +288,7 @@ export default function BookingForm({
                 check on the same trip, and a list you can only pick one of from made that
                 two visits at the same minute -- which the clash rule refuses outright. */}
             <span className="mb-1 block font-medium text-white/80">
-              What is being done{checkTargets.length > 1 ? ` — ${checkTargets.length} on this visit` : ""}
+              What is being done{checkTargets.length > 1 ? `, ${checkTargets.length} on this visit` : ""}
             </span>
             <div className="max-h-44 space-y-1 overflow-y-auto rounded-lg border border-white/10 bg-white/5 p-2">
               {checks.map((c) => {
@@ -302,7 +302,7 @@ export default function BookingForm({
                     />
                     <span className="text-white/85">
                       {c.name}
-                      {c.dueDate ? <span className="text-white/45"> — due {fmtDue(c.dueDate)}</span> : null}
+                      {c.dueDate ? <span className="text-white/45">, due {fmtDue(c.dueDate)}</span> : null}
                     </span>
                   </label>
                 );

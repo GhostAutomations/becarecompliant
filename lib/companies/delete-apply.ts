@@ -327,7 +327,7 @@ export async function restoreCompany(input: {
     ok: true,
     message:
       `${company.name} is back and everyone there can sign in again. Their subscription was ` +
-      `cancelled when they were deleted and does NOT come back — they will need to subscribe again.`,
+      `cancelled when they were deleted and does NOT come back: they will need to subscribe again.`,
   };
 }
 

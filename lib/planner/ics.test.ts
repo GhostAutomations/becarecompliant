@@ -59,7 +59,7 @@ test("initials survive an accent and give back nothing when there are no letters
 });
 
 test("the title carries initials and the branch, never the full name", () => {
-  assert.equal(eventTitle(ev()), "Care Plan Review - M.J. (Cardiff)");
+  assert.equal(eventTitle(ev()), "Care Plan Review, M.J. (Cardiff)");
   const t = eventTitle(ev());
   assert.ok(!t.includes("Mary"), "the title must not contain a first name");
   assert.ok(!t.includes("Jones"), "the title must not contain a surname");

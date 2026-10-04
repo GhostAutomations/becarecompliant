@@ -252,7 +252,7 @@ export default function BuilderShell(props: Props) {
             type="button"
             onClick={() => doSave()}
             disabled={pending}
-            className={`${!dirty && message?.ok ? "btn-saved" : "btn-outline"} px-3 py-2 text-sm`}
+            className={`${!dirty && message?.ok ? "btn-saved" : "btn-primary"} px-3 py-2 text-sm`}
           >
             {pending ? "Saving…" : !dirty && message?.ok ? "Saved" : props.kind === "template" ? "Save template" : "Save draft"}
           </button>

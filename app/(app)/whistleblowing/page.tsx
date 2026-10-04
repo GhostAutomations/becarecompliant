@@ -36,7 +36,7 @@ export default async function WhistleblowingPage() {
           <p className="font-medium text-white/90">This register is closed to us.</p>
           <p className="mt-2">
             Whistleblowing disclosures are readable by the company&rsquo;s own Admin and
-            Responsible Individual, and by nobody else — including Be Care Compliant. That is
+            Responsible Individual, and by nobody else, including Be Care Compliant. That is
             enforced in the database, so it holds in support mode too.
           </p>
           <p className="mt-2 text-white/55">

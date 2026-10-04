@@ -65,7 +65,7 @@ export default function RaiseConcern() {
           You may use my name
           <span className="block text-xs text-white/50">
             Leave this alone to stay anonymous. If you leave it alone your name is not stored
-            anywhere on the concern — not hidden, not stored. Tick it only if you are happy for
+            anywhere on the concern: not hidden, not stored. Tick it only if you are happy for
             the Admin to know it came from you, for instance so they can come back to you.
           </span>
         </span>

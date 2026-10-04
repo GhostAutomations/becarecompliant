@@ -97,7 +97,7 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
   if (!trimOrNull(formData.get("manager_id"))) {
     return {
       error:
-        "Choose a line manager. If there is nobody to choose, invite your office team in Settings, Users first — they appear here once they have accepted.",
+        "Choose a line manager. If there is nobody to choose, invite your office team in Settings, Users first. They appear here once they have accepted.",
     };
   }
 
@@ -308,7 +308,7 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
     return {
       error:
         `${full_name} has been added, but their history could not be recorded ` +
-        `(${historyFailed.join("; ")}). Do NOT press Add person again — open ${full_name} ` +
+        `(${historyFailed.join("; ")}). Do NOT press Add person again. Open ${full_name} ` +
         `from the People register and record those dates on their record.`,
     };
   }

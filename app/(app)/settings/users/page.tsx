@@ -190,7 +190,12 @@ export default async function UsersPage() {
       roleRank(a.role) - roleRank(b.role) ||
       (a.full_name || a.email).localeCompare(b.full_name || b.email),
   );
-  const activeUsers = userList.filter((u) => !PASSIVE_ROLES.includes(u.role));
+  /* ACTIVE MEANS ACTIVE (audit W3, Phil 4 Oct 2026: "count active only"). This counted every
+     staff login, so a company with 2 seats in use read "Active users (7)" because five logins
+     had been disabled. Disabled logins have their own section below; invited ones are listed
+     under the pending invitations. */
+  const activeUsers = userList.filter((u) => !PASSIVE_ROLES.includes(u.role) && u.status === "active");
+  const disabledUsers = userList.filter((u) => !PASSIVE_ROLES.includes(u.role) && u.status === "disabled");
   /* A LEAVER'S LOGIN IS NOT A TEAM MEMBER LOGIN (Phil, 2026-09-29: Mohammed "has been disabled
      because he has been made a leaver. So he should not be being shown"). Leaving closes a
      carer's login (bcc-leavers); it is reopened from their Person record, not from here. */
@@ -622,13 +627,30 @@ export default async function UsersPage() {
         />
       </SettingsSection>
 
+      {disabledUsers.length > 0 ? (
+        <SettingsSection
+          title="Disabled logins"
+          summary="Staff logins that are switched off. They cannot sign in and do not use a seat."
+          count={disabledUsers.length}
+        >
+          <UserDropdown
+            title="Disabled logins"
+            subtitle="Switched off: they cannot sign in and do not use a seat"
+            users={disabledUsers.map(toItem)}
+            branches={branchOptions}
+            roleOptions={roleOptions}
+            emptyText="No disabled logins."
+          />
+        </SettingsSection>
+      ) : null}
+
       <SettingsSection
         title="Carer logins"
         summary="Carers: their own area only, and free of charge."
         count={passiveUsers.length}
       >
         <UserDropdown
-          title="Passive users"
+          title="Carers"
           subtitle="Care Assistants and Senior Care Assistants, free of charge"
           users={passiveUsers.map(toItem)}
           branches={branchOptions}

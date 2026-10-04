@@ -391,7 +391,7 @@ export function managerOutstandingHtml(opts: {
     .slice(0, 40)
     .map(
       (i) =>
-        `<li style="margin:0 0 6px;">${escapeHtml(i.personName)} — ${escapeHtml(i.title)} <span style="color:#fca5a5;">${daysLate(i.dueDate as string, opts.today)} days late</span></li>`,
+        `<li style="margin:0 0 6px;">${escapeHtml(i.personName)}: ${escapeHtml(i.title)} <span style="color:#fca5a5;">${daysLate(i.dueDate as string, opts.today)} days late</span></li>`,
     )
     .join("");
   const more =

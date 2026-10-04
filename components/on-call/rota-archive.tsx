@@ -21,7 +21,7 @@ function rangeLabel(days: string[]): string {
   const opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", timeZone: "UTC" };
   const s = new Date(`${days[0]}T00:00:00Z`).toLocaleDateString("en-GB", opts);
   const e = new Date(`${days[6]}T00:00:00Z`).toLocaleDateString("en-GB", { ...opts, year: "numeric" });
-  return `${s} – ${e}`;
+  return `${s} to ${e}`;
 }
 
 export default function RotaArchive({

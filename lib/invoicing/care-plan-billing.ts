@@ -163,7 +163,7 @@ export function buildCarePlanLines(
           quantity: qty,
           unit_price_pence: unitPriceForCarers(rateFor(e.service), e.unit, carers),
           line_total_pence: lineAmountForCarers(rateFor(e.service), e.unit, carers, qty),
-          description: `${e.service} - ${e.unit} (${carersLabel(carers)})`,
+          description: `${e.service}, ${e.unit} (${carersLabel(carers)})`,
           period_start: sStart,
           period_end: sEnd,
         });

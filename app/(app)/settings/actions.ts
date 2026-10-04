@@ -974,7 +974,7 @@ export async function createCompanyRole(
 
   revalidatePath("/settings/users");
   revalidatePath("/", "layout");
-  return { ok: `${name} created. It starts with everything ${ROLE_LABELS[baseRole] ?? baseRole} has — untick what it must not reach.` };
+  return { ok: `${name} created. It starts with everything ${ROLE_LABELS[baseRole] ?? baseRole} has. Untick what it must not reach.` };
 }
 
 /**

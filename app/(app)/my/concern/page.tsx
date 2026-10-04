@@ -32,7 +32,7 @@ export default async function RaiseConcernPage() {
         <h1 className="page-title mt-1">Raise a concern</h1>
         <p className="page-subtitle">
           If something at work is unsafe, dishonest or wrong, you can say so here. It goes to
-          the Admin and the Responsible Individual only — not to your manager.
+          the Admin and the Responsible Individual only, not to your manager.
         </p>
       </div>
 
@@ -44,7 +44,7 @@ export default async function RaiseConcernPage() {
         <p className="mb-1 font-medium text-white/70">Before you use this</p>
         <p>
           Raising a concern in the public interest is protected by law (the Public Interest
-          Disclosure Act 1998), and you do not have to be right — you have to believe it, and
+          Disclosure Act 1998), and you do not have to be right, you have to believe it, and
           be raising it in good faith.
         </p>
         <p className="mt-2">

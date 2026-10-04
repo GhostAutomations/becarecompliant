@@ -141,7 +141,7 @@ export default async function SettingsPage() {
           <h2 className="text-base font-semibold text-white">Import records</h2>
           <p className="text-sm text-white/60">
             Bulk add existing staff and service users, with their compliance history,
-            when a company comes on board.
+            when a company joins.
           </p>
         </Link>
         {invoicingEnabled && (

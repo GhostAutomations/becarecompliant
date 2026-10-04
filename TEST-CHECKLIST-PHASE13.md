@@ -296,7 +296,16 @@ in the same piece of work (Phil: "we are passed final testing so it needs to be 
 
 ## Bug and data Lows (4 Oct 2026, migration 0383)
 
-- B3-1 After 0383: no current_date left in the three functions. TO TEST after 0383.
-- B4-1 After 0383: Readiness counts Seren Owens (Demo, maternity leave) and the Service User in hospital; the Service User register view includes hospital and respite. TO TEST after 0383.
-- D3-1 After 0383: both company-less logins disabled. TO TEST after 0383.
+- B3-1 After 0383: no current_date left in the three functions. PASS (Claude)
+- B4-1 After 0383: Readiness now filters on not a leaver / not cancelled, and service_user_check_status uses not cancelled with security_invoker still on. PASS (Claude, from the live definitions)
+- D3-1 After 0383: both company-less logins disabled. PASS (Claude)
 - B4-2 Typecheck clean after the framework/data.ts change. PASS (Claude)
+
+## Screen and wording Lows (4 Oct 2026, migration 0384)
+
+- R1/R2 unit tests updated for the reworded calendar title and trial chase subject; whole suite 1484 of 1484. PASS (Claude)
+- W2 to R3 typecheck clean. PASS (Claude)
+- W2-1 After 0384: no archived person on the Bevan Absence page. TO TEST after 0384 and deploy.
+- W3-1 Bevan Settings, Users: Active users counts active logins only; Disabled logins section lists the rest. TO TEST after deploy.
+- W5-1 Bevan dashboard: "1 Service User" singular; due tiles read "checks, ...". TO TEST after deploy.
+- R3-1 Training, Courses: Save turns green Saved and stays until the row is edited. TO TEST after deploy.

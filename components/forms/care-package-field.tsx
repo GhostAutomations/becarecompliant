@@ -96,7 +96,7 @@ export default function CarePackageField({
     <div className="mt-1 space-y-3">
       {lines.length === 0 ? (
         <p className="text-sm text-white/50">
-          No calls yet. Add one for each visit that repeats — the morning call, the tea call, a
+          No calls yet. Add one for each visit that repeats: the morning call, the tea call, a
           sit on a Tuesday.
         </p>
       ) : null}

@@ -88,8 +88,8 @@ test("the chase repeats DAILY, unlike a compliance chaser, so the date is in the
 test("the subject is triageable from a lock screen", () => {
   assert.equal(chaseSubject(1, 2), "1 trial request waiting for a reply");
   assert.equal(chaseSubject(2, 2), "2 trial requests waiting for a reply");
-  assert.equal(chaseSubject(2, 147), "2 trial requests waiting — oldest 6 days");
-  assert.equal(chaseSubject(1, 25), "1 trial request waiting — oldest 1 day");
+  assert.equal(chaseSubject(2, 147), "2 trial requests waiting, oldest 6 days");
+  assert.equal(chaseSubject(1, 25), "1 trial request waiting, oldest 1 day");
 });
 
 test("the wording gets blunter with age", () => {

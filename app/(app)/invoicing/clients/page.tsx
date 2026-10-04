@@ -29,7 +29,7 @@ export default async function PrivateClientsPage() {
         <div className="glass-card px-6 py-12 text-center">
           <p className="text-sm text-white/60">
             No private clients yet. They appear here on their own once a Setup Visit is
-            completed with a funding type you invoice directly — set which those are in
+            completed with a funding type you invoice directly. Set which those are in
             Settings, Service Users, Funding options. You can also switch it on by hand on a
             service user record.
           </p>

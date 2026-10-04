@@ -339,7 +339,7 @@ export default function TrainingMatrix({
             <span className="text-lg font-semibold text-white">
               {stats.pct === null ? "—" : `${stats.pct}%`}
             </span>{" "}
-            <span className="text-white/55">mandatory training in date</span>
+            <span className="text-white/55">mandatory training in date today</span>
           </span>
           {/* THE REGISTER'S COLOURS (2026-09-23), not the pale -soft pill tints, which read as white
               on this bar exactly as they did on the carer cards (DEF-044). */}

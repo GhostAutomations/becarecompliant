@@ -79,7 +79,7 @@ export function alertDeliveryLabel(row: {
 }): { text: string; ok: boolean } {
   if (row.founder_alerted_at) return { text: "You were emailed about this", ok: true };
   if (row.founder_alert_error) return { text: `Alert did not send: ${row.founder_alert_error}`, ok: false };
-  return { text: "No alert recorded — you may never have been told about this one", ok: false };
+  return { text: "No alert recorded: you may never have been told about this one", ok: false };
 }
 
 /** The chase only ever concerns requests still waiting on the founder. */
@@ -101,7 +101,7 @@ export function chaseSubject(count: number, oldestHours: number): string {
   const who = count === 1 ? "1 trial request" : `${count} trial requests`;
   if (oldestHours >= WAITING_RED_HOURS) {
     const days = Math.max(1, Math.floor(oldestHours / 24));
-    return `${who} waiting — oldest ${days} ${days === 1 ? "day" : "days"}`;
+    return `${who} waiting, oldest ${days} ${days === 1 ? "day" : "days"}`;
   }
   return `${who} waiting for a reply`;
 }

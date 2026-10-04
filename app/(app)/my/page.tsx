@@ -320,7 +320,7 @@ export default async function MyAreaPage() {
             <span className="block text-sm font-semibold text-white">Report an incident</span>
             <span className="block text-xs text-white/55">
               An accident, a near miss, or anything that went wrong. Write it while it is
-              fresh — filing it opens a case and the branch takes it from there.
+              fresh: filing it opens a case and the branch takes it from there.
             </span>
           </span>
           <span aria-hidden className="text-white/40">&rsaquo;</span>

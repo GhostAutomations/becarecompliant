@@ -200,7 +200,7 @@ export default function InvoiceBuilder({
               <option value="">Choose a private invoicing client</option>
               {clients.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name} — invoice to {c.invoice_to_label.toLowerCase()}
+                  {c.name}, invoice to {c.invoice_to_label.toLowerCase()}
                 </option>
               ))}
             </select>

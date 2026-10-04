@@ -357,7 +357,7 @@ export default function EmailClient({
             savedLabel="Erased"
             buttonClassName="mailx-cmd mailx-danger"
             className=""
-            confirm="Erase this message for good? It is not kept anywhere else — the provider deletes received mail after 30 days — so this cannot be undone."
+            confirm="Erase this message for good? It is not kept anywhere else (the provider deletes received mail after 30 days), so this cannot be undone."
           />
         ) : null}
 

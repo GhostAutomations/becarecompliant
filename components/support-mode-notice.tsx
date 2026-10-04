@@ -30,7 +30,7 @@ export default function SupportModeNotice({
         <h1 className="text-lg font-semibold text-white">Support mode cannot {what}</h1>
         <p className="mt-3 text-sm text-white/70">
           You are inside this company for support, so you can look at anything and put records
-          right — but completing a check stores evidence signed by whoever completed it, and that
+          right, but completing a check stores evidence signed by whoever completed it, and that
           has to be somebody who actually works here. An inspector reading it would otherwise be
           told a member of staff did something they never did.
         </p>

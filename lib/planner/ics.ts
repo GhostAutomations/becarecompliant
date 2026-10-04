@@ -64,7 +64,7 @@ export function initials(name: string | null | undefined): string | null {
  */
 export function eventTitle(e: Pick<PlannerFeedEvent, "label" | "subjectName" | "branchName">): string {
   const who = initials(e.subjectName);
-  const head = who ? `${e.label} - ${who}` : e.label;
+  const head = who ? `${e.label}, ${who}` : e.label;
   return e.branchName ? `${head} (${e.branchName})` : head;
 }
 

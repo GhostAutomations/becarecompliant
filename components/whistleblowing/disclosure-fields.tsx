@@ -82,7 +82,7 @@ export default function DisclosureFields({
             The discloser gave their name
             <span className="block text-xs text-white/50">
               Leave this unticked unless they did. Untick it later and the name is deleted, not
-              hidden — there is then no name to leak in an export or a backup.
+              hidden, so there is then no name to leak in an export or a backup.
             </span>
           </span>
         </label>
@@ -119,7 +119,7 @@ export default function DisclosureFields({
             name="action_taken"
             rows={3}
             defaultValue={record?.action_taken ?? ""}
-            placeholder="What was done — who investigated, who was told, whether it was referred on."
+            placeholder="What was done: who investigated, who was told, whether it was referred on."
           />
         </div>
       </div>

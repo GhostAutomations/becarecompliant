@@ -22,7 +22,7 @@ export default async function ImportPage() {
         <h1 className="page-title">Import records</h1>
         <p className="page-subtitle">
           Bulk add existing staff and service users with their compliance history, and load a
-          whole training matrix, when a company comes on board. Records added one at a time on
+          whole training matrix, when a company joins. Records added one at a time on
           the registers are for new starters: this is for setting up a whole team at once.
         </p>
       </div>

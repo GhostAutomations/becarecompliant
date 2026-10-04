@@ -318,7 +318,7 @@ function EvidenceDocument({
 }) {
   return (
     <Document
-      title={`${meta.formName} — ${meta.subject.name}`}
+      title={`${meta.formName}, ${meta.subject.name}`}
       author="Be Care Compliant"
     >
       <Page size="A4" style={styles.page}>

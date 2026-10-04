@@ -115,7 +115,7 @@ export async function renderBriefingReport(r: BriefingReport): Promise<Buffer> {
   const verb = r.kind === "policy" ? "Signed" : "Completed";
 
   return renderToBuffer(
-    <Document title={`${r.title} — who has signed`} author={r.companyName}>
+    <Document title={`${r.title}: who has signed`} author={r.companyName}>
       <Page size="A4" style={styles.page}>
         <View style={styles.brandBar} fixed>
           <Text style={styles.title}>{r.title}</Text>

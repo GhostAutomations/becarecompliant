@@ -1092,7 +1092,8 @@ export default async function DashboardPage() {
                 // Math.floor, not Math.round: the figure arrives floored to one decimal, and
                 // rounding it back up here would undo that on the most looked at screen.
                 value: trainingPct == null ? "n/a" : `${Math.floor(trainingPct)}%`,
-                caption: "Training",
+                // Audit W4: today's figure, as on the Training page; the PQS card below is end of period.
+                caption: "Training today",
                 href: "/people/training",
               },
             ]}
@@ -1241,7 +1242,7 @@ export default async function DashboardPage() {
           iconTone="indigo"
           value={overdue}
           tone={overdue > 0 ? "red" : "green"}
-          sub={`${duePreview.overdue.people} people, ${duePreview.overdue.serviceUsers} service users`}
+          sub={`${duePreview.overdue.people} ${duePreview.overdue.people === 1 ? "person" : "people"}, ${duePreview.overdue.serviceUsers} ${duePreview.overdue.serviceUsers === 1 ? "Service User" : "Service Users"}`}
           preview={{ title: "Overdue", ...duePreview.overdue, emptyText: "Nothing is overdue." }}
         />
         <Tile
@@ -1252,7 +1253,7 @@ export default async function DashboardPage() {
           preview={{ title: "Due in 7 days", ...duePreview.d7, emptyText: "Nothing falls due in the next 7 days." }}
           icon="calendar"
           iconTone="orange"
-          sub="today to day 7"
+          sub="checks, today to day 7"
         />
         <Tile
           href="/people"
@@ -1261,7 +1262,7 @@ export default async function DashboardPage() {
           preview={{ title: "Due in 8 to 14 days", ...duePreview.d14, emptyText: "Nothing falls due in days 8 to 14." }}
           icon="calendar"
           iconTone="orange"
-          sub="days 8 to 14"
+          sub="checks, days 8 to 14"
         />
         <Tile
           href="/people"
@@ -1270,7 +1271,7 @@ export default async function DashboardPage() {
           preview={{ title: "Due in 15 to 30 days", ...duePreview.d30, emptyText: "Nothing falls due in days 15 to 30." }}
           icon="calendar"
           iconTone="orange"
-          sub="days 15 to 30"
+          sub="checks, days 15 to 30"
         />
       </div>
 
@@ -1600,6 +1601,9 @@ export default async function DashboardPage() {
             {/* Full width now, so the scroller and the fixed two columns both go: the tiles
                 spread as far as the monitor allows and there is nothing left to scroll. */}
             <div className="flex flex-col">
+              {/* Audit W4: say which moment these figures describe, so they are not read against
+                  the Training tile above, which is today. */}
+              <p className="mb-3 text-xs text-white/55">As PQS counts them, at the end of the last reporting period.</p>
               <div>
                 <div className="dash-grid">
                   {pqsScopes.map((sc, i) => (

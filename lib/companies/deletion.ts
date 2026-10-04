@@ -84,7 +84,7 @@ export function deleteRefusal(req: DeleteRequest): string | null {
     return "That company is already deleted and waiting to be purged.";
   }
   if (normalise(req.typedName) !== normalise(req.companyName)) {
-    return `Type the company's name exactly — "${req.companyName}" — to confirm.`;
+    return `Type the company's name exactly ("${req.companyName}") to confirm.`;
   }
   return null;
 }
@@ -138,7 +138,7 @@ export function deletionWarning(companyName: string, graceDays: number = GRACE_D
   return (
     `${companyName} disappears from the product immediately, every one of its logins stops ` +
     `working, and any live subscription is cancelled there and then with no refund. ` +
-    `Nothing is erased for ${graceDays} days — until then it can be restored, though the ` +
+    `Nothing is erased for ${graceDays} days. Until then it can be restored, though the ` +
     `subscription will not come back. After that its records, files, logins and audit trail ` +
     `are erased for good, leaving only a record that the deletion happened.`
   );

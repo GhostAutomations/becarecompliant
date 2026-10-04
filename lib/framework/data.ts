@@ -349,7 +349,7 @@ export async function getFrameworkReadiness(
       metrics.push({
         label: "Mandatory training",
         pct: training?.summary.mandatoryCompliancePct ?? null,
-        note: "Tracked in the Training department",
+        note: "In date today, as on the Training page",
       });
       /* CIW's framework (Phil, 2026-10-02): safeguarding is its own line ("staff understand and
          follow the Wales Safeguarding Procedures"), and registration with Social Care Wales is

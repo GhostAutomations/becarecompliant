@@ -25,11 +25,11 @@
 
 /** Birdie's five, and for the same reason: a call is booked to part of a day, not to a clock. */
 export const CALL_SLOTS = [
-  { value: "morning", label: "Morning", hint: "06:00 – 11:00" },
-  { value: "lunch", label: "Lunch", hint: "11:00 – 14:00" },
-  { value: "afternoon", label: "Afternoon", hint: "14:00 – 18:00" },
-  { value: "evening", label: "Evening", hint: "18:00 – 22:00" },
-  { value: "night", label: "Night", hint: "22:00 – 06:00" },
+  { value: "morning", label: "Morning", hint: "06:00 to 11:00" },
+  { value: "lunch", label: "Lunch", hint: "11:00 to 14:00" },
+  { value: "afternoon", label: "Afternoon", hint: "14:00 to 18:00" },
+  { value: "evening", label: "Evening", hint: "18:00 to 22:00" },
+  { value: "night", label: "Night", hint: "22:00 to 06:00" },
 ] as const;
 
 export type CallSlot = (typeof CALL_SLOTS)[number]["value"];

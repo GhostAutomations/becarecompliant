@@ -6,18 +6,24 @@ import { IDLE_STATE } from "@/lib/forms";
 import { saveCourse } from "@/lib/training/actions";
 import type { TrainingCourse } from "@/lib/training/data";
 import { submitKeepingTyped } from "@/components/forms/keep-typed";
+import { useSavedFlash } from "@/lib/use-saved-flash";
 
 function CourseRow({ course }: { course: TrainingCourse | null }) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState(saveCourse, IDLE_STATE);
   const isNew = course == null;
 
+  /* The shared Save behaviour (audit R3): gold, then green "Saved" until the row is edited. */
+  const [saved, flash, reset] = useSavedFlash();
   useEffect(() => {
-    if (state.ok) router.refresh();
-  }, [state.ok, router]);
+    if (state.ok) {
+      flash();
+      router.refresh();
+    }
+  }, [state, flash, router]);
 
   return (
-    <form onSubmit={submitKeepingTyped(formAction)} className="flex flex-wrap items-end gap-3 border-t border-white/5 py-3">
+    <form onSubmit={submitKeepingTyped(formAction)} onChange={reset} className="flex flex-wrap items-end gap-3 border-t border-white/5 py-3">
       {course ? <input type="hidden" name="course_id" value={course.id} /> : null}
       <div className="min-w-[12rem] flex-1">
         {isNew ? <label className="form-label">New course</label> : null}
@@ -89,8 +95,8 @@ function CourseRow({ course }: { course: TrainingCourse | null }) {
         <input type="checkbox" name="active" defaultChecked={course?.active ?? true} />
         Active
       </label>
-      <button type="submit" disabled={pending} className="btn-outline px-3 py-2 text-xs">
-        {pending ? "Saving…" : isNew ? "Add" : "Save"}
+      <button type="submit" disabled={pending} className={`${saved ? "btn-saved" : "btn-primary"} px-3 py-2 text-xs`}>
+        {pending ? "Saving…" : saved ? (isNew ? "Added" : "Saved") : isNew ? "Add" : "Save"}
       </button>
       {state.error ? <span className="w-full text-xs text-red-300">{state.error}</span> : null}
     </form>
