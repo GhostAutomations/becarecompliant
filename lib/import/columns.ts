@@ -40,6 +40,8 @@ export type CheckColumn = {
   slots: CheckSlot[];
   /** Every header this check contributes, in file order. */
   headers: string[];
+  /** Days in one cycle, used to tell a Due that belongs to its completion from the next one. */
+  cycleDays: number;
 };
 
 export type DocumentField = { header: string; column: string; kind: "date" | "text" };
@@ -121,7 +123,7 @@ export async function buildColumnPlan(
       intervalDays(d.frequency, d.interval),
       rotation,
     );
-    return { definitionId: d.id, key: d.key, name: d.name, ...plan };
+    return { definitionId: d.id, key: d.key, name: d.name, cycleDays: intervalDays(d.frequency, d.interval), ...plan };
   });
 
   const identity = population === "people" ? PEOPLE_IDENTITY : SU_IDENTITY;

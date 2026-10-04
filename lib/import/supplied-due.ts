@@ -28,6 +28,7 @@ export type SettledDue = {
 export function settleSuppliedDue(
   suppliedDue: string | null | undefined,
   latestCompletion: string | null | undefined,
+  cycleDays?: number | null,
 ): SettledDue {
   const due = suppliedDue ?? null;
   const done = latestCompletion ?? null;
@@ -37,6 +38,14 @@ export function settleSuppliedDue(
   // Met on or before the day it fell due -- and late still counts as met, because the
   // completion is the last thing that happened to that deadline.
   if (due <= done) return { nextDue: null, completionDue: due };
+  /* DONE A FEW DAYS EARLY IS STILL THAT DEADLINE MET (Newport import, 4 Oct 2026). Monday rolls
+     a Due forward a whole cycle when a check is completed, but not always: Lauren Morgan's spot
+     check read "Due 25/09, Done 22/09" and Nicole Munjanja's appraisal "Due 05/10, Done 02/10".
+     Read as the NEXT due, both showed as outstanding after they were done. A Due less than half
+     a cycle after the completion belongs to that completion; one a full cycle on is the next. */
+  if (cycleDays && cycleDays > 0 && daysApart(done, due) < cycleDays / 2) {
+    return { nextDue: null, completionDue: due };
+  }
   return { nextDue: due, completionDue: null };
 }
 

@@ -77,3 +77,15 @@ test("nothing supplied belongs to nothing", () => {
   assert.equal(dueBelongsToCompletion(null, "2026-01-01", 80), false);
   assert.equal(dueBelongsToCompletion("2026-01-01", null, 80), false);
 });
+
+test("a Due a few days after its own completion is that completion's deadline, when the cycle is known", () => {
+  // Lauren Morgan's spot check, 28 day cycle: done 22/09, Monday still said due 25/09.
+  assert.deepEqual(settleSuppliedDue("2026-09-25", "2026-09-22", 28), { nextDue: null, completionDue: "2026-09-25" });
+  // Nicole Munjanja's appraisal, yearly: done 02/10, due 05/10.
+  assert.deepEqual(settleSuppliedDue("2026-10-05", "2026-10-02", 365), { nextDue: null, completionDue: "2026-10-05" });
+  // A Due a whole cycle on is still the next one.
+  assert.deepEqual(settleSuppliedDue("2026-10-14", "2026-09-16", 28), { nextDue: "2026-10-14", completionDue: null });
+  assert.deepEqual(settleSuppliedDue("2027-07-22", "2026-07-22", 365), { nextDue: "2027-07-22", completionDue: null });
+  // No cycle given: the old reading stands.
+  assert.equal(settleSuppliedDue("2026-07-04", "2026-07-03").nextDue, "2026-07-04");
+});

@@ -305,7 +305,7 @@ export async function validateImport(
            back to nextDueAfterCompletion when no next due is supplied). For an appraisal
            scheduled after Supervision 3 the rule says nothing is due until the next
            Supervision 3 is completed, which is what completing one in the app produces. */
-        const settled = settleSuppliedDue(cells[0].due, dates[0] ?? null);
+        const settled = settleSuppliedDue(cells[0].due, dates[0] ?? null, c.cycleDays);
         nextDue = settled.nextDue;
         if (dues.length > 0) dues[0] = settled.completionDue;
       }
