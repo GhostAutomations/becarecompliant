@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { zipSync, strToU8 } from "fflate";
-import { docxText, draftToSchema, extractJson, htmlText, importKindOf, linkProblem, xlsxText } from "./ai-import.ts";
+import { docxText, draftToSchema, extractJson, htmlText, importKindOf, isPrivateAddress, linkProblem, xlsxText } from "./ai-import.ts";
 
 test("file kinds: PDF, Word, Excel and pictures are read; old formats and HEIC are refused with a reason", () => {
   assert.equal((importKindOf("Audit.PDF", "") as { kind: string }).kind, "pdf");
@@ -140,4 +140,32 @@ test("Platform Audit header questions are filled in automatically when imported"
   assert.equal(prefillFor("Key Findings", "long_text"), undefined);
   assert.equal(prefillFor("Service Users Date of Start", "date"), "record_start_date");
   assert.equal(prefillFor("Audit Date", "date"), undefined);
+});
+
+/* Audit S9 (4 Oct 2026): every address a link could reach is judged as an address. */
+
+test("isPrivateAddress: private, loopback, link local, CGNAT and reserved IPv4", () => {
+  for (const ip of ["10.0.0.1", "127.0.0.1", "0.0.0.0", "169.254.169.254", "172.16.0.1", "172.31.255.255", "192.168.1.1", "100.64.0.1", "100.127.255.255", "198.18.0.1", "224.0.0.1", "255.255.255.255", "999.1.1.1"]) {
+    assert.equal(isPrivateAddress(ip), true, ip);
+  }
+});
+test("isPrivateAddress: public IPv4 passes", () => {
+  for (const ip of ["8.8.8.8", "142.250.180.14", "172.15.0.1", "172.32.0.1", "100.63.255.255", "100.128.0.1", "192.169.0.1"]) {
+    assert.equal(isPrivateAddress(ip), false, ip);
+  }
+});
+test("isPrivateAddress: IPv6 private and IPv4 hidden inside IPv6", () => {
+  for (const ip of ["::1", "::", "fc00::1", "fd12:3456::1", "fe80::1", "ff02::1", "::ffff:10.0.0.1", "::ffff:127.0.0.1", "::ffff:a9fe:a9fe", "[::1]", "fe80::1%eth0", "64:ff9b::a00:1"]) {
+    assert.equal(isPrivateAddress(ip), true, ip);
+  }
+});
+test("isPrivateAddress: public IPv6 and mapped public IPv4 pass", () => {
+  for (const ip of ["2a00:1450:4009:81f::200e", "2606:4700::1111", "::ffff:8.8.8.8"]) {
+    assert.equal(isPrivateAddress(ip), false, ip);
+  }
+});
+test("linkProblem now refuses CGNAT and mapped literals that the text check missed", () => {
+  assert.notEqual(linkProblem("http://100.64.1.2/form"), null);
+  assert.notEqual(linkProblem("http://[::ffff:10.0.0.1]/form"), null);
+  assert.equal(linkProblem("https://forms.example.com/a"), null);
 });

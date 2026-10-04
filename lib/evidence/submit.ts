@@ -31,7 +31,8 @@ import {
 import { cleanAnswers, validateAnswers, type FieldError } from "@/lib/form-validate";
 import { describeValidationErrors } from "@/lib/forms/validation-message";
 import { computeScores } from "@/lib/forms/compute-scores";
-import { evidenceFilePath, sha256Hex, uploadEvidenceObject } from "./storage";
+import { deleteEvidenceObjects, evidenceFilePath, sha256Hex, uploadEvidenceObject } from "./storage";
+import { attachmentProblem, storedContentType } from "./attachment-rules";
 import { readActingCompanyId } from "@/lib/founder/manage-as";
 import { SUPPORT_MODE_EVIDENCE_REFUSAL } from "@/lib/founder/support-mode";
 
@@ -126,17 +127,29 @@ export async function submitEvidence(input: SubmitEvidenceInput): Promise<Submit
   const evidenceId = input.evidenceId ?? randomUUID();
 
   // 4. Upload files / signatures.
+  /* WHAT IS TAKEN, CHECKED FIRST (audit S10). Every file is judged before any is stored: a
+     picture, PDF, Office file or plain text, named for what it is, under the size cap. */
+  for (const file of input.files ?? []) {
+    const problem = attachmentProblem({ fileName: file.fileName, contentType: file.contentType, size: file.bytes.length, kind: file.kind });
+    if (problem) return { ok: false, error: problem };
+  }
   const fileRecords: Array<Record<string, unknown>> = [];
+  const uploaded: string[] = [];
   for (const file of input.files ?? []) {
     const path = evidenceFilePath(companyId, evidenceId, file.fieldKey, file.fileName);
-    const up = await uploadEvidenceObject(path, file.bytes, file.contentType);
-    if (!up.ok) return { ok: false, error: `Could not store an attachment: ${up.error}` };
+    const contentType = storedContentType(file);
+    const up = await uploadEvidenceObject(path, file.bytes, contentType);
+    if (!up.ok) {
+      await deleteEvidenceObjects(uploaded);
+      return { ok: false, error: `Could not store an attachment: ${up.error}` };
+    }
+    uploaded.push(path);
     fileRecords.push({
       field_key: file.fieldKey,
       kind: file.kind,
       storage_path: path,
       file_name: file.fileName,
-      mime_type: file.contentType,
+      mime_type: contentType,
       bytes: file.bytes.length,
       sha256: sha256Hex(file.bytes),
     });
@@ -162,6 +175,9 @@ export async function submitEvidence(input: SubmitEvidenceInput): Promise<Submit
     if (rpcErr.code === "23505") {
       return { ok: true, evidenceId, duplicate: true };
     }
+    /* A REFUSED SAVE LEAVES NOTHING BEHIND (audit S10): the files went up first so the row could
+       name them, so take them back out when the row is refused. */
+    await deleteEvidenceObjects(uploaded);
     return { ok: false, error: rpcErr.message };
   }
 

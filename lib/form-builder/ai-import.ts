@@ -133,6 +133,49 @@ export function htmlText(html: string): string {
     .join("\n\n");
 }
 
+/**
+ * Is this IP address inside a network rather than on the public internet (audit S9, 4 Oct 2026)?
+ * Used on literal addresses in a link AND on every address a host name resolves to, so a public
+ * looking name that points inside a network is refused too. Covers IPv4 private, loopback, link
+ * local, carrier grade NAT (100.64/10), benchmarking, multicast and reserved; IPv6 loopback,
+ * unspecified, unique local, link local, multicast, and IPv4 written inside IPv6 (::ffff:10.0.0.1).
+ * Anything it cannot read counts as private: refusing a strange address costs one link.
+ */
+export function isPrivateAddress(raw: string): boolean {
+  const ip = raw.trim().toLowerCase().replace(/^\[|\]$/g, "").replace(/%.*$/, "");
+  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(ip);
+  if (v4) {
+    const [a, b] = [Number(v4[1]), Number(v4[2])];
+    if ([a, b, Number(v4[3]), Number(v4[4])].some((n) => n > 255)) return true;
+    return (
+      a === 0 || a === 10 || a === 127 ||
+      (a === 100 && b >= 64 && b <= 127) ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) ||
+      (a === 192 && b === 0) ||
+      (a === 198 && (b === 18 || b === 19)) ||
+      a >= 224
+    );
+  }
+  if (!ip.includes(":")) return true;
+  const mapped = /^(?:0*:)*:?ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/.exec(ip) ?? /^::(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/.exec(ip);
+  if (mapped) return isPrivateAddress(mapped[1]);
+  const hexMapped = /^(?:0*:)*:?ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(ip);
+  if (hexMapped) {
+    const hi = parseInt(hexMapped[1], 16), lo = parseInt(hexMapped[2], 16);
+    return isPrivateAddress(`${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`);
+  }
+  return (
+    ip === "::" || ip === "::1" ||
+    /^f[cd][0-9a-f]{0,2}:/.test(ip) ||
+    /^fe[89ab][0-9a-f]?:/.test(ip) ||
+    /^ff[0-9a-f]{0,2}:/.test(ip) ||
+    /^64:ff9b:/.test(ip) ||
+    /^2001:db8:/.test(ip)
+  );
+}
+
 /** Refuses a link we must not fetch: not http(s), or a name or address that points inside a network. */
 export function linkProblem(raw: string): string | null {
   let u: URL;
@@ -157,6 +200,10 @@ export function linkProblem(raw: string): string | null {
     /^fe80:/.test(host) ||
     !host.includes(".")
   ) {
+    return "That address is not a public web page.";
+  }
+  // A literal address (IPv4, or IPv6 in brackets) is judged as an address, not as text.
+  if ((/^[\d.]+$/.test(host) || host.includes(":")) && isPrivateAddress(host)) {
     return "That address is not a public web page.";
   }
   return null;

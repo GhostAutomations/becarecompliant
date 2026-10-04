@@ -20,7 +20,7 @@ import type { ActionState } from "@/lib/forms";
 import { DISCLOSURE_CATEGORIES } from "./types";
 
 export async function raiseConcern(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const { user, profile } = await requireCompany();
+  const { profile } = await requireCompany();
   if (!profile.company_id) return { error: "Your login is not attached to a company." };
 
   const disclosure = String(formData.get("disclosure") ?? "").trim();
@@ -54,11 +54,12 @@ export async function raiseConcern(_prev: ActionState, formData: FormData): Prom
    * enough that the timing gives it away, and the infrastructure request logs, which are
    * ours rather than the product's.
    */
+  /* NOT EVEN WHEN NAMED (audit S11, 4 Oct 2026). A named raiser is recorded on the disclosure
+     itself (created_by), which only the company's whistleblowing leads can read. audit_log is
+     also readable by the Founder, who is deliberately the one reader whistleblowing excludes
+     (0177), so the raiser's name stays out of it either way. */
   await writeAudit({
     companyId: profile.company_id,
-    actorId: named ? user.id : undefined,
-    actorEmail: named ? profile.email : undefined,
-    actorRole: named ? profile.role : undefined,
     action: "whistleblowing.raised_by_staff",
     entityType: "whistleblowing_disclosure",
     summary: named

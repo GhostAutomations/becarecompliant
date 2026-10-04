@@ -282,4 +282,14 @@ in the same piece of work (Phil: "we are passed final testing so it needs to be 
 
 - S7-1 Evidence page already audited: evidence.viewed written by getEvidenceView, 9 rows in audit_log. PASS (Claude, finding corrected)
 - S7-2 Typecheck clean. PASS (Claude)
-- S7-3 Live: open a Bevan Service User's Care plan, Care schedule and Outcomes pages; one audit row each. TO TEST after deploy.
+- S7-3 Live, Bevan admin in Edge on Berwyn Foulkes (after a reload; the first try ran the tab's pre-deploy code): service_user.care_plan_viewed 19:29:42, care_schedule_viewed 19:29:48, outcomes_viewed 19:29:51 UTC, one row each. PASS (Claude, from audit_log)
+
+## Security Lows S8 to S15 (4 Oct 2026, migration 0382)
+
+- S9-1 isPrivateAddress and linkProblem unit tests (private, CGNAT, mapped IPv6, public passes). PASS (Claude, 15 of 15 in ai-import.test.ts)
+- S10-1 attachmentProblem and storedContentType unit tests. PASS (Claude, 6 of 6)
+- S8 to S15 typecheck clean. PASS (Claude)
+- S8-1 After 0382: anon and authenticated have no EXECUTE on seed_requirement_map. TO TEST after 0382.
+- S12-1 After 0382, rolled back: a login changing its own email, or its own company role, is refused; an Admin changing another login's role still works. TO TEST after 0382.
+- S15-1 After 0382: the six functions show a pinned search_path. TO TEST after 0382.
+- S10-2 Live: attach a PDF to a Bevan Check (taken) and try an .html file (refused with the plain message). TO TEST after deploy.

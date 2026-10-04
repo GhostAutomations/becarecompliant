@@ -117,6 +117,12 @@ export async function saveCompanyLogo(_prev: ActionState, formData: FormData): P
   const file = formData.get("logo");
   if (!(file instanceof File) || file.size === 0) return { error: "Choose an image file." };
   if (file.size > 2_000_000) return { error: "Please use a logo under 2MB." };
+  /* A PNG or JPEG only (audit S10): it is printed on invoices and PDFs, which draw those two, and
+     an SVG or HTML file kept beside the company's Evidence is not something to hand back out. */
+  const logoType = (file.type || "").toLowerCase();
+  if (!/\.(png|jpe?g)$/i.test(file.name) || (logoType && !["image/png", "image/jpeg"].includes(logoType))) {
+    return { error: "Please use a PNG or JPEG image for the logo." };
+  }
 
   const up = await uploadCompanyLogo(ctx.companyId, file);
   if (!up.ok) return { error: "Could not upload the logo. Please try again." };

@@ -10,6 +10,7 @@
  * costs a look, never a published form or a piece of Evidence.
  */
 
+import { lookup } from "node:dns/promises";
 import { requireCompanyAdmin, requirePlatformAdmin } from "@/lib/auth/guards";
 import { runAi } from "@/lib/ai/anthropic";
 import type { FormSchema } from "@/lib/form-schema";
@@ -21,6 +22,7 @@ import {
   extractJson,
   htmlText,
   importKindOf,
+  isPrivateAddress,
   linkProblem,
   xlsxText,
 } from "./ai-import";
@@ -43,6 +45,16 @@ async function readLink(raw: string): Promise<Source | { error: string }> {
   for (let hop = 0; hop < 4; hop += 1) {
     const problem = linkProblem(url);
     if (problem) return { error: problem };
+    /* WHERE THE NAME ACTUALLY POINTS (audit S9). A public looking name can resolve to an address
+       inside a network, so every address it resolves to is checked before anything is fetched. */
+    try {
+      const addrs = await lookup(new URL(url).hostname, { all: true, verbatim: true });
+      if (addrs.length === 0 || addrs.some((a) => isPrivateAddress(a.address))) {
+        return { error: "That address is not a public web page." };
+      }
+    } catch {
+      return { error: "That page could not be reached. Check the link opens in a private window, without signing in." };
+    }
     let res: Response;
     try {
       res = await fetch(url, {
