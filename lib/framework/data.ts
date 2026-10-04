@@ -132,7 +132,7 @@ async function lapsedTrackers(
     .from("people")
     .select("id, full_name, start_date, branch_id")
     .eq("company_id", companyId)
-    .eq("employment_status", "active")
+    .neq("employment_status", "leaver")
     .is("archived_at", null);
   if (branchId) pq = pq.eq("branch_id", branchId);
   let tq = supabase
@@ -298,7 +298,7 @@ export async function getFrameworkReadiness(
       .from("people")
       .select("start_date, scw_registration_number, scw_renewal_date")
       .eq("company_id", companyId)
-      .eq("employment_status", "active")
+      .neq("employment_status", "leaver")
       .is("archived_at", null);
     if (branchId) pq = pq.eq("branch_id", branchId);
     const { data: staff } = await pq;
@@ -529,12 +529,12 @@ async function getFrameworkItemsUncached(
     let population: "people" | "service_users";
     if (r.record_type === "person") {
       const p = relOne(r.people);
-      if (!p || p.employment_status !== "active" || p.archived_at) continue;
+      if (!p || p.employment_status === "leaver" || p.archived_at) continue;
       if (branchId && p.branch_id !== branchId) continue;
       recordName = p.full_name; recordId = r.person_id; population = "people";
     } else {
       const su = relOne(r.service_users);
-      if (!su || su.service_status !== "active" || su.archived_at) continue;
+      if (!su || su.service_status === "cancelled" || su.archived_at) continue;
       if (branchId && su.branch_id !== branchId) continue;
       recordName = su.full_name; recordId = r.service_user_id; population = "service_users";
     }

@@ -289,7 +289,14 @@ in the same piece of work (Phil: "we are passed final testing so it needs to be 
 - S9-1 isPrivateAddress and linkProblem unit tests (private, CGNAT, mapped IPv6, public passes). PASS (Claude, 15 of 15 in ai-import.test.ts)
 - S10-1 attachmentProblem and storedContentType unit tests. PASS (Claude, 6 of 6)
 - S8 to S15 typecheck clean. PASS (Claude)
-- S8-1 After 0382: anon and authenticated have no EXECUTE on seed_requirement_map. TO TEST after 0382.
-- S12-1 After 0382, rolled back: a login changing its own email, or its own company role, is refused; an Admin changing another login's role still works. TO TEST after 0382.
-- S15-1 After 0382: the six functions show a pinned search_path. TO TEST after 0382.
+- S8-1 After 0382: anon and authenticated have no EXECUTE on seed_requirement_map. PASS (Claude)
+- S12-1 After 0382, rolled back as the Bevan Supervisor: changing her own email refused with the new message. PASS (Claude). The company role half could not be run (Bevan has no custom roles); it is the same check as role and status, which passed in S1/S2.
+- S15-1 After 0382: all six functions show a pinned search_path. PASS (Claude)
 - S10-2 Live: attach a PDF to a Bevan Check (taken) and try an .html file (refused with the plain message). TO TEST after deploy.
+
+## Bug and data Lows (4 Oct 2026, migration 0383)
+
+- B3-1 After 0383: no current_date left in the three functions. TO TEST after 0383.
+- B4-1 After 0383: Readiness counts Seren Owens (Demo, maternity leave) and the Service User in hospital; the Service User register view includes hospital and respite. TO TEST after 0383.
+- D3-1 After 0383: both company-less logins disabled. TO TEST after 0383.
+- B4-2 Typecheck clean after the framework/data.ts change. PASS (Claude)
