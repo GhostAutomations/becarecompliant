@@ -5,6 +5,7 @@ import { createServiceClient } from "@/lib/supabase/admin";
 import { siteUrl } from "@/lib/site";
 import { bookingHref } from "@/lib/planner/booking-link";
 import { visitLabel } from "@/lib/planner/visit";
+import { feedOwnerIsLive } from "@/lib/planner/feed-owner";
 import { calendarClientFrom, tidyAgent } from "@/lib/planner/calendar-client";
 import type { PlannerFeedEvent } from "@/lib/planner/ics";
 
@@ -207,6 +208,16 @@ export async function loadFeedByToken(
 
   const profileId = feed.profile_id as string;
   const companyId = feed.company_id as string;
+
+  /* A FEED LIVES NO LONGER THAN THE LOGIN (audit S5, 3 Oct 2026). This read uses the service
+     client, so nothing else stops a leaver's Outlook pulling visits with Service User names.
+     Nothing comes back unless the login is still active in this company and the company is
+     live. 0380 also deletes the feed the moment the login is disabled; this is the backstop. */
+  const [{ data: owner }, { data: company }] = await Promise.all([
+    service.from("profiles").select("status, company_id").eq("id", profileId).maybeSingle(),
+    service.from("companies").select("status, deleted_at").eq("id", companyId).maybeSingle(),
+  ]);
+  if (!feedOwnerIsLive(owner, company, companyId)) return null;
 
   const [{ data: profile }, { data: rows }] = await Promise.all([
     service.from("profiles").select("full_name").eq("id", profileId).maybeSingle(),
