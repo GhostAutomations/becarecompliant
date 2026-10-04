@@ -270,3 +270,10 @@ in the same piece of work (Phil: "we are passed final testing so it needs to be 
 - S4-1 Database, rolled back: the Founder is not a member of Bevan, so submit_evidence refuses him. PASS (Claude)
 - S4-2 Traced: every Evidence save (People and Service User Checks, tracker forms, absence, Return to Work, assignments, complaints, holidays, incidents, financial) goes through submitEvidence, which now refuses support mode before any upload. The paper upload was already refused (paperOffered) and its RPC asks for a Company Admin. PASS (Claude, by trace)
 - S4-3 Typecheck clean. PASS (Claude)
+
+## S6, a displaced session really ends (4 Oct 2026, migration 0381)
+
+- S6-1 sessionIdFromAuthCookies unit tests (whole, plain, chunked out of order, junk, code verifier cookie). PASS (Claude, 5 of 5)
+- S6-2 Typecheck clean. PASS (Claude)
+- S6-3 Database, rolled back, as the Bevan Supervisor: re-claiming the same session keeps it; a new desktop sign in deletes the old desktop session and keeps the new one and the mobile slot; anon asking about the old id gets true, the new id false. TO TEST after 0381 is applied.
+- S6-4 Live: sign in as the same login in two desktop browsers; the first browser's next click lands on sign in with "signed in elsewhere". TO TEST after deploy.

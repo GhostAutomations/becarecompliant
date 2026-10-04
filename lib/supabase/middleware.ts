@@ -5,6 +5,7 @@ import { moduleForPath, NO_ACCESS_PATH } from "@/lib/auth/module-paths";
 import { amrFromAccessToken, isRecoverySession } from "@/lib/auth/password-reset-rules";
 import { RESET_MARKER_COOKIE, isResetSession } from "@/lib/auth/reset-marker";
 import { isCarerLogin, seniorPathRedirect } from "@/lib/auth/carer-login";
+import { sessionIdFromAuthCookies } from "@/lib/auth/cookie-session";
 
 /**
  * Paths reachable without a session. Webhook paths MUST be added here
@@ -83,6 +84,30 @@ function buildCsp(nonce: string): string {
  */
 const CSP_HEADER = "Content-Security-Policy";
 
+/** Whether 0381 ended this session because the login signed in on another device of the same
+ *  kind. Asked with the anon key and no session: the device asking has lost its session, and
+ *  its old access token may have expired. Any failure answers no, which only costs the message. */
+async function wasDisplaced(sessionId: string): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/rpc/was_session_displaced`,
+      {
+        method: "POST",
+        headers: {
+          apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ p_session_id: sessionId }),
+        cache: "no-store",
+      },
+    );
+    if (!res.ok) return false;
+    return (await res.json()) === true;
+  } catch {
+    return false;
+  }
+}
+
 /** Refreshes the Supabase session and enforces auth redirects. */
 export async function updateSession(request: NextRequest) {
   const nonce = btoa(crypto.randomUUID());
@@ -101,6 +126,10 @@ export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request: { headers: requestHeaders },
   });
+
+  /* The session this browser arrived holding, read before anything can refresh or clear the
+     cookie. Only used below to pick the message on the sign in page (audit S6). */
+  const arrivedWithSession = sessionIdFromAuthCookies(request.cookies.getAll());
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -152,6 +181,13 @@ export async function updateSession(request: NextRequest) {
      * it, because a value that arrives in a URL is written by whoever sent the URL.
      */
     url.search = "";
+    /* SIGNED IN ELSEWHERE, SAID AS MUCH (audit S6, 0381). Claiming a slot now deletes the
+       session it displaces, so the old device arrives here with no user rather than reaching
+       requireUser's own check. Ask whether that is why, so it gets "You've been signed out
+       because your account was signed in elsewhere" and not a bare sign in page. */
+    if (arrivedWithSession && (await wasDisplaced(arrivedWithSession))) {
+      url.searchParams.set("reason", "signed-out-elsewhere");
+    }
     if (pathname !== "/" && !pathname.startsWith("/login")) {
       url.searchParams.set("next", pathname);
     }
