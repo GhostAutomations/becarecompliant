@@ -292,7 +292,7 @@ in the same piece of work (Phil: "we are passed final testing so it needs to be 
 - S8-1 After 0382: anon and authenticated have no EXECUTE on seed_requirement_map. PASS (Claude)
 - S12-1 After 0382, rolled back as the Bevan Supervisor: changing her own email refused with the new message. PASS (Claude). The company role half could not be run (Bevan has no custom roles); it is the same check as role and status, which passed in S1/S2.
 - S15-1 After 0382: all six functions show a pinned search_path. PASS (Claude)
-- S10-2 Live: attach a PDF to a Bevan Check (taken) and try an .html file (refused with the plain message). TO TEST after deploy.
+- S10-2 Live refusal NOT RUN, by choice: the file check runs after the form's own validation, so proving it live means filing a complete, signed One to One, and if the check were broken that would leave permanent Evidence on a record. Covered instead by the 6 unit tests (attachmentProblem) and a trace: every Evidence save goes through submitEvidence, which checks every file before uploading any. Phil to decide whether a live run is wanted.
 
 ## Bug and data Lows (4 Oct 2026, migration 0383)
 
@@ -305,7 +305,7 @@ in the same piece of work (Phil: "we are passed final testing so it needs to be 
 
 - R1/R2 unit tests updated for the reworded calendar title and trial chase subject; whole suite 1484 of 1484. PASS (Claude)
 - W2 to R3 typecheck clean. PASS (Claude)
-- W2-1 After 0384: no archived person on the Bevan Absence page. TO TEST after 0384 and deploy.
-- W3-1 Bevan Settings, Users: Active users counts active logins only; Disabled logins section lists the rest. TO TEST after deploy.
-- W5-1 Bevan dashboard: "1 Service User" singular; due tiles read "checks, ...". TO TEST after deploy.
-- R3-1 Training, Courses: Save turns green Saved and stays until the row is edited. TO TEST after deploy.
+- W2-1 After 0384: no archived person in person_absence_summary (database) and none on the Bevan Absence page (pane). PASS (Claude)
+- W3-1 Bevan Settings, Users (pane): Active users 2, Disabled logins 5, Carer logins 4, matching the database; no "Passive users". PASS (Claude)
+- W5-1 Bevan dashboard (pane): "7 people, 1 Service User"; the three due tiles read "checks, ..."; PQS card note and "Training today" present; Training page reads "86% mandatory training in date today". PASS (Claude)
+- R3-1 Settings, People, course row (Bevan, pane): gold Save, green Saved after saving and still green 4 seconds later, back to gold Save as soon as a tick box in the row changed. PASS (Claude)
