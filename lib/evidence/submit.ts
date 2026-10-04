@@ -32,6 +32,8 @@ import { cleanAnswers, validateAnswers, type FieldError } from "@/lib/form-valid
 import { describeValidationErrors } from "@/lib/forms/validation-message";
 import { computeScores } from "@/lib/forms/compute-scores";
 import { evidenceFilePath, sha256Hex, uploadEvidenceObject } from "./storage";
+import { readActingCompanyId } from "@/lib/founder/manage-as";
+import { SUPPORT_MODE_EVIDENCE_REFUSAL } from "@/lib/founder/support-mode";
 
 export type EvidenceFileInput = {
   fieldKey: string;
@@ -85,6 +87,14 @@ export async function submitEvidence(input: SubmitEvidenceInput): Promise<Submit
   ]);
   if (fvErr || !fv || !fv.forms) {
     return { ok: false, error: "That form could not be found." };
+  }
+  /* EVIDENCE IS SIGNED BY THE COMPANY, NEVER BY SUPPORT MODE (DEF-006, kept by Phil on
+     4 Oct 2026 in audit S4). The database already refuses it (submit_evidence asks for a
+     company member, and the Founder is not one), but only at the very end, after files have
+     gone to storage. Every Evidence path comes through here, so this is the one place that
+     says no first, before anything is uploaded or written. */
+  if (profile?.role === "platform_admin" && (await readActingCompanyId())) {
+    return { ok: false, error: SUPPORT_MODE_EVIDENCE_REFUSAL };
   }
   if (!isFormSchema(fv.schema)) {
     return { ok: false, error: "This form has an invalid schema and cannot be completed." };

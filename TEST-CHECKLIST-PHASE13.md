@@ -262,5 +262,11 @@ in the same piece of work (Phil: "we are passed final testing so it needs to be 
 
 - S5-1 feedOwnerIsLive unit tests: active login served; disabled, invited, other company, suspended, archived, deleted company and missing rows refused. PASS (Claude, 5 of 5)
 - S5-2 Typecheck clean. PASS (Claude)
-- S5-3 Bevan Supervisor, rolled back: a feed survives a name save and is deleted when the login is disabled; Thistle's three feeds untouched. TO TEST after 0380 is applied.
-- S5-4 Live: a feed URL for an active Bevan login still returns visits after deploy. TO TEST after deploy.
+- S5-3 Bevan Supervisor, rolled back, on the live trigger (4 Oct): feeds 1, after a name save 1, after disable 0; all feeds back to 3 and his login still active afterwards. PASS (Claude)
+- S5-4 Live: an active login's feed still serves after deploy dpl_GghSwak3 (08:08 UTC 4 Oct). Watching last_fetched_at on Thistle's three feeds (last fetch 03:55 UTC); checked again later today.
+
+## S4, support mode and Evidence (4 Oct 2026, Phil: "Keep Evidence company only")
+
+- S4-1 Database, rolled back: the Founder is not a member of Bevan, so submit_evidence refuses him. PASS (Claude)
+- S4-2 Traced: every Evidence save (People and Service User Checks, tracker forms, absence, Return to Work, assignments, complaints, holidays, incidents, financial) goes through submitEvidence, which now refuses support mode before any upload. The paper upload was already refused (paperOffered) and its RPC asks for a Company Admin. PASS (Claude, by trace)
+- S4-3 Typecheck clean. PASS (Claude)
