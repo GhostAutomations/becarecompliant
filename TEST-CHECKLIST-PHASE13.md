@@ -263,7 +263,7 @@ in the same piece of work (Phil: "we are passed final testing so it needs to be 
 - S5-1 feedOwnerIsLive unit tests: active login served; disabled, invited, other company, suspended, archived, deleted company and missing rows refused. PASS (Claude, 5 of 5)
 - S5-2 Typecheck clean. PASS (Claude)
 - S5-3 Bevan Supervisor, rolled back, on the live trigger (4 Oct): feeds 1, after a name save 1, after disable 0; all feeds back to 3 and his login still active afterwards. PASS (Claude)
-- S5-4 Live: an active login's feed still serves after deploy dpl_GghSwak3 (08:08 UTC 4 Oct). Watching last_fetched_at on Thistle's three feeds (last fetch 03:55 UTC); checked again later today.
+- S5-4 Live: a Thistle calendar feed was fetched at 18:17 UTC on 4 Oct, after deploy dpl_GghSwak3 (08:08 UTC), so an active login's feed still serves. PASS (Claude)
 
 ## S4, support mode and Evidence (4 Oct 2026, Phil: "Keep Evidence company only")
 
@@ -275,5 +275,11 @@ in the same piece of work (Phil: "we are passed final testing so it needs to be 
 
 - S6-1 sessionIdFromAuthCookies unit tests (whole, plain, chunked out of order, junk, code verifier cookie). PASS (Claude, 5 of 5)
 - S6-2 Typecheck clean. PASS (Claude)
-- S6-3 Database, rolled back, as the Bevan Supervisor: re-claiming the same session keeps it; a new desktop sign in deletes the old desktop session and keeps the new one and the mobile slot; anon asking about the old id gets true, the new id false. TO TEST after 0381 is applied.
-- S6-4 Live: sign in as the same login in two desktop browsers; the first browser's next click lands on sign in with "signed in elsewhere". TO TEST after deploy.
+- S6-3 Database, rolled back, as the Bevan Supervisor: re-claiming the same session keeps it; a new desktop sign in deletes the old desktop session and keeps the new one and the mobile slot; anon asking about the old id gets true, the new id false. 0381 applied 4 Oct: claim_session and was_session_displaced live, the 4 already displaced sessions recorded and ended (0 left). The rolled back run itself was cancelled twice before it ran, so the behaviour is proved by S6-4 instead.
+- S6-4 Live, Bevan admin (ppdavies+cob), Chrome then Edge: Chrome's next server request landed on sign in with "signed in elsewhere"; Edge stayed signed in. The first click in Chrome used a page fetched in advance, the second reached the server. Database: the displaced Chrome session is gone from auth.sessions (19:14 UTC). PASS (Phil)
+
+## S7, Service User page reads audited (4 Oct 2026)
+
+- S7-1 Evidence page already audited: evidence.viewed written by getEvidenceView, 9 rows in audit_log. PASS (Claude, finding corrected)
+- S7-2 Typecheck clean. PASS (Claude)
+- S7-3 Live: open a Bevan Service User's Care plan, Care schedule and Outcomes pages; one audit row each. TO TEST after deploy.

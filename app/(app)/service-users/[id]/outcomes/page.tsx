@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
+import { writeAudit } from "@/lib/audit";
 import BackLink from "@/components/back-link";
 import OutcomesManager from "@/components/service-users/outcomes-manager";
 import { getServiceUser, getServiceUserOutcomes, getOutcomesReviewMonths } from "@/lib/service-users/data";
@@ -20,11 +21,23 @@ export default async function ServiceUserOutcomesPage({
 }) {
   const { id } = await params;
   const { from } = await searchParams;
-  const { profile } = await requireCompany();
+  const { user, profile } = await requireCompany();
   const su = await getServiceUser(id);
   if (!su || !profile.company_id) redirect("/service-users");
   if (!MANAGE_ROLES.includes(profile.role)) redirect(`/service-users/${id}`);
   if (!(await featureEnabled(profile.company_id, "outcomes_satisfaction"))) redirect(`/service-users/${id}`);
+  /* GDPR, special category data (audit S7, 4 Oct 2026): a read of a Service User's own pages is
+     audited like the record itself (service_user.viewed). Best effort; never blocks the page. */
+  await writeAudit({
+    companyId: su.company_id as string,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "service_user.outcomes_viewed",
+    entityType: "service_user",
+    entityId: id,
+    summary: `Viewed the outcomes of ${su.full_name}`,
+  });
 
   // Back goes to wherever you came from: the Outcomes register, or the record's tile.
   const cameFromRegister = from === "/service-users/outcomes";

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
+import { writeAudit } from "@/lib/audit";
 import BackLink from "@/components/back-link";
 import CareScheduleEditor from "@/components/service-users/care-schedule-editor";
 import { getServiceUser, getCarePlanEntries, getCurrentCarePlanFrom } from "@/lib/service-users/data";
@@ -31,10 +32,22 @@ const MANAGE_ROLES = [
  */
 export default async function CareSchedulePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { profile } = await requireCompany();
+  const { user, profile } = await requireCompany();
   const su = await getServiceUser(id);
   if (!su) redirect("/service-users");
   if (!MANAGE_ROLES.includes(profile.role)) redirect(`/service-users/${id}`);
+  /* GDPR, special category data (audit S7, 4 Oct 2026): a read of a Service User's own pages is
+     audited like the record itself (service_user.viewed). Best effort; never blocks the page. */
+  await writeAudit({
+    companyId: su.company_id as string,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "service_user.care_schedule_viewed",
+    entityType: "service_user",
+    entityId: id,
+    summary: `Viewed the care schedule of ${su.full_name}`,
+  });
 
   const [entries, currentFrom, config] = await Promise.all([
     getCarePlanEntries(id),
