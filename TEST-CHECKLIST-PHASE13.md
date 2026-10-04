@@ -309,3 +309,21 @@ in the same piece of work (Phil: "we are passed final testing so it needs to be 
 - W3-1 Bevan Settings, Users (pane): Active users 2, Disabled logins 5, Carer logins 4, matching the database; no "Passive users". PASS (Claude)
 - W5-1 Bevan dashboard (pane): "7 people, 1 Service User"; the three due tiles read "checks, ..."; PQS card note and "Training today" present; Training page reads "86% mandatory training in date today". PASS (Claude)
 - R3-1 Settings, People, course row (Bevan, pane): gold Save, green Saved after saving and still green 4 seconds later, back to gold Save as soon as a tick box in the row changed. PASS (Claude)
+
+## Security re-run after all audit fixes (4 Oct 2026, 21:10 to 21:20, Claude)
+
+- RLS on every public table (0 off); no view without security_invoker; every SECURITY DEFINER function has a pinned search_path. PASS
+- Supabase security advisor: 0 errors. Warnings left as agreed (anon callable self checking functions, btree_gist in public); one info (RLS on with no policy, service role only). PASS
+- Anon callable SECURITY DEFINER functions with no check of their own: the four seed_company_* wrappers call guarded inner functions (platform admin or that company's admin), so a signed out caller is refused; the rest are token or yes/no lookups. PASS
+- Bevan admin reading Thistle: 0 rows in people, Service Users, checks, Evidence, Evidence files, complaints, incidents, whistleblowing, audit log, profiles, stored files (own company 30 people as control). PASS
+- Bevan admin writing to Thistle: 0 rows updated or deleted in people, Service Users, checks, complaints, the company row. PASS
+- S1/S2/S12: Admin making themselves Founder refused; moving their login to Thistle refused; making another login Founder refused; changing their own role refused; changing another login's role still works. PASS
+- S3: a Bevan carer sees 0 stored Evidence files, 0 Evidence, 0 Service Users, only their own person and profile. Evidence bucket private with no user policy. PASS
+- Bevan Supervisor: only her branch's people and Service Users (0 outside), 0 whistleblowing, 0 stored files; complaints in her branch by design (0290). PASS
+- Founder: 0 whistleblowing disclosures across all companies. PASS
+- Signed out: every policy needs a signed in caller; reads refused. PASS
+- Crons signed out: all five 401. Webhooks with no signature: Stripe 400, Twilio 403, Resend 401. PASS
+- Signed out pages and APIs (dashboard, people, settings, reports, SAR, Evidence PDF) all go to sign in. PASS
+- Bevan admin opening a Thistle Service User, Thistle person, Thistle Evidence PDF, or the Founder console: sent back to their own register / dashboard, 404 for the PDF, no Thistle name anywhere in the response. PASS
+- S5: a calendar link with an unknown token gives 404. PASS
+- Since this morning's deploys: no 5xx in the Supabase API logs (only refused displaced sessions and notification dedupe, both expected); Vercel runtime errors are only the two webhook refusals from this run. PASS
