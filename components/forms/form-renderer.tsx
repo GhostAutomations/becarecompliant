@@ -39,6 +39,7 @@ import { type LookupChoice, exactChoice, lookupError, scopeChoices } from "@/lib
 import RecordTypeahead from "@/components/register/record-typeahead";
 import CarePackageField from "./care-package-field";
 import CarePackageSummary from "@/components/forms/care-package-summary";
+import OutcomesReviewField from "@/components/forms/outcomes-review-field";
 import {
   CARE_PLAN_SERVICES,
   CARE_PLAN_UNITS,
@@ -416,6 +417,22 @@ function Field({
           disabled={disabled}
           onChange={(lines) => onValue(lines)}
         />,
+      );
+
+    /* The person's outcomes, filled in from the record. A section of its own, so it carries
+       no label of its own: the section heading says Outcomes. */
+    case "outcomes_review":
+      return (
+        <div className={stoodDown ? "opacity-45" : undefined}>
+          <OutcomesReviewField
+            id={id}
+            value={value}
+            disabled={disabled}
+            onChange={(v) => onValue(v)}
+          />
+          {field.help ? <p className="form-hint">{field.help}</p> : null}
+          {error ? <p className="form-error">{error}</p> : null}
+        </div>
       );
 
     case "address":

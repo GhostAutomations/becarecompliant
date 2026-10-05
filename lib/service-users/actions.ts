@@ -30,6 +30,8 @@ import { closeBookingsForCheck } from "@/lib/planner/close-booking";
 import { rebakeFormFieldOptions } from "@/lib/forms/rebake-options";
 import { ensurePrivateInvoicingFromSetup } from "@/lib/invoicing/ensure-private-invoicing";
 import { seedCarePlanFromSetup } from "./seed-care-plan";
+import { applyOutcomesReview, outcomesForReview } from "./outcomes-review-apply";
+import { parseOutcomesReview, withRecordOutcomes } from "./outcomes-review";
 import { advanceServiceUserCheck, complexReviewContext, serviceUserNextDue } from "./advance-check";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { seniorMayDo } from "@/lib/senior/access";
@@ -865,6 +867,14 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
           await getCarePlanEntries(instance.service_user_id as string, isSenior ? recordRw : undefined),
         );
       }
+      /* The outcomes asked about are the ones on the record NOW, whatever the browser sent:
+         titles and dates from the record, the reviewer's answers kept only for those. */
+      if (field.type === "outcomes_review") {
+        answers[field.key] = withRecordOutcomes(
+          parseOutcomesReview(answers[field.key]),
+          await outcomesForReview(instance.service_user_id as string),
+        );
+      }
     }
   }
 
@@ -996,6 +1006,40 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
     if (!advanced.ok) return { error: advanced.error };
   }
 
+  /* THE OUTCOMES PAGE HEARS ABOUT THE REVIEW (Phil, 2026-10-05). Each outcome's answer is
+     logged as its update (Achieved marks it achieved) and a new outcome is created. Only for
+     a completion that counts and is the newest on file: an older review filed as history
+     must not overwrite where an outcome stands today. Never silent: a failure is said on
+     the record page, and the answers are safe in the Evidence either way. */
+  let outcomesNote: string | null = null;
+  if (moves && isFormSchema(version.schema)) {
+    for (const field of flattenFields(version.schema as FormSchema)) {
+      if (field.type !== "outcomes_review") continue;
+      const applied = await applyOutcomesReview({
+        companyId: instance.company_id as string,
+        serviceUserId: instance.service_user_id as string,
+        evidenceId: result.evidenceId,
+        value: answers[field.key],
+        actorId: user.id,
+        actorName: profile.full_name || profile.email || null,
+      });
+      await writeAudit({
+        companyId: instance.company_id as string,
+        actorId: user.id,
+        actorEmail: profile.email,
+        actorRole: profile.role,
+        action: "service_user.outcomes_reviewed",
+        entityType: "service_user",
+        entityId: instance.service_user_id as string,
+        summary: `Outcomes updated from the ${def.name}: ${applied.updated} updated, ${applied.achieved} achieved${applied.created ? ", 1 new" : ""}`,
+        metadata: { evidence_id: result.evidenceId, ...applied },
+      });
+      if (applied.failed) outcomesNote = `${applied.failed} The review itself is saved. Please update the Outcomes page by hand.`;
+    }
+    revalidatePath(`/service-users/${instance.service_user_id}/outcomes`);
+    revalidatePath("/service-users/outcomes");
+  }
+
   /* The Setup Visit is where the office finds out who is paying, and the one moment somebody
      definitely knows. Private and Continuing Healthcare are the two funding types we invoice
      ourselves, so the payer goes onto the Invoicing books now rather than being carried across
@@ -1119,7 +1163,9 @@ export async function completeCheck(_prev: ActionState, formData: FormData): Pro
     ok: "completed",
     redirectTo:
       doneAt(moves ? "completed" : "history", `/service-users/${instance.service_user_id}?${moves ? "completed" : "history"}=${encodeURIComponent(def.name)}`) +
-      (escalationNote ? `&warn=${encodeURIComponent(escalationNote)}` : ""),
+      (escalationNote || outcomesNote
+        ? `&warn=${encodeURIComponent([escalationNote, outcomesNote].filter(Boolean).join(" "))}`
+        : ""),
   };
 }
 

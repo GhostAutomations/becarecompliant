@@ -13,6 +13,7 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { reviewSlots } from "./logic";
 import { completionDate, dateKeysByVersion } from "@/lib/evidence/completion-date";
 import { profilesById, profileName } from "@/lib/auth/company-profiles";
 import { branchScopedRole } from "@/lib/auth/manage-scope";
@@ -645,13 +646,15 @@ export async function getReviewComps(
   serviceUserId: string,
   reviewFormId: string | null,
   reviewDefId: string | null = null,
+  /** A Senior's reader (lib/senior/access.ts); the caller's own client otherwise. */
+  client?: SupabaseClient,
 ): Promise<{
   comps: string[];
   dueByComp: Map<string, string>;
   migrated: Set<string>;
   slotByComp: Map<string, number>;
 }> {
-  const supabase = await createClient();
+  const supabase = (client ?? (await createClient())) as Awaited<ReturnType<typeof createClient>>;
   const out: string[] = [];
   // completion -> the date it was due, where the import carried one. Real evidence has no
   // stored due date, so those fall back to the interval, exactly as before.
@@ -696,6 +699,39 @@ export async function getReviewComps(
     }
   }
   return { comps: out.sort(), dueByComp, migrated, slotByComp };
+}
+
+/**
+ * Which review the next Individual Plan Review is (1 to 4), worked out exactly as the record
+ * card works out which box gets the Complete button, so the two can never disagree.
+ *
+ * Phil, 2026-10-05: "why is this question asked Review number ... i dont think it should even
+ * be visible". Arriving from the record's Review box already filled it in; arriving any other
+ * way (a planner task, a bookmark) asked it. Supervision stopped asking this on 2026-09-08 by
+ * the same rule (nextSupervisionNumber); this is the review's copy of it.
+ *
+ * Null only when every slot in the cycle is already complete, where asking is honest.
+ */
+export async function nextReviewNumber(opts: {
+  serviceUserId: string;
+  companyId: string;
+  packageStart: string | null;
+  reviewFormId: string | null;
+  reviewDefId: string | null;
+  openDue: string | null;
+  client?: SupabaseClient;
+}): Promise<number | null> {
+  const [history, interval] = await Promise.all([
+    getReviewComps(opts.serviceUserId, opts.reviewFormId, opts.reviewDefId, opts.client),
+    getReviewIntervalDays(opts.companyId),
+  ]);
+  const slots = reviewSlots(opts.packageStart, history.comps, interval, undefined, undefined, undefined, {
+    dueByComp: history.dueByComp,
+    openDue: opts.openDue,
+    migrated: history.migrated,
+    slotByComp: history.slotByComp,
+  });
+  return slots.find((s) => !s.comp)?.n ?? null;
 }
 
 /** Is a Service User on a Complex branch, and the company Complex review interval. */

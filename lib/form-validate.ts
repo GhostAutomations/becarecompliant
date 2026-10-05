@@ -16,6 +16,7 @@
  */
 
 import { matchesVisibleWhen } from "@/lib/form-visibility";
+import { outcomesReviewError, parseOutcomesReview } from "@/lib/service-users/outcomes-review";
 import {
   type AddressValue,
   type Answers,
@@ -108,6 +109,10 @@ export function cleanAnswers(schema: FormSchema, answers: Answers): Answers {
 
 function validateField(field: FormField, value: AnswerValue | undefined): string | null {
   const required = field.required === true;
+  /* A section, not a single answer: its own rules say what is missing, and they hold whether
+     or not the field is marked required, because a review with an outcome left blank is not
+     a review of that outcome. */
+  if (field.type === "outcomes_review") return outcomesReviewError(parseOutcomesReview(value));
   if (isEmpty(value)) {
     return required ? "This field is required." : null;
   }

@@ -11,13 +11,15 @@ import PaperOrForm, { type PaperUploadProps } from "@/components/evidence/paper-
 import { paperOffered } from "@/lib/evidence/paper";
 import { readDraft } from "@/lib/forms/draft-store";
 import { checkDraftKey } from "@/lib/forms/draft-key";
-import { getServiceUser, getPublishedFormVersion } from "@/lib/service-users/data";
+import { getServiceUser, getPublishedFormVersion, nextReviewNumber } from "@/lib/service-users/data";
 import { branchName } from "@/lib/people/data";
 import { recordFormPresets } from "@/lib/forms/record-presets";
 import { todayInLondon, formatCivilDate } from "@/lib/recurrence";
-import { fieldToNameSelect, findField, flattenFields, isFormSchema, makeFieldReadOnly, type Answers, type FormSchema } from "@/lib/form-schema";
+import { fieldToNameSelect, findField, flattenFields, isFormSchema, removeField, type Answers, type FormSchema } from "@/lib/form-schema";
 import { getCarePlanEntries } from "@/lib/service-users/data";
 import { linesFromRows } from "@/lib/service-users/care-package";
+import { outcomesForReview } from "@/lib/service-users/outcomes-review-apply";
+import { EMPTY_OUTCOMES_REVIEW, parseOutcomesReview, withRecordOutcomes } from "@/lib/service-users/outcomes-review";
 import type { CheckDefinition } from "@/lib/people/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { seniorReaderFor } from "@/lib/senior/access";
@@ -63,7 +65,7 @@ export default async function CompleteServiceUserCheckPage({
   const supabase = await createClient();
   const { data: instance } = await supabase
     .from("check_instances")
-    .select("id, service_user_id, definition:check_definitions(*)")
+    .select("id, service_user_id, due_date, definition:check_definitions(*)")
     .eq("id", instanceId)
     .maybeSingle();
 
@@ -126,12 +128,32 @@ export default async function CompleteServiceUserCheckPage({
    * Arriving WITHOUT it, from a bookmark or a planner task, the dropdown stays. Nothing knows
    * the answer then, and asking is the honest thing to do.
    */
+  /*
+   * NOT SHOWN AT ALL (Phil, 2026-10-05: "i dont think it should even be visible"). The record
+   * card's Review box passes ?rev=; anything else (a planner task, a bookmark) works it out
+   * from the record by the same rule the card uses (nextReviewNumber), the way Supervision
+   * has since 2026-09-08. The answer still travels with the form, it is simply not a
+   * question. The dropdown survives only when every review in the cycle is already done.
+   */
   let reviewHeading: string | null = null;
   let presetReview: string | null = null;
-  if (def.key === "care_plan_review" && /^[1-4]$/.test(rev ?? "")) {
-    presetReview = `Review ${rev}`;
-    reviewHeading = presetReview;
-    schema = makeFieldReadOnly(schema, "type_of_review");
+  if (def.key === "care_plan_review") {
+    const n = /^[1-4]$/.test(rev ?? "")
+      ? Number(rev)
+      : await nextReviewNumber({
+          serviceUserId: id,
+          companyId: def.company_id as string,
+          packageStart: serviceUser?.package_start_date ?? null,
+          reviewFormId: def.form_id,
+          reviewDefId: def.id,
+          openDue: (instance.due_date as string | null) ?? null,
+          client: reader,
+        });
+    if (n !== null) {
+      presetReview = `Review ${n}`;
+      reviewHeading = presetReview;
+      schema = removeField(schema, "type_of_review");
+    }
   }
 
   // Pre-fill the service user's own details (name + branch) into whatever form this
@@ -175,6 +197,14 @@ export default async function CompleteServiceUserCheckPage({
     }
   }
 
+  /* The person's current outcomes, from their Outcomes page, so the review never asks how
+     many there are or for them to be retyped (Phil, 2026-10-05). Rebuilt again on submit. */
+  const outcomesKeys = flattenFields(schema).filter((f) => f.type === "outcomes_review").map((f) => f.key);
+  const recordOutcomes = outcomesKeys.length ? await outcomesForReview(id) : [];
+  for (const key of outcomesKeys) {
+    presetAnswers[key] = withRecordOutcomes(EMPTY_OUTCOMES_REVIEW, recordOutcomes);
+  }
+
   // Audit (and any form with an auditor_name field): the Auditor Full Name is a
   // dropdown of the company's active users, preselected to whoever is signed in
   // and changeable to any other user (Phil, 2026-07-25).
@@ -192,7 +222,17 @@ export default async function CompleteServiceUserCheckPage({
 
   /* What this user had already typed into this review, if they were interrupted in the
      last twelve hours (see lib/forms/draft-key.ts). */
-  const draft = await readDraft(checkDraftKey("service_users", instanceId));
+  const savedDraft = await readDraft(checkDraftKey("service_users", instanceId));
+  /* A draft keeps what was typed, but the outcomes themselves come from the record as it is
+     now: one added or achieved since the draft was saved must show as it really is. */
+  const draft = savedDraft
+    ? {
+        ...savedDraft,
+        ...Object.fromEntries(
+          outcomesKeys.map((k) => [k, withRecordOutcomes(parseOutcomesReview(savedDraft[k]), recordOutcomes)]),
+        ),
+      }
+    : savedDraft;
 
   /* DONE ON PAPER (DEF-056): the other way of completing this Check, Admins only, and never
      the Setup Visit (paperOffered says why). The database refuses everybody else too. */

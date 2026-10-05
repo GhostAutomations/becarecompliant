@@ -18,6 +18,7 @@ import {
 import { CARE_PLAN_SERVICES, CARE_PLAN_UNITS } from "./service-users/care-plan-consts";
 import { describePackage, parsePackage } from "./service-users/care-package";
 import { ukDate } from "./dates";
+import { describeOutcomesReview, parseOutcomesReview } from "./service-users/outcomes-review";
 
 /** Map an option value to its label, falling back to the raw value. */
 function optionLabel(field: FormField, value: string): string {
@@ -43,6 +44,9 @@ export function formatAnswerForDisplay(field: FormField, value: AnswerValue | un
       if (lines.length === 0) return "No calls";
       return describePackage(lines).split("; ").join("\n");
     }
+
+    case "outcomes_review":
+      return describeOutcomesReview(parseOutcomesReview(value));
 
     case "multi_select":
       return Array.isArray(value) && value.length

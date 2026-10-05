@@ -14,6 +14,8 @@
  * Isomorphic: safe to import from both server and client (no side effects).
  */
 
+import type { OutcomesReviewValue } from "./service-users/outcomes-review";
+
 export type FieldType =
   | "short_text"
   | "long_text"
@@ -60,7 +62,14 @@ export type FieldType =
    */
   | "score_total"
   /** The band a score falls in, worked out from the totals it names. Read only. */
-  | "score_band";
+  | "score_band"
+  /**
+   * THE OUTCOMES REVIEW (Phil, 2026-10-05). The person's current outcomes, filled in from the
+   * record, each asked its progress and what has helped; then a new outcome when wanted (or
+   * when there are none). Submitting writes back to the Outcomes page. The answer's shape and
+   * rules are lib/service-users/outcomes-review.ts.
+   */
+  | "outcomes_review";
 
 /** What a question can be filled in with automatically (see FormField.prefill). */
 export type FieldPrefill = "record_name" | "record_branch" | "completed_by" | "today" | "record_start_date";
@@ -247,6 +256,7 @@ export type AnswerValue =
   | string[]
   | AddressValue
   | PackageLineValue[]
+  | OutcomesReviewValue
   | null;
 
 /** All answers for a form, keyed by field key. */
