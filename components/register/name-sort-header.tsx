@@ -24,8 +24,8 @@
  * the matrix's scrolling area and anything positioned normally would be clipped by it.
  */
 
-import { useEffect, useRef, useState, useTransition } from "react";
-import { createPortal } from "react-dom";
+import { useState, useTransition } from "react";
+import { SortMenuHeader, type SortMenuOption } from "@/components/register/sort-menu-header";
 import { bySurname, byGivenName } from "@/lib/people/name-sort";
 import { setRegisterNameSort } from "@/lib/register/name-sort-actions";
 import type { SortMode } from "@/lib/register/name-sort-pref";
@@ -43,6 +43,11 @@ export const SORT_OPTIONS: ReadonlyArray<{ value: SortMode; label: string }> = [
  * The chosen order, held here so the rows reorder immediately, and written to the profile so
  * it is still chosen tomorrow. `initial` comes from the server, which has already read it.
  */
+const NAME_MENU: ReadonlyArray<SortMenuOption<SortMode>> = SORT_OPTIONS.map((o) => ({
+  ...o,
+  ascending: o.value.endsWith("_az"),
+}));
+
 export function useNameSort(initial: SortMode) {
   const [mode, setMode] = useState<SortMode>(initial);
   const [, startTransition] = useTransition();
@@ -73,100 +78,24 @@ export function NameSortHeader({
   mode,
   onChange,
   className = "col-carer",
+  active = true,
 }: {
   label: string;
   mode: SortMode;
   onChange: (mode: SortMode) => void;
   className?: string;
+  /** False while another column (a training course) is ordering the rows. */
+  active?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
-  const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const current = SORT_OPTIONS.find((o) => o.value === mode);
-
-  useEffect(() => {
-    if (!open) return;
-    function onDown(e: MouseEvent) {
-      const t = e.target as Node;
-      if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
-      setOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    function onScroll() {
-      setOpen(false);
-    }
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    window.addEventListener("scroll", onScroll, true);
-    window.addEventListener("resize", onScroll);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-      window.removeEventListener("scroll", onScroll, true);
-      window.removeEventListener("resize", onScroll);
-    };
-  }, [open]);
-
-  function toggle() {
-    if (open) {
-      setOpen(false);
-      return;
-    }
-    const r = btnRef.current?.getBoundingClientRect();
-    if (r) setCoords({ top: r.bottom + 4, left: r.left, width: r.width });
-    setOpen(true);
-  }
-
   return (
-    <th className={className} aria-sort={mode.endsWith("_az") ? "ascending" : "descending"}>
-      <button
-        ref={btnRef}
-        type="button"
-        onClick={toggle}
-        /* Centred, because .matrix th.col-carer centres its heading while the names below
-           stay left aligned. The button must not quietly change that. */
-        className="flex w-full cursor-pointer items-center justify-center gap-1.5 font-[inherit] text-[inherit] uppercase tracking-[inherit] text-white/70 transition hover:text-white"
-        title={`Sorted ${current?.label ?? ""}. Press to change.`}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={`${label}, sorted ${current?.label ?? ""}. Press to change the order.`}
-      >
-        {label}
-        <span aria-hidden className="text-[0.65em] leading-none text-gold-400">
-          {mode.endsWith("_az") ? "▲" : "▼"}
-        </span>
-      </button>
-      {open &&
-        createPortal(
-          <div
-            ref={menuRef}
-            role="menu"
-            style={{ position: "fixed", top: coords.top, left: coords.left, minWidth: Math.max(coords.width, 170) }}
-            className="z-50 flex flex-col items-stretch gap-1 rounded-xl border border-white/15 bg-navy-900 p-2 shadow-2xl"
-          >
-            {SORT_OPTIONS.map((o) => (
-              <button
-                key={o.value}
-                type="button"
-                role="menuitemradio"
-                aria-checked={o.value === mode}
-                onClick={() => {
-                  setOpen(false);
-                  onChange(o.value);
-                }}
-                className={`cursor-pointer rounded-lg px-3 py-1.5 text-left text-xs font-semibold normal-case tracking-normal transition ${
-                  o.value === mode ? "bg-white/15 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"
-                }`}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>,
-          document.body,
-        )}
-    </th>
+    <SortMenuHeader
+      label={label}
+      options={NAME_MENU}
+      value={mode}
+      active={active}
+      onChange={onChange}
+      className={className}
+      title={active ? `Sorted ${SORT_OPTIONS.find((o) => o.value === mode)?.label ?? ""}. Press to change.` : "Press to sort by name"}
+    />
   );
 }

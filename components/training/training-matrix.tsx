@@ -20,6 +20,8 @@ import { useRememberBranch } from "@/components/register/use-remember-branch";
 import { splitByProbation } from "@/lib/training/probation-group";
 import { phaseProgress } from "@/lib/training/phase";
 import { useBranchWord } from "@/components/branches/branch-word";
+import { SortMenuHeader, type SortMenuOption } from "@/components/register/sort-menu-header";
+import { sortByCourse, sortByDate, sortByNumber, type ColumnSort, type ColumnSortDir } from "@/lib/training/column-sort";
 
 type BranchLite = { id: string; name: string };
 
@@ -75,6 +77,23 @@ function PhaseBar({ progress }: { progress: ReturnType<typeof phaseProgress> }) 
   );
 }
 
+/* SORT ANY COLUMN (Phil, popup 2026-10-05). The same gold arrow as Carer: a course sorts by date,
+   a phase by how far through, Social Care Wales by renewal. One column orders the rows at a time;
+   choosing a name order on Carer goes back to names. Not saved: it is a look at the register for
+   now, where the name order is how somebody likes to read it every day. */
+const DATE_MENU: ReadonlyArray<SortMenuOption<ColumnSortDir>> = [
+  { value: "soonest", label: "Soonest due first", ascending: true },
+  { value: "latest", label: "Latest first", ascending: false },
+];
+const PHASE_MENU: ReadonlyArray<SortMenuOption<ColumnSortDir>> = [
+  { value: "soonest", label: "Least complete first", ascending: true },
+  { value: "latest", label: "Most complete first", ascending: false },
+];
+const SCW_MENU: ReadonlyArray<SortMenuOption<ColumnSortDir>> = [
+  { value: "soonest", label: "Missing, then soonest renewal", ascending: true },
+  { value: "latest", label: "Latest renewal first", ascending: false },
+];
+
 function ragClass(rag: Rag): string {
   return rag === "green"
     ? "rag-cell-green"
@@ -95,6 +114,7 @@ export default function TrainingMatrix({
   initialBranch,
   branchFromLink = false,
   showScw = false,
+  focusPersonId,
 }: {
   courses: TrainingCourse[];
   people: TrainingPerson[];
@@ -110,6 +130,8 @@ export default function TrainingMatrix({
   branchFromLink?: boolean;
   /** Welsh companies: the Social Care Wales registration number column (DEF-097). */
   showScw?: boolean;
+  /** Opened from a dashboard Training line: start with the search narrowed to this person. */
+  focusPersonId?: string;
 }) {
   const scwToday = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
   const bw = useBranchWord();
@@ -152,7 +174,7 @@ export default function TrainingMatrix({
   const readable = people;
   const [branch, setBranch] = useState<string>(initialBranch || "all");
   useRememberBranch("training", branch, branchFromLink);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(() => people.find((p) => p.id === focusPersonId)?.full_name ?? "");
   const [narrow, setNarrow] = useState<Narrow>("all");
   const [selected, setSelected] = useState<Selected | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -170,7 +192,12 @@ export default function TrainingMatrix({
     [branch, readable],
   );
 
-  const { mode, setMode } = useNameSort(initialSort);
+  const { mode, setMode: setNameMode } = useNameSort(initialSort);
+  const [colSort, setColSort] = useState<ColumnSort>(null);
+  const setMode = (m: SortMode) => {
+    setColSort(null);
+    setNameMode(m);
+  };
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     const matched = inBranch.filter(
@@ -178,8 +205,23 @@ export default function TrainingMatrix({
         (q === "" || p.full_name.toLowerCase().includes(q)) &&
         matchesNarrow(p.cells, courses, narrow),
     );
-    return sortByName(matched, (p) => p.full_name, mode);
-  }, [inBranch, query, narrow, courses, mode]);
+    const byName = sortByName(matched, (p) => p.full_name, mode);
+    if (!colSort) return byName;
+    if (colSort.key === "scw") {
+      return sortByDate(
+        byName,
+        (p) => p.scw_renewal_date,
+        colSort.dir,
+        (p) => !p.scw_number && scwStatus(p.scw_number, p.start_date, scwToday) === "missing",
+      );
+    }
+    if (colSort.key.startsWith("phase:")) {
+      const n = Number(colSort.key.slice(6));
+      const inPhase = courses.filter((c) => c.phase === n);
+      return sortByNumber(byName, (p) => phaseProgress(inPhase.map((c) => p.cells[c.id]))?.pct ?? null, colSort.dir);
+    }
+    return sortByCourse(byName, (p) => p.cells[colSort.key], colSort.dir);
+  }, [inBranch, query, narrow, courses, mode, colSort, scwToday]);
 
   /*
    * IN PROBATION SITS ON TOP, AND ONLY WHEN SOMEBODY IS IN IT (Phil, 2026-09-16, of the Monday
@@ -396,18 +438,38 @@ export default function TrainingMatrix({
               <table className="matrix">
             <thead>
               <tr>
-                <NameSortHeader label="Carer" mode={mode} onChange={setMode} />
-                {showScw ? <th title="Social Care Wales registration number">SCW number</th> : null}
+                <NameSortHeader label="Carer" mode={mode} onChange={setMode} active={!colSort} />
+                {showScw ? (
+                  <SortMenuHeader
+                    label="SCW number"
+                    title="Social Care Wales registration number"
+                    options={SCW_MENU}
+                    value={colSort?.key === "scw" ? colSort.dir : "soonest"}
+                    active={colSort?.key === "scw"}
+                    onChange={(dir) => setColSort({ key: "scw", dir })}
+                  />
+                ) : null}
                 {phases.map((g) => (
-                  <th key={g.phase} title={`${g.courses.length} courses`}>
-                    Phase {g.phase}
-                  </th>
+                  <SortMenuHeader
+                    key={g.phase}
+                    label={`Phase ${g.phase}`}
+                    title={`${g.courses.length} courses`}
+                    options={PHASE_MENU}
+                    value={colSort?.key === `phase:${g.phase}` ? colSort.dir : "soonest"}
+                    active={colSort?.key === `phase:${g.phase}`}
+                    onChange={(dir) => setColSort({ key: `phase:${g.phase}`, dir })}
+                  />
                 ))}
                 {courses.map((c) => (
-                  <th key={c.id} title={c.renewal_months ? `Renews every ${c.renewal_months} months` : "One off"}>
-                    {c.name}
-                    {c.is_safeguarding ? " ★" : ""}
-                  </th>
+                  <SortMenuHeader
+                    key={c.id}
+                    label={`${c.name}${c.is_safeguarding ? " ★" : ""}`}
+                    title={c.renewal_months ? `Renews every ${c.renewal_months} months` : "One off"}
+                    options={DATE_MENU}
+                    value={colSort?.key === c.id ? colSort.dir : "soonest"}
+                    active={colSort?.key === c.id}
+                    onChange={(dir) => setColSort({ key: c.id, dir })}
+                  />
                 ))}
               </tr>
             </thead>

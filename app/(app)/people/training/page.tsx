@@ -23,7 +23,7 @@ export const metadata: Metadata = { title: "Training" };
 export default async function TrainingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ branch?: string }>;
+  searchParams: Promise<{ branch?: string; person?: string }>;
 }) {
   const { user, profile } = await requireCompany();
 
@@ -40,7 +40,7 @@ export default async function TrainingPage({
   }
 
   const companyId = profile.company_id;
-  const { branch } = await searchParams;
+  const { branch, person } = await searchParams;
   const nameSort = await getRegisterNameSort(user.id);
   const [branches, matrix, viewerBranchIds, primaryBranchId, rememberedBranch] = await Promise.all([
     listBranches(companyId, profile),
@@ -64,8 +64,14 @@ export default async function TrainingPage({
              write on that carer is refused. See lib/auth/manage-scope.ts. */
           initialSort={nameSort}
           /* Opens on the viewer's primary branch (lib/branches/default-branch.ts, Phil 2026-10-05). */
-          initialBranch={pickDefaultBranch(branches, primaryBranchId, branch ?? rememberedBranch, { allowAll: true })}
+          initialBranch={
+            /* Opened from a dashboard Training line (?person=, Phil 2026-10-05): that person's
+               branch, so their row is there. The id, never the name, travels in the link. */
+            (person && matrix.people.find((p) => p.id === person)?.branch_id) ||
+            pickDefaultBranch(branches, primaryBranchId, branch ?? rememberedBranch, { allowAll: true })
+          }
           branchFromLink={!!branch}
+          focusPersonId={person && matrix.people.some((p) => p.id === person) ? person : undefined}
           viewerRole={profile.role}
           viewerBranchIds={viewerBranchIds}
           showScw={(await getRegulator(companyId)) !== "cqc"}

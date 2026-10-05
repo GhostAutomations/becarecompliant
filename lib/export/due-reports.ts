@@ -32,8 +32,8 @@ export type DueReportInput = {
 };
 
 /** "12 days late", "Due today", "Due in 3 days". */
-function whenText(dueIso: string | null, todayIso: string): string {
-  if (!dueIso) return "No date";
+function whenText(dueIso: string | null, todayIso: string, kind?: DueRow["kind"]): string {
+  if (!dueIso) return kind === "training" ? "Not done" : "No date";
   const n = daysBetweenIso(todayIso, dueIso);
   if (n < 0) return n === -1 ? "1 day late" : `${-n} days late`;
   if (n === 0) return "Due today";
@@ -54,6 +54,7 @@ export async function buildDueReport(input: DueReportInput): Promise<{ doc: Repo
   const scopeLabel = input.branchName ?? terms.all;
   const people = rows.filter((r) => r.kind === "person");
   const sus = rows.filter((r) => r.kind === "service_user");
+  const training = rows.filter((r) => r.kind === "training");
   const tone = band === "overdue" ? "red" : "amber";
 
   const line = (r: DueRow): ReportCell[] => [
@@ -61,7 +62,7 @@ export async function buildDueReport(input: DueReportInput): Promise<{ doc: Repo
     { text: (r.branchId && branchName.get(r.branchId)) || "" },
     { text: r.checkName ?? "" },
     { text: r.dueDate ? fmtDate(r.dueDate) : "" },
-    { text: whenText(r.dueDate, today), rag: tone },
+    { text: whenText(r.dueDate, today, r.kind), rag: tone },
   ];
   const columns = [
     { header: "Name", width: "24%" },
@@ -70,6 +71,7 @@ export async function buildDueReport(input: DueReportInput): Promise<{ doc: Repo
     { header: "Due", width: "18%" },
     { header: band === "overdue" ? "Late" : "When", width: "16%" },
   ];
+  const trainingColumns = columns.map((c) => (c.header === "Check" ? { ...c, header: "Course" } : c));
   const records = (list: DueRow[]) => new Set(list.map((r) => `${r.kind}:${r.recordId}`)).size;
 
   const totals =
@@ -78,11 +80,14 @@ export async function buildDueReport(input: DueReportInput): Promise<{ doc: Repo
           { label: "Overdue checks", value: String(rows.length) },
           { label: "People", value: String(records(people)) },
           { label: "Service Users", value: String(records(sus)) },
+          { label: "Overdue training", value: String(training.length) },
+          { label: "People with overdue training", value: String(records(training)) },
         ]
       : [
           { label: "Checks due", value: String(rows.length) },
           { label: "People checks", value: String(people.length) },
           { label: "Service User checks", value: String(sus.length) },
+          { label: "Training renewals", value: String(training.length) },
         ];
 
   const doc: ReportDoc = {
@@ -97,22 +102,24 @@ export async function buildDueReport(input: DueReportInput): Promise<{ doc: Repo
       { label: "Generated at", value: generatedAt() },
     ],
     footerNote:
-      "Live list, as the registers stand now. Active records only: leavers, archived people and cancelled or discharged service users are excluded. One line per check.",
+      "Live list, as the registers stand now. Active records only: leavers, archived people and cancelled or discharged service users are excluded. One line per check, and one per training course.",
     blocks: [
       { kind: "heading", text: "People" },
       { kind: "table", columns, rows: people.map(line), emptyText: meta.emptyPeople },
       { kind: "heading", text: "Service Users" },
       { kind: "table", columns, rows: sus.map(line), emptyText: meta.emptyServiceUsers },
+      { kind: "heading", text: "Training" },
+      { kind: "table", columns: trainingColumns, rows: training.map(line), emptyText: meta.emptyTraining },
     ],
   };
 
   const csvRows: CsvCell[][] = rows.map((r) => [
-    r.kind === "person" ? "Person" : "Service User",
+    r.kind === "person" ? "Person" : r.kind === "training" ? "Training" : "Service User",
     r.name,
     (r.branchId && branchName.get(r.branchId)) || "",
     r.checkName ?? "",
     r.dueDate ?? "",
-    whenText(r.dueDate, today),
+    whenText(r.dueDate, today, r.kind),
   ]);
   const csv = buildCsv(["Register", "Name", terms.one, "Check", "Due date", band === "overdue" ? "Late" : "When"], csvRows);
 

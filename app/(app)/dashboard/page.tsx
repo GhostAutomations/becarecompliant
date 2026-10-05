@@ -1247,7 +1247,7 @@ export default async function DashboardPage() {
           iconTone="indigo"
           value={overdue}
           tone={overdue > 0 ? "red" : "green"}
-          sub={`${duePreview.overdue.people} ${duePreview.overdue.people === 1 ? "person" : "people"}, ${duePreview.overdue.serviceUsers} ${duePreview.overdue.serviceUsers === 1 ? "Service User" : "Service Users"}`}
+          sub={`${duePreview.overdue.people} ${duePreview.overdue.people === 1 ? "person" : "people"}, ${duePreview.overdue.serviceUsers} ${duePreview.overdue.serviceUsers === 1 ? "Service User" : "Service Users"}, ${duePreview.overdue.training} for training`}
           preview={{ title: "Overdue", ...duePreview.overdue, emptyText: "Nothing is overdue." }}
         />
         <Tile
@@ -1258,7 +1258,7 @@ export default async function DashboardPage() {
           preview={{ title: "Due in 7 days", ...duePreview.d7, emptyText: "Nothing falls due in the next 7 days." }}
           icon="calendar"
           iconTone="orange"
-          sub="checks, today to day 7"
+          sub="checks and training, today to day 7"
         />
         <Tile
           href={dueHref("due-14")}
@@ -1267,7 +1267,7 @@ export default async function DashboardPage() {
           preview={{ title: "Due in 8 to 14 days", ...duePreview.d14, emptyText: "Nothing falls due in days 8 to 14." }}
           icon="calendar"
           iconTone="orange"
-          sub="checks, days 8 to 14"
+          sub="checks and training, days 8 to 14"
         />
         <Tile
           href={dueHref("due-30")}
@@ -1276,7 +1276,7 @@ export default async function DashboardPage() {
           preview={{ title: "Due in 15 to 30 days", ...duePreview.d30, emptyText: "Nothing falls due in days 15 to 30." }}
           icon="calendar"
           iconTone="orange"
-          sub="checks, days 15 to 30"
+          sub="checks and training, days 15 to 30"
         />
       </div>
 

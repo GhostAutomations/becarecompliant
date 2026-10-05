@@ -23,6 +23,7 @@ export const DUE_REPORTS: Record<
     description: string;
     emptyPeople: string;
     emptyServiceUsers: string;
+    emptyTraining: string;
   }
 > = {
   overdue: {
@@ -31,9 +32,10 @@ export const DUE_REPORTS: Record<
     slug: "overdue",
     ref: "OVERDUE",
     covers: "Everything past its due date",
-    description: "Every overdue check for People and Service Users, oldest first, with how late each one is.",
+    description: "Every overdue check for People and Service Users, and every training course not done or expired, oldest first.",
     emptyPeople: "No People checks are overdue.",
     emptyServiceUsers: "No Service User checks are overdue.",
+    emptyTraining: "No training is overdue.",
   },
   "due-7": {
     band: "d7",
@@ -41,9 +43,10 @@ export const DUE_REPORTS: Record<
     slug: "due-in-7-days",
     ref: "DUE7",
     covers: "Today to day 7",
-    description: "Every check falling due from today to day 7, soonest first.",
+    description: "Every check and training renewal falling due from today to day 7, soonest first.",
     emptyPeople: "No People checks fall due in the next 7 days.",
     emptyServiceUsers: "No Service User checks fall due in the next 7 days.",
+    emptyTraining: "No training renews in the next 7 days.",
   },
   "due-14": {
     band: "d14",
@@ -51,9 +54,10 @@ export const DUE_REPORTS: Record<
     slug: "due-in-14-days",
     ref: "DUE14",
     covers: "Days 8 to 14",
-    description: "Every check falling due in days 8 to 14, soonest first.",
+    description: "Every check and training renewal falling due in days 8 to 14, soonest first.",
     emptyPeople: "No People checks fall due in days 8 to 14.",
     emptyServiceUsers: "No Service User checks fall due in days 8 to 14.",
+    emptyTraining: "No training renews in days 8 to 14.",
   },
   "due-30": {
     band: "d30",
@@ -61,9 +65,10 @@ export const DUE_REPORTS: Record<
     slug: "due-in-30-days",
     ref: "DUE30",
     covers: "Days 15 to 30",
-    description: "Every check falling due in days 15 to 30, soonest first.",
+    description: "Every check and training renewal falling due in days 15 to 30, soonest first.",
     emptyPeople: "No People checks fall due in days 15 to 30.",
     emptyServiceUsers: "No Service User checks fall due in days 15 to 30.",
+    emptyTraining: "No training renews in days 15 to 30.",
   },
 };
 

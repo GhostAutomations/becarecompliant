@@ -114,3 +114,40 @@ test("dueBandRows: each report band matches its tile exactly", async () => {
   assert.equal(dueBandRows(rows, today, "d14").length, p.d14.total);
   assert.equal(dueBandRows(rows, today, "d30").length, p.d30.total);
 });
+
+test("TRAINING (2026-10-05): its own count on Overdue, separate from the same person's checks", () => {
+  const p = buildDuePreview(
+    [
+      row({ checkName: "Supervision", dueDate: "2026-09-10", rag: "red" }),
+      row({ kind: "training", checkName: "Fire Safety", dueDate: "2026-09-01", rag: "red" }),
+      row({ kind: "training", checkName: "First Aid", dueDate: null, rag: "red" }),
+      row({ kind: "training", recordId: "p2", name: "Bob Lee", checkName: "Moving and Handling", dueDate: null, rag: "red" }),
+    ],
+    T,
+  );
+  assert.equal(p.overdue.people, 1);
+  assert.equal(p.overdue.serviceUsers, 0);
+  assert.equal(p.overdue.training, 2);
+  assert.equal(p.overdue.total, 3, "the three figures on the tile add up to its number");
+  const jane = p.overdue.lines.find((l) => l.key === "training:p1");
+  assert.equal(jane?.detail, "Training: Fire Safety, First Aid");
+  assert.equal(jane?.when, "27 days late");
+  assert.equal(jane?.href, "/people/training?person=p1");
+  const bob = p.overdue.lines.find((l) => l.key === "training:p2");
+  assert.equal(bob?.when, "Not done", "never done has no date to be late from");
+});
+
+test("TRAINING: a renewal lands in exactly one band and says it is training", () => {
+  const rows = [
+    row({ kind: "training", checkName: "Fire Safety", dueDate: addDaysIso(T, 3), rag: "amber" }),
+    row({ kind: "training", checkName: "First Aid", dueDate: addDaysIso(T, 10), rag: "green" }),
+    row({ kind: "training", checkName: "Infection Control", dueDate: addDaysIso(T, 25), rag: "green" }),
+    row({ kind: "training", checkName: "Dementia", dueDate: addDaysIso(T, 45), rag: "green" }),
+  ];
+  const p = buildDuePreview(rows, T);
+  assert.equal(p.d7.total, 1);
+  assert.equal(p.d7.lines[0].detail, "Training: Fire Safety");
+  assert.equal(p.d14.total, 1);
+  assert.equal(p.d30.total, 1);
+  assert.equal(p.overdue.total, 0);
+});
