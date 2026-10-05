@@ -435,30 +435,27 @@ export default async function PersonPage({
     todayIso: scwTodayIso,
   });
   const canAssess = canManage && !supportMode;
-  const dbsExtra =
-    dbsPending || canAssess ? (
-      <div className="mt-3 space-y-2">
-        {dbsPending ? (
-          <p className={`text-[12px] ${dbsPending.rag === "red" ? "text-rag-red" : "text-rag-amber"}`}>
-            {dbsPending.decision === "wait"
-              ? "Waiting for the DBS certificate before starting."
-              : dbsPending.reviewDue
-                ? `Working on DBS pending. Review ${dbsPending.rag === "red" ? "was due" : "due"} ${formatDisplayDate(dbsPending.reviewDue)}.`
-                : "Working on DBS pending."}
-          </p>
-        ) : null}
-        {canAssess ? (
-          <div className="flex flex-wrap gap-2">
-            <Link href={`/people/${person.id}/tracker/dbs_pending/complete`} className="btn-outline btn-tracker">
-              Pending risk assessment
-            </Link>
-            <Link href={`/people/${person.id}/tracker/dbs_disclosure/complete`} className="btn-outline btn-tracker">
-              Disclosure risk assessment
-            </Link>
-          </div>
-        ) : null}
-      </div>
-    ) : undefined;
+  /* ONE ROW OF THREE (Phil, 2026-10-05: "the same height as complete, and to the right of
+     complete, so the size of the boxes isn't changed"). Complete, Pending and Disclosure share the
+     button size and sit on one line, so the DBS card stays the height of Right to Work beside it.
+     The forms open under their full titles. */
+  const dbsExtra = (
+    <>
+      {canAssess ? (
+        <div className="mt-3 grid grid-cols-3 gap-1.5">
+          <Link href={`/people/${person.id}/tracker/dbs_renewal/complete`} className="btn-primary px-1 text-[13px]">
+            Complete
+          </Link>
+          <Link href={`/people/${person.id}/tracker/dbs_pending/complete`} className="btn-outline px-1 text-[13px]">
+            Pending
+          </Link>
+          <Link href={`/people/${person.id}/tracker/dbs_disclosure/complete`} className="btn-outline px-1 text-[13px]">
+            Disclosure
+          </Link>
+        </div>
+      ) : null}
+    </>
+  );
   const dbsTile = trackerTile(
     "DBS",
     "Document",
@@ -466,13 +463,20 @@ export default async function PersonPage({
       { label: "DBS date of issue", value: formatDisplayDate(tracker?.dbs_date ?? null) || "—" },
       { label: "Enhanced DBS", value: formatDisplayDate(tracker?.enhanced_dbs_date ?? null) || "—" },
     ],
-    canAssess ? `/people/${person.id}/tracker/dbs_renewal/complete` : null,
+    // Complete sits in the row of three below, not on its own line.
+    null,
     dbsExtra,
+    /* The pending state lives in the badge, not in an extra line, so the card keeps its height. */
     dbsPending ? (
       dbsPending.rag === "red" ? (
-        <span className="pill-red"><span className="pill-dot" /> Review due</span>
+        <span className="pill-red"><span className="pill-dot" /> Review overdue</span>
       ) : (
-        <span className="pill-amber"><span className="pill-dot" /> DBS pending</span>
+        <span className="pill-amber">
+          <span className="pill-dot" />{" "}
+          {dbsPending.decision === "start" && dbsPending.reviewDue
+            ? `Review ${formatDisplayDate(dbsPending.reviewDue)}`
+            : "DBS pending"}
+        </span>
       )
     ) : (
       docBadge(dbsGap, dbsRag)

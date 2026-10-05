@@ -5,11 +5,11 @@ Migration 0387 applied: both forms in the library (locked) and on Thistle, Bevan
 
 | # | Check | Result |
 |---|-------|--------|
-| R1 | Record page DBS card (Manager or Admin): "Pending risk assessment" and "Disclosure risk assessment" buttons show; Supervisor and support mode do not see them | NOT TESTED |
-| R2 | Pending form, Wales company: Regulator reads "Wales (CIW)" and cannot be changed; only the Wales safeguards show; the Social Care Wales question shows | NOT TESTED |
-| R3 | Pending form: Adult First "Wait for the certificate" shows the must not start line; "Not requested" shows its line; the result date shows for No match and Wait only | NOT TESTED |
-| R4 | Pending form: decision Start needs a review date; save; the card shows "DBS pending" (amber) and "Working on DBS pending. Review due ..." | NOT TESTED |
-| R5 | Pending: with the review date in the past the card shows "Review due" in red | NOT TESTED |
+| R1 | Record page DBS card (Manager or Admin): Complete, Pending and Disclosure in one row, same height as Complete; card no taller than Right to Work; Supervisor and support mode see no buttons | NOT TESTED (first layout FAILED 2026-10-05: buttons wrapped to three lines and sat under Complete; changed to one row of three) |
+| R2 | Pending form, Wales company: Regulator reads "Wales (CIW)" and cannot be changed; only the Wales safeguards show; the Social Care Wales question shows | PASS 2026-10-05 (Bevan, ZZ Test Probation Starter) |
+| R3 | Pending form: Adult First "Wait for the certificate" shows the must not start line; "Not requested" shows its line; the result date shows for No match and Wait only | PASS 2026-10-05 (Wait line and date checked; Not requested not clicked) |
+| R4 | Pending form: decision Start shows the review date; save; Evidence stores regulator ciw; the card badge reads "Review 12 Oct 26" in amber | Form and Evidence PASS 2026-10-05; badge wording changed after the run (was a separate line that made the card taller), recheck |
+| R5 | Pending: with the review date in the past the card badge shows "Review overdue" in red | NOT TESTED |
 | R6 | Pending: enter the DBS date of issue on the DBS form; the pending line and pill clear, normal DBS badge returns | NOT TESTED |
 | R7 | Disclosure form: Barred stands down the rest, shows the stop line, saves with the assessor signature only | NOT TESTED |
 | R8 | Disclosure form: New applicant shows the Employ decisions, Existing shows Continue decisions; "Not to work with named service users" asks which | NOT TESTED |
