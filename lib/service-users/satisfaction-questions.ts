@@ -43,15 +43,29 @@ export type SatisfactionQuestion = {
  * standard rather than the company's own — never to decide what is scored, which is always
  * the flag. Phil chose full control: a company may reword or remove any of them.
  */
-export const STANDARD_SATISFACTION_QUESTIONS: ReadonlyArray<{ key: string; label: string }> = [
-  { key: "schedule_matches", label: "Does this match the calls being delivered?" },
-  { key: "review_previous_setup", label: "Do the call times and number of visits match what was agreed?" },
-  { key: "call_times_suit", label: "Do the call times suit you at the moment?" },
+export const STANDARD_SATISFACTION_QUESTIONS: ReadonlyArray<{ key: string; label: string; good: "Yes" | "No" }> = [
+  /* The standard set from 2026-10-05 (Phil: Thistle's list, then "all companies and demos ...
+     and future companies"). The three schedule questions they replaced are gone from every
+     current form; reviews completed on them keep their own frozen copy and score. */
+  { key: "sat_happy_service", label: "Are you happy with the service you are being provided?", good: "Yes" },
+  { key: "sat_office_communication", label: "Are you happy with the office team's communication with you?", good: "Yes" },
+  { key: "sat_unresolved_issues", label: "Are there any unresolved issues?", good: "No" },
 ];
 
 export const STANDARD_SATISFACTION_KEYS: ReadonlySet<string> = new Set(
   STANDARD_SATISFACTION_QUESTIONS.map((q) => q.key),
 );
+
+/**
+ * The three that shipped as standard BEFORE 2026-10-05. Kept for one job only: a schema
+ * written before the satisfaction flag existed is scored on these, so Evidence from that
+ * window still scores the way it did on the day. Never offered again.
+ */
+const LEGACY_UNFLAGGED_KEYS: ReadonlySet<string> = new Set([
+  "schedule_matches",
+  "review_previous_setup",
+  "call_times_suit",
+]);
 
 /** Is this field one of the scored questions? */
 export function isSatisfactionField(f: FormField): boolean {
@@ -80,12 +94,12 @@ export function satisfactionQuestions(schema: FormSchema): SatisfactionQuestion[
   const flagged = fields.filter(isSatisfactionField);
   const chosen = flagged.length > 0
     ? flagged
-    : fields.filter((f) => STANDARD_SATISFACTION_KEYS.has(f.key));
+    : fields.filter((f) => LEGACY_UNFLAGGED_KEYS.has(f.key));
   return chosen.map((f) => ({
     key: f.key,
     label: f.label,
     good: goodAnswerOf(f),
-    custom: !STANDARD_SATISFACTION_KEYS.has(f.key),
+    custom: !STANDARD_SATISFACTION_KEYS.has(f.key) && !LEGACY_UNFLAGGED_KEYS.has(f.key),
   }));
 }
 

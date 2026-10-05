@@ -299,7 +299,7 @@ export async function restoreStandardSatisfactionQuestions(
   if (missing.length === 0) return { ok: "Every standard question is already on the form." };
 
   let next = form.schema;
-  for (const q of missing) next = withQuestionAdded(next, yesNoField(q.key, q.label));
+  for (const q of missing) next = withQuestionAdded(next, yesNoField(q.key, q.label, q.good));
 
   const err = await saveSchema(profile.company_id, form.formId, form.versionId, next, {
     action: "satisfaction.standard_restored",
