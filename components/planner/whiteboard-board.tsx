@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { createBooking, cancelBooking } from "@/lib/planner/actions";
 import TimeSelect from "./time-select";
 import type { WhiteboardBoard, BoardToBook } from "@/lib/planner/data";
+import { dueTone } from "@/lib/planner/due-tone";
 
 function fmtShort(iso: string): string {
   // See lib/dates.ts: one spelling of a month across the whole app.
@@ -87,20 +88,52 @@ export default function WhiteboardBoard({
               {items.map((b) => (
                 <div key={b.bookingId} className="flex items-center justify-between gap-3 rounded border border-slate-200 bg-white px-2 py-px text-[11px] leading-tight text-slate-700 shadow-sm">
                   <span className="min-w-0 truncate font-semibold text-slate-800">{b.recordName}</span>
-                  <span className="flex shrink-0 items-center gap-2 whitespace-nowrap text-slate-500">
-                    <span>
-                      {/* GOLD MEANS YOU, the same as the Planner calendar: on a board of
-                          everybody's work your own are the ones you do not have to read for. */}
-                      {b.conductorName ? (
-                        <>
-                          <span className={b.conductorId === currentUserId ? "font-semibold text-amber-600" : undefined}>
-                            {b.conductorName}
-                          </span>
-                          {" · "}
-                        </>
-                      ) : null}
-                      {fmtShort(b.date)}{b.startTime ? ` · ${b.startTime}` : ""}
+                  {/*
+                    THE DUE DATE STAYS ONCE IT IS BOOKED (Thistle, via Phil 2026-10-05: "once
+                    something is added to the Whiteboard it loses the due date"). LINED UP, not
+                    tacked on the end: who, when it is booked and when it is due each sit in a
+                    fixed width column, so every row under a heading reads down the same line
+                    instead of "higgledy piggledy". Red pill: the due date has gone. Amber pill:
+                    booked for after it is due, so it will be late. A pill, not coloured text,
+                    because gold text already means "this one is yours".
+                  */}
+                  <span className="flex shrink-0 items-center gap-2 whitespace-nowrap text-slate-500 tabular-nums">
+                    {/* GOLD MEANS YOU, the same as the Planner calendar: on a board of
+                        everybody's work your own are the ones you do not have to read for. */}
+                    <span
+                      className={`w-24 truncate text-right ${b.conductorId === currentUserId ? "font-semibold text-amber-600" : ""}`}
+                      title={b.conductorName ?? undefined}
+                    >
+                      {b.conductorName ?? ""}
                     </span>
+                    <span className="w-[4.75rem]" title="Booked for">
+                      {fmtShort(b.date)}{b.startTime ? ` ${b.startTime}` : ""}
+                    </span>
+                    {(() => {
+                      const tone = dueTone(b.dueDate, b.date, todayIso);
+                      return (
+                        <span
+                          className={`w-[4.75rem] rounded px-1 ${
+                            tone === "red"
+                              ? "bg-red-100 font-semibold text-red-700"
+                              : tone === "amber"
+                                ? "bg-amber-100 font-semibold text-amber-800"
+                                : ""
+                          }`}
+                          title={
+                            !b.dueDate
+                              ? "No due date"
+                              : tone === "red"
+                                ? "The due date has passed"
+                                : tone === "amber"
+                                  ? "Booked for after the due date"
+                                  : "Due date"
+                          }
+                        >
+                          {b.dueDate ? `Due ${fmtShort(b.dueDate)}` : ""}
+                        </span>
+                      );
+                    })()}
                     <form action={(fd) => { if (!confirm("Cancel this booking? It moves back to 'to book'.")) return; run(cancelBooking, fd); }}>
                       <input type="hidden" name="booking_id" value={b.bookingId} />
                       <button type="submit" disabled={pending} className="text-slate-400 hover:text-rag-red" aria-label="Cancel booking">✕</button>

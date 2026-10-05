@@ -4,15 +4,15 @@ Phil (popups, current phase): every Training register column sorts with the same
 
 | # | Check (as Bev, Bevan) | Result |
 |---|-------|--------|
-| T1 | Training register: every course, Phase and SCW heading shows the arrow; only the sorted column's arrow is gold | NOT TESTED |
-| T2 | A course, first press (up): Not done at top, then oldest date first, dashes at the bottom | NOT TESTED |
-| T3 | Same course, second press (down): furthest date at top, Not done near the bottom, dashes still last | NOT TESTED |
-| T3b | A ticks and crosses course (Welcome to the Company Policy & Procedures): up puts crosses first, down puts ticks first | NOT TESTED |
-| T4 | Choosing a name order on Carer goes back to name order and Carer's arrow turns gold again | NOT TESTED |
-| T5 | Sorting keeps working with a branch chosen, a search typed and a filter on; the In probation group stays on top, sorted inside | NOT TESTED |
-| T6 | Dashboard Overdue: the small line reads "x people, y Service Users, z for training" and the three add up to the number | NOT TESTED |
-| T7 | Overdue hover lists training lines as "Training: course, course"; Due in 7, 14, 30 hover the same | NOT TESTED |
-| T8 | Training counts match the register: expired applicable courses only (never done left out), active people; renewals per band | NOT TESTED |
-| T9 | Each of the four reports ("Overdue checks" and "Checks due" count checks only, training has its own figures) (view, PDF, CSV) has a Training section, "Course" column, no never done courses listed, an empty message when none | NOT TESTED |
-| T10 | Clicking a training line opens the Training register on that person's branch with their name in the search | NOT TESTED |
-| T11 | People and Service User registers' Carer and Service User name sort still behave as before | NOT TESTED |
+| T1 | Training register: every course, Phase and SCW heading shows the arrow; only the sorted column's arrow is gold | PASS (every course, Phase and SCW heading has the arrow; only the sorting column is gold, aria-sort set) |
+| T2 | A course, first press (up): Not done at top, then oldest date first, dashes at the bottom | PASS (Fire Training, All branches: never done, then Expired 22/09/2026, then soonest dates; dashes at the bottom on Assessing Needs) |
+| T3 | Same course, second press (down): furthest date at top, Not done near the bottom, dashes still last | PASS (second press: latest dates first; dashes still last) |
+| T3b | A ticks and crosses course (Welcome to the Company Policy & Procedures): up puts crosses first, down puts ticks first | PASS (Welcome to the Company Policy & Procedures, Team group: up = cross first, down = ticks first; no menu opens) |
+| T4 | Choosing a name order on Carer goes back to name order and Carer's arrow turns gold again | PASS (A-Z First Name on Carer restores name order, Carer arrow gold again) |
+| T5 | Sorting keeps working with a branch chosen, a search typed and a filter on; the In probation group stays on top, sorted inside | PASS (All branches, search typed, In probation group sorted inside itself) |
+| T6 | Dashboard Overdue: the small line reads "x people, y Service Users, z for training" and the three add up to the number | PASS (after the 14:30 change: Overdue 19 = 7 people, 1 Service User, 11 for training) |
+| T7 | Overdue hover lists training lines as "Training: course, course"; Due in 7, 14, 30 hover the same | PASS (hover lists "Training: course" lines) |
+| T8 | Training counts match the register: expired applicable courses only (never done left out), active people; renewals per band | PASS for Overdue (11 people, 18 expired courses, never done left out, matches the register). Bands: Bevan has no renewal in the next 30 days; needs Phil to record one (see run notes) |
+| T9 | Each of the four reports ("Overdue checks" and "Checks due" count checks only, training has its own figures) (view, PDF, CSV) has a Training section, "Course" column, no never done courses listed, an empty message when none | PASS (Overdue: checks 12, overdue training 18, people with overdue training 11; Training section with Course column; CSV 18 Training lines, none never done; PDF downloads; Due in 30: "No training renews in days 15 to 30.") |
+| T10 | Clicking a training line opens the Training register on that person's branch with their name in the search | PASS (opens /people/training on Neath with Gethin Lloyd in the search, one row; the link carries the id, not the name) |
+| T11 | People and Service User registers' Carer and Service User name sort still behave as before | PASS (People Carer and Service User menus still offer the four name orders and sort) |

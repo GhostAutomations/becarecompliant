@@ -1,5 +1,6 @@
 import "server-only";
 import { visitLabel } from "@/lib/planner/visit";
+import { earliestDue } from "@/lib/planner/due-tone";
 import { boardSpan, boardWeekIndex } from "@/lib/planner/week";
 import { createClient } from "@/lib/supabase/server";
 import { profilesById, listStaff } from "@/lib/auth/company-profiles";
@@ -36,6 +37,8 @@ export type BoardBooked = {
   recordName: string;
   checkName: string;
   date: string; // scheduled date ISO
+  /** When the check is due (earliest across the visit's tasks), so the board keeps it once booked. */
+  dueDate: string | null;
   startTime: string | null;
   durationMinutes: number | null;
   /** WHO, by id. The name is for reading; the id is what decides whose it is, because two
@@ -117,6 +120,7 @@ export async function getWhiteboardBoard(companyId: string, todayIso: string): P
       recordName: v.subjectName ?? "—",
       checkName: v.label,
       date: v.scheduledDate,
+      dueDate: v.dueDate,
       startTime: v.startTime,
       durationMinutes: v.durationMinutes,
       conductorId: v.conductorId,
@@ -186,6 +190,8 @@ export type PlannerBookingTask = {
   trackerFormKey: string | null;
   label: string;
   status: BookingStatus;
+  /** The task's check due date, when it is a check (not a tracker form or an ad-hoc job). */
+  dueDate: string | null;
 };
 
 export type PlannerBookingView = {
@@ -209,6 +215,9 @@ export type PlannerBookingView = {
   conductorId: string;
   conductorName: string | null;
   scheduledDate: string; // ISO date
+  /** The earliest due date among the visit's unfinished check tasks (lib/planner/due-tone.ts).
+   *  Null for an ad-hoc visit or one whose jobs have no due date. */
+  dueDate: string | null;
   startTime: string | null; // HH:MM
   durationMinutes: number | null;
   status: BookingStatus;
@@ -222,7 +231,7 @@ type TaskRow = {
   check_kind: string | null;
   status: BookingStatus;
   position: number | null;
-  instance: { definition: { active: boolean }[] | { active: boolean } | null }[] | { definition: { active: boolean }[] | { active: boolean } | null } | null;
+  instance: { due_date?: string | null; definition: { active: boolean }[] | { active: boolean } | null }[] | { due_date?: string | null; definition: { active: boolean }[] | { active: boolean } | null } | null;
 };
 
 type Row = {
@@ -248,7 +257,7 @@ type Row = {
   branch: { name: string | null } | null;
   // The check this booking is against (null for ad-hoc/title-only bookings), carried
   // only so we can hide bookings whose check DEFINITION has since been turned off.
-  linked_check: { definition: { active: boolean }[] | { active: boolean } | null }[] | { definition: { active: boolean }[] | { active: boolean } | null } | null;
+  linked_check: { due_date?: string | null; definition: { active: boolean }[] | { active: boolean } | null }[] | { due_date?: string | null; definition: { active: boolean }[] | { active: boolean } | null } | null;
 };
 
 /** Who may be given a task to carry out. Passed to list_company_staff, and mirrored by
@@ -256,7 +265,7 @@ type Row = {
 const CONDUCTOR_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager", "supervisor", "recruiter"];
 
 const SELECT =
-  "id, branch_id, population, subject_person_id, subject_service_user_id, check_instance_id, tracker_form_key, check_kind, title, conductor_profile_id, scheduled_date, start_time, duration_minutes, status, notes, conductor:profiles(full_name), person:people(full_name), service_user:service_users(full_name), branch:branches(name), linked_check:check_instances(definition:check_definitions(active)), tasks:planner_booking_tasks(id, check_instance_id, tracker_form_key, check_kind, status, position, instance:check_instances(definition:check_definitions(active)))";
+  "id, branch_id, population, subject_person_id, subject_service_user_id, check_instance_id, tracker_form_key, check_kind, title, conductor_profile_id, scheduled_date, start_time, duration_minutes, status, notes, conductor:profiles(full_name), person:people(full_name), service_user:service_users(full_name), branch:branches(name), linked_check:check_instances(due_date, definition:check_definitions(active)), tasks:planner_booking_tasks(id, check_instance_id, tracker_form_key, check_kind, status, position, instance:check_instances(due_date, definition:check_definitions(active)))";
 
 /**
  * Fill in the conductor names the embedded join could not read.
@@ -315,6 +324,7 @@ function toTasks(r: Row): PlannerBookingTask[] {
       trackerFormKey: t.tracker_form_key,
       label: t.check_kind?.trim() || "Task",
       status: t.status,
+      dueDate: relOne(t.instance)?.due_date ?? null,
     }));
 }
 
@@ -341,6 +351,11 @@ function toView(r: Row): PlannerBookingView {
     conductorId: r.conductor_profile_id,
     conductorName: r.conductor?.full_name ?? null,
     scheduledDate: r.scheduled_date,
+    /* A visit made before tasks existed has its one check on the booking itself. */
+    dueDate:
+      tasks.length > 0
+        ? earliestDue(tasks.filter((t) => t.status !== "completed").map((t) => t.dueDate))
+        : (relOne(r.linked_check)?.due_date ?? null),
     startTime,
     durationMinutes: r.duration_minutes,
     status: r.status,
