@@ -8,6 +8,7 @@ import "server-only";
  */
 
 import type { ReactNode } from "react";
+import Link from "next/link";
 import type { ReportDoc, ReportBlock, ReportCell, RagTone } from "@/lib/export/pdf";
 
 function pillClass(rag: RagTone): string {
@@ -28,7 +29,13 @@ function Cell({ cell, align }: { cell: ReportCell; align?: "left" | "right" }) {
   }
   return (
     <td className={`px-3 py-2 ${alignClass} ${cell.strong ? "font-semibold text-white" : "text-white/80"}`}>
-      {cell.text}
+      {cell.href ? (
+        <Link href={cell.href} className="underline decoration-white/25 underline-offset-2 hover:text-gold-300">
+          {cell.text}
+        </Link>
+      ) : (
+        cell.text
+      )}
     </td>
   );
 }

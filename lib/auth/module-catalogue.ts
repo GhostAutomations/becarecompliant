@@ -124,7 +124,14 @@ export const MODULES: readonly ModuleDef[] = [
     note: "Money. Never a Supervisor or a Viewer.",
   },
   { key: "readiness", label: "Readiness", roles: MANAGEMENT },
-  { key: "reports", label: "Reports", roles: MANAGEMENT },
+  {
+    key: "reports",
+    label: "Reports",
+    /* Supervisors reach Reports for the four due reports only (Phil, 2026-10-05: the list behind
+       each dashboard tile). The page shows them nothing else and every other report still
+       refuses them on its own role check. */
+    roles: [...MANAGEMENT, "supervisor"],
+  },
   {
     key: "settings",
     label: "Settings",

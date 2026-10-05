@@ -48,7 +48,15 @@ export type RagTone = keyof typeof RAG;
 
 export type ReportMetaPair = { label: string; value: string };
 export type ReportColumn = { header: string; width?: string; align?: "left" | "right" };
-export type ReportCell = { text: string; rag?: RagTone; strong?: boolean; star?: string; divider?: boolean };
+export type ReportCell = {
+  text: string;
+  rag?: RagTone;
+  strong?: boolean;
+  star?: string;
+  divider?: boolean;
+  /** On screen only: the cell links here (a record). The PDF prints the text. */
+  href?: string;
+};
 export type ReportBlock =
   | { kind: "heading"; text: string; collapsible?: boolean }
   | { kind: "paragraph"; text: string }

@@ -85,3 +85,32 @@ test("a DBS never recorded, red from a start date of today, counts once: overdue
   assert.equal(p.overdue.people, 1);
   assert.equal(p.d7.total, 0);
 });
+
+test("dueBandRows: each report band matches its tile exactly", async () => {
+  const { dueBandRows, buildDuePreview } = await import("./due-preview.ts");
+  const today = "2026-10-05";
+  const r = (name: string, checkName: string, dueDate: string, rag: string, kind: "person" | "service_user" = "person") =>
+    ({ kind, recordId: name, name, checkName, dueDate, rag, branchId: "b" });
+  const rows = [
+    r("Ann", "Supervision", "2026-09-01", "red"),
+    r("Ann", "Spot check", "2026-09-20", "red"),
+    r("Bob", "Review", "2026-10-05", "amber", "service_user"),
+    r("Cat", "Audit", "2026-10-12", "amber"),
+    r("Dan", "Review", "2026-10-13", "green", "service_user"),
+    r("Eve", "DBS", "2026-10-19", "green"),
+    r("Fay", "Audit", "2026-10-20", "green"),
+    r("Gus", "Audit", "2026-11-04", "green"),
+    r("Hal", "Audit", "2026-11-05", "green"),
+    r("Ivy", "Right to Work not recorded", "2026-10-05", "red"),
+  ];
+  const p = buildDuePreview(rows, today);
+  const o = dueBandRows(rows, today, "overdue");
+  assert.deepEqual(o.map((x) => x.name + x.checkName), ["AnnSupervision", "AnnSpot check", "IvyRight to Work not recorded"]);
+  assert.equal(new Set(o.map((x) => x.recordId)).size, p.overdue.total); // tile counts records
+  assert.deepEqual(dueBandRows(rows, today, "d7").map((x) => x.name), ["Bob", "Cat"]);
+  assert.deepEqual(dueBandRows(rows, today, "d14").map((x) => x.name), ["Dan", "Eve"]);
+  assert.deepEqual(dueBandRows(rows, today, "d30").map((x) => x.name), ["Fay", "Gus"]);
+  assert.equal(dueBandRows(rows, today, "d7").length, p.d7.total);
+  assert.equal(dueBandRows(rows, today, "d14").length, p.d14.total);
+  assert.equal(dueBandRows(rows, today, "d30").length, p.d30.total);
+});

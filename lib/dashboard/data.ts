@@ -46,6 +46,16 @@ function addDaysIso(iso: string, days: number): string {
  * archived records and discharged service users.
  */
 export async function getDuePreview(companyId: string): Promise<DuePreview> {
+  const { rows, today } = await getDueRows(companyId);
+  return buildDuePreview(rows, today);
+}
+
+/**
+ * Every check that could sit behind those tiles, one row each, with its record's branch. The
+ * Overdue and Due in 7, 14 and 30 day REPORTS (2026-10-05) read this too and band it with
+ * dueBandRows, so a report and its tile are worked out from the same rows by the same rules.
+ */
+export async function getDueRows(companyId: string): Promise<{ rows: DueRow[]; today: string }> {
   const supabase = await createClient();
   const [pc, sc, pn, sn, tr] = await Promise.all([
     supabase.from("person_check_status").select("person_id, check_name, due_date, rag").eq("company_id", companyId),
@@ -53,19 +63,22 @@ export async function getDuePreview(companyId: string): Promise<DuePreview> {
       .from("service_user_check_status")
       .select("service_user_id, check_name, due_date, rag")
       .eq("company_id", companyId),
-    supabase.from("people").select("id, full_name, start_date, employment_status, archived_at").eq("company_id", companyId),
-    supabase.from("service_users").select("id, full_name").eq("company_id", companyId),
+    supabase.from("people").select("id, full_name, branch_id, start_date, employment_status, archived_at").eq("company_id", companyId),
+    supabase.from("service_users").select("id, full_name, branch_id").eq("company_id", companyId),
     supabase
       .from("person_trackers")
       .select("person_id, dbs_date, enhanced_dbs_date, rtw_expiry_date, rtw_limits")
       .eq("company_id", companyId),
   ]);
   const names = new Map<string, string>();
-  for (const r of (pn.data as Array<{ id: string; full_name: string | null }> | null) ?? []) {
+  const branchOf = new Map<string, string | null>();
+  for (const r of (pn.data as Array<{ id: string; full_name: string | null; branch_id: string | null }> | null) ?? []) {
     names.set(`person:${r.id}`, r.full_name ?? "Unnamed");
+    branchOf.set(`person:${r.id}`, r.branch_id);
   }
-  for (const r of (sn.data as Array<{ id: string; full_name: string | null }> | null) ?? []) {
+  for (const r of (sn.data as Array<{ id: string; full_name: string | null; branch_id: string | null }> | null) ?? []) {
     names.set(`service_user:${r.id}`, r.full_name ?? "Unnamed");
+    branchOf.set(`service_user:${r.id}`, r.branch_id);
   }
   type P = { person_id: string; check_name: string | null; due_date: string | null; rag: string | null };
   type S = { service_user_id: string; check_name: string | null; due_date: string | null; rag: string | null };
@@ -77,6 +90,7 @@ export async function getDuePreview(companyId: string): Promise<DuePreview> {
       checkName: r.check_name,
       dueDate: r.due_date,
       rag: r.rag,
+      branchId: branchOf.get(`person:${r.person_id}`) ?? null,
     })),
     ...((sc.data as S[] | null) ?? []).map((r) => ({
       kind: "service_user" as const,
@@ -85,6 +99,7 @@ export async function getDuePreview(companyId: string): Promise<DuePreview> {
       checkName: r.check_name,
       dueDate: r.due_date,
       rag: r.rag,
+      branchId: branchOf.get(`service_user:${r.service_user_id}`) ?? null,
     })),
   ];
   /* A DBS OR RIGHT TO WORK NEVER RECORDED, OR ALREADY LAPSED (audit W1, Phil 2026-10-03): red from
@@ -104,17 +119,18 @@ export async function getDuePreview(companyId: string): Promise<DuePreview> {
   for (const p of activePeople.values()) {
     const t = trackers.get(p.id) ?? null;
     const name = names.get(`person:${p.id}`) ?? "Unnamed";
+    const branchId = branchOf.get(`person:${p.id}`) ?? null;
     for (const g of missingDocuments(t, p.start_date, today)) {
-      rows.push({ kind: "person", recordId: p.id, name, checkName: g.name, dueDate: g.since, rag: "red" });
+      rows.push({ kind: "person", recordId: p.id, name, checkName: g.name, dueDate: g.since, rag: "red", branchId });
     }
     if (t?.enhanced_dbs_date && t.enhanced_dbs_date < today) {
-      rows.push({ kind: "person", recordId: p.id, name, checkName: "DBS renewal", dueDate: t.enhanced_dbs_date, rag: "red" });
+      rows.push({ kind: "person", recordId: p.id, name, checkName: "DBS renewal", dueDate: t.enhanced_dbs_date, rag: "red", branchId });
     }
     if (t?.rtw_expiry_date && t.rtw_expiry_date < today) {
-      rows.push({ kind: "person", recordId: p.id, name, checkName: "Right to Work expiry", dueDate: t.rtw_expiry_date, rag: "red" });
+      rows.push({ kind: "person", recordId: p.id, name, checkName: "Right to Work expiry", dueDate: t.rtw_expiry_date, rag: "red", branchId });
     }
   }
-  return buildDuePreview(rows, today);
+  return { rows, today };
 }
 
 /** Count of pending holiday requests the caller may see (RLS-scoped). */

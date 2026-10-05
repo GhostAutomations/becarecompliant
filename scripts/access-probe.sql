@@ -171,6 +171,11 @@ begin
       ('Service Users', 'see the register', 'read',
         format('select count(*) from public.service_users where company_id = %L', v_company),
         format('select count(*) from public.service_users where company_id = %L', v_company), c_office || array['team_member']),
+      -- Reports: a Supervisor opens only the four due reports (2026-10-05), which read the same
+      -- status views as the dashboard tiles. Recruiters are not ticked for Reports.
+      ('Reports', 'read what is due for the due reports', 'read',
+        format('select count(*) from public.person_check_status where company_id = %L', v_company),
+        format('select count(*) from public.person_check_status where company_id = %L', v_company), c_mgmt || array['supervisor']),
       -- A Viewer sees the registers and due dates, never what a completed form says.
       -- Forms somebody ELSE filed: everybody may see what they filed themselves, so counting those
       -- would make a Viewer who once filed something look as though they read everybody's.

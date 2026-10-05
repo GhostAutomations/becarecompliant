@@ -26,6 +26,8 @@ export type DueRow = {
   checkName: string | null;
   dueDate: string | null; // yyyy-mm-dd
   rag: string | null;
+  /** The record's branch, for the Overdue and Due reports (2026-10-05). The tiles ignore it. */
+  branchId?: string | null;
 };
 
 export type PreviewLine = {
@@ -117,24 +119,9 @@ export function buildDuePreview(rows: DueRow[], todayIso: string, limit = PREVIE
     })),
   };
 
-  // Due bands: one entry per check, each check in exactly one band.
-  const in7 = addDaysIso(todayIso, 7);
-  const in14 = addDaysIso(todayIso, 14);
-  const in30 = addDaysIso(todayIso, 30);
-  const upcoming = rows
-    // A red row is already overdue. Only a DBS or Right to Work never recorded can be red and
-    // dated today (it counts from the start date, audit W1), and it must not appear twice.
-    .filter((r) => r.rag !== "red" && r.checkName && r.dueDate && r.dueDate >= todayIso && r.dueDate <= in30)
-    .sort(
-      (a, b) =>
-        (a.dueDate as string).localeCompare(b.dueDate as string) ||
-        a.name.localeCompare(b.name) ||
-        (a.checkName as string).localeCompare(b.checkName as string),
-    );
-  const box = (after: string | null, until: string): PreviewBox => {
-    const within = upcoming.filter(
-      (r) => (after === null || (r.dueDate as string) > after) && (r.dueDate as string) <= until,
-    );
+  // Due bands: one entry per check, each check in exactly one band (dueBandRows below).
+  const box = (band: Exclude<DueBand, "overdue">): PreviewBox => {
+    const within = dueBandRows(rows, todayIso, band);
     return {
       total: within.length,
       lines: within.slice(0, limit).map((r) => ({
@@ -148,5 +135,43 @@ export function buildDuePreview(rows: DueRow[], todayIso: string, limit = PREVIE
     };
   };
 
-  return { overdue, d7: box(null, in7), d14: box(in7, in14), d30: box(in14, in30) };
+  return { overdue, d7: box("d7"), d14: box("d14"), d30: box("d30") };
+}
+
+/** The four bands the dashboard tiles and the matching reports share (Phil, 2026-10-05). */
+export type DueBand = "overdue" | "d7" | "d14" | "d30";
+
+/**
+ * Every CHECK in one band, soonest first. The SAME rules as the tiles, because the tiles now use
+ * this too:
+ *  - overdue: every red check (the rag comes from the status view, never a date compare);
+ *  - d7: due today to day 7; d14: days 8 to 14; d30: days 15 to 30. Never red, so a check is in
+ *    exactly one band and nothing overdue is counted twice.
+ * The Overdue TILE counts records with any red check; the Overdue REPORT lists their checks, and
+ * says how many records that is, so the two can be read against each other.
+ */
+export function dueBandRows(rows: DueRow[], todayIso: string, band: DueBand): DueRow[] {
+  const byDate = (a: DueRow, b: DueRow) =>
+    (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999") ||
+    a.name.localeCompare(b.name) ||
+    (a.checkName ?? "").localeCompare(b.checkName ?? "");
+  if (band === "overdue") return rows.filter((r) => r.rag === "red").sort(byDate);
+  const in7 = addDaysIso(todayIso, 7);
+  const in14 = addDaysIso(todayIso, 14);
+  const in30 = addDaysIso(todayIso, 30);
+  const [after, until] =
+    band === "d7" ? [null, in7] : band === "d14" ? [in7, in14] : [in14, in30];
+  return rows
+    // A red row is already overdue. Only a DBS or Right to Work never recorded can be red and
+    // dated today (it counts from the start date, audit W1), and it must not appear twice.
+    .filter(
+      (r) =>
+        r.rag !== "red" &&
+        r.checkName &&
+        r.dueDate &&
+        r.dueDate >= todayIso &&
+        (after === null || r.dueDate > after) &&
+        r.dueDate <= until,
+    )
+    .sort(byDate);
 }

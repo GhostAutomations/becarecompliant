@@ -5,6 +5,7 @@
  * page stays calm and there is only one place to pick a branch.
  */
 import { branchTerms, type BranchTerms } from "@/lib/branches/word";
+import { DUE_REPORTS, DUE_REPORT_TYPES } from "@/lib/export/due-report-types";
 
 type ReportCardProps = { title: string; description: string; viewHref: string; locked?: boolean };
 
@@ -33,9 +34,12 @@ export default function ReportsPanel({
   entitled,
   isAdmin,
   branchWord,
+  dueOnly = false,
 }: {
   entitled: boolean;
   isAdmin: boolean;
+  /** Supervisors see only the four due reports (2026-10-05). */
+  dueOnly?: boolean;
   /** The company's word for a branch (0354). */
   branchWord?: BranchTerms;
 }) {
@@ -43,8 +47,24 @@ export default function ReportsPanel({
   const viewHref = (type: string) => `/reports/view/${type}`;
   const proLocked = !entitled;
 
+  /* WHAT NEEDS DOING (Phil, 2026-10-05): the full list behind each dashboard tile, on every tier
+     like the tiles themselves. First, because it is the question a manager opens Reports with. */
+  const dueSection = (
+    <section className="space-y-3">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">What needs doing</h2>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {DUE_REPORT_TYPES.map((t) => (
+          <ReportCard key={t} title={DUE_REPORTS[t].title} description={DUE_REPORTS[t].description} viewHref={viewHref(t)} />
+        ))}
+      </div>
+    </section>
+  );
+
+  if (dueOnly) return <div className="space-y-6">{dueSection}</div>;
+
   return (
     <div className="space-y-6">
+      {dueSection}
       <section className="glass-card p-5">
         <p className="text-xs text-white/50">
           Open any report to view it, choose a {bw.oneLower} and date range, and download it as a PDF or

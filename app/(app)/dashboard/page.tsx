@@ -29,6 +29,7 @@ import { getComplaintCounts } from "@/lib/complaints/data";
 import { getIncidentActions } from "@/lib/incidents/data";
 import { listAccessibleBranchTypes } from "@/lib/service-users/data";
 import type { PqsMeasure } from "@/lib/export/on-time";
+import { DUE_REPORT_ROLES, type DueReportType } from "@/lib/export/due-report-types";
 import { ratingLabel } from "@/lib/framework/ratings";
 import {
   getBranchReadiness,
@@ -814,6 +815,10 @@ export default async function DashboardPage() {
       : [];
 
   const pqsWindow = defaultOnTimeWindow();
+  /* Each due tile opens its own report (Phil, 2026-10-05). A role that cannot open the due
+     reports keeps the register, as before. */
+  const canOpenDueReports = DUE_REPORT_ROLES.includes(profile.role);
+  const dueHref = (t: DueReportType) => (canOpenDueReports ? `/reports/view/${t}` : "/people");
   const overdue = duePreview.overdue.total;
   /*
    * SMS and AI are Admin only, so the row has to work with and without them. With: four tiles
@@ -1236,7 +1241,7 @@ export default async function DashboardPage() {
       */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Tile
-          href="/people"
+          href={dueHref("overdue")}
           label="Overdue"
           icon="actions"
           iconTone="indigo"
@@ -1246,7 +1251,7 @@ export default async function DashboardPage() {
           preview={{ title: "Overdue", ...duePreview.overdue, emptyText: "Nothing is overdue." }}
         />
         <Tile
-          href="/people"
+          href={dueHref("due-7")}
           label="Due in 7 days"
           value={duePreview.d7.total}
           tone={duePreview.d7.total > 0 ? "amber" : "green"}
@@ -1256,7 +1261,7 @@ export default async function DashboardPage() {
           sub="checks, today to day 7"
         />
         <Tile
-          href="/people"
+          href={dueHref("due-14")}
           label="Due in 14 days"
           value={duePreview.d14.total}
           preview={{ title: "Due in 8 to 14 days", ...duePreview.d14, emptyText: "Nothing falls due in days 8 to 14." }}
@@ -1265,7 +1270,7 @@ export default async function DashboardPage() {
           sub="checks, days 8 to 14"
         />
         <Tile
-          href="/people"
+          href={dueHref("due-30")}
           label="Due in 30 days"
           value={duePreview.d30.total}
           preview={{ title: "Due in 15 to 30 days", ...duePreview.d30, emptyText: "Nothing falls due in days 15 to 30." }}

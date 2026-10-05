@@ -16,6 +16,8 @@ import type { ReportDoc } from "@/lib/export/pdf";
 import BackLink from "@/components/back-link";
 import ReportDocView from "@/components/reports/report-doc-view";
 import ReportBranchSelect from "@/components/reports/report-branch-select";
+import { buildDueReport } from "@/lib/export/due-reports";
+import { DUE_REPORT_ROLES, isDueReportType, type DueReportType } from "@/lib/export/due-report-types";
 
 export const metadata: Metadata = { title: "Report" };
 
@@ -29,12 +31,19 @@ export default async function ReportViewPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { profile } = await requireCompany();
+  const { type } = await params;
+  /* THE OVERDUE AND DUE IN 7, 14 AND 30 DAY REPORTS (Phil, 2026-10-05): the full list behind each
+     dashboard tile. Supervisors may open these four (popup), scoped to their branches by RLS. */
+  if (isDueReportType(type)) {
+    if (!DUE_REPORT_ROLES.includes(profile.role)) redirect("/dashboard");
+    if (!profile.company_id) redirect("/founder");
+    return <DueReportView type={type} companyId={profile.company_id} profile={profile} searchParams={await searchParams} />;
+  }
   if (!["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"].includes(profile.role)) {
     redirect("/dashboard");
   }
   if (!profile.company_id) redirect("/founder");
 
-  const { type } = await params;
   if (
     type !== "people" &&
     type !== "service_users" &&
@@ -172,6 +181,58 @@ export default async function ReportViewPage({
         </form>
       )}
 
+      <ReportDocView doc={doc} />
+    </div>
+  );
+}
+
+/**
+ * One of the four due reports. Live, so a branch picker and the downloads, and no date range:
+ * the same shape as the Training report. Included on every tier, like the tiles that open them.
+ */
+async function DueReportView({
+  type,
+  companyId,
+  profile,
+  searchParams,
+}: {
+  type: DueReportType;
+  companyId: string;
+  profile: { id: string; role: string };
+  searchParams: Record<string, string | string[] | undefined>;
+}) {
+  const raw = searchParams.branch;
+  const branchParam = typeof raw === "string" && raw.length > 0 ? raw : null;
+  const effectiveBranch = branchParam === "all" ? null : branchParam;
+  const branchValue = effectiveBranch ?? "all";
+  const [branches, scope] = await Promise.all([
+    listBranches(companyId, profile),
+    resolveReportScope(companyId, effectiveBranch),
+  ]);
+  const branchOptions = branches.map((b) => ({ id: b.id, name: b.name }));
+  const { doc } = await buildDueReport({
+    companyId,
+    companyName: scope.companyName,
+    branchId: scope.branchId,
+    branchName: scope.branchName,
+    type,
+  });
+  const exportHref = (format: "pdf" | "csv") =>
+    `/api/reports/due?type=${type}&branch=${encodeURIComponent(branchValue)}&format=${format}`;
+
+  return (
+    <div className="page-shell space-y-5">
+      <BackLink href="/reports" label="Back to reports" />
+      <div className="glass-card flex flex-wrap items-end gap-3 p-4">
+        <ReportBranchSelect branches={branchOptions} value={branchValue} allowAll />
+        <p className="pb-2 text-[11px] text-white/45">
+          Live list of what needs doing. There is no date range: it always reflects today.
+        </p>
+        <span className="ml-auto flex items-center gap-2">
+          <a href={exportHref("pdf")} download className="btn-outline px-3 py-2 text-xs">Download PDF</a>
+          <a href={exportHref("csv")} download className="btn-outline px-3 py-2 text-xs">Download CSV</a>
+        </span>
+      </div>
       <ReportDocView doc={doc} />
     </div>
   );

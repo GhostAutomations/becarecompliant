@@ -231,7 +231,8 @@ export const NAV_ENTRIES: NavEntry[] = [
     label: "Reports",
     icon: "reports",
     group: "Departments",
-    roles: ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"],
+    // Supervisors see the four due reports only (2026-10-05).
+    roles: ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager", "supervisor"],
   },
   {
     href: "/settings",
