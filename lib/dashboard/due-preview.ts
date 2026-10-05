@@ -19,8 +19,8 @@
  * Pure and importless so it runs under node --test.
  *
  * TRAINING IS THE THIRD SECTION (Phil, popup 2026-10-05). kind "training" is one person on one
- * course, scored by the Training register's own rule (cellFor): Not done and Expired are red and
- * so Overdue; a renewal date in a band is due. Overdue counts the people with any overdue
+ * course, scored by the Training register's own rule (cellFor): Expired is red and so Overdue; a
+ * renewal date in a band is due. Not done is left out (Phil, 2026-10-05, lib/dashboard/data.ts). Overdue counts the people with any overdue
  * training, separately from their People checks, so the tile reads "3 people, 1 Service User,
  * 5 for training" and the three figures add up to the number on it.
  */

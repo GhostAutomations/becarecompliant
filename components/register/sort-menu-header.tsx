@@ -10,6 +10,10 @@
  * `active` is whether THIS column is the one the rows are ordered by. Only one column sorts at a
  * time: the arrow on every other heading goes quiet so it is obvious which one is in charge.
  *
+ * `toggle` (Phil, 2026-10-05: "if we click the arrow it goes up, if we click the arrow it goes
+ * down"): no menu at all. The first press sorts by the first option (up), the next by the second
+ * (down), and so on. Carer keeps its menu because it has four name orders, not two.
+ *
  * The menu is rendered in a PORTAL, the same as PillSelect, because the header sits inside
  * the matrix's scrolling area and anything positioned normally would be clipped by it.
  */
@@ -28,6 +32,7 @@ export function SortMenuHeader<V extends string>({
   className,
   title,
   centre = true,
+  toggle = false,
 }: {
   label: ReactNode;
   /** Plain words for screen readers, when `label` is not plain text. */
@@ -39,6 +44,8 @@ export function SortMenuHeader<V extends string>({
   className?: string;
   title?: string;
   centre?: boolean;
+  /** Two options, flipped by each press, with no menu. */
+  toggle?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
@@ -72,7 +79,12 @@ export function SortMenuHeader<V extends string>({
     };
   }, [open]);
 
-  function toggle() {
+  function press() {
+    if (toggle) {
+      const [up, down] = options;
+      onChange(active && value === up.value ? down.value : up.value);
+      return;
+    }
     if (open) {
       setOpen(false);
       return;
@@ -93,14 +105,14 @@ export function SortMenuHeader<V extends string>({
       <button
         ref={btnRef}
         type="button"
-        onClick={toggle}
+        onClick={press}
         /* Centred by default, because .matrix th centres its heading. */
         className={`flex w-full cursor-pointer items-center gap-1.5 font-[inherit] text-[inherit] uppercase tracking-[inherit] text-white/70 transition hover:text-white ${
           centre ? "justify-center" : "justify-start"
         }`}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={`${plain}, ${sortedWords}. Press to change the order.`}
+        aria-haspopup={toggle ? undefined : "menu"}
+        aria-expanded={toggle ? undefined : open}
+        aria-label={`${plain}, ${sortedWords}. Press to ${toggle ? "sort the other way" : "change the order"}.`}
       >
         <span>{label}</span>
         <span

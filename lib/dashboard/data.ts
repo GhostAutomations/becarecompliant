@@ -134,23 +134,24 @@ export async function getDueRows(companyId: string): Promise<{ rows: DueRow[]; t
     }
   }
 
-  /* TRAINING (Phil, popup 2026-10-05): every course that applies to an active person, scored by
-     the register's own cells. Not done and Expired are red (Overdue, Not done has no date); a
-     renewal date otherwise lands in its band. Done with no renewal date, and one off courses
-     once done, have nothing coming up and are left out. A course that does not apply to the
-     person has no cell and never arrives. Leavers and archived people are not in the matrix. */
+  /* TRAINING (Phil, 2026-10-05): every course that applies to an active person, scored by the
+     register's own cells. Expired is red, so Overdue; a renewal date otherwise lands in its band.
+     NOT DONE IS LEFT OUT (Phil, 14:30, changing the popup answer: "courses that are marked with
+     an X or not done, I don't want them showing in overdue"). They stay red on the register.
+     Done with no renewal date, and one off courses once done, have nothing coming up. A course
+     that does not apply to the person has no cell and never arrives. Leavers and archived
+     people are not in the matrix. */
   for (const p of training.people) {
     for (const c of training.courses) {
       const cell = p.cells[c.id];
-      if (!cell) continue;
-      const red = cell.status === "missing" || cell.status === "expired";
-      if (!red && !cell.expiryOn) continue;
+      if (!cell || cell.status === "missing" || !cell.expiryOn) continue;
+      const red = cell.status === "expired";
       rows.push({
         kind: "training",
         recordId: p.id,
         name: p.full_name,
         checkName: c.name,
-        dueDate: cell.status === "missing" ? null : (cell.expiryOn ?? null),
+        dueDate: cell.expiryOn,
         rag: red ? "red" : cell.rag,
         branchId: p.branch_id,
       });

@@ -77,14 +77,15 @@ export async function buildDueReport(input: DueReportInput): Promise<{ doc: Repo
   const totals =
     band === "overdue"
       ? [
-          { label: "Overdue checks", value: String(rows.length) },
+          // Checks only: training has its own two figures below, so nothing is counted twice.
+          { label: "Overdue checks", value: String(people.length + sus.length) },
           { label: "People", value: String(records(people)) },
           { label: "Service Users", value: String(records(sus)) },
           { label: "Overdue training", value: String(training.length) },
           { label: "People with overdue training", value: String(records(training)) },
         ]
       : [
-          { label: "Checks due", value: String(rows.length) },
+          { label: "Checks due", value: String(people.length + sus.length) },
           { label: "People checks", value: String(people.length) },
           { label: "Service User checks", value: String(sus.length) },
           { label: "Training renewals", value: String(training.length) },

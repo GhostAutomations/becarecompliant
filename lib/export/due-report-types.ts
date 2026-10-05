@@ -32,7 +32,7 @@ export const DUE_REPORTS: Record<
     slug: "overdue",
     ref: "OVERDUE",
     covers: "Everything past its due date",
-    description: "Every overdue check for People and Service Users, and every training course not done or expired, oldest first.",
+    description: "Every overdue check for People and Service Users, and every expired training course, oldest first.",
     emptyPeople: "No People checks are overdue.",
     emptyServiceUsers: "No Service User checks are overdue.",
     emptyTraining: "No training is overdue.",

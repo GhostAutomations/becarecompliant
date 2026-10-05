@@ -77,21 +77,23 @@ function PhaseBar({ progress }: { progress: ReturnType<typeof phaseProgress> }) 
   );
 }
 
-/* SORT ANY COLUMN (Phil, popup 2026-10-05). The same gold arrow as Carer: a course sorts by date,
-   a phase by how far through, Social Care Wales by renewal. One column orders the rows at a time;
-   choosing a name order on Carer goes back to names. Not saved: it is a look at the register for
-   now, where the name order is how somebody likes to read it every day. */
+/* SORT ANY COLUMN (Phil, 2026-10-05). The same gold arrow as Carer, but a press flips it: up first
+   (not done and the soonest dates at the top; a ticks and crosses course puts the crosses first),
+   down next. A phase sorts by how far through, Social Care Wales by renewal. One column orders the
+   rows at a time; choosing a name order on Carer goes back to names. Not saved: it is a look at the
+   register for now, where the name order is how somebody likes to read it every day. The labels
+   below are what a screen reader hears. */
 const DATE_MENU: ReadonlyArray<SortMenuOption<ColumnSortDir>> = [
-  { value: "soonest", label: "Soonest due first", ascending: true },
-  { value: "latest", label: "Latest first", ascending: false },
+  { value: "soonest", label: "not done and soonest due first", ascending: true },
+  { value: "latest", label: "latest first", ascending: false },
 ];
 const PHASE_MENU: ReadonlyArray<SortMenuOption<ColumnSortDir>> = [
-  { value: "soonest", label: "Least complete first", ascending: true },
-  { value: "latest", label: "Most complete first", ascending: false },
+  { value: "soonest", label: "least complete first", ascending: true },
+  { value: "latest", label: "most complete first", ascending: false },
 ];
 const SCW_MENU: ReadonlyArray<SortMenuOption<ColumnSortDir>> = [
-  { value: "soonest", label: "Missing, then soonest renewal", ascending: true },
-  { value: "latest", label: "Latest renewal first", ascending: false },
+  { value: "soonest", label: "missing, then soonest renewal", ascending: true },
+  { value: "latest", label: "latest renewal first", ascending: false },
 ];
 
 function ragClass(rag: Rag): string {
@@ -446,6 +448,7 @@ export default function TrainingMatrix({
                     options={SCW_MENU}
                     value={colSort?.key === "scw" ? colSort.dir : "soonest"}
                     active={colSort?.key === "scw"}
+                    toggle
                     onChange={(dir) => setColSort({ key: "scw", dir })}
                   />
                 ) : null}
@@ -457,6 +460,7 @@ export default function TrainingMatrix({
                     options={PHASE_MENU}
                     value={colSort?.key === `phase:${g.phase}` ? colSort.dir : "soonest"}
                     active={colSort?.key === `phase:${g.phase}`}
+                    toggle
                     onChange={(dir) => setColSort({ key: `phase:${g.phase}`, dir })}
                   />
                 ))}
@@ -468,6 +472,7 @@ export default function TrainingMatrix({
                     options={DATE_MENU}
                     value={colSort?.key === c.id ? colSort.dir : "soonest"}
                     active={colSort?.key === c.id}
+                    toggle
                     onChange={(dir) => setColSort({ key: c.id, dir })}
                   />
                 ))}
