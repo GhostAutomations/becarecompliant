@@ -203,9 +203,10 @@ export async function followPersonEmailChange(
       .eq("id", person.profile_id)
       .maybeSingle();
     if (!login) return { moved: false, reason: "no_login" };
-    if (login.status !== "invited") return { moved: false, reason: "login_in_use" };
     const oldEmail = String(login.email ?? "").trim().toLowerCase();
+    // Back to the address the login already has: nothing to move and nothing to say.
     if (!newEmail || newEmail === oldEmail) return { moved: false, reason: "same" };
+    if (login.status !== "invited") return { moved: false, reason: "login_in_use" };
     if (!isSendableAddress(newEmail)) return { moved: false, reason: "not_sendable" };
 
     const { data: clash } = await admin

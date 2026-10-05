@@ -8,8 +8,8 @@ Fix: Save details now (a) refuses to say Saved when the database changed nothing
 
 | # | Check | Result |
 |---|-------|--------|
-| E1 | Lauren Morgan (Newport): correct the personal email, press Save details: message says the invite now goes to the new address | NOT TESTED |
-| E2 | Database: her profile, auth login and pending invite all hold the new address; audit invite.email_corrected | NOT TESTED |
-| E3 | Send invite on her record: the email goes to the new address | NOT TESTED |
-| E4 | Someone who already signs in: changing their personal email leaves their login alone, message says so | NOT TESTED |
-| E5 | An address that already belongs to another login is refused with a clear message | NOT TESTED |
+| E1 | Lauren Morgan (Newport): correct the personal email, press Save details: message says the invite now goes to the new address | PASS (Phil, 18:40: corrected to laurenmorganx@icloud.com with Save details) |
+| E2 | Database: her profile, auth login and pending invite all hold the new address; audit invite.email_corrected | PASS (record, profile, auth login and pending invite all laurenmorganx@icloud.com; audit invite.email_corrected then person.updated) |
+| E3 | Send invite on her record: the email goes to the new address | PASS (18:41 invite.resent to laurenmorganx@icloud.com) |
+| E4 | Someone who already signs in: changing their personal email leaves their login alone, message says so | PASS (Bevan, ZZ TEST Senior, active login: record changed, login and auth stayed ppdavies+senior@, message said so; restored. Follow up fixed: restoring the old address no longer shows that message) |
+| E5 | An address that already belongs to another login is refused with a clear message | PASS (Bevan, ZZ Audit Walk Person, unused login: ppdavies+senior@ refused as already having a login, invite and login unchanged; restored) |
