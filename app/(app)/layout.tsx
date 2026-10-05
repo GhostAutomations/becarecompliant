@@ -8,6 +8,7 @@ import { ManageAsBanner } from "@/components/founder/manage-as-banner";
 import { SidebarNav, MobileDock } from "@/components/app-nav";
 import NavyNav from "@/components/navy-nav";
 import ToastHost from "@/components/toast-host";
+import SessionWatch from "@/components/session-watch";
 import { ROLE_LABELS, navEntriesForRole } from "@/lib/nav";
 import { companyRoles, disabledModulesFor } from "@/lib/auth/module-access";
 import { displayRoleLabel } from "@/lib/auth/custom-roles";
@@ -347,6 +348,7 @@ export default async function AppLayout({
         role={actingCompanyId ? "company_admin" : profile.role}
       />
       <ToastHost />
+      <SessionWatch />
     </div>
   );
 }

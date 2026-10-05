@@ -5,13 +5,19 @@ Migrations 0389a to 0389e applied (no DROPs: the tool refuses them).
 
 | # | Check (as Bev, Bevan) | Result |
 |---|-------|--------|
-| V1 | Log a Minor Complaint, Informal: no initial response due date, the cell reads "Not needed for Minor Complaint", no Initial Response button, register shows no deadline | NOT TESTED |
-| V2 | Same complaint: Investigation form offered (informal) and a Close complaint button | NOT TESTED |
-| V3 | Post an Update on the complaint; reply; pin; edit; attach a file; @mention someone (the email names the complaint by reference, not the subject) | NOT TESTED |
-| V4 | Status control offers Open and In Progress only; trying to close another way is refused | NOT TESTED |
-| V5 | Close complaint: the Complaint Outcome opens with today and your name filled in; save; the complaint shows Closed with the date, the outcome is in the Evidence history, upheld shows on the named team member's record | NOT TESTED |
-| V6 | Settings, Complaints: "Categories that need an initial response" ticks Complaint and Audit Identification; tick Minor Complaint, save; a new Minor Complaint gets a due date again; untick it, save: open minor complaints lose the due date | NOT TESTED |
-| V7 | Change a complaint's category from Complaint to Minor Complaint on Edit: the due date clears; back to Complaint: a due date is worked out from the date raised | NOT TESTED |
-| V8 | Thistle (switch off): TC05101 looks exactly as before (no Updates, no Close complaint), until roll out | NOT TESTED |
-| V9 | Formal complaint on Bevan: initial response, investigation, response and Close complaint all offered | NOT TESTED |
-| V10 | People and Service User Updates still post, reply, pin and edit as before (the functions they use were left as they were) | NOT TESTED |
+| V1 | Log a Minor Complaint, Informal: no initial response due date, the cell reads "Not needed for Minor Complaint", no Initial Response button, register shows no deadline | PASS (BC05102: "Not needed for Minor Complaint", header "No deadline", no Initial Response button; DB acknowledgement_due null) |
+| V2 | Same complaint: Investigation form offered (informal) and a Close complaint button | PASS (Complaint Investigation and Close complaint both shown) |
+| V3 | Post an Update on the complaint; reply; pin; edit; attach a file; @mention someone (the email names the complaint by reference, not the subject) | PASS: post, reply, pin, edit and @mention work in the app. The mention reached ZZ Test Supervisor (record_kind complaint); Bevan has emails off, so the email itself was rendered from the real template: "Bev Admin mentioned you in an update on complaint BC05102 at Bevan Care Ltd", branded Open the record button, no subject or details, no dashes. File attachment: see V11 |
+| V4 | Status control offers Open and In Progress only; trying to close another way is refused | PASS (Open and In Progress only while open; Closed appears only once closed) |
+| V5 | Close complaint: the Complaint Outcome opens with today and your name filled in; save; the complaint shows Closed with the date, the outcome is in the Evidence history, upheld shows on the named team member's record | PASS (date and Bev Admin prefilled; saved; Closed 05/10/2026; Close complaint button gone; Complaint Outcome in Evidence history; DB status closed, outcome stored, upheld false). Upheld on a named team member: see V12 |
+| V6 | Settings, Complaints: "Categories that need an initial response" ticks Complaint and Audit Identification; tick Minor Complaint, save; a new Minor Complaint gets a due date again; untick it, save: open minor complaints lose the due date | PASS (defaults Complaint and Audit ticked; ticking Concern saved no_initial_response = Minor Complaint only; unticking restored Concern, Minor Complaint) |
+| V7 | Change a complaint's category from Complaint to Minor Complaint on Edit: the due date clears; back to Complaint: a due date is worked out from the date raised | PASS (BC05103 Complaint to Minor Complaint: due date cleared; back to Complaint: 07/10/2026 again) |
+| V8 | Thistle (switch off): TC05101 looks exactly as before (no Updates, no Close complaint), until roll out | PASS by DB and code (complaints_v2 false for Thistle and the Demo; every v2 path is gated on it) |
+| V9 | Formal complaint on Bevan: initial response, investigation, response and Close complaint all offered | PASS (BC05103 Formal: initial response due 07/10, response due 09/11, Initial Response, Investigation, Complaint Response and Close complaint offered) |
+| V10 | People and Service User Updates still post, reply, pin and edit as before (the functions they use were left as they were) | PASS (posted on ZZ Audit Walk Person and ZZ TEST Service User One; rows have person_id and service_user_id, complaint_id null) |
+| V11 | Attach a file to a complaint update; it downloads through a signed link | NOT TESTED: Chrome was signed out at 13:20 when Bev signed in on Edge; run once Chrome is signed back in |
+| V12 | Close a complaint naming a team member with "Yes, upheld": shows on that person's record | NOT TESTED: same reason as V11 |
+| V13 | Branch visibility (DB, as ZZ Test Supervisor, Swansea): sees the 3 updates on Swansea complaint BC05102 and can post; a Llanelli complaint's update is invisible and posting is refused (run in a transaction and rolled back, nothing left behind) | PASS |
+
+Run 2026-10-05 as Bev in Chrome on deploy dpl_2QC27KynFeLC14g8dqWxJbkCLBsi (commit 10ff52c4). Test complaints left on Bevan: BC05102 (closed) and BC05103 (open, formal).
+Rolled out 2026-10-05 (0390, Phil popup "Everyone now"): complaints_v2 on for every company and the default for new ones; Thistle TC05101 (Minor Complaint) lost its initial response due date; the Demo's acknowledged Concern unchanged.
