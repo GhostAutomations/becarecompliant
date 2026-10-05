@@ -34,5 +34,5 @@ Agreed by popup: built in for every company, after Enhanced DBS; a marker, never
 - The record banner said "the next due date scheduled" after a risk assessment; now "Evidence stored." (DBS, Right to Work, Probation: "Evidence stored and the record updated.") PASS 2026-10-05.
 - Phil (popup): a Barred outcome shows red "Barred" in the DBS risk column. PASS 2026-10-05 (ZZ Test Probation Starter).
 
-- C6 "DBS Risk" header and Settings label after the rename push: NOT TESTED
+- C6 "DBS Risk" header and Settings label after the rename push: PASS 2026-10-05 (Bevan register header and Settings, People, Column names)
 - Supervisor on the DBS card: by code, Supervisors are in the register roles, so they get Complete and Risk on records in their own branches, the same as the DBS form (agreed by popup). Not checked on screen: needs a Supervisor login.
