@@ -11,11 +11,15 @@ export default function ComplaintStatusControl({
   complaintId,
   status,
   upheld,
+  closeWithOutcome = false,
 }: {
   complaintId: string;
   status: ComplaintStatus;
   /** Null until somebody decides. Null is not "not upheld". */
   upheld: boolean | null;
+  /** 0389: a complaint is closed with the Complaint Outcome, so Closed is not offered here
+   *  (it stays shown while the complaint IS closed, so it can be reopened). */
+  closeWithOutcome?: boolean;
 }) {
   const [state, action, pending] = useActionState(setComplaintStatus, IDLE_STATE);
   const [value, setValue] = useState<ComplaintStatus>(status);
@@ -36,7 +40,7 @@ export default function ComplaintStatusControl({
             reset();
           }}
         >
-          {COMPLAINT_STATUS_ORDER.map((k) => (
+          {COMPLAINT_STATUS_ORDER.filter((k) => !closeWithOutcome || k !== "closed" || status === "closed").map((k) => (
             <option key={k} value={k}>{COMPLAINT_STATUS_LABELS[k]}</option>
           ))}
         </select>
@@ -44,7 +48,7 @@ export default function ComplaintStatusControl({
       {/* Asked only when closing, because that is the moment there is a finding to record.
           It decides how the complaint reads on a team member's record: upheld, not upheld,
           or still open. Leaving it unanswered is allowed and means exactly that. */}
-      {value === "closed" ? (
+      {value === "closed" && !closeWithOutcome ? (
         <div>
           <label htmlFor="complaint_upheld" className="form-label">Was the complaint upheld?</label>
           <select

@@ -27,7 +27,14 @@ import type { Answers } from "@/lib/form-schema";
 import type { ActionState } from "@/lib/forms";
 import { getComplaintsConfig, getCompanyFormByKey, getInvestigationEvidence, getComplaintRefPrefix } from "./data";
 import { addBusinessOrCalendarDays, formatComplaintRef, formatDisplayDate, isFormalComplaint, todayIso } from "./logic";
-import { CONCERN_TYPES, FORMALITY_TYPES, RELATIONSHIP_LABELS, type ComplaintRelationship } from "./types";
+import { CONCERN_TYPES, FORMALITY_TYPES, RELATIONSHIP_LABELS, needsInitialResponse, type ComplaintRelationship } from "./types";
+import { getCompanyRow } from "@/lib/companies/row";
+
+/** Is the 0389 complaints work switched on for this company (Bevan first, then everyone)? */
+async function complaintsV2(companyId: string): Promise<boolean> {
+  const row = await getCompanyRow(companyId);
+  return row?.complaints_v2 === true;
+}
 import { COMPLAINTS_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
 
 
@@ -126,6 +133,9 @@ export async function createComplaint(_prev: ActionState, formData: FormData): P
   const intake = intakeFields(formData);
   // All complaints are acknowledged; only formal complaints get a response deadline.
   const formal = isFormalComplaint(intake.formality);
+  /* Unless the category needs no initial response (0389, Settings, Complaints), in which case
+     there is no due date to miss. */
+  const needsAck = !(await complaintsV2(companyId)) || needsInitialResponse(intake.concern_type, config.no_initial_response);
 
   const supabase = await createClient();
   const { data: complaint, error } = await supabase
@@ -141,7 +151,9 @@ export async function createComplaint(_prev: ActionState, formData: FormData): P
       service_user_id: trimOrNull(formData.get("service_user_id")),
       date_raised,
       date_occurred: isoDateOrNull(formData.get("date_occurred")),
-      acknowledgement_due: addBusinessOrCalendarDays(date_raised, config.acknowledgement_days, config.count_working_days),
+      acknowledgement_due: needsAck
+        ? addBusinessOrCalendarDays(date_raised, config.acknowledgement_days, config.count_working_days)
+        : null,
       response_due: formal
         ? addBusinessOrCalendarDays(date_raised, config.response_days, config.count_working_days)
         : null,
@@ -190,6 +202,21 @@ export async function updateComplaint(_prev: ActionState, formData: FormData): P
 
   // Response deadline only exists for formal complaints. If it becomes formal without
   // one, derive it from the raised date; if it stops being formal, clear it.
+  /* THE INITIAL RESPONSE FOLLOWS THE CATEGORY (0389): moving a complaint into a category that
+     needs none clears its due date; moving it out of one gives it a due date from the raised
+     date if it has none. A date already typed is kept. */
+  let acknowledgementDue = isoDateOrNull(formData.get("acknowledgement_due"));
+  if (await complaintsV2(profile.company_id)) {
+    const cfg = await getComplaintsConfig(profile.company_id);
+    if (!needsInitialResponse(intake.concern_type, cfg.no_initial_response)) {
+      acknowledgementDue = null;
+    } else if (!acknowledgementDue) {
+      const { data: existing } = await supabase.from("complaints").select("date_raised").eq("id", id).maybeSingle();
+      const raised = (existing?.date_raised as string | null) ?? todayIso();
+      acknowledgementDue = addBusinessOrCalendarDays(raised, cfg.acknowledgement_days, cfg.count_working_days);
+    }
+  }
+
   let responseDue = isoDateOrNull(formData.get("response_due"));
   if (!formal) {
     responseDue = null;
@@ -213,7 +240,7 @@ export async function updateComplaint(_prev: ActionState, formData: FormData): P
       service_user_id: trimOrNull(formData.get("service_user_id")),
       date_occurred: isoDateOrNull(formData.get("date_occurred")),
       date_acknowledged: isoDateOrNull(formData.get("date_acknowledged")),
-      acknowledgement_due: isoDateOrNull(formData.get("acknowledgement_due")),
+      acknowledgement_due: acknowledgementDue,
       investigation_completed: isoDateOrNull(formData.get("investigation_completed")),
       response_due: responseDue,
       updated_by: user.id,
@@ -255,6 +282,15 @@ export async function setComplaintStatus(_prev: ActionState, formData: FormData)
   const status = String(formData.get("status") ?? "");
   if (!id || !profile.company_id) return { error: "Missing complaint." };
   if (!["open", "in_progress", "closed"].includes(status)) return { error: "Choose a valid status." };
+
+  /* With 0389 on, a complaint is closed by completing the Complaint Outcome, so the outcome is
+     always written down. The status control no longer offers Closed; this refuses it anyway. */
+  if (status === "closed" && (await complaintsV2(profile.company_id))) {
+    const sb = await createClient();
+    const { data: current } = await sb.from("complaints").select("status").eq("id", id).maybeSingle();
+    if ((current?.status as string | undefined) === "closed") return { ok: "Saved." };
+    return { error: "Close the complaint with the Complaint Outcome, so how it was resolved is recorded." };
+  }
 
   const outcome = status === "closed" ? trimOrNull(formData.get("outcome")) : null;
   /* Was it upheld? Recorded only when closing, and left as null when nobody says, because
@@ -338,6 +374,29 @@ export async function submitComplaintEvidence(_prev: ActionState, formData: Form
       .eq("id", complaintId);
   }
 
+  /* THE COMPLAINT OUTCOME CLOSES THE COMPLAINT (0389). The close date is the one on the form,
+     the outcome is how it was resolved, and upheld is what the form says ("Not decided" stays
+     undecided). Read from the answers that were stored, so the record and the Evidence agree. */
+  if (formKey === "complaint_outcome") {
+    const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+    const closedOn = /^\d{4}-\d{2}-\d{2}$/.test(str(answers.outcome_date)) ? str(answers.outcome_date) : todayIso();
+    const upheldAnswer = str(answers.upheld);
+    const { error: closeErr } = await supabase
+      .from("complaints")
+      .update({
+        status: "closed",
+        date_closed: closedOn,
+        outcome: str(answers.resolution) || null,
+        upheld: upheldAnswer === "yes" ? true : upheldAnswer === "no" ? false : null,
+        updated_by: user.id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", complaintId);
+    if (closeErr) {
+      return { error: `The outcome was saved as evidence, but the complaint could not be closed: ${closeErr.message}` };
+    }
+  }
+
   // Completing the Complaint Investigation form stamps the investigation completed
   // date (only if not already set).
   if (formKey === "complaints_concerns") {
@@ -381,11 +440,20 @@ export async function updateComplaintsConfig(_prev: ActionState, formData: FormD
     return Number.isFinite(n) && n >= 0 ? n : fallback;
   };
 
+  /* The categories that need an initial response, sent only by the 0389 settings form; anything
+     not ticked needs none. An older form that does not send the set leaves it as it was. */
+  const extra: Record<string, unknown> = {};
+  if (formData.get("initial_response_set") === "1") {
+    const ticked = new Set(formData.getAll("initial_response").map(String));
+    extra.no_initial_response = (CONCERN_TYPES as readonly string[]).filter((t) => !ticked.has(t));
+  }
+
   const supabase = await createClient();
   const { error } = await supabase
     .from("complaints_config")
     .upsert(
       {
+        ...extra,
         company_id: profile.company_id,
         acknowledgement_days: num("acknowledgement_days", 3),
         response_days: num("response_days", 25),
@@ -398,6 +466,18 @@ export async function updateComplaintsConfig(_prev: ActionState, formData: FormD
       { onConflict: "company_id" },
     );
   if (error) return { error: error.message };
+
+  /* Open complaints in a category that now needs no initial response drop the due date, so
+     nothing goes red for a response the policy says is not needed. */
+  if (Array.isArray(extra.no_initial_response) && (extra.no_initial_response as string[]).length > 0) {
+    await supabase
+      .from("complaints")
+      .update({ acknowledgement_due: null, updated_by: user.id, updated_at: new Date().toISOString() })
+      .eq("company_id", profile.company_id)
+      .neq("status", "closed")
+      .is("date_acknowledged", null)
+      .in("concern_type", extra.no_initial_response as string[]);
+  }
 
   await writeAudit({
     companyId: profile.company_id,

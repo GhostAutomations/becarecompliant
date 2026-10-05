@@ -22,6 +22,8 @@ export type CompanyRow = {
   tier: string | null;
   status: string | null;
   regulator: string | null;
+  /** Complaints with Updates, the Complaint Outcome and per category initial responses (0389). */
+  complaints_v2?: boolean | null;
   framework_enabled: boolean | null;
   ui_theme: string | null;
   on_call_label: string | null;

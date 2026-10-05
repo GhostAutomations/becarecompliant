@@ -6,17 +6,21 @@ import ActionForm from "@/components/action-form";
 import { getComplaintsConfig, getComplaintRefPrefix, getRegulator } from "@/lib/complaints/data";
 import { timescaleSource } from "@/lib/complaints/regulator-defaults";
 import { updateComplaintsConfig } from "@/lib/complaints/actions";
+import { CONCERN_TYPES } from "@/lib/complaints/types";
+import { getCompanyRow } from "@/lib/companies/row";
 
 export const metadata: Metadata = { title: "Complaints settings" };
 
 export default async function ComplaintsSettingsPage() {
   const { profile } = await requireCompanyAdmin();
   if (!profile.company_id) redirect("/founder");
-  const [config, effectivePrefix, regulator] = await Promise.all([
+  const [config, effectivePrefix, regulator, company] = await Promise.all([
     getComplaintsConfig(profile.company_id),
     getComplaintRefPrefix(profile.company_id),
     getRegulator(profile.company_id),
+    getCompanyRow(profile.company_id),
   ]);
+  const v2 = company?.complaints_v2 === true;
 
   return (
     <div className="page-form space-y-6">
@@ -74,6 +78,27 @@ export default async function ComplaintsSettingsPage() {
             {timescaleSource(regulator)} Bank holidays are not counted, so adjust a
             deadline on the complaint if needed.
           </p>
+          {/* WHICH CATEGORIES NEED AN INITIAL RESPONSE (0389, Phil 2026-10-05). The regulations
+              leave this to the company's own complaints policy, so it is the company's choice. */}
+          {v2 ? (
+            <fieldset className="mt-5">
+              <legend className="form-label">Categories that need an initial response</legend>
+              <input type="hidden" name="initial_response_set" value="1" />
+              <div className="mt-1 space-y-1.5">
+                {CONCERN_TYPES.map((t) => (
+                  <label key={t} className="flex items-center gap-2 text-sm text-white/80">
+                    <input type="checkbox" name="initial_response" value={t} defaultChecked={!config.no_initial_response.includes(t)} />
+                    {t}
+                  </label>
+                ))}
+              </div>
+              <p className="form-hint">
+                Unticked categories show no initial response due date and never go amber or red.
+                Your complaints policy decides which these are. A complaint with no category always
+                needs one.
+              </p>
+            </fieldset>
+          ) : null}
         </ActionForm>
       </section>
     </div>

@@ -1,7 +1,13 @@
 /** Shapes shared by the Updates reader (server) and the tile (browser). */
 import type { Thread } from "./rules";
 
-export type RecordRef = { kind: "person"; id: string } | { kind: "service_user"; id: string };
+export type RecordRef =
+  | { kind: "person"; id: string }
+  | { kind: "service_user"; id: string }
+  /** A complaint's own Updates (0389, Phil 2026-10-05): what was done about it, as it happens. */
+  | { kind: "complaint"; id: string };
+
+export type UpdateKind = RecordRef["kind"];
 
 export type UpdateFile = { id: string; fileName: string; mimeType: string; bytes: number };
 

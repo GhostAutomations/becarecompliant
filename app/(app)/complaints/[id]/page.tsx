@@ -28,6 +28,11 @@ import type { ComplaintRecord } from "@/lib/complaints/types";
 import { responseRag, formatUkDate as formatDisplayDate, isFormalComplaint, formatComplaintRef } from "@/lib/complaints/logic";
 import { COMPLAINT_STATUS_LABELS, RELATIONSHIP_LABELS } from "@/lib/complaints/types";
 import { COMPLAINTS_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
+import { getCompanyRow } from "@/lib/companies/row";
+import { needsInitialResponse } from "@/lib/complaints/types";
+import UpdatesTile from "@/components/updates/updates-tile";
+import { getRecordUpdates } from "@/lib/updates/data";
+import { todayIso } from "@/lib/complaints/logic";
 
 export const metadata: Metadata = { title: "Complaint" };
 
@@ -119,6 +124,13 @@ function buildComplaintPresets(
   const set = (k: string, v: string | null) => {
     if (v) p[k] = v;
   };
+  if (key === "complaint_outcome") {
+    // The Complaint Outcome (0389): today, whoever is closing it, and any finding already made.
+    set("outcome_date", todayIso());
+    set("closed_by", authorName);
+    set("upheld", c.upheld === true ? "yes" : c.upheld === false ? "no" : null);
+    return p;
+  }
   if (key === "complaints_concerns") {
     set("individual_name", c.service_user_name ?? c.complainant_name ?? null);
     set("date_raised", c.date_raised);
@@ -194,6 +206,15 @@ export default async function ComplaintPage({
     listPeopleLite(companyId),
     listComplaintPeople(id),
   ]);
+
+  /* THE 0389 COMPLAINTS WORK, on for Bevan first (Phil, 2026-10-05): Updates on the complaint,
+     closing with a Complaint Outcome, an initial response only where the category needs one,
+     and the investigation form on informal complaints too. */
+  const company = await getCompanyRow(companyId);
+  const v2 = company?.complaints_v2 === true;
+  const supportMode = Boolean(profile.actingAsCompanyId);
+  const updates = v2 ? await getRecordUpdates({ kind: "complaint", id }, { supportMode }) : null;
+  const ackNeeded = !v2 || needsInitialResponse(complaint.concern_type, config.no_initial_response);
 
   // Hide region specific forms that belong to a DIFFERENT branch: on a Cardiff
   // complaint, drop "newport_complaint_response" but keep the general form and the
@@ -351,7 +372,14 @@ export default async function ComplaintPage({
           </div>
           <DateField label="Date raised" value={complaint.date_raised} />
           <DateField label="Date it happened" value={complaint.date_occurred} />
-          <DateField label="Initial response due" value={complaint.acknowledgement_due} />
+          {ackNeeded ? (
+            <DateField label="Initial response due" value={complaint.acknowledgement_due} />
+          ) : (
+            <div>
+              <p className="text-[11px] text-white/45">Initial response due</p>
+              <p className="text-sm text-white/85">Not needed for {complaint.concern_type}</p>
+            </div>
+          )}
           <div>
             <p className="text-[11px] text-white/45">Initial response sent</p>
             {complaint.date_acknowledged ? (
@@ -387,19 +415,27 @@ export default async function ComplaintPage({
           {isFormal ? "Response and investigation forms" : "Response"}
         </h2>
         <p className="text-xs text-white/50">
-          {isFormal
-            ? "Acknowledge the complainant with an initial response, then complete the investigation and response forms."
-            : "Acknowledge the complainant with an initial response. This case is informal, so a formal investigation and response are not required."}
+          {v2
+            ? isFormal
+              ? "Acknowledge the complainant with an initial response, complete the investigation and response forms, then close it with the Complaint Outcome."
+              : ackNeeded
+                ? "Acknowledge the complainant with an initial response. This case is informal: record what you do as Updates, investigate if it needs it, then close it with the Complaint Outcome."
+                : `A ${complaint.concern_type?.toLowerCase()} needs no initial response. Record what you do as Updates, investigate if it needs it, then close it with the Complaint Outcome.`
+            : isFormal
+              ? "Acknowledge the complainant with an initial response, then complete the investigation and response forms."
+              : "Acknowledge the complainant with an initial response. This case is informal, so a formal investigation and response are not required."}
         </p>
         <div className="flex flex-wrap items-center gap-3">
-          <InitialResponseButton
-            complaintId={complaint.id}
-            contactMethod={complaint.contact_method}
-            contactEmail={complaint.contact_email}
-            contactAddress={complaint.contact_address}
-            done={responses.some((r) => r.kind === "initial")}
-          />
-          {isFormal ? (
+          {ackNeeded || responses.some((r) => r.kind === "initial") ? (
+            <InitialResponseButton
+              complaintId={complaint.id}
+              contactMethod={complaint.contact_method}
+              contactEmail={complaint.contact_email}
+              contactAddress={complaint.contact_address}
+              done={responses.some((r) => r.kind === "initial")}
+            />
+          ) : null}
+          {isFormal || v2 ? (
             <ComplaintForms
               complaintId={complaint.id}
               forms={usableForms.filter((f) => f.key === "complaints_concerns")}
@@ -415,8 +451,30 @@ export default async function ComplaintPage({
               done={responses.some((r) => r.kind === "response")}
             />
           ) : null}
+          {v2 && complaint.status !== "closed" && !supportMode ? (
+            <ComplaintForms
+              complaintId={complaint.id}
+              forms={usableForms
+                .filter((f) => f.key === "complaint_outcome")
+                .map((f) => ({ ...f, label: "Close complaint" }))}
+            />
+          ) : null}
         </div>
       </section>
+
+      {/* Updates: what was done about it, as it happens (0389). */}
+      {updates && updates.canRead ? (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Updates</h2>
+          <UpdatesTile
+            kind="complaint"
+            recordId={complaint.id}
+            data={updates}
+            currentUserId={user.id}
+            canRemove={profile.role === "company_admin" && !supportMode}
+          />
+        </section>
+      ) : null}
 
       {/* Status control */}
       <section className="glass-card space-y-3 p-5">
@@ -425,6 +483,7 @@ export default async function ComplaintPage({
           complaintId={complaint.id}
           status={complaint.status}
           upheld={complaint.upheld ?? null}
+          closeWithOutcome={v2}
         />
       </section>
 

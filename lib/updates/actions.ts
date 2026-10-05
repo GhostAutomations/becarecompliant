@@ -41,33 +41,53 @@ import {
 import { parseAbout } from "./about";
 import { isLateReason } from "@/lib/framework/gaps";
 import { getRecordUpdates } from "./data";
+import { formatComplaintRef } from "@/lib/complaints/logic";
 import type { RecordUpdates } from "./types";
 
 const BUCKET = "record-updates";
 const SIGNED_URL_TTL_SECONDS = 300;
 const UUID = /^[0-9a-f-]{36}$/i;
 
-type Kind = "person" | "service_user";
+type Kind = "person" | "service_user" | "complaint";
 type Ref = { kind: Kind; id: string };
 
 function cleanRef(kind: unknown, id: unknown): Ref | null {
-  const k = kind === "person" || kind === "service_user" ? kind : null;
+  const k = kind === "person" || kind === "service_user" || kind === "complaint" ? kind : null;
   const i = String(id ?? "");
   if (!k || !UUID.test(i)) return null;
   return { kind: k, id: i };
 }
 
+/* A complaint's calls carry p_complaint, which picks the 3 argument database functions (0389).
+   People and Service Users leave it out and keep the original 2 argument ones. */
 function rpcArgs(ref: Ref) {
+  if (ref.kind === "complaint") return { p_person: null, p_su: null, p_complaint: ref.id };
   return ref.kind === "person" ? { p_person: ref.id, p_su: null } : { p_person: null, p_su: ref.id };
 }
 
 function recordPath(ref: Ref): string {
+  if (ref.kind === "complaint") return `/complaints/${ref.id}`;
   return ref.kind === "person" ? `/people/${ref.id}` : `/service-users/${ref.id}`;
 }
 
 /** The record's company and name, read past RLS once the caller has been checked. */
 async function recordFacts(ref: Ref): Promise<{ companyId: string; name: string } | null> {
   const service = createServiceClient();
+  if (ref.kind === "complaint") {
+    /* Named by its reference, never its subject: the subject can carry care details and this name
+       goes into audit lines and @mention emails. */
+    const { data } = await service
+      .from("complaints")
+      .select("company_id, ref_number, date_raised")
+      .eq("id", ref.id)
+      .maybeSingle();
+    const row = data as { company_id: string; ref_number: number | null; date_raised: string | null } | null;
+    if (!row) return null;
+    const { data: cfg } = await service.from("complaints_config").select("ref_prefix").eq("company_id", row.company_id).maybeSingle();
+    const prefix = (cfg as { ref_prefix?: string | null } | null)?.ref_prefix ?? "";
+    const ref_ = row.ref_number != null ? formatComplaintRef(prefix, row.date_raised, row.ref_number) : "";
+    return { companyId: row.company_id, name: ref_ ? `complaint ${ref_}` : "a complaint" };
+  }
   const { data } = await service
     .from(ref.kind === "person" ? "people" : "service_users")
     .select("company_id, full_name")
@@ -291,12 +311,16 @@ async function updateRecord(updateId: string): Promise<{ ref: Ref; companyId: st
   const service = createServiceClient();
   const { data } = await service
     .from("record_updates")
-    .select("person_id, service_user_id, company_id")
+    .select("person_id, service_user_id, complaint_id, company_id")
     .eq("id", updateId)
     .maybeSingle();
-  const row = data as { person_id: string | null; service_user_id: string | null; company_id: string } | null;
+  const row = data as { person_id: string | null; service_user_id: string | null; complaint_id: string | null; company_id: string } | null;
   if (!row) return null;
-  const ref: Ref = row.person_id ? { kind: "person", id: row.person_id } : { kind: "service_user", id: row.service_user_id as string };
+  const ref: Ref = row.person_id
+    ? { kind: "person", id: row.person_id }
+    : row.service_user_id
+      ? { kind: "service_user", id: row.service_user_id }
+      : { kind: "complaint", id: row.complaint_id as string };
   const facts = await recordFacts(ref);
   return { ref, companyId: row.company_id, name: facts?.name ?? "" };
 }

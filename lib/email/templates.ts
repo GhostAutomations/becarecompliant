@@ -579,11 +579,12 @@ export function mentionEmailHtml(opts: {
   recipientName: string;
   authorName: string;
   recordName: string;
-  recordKind: "person" | "service_user";
+  recordKind: "person" | "service_user" | "complaint";
   companyName: string;
   url: string;
 }): string {
-  const whose = opts.recordKind === "person" ? "the People record for" : "the Service User record for";
+  const whose =
+    opts.recordKind === "person" ? "the People record for" : opts.recordKind === "service_user" ? "the Service User record for" : "";
   return noticeEmailHtml({
     preheader: mentionEmailSubject(opts.authorName),
     heading: "You were mentioned in an update",

@@ -20,6 +20,7 @@ export type { RecordRef, RecordUpdate, RecordUpdates } from "./types";
 const NONE: RecordUpdates = { canRead: false, canPost: false, count: 0, tile: null, threads: [], mentionables: [], aboutChoices: [] };
 
 function args(ref: RecordRef) {
+  if (ref.kind === "complaint") return { p_person: null, p_su: null, p_complaint: ref.id };
   return ref.kind === "person" ? { p_person: ref.id, p_su: null } : { p_person: null, p_su: ref.id };
 }
 
@@ -31,7 +32,7 @@ export async function getRecordUpdates(ref: RecordRef, opts: { supportMode: bool
   ]);
   if (canRead !== true) return NONE;
 
-  const column = ref.kind === "person" ? "person_id" : "service_user_id";
+  const column = ref.kind === "person" ? "person_id" : ref.kind === "service_user" ? "service_user_id" : "complaint_id";
   const [{ data: rows, error }, mentionablesRes, checksRes] = await Promise.all([
     supabase
       .from("record_updates")
@@ -45,10 +46,13 @@ export async function getRecordUpdates(ref: RecordRef, opts: { supportMode: bool
     /* The record's own checks, to name what an update is about and to offer them when writing one
        (0374). Every instance, active or not, so an old link still reads; only active ones are
        offered. */
-    supabase
-      .from("check_instances")
-      .select("id, active, check_definitions(name, sort_order)")
-      .eq(column, ref.id),
+    // A complaint has no checks, so nothing to be about.
+    ref.kind === "complaint"
+      ? Promise.resolve({ data: [] })
+      : supabase
+          .from("check_instances")
+          .select("id, active, check_definitions(name, sort_order)")
+          .eq(column, ref.id),
   ]);
   if (error) throw new Error(`Updates could not be read: ${error.message}`);
 

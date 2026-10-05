@@ -40,6 +40,17 @@ export const RELATIONSHIP_LABELS: Record<ComplaintRelationship, string> = {
 /** Captured at log time. Values match the Complaint Investigation Form's options so
  *  they prefill its dropdowns exactly. */
 export const CONCERN_TYPES = ["Concern", "Complaint", "Minor Complaint", "Audit Identification"] as const;
+
+/** The categories that start out needing no initial response (Phil, 2026-10-05, popup). Each
+ *  company changes it in Settings, Complaints. */
+export const DEFAULT_NO_INITIAL_RESPONSE: readonly string[] = ["Minor Complaint", "Concern"];
+
+/** Does a complaint of this category need an initial response? A complaint with no category
+ *  does: nobody has said it is minor. */
+export function needsInitialResponse(category: string | null | undefined, noInitialResponse: readonly string[]): boolean {
+  if (!category) return true;
+  return !noInitialResponse.includes(category);
+}
 export const FORMALITY_TYPES = ["Informal", "Formal"] as const;
 
 export type ContactMethod = "email" | "post";
@@ -88,6 +99,9 @@ export type ComplaintsConfig = {
   amber_days: number;
   count_working_days: boolean;
   ref_prefix: string | null;
+  /** Categories (CONCERN_TYPES) that need no initial response (0389, Phil 2026-10-05). Only read
+   *  where the company has complaints_v2 on. */
+  no_initial_response: string[];
 };
 
 /**
@@ -102,4 +116,5 @@ export const DEFAULT_COMPLAINTS_CONFIG: ComplaintsConfig = {
   amber_days: 5,
   count_working_days: true,
   ref_prefix: null,
+  no_initial_response: [...DEFAULT_NO_INITIAL_RESPONSE],
 };

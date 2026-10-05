@@ -38,7 +38,7 @@ import {
 import { LATE_REASONS } from "@/lib/framework/gaps";
 import type { RecordUpdate, RecordUpdates } from "@/lib/updates/types";
 
-type Kind = "person" | "service_user";
+type Kind = "person" | "service_user" | "complaint";
 
 /* Told after anything in the thread changes (a post, edit, pin or removal). On a record page the
    router refresh redraws the thread; the Readiness page's Add action holds the thread itself, so

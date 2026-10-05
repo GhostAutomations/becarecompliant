@@ -18,6 +18,7 @@ import {
 } from "./types";
 
 import { defaultComplaintTimescales } from "./regulator-defaults";
+import { DEFAULT_NO_INITIAL_RESPONSE } from "./types";
 import { getCompanyRow } from "@/lib/companies/row";
 
 export { getCompanyFormByKey, getPublishedFormVersion } from "@/lib/people/data";
@@ -52,19 +53,22 @@ export async function getComplaintsConfig(companyId: string): Promise<Complaints
   const [{ data }, { data: company }] = await Promise.all([
     supabase
       .from("complaints_config")
-      .select("acknowledgement_days, response_days, amber_days, count_working_days, ref_prefix")
+      .select("acknowledgement_days, response_days, amber_days, count_working_days, ref_prefix, no_initial_response")
       .eq("company_id", companyId)
       .maybeSingle(),
     getCompanyRow(companyId).then((company) => ({ data: company })),
   ]);
   const fallback = defaultComplaintTimescales(company?.regulator);
-  if (!data) return { ...fallback, ref_prefix: null };
+  if (!data) return { ...fallback, ref_prefix: null, no_initial_response: [...DEFAULT_NO_INITIAL_RESPONSE] };
   return {
     acknowledgement_days: data.acknowledgement_days ?? fallback.acknowledgement_days,
     response_days: data.response_days ?? fallback.response_days,
     amber_days: data.amber_days ?? fallback.amber_days,
     count_working_days: data.count_working_days ?? fallback.count_working_days,
     ref_prefix: (data.ref_prefix as string | null) ?? null,
+    no_initial_response: Array.isArray(data.no_initial_response)
+      ? (data.no_initial_response as string[])
+      : [...DEFAULT_NO_INITIAL_RESPONSE],
   };
 }
 
