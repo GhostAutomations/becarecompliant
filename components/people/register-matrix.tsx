@@ -212,7 +212,7 @@ export default function RegisterMatrix({
               {has("competency") ? <th>{col("medication_competency", "Medication Competency")}</th> : null}
               <th>{col("dbs", "DBS date of issue")}</th>
               <th>{col("enhanced_dbs", "Enhanced DBS")}</th>
-              <th>{col("dbs_risk", "DBS risk")}</th>
+              <th>{col("dbs_risk", "DBS Risk")}</th>
               <th>{col("rtw_expiry", "RTW Expiry")}</th>
               <th>{col("rtw_limits", "RTW Limits")}</th>
               <th>{col("probation_end_due", "Probation End Due")}</th>

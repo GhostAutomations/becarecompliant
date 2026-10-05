@@ -48,7 +48,7 @@ export const CHECK_COLUMNS: Record<string, Record<string, string[]>> = {
 
 /** Columns that belong to a locked form rather than a check, shown so nothing is a surprise. */
 export const FORM_COLUMNS: Record<string, string[]> = {
-  dbs_renewal: ["DBS date of issue", "Enhanced DBS", "DBS risk"],
+  dbs_renewal: ["DBS date of issue", "Enhanced DBS", "DBS Risk"],
   right_to_work: ["RTW Expiry", "RTW Limits"],
   probation_review: ["Probation End Due", "Probation End Actual", "Probation Status", "Probation Extension"],
 };

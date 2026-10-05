@@ -223,7 +223,7 @@ export const REGISTER_COLUMNS: Array<{ key: string; name: string }> = [
   { key: "medication_competency", name: "Medication Competency" },
   { key: "dbs", name: "DBS date of issue" },
   { key: "enhanced_dbs", name: "Enhanced DBS" },
-  { key: "dbs_risk", name: "DBS risk" },
+  { key: "dbs_risk", name: "DBS Risk" },
   { key: "rtw_expiry", name: "RTW Expiry" },
   { key: "rtw_limits", name: "RTW Limits" },
   { key: "probation_end_due", name: "Probation End Due" },
