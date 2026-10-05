@@ -157,6 +157,10 @@ export default function EditPersonForm({
           <span className="pill-amber">Unsaved changes</span>
         ) : null}
       </div>
+      {/* What happened to their login when the email changed (Lauren Morgan, 2026-10-05). */}
+      {!dirty && !pending && state.ok && state.ok !== "Saved." ? (
+        <p role="status" className="text-xs text-emerald-300">{state.ok.replace(/^Saved\.\s*/, "")}</p>
+      ) : null}
     </form>
   );
 }

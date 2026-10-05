@@ -21,7 +21,7 @@ import { createClient } from "@/lib/supabase/server";
 import { dropDraft } from "@/lib/forms/draft-store";
 import { checkDraftKey, trackerDraftKey } from "@/lib/forms/draft-key";
 import { writeAudit } from "@/lib/audit";
-import { inviteStaffForPerson } from "@/lib/staff/invite";
+import { inviteStaffForPerson, followPersonEmailChange } from "@/lib/staff/invite";
 import { assignStandingPolicies } from "@/lib/assignments/new-starters";
 import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
 import { applyRetentionForRecord } from "@/lib/evidence/retention";
@@ -522,10 +522,13 @@ export async function updatePerson(_prev: ActionState, formData: FormData): Prom
   // What the start date was BEFORE this save, so we only reschedule when it actually moved.
   const { data: before } = await supabase
     .from("people")
-    .select("start_date, company_id, job_title")
+    .select("start_date, company_id, job_title, work_email")
     .eq("id", personId)
     .maybeSingle();
   const startMoved = (before?.start_date ?? null) !== startDate;
+  const newWorkEmail = trimOrNull(formData.get("work_email"));
+  const emailChanged =
+    (before?.work_email ?? "").trim().toLowerCase() !== (newWorkEmail ?? "").trim().toLowerCase();
   const newJobTitle = trimOrNull(formData.get("job_title"));
   const titleChanged = (before?.job_title ?? null) !== newJobTitle;
   /* Only when the form carries the field (DEF-097): a form without it must not wipe the number. */
@@ -543,12 +546,12 @@ export async function updatePerson(_prev: ActionState, formData: FormData): Prom
       : null;
   if (scwDates && !scwDates.ok) return { error: scwDates.error };
 
-  const { error } = await supabase
+  const { data: written, error } = await supabase
     .from("people")
     .update({
       full_name,
       job_title: newJobTitle,
-      work_email: trimOrNull(formData.get("work_email")),
+      work_email: newWorkEmail,
       mobile: trimOrNull(formData.get("mobile")),
       team: trimOrNull(formData.get("team")),
       manager_id: trimOrNull(formData.get("manager_id")),
@@ -557,8 +560,30 @@ export async function updatePerson(_prev: ActionState, formData: FormData): Prom
       ...(scw && scw.ok ? { scw_registration_number: scw.value } : {}),
       ...(scwDates && scwDates.ok ? { scw_registered_on: scwDates.issue, scw_renewal_date: scwDates.renewal } : {}),
     })
-    .eq("id", personId);
+    .eq("id", personId)
+    .select("id");
   if (error) return { error: error.message };
+  // Never "Saved" for a save the database turned down (2026-10-05).
+  if (!written || written.length === 0) return { error: "No change was saved. You may not have permission to edit this record." };
+
+  /* A CORRECTED EMAIL TAKES THE UNUSED LOGIN WITH IT (Phil, 2026-10-05, Lauren Morgan). See
+     followPersonEmailChange: only a login nobody has signed in with yet is moved. */
+  let emailNote = "";
+  if (emailChanged && newWorkEmail) {
+    const follow = await followPersonEmailChange(personId, newWorkEmail, {
+      id: user.id,
+      name: profile.full_name || profile.email,
+      email: profile.email,
+      role: profile.role,
+    });
+    if (follow.moved) emailNote = " Their invite now goes to the new address: press Send invite to send it there.";
+    else if (follow.reason === "login_in_use")
+      emailNote = " They already sign in with their old address, so their login was not changed.";
+    else if (follow.reason === "taken")
+      emailNote = " That address already has a login of its own, so their invite still uses the old address.";
+    else if (follow.reason === "error")
+      emailNote = ` Their invite could not be moved to the new address (${follow.error ?? "unknown error"}).`;
+  }
 
   /* A PROMOTION BRINGS ITS CHECKS WITH IT (2026-09-08). Some checks belong to certain job
      titles -- Lead the Leader is for the people who supervise -- and those are applied when
@@ -652,7 +677,7 @@ export async function updatePerson(_prev: ActionState, formData: FormData): Prom
 
   revalidatePath(`/people/${personId}`);
   revalidatePath("/people");
-  return { ok: "Saved." };
+  return { ok: `Saved.${emailNote}` };
 }
 
 /**

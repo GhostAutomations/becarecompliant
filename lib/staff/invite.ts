@@ -30,6 +30,7 @@ import {
   type Actor,
 } from "@/lib/invites";
 import { isDemoCompany } from "@/lib/demo/data";
+import { writeAudit } from "@/lib/audit";
 
 export type StaffInviteOutcome = {
   ok: boolean;
@@ -163,4 +164,83 @@ export async function inviteOrResendForPerson(
   return resent.ok
     ? { ok: true, emailSent: resent.emailSent }
     : { ok: false, error: resent.error };
+}
+
+export type EmailFollowOutcome =
+  | { moved: true }
+  | { moved: false; reason: "no_login" | "login_in_use" | "same" | "not_sendable" | "taken" | "error"; error?: string };
+
+/**
+ * THE INVITE FOLLOWS A CORRECTED EMAIL (Phil, 2026-10-05: Lauren Morgan's personal email was
+ * spelt wrong; it was corrected on her record and Send still went to the old address). A login
+ * made from a Person record carries its own copy of the address (the auth user, the profile and
+ * the pending invite), so correcting the record alone left all three on the misspelling, and Send
+ * then found no invite at the new address and sent nothing at all.
+ *
+ * Moved only while the login has NEVER BEEN USED (profile still "invited"): nobody has signed in
+ * with the old address, so nothing of theirs depends on it. A login somebody already signs in
+ * with is theirs, and is not changed from a field on a record.
+ *
+ * One account per email (DEF-009): refused when the new address already belongs to another login.
+ */
+export async function followPersonEmailChange(
+  personId: string,
+  newEmailRaw: string | null,
+  actor: Actor,
+): Promise<EmailFollowOutcome> {
+  try {
+    const admin = createServiceClient();
+    const newEmail = String(newEmailRaw ?? "").trim().toLowerCase();
+    const { data: person } = await admin
+      .from("people")
+      .select("company_id, profile_id")
+      .eq("id", personId)
+      .maybeSingle();
+    if (!person?.profile_id) return { moved: false, reason: "no_login" };
+    const { data: login } = await admin
+      .from("profiles")
+      .select("id, email, status, company_id")
+      .eq("id", person.profile_id)
+      .maybeSingle();
+    if (!login) return { moved: false, reason: "no_login" };
+    if (login.status !== "invited") return { moved: false, reason: "login_in_use" };
+    const oldEmail = String(login.email ?? "").trim().toLowerCase();
+    if (!newEmail || newEmail === oldEmail) return { moved: false, reason: "same" };
+    if (!isSendableAddress(newEmail)) return { moved: false, reason: "not_sendable" };
+
+    const { data: clash } = await admin
+      .from("profiles")
+      .select("id")
+      .eq("email", newEmail)
+      .neq("id", login.id)
+      .limit(1);
+    if (clash && clash.length > 0) return { moved: false, reason: "taken" };
+
+    const { error: authErr } = await admin.auth.admin.updateUserById(login.id as string, {
+      email: newEmail,
+      email_confirm: true,
+    });
+    if (authErr) return { moved: false, reason: "error", error: authErr.message };
+    await admin.from("profiles").update({ email: newEmail }).eq("id", login.id);
+    await admin
+      .from("invites")
+      .update({ email: newEmail })
+      .eq("company_id", person.company_id)
+      .eq("status", "pending")
+      .eq("email", oldEmail);
+    await writeAudit({
+      companyId: person.company_id as string,
+      actorId: actor.id,
+      actorEmail: actor.email,
+      actorRole: actor.role,
+      action: "invite.email_corrected",
+      entityType: "invite",
+      entityId: login.id as string,
+      summary: `Moved an unused login from ${oldEmail} to ${newEmail}`,
+      metadata: { person_id: personId, from: oldEmail, to: newEmail },
+    });
+    return { moved: true };
+  } catch (e) {
+    return { moved: false, reason: "error", error: (e as Error).message };
+  }
 }
