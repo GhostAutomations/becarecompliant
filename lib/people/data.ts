@@ -8,6 +8,7 @@ import "server-only";
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { dbsRiskMarker } from "@/lib/people/dbs-pending";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { listStaff, profilesById } from "@/lib/auth/company-profiles";
 import { type ProbationPeriod, probationFrom } from "@/lib/people/probation";
@@ -263,6 +264,7 @@ export async function listRegister(
     { data: supMigrated },
     { data: appraisalEvidence },
     { data: appraisalMigrated },
+    { data: dbsRiskEvidence },
   ] = await Promise.all([
     supabase.from("person_check_status_all").select("*").in("person_id", ids),
     supabase.from("person_rollup_all").select("*").in("person_id", ids),
@@ -325,6 +327,17 @@ export async function listRegister(
           .eq("definition_id", appraisalDefId)
           .in("record_id", ids)
       : Promise.resolve({ data: [] as Array<{ record_id: string; completed_on: string }> }),
+    /* The DBS risk assessments, for the DBS risk column (Phil, 2026-10-05). Newest first, so the
+       first one seen per person and form is their latest. Read under the caller's RLS. */
+    supabase
+      .from("evidence")
+      .select(
+        "record_id, submitted_at, decision:answers->>decision, review_date:answers->>review_date, dbs_applied_on:answers->>dbs_applied_on, cert_issue_date:answers->>cert_issue_date, forms!inner(key)",
+      )
+      .eq("record_type", "person")
+      .in("forms.key", ["dbs_pending", "dbs_disclosure"])
+      .in("record_id", ids)
+      .order("submitted_at", { ascending: false }),
   ]);
 
   const statuses = (statusData as CheckStatus[]) ?? [];
@@ -419,6 +432,23 @@ export async function listRegister(
     pushAppraisalDate(m.record_id, m.completed_on);
   }
 
+  type DbsRiskRow = {
+    record_id: string;
+    decision: string | null;
+    review_date: string | null;
+    dbs_applied_on: string | null;
+    cert_issue_date: string | null;
+    forms: { key: string } | { key: string }[] | null;
+  };
+  const latestPendingBy = new Map<string, DbsRiskRow>();
+  const latestDisclosureBy = new Map<string, DbsRiskRow>();
+  for (const e of (dbsRiskEvidence as unknown as DbsRiskRow[] | null) ?? []) {
+    const key = Array.isArray(e.forms) ? e.forms[0]?.key : e.forms?.key;
+    const into = key === "dbs_pending" ? latestPendingBy : key === "dbs_disclosure" ? latestDisclosureBy : null;
+    if (into && !into.has(e.record_id)) into.set(e.record_id, e);
+  }
+  const todayIso = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
+
   const rows: RegisterRow[] = people.map((person) => ({
     person,
     rollup: rollupByPerson.get(person.id) ?? null,
@@ -429,6 +459,12 @@ export async function listRegister(
     supSlotByComp: supSlotByPerson.get(person.id) ?? new Map<string, number>(),
     supDueByComp: supDueByPerson.get(person.id) ?? new Map<string, string>(),
     appraisalCompDates: appraisalDatesByPerson.get(person.id) ?? [],
+    dbsRisk: dbsRiskMarker({
+      latestPending: latestPendingBy.get(person.id) ?? null,
+      latestDisclosure: latestDisclosureBy.get(person.id) ?? null,
+      dbsDate: trackerByPerson.get(person.id)?.dbs_date ?? null,
+      todayIso,
+    }),
   }));
 
   return { definitions, rows };
@@ -725,16 +761,18 @@ export async function listPersonEvidence(personId: string): Promise<
  */
 export async function getLatestDbsPending(
   personId: string,
-): Promise<{ decision: string | null; review_date: string | null } | null> {
+): Promise<{ decision: string | null; review_date: string | null; dbs_applied_on: string | null } | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("evidence")
-    .select("submitted_at, decision:answers->>decision, review_date:answers->>review_date, forms!inner(key)")
+    .select("submitted_at, decision:answers->>decision, review_date:answers->>review_date, dbs_applied_on:answers->>dbs_applied_on, forms!inner(key)")
     .eq("record_type", "person")
     .eq("record_id", personId)
     .eq("forms.key", "dbs_pending")
     .order("submitted_at", { ascending: false })
     .limit(1)
-    .maybeSingle<{ decision: string | null; review_date: string | null }>();
-  return data ? { decision: data.decision ?? null, review_date: data.review_date ?? null } : null;
+    .maybeSingle<{ decision: string | null; review_date: string | null; dbs_applied_on: string | null }>();
+  return data
+    ? { decision: data.decision ?? null, review_date: data.review_date ?? null, dbs_applied_on: data.dbs_applied_on ?? null }
+    : null;
 }

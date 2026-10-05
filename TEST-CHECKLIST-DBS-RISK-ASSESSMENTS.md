@@ -17,3 +17,14 @@ Migration 0387 applied: both forms in the library (locked) and on Thistle, Bevan
 | R10 | England path: on a CQC company the Pending form shows the England safeguards and named supervisor, not the Wales ones | NOT TESTED |
 | R11 | A company with no regulator set: the form page says the regulator is missing and does not open the form | NOT TESTED |
 | R12 | A new company created from the founder console gets both forms | NOT TESTED |
+
+## DBS risk register column (2026-10-05)
+Agreed by popup: built in for every company, after Enhanced DBS; a marker, never a date; a new certificate clears Assessed.
+
+| # | Check | Result |
+|---|-------|--------|
+| C1 | People register shows "DBS risk" straight after Enhanced DBS, on Thistle, Bevan and Demo | NOT TESTED |
+| C2 | Someone with a Pending assessment and no certificate: amber "Pending"; red once the review date has passed | NOT TESTED |
+| C3 | Certificate entered with a date of issue on or after the date applied for: cell goes blank | NOT TESTED |
+| C4 | Disclosure assessment on the current certificate: "Assessed"; enter a later date of issue: blank | NOT TESTED |
+| C5 | Settings, People column shorthands lists "DBS risk" and a shorthand shows in the header | NOT TESTED |

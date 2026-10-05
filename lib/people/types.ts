@@ -146,6 +146,8 @@ export type RegisterRow = {
   /** All appraisal completion dates (ISO). Their COUNT resets the supervision cycle
    *  (each completed appraisal ends a 3-supervision cycle). */
   appraisalCompDates: string[];
+  /** The DBS risk column marker (lib/people/dbs-pending.ts), or null for a blank cell. */
+  dbsRisk?: import("@/lib/people/dbs-pending").DbsRiskMarker | null;
 };
 
 export const RTW_LIMIT_LABELS: Record<RtwLimit, string> = {

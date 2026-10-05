@@ -212,6 +212,7 @@ export default function RegisterMatrix({
               {has("competency") ? <th>{col("medication_competency", "Medication Competency")}</th> : null}
               <th>{col("dbs", "DBS date of issue")}</th>
               <th>{col("enhanced_dbs", "Enhanced DBS")}</th>
+              <th>{col("dbs_risk", "DBS risk")}</th>
               <th>{col("rtw_expiry", "RTW Expiry")}</th>
               <th>{col("rtw_limits", "RTW Limits")}</th>
               <th>{col("probation_end_due", "Probation End Due")}</th>
@@ -322,6 +323,26 @@ export default function RegisterMatrix({
                         date={t?.enhanced_dbs_date ?? null}
                         rag={dateRag(t?.enhanced_dbs_date ?? null, config.dbsAmber)}
                       />
+                    )}
+                  </td>
+                  {/* DBS RISK (Phil, 2026-10-05): a marker, never a date. Pending while a DBS
+                      Pending Risk Assessment is in force, Assessed when a Disclosure assessment
+                      covers the current certificate, blank otherwise. */}
+                  <td>
+                    {row.dbsRisk ? (
+                      <span
+                        className={
+                          row.dbsRisk.tone === "red"
+                            ? "rag-cell rag-cell-red"
+                            : row.dbsRisk.tone === "amber"
+                              ? "rag-cell rag-cell-amber"
+                              : "font-semibold text-white/85"
+                        }
+                      >
+                        {row.dbsRisk.label}
+                      </span>
+                    ) : (
+                      <span>—</span>
                     )}
                   </td>
                   <td>
