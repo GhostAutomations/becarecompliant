@@ -52,6 +52,7 @@ import {
 import { appraisalSlot, dateRag, DBS_AMBER_DAYS, formatDisplayDate, recurrenceLabel, RTW_AMBER_DAYS, supervisionSlots } from "@/lib/people/logic";
 import { missingDocuments } from "@/lib/people/doc-gaps";
 import { dbsPendingState } from "@/lib/people/dbs-pending";
+import DbsCompleteMenu from "@/components/people/dbs-complete-menu";
 import { nextSupervisionNumber } from "@/lib/people/next-supervision";
 import { ukDate } from "@/lib/dates";
 import {
@@ -435,27 +436,10 @@ export default async function PersonPage({
     todayIso: scwTodayIso,
   });
   const canAssess = canManage && !supportMode;
-  /* ONE ROW OF THREE (Phil, 2026-10-05: "the same height as complete, and to the right of
-     complete, so the size of the boxes isn't changed"). Complete, Pending and Disclosure share the
-     button size and sit on one line, so the DBS card stays the height of Right to Work beside it.
-     The forms open under their full titles. */
-  const dbsExtra = (
-    <>
-      {canAssess ? (
-        <div className="mt-3 grid grid-cols-3 gap-1.5">
-          <Link href={`/people/${person.id}/tracker/dbs_renewal/complete`} className="btn-primary px-1 text-[13px]">
-            Complete
-          </Link>
-          <Link href={`/people/${person.id}/tracker/dbs_pending/complete`} className="btn-outline px-1 text-[13px]">
-            Pending
-          </Link>
-          <Link href={`/people/${person.id}/tracker/dbs_disclosure/complete`} className="btn-outline px-1 text-[13px]">
-            Disclosure
-          </Link>
-        </div>
-      ) : null}
-    </>
-  );
+  /* ONE COMPLETE BUTTON WITH A MENU (Phil, 2026-10-05, popup): the same size as every other card's
+     Complete, so the DBS card stays the height of Right to Work on any screen, and it offers the
+     DBS form and the two risk assessments. */
+  const dbsExtra = canAssess ? <DbsCompleteMenu personId={person.id} /> : undefined;
   const dbsTile = trackerTile(
     "DBS",
     "Document",
@@ -463,7 +447,7 @@ export default async function PersonPage({
       { label: "DBS date of issue", value: formatDisplayDate(tracker?.dbs_date ?? null) || "—" },
       { label: "Enhanced DBS", value: formatDisplayDate(tracker?.enhanced_dbs_date ?? null) || "—" },
     ],
-    // Complete sits in the row of three below, not on its own line.
+    // Complete is the menu below, so the tile's own button is not drawn.
     null,
     dbsExtra,
     /* The pending state lives in the badge, not in an extra line, so the card keeps its height. */

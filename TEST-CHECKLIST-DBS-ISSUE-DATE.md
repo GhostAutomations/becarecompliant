@@ -7,7 +7,7 @@ Migration 0386 applied (DBS form v2 for Thistle and Bevan, v1 relabelled for Dem
 |---|-------|--------|
 | D1 | Record page DBS card reads "DBS date of issue" and "Enhanced DBS" | NOT TESTED |
 | D2 | People register column header reads "DBS date of issue" | NOT TESTED |
-| D3 | DBS form: question reads "DBS date of issue"; typing 12/05/2024 fills Enhanced DBS with 12/05/2027 | NOT TESTED |
+| D3 | DBS form: question reads "DBS date of issue"; typing 12/05/2024 fills Enhanced DBS with 12/05/2027 | PASS 2026-10-05 (Bevan: 03/10/2026 filled 03/10/2029, saved to the record) |
 | D4 | DBS form: change the issue date, Enhanced DBS follows; type your own Enhanced DBS, then change the issue date, yours stays | NOT TESTED |
 | D5 | DBS form: save; record shows both dates; the Evidence shows the Enhanced DBS date and form version 2 | NOT TESTED |
 | D6 | Add a person, They already work here: DBS date of issue fills Enhanced DBS; saved record has both | NOT TESTED |
