@@ -15,8 +15,8 @@ Migrations 0389a to 0389e applied (no DROPs: the tool refuses them).
 | V8 | Thistle (switch off): TC05101 looks exactly as before (no Updates, no Close complaint), until roll out | PASS by DB and code (complaints_v2 false for Thistle and the Demo; every v2 path is gated on it) |
 | V9 | Formal complaint on Bevan: initial response, investigation, response and Close complaint all offered | PASS (BC05103 Formal: initial response due 07/10, response due 09/11, Initial Response, Investigation, Complaint Response and Close complaint offered) |
 | V10 | People and Service User Updates still post, reply, pin and edit as before (the functions they use were left as they were) | PASS (posted on ZZ Audit Walk Person and ZZ TEST Service User One; rows have person_id and service_user_id, complaint_id null) |
-| V11 | Attach a file to a complaint update; it downloads through a signed link | NOT TESTED: Chrome was signed out at 13:20 when Bev signed in on Edge; run once Chrome is signed back in |
-| V12 | Close a complaint naming a team member with "Yes, upheld": shows on that person's record | NOT TESTED: same reason as V11 |
+| V11 | Attach a file to a complaint update; it downloads through a signed link | PASS (PDF attached on BC05103; stored in the private record-updates bucket under the company folder; opened through a Supabase signed link, 200, a real PDF; file_downloaded audit row written) |
+| V12 | Close a complaint naming a team member with "Yes, upheld": shows on that person's record | PASS (BC05103 named ZZ Audit Walk Person, closed Yes upheld: complaint closed, upheld true, the person's Complaints tile shows 1 upheld) |
 | V13 | Branch visibility (DB, as ZZ Test Supervisor, Swansea): sees the 3 updates on Swansea complaint BC05102 and can post; a Llanelli complaint's update is invisible and posting is refused (run in a transaction and rolled back, nothing left behind) | PASS |
 
 Run 2026-10-05 as Bev in Chrome on deploy dpl_2QC27KynFeLC14g8dqWxJbkCLBsi (commit 10ff52c4). Test complaints left on Bevan: BC05102 (closed) and BC05103 (open, formal).
