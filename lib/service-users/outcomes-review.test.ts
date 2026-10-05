@@ -35,23 +35,25 @@ test("each outcome needs progress and a note, then the new outcome question", ()
   v = { ...v, current: v.current.map((l) => ({ ...l, progress: "no_change" as const })) };
   assert.match(outcomesReviewError(v)!, /helped/);
   v = { ...v, current: v.current.map((l) => ({ ...l, note: "n" })) };
-  assert.match(outcomesReviewError(v)!, /new outcome is being set/);
+  assert.match(outcomesReviewError(v)!, /would like to achieve/);
   v = { ...v, add: "No" };
   assert.equal(outcomesReviewError(v), null);
   assert.equal(settingNew(v), false);
 });
 
-test("no outcomes on the record means a new one is required", () => {
+test("no outcomes: the question is still asked, and No is allowed", () => {
   const v = withRecordOutcomes(EMPTY_OUTCOMES_REVIEW, []);
-  assert.equal(v.add, "Yes");
-  assert.equal(settingNew(v), true);
-  assert.match(outcomesReviewError(v)!, /no outcomes yet/);
-  const done = { ...v, newTitle: "See my grandson", newSupport: "Lifts arranged", newTarget: "2027-01-31" };
+  assert.equal(v.add, "");
+  assert.match(outcomesReviewError(v)!, /would like to achieve/);
+  assert.equal(outcomesReviewError({ ...v, add: "No" }), null);
+  const yes = { ...v, add: "Yes" as const };
+  assert.match(outcomesReviewError(yes)!, /new outcome is/);
+  const done = { ...yes, newTitle: "See my grandson", newSupport: "Lifts arranged", newTarget: "2027-01-31" };
   assert.equal(outcomesReviewError(done), null);
 });
 
 test("a new outcome needs all three answers", () => {
-  const base = { ...withRecordOutcomes(EMPTY_OUTCOMES_REVIEW, []), newTitle: "T" };
+  const base = { ...withRecordOutcomes(EMPTY_OUTCOMES_REVIEW, []), add: "Yes" as const, newTitle: "T" };
   assert.match(outcomesReviewError(base)!, /support/);
   assert.match(outcomesReviewError({ ...base, newSupport: "S" })!, /target date/);
 });

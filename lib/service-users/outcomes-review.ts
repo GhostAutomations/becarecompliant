@@ -12,7 +12,9 @@
  *      record), and each asks two things: progress since the last review, and what has helped
  *      or got in the way. That follows Birdie's update (progressing, regressing, no change, or
  *      completed) and Social Care Wales' outcomes guidance on reflecting at review.
- *   2. "Would you like to set a new outcome?" Required to be Yes when there are none.
+ *   2. "Are there any outcomes you would like to achieve that are not currently being assisted
+ *      with?" (moved from Customer Satisfaction, not scored). Yes opens a new outcome; No is
+ *      a real answer, even for someone with none.
  *   3. Submitting logs each answer as that outcome's update on the Outcomes page (Achieved
  *      marks it achieved, Phil's choice) and creates the new one. See outcomes-review-apply.ts.
  *
@@ -88,9 +90,15 @@ export function parseOutcomesReview(v: unknown): OutcomesReviewValue {
   };
 }
 
-/** True when a new outcome is being set: asked for, or the person has none to review. */
+/** The question that opens the new outcome (Phil, 2026-10-05: moved here from Customer
+ *  Satisfaction, no longer scored). Asked whether or not they have outcomes, and No is a
+ *  real answer: someone may not want one. */
+export const NEW_OUTCOME_QUESTION =
+  "Are there any outcomes you would like to achieve that are not currently being assisted with?";
+
+/** True when a new outcome is being set. */
 export function settingNew(v: OutcomesReviewValue): boolean {
-  return v.current.length === 0 || v.add === "Yes";
+  return v.add === "Yes";
 }
 
 /** The one message the form shows under the section, or null when it is complete. Every
@@ -102,11 +110,9 @@ export function outcomesReviewError(v: OutcomesReviewValue): string | null {
     if (!l.progress) return `${which}choose the progress since the last review.`;
     if (!l.note.trim()) return `${which}say what has helped, or got in the way.`;
   }
-  if (v.current.length > 0 && !v.add) return "Say whether a new outcome is being set.";
+  if (!v.add) return "Say whether there are any outcomes they would like to achieve.";
   if (settingNew(v)) {
-    if (!v.newTitle.trim()) return v.current.length === 0
-      ? "This person has no outcomes yet. Set one: what matters to them?"
-      : "Say what the new outcome is.";
+    if (!v.newTitle.trim()) return "Say what the new outcome is.";
     if (!v.newSupport.trim()) return "Say how we will support the new outcome.";
     if (!v.newTarget) return "Give the new outcome a target date.";
   }
@@ -129,8 +135,6 @@ export function withRecordOutcomes(
       progress: byId.get(r.id)?.progress ?? "",
       note: byId.get(r.id)?.note ?? "",
     })),
-    // With nothing to review a new outcome is the only answer, so the question is not asked.
-    add: record.length === 0 ? "Yes" : typed.add,
   };
 }
 
@@ -152,8 +156,8 @@ export function describeOutcomesReview(v: OutcomesReviewValue): string {
     lines.push(`New outcome: ${v.newTitle.trim()}`);
     if (v.newSupport.trim()) lines.push(`  How we will support it: ${v.newSupport.trim()}`);
     if (v.newTarget) lines.push(`  Target date: ${ukDay(v.newTarget)}`);
-  } else if (v.current.length > 0 && v.add === "No") {
-    lines.push("No new outcome set.");
+  } else if (v.add === "No") {
+    lines.push("No other outcomes they would like to achieve.");
   }
   return lines.length ? lines.join("\n") : "Not answered";
 }

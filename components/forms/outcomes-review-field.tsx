@@ -13,6 +13,7 @@
 import {
   REVIEW_PROGRESS,
   parseOutcomesReview,
+  NEW_OUTCOME_QUESTION,
   settingNew,
   type OutcomesReviewValue,
   type ReviewProgress,
@@ -45,7 +46,7 @@ export default function OutcomesReviewField({
     <div className="space-y-3">
       {none ? (
         <p className="text-sm text-white/60">
-          This person has no outcomes on their record yet. Set their first one below.
+          This person has no outcomes on their record yet.
         </p>
       ) : (
         v.current.map((l, i) => (
@@ -89,10 +90,10 @@ export default function OutcomesReviewField({
         ))
       )}
 
-      {!none ? (
+      {(
         <div>
           <label htmlFor={`${id}-add`} className="form-label">
-            Would you like to set a new outcome? <span className="ml-1 text-gold-300" aria-hidden="true">*</span>
+            {NEW_OUTCOME_QUESTION} <span className="ml-1 text-gold-300" aria-hidden="true">*</span>
           </label>
           <select
             id={`${id}-add`}
@@ -105,7 +106,7 @@ export default function OutcomesReviewField({
             <option value="Yes">Yes</option>
           </select>
         </div>
-      ) : null}
+      )}
 
       {settingNew(v) ? (
         <div className="rounded-xl border border-white/10 p-4 space-y-3">
