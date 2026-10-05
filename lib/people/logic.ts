@@ -164,6 +164,11 @@ export const TRACKER_FORMS: Record<
     dateFields: Record<string, string>;
     /** optionally set a status column from an answer (values already match the enum) */
     statusFrom?: { answer: string; column: string };
+    /** The line under the page title. Defaults to the "records the date on the register" one. */
+    subtitle?: string;
+    /** The form follows the company's regulator (CQC or CIW): its Regulator answer is filled
+     *  in from the company, never typed, and the form cannot be completed until one is set. */
+    regulatorAware?: boolean;
   }
 > = {
   dbs_renewal: {
@@ -186,6 +191,23 @@ export const TRACKER_FORMS: Record<
       probation_extension_date: "probation_extension_date",
     },
     statusFrom: { answer: "outcome", column: "probation_status" },
+  },
+  /* DBS RISK ASSESSMENTS (Phil, 2026-10-05, for Thistle). Opened from the DBS card, stored as
+     Evidence, and they stamp nothing on the record: the Pending one is read back by the card
+     (lib/people/dbs-pending.ts) until the DBS date of issue is entered. */
+  dbs_pending: {
+    title: "DBS Pending Risk Assessment",
+    dateFields: {},
+    subtitle:
+      "For someone starting before their DBS certificate arrives. Saved as inspection evidence, and shown on their DBS card until the date of issue is entered.",
+    regulatorAware: true,
+  },
+  dbs_disclosure: {
+    title: "DBS Disclosure Risk Assessment",
+    dateFields: {},
+    subtitle:
+      "For a DBS certificate that shows a conviction, caution or other information. Saved as inspection evidence.",
+    regulatorAware: true,
   },
 };
 

@@ -36,6 +36,7 @@ import {
   listSupervisoryUsers,
   listPeopleCheckDefinitions,
   listPersonEvidence,
+  getLatestDbsPending,
   listJobTitles,
 } from "@/lib/people/data";
 import { listPersonHolidays } from "@/lib/holidays/data";
@@ -50,6 +51,7 @@ import {
 } from "@/lib/people/actions";
 import { appraisalSlot, dateRag, DBS_AMBER_DAYS, formatDisplayDate, recurrenceLabel, RTW_AMBER_DAYS, supervisionSlots } from "@/lib/people/logic";
 import { missingDocuments } from "@/lib/people/doc-gaps";
+import { dbsPendingState } from "@/lib/people/dbs-pending";
 import { nextSupervisionNumber } from "@/lib/people/next-supervision";
 import { ukDate } from "@/lib/dates";
 import {
@@ -190,6 +192,7 @@ export default async function PersonPage({
     holidays,
     absences,
     meetings,
+    dbsPendingLatest,
   ] = await Promise.all([
     getPersonChecks(id),
     listPeopleCheckDefinitions(companyId),
@@ -200,6 +203,7 @@ export default async function PersonPage({
     listPersonHolidays(id),
     listPersonAbsences(id),
     listPersonMeetings(id),
+    getLatestDbsPending(id),
   ]);
 
   // Outcome letters for their recorded absence meetings (0343). RLS keeps these to the people who
@@ -421,6 +425,40 @@ export default async function PersonPage({
       ragPill(rag)
     ) : undefined;
 
+  /* DBS RISK ASSESSMENTS (Phil, 2026-10-05). Both open from this card. While a Pending one is in
+     force and no date of issue is on file, the card says so in amber (red once its weekly review
+     is missed) instead of "Not recorded"; it clears itself the moment the date of issue is
+     entered. The register and the rollups keep the audit W1 rule: no DBS on file is red. */
+  const dbsPending = dbsPendingState({
+    latest: dbsPendingLatest,
+    dbsDate: tracker?.dbs_date ?? null,
+    todayIso: scwTodayIso,
+  });
+  const canAssess = canManage && !supportMode;
+  const dbsExtra =
+    dbsPending || canAssess ? (
+      <div className="mt-3 space-y-2">
+        {dbsPending ? (
+          <p className={`text-[12px] ${dbsPending.rag === "red" ? "text-rag-red" : "text-rag-amber"}`}>
+            {dbsPending.decision === "wait"
+              ? "Waiting for the DBS certificate before starting."
+              : dbsPending.reviewDue
+                ? `Working on DBS pending. Review ${dbsPending.rag === "red" ? "was due" : "due"} ${formatDisplayDate(dbsPending.reviewDue)}.`
+                : "Working on DBS pending."}
+          </p>
+        ) : null}
+        {canAssess ? (
+          <div className="flex flex-wrap gap-2">
+            <Link href={`/people/${person.id}/tracker/dbs_pending/complete`} className="btn-outline btn-tracker">
+              Pending risk assessment
+            </Link>
+            <Link href={`/people/${person.id}/tracker/dbs_disclosure/complete`} className="btn-outline btn-tracker">
+              Disclosure risk assessment
+            </Link>
+          </div>
+        ) : null}
+      </div>
+    ) : undefined;
   const dbsTile = trackerTile(
     "DBS",
     "Document",
@@ -428,9 +466,17 @@ export default async function PersonPage({
       { label: "DBS date of issue", value: formatDisplayDate(tracker?.dbs_date ?? null) || "—" },
       { label: "Enhanced DBS", value: formatDisplayDate(tracker?.enhanced_dbs_date ?? null) || "—" },
     ],
-    canManage && !supportMode ? `/people/${person.id}/tracker/dbs_renewal/complete` : null,
-    undefined,
-    docBadge(dbsGap, dbsRag),
+    canAssess ? `/people/${person.id}/tracker/dbs_renewal/complete` : null,
+    dbsExtra,
+    dbsPending ? (
+      dbsPending.rag === "red" ? (
+        <span className="pill-red"><span className="pill-dot" /> Review due</span>
+      ) : (
+        <span className="pill-amber"><span className="pill-dot" /> DBS pending</span>
+      )
+    ) : (
+      docBadge(dbsGap, dbsRag)
+    ),
   );
 
   /* LIMITS IS READ HERE AND ANSWERED ON THE FORM (Phil, 2026-09-18). It was a dropdown and a

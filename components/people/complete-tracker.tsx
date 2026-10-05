@@ -29,10 +29,14 @@ export default function CompleteTracker({
   formKey,
   draft,
   startDate,
+  presets,
 }: {
   schema: FormSchema;
   personId: string;
   formKey: string;
+  /** Answers the form opens with that the person does not type (the company's regulator).
+   *  They win over a draft: they are facts about the company, not something half typed. */
+  presets?: Answers;
   /** The person's start date, for the DBS "are you sure" (DEF-059). */
   startDate?: string | null;
   /** What this user had already typed into this form, read on the server. Omit the
@@ -45,7 +49,8 @@ export default function CompleteTracker({
     key: draft === undefined ? null : trackerDraftKey(personId, formKey),
     initial: draft ?? null,
   });
-  const opening = mergeDraft(undefined, drafting.restored ?? undefined);
+  const restored = mergeDraft(undefined, drafting.restored ?? undefined);
+  const opening = presets ? { ...(restored ?? {}), ...presets } : restored;
   const [answers, setAnswers] = useState<Answers>(opening ?? {});
   const [files, setFiles] = useState<Record<string, File | null>>({});
   const [errors, setErrors] = useState<FieldError[]>([]);

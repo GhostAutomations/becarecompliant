@@ -10,6 +10,7 @@ import { getPerson, getCompanyFormByKey } from "@/lib/people/data";
 import { TRACKER_FORMS } from "@/lib/people/logic";
 import { isFormSchema, type FormSchema } from "@/lib/form-schema";
 import { REGISTER_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
+import { getCompanyRow } from "@/lib/companies/row";
 
 export const metadata: Metadata = { title: "Record document" };
 
@@ -36,11 +37,30 @@ export default async function CompleteTrackerPage({
   const spec = TRACKER_FORMS[formKey];
   if (!spec) redirect(`/people/${id}`);
 
-  const [person, form] = await Promise.all([
+  const [person, form, company] = await Promise.all([
     getPerson(id),
     getCompanyFormByKey(profile.company_id, formKey),
+    getCompanyRow(profile.company_id),
   ]);
   if (!person) redirect("/people");
+
+  /* A form that follows the regulator cannot show the right rules without one, so it says so
+     rather than guessing England or Wales (Phil, 2026-10-05). */
+  const regulator = company?.regulator === "cqc" || company?.regulator === "ciw" ? company.regulator : null;
+  if (spec.regulatorAware && !regulator) {
+    return (
+      <div className="page-form space-y-6">
+        <div>
+          <BackLink href={`/people/${id}`} label={`Back to ${person.full_name}`} />
+          <h1 className="page-title mt-1">{spec.title}</h1>
+        </div>
+        <div className="glass-card p-6 text-sm text-white/70">
+          Your company does not have a regulator set (CQC or CIW), so this form cannot show the
+          right rules. Please ask Be Care Compliant support to set it.
+        </div>
+      </div>
+    );
+  }
 
   if (!form || !isFormSchema(form.schema)) {
     return (
@@ -63,12 +83,12 @@ export default async function CompleteTrackerPage({
         <BackLink href={`/people/${id}`} label={`Back to ${person.full_name}`} />
         <h1 className="page-title mt-1">{spec.title}</h1>
         <p className="page-subtitle">
-          Completing this form records the date on the register and stores it as
-          inspection evidence.
+          {spec.subtitle ??
+            "Completing this form records the date on the register and stores it as inspection evidence."}
         </p>
       </div>
       <div className="glass-card p-6">
-        <CompleteTracker schema={form.schema as FormSchema} personId={id} formKey={formKey} draft={draft} startDate={person.start_date} />
+        <CompleteTracker schema={form.schema as FormSchema} personId={id} formKey={formKey} draft={draft} startDate={person.start_date} presets={spec.regulatorAware && regulator ? { regulator } : undefined} />
       </div>
     </div>
   );

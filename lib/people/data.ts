@@ -717,3 +717,24 @@ export async function listPersonEvidence(personId: string): Promise<
     paper_on: e.paper_on ?? null,
   }));
 }
+
+/**
+ * The latest DBS Pending Risk Assessment's decision and review date for a person, or null when
+ * there is none (Phil, 2026-10-05). Read under the caller's RLS, so somebody who may not see the
+ * Evidence sees no pending state either. lib/people/dbs-pending.ts turns it into the card line.
+ */
+export async function getLatestDbsPending(
+  personId: string,
+): Promise<{ decision: string | null; review_date: string | null } | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("evidence")
+    .select("submitted_at, decision:answers->>decision, review_date:answers->>review_date, forms!inner(key)")
+    .eq("record_type", "person")
+    .eq("record_id", personId)
+    .eq("forms.key", "dbs_pending")
+    .order("submitted_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ decision: string | null; review_date: string | null }>();
+  return data ? { decision: data.decision ?? null, review_date: data.review_date ?? null } : null;
+}

@@ -1,6 +1,7 @@
 "use server";
 import { recordSetupDone } from "@/lib/setup/status";
 import { withDbsRenewal } from "@/lib/people/dbs-check";
+import { getCompanyRow } from "@/lib/companies/row";
 
 /**
  * Be Care Compliant — People (Phase 3) server actions.
@@ -1530,6 +1531,18 @@ export async function completeTrackerForm(_prev: ActionState, formData: FormData
       const problem = beforeStartProblem(what, typeof v === "string" ? v : null, start);
       if (problem) return { error: problem };
     }
+  }
+
+  /* THE REGULATOR COMES FROM THE COMPANY, NOT THE BROWSER (Phil, 2026-10-05). It decides which
+     safeguards the DBS risk assessments ask for, so the Evidence must record the company's own
+     regulator whatever was sent, and the form is refused while none is set. */
+  if (spec.regulatorAware) {
+    const company = await getCompanyRow(profile.company_id);
+    const regulator = company?.regulator === "cqc" || company?.regulator === "ciw" ? company.regulator : null;
+    if (!regulator) {
+      return { error: "Your company does not have a regulator set (CQC or CIW). Please ask Be Care Compliant support to set it." };
+    }
+    answers = { ...answers, regulator };
   }
 
   /* ENHANCED DBS FROM THE DATE OF ISSUE (Phil, 2026-10-05). The form fills it as the issue date is
