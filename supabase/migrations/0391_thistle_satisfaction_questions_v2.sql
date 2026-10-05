@@ -55,8 +55,8 @@ declare
   );
 begin
   foreach co in array array[
-    '84172279-54e4-4d5b-94b4-c92dc05c6baa'::uuid  -- Bevan Care Ltd (test)
-    -- , 'eae26e83-1e41-472b-abc0-e2b39b907e49'::uuid  -- Thistle Care Ltd, after Bevan passes
+    '84172279-54e4-4d5b-94b4-c92dc05c6baa'::uuid,  -- Bevan Care Ltd (test), applied 2026-10-05
+    'eae26e83-1e41-472b-abc0-e2b39b907e49'::uuid   -- Thistle Care Ltd, applied 2026-10-05 after Bevan passed
   ] loop
     select fv.id, fv.schema into v
       from forms f join form_versions fv on fv.form_id = f.id and fv.version = f.current_version
