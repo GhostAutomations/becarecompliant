@@ -149,7 +149,13 @@ export default function WhiteboardBoard({
 
   function half(population: "people" | "service_users", left: string[], right: string[]) {
     return (
-      <div className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
+      /* TWO HEADING COLUMNS ONLY WHERE A ROW FITS (Phil, 2026-10-05: an iPad screenshot showed
+         names gone and due dates spilling out; "I don't want to change the way it looks on
+         desktop"). A booked row needs about 380px for name, who, booked date and Due. On a wide
+         desktop (1900px and up) each heading column has that, so the board is unchanged there.
+         Narrower (laptops, iPads) the headings stack in one column, giving each row the side's
+         full width. */
+      <div className="grid grid-cols-1 gap-x-6 min-[1900px]:grid-cols-2">
         <div>{left.map((h) => headingBlock(population, h))}</div>
         <div>{right.map((h) => headingBlock(population, h))}</div>
       </div>
@@ -205,12 +211,13 @@ export default function WhiteboardBoard({
 
       {/* The whiteboard: off-white, split People | Service Users by a dashed gold line. */}
       <div className="min-h-0 flex-1 overflow-auto rounded-2xl bg-[#f6f5ef] p-4 shadow-inner">
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <div className="md:pr-6">
+        {/* People above Service Users below a landscape iPad width (1024px), side by side above it. */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="lg:pr-6">
             <h3 className="mb-3 border-b border-slate-300 pb-1 text-sm font-bold text-slate-800">People</h3>
             {half("people", PEOPLE_LEFT, PEOPLE_RIGHT)}
           </div>
-          <div className="md:border-l-2 md:border-dashed md:border-gold-400 md:pl-6">
+          <div className="border-t-2 border-dashed border-gold-400 pt-4 lg:border-l-2 lg:border-t-0 lg:pl-6 lg:pt-0">
             <h3 className="mb-3 border-b border-slate-300 pb-1 text-sm font-bold text-slate-800">Service Users</h3>
             {half("service_users", SU_LEFT, SU_RIGHT)}
           </div>
