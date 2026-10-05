@@ -6,6 +6,8 @@ import {
   satisfactionKeys,
   satisfactionQuestions,
   scoreAnswers,
+  averageOfReviews,
+  badAnswerOf,
 } from "./satisfaction-questions.ts";
 import type { FormSchema } from "../form-schema.ts";
 
@@ -95,5 +97,50 @@ describe("scoring a review against its own snapshot", () => {
 describe("the follow-up that opens on No", () => {
   it("is named from the question it belongs to", () => {
     assert.equal(detailKeyFor("sat_tidy_home"), "sat_tidy_home_detail");
+  });
+});
+
+
+describe("questions where No is the satisfied answer (2026-10-05)", () => {
+  const THISTLE = schema([
+    { key: "sat_happy_service", type: "single_select", label: "Happy with the service?", satisfaction: true },
+    { key: "sat_unresolved", type: "single_select", label: "Any unresolved issues?", satisfaction: true, satisfactionGood: "No" },
+    { key: "sat_care_plan_changes", type: "single_select", label: "Changes to your care plan?" },
+  ]);
+
+  it("scores No as satisfied where the field says so, and ignores unscored questions", () => {
+    const r = scoreAnswers(THISTLE, { sat_happy_service: "Yes", sat_unresolved: "No", sat_care_plan_changes: "Yes" });
+    assert.equal(r.answered, 2);
+    assert.equal(r.positive, 2);
+  });
+
+  it("an unresolved issue counts against", () => {
+    const r = scoreAnswers(THISTLE, { sat_happy_service: "Yes", sat_unresolved: "Yes" });
+    assert.equal(r.positive, 1);
+    assert.equal(r.answered, 2);
+  });
+
+  it("a question written before the flag existed still treats Yes as satisfied", () => {
+    const r = scoreAnswers(FLAGGED, { schedule_matches: "Yes", call_times_suit: "No" });
+    assert.equal(r.positive, 1);
+    assert.equal(r.answered, 2);
+    assert.equal(badAnswerOf({}), "No");
+    assert.equal(badAnswerOf({ satisfactionGood: "No" }), "Yes");
+  });
+});
+
+describe("each review counts once", () => {
+  it("averages each review's own share, rounded down", () => {
+    // An old review 3/3 and a new one 3/4: (1 + 0.75) / 2 = 87.5 -> 87
+    assert.equal(averageOfReviews(1 + 0.75, 2), 87);
+  });
+  it("is the same as pooling when every review asked the same number (today's Thistle: 5 x 3/3)", () => {
+    assert.equal(averageOfReviews(5, 5), 100);
+  });
+  it("does not lose 100 to floating point", () => {
+    assert.equal(averageOfReviews(1 / 3 + 2 / 3, 1), 100);
+  });
+  it("no reviews, no figure", () => {
+    assert.equal(averageOfReviews(0, 0), null);
   });
 });

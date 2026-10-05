@@ -45,6 +45,9 @@ export function satisfactionEditsIn(current: FormSchema, next: FormSchema): stri
     if (now.label !== f.label) {
       problems.push(`"${f.label}" would be reworded`);
     }
+    if ((now.satisfactionGood ?? "Yes") !== (f.satisfactionGood ?? "Yes")) {
+      problems.push(`"${f.label}" would have its satisfied answer changed`);
+    }
   }
   for (const [key, f] of after) {
     if (!before.has(key)) problems.push(`"${f.label}" would be added as a scored question`);

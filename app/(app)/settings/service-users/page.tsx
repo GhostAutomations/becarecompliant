@@ -69,6 +69,7 @@ export default async function SettingsServiceUsersPage() {
             questions={satisfactionQs.map((q) => ({
               key: q.key,
               label: q.label,
+              good: q.good,
               custom: !STANDARD_SATISFACTION_KEYS.has(q.key),
             }))}
             missingStandard={

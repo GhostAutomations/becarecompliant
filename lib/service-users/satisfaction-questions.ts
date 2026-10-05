@@ -32,6 +32,8 @@ export function detailKeyFor(key: string): string {
 export type SatisfactionQuestion = {
   key: string;
   label: string;
+  /** The satisfied answer. Yes unless the field says No (2026-10-05). */
+  good: "Yes" | "No";
   /** False for the ones that ship as standard, so the screen can say where they came from. */
   custom: boolean;
 };
@@ -56,6 +58,16 @@ export function isSatisfactionField(f: FormField): boolean {
   return f.satisfaction === true;
 }
 
+/** The satisfied answer to a scored question. A field written before this existed means Yes. */
+export function goodAnswerOf(f: Pick<FormField, "satisfactionGood">): "Yes" | "No" {
+  return f.satisfactionGood === "No" ? "No" : "Yes";
+}
+
+/** The answer that is NOT satisfied, which is the one that opens the reason box. */
+export function badAnswerOf(f: Pick<FormField, "satisfactionGood">): "Yes" | "No" {
+  return goodAnswerOf(f) === "Yes" ? "No" : "Yes";
+}
+
 /**
  * The scored questions in a schema, in the order they are asked.
  *
@@ -72,6 +84,7 @@ export function satisfactionQuestions(schema: FormSchema): SatisfactionQuestion[
   return chosen.map((f) => ({
     key: f.key,
     label: f.label,
+    good: goodAnswerOf(f),
     custom: !STANDARD_SATISFACTION_KEYS.has(f.key),
   }));
 }
@@ -98,7 +111,7 @@ export function scoreAnswers(
     byKey[q.key] = v;
     if (v === null) continue;
     answered += 1;
-    if (v === "Yes") positive += 1;
+    if (v === q.good) positive += 1;
   }
   return { positive, answered, byKey };
 }
@@ -111,4 +124,21 @@ export function normaliseYesNo(v: unknown): "Yes" | "No" | null {
   if (s === "yes") return "Yes";
   if (s === "no") return "No";
   return null;
+}
+
+/**
+ * EACH REVIEW COUNTS ONCE (Phil, popup 2026-10-05). The headline is the average of each
+ * review's own percentage, not every answer pooled. Pooled, a review asking six scored
+ * questions would outweigh one that asked three, so changing the questions would quietly
+ * reweight the figure. Every review is scored on its own frozen questions and then counts
+ * equally. Where every review asked the same number (all of them, before 2026-10-05) this is
+ * the same number pooling gave.
+ *
+ * Takes each review's satisfied share (positive / answered, 0 to 1) and returns a whole
+ * percentage rounded DOWN, never up: 84.9 is not 85, and 85 is a PQS band boundary.
+ */
+export function averageOfReviews(scoreSum: number, reviews: number): number | null {
+  if (reviews <= 0) return null;
+  /* A hair of tolerance so 2/3 + 1/3 summed in floating point does not floor 100 to 99. */
+  return Math.floor((scoreSum / reviews) * 100 + 1e-9);
 }

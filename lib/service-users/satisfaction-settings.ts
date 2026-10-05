@@ -26,6 +26,7 @@ import { isFormSchema, type FormField, type FormSchema } from "@/lib/form-schema
 import {
   SATISFACTION_SECTION_TITLE,
   STANDARD_SATISFACTION_QUESTIONS,
+  badAnswerOf,
   detailKeyFor,
   isSatisfactionField,
   satisfactionQuestions,
@@ -48,13 +49,17 @@ function keyFromLabel(label: string, taken: Set<string>): string {
   return key;
 }
 
-function yesNoField(key: string, label: string): FormField {
+/** `good` is the answer that counts as satisfied. Yes for "Are you happy with…"; No for
+ *  "Are there any unresolved issues?" (Phil, 2026-10-05). Only "No" is stored, so every
+ *  question written before then reads exactly as it did. */
+function yesNoField(key: string, label: string, good: "Yes" | "No" = "Yes"): FormField {
   return {
     key,
     type: "single_select",
     label,
     required: true,
     satisfaction: true,
+    ...(good === "No" ? { satisfactionGood: "No" as const } : {}),
     options: [
       { label: "No", value: "No" },
       { label: "Yes", value: "Yes" },
@@ -70,14 +75,15 @@ function yesNoField(key: string, label: string): FormField {
  * It costs nothing on a good review, because the validator skips a field nobody was shown,
  * and it means a bad one always carries its reason.
  */
-function detailField(key: string): FormField {
+function detailField(question: FormField): FormField {
+  const bad = badAnswerOf(question);
   return {
-    key: detailKeyFor(key),
+    key: detailKeyFor(question.key),
     type: "long_text",
-    label: "What is wrong?",
+    label: bad === "No" ? "What is wrong?" : "Please give details",
     required: true,
     help: "Say what the individual told you, in their words where you can.",
-    visibleWhen: { field: key, in: ["No"] },
+    visibleWhen: { field: question.key, in: [bad] },
   };
 }
 
@@ -143,7 +149,7 @@ function withQuestionAdded(schema: FormSchema, field: FormField): FormSchema {
     if (signOff >= 0) sections.splice(signOff, 0, target);
     else sections.push(target);
   }
-  target.fields.push(field, detailField(field.key));
+  target.fields.push(field, detailField(field));
   return { ...schema, sections };
 }
 
@@ -160,14 +166,16 @@ export async function addSatisfactionQuestion(
   const form = await loadForm(profile.company_id);
   if (!form) return { error: "This company has no Individual Plan Review to add it to." };
 
+  const good = String(formData.get("good") ?? "Yes") === "No" ? "No" : "Yes";
+
   const taken = new Set(form.schema.sections.flatMap((s) => s.fields.map((f) => f.key)));
   const key = keyFromLabel(label, taken);
-  const next = withQuestionAdded(form.schema, yesNoField(key, label));
+  const next = withQuestionAdded(form.schema, yesNoField(key, label, good));
 
   const err = await saveSchema(profile.company_id, form.formId, form.versionId, next, {
     action: "satisfaction.question_added",
-    summary: `Customer satisfaction question added: ${label}`,
-    metadata: { key },
+    summary: `Customer satisfaction question added: ${label} (satisfied answer: ${good})`,
+    metadata: { key, good },
   });
   return err ?? { ok: "Question added." };
 }

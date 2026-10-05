@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { SatisfactionRow } from "@/lib/service-users/satisfaction";
 import { useBranchWord } from "@/components/branches/branch-word";
+import { averageOfReviews } from "@/lib/service-users/satisfaction-questions";
 
 function fmtDate(iso: string | null): string {
   if (!iso) return "—";
@@ -10,9 +11,11 @@ function fmtDate(iso: string | null): string {
   return d.length === 3 ? `${d[2]}/${d[1]}/${d[0]}` : "—";
 }
 
-function ans(v: "Yes" | "No" | null | undefined) {
-  if (v === "Yes") return <span className="pill pill-green">Yes</span>;
-  if (v === "No") return <span className="pill pill-red">No</span>;
+/** Green is the satisfied answer, which is No for "Are there any unresolved issues?". */
+function ans(v: "Yes" | "No" | null | undefined, good: "Yes" | "No" = "Yes") {
+  if (v === "Yes" || v === "No") {
+    return <span className={`pill ${v === good ? "pill-green" : "pill-red"}`}>{v}</span>;
+  }
   return <span className="text-white/35">—</span>;
 }
 
@@ -22,7 +25,7 @@ export default function SatisfactionRegisterTable({
   branches,
 }: {
   rows: SatisfactionRow[];
-  questions: { key: string; label: string }[];
+  questions: { key: string; label: string; good?: "Yes" | "No" }[];
   branches: { id: string; name: string }[];
 }) {
   const bw = useBranchWord();
@@ -33,8 +36,9 @@ export default function SatisfactionRegisterTable({
   const positive = shown.reduce((n, r) => n + r.positive, 0);
   const answered = shown.reduce((n, r) => n + r.answered, 0);
   const reviewCount = shown.reduce((n, r) => n + r.reviewsInWindow, 0);
-  // Rounded DOWN, never up (Phil, 2026-07-30), matching the value the register computes.
-  const pct = answered > 0 ? Math.floor((positive / answered) * 100) : null;
+  const scoreSum = shown.reduce((n, r) => n + r.scoreSum, 0);
+  // Each review counts once (2026-10-05), rounded DOWN, the same function the server uses.
+  const pct = averageOfReviews(scoreSum, reviewCount);
 
   return (
     <div className="space-y-6">
@@ -42,7 +46,7 @@ export default function SatisfactionRegisterTable({
         <div className="glass-card p-4">
           <p className="text-xs uppercase tracking-wide text-white/45">Customer satisfaction</p>
           <p className="mt-2 text-2xl font-bold text-emerald-300">{pct === null ? "—" : `${pct}%`}</p>
-          <p className="text-xs text-white/45">positive answers, for the PQS return</p>
+          <p className="text-xs text-white/45">average of each review, for the PQS return</p>
         </div>
         <div className="glass-card p-4">
           <p className="text-xs uppercase tracking-wide text-white/45">Reviews in period</p>
@@ -96,7 +100,7 @@ export default function SatisfactionRegisterTable({
                     <td className="py-2 pr-3 text-white/60">{r.branch_name}</td>
                     <td className="py-2 pr-3 text-white/60">{fmtDate(r.latestReviewAt)}</td>
                     {questions.map((q) => (
-                      <td key={q.key} className="py-2 pr-3">{ans(r.latestAnswers[q.key])}</td>
+                      <td key={q.key} className="py-2 pr-3">{ans(r.latestAnswers[q.key], q.good)}</td>
                     ))}
                     <td className="py-2 pr-3 text-right">
                       {r.pct === null ? (
@@ -112,8 +116,8 @@ export default function SatisfactionRegisterTable({
               </tbody>
             </table>
             <p className="mt-3 text-[11px] text-white/40">
-              Yes / No shows the answers from each service user&apos;s most recent review in the period. The % is their positive
-              rate across all their reviews in the period.
+              Yes / No shows the answers from each service user&apos;s most recent review in the period. The % is the average of
+              their reviews in the period, each review counting once.
             </p>
           </div>
         )}

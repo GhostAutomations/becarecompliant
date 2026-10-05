@@ -32,7 +32,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { todayInLondon, addMonths, formatCivilDate } from "@/lib/recurrence";
 import { isFormSchema, type FormSchema } from "@/lib/form-schema";
-import { satisfactionQuestions, scoreAnswers } from "./satisfaction-questions";
+import { satisfactionQuestions, scoreAnswers, averageOfReviews } from "./satisfaction-questions";
 
 /**
  * The questions THIS company currently scores, for the register's columns and its CSV.
@@ -44,7 +44,7 @@ import { satisfactionQuestions, scoreAnswers } from "./satisfaction-questions";
  */
 export async function getSatisfactionQuestions(
   companyId: string,
-): Promise<{ key: string; label: string }[]> {
+): Promise<{ key: string; label: string; good: "Yes" | "No" }[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("forms")
@@ -60,6 +60,7 @@ export async function getSatisfactionQuestions(
   return satisfactionQuestions(current.schema as FormSchema).map((q) => ({
     key: q.key,
     label: q.label,
+    good: q.good,
   }));
 }
 
@@ -81,6 +82,8 @@ export type SatisfactionRow = {
   latestAnswers: Record<string, "Yes" | "No" | null>;
   positive: number;
   answered: number;
+  /** Sum of each review's own satisfied share (0 to 1), so a branch total can average reviews. */
+  scoreSum: number;
   pct: number | null;
 };
 
@@ -126,7 +129,7 @@ export async function getSatisfaction(
   const suList = (sus as Array<{ id: string; full_name: string; branch_id: string; branches: { name: string } | null }> | null) ?? [];
   const suById = new Map(suList.map((s) => [s.id, s]));
 
-  const acc = new Map<string, { reviews: number; latestAt: string | null; latestAnswers: Record<string, "Yes" | "No" | null>; positive: number; answered: number }>();
+  const acc = new Map<string, { reviews: number; latestAt: string | null; latestAnswers: Record<string, "Yes" | "No" | null>; positive: number; answered: number; scoreSum: number }>();
 
   if (formId) {
     const { data: ev } = await supabase
@@ -166,10 +169,11 @@ export async function getSatisfaction(
       const positive = scored.positive;
       if (answered === 0) continue; // no satisfaction data captured in this review
 
-      const rec = acc.get(e.record_id) ?? { reviews: 0, latestAt: null, latestAnswers: {}, positive: 0, answered: 0 };
+      const rec = acc.get(e.record_id) ?? { reviews: 0, latestAt: null, latestAnswers: {}, positive: 0, answered: 0, scoreSum: 0 };
       rec.reviews += 1;
       rec.answered += answered;
       rec.positive += positive;
+      rec.scoreSum += positive / answered; // each review counts once (averageOfReviews)
       // Evidence is ordered newest first, so the first scoring one is the latest.
       if (rec.latestAt === null) {
         rec.latestAt = e.submitted_at;
@@ -181,6 +185,7 @@ export async function getSatisfaction(
 
   let totalPositive = 0;
   let totalAnswered = 0;
+  let totalScore = 0;
   let reviewCount = 0;
   const rows: SatisfactionRow[] = suList.map((s) => {
     const rec = acc.get(s.id);
@@ -188,6 +193,7 @@ export async function getSatisfaction(
     const answered = rec?.answered ?? 0;
     totalPositive += positive;
     totalAnswered += answered;
+    totalScore += rec?.scoreSum ?? 0;
     reviewCount += rec?.reviews ?? 0;
     return {
       id: s.id,
@@ -199,14 +205,15 @@ export async function getSatisfaction(
       latestAnswers: rec?.latestAnswers ?? {},
       positive,
       answered,
-      // Rounded DOWN, never up: 84.6% satisfaction is not 85%, and 85 is a PQS band boundary.
-      pct: answered > 0 ? Math.floor((positive / answered) * 100) : null,
+      scoreSum: rec?.scoreSum ?? 0,
+      // Each review counts once, rounded DOWN, never up: 84.6% is not 85%, a PQS band boundary.
+      pct: averageOfReviews(rec?.scoreSum ?? 0, rec?.reviews ?? 0),
     };
   });
 
   return {
     window,
-    pct: totalAnswered > 0 ? Math.floor((totalPositive / totalAnswered) * 100) : null,
+    pct: averageOfReviews(totalScore, reviewCount),
     positive: totalPositive,
     answered: totalAnswered,
     reviewCount,

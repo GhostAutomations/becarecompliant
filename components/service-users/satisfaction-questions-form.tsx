@@ -61,8 +61,8 @@ function QuestionRow({ q }: { q: SatisfactionQuestion }) {
         </form>
       </div>
       <p className="form-hint">
-        {q.custom ? "Your own question" : "Included as standard"} · answered Yes or No, with a
-        box asking what is wrong on a No
+        {q.custom ? "Your own question" : "Included as standard"} · {q.good} counts as
+        satisfied, with a box asking for details on a {q.good === "Yes" ? "No" : "Yes"}
       </p>
       {renameState.error ? <p className="form-error">{renameState.error}</p> : null}
       {removeState.error ? <p className="form-error">{removeState.error}</p> : null}
@@ -91,8 +91,8 @@ export default function SatisfactionQuestionsForm({
     <div className="space-y-4">
       <p className="page-subtitle">
         These questions are the customer satisfaction percentage in your PQS return. They are
-        asked on the Individual Plan Review, and every one of them is answered Yes or No, a
-        Yes counting as satisfied. They can only be changed here, not in the form builder, so
+        asked on the Individual Plan Review and answered Yes or No. Each question says which
+        answer counts as satisfied, and each review counts once in the percentage. They can only be changed here, not in the form builder, so
         that the score cannot be altered by tidying a form.
       </p>
 
@@ -115,6 +115,13 @@ export default function SatisfactionQuestionsForm({
             name="label"
             placeholder="Are you happy with the care workers who visit you?"
           />
+        </div>
+        <div>
+          <label htmlFor="new_satisfaction_good" className="form-label">Satisfied answer</label>
+          <select id="new_satisfaction_good" name="good" defaultValue="Yes">
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+          </select>
         </div>
         <button type="submit" disabled={adding} className="btn-primary">
           {adding ? "Adding…" : "Add question"}

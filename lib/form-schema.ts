@@ -126,11 +126,19 @@ export type FormField = {
    * January is scored on the questions its own snapshot says were asked. That is the whole
    * reason this is a field property rather than a constant somewhere.
    *
-   * A flagged question must offer Yes and No. Yes is the satisfied answer.
+   * A flagged question must offer Yes and No. Yes is the satisfied answer unless
+   * `satisfactionGood` says No (see below).
    * Edited in Settings, Service users, Customer Satisfaction — never in the form builder,
    * because moving the scoring around by hand is how a score stops meaning anything.
    */
   satisfaction?: boolean;
+  /**
+   * Which answer is the satisfied one, for a scored question (Phil, 2026-10-05, Thistle's new
+   * questions). "Are there any unresolved issues?" is satisfied by No. Missing means Yes, which
+   * is what every question written before this existed meant, so Evidence already recorded
+   * scores exactly as it did.
+   */
+  satisfactionGood?: "Yes" | "No";
   /**
    * Shown, never asked (2026-09-09). The value comes from the RECORD, not the person
    * filling the form in, and the server rewrites it on submit from the record's own
