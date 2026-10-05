@@ -47,8 +47,8 @@ export default function CarePackageSummary({ value }: { value: PackageLineValue[
   if (lines.length === 0) {
     return (
       <p className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/55">
-        No care schedule is recorded for this person. Add one from the record, or say below
-        what the calls actually are.
+        No care schedule is recorded for this person. Add one from their record so it shows
+        here at the next review.
       </p>
     );
   }
