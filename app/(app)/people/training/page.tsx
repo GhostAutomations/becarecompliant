@@ -5,7 +5,8 @@ import { getRegisterNameSort } from "@/lib/register/name-sort-pref";
 import BackLink from "@/components/back-link";
 import RealtimeRefresh from "@/components/realtime-refresh";
 import { listBranches } from "@/lib/people/data";
-import { callerBranchIds } from "@/lib/auth/branches";
+import { callerBranchIds, callerPrimaryBranchId } from "@/lib/auth/branches";
+import { pickDefaultBranch } from "@/lib/branches/default-branch";
 import { getTrainingMatrix } from "@/lib/training/data";
 import TrainingMatrix from "@/components/training/training-matrix";
 import { getRegulator } from "@/lib/complaints/data";
@@ -18,7 +19,11 @@ export const metadata: Metadata = { title: "Training" };
  * may CHANGE is decided per row by lib/auth/manage-scope.ts from the role and branches passed to
  * the matrix, so a Supervisor gets the register read only rather than a redirect.
  */
-export default async function TrainingPage() {
+export default async function TrainingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ branch?: string }>;
+}) {
   const { user, profile } = await requireCompany();
 
   if (!profile.company_id) {
@@ -34,11 +39,13 @@ export default async function TrainingPage() {
   }
 
   const companyId = profile.company_id;
+  const { branch } = await searchParams;
   const nameSort = await getRegisterNameSort(user.id);
-  const [branches, matrix, viewerBranchIds] = await Promise.all([
+  const [branches, matrix, viewerBranchIds, primaryBranchId] = await Promise.all([
     listBranches(companyId, profile),
     getTrainingMatrix(companyId, null),
     callerBranchIds(profile.id),
+    callerPrimaryBranchId(profile.id),
   ]);
 
   return (
@@ -54,6 +61,8 @@ export default async function TrainingPage() {
              manager can now see a carer outside her branches (0183, booked conductor) and every
              write on that carer is refused. See lib/auth/manage-scope.ts. */
           initialSort={nameSort}
+          /* Opens on the viewer's primary branch (lib/branches/default-branch.ts, Phil 2026-10-05). */
+          initialBranch={pickDefaultBranch(branches, primaryBranchId, branch)}
           viewerRole={profile.role}
           viewerBranchIds={viewerBranchIds}
           showScw={(await getRegulator(companyId)) !== "cqc"}

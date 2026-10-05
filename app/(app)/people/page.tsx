@@ -16,6 +16,8 @@ import { DEFAULT_AMBER_DAYS } from "@/lib/recurrence";
 import { DBS_AMBER_DAYS, RTW_AMBER_DAYS } from "@/lib/people/logic";
 import { REGISTER_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
 import { getBranchTerms } from "@/lib/branches/company-word";
+import { callerPrimaryBranchId } from "@/lib/auth/branches";
+import { pickDefaultBranch } from "@/lib/branches/default-branch";
 
 export const metadata: Metadata = { title: "People" };
 
@@ -55,12 +57,13 @@ export default async function PeoplePage({
   // Load EVERY person once (all statuses, all the viewer's branches). Branches and
   // View are then switched instantly on the client with no server round trip.
   const nameSort = await getRegisterNameSort(user.id);
-  const [branches, register, columnLabels, checkColumns, cycleMode] = await Promise.all([
+  const [branches, register, columnLabels, checkColumns, cycleMode, primaryBranchId] = await Promise.all([
     listBranches(companyId, profile),
     listRegister(companyId, null, "all"),
     getColumnLabels(companyId),
     listRegisterCheckColumns(companyId, "people"),
     getSupervisionCycleMode(companyId),
+    callerPrimaryBranchId(profile.id),
   ]);
   const { definitions, rows } = register;
 
@@ -111,7 +114,7 @@ export default async function PeoplePage({
         canManage={canManage}
         isAdmin={isAdmin}
         initialView={view ?? "main"}
-        initialBranch={branch ?? ""}
+        initialBranch={pickDefaultBranch(branches, primaryBranchId, branch)}
         initialSort={nameSort}
       />
     </div>

@@ -14,6 +14,8 @@ import {
 import { listRegisterCheckColumns, getRegisterColumnText } from "@/lib/register/data";
 import { REGISTER_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
 import { getBranchTerms } from "@/lib/branches/company-word";
+import { callerPrimaryBranchId } from "@/lib/auth/branches";
+import { pickDefaultBranch } from "@/lib/branches/default-branch";
 
 export const metadata: Metadata = { title: "Service Users" };
 
@@ -52,12 +54,13 @@ export default async function ServiceUsersPage({
   // Load EVERY Service User once (all statuses, all the viewer's branches). Branches
   // and View are then switched instantly on the client with no server round trip.
   const nameSort = await getRegisterNameSort(user.id);
-  const [branches, register, columnLabels, reviewIntervalDays, checkColumns] = await Promise.all([
+  const [branches, register, columnLabels, reviewIntervalDays, checkColumns, primaryBranchId] = await Promise.all([
     listAccessibleBranchTypes(companyId, profile.role, user.id),
     listRegister(companyId, null, "all"),
     getServiceUserColumnLabels(companyId),
     getReviewIntervalDays(companyId),
     listRegisterCheckColumns(companyId, "service_users"),
+    callerPrimaryBranchId(user.id),
   ]);
 
   /*
@@ -95,7 +98,7 @@ export default async function ServiceUsersPage({
         canManage={canManage}
         isAdmin={isAdmin}
         initialView={view ?? "main"}
-        initialBranch={branch ?? ""}
+        initialBranch={pickDefaultBranch(branches, primaryBranchId, branch)}
         initialSort={nameSort}
         present={register.definitions.map((d) => d.key)}
       />

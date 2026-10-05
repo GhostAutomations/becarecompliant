@@ -16,3 +16,19 @@ export async function callerBranchIds(profileId: string): Promise<string[]> {
   const { data } = await supabase.from("user_branches").select("branch_id").eq("user_id", profileId);
   return (data ?? []).map((r) => r.branch_id as string).filter(Boolean);
 }
+
+/**
+ * The SIGNED IN user's primary branch, or null. One per user (user_branches_primary_uq). A
+ * Company Admin has no user_branches rows, so null, and lib/branches/default-branch.ts opens
+ * them on the first branch by name.
+ */
+export async function callerPrimaryBranchId(profileId: string): Promise<string | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("user_branches")
+    .select("branch_id")
+    .eq("user_id", profileId)
+    .eq("is_primary", true)
+    .maybeSingle();
+  return (data?.branch_id as string | undefined) ?? null;
+}

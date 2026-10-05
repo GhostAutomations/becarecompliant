@@ -91,6 +91,7 @@ export default function TrainingMatrix({
   viewerRole,
   viewerBranchIds,
   initialSort,
+  initialBranch,
   showScw = false,
 }: {
   courses: TrainingCourse[];
@@ -100,6 +101,9 @@ export default function TrainingMatrix({
   viewerBranchIds: string[];
   /** The name order this user chose last time, read from their profile by the page. */
   initialSort: SortMode;
+  /** The branch to open on: the viewer's primary branch, or the first by name (lib/branches/
+   *  default-branch.ts). Empty means All branches. */
+  initialBranch?: string;
   /** Welsh companies: the Social Care Wales registration number column (DEF-097). */
   showScw?: boolean;
 }) {
@@ -142,7 +146,7 @@ export default function TrainingMatrix({
    * canEdit stays, and is still what decides every button, cell dialog and Save.
    */
   const readable = people;
-  const [branch, setBranch] = useState<string>("all");
+  const [branch, setBranch] = useState<string>(initialBranch || "all");
   const [query, setQuery] = useState("");
   const [narrow, setNarrow] = useState<Narrow>("all");
   const [selected, setSelected] = useState<Selected | null>(null);
