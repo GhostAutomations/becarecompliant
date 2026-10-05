@@ -39,3 +39,8 @@ test("nothing to choose gives an empty string", () => {
   assert.equal(pickDefaultBranch([], "n"), "");
   assert.equal(pickDefaultBranch([office], null), "");
 });
+
+test("All branches is remembered only where the screen offers it", () => {
+  assert.equal(pickDefaultBranch(all, "n", "all", { allowAll: true }), "");
+  assert.equal(pickDefaultBranch(all, "n", "all"), "n"); // Service Users has no All branches
+});

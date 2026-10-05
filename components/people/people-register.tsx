@@ -20,6 +20,7 @@ import type { BranchLite } from "@/lib/people/data";
 import { MAX_REGISTER_COLUMNS, type RegisterCheckColumn } from "@/lib/register/custom-columns";
 import type { SortMode } from "@/lib/register/name-sort-pref";
 import { useBranchWord } from "@/components/branches/branch-word";
+import { useRememberBranch } from "@/components/register/use-remember-branch";
 
 type MatrixConfig = { supInterval: number; supAmber: number; rtwAmber: number; probationAmber: number; dbsAmber: number; cycleMode: "appraisal" | "four_supervisions"; present?: string[] };
 
@@ -70,6 +71,7 @@ export default function PeopleRegister({
   isAdmin = false,
   initialView,
   initialBranch,
+  branchFromLink = false,
   initialSort,
 }: {
   rows: RegisterRow[];
@@ -85,6 +87,8 @@ export default function PeopleRegister({
   isAdmin?: boolean;
   initialView: string;
   initialBranch: string;
+  /** The branch came from ?branch= in the link, so it becomes the remembered one. */
+  branchFromLink?: boolean;
   /** The name order this user chose last time, read from their profile by the page. */
   initialSort: SortMode;
   /** The company's job titles, for the inline Job title pill on the matrix. */
@@ -93,6 +97,7 @@ export default function PeopleRegister({
   const router = useRouter();
   const [view, setView] = useState(VIEW_META[initialView] ? initialView : "main");
   const [branchId, setBranchId] = useState(initialBranch);
+  useRememberBranch("people", branchId, branchFromLink);
   const [search, setSearch] = useState("");
   const branchOptions = branches.filter((b) => b.kind === "branch" || b.kind === "team");
   const meta = VIEW_META[view];

@@ -12,7 +12,10 @@
  * they open on the first operational branch by name.
  *
  * A branch named in the link (?branch=) always wins: that is a deliberate choice, from a
- * dashboard tile or a back link, not a default.
+ * dashboard tile or a back link, not a default. Next comes the branch this screen was last on
+ * during this sign in (Phil, same day: "we remember what branch they were last on for that
+ * screen"), which the page passes as `requested` when the link names none. On People and
+ * Training that can be "all" (All branches), which comes back as "".
  */
 
 export type DefaultableBranch = { id: string; name: string; kind?: string | null };
@@ -35,7 +38,9 @@ export function pickDefaultBranch(
   branches: DefaultableBranch[],
   primaryBranchId: string | null,
   requested?: string | null,
+  opts: { allowAll?: boolean } = {},
 ): string {
+  if (requested === "all" && opts.allowAll && branches.length > 0) return "";
   if (requested && branches.some((b) => b.id === requested)) return requested;
   if (primaryBranchId && branches.some((b) => b.id === primaryBranchId && operational(b))) {
     return primaryBranchId;

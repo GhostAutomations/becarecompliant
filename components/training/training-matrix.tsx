@@ -16,6 +16,7 @@ import { HorizontalScrollbar } from "@/components/register/horizontal-scrollbar"
 import { useRememberedScroll } from "@/components/register/use-remembered-scroll";
 import { VerticalScrollbar } from "@/components/register/vertical-scrollbar";
 import { NameSortHeader, sortByName, useNameSort, type SortMode } from "@/components/register/name-sort-header";
+import { useRememberBranch } from "@/components/register/use-remember-branch";
 import { splitByProbation } from "@/lib/training/probation-group";
 import { phaseProgress } from "@/lib/training/phase";
 import { useBranchWord } from "@/components/branches/branch-word";
@@ -92,6 +93,7 @@ export default function TrainingMatrix({
   viewerBranchIds,
   initialSort,
   initialBranch,
+  branchFromLink = false,
   showScw = false,
 }: {
   courses: TrainingCourse[];
@@ -104,6 +106,8 @@ export default function TrainingMatrix({
   /** The branch to open on: the viewer's primary branch, or the first by name (lib/branches/
    *  default-branch.ts). Empty means All branches. */
   initialBranch?: string;
+  /** The branch came from ?branch= in the link, so it becomes the remembered one. */
+  branchFromLink?: boolean;
   /** Welsh companies: the Social Care Wales registration number column (DEF-097). */
   showScw?: boolean;
 }) {
@@ -147,6 +151,7 @@ export default function TrainingMatrix({
    */
   const readable = people;
   const [branch, setBranch] = useState<string>(initialBranch || "all");
+  useRememberBranch("training", branch, branchFromLink);
   const [query, setQuery] = useState("");
   const [narrow, setNarrow] = useState<Narrow>("all");
   const [selected, setSelected] = useState<Selected | null>(null);

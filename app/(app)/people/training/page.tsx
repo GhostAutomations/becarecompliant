@@ -7,6 +7,7 @@ import RealtimeRefresh from "@/components/realtime-refresh";
 import { listBranches } from "@/lib/people/data";
 import { callerBranchIds, callerPrimaryBranchId } from "@/lib/auth/branches";
 import { pickDefaultBranch } from "@/lib/branches/default-branch";
+import { getRememberedBranch } from "@/lib/register/branch-memory";
 import { getTrainingMatrix } from "@/lib/training/data";
 import TrainingMatrix from "@/components/training/training-matrix";
 import { getRegulator } from "@/lib/complaints/data";
@@ -41,11 +42,12 @@ export default async function TrainingPage({
   const companyId = profile.company_id;
   const { branch } = await searchParams;
   const nameSort = await getRegisterNameSort(user.id);
-  const [branches, matrix, viewerBranchIds, primaryBranchId] = await Promise.all([
+  const [branches, matrix, viewerBranchIds, primaryBranchId, rememberedBranch] = await Promise.all([
     listBranches(companyId, profile),
     getTrainingMatrix(companyId, null),
     callerBranchIds(profile.id),
     callerPrimaryBranchId(profile.id),
+    getRememberedBranch("training"),
   ]);
 
   return (
@@ -62,7 +64,8 @@ export default async function TrainingPage({
              write on that carer is refused. See lib/auth/manage-scope.ts. */
           initialSort={nameSort}
           /* Opens on the viewer's primary branch (lib/branches/default-branch.ts, Phil 2026-10-05). */
-          initialBranch={pickDefaultBranch(branches, primaryBranchId, branch)}
+          initialBranch={pickDefaultBranch(branches, primaryBranchId, branch ?? rememberedBranch, { allowAll: true })}
+          branchFromLink={!!branch}
           viewerRole={profile.role}
           viewerBranchIds={viewerBranchIds}
           showScw={(await getRegulator(companyId)) !== "cqc"}

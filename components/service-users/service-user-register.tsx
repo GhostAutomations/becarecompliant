@@ -33,6 +33,7 @@ import { type ServiceUserRow, SERVICE_STATUS_LABELS } from "@/lib/service-users/
 import { NameSortHeader, sortByName, useNameSort, type SortMode } from "@/components/register/name-sort-header";
 import type { BranchType } from "@/lib/service-users/data";
 import { useBranchWord } from "@/components/branches/branch-word";
+import { useRememberBranch } from "@/components/register/use-remember-branch";
 
 const RAG_ORDER: Record<string, number> = { red: 0, amber: 1, green: 2, none: 3 };
 
@@ -112,6 +113,7 @@ export default function ServiceUserRegister({
   isAdmin = false,
   initialView,
   initialBranch,
+  branchFromLink = false,
   initialSort,
   present,
 }: {
@@ -128,6 +130,8 @@ export default function ServiceUserRegister({
   isAdmin?: boolean;
   initialView: string;
   initialBranch: string;
+  /** The branch came from ?branch= in the link, so it becomes the remembered one. */
+  branchFromLink?: boolean;
   /** The name order this user chose last time, read from their profile by the page. */
   initialSort: SortMode;
   /** The company's active check keys; a curated column without its check is left off
@@ -147,6 +151,7 @@ export default function ServiceUserRegister({
   const [branchId, setBranchId] = useState(
     branchOptions.some((b) => b.id === initialBranch) ? initialBranch : (branchOptions[0]?.id ?? ""),
   );
+  useRememberBranch("service_users", branchId, branchFromLink);
   const [search, setSearch] = useState("");
   const [worstFirst, setWorstFirst] = useState(false);
   const [navy, setNavy] = useState(false);
