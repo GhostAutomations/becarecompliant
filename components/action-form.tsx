@@ -16,7 +16,7 @@
  * client component), keeping the page a server component.
  */
 
-import { startTransition, useActionState, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Fragment, startTransition, useActionState, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { IDLE_STATE, type ActionState } from "@/lib/forms";
@@ -152,11 +152,19 @@ export default function ActionForm({
     const fd = submitter ? new FormData(e.currentTarget, submitter) : new FormData(e.currentTarget);
     startTransition(() => formAction(fd));
   }
+  /* AFTER A SAVE THE FIELDS SHOW WHAT WAS SAVED (Phil, 2026-10-05: a Supervisor set Jon Ibrahim
+     to Hospital, pressed Save, and the box jumped back to Active, so she did it several times;
+     the save had worked every time). This used to call form.reset(), which puts each field back
+     to the value it had when the page FIRST drew it. Fine for an "add" form, whose first value is
+     empty; wrong for every edit form, whose first value is the OLD one. Now the fields are drawn
+     again from the page as it stands after the save: an add form comes back empty as before, an
+     edit form comes back showing the new value. */
+  const [fieldsKey, setFieldsKey] = useState(0);
   const lastState = useRef(state);
   useEffect(() => {
     if (state === lastState.current) return;
     lastState.current = state;
-    if (state.ok && !state.redirectTo) formRef.current?.reset();
+    if (state.ok && !state.redirectTo) setFieldsKey((k) => k + 1);
   }, [state]);
 
   const showSaved = saved && !pending;
@@ -176,7 +184,13 @@ export default function ActionForm({
       {hidden
         ? Object.entries(hidden).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)
         : null}
-      {inline ? <div className={inlineTight ? "" : "flex-1"}>{children}</div> : children}
+      {inline ? (
+        <div className={inlineTight ? "" : "flex-1"}>
+          <Fragment key={fieldsKey}>{children}</Fragment>
+        </div>
+      ) : (
+        <Fragment key={fieldsKey}>{children}</Fragment>
+      )}
       <div className={inline ? "flex items-center gap-2" : "flex items-center gap-2"}>
         <button
           type={confirm ? "button" : "submit"}
