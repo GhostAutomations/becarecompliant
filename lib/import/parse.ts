@@ -15,7 +15,7 @@ import { createClient } from "@/lib/supabase/server";
 import { buildColumnPlan, type ColumnPlan } from "./columns";
 import { jobTitleOrDefault } from "./job-title";
 import { settleSuppliedDue } from "./supplied-due";
-import { dbsWarnings } from "@/lib/people/dbs-check";
+import { dbsWarnings, withDbsRenewal } from "@/lib/people/dbs-check";
 
 const RTW_LIMITS = new Set(["none", "20hrs_term", "20hrs_2nd_job", "visa_expires"]);
 const PROBATION_STATUS = new Set(["passed", "failed", "extended", "due"]);
@@ -205,7 +205,8 @@ export async function validateImport(
 
     const docs: Record<string, string | null> = {};
     for (const d of plan.documents) {
-      const raw = cell(cols, d.header);
+      // A file made from an older template still says "DBS": read it under either name.
+      const raw = [d.header, ...(d.aliases ?? [])].map((h) => cell(cols, h)).find((v) => v) ?? "";
       if (!raw) {
         docs[d.column] = null;
         continue;
@@ -338,6 +339,10 @@ export async function validateImport(
       }
     }
     counts[status] += 1;
+
+    /* Enhanced DBS left blank is worked out from the date of issue (Phil, 2026-10-05), here rather
+       than on commit so the preview shows the date that will be written. */
+    if (docs.dbs_date && !docs.enhanced_dbs_date) docs.enhanced_dbs_date = withDbsRenewal(docs.dbs_date, null);
 
     const warnings = dbsWarnings({
       certificateDate: docs.dbs_date ?? null,

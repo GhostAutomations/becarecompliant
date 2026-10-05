@@ -110,7 +110,7 @@ export async function buildSubjectAccessExport(input: {
     const { data: tr } = await db.from("person_trackers").select("*").eq("person_id", recordId).maybeSingle();
     const x = (tr ?? {}) as Record<string, unknown>;
     recordPairs.push(
-      ["DBS date", fmtDate(x.dbs_date as string)], ["Enhanced DBS date", fmtDate(x.enhanced_dbs_date as string)],
+      ["DBS date of issue", fmtDate(x.dbs_date as string)], ["Enhanced DBS date", fmtDate(x.enhanced_dbs_date as string)],
       ["Right to Work expiry", fmtDate(x.rtw_expiry_date as string)], ["Right to Work limits", x.rtw_limits ? RTW_LIMIT_LABELS[x.rtw_limits as keyof typeof RTW_LIMIT_LABELS] ?? x.rtw_limits : null],
       ["Probation end due", fmtDate(x.probation_end_due as string)], ["Probation ended", fmtDate(x.probation_end_actual as string)],
       ["Probation status", x.probation_status ? PROBATION_STATUS_LABELS[x.probation_status as keyof typeof PROBATION_STATUS_LABELS] ?? x.probation_status : null], ["Probation extended to", fmtDate(x.probation_extension_date as string)],

@@ -210,7 +210,7 @@ export default function RegisterMatrix({
               <th>{col("start_date", "Start date")}</th>
               {has("manual_handling") ? <th>{col("manual_handling", "Manual Handling")}</th> : null}
               {has("competency") ? <th>{col("medication_competency", "Medication Competency")}</th> : null}
-              <th>{col("dbs", "DBS")}</th>
+              <th>{col("dbs", "DBS date of issue")}</th>
               <th>{col("enhanced_dbs", "Enhanced DBS")}</th>
               <th>{col("rtw_expiry", "RTW Expiry")}</th>
               <th>{col("rtw_limits", "RTW Limits")}</th>

@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 import { useActionState } from "react";
 import { useRouter } from "next/navigation";
 import FormRenderer from "@/components/forms/form-renderer";
-import type { Answers, FormSchema } from "@/lib/form-schema";
+import type { AnswerValue, Answers, FormSchema } from "@/lib/form-schema";
 import { validateAnswers, type FieldError } from "@/lib/form-validate";
 import { describeValidationErrors } from "@/lib/forms/validation-message";
 import { focusFirstError } from "@/components/forms/focus-first-error";
@@ -20,7 +20,7 @@ import { completeTrackerForm } from "@/lib/people/actions";
 import { mergeDraft, trackerDraftKey } from "@/lib/forms/draft-key";
 import { useFormDraft } from "@/components/forms/use-form-draft";
 import { IDLE_STATE } from "@/lib/forms";
-import { dbsWarnings } from "@/lib/people/dbs-check";
+import { dbsWarnings, followDbsRenewal } from "@/lib/people/dbs-check";
 import DbsWarning from "@/components/people/dbs-warning";
 
 export default function CompleteTracker({
@@ -60,6 +60,19 @@ export default function CompleteTracker({
   useEffect(() => {
     if (state.redirectTo) router.replace(state.redirectTo);
   }, [state.redirectTo, router]);
+
+  /* ENHANCED DBS FOLLOWS THE DATE OF ISSUE (Phil, 2026-10-05): typing the issue date fills the
+     renewal with issue + 3 years, and it keeps following until somebody types their own date. */
+  const derive =
+    formKey === "dbs_renewal"
+      ? (prev: Answers, key: string, value: AnswerValue): Answers => {
+          const next: Answers = { ...prev, [key]: value };
+          if (key !== "dbs_date") return next;
+          const str = (v: AnswerValue | undefined) => (typeof v === "string" ? v : "");
+          next.enhanced_dbs_date = followDbsRenewal(str(prev.dbs_date), str(prev.enhanced_dbs_date), str(value));
+          return next;
+        }
+      : undefined;
 
   // DBS dates that look typed wrong ask once before saving (DEF-059). Warn, never refuse.
   const [warnings, setWarnings] = useState<string[]>([]);
@@ -115,6 +128,7 @@ export default function CompleteTracker({
         schema={schema}
         defaultValue={opening}
         errors={errors}
+        derive={derive}
         onChange={(next) => {
           setAnswers(next);
           setWarnings([]);

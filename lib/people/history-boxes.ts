@@ -76,9 +76,9 @@ export const TRACKER_BOXES: ReadonlyArray<{
   {
     name: "t_dbs_date",
     column: "dbs",
-    fallback: "DBS",
+    fallback: "DBS date of issue",
     kind: "date",
-    hint: "Completion date. The date on their certificate.",
+    hint: "Completion date. The date of issue printed on their certificate.",
   },
   /*
    * NOT a second certificate date (Phil, 2026-09-21: "thistle care monday matrix displays the
@@ -93,7 +93,7 @@ export const TRACKER_BOXES: ReadonlyArray<{
     column: "enhanced_dbs",
     fallback: "Enhanced DBS",
     kind: "date",
-    hint: "Expiry date. When their DBS has to be renewed by.",
+    hint: "Expiry date. When their DBS has to be renewed by. Fills in as 3 years after the date of issue. Change it if yours is different.",
   },
   {
     name: "t_rtw_expiry_date",

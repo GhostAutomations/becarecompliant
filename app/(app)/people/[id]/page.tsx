@@ -425,7 +425,7 @@ export default async function PersonPage({
     "DBS",
     "Document",
     [
-      { label: "DBS", value: formatDisplayDate(tracker?.dbs_date ?? null) || "—" },
+      { label: "DBS date of issue", value: formatDisplayDate(tracker?.dbs_date ?? null) || "—" },
       { label: "Enhanced DBS", value: formatDisplayDate(tracker?.enhanced_dbs_date ?? null) || "—" },
     ],
     canManage && !supportMode ? `/people/${person.id}/tracker/dbs_renewal/complete` : null,

@@ -149,7 +149,7 @@ export default async function PeopleSummaryPage({
        * The renewal is a DEADLINE and colours like every other deadline on the card, so an
        * expired DBS turns the card red and lifts that carer to the top of the board.
        */
-      line("DBS", t?.dbs_date ?? null, "none", false, true),
+      line("DBS date of issue", t?.dbs_date ?? null, "none", false, true),
       /* NEVER RECORDED IS RED FROM THE START DATE (audit W1), the same rule as the record and
          the register (lib/people/doc-gaps.ts), so a carer with no DBS on file lifts to the top. */
       gaps.some((g) => g.kind === "dbs_renewal")

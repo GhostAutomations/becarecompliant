@@ -44,7 +44,13 @@ export type CheckColumn = {
   cycleDays: number;
 };
 
-export type DocumentField = { header: string; column: string; kind: "date" | "text" };
+export type DocumentField = {
+  header: string;
+  column: string;
+  kind: "date" | "text";
+  /** Older header names still read on import, so a file from an earlier template still works. */
+  aliases?: string[];
+};
 
 export type ColumnPlan = {
   identity: IdentityField[];
@@ -67,7 +73,7 @@ const PEOPLE_IDENTITY: IdentityField[] = [
 ];
 
 const PEOPLE_DOCUMENTS: DocumentField[] = [
-  { header: "DBS", column: "dbs_date", kind: "date" },
+  { header: "DBS date of issue", column: "dbs_date", kind: "date", aliases: ["DBS"] },
   { header: "Enhanced DBS", column: "enhanced_dbs_date", kind: "date" },
   { header: "RTW Expiry", column: "rtw_expiry_date", kind: "date" },
   { header: "RTW Limits", column: "rtw_limits", kind: "text" },

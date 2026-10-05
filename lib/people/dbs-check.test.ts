@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { dbsWarnings } from "./dbs-check.ts";
+import { dbsWarnings, dbsRenewalFrom, followDbsRenewal, withDbsRenewal } from "./dbs-check.ts";
 
 test("the three real Thistle rows are all flagged", () => {
   // Asim Riaz: six years.
@@ -34,4 +34,33 @@ test("missing dates say nothing", () => {
   assert.deepEqual(dbsWarnings({}), []);
   assert.deepEqual(dbsWarnings({ certificateDate: "2025-01-01" }), []);
   assert.deepEqual(dbsWarnings({ renewalDate: "2030-01-01", startDate: "2025-01-01" }), []);
+});
+
+test("Enhanced DBS is the date of issue plus three years, to the day", () => {
+  assert.equal(dbsRenewalFrom("2024-05-12"), "2027-05-12");
+  assert.equal(dbsRenewalFrom("2025-12-31"), "2028-12-31");
+  // 29 February into a year with no 29th settles on the 28th.
+  assert.equal(dbsRenewalFrom("2024-02-29"), "2027-02-28");
+  assert.equal(dbsRenewalFrom(""), null);
+  assert.equal(dbsRenewalFrom("12/05/2024"), null);
+  assert.equal(dbsRenewalFrom(null), null);
+});
+
+test("the renewal box follows the issue date until somebody types their own", () => {
+  // Blank: filled.
+  assert.equal(followDbsRenewal("", "", "2024-05-12"), "2027-05-12");
+  // Still ours: moves with the issue date.
+  assert.equal(followDbsRenewal("2024-05-12", "2027-05-12", "2024-06-01"), "2027-06-01");
+  // Typed by hand (Update Service): left alone.
+  assert.equal(followDbsRenewal("2024-05-12", "2030-05-12", "2024-06-01"), "2030-05-12");
+  // Issue date cleared: our date goes, a typed one stays.
+  assert.equal(followDbsRenewal("2024-05-12", "2027-05-12", ""), "");
+  assert.equal(followDbsRenewal("2024-05-12", "2030-05-12", ""), "2030-05-12");
+});
+
+test("a blank renewal is filled on save, a given one always wins", () => {
+  assert.equal(withDbsRenewal("2024-05-12", null), "2027-05-12");
+  assert.equal(withDbsRenewal("2024-05-12", ""), "2027-05-12");
+  assert.equal(withDbsRenewal("2024-05-12", "2030-01-01"), "2030-01-01");
+  assert.equal(withDbsRenewal(null, null), null);
 });

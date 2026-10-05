@@ -59,6 +59,12 @@ type Props = {
   /** Called with the full answers object whenever any field changes. */
   onChange?: (answers: Answers) => void;
   /**
+   * Work other answers out from the one just changed, before anything is drawn or reported. Given
+   * the answers before the change, the key and the new value; returns the full next answers. The
+   * DBS form uses it to fill Enhanced DBS from the date of issue (Phil, 2026-10-05).
+   */
+  derive?: (prev: Answers, key: string, value: AnswerValue) => Answers;
+  /**
    * FILLED IN, NOT SHOWN (Phil, 2 Oct 2026: "those auto fields are still visible ... id like it so
    * its like the other forms"). When completing a check, a question set to "Fill in automatically"
    * that HAS been filled in is left off the screen; its answer is still saved in the Evidence.
@@ -100,6 +106,7 @@ export default function FormRenderer({
   disabled = false,
   idPrefix = "f",
   onChange,
+  derive,
   onFileSelect,
   lookupChoices,
   onLookupSelect,
@@ -134,12 +141,13 @@ export default function FormRenderer({
 
   const update = useCallback(
     (key: string, value: AnswerValue) => {
-      const next = { ...answersRef.current, [key]: value };
+      const prev = answersRef.current;
+      const next = derive ? derive(prev, key, value) : { ...prev, [key]: value };
       answersRef.current = next;
       setAnswers(next);
       onChange?.(next);
     },
-    [onChange],
+    [onChange, derive],
   );
 
   return (

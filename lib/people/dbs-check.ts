@@ -23,6 +23,44 @@ function addYears(iso: string, years: number): string {
   return target.toISOString().slice(0, 10);
 }
 
+/**
+ * ENHANCED DBS IS WORKED OUT FROM THE DATE OF ISSUE (Phil, 2026-10-05, agreed by popup): the
+ * renewal is the issue date plus three years, to the day. It is a suggestion, not a lock: a
+ * company on the DBS Update Service can type a later date over it. Null when the issue date is
+ * not a whole ISO date.
+ */
+export function dbsRenewalFrom(issueDate: string | null | undefined): string | null {
+  const iso = String(issueDate ?? "").trim();
+  return ISO.test(iso) ? addYears(iso, DBS_USUAL_RENEWAL_YEARS) : null;
+}
+
+/**
+ * What the Enhanced DBS box should hold after the issue date changes from `prevIssue` to
+ * `nextIssue`. It follows the issue date while it is blank or still holds the date we worked out
+ * last time; once somebody has typed their own date it is left alone. Clearing the issue date
+ * clears a date we filled, never one they typed.
+ */
+export function followDbsRenewal(
+  prevIssue: string | null | undefined,
+  currentRenewal: string | null | undefined,
+  nextIssue: string | null | undefined,
+): string {
+  const current = String(currentRenewal ?? "").trim();
+  const ours = current === "" || current === dbsRenewalFrom(prevIssue);
+  if (!ours) return current;
+  return dbsRenewalFrom(nextIssue) ?? "";
+}
+
+/** Fill a blank renewal from the issue date. A renewal already given always wins. */
+export function withDbsRenewal(
+  issueDate: string | null | undefined,
+  renewal: string | null | undefined,
+): string | null {
+  const given = String(renewal ?? "").trim();
+  if (given) return given;
+  return dbsRenewalFrom(issueDate);
+}
+
 function uk(iso: string): string {
   const [y, m, d] = iso.split("-");
   return `${d}/${m}/${y}`;

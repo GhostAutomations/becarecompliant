@@ -199,7 +199,7 @@ export const REGISTER_COLUMNS: Array<{ key: string; name: string }> = [
   { key: "start_date", name: "Start date" },
   { key: "manual_handling", name: "Manual Handling" },
   { key: "medication_competency", name: "Medication Competency" },
-  { key: "dbs", name: "DBS" },
+  { key: "dbs", name: "DBS date of issue" },
   { key: "enhanced_dbs", name: "Enhanced DBS" },
   { key: "rtw_expiry", name: "RTW Expiry" },
   { key: "rtw_limits", name: "RTW Limits" },

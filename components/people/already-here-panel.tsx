@@ -23,8 +23,9 @@
  * half there is still somebody you have to be able to add.
  */
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { RTW_LIMIT_LABELS, PROBATION_STATUS_LABELS } from "@/lib/people/types";
+import { followDbsRenewal } from "@/lib/people/dbs-check";
 
 export type HistoryBoxView = { name: string; label: string };
 export type TrackerBoxView = {
@@ -45,6 +46,18 @@ export default function AlreadyHerePanel({
   historyBoxes: HistoryBoxView[];
 }) {
   const [on, setOn] = useState(false);
+  /* ENHANCED DBS FOLLOWS THE DATE OF ISSUE (Phil, 2026-10-05): the renewal box fills with issue
+     + 3 years and keeps following until somebody types their own date. The boxes are not
+     controlled, so the last issue date is kept here to tell our date from theirs. */
+  const lastIssue = useRef("");
+  function onIssueChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const renewal = e.currentTarget.form?.elements.namedItem("t_enhanced_dbs_date");
+    const next = e.currentTarget.value;
+    if (renewal instanceof HTMLInputElement) {
+      renewal.value = followDbsRenewal(lastIssue.current, renewal.value, next);
+    }
+    lastIssue.current = next;
+  }
 
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
@@ -80,7 +93,12 @@ export default function AlreadyHerePanel({
                 <div key={b.name}>
                   <label htmlFor={b.name} className="form-label">{b.label}</label>
                   {b.kind === "date" ? (
-                    <input id={b.name} name={b.name} type="date" />
+                    <input
+                      id={b.name}
+                      name={b.name}
+                      type="date"
+                      onChange={b.name === "t_dbs_date" ? onIssueChange : undefined}
+                    />
                   ) : b.kind === "rtw_limits" ? (
                     <select id={b.name} name={b.name} defaultValue="">
                       <option value="">Not set</option>

@@ -1,5 +1,6 @@
 "use server";
 import { recordSetupDone } from "@/lib/setup/status";
+import { withDbsRenewal } from "@/lib/people/dbs-check";
 
 /**
  * Be Care Compliant — People (Phase 3) server actions.
@@ -185,7 +186,10 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
       if (typeof v === "string" && (k.startsWith("done_") || k.startsWith("t_"))) typed[k] = v;
     }
   }
-  const tracker = alreadyHere ? trackerPatch(typed) : {};
+  const tracker: Record<string, string> = alreadyHere ? trackerPatch(typed) : {};
+  // Enhanced DBS left blank is worked out from the date of issue (Phil, 2026-10-05).
+  const dbsRenewal = withDbsRenewal(tracker.dbs_date, tracker.enhanced_dbs_date);
+  if (dbsRenewal) tracker.enhanced_dbs_date = dbsRenewal;
 
   // Probation: end due = start date + the company Probationary Period, in the unit
   // the company set (days, weeks or months); status = Due.
@@ -1526,6 +1530,16 @@ export async function completeTrackerForm(_prev: ActionState, formData: FormData
       const problem = beforeStartProblem(what, typeof v === "string" ? v : null, start);
       if (problem) return { error: problem };
     }
+  }
+
+  /* ENHANCED DBS FROM THE DATE OF ISSUE (Phil, 2026-10-05). The form fills it as the issue date is
+     typed; this catches a submission that arrives without it, so the Evidence and the record both
+     carry the renewal date. A date they typed themselves is never replaced. */
+  if (formKey === "dbs_renewal") {
+    const issue = typeof answers.dbs_date === "string" ? answers.dbs_date : null;
+    const given = typeof answers.enhanced_dbs_date === "string" ? answers.enhanced_dbs_date : null;
+    const renewal = withDbsRenewal(issue, given);
+    if (renewal) answers = { ...answers, enhanced_dbs_date: renewal };
   }
 
   const result = await submitEvidence({
