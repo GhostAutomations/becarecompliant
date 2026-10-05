@@ -64,7 +64,7 @@ export default function DbsCardButtons({ personId }: { personId: string }) {
 
   return (
     <div className="@container mt-3">
-      <div className="flex justify-center gap-1.5">
+      <div className="flex justify-start gap-1.5">
         <Link
           href={`/people/${personId}/tracker/dbs_renewal/complete`}
           className="btn-primary shrink-0 text-[13px] sm:px-5 @max-[10.5rem]:px-2.5"
