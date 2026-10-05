@@ -234,7 +234,9 @@ export function EvidenceEntry({
            itself be taller than the page it sits on. */
         return (
           <View key={section.id} style={styles.section}>
-            <Text style={styles.sectionTitle}>{section.title}</Text>
+            {/* A section may have no title (the DBS risk assessments' opening section, Phil
+                2026-10-05), and an empty heading would print as a blank band. */}
+            {section.title ? <Text style={styles.sectionTitle}>{section.title}</Text> : null}
             {visible.map((field) => {
               if (isPresentational(field.type)) {
                 return (

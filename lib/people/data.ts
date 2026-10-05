@@ -332,7 +332,7 @@ export async function listRegister(
     supabase
       .from("evidence")
       .select(
-        "record_id, submitted_at, decision:answers->>decision, review_date:answers->>review_date, dbs_applied_on:answers->>dbs_applied_on, cert_issue_date:answers->>cert_issue_date, forms!inner(key)",
+        "record_id, submitted_at, decision:answers->>decision, review_date:answers->>review_date, dbs_applied_on:answers->>dbs_applied_on, cert_issue_date:answers->>cert_issue_date, barred:answers->>barred, forms!inner(key)",
       )
       .eq("record_type", "person")
       .in("forms.key", ["dbs_pending", "dbs_disclosure"])
@@ -438,6 +438,7 @@ export async function listRegister(
     review_date: string | null;
     dbs_applied_on: string | null;
     cert_issue_date: string | null;
+    barred: string | null;
     forms: { key: string } | { key: string }[] | null;
   };
   const latestPendingBy = new Map<string, DbsRiskRow>();

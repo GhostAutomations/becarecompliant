@@ -79,3 +79,14 @@ test("a renewal: an older certificate on file does not end a Pending assessment"
     null,
   );
 });
+
+test("a Barred outcome is red Barred, not Assessed", () => {
+  assert.deepEqual(
+    dbsRiskMarker({ latestPending: null, latestDisclosure: { cert_issue_date: "2026-10-03", barred: "barred" }, dbsDate: "2026-10-03", todayIso: TODAY }),
+    { label: "Barred", tone: "red" },
+  );
+  assert.equal(
+    dbsRiskMarker({ latestPending: null, latestDisclosure: { cert_issue_date: "2026-10-03", barred: "not_barred" }, dbsDate: "2026-10-03", todayIso: TODAY })?.label,
+    "Assessed",
+  );
+});

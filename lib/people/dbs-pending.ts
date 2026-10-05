@@ -52,16 +52,17 @@ export function dbsPendingState(input: DbsPendingInput): DbsPendingState | null 
  * period), so there is nothing to count down to.
  *   Pending   a DBS Pending Risk Assessment is in force: no date of issue on file yet. Amber,
  *             red once its weekly review is missed (the same rule as the DBS card).
+ *   Barred    as Assessed, but the assessment recorded the adults' barred list. Red.
  *   Assessed  a DBS Disclosure Risk Assessment covers the CURRENT certificate. A later date of
  *             issue means a new certificate, so the marker clears; the old form stays as
  *             Evidence and a new certificate that shows something needs a new assessment.
  *   null      neither.
  */
-export type DbsRiskMarker = { label: "Pending" | "Assessed"; tone: "amber" | "red" | "neutral" };
+export type DbsRiskMarker = { label: "Pending" | "Assessed" | "Barred"; tone: "amber" | "red" | "neutral" };
 
 export function dbsRiskMarker(input: {
   latestPending: { decision?: unknown; review_date?: unknown; dbs_applied_on?: unknown } | null;
-  latestDisclosure: { cert_issue_date?: unknown } | null;
+  latestDisclosure: { cert_issue_date?: unknown; barred?: unknown } | null;
   dbsDate: string | null;
   todayIso: string;
 }): DbsRiskMarker | null {
@@ -72,8 +73,12 @@ export function dbsRiskMarker(input: {
   const certOnForm = typeof d.cert_issue_date === "string" && ISO.test(d.cert_issue_date) ? d.cert_issue_date : null;
   const current = input.dbsDate && ISO.test(input.dbsDate) ? input.dbsDate : null;
   // No certificate on the record yet: the assessment is the only certificate we know about.
-  if (!current) return { label: "Assessed", tone: "neutral" };
+  /* BARRED IS RED (Phil, 2026-10-05, popup): someone on the adults' barred list cannot lawfully do
+     care work, so the register must not file them under the same quiet "Assessed" as everyone. */
+  const marker: DbsRiskMarker =
+    d.barred === "barred" ? { label: "Barred", tone: "red" } : { label: "Assessed", tone: "neutral" };
+  if (!current) return marker;
   // A form that does not say which certificate cannot be matched to one; it covers what is there.
-  if (!certOnForm) return { label: "Assessed", tone: "neutral" };
-  return certOnForm >= current ? { label: "Assessed", tone: "neutral" } : null;
+  if (!certOnForm) return marker;
+  return certOnForm >= current ? marker : null;
 }

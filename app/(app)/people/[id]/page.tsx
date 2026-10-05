@@ -49,7 +49,7 @@ import {
   setRetentionHold,
   transferPerson,
 } from "@/lib/people/actions";
-import { appraisalSlot, dateRag, DBS_AMBER_DAYS, formatDisplayDate, recurrenceLabel, RTW_AMBER_DAYS, supervisionSlots } from "@/lib/people/logic";
+import { appraisalSlot, dateRag, DBS_AMBER_DAYS, formatDisplayDate, recurrenceLabel, RTW_AMBER_DAYS, supervisionSlots, TRACKER_FORMS } from "@/lib/people/logic";
 import { missingDocuments } from "@/lib/people/doc-gaps";
 import { dbsPendingState } from "@/lib/people/dbs-pending";
 import DbsCardButtons from "@/components/people/dbs-complete-menu";
@@ -677,7 +677,14 @@ export default async function PersonPage({
 
       {completed ? (
         <div className="glass-card border border-rag-green/20 p-4 text-sm text-rag-green-soft">
-          {completed} completed. Evidence stored and the next due date scheduled.
+          {/* A document form schedules nothing (Phil, 2026-10-05: the DBS risk assessments said
+              "the next due date scheduled" when there is none). Checks still say it. */}
+          {completed} completed.{" "}
+          {completed === TRACKER_FORMS.dbs_pending.title || completed === TRACKER_FORMS.dbs_disclosure.title
+            ? "Evidence stored."
+            : Object.values(TRACKER_FORMS).some((f) => f.title === completed)
+              ? "Evidence stored and the record updated."
+              : "Evidence stored and the next due date scheduled."}
         </div>
       ) : null}
 
