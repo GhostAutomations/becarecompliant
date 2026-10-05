@@ -52,7 +52,7 @@ import {
 import { appraisalSlot, dateRag, DBS_AMBER_DAYS, formatDisplayDate, recurrenceLabel, RTW_AMBER_DAYS, supervisionSlots } from "@/lib/people/logic";
 import { missingDocuments } from "@/lib/people/doc-gaps";
 import { dbsPendingState } from "@/lib/people/dbs-pending";
-import DbsCompleteMenu from "@/components/people/dbs-complete-menu";
+import DbsCardButtons from "@/components/people/dbs-complete-menu";
 import { nextSupervisionNumber } from "@/lib/people/next-supervision";
 import { ukDate } from "@/lib/dates";
 import {
@@ -436,10 +436,9 @@ export default async function PersonPage({
     todayIso: scwTodayIso,
   });
   const canAssess = canManage && !supportMode;
-  /* ONE COMPLETE BUTTON WITH A MENU (Phil, 2026-10-05, popup): the same size as every other card's
-     Complete, so the DBS card stays the height of Right to Work on any screen, and it offers the
-     DBS form and the two risk assessments. */
-  const dbsExtra = canAssess ? <DbsCompleteMenu personId={person.id} /> : undefined;
+  /* [Complete] [Risk ▾] (Phil, 2026-10-05, popups): Complete opens the DBS form as it does on every
+     card, Risk drops down the two risk assessments, and the card keeps Right to Work's height. */
+  const dbsExtra = canAssess ? <DbsCardButtons personId={person.id} /> : undefined;
   const dbsTile = trackerTile(
     "DBS",
     "Document",
@@ -447,7 +446,7 @@ export default async function PersonPage({
       { label: "DBS date of issue", value: formatDisplayDate(tracker?.dbs_date ?? null) || "—" },
       { label: "Enhanced DBS", value: formatDisplayDate(tracker?.enhanced_dbs_date ?? null) || "—" },
     ],
-    // Complete is the menu below, so the tile's own button is not drawn.
+    // Complete is drawn beside Risk in the buttons below, not as the tile's own button.
     null,
     dbsExtra,
     /* The pending state lives in the badge, not in an extra line, so the card keeps its height. */
