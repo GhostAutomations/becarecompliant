@@ -37,6 +37,8 @@ import { RESET_THROTTLE_MINUTES } from "@/lib/auth/password-reset-rules";
 import { PORTAL_FORMS, portalFormKey } from "@/lib/auth/portal-forms";
 import { ROLE_LABELS } from "@/lib/nav";
 import { DEMO_REFUSAL, isDemoCompany } from "@/lib/demo/data";
+import { inviteStaffForPerson } from "@/lib/staff/invite";
+import { isSendableAddress } from "@/lib/email/resend";
 
 const INVITABLE_ROLES: InviteRole[] = [
   "registered_individual",
@@ -365,6 +367,70 @@ export async function sendHeldInvitesAction(
     };
   }
   return { ok: `${sent} invite${sent === 1 ? "" : "s"} sent.` };
+}
+
+/**
+ * GET THE INVITES READY FOR PEOPLE WHO HAVE AN EMAIL AND NO LOGIN (Phil, 2026-10-05: "The Newport
+ * team have email addresses but I can't see when to send the invites in bulk"). Cardiff's import
+ * created each carer's login held back, so Send all had something to send; Newport was imported
+ * without logins, because Phil sends Newport's invites himself when he decides. This does for a
+ * branch what that import did: a Team Member login per person, linked to their record, the email
+ * NOT sent. They then sit under Pending invites as "Not sent yet" to be checked, and the existing
+ * Send all sends them. Nobody is emailed by this button.
+ *
+ * Active, not archived, an email, no login. Sample addresses and demos are skipped by
+ * inviteStaffForPerson itself. Safe to press twice: anybody who now has a login is skipped.
+ */
+export async function prepareStaffInvitesAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const ctx = await adminContext({ logins: true });
+  if (!ctx.ok) return { error: ctx.error };
+  const branchId = String(formData.get("branch_id") ?? "").trim();
+
+  const supabase = await createClient();
+  let q = supabase
+    .from("people")
+    .select("id, full_name, work_email")
+    .eq("company_id", ctx.companyId)
+    .eq("employment_status", "active")
+    .is("archived_at", null)
+    .is("profile_id", null)
+    .not("work_email", "is", null);
+  if (branchId) q = q.eq("branch_id", branchId);
+  const { data, error } = await q;
+  if (error) return { error: error.message };
+  const people = ((data ?? []) as { id: string; full_name: string; work_email: string | null }[]).filter(
+    (p) => isSendableAddress(p.work_email),
+  );
+  if (people.length === 0) return { error: "Everybody here with an email already has a login." };
+
+  let prepared = 0;
+  let skipped = 0;
+  const failed: string[] = [];
+  for (const p of people) {
+    const outcome = await inviteStaffForPerson(p.id, ctx.actor, { sendEmail: false });
+    if (outcome.ok && !outcome.skipped) prepared += 1;
+    else if (outcome.ok || outcome.skipped) skipped += 1;
+    else failed.push(`${p.full_name} (${outcome.error ?? "not prepared"})`);
+  }
+
+  await writeAudit({
+    companyId: ctx.companyId,
+    actorId: ctx.actor.id,
+    actorEmail: ctx.actor.email,
+    actorRole: ctx.actor.role,
+    action: "invites.prepared_in_bulk",
+    entityType: "branch",
+    entityId: branchId || null,
+    summary: `Prepared ${prepared} Team Member invites without sending them`,
+    metadata: { prepared, skipped, failed: failed.length },
+  });
+  revalidatePath("/settings/users");
+  const done = `${prepared} invite${prepared === 1 ? "" : "s"} ready, not sent yet${skipped ? `, ${skipped} left out (already invited or a sample address)` : ""}.`;
+  if (failed.length) return { error: `${done} These could not be prepared: ${failed.join(", ")}` };
+  return { ok: `${done} Check them under Pending invites, then press Send all.` };
 }
 
 export async function revokeInviteAction(

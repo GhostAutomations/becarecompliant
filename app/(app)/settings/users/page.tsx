@@ -20,6 +20,7 @@ import {
   resendInviteAction,
   revokeInviteAction,
   sendHeldInvitesAction,
+  prepareStaffInvitesAction,
 } from "../actions";
 import { listInviteDomains, readInviteDomains } from "@/lib/invite-domains";
 import SettingsSection from "@/components/settings/settings-section";
@@ -33,6 +34,7 @@ import PortalFormsTile from "@/components/settings/portal-forms-tile";
 import { PORTAL_FORMS, portalFormKey } from "@/lib/auth/portal-forms";
 import { getBranchTerms } from "@/lib/branches/company-word";
 import { isDemoCompany } from "@/lib/demo/data";
+import { isSendableAddress } from "@/lib/email/resend";
 
 export const metadata: Metadata = { title: "Roles, users and access" };
 
@@ -203,6 +205,30 @@ export default async function UsersPage() {
     (u) => PASSIVE_ROLES.includes(u.role) && !(isCarerLogin(u.role) && u.status === "disabled"),
   );
   const pending = invites ?? [];
+  /* PEOPLE WITH AN EMAIL AND NO LOGIN, by branch (Phil, 2026-10-05: Newport was imported without
+     logins, so none of its team appeared anywhere here). Each branch gets a button that gets
+     their invites ready without emailing anybody (prepareStaffInvitesAction). */
+  const { data: noLoginRows } = await supabase
+    .from("people")
+    .select("branch_id, work_email, branches(name)")
+    .eq("company_id", companyId)
+    .eq("employment_status", "active")
+    .is("archived_at", null)
+    .is("profile_id", null)
+    .not("work_email", "is", null);
+  const noLoginByBranch = new Map<string, { name: string; count: number }>();
+  for (const r of (noLoginRows ?? []) as Array<{ branch_id: string | null; work_email: string | null; branches: { name: string } | { name: string }[] | null }>) {
+    // Sample addresses (example.com, *.invalid) are never invited, so they are not offered here.
+    if (!isSendableAddress(r.work_email)) continue;
+    const b = Array.isArray(r.branches) ? r.branches[0] : r.branches;
+    const key = r.branch_id ?? "";
+    const e = noLoginByBranch.get(key) ?? { name: b?.name ?? "No branch", count: 0 };
+    e.count += 1;
+    noLoginByBranch.set(key, e);
+  }
+  const noLogin = [...noLoginByBranch.entries()]
+    .map(([id, v]) => ({ id, ...v }))
+    .sort((a, b) => a.name.localeCompare(b.name));
   // Created but never sent: the person does not know they have an account.
   const heldCount = pending.filter((i) => !i.email_sent_at).length;
 
@@ -536,9 +562,43 @@ export default async function UsersPage() {
 
       <SettingsSection
         title="Pending invites"
-        summary="People invited who have not signed in yet."
+        summary={
+          noLogin.length > 0
+            ? `People invited who have not signed in yet, and ${noLogin.reduce((n, b) => n + b.count, 0)} with an email and no login.`
+            : "People invited who have not signed in yet."
+        }
         count={pending.length}
       >
+        {noLogin.length > 0 ? (
+          <div className="mb-4 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-sm font-semibold text-white">Have an email, no login yet</p>
+            <p className="mt-1 text-xs text-white/55">
+              These people are on the People register with an email address but have never been invited. Getting their invites ready does not email anybody: they appear below as Not sent
+              yet, so you can check the names and addresses, then press Send all.
+            </p>
+            <div className="mt-3 space-y-2">
+              {noLogin.map((b) => (
+                <div key={b.id || "none"} className="flex flex-wrap items-center justify-between gap-3">
+                  <span className="text-sm text-white/80">
+                    {b.name}: <span className="font-semibold text-white">{b.count}</span>{" "}
+                    {b.count === 1 ? "person" : "people"}
+                  </span>
+                  <ActionForm
+                    action={prepareStaffInvitesAction}
+                    hidden={{ branch_id: b.id }}
+                    label={`Get ${b.count} ${b.count === 1 ? "invite" : "invites"} ready`}
+                    savingLabel="Getting ready…"
+                    savedLabel="Ready"
+                    showOk
+                    buttonClassName="btn-outline px-3 py-1.5 text-xs"
+                    className=""
+                    confirm={`Get invites ready for the ${b.count} ${b.name} ${b.count === 1 ? "person" : "people"} with an email and no login? Nobody is emailed yet: they will appear under Pending invites as Not sent yet.`}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
         <div className="flex flex-wrap items-center justify-end gap-3">
           {heldCount > 0 ? (
             <div className="flex items-center gap-3">
