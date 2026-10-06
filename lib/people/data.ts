@@ -753,7 +753,7 @@ export async function listPersonEvidence(personId: string): Promise<
     author_name: e.author_name,
     // Set when the Check was completed on paper and the scan uploaded (DEF-056).
     paper_on: e.paper_on ?? null,
-    // Absence, holiday, complaint and incident forms all sit under one "Back office" filter.
+    // Only back office forms (absence back office and the like) sit under "Back office".
     group: backOfficeGroup(e.forms?.key),
   }));
 }

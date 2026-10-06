@@ -30,24 +30,19 @@ export type EvidenceRowLike = {
  */
 export const BACK_OFFICE = "Back office";
 
-const BACK_OFFICE_PREFIXES = [
-  "absence_",
-  "holiday_",
-  "complaint",
-  "incident_",
-  "whistleblow",
-  "grievance",
-  "disciplin",
-  "planner_",
-  "invoic",
-];
+/** The heading the kept meeting invitation letters sit under (Phil, 2026-10-06: "absence
+ *  meeting invitation should be meeting"). */
+export const MEETING = "Meeting";
 
-/** BACK_OFFICE when a form with this key is back office work, else null. */
+/**
+ * BACK_OFFICE only for a form that IS a back office form (absence back office, holiday back
+ * office and so on, any key with "back_office" in it). Phil, 2026-10-06, correcting the first
+ * attempt: "only absence back office items should be back office". Every other form, meeting
+ * records, complaints and incidents included, keeps its own name.
+ */
 export function backOfficeGroup(formKey: string | null | undefined): string | null {
   const key = (formKey ?? "").trim().toLowerCase();
-  if (!key) return null;
-  if (key.includes("back_office")) return BACK_OFFICE;
-  return BACK_OFFICE_PREFIXES.some((p) => key.startsWith(p)) ? BACK_OFFICE : null;
+  return key.includes("back_office") ? BACK_OFFICE : null;
 }
 
 function groupOf(row: EvidenceRowLike): string {

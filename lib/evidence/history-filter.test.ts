@@ -60,29 +60,33 @@ test("a name is matched as it was filed, trimmed", () => {
   assert.equal(filterByForm(rows, "Supervision").length, 1);
 });
 
-import { BACK_OFFICE, backOfficeGroup, newestFirst } from "./history-filter.ts";
+import { BACK_OFFICE, MEETING, backOfficeGroup, newestFirst } from "./history-filter.ts";
 
-test("every back office form shares one heading", () => {
-  for (const key of ["absence_back_office", "absence_management_meeting", "holiday_requests", "complaint_outcome", "incident_report", "whistleblowing_report"]) {
+test("only back office forms go under Back office", () => {
+  for (const key of ["absence_back_office", "holiday_back_office", "complaint_back_office"]) {
     assert.equal(backOfficeGroup(key), BACK_OFFICE, key);
   }
-  for (const key of ["supervision", "annual_appraisal", "spot_check", "", null]) {
+  for (const key of ["absence_management_meeting", "holiday_requests", "complaint_outcome", "incident_report", "supervision", "", null]) {
     assert.equal(backOfficeGroup(key), null, String(key));
   }
 });
 
-test("the filter lists Back office once, with everything done there under it", () => {
+test("Sarah's case: four Back office, one Meeting", () => {
   const rows = [
     { form_name: "Absence Back Office", group: BACK_OFFICE },
-    { form_name: "Absence Management Meeting Records", group: BACK_OFFICE },
-    { form_name: "Absence meeting invitation", group: BACK_OFFICE },
+    { form_name: "Absence Back Office", group: BACK_OFFICE },
+    { form_name: "Absence Back Office", group: BACK_OFFICE },
+    { form_name: "Absence Back Office", group: BACK_OFFICE },
+    { form_name: "Absence meeting invitation", group: MEETING },
     { form_name: "Supervision", group: null },
   ];
   assert.deepEqual(formOptions(rows), [
-    { name: BACK_OFFICE, count: 3 },
+    { name: BACK_OFFICE, count: 4 },
+    { name: MEETING, count: 1 },
     { name: "Supervision", count: 1 },
   ]);
-  assert.equal(filterByForm(rows, BACK_OFFICE).length, 3);
+  assert.equal(filterByForm(rows, BACK_OFFICE).length, 4);
+  assert.equal(filterByForm(rows, MEETING).length, 1);
   assert.equal(filterByForm(rows, "Supervision").length, 1);
 });
 

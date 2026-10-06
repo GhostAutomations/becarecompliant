@@ -799,7 +799,7 @@ export async function listServiceUserEvidence(id: string): Promise<
     author_name: e.author_name,
     // Set when the Check was completed on paper and the scan uploaded (DEF-056).
     paper_on: e.paper_on ?? null,
-    // Incident and complaint forms sit under one "Back office" filter, as on a person.
+    // Only back office forms sit under "Back office", as on a person.
     group: backOfficeGroup(e.forms?.key),
   }));
 }
