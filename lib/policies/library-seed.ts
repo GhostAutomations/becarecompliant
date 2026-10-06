@@ -581,15 +581,6 @@ export const SEED_SOURCES: SeedSource[] = [
     ]
   },
   {
-    "key": "care_certificate",
-    "publisher": "Skills for Care",
-    "title": "Care Certificate standards",
-    "url": "https://www.skillsforcare.org.uk/Developing-your-workforce/Care-Certificate/Care-Certificate-standards.aspx",
-    "regions": [
-      "england"
-    ]
-  },
-  {
     "key": "nice_ng67",
     "publisher": "NICE",
     "title": "NG67 Managing medicines for adults receiving social care in the community: recommendations",
@@ -851,8 +842,7 @@ export const SEED_TOPICS: SeedTopic[] = [
       "scw_awif",
       "scw_code",
       "e_reg18",
-      "cqc_reg18",
-      "care_certificate"
+      "cqc_reg18"
     ]
   },
   {

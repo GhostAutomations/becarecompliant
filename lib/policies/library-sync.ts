@@ -45,6 +45,9 @@ export async function syncLibrary(): Promise<{ error: string | null }> {
     { onConflict: "key" },
   );
   if (sErr) return { error: sErr.message };
+  /* A source taken off the list stops being read, but is kept: drafts already written cite it. */
+  const keep = SEED_SOURCES.map((s) => s.key);
+  await db.from("policy_sources").update({ active: false }).not("key", "in", `(${keep.join(",")})`);
   const { error: tErr } = await db.from("policy_topics").upsert(
     SEED_TOPICS.map((t, i) => ({
       key: t.key,

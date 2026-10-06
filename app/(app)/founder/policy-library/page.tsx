@@ -42,11 +42,15 @@ export default async function FounderPolicyLibraryPage() {
     db
       .from("policy_sources")
       .select("id, key, publisher, title, url, regions, current_text, checked_at, approved_at, pending_summary, pending_found_at, last_error")
+      .eq("active", true)
       .order("publisher")
       .order("title"),
     db.from("policy_topics").select("key, title, source_keys").order("sort"),
   ]);
-  const rows = (sources as Row[] | null) ?? [];
+  /* Red and amber first (Phil, 2026-10-06: "amber and red need to be at the top of the lists so
+     we can see them easy"): could not be read or not loaded, then a change waiting, then loaded. */
+  const rank = (r: Row) => (r.last_error || !r.current_text ? 0 : r.pending_summary ? 1 : 2);
+  const rows = [...((sources as Row[] | null) ?? [])].sort((a, b) => rank(a) - rank(b));
   const pending = rows.filter((r) => r.pending_summary);
   const failed = rows.filter((r) => r.last_error);
   const loaded = rows.filter((r) => r.current_text).length;

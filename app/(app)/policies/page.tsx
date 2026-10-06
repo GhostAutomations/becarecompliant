@@ -77,8 +77,16 @@ export default async function PoliciesPage() {
     guidance_changed_at: string | null;
     guidance_change_note: string | null;
   };
-  const register = (reviewRows as ReviewRow[] | null) ?? [];
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
+  /* Red, then amber, then green, soonest first within each (Phil, 2026-10-06: "amber and red
+     need to be at the top of the lists so we can see them easy"). */
+  const ragRank = { red: 0, amber: 1, green: 2 } as const;
+  const register = [...((reviewRows as ReviewRow[] | null) ?? [])].sort(
+    (a, b) =>
+      ragRank[policyReviewRag(a.review_due_on, today)] - ragRank[policyReviewRag(b.review_due_on, today)] ||
+      (a.review_due_on ?? "").localeCompare(b.review_due_on ?? "") ||
+      a.title.localeCompare(b.title),
+  );
   const owners = (people as Array<{ id: string; full_name: string | null }> | null) ?? [];
   const changed = register.filter((r) => r.guidance_changed_at);
   const haveTopic = new Map(register.filter((r) => r.topic_key).map((r) => [r.topic_key as string, r]));
@@ -150,7 +158,7 @@ export default async function PoliciesPage() {
                 : ""}
             </p>
             <div className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
-              {expected.map((t) => {
+              {[...expected].sort((a, b) => Number(haveTopic.has(a.key)) - Number(haveTopic.has(b.key))).map((t) => {
                 const have = haveTopic.get(t.key);
                 return (
                   <div key={t.key} className="flex items-center justify-between gap-3 py-1 text-sm">
