@@ -30,7 +30,7 @@ const styles = StyleSheet.create({
   recipient: { marginBottom: 12 },
   para: { marginBottom: 8 },
   re: { fontWeight: 700, marginBottom: 8 },
-  detailsBox: { marginBottom: 10, paddingLeft: 10, borderLeftWidth: 2, borderLeftColor: "#d1d5db" },
+  detailsBox: { marginBottom: 10, paddingLeft: 12 },
   detailRow: { flexDirection: "row", marginBottom: 2 },
   detailLabel: { width: 60, fontWeight: 700 },
   detailValue: { flex: 1 },

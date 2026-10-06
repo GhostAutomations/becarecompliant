@@ -217,7 +217,9 @@ export default async function PersonPage({
 
   /* The kept invitation letters (0406, Phil 2026-10-06): listed in Evidence history beside the
      forms, and linked from their meeting. RLS keeps them to the people who prepare meetings. */
-  const meetingLetters = canManage && meetings.length > 0 ? await listMeetingLetters(id) : [];
+  // Always read, not only when meetings remain: cancelling a booking deletes the meeting but the
+  // letter that was sent stays, and must stay in their history.
+  const meetingLetters = canManage ? await listMeetingLetters(id) : [];
   const evidenceRows = [
     ...evidence,
     ...meetingLetters.map((l) => ({
