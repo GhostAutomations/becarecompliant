@@ -22,10 +22,11 @@ import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { runAi } from "@/lib/ai/anthropic";
 import { POLICY_IMPROVE_CREDITS, POLICY_WRITE_CREDITS } from "@/lib/policies/credits";
+import { fillPlaceholders, findPlaceholders } from "@/lib/policies/placeholders";
 import { signPolicyDocument } from "@/lib/assignments/storage";
 import { createWrittenPolicy, updateWrittenPolicy } from "@/lib/assignments/actions";
 import type { ActionState } from "@/lib/forms";
-import { companySystemSettings, companyFacts, getDraft, getTopic, promptSources } from "./data";
+import { listPolicyOwners, companySystemSettings, companyFacts, getDraft, getTopic, promptSources } from "./data";
 import {
   improvePrompt,
   improveSystemPrompt,
@@ -59,7 +60,14 @@ export async function generatePolicyDraft(_prev: ActionState, fd: FormData): Pro
   if (sources.length === 0) return { error: NO_LIBRARY };
 
   const settings = await companySystemSettings(companyId, topic.key);
+  /* The owner (Phil, 2026-10-06): asked here, named in the policy, set on it when approved. */
+  const ownerId = String(fd.get("owner_id") ?? "").trim();
+  if (!ownerId) return { error: "Choose who owns this policy." };
+  const owners = await listPolicyOwners(companyId);
+  const owner = owners.find((o) => o.id === ownerId);
+  if (!owner) return { error: "That person cannot own a policy in your company." };
   const answers = topic.questions.map((q) => ({ question: q.label, answer: String(fd.get(`q_${q.key}`) ?? "").trim() }));
+  answers.push({ question: "Who owns this policy and keeps it up to date?", answer: owner.full_name ?? "" });
   const notes = String(fd.get("notes") ?? "").slice(0, 3000);
   const title = String(fd.get("title") ?? "").trim() || topic.title;
 
@@ -83,7 +91,8 @@ export async function generatePolicyDraft(_prev: ActionState, fd: FormData): Pro
       kind: "write",
       title,
       nation: facts.regulator,
-      answers: Object.fromEntries(answers.map((a, i) => [topic.questions[i].key, a.answer])),
+      answers: Object.fromEntries(topic.questions.map((q, i) => [q.key, answers[i].answer])),
+      owner_id: ownerId,
       draft_text: r.ok.trim(),
       sources: meta,
       created_by: user.id,
@@ -225,19 +234,30 @@ export async function approvePolicyDraft(_prev: ActionState, fd: FormData): Prom
   if (draft.status !== "draft") return { error: "That draft has already been dealt with." };
 
   const title = String(fd.get("title") ?? "").trim() || draft.title;
+  /* The "To be completed" fields under the policy (Phil, 2026-10-06), put into the wording. */
+  const fills: Record<string, string> = {};
+  for (let i = 0; fd.has(`fill_prompt_${i}`); i++) {
+    fills[String(fd.get(`fill_prompt_${i}`))] = String(fd.get(`fill_${i}`) ?? "");
+  }
   let wording: string;
   if (draft.kind === "write") {
-    wording = String(fd.get("body") ?? "").trim();
+    wording = fillPlaceholders(String(fd.get("body") ?? "").trim(), fills);
   } else {
     const review = draft.review as ImproveReview;
     const chosen = review.sections.map((s, i) => {
       const use = String(fd.get(`use_${i}`) ?? "proposed");
       const text = use === "original" ? s.original : String(fd.get(`text_${i}`) ?? s.proposed);
-      return { heading: s.heading, text };
+      return { heading: s.heading, text: fillPlaceholders(text, fills) };
     });
     wording = joinSections(title, chosen);
   }
   if (wording.length < 200) return { error: "The policy wording is too short to save." };
+  const left = findPlaceholders(wording);
+  if (left.length > 0) {
+    return {
+      error: `${left.length === 1 ? "One thing is" : `${left.length} things are`} still to be completed: ${left.join("; ")}. Fill ${left.length === 1 ? "it" : "them"} in under the policy, then save.`,
+    };
+  }
   const body = `${wording}\n\n${sourcesSection(draft.sources, wording)}`;
 
   /* Where it goes: the policy it was improved from, a chosen existing policy, or a new one. */
@@ -271,6 +291,11 @@ export async function approvePolicyDraft(_prev: ActionState, fd: FormData): Prom
     policyId = made?.id ?? null;
   } else {
     await supabase.from("company_policies").update({ topic_key: draft.topic_key }).eq("id", policyId).is("topic_key", null);
+  }
+  /* The owner chosen on the draft goes onto the policy. */
+  const ownerId = String(fd.get("owner_id") ?? "").trim();
+  if (policyId && ownerId && (await listPolicyOwners(companyId)).some((o) => o.id === ownerId)) {
+    await supabase.from("company_policies").update({ owner_id: ownerId }).eq("id", policyId).eq("company_id", companyId);
   }
   await supabase
     .from("policy_drafts")

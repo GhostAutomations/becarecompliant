@@ -93,13 +93,30 @@ export type PolicyDraft = {
   created_at: string;
   /** The regulator it was written for (ciw or cqc), so a Welsh draft is never mistaken for English. */
   nation: string | null;
+  /** Who owns the policy, chosen when it was written (0403). */
+  owner_id: string | null;
 };
+
+/** The people who can own a policy: the management roles, active, in this company. */
+export const POLICY_OWNER_ROLES = ["company_admin", "registered_individual", "registered_manager", "manager"];
+
+export async function listPolicyOwners(companyId: string): Promise<Array<{ id: string; full_name: string | null }>> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("id, full_name")
+    .eq("company_id", companyId)
+    .in("role", POLICY_OWNER_ROLES)
+    .eq("status", "active")
+    .order("full_name");
+  return (data as Array<{ id: string; full_name: string | null }> | null) ?? [];
+}
 
 export async function getDraft(id: string, companyId: string): Promise<PolicyDraft | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("policy_drafts")
-    .select("id, topic_key, kind, policy_id, title, draft_text, review, sources, status, created_at, nation")
+    .select("id, topic_key, kind, policy_id, title, draft_text, review, sources, status, created_at, nation, owner_id")
     .eq("id", id)
     .eq("company_id", companyId)
     .maybeSingle();
@@ -110,7 +127,7 @@ export async function listOpenDrafts(companyId: string): Promise<PolicyDraft[]> 
   const supabase = await createClient();
   const { data } = await supabase
     .from("policy_drafts")
-    .select("id, topic_key, kind, policy_id, title, draft_text, review, sources, status, created_at, nation")
+    .select("id, topic_key, kind, policy_id, title, draft_text, review, sources, status, created_at, nation, owner_id")
     .eq("company_id", companyId)
     .eq("status", "draft")
     .order("created_at", { ascending: false })

@@ -23,10 +23,14 @@ export default function PolicyWriteForm({
   topics,
   initial,
   settings,
+  owners,
+  me,
 }: {
   topics: PolicyTopic[];
   initial: string | null;
   settings: Record<string, string[]>;
+  owners: Array<{ id: string; full_name: string | null }>;
+  me: string;
 }) {
   const [key, setKey] = useState(initial && topics.some((t) => t.key === initial) ? initial : "");
   const topic = topics.find((t) => t.key === key) ?? null;
@@ -49,6 +53,16 @@ export default function PolicyWriteForm({
             <div>
               <label htmlFor="title" className="form-label">Title</label>
               <input id="title" name="title" defaultValue={topic.title} maxLength={140} key={topic.key} />
+            </div>
+            <div>
+              <label htmlFor="owner_id" className="form-label">Who owns this policy? *</label>
+              <select id="owner_id" name="owner_id" defaultValue={owners.some((o) => o.id === me) ? me : ""} required>
+                <option value="">Choose the policy owner</option>
+                {owners.map((o) => (
+                  <option key={o.id} value={o.id}>{o.full_name ?? "Unnamed"}</option>
+                ))}
+              </select>
+              <p className="form-hint">They are named in the policy and keep it up to date. Their reviews show on the review register.</p>
             </div>
             {settings[topic.key]?.length ? (
               <div className="space-y-2 rounded-xl border border-white/10 bg-white/5 p-4">

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { requirePolicyWriter } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import PolicyWriteForm from "@/components/policies/write-form";
-import { companyFacts, companySystemSettings, listTopics } from "@/lib/policies/data";
+import { companyFacts, companySystemSettings, listPolicyOwners, listTopics } from "@/lib/policies/data";
 import { TOPICS_USING_SETTINGS } from "@/lib/policies/system-settings";
 
 export const metadata: Metadata = { title: "Write a policy" };
@@ -13,7 +13,7 @@ export default async function WritePolicyPage({ searchParams }: { searchParams: 
   const { profile } = await requirePolicyWriter();
   const { topic } = await searchParams;
   const companyId = profile.company_id as string;
-  const [topics, facts] = await Promise.all([listTopics(), companyFacts(companyId)]);
+  const [topics, facts, owners] = await Promise.all([listTopics(), companyFacts(companyId), listPolicyOwners(companyId)]);
   /* What the company already set up, shown before writing so nobody is surprised by it. */
   const settings: Record<string, string[]> = Object.fromEntries(
     await Promise.all(
@@ -44,7 +44,7 @@ export default async function WritePolicyPage({ searchParams }: { searchParams: 
         <div className="glass-card p-5 text-sm text-white/60">The policy library is still being set up. Please try again shortly.</div>
       ) : (
         <div className="glass-card p-5">
-          <PolicyWriteForm topics={topics} initial={topic ?? null} settings={settings} />
+          <PolicyWriteForm topics={topics} initial={topic ?? null} settings={settings} owners={owners} me={profile.id} />
         </div>
       )}
     </div>

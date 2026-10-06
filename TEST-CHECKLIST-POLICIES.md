@@ -40,3 +40,8 @@ Bevan first, then Thistle and every company.
 - PH4 Write: Holiday asks entitlement, irregular hours, holiday year, notice, carry over.
 - PH5 Writing takes 3 credits, improving 4; a failed write gives all of them back; too few credits gives "This uses 3 AI credits and you have N left."
 - PH6 Getting set up: absence and probation steps sit before "Write or upload your policies"; saving each ticks it (Bevan and Thistle absence already ticked by backfill).
+- PH2 Sickness absence write: PASS (Bev). Real cost: Sonnet 5, 6,728 in / 3,151 out, about 3.4p.
+- PH3, PH4 Probation set up box and Holiday questions: PASS (Bev).
+- PH5 Too few credits: PASS (Bev, balance 2, refused with "uses 3 and you have 2", restored to 157).
+- PH7 To be completed: each [To be completed: ...] in a draft shows as its own field between the policy and Save it as; answers replace the text on save; saving with any left blank is refused and keeps what was typed.
+- PH8 Policy owner: Write with AI asks "Who owns this policy?" (required, defaults to you); the draft page shows it; approving sets it on the policy in the review register.

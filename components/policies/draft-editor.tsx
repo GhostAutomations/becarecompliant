@@ -15,6 +15,7 @@ import { useState } from "react";
 import ActionForm from "@/components/action-form";
 import { approvePolicyDraft, discardPolicyDraft } from "@/lib/policies/ai-actions";
 import type { ImproveReview } from "@/lib/policies/ai-prompt";
+import { findPlaceholders } from "@/lib/policies/placeholders";
 
 type Source = { n: number; title: string; publisher: string; url: string; checkedOn: string };
 type Existing = { id: string; title: string };
@@ -41,13 +42,22 @@ export default function DraftEditor({
   draft,
   existing,
   sameTopic,
+  owners,
 }: {
-  draft: { id: string; kind: "write" | "improve"; title: string; draft_text: string | null; review: ImproveReview | null; policy_id: string | null; sources: Source[] };
+  draft: { id: string; kind: "write" | "improve"; title: string; draft_text: string | null; review: ImproveReview | null; policy_id: string | null; sources: Source[]; owner_id: string | null };
   existing: Existing[];
   sameTopic: Existing | null;
+  owners: Array<{ id: string; full_name: string | null }>;
 }) {
   const review = draft.review;
   const [use, setUse] = useState<string[]>(() => (review ? review.sections.map(() => "proposed") : []));
+  const [body, setBody] = useState(draft.draft_text ?? "");
+  /* Everything still marked "[To be completed: ...]", as fields under the policy (Phil,
+     2026-10-06). A new draft is read as it is edited; a review from its suggested sections. */
+  const toFill =
+    draft.kind === "write"
+      ? findPlaceholders(body)
+      : findPlaceholders((review?.sections ?? []).map((s, i) => (use[i] === "original" ? s.original : s.proposed)).join("\n"));
 
   return (
     <div className="space-y-5">
@@ -82,10 +92,10 @@ export default function DraftEditor({
           {draft.kind === "write" ? (
             <div>
               <label htmlFor="body" className="form-label">The policy</label>
-              <textarea id="body" name="body" rows={28} defaultValue={draft.draft_text ?? ""} />
+              <textarea id="body" name="body" rows={28} value={body} onChange={(e) => setBody(e.target.value)} />
               <p className="form-hint">
-                Fill in anything marked [To be completed]. A line starting # is a heading, a line starting with a dash is a bullet.
-                The list of sources is added at the end when you approve.
+                A line starting # is a heading, a line starting with a dash is a bullet. The list of sources is added at the
+                end when you approve.
               </p>
             </div>
           ) : review ? (
@@ -122,6 +132,34 @@ export default function DraftEditor({
           ) : (
             <p className="form-error">This review could not be read.</p>
           )}
+
+          {toFill.length > 0 ? (
+            <div className="space-y-3 rounded-xl border border-amber-400/30 bg-amber-400/5 p-4">
+              <p className="text-sm font-semibold text-white">
+                To be completed ({toFill.length})
+              </p>
+              <p className="form-hint">
+                The guidance did not say these, so only you can. Your answer replaces the marked text in the policy when you save.
+              </p>
+              {toFill.map((ask, i) => (
+                <div key={ask}>
+                  <input type="hidden" name={`fill_prompt_${i}`} value={ask} />
+                  <label htmlFor={`fill_${i}`} className="form-label">{ask.charAt(0).toUpperCase() + ask.slice(1)}</label>
+                  <input id={`fill_${i}`} name={`fill_${i}`} placeholder="Please type your answer" maxLength={1000} />
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          <div>
+            <label htmlFor="owner_id" className="form-label">Policy owner</label>
+            <select id="owner_id" name="owner_id" defaultValue={draft.owner_id ?? ""}>
+              <option value="">Not set</option>
+              {owners.map((o) => (
+                <option key={o.id} value={o.id}>{o.full_name ?? "Unnamed"}</option>
+              ))}
+            </select>
+          </div>
 
           <div>
             <label htmlFor="target" className="form-label">Save it as</label>
