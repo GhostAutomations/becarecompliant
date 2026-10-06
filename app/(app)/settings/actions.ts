@@ -819,6 +819,11 @@ export async function renameBranch(
   const branchId = String(formData.get("branch_id") ?? "");
   const name = String(formData.get("name") ?? "").trim();
   const address = String(formData.get("address") ?? "").trim().slice(0, 400);
+  // The office phone printed on letters with the address (0408). Only digits, spaces and + ( ).
+  const phone = String(formData.get("phone") ?? "").replace(/\s+/g, " ").trim();
+  if (phone && !/^[0-9+() ,]{6,40}$/.test(phone)) {
+    return { error: "Enter the phone number using digits and spaces, for example 029 2252 0104. Put a comma between two numbers." };
+  }
   if (!branchId || !name) return { error: "The branch needs a name." };
 
   const supabase = await createClient();
@@ -844,6 +849,7 @@ export async function renameBranch(
         name,
         uses_office_address: sharesOffice,
         address: sharesOffice ? null : address || null,
+        phone: sharesOffice ? null : phone || null,
         ...(registeredShown ? { registered_service: registered } : {}),
       },
       { count: "exact" },
@@ -865,6 +871,7 @@ export async function renameBranch(
     metadata: {
       name,
       address: sharesOffice ? null : address || null,
+      phone: sharesOffice ? null : phone || null,
       uses_office_address: sharesOffice,
       ...(registeredShown ? { registered_service: registered } : {}),
     },

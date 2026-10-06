@@ -42,18 +42,22 @@ export default function AbsenceSettings({
   initialThresholds,
   policyUploadedAt,
   policyAiSummary,
+  initialMeetingName,
 }: {
   initialMethod: AbsenceMethod;
   initialWindow: AbsenceWindow;
   initialThresholds: StageThreshold[] | BradfordBand[];
   policyUploadedAt: string | null;
   policyAiSummary: string | null;
+  /** What the company calls these meetings ("" for the default). */
+  initialMeetingName: string;
 }) {
   const router = useRouter();
   const [method, setMethod] = useState<AbsenceMethod>(initialMethod);
   const [windowValue, setWindowValue] = useState(String(initialWindow.value));
   const [windowUnit, setWindowUnit] = useState<WindowUnit>(initialWindow.unit);
   const [rows, setRows] = useState<Row[]>(initialThresholds as unknown as Row[]);
+  const [meetingName, setMeetingName] = useState(initialMeetingName);
   const [summary, setSummary] = useState<string | null>(policyAiSummary);
   const [dirty, setDirty] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -152,6 +156,7 @@ export default function AbsenceSettings({
     fd.set("rolling_window_value", windowValue);
     fd.set("rolling_window_unit", windowUnit);
     fd.set("thresholds", JSON.stringify(cleaned));
+    fd.set("meeting_name", meetingName);
     setSubmitting(true); // show "Saving…" immediately, before the transition's pending flips
     setTimeout(() => saveAction(fd), 0);
   }
@@ -239,6 +244,29 @@ export default function AbsenceSettings({
               </select>
             </div>
           </div>
+        </div>
+
+        {/* What these meetings are called in letters, emails and calendar invites (0408, Phil
+            2026-10-06: Thistle hold disciplinary hearings). Blank keeps the standard name. */}
+        <div className="mt-4 max-w-md">
+          <label htmlFor="meeting-name" className="form-label">
+            What you call these meetings
+          </label>
+          <input
+            id="meeting-name"
+            type="text"
+            maxLength={60}
+            placeholder="Absence management meeting"
+            value={meetingName}
+            onChange={(e) => {
+              setMeetingName(e.target.value);
+              setDirty(true);
+            }}
+          />
+          <p className="mt-1 text-xs text-white/50">
+            Used in the invitation letter, its email and the calendar invite, for example
+            &quot;Stage 2 disciplinary hearing&quot;. Leave blank for absence management meeting.
+          </p>
         </div>
 
         <div className="mt-4">

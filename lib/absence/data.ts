@@ -27,6 +27,8 @@ export type AbsenceConfigRow = {
   policy_path: string | null;
   policy_uploaded_at: string | null;
   policy_ai_summary: string | null;
+  /** What the company calls these meetings, or null for "absence management meeting" (0408). */
+  meeting_name: string | null;
   updated_at: string | null;
 };
 

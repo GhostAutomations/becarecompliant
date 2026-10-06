@@ -30,7 +30,12 @@ import { sendEmail } from "@/lib/email/resend";
 import { noticeEmailHtml } from "@/lib/email/templates";
 import { letterWordingFor } from "@/lib/letters/data";
 import { ukDate } from "@/lib/dates";
-import { renderLetterHtml, renderLetterSubject } from "@/lib/letters/letters";
+import { mergeLetterText, renderLetterHtml, renderLetterSubject } from "@/lib/letters/letters";
+import { buildInvitationLetter, type InvitationLetter } from "@/lib/absence/invitation-letter";
+import { renderInvitationLetterPdf } from "@/lib/absence/invitation-letter-pdf";
+import { loadLetterExtras, stageLabelFor, companyMeetingName } from "@/lib/absence/letter-extras";
+import { meetingNameAsTitle } from "@/lib/absence/meeting-name";
+import { keepMeetingLetter, REBUILT_NOTICE } from "@/lib/absence/meeting-letter-copy";
 import { claimNotification, settleNotification } from "@/lib/notifications/log";
 import { londonToUtc } from "@/lib/email/ics";
 import { siteUrl } from "@/lib/site";
@@ -631,6 +636,7 @@ export async function previewBookAbsenceMeeting(formData: FormData): Promise<Let
 
 function letterArgsFrom(plan: {
   supabase: ServerClient;
+  personId: string;
   companyId: string;
   branchId: string | null;
   companyName: string;
@@ -645,6 +651,7 @@ function letterArgsFrom(plan: {
 }) {
   return {
     supabase: plan.supabase,
+    personId: plan.personId,
     companyId: plan.companyId,
     branchId: plan.branchId,
     companyName: plan.companyName,
@@ -699,12 +706,16 @@ export async function bookAbsenceMeeting(
   }
 
   // Formal letter invitations: employee + conductor.
-  const inviteOutcomes = await sendMeetingLetters({
-    ...letterArgsFrom(plan),
-    meetingId: meeting.id as string,
-    responseToken: meeting.response_token as string,
-    rearranged: false,
-  });
+  const sent = await sendMeetingLetters(
+    {
+      ...letterArgsFrom(plan),
+      meetingId: meeting.id as string,
+      responseToken: meeting.response_token as string,
+      rearranged: false,
+    },
+    { id: user.id, name: profile.full_name || profile.email },
+  );
+  const inviteOutcomes = sent.outcomes;
 
   await writeAudit({
     companyId: plan.companyId,
@@ -724,18 +735,21 @@ export async function bookAbsenceMeeting(
       location,
       conducted_by: conductor.id,
       invites: inviteOutcomes,
+      letter_copy: sent.copyNote ?? "kept",
     },
   });
 
   revalidatePath("/people/absence");
   revalidatePath(`/people/${personId}`);
   const sentCount = Object.values(inviteOutcomes).filter((v) => v === "sent").length;
-  return {
-    ok:
-      sentCount > 0
-        ? `Meeting booked. ${sentCount === 1 ? "1 invitation" : `${sentCount} invitations`} sent.`
-        : "Meeting booked. No invitations could be sent (check email addresses).",
-  };
+  const base =
+    sentCount > 0
+      ? `Meeting booked. ${sentCount === 1 ? "1 invitation" : `${sentCount} invitations`} sent.`
+      : "Meeting booked. No invitations could be sent (check email addresses).";
+  // A copy that could not be kept is said out loud, never swallowed.
+  // Always ok: the meeting IS booked and the letters went, so the dialog must not invite a second
+  // booking. A copy that could not be kept is said in the same message, never swallowed.
+  return { ok: `${base} ${sent.copyNote ?? "A copy of the letter is in their Evidence history."}` };
 }
 
 /** Resolve the booking's location choice: "teams", or the id of one of the
@@ -782,6 +796,7 @@ async function resolveMeetingLocation(
 
 type MeetingLetterArgs = {
   supabase: { from: (t: string) => any };
+  personId: string;
   meetingId: string;
   responseToken: string;
   companyId: string;
@@ -796,6 +811,8 @@ type MeetingLetterArgs = {
   employee: { profileId: string | null; name: string; email: string | null };
   conductor: { id: string; name: string; email: string | null };
   rearranged: boolean;
+  /** The date printed on the letter; today unless a copy is being made afterwards. */
+  letterDateIso?: string;
 };
 
 type MeetingLetter = {
@@ -808,14 +825,34 @@ type MeetingLetter = {
   hideCta: boolean;
 };
 
-/** The formal letter pair for a booked or rearranged meeting: the employee's
- *  invitation (purpose, conductor, right to be accompanied, location, Accept /
- *  I cannot attend buttons) and the conductor's chairing copy (unambiguous
- *  that THEY are holding it, not attending one: Phil, 2026-07-12). Built once
- *  here and used both for the approval preview and for the send, so what is
- *  approved is what goes. A letter with no address comes back with email null. */
-async function buildMeetingLetters(args: MeetingLetterArgs): Promise<MeetingLetter[]> {
-  const stageLabel = `Stage ${args.stage} absence management meeting`;
+type MeetingLetterSet = {
+  letters: MeetingLetter[];
+  /** The employee's letter, the PDF attached to both emails and kept in Evidence history. */
+  invitation: InvitationLetter;
+  logoDataUrl: string | null;
+};
+
+/** The formal letter pair for a booked or rearranged meeting.
+ *
+ *  THE EMPLOYEE (Phil, 2026-10-06, Thistle's format): a short branded email, "Dear Sarah Harris,
+ *  please find attached a letter about your Stage 2 disciplinary hearing", with the Accept / I
+ *  cannot attend buttons and the calendar invite, and the LETTER itself attached as a PDF laid out
+ *  like the company's own: letterhead, date, home address, the company's wording, when and where,
+ *  every absence it is about, and the sign off (invitation-letter.ts).
+ *
+ *  THE CONDUCTOR: the chairing copy as before (unambiguous that THEY are holding it, not attending
+ *  one: Phil, 2026-07-12), with the same PDF attached so they have what the employee was sent.
+ *
+ *  Built once here and used for the approval preview and the send, so what is approved is what
+ *  goes. A letter with no address comes back with email null. */
+async function buildMeetingLetters(args: MeetingLetterArgs): Promise<MeetingLetterSet> {
+  const extras = await loadLetterExtras({
+    companyId: args.companyId,
+    personId: args.personId,
+    conductorId: args.conductor.id,
+  });
+  // What the company calls these meetings (0408): "Stage 2 disciplinary hearing" for Thistle.
+  const stageLabel = stageLabelFor(args.stage, extras.meetingName);
 
   // The WORDING of these letters belongs to the company (Settings > Letters). We read
   // their version and fall back to the packaged default, so a letter can never fail to
@@ -850,6 +887,35 @@ async function buildMeetingLetters(args: MeetingLetterArgs): Promise<MeetingLett
     letterWordingFor(args.supabase, args.companyId, "absence_meeting_rearranged"),
   ]);
 
+  const paragraphsOf = (body: string) =>
+    mergeLetterText(body, values)
+      .split(/\n\s*\n/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+  const invitation = buildInvitationLetter({
+    companyName: args.companyName,
+    letterheadAddress: extras.letterheadAddress,
+    letterheadPhone: extras.letterheadPhone,
+    letterDateIso: args.letterDateIso ?? formatCivilDate(todayInLondon()),
+    recipientName: args.employee.name,
+    recipientAddress: extras.homeAddress,
+    stage: args.stage,
+    stageLabel,
+    meetingTitle: meetingNameAsTitle(extras.meetingName),
+    meetingDateIso: args.meetingDate,
+    meetingTime: args.timeHHMM,
+    durationMinutes: args.duration,
+    location: args.location,
+    teams: args.locationKind === "teams",
+    conductorName: args.conductor.name,
+    conductorRole: extras.conductorRole,
+    wordingParagraphs: paragraphsOf(employeeLetter.body),
+    rearrangedNote: args.rearranged ? paragraphsOf(rearrangedLetter.body).join(" ") || null : null,
+    absences: extras.absences,
+    windowWords: extras.windowWords,
+  });
+
   const teamsNote =
     args.locationKind === "teams"
       ? `<p style="margin:0 0 10px 0;">A Teams invite will follow shortly.</p>`
@@ -859,9 +925,11 @@ async function buildMeetingLetters(args: MeetingLetterArgs): Promise<MeetingLett
         .replace(/<\/?p[^>]*>/g, "")
         .trim()}</p>`
     : "";
+  const esc = (v: string) =>
+    v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
   const respondBase = `${siteUrl()}/meeting-response/${args.responseToken}`;
-  return [
+  const letters: MeetingLetter[] = [
     {
       key: "employee",
       profileId: args.employee.profileId,
@@ -871,7 +939,9 @@ async function buildMeetingLetters(args: MeetingLetterArgs): Promise<MeetingLett
       hideCta: true, // employees have no app account: no Open button
       detailHtml: `
         ${rearrangedNote}
-        ${renderLetterHtml(employeeLetter.body, values)}
+        <p style="margin:0 0 10px 0;">Dear ${esc(args.employee.name)},</p>
+        <p style="margin:0 0 10px 0;">Please find attached a letter about your ${esc(stageLabel)} on ${esc(values.meeting_when)}. Please read it carefully.</p>
+        <p style="margin:0 0 14px 0;">Please let us know whether you can attend.</p>
         ${teamsNote}
         <table role="presentation" cellpadding="0" cellspacing="0"><tr>
           <td style="border-radius:12px;background:#f59e0b;">
@@ -892,19 +962,43 @@ async function buildMeetingLetters(args: MeetingLetterArgs): Promise<MeetingLett
       email: args.conductor.email,
       eventTitle:
         renderLetterSubject(conductorLetter.subject, values) ||
-        `Absence meeting with ${args.employee.name} (Stage ${args.stage})`,
+        `${meetingNameAsTitle(extras.meetingName)} with ${args.employee.name} (Stage ${args.stage})`,
       hideCta: false,
       detailHtml: `
         ${rearrangedNote}
         ${renderLetterHtml(conductorLetter.body, { ...values, recipient_name: args.conductor.name })}
+        <p style="margin:0 0 10px 0;">A copy of the letter ${esc(args.employee.name)} was sent is attached.</p>
         ${teamsNote}`,
     },
   ];
+  return { letters, invitation, logoDataUrl: extras.logoDataUrl };
+}
+
+/** The attached letter as simple HTML, for the approval preview only. */
+function invitationPreviewHtml(l: InvitationLetter): string {
+  const esc = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const p = (t: string, extra = "") => `<p style="margin:0 0 8px 0;${extra}">${esc(t)}</p>`;
+  return `
+    <div style="margin:18px 0 0 0;padding:20px;background:#ffffff;color:#111827;border-radius:8px;font-family:Arial,sans-serif;font-size:13px;line-height:1.45;">
+      <p style="margin:0 0 12px 0;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;">The attached letter (PDF)</p>
+      <div style="text-align:right;font-size:12px;">${[...l.letterheadLines, ...l.phoneLines].map(esc).join("<br/>")}</div>
+      ${p(l.date, "text-align:right;margin-top:10px;")}
+      ${p(l.recipientLines.join("\n")).replace(/\n/g, "<br/>")}
+      ${p(l.salutation)}
+      ${p(l.reLine, "font-weight:700;")}
+      ${l.opening.map((t) => p(t)).join("")}
+      ${p(l.details.map((d) => `${d.label}: ${d.value}`).join("\n")).replace(/\n/g, "<br/>")}
+      ${p(l.absenceIntro)}
+      <ul style="margin:0 0 8px 18px;padding:0;">${l.absenceLines.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
+      ${l.closing.map((t) => p(t)).join("")}
+      ${p([l.signOff.closing, "", l.signOff.name, l.signOff.role ?? ""].join("\n")).replace(/\n/g, "<br/>")}
+    </div>`;
 }
 
 /** The approval preview of the pair: full branded emails, nothing sent or logged. */
 async function previewMeetingLetters(args: MeetingLetterArgs): Promise<LetterPreview[]> {
-  const letters = await buildMeetingLetters(args);
+  const { letters, invitation } = await buildMeetingLetters(args);
+  const letterHtml = invitationPreviewHtml(invitation);
   return letters.map((l) => {
     const { subject, html } = renderCalendarInvite({
       companyName: args.companyName,
@@ -922,18 +1016,40 @@ async function previewMeetingLetters(args: MeetingLetterArgs): Promise<LetterPre
       name: l.name,
       to: l.email,
       subject,
-      html: l.email ? html : "",
-      note: l.email ? "A calendar invite is attached." : null,
+      html: l.email ? `${html}${letterHtml}` : "",
+      note: l.email ? "A calendar invite and the letter as a PDF are attached." : null,
     };
   });
 }
 
-/** Sends the pair. Dedupe keys carry the slot, so a rearranged meeting sends fresh letters while
- *  the same slot can never double send. Not exported: internal to this file. */
-async function sendMeetingLetters(args: MeetingLetterArgs): Promise<Record<string, string>> {
+type MeetingLettersSent = {
+  outcomes: Record<string, string>;
+  /** Null when the letter PDF could not be made; the emails still went, without it. */
+  copyNote: string | null;
+};
+
+/** Sends the pair with the letter PDF attached, then keeps the employee's letter as a copy in their
+ *  Evidence history (0406). Dedupe keys carry the slot, so a rearranged meeting sends fresh
+ *  letters while the same slot can never double send. Not exported: internal to this file. */
+async function sendMeetingLetters(
+  args: MeetingLetterArgs,
+  sentBy: { id: string; name: string | null },
+): Promise<MeetingLettersSent> {
   const outcomes: Record<string, string> = {};
   const slot = `${args.meetingDate}:${args.timeHHMM}`;
-  for (const letter of await buildMeetingLetters(args)) {
+  const { letters, invitation, logoDataUrl } = await buildMeetingLetters(args);
+
+  let pdf: Buffer | null = null;
+  let pdfError: string | null = null;
+  try {
+    pdf = await renderInvitationLetterPdf({ letter: invitation, logoDataUrl });
+  } catch (e) {
+    pdfError = (e as Error).message;
+    console.error("[absence] invitation letter PDF failed", { meetingId: args.meetingId, error: pdfError });
+  }
+  const fileName = `${invitation.reLine.replace(/^RE:\s*/, "").replace(/[^A-Za-z0-9 ]+/g, "").trim().replace(/\s+/g, "-") || "Invitation"}.pdf`;
+
+  for (const letter of letters) {
     if (!letter.email) {
       outcomes[letter.key] = "skipped_no_email";
       continue;
@@ -953,6 +1069,9 @@ async function sendMeetingLetters(args: MeetingLetterArgs): Promise<Record<strin
       hideCta: letter.hideCta,
       detailHtml: letter.detailHtml,
       icsUid: `absence-meeting-${args.meetingId}-${slot.replace(/[^0-9]/g, "")}-${letter.key}@becarecompliant.com`,
+      extraAttachments: pdf
+        ? [{ filename: fileName, content: pdf.toString("base64"), contentType: "application/pdf" }]
+        : [],
     });
     outcomes[letter.key] = result.sent
       ? "sent"
@@ -962,7 +1081,32 @@ async function sendMeetingLetters(args: MeetingLetterArgs): Promise<Record<strin
           ? "skipped_no_email_config"
           : `failed: ${result.error}`;
   }
-  return outcomes;
+
+  if (!pdf) {
+    return { outcomes, copyNote: `The letter PDF could not be made (${pdfError}), so the emails went without it and no copy was kept.` };
+  }
+  // A deduped send (the same slot already went) has its copy already.
+  if (outcomes.employee === "already_sent") return { outcomes, copyNote: null };
+  const kept = await keepMeetingLetter({
+    companyId: args.companyId,
+    branchId: args.branchId,
+    personId: args.personId,
+    meetingId: args.meetingId,
+    kind: args.rearranged ? "rearranged" : "invite",
+    stage: args.stage,
+    meetingDate: args.meetingDate,
+    meetingTime: args.timeHHMM,
+    subject: invitation.reLine.replace(/^RE:\s*/, ""),
+    letterText: invitation.plainText,
+    pdf,
+    emailedTo: outcomes.employee === "sent" ? args.employee.email : null,
+    sendOutcome: outcomes.employee ?? "skipped_no_email",
+    sentBy,
+  });
+  return {
+    outcomes,
+    copyNote: kept.ok ? null : `The letter went, but its copy could not be kept: ${kept.error}.`,
+  };
 }
 
 type RearrangePlan = BookingPlan & { meetingId: string; responseToken: string };
@@ -1095,12 +1239,16 @@ export async function rearrangeAbsenceMeeting(
     .is("evidence_id", null);
   if (updErr) return { error: `The meeting could not be rearranged: ${updErr.message}` };
 
-  const inviteOutcomes = await sendMeetingLetters({
-    ...letterArgsFrom(plan),
-    meetingId,
-    responseToken: plan.responseToken,
-    rearranged: true,
-  });
+  const sent = await sendMeetingLetters(
+    {
+      ...letterArgsFrom(plan),
+      meetingId,
+      responseToken: plan.responseToken,
+      rearranged: true,
+    },
+    { id: user.id, name: profile.full_name || profile.email },
+  );
+  const inviteOutcomes = sent.outcomes;
 
   await writeAudit({
     companyId: profile.company_id,
@@ -1119,18 +1267,20 @@ export async function rearrangeAbsenceMeeting(
       location,
       conducted_by: conductor.id,
       invites: inviteOutcomes,
+      letter_copy: sent.copyNote ?? "kept",
     },
   });
 
   revalidatePath("/people/absence");
   revalidatePath(`/people/${plan.personId}`);
   const sentCount = Object.values(inviteOutcomes).filter((v) => v === "sent").length;
-  return {
-    ok:
-      sentCount > 0
-        ? `Meeting rearranged. ${sentCount === 1 ? "1 new invitation" : `${sentCount} new invitations`} sent.`
-        : "Meeting rearranged. No invitations could be sent (check email addresses).",
-  };
+  const base =
+    sentCount > 0
+      ? `Meeting rearranged. ${sentCount === 1 ? "1 new invitation" : `${sentCount} new invitations`} sent.`
+      : "Meeting rearranged. No invitations could be sent (check email addresses).";
+  // Always ok: the meeting IS booked and the letters went, so the dialog must not invite a second
+  // booking. A copy that could not be kept is said in the same message, never swallowed.
+  return { ok: `${base} ${sent.copyNote ?? "A copy of the letter is in their Evidence history."}` };
 }
 
 type CancelNotice = {
@@ -1179,9 +1329,9 @@ async function planCancel(formData: FormData, companyId: string): Promise<Cancel
     .maybeSingle();
   const { data: company } = await supabase
     .from("companies").select("name").eq("id", companyId).maybeSingle();
-  const stageLabel = meeting.stage
-    ? `Stage ${meeting.stage} absence management meeting`
-    : "Absence management meeting";
+  // What the company calls these meetings (0408).
+  const named = stageLabelFor(meeting.stage as number | null, await companyMeetingName(companyId));
+  const stageLabel = named.charAt(0).toUpperCase() + named.slice(1);
   // Reaches the carer's cancellation LETTER via {{meeting_when}}, the email preheader and the
   // audit summary. It printed "2026-08-19" while their invitation a week earlier said 19/08/2026.
   const when = `${ukDate(meeting.meeting_date as string | null)}${meeting.meeting_time ? ` at ${String(meeting.meeting_time).slice(0, 5)}` : ""}`;
@@ -1346,4 +1496,110 @@ export async function cancelAbsenceMeetingBooking(
   revalidatePath("/people/absence");
   revalidatePath(`/people/${plan.personId}`);
   return { ok: "Booking cancelled. The invitees have been told." };
+}
+
+/** A copy of the invitation for a meeting booked before copies were kept (0406, Phil 2026-10-06:
+ *  Sarah Harris's Stage 2 invitation went with nothing kept). Rebuilt from the booking details and
+ *  the same wording, dated the day it was booked, and marked on the PDF as made afterwards. Only
+ *  for a meeting still waiting to be held that has no copy yet. Sends nothing. */
+export async function keepMissingInvitationCopy(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { user, profile } = await requireCompany();
+  if (!profile.company_id) return { error: "No company context." };
+  const meetingId = String(formData.get("meeting_id") ?? "");
+  if (!meetingId) return { error: "Missing meeting." };
+
+  const supabase = await createClient();
+  const { data: m } = await supabase
+    .from("absence_meetings")
+    .select("id, company_id, branch_id, person_id, stage, meeting_date, meeting_time, duration_minutes, location, conducted_by, booked_by, response_token, evidence_id, created_at")
+    .eq("id", meetingId)
+    .maybeSingle();
+  if (!m || m.company_id !== profile.company_id) return { error: "That meeting could not be found." };
+  if (!m.stage || !m.meeting_date || !m.meeting_time || !m.conducted_by) {
+    return { error: "This meeting was not booked with a letter, so there is nothing to copy." };
+  }
+  const { data: allowed } = await supabase.rpc("can_prepare_absence_meeting", { p_person_id: m.person_id });
+  if (allowed !== true) return { error: "You do not have permission to do this." };
+
+  const { data: existing } = await supabase
+    .from("absence_meeting_letters")
+    .select("id")
+    .eq("meeting_id", meetingId)
+    .limit(1);
+  if (existing && existing.length > 0) return { error: "This meeting already has a copy of its letter." };
+
+  const { data: person } = await supabase
+    .from("people")
+    .select("full_name, work_email, profile_id, branch_id")
+    .eq("id", m.person_id as string)
+    .maybeSingle();
+  if (!person) return { error: "That record could not be found." };
+  const conductor = (await profilesById([m.conducted_by as string])).get(m.conducted_by as string);
+  if (!conductor) return { error: "Who was holding the meeting could not be found." };
+  const { data: company } = await supabase.from("companies").select("name").eq("id", profile.company_id).maybeSingle();
+  const employeeEmail = await employeeEmailFor(person);
+  const location = String(m.location ?? "");
+  const bookedOn = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date(m.created_at as string));
+
+  const args: MeetingLetterArgs = {
+    supabase,
+    personId: m.person_id as string,
+    meetingId,
+    responseToken: String(m.response_token ?? ""),
+    companyId: profile.company_id,
+    branchId: (m.branch_id as string | null) ?? null,
+    companyName: company?.name ?? "Be Care Compliant",
+    stage: m.stage as number,
+    meetingDate: m.meeting_date as string,
+    timeHHMM: String(m.meeting_time).slice(0, 5),
+    duration: (m.duration_minutes as number | null) ?? 60,
+    location,
+    locationKind: location === "Microsoft Teams" ? "teams" : "office",
+    employee: { profileId: (person.profile_id as string | null) ?? null, name: person.full_name as string, email: employeeEmail },
+    conductor: { id: conductor.id as string, name: conductor.name, email: (conductor.email as string | null) ?? null },
+    rearranged: false,
+    letterDateIso: bookedOn,
+  };
+  const { invitation, logoDataUrl } = await buildMeetingLetters(args);
+  let pdf: Buffer;
+  try {
+    pdf = await renderInvitationLetterPdf({ letter: invitation, logoDataUrl, notice: REBUILT_NOTICE });
+  } catch (e) {
+    return { error: `The letter PDF could not be made: ${(e as Error).message}` };
+  }
+  const kept = await keepMeetingLetter({
+    companyId: profile.company_id,
+    branchId: args.branchId,
+    personId: args.personId,
+    meetingId,
+    kind: "invite",
+    stage: args.stage,
+    meetingDate: args.meetingDate,
+    meetingTime: args.timeHHMM,
+    subject: invitation.reLine.replace(/^RE:\s*/, ""),
+    letterText: invitation.plainText,
+    pdf,
+    emailedTo: employeeEmail,
+    sendOutcome: "sent before copies were kept",
+    sentBy: { id: user.id, name: profile.full_name || profile.email },
+    rebuilt: true,
+  });
+  if (!kept.ok) return { error: `The copy could not be kept: ${kept.error}.` };
+
+  await writeAudit({
+    companyId: profile.company_id,
+    actorId: user.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: "absence.meeting_letter_copied",
+    entityType: "person",
+    entityId: args.personId,
+    summary: `Made a copy of the Stage ${args.stage} invitation letter sent before copies were kept`,
+    metadata: { meeting_id: meetingId, letter_id: kept.id },
+  });
+  revalidatePath(`/people/${args.personId}`);
+  return { ok: "A copy of the letter is now in their Evidence history." };
 }

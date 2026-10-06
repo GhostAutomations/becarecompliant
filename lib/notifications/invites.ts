@@ -1,5 +1,5 @@
 import "server-only";
-import { sendEmail, type SendResult } from "@/lib/email/resend";
+import { sendEmail, type EmailAttachment, type SendResult } from "@/lib/email/resend";
 import { calendarInviteEmailHtml } from "@/lib/email/templates";
 import { buildIcs, icsToBase64 } from "@/lib/email/ics";
 import { claimNotification, settleNotification } from "@/lib/notifications/log";
@@ -35,6 +35,8 @@ export async function sendCalendarInvite(opts: {
   hideCta?: boolean;
   detailHtml: string;
   icsUid: string;
+  /** Files sent alongside the calendar invite, e.g. the invitation letter PDF (Phil, 2026-10-06). */
+  extraAttachments?: EmailAttachment[];
 }): Promise<SendResult & { deduped?: boolean }> {
   const { subject, html } = renderCalendarInvite(opts);
 
@@ -74,6 +76,7 @@ export async function sendCalendarInvite(opts: {
         content: icsToBase64(ics),
         contentType: "text/calendar; charset=utf-8; method=REQUEST",
       },
+      ...(opts.extraAttachments ?? []),
     ],
   });
 

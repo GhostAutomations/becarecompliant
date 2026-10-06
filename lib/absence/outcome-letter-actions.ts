@@ -31,6 +31,7 @@ import { sendEmail } from "@/lib/email/resend";
 import { claimNotification, releaseNotification, settleNotification } from "@/lib/notifications/log";
 import { outcomeLetterPath, sha256Hex, uploadOutcomeLetter } from "@/lib/evidence/storage";
 import { renderOutcomeLetterPdf } from "@/lib/absence/outcome-letter-pdf";
+import { companyMeetingName, stageLabelFor } from "@/lib/absence/letter-extras";
 import { formatCivilDate, todayInLondon } from "@/lib/recurrence";
 import {
   OUTCOME_SYSTEM,
@@ -139,9 +140,8 @@ const FINAL = new Set(["sent", "not_emailed"]);
 /** Build the whole letter: subject, email HTML and the plain paragraphs the PDF prints. */
 async function compose(ctx: Loaded, body: string) {
   const wording = await letterWordingFor(ctx.supabase, ctx.companyId, "absence_meeting_outcome");
-  const stageLabel = ctx.meeting.stage
-    ? `Stage ${ctx.meeting.stage} absence management meeting`
-    : "absence management meeting";
+  // What the company calls these meetings (0408): "Stage 2 disciplinary hearing" for Thistle.
+  const stageLabel = stageLabelFor(ctx.meeting.stage, await companyMeetingName(ctx.companyId));
   const meetingDate = slashDate(ctx.meeting.meeting_date);
   const time = ctx.meeting.meeting_time ? String(ctx.meeting.meeting_time).slice(0, 5) : "";
   const config = await getAbsenceConfig(ctx.companyId);

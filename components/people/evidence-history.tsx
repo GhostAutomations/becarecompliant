@@ -25,6 +25,12 @@ export type EvidenceRow = {
   /** The date a Check completed on paper was done, when this Evidence is its uploaded scan
    *  (DEF-056). Shown as the date, because the upload day is not when it happened. */
   paper_on?: string | null;
+  /** A row that is not form Evidence, such as a kept invitation letter (0406), opens here. */
+  href?: string;
+  /** What its button says, "Download PDF" for a letter. */
+  linkLabel?: string;
+  /** A small pill beside the name, e.g. "Copy made afterwards". */
+  badge?: string | null;
 };
 
 /** The day this Evidence is about: the paper date for an upload, else the day it was filed. */
@@ -98,11 +104,12 @@ export default function EvidenceHistory({ rows }: { rows: EvidenceRow[] }) {
               </span>
               <span className="text-white/85">{e.form_name ?? "Evidence"}</span>
               {e.paper_on ? <span className="pill pill-neutral">Paper copy</span> : null}
+              {e.badge ? <span className="pill pill-neutral">{e.badge}</span> : null}
             </div>
             <div className="flex items-center gap-4">
               <span className="w-40 text-right text-white/50">{e.author_name ?? "Unknown"}</span>
-              <a href={`/evidence/${e.id}`} className="btn-outline px-2.5 py-1 text-[11px]">
-                View
+              <a href={e.href ?? `/evidence/${e.id}`} className="btn-outline px-2.5 py-1 text-[11px]">
+                {e.linkLabel ?? "View"}
               </a>
             </div>
           </div>

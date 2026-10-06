@@ -70,6 +70,8 @@ import { LEAVING_SCORES, competitorLabel, reasonLabel } from "@/lib/people/leavi
 import { REGISTER_ROLES as MANAGE_ROLES } from "@/lib/auth/module-roles";
 import { listOutcomeLetters } from "@/lib/absence/outcome-letter-data";
 import { OutcomeLetterButton } from "@/components/absence/outcome-letter-dialog";
+import { listMeetingLetters, meetingLetterName, type MeetingLetterCopy } from "@/lib/absence/meeting-letter-data";
+import KeepInvitationCopyButton from "@/components/absence/keep-invitation-copy-button";
 import { getBranchTerms } from "@/lib/branches/company-word";
 
 export const metadata: Metadata = { title: "Record" };
@@ -212,6 +214,24 @@ export default async function PersonPage({
   const outcomeLetters = canManage && meetings.some((m) => m.evidence_id)
     ? await listOutcomeLetters({ personId: id })
     : {};
+
+  /* The kept invitation letters (0406, Phil 2026-10-06): listed in Evidence history beside the
+     forms, and linked from their meeting. RLS keeps them to the people who prepare meetings. */
+  const meetingLetters = canManage && meetings.length > 0 ? await listMeetingLetters(id) : [];
+  const evidenceRows = [
+    ...evidence,
+    ...meetingLetters.map((l) => ({
+      id: `letter-${l.id}`,
+      submitted_at: l.sent_at,
+      form_name: meetingLetterName(l),
+      author_name: l.sent_by_name,
+      href: `/api/absence/meeting-letter/${l.id}`,
+      linkLabel: "Download PDF",
+      badge: l.rebuilt ? "Copy made afterwards" : null,
+    })),
+  ];
+  const letterByMeeting = new Map<string, MeetingLetterCopy>();
+  for (const l of meetingLetters) if (l.meeting_id && !letterByMeeting.has(l.meeting_id)) letterByMeeting.set(l.meeting_id, l);
 
   // Their own login. Only fetched for someone who can manage the record, which is also who
   // may send the invite (0379 made person_login_status agree with that, audit B2). The briefings that were fetched alongside it went with the tile.
@@ -1025,6 +1045,22 @@ export default async function PersonPage({
                               {m.stage ? `Stage ${m.stage}` : "Meeting"}
                             </span>
                           </div>
+                          {/* The invitation letter (0406): its kept PDF, or for a meeting booked before
+                              copies were kept and not yet held, a button to make the copy. */}
+                          {canManage && letterByMeeting.get(m.id) ? (
+                            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                              <a
+                                href={`/api/absence/meeting-letter/${letterByMeeting.get(m.id)!.id}`}
+                                className="btn-outline px-2.5 py-1 text-[11px]"
+                              >
+                                Invitation letter PDF
+                              </a>
+                            </div>
+                          ) : canManage && !m.evidence_id && m.meeting_time ? (
+                            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                              <KeepInvitationCopyButton meetingId={m.id} />
+                            </div>
+                          ) : null}
                           {/* The outcome letter (Phil, 2026-09-29): offered until it has gone, then
                               the copy kept on the meeting. Only for a meeting that has been held. */}
                           {canManage && m.evidence_id ? (
@@ -1080,8 +1116,8 @@ export default async function PersonPage({
           people who see fewer of them. items-start so opening one does not stretch the others
           to match it. */}
       <section className="grid items-start gap-4 grid-cols-[repeat(auto-fit,minmax(320px,1fr))]">
-      <PanelDialog title="Evidence history" count={evidence.length}>
-        <EvidenceHistory rows={evidence} />
+      <PanelDialog title="Evidence history" count={evidenceRows.length}>
+        <EvidenceHistory rows={evidenceRows} />
       </PanelDialog>
 
       {/* History timeline (Admins only). Oldest at top, newest at bottom. */}

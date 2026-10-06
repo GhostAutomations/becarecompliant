@@ -66,7 +66,7 @@ export async function buildSubjectAccessExport(input: {
     kind === "person"
       ? await db
           .from("people")
-          .select("id, company_id, full_name, job_title, team, employment_status, start_date, leaver_date, work_email, mobile, scw_registration_number, archived_at, created_at, branches(name)")
+          .select("id, company_id, full_name, job_title, team, employment_status, start_date, leaver_date, work_email, mobile, home_address, scw_registration_number, archived_at, created_at, branches(name)")
           .eq("id", recordId)
           .maybeSingle()
       : await db
@@ -92,7 +92,7 @@ export async function buildSubjectAccessExport(input: {
       ? [
           ["Name", rec.full_name], [branchLabel, branchName], ["Job title", rec.job_title], ["Team", rec.team],
           ["Working status", WORKING_STATUS_LABELS[rec.employment_status as keyof typeof WORKING_STATUS_LABELS] ?? rec.employment_status], ["Start date", fmtDate(rec.start_date as string)],
-          ["Leaving date", fmtDate(rec.leaver_date as string)], ["Work email", rec.work_email], ["Mobile", rec.mobile],
+          ["Leaving date", fmtDate(rec.leaver_date as string)], ["Work email", rec.work_email], ["Mobile", rec.mobile], ["Home address", rec.home_address],
           ["Social Care Wales registration", rec.scw_registration_number], ["Archived", fmtDate(rec.archived_at as string)],
           ["Record created", fmtDateTime(rec.created_at as string)],
         ]
@@ -259,6 +259,24 @@ export async function buildSubjectAccessExport(input: {
         t(l.letter_text),
       ]),
       empty: "No outcome letters.",
+    });
+
+    // ---- Invitation letters to their absence meetings (0406): what they were sent, word for word.
+    const { data: invites } = await db
+      .from("absence_meeting_letters")
+      .select("kind, subject, letter_text, emailed_to, sent_at, rebuilt")
+      .eq("person_id", recordId)
+      .order("sent_at", { ascending: true });
+    sections.push({
+      title: "Absence meeting invitation letters",
+      file: "absence-meeting-invitations.csv",
+      headers: ["Sent", "Subject", "Emailed to", "Kind", "Letter"],
+      rows: ((invites ?? []) as Array<Record<string, unknown>>).map((l) => [
+        fmtDateTime(l.sent_at as string), t(l.subject), t(l.emailed_to),
+        `${l.kind === "rearranged" ? "Rearranged" : "Invitation"}${l.rebuilt ? ", copy made afterwards" : ""}`,
+        t(l.letter_text),
+      ]),
+      empty: "No invitation letters.",
     });
 
     // ---- Return to Work questions they were sent and what they answered (0331)

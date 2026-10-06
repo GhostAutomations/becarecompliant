@@ -33,6 +33,7 @@ export default async function AbsenceSettingsPage() {
         initialThresholds={config.thresholds}
         policyUploadedAt={row?.policy_uploaded_at ?? null}
         policyAiSummary={row?.policy_ai_summary ?? null}
+        initialMeetingName={row?.meeting_name ?? ""}
       />
     </div>
   );

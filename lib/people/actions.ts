@@ -149,6 +149,10 @@ export async function createPerson(_prev: ActionState, formData: FormData): Prom
       job_title: trimOrNull(formData.get("job_title")),
       work_email: trimOrNull(formData.get("work_email")),
       mobile: trimOrNull(formData.get("mobile")),
+      // Only when the form carries it, so an older form cannot wipe it (0408).
+      ...(formData.has("home_address")
+        ? { home_address: (trimOrNull(formData.get("home_address")) ?? "").replace(/\r\n/g, "\n").slice(0, 400) || null }
+        : {}),
       team: trimOrNull(formData.get("team")),
       manager_id: trimOrNull(formData.get("manager_id")),
       team_leader_id: trimOrNull(formData.get("team_leader_id")),
@@ -553,6 +557,10 @@ export async function updatePerson(_prev: ActionState, formData: FormData): Prom
       job_title: newJobTitle,
       work_email: newWorkEmail,
       mobile: trimOrNull(formData.get("mobile")),
+      // Only when the form carries it, so an older form cannot wipe it (0408).
+      ...(formData.has("home_address")
+        ? { home_address: (trimOrNull(formData.get("home_address")) ?? "").replace(/\r\n/g, "\n").slice(0, 400) || null }
+        : {}),
       team: trimOrNull(formData.get("team")),
       manager_id: trimOrNull(formData.get("manager_id")),
       team_leader_id: trimOrNull(formData.get("team_leader_id")),

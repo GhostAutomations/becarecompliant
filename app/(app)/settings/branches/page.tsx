@@ -32,7 +32,7 @@ export default async function BranchesPage() {
   const [{ data: branches }, { data: company }] = await Promise.all([
     supabase
       .from("branches")
-      .select("id, name, kind, status, address, uses_office_address, registered_service, created_at")
+      .select("id, name, kind, status, address, phone, uses_office_address, registered_service, created_at")
       .eq("company_id", profile.company_id),
     supabase.from("companies").select("tier, regulator").eq("id", profile.company_id).maybeSingle(),
   ]);
@@ -98,6 +98,7 @@ export default async function BranchesPage() {
               branchId={branch.id}
               initialName={branch.name}
               initialAddress={branch.address ?? ""}
+              initialPhone={(branch as { phone?: string | null }).phone ?? ""}
               isOffice={branch.kind === "team"}
               initialSharesOffice={Boolean(branch.uses_office_address)}
               officeAddress={office}

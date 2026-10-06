@@ -25,6 +25,7 @@ export default function BranchForm({
   branchId,
   initialName,
   initialAddress,
+  initialPhone,
   isOffice,
   initialSharesOffice,
   officeAddress,
@@ -34,6 +35,8 @@ export default function BranchForm({
   branchId: string;
   initialName: string;
   initialAddress: string;
+  /** The office phone printed on letters with the address (0408). */
+  initialPhone: string;
   /** The company's own office (the Team branch). It cannot share with itself. */
   isOffice: boolean;
   initialSharesOffice: boolean;
@@ -139,6 +142,20 @@ export default function BranchForm({
           />
           <p className="mt-1 text-[11px] text-white/40">
             Printed in full on formal meeting letters when the location is Office.
+          </p>
+          <label htmlFor={`phone-${branchId}`} className="form-label mt-3">
+            Office phone
+          </label>
+          <input
+            id={`phone-${branchId}`}
+            name="phone"
+            type="tel"
+            defaultValue={initialPhone}
+            placeholder="029 2252 0104"
+            disabled={pending}
+          />
+          <p className="mt-1 text-[11px] text-white/40">
+            Printed with the address at the top of letters. Put a comma between two numbers.
           </p>
         </div>
       )}

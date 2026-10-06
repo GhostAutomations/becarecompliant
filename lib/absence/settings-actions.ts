@@ -24,6 +24,7 @@ import { spendAiCredit, refundAiCredit } from "@/lib/billing/ai-credits";
 import type { ActionState } from "@/lib/forms";
 import { recordSetupDone } from "@/lib/setup/status";
 import { isStageAction, STAGE_ACTIONS } from "@/lib/absence/stage-actions";
+import { cleanMeetingName } from "@/lib/absence/meeting-name";
 
 const POLICY_BUCKET = "absence-policies";
 
@@ -44,6 +45,10 @@ export async function saveAbsenceConfig(
   );
   if ("error" in parsedWindow) return { error: parsedWindow.error };
   const { window } = parsedWindow;
+
+  // What the company calls these meetings (0408): Thistle hold disciplinary hearings.
+  const meetingName = cleanMeetingName(formData.get("meeting_name"));
+  if ("error" in meetingName) return { error: meetingName.error };
 
   let thresholds: unknown;
   try {
@@ -77,6 +82,7 @@ export async function saveAbsenceConfig(
       rolling_window_value: window.value,
       rolling_window_unit: window.unit,
       thresholds,
+      meeting_name: meetingName.name,
       updated_by: user.id,
       updated_at: new Date().toISOString(),
     },
@@ -97,6 +103,7 @@ export async function saveAbsenceConfig(
       method,
       rolling_window_value: window.value,
       rolling_window_unit: window.unit,
+      meeting_name: meetingName.name,
     },
   });
 

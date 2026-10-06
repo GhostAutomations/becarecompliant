@@ -108,6 +108,19 @@ export default function EditPersonForm({
           <label htmlFor="e_mobile" className="form-label">Mobile</label>
           <input id="e_mobile" name="mobile" defaultValue={person.mobile ?? ""} />
         </div>
+        {/* Printed under the date on letters to them, such as a meeting invitation (0408). */}
+        <div className="sm:col-span-2">
+          <label htmlFor="e_home_address" className="form-label">Home address</label>
+          <textarea
+            id="e_home_address"
+            name="home_address"
+            rows={3}
+            maxLength={400}
+            defaultValue={person.home_address ?? ""}
+            placeholder={"Flat 2, 60 Liscombe Street\nNewport\nNP19 0HQ"}
+          />
+          <p className="form-hint">One line per row, as it goes on an envelope. Printed on letters to them.</p>
+        </div>
         {showScw ? (
           <div>
             <label htmlFor="e_scw" className="form-label">Social Care Wales registration number</label>

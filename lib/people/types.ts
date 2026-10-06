@@ -30,6 +30,8 @@ export type PersonRecord = {
   leaver_date: string | null;
   work_email: string | null;
   mobile: string | null;
+  /** Printed under the date on letters to them (0408). */
+  home_address?: string | null;
   /** Social Care Wales registration number (0060; shown and edited from DEF-097). */
   scw_registration_number?: string | null;
   /** Social Care Wales renewal date (0361). */
