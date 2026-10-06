@@ -101,9 +101,11 @@ const coverStyles = StyleSheet.create({
   sub: { fontSize: 12, fontWeight: 700, color: "#000000", marginTop: 16, marginBottom: 6 },
 });
 
-function TableRow({ label, value, minHeight, last }: { label: string; value: string; minHeight?: number; last?: boolean }) {
+/** A row is as tall as its text, never a fixed height (Phil, 2026-10-07: "It only needs to be
+ *  bigger if there's more text"). The rule for every table. */
+function TableRow({ label, value, last }: { label: string; value: string; last?: boolean }) {
   return (
-    <View style={[coverStyles.tRow, last ? { borderBottomWidth: 0 } : {}, minHeight ? { minHeight } : {}]} wrap={false}>
+    <View style={[coverStyles.tRow, last ? { borderBottomWidth: 0 } : {}]} wrap={false}>
       <Text style={coverStyles.tLabel}>{label}</Text>
       <Text style={coverStyles.tValue}>{value}</Text>
     </View>
@@ -135,12 +137,12 @@ function HistoryRow({ cells, bold, last }: { cells: string[]; bold?: boolean; la
 function Cover({ c }: { c: CoverPage }) {
   const colours = c.colours ?? DEFAULT_COLOURS;
   const review = c.review;
-  const audit: Array<[string, string, number?]> = review
+  const audit: Array<[string, string]> = review
     ? [
         ["Date of Review/ Review Completed", review.reviewedOn],
         ["Date of last Review", review.lastReviewOn],
         ["Name of Person completing the Review", review.reviewedBy],
-        ["Reason for Review", review.reason, 60],
+        ["Reason for Review", review.reason],
         ["Review Changes", review.changes],
         ["Next Review Date", review.nextReview],
       ]
@@ -191,8 +193,8 @@ function Cover({ c }: { c: CoverPage }) {
           <View wrap={false}>
             <Text style={coverStyles.heading}>Audit Checklist and Report</Text>
             <View style={coverStyles.table}>
-              {audit.map(([k, v, h], i) => (
-                <TableRow key={k} label={k} value={v} minHeight={h} last={i === audit.length - 1} />
+              {audit.map(([k, v], i) => (
+                <TableRow key={k} label={k} value={v} last={i === audit.length - 1} />
               ))}
             </View>
           </View>
