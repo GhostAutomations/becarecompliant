@@ -700,7 +700,7 @@ export async function listAbsenceMeetingsForPlanner(
   const [{ data }, { data: cfg }] = await Promise.all([
     supabase
       .from("absence_meetings")
-      .select("id, branch_id, person_id, stage, meeting_date, meeting_time, duration_minutes, conducted_by, response, person:people(full_name), branch:branches(name)")
+      .select("id, branch_id, person_id, stage, meeting_date, meeting_time, duration_minutes, conducted_by, response, person:people(full_name, archived_at, employment_status), branch:branches(name)")
       .eq("company_id", companyId)
       .is("evidence_id", null)
       .not("meeting_time", "is", null)
@@ -720,10 +720,16 @@ export async function listAbsenceMeetingsForPlanner(
     duration_minutes: number | null;
     conducted_by: string;
     response: string | null;
-    person: { full_name: string } | { full_name: string }[] | null;
+    person: PersonBit | PersonBit[] | null;
     branch: { name: string } | { name: string }[] | null;
   };
-  const rows = ((data as MeetingRow[] | null) ?? []).filter((m) => m.response !== "declined");
+  type PersonBit = { full_name: string; archived_at: string | null; employment_status: string | null };
+  // Archived records and leavers are off every register, so they are off the Planner too.
+  const live = (m: MeetingRow) => {
+    const p = relOne(m.person);
+    return Boolean(p) && !p!.archived_at && (p!.employment_status ?? "active") !== "leaver";
+  };
+  const rows = ((data as MeetingRow[] | null) ?? []).filter((m) => m.response !== "declined" && live(m));
   const views: PlannerBookingView[] = rows.map((m) => ({
     id: `absence-meeting-${m.id}`,
     branchId: m.branch_id ?? "",

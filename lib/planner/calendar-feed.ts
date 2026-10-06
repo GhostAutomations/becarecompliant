@@ -291,7 +291,7 @@ export async function loadFeedByToken(
   const [{ data: meetings }, { data: cfg }] = await Promise.all([
     service
       .from("absence_meetings")
-      .select("id, stage, meeting_date, meeting_time, duration_minutes, response, created_at, responded_at, person:people(full_name), branch:branches(name)")
+      .select("id, stage, meeting_date, meeting_time, duration_minutes, response, created_at, responded_at, person:people(full_name, archived_at, employment_status), branch:branches(name)")
       .eq("company_id", companyId)
       .eq("conducted_by", profileId)
       .is("evidence_id", null)
@@ -309,11 +309,16 @@ export async function loadFeedByToken(
     response: string | null;
     created_at: string;
     responded_at: string | null;
-    person: { full_name: string } | { full_name: string }[] | null;
+    person: { full_name: string; archived_at: string | null; employment_status: string | null } | { full_name: string; archived_at: string | null; employment_status: string | null }[] | null;
     branch: { name: string } | { name: string }[] | null;
   };
   const meetingName = (cfg?.meeting_name as string | null) ?? null;
-  for (const m of ((meetings as MeetingFeedRow[] | null) ?? []).filter((x) => x.response !== "declined")) {
+  // Archived records and leavers are off every register, so they are off the feed too.
+  const liveMeeting = (x: MeetingFeedRow) => {
+    const p = one(x.person);
+    return Boolean(p) && !p!.archived_at && (p!.employment_status ?? "active") !== "leaver";
+  };
+  for (const m of ((meetings as MeetingFeedRow[] | null) ?? []).filter((x) => x.response !== "declined" && liveMeeting(x))) {
     events.push({
       id: `absence-meeting-${m.id}`,
       label: meetingChipLabel(m.stage, meetingName),
