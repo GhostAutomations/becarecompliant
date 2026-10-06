@@ -111,6 +111,8 @@ function TableRow({ label, value, minHeight, last }: { label: string; value: str
 }
 
 const HIST_WIDTHS = [52, 112, 0, 120]; // 0 = takes the rest
+/** About how many two line history rows fit on a fresh page; past this the table has to split. */
+const HISTORY_ROWS_PER_PAGE = 22;
 function HistoryRow({ cells, bold, last }: { cells: string[]; bold?: boolean; last?: boolean }) {
   return (
     <View style={[coverStyles.tRow, last ? { borderBottomWidth: 0 } : {}]} wrap={false}>
@@ -182,22 +184,28 @@ function Cover({ c }: { c: CoverPage }) {
             <Image src={c.logoDataUrl} style={coverStyles.cornerLogo} />
           </View>
         ) : null}
+        {/* A table never splits across pages (Phil, 2026-10-06): each heading and its table is one
+            block, so one that will not fit starts on the next page whole. A change history longer
+            than a page is the only exception, as it could not fit anywhere. */}
         {review ? (
-          <>
+          <View wrap={false}>
             <Text style={coverStyles.heading}>Audit Checklist and Report</Text>
             <View style={coverStyles.table}>
               {audit.map(([k, v, h], i) => (
                 <TableRow key={k} label={k} value={v} minHeight={h} last={i === audit.length - 1} />
               ))}
             </View>
-          </>
+          </View>
         ) : null}
+        <View wrap={false}>
         <Text style={review ? coverStyles.sub : coverStyles.heading}>Document control</Text>
         <View style={coverStyles.table}>
           {control.map(([k, v], i) => (
             <TableRow key={k} label={k} value={v} last={i === control.length - 1} />
           ))}
         </View>
+        </View>
+        <View wrap={c.history.length > HISTORY_ROWS_PER_PAGE}>
         <Text style={coverStyles.sub}>Change history</Text>
         <View style={coverStyles.table}>
           <HistoryRow cells={["Version", "Date", "What changed", "Approved by"]} bold />
@@ -208,6 +216,7 @@ function Cover({ c }: { c: CoverPage }) {
               last={i === c.history.length - 1}
             />
           ))}
+        </View>
         </View>
         <View style={styles.footer} fixed>
           <Text style={styles.footerText}>
