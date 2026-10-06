@@ -837,20 +837,10 @@ export const SEED_SOURCES: SeedSource[] = [
     ]
   },
   {
-    "key": "ehrc_harassment",
-    "publisher": "Equality and Human Rights Commission",
-    "title": "Sexual harassment and harassment at work: technical guidance",
-    "url": "https://www.equalityhumanrights.com/guidance/sexual-harassment-and-harassment-work-technical-guidance",
-    "regions": [
-      "wales",
-      "england"
-    ]
-  },
-  {
     "key": "acas_performance",
     "publisher": "Acas",
-    "title": "Managing performance",
-    "url": "https://www.acas.org.uk/managing-performance",
+    "title": "Problems with an employee's performance",
+    "url": "https://www.acas.org.uk/performance-management/problems-with-an-employees-performance",
     "regions": [
       "wales",
       "england"
@@ -937,10 +927,10 @@ export const SEED_SOURCES: SeedSource[] = [
     ]
   },
   {
-    "key": "acas_social_media",
-    "publisher": "Acas",
-    "title": "Social media at work",
-    "url": "https://www.acas.org.uk/social-media-use-and-employee-privacy",
+    "key": "gov_phones_driving",
+    "publisher": "GOV.UK",
+    "title": "Using a phone, sat nav or other device when driving",
+    "url": "https://www.gov.uk/using-mobile-phones-when-driving-the-law",
     "regions": [
       "wales",
       "england"
@@ -1612,7 +1602,6 @@ export const SEED_TOPICS: SeedTopic[] = [
       "acas_bullying",
       "acas_sexual_harassment",
       "acas_harassment_changes",
-      "ehrc_harassment",
       "equality_s4"
     ]
   },
@@ -1779,7 +1768,7 @@ export const SEED_TOPICS: SeedTopic[] = [
       }
     ],
     "sourceKeys": [
-      "acas_social_media",
+      "gov_phones_driving",
       "ico_gdpr",
       "scw_code"
     ]
@@ -1829,6 +1818,17 @@ export const SEED_TOPICS: SeedTopic[] = [
     ]
   }
 ];
+
+/**
+ * The version of this list. RAISE IT WHENEVER ANYTHING ABOVE CHANGES (library-seed.test.ts fails
+ * until you do, and tells you the new fingerprint).
+ *
+ * Why (Phil, 2026-10-06): a browser tab left open from an older deployment still runs that
+ * deployment's code, so "Load and check" there quietly put back the old links and the old policy
+ * list. The sync now records the version it wrote and refuses to write an older one.
+ */
+export const SEED_VERSION = 2;
+export const SEED_FINGERPRINT = "8c9f3531c472be29";
 
 /** The ten policies Wales regulation 12 names (SI 2017/1264 reg 12, read 2026-10-06). */
 export const WALES_REG12_TOPICS: ReadonlySet<string> = new Set([

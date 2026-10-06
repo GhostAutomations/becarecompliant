@@ -20,7 +20,7 @@ import "server-only";
 
 import { createServiceClient } from "@/lib/supabase/admin";
 import { fetchSourceText, MIN_LEGISLATION_CHARS } from "./sources";
-import { SEED_SOURCES, SEED_TOPICS } from "./library-seed";
+import { SEED_VERSION, SEED_SOURCES, SEED_TOPICS } from "./library-seed";
 import { runAi } from "@/lib/ai/anthropic";
 import { notifyFounder } from "@/lib/founder/notify";
 import { siteUrl } from "@/lib/site";
@@ -29,6 +29,13 @@ export const RECHECK_DAYS = 28;
 
 export async function syncLibrary(): Promise<{ error: string | null }> {
   const db = createServiceClient();
+  /* Never write an older list over a newer one (0402): this code may be running from a tab
+     opened before the latest deployment. */
+  const { data: meta, error: mErr } = await db.from("policy_library_meta").select("seed_version").eq("id", 1).maybeSingle<{ seed_version: number }>();
+  if (mErr) return { error: `The library version could not be read: ${mErr.message}` };
+  if ((meta?.seed_version ?? 0) > SEED_VERSION) {
+    return { error: "This page is out of date: a newer version of Be Care Compliant is live. Refresh the page and press the button again." };
+  }
   /* A source whose LINK changed is a different page, not a change to the same one: it starts
      again and loads fresh, rather than waiting for approval as a "change". */
   const { data: had } = await db.from("policy_sources").select("key, url");
@@ -60,7 +67,9 @@ export async function syncLibrary(): Promise<{ error: string | null }> {
     })),
     { onConflict: "key" },
   );
-  return { error: tErr?.message ?? null };
+  if (tErr) return { error: tErr.message };
+  await db.from("policy_library_meta").upsert({ id: 1, seed_version: SEED_VERSION, synced_at: new Date().toISOString() }, { onConflict: "id" });
+  return { error: null };
 }
 
 type SourceRow = {
