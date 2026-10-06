@@ -6,12 +6,28 @@
  * The draft opens for editing; nothing becomes a policy until it is approved there.
  */
 
+import { POLICY_WRITE_CREDITS } from "@/lib/policies/credits";
 import { useState } from "react";
 import ActionForm from "@/components/action-form";
 import { generatePolicyDraft } from "@/lib/policies/ai-actions";
 import type { PolicyTopic } from "@/lib/policies/data";
 
-export default function PolicyWriteForm({ topics, initial }: { topics: PolicyTopic[]; initial: string | null }) {
+/** Where each set up lives, for the "change it" link. */
+const SETTINGS_HREF: Record<string, { href: string; label: string }> = {
+  sickness_absence: { href: "/settings/absence", label: "Change the absence set up" },
+  probation: { href: "/settings/people", label: "Change the probation period" },
+  capability: { href: "/settings/people", label: "Change the probation period" },
+};
+
+export default function PolicyWriteForm({
+  topics,
+  initial,
+  settings,
+}: {
+  topics: PolicyTopic[];
+  initial: string | null;
+  settings: Record<string, string[]>;
+}) {
   const [key, setKey] = useState(initial && topics.some((t) => t.key === initial) ? initial : "");
   const topic = topics.find((t) => t.key === key) ?? null;
 
@@ -34,6 +50,22 @@ export default function PolicyWriteForm({ topics, initial }: { topics: PolicyTop
               <label htmlFor="title" className="form-label">Title</label>
               <input id="title" name="title" defaultValue={topic.title} maxLength={140} key={topic.key} />
             </div>
+            {settings[topic.key]?.length ? (
+              <div className="space-y-2 rounded-xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-white/50">From your set up</p>
+                <p className="form-hint">The policy will match these exactly, so it agrees with the system.</p>
+                <ul className="list-disc space-y-1 pl-5 text-sm text-white/80">
+                  {settings[topic.key].map((l) => (
+                    <li key={l}>{l}</li>
+                  ))}
+                </ul>
+                {SETTINGS_HREF[topic.key] ? (
+                  <a href={SETTINGS_HREF[topic.key].href} className="text-xs text-gold-300 hover:underline">
+                    {SETTINGS_HREF[topic.key].label}
+                  </a>
+                ) : null}
+              </div>
+            ) : null}
             <div className="space-y-3 border-t border-white/10 pt-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-white/50">About your service</p>
               <p className="form-hint">The more you tell it, the less you will need to fill in afterwards. Anything left blank is marked in the draft for you to complete.</p>
@@ -56,7 +88,7 @@ export default function PolicyWriteForm({ topics, initial }: { topics: PolicyTop
                 <textarea id="notes" name="notes" rows={3} maxLength={3000} placeholder="For example, your on call number arrangements, or a local authority requirement" />
               </div>
             </div>
-            <p className="form-hint">Uses one AI credit. The draft is written only from the official guidance in our library, and every requirement shows its source.</p>
+            <p className="form-hint">Uses {POLICY_WRITE_CREDITS} AI credits. The draft is written only from the official guidance in our library, and every requirement shows its source.</p>
           </>
         ) : null}
       </div>

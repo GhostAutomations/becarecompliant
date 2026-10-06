@@ -1397,6 +1397,7 @@ export async function updateProbationPeriod(formData: FormData): Promise<ActionS
     metadata: { value: period.value, unit: period.unit },
   });
 
+  await recordSetupDone(profile.company_id, "probation", user.id);
   revalidatePath("/settings/people");
   return { ok: "Saved" };
 }

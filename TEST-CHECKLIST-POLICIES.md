@@ -32,3 +32,11 @@ Bevan first, then Thistle and every company.
 - PL-A1 Approve all quietly: 2 test changes approved in one press, waiting section gone, no company policies flagged. PASS (tested by Claude in Chrome, DB checked).
 - PL-A2 A source that fails its check drops its waiting change and cannot be approved: by code and unit tests only (no live failing source to try it on).
 - PL-A3 Legislation pages hold only the law text (9 re-loaded clean, 71 of 71 loaded, 0 failed). PASS (DB checked).
+
+## HR policies and set up (2026-10-06)
+- PH1 Policies page shows "HR policies" with 18, missing first, Write with AI on each. PASS (Bev, page text read by Claude).
+- PH2 Write: Sickness absence shows "From your set up" with Bevan's stages (6 months; 1, 4, 6, 8 absences) and the draft states them exactly.
+- PH3 Write: Probation shows "3 months" from set up and the draft uses it.
+- PH4 Write: Holiday asks entitlement, irregular hours, holiday year, notice, carry over.
+- PH5 Writing takes 3 credits, improving 4; a failed write gives all of them back; too few credits gives "This uses 3 AI credits and you have N left."
+- PH6 Getting set up: absence and probation steps sit before "Write or upload your policies"; saving each ticks it (Bevan and Thistle absence already ticked by backfill).

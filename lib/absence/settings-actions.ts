@@ -22,6 +22,7 @@ import { writeAudit } from "@/lib/audit";
 import { recordUsage } from "@/lib/notifications/usage";
 import { spendAiCredit, refundAiCredit } from "@/lib/billing/ai-credits";
 import type { ActionState } from "@/lib/forms";
+import { recordSetupDone } from "@/lib/setup/status";
 import { isStageAction, STAGE_ACTIONS } from "@/lib/absence/stage-actions";
 
 const POLICY_BUCKET = "absence-policies";
@@ -99,6 +100,8 @@ export async function saveAbsenceConfig(
     },
   });
 
+  // Getting set up (Phil, 2026-10-06): absence is set before the policies that must follow it.
+  await recordSetupDone(profile.company_id, "absence", user.id);
   revalidatePath("/settings/absence");
   revalidatePath("/people/absence");
   return { ok: "Saved" };

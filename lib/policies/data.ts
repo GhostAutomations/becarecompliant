@@ -1,4 +1,7 @@
 import "server-only";
+import { getAbsenceConfig } from "@/lib/absence/data";
+import { getProbationPeriod } from "@/lib/people/data";
+import { settingsNeeded, systemSettingLines } from "./system-settings";
 import { createClient } from "@/lib/supabase/server";
 import { nationOf, type CompanyFacts, type PromptSource } from "./ai-prompt";
 
@@ -39,6 +42,17 @@ export async function companyFacts(companyId: string): Promise<CompanyFacts> {
     branches: ((branches as Array<{ name: string }> | null) ?? []).map((b) => b.name),
     services: "Domiciliary care and support for adults in their own homes",
   };
+}
+
+/** The fixed facts this policy must agree with, read from the company's own set up. */
+export async function companySystemSettings(companyId: string, topicKey: string): Promise<string[]> {
+  const need = settingsNeeded(topicKey);
+  if (need.length === 0) return [];
+  const [absence, probation] = await Promise.all([
+    need.includes("absence") ? getAbsenceConfig(companyId) : Promise.resolve(null),
+    need.includes("probation") ? getProbationPeriod(companyId) : Promise.resolve(null),
+  ]);
+  return systemSettingLines(topicKey, { absence, probation });
 }
 
 /** The approved text of a topic's sources for this company's nation, numbered for citing. */

@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { requirePolicyWriter } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import PolicyWriteForm from "@/components/policies/write-form";
-import { companyFacts, listTopics } from "@/lib/policies/data";
+import { companyFacts, companySystemSettings, listTopics } from "@/lib/policies/data";
+import { TOPICS_USING_SETTINGS } from "@/lib/policies/system-settings";
 
 export const metadata: Metadata = { title: "Write a policy" };
 // The AI takes up to a minute to write a full policy.
@@ -11,7 +12,14 @@ export const maxDuration = 300;
 export default async function WritePolicyPage({ searchParams }: { searchParams: Promise<{ topic?: string }> }) {
   const { profile } = await requirePolicyWriter();
   const { topic } = await searchParams;
-  const [topics, facts] = await Promise.all([listTopics(), companyFacts(profile.company_id as string)]);
+  const companyId = profile.company_id as string;
+  const [topics, facts] = await Promise.all([listTopics(), companyFacts(companyId)]);
+  /* What the company already set up, shown before writing so nobody is surprised by it. */
+  const settings: Record<string, string[]> = Object.fromEntries(
+    await Promise.all(
+      Object.keys(TOPICS_USING_SETTINGS).map(async (k) => [k, await companySystemSettings(companyId, k)] as const),
+    ),
+  );
   return (
     <div className="page-form space-y-6">
       <BackLink href="/policies" label="Back to Policies" />
@@ -36,7 +44,7 @@ export default async function WritePolicyPage({ searchParams }: { searchParams: 
         <div className="glass-card p-5 text-sm text-white/60">The policy library is still being set up. Please try again shortly.</div>
       ) : (
         <div className="glass-card p-5">
-          <PolicyWriteForm topics={topics} initial={topic ?? null} />
+          <PolicyWriteForm topics={topics} initial={topic ?? null} settings={settings} />
         </div>
       )}
     </div>

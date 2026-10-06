@@ -6,6 +6,7 @@
  * date, and a redraft you accept section by section.
  */
 
+import { POLICY_IMPROVE_CREDITS } from "@/lib/policies/credits";
 import { useState } from "react";
 import ActionForm from "@/components/action-form";
 import { reviewPolicyWithAi } from "@/lib/policies/ai-actions";
@@ -63,7 +64,7 @@ export default function PolicyImproveForm({ topics, policies, initial }: { topic
           </select>
           <p className="form-hint">So it is checked against the right legislation and guidance.</p>
         </div>
-        <p className="form-hint">Uses one AI credit. Nothing changes until you approve the result.</p>
+        <p className="form-hint">Uses {POLICY_IMPROVE_CREDITS} AI credits. Nothing changes until you approve the result.</p>
       </div>
     </ActionForm>
   );

@@ -13,7 +13,7 @@
  *                        policy, so signing, reassigning and the review date all behave the same.
  *
  * Only people who may write the company's policies (requirePolicyWriter, 0399). Each AI call
- * spends one AI credit and is metered (runAi). Nothing here is silent: every failure is a sentence.
+ * spends AI credits (lib/policies/credits) and is metered (runAi). Nothing here is silent: every failure is a sentence.
  */
 
 import { revalidatePath } from "next/cache";
@@ -21,10 +21,11 @@ import { requirePolicyWriter } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { runAi } from "@/lib/ai/anthropic";
+import { POLICY_IMPROVE_CREDITS, POLICY_WRITE_CREDITS } from "@/lib/policies/credits";
 import { signPolicyDocument } from "@/lib/assignments/storage";
 import { createWrittenPolicy, updateWrittenPolicy } from "@/lib/assignments/actions";
 import type { ActionState } from "@/lib/forms";
-import { companyFacts, getDraft, getTopic, promptSources } from "./data";
+import { companySystemSettings, companyFacts, getDraft, getTopic, promptSources } from "./data";
 import {
   improvePrompt,
   improveSystemPrompt,
@@ -57,6 +58,7 @@ export async function generatePolicyDraft(_prev: ActionState, fd: FormData): Pro
   const sources = await promptSources(topic, facts.regulator);
   if (sources.length === 0) return { error: NO_LIBRARY };
 
+  const settings = await companySystemSettings(companyId, topic.key);
   const answers = topic.questions.map((q) => ({ question: q.label, answer: String(fd.get(`q_${q.key}`) ?? "").trim() }));
   const notes = String(fd.get("notes") ?? "").slice(0, 3000);
   const title = String(fd.get("title") ?? "").trim() || topic.title;
@@ -65,8 +67,9 @@ export async function generatePolicyDraft(_prev: ActionState, fd: FormData): Pro
     companyId,
     feature: "policy_write",
     maxTokens: 9000,
+    credits: POLICY_WRITE_CREDITS,
     system: writeSystemPrompt(nationOf(facts.regulator).label),
-    prompt: writePrompt({ topicTitle: title, topicSummary: topic.summary, facts, answers, notes, sources }),
+    prompt: writePrompt({ topicTitle: title, topicSummary: topic.summary, facts, answers, notes, sources, settings }),
   });
   if ("error" in r) return { error: r.error };
 
@@ -170,9 +173,10 @@ export async function reviewPolicyWithAi(_prev: ActionState, fd: FormData): Prom
     companyId,
     feature: "policy_improve",
     maxTokens: 12000,
+    credits: POLICY_IMPROVE_CREDITS,
     attachments,
     system: improveSystemPrompt(nationOf(facts.regulator).label),
-    prompt: improvePrompt({ topicTitle: title, facts, policyText, sources }),
+    prompt: improvePrompt({ topicTitle: title, facts, policyText, sources, settings: await companySystemSettings(companyId, topic.key) }),
   });
   if ("error" in r) return { error: r.error };
   const review = parseImproveReview(r.ok);

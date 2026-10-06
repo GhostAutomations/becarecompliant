@@ -1499,8 +1499,13 @@ export const SEED_TOPICS: SeedTopic[] = [
       },
       {
         "key": "company_sick_pay",
-        "label": "Do you pay company sick pay on top of Statutory Sick Pay?",
-        "type": "yesno"
+        "label": "Do you pay company sick pay on top of Statutory Sick Pay? If so, how much and for how long?",
+        "type": "text"
+      },
+      {
+        "key": "rtw_by",
+        "label": "Who holds the return to work interview?",
+        "type": "text"
       }
     ],
     "sourceKeys": [
@@ -1518,6 +1523,16 @@ export const SEED_TOPICS: SeedTopic[] = [
     ],
     "questions": [
       {
+        "key": "entitlement",
+        "label": "How many days of paid holiday a year does a full time member of staff get, and does that include bank holidays?",
+        "type": "text"
+      },
+      {
+        "key": "irregular_hours",
+        "label": "How do you work out holiday for staff on zero or variable hours (for example accruing 12.07% of hours worked)?",
+        "type": "text"
+      },
+      {
         "key": "holiday_year",
         "label": "When does your holiday year start?",
         "type": "text"
@@ -1525,6 +1540,11 @@ export const SEED_TOPICS: SeedTopic[] = [
       {
         "key": "notice",
         "label": "How much notice must staff give to book holiday?",
+        "type": "text"
+      },
+      {
+        "key": "carry_over",
+        "label": "Can unused holiday be carried over to the next year? If so, how many days?",
         "type": "text"
       }
     ],
@@ -1543,8 +1563,8 @@ export const SEED_TOPICS: SeedTopic[] = [
     "questions": [
       {
         "key": "enhanced",
-        "label": "Do you pay anything above the statutory rates for any family leave?",
-        "type": "yesno"
+        "label": "Do you pay anything above the statutory rates for maternity, paternity, adoption or shared parental leave? If so, what?",
+        "type": "text"
       }
     ],
     "sourceKeys": [
@@ -1624,8 +1644,8 @@ export const SEED_TOPICS: SeedTopic[] = [
     ],
     "questions": [
       {
-        "key": "length",
-        "label": "How long is your probation period, and when are the reviews?",
+        "key": "reviewer",
+        "label": "Who carries out probation reviews and signs probation off?",
         "type": "text"
       }
     ],
@@ -1645,6 +1665,11 @@ export const SEED_TOPICS: SeedTopic[] = [
         "key": "gifts",
         "label": "What is your rule on staff accepting gifts or money from service users?",
         "type": "text"
+      },
+      {
+        "key": "uniform",
+        "label": "What uniform or dress code do staff follow?",
+        "type": "text"
       }
     ],
     "sourceKeys": [
@@ -1663,8 +1688,8 @@ export const SEED_TOPICS: SeedTopic[] = [
     "questions": [
       {
         "key": "paid",
-        "label": "Is any of this time off paid?",
-        "type": "yesno"
+        "label": "Is any of this time off paid? If so, how much?",
+        "type": "text"
       }
     ],
     "sourceKeys": [
@@ -1683,6 +1708,11 @@ export const SEED_TOPICS: SeedTopic[] = [
       {
         "key": "days",
         "label": "How many days of compassionate leave do you give, and are they paid?",
+        "type": "text"
+      },
+      {
+        "key": "other",
+        "label": "Do you give time off for a funeral or other support? Who should staff tell?",
         "type": "text"
       }
     ],
@@ -1703,6 +1733,11 @@ export const SEED_TOPICS: SeedTopic[] = [
         "key": "opt_out",
         "label": "Do you ask staff to opt out of the 48 hour week?",
         "type": "yesno"
+      },
+      {
+        "key": "breaks",
+        "label": "What break do staff get during a long run of calls?",
+        "type": "text"
       }
     ],
     "sourceKeys": [
@@ -1780,6 +1815,11 @@ export const SEED_TOPICS: SeedTopic[] = [
       {
         "key": "rate",
         "label": "What mileage rate do you pay per mile?",
+        "type": "text"
+      },
+      {
+        "key": "travel_time",
+        "label": "Do you pay for travel time between calls? If so, at what rate?",
         "type": "text"
       }
     ],

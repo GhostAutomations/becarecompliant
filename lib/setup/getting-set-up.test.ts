@@ -161,3 +161,11 @@ test("the alert lists only what is still to do, by group", () => {
   assert.ok(!all.includes("Add training history"));
   assert.ok(out.every((g) => g.labels.length > 0));
 });
+
+test("absence and probation come before policies, and tick from their saves", () => {
+  const keys = buildSetupSteps(base, opts).flatMap((g) => g.steps).map((x) => x.key);
+  assert.ok(keys.indexOf("absence") < keys.indexOf("policies"));
+  assert.ok(keys.indexOf("probation") < keys.indexOf("policies"));
+  assert.equal(find(base, "absence")?.state, "todo");
+  assert.equal(find({ ...base, steps: { absence: "done", probation: "done" } }, "probation")?.state, "done");
+});

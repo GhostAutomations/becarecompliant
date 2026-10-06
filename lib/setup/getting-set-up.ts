@@ -49,7 +49,7 @@ export type SetupStep = {
 export type SetupGroup = { title: string; steps: SetupStep[] };
 
 /** The keys a stamp may use when a settings page is saved. */
-export const SAVE_STAMPS = ["checks_people", "checks_service_users", "forms", "notifications"] as const;
+export const SAVE_STAMPS = ["checks_people", "checks_service_users", "forms", "notifications", "absence", "probation"] as const;
 export type SaveStamp = (typeof SAVE_STAMPS)[number];
 
 export const branchStampKey = (branchId: string) => `branch:${branchId}`;
@@ -150,7 +150,17 @@ export function buildSetupSteps(
         ),
         // Every plan (Phil, 2026-10-01): Business looks over its forms read only.
         step("forms", "Look over your forms", "/settings/forms", false, "Ticks when you tell us you are happy with them, as you leave the Forms page."),
-        step("policies", "Upload your policies", "/policies", s.policies > 0),
+        /* Absence and probation come before policies (Phil, 2026-10-06): the sickness absence and
+           probation policies are written from these, so the stages, scores and periods match. */
+        step("absence", "Set up absence: stages or Bradford, and the period it counts over", "/settings/absence", false, "Ticks when you save it once."),
+        step("probation", "Set your probation period", "/settings/people", false, "Ticks when you save it once."),
+        step(
+          "policies",
+          "Write or upload your policies",
+          "/policies",
+          s.policies > 0,
+          "After absence and probation, so those policies match your set up.",
+        ),
         step("notifications", "Check the notification settings", "/settings/notifications", false, "Ticks when you save them once."),
       ],
     },

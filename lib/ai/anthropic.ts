@@ -17,6 +17,9 @@ export async function runAi(opts: {
   attachments?: unknown[];
   system?: string;
   maxTokens?: number;
+  /** Credits this request costs (default 1). A policy costs more (Phil, 2026-10-06: write 3,
+   *  improve 4), because it reads and writes far more than a complaint reply. */
+  credits?: number;
 }): Promise<{ ok: string } | { error: string }> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   const model = process.env.ANTHROPIC_MODEL;
@@ -25,12 +28,32 @@ export async function runAi(opts: {
   }
 
   const companyId = opts.companyId;
+  const cost = Math.max(1, Math.floor(opts.credits ?? 1));
+  let spentCount = 0;
   const refund = async () => {
-    if (companyId) await refundAiCredit(companyId);
+    if (!companyId) return;
+    for (let i = 0; i < spentCount; i++) await refundAiCredit(companyId);
+    spentCount = 0;
   };
   if (companyId) {
-    const spent = await spendAiCredit(companyId);
-    if (!spent.ok) return { error: spent.message };
+    /* One credit at a time through the same atomic spend, so a balance can never go below
+       zero. Short part way: give back what was taken and say what it needs. */
+    let left = 0;
+    for (let i = 0; i < cost; i++) {
+      const spent = await spendAiCredit(companyId);
+      if (!spent.ok) {
+        const had = spentCount === 0 ? 0 : left + spentCount;
+        await refund();
+        return {
+          error:
+            cost > 1 && had > 0
+              ? `This uses ${cost} AI credits and you have ${had} left. ${spent.message}`
+              : spent.message,
+        };
+      }
+      spentCount += 1;
+      left = spent.remaining;
+    }
   }
 
   let res: Response;
@@ -73,6 +96,8 @@ export async function runAi(opts: {
     units: (json.usage?.input_tokens ?? 0) + (json.usage?.output_tokens ?? 0),
     metadata: {
       feature: opts.feature,
+      // Which model answered, so the cost of each feature can be worked out from real use.
+      model,
       input_tokens: json.usage?.input_tokens ?? 0,
       output_tokens: json.usage?.output_tokens ?? 0,
     },

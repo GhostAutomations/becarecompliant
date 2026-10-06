@@ -51,6 +51,14 @@ ${RULES}
 Structure the policy with these headings, in this order, adding procedure headings where the topic needs them: Purpose, Scope, Legal and regulatory framework, Roles and responsibilities, the procedure sections, Training, Recording and monitoring, Review. The Review section says the policy is reviewed at least every 12 months and whenever the law or guidance changes. Do not add a list of sources at the end: it is added for you.`;
 }
 
+/** The company's own system set up, as rules the policy must match word for word. */
+export function settingsBlock(lines: string[] | undefined, reviewing = false): string {
+  if (!lines?.length) return "";
+  return `\nHow ${reviewing ? "the provider's system is" : "this provider has"} set up in Be Care Compliant. These are fixed: the policy must state them exactly as written here, and must not invent other triggers, stages, scores or periods.${reviewing ? " Anything in the current policy that disagrees with them is a high severity gap." : ""}
+${lines.map((l) => `- ${l}`).join("\n")}
+`;
+}
+
 export function writePrompt(opts: {
   topicTitle: string;
   topicSummary: string;
@@ -58,6 +66,8 @@ export function writePrompt(opts: {
   answers: Array<{ question: string; answer: string }>;
   notes: string;
   sources: PromptSource[];
+  /** Fixed facts from the company's own Be Care Compliant set up (lib/policies/system-settings). */
+  settings?: string[];
 }): string {
   const answered = opts.answers.filter((a) => a.answer.trim());
   return `Write the "${opts.topicTitle}" policy for ${opts.facts.name}.
@@ -68,7 +78,7 @@ About the provider:
 - Name: ${opts.facts.name}
 - Branches: ${opts.facts.branches.join(", ") || "Not recorded"}
 - Services: ${opts.facts.services}
-${answered.length ? `\nThe provider's own arrangements:\n${answered.map((a) => `- ${a.question} ${a.answer}`).join("\n")}` : ""}
+${settingsBlock(opts.settings)}${answered.length ? `\nThe provider's own arrangements:\n${answered.map((a) => `- ${a.question} ${a.answer}`).join("\n")}` : ""}
 ${opts.notes.trim() ? `\nAnything else the provider wants included: ${opts.notes.trim()}` : ""}
 
 Official sources:
@@ -87,9 +97,16 @@ Reply with JSON only, no other text, in exactly this shape:
 The sections, in order, must cover the WHOLE policy, so that joining every chosen section gives a complete policy. Keep the provider's own details (names, timescales, arrangements) unless a source says they are wrong. Mark a section "No change needed" and repeat its wording when it is already right.`;
 }
 
-export function improvePrompt(opts: { topicTitle: string; facts: CompanyFacts; policyText: string | null; sources: PromptSource[] }): string {
+export function improvePrompt(opts: {
+  topicTitle: string;
+  facts: CompanyFacts;
+  policyText: string | null;
+  sources: PromptSource[];
+  settings?: string[];
+}): string {
   return `Review ${opts.facts.name}'s "${opts.topicTitle}" policy.
 Branches: ${opts.facts.branches.join(", ") || "Not recorded"}. Services: ${opts.facts.services}.
+${settingsBlock(opts.settings, true)}
 
 ${opts.policyText ? `THE PROVIDER'S CURRENT POLICY:\n${opts.policyText.slice(0, 60_000)}` : "THE PROVIDER'S CURRENT POLICY is the attached PDF."}
 
