@@ -525,26 +525,23 @@ export default function HolidayView({
             <div key={d} className="pb-1">{d}</div>
           ))}
         </div>
-        {/* The calendar fills the rest of the screen (Phil, 2026-10-06): each week shares the height
-            left below the folded lists, never less than four names a day, and what does not fit
-            (Declined and cancelled) sits below the fold. */}
-        <div
-          className="grid grid-cols-7 gap-1 [--day-h:clamp(6.5rem,calc((100dvh_-_33rem)_/_var(--weeks)),12rem)]"
-          style={{ "--weeks": Math.ceil(cells.length / 7) } as React.CSSProperties}
-        >
+        {/* Each day holds five names, then scrolls inside its own box (Phil, 2026-10-06).
+            Every chip is a fixed 19px (15px line plus padding) with a 2px gap, so the list box is
+            5 x 19 + 4 x 2 = 103px and the sixth name always sits just out of view. */}
+        <div className="grid grid-cols-7 gap-1">
           {cells.map((day, i) => {
-            if (day == null) return <div key={i} className="h-[var(--day-h)] rounded-lg bg-white/[0.02]" />;
+            if (day == null) return <div key={i} className="rounded-lg bg-white/[0.02]" />;
             const hols = holidaysOn(day);
             return (
               /* Every day is the same size; a busy day scrolls inside its own box rather than
                  hiding names behind "+1 more" (Phil, 2026-10-06). */
-              <div key={i} className="flex h-[var(--day-h)] flex-col rounded-lg bg-white/5 p-1 text-left">
-                <div className="shrink-0 text-[11px] text-white/50">{day}</div>
-                <div className="mt-0.5 min-h-0 flex-1 space-y-0.5 overflow-y-auto">
+              <div key={i} className="flex flex-col rounded-lg bg-white/5 p-1 text-left">
+                <div className="shrink-0 text-[11px] leading-4 text-white/50">{day}</div>
+                <div className="mt-0.5 h-[103px] space-y-0.5 overflow-y-auto">
                   {hols.map((h) => (
                     <div
                       key={h.id}
-                      className={`truncate rounded px-1 py-0.5 text-[10px] ${
+                      className={`truncate rounded px-1 py-0.5 text-[10px] leading-[15px] ${
                         h.status === "approved"
                           ? "bg-emerald-400/20 text-emerald-200"
                           : "bg-amber-400/20 text-amber-200"
