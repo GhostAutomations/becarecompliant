@@ -147,15 +147,6 @@ export default function IncidentsRegister({
             </select>
           </div>
         ) : null}
-        {/* The closed register is its own page (nav child), but nothing ON this page
-            said so, while the sibling Whistleblowing register offers Closed in its
-            filter — so closed incidents looked unreachable (17 Aug QA). One link. */}
-        <Link
-          href={scope === "closed" ? "/incidents" : "/incidents/closed"}
-          className="pb-2.5 text-xs font-semibold text-gold-300 hover:underline"
-        >
-          {scope === "closed" ? "Open incidents" : "Closed incidents"}
-        </Link>
         {branches.length > 1 ? (
           <div>
             <label htmlFor="incident_branch_filter" className="form-label">{bw.one}</label>
@@ -182,6 +173,16 @@ export default function IncidentsRegister({
             </select>
           </div>
         ) : null}
+        {/* The closed register is its own page (nav child), but nothing ON this page
+            said so, while the sibling Whistleblowing register offers Closed in its
+            filter, so closed incidents looked unreachable (17 Aug QA). One link, on the far right of
+            the filters, under Record an incident (Phil, 2026-10-06). */}
+        <Link
+          href={scope === "closed" ? "/incidents" : "/incidents/closed"}
+          className="ml-auto pb-2.5 text-xs font-semibold text-gold-300 hover:underline"
+        >
+          {scope === "closed" ? "Open incidents" : "Closed incidents"}
+        </Link>
       </div>
 
       {filtered.length === 0 ? (
