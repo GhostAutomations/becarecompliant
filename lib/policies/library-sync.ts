@@ -19,7 +19,7 @@ import "server-only";
  */
 
 import { createServiceClient } from "@/lib/supabase/admin";
-import { fetchSourceText } from "./sources";
+import { fetchSourceText, MIN_LEGISLATION_CHARS } from "./sources";
 import { SEED_SOURCES, SEED_TOPICS } from "./library-seed";
 import { runAi } from "@/lib/ai/anthropic";
 import { notifyFounder } from "@/lib/founder/notify";
@@ -107,7 +107,11 @@ export async function checkSources(opts: { force?: boolean; keys?: string[] } = 
     const got = await fetchSourceText(s.url);
     if (!got.ok) {
       out.failed.push(`${s.title}: ${got.error}`);
-      await db.from("policy_sources").update({ last_error: got.error }).eq("id", s.id);
+      /* A change found earlier is dropped: it can no longer be confirmed, so it must not be approvable. */
+      await db
+        .from("policy_sources")
+        .update({ last_error: got.error, pending_text: null, pending_hash: null, pending_summary: null, pending_found_at: null })
+        .eq("id", s.id);
       continue;
     }
     if (!s.current_text) {
@@ -155,11 +159,13 @@ export async function approveSourceChange(
   const db = createServiceClient();
   const { data: s } = await db
     .from("policy_sources")
-    .select("id, key, title, pending_text, pending_hash, pending_summary")
+    .select("id, key, title, pending_text, pending_hash, pending_summary, last_error")
     .eq("id", sourceId)
-    .maybeSingle<{ id: string; key: string; title: string; pending_text: string | null; pending_hash: string | null; pending_summary: string | null }>();
+    .maybeSingle<{ id: string; key: string; title: string; pending_text: string | null; pending_hash: string | null; pending_summary: string | null; last_error: string | null }>();
   if (!s) return { error: "That source could not be found." };
   if (!s.pending_text) return { error: "There is no change waiting on that source." };
+  if (s.last_error) return { error: `${s.title} could not be read on its last check, so this change cannot be approved. Press Check now.` };
+  if (s.pending_text.trim().length < MIN_LEGISLATION_CHARS) return { error: `${s.title} has almost no readable text, so there is nothing to approve.` };
   const now = new Date().toISOString();
   const { error } = await db
     .from("policy_sources")
@@ -189,4 +195,25 @@ export async function approveSourceChange(
   if (fErr) return { error: fErr.message };
   const n = flagged?.length ?? 0;
   return { ok: `Approved. ${n} company ${n === 1 ? "policy is" : "policies are"} now marked for review.` };
+}
+
+/** Every change waiting (and readable), in one go. Each one goes through the same checks as a single approval. */
+export async function approveAllSourceChanges(tellCompanies: boolean): Promise<{ approved: number; flagged: string[]; refused: string[] }> {
+  const db = createServiceClient();
+  const { data } = await db
+    .from("policy_sources")
+    .select("id")
+    .eq("active", true)
+    .not("pending_text", "is", null)
+    .is("last_error", null);
+  const out = { approved: 0, flagged: [] as string[], refused: [] as string[] };
+  for (const r of (data as Array<{ id: string }> | null) ?? []) {
+    const res = await approveSourceChange(r.id, tellCompanies);
+    if ("error" in res) out.refused.push(res.error);
+    else {
+      out.approved += 1;
+      if (tellCompanies) out.flagged.push(res.ok);
+    }
+  }
+  return out;
 }

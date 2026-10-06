@@ -7,6 +7,10 @@ import { SOURCE_TEXT_LIMIT, htmlToText, normaliseForCompare } from "./extract";
  * 28 day re-check compares. Never throws: a failure comes back as a sentence the Founder
  * library page shows against the source, so a broken link is seen rather than trusted.
  */
+/** Below this, a page is treated as unreadable (and a change on it can never be approved). */
+export const MIN_PAGE_CHARS = 400;
+export const MIN_LEGISLATION_CHARS = 120;
+
 export async function fetchSourceText(
   url: string,
 ): Promise<{ ok: true; text: string; hash: string } | { ok: false; error: string }> {
@@ -28,7 +32,10 @@ export async function fetchSourceText(
   const type = res.headers.get("content-type") ?? "";
   if (type.includes("pdf")) return { ok: false, error: "This link is a PDF. Link the web page instead." };
   const text = htmlToText(await res.text()).slice(0, SOURCE_TEXT_LIMIT);
-  if (text.length < 120) return { ok: false, error: "The page had almost no readable text." };
+  /* A single regulation can genuinely be two lines; any other page that short is a menu or a
+     landing page with nothing an AI could write a policy from. */
+  const min = /(^|\.)legislation\.gov\.uk$/i.test(new URL(url).hostname) ? MIN_LEGISLATION_CHARS : MIN_PAGE_CHARS;
+  if (text.length < min) return { ok: false, error: "The page had almost no readable text." };
   const hash = createHash("sha256").update(normaliseForCompare(text)).digest("hex");
   return { ok: true, text, hash };
 }

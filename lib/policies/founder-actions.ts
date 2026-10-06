@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requirePlatformAdmin } from "@/lib/auth/guards";
 import { writeAudit } from "@/lib/audit";
 import type { ActionState } from "@/lib/forms";
-import { approveSourceChange, checkSources, syncLibrary } from "./library-sync";
+import { approveAllSourceChanges, approveSourceChange, checkSources, syncLibrary } from "./library-sync";
 
 /** Founder: load the curated list and fetch every source now, whatever its date. */
 export async function syncAndCheckAll(_prev: ActionState, _fd: FormData): Promise<ActionState> {
@@ -57,4 +57,25 @@ export async function approveChange(_prev: ActionState, fd: FormData): Promise<A
   });
   revalidatePath("/founder/policy-library");
   return { ok: r.ok };
+}
+
+export async function approveAllChanges(_prev: ActionState, fd: FormData): Promise<ActionState> {
+  const { profile } = await requirePlatformAdmin();
+  const tell = fd.get("tell") === "1";
+  const r = await approveAllSourceChanges(tell);
+  await writeAudit({
+    companyId: null,
+    actorId: profile.id,
+    actorEmail: profile.email,
+    actorRole: profile.role,
+    action: tell ? "policy_library.all_changes_approved" : "policy_library.all_changes_approved_quietly",
+    entityType: "policy_library",
+    entityId: null,
+    summary: `Approved ${r.approved} source changes${tell ? " and told companies" : " quietly"}; ${r.refused.length} refused`,
+    metadata: r,
+  });
+  revalidatePath("/founder/policy-library");
+  if (r.approved === 0 && r.refused.length === 0) return { error: "There are no changes waiting." };
+  const base = `Approved ${r.approved} ${r.approved === 1 ? "change" : "changes"}${tell ? " and told companies" : " quietly"}.`;
+  return r.refused.length ? { error: `${base} ${r.refused.length} could not be approved: ${r.refused.join(" ")}` } : { ok: base };
 }

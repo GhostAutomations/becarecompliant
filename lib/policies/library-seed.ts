@@ -622,7 +622,7 @@ export const SEED_SOURCES: SeedSource[] = [
     "key": "lgsco",
     "publisher": "Local Government and Social Care Ombudsman",
     "title": "Adult social care complaints",
-    "url": "https://www.lgo.org.uk/adult-social-care",
+    "url": "https://www.lgo.org.uk/information-centre/information-for-organisations-we-investigate/independent-care-providers/resources-for-care-providers",
     "regions": [
       "england"
     ]
@@ -640,7 +640,7 @@ export const SEED_SOURCES: SeedSource[] = [
     "key": "hse_lone",
     "publisher": "Health and Safety Executive",
     "title": "Protect lone workers",
-    "url": "https://www.hse.gov.uk/lone-working/",
+    "url": "https://www.hse.gov.uk/lone-working/employer/index.htm",
     "regions": [
       "wales",
       "england"

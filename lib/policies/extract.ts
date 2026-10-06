@@ -27,7 +27,6 @@ function decodeEntities(s: string): string {
 function contentPart(html: string): string {
   const pick = (re: RegExp) => html.match(re)?.[0] ?? null;
   return (
-    pick(/<div[^>]+id="viewLegSnippet"[\s\S]*?<\/div>\s*<\/div>\s*<\/div>/i) ?? // legislation.gov.uk
     pick(/<main[\s\S]*?<\/main>/i) ??
     pick(/<article[\s\S]*?<\/article>/i) ??
     pick(/<body[\s\S]*?<\/body>/i) ??
@@ -35,7 +34,19 @@ function contentPart(html: string): string {
   );
 }
 
+/** legislation.gov.uk marks the text of the law itself; a short regulation is short. */
+function legislationPart(html: string): string | null {
+  return html.match(/<div[^>]+id="viewLegSnippet"[\s\S]*?<\/div>\s*<\/div>\s*<\/div>/i)?.[0] ?? null;
+}
+
 export function htmlToText(html: string): string {
+  /* The law itself, when the page marks it: never padded out with the page around it, however
+     short (a regulation can be three lines, and three lines is right). */
+  const leg = legislationPart(html);
+  if (leg) {
+    const t = textOf(leg);
+    if (t.length > 0) return t;
+  }
   const part = textOf(contentPart(html));
   /* Some sites keep the words outside <main> (or put an empty <main> round a menu): when the
      chosen part says almost nothing, read the whole body instead. */

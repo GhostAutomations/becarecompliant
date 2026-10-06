@@ -3,7 +3,7 @@ import { requirePlatformAdmin } from "@/lib/auth/guards";
 import BackLink from "@/components/back-link";
 import ActionForm from "@/components/action-form";
 import { createServiceClient } from "@/lib/supabase/admin";
-import { approveChange, checkOneSource, syncAndCheckAll } from "@/lib/policies/founder-actions";
+import { approveAllChanges, approveChange, checkOneSource, syncAndCheckAll } from "@/lib/policies/founder-actions";
 import { RECHECK_DAYS } from "@/lib/policies/library-sync";
 
 /**
@@ -51,7 +51,8 @@ export default async function FounderPolicyLibraryPage() {
      we can see them easy"): could not be read or not loaded, then a change waiting, then loaded. */
   const rank = (r: Row) => (r.last_error || !r.current_text ? 0 : r.pending_summary ? 1 : 2);
   const rows = [...((sources as Row[] | null) ?? [])].sort((a, b) => rank(a) - rank(b));
-  const pending = rows.filter((r) => r.pending_summary);
+  /* A source that failed its last check has nothing approvable, whatever was found before. */
+  const pending = rows.filter((r) => r.pending_summary && !r.last_error);
   const failed = rows.filter((r) => r.last_error);
   const loaded = rows.filter((r) => r.current_text).length;
   const usedBy = new Map<string, string[]>();
@@ -81,7 +82,28 @@ export default async function FounderPolicyLibraryPage() {
 
       {pending.length > 0 ? (
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Waiting for your approval</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">
+              Waiting for your approval ({pending.length})
+            </h2>
+            {pending.length > 1 ? (
+              <div className="flex flex-wrap gap-2">
+                <ActionForm
+                  action={approveAllChanges}
+                  hidden={{ tell: "1" }}
+                  label={`Approve all ${pending.length} and tell companies`}
+                  confirm={`Approve all ${pending.length} changes and mark every policy that uses them for review?`}
+                />
+                <ActionForm
+                  action={approveAllChanges}
+                  hidden={{ tell: "0" }}
+                  label={`Approve all ${pending.length} quietly`}
+                  confirm={`Approve all ${pending.length} changes without telling companies?`}
+                  buttonClassName="btn-outline text-xs"
+                />
+              </div>
+            ) : null}
+          </div>
           {pending.map((r) => (
             <div key={r.id} className="glass-card space-y-3 p-5">
               <div>
@@ -128,7 +150,9 @@ export default async function FounderPolicyLibraryPage() {
                   {r.last_error ? <p className="form-error">{r.last_error}</p> : null}
                 </div>
                 <div className="flex items-center gap-2">
-                  {r.pending_summary ? (
+                  {r.last_error ? (
+                    <span className="pill pill-red">Could not be read</span>
+                  ) : r.pending_summary ? (
                     <span className="pill pill-amber">Change waiting</span>
                   ) : r.current_text ? (
                     <span className="pill pill-green">Loaded</span>

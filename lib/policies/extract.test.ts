@@ -20,3 +20,10 @@ test("an empty main falls back to the body", () => {
   const t = htmlToText(`<html><body><main><a>Home</a></main><div id="content"><p>${words}</p></div></body></html>`);
   assert.match(t, /raise the alarm/);
 });
+
+test("a short regulation is kept short, not padded with the page", () => {
+  const html = `<html><body><nav>Menu Menu Menu</nav><div id="viewLegSnippet"><div><div><p>13. The service provider must act in an open and transparent way.</p></div></div></div><footer>${"Footer ".repeat(200)}</footer></body></html>`;
+  const t = htmlToText(html);
+  assert.match(t, /open and transparent/);
+  assert.doesNotMatch(t, /Footer|Menu/);
+});
