@@ -17,3 +17,10 @@ test("every source a policy uses is in the library, and keys are unique", () => 
   assert.equal(new Set(keys).size, keys.length);
   for (const t of SEED_TOPICS) for (const k of t.sourceKeys) assert.ok(keys.includes(k), `${t.key} uses missing source ${k}`);
 });
+
+test("HSE guides are read from their printable whole-guide page", () => {
+  // Phil, 2026-10-06: HSE index pages are a page of links; the AI got a menu, not the guidance.
+  for (const s of SEED_SOURCES.filter((x) => x.url.includes("hse.gov.uk"))) {
+    assert.ok(s.url.endsWith("/print.htm"), `${s.key} should link the print.htm guide, not ${s.url}`);
+  }
+});

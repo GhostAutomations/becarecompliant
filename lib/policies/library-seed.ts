@@ -640,7 +640,7 @@ export const SEED_SOURCES: SeedSource[] = [
     "key": "hse_lone",
     "publisher": "Health and Safety Executive",
     "title": "Protect lone workers",
-    "url": "https://www.hse.gov.uk/lone-working/employer/index.htm",
+    "url": "https://www.hse.gov.uk/lone-working/employer/print.htm",
     "regions": [
       "wales",
       "england"
@@ -650,7 +650,7 @@ export const SEED_SOURCES: SeedSource[] = [
     "key": "hse_risk",
     "publisher": "Health and Safety Executive",
     "title": "Managing risks and risk assessment at work",
-    "url": "https://www.hse.gov.uk/simple-health-safety/risk/index.htm",
+    "url": "https://www.hse.gov.uk/simple-health-safety/risk/print.htm",
     "regions": [
       "wales",
       "england"
@@ -920,7 +920,7 @@ export const SEED_SOURCES: SeedSource[] = [
     "key": "hse_drugs_alcohol",
     "publisher": "Health and Safety Executive",
     "title": "Drug and alcohol abuse at work",
-    "url": "https://www.hse.gov.uk/alcoholdrugs/",
+    "url": "https://www.hse.gov.uk/alcoholdrugs/print.htm",
     "regions": [
       "wales",
       "england"
@@ -940,7 +940,7 @@ export const SEED_SOURCES: SeedSource[] = [
     "key": "hse_stress",
     "publisher": "Health and Safety Executive",
     "title": "Work related stress",
-    "url": "https://www.hse.gov.uk/stress/",
+    "url": "https://www.hse.gov.uk/stress/print.htm",
     "regions": [
       "wales",
       "england"
@@ -1238,7 +1238,7 @@ export const SEED_SOURCES: SeedSource[] = [
     "key": "hse_manual",
     "publisher": "Health and Safety Executive",
     "title": "Manual handling at work",
-    "url": "https://www.hse.gov.uk/msd/manual-handling/index.htm",
+    "url": "https://www.hse.gov.uk/msd/manual-handling/print.htm",
     "regions": [
       "wales",
       "england"
@@ -1248,7 +1248,7 @@ export const SEED_SOURCES: SeedSource[] = [
     "key": "hse_driving",
     "publisher": "Health and Safety Executive",
     "title": "Driving and riding safely for work",
-    "url": "https://www.hse.gov.uk/roadsafety/index.htm",
+    "url": "https://www.hse.gov.uk/roadsafety/employer/print.htm",
     "regions": [
       "wales",
       "england"
@@ -2606,8 +2606,8 @@ export const SEED_TOPICS: SeedTopic[] = [
  * deployment's code, so "Load and check" there quietly put back the old links and the old policy
  * list. The sync now records the version it wrote and refuses to write an older one.
  */
-export const SEED_VERSION = 3;
-export const SEED_FINGERPRINT = "0cd5ee14a455c727";
+export const SEED_VERSION = 4;
+export const SEED_FINGERPRINT = "c5091f02a6f0b32c";
 
 /** The ten policies Wales regulation 12 names (SI 2017/1264 reg 12, read 2026-10-06). */
 export const WALES_REG12_TOPICS: ReadonlySet<string> = new Set([
