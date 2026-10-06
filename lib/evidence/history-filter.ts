@@ -30,9 +30,9 @@ export type EvidenceRowLike = {
  */
 export const BACK_OFFICE = "Back office";
 
-/** The heading the kept meeting invitation letters sit under (Phil, 2026-10-06: "absence
- *  meeting invitation should be meeting"). */
-export const MEETING = "Meeting";
+/** The heading the kept absence meeting invitation letters sit under (Phil, 2026-10-06:
+ *  "absence meeting invitation should be classed as absence ... one thing in absence"). */
+export const ABSENCE = "Absence";
 
 /**
  * BACK_OFFICE only for a form that IS a back office form (absence back office, holiday back

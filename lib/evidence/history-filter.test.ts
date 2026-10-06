@@ -60,7 +60,7 @@ test("a name is matched as it was filed, trimmed", () => {
   assert.equal(filterByForm(rows, "Supervision").length, 1);
 });
 
-import { BACK_OFFICE, MEETING, backOfficeGroup, newestFirst } from "./history-filter.ts";
+import { BACK_OFFICE, ABSENCE, backOfficeGroup, newestFirst } from "./history-filter.ts";
 
 test("only back office forms go under Back office", () => {
   for (const key of ["absence_back_office", "holiday_back_office", "complaint_back_office"]) {
@@ -71,22 +71,22 @@ test("only back office forms go under Back office", () => {
   }
 });
 
-test("Sarah's case: four Back office, one Meeting", () => {
+test("Sarah's case: four Back office, one Absence", () => {
   const rows = [
     { form_name: "Absence Back Office", group: BACK_OFFICE },
     { form_name: "Absence Back Office", group: BACK_OFFICE },
     { form_name: "Absence Back Office", group: BACK_OFFICE },
     { form_name: "Absence Back Office", group: BACK_OFFICE },
-    { form_name: "Absence meeting invitation", group: MEETING },
+    { form_name: "Absence meeting invitation", group: ABSENCE },
     { form_name: "Supervision", group: null },
   ];
   assert.deepEqual(formOptions(rows), [
+    { name: ABSENCE, count: 1 },
     { name: BACK_OFFICE, count: 4 },
-    { name: MEETING, count: 1 },
     { name: "Supervision", count: 1 },
   ]);
   assert.equal(filterByForm(rows, BACK_OFFICE).length, 4);
-  assert.equal(filterByForm(rows, MEETING).length, 1);
+  assert.equal(filterByForm(rows, ABSENCE).length, 1);
   assert.equal(filterByForm(rows, "Supervision").length, 1);
 });
 
