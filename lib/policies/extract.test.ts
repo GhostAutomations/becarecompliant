@@ -38,3 +38,23 @@ test("the tail of a comment at the start of the text is dropped", () => {
   const t = htmlToText(`<html><body><main> variants --> <h1>Lone working</h1><p>${"Employers must assess the risks. ".repeat(20)}</p></main></body></html>`);
   assert.doesNotMatch(t, /-->/);
 });
+
+import { printGuideListUrl, printGuidePageUrls } from "./extract.ts";
+
+test("an HSE print page points to its section list", () => {
+  const html = '<main><div id="printPage" class="html-print-guide"  data-print-guide="msd-manual-handling.json"></div></main>';
+  assert.equal(
+    printGuideListUrl(html, "https://www.hse.gov.uk/msd/manual-handling/print.htm"),
+    "https://www.hse.gov.uk/print-guides/msd-manual-handling.json",
+  );
+  assert.equal(printGuideListUrl("<main>Ordinary page</main>", "https://www.hse.gov.uk/x.htm"), null);
+});
+
+test("the section list resolves next to the print page, same site only, in order", () => {
+  const json = '{"pages": ["./index.htm", "./training.htm", "./index.htm", "https://evil.example/x.htm", 3], "metadata": {}}';
+  assert.deepEqual(printGuidePageUrls(json, "https://www.hse.gov.uk/msd/manual-handling/print.htm"), [
+    "https://www.hse.gov.uk/msd/manual-handling/index.htm",
+    "https://www.hse.gov.uk/msd/manual-handling/training.htm",
+  ]);
+  assert.deepEqual(printGuidePageUrls("not json", "https://www.hse.gov.uk/a/print.htm"), []);
+});

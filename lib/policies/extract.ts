@@ -107,3 +107,39 @@ export function readableUrl(url: string): string {
   }
   return url;
 }
+
+
+/**
+ * HSE PRINT GUIDES (2026-10-06). An HSE "printable version of the whole guide" page has no guidance
+ * in it: it carries <div data-print-guide="msd-manual-handling.json">, and the browser fetches
+ * that list of the guide's section pages and pastes them in. A server fetch sees an empty page.
+ * These two helpers let the loader do what the browser does. Pure, so they are unit tested.
+ */
+export function printGuideListUrl(html: string, pageUrl: string): string | null {
+  const m = html.match(/data-print-guide=["']([^"']+\.json)["']/i);
+  if (!m) return null;
+  try {
+    const page = new URL(pageUrl);
+    return new URL(`/print-guides/${m[1].replace(/^\/+/, "")}`, page.origin).toString();
+  } catch {
+    return null;
+  }
+}
+
+/** The section page URLs from a print-guide list, resolved against the print page, same site only. */
+export function printGuidePageUrls(json: string, pageUrl: string): string[] {
+  try {
+    const o = JSON.parse(json) as { pages?: unknown };
+    if (!Array.isArray(o.pages)) return [];
+    const origin = new URL(pageUrl).origin;
+    const out: string[] = [];
+    for (const p of o.pages) {
+      if (typeof p !== "string") continue;
+      const u = new URL(p, pageUrl);
+      if (u.origin === origin && !out.includes(u.toString())) out.push(u.toString());
+    }
+    return out.slice(0, 20);
+  } catch {
+    return [];
+  }
+}
