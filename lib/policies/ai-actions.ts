@@ -196,7 +196,11 @@ export async function reviewPolicyWithAi(_prev: ActionState, fd: FormData): Prom
   const r = await runAi({
     companyId,
     feature: "policy_improve",
-    maxTokens: 12000,
+    /* 12000 was not enough for a long policy (Recruitment, 2026-10-06): the JSON stopped part way
+       and could not be read. Unchanged sections are no longer repeated (ai-prompt), and an answer
+       that still cannot be read is refunded. */
+    maxTokens: 20000,
+    accept: (t) => parseImproveReview(t) !== null,
     credits: POLICY_IMPROVE_CREDITS,
     attachments,
     system: improveSystemPrompt(nationOf(facts.regulator).label),
@@ -204,7 +208,7 @@ export async function reviewPolicyWithAi(_prev: ActionState, fd: FormData): Prom
   });
   if ("error" in r) return { error: r.error };
   const review = parseImproveReview(r.ok);
-  if (!review) return { error: "The AI's review could not be read. Your credit was used; please try again." };
+  if (!review) return { error: "The AI's review could not be read. Please try again." };
 
   const meta = sources.map(({ n, title: t, publisher, url, checkedOn }) => ({ n, title: t, publisher, url, checkedOn }));
   const { data: draft, error } = await supabase

@@ -20,6 +20,10 @@ export async function runAi(opts: {
   /** Credits this request costs (default 1). A policy costs more (Phil, 2026-10-06: write 3,
    *  improve 4), because it reads and writes far more than a complaint reply. */
   credits?: number;
+  /** Whether the reply is usable (for example, JSON that parses). A reply that is not is
+   *  refunded in full, like a failed request (Phil, 2026-10-06: "we have to refund credits if
+   *  this happens"), so nobody pays for an answer we could not use. */
+  accept?: (text: string) => boolean;
 }): Promise<{ ok: string } | { error: string }> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   const model = process.env.ANTHROPIC_MODEL;
@@ -115,6 +119,16 @@ export async function runAi(opts: {
     console.error("[ai] empty response", { feature: opts.feature, stop, kinds });
     return {
       error: `The AI returned nothing (${stop}${kinds === "none" ? "" : `, blocks: ${kinds}`}). Your credit has been returned. Try again.`,
+    };
+  }
+  if (opts.accept && !opts.accept(text)) {
+    await refund();
+    console.error("[ai] unusable reply", { feature: opts.feature, stop: json.stop_reason ?? "unknown", chars: text.length });
+    return {
+      error:
+        json.stop_reason === "max_tokens"
+          ? "The AI's answer was too long to finish, so it could not be used. Your credits have been given back. Please try again."
+          : "The AI's answer could not be read. Your credits have been given back. Please try again.",
     };
   }
   /* A REPLY THAT RAN OUT OF ROOM SAYS SO (2026-09-24). The readiness narrative hit its 1800 token

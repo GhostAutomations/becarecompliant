@@ -92,9 +92,9 @@ export function improveSystemPrompt(nation: string): string {
 ${RULES}
 
 Reply with JSON only, no other text, in exactly this shape:
-{"summary":"two or three sentences on how the policy stands","gaps":[{"issue":"what is missing, wrong or out of date","severity":"high"|"medium"|"low","source":"S2"}],"sections":[{"heading":"section heading","original":"the provider's current wording for this section, or an empty string if the section is new","proposed":"your full improved wording for this section, in the format above, without the heading line","reason":"why it changed, or 'No change needed'"}]}
+{"summary":"two or three sentences on how the policy stands","gaps":[{"issue":"what is missing, wrong or out of date","severity":"high"|"medium"|"low","source":"S2"}],"sections":[{"heading":"section heading","original":"the provider's current wording for this section, or an empty string if the section is new","proposed":"your full improved wording for this section, in the format above, without the heading line, or an empty string when no change is needed","reason":"why it changed, or 'No change needed'"}]}
 
-The sections, in order, must cover the WHOLE policy, so that joining every chosen section gives a complete policy. Keep the provider's own details (names, timescales, arrangements) unless a source says they are wrong. Mark a section "No change needed" and repeat its wording when it is already right.`;
+The sections, in order, must cover the WHOLE policy, so that joining every chosen section gives a complete policy. Keep the provider's own details (names, timescales, arrangements) unless a source says they are wrong. When a section is already right, give its original wording, set "proposed" to an empty string and the reason to "No change needed": do not write it out twice. Keep the whole answer as short as the policy allows.`;
 }
 
 export function improvePrompt(opts: {

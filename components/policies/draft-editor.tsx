@@ -52,7 +52,8 @@ export default function DraftEditor({
   owners: Array<{ id: string; full_name: string | null; role: string }>;
 }) {
   const review = draft.review;
-  const [use, setUse] = useState<string[]>(() => (review ? review.sections.map(() => "proposed") : []));
+  /* A section the AI left unchanged (no suggestion) starts on the provider's own wording. */
+  const [use, setUse] = useState<string[]>(() => (review ? review.sections.map((s) => (s.proposed.trim() ? "proposed" : "original")) : []));
   const [body, setBody] = useState(draft.draft_text ?? "");
   const [target, setTarget] = useState<string>(draft.policy_id ?? sameTopic?.id ?? "new");
   /* Everything still marked "[To be completed: ...]", as fields under the policy (Phil,
@@ -126,7 +127,7 @@ export default function DraftEditor({
                     </div>
                     <div>
                       <p className="mb-1 text-xs uppercase tracking-wide text-white/40">Suggested</p>
-                      <textarea name={`text_${i}`} rows={8} defaultValue={s.proposed} disabled={use[i] !== "proposed"} />
+                      <textarea name={`text_${i}`} rows={8} defaultValue={s.proposed || s.original} disabled={use[i] !== "proposed"} />
                     </div>
                   </div>
                 </div>
