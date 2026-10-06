@@ -174,6 +174,15 @@ export function NavIcon({
           <path d="M3.5 21c1.7 0 2.4-1.4 3.8-1.4 1.1 0 1.5.8 2.7.8 1.5 0 2.1-1.6 3.7-1.6 1.2 0 1.6.9 2.8.9 1 0 1.6-.5 2.3-1.1" />
         </svg>
       );
+    /* An open book, not another sheet of paper: BCC already has four document shaped icons
+       (invoicing, reports, forms, submissions), and a department must not look like them. */
+    case "policies":
+      return (
+        <svg {...common}>
+          <path d="M12 6.5C10.3 5.2 7.9 4.5 4 4.5v13c3.9 0 6.3.7 8 2 1.7-1.3 4.1-2 8-2v-13c-3.9 0-6.3.7-8 2z" />
+          <path d="M12 6.5v13" />
+        </svg>
+      );
     case "readiness":
       return (
         <svg {...common}>

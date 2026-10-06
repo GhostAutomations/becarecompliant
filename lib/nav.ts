@@ -43,6 +43,7 @@ export type NavEntry = {
     | "absence"
     | "submissions"
     | "briefings"
+    | "policies"
     | "training"
     | "compliance"
     | "outcomes"
@@ -171,6 +172,15 @@ export const NAV_ENTRIES: NavEntry[] = [
     // the control: whistleblowing_disclosures refuses everyone else in RLS (0174/0175),
     // because the commonest real disclosure is about a manager.
     roles: ["company_admin", "registered_individual"],
+  },
+  {
+    /* Its own department since 2026-10-06 (Phil: "make that its own department"), out of
+       Settings. Admins write; Managers read and send them out from Briefings. */
+    href: "/policies",
+    label: "Policies",
+    icon: "policies",
+    group: "Departments",
+    roles: ["platform_admin", "company_admin", "registered_individual", "registered_manager", "manager"],
   },
   {
     href: "/briefings",

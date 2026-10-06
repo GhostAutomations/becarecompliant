@@ -24,7 +24,7 @@ import {
 } from "../actions";
 import { listInviteDomains, readInviteDomains } from "@/lib/invite-domains";
 import SettingsSection from "@/components/settings/settings-section";
-import { MODULES, isLocked, disabledKey } from "@/lib/auth/module-catalogue";
+import { MODULES, POLICY_WRITER_ROLES, isLocked, disabledKey } from "@/lib/auth/module-catalogue";
 import { companyRoles, disabledModules } from "@/lib/auth/module-access";
 import { COPYABLE_ROLES, displayRoleLabel, roleChoiceValue } from "@/lib/auth/custom-roles";
 import { isCompanyWideRole } from "@/lib/people/roles";
@@ -139,7 +139,7 @@ export default async function UsersPage() {
         .order("created_at", { ascending: false }),
       supabase
         .from("companies")
-        .select("invite_email_domains, tier")
+        .select("invite_email_domains, tier, policy_writer_roles")
         .eq("id", companyId)
         .maybeSingle(),
     ]);
@@ -747,6 +747,11 @@ export default async function UsersPage() {
                 locked: isLocked(m.key, role),
                 on: m.roles.includes(role) && !disabled.has(disabledKey(role, m.key)),
               }))}
+              policyWrite={
+                POLICY_WRITER_ROLES.includes(role)
+                  ? { on: ((company?.policy_writer_roles as string[] | null) ?? []).includes(role) }
+                  : undefined
+              }
               checksUnder={
                 role === "senior"
                   ? { people: seniorChecks("people"), service_users: seniorChecks("service_users") }

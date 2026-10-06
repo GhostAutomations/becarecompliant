@@ -58,6 +58,7 @@ export default function RoleAccessTile({
   modules,
   companyRole = null,
   checksUnder,
+  policyWrite,
 }: {
   role: string;
   roleLabel: string;
@@ -66,6 +67,9 @@ export default function RoleAccessTile({
   checksUnder?: Partial<Record<string, CheckTick[]>>;
   /** Set when this is a role the company made: what it copies, and who is on it. */
   companyRole?: { id: string; baseLabel: string; people: number } | null;
+  /** Managers, Registered Managers and Registered Individuals only (0399): whether this role
+   *  may write and approve policies like an Admin. Absent, the tile does not offer it. */
+  policyWrite?: { on: boolean };
 }) {
   const offered = modules.filter((m) => m.allowed).length;
 
@@ -245,6 +249,17 @@ export default function RoleAccessTile({
             );
           })}
         </div>
+        {/* POLICIES, LIKE AN ADMIN (Phil, 2026-10-06). Posted with a marker so a save from a tile
+            that offers it always says on or off, and a tile that does not cannot change it. */}
+        {policyWrite ? (
+          <div className="mt-2 border-t border-dashed border-white/20 pt-2">
+            <input type="hidden" name="policy_write_offered" value="1" />
+            <label className="flex items-center gap-2 rounded-lg px-2 py-1 text-[13px] cursor-pointer text-white/80 hover:bg-white/5">
+              <input type="checkbox" name="policy_write" value="1" defaultChecked={policyWrite.on} className="shrink-0" />
+              <span className="min-w-0">Policies: can write and approve, like an Admin</span>
+            </label>
+          </div>
+        ) : null}
       </ActionForm>
 
       {companyRole ? (

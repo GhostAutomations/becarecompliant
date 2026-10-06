@@ -4017,3 +4017,18 @@ and Send login email per login (password typed again, set as typed so the email 
 Add person, Manage record), tested SC1 to SC4 incl. CQC. DEF-098 fixed (refused saves kept).
 0361 SCW renewal date (Phil's popup: amber 90 days, daily digest by the send by date, expired
 registrations not counted on the PQS); also an "SCW renewal date" import column. Tests SR1 to SR6.
+
+### 2026-10-06 Policies becomes its own department, with an AI policy writer (Phase 13, Phil chose current phase)
+
+Phil: "make that its own department, still where a company can upload their policies but also where they can create a policy or have their policy improved ... a new ai tool ... with information gathered from ACAS, CQC, NHS, CIW, Social Care Wales and all other relevant bodies".
+
+Decided by popup, 2026-10-06:
+- Name **Policies**, its own department in the side menu. Briefings still sends policies out for signing.
+- Expertise = a **curated guidance library** (legislation, CQC, CIW, Social Care Wales, ACAS, NHS, NICE), each source with its link and checked date; the AI writes only from it and cites. **Re-checked every 28 days**; a changed source becomes a Founder notice with a plain English summary, and only once Phil approves does any company see "guidance changed, review this policy".
+- First version: **write a new policy**, **improve my policy**, **owner + review date + RAG register on the dashboard**, **required policies checklist** by regulator.
+- **Admins write, Managers view and send.**
+- AI drafts and checks **spend AI credits and are metered** like the other AI tools.
+
+Research (2026-10-06): QCS (library + Lyra AI answers questions, does not draft), Access Group (130+ policies, Evo AI drafts amendments to THEIR library, from £2.75/user/month), Care Daily, PolicyPro, CuraFlow, ComplyPlus, Carebound, W&P, e-Care Hub (template packs). No product drafts a policy for the company's own service with sources and checks the company's own policy for gaps. Wales regulation 12 (SI 2017/1264) lists the mandatory policies. Acas and other public sector content is reusable under the Open Government Licence with attribution.
+
+Tasks: department; review dates and register; required checklist; guidance library with 28 day re-check; guidance content; AI write; AI improve; test on Bevan then roll out.

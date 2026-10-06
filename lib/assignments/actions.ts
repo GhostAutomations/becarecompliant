@@ -18,7 +18,7 @@
 
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
-import { requireCompany, requireCompanyAdmin } from "@/lib/auth/guards";
+import { requireCompany, requirePolicyWriter } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { submitEvidence, type EvidenceFileInput } from "@/lib/evidence/submit";
@@ -112,7 +112,7 @@ export async function updatePolicySigning(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const { user, profile } = await requireCompanyAdmin();
+  const { user, profile } = await requirePolicyWriter();
   if (!profile.company_id) return { error: "No company context." };
   const policyId = String(formData.get("policy_id") ?? "");
   if (!policyId) return { error: "Missing policy." };
@@ -145,7 +145,7 @@ export async function updatePolicySigning(
     metadata: rules,
   });
 
-  revalidatePath("/settings/policies");
+  revalidatePath("/policies");
   return { ok: "Saved." };
 }
 
@@ -171,7 +171,7 @@ export async function renamePolicy(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const { user, profile } = await requireCompanyAdmin();
+  const { user, profile } = await requirePolicyWriter();
   if (!profile.company_id) return { error: "No company context." };
   const policyId = String(formData.get("policy_id") ?? "");
   if (!policyId) return { error: "Missing policy." };
@@ -212,7 +212,7 @@ export async function renamePolicy(
     metadata: { from: was, to: title },
   });
 
-  revalidatePath("/settings/policies");
+  revalidatePath("/policies");
   revalidatePath("/briefings");
   return { ok: "Renamed." };
 }
@@ -237,7 +237,7 @@ export async function uploadPolicy(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const { user, profile } = await requireCompanyAdmin();
+  const { user, profile } = await requirePolicyWriter();
   if (!profile.company_id) return { error: "No company context." };
   const companyId = profile.company_id;
 
@@ -318,7 +318,7 @@ export async function uploadPolicy(
   });
 
   await rememberSigningDefaults(companyId, rules);
-  revalidatePath("/settings/policies");
+  revalidatePath("/policies");
   return { ok: "Policy added." };
 }
 
@@ -327,7 +327,7 @@ export async function archivePolicy(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const { user, profile } = await requireCompanyAdmin();
+  const { user, profile } = await requirePolicyWriter();
   if (!profile.company_id) return { error: "No company context." };
   const policyId = String(formData.get("policy_id") ?? "");
   if (!policyId) return { error: "Missing policy." };
@@ -353,7 +353,7 @@ export async function archivePolicy(
     summary: `Archived the policy "${data[0].title}"`,
   });
 
-  revalidatePath("/settings/policies");
+  revalidatePath("/policies");
   return { ok: "Archived." };
 }
 
@@ -730,7 +730,7 @@ export async function createWrittenPolicy(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const { user, profile } = await requireCompanyAdmin();
+  const { user, profile } = await requirePolicyWriter();
   if (!profile.company_id) return { error: "No company context." };
   const companyId = profile.company_id;
 
@@ -803,7 +803,7 @@ export async function createWrittenPolicy(
   });
 
   await rememberSigningDefaults(companyId, writtenRules);
-  revalidatePath("/settings/policies");
+  revalidatePath("/policies");
   return { ok: "Policy saved." };
 }
 
@@ -813,7 +813,7 @@ export async function updateWrittenPolicy(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const { user, profile } = await requireCompanyAdmin();
+  const { user, profile } = await requirePolicyWriter();
   if (!profile.company_id) return { error: "No company context." };
   const companyId = profile.company_id;
   const policyId = String(formData.get("policy_id") ?? "");
@@ -873,7 +873,7 @@ export async function updateWrittenPolicy(
     metadata: { version: nextVersion, source: "text", reassigned },
   });
 
-  revalidatePath("/settings/policies");
+  revalidatePath("/policies");
   revalidatePath("/briefings");
   if (reassigned > 0) {
     return {
@@ -963,7 +963,7 @@ export async function uploadPolicyVersion(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const { user, profile } = await requireCompanyAdmin();
+  const { user, profile } = await requirePolicyWriter();
   if (!profile.company_id) return { error: "No company context." };
   const companyId = profile.company_id;
   const policyId = String(formData.get("policy_id") ?? "");
@@ -1034,7 +1034,7 @@ export async function uploadPolicyVersion(
     metadata: { version: nextVersion, file_name: file.name, reassigned },
   });
 
-  revalidatePath("/settings/policies");
+  revalidatePath("/policies");
   revalidatePath("/briefings");
   if (reassigned > 0) {
     return {
@@ -1111,7 +1111,7 @@ export async function reassignPolicyToEveryone(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const { user, profile } = await requireCompanyAdmin();
+  const { user, profile } = await requirePolicyWriter();
   if (!profile.company_id) return { error: "No company context." };
   const policyId = String(formData.get("policy_id") ?? "");
   if (!policyId) return { error: "Missing policy." };
@@ -1143,7 +1143,7 @@ export async function reassignPolicyToEveryone(
     metadata: { version, reassigned },
   });
 
-  revalidatePath("/settings/policies");
+  revalidatePath("/policies");
   revalidatePath("/briefings");
   return {
     ok: `Sent to ${reassigned} ${reassigned === 1 ? "person" : "people"} to sign version ${version}.`,

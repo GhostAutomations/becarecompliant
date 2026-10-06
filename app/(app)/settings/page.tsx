@@ -183,13 +183,7 @@ export default async function SettingsPage() {
             </p>
           </Link>
         )}
-        <Link href="/settings/policies" className="app-tile">
-          <h2 className="text-base font-semibold text-white">Policies</h2>
-          <p className="text-sm text-white/60">
-            Upload your policy documents, then assign them to your team to read and
-            confirm. Each confirmation is stored as Evidence with the date.
-          </p>
-        </Link>
+        {/* Policies left Settings for a department of their own (2026-10-06): /policies. */}
         <Link href="/settings/service-users" className="app-tile">
           <h2 className="text-base font-semibold text-white">Service User checks</h2>
           <p className="text-sm text-white/60">

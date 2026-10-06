@@ -36,6 +36,7 @@ export type ModuleKey =
   | "incidents"
   | "whistleblowing"
   | "briefings"
+  | "policies"
   | "on_call"
   | "planner"
   | "invoicing"
@@ -78,6 +79,10 @@ const MANAGEMENT = [
 
 const ADMIN_ONLY = ["platform_admin", "company_admin"] as const;
 
+/** The roles a company may let write and approve policies like an Admin (0399, Phil
+ *  2026-10-06). The database refuses any other, so this list and the check constraint agree. */
+export const POLICY_WRITER_ROLES: readonly string[] = ["manager", "registered_manager", "registered_individual"];
+
 export const MODULES: readonly ModuleDef[] = [
   {
     key: "dashboard",
@@ -114,6 +119,12 @@ export const MODULES: readonly ModuleDef[] = [
     note: "Not On Call: an out of hours caller records the call in the Handover, and an incident is written up by the branch with the notifiable and safeguarding decisions on it.",
   },
   { key: "whistleblowing", label: "Whistleblowing", roles: MANAGEMENT },
+  {
+    key: "policies",
+    label: "Policies",
+    roles: MANAGEMENT,
+    note: "Admins write and approve policies. Others ticked here can read them.",
+  },
   { key: "briefings", label: "Briefings", roles: OFFICE },
   { key: "on_call", label: "On Call", roles: [...OFFICE, "on_call"] },
   { key: "planner", label: "Planner", roles: OFFICE },

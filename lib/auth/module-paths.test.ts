@@ -46,7 +46,7 @@ test("every department in the catalogue has a path, and every path a department"
   // naming a department that does not exist would refuse everybody.
   const reachable = new Set(
     ["/dashboard", "/people", "/people/training", "/people/holiday", "/people/absence",
-     "/service-users", "/complaints", "/incidents", "/whistleblowing", "/briefings",
+     "/service-users", "/complaints", "/incidents", "/whistleblowing", "/briefings", "/policies",
      "/on-call", "/planner", "/invoicing", "/readiness", "/reports", "/settings", "/my"]
       .map((p) => moduleForPath(p)),
   );

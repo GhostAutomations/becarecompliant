@@ -33,6 +33,7 @@ const PATHS: ReadonlyArray<readonly [string, ModuleKey]> = [
   ["/incidents", "incidents"],
   ["/whistleblowing", "whistleblowing"],
   ["/briefings", "briefings"],
+  ["/policies", "policies"],
   ["/on-call", "on_call"],
   ["/planner", "planner"],
   ["/invoicing", "invoicing"],

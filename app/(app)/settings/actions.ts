@@ -29,7 +29,7 @@ import { picksABranch, mayChooseAllBranches, ALL_BRANCHES } from "@/lib/people/r
 import { trialState } from "@/lib/billing/trial";
 import { trialInviteRefusal } from "@/lib/billing/trial-limits";
 import { isBillableSeat } from "@/lib/billing/seats";
-import { MODULES, isLocked } from "@/lib/auth/module-catalogue";
+import { MODULES, POLICY_WRITER_ROLES, isLocked } from "@/lib/auth/module-catalogue";
 import { canCopyRole, deleteRefusal, parseRoleChoice } from "@/lib/auth/custom-roles";
 import { companyRoles } from "@/lib/auth/module-access";
 import { sendPasswordReset } from "@/lib/auth/password-reset";
@@ -937,6 +937,16 @@ export async function saveRoleModules(_prev: ActionState, formData: FormData): P
       })),
     );
     if (insErr) return { error: insErr.message };
+  }
+
+  /* POLICIES, LIKE AN ADMIN (0399, Phil 2026-10-06). Only when the tile offered the tick, so a
+     tile without it can never switch it off by omission. */
+  if (formData.get("policy_write_offered") === "1" && POLICY_WRITER_ROLES.includes(role)) {
+    const { error: pwErr } = await supabase.rpc("set_policy_writer_role", {
+      p_role: role,
+      p_on: formData.get("policy_write") === "1",
+    });
+    if (pwErr) return { error: pwErr.message };
   }
 
   /* THE SENIOR'S CHECKS (0339): a box per Check under People and Service users. Only for a list

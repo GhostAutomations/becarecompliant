@@ -265,6 +265,25 @@ export async function requireCompanyAdmin(
   redirect("/dashboard");
 }
 
+/**
+ * Requires someone who may write and approve policies: an Admin, or a role the company has
+ * ticked "Can write and approve" on its Policies line (0399, Phil 2026-10-06). The database
+ * asks the same function on every write, so this is the courtesy and RLS is the control.
+ */
+export async function requirePolicyWriter(): Promise<{ user: User; profile: Profile }> {
+  const { user, profile } = await requireCompany();
+  if (profile.role === "platform_admin" || profile.role === "company_admin") return { user, profile };
+  if (profile.company_id && (await canWritePolicies(profile.company_id))) return { user, profile };
+  redirect("/dashboard");
+}
+
+/** Whether the signed in person may write and approve this company's policies. */
+export async function canWritePolicies(companyId: string): Promise<boolean> {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("can_write_policies", { cid: companyId });
+  return data === true;
+}
+
 /** Requires the Founder / Platform Admin. */
 export async function requirePlatformAdmin(): Promise<{
   user: User;
