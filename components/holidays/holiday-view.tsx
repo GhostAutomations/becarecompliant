@@ -420,14 +420,14 @@ export default function HolidayView({
       )}
 
       {/* Requests strip */}
-      <div className="glass-card p-4">
-        <h2 className="mb-3 text-sm font-semibold text-white/80">
-          Pending requests ({pending.length})
-        </h2>
+      {/* Folded by default so the calendar keeps its space; open, it shows five and scrolls (Phil, 2026-10-06). */}
+      <details className="fold glass-card group overflow-hidden">
+        <FoldSummary label={`Pending requests (${pending.length})`} />
+        <div className="border-t border-white/10 p-4">
         {pending.length === 0 ? (
           <p className="text-sm text-white/50">No requests waiting.</p>
         ) : (
-          <ul className="space-y-2">
+          <ul className={`space-y-2${pending.length > 5 ? " max-h-[22rem] overflow-y-auto pr-1" : ""}`}>
             {pending.map((r) => (
               <li
                 key={r.id}
@@ -457,15 +457,15 @@ export default function HolidayView({
             ))}
           </ul>
         )}
-      </div>
+        </div>
+      </details>
 
       {/* Booked holidays still to come: the ones a Manager may need to move. */}
       {canApprove && upcoming.length > 0 && (
-        <div className="glass-card p-4">
-          <h2 className="mb-3 text-sm font-semibold text-white/80">
-            Booked, still to come ({upcoming.length})
-          </h2>
-          <ul className="space-y-2">
+        <details className="fold glass-card group overflow-hidden">
+          <FoldSummary label={`Booked, still to come (${upcoming.length})`} />
+          <div className="border-t border-white/10 p-4">
+          <ul className={`space-y-2${upcoming.length > 5 ? " max-h-[22rem] overflow-y-auto pr-1" : ""}`}>
             {upcoming.map((r) => (
               <li
                 key={r.id}
@@ -484,7 +484,8 @@ export default function HolidayView({
               </li>
             ))}
           </ul>
-        </div>
+          </div>
+        </details>
       )}
 
       {/* Calendar */}
@@ -600,5 +601,17 @@ export default function HolidayView({
         </div>
       )}
     </div>
+  );
+}
+
+/** The heading of a folded list: the same summary row and chevron as the Getting set up card. */
+function FoldSummary({ label }: { label: string }) {
+  return (
+    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 transition hover:bg-white/[0.04]">
+      <span className="text-sm font-semibold text-white/80">{label}</span>
+      <span aria-hidden className="fold-chevron shrink-0 text-lg text-white/40 transition-transform">
+        ›
+      </span>
+    </summary>
   );
 }
