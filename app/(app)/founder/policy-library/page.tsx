@@ -26,6 +26,7 @@ type Row = {
   checked_at: string | null;
   approved_at: string | null;
   pending_summary: string | null;
+  pending_hash: string | null;
   pending_found_at: string | null;
   last_error: string | null;
 };
@@ -41,7 +42,7 @@ export default async function FounderPolicyLibraryPage() {
   const [{ data: sources }, { data: topics }] = await Promise.all([
     db
       .from("policy_sources")
-      .select("id, key, publisher, title, url, regions, current_text, checked_at, approved_at, pending_summary, pending_found_at, last_error")
+      .select("id, key, publisher, title, url, regions, current_text, checked_at, approved_at, pending_summary, pending_hash, pending_found_at, last_error")
       .eq("active", true)
       .order("publisher")
       .order("title"),
@@ -115,10 +116,10 @@ export default async function FounderPolicyLibraryPage() {
               </div>
               <p className="whitespace-pre-line text-sm text-white/80">{r.pending_summary}</p>
               <div className="flex flex-wrap gap-2">
-                <ActionForm action={approveChange} hidden={{ source_id: r.id, tell: "1" }} label="Approve and tell companies" />
+                <ActionForm action={approveChange} hidden={{ source_id: r.id, tell: "1", pending_hash: r.pending_hash ?? "" }} label="Approve and tell companies" />
                 <ActionForm
                   action={approveChange}
-                  hidden={{ source_id: r.id, tell: "0" }}
+                  hidden={{ source_id: r.id, tell: "0", pending_hash: r.pending_hash ?? "" }}
                   label="Approve quietly (no change in substance)"
                   buttonClassName="btn-outline text-xs"
                 />

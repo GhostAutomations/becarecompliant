@@ -64,10 +64,15 @@ export async function syncLibrary(): Promise<{ error: string | null }> {
       questions: t.questions,
       source_keys: t.sourceKeys,
       sort: i,
+      active: true,
     })),
     { onConflict: "key" },
   );
   if (tErr) return { error: tErr.message };
+  /* A standard policy taken off the list stops being offered, like a source (review, 2026-10-07).
+     Kept, not deleted: company policies and drafts still name it. */
+  const keepTopics = SEED_TOPICS.map((t) => t.key);
+  await db.from("policy_topics").update({ active: false }).not("key", "in", `(${keepTopics.join(",")})`);
   await db.from("policy_library_meta").upsert({ id: 1, seed_version: SEED_VERSION, synced_at: new Date().toISOString() }, { onConflict: "id" });
   return { error: null };
 }
@@ -97,11 +102,14 @@ async function summariseChange(title: string, before: string, after: string): Pr
     : `Could not summarise the change: ${r.error}`;
 }
 
-export type CheckResult = { checked: number; unchanged: number; added: number; changed: string[]; failed: string[] };
+export type CheckResult = { checked: number; unchanged: number; added: number; changed: string[]; failed: string[]; deferred: number };
+
+/** Time a run may spend starting new sources (the page and the cron allow 300 seconds). */
+const RUN_BUDGET_MS = 200_000;
 
 export async function checkSources(opts: { force?: boolean; keys?: string[] } = {}): Promise<CheckResult> {
   const db = createServiceClient();
-  const out: CheckResult = { checked: 0, unchanged: 0, added: 0, changed: [], failed: [] };
+  const out: CheckResult = { checked: 0, unchanged: 0, added: 0, changed: [], failed: [], deferred: 0 };
   let q = db.from("policy_sources").select("id, key, title, url, current_text, current_hash, pending_hash, checked_at").eq("active", true);
   if (opts.keys?.length) q = q.in("key", opts.keys);
   const { data } = await q;
@@ -110,7 +118,15 @@ export async function checkSources(opts: { force?: boolean; keys?: string[] } = 
     return Date.now() - new Date(s.checked_at).getTime() >= RECHECK_DAYS * 86_400_000;
   });
 
+  /* Stop starting new sources once most of the five minutes is used, so the run always finishes
+     and the founder is always told (review, 2026-10-07). What is left is still due and is
+     checked on the next run. */
+  const started = Date.now();
   for (const s of due) {
+    if (Date.now() - started > RUN_BUDGET_MS) {
+      out.deferred += 1;
+      continue;
+    }
     out.checked += 1;
     const now = new Date().toISOString();
     const got = await fetchSourceText(s.url);
@@ -131,7 +147,17 @@ export async function checkSources(opts: { force?: boolean; keys?: string[] } = 
         .eq("id", s.id);
       continue;
     }
-    if (got.hash === s.current_hash || got.hash === s.pending_hash) {
+    if (got.hash === s.current_hash) {
+      out.unchanged += 1;
+      /* The page is back to what was approved, so a change found earlier is no longer there and
+         must not be approvable (review, 2026-10-07). */
+      await db
+        .from("policy_sources")
+        .update({ checked_at: now, last_error: null, pending_text: null, pending_hash: null, pending_summary: null, pending_found_at: null })
+        .eq("id", s.id);
+      continue;
+    }
+    if (got.hash === s.pending_hash) {
       out.unchanged += 1;
       await db.from("policy_sources").update({ checked_at: now, last_error: null }).eq("id", s.id);
       continue;
@@ -164,15 +190,20 @@ export async function checkSources(opts: { force?: boolean; keys?: string[] } = 
 export async function approveSourceChange(
   sourceId: string,
   tellCompanies: boolean,
+  /** The change the founder was shown. A different one found since is not approved unseen. */
+  expectedHash?: string | null,
 ): Promise<{ ok: string } | { error: string }> {
   const db = createServiceClient();
   const { data: s } = await db
     .from("policy_sources")
-    .select("id, key, title, pending_text, pending_hash, pending_summary, last_error")
+    .select("id, key, title, regions, pending_text, pending_hash, pending_summary, last_error")
     .eq("id", sourceId)
-    .maybeSingle<{ id: string; key: string; title: string; pending_text: string | null; pending_hash: string | null; pending_summary: string | null; last_error: string | null }>();
+    .maybeSingle<{ id: string; key: string; title: string; regions: string[] | null; pending_text: string | null; pending_hash: string | null; pending_summary: string | null; last_error: string | null }>();
   if (!s) return { error: "That source could not be found." };
   if (!s.pending_text) return { error: "There is no change waiting on that source." };
+  if (expectedHash && s.pending_hash !== expectedHash) {
+    return { error: `${s.title} changed again since this page was opened. Refresh the page to see the latest change before approving.` };
+  }
   if (s.last_error) return { error: `${s.title} could not be read on its last check, so this change cannot be approved. Press Check now.` };
   if (s.pending_text.trim().length < MIN_LEGISLATION_CHARS) return { error: `${s.title} has almost no readable text, so there is nothing to approve.` };
   const now = new Date().toISOString();
@@ -194,11 +225,18 @@ export async function approveSourceChange(
   const { data: topics } = await db.from("policy_topics").select("key").contains("source_keys", [s.key]);
   const keys = ((topics as Array<{ key: string }> | null) ?? []).map((t) => t.key);
   if (keys.length === 0) return { ok: "Approved. No standard policy uses this source." };
+  /* Only companies the guidance applies to: Welsh guidance for CIW companies, English for CQC
+     (review, 2026-10-07: every company with the topic was told, in either nation). */
+  const regs = (s.regions ?? []).flatMap((r) => (r === "wales" ? ["ciw"] : r === "england" ? ["cqc"] : []));
+  const { data: cos } = await db.from("companies").select("id").in("regulator", regs.length ? regs : ["ciw", "cqc"]);
+  const companyIds = ((cos as Array<{ id: string }> | null) ?? []).map((c) => c.id);
+  if (companyIds.length === 0) return { ok: "Approved. No company is in the nation this guidance covers." };
   const note = `Guidance changed: ${s.title}. ${(s.pending_summary ?? "").replace(/\s+/g, " ").slice(0, 600)}`;
   const { data: flagged, error: fErr } = await db
     .from("company_policies")
     .update({ guidance_changed_at: now, guidance_change_note: note })
     .in("topic_key", keys)
+    .in("company_id", companyIds)
     .eq("status", "active")
     .select("id");
   if (fErr) return { error: fErr.message };

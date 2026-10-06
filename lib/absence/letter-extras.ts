@@ -49,6 +49,9 @@ export async function loadLetterExtras(opts: {
   companyId: string;
   personId: string;
   conductorId: string;
+  /** Count absences as they stood on this day (yyyy-mm-dd). A copy made afterwards counts as of the
+   *  booking day, so it lists what the original letter listed. Today when not given. */
+  asOfIso?: string;
 }): Promise<LetterExtras> {
   const admin = createServiceClient();
   const [{ data: person }, { data: branches }, { data: conductorPerson }, { data: conductorProfile }, { data: events }, meetingName, logoDataUrl, config] =
@@ -75,7 +78,7 @@ export async function loadLetterExtras(opts: {
   const head = useOwn ? own : office;
   const headAddress = head ? resolveBranchAddress(head, officeAddress(rows)).address : null;
 
-  const today = formatCivilDate(todayInLondon());
+  const today = opts.asOfIso && /^\d{4}-\d{2}-\d{2}$/.test(opts.asOfIso) ? opts.asOfIso : formatCivilDate(todayInLondon());
   const windowStart = windowStartIso(today, config.window);
   const counted = countedAbsences(
     ((events ?? []) as Array<InvitationAbsence & { discounted_at: string | null }>).filter((e) => e.start_date <= today),

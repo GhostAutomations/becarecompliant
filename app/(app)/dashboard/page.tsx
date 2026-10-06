@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { isCarerLogin } from "@/lib/auth/carer-login";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
-import RealtimeRefresh from "@/components/realtime-refresh";
+import DashboardLive from "@/components/dashboard/dashboard-live";
+import { readSnapshot, writeSnapshot } from "@/lib/dashboard/snapshot";
 import PreviewTile from "@/components/dashboard/preview-tile";
 import type { PreviewLine } from "@/lib/dashboard/due-preview";
 import { getUrgentFollowUps } from "@/lib/on-call/data";
@@ -738,39 +739,44 @@ export default async function DashboardPage() {
   // One "now" for the whole render, so every urgent follow up is judged against the same clock.
   const renderedAt = Date.now();
   const dashTodayIso = formatCivilDate(todayInLondon());
-  const canSeeOnCall = onCallPlus && (await featureEnabled(companyId, "on_call"));
-  // The department's name for this company (0276), so the tile does not say "On Call" to a
-  // company whose nav calls it something else.
-  const onCallName = await getOnCallLabel(companyId);
-  const canSeePqs = await featureEnabled(companyId, "outcomes_satisfaction");
-  // The Planner tile shows THIS user's planner, so it is drawn only for someone who has one:
-  // the same roles the Planner page allows, and only when the feature is on.
-  const canSeePlanner =
-    PLANNER_ROLES.includes(profile.role) && (await featureEnabled(companyId, "planner"));
-  // Complaints hold special category data, so the tile is drawn for exactly the roles the
-  // Complaints register itself admits, and only when the feature is on. Anything less and a
-  // Supervisor would read a zero and take it to mean there are no complaints.
-  const canSeeComplaints =
-    COMPLAINTS_ROLES.includes(profile.role) && (await featureEnabled(companyId, "complaints"));
+  /* SPEED (Phil, 2026-10-07: "it takes too long before the page comes and loads"). The feature
+     switches and the company row are read side by side, not one after another. */
+  const [onCallOn, onCallName, canSeePqs, plannerOn, complaintsOn, coRow] = await Promise.all([
+    onCallPlus ? featureEnabled(companyId, "on_call") : Promise.resolve(false),
+    // The department's name for this company (0276), so the tile does not say "On Call" to a
+    // company whose nav calls it something else.
+    getOnCallLabel(companyId),
+    featureEnabled(companyId, "outcomes_satisfaction"),
+    // The Planner tile shows THIS user's planner, so it is drawn only for someone who has one:
+    // the same roles the Planner page allows, and only when the feature is on.
+    PLANNER_ROLES.includes(profile.role) ? featureEnabled(companyId, "planner") : Promise.resolve(false),
+    // Complaints hold special category data, so the tile is drawn for exactly the roles the
+    // Complaints register itself admits, and only when the feature is on. Anything less and a
+    // Supervisor would read a zero and take it to mean there are no complaints.
+    COMPLAINTS_ROLES.includes(profile.role) ? featureEnabled(companyId, "complaints") : Promise.resolve(false),
+    getCompanyRow(companyId),
+  ]);
+  const canSeeOnCall = onCallPlus && onCallOn;
+  const canSeePlanner = PLANNER_ROLES.includes(profile.role) && plannerOn;
+  const canSeeComplaints = COMPLAINTS_ROLES.includes(profile.role) && complaintsOn;
   // No feature gate: recording an incident is a legal duty on every tier, Business included.
   const canSeeIncidents = INCIDENT_ROLES.includes(profile.role);
 
-  const [
-    score,
-    trainingPct,
-    policyCoverage,
-    auditsPct,
-    duePreview,
-    plannerWeek,
-    complaints,
-    incidentActions,
-    absenceActions,
-    holidaysPending,
-    spend,
-    activity,
-    onCallUrgent,
-  ] =
-    await Promise.all([
+  /* THE TEN MINUTE SNAPSHOT (0413, lib/dashboard/snapshot.ts). The engines that read whole
+     registers are worked out at most once every ten minutes for this person, or when they press
+     Refresh; the live tiles below are read fresh on every load and every push. */
+  type Heavy = {
+    score: ComplianceScore;
+    trainingPct: number | null;
+    policyCoverage: Awaited<ReturnType<typeof getPolicyCoverage>> | null;
+    auditsPct: number | null;
+    pqs: Awaited<ReturnType<typeof getPqsSummary>> | null;
+    pqsScopes: Awaited<ReturnType<typeof getPqsScopes>>;
+    branchReadiness: BranchReadiness[];
+  };
+  const snap = await readSnapshot<Heavy>(user.id, companyId, profile.role);
+  const workOutHeavy = async (): Promise<Heavy> => {
+    const [score, trainingPct, policyCoverage, auditsPct, pqs] = await Promise.all([
       companyWide
         ? getComplianceScore(companyId, { companyWide: true })
         : Promise.resolve({ enabled: false } as ComplianceScore),
@@ -779,6 +785,30 @@ export default async function DashboardPage() {
       // branch slice of it would answer a question nobody asked.
       companyWide ? getPolicyCoverage(companyId) : Promise.resolve(null),
       getAuditsCompleted(companyId),
+      canSeePqs ? getPqsSummary(companyId, coRow?.name ?? "Company") : Promise.resolve(null),
+    ]);
+    // The white score tiles: the company and every branch this user can see. Only computed when
+    // there are measures to show, since each extra branch is a full run of the PQS engine.
+    const [pqsScopes, branchReadiness] = await Promise.all([
+      pqs && pqs.length > 0
+        ? (async () =>
+            getPqsScopes(
+              companyId,
+              coRow?.name ?? "Company",
+              pqs,
+              (await listAccessibleBranchTypes(companyId, profile.role, user.id)).map((b) => ({ id: b.id, name: b.name })),
+            ))()
+        : Promise.resolve([]),
+      /* PER REGISTERED SERVICE (0363). Empty when the company has no branch ticked as registered,
+         and then the tile keeps showing the themes for every branch together, as before. */
+      score.enabled ? getBranchReadiness(companyId, score.regulator) : Promise.resolve([] as BranchReadiness[]),
+    ]);
+    return { score, trainingPct, policyCoverage, auditsPct, pqs, pqsScopes, branchReadiness };
+  };
+
+  const [heavy, live] = await Promise.all([
+    snap ? Promise.resolve(snap.payload) : workOutHeavy(),
+    Promise.all([
       getDuePreview(companyId),
       canSeePlanner ? getPlannerWeek(user.id) : Promise.resolve([]),
       canSeeComplaints
@@ -796,23 +826,11 @@ export default async function DashboardPage() {
         : Promise.resolve(null as Awaited<ReturnType<typeof getSpendThisMonth>> | null),
       getRecentActivity(companyId),
       canSeeOnCall ? getUrgentFollowUps(companyId) : Promise.resolve([]),
-    ]);
-  const coRow = await getCompanyRow(companyId);
-  const pqs = canSeePqs ? await getPqsSummary(companyId, coRow?.name ?? "Company") : null;
-  // The white score tiles: the company and every branch this user can see. Only computed when
-  // there are measures to show, since each extra branch is a full run of the PQS engine.
-  const pqsScopes =
-    pqs && pqs.length > 0
-      ? await getPqsScopes(
-          companyId,
-          coRow?.name ?? "Company",
-          pqs,
-          (await listAccessibleBranchTypes(companyId, profile.role, user.id)).map((b) => ({
-            id: b.id,
-            name: b.name,
-          })),
-        )
-      : [];
+    ]),
+  ]);
+  const builtAt = snap ? snap.builtAt : await writeSnapshot(user.id, companyId, profile.role, heavy);
+  const { score, trainingPct, policyCoverage, auditsPct, pqs, pqsScopes, branchReadiness } = heavy;
+  const [duePreview, plannerWeek, complaints, incidentActions, absenceActions, holidaysPending, spend, activity, onCallUrgent] = live;
 
   const pqsWindow = defaultOnTimeWindow();
   /* Each due tile opens its own report (Phil, 2026-10-05). A role that cannot open the due
@@ -827,9 +845,6 @@ export default async function DashboardPage() {
    * rather than a hole where two tiles they may not read would have been.
    */
 
-  /* PER REGISTERED SERVICE (0363). Empty when the company has no branch ticked as registered,
-     and then the tile keeps showing the themes for every branch together, as before. */
-  const branchReadiness: BranchReadiness[] = score.enabled ? await getBranchReadiness(companyId, score.regulator) : [];
 
   const healthy =
     score.enabled ? score.requirements.filter((r) => r.status === "green").length : 0;
@@ -837,14 +852,6 @@ export default async function DashboardPage() {
 
   return (
     <div className="w-full space-y-3">
-      <RealtimeRefresh />
-      <RealtimeRefresh
-        tables={["service_users", "check_instances", "service_user_trackers"]}
-        channel="service-users-live"
-      />
-      {/* A Return to Work moves the moment the employee sends their answers (0331). */}
-      <RealtimeRefresh tables={["rtw_questionnaires", "absence_events"]} channel="rtw-live" />
-
       {billingMessage ? <BillingAttention message={billingMessage} /> : null}
 
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -853,6 +860,8 @@ export default async function DashboardPage() {
           <p className="page-subtitle">{subtitle}</p>
         </div>
         <div className="flex items-center gap-2">
+          {/* LIVE BY PUSH, NOT BY RELOAD: the quiet refresh and the "Figures from" time sit here. */}
+          <DashboardLive builtAt={builtAt} />
           {/* The date range chip is gone (Phil, 2026-07-30): every figure on this page is live and
               nothing was ever going to filter by period. "Reports" rather than "Export report",
               because the button opens the Reports page, it does not export anything. */}

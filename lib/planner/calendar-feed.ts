@@ -291,7 +291,7 @@ export async function loadFeedByToken(
   const [{ data: meetings }, { data: cfg }] = await Promise.all([
     service
       .from("absence_meetings")
-      .select("id, stage, meeting_date, meeting_time, duration_minutes, response, created_at, responded_at, person:people(full_name, archived_at, employment_status), branch:branches(name)")
+      .select("id, stage, meeting_date, meeting_time, duration_minutes, response, created_at, responded_at, updated_at, person:people(full_name, archived_at, employment_status), branch:branches(name)")
       .eq("company_id", companyId)
       .eq("conducted_by", profileId)
       .is("evidence_id", null)
@@ -309,6 +309,7 @@ export async function loadFeedByToken(
     response: string | null;
     created_at: string;
     responded_at: string | null;
+    updated_at: string | null;
     person: { full_name: string; archived_at: string | null; employment_status: string | null } | { full_name: string; archived_at: string | null; employment_status: string | null }[] | null;
     branch: { name: string } | { name: string }[] | null;
   };
@@ -330,7 +331,8 @@ export async function loadFeedByToken(
       status: "planned",
       notes: null,
       url: `${base}/people/absence`,
-      updatedAt: m.responded_at ?? m.created_at,
+      // When the meeting last changed (0411), so a rearranged meeting shows as changed in Outlook.
+      updatedAt: m.updated_at ?? m.responded_at ?? m.created_at,
     });
   }
   events.sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate) || (a.startTime ?? "").localeCompare(b.startTime ?? ""));

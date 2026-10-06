@@ -151,7 +151,7 @@ export default function BranchForm({
             name="phone"
             type="tel"
             defaultValue={initialPhone}
-            placeholder="029 2252 0104"
+            placeholder="029 2018 0999"
             disabled={pending}
           />
           <p className="mt-1 text-[11px] text-white/40">

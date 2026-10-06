@@ -156,12 +156,21 @@ export async function getDraft(id: string, companyId: string): Promise<PolicyDra
   const supabase = await createClient();
   const { data } = await supabase
     .from("policy_drafts")
-    .select("id, topic_key, kind, policy_id, title, draft_text, review, sources, status, created_at, nation, owner_id, cover")
+    .select("id, topic_key, kind, policy_id, title, draft_text, review, sources, status, created_at, nation, owner_id, cover, updated_at")
     .eq("id", id)
     .eq("company_id", companyId)
     .maybeSingle();
-  return (data as PolicyDraft | null) ?? null;
+  const d = (data as (PolicyDraft & { updated_at?: string | null }) | null) ?? null;
+  /* An approval that crashed part way leaves the draft claimed ("approving"); after ten minutes it
+     is a draft again, so it can be approved (review, 2026-10-07). */
+  if (d && (d.status as string) === "approving" && d.updated_at && Date.now() - new Date(d.updated_at).getTime() > STALE_CLAIM_MS) {
+    return { ...d, status: "draft" };
+  }
+  return d;
 }
+
+/** How long an unfinished approval keeps a draft claimed. */
+export const STALE_CLAIM_MS = 10 * 60 * 1000;
 
 export async function listOpenDrafts(companyId: string): Promise<PolicyDraft[]> {
   const supabase = await createClient();

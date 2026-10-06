@@ -242,7 +242,7 @@ export default async function PoliciesPage() {
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className="text-sm font-semibold text-white">{r.title}</p>
                     <span className={RAG_PILL[rag]}>
-                      {rag === "red" ? "Review overdue" : "Review due"} {ukDate(r.review_due_on)}
+                      {r.review_due_on ? `${rag === "red" ? "Review overdue" : "Review due"} ${ukDate(r.review_due_on)}` : "No review date set"}
                     </span>
                   </div>
                   {writer ? (

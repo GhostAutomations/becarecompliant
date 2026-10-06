@@ -541,7 +541,12 @@ export default function HolidayView({
                  hiding names behind "+1 more" (Phil, 2026-10-06). */
               <div key={i} className="flex flex-col rounded-lg bg-white/5 p-1 text-left">
                 <div className="shrink-0 text-[11px] leading-4 text-white/50">{day}</div>
-                <div className="mt-0.5 grid h-[103px] grid-cols-1 content-start gap-0.5 overflow-y-auto md:grid-cols-2">
+                <div
+                  className="mt-0.5 grid h-[103px] grid-cols-1 content-start gap-0.5 overflow-y-auto md:grid-cols-2"
+                  // Reachable by keyboard, so names past the tenth can be scrolled to (review, 2026-10-07).
+                  tabIndex={hols.length > 5 ? 0 : undefined}
+                  aria-label={hols.length > 5 ? `${hols.length} people off on the ${day}` : undefined}
+                >
                   {hols.map((h) => (
                     <div
                       key={h.id}
@@ -554,9 +559,12 @@ export default function HolidayView({
                     >
                       {/* First name on the left, branch or house on the right, each cut short with an
                           ellipsis rather than spilling into the next column (Phil, 2026-10-06). */}
-                      <span className="min-w-0 truncate">{(h.requester_name ?? "").split(" ")[0]}</span>
-                      {branchName(h.branch_id) && (
-                        <span className="min-w-0 max-w-[55%] shrink-0 truncate text-right opacity-70">
+                      {/* The name comes first and keeps its room; the branch takes what is left.
+                          On a phone, or when one branch is already chosen, the branch is not
+                          shown at all, as there is no room or no need (review, 2026-10-07). */}
+                      <span className="min-w-0 shrink truncate">{(h.requester_name ?? "").split(" ")[0]}</span>
+                      {!branch && branchName(h.branch_id) && (
+                        <span className="hidden min-w-0 flex-1 truncate text-right opacity-70 md:inline">
                           {branchName(h.branch_id)}
                         </span>
                       )}

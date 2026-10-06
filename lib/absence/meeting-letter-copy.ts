@@ -22,6 +22,15 @@ export function meetingLetterPath(companyId: string, letterId: string): string {
   return `${companyId}/meeting-letters/${letterId}.pdf`;
 }
 
+/**
+ * When copies started being kept: 0406 went live at 13:09:52 UTC on 6 October 2026. Only a meeting
+ * booked BEFORE this can be missing its copy for a good reason, so only those are made afterwards.
+ * A later booking always keeps its own copy as the letter goes; making one for it on a page load
+ * (while the real one is still being sent) gave the same meeting two copies, one wrongly marked
+ * as made afterwards (review, 2026-10-07).
+ */
+export const COPIES_KEPT_FROM = "2026-10-06T13:09:52Z";
+
 export const REBUILT_NOTICE =
   "Copy made afterwards from the booking details and the letter wording, as the original was sent before copies were kept.";
 
@@ -44,6 +53,9 @@ export type KeepMeetingLetterInput = {
   sentBy: { id: string; name: string | null };
   /** Made afterwards for a meeting booked before copies were kept. */
   rebuilt?: boolean;
+  /** When the letter went. A copy made afterwards gives the booking time, so Evidence history
+   *  dates and sorts it by the day it was sent, not the day the copy was made. */
+  sentAt?: string;
 };
 
 /** Store and record the copy. Returns an error rather than throwing, so a booking that has already
@@ -74,6 +86,7 @@ export async function keepMeetingLetter(
     sent_by: input.sentBy.id,
     sent_by_name: input.sentBy.name,
     rebuilt: Boolean(input.rebuilt),
+    ...(input.sentAt ? { sent_at: input.sentAt } : {}),
     pdf_path: path,
     pdf_sha256: createHash("sha256").update(input.pdf).digest("hex"),
   });

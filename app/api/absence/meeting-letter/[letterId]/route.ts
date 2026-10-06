@@ -24,6 +24,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ letterId: 
     evidenceId: data.id as string,
     path: data.pdf_path as string,
     label: "absence meeting invitation letter",
+    entityType: "absence_meeting_letter",
     actor: { id: profile.id, email: profile.email, role: profile.role },
   });
   if (!res.ok) return exportError(res.error, 404);

@@ -10,15 +10,21 @@ import { createClient } from "@/lib/supabase/server";
 import { ROLE_LABELS } from "@/lib/nav";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { getCompanyLogoDataUrl } from "@/lib/invoicing/logo";
+import { EVIDENCE_BUCKET } from "@/lib/evidence/storage";
 import {
+  addMonthsClamped,
   cleanReference,
   coverFromForm,
   coverReview,
   documentColours,
+  londonIso,
+  middayOf,
   nameWithRole,
   ordinalDate,
   referencePrefix,
   type CoverPage,
+  type DocumentColours,
+  type FrozenCover,
   type VersionFact,
 } from "./cover";
 
@@ -82,6 +88,17 @@ export async function referenceFor(
   return { reference: data };
 }
 
+/** Give an automatic reference back when the policy it was given to was not saved. Only the last
+ *  number given can go back (0411 release_policy_reference), so nothing is ever given twice. */
+export async function releaseReference(companyId: string, reference: string): Promise<void> {
+  try {
+    const supabase = await createClient();
+    await supabase.rpc("release_policy_reference", { cid: companyId, p_reference: reference });
+  } catch (e) {
+    console.error("[policies] reference not given back", { reference, error: (e as Error).message });
+  }
+}
+
 type PolicyCoverRow = {
   company_id: string;
   reference: string | null;
@@ -104,11 +121,13 @@ type VersionRow = {
   review_reason: string | null;
   approved_by_name: string | null;
   approved_by_role: string | null;
+  cover: FrozenCover | null;
 };
 type Db = Pick<Awaited<ReturnType<typeof createClient>>, "from">;
+type Person = { id: string; full_name: string | null; role: string };
 
 /** Everything stored about a policy that its cover prints, read with the given client. */
-async function loadCoverFacts(db: Db, policyId: string) {
+async function loadCoverFacts(db: Db, policyId: string, extraPeople: string[] = []) {
   const [{ data: p }, { data: versions }] = await Promise.all([
     db
       .from("company_policies")
@@ -119,47 +138,64 @@ async function loadCoverFacts(db: Db, policyId: string) {
       .maybeSingle<PolicyCoverRow>(),
     db
       .from("company_policy_versions")
-      .select("version, created_at, change_summary, review_reason, approved_by_name, approved_by_role")
+      .select("version, created_at, change_summary, review_reason, approved_by_name, approved_by_role, cover")
       .eq("policy_id", policyId)
       .order("version"),
   ]);
-  const ids = [p?.owner_id, p?.approver_id].filter((x): x is string => Boolean(x));
+  const ids = [p?.owner_id, p?.approver_id, ...extraPeople].filter((x): x is string => Boolean(x));
   const { data: people } = ids.length
     ? await db.from("profiles").select("id, full_name, role").in("id", ids)
-    : { data: [] as Array<{ id: string; full_name: string | null; role: string }> };
-  const who = new Map(((people as Array<{ id: string; full_name: string | null; role: string }> | null) ?? []).map((x) => [x.id, x]));
-  /* The front page's logo and colours (0410). Read with the service client: the logo sits in the
-     private bucket and the colours on the company row, and the caller has already been allowed
-     to see this policy. */
-  let logoDataUrl: string | null = null;
-  let colours = documentColours(null, null);
-  if (p?.company_id) {
-    const admin = createServiceClient();
-    const [{ data: co }, logo] = await Promise.all([
-      admin.from("companies").select("brand_primary, brand_secondary").eq("id", p.company_id).maybeSingle<{ brand_primary: string | null; brand_secondary: string | null }>(),
-      getCompanyLogoDataUrl(p.company_id),
-    ]);
-    logoDataUrl = logo;
-    colours = documentColours(co?.brand_primary, co?.brand_secondary);
+    : { data: [] as Person[] };
+  const who = new Map(((people as Person[] | null) ?? []).map((x) => [x.id, x]));
+  return { p, versions: ((versions as VersionRow[] | null) ?? []), who };
+}
+
+/* The company's logo and colours as they are now. Read with the service client: the logo sits in
+   the private bucket and the colours on the company row, and the caller has already been allowed
+   to see this policy. */
+async function liveBranding(companyId: string | null | undefined): Promise<{ logoDataUrl: string | null; colours: DocumentColours }> {
+  if (!companyId) return { logoDataUrl: null, colours: documentColours(null, null) };
+  const admin = createServiceClient();
+  const [{ data: co }, logo] = await Promise.all([
+    admin.from("companies").select("brand_primary, brand_secondary").eq("id", companyId).maybeSingle<{ brand_primary: string | null; brand_secondary: string | null }>(),
+    getCompanyLogoDataUrl(companyId).catch(() => null),
+  ]);
+  return { logoDataUrl: logo, colours: documentColours(co?.brand_primary, co?.brand_secondary) };
+}
+
+/** A logo copy kept with a version, as a data URL (null when there is none or it cannot be read). */
+async function frozenLogo(path: string | null): Promise<string | null> {
+  if (!path) return null;
+  try {
+    const { data, error } = await createServiceClient().storage.from(EVIDENCE_BUCKET).download(path);
+    if (error || !data) return null;
+    const buf = Buffer.from(await data.arrayBuffer());
+    const mime = path.endsWith(".png") ? "image/png" : path.endsWith(".webp") ? "image/webp" : "image/jpeg";
+    return `data:${mime};base64,${buf.toString("base64")}`;
+  } catch {
+    return null;
   }
-  return {
-    p,
-    versions: ((versions as VersionRow[] | null) ?? []),
-    who,
-    logoDataUrl,
-    colours,
-  };
+}
+
+/** Copy the company logo beside a version, so its cover keeps the logo of the day it was approved. */
+export async function keepLogoForVersion(companyId: string, policyId: string, version: number): Promise<string | null> {
+  try {
+    const admin = createServiceClient();
+    const { data: co } = await admin.from("companies").select("logo_path").eq("id", companyId).maybeSingle<{ logo_path: string | null }>();
+    const src = co?.logo_path;
+    if (!src) return null;
+    const ext = (src.match(/\.(png|jpe?g|webp)$/i)?.[1] ?? "png").toLowerCase();
+    const dest = `${companyId}/policies/${policyId}/v${version}-logo.${ext}`;
+    const { error } = await admin.storage.from(EVIDENCE_BUCKET).copy(src, dest);
+    if (error && !/exists/i.test(error.message)) return null;
+    return dest;
+  } catch {
+    return null;
+  }
 }
 
 function roleLabel(role: string | null | undefined): string | null {
   return role ? (ROLE_LABELS[role] ?? role) : null;
-}
-
-function nextReviewDate(p: PolicyCoverRow | null | undefined, from: Date): Date {
-  if (p?.review_due_on && /^\d{4}-\d{2}-\d{2}$/.test(p.review_due_on)) return new Date(`${p.review_due_on}T12:00:00Z`);
-  const next = new Date(from);
-  next.setMonth(next.getMonth() + (p?.review_months ?? 12));
-  return next;
 }
 
 function toFacts(rows: VersionRow[]): VersionFact[] {
@@ -173,51 +209,22 @@ function toFacts(rows: VersionRow[]): VersionFact[] {
   }));
 }
 
-function assemble(
-  facts: Awaited<ReturnType<typeof loadCoverFacts>>,
-  opts: { version: number; title: string; companyName: string; versions: VersionFact[]; nextReview: Date; current: boolean },
-): CoverPage {
-  const { p, who } = facts;
-  const mine = opts.versions.find((v) => v.version === opts.version);
-  const approver = p?.approver_id ? who.get(p.approver_id) : undefined;
-  const approvedBy = mine?.approvedByName
-    ? nameWithRole(mine.approvedByName, mine.approvedByRole)
-    : nameWithRole(approver?.full_name, roleLabel(approver?.role));
-  const laterReview =
-    opts.current && p?.last_reviewed_on && /^\d{4}-\d{2}-\d{2}$/.test(p.last_reviewed_on)
-      ? { on: new Date(`${p.last_reviewed_on}T12:00:00Z`), byName: p.last_reviewed_by_name, byRole: p.last_reviewed_by_role }
-      : null;
-  return {
-    reference: p?.reference ?? null,
-    title: opts.title,
-    companyName: opts.companyName,
-    version: opts.version,
-    approvedOn: ordinalDate(mine?.at ?? new Date()),
-    approvedBy,
-    owner: p?.owner_id ? (who.get(p.owner_id)?.full_name ?? null) : null,
-    nextReview: ordinalDate(opts.nextReview),
-    appliesTo: p?.applies_to ?? "All staff",
-    readBy: p?.read_by ?? "As set in Briefings",
-    retention: p?.retention ?? "Kept for 8 years after it is replaced",
-    classification: p?.classification ?? "Internal",
-    history: opts.versions
-      .filter((v) => v.version <= opts.version)
-      .sort((a, b) => a.version - b.version)
-      .map((v) => ({
-        version: v.version,
-        date: ordinalDate(v.at),
-        change: v.changeSummary ?? (v.version === 1 ? "First issue" : "Not recorded"),
-        approvedBy: v.approvedByName,
-      })),
-    logoDataUrl: facts.logoDataUrl,
-    colours: facts.colours,
-    review: coverReview({ version: opts.version, versions: opts.versions, nextReview: opts.nextReview, laterReview }),
-  };
+function history(versions: VersionFact[], upTo: number): CoverPage["history"] {
+  return versions
+    .filter((v) => v.version <= upTo)
+    .sort((a, b) => a.version - b.version)
+    .map((v) => ({
+      version: v.version,
+      date: ordinalDate(v.at),
+      change: v.changeSummary ?? (v.version === 1 ? "First issue" : "Not recorded"),
+      approvedBy: v.approvedByName,
+    }));
 }
 
 /**
  * The cover for a version being approved NOW (it is not in company_policy_versions yet): today's
- * date, the chosen approver, and the reason and changes typed on approval.
+ * date, the chosen approver (or, when none is chosen, the person approving it), and the reason
+ * and changes given on approval. Also returns the frozen cover to store with the version.
  */
 export async function buildCoverPage(opts: {
   policyId: string;
@@ -226,48 +233,111 @@ export async function buildCoverPage(opts: {
   companyName: string;
   changeSummary: string;
   reviewReason: string;
-}): Promise<{ cover: CoverPage; approvedByName: string | null; approvedByRole: string | null }> {
+  /** Who is saving it, named as approver when nobody is chosen (review, 2026-10-07). */
+  actorId: string;
+  /** The logo copy kept with this version (keepLogoForVersion). */
+  logoPath: string | null;
+}): Promise<{ cover: CoverPage; frozen: FrozenCover; approvedByName: string | null; approvedByRole: string | null }> {
   const supabase = await createClient();
-  const facts = await loadCoverFacts(supabase, opts.policyId);
-  const approver = facts.p?.approver_id ? facts.who.get(facts.p.approver_id) : undefined;
+  const facts = await loadCoverFacts(supabase, opts.policyId, [opts.actorId]);
+  const { p, who } = facts;
+  const approver = (p?.approver_id ? who.get(p.approver_id) : undefined) ?? who.get(opts.actorId);
   const approvedByName = approver?.full_name ?? null;
   const approvedByRole = roleLabel(approver?.role);
   const now = new Date();
-  const next = new Date(now);
-  next.setMonth(next.getMonth() + (facts.p?.review_months ?? 12));
+  const nextReviewIso = addMonthsClamped(londonIso(now), p?.review_months ?? 12);
+  const branding = await liveBranding(p?.company_id);
+  const logoDataUrl = (await frozenLogo(opts.logoPath)) ?? branding.logoDataUrl;
   const versions: VersionFact[] = [
     ...toFacts(facts.versions).filter((v) => v.version < opts.version),
     { version: opts.version, at: now, changeSummary: opts.changeSummary, reviewReason: opts.reviewReason, approvedByName, approvedByRole },
   ];
-  return {
-    approvedByName,
-    approvedByRole,
-    cover: assemble(facts, { version: opts.version, title: opts.title, companyName: opts.companyName, versions, nextReview: next, current: false }),
+  const frozen: FrozenCover = {
+    reference: p?.reference ?? null,
+    approvedBy: nameWithRole(approvedByName, approvedByRole),
+    owner: p?.owner_id ? (who.get(p.owner_id)?.full_name ?? null) : null,
+    appliesTo: p?.applies_to ?? "All staff",
+    readBy: p?.read_by ?? "As set in Briefings",
+    retention: p?.retention ?? "Kept for 8 years after it is replaced",
+    classification: p?.classification ?? "Internal",
+    nextReviewIso,
+    colours: branding.colours,
+    logoPath: opts.logoPath,
   };
+  const cover: CoverPage = {
+    reference: frozen.reference,
+    title: opts.title,
+    companyName: opts.companyName,
+    version: opts.version,
+    approvedOn: ordinalDate(now),
+    approvedBy: frozen.approvedBy,
+    owner: frozen.owner,
+    nextReview: ordinalDate(middayOf(nextReviewIso)),
+    appliesTo: frozen.appliesTo,
+    readBy: frozen.readBy,
+    retention: frozen.retention,
+    classification: frozen.classification,
+    history: history(versions, opts.version),
+    logoDataUrl,
+    colours: frozen.colours,
+    review: coverReview({ version: opts.version, versions, nextReview: middayOf(nextReviewIso) }),
+  };
+  return { cover, frozen, approvedByName, approvedByRole };
 }
 
 /**
- * THE COVER FOR A VERSION ALREADY SAVED (Phil, 2026-10-06: "where is the cover page?"). A written
- * policy is drawn fresh whenever someone opens it (lib/policies/render.ts), so its cover is built
- * from what was stored when that version was approved. render.ts passes the service client,
- * having already checked the reader may see the policy.
+ * THE COVER FOR A VERSION ALREADY SAVED. A written policy is drawn fresh whenever someone opens it
+ * (lib/policies/render.ts), so its cover is built from what was frozen when that version was
+ * approved (Phil, 2026-10-07: "As it was at that version"). A version saved before covers were
+ * frozen falls back to the policy's settings now. render.ts passes the service client, having
+ * already checked the reader may see the policy.
  */
 export async function coverForSavedVersion(
   db: Db,
   opts: { policyId: string; version: number; title: string; companyName: string; currentVersion: number },
 ): Promise<CoverPage> {
   const facts = await loadCoverFacts(db, opts.policyId);
-  const versions = toFacts(facts.versions);
+  const { p, who } = facts;
+  const rows = facts.versions;
+  const versions = toFacts(rows);
+  const mineRow = rows.find((v) => v.version === opts.version);
   const mine = versions.find((v) => v.version === opts.version);
+  const at = mine?.at ?? new Date();
   const current = opts.version === opts.currentVersion;
-  /* The current version's next review is the policy's own date (it moves on with "Reviewed, no
-     changes needed"); an older version's was a year on from its own approval. */
-  const nextReview = current
-    ? nextReviewDate(facts.p, mine?.at ?? new Date())
-    : (() => {
-        const d = new Date(mine?.at ?? new Date());
-        d.setMonth(d.getMonth() + (facts.p?.review_months ?? 12));
-        return d;
-      })();
-  return assemble(facts, { version: opts.version, title: opts.title, companyName: opts.companyName, versions, nextReview, current });
+  const frozen = mineRow?.cover ?? null;
+
+  /* Next review: the current version follows the policy's own date (it moves on with "Reviewed,
+     no changes needed"); an older version keeps the date it had. */
+  const ownIso =
+    frozen?.nextReviewIso ?? addMonthsClamped(londonIso(at), p?.review_months ?? 12);
+  const nextIso = current && p?.review_due_on && /^\d{4}-\d{2}-\d{2}$/.test(p.review_due_on) ? p.review_due_on : ownIso;
+
+  const branding = frozen ? null : await liveBranding(p?.company_id);
+  const logoDataUrl = frozen ? await frozenLogo(frozen.logoPath) : branding!.logoDataUrl;
+  const approver = p?.approver_id ? who.get(p.approver_id) : undefined;
+  const approvedBy =
+    frozen?.approvedBy ??
+    (mine?.approvedByName ? nameWithRole(mine.approvedByName, mine.approvedByRole) : nameWithRole(approver?.full_name, roleLabel(approver?.role)));
+  const laterReview =
+    current && p?.last_reviewed_on && /^\d{4}-\d{2}-\d{2}$/.test(p.last_reviewed_on)
+      ? { on: middayOf(p.last_reviewed_on), byName: p.last_reviewed_by_name, byRole: p.last_reviewed_by_role }
+      : null;
+  return {
+    reference: frozen?.reference ?? p?.reference ?? null,
+    title: opts.title,
+    companyName: opts.companyName,
+    version: opts.version,
+    approvedOn: ordinalDate(at),
+    approvedBy,
+    owner: frozen ? frozen.owner : p?.owner_id ? (who.get(p.owner_id)?.full_name ?? null) : null,
+    nextReview: ordinalDate(middayOf(nextIso)),
+    appliesTo: frozen?.appliesTo ?? p?.applies_to ?? "All staff",
+    readBy: frozen?.readBy ?? p?.read_by ?? "As set in Briefings",
+    retention: frozen?.retention ?? p?.retention ?? "Kept for 8 years after it is replaced",
+    classification: frozen?.classification ?? p?.classification ?? "Internal",
+    history: history(versions, opts.version),
+    logoDataUrl,
+    colours: frozen?.colours ?? branding!.colours,
+    review: coverReview({ version: opts.version, versions, nextReview: middayOf(nextIso), laterReview }),
+  };
 }

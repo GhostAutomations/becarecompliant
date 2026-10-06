@@ -105,3 +105,4 @@ Phil's example: Thistle's Recruitment Process and Procedure. Decisions: logo lar
   - Retest PASS (deploy dpl_BLbgnL3o): Reason for Review is one line; page 2 tighter.
   - DEFECT found and fixed: the policy heading said "Issued 07 October 2026" (the day it was opened) on a version approved on the 6th. Now the version's own approval date, written "6th October 2026" like the cover. Retest after deploy.
   - Phil, 2026-10-07: removed "Uncontrolled when printed. The current version is held in Be Care Compliant." from the cover footer. Retest after deploy.
+  - Retest PASS (deploy dpl_A8MLLLyf): footer shows only "POL-CARE-002 · Moving & Handling and Falls · version 2"; policy heading reads "Issued 6th October 2026" for version 2.

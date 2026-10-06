@@ -15,7 +15,6 @@ import "server-only";
 
 import {
   Document,
-  Font,
   Image,
   Page,
   StyleSheet,
@@ -26,8 +25,11 @@ import {
 import type { PolicyBlock } from "@/lib/policies/text";
 import { DEFAULT_COLOURS, ordinalDate, type CoverPage } from "@/lib/policies/cover";
 
-/* Whole words only: a label such as "completing" must not break as "complet-ing". */
-Font.registerHyphenationCallback((word) => [word]);
+/* Whole words only on the cover: a label such as "completing" must not break as "complet-ing".
+   Given to the cover's text one by one, not registered for the whole renderer, because that
+   would change how every other PDF (Evidence, invoices, letters) breaks long words (review,
+   2026-10-07). */
+const wholeWords = (word: string) => [word];
 
 const NAVY = "#081231";
 const GOLD = "#f59e0b";
@@ -85,7 +87,7 @@ const BORDER = "#1f2937";
 const coverStyles = StyleSheet.create({
   front: { padding: 0, fontSize: 10.5, color: INK, position: "relative" },
   cornerWrap: { position: "absolute", top: 34, right: 44, width: 170, height: 54, alignItems: "flex-end" },
-  cornerLogo: { height: 54, objectFit: "contain" },
+  cornerLogo: { height: 54, maxWidth: 170, objectFit: "contain" },
   bigLogoWrap: { position: "absolute", top: 150, left: 60, right: 60, height: 260, alignItems: "center", justifyContent: "center" },
   bigLogo: { maxHeight: 260, maxWidth: 420, objectFit: "contain" },
   frontName: { position: "absolute", top: 455, left: 30, right: 30, textAlign: "center", fontSize: 46, fontWeight: 700 },
@@ -106,15 +108,21 @@ const coverStyles = StyleSheet.create({
 function TableRow({ label, value, last }: { label: string; value: string; last?: boolean }) {
   return (
     <View style={[coverStyles.tRow, last ? { borderBottomWidth: 0 } : {}]} wrap={false}>
-      <Text style={coverStyles.tLabel}>{label}</Text>
-      <Text style={coverStyles.tValue}>{value}</Text>
+      <Text style={coverStyles.tLabel} hyphenationCallback={wholeWords}>{label}</Text>
+      <Text style={coverStyles.tValue} hyphenationCallback={wholeWords}>{value}</Text>
     </View>
   );
 }
 
 const HIST_WIDTHS = [52, 112, 0, 120]; // 0 = takes the rest
-/** About how many two line history rows fit on a fresh page; past this the table has to split. */
-const HISTORY_ROWS_PER_PAGE = 22;
+/* A table moves to the next page whole (Phil, 2026-10-06), but one taller than a whole page
+   cannot, so it is allowed to split. Its height is estimated from the text in each row
+   (review, 2026-10-07: a row count alone let a long history run off the page). */
+const PAGE_ROOM = 640; // points for a table on a fresh page, under the logo and heading
+function historyHeight(history: CoverPage["history"]): number {
+  const lines = (text: string, perLine: number) => Math.max(1, Math.ceil(text.length / perLine));
+  return 24 + history.reduce((sum, h) => sum + 9 + 12 * Math.max(lines(h.change, 34), lines(h.approvedBy ?? "", 18), lines(h.date, 18)), 0);
+}
 function HistoryRow({ cells, bold, last }: { cells: string[]; bold?: boolean; last?: boolean }) {
   return (
     <View style={[coverStyles.tRow, last ? { borderBottomWidth: 0 } : {}]} wrap={false}>
@@ -127,7 +135,7 @@ function HistoryRow({ cells, bold, last }: { cells: string[]; bold?: boolean; la
             { paddingVertical: 4.5, paddingHorizontal: 7 },
           ]}
         >
-          <Text style={{ fontSize: 9.5, fontWeight: bold ? 700 : 400 }}>{t}</Text>
+          <Text style={{ fontSize: 9.5, fontWeight: bold ? 700 : 400 }} hyphenationCallback={wholeWords}>{t}</Text>
         </View>
       ))}
     </View>
@@ -173,9 +181,18 @@ function Cover({ c }: { c: CoverPage }) {
             <Image src={c.logoDataUrl} style={coverStyles.bigLogo} />
           </View>
         ) : null}
-        <Text style={[coverStyles.frontName, { color: colours.secondary }]}>{c.companyName}</Text>
+        <Text
+          style={[
+            coverStyles.frontName,
+            // A long name steps down so it stays clear of the band (review, 2026-10-07).
+            { color: colours.secondary, fontSize: c.companyName.length > 40 ? 26 : c.companyName.length > 24 ? 34 : 46 },
+          ]}
+          hyphenationCallback={wholeWords}
+        >
+          {c.companyName}
+        </Text>
         <View style={[coverStyles.band, { backgroundColor: colours.primary }]}>
-          <Text style={coverStyles.bandTitle}>{c.title}</Text>
+          <Text style={coverStyles.bandTitle} hyphenationCallback={wholeWords}>{c.title}</Text>
           {c.reference ? <Text style={coverStyles.bandRef}>{c.reference} · Version {c.version}</Text> : null}
         </View>
       </Page>
@@ -207,7 +224,7 @@ function Cover({ c }: { c: CoverPage }) {
           ))}
         </View>
         </View>
-        <View wrap={c.history.length > HISTORY_ROWS_PER_PAGE}>
+        <View wrap={historyHeight(c.history) > PAGE_ROOM}>
         <Text style={coverStyles.sub}>Change history</Text>
         <View style={coverStyles.table}>
           <HistoryRow cells={["Version", "Date", "What changed", "Approved by"]} bold />

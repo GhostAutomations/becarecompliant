@@ -25,7 +25,7 @@ export async function syncAndCheckAll(_prev: ActionState, _fd: FormData): Promis
   });
   revalidatePath("/founder/policy-library");
   return {
-    ok: `Checked ${r.checked}: ${r.added} loaded, ${r.unchanged} unchanged, ${r.changed.length} changed, ${r.failed.length} could not be read.`,
+    ok: `Checked ${r.checked}: ${r.added} loaded, ${r.unchanged} unchanged, ${r.changed.length} changed, ${r.failed.length} could not be read.${r.deferred ? ` ${r.deferred} left for time: press again to check them.` : ""}`,
   };
 }
 
@@ -43,7 +43,7 @@ export async function approveChange(_prev: ActionState, fd: FormData): Promise<A
   const { profile } = await requirePlatformAdmin();
   const id = String(fd.get("source_id") ?? "");
   const tell = fd.get("tell") === "1";
-  const r = await approveSourceChange(id, tell);
+  const r = await approveSourceChange(id, tell, String(fd.get("pending_hash") ?? "") || null);
   if ("error" in r) return { error: r.error };
   await writeAudit({
     companyId: null,

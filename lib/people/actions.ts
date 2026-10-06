@@ -407,6 +407,7 @@ export async function deletePerson(_prev: ActionState, formData: FormData): Prom
     training,
     absences,
     meetings,
+    meetingLetters,
     holidays,
     incidents,
     complaints,
@@ -437,6 +438,10 @@ export async function deletePerson(_prev: ActionState, formData: FormData): Prom
       .then((r) => r.count ?? 0),
     count("absence_events", "person_id"),
     count("absence_meetings", "person_id"),
+    // A kept invitation letter is a record of what was sent, even after its meeting was
+    // cancelled; deleting the person would take the copy and leave its PDF behind (review,
+    // 2026-10-07), so it counts like a meeting.
+    count("absence_meeting_letters", "person_id"),
     count("holiday_requests", "person_id"),
     count("incidents", "person_id"),
     count("complaint_people", "person_id"),
@@ -454,7 +459,7 @@ export async function deletePerson(_prev: ActionState, formData: FormData): Prom
     evidence,
     completedChecks,
     training,
-    absences: absences + meetings,
+    absences: absences + meetings + meetingLetters,
     holidays,
     incidents,
     complaints,

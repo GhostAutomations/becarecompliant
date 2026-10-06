@@ -28,8 +28,8 @@ import type { ActionState } from "@/lib/forms";
 import { storePolicyBytes, uploadPolicyDocument } from "@/lib/assignments/storage";
 import { parsePolicyText, policyPlainText } from "@/lib/policies/text";
 import { renderPolicyPdf } from "@/lib/policies/pdf";
-import { reviewReasonFrom } from "@/lib/policies/cover";
-import { buildCoverPage, coverPatchFrom, referenceFor } from "@/lib/policies/cover-data";
+import { cleanChangeSummary, reviewReasonFrom } from "@/lib/policies/cover";
+import { buildCoverPage, coverPatchFrom, keepLogoForVersion, referenceFor, releaseReference } from "@/lib/policies/cover-data";
 import { POLICY_ACK_FORM_KEY, type BriefingScope } from "@/lib/assignments/types";
 import { getEffectivePolicyRules } from "@/lib/assignments/data";
 import { seedIdentityAnswers } from "@/lib/assignments/render";
@@ -264,6 +264,12 @@ export async function uploadPolicy(
 
   const rules = signingRulesFrom(formData);
   const supabase = await createClient();
+  /* Which standard policy it is: only a real one is kept (review, 2026-10-07). */
+  let uploadTopic: string | null = String(formData.get("topic_key") ?? "").trim() || null;
+  if (uploadTopic) {
+    const { data: t } = await supabase.from("policy_topics").select("key").eq("key", uploadTopic).maybeSingle();
+    if (!t) uploadTopic = null;
+  }
 
   // Insert first so the row id names the storage path, then attach the file.
   const { data: policy, error } = await supabase
@@ -276,7 +282,7 @@ export async function uploadPolicy(
       reassign_on_new_version: rules.reassign_on_new_version,
       assign_to_new_starters: newStarterFlag(formData),
       // Which standard policy it is, when the AI writer made it (2026-10-06): the checklist.
-      topic_key: String(formData.get("topic_key") ?? "").trim() || null,
+      topic_key: uploadTopic,
       storage_path: "pending",
       file_name: file.name,
       mime_type: file.type || null,
@@ -793,8 +799,14 @@ export async function createWrittenPolicy(
     })
     .select("id, file_name")
     .single();
-  if (error?.code === "23505") return { error: `The reference ${ref.reference} is already used by another of your policies.` };
-  if (error || !policy) return { error: error?.message ?? "The policy could not be saved." };
+  /* A number given automatically goes back when the policy is not saved, so a refused save
+     never leaves a gap in the numbering (review, 2026-10-07). A typed reference is the user's. */
+  const automaticRef = !String(formData.get("reference") ?? "").trim();
+  if (error || !policy) {
+    if (automaticRef) await releaseReference(companyId, ref.reference);
+    if (error?.code === "23505") return { error: `The reference ${ref.reference} is already used by another of your policies.` };
+    return { error: error?.message ?? "The policy could not be saved." };
+  }
 
   const stored = await freezeWrittenVersion({
     companyId,
@@ -806,11 +818,12 @@ export async function createWrittenPolicy(
     version: 1,
     body,
     actorId: user.id,
-    changeSummary: String(formData.get("change_summary") ?? "").trim() || "First issue",
+    changeSummary: cleanChangeSummary(formData.get("change_summary"), "First issue"),
     reviewReason: reviewReasonFrom(formData.get("review_reason"), true),
   });
   if (!stored.ok) {
     await supabase.from("company_policies").delete().eq("id", policy.id);
+    if (automaticRef) await releaseReference(companyId, ref.reference);
     return { error: stored.error };
   }
 
@@ -828,7 +841,8 @@ export async function createWrittenPolicy(
 
   await rememberSigningDefaults(companyId, writtenRules);
   revalidatePath("/policies");
-  return { ok: "Policy saved." };
+  // The new policy's id goes back to an AI approval, so it never has to guess which it was.
+  return { ok: "Policy saved.", data: { policyId: policy.id as string } };
 }
 
 /** Edit the wording of a written policy. Every edit is a NEW VERSION, never an
@@ -882,10 +896,6 @@ export async function updateWrittenPolicy(
   }
 
   const nextVersion = ((policy.version as number | null) ?? 1) + 1;
-  if (converting) {
-    const { error: convErr } = await supabase.from("company_policies").update({ source: "text" }).eq("id", policyId);
-    if (convErr) return { error: convErr.message };
-  }
   const stored = await freezeWrittenVersion({
     companyId,
     companyName: (company?.name as string | null) ?? "Your company",
@@ -896,8 +906,9 @@ export async function updateWrittenPolicy(
     version: nextVersion,
     body,
     actorId: user.id,
-    changeSummary: String(formData.get("change_summary") ?? "").trim() || "Updated",
+    changeSummary: cleanChangeSummary(formData.get("change_summary"), "Updated"),
     reviewReason: reviewReasonFrom(formData.get("review_reason"), false),
+    becomesWritten: converting,
   });
   if (!stored.ok) return { error: stored.error };
 
@@ -960,23 +971,31 @@ async function freezeWrittenVersion(opts: {
   changeSummary: string;
   /** Why it was reviewed, for the cover's Audit Checklist and Report (0410). */
   reviewReason: string;
+  /** An uploaded policy becoming a written one with this version. */
+  becomesWritten?: boolean;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const blocks = parsePolicyText(opts.body);
   if (policyPlainText(blocks).length === 0) {
     return { ok: false, error: "There was no readable wording to save." };
   }
 
-  const cover = await buildCoverPage({
-    policyId: opts.policyId,
-    version: opts.version,
-    title: opts.title,
-    companyName: opts.companyName,
-    changeSummary: opts.changeSummary,
-    reviewReason: opts.reviewReason,
-  });
-
+  /* The cover (0404, 0410): built and drawn inside the same guard, so a cover that cannot be
+     made is an error on screen, never a half saved policy (review, 2026-10-07). The logo is
+     copied beside the version first, so this version's cover keeps it. */
   let pdf: Buffer;
+  let cover: Awaited<ReturnType<typeof buildCoverPage>>;
   try {
+    const logoPath = await keepLogoForVersion(opts.companyId, opts.policyId, opts.version);
+    cover = await buildCoverPage({
+      policyId: opts.policyId,
+      version: opts.version,
+      title: opts.title,
+      companyName: opts.companyName,
+      changeSummary: opts.changeSummary,
+      reviewReason: opts.reviewReason,
+      actorId: opts.actorId,
+      logoPath,
+    });
     pdf = await renderPolicyPdf({
       companyName: opts.companyName,
       title: opts.title,
@@ -1006,6 +1025,8 @@ async function freezeWrittenVersion(opts: {
     review_reason: opts.reviewReason,
     approved_by_name: cover.approvedByName,
     approved_by_role: cover.approvedByRole,
+    // The cover as it stands today, so this version always prints it the same (0411).
+    cover: cover.frozen,
   });
   if (verErr) return { ok: false, error: `The version could not be recorded: ${verErr.message}` };
 
@@ -1022,6 +1043,9 @@ async function freezeWrittenVersion(opts: {
       // A new version answers "the guidance behind this policy changed" (2026-10-06).
       guidance_changed_at: null,
       guidance_change_note: null,
+      // An uploaded policy becomes a written one only once its first written version is safely
+      // stored (review, 2026-10-07: flipping it first left it broken when the save failed).
+      ...(opts.becomesWritten ? { source: "text" } : {}),
     })
     .eq("id", opts.policyId);
   if (polErr) return { ok: false, error: polErr.message };

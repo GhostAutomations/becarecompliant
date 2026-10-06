@@ -24,6 +24,12 @@ export async function runAi(opts: {
    *  refunded in full, like a failed request (Phil, 2026-10-06: "we have to refund credits if
    *  this happens"), so nobody pays for an answer we could not use. */
   accept?: (text: string) => boolean;
+  /** Refuse (and refund) a reply cut off at its length limit, rather than returning it with a
+   *  note: for a document that must be whole, like a policy (review, 2026-10-07). */
+  refuseIfCut?: boolean;
+  /** How long to wait for the AI before giving up and refunding (default 2 minutes). Kept under
+   *  the page's own time limit, so the refund always runs (review, 2026-10-07). */
+  timeoutMs?: number;
 }): Promise<{ ok: string } | { error: string }> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   const model = process.env.ANTHROPIC_MODEL;
@@ -61,8 +67,10 @@ export async function runAi(opts: {
   }
 
   let res: Response;
+  const timeoutMs = opts.timeoutMs ?? 120_000;
   try {
     res = await fetch("https://api.anthropic.com/v1/messages", {
+      signal: AbortSignal.timeout(timeoutMs),
       method: "POST",
       headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
       body: JSON.stringify({
@@ -81,6 +89,10 @@ export async function runAi(opts: {
     });
   } catch (e) {
     await refund();
+    const name = (e as Error).name;
+    if (name === "TimeoutError" || name === "AbortError") {
+      return { error: `The AI took longer than ${Math.round(timeoutMs / 60000)} minutes, so it was stopped. Your credits have been given back. Please try again.` };
+    }
     return { error: `AI request failed: ${(e as Error).message}` };
   }
   if (!res.ok) {
@@ -89,11 +101,17 @@ export async function runAi(opts: {
     return { error: `AI request failed (${res.status}). ${detail.slice(0, 160)}` };
   }
 
-  const json = (await res.json()) as {
+  let json: {
     content?: Array<{ type?: string; text?: string }>;
     stop_reason?: string;
     usage?: { input_tokens?: number; output_tokens?: number };
   };
+  try {
+    json = (await res.json()) as typeof json;
+  } catch (e) {
+    await refund();
+    return { error: `The AI's answer could not be read (${(e as Error).message}). Your credits have been given back. Please try again.` };
+  }
   if (companyId) await recordUsage({
     companyId,
     kind: "ai",
@@ -105,7 +123,7 @@ export async function runAi(opts: {
       input_tokens: json.usage?.input_tokens ?? 0,
       output_tokens: json.usage?.output_tokens ?? 0,
     },
-  });
+  }).catch((e: Error) => console.error("[ai] usage not recorded", { feature: opts.feature, error: e.message }));
 
   const text = (json.content?.map((b) => b.text ?? "").join("") ?? "").trim();
   if (!text) {
@@ -134,6 +152,11 @@ export async function runAi(opts: {
   /* A REPLY THAT RAN OUT OF ROOM SAYS SO (2026-09-24). The readiness narrative hit its 1800 token
      limit on Thistle and stopped mid sentence, and nothing said it had: a manager could have
      handed an inspector a draft that simply ends. */
+  if (json.stop_reason === "max_tokens" && opts.refuseIfCut) {
+    await refund();
+    console.error("[ai] reply cut short, refused", { feature: opts.feature, chars: text.length });
+    return { error: "The AI's answer was too long to finish, so it could not be used. Your credits have been given back. Please try again." };
+  }
   if (json.stop_reason === "max_tokens") {
     console.warn("[ai] reply cut short at max_tokens", { feature: opts.feature });
     return {
@@ -141,4 +164,17 @@ export async function runAi(opts: {
     };
   }
   return { ok: text };
+}
+
+
+/** Give back credits for an AI answer that was paid for but could not be kept (for example, the
+ *  draft it wrote could not be saved). Never throws. */
+export async function giveBackAiCredits(companyId: string, count: number): Promise<void> {
+  for (let i = 0; i < count; i++) {
+    try {
+      await refundAiCredit(companyId);
+    } catch (e) {
+      console.error("[ai] credit not given back", { companyId, error: (e as Error).message });
+    }
+  }
 }

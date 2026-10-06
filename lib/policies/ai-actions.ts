@@ -21,7 +21,7 @@ import { ROLE_LABELS } from "@/lib/nav";
 import { requirePolicyWriter } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
-import { runAi } from "@/lib/ai/anthropic";
+import { giveBackAiCredits, runAi } from "@/lib/ai/anthropic";
 import { POLICY_IMPROVE_CREDITS, POLICY_WRITE_CREDITS } from "@/lib/policies/credits";
 import { fillPlaceholders, findPlaceholders } from "@/lib/policies/placeholders";
 import { coverFromForm } from "@/lib/policies/cover";
@@ -29,8 +29,9 @@ import { docxToText } from "@/lib/policies/docx";
 import { signPolicyDocument } from "@/lib/assignments/storage";
 import { createWrittenPolicy, updateWrittenPolicy } from "@/lib/assignments/actions";
 import type { ActionState } from "@/lib/forms";
-import { listPolicyOwners, companySystemSettings, companyFacts, getDraft, getTopic, promptSources } from "./data";
+import { listPolicyOwners, companySystemSettings, companyFacts, getDraft, getTopic, promptSources, STALE_CLAIM_MS, topicsForCompany } from "./data";
 import {
+  withoutSourcesSection,
   improvePrompt,
   improveSystemPrompt,
   joinSections,
@@ -50,15 +51,26 @@ const NO_REGULATOR =
 const NO_LIBRARY =
   "The guidance library for this policy has not been loaded yet, so the AI has nothing checked to write from. Ask Be Care Compliant support.";
 
+/** A topic this company is offered: its regulator's and HR lists, or its own register. */
+async function offeredTopic(companyId: string, regulator: string, key: string) {
+  if (!key) return null;
+  const { topics } = await topicsForCompany(companyId, regulator);
+  const offered = topics.find((t) => t.key === key);
+  if (!offered) return null;
+  return (await getTopic(key)) ? offered : null;
+}
+
 export async function generatePolicyDraft(_prev: ActionState, fd: FormData): Promise<ActionState> {
   const { user, profile } = await requirePolicyWriter();
   const companyId = profile.company_id;
   if (!companyId) return { error: "No company context." };
-  const topic = await getTopic(String(fd.get("topic_key") ?? ""));
-  if (!topic) return { error: "Choose which policy to write." };
-
   const facts = await companyFacts(companyId);
   if (!facts.regulator) return { error: NO_REGULATOR };
+  /* Only a policy this company is offered (its regulator's list, or its own register), the same
+     list the page shows (review, 2026-10-07). */
+  const topic = await offeredTopic(companyId, facts.regulator, String(fd.get("topic_key") ?? ""));
+  if (!topic) return { error: "Choose which policy to write." };
+
   const sources = await promptSources(topic, facts.regulator);
   if (sources.length === 0) return { error: NO_LIBRARY };
 
@@ -79,6 +91,9 @@ export async function generatePolicyDraft(_prev: ActionState, fd: FormData): Pro
     feature: "policy_write",
     maxTokens: 9000,
     credits: POLICY_WRITE_CREDITS,
+    // A policy must be whole: a reply cut off at its limit is refused and refunded (2026-10-07).
+    refuseIfCut: true,
+    timeoutMs: 240_000,
     system: writeSystemPrompt(nationOf(facts.regulator).label),
     prompt: writePrompt({ topicTitle: title, topicSummary: topic.summary, facts, answers, notes, sources, settings }),
   });
@@ -103,7 +118,10 @@ export async function generatePolicyDraft(_prev: ActionState, fd: FormData): Pro
     })
     .select("id")
     .single();
-  if (error || !draft) return { error: error?.message ?? "The draft could not be saved." };
+  if (error || !draft) {
+    await giveBackAiCredits(companyId, POLICY_WRITE_CREDITS);
+    return { error: `The draft could not be saved, so your credits have been given back: ${error?.message ?? "no answer"}` };
+  }
 
   await writeAudit({
     companyId,
@@ -124,7 +142,9 @@ export async function reviewPolicyWithAi(_prev: ActionState, fd: FormData): Prom
   const { user, profile } = await requirePolicyWriter();
   const companyId = profile.company_id;
   if (!companyId) return { error: "No company context." };
-  const topic = await getTopic(String(fd.get("topic_key") ?? ""));
+  const regulatorFirst = (await companyFacts(companyId)).regulator;
+  if (!regulatorFirst) return { error: NO_REGULATOR };
+  const topic = await offeredTopic(companyId, regulatorFirst, String(fd.get("topic_key") ?? ""));
   if (!topic) return { error: "Choose which standard policy this is, so it can be checked against the right guidance." };
 
   const policyId = String(fd.get("policy_id") ?? "").trim() || null;
@@ -144,7 +164,7 @@ export async function reviewPolicyWithAi(_prev: ActionState, fd: FormData): Prom
     if (!p) return { error: "That policy could not be found." };
     title = p.title;
     if (p.source === "text" && p.body) {
-      policyText = p.body;
+      policyText = withoutSourcesSection(p.body);
     } else if (p.storage_path) {
       const signed = await signPolicyDocument({
         companyId,
@@ -203,13 +223,18 @@ export async function reviewPolicyWithAi(_prev: ActionState, fd: FormData): Prom
     maxTokens: 20000,
     accept: (t) => parseImproveReview(t) !== null,
     credits: POLICY_IMPROVE_CREDITS,
+    // Under the page's five minutes, so a slow answer is refunded rather than lost (2026-10-07).
+    timeoutMs: 250_000,
     attachments,
     system: improveSystemPrompt(nationOf(facts.regulator).label),
     prompt: improvePrompt({ topicTitle: title, facts, policyText, sources, settings: await companySystemSettings(companyId, topic.key) }),
   });
   if ("error" in r) return { error: r.error };
   const review = parseImproveReview(r.ok);
-  if (!review) return { error: "The AI's review could not be read. Please try again." };
+  if (!review) {
+    await giveBackAiCredits(companyId, POLICY_IMPROVE_CREDITS);
+    return { error: "The AI's review could not be read. Your credits have been given back. Please try again." };
+  }
 
   const meta = sources.map(({ n, title: t, publisher, url, checkedOn }) => ({ n, title: t, publisher, url, checkedOn }));
   const { data: draft, error } = await supabase
@@ -228,7 +253,10 @@ export async function reviewPolicyWithAi(_prev: ActionState, fd: FormData): Prom
     })
     .select("id")
     .single();
-  if (error || !draft) return { error: error?.message ?? "The review could not be saved." };
+  if (error || !draft) {
+    await giveBackAiCredits(companyId, POLICY_IMPROVE_CREDITS);
+    return { error: `The review could not be saved, so your credits have been given back: ${error?.message ?? "no answer"}` };
+  }
 
   await writeAudit({
     companyId,
@@ -252,6 +280,7 @@ export async function approvePolicyDraft(_prev: ActionState, fd: FormData): Prom
   const draft = await getDraft(String(fd.get("draft_id") ?? ""), companyId);
   if (!draft) return { error: "That draft could not be found." };
   if (draft.status !== "draft") return { error: "That draft has already been dealt with." };
+  const supabase = await createClient();
 
   const title = String(fd.get("title") ?? "").trim() || draft.title;
   /* The "To be completed" fields under the policy (Phil, 2026-10-06), put into the wording. */
@@ -280,6 +309,21 @@ export async function approvePolicyDraft(_prev: ActionState, fd: FormData): Prom
   }
   const body = `${wording}\n\n${sourcesSection(draft.sources, wording)}`;
 
+  /* CLAIM THE DRAFT before anything is saved, so a double press or a second tab cannot make the
+     policy twice (review, 2026-10-07). Only one approval can move it from draft; anything that
+     goes wrong below hands it back. A claim left behind by a crash frees itself after ten
+     minutes (getDraft treats it as a draft again). */
+  const { data: claimed } = await supabase
+    .from("policy_drafts")
+    .update({ status: "approving", updated_at: new Date().toISOString() })
+    .eq("id", draft.id)
+    .eq("company_id", companyId)
+    .or(`status.eq.draft,and(status.eq.approving,updated_at.lt.${new Date(Date.now() - STALE_CLAIM_MS).toISOString()})`)
+    .select("id");
+  if (!claimed?.length) return { error: "That draft is already being saved, or has been." };
+  const release = () =>
+    supabase.from("policy_drafts").update({ status: "draft" }).eq("id", draft.id).eq("status", "approving");
+
   /* Where it goes: the policy it was improved from, a chosen existing policy, or a new one. */
   const target = String(fd.get("target") ?? (draft.policy_id ? draft.policy_id : "new"));
   const form = new FormData();
@@ -301,19 +345,13 @@ export async function approvePolicyDraft(_prev: ActionState, fd: FormData): Prom
     form.set("topic_key", draft.topic_key);
     result = await createWrittenPolicy({}, form);
   }
-  if (result.error) return { error: result.error };
+  if (result.error) {
+    await release();
+    return { error: result.error };
+  }
 
-  const supabase = await createClient();
   if (!policyId) {
-    const { data: made } = await supabase
-      .from("company_policies")
-      .select("id")
-      .eq("company_id", companyId)
-      .eq("topic_key", draft.topic_key)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle<{ id: string }>();
-    policyId = made?.id ?? null;
+    policyId = result.data?.policyId ?? null;
   } else {
     await supabase.from("company_policies").update({ topic_key: draft.topic_key }).eq("id", policyId).is("topic_key", null);
   }
@@ -350,7 +388,9 @@ export async function discardPolicyDraft(_prev: ActionState, fd: FormData): Prom
     .from("policy_drafts")
     .update({ status: "discarded", updated_at: new Date().toISOString() })
     .eq("id", String(fd.get("draft_id") ?? ""))
-    .eq("company_id", profile.company_id);
+    .eq("company_id", profile.company_id)
+    // Only a draft: an approved one is part of a policy's history (review, 2026-10-07).
+    .eq("status", "draft");
   if (error) return { error: error.message };
   revalidatePath("/policies");
   return { ok: "Discarded.", redirectTo: "/policies" };
@@ -361,6 +401,7 @@ export async function setPolicyTopic(_prev: ActionState, fd: FormData): Promise<
   const { profile } = await requirePolicyWriter();
   if (!profile.company_id) return { error: "No company context." };
   const topic = String(fd.get("topic_key") ?? "").trim() || null;
+  if (topic && !(await getTopic(topic))) return { error: "That is not one of the standard policies." };
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("company_policies")
@@ -425,9 +466,9 @@ export async function setPolicyOwner(_prev: ActionState, fd: FormData): Promise<
   if (!profile.company_id) return { error: "No company context." };
   const owner = String(fd.get("owner_id") ?? "").trim() || null;
   const supabase = await createClient();
-  if (owner) {
-    const { data: who } = await supabase.from("profiles").select("id").eq("id", owner).eq("company_id", profile.company_id).maybeSingle();
-    if (!who) return { error: "That person is not in your company." };
+  // The same people the screen offers: managers and admins of this company (review, 2026-10-07).
+  if (owner && !(await listPolicyOwners(profile.company_id)).some((o) => o.id === owner)) {
+    return { error: "That person cannot own a policy in your company." };
   }
   const { data, error } = await supabase
     .from("company_policies")

@@ -20,6 +20,7 @@ import "server-only";
  */
 
 import { createServiceClient } from "@/lib/supabase/admin";
+import { EVIDENCE_BUCKET } from "@/lib/evidence/storage";
 import { parsePolicyText } from "@/lib/policies/text";
 import { renderPolicyPdf } from "@/lib/policies/pdf";
 import { coverForSavedVersion } from "@/lib/policies/cover-data";
@@ -48,11 +49,23 @@ export async function renderWrittenPolicy(
   if (wanted !== policy.version) {
     const { data: v } = await admin
       .from("company_policy_versions")
-      .select("body")
+      .select("body, storage_path")
       .eq("policy_id", policyId)
       .eq("version", wanted)
-      .maybeSingle();
-    if (v?.body) body = v.body as string;
+      .maybeSingle<{ body: string | null; storage_path: string | null }>();
+    if (!v) return { ok: false, error: "That version could not be found." };
+    if (v.body && v.body.trim()) {
+      body = v.body;
+    } else if (v.storage_path) {
+      /* An uploaded document later improved into a written policy (2026-10-06): its earlier
+         versions are the documents as uploaded and signed. Served exactly as stored, never the
+         current wording under an old version number (review, 2026-10-07). */
+      const { data: file, error: dlErr } = await admin.storage.from(EVIDENCE_BUCKET).download(v.storage_path);
+      if (dlErr || !file) return { ok: false, error: "That version's document could not be read." };
+      return { ok: true, pdf: Buffer.from(await file.arrayBuffer()), title: policy.title as string };
+    } else {
+      return { ok: false, error: "That version has no stored wording." };
+    }
   }
   if (!body || !body.trim()) return { ok: false, error: "That version has no stored wording." };
 

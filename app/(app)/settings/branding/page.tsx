@@ -48,6 +48,7 @@ export default async function BrandingSettingsPage() {
         <h2 className="text-sm font-semibold text-white/80">Document colours</h2>
         <p className="form-hint mt-1 mb-4">Used on the cover of every policy written here.</p>
         <DocumentColours
+          key={`${colours.primary}${colours.secondary}`}
           primary={colours.primary}
           secondary={colours.secondary}
           isDefault={!co?.brand_primary && !co?.brand_secondary}

@@ -24,7 +24,10 @@ function decode(s: string): string {
 export function docxToText(bytes: Uint8Array): string | null {
   let xml: string;
   try {
-    const files = unzipSync(bytes, { filter: (f) => f.name === "word/document.xml" });
+    /* Only the document text, and only when it unpacks to a sensible size: a 3MB upload that
+       claims to unpack to gigabytes is refused rather than filling the server's memory
+       (review, 2026-10-07). */
+    const files = unzipSync(bytes, { filter: (f) => f.name === "word/document.xml" && f.originalSize <= 25_000_000 });
     const doc = files["word/document.xml"];
     if (!doc) return null;
     xml = strFromU8(doc);

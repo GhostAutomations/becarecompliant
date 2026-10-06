@@ -19,7 +19,7 @@ import { buildInvitationLetter, type InvitationLetter } from "@/lib/absence/invi
 import { renderInvitationLetterPdf } from "@/lib/absence/invitation-letter-pdf";
 import { loadLetterExtras, stageLabelFor } from "@/lib/absence/letter-extras";
 import { meetingNameAsTitle } from "@/lib/absence/meeting-name";
-import { keepMeetingLetter, REBUILT_NOTICE } from "@/lib/absence/meeting-letter-copy";
+import { COPIES_KEPT_FROM, keepMeetingLetter, REBUILT_NOTICE } from "@/lib/absence/meeting-letter-copy";
 
 export type MeetingLetterArgs = {
   supabase: { from: (t: string) => any };
@@ -40,6 +40,8 @@ export type MeetingLetterArgs = {
   rearranged: boolean;
   /** The date printed on the letter; today unless a copy is being made afterwards. */
   letterDateIso?: string;
+  /** Count the absences as of this day, for a copy made afterwards. Today when not given. */
+  absencesAsOfIso?: string;
 };
 
 export type MeetingLetter = {
@@ -77,6 +79,7 @@ export async function buildMeetingLetters(args: MeetingLetterArgs): Promise<Meet
     companyId: args.companyId,
     personId: args.personId,
     conductorId: args.conductor.id,
+    asOfIso: args.absencesAsOfIso,
   });
   // What the company calls these meetings (0408): "Stage 2 disciplinary hearing" for Thistle.
   const stageLabel = stageLabelFor(args.stage, extras.meetingName);
@@ -237,9 +240,14 @@ export function invitationPreviewHtml(l: InvitationLetter): string {
  * pages opened at once cannot make two. Never throws: a copy that cannot be made is logged and the
  * page still loads.
  */
+/** At most this many copies are made on one page load, so a company with many old bookings does
+ *  not hold the page up; the rest are made on the next loads. */
+const MAX_COPIES_PER_LOAD = 3;
+
 export async function ensureInvitationCopies(opts: { companyId: string; personId?: string }): Promise<void> {
+  let missing: Array<Record<string, unknown>> = [];
+  const admin = createServiceClient();
   try {
-    const admin = createServiceClient();
     let q = admin
       .from("absence_meetings")
       .select("id, company_id, branch_id, person_id, stage, meeting_date, meeting_time, duration_minutes, location, conducted_by, booked_by, response_token, created_at")
@@ -247,20 +255,27 @@ export async function ensureInvitationCopies(opts: { companyId: string; personId
       .is("evidence_id", null)
       .not("meeting_time", "is", null)
       .not("conducted_by", "is", null)
-      .not("stage", "is", null);
+      .not("stage", "is", null)
+      // Only bookings made before copies were kept (see COPIES_KEPT_FROM).
+      .lt("created_at", COPIES_KEPT_FROM);
     if (opts.personId) q = q.eq("person_id", opts.personId);
     const { data: meetings } = await q;
     const list = (meetings ?? []) as Array<Record<string, unknown>>;
     if (list.length === 0) return;
-
     const ids = list.map((m) => m.id as string);
     const { data: have } = await admin.from("absence_meeting_letters").select("meeting_id").in("meeting_id", ids);
     const covered = new Set(((have ?? []) as Array<{ meeting_id: string | null }>).map((h) => h.meeting_id));
-    const missing = list.filter((m) => !covered.has(m.id as string));
-    if (missing.length === 0) return;
+    missing = list.filter((m) => !covered.has(m.id as string)).slice(0, MAX_COPIES_PER_LOAD);
+  } catch (e) {
+    console.error("[absence] automatic invitation copies could not be checked", { error: (e as Error).message });
+    return;
+  }
+  if (missing.length === 0) return;
 
-    const { data: company } = await admin.from("companies").select("name").eq("id", opts.companyId).maybeSingle();
-    for (const m of missing) {
+  const { data: company } = await admin.from("companies").select("name").eq("id", opts.companyId).maybeSingle();
+  // Each meeting on its own: one that cannot be made never stops the others.
+  for (const m of missing) {
+    try {
       const [{ data: person }, { data: conductor }, { data: booker }] = await Promise.all([
         admin.from("people").select("full_name, work_email, profile_id").eq("id", m.person_id as string).maybeSingle(),
         admin.from("profiles").select("id, full_name, email").eq("id", m.conducted_by as string).maybeSingle(),
@@ -297,7 +312,9 @@ export async function ensureInvitationCopies(opts: { companyId: string; personId
           email: (conductor.email as string | null) ?? null,
         },
         rearranged: false,
+        // Dated, and its absences counted, as of the day it was booked.
         letterDateIso: bookedOn,
+        absencesAsOfIso: bookedOn,
       };
       const { invitation, logoDataUrl } = await buildMeetingLetters(args);
       const pdf = await renderInvitationLetterPdf({ letter: invitation, logoDataUrl, notice: REBUILT_NOTICE });
@@ -318,10 +335,11 @@ export async function ensureInvitationCopies(opts: { companyId: string; personId
         sendOutcome: "sent before copies were kept",
         sentBy: { id: sender.id as string, name: ((sender.full_name as string | null) || (sender.email as string | null)) ?? null },
         rebuilt: true,
+        sentAt: m.created_at as string,
       });
       if (!kept.ok) console.error("[absence] automatic invitation copy not made", { meetingId: m.id, error: kept.error });
+    } catch (e) {
+      console.error("[absence] automatic invitation copy failed", { meetingId: m.id, error: (e as Error).message });
     }
-  } catch (e) {
-    console.error("[absence] automatic invitation copies failed", { error: (e as Error).message });
   }
 }

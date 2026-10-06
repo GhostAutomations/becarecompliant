@@ -12,6 +12,7 @@
  */
 
 import { revalidatePath } from "next/cache";
+import { createServiceClient } from "@/lib/supabase/admin";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -829,6 +830,15 @@ type MeetingLettersSent = {
 /** Sends the pair with the letter PDF attached, then keeps the employee's letter as a copy in their
  *  Evidence history (0406). Dedupe keys carry the slot, so a rearranged meeting sends fresh
  *  letters while the same slot can never double send. Not exported: internal to this file. */
+/** The letter's plain text as simple paragraphs, escaped, for an email that has no PDF. */
+function letterAsHtml(text: string): string {
+  const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return text
+    .split(/\n{2,}/)
+    .map((para) => `<p style="margin:0 0 10px 0;">${esc(para).replace(/\n/g, "<br>")}</p>`)
+    .join("");
+}
+
 async function sendMeetingLetters(
   args: MeetingLetterArgs,
   sentBy: { id: string; name: string | null },
@@ -865,7 +875,9 @@ async function sendMeetingLetters(
       durationMinutes: args.duration,
       location: args.location,
       hideCta: letter.hideCta,
-      detailHtml: letter.detailHtml,
+      // With no PDF the email says "please find attached" to nothing, so the employee gets the
+      // letter itself in the email instead (review, 2026-10-07).
+      detailHtml: !pdf && letter.key === "employee" ? letterAsHtml(invitation.plainText) : letter.detailHtml,
       icsUid: `absence-meeting-${args.meetingId}-${slot.replace(/[^0-9]/g, "")}-${letter.key}@becarecompliant.com`,
       extraAttachments: pdf
         ? [{ filename: fileName, content: pdf.toString("base64"), contentType: "application/pdf" }]
@@ -883,8 +895,21 @@ async function sendMeetingLetters(
   if (!pdf) {
     return { outcomes, copyNote: `The letter PDF could not be made (${pdfError}), so the emails went without it and no copy was kept.` };
   }
-  // A deduped send (the same slot already went) has its copy already.
-  if (outcomes.employee === "already_sent") return { outcomes, copyNote: null };
+  /* A deduped send (this slot's email already went) needs no new copy only when the latest copy is
+     already for this slot. Moving a meeting A to B and back to A dedupes A's email, but the latest
+     copy is B's, so A's copy is kept again (review, 2026-10-07). */
+  if (outcomes.employee === "already_sent") {
+    const { data: last } = await createServiceClient()
+      .from("absence_meeting_letters")
+      .select("meeting_date, meeting_time")
+      .eq("meeting_id", args.meetingId)
+      .order("sent_at", { ascending: false })
+      .limit(1)
+      .maybeSingle<{ meeting_date: string | null; meeting_time: string | null }>();
+    if (last && last.meeting_date === args.meetingDate && String(last.meeting_time ?? "").slice(0, 5) === args.timeHHMM) {
+      return { outcomes, copyNote: null };
+    }
+  }
   const kept = await keepMeetingLetter({
     companyId: args.companyId,
     branchId: args.branchId,

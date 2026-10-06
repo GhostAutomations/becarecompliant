@@ -187,7 +187,12 @@ export function coverReview(opts: {
   const mine = sorted.find((v) => v.version === opts.version);
   const before = sorted.filter((v) => v.version < opts.version).pop();
   const mineAt = mine?.at ?? new Date();
-  const later = opts.laterReview && opts.laterReview.on.getTime() > mineAt.getTime() ? opts.laterReview : null;
+  /* A "Reviewed, no changes needed" counts only on a later DAY than the approval and only when
+     somebody pressed it (a new version also stamps the review date, with nobody named). */
+  const later =
+    opts.laterReview && opts.laterReview.byName && londonIso(opts.laterReview.on) > londonIso(mineAt)
+      ? opts.laterReview
+      : null;
   if (later) {
     return {
       reviewedOn: ordinalDate(later.on),
@@ -206,4 +211,54 @@ export function coverReview(opts: {
     changes: mine?.changeSummary ?? (opts.version === 1 ? "First issue" : "Not recorded"),
     nextReview: ordinalDate(opts.nextReview),
   };
+}
+
+
+/* ---------- dates and the frozen cover (review fixes, 2026-10-07) ---------- */
+
+/** The Europe/London calendar day of an instant, yyyy-mm-dd. */
+export function londonIso(d: Date): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(d);
+}
+
+/** yyyy-mm-dd plus whole months, clamped to the end of a short month (31 Jan + 1 = 28 or 29 Feb;
+ *  29 Feb + 12 = 28 Feb), the same rule as the database review dates, so the PDF and the review
+ *  register always agree. */
+export function addMonthsClamped(iso: string, months: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const total = y * 12 + (m - 1) + months;
+  const ny = Math.floor(total / 12);
+  const nm = total % 12;
+  const last = new Date(Date.UTC(ny, nm + 1, 0)).getUTCDate();
+  return `${ny}-${String(nm + 1).padStart(2, "0")}-${String(Math.min(d, last)).padStart(2, "0")}`;
+}
+
+/** A yyyy-mm-dd as a Date at London midday, for ordinalDate. */
+export function middayOf(iso: string): Date {
+  return new Date(`${iso}T12:00:00Z`);
+}
+
+/**
+ * The cover as it stood when a version was approved (Phil, 2026-10-07: "As it was at that
+ * version"). Stored on the version row, so a signed copy opened years later shows who approved and
+ * owned it, who it applied to and the branding of the day, not today's settings.
+ */
+export type FrozenCover = {
+  reference: string | null;
+  approvedBy: string | null;
+  owner: string | null;
+  appliesTo: string;
+  readBy: string;
+  retention: string;
+  classification: string;
+  nextReviewIso: string;
+  colours: DocumentColours;
+  /** A copy of the logo kept with the version (the company logo file is overwritten in place). */
+  logoPath: string | null;
+};
+
+/** A change summary as stored: trimmed, at most 200 characters. */
+export function cleanChangeSummary(v: unknown, fallback: string): string {
+  const s = String(v ?? "").trim().replace(/\s+/g, " ");
+  return (s || fallback).slice(0, 200);
 }

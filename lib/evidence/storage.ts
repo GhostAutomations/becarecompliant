@@ -110,6 +110,8 @@ export async function signEvidenceDownload(input: {
   /** What is being downloaded, for the audit summary (e.g. "PDF", "signature"). */
   label: string;
   actor: { id: string; email: string; role: string };
+  /** What the id is, for the audit row. Evidence unless said otherwise. */
+  entityType?: string;
 }): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
   const supabase = createServiceClient();
   const { data, error } = await supabase.storage
@@ -125,9 +127,9 @@ export async function signEvidenceDownload(input: {
     actorEmail: input.actor.email,
     actorRole: input.actor.role,
     action: "evidence.downloaded",
-    entityType: "evidence",
+    entityType: input.entityType ?? "evidence",
     entityId: input.evidenceId,
-    summary: `Downloaded evidence ${input.label}`,
+    summary: input.entityType ? `Downloaded ${input.label}` : `Downloaded evidence ${input.label}`,
     metadata: { path: input.path, ttl_seconds: SIGNED_URL_TTL_SECONDS },
   });
 

@@ -32,7 +32,7 @@ test("the letter carries everything Thistle's did", () => {
   const l = buildInvitationLetter({
     companyName: "Thistle Care Ltd",
     letterheadAddress: "Unit 8 Castleton Court, Fortran Road, St Mellons, Cardiff, CF3 0LT",
-    letterheadPhone: "029 2252 0104, 01633 328832",
+    letterheadPhone: "029 2018 0999, 01632 960123",
     letterDateIso: "2026-10-02",
     recipientName: "Jo Bloggs",
     recipientAddress: "Flat 2, 10 Example Street\nNewport\nAB1 2CD",
@@ -56,7 +56,7 @@ test("the letter carries everything Thistle's did", () => {
   });
   assert.equal(l.salutation, "Dear Jo");
   assert.equal(l.reLine, "RE: Stage 2 Disciplinary Hearing Invitation");
-  assert.deepEqual(l.phoneLines, ["Tel: 029 2252 0104", "Tel: 01633 328832"]);
+  assert.deepEqual(l.phoneLines, ["Tel: 029 2018 0999", "Tel: 01632 960123"]);
   assert.deepEqual(l.recipientLines, ["Jo Bloggs", "Flat 2, 10 Example Street", "Newport", "AB1 2CD"]);
   assert.equal(l.details[0].value, "Tuesday 20th October 2026");
   assert.equal(l.details[4].value, "Charlotte Davies, Manager");

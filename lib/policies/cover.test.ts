@@ -92,3 +92,44 @@ test("review table: Reviewed, no changes needed after approval is the latest rev
   assert.equal(r.reason, "Annual review");
   assert.equal(r.changes, "None");
 });
+
+import { addMonthsClamped, cleanChangeSummary, londonIso } from "./cover.ts";
+
+test("review dates add months the way the database does, clamped to short months", () => {
+  assert.equal(addMonthsClamped("2026-01-31", 1), "2026-02-28");
+  assert.equal(addMonthsClamped("2028-01-31", 1), "2028-02-29");
+  assert.equal(addMonthsClamped("2028-02-29", 12), "2029-02-28");
+  assert.equal(addMonthsClamped("2026-10-06", 12), "2027-10-06");
+  assert.equal(addMonthsClamped("2026-11-30", 3), "2027-02-28");
+});
+
+test("London day of an instant, across BST midnight", () => {
+  assert.equal(londonIso(new Date("2026-10-06T23:30:00Z")), "2026-10-07");
+  assert.equal(londonIso(new Date("2026-12-06T23:30:00Z")), "2026-12-06");
+});
+
+test("change summary stored trimmed and at most 200 characters", () => {
+  assert.equal(cleanChangeSummary("  ", "Updated"), "Updated");
+  assert.equal(cleanChangeSummary("x".repeat(250), "Updated").length, 200);
+});
+
+test("a morning approval is not mistaken for a later review (review finding, 2026-10-07)", () => {
+  // Approved 09:00 BST on 6 Oct; the new version stamped the review date that same day, nobody named.
+  const r = coverReview({
+    version: 2,
+    versions: [v(1, "2026-01-10T10:00:00Z"), v(2, "2026-10-06T08:00:00Z", { c: "New falls steps", r: "Change in how we work", n: "Jo Bloggs" })],
+    nextReview: new Date("2027-10-06T12:00:00Z"),
+    laterReview: { on: new Date("2026-10-06T12:00:00Z"), byName: null, byRole: null },
+  });
+  assert.equal(r.reason, "Change in how we work");
+  assert.equal(r.changes, "New falls steps");
+  assert.equal(r.reviewedBy, "Jo Bloggs");
+  // Even with someone named, the same day is not a LATER review.
+  const same = coverReview({
+    version: 2,
+    versions: [v(2, "2026-10-06T08:00:00Z", { c: "x", r: "Annual review", n: "Jo Bloggs" })],
+    nextReview: new Date("2027-10-06T12:00:00Z"),
+    laterReview: { on: new Date("2026-10-06T12:00:00Z"), byName: "Sam Example", byRole: null },
+  });
+  assert.equal(same.reviewedBy, "Jo Bloggs");
+});
