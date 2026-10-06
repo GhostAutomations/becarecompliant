@@ -3,7 +3,7 @@ import "server-only";
 /**
  * Be Care Compliant — the kept copy of an employee's absence meeting invitation (0406).
  *
- * Phil, 2026-10-06: an invitation went to Sarah Harris and nothing of it was kept, because a
+ * Phil, 2026-10-06: an invitation went to Jo Bloggs and nothing of it was kept, because a
  * booked meeting has no Evidence until it is recorded. Now the EMPLOYEE's letter (the invitation,
  * and the letter when a meeting is rearranged) is saved as a PDF the moment it goes, listed in
  * the person's Evidence history and linked from the meeting line. Written once with the service

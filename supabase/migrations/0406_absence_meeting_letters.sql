@@ -1,5 +1,5 @@
 -- 0406_absence_meeting_letters
--- Phil, 2026-10-06: Charlotte booked Sarah Harris's Stage 2 absence meeting and the invitation
+-- Phil, 2026-10-06: a manager booked an employee's Stage 2 absence meeting and the invitation
 -- went by email, but nothing of it was kept: a booked meeting has no Evidence until it is
 -- recorded, so there was no copy of the letter to download. Agreed by popup: keep a PDF copy of
 -- the EMPLOYEE's letter (not the manager's) each time one is sent, the invitation and a

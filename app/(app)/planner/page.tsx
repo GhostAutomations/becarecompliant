@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { requireCompany } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { featureEnabled } from "@/lib/billing/tier";
-import { listMyBookings, listCompanyBookings, getPlannerFormData, PLANNER_ROLES } from "@/lib/planner/data";
+import { listMyBookings, listCompanyBookings, listAbsenceMeetingsForPlanner, mergeIntoPlanner, getPlannerFormData, PLANNER_ROLES } from "@/lib/planner/data";
 import { listAccessibleBranchTypes } from "@/lib/service-users/data";
 import BookingForm from "@/components/planner/booking-form";
 import PlannerViewToggle from "@/components/planner/view-toggle";
@@ -84,11 +84,15 @@ export default async function PlannerPage({
     Number(weekStartIso.slice(5, 7)) - 1,
     Number(weekStartIso.slice(8, 10)) - 7,
   )).toISOString().slice(0, 10);
-  const everyone = await listCompanyBookings(
-    view === "week" ? weekFromIso : monthStart,
-    view === "week" ? weekEndIso : monthEnd,
-    profile.company_id,
-  );
+  const rangeFrom = view === "week" ? weekFromIso : monthStart;
+  const rangeTo = view === "week" ? weekEndIso : monthEnd;
+  /* Booked absence meetings sit on the calendar beside the bookings, read from the meeting
+     itself (Phil, 2026-10-06), so the manager holding a disciplinary sees it on their day. */
+  const [plannerBookings, absenceMeetings] = await Promise.all([
+    listCompanyBookings(rangeFrom, rangeTo, profile.company_id),
+    listAbsenceMeetingsForPlanner(rangeFrom, rangeTo, profile.company_id),
+  ]);
+  const everyone = mergeIntoPlanner(plannerBookings, absenceMeetings);
   /* A FILTER, NOT A WIDENING. listCompanyBookings is already RLS scoped, so narrowing it to one
      person can never show more than All showed this viewer a moment ago. */
   const calendarBookings = filterToWho(everyone, selection, user.id);

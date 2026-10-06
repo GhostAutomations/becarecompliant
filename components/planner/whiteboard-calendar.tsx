@@ -451,7 +451,7 @@ export default function WhiteboardCalendar({
                 /* SEVERAL JOBS ON ONE VISIT cannot be one link: each has its own form. The
                    row stops being a link and the jobs are listed under it with a link each. */
                 const several = b.tasks.length > 1;
-                const href = several ? null : bookingHref(b);
+                const href = several ? null : (b.href ?? bookingHref(b));
                 const body = (
                   <>
                     <div className="min-w-0">
@@ -510,7 +510,9 @@ export default function WhiteboardCalendar({
                         })}
                       </ul>
                     ) : null}
-                    {b.status === "planned" ? (
+                    {/* A booked absence meeting is shown here, not managed here: it is
+                        rearranged, cancelled and recorded on the Absence page it links to. */}
+                    {b.status === "planned" && !b.source ? (
                       <div className="mt-2 flex justify-end gap-1.5">
                         {formData ? (
                           <BookingForm

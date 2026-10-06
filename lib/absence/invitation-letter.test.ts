@@ -16,7 +16,7 @@ test("addresses split on commas or lines", () => {
     "Fortran Road",
     "Cardiff CF3 0LT",
   ]);
-  assert.deepEqual(addressLines("Flat 2, 60 Liscombe Street\nNewport"), ["Flat 2, 60 Liscombe Street", "Newport"]);
+  assert.deepEqual(addressLines("Flat 2, 10 Example Street\nNewport"), ["Flat 2, 10 Example Street", "Newport"]);
   assert.deepEqual(addressLines(null), []);
 });
 
@@ -34,8 +34,8 @@ test("the letter carries everything Thistle's did", () => {
     letterheadAddress: "Unit 8 Castleton Court, Fortran Road, St Mellons, Cardiff, CF3 0LT",
     letterheadPhone: "029 2252 0104, 01633 328832",
     letterDateIso: "2026-10-02",
-    recipientName: "Sarah Harris",
-    recipientAddress: "Flat 2, 60 Liscombe Street\nNewport\nNP19 0HQ",
+    recipientName: "Jo Bloggs",
+    recipientAddress: "Flat 2, 10 Example Street\nNewport\nAB1 2CD",
     stage: 2,
     stageLabel: "Stage 2 disciplinary hearing",
     meetingTitle: "Disciplinary Hearing",
@@ -54,10 +54,10 @@ test("the letter carries everything Thistle's did", () => {
     ],
     windowWords: "6 months",
   });
-  assert.equal(l.salutation, "Dear Sarah");
+  assert.equal(l.salutation, "Dear Jo");
   assert.equal(l.reLine, "RE: Stage 2 Disciplinary Hearing Invitation");
   assert.deepEqual(l.phoneLines, ["Tel: 029 2252 0104", "Tel: 01633 328832"]);
-  assert.deepEqual(l.recipientLines, ["Sarah Harris", "Flat 2, 60 Liscombe Street", "Newport", "NP19 0HQ"]);
+  assert.deepEqual(l.recipientLines, ["Jo Bloggs", "Flat 2, 10 Example Street", "Newport", "AB1 2CD"]);
   assert.equal(l.details[0].value, "Tuesday 20th October 2026");
   assert.equal(l.details[4].value, "Charlotte Davies, Manager");
   assert.match(l.absenceIntro, /2 absences, 2 days in all, recorded in the last 6 months/);

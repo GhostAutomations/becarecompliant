@@ -834,7 +834,7 @@ type MeetingLetterSet = {
 
 /** The formal letter pair for a booked or rearranged meeting.
  *
- *  THE EMPLOYEE (Phil, 2026-10-06, Thistle's format): a short branded email, "Dear Sarah Harris,
+ *  THE EMPLOYEE (Phil, 2026-10-06, Thistle's format): a short branded email, "Dear Jo Bloggs,
  *  please find attached a letter about your Stage 2 disciplinary hearing", with the Accept / I
  *  cannot attend buttons and the calendar invite, and the LETTER itself attached as a PDF laid out
  *  like the company's own: letterhead, date, home address, the company's wording, when and where,
@@ -1499,7 +1499,7 @@ export async function cancelAbsenceMeetingBooking(
 }
 
 /** A copy of the invitation for a meeting booked before copies were kept (0406, Phil 2026-10-06:
- *  Sarah Harris's Stage 2 invitation went with nothing kept). Rebuilt from the booking details and
+ *  Jo Bloggs's Stage 2 invitation went with nothing kept). Rebuilt from the booking details and
  *  the same wording, dated the day it was booked, and marked on the PDF as made afterwards. Only
  *  for a meeting still waiting to be held that has no copy yet. Sends nothing. */
 export async function keepMissingInvitationCopy(

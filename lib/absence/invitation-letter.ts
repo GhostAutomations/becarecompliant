@@ -2,7 +2,7 @@
  * Be Care Compliant — the employee's absence meeting invitation as a LETTER (Phil, 2026-10-06).
  *
  * Thistle Care sent their own: their letterhead, the date, the employee's name and address,
- * "Dear Sarah", a RE line, when and where the hearing is, every absence it is about with its date,
+ * "Dear Jo", a RE line, when and where the hearing is, every absence it is about with its date,
  * reason and length, what it could lead to, the right to be accompanied, and the manager's name and
  * role. That letter is now what goes as the PDF attached to the invitation email, and what is kept
  * in the person's Evidence history.
@@ -102,7 +102,7 @@ export function letterDay(iso: string): string {
 
 /** Split an address into the lines a letter prints. An office address is typed on one line with
  *  commas; a home address is typed as envelope lines, so when it has line breaks those are kept
- *  and its commas stay inside the line ("Flat 2, 60 Liscombe Street"). */
+ *  and its commas stay inside the line ("Flat 2, 10 Example Street"). */
 export function addressLines(raw: string | null | undefined): string[] {
   const s = String(raw ?? "");
   return s

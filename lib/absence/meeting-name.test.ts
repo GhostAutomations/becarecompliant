@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cleanMeetingName, meetingNameAsTitle, meetingNameInSentence } from "./meeting-name.ts";
+import { cleanMeetingName, meetingChipLabel, meetingNameAsTitle, meetingNameInSentence } from "./meeting-name.ts";
 
 test("blank or the default is stored as nothing", () => {
   assert.deepEqual(cleanMeetingName("  "), { name: null });
@@ -22,4 +22,10 @@ test("reads correctly in a sentence and as a heading", () => {
   assert.equal(meetingNameInSentence("HR review"), "HR review");
   assert.equal(meetingNameAsTitle("Disciplinary hearing"), "Disciplinary Hearing");
   assert.equal(meetingNameAsTitle(null), "Absence Management Meeting");
+});
+
+test("the planner chip label is short", () => {
+  assert.equal(meetingChipLabel(2, "Disciplinary hearing"), "Stage 2 hearing");
+  assert.equal(meetingChipLabel(1, null), "Stage 1 meeting");
+  assert.equal(meetingChipLabel(null, "Disciplinary hearing"), "Hearing");
 });

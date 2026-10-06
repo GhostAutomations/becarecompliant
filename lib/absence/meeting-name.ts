@@ -34,3 +34,12 @@ export function meetingNameAsTitle(stored: string | null | undefined): string {
     .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : w))
     .join(" ");
 }
+
+/** The chip label on the Planner, kept short so the chip stays one line (Phil, 2026-10-06:
+ *  "something short, so it doesn't expand the pill"): "Stage 2 hearing", "Stage 1 meeting".
+ *  The last word of the company's name for these meetings, after the stage. */
+export function meetingChipLabel(stage: number | null | undefined, stored: string | null | undefined): string {
+  const words = meetingNameInSentence(stored).split(" ").filter(Boolean);
+  const last = words[words.length - 1] ?? "meeting";
+  return stage ? `Stage ${stage} ${last}` : last.charAt(0).toUpperCase() + last.slice(1);
+}

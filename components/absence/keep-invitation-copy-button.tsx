@@ -2,7 +2,7 @@
 
 /**
  * Make the kept copy of an invitation letter for a meeting booked before copies were kept (0406,
- * Phil 2026-10-06: Sarah Harris's Stage 2 invitation). Sends nothing; the copy is marked as made
+ * Phil 2026-10-06: Jo Bloggs's Stage 2 invitation). Sends nothing; the copy is marked as made
  * afterwards. Once it exists the meeting line shows "Invitation letter PDF" instead.
  */
 

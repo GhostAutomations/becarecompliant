@@ -117,7 +117,7 @@ export default function EditPersonForm({
             rows={3}
             maxLength={400}
             defaultValue={person.home_address ?? ""}
-            placeholder={"Flat 2, 60 Liscombe Street\nNewport\nNP19 0HQ"}
+            placeholder={"12 Example Road\nTown\nAB1 2CD"}
           />
           <p className="form-hint">One line per row, as it goes on an envelope. Printed on letters to them.</p>
         </div>

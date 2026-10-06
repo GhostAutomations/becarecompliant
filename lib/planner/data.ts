@@ -1,4 +1,5 @@
 import "server-only";
+import { meetingChipLabel } from "@/lib/absence/meeting-name";
 import { visitLabel } from "@/lib/planner/visit";
 import { earliestDue } from "@/lib/planner/due-tone";
 import { boardSpan, boardWeekIndex } from "@/lib/planner/week";
@@ -222,6 +223,11 @@ export type PlannerBookingView = {
   durationMinutes: number | null;
   status: BookingStatus;
   notes: string | null;
+  /** Set for an entry that is not a Planner booking: a booked absence meeting (Phil,
+   *  2026-10-06). It is shown, not managed, here: no Edit or Cancel, and it opens `href`. */
+  source?: "absence_meeting";
+  /** Where the entry opens when it is not a Planner booking. */
+  href?: string;
 };
 
 type TaskRow = {
@@ -673,4 +679,82 @@ export async function getPlannerFormData(
   subjects.sort((a, b) => a.name.localeCompare(b.name));
 
   return { branches, conductors, subjects, myBranchIds, viewerId: viewer.id, viewerRole: viewer.role };
+}
+
+/**
+ * BOOKED ABSENCE MEETINGS ON THE PLANNER (Phil, 2026-10-06: "when he's booked in for the Manager
+ * who is going to be holding the disciplinary does it then show on their planner as well?").
+ *
+ * Read straight from absence_meetings, not copied into planner_bookings, so a rearrange or a
+ * cancel on the Absence page is on the Planner the moment it happens and there is no second copy
+ * to keep in step. Only meetings still to be held or recorded: once recorded (Evidence) it drops
+ * off, and a declined invitation is not a meeting anyone is going to. The chip label is short
+ * ("Stage 2 hearing") so the chip stays as tidy as every other. RLS decides who sees which.
+ */
+export async function listAbsenceMeetingsForPlanner(
+  fromIso: string,
+  toIso: string,
+  companyId: string,
+): Promise<PlannerBookingView[]> {
+  const supabase = await createClient();
+  const [{ data }, { data: cfg }] = await Promise.all([
+    supabase
+      .from("absence_meetings")
+      .select("id, branch_id, person_id, stage, meeting_date, meeting_time, duration_minutes, conducted_by, response, person:people(full_name), branch:branches(name)")
+      .eq("company_id", companyId)
+      .is("evidence_id", null)
+      .not("meeting_time", "is", null)
+      .not("conducted_by", "is", null)
+      .gte("meeting_date", fromIso)
+      .lte("meeting_date", toIso),
+    supabase.from("absence_config").select("meeting_name").eq("company_id", companyId).maybeSingle(),
+  ]);
+  const meetingName = (cfg?.meeting_name as string | null) ?? null;
+  type MeetingRow = {
+    id: string;
+    branch_id: string | null;
+    person_id: string;
+    stage: number | null;
+    meeting_date: string;
+    meeting_time: string;
+    duration_minutes: number | null;
+    conducted_by: string;
+    response: string | null;
+    person: { full_name: string } | { full_name: string }[] | null;
+    branch: { name: string } | { name: string }[] | null;
+  };
+  const rows = ((data as MeetingRow[] | null) ?? []).filter((m) => m.response !== "declined");
+  const views: PlannerBookingView[] = rows.map((m) => ({
+    id: `absence-meeting-${m.id}`,
+    branchId: m.branch_id ?? "",
+    branchName: relOne(m.branch)?.name ?? null,
+    population: "people",
+    subjectId: m.person_id,
+    subjectName: relOne(m.person)?.full_name ?? null,
+    tasks: [],
+    doneCount: 0,
+    checkInstanceId: null,
+    trackerFormKey: null,
+    label: meetingChipLabel(m.stage, meetingName),
+    conductorId: m.conducted_by,
+    conductorName: null,
+    scheduledDate: m.meeting_date,
+    dueDate: null,
+    startTime: String(m.meeting_time).slice(0, 5),
+    durationMinutes: m.duration_minutes,
+    status: "planned",
+    notes: null,
+    source: "absence_meeting",
+    href: "/people/absence",
+  }));
+  return withConductorNames(views, companyId);
+}
+
+/** Planner bookings and booked absence meetings together, in time order. */
+export function mergeIntoPlanner(a: PlannerBookingView[], b: PlannerBookingView[]): PlannerBookingView[] {
+  return [...a, ...b].sort(
+    (x, y) =>
+      x.scheduledDate.localeCompare(y.scheduledDate) ||
+      (x.startTime ?? "").localeCompare(y.startTime ?? ""),
+  );
 }

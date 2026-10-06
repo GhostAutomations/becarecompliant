@@ -1,4 +1,5 @@
 import "server-only";
+import { meetingChipLabel } from "@/lib/absence/meeting-name";
 import { randomBytes } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
@@ -283,6 +284,51 @@ export async function loadFeedByToken(
       updatedAt: r.updated_at,
     };
   });
+
+  /* BOOKED ABSENCE MEETINGS THIS PERSON IS HOLDING (Phil, 2026-10-06: in the feed too). Still to
+     be held or recorded, not declined. The name goes through the same initials rule as every
+     other event in this file, and the link opens the Absence page behind the login. */
+  const [{ data: meetings }, { data: cfg }] = await Promise.all([
+    service
+      .from("absence_meetings")
+      .select("id, stage, meeting_date, meeting_time, duration_minutes, response, created_at, responded_at, person:people(full_name), branch:branches(name)")
+      .eq("company_id", companyId)
+      .eq("conducted_by", profileId)
+      .is("evidence_id", null)
+      .not("meeting_time", "is", null)
+      .gte("meeting_date", isoOffset(-PAST_DAYS))
+      .lte("meeting_date", isoOffset(FUTURE_DAYS)),
+    service.from("absence_config").select("meeting_name").eq("company_id", companyId).maybeSingle(),
+  ]);
+  type MeetingFeedRow = {
+    id: string;
+    stage: number | null;
+    meeting_date: string;
+    meeting_time: string;
+    duration_minutes: number | null;
+    response: string | null;
+    created_at: string;
+    responded_at: string | null;
+    person: { full_name: string } | { full_name: string }[] | null;
+    branch: { name: string } | { name: string }[] | null;
+  };
+  const meetingName = (cfg?.meeting_name as string | null) ?? null;
+  for (const m of ((meetings as MeetingFeedRow[] | null) ?? []).filter((x) => x.response !== "declined")) {
+    events.push({
+      id: `absence-meeting-${m.id}`,
+      label: meetingChipLabel(m.stage, meetingName),
+      subjectName: one(m.person)?.full_name ?? null,
+      branchName: one(m.branch)?.name ?? null,
+      scheduledDate: m.meeting_date,
+      startTime: String(m.meeting_time).slice(0, 5),
+      durationMinutes: m.duration_minutes,
+      status: "planned",
+      notes: null,
+      url: `${base}/people/absence`,
+      updatedAt: m.responded_at ?? m.created_at,
+    });
+  }
+  events.sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate) || (a.startTime ?? "").localeCompare(b.startTime ?? ""));
 
   /*
    * AWAITED, NOT FIRE AND FORGET (migration 0275, fixing a bug I shipped the same day).
