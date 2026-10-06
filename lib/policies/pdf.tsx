@@ -15,6 +15,8 @@ import "server-only";
 
 import {
   Document,
+  Font,
+  Image,
   Page,
   StyleSheet,
   Text,
@@ -22,7 +24,10 @@ import {
   renderToBuffer,
 } from "@react-pdf/renderer";
 import type { PolicyBlock } from "@/lib/policies/text";
-import type { CoverPage } from "@/lib/policies/cover";
+import { DEFAULT_COLOURS, type CoverPage } from "@/lib/policies/cover";
+
+/* Whole words only: a label such as "completing" must not break as "complet-ing". */
+Font.registerHyphenationCallback((word) => [word]);
 
 const NAVY = "#081231";
 const GOLD = "#f59e0b";
@@ -69,54 +74,150 @@ const styles = StyleSheet.create({
   histCell: { fontSize: 9, color: INK },
 });
 
-/** The ISO 9001 style cover (lib/policies/cover.ts): who, what, which version, until when. */
+/**
+ * THE COVER, laid out like Thistle's own policies (Phil, 2026-10-06, from their Recruitment Process
+ * and Procedure). Page 1: the logo top right, the logo large in the middle, the company name in
+ * the company's second colour, and a band in its main colour with the policy title. Page 2: the
+ * "Audit Checklist and Report" table, then the ISO 9001 document control details and change
+ * history (lib/policies/cover.ts).
+ */
+const BORDER = "#1f2937";
+const coverStyles = StyleSheet.create({
+  front: { padding: 0, fontSize: 10.5, color: INK, position: "relative" },
+  cornerWrap: { position: "absolute", top: 34, right: 44, width: 170, height: 54, alignItems: "flex-end" },
+  cornerLogo: { height: 54, objectFit: "contain" },
+  bigLogoWrap: { position: "absolute", top: 150, left: 60, right: 60, height: 260, alignItems: "center", justifyContent: "center" },
+  bigLogo: { maxHeight: 260, maxWidth: 420, objectFit: "contain" },
+  frontName: { position: "absolute", top: 455, left: 30, right: 30, textAlign: "center", fontSize: 46, fontWeight: 700 },
+  band: { position: "absolute", left: 0, right: 0, bottom: 0, height: 270, justifyContent: "center", paddingHorizontal: 40 },
+  bandTitle: { color: "#ffffff", fontSize: 25, fontWeight: 700, textAlign: "center", lineHeight: 1.3 },
+  bandRef: { color: "#ffffff", fontSize: 11, textAlign: "center", marginTop: 10 },
+  second: { paddingTop: 110, paddingBottom: 56, paddingHorizontal: 54, fontSize: 10.5, color: INK },
+  heading: { fontSize: 15, fontWeight: 700, color: "#000000", marginBottom: 14 },
+  table: { borderWidth: 0.75, borderColor: BORDER },
+  tRow: { flexDirection: "row", borderBottomWidth: 0.75, borderBottomColor: BORDER },
+  tLabel: { width: 140, padding: 7, borderRightWidth: 0.75, borderRightColor: BORDER, fontSize: 10.5 },
+  tValue: { flex: 1, padding: 7, fontSize: 10.5 },
+  sub: { fontSize: 12, fontWeight: 700, color: "#000000", marginTop: 22, marginBottom: 8 },
+});
+
+function TableRow({ label, value, minHeight, last }: { label: string; value: string; minHeight?: number; last?: boolean }) {
+  return (
+    <View style={[coverStyles.tRow, last ? { borderBottomWidth: 0 } : {}, minHeight ? { minHeight } : {}]} wrap={false}>
+      <Text style={coverStyles.tLabel}>{label}</Text>
+      <Text style={coverStyles.tValue}>{value}</Text>
+    </View>
+  );
+}
+
+const HIST_WIDTHS = [52, 112, 0, 120]; // 0 = takes the rest
+function HistoryRow({ cells, bold, last }: { cells: string[]; bold?: boolean; last?: boolean }) {
+  return (
+    <View style={[coverStyles.tRow, last ? { borderBottomWidth: 0 } : {}]} wrap={false}>
+      {cells.map((t, i) => (
+        <View
+          key={i}
+          style={[
+            HIST_WIDTHS[i] ? { width: HIST_WIDTHS[i], flexGrow: 0, flexShrink: 0 } : { flexGrow: 1, flexShrink: 1, flexBasis: 0 },
+            i < cells.length - 1 ? { borderRightWidth: 0.75, borderRightColor: BORDER } : {},
+            { padding: 7 },
+          ]}
+        >
+          <Text style={{ fontSize: 10, fontWeight: bold ? 700 : 400 }}>{t}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 function Cover({ c }: { c: CoverPage }) {
-  const rows: Array<[string, string]> = [
+  const colours = c.colours ?? DEFAULT_COLOURS;
+  const review = c.review;
+  const audit: Array<[string, string, number?]> = review
+    ? [
+        ["Date of Review/ Review Completed", review.reviewedOn],
+        ["Date of last Review", review.lastReviewOn],
+        ["Name of Person completing the Review", review.reviewedBy],
+        ["Reason for Review", review.reason, 90],
+        ["Review Changes", review.changes],
+        ["Next Review Date", review.nextReview],
+      ]
+    : [];
+  const control: Array<[string, string]> = [
     ["Reference", c.reference ?? "Not set"],
     ["Version", String(c.version)],
     ["Approved on", c.approvedOn],
     ["Approved by", c.approvedBy ?? "Not recorded"],
     ["Policy owner", c.owner ?? "Not recorded"],
-    ["Next review due", c.nextReview ?? "Not set"],
     ["Applies to", c.appliesTo],
     ["Read and sign", c.readBy],
     ["Retention", c.retention],
     ["Classification", c.classification],
   ];
   return (
-    <Page size="A4" style={styles.page}>
-      <Text style={styles.coverCompany}>{c.companyName}</Text>
-      <Text style={styles.coverTitle}>{c.title}</Text>
-      <Text style={styles.coverRef}>{c.reference ?? ""}</Text>
-      {rows.map(([k, v]) => (
-        <View key={k} style={styles.row}>
-          <Text style={styles.rowLabel}>{k}</Text>
-          <Text style={styles.rowValue}>{v}</Text>
+    <>
+      <Page size="A4" style={coverStyles.front}>
+        {c.logoDataUrl ? (
+          <View style={coverStyles.cornerWrap}>
+            {/* eslint-disable-next-line jsx-a11y/alt-text */}
+            <Image src={c.logoDataUrl} style={coverStyles.cornerLogo} />
+          </View>
+        ) : null}
+        {c.logoDataUrl ? (
+          <View style={coverStyles.bigLogoWrap}>
+            {/* eslint-disable-next-line jsx-a11y/alt-text */}
+            <Image src={c.logoDataUrl} style={coverStyles.bigLogo} />
+          </View>
+        ) : null}
+        <Text style={[coverStyles.frontName, { color: colours.secondary }]}>{c.companyName}</Text>
+        <View style={[coverStyles.band, { backgroundColor: colours.primary }]}>
+          <Text style={coverStyles.bandTitle}>{c.title}</Text>
+          {c.reference ? <Text style={coverStyles.bandRef}>{c.reference} · Version {c.version}</Text> : null}
         </View>
-      ))}
-      <Text style={styles.histHead}>Change history</Text>
-      <View style={[styles.histRow, { borderBottomColor: GOLD }]}>
-        <Text style={[styles.histCell, { width: 50, color: MUTED }]}>Version</Text>
-        <Text style={[styles.histCell, { width: 80, color: MUTED }]}>Date</Text>
-        <Text style={[styles.histCell, { flex: 1, color: MUTED }]}>What changed</Text>
-        <Text style={[styles.histCell, { width: 130, color: MUTED }]}>Approved by</Text>
-      </View>
-      {c.history.map((h) => (
-        <View key={h.version} style={styles.histRow} wrap={false}>
-          <Text style={[styles.histCell, { width: 50 }]}>{h.version}</Text>
-          <Text style={[styles.histCell, { width: 80 }]}>{h.date}</Text>
-          <Text style={[styles.histCell, { flex: 1 }]}>{h.change}</Text>
-          <Text style={[styles.histCell, { width: 130 }]}>{h.approvedBy ?? ""}</Text>
+      </Page>
+      <Page size="A4" style={coverStyles.second}>
+        {c.logoDataUrl ? (
+          <View style={coverStyles.cornerWrap} fixed>
+            {/* eslint-disable-next-line jsx-a11y/alt-text */}
+            <Image src={c.logoDataUrl} style={coverStyles.cornerLogo} />
+          </View>
+        ) : null}
+        {review ? (
+          <>
+            <Text style={coverStyles.heading}>Audit Checklist and Report</Text>
+            <View style={coverStyles.table}>
+              {audit.map(([k, v, h], i) => (
+                <TableRow key={k} label={k} value={v} minHeight={h} last={i === audit.length - 1} />
+              ))}
+            </View>
+          </>
+        ) : null}
+        <Text style={review ? coverStyles.sub : coverStyles.heading}>Document control</Text>
+        <View style={coverStyles.table}>
+          {control.map(([k, v], i) => (
+            <TableRow key={k} label={k} value={v} last={i === control.length - 1} />
+          ))}
         </View>
-      ))}
-      <View style={styles.footer} fixed>
-        <Text style={styles.footerText}>
-          {c.reference ? `${c.reference} · ` : ""}
-          {c.title} · version {c.version}
-        </Text>
-        <Text style={styles.footerText}>Uncontrolled when printed. The current version is held in Be Care Compliant.</Text>
-      </View>
-    </Page>
+        <Text style={coverStyles.sub}>Change history</Text>
+        <View style={coverStyles.table}>
+          <HistoryRow cells={["Version", "Date", "What changed", "Approved by"]} bold />
+          {c.history.map((h, i) => (
+            <HistoryRow
+              key={h.version}
+              cells={[String(h.version), h.date, h.change, h.approvedBy ?? ""]}
+              last={i === c.history.length - 1}
+            />
+          ))}
+        </View>
+        <View style={styles.footer} fixed>
+          <Text style={styles.footerText}>
+            {c.reference ? `${c.reference} · ` : ""}
+            {c.title} · version {c.version}
+          </Text>
+          <Text style={styles.footerText}>Uncontrolled when printed. The current version is held in Be Care Compliant.</Text>
+        </View>
+      </Page>
+    </>
   );
 }
 

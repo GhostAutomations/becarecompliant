@@ -73,5 +73,15 @@ Bevan first, then Thistle and every company.
 - PRG4 PASS: Driving for Work written from the full HSE driving guide [S1] plus two GOV.UK sources.
 - PCP1 PASS: cover page section on Write; Approved by "Not set" is right for Bevan (no Responsible Individual on the account).
 - PCP2 PASS: draft page carried Approved by, Applies to, Read and sign, Retention, Classification; Reference blank; What changed "First issue".
-- PCP3 FAIL then fixed: saved as POL-GEN-001, but the PDF opened from the library had no cover. The Open link draws written policies fresh (render.ts) and left the cover out. Now builds the cover from the saved version. Retest after deploy.
+- PCP3 FAIL then fixed: saved as POL-GEN-001, but the PDF opened from the library had no cover. The Open link draws written policies fresh (render.ts) and left the cover out. Now builds the cover from the saved version. Retest PASS: page 1 is the cover (company, title, POL-GEN-001, version 1, approved 06 October 2026 by Bev Admin, Admin, owner, next review 06 October 2027, applies to, read and sign, retention, classification, change history), then the policy, reference in every footer.
 - Note for Phil: references are HR, CARE or GEN by the policy's regulator tag, so Driving for Work is GEN, not Health & Safety.
+
+## Cover page like Thistle's (0410, 2026-10-06)
+Phil's example: Thistle's Recruitment Process and Procedure. Decisions: logo large in the middle (no cover picture upload), two colour pickers in Branding (BCC navy and gold until set), page 2 is the Audit Checklist and Report then the ISO details, Reason for Review asked on approval.
+- PCT1 Settings, Branding: Document colours with Main colour and Second colour pickers and a live preview; Save colours saves; "Use Be Care Compliant colours" puts navy and gold back.
+- PCT2 Page 1: logo top right, logo large in the middle, company name in the second colour, band in the main colour with the policy title and reference in white. No footer.
+- PCT3 Page 2: logo top right; Audit Checklist and Report table (date of review, date of last review, name and role, reason, changes, next review), then Document control and Change history, reference in the footer. Dates written 6th October 2026.
+- PCT4 The draft page asks Reason for review (New policy for a new one, Annual review for a next version); the chosen reason prints on the cover.
+- PCT5 "Reviewed, no changes needed" on the review register: the cover then shows that day, the person who pressed it, Annual review, None, and the earlier approval as the last review.
+- PCT6 No logo: page 1 shows the company name and band only, nothing broken.
+- Rendered here first with a sample (Bevan's details, a sample logo and colours): both pages match Phil's layout.

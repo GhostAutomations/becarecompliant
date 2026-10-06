@@ -67,6 +67,7 @@ export async function renderWrittenPolicy(
     version: wanted,
     title: policy.title as string,
     companyName,
+    currentVersion: policy.version as number,
   });
   const pdf = await renderPolicyPdf({
     companyName,

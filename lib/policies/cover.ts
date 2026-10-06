@@ -90,4 +90,115 @@ export type CoverPage = {
   retention: string;
   classification: string;
   history: Array<{ version: number; date: string; change: string; approvedBy: string | null }>;
+  /** Front page, laid out like Thistle's own policies (0410): the logo, and the two colours. */
+  logoDataUrl?: string | null;
+  colours?: DocumentColours;
+  /** The "Audit Checklist and Report" table on page 2. */
+  review?: CoverReview;
 };
+
+/* ---------- Thistle style front page and review table (Phil, 2026-10-06) ---------- */
+
+/** Be Care Compliant's own colours, used until a company sets its own in Branding. */
+export const DEFAULT_COLOURS = { primary: "#081231", secondary: "#f59e0b" } as const;
+export type DocumentColours = { primary: string; secondary: string };
+
+/** A colour from the picker, or null when it is not a six digit hex colour. */
+export function cleanHexColour(v: unknown): string | null {
+  const s = String(v ?? "").trim().toLowerCase();
+  return /^#[0-9a-f]{6}$/.test(s) ? s : null;
+}
+
+/** The company's colours with Be Care Compliant's filling any gap. */
+export function documentColours(primary: string | null | undefined, secondary: string | null | undefined): DocumentColours {
+  return {
+    primary: cleanHexColour(primary) ?? DEFAULT_COLOURS.primary,
+    secondary: cleanHexColour(secondary) ?? DEFAULT_COLOURS.secondary,
+  };
+}
+
+/** Why a version was reviewed, asked when it is approved. */
+export const REVIEW_REASONS = [
+  "New policy",
+  "Annual review",
+  "Change in law or guidance",
+  "Change in how we work",
+  "After an incident, complaint or concern",
+  "Inspection or audit finding",
+] as const;
+
+/** The reason from a form: one on the list, else New policy for a first version, Annual review after. */
+export function reviewReasonFrom(v: unknown, firstVersion: boolean): string {
+  const s = String(v ?? "").trim();
+  if ((REVIEW_REASONS as readonly string[]).includes(s)) return s;
+  return firstVersion ? "New policy" : "Annual review";
+}
+
+export type CoverReview = {
+  reviewedOn: string;
+  lastReviewOn: string;
+  reviewedBy: string;
+  reason: string;
+  changes: string;
+  nextReview: string;
+};
+
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/** "16th February 2026", the way Thistle's policies write a date. Europe/London. */
+export function ordinalDate(d: Date): string {
+  const [y, m, day] = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(d).split("-").map(Number);
+  const teen = day % 100 >= 11 && day % 100 <= 13;
+  const suffix = teen ? "th" : day % 10 === 1 ? "st" : day % 10 === 2 ? "nd" : day % 10 === 3 ? "rd" : "th";
+  return `${day}${suffix} ${MONTHS[m - 1]} ${y}`;
+}
+
+/** Name with role, "Rebecca Long, Responsible Individual". */
+export function nameWithRole(name: string | null | undefined, role: string | null | undefined): string | null {
+  if (!name) return null;
+  return role ? `${name}, ${role}` : name;
+}
+
+export type VersionFact = {
+  version: number;
+  at: Date;
+  changeSummary: string | null;
+  reviewReason: string | null;
+  approvedByName: string | null;
+  approvedByRole: string | null;
+};
+
+/**
+ * The review table for one version. A later "Reviewed, no changes needed" on the current version
+ * counts as the latest review: dated that day, by whoever pressed it, Annual review, None.
+ */
+export function coverReview(opts: {
+  version: number;
+  versions: VersionFact[];
+  nextReview: Date;
+  laterReview?: { on: Date; byName: string | null; byRole: string | null } | null;
+}): CoverReview {
+  const sorted = [...opts.versions].sort((a, b) => a.version - b.version);
+  const mine = sorted.find((v) => v.version === opts.version);
+  const before = sorted.filter((v) => v.version < opts.version).pop();
+  const mineAt = mine?.at ?? new Date();
+  const later = opts.laterReview && opts.laterReview.on.getTime() > mineAt.getTime() ? opts.laterReview : null;
+  if (later) {
+    return {
+      reviewedOn: ordinalDate(later.on),
+      lastReviewOn: ordinalDate(mineAt),
+      reviewedBy: nameWithRole(later.byName, later.byRole) ?? "Not recorded",
+      reason: "Annual review",
+      changes: "None",
+      nextReview: ordinalDate(opts.nextReview),
+    };
+  }
+  return {
+    reviewedOn: ordinalDate(mineAt),
+    lastReviewOn: before ? ordinalDate(before.at) : "None, this is the first issue",
+    reviewedBy: nameWithRole(mine?.approvedByName, mine?.approvedByRole) ?? "Not recorded",
+    reason: mine?.reviewReason ?? (opts.version === 1 ? "New policy" : "Annual review"),
+    changes: mine?.changeSummary ?? (opts.version === 1 ? "First issue" : "Not recorded"),
+    nextReview: ordinalDate(opts.nextReview),
+  };
+}

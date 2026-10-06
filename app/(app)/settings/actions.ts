@@ -10,6 +10,7 @@ import { createServiceClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
 import { syncSeatQuantity } from "@/lib/billing/stripe-sync";
 import { uploadCompanyLogo } from "@/lib/invoicing/logo";
+import { cleanHexColour } from "@/lib/policies/cover";
 import { rebakeFormFieldOptions } from "@/lib/forms/rebake-options";
 import {
   createAndSendInvite,
@@ -144,6 +145,37 @@ export async function saveCompanyLogo(_prev: ActionState, formData: FormData): P
   });
   revalidatePath("/settings/branding");
   return { ok: "Logo saved" };
+}
+
+/** Company Admin sets the two document colours (0410): the band behind a policy's title on its
+ *  cover, and the company name above it. "reset" goes back to Be Care Compliant's own. */
+export async function saveDocumentColours(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const ctx = await adminContext();
+  if (!ctx.ok) return { error: ctx.error };
+  const reset = formData.get("reset") === "1";
+  const primary = reset ? null : cleanHexColour(formData.get("brand_primary"));
+  const secondary = reset ? null : cleanHexColour(formData.get("brand_secondary"));
+  if (!reset && (!primary || !secondary)) return { error: "Choose both colours." };
+  const admin = createServiceClient();
+  const { data, error } = await admin
+    .from("companies")
+    .update({ brand_primary: primary, brand_secondary: secondary })
+    .eq("id", ctx.companyId)
+    .select("id");
+  if (error) return { error: "Could not save the colours. Please try again." };
+  if (!data?.length) return { error: "Could not save the colours. Please try again." };
+  await writeAudit({
+    companyId: ctx.companyId,
+    actorId: ctx.actor.id,
+    actorEmail: ctx.actor.email,
+    actorRole: ctx.actor.role,
+    action: "company.colours_updated",
+    entityType: "company",
+    entityId: ctx.companyId,
+    summary: reset ? "Document colours set back to Be Care Compliant's" : `Document colours set to ${primary} and ${secondary}`,
+  });
+  revalidatePath("/settings/branding");
+  return { ok: reset ? "Back to Be Care Compliant colours" : "Colours saved" };
 }
 
 /** Admin invites a Manager, Supervisor or Team Member into a branch. */

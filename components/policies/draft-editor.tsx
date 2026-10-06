@@ -17,7 +17,7 @@ import { approvePolicyDraft, discardPolicyDraft } from "@/lib/policies/ai-action
 import type { ImproveReview } from "@/lib/policies/ai-prompt";
 import { findPlaceholders } from "@/lib/policies/placeholders";
 import CoverFields from "@/components/policies/cover-fields";
-import { coverFromStored } from "@/lib/policies/cover";
+import { coverFromStored, REVIEW_REASONS } from "@/lib/policies/cover";
 
 type Source = { n: number; title: string; publisher: string; url: string; checkedOn: string };
 type Existing = { id: string; title: string };
@@ -193,6 +193,20 @@ export default function DraftEditor({
                 defaultValue={target === "new" ? "First issue" : ""}
                 placeholder={target === "new" ? "First issue" : "For example, updated for the new sick pay rules"}
               />
+            </div>
+            <div>
+              <label htmlFor="review_reason" className="form-label">Reason for review</label>
+              <select
+                id="review_reason"
+                name="review_reason"
+                key={target === "new" ? "new-reason" : "next-reason"}
+                defaultValue={target === "new" ? "New policy" : "Annual review"}
+              >
+                {REVIEW_REASONS.map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+              <p className="form-hint">Printed on the cover, in the Audit Checklist and Report.</p>
             </div>
           </div>
         </div>

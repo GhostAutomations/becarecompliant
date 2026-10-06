@@ -28,6 +28,7 @@ import type { ActionState } from "@/lib/forms";
 import { storePolicyBytes, uploadPolicyDocument } from "@/lib/assignments/storage";
 import { parsePolicyText, policyPlainText } from "@/lib/policies/text";
 import { renderPolicyPdf } from "@/lib/policies/pdf";
+import { reviewReasonFrom } from "@/lib/policies/cover";
 import { buildCoverPage, coverPatchFrom, referenceFor } from "@/lib/policies/cover-data";
 import { POLICY_ACK_FORM_KEY, type BriefingScope } from "@/lib/assignments/types";
 import { getEffectivePolicyRules } from "@/lib/assignments/data";
@@ -806,6 +807,7 @@ export async function createWrittenPolicy(
     body,
     actorId: user.id,
     changeSummary: String(formData.get("change_summary") ?? "").trim() || "First issue",
+    reviewReason: reviewReasonFrom(formData.get("review_reason"), true),
   });
   if (!stored.ok) {
     await supabase.from("company_policies").delete().eq("id", policy.id);
@@ -895,6 +897,7 @@ export async function updateWrittenPolicy(
     body,
     actorId: user.id,
     changeSummary: String(formData.get("change_summary") ?? "").trim() || "Updated",
+    reviewReason: reviewReasonFrom(formData.get("review_reason"), false),
   });
   if (!stored.ok) return { error: stored.error };
 
@@ -955,6 +958,8 @@ async function freezeWrittenVersion(opts: {
   actorId: string;
   /** For the cover page's change history (0404). */
   changeSummary: string;
+  /** Why it was reviewed, for the cover's Audit Checklist and Report (0410). */
+  reviewReason: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const blocks = parsePolicyText(opts.body);
   if (policyPlainText(blocks).length === 0) {
@@ -967,6 +972,7 @@ async function freezeWrittenVersion(opts: {
     title: opts.title,
     companyName: opts.companyName,
     changeSummary: opts.changeSummary,
+    reviewReason: opts.reviewReason,
   });
 
   let pdf: Buffer;
@@ -997,6 +1003,7 @@ async function freezeWrittenVersion(opts: {
     body: opts.body,
     created_by: opts.actorId,
     change_summary: opts.changeSummary,
+    review_reason: opts.reviewReason,
     approved_by_name: cover.approvedByName,
     approved_by_role: cover.approvedByRole,
   });

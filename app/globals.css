@@ -50,7 +50,7 @@
     @apply bg-navy-950 font-sans text-white;
   }
 
-  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]),
   select,
   textarea {
     @apply w-full appearance-none rounded-xl border border-white/20 bg-white/10 px-3.5 py-2.5 text-sm text-white shadow-sm backdrop-blur placeholder:text-white/40;
@@ -117,7 +117,7 @@
     @apply bg-navy-900 text-white;
   }
 
-  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):focus,
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]):focus,
   select:focus,
   textarea:focus {
     @apply outline-none;
@@ -140,6 +140,23 @@
 
   textarea {
     @apply min-h-24;
+  }
+
+  /* COLOUR PICKERS (0410, document colours in Branding): a rounded swatch the same height as
+     every other control, styled here once like every other input. */
+  input[type="color"] {
+    @apply h-11 w-16 shrink-0 cursor-pointer rounded-xl border border-white/20 bg-white/10 p-1 shadow-sm;
+  }
+  input[type="color"]::-webkit-color-swatch-wrapper {
+    padding: 0;
+  }
+  input[type="color"]::-webkit-color-swatch {
+    border: none;
+    border-radius: 0.6rem;
+  }
+  input[type="color"]::-moz-color-swatch {
+    border: none;
+    border-radius: 0.6rem;
   }
 
   input[type="checkbox"],
@@ -1573,7 +1590,7 @@ canvas {
 
 /* ---- No accidental zoom on input focus (iOS zooms when < 16px) ---- */
 @media (max-width: 767px) {
-  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]),
   select,
   textarea,
   .inline-cell,

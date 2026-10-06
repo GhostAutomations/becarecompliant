@@ -17,6 +17,7 @@
  */
 
 import { revalidatePath } from "next/cache";
+import { ROLE_LABELS } from "@/lib/nav";
 import { requirePolicyWriter } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
@@ -284,7 +285,7 @@ export async function approvePolicyDraft(_prev: ActionState, fd: FormData): Prom
   const form = new FormData();
   form.set("body", body);
   /* The cover page and owner go with the policy, so the very first PDF prints them (0404). */
-  for (const k of ["cover_present", "approver_id", "applies_to", "read_by", "retention", "classification", "owner_id", "reference", "change_summary"]) {
+  for (const k of ["cover_present", "approver_id", "applies_to", "read_by", "retention", "classification", "owner_id", "reference", "change_summary", "review_reason"]) {
     const v = fd.get(k);
     if (typeof v === "string") form.set(k, v);
   }
@@ -395,6 +396,9 @@ export async function markPolicyReviewed(_prev: ActionState, fd: FormData): Prom
     .from("company_policies")
     .update({
       last_reviewed_on: today,
+      // Named on the cover's Audit Checklist and Report (0410).
+      last_reviewed_by_name: profile.full_name || profile.email,
+      last_reviewed_by_role: ROLE_LABELS[profile.role] ?? profile.role,
       review_due_on: due.toISOString().slice(0, 10),
       guidance_changed_at: null,
       guidance_change_note: null,
